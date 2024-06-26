@@ -1,0 +1,47 @@
+﻿
+
+@{
+    Layout = "~/Views/Shared/_PanelLayout.cshtml";
+}
+
+
+
+
+<div class="Page-Box">
+
+
+    <div class="Page-Box-Container">
+        <div class="Page-Box-Category">
+            <div class="Category-Box-Title">
+                Usuń produkt
+
+            </div>
+            <partial name="_ManageNavCol" />
+        </div>
+
+        <div class="Horizontal">
+            <img id="productImageDisplay" src="@Model.ProductImage" alt="Brak zdjęcia" onerror="this.onerror=null; this.src=''; this.alt='Brak zdjęcia';" />
+            
+            <form asp-action="DeleteConfirmed" method="post" class="Column-Form">
+                <div class="Order-Container-Title">
+                    Czy chcesz usunąć @Model.ProductName ?
+
+                </div>
+                <input type="hidden" name="id" value="@Model.ProductId" />
+
+                <div class="product-upper-box">
+
+                    <button type="submit" class="Button-Page-Small-r">Usuń produkt</button>
+
+                    <div>
+                        <a asp-action="Edit" class="Button-Page-Small" asp-route-id="@Model.ProductId">Anuluj</a>
+                    </div>
+
+                </div>     
+            </form>
+        </div>
+    </div>
+</div>
+
+
+

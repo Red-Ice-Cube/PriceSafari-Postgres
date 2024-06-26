@@ -1,0 +1,105 @@
+﻿@model Heat_Lead.Models.ManagerViewModels.ManagerOrderViewModel
+
+
+@{
+    Layout = "~/Views/Shared/_PanelLayout.cshtml";
+}
+
+
+<div class="Vert">
+    <div class="Vert-full">
+        <div class="order-upper-box">
+
+            <div class="Order-Container-Title">
+                Zamówienia
+                <div class="form-check-orders">
+                    <div>
+                        <input class="form-check-input" input type="checkbox" id="showAccepted"> Zaakceptowane
+                    </div>
+                    <div>
+                        <input class="form-check-input" input type="checkbox" id="showInValidation"> W walidacji
+                    </div>
+
+                </div>
+            </div>
+            <div class="order-search-box">
+                <input type="text" id="productSearch" placeholder="Wyszukaj produkt & kategorie">
+                <input type="text" id="orderSearch" placeholder="Wyszukaj zamówienie">
+            </div>
+
+        </div>
+        <div class="Vert-table">
+            <table class="table-orders">
+
+                <thead>
+                    <tr>
+                        <th scope="col">Partner </th>
+                        <th scope="col">Zamówienie </th>
+
+                        <th scope="col">Produkt</th>
+                        <th scope="col" class="sortable" data-sort="amount">
+                            Ilość <span class="sort-icon">&#9660;</span>
+                        </th>
+                        <th scope="col" class="sortable" data-sort="orderValue">
+                            Wartość sprzedaży <span class="sort-icon">&#9660;</span>
+                        </th>
+                        <th scope="col" class="sortable" data-sort="earnings">
+                            Komisja <span class="sort-icon">&#9660;</span>
+                        </th>
+
+                        <th scope="col" class="sortable" data-sort="date">
+                            Data <span class="sort-icon">&#9660;</span>
+                        </th>
+                        <th scope="col">Status walidacji</th>
+                        <th scope="col">Akceptacja</th>
+
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in Model.ManagerOrders)
+                    {
+                        <tr>
+                            <td>@item.AffiliateName @item.AffiliateSurname</td>
+                            <td>@item.OrderNumber</td>
+                            <td><p class="p-product">@item.ProductName</p><p class="p-category">@item.CategoryName</p></td>
+                            <td>@item.Amount</td>
+                            <td>@item.ProductPrice zł</td>
+                            <td>@item.Earnings zł</td>
+                            <td>@item.CreationDate.ToString("yyyy-MM-dd HH:mm")</td>
+                            <td>
+                                <div class="Validation @(item.Accepted ? "Validation-accepted" : (item.IsCancelled ? "Validation-cancelled" : ""))">
+                                    @if (item.IsCancelled)
+                                    {
+                                        <text>Anulowano</text>
+                                    }
+                                    else
+                                    {
+                                        <text>@item.ValidationStatus</text>
+                                    }
+                                </div>
+                            </td>
+                            <td>
+                                @if (item.InValidation) 
+                                {
+                                    <button data-order-id="@item.OrderId" class="Button-Page-Small">Zmień</button>
+                                }
+                            </td>
+
+                        </tr>
+                    }
+
+                </tbody>
+
+            </table>
+        </div>
+
+    </div>
+</div>
+
+<script>
+    var changeOrderAcceptanceUrl = '@Url.Action("ChangeOrderAcceptance", "ManagerOrder")';
+</script>
+
+<script src="/js/Manager/order.min.js"></script>
+
+

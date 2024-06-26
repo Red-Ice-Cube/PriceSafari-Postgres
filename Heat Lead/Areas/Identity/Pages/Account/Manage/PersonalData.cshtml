@@ -1,0 +1,23 @@
+﻿@page
+@model PersonalDataModel
+@{
+    ViewData["Title"] = "Dane osobowe";
+    ViewData["ActivePage"] = ManageNavPages.PersonalData;
+}
+
+<div class="Flex-Column">
+
+    <p>Twoje konto zawiera dane osobowe, które nam przekazałeś. Są to: imię, nazwisko, adres e-mail oraz numer telefonu.</p>
+
+    <p>
+        <strong>Usunięcie tych danych spowoduje trwałe usunięcie Twojego konta, i nie będzie możliwe jego odzyskanie.</strong>
+    </p>
+    <p>
+        <a id="delete" asp-page="DeletePersonalData" class="Button-Action-Big">Usuń konto</a>
+    </p>
+
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

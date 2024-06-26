@@ -1,0 +1,106 @@
+﻿@model Heat_Lead.Models.ManagerViewModels.ManagerPayoutViewModel
+
+
+
+@{
+    Layout = "~/Views/Shared/_PanelLayout.cshtml";
+}
+
+
+<div class="Vert">
+    <div class="Vert-full">
+       
+
+        <div class="order-upper-box">
+
+            <div class="Order-Container-Title">
+                Zlecenia wypłat od Partnerów
+                <div class="form-check-orders">
+                    <div>
+                        Łączna suma do wypłaty: <span id="totalAmount">0</span> zł
+                    </div>
+                    <div>
+                        Ilość wypłat do wykonania: <span id="payoutCount">0</span>
+                    </div>
+
+                </div>
+            </div>
+            <div class="Column-bottom">
+                <a asp-action="DonePayouts" class="Button-Page-Small">Historia wypłat</a>
+            </div>
+           
+        </div>
+
+        <div class="Vert-table">
+            <table class="table-orders">
+                <thead>
+                    <tr>
+                        <th scope="col">Numer wypłaty</th>
+                        <th scope="col">Imię i Nazwisko Partnera</th>
+                        <th scope="col">Kwota do wypłaty</th>
+                        <th scope="col">Data zlecenia</th>
+                        <th scope="col">Status</th>
+                        <th scope="col">Typ odbiorcy</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var payout in Model.PendingPayouts)
+                    {
+                        <tr data-paycheckid="@payout.PaycheckId" style="cursor: pointer;">
+                            <td>@payout.PaycheckId</td>
+                            <td>@payout.PartnerName @payout.PartnerSurname</td>
+                            <td>@payout.Amount zł</td>
+                            <td>@payout.CreationDate.ToString("dd-MM-yyyy")</td>
+                            <td>
+                                <div class="Validation @(payout.MoneySended ? "Validation-accepted" : "")">
+                                    @(payout.MoneySended ? "Wypłacono" : "Do opłacenia")
+                                </div>
+                            </td>
+                            <td>
+                                <div class="Validation @(payout.IsCompany ? "Validation-company" : "Validation-individual")">
+                                    @(payout.IsCompany ? "Firma" : "Osoba prywatna")
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        
+    </div>
+</div>
+
+
+<script>
+    $(document).ready(function () {
+        
+        $('.table-orders tbody tr').on('click', function () {
+            var paycheckId = $(this).data('paycheckid');
+            window.location.href = '/Payout/PayoutDetails/' + paycheckId;
+        });
+
+        function calculatePayouts() {
+            let totalAmount = 0;
+            let payoutCount = 0;
+
+            document.querySelectorAll('.table-orders tbody tr').forEach(row => {
+                const amount = parseFloat(row.cells[2].innerText.replace(' zł', ''));
+                const status = row.cells[4].innerText.trim();
+
+                if (status === 'Do opłacenia') {
+                    totalAmount += amount;
+                    payoutCount++;
+                }
+            });
+
+            document.getElementById('totalAmount').innerText = totalAmount.toFixed(2);
+            document.getElementById('payoutCount').innerText = payoutCount;
+        }
+
+        window.onload = calculatePayouts;
+    });
+</script>
+
+
+

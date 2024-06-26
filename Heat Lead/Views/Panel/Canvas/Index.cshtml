@@ -1,0 +1,382 @@
+﻿@model Heat_Lead.Models.ViewModels.CanvasViewModel
+
+@{
+    Layout = "~/Views/Shared/_PanelLayout.cshtml";
+}
+
+<style>
+    .ColumnScript {
+        width: 100%; 
+        padding: 10px;
+        display: flex;
+        gap: 32px;
+        flex-direction:column;
+        justify-content: flex-start; 
+        align-items: center;
+    }
+
+
+
+
+    .scriptContainer {
+        display: inline-flex;
+        width: 100%;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 10px;
+        border-top: 1px solid #eee;
+        border-left: 1px solid #eee;
+        border-radius: 8px 0px 0px 0px;
+        padding: 24px;
+    }
+
+
+    .script-preview {
+       display:flex;
+        align-items: center;
+        justify-content: center;
+     
+    }
+
+
+    .containerCopyJS {
+        display:flex;
+        width: 100%;
+        padding: 16px;
+        column-gap: 16px;
+
+
+    }
+
+    .scriptText{
+        display: flex;
+        align-content: center;
+        border-radius: 4px;
+        padding: 8px 16px;
+        flex-wrap: wrap;
+        color: #8B8B8B;
+        font-size: 15px;
+        font-weight: 400;
+        width: 450px;
+        border: none;
+        margin-left: 0px;
+        background: #ededed;
+     
+    }
+
+
+        .scriptText::-webkit-scrollbar {
+        width: 10px;
+        height: 10px;
+      
+    }
+
+        .scriptText::-webkit-scrollbar-track {
+        background: #ccc;
+        border-radius: 4px;
+    }
+
+        .scriptText::-webkit-scrollbar-thumb {
+        background-color: #ccc;
+        border: 3px solid #ededed;
+            
+    }
+
+            .scriptText::-webkit-scrollbar-thumb:hover {
+            background: #777;
+        }
+
+
+    .Button-Copy-JS {
+        justify-content: center;
+        align-content: center;
+        border-radius: 4px;
+        padding: 8px 16px;
+        cursor: pointer;
+        color: #fff;
+        height: 42px;
+        font-size: 15px;
+        font-weight: 400;
+        min-width:118px;
+        border: none;
+        margin-left: 0px;
+        background: rgba(255, 95, 27, 0.80);
+    }
+
+        .Button-Copy-JS:hover {
+            background: rgba(249, 49, 21, 0.90);
+            color: #fff;
+        }
+
+    .ButtonStyleCopyColumn {
+        display: flex;
+        flex-direction: column;
+    }
+
+</style>
+
+
+
+<div class="Page-Box">
+    <div class="Page-Box-Container">
+        <div class="Page-Box-Category">
+            <div class="Category-Box-Title">Banery JS</div>
+            <partial name="_JsNavCol" />
+        </div>
+        <div class="Horizontal">
+           <div class="Vert-Style">
+            <div class="Vert-Vert">
+                <div class="Vert-Vert-Left">
+                    <div class="Vert-Vert-Left-Title">
+                        Kopiowanie elementu
+                    </div>
+                    
+                </div>
+            
+            </div>
+            <div class="ColumnScript" id="scriptsContainer">
+              
+                <div class="scriptContainer template" style="display: none;">
+                   
+                    <div class="ButtonStyleCopyColumn">
+                        <div class="containerCopyJS">
+                            <div class="editFrameTitle" style="margin-top: 0px;">Styl</div>
+                            <select class="DropDown">
+                                <option value="">Styl Bazowy</option>
+                            </select>
+                            <button class="Button-Copy-JS">Kopiuj skrypt</button>
+                        </div>
+                        <pre class="scriptText"></pre>
+
+                    </div>
+                    <div class="resizable checkerboard">
+                        <div class="inner-element">
+                            <div class="script-preview"></div>
+                        </div>
+                    </div>
+                   
+                </div>
+            </div>
+           </div>
+
+        </div>
+    </div>
+</div>
+
+<div id="alertContainer" class="position-fixed bottom-0 end-0 p-3" style="z-index: 1031; right: 0; bottom: 0;"></div>
+
+<script>
+    $(document).ready(function () {
+        var affiliateLinkId = @Model.AffiliateLinkId;
+
+        $.ajax({
+            url: '@Url.Action("CheckScript", "CanvasJS")',
+            type: 'GET',
+            data: { affiliateLinkId: affiliateLinkId },
+            success: function (response) {
+                if (response.length > 0) {
+                    response.forEach(function (scriptData, index) {
+                        var $template = $('.template').clone().removeClass('template').show();
+
+                        $template.find('.DropDown').attr('id', 'DropDown' + index);
+                        $template.find('.Button-Copy-JS').attr('id', 'copyButton' + index).click(function () {
+                            copyToClipboard($template.find('.scriptText').text());
+                        });
+                        $template.find('.scriptText').attr('id', 'scriptText' + index).text(scriptData.scriptLink);
+                        $template.find('.script-preview').attr('id', 'script-preview' + index);
+
+                        $('#scriptsContainer').append($template);
+
+                        appendScript(scriptData.scriptLink, 'script-preview' + index);
+                        loadDropDown(scriptData.canvasJSId, scriptData.styleId, index);
+                    });
+                } else {
+                    $('#scriptsContainer').html('<button id="generateScriptBtn" class="Button-Page-Small-icon">Generate Script</button>');
+                    $('#generateScriptBtn').on('click', function () {
+                        generateScript(affiliateLinkId);
+                    });
+                }
+
+                enableResizable();
+            },
+            error: function () {
+                $('#scriptsContainer').html('Cannot load script data.');
+            }
+        });
+
+        function copyToClipboard(scriptText) {
+            var textArea = document.createElement("textarea");
+            textArea.value = scriptText;
+            textArea.style.position = 'fixed';
+            textArea.style.left = '0';
+            textArea.style.top = '0';
+            textArea.style.opacity = '0';
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+
+            try {
+                var successful = document.execCommand('copy');
+                var msg = successful ? 'Skopiowano link do baneru' : 'Nie udało się skopiować.';
+                showCopyAlert(msg, successful ? 'success' : 'danger');
+            } catch (err) {
+                showCopyAlert('Nie udało się skopiować. ' + err, 'danger');
+            }
+
+            document.body.removeChild(textArea);
+        }
+
+        function showCopyAlert(message, alertType) {
+            const alertPlaceholder = document.getElementById('alertContainer');
+
+            alertPlaceholder.innerHTML = '';
+            const wrapper = document.createElement('div');
+            wrapper.innerHTML = [
+                `<div class="alert alert-${alertType} d-flex align-items-center justify-content-center" role="alert" style="min-height: 50px; width: auto; color: #FFF; background: rgba(255, 95, 27, 0.80);  padding: 0.4rem 1.2rem;">`,
+                `   <div class="text-center">${message}</div>`,
+                '</div>'
+            ].join('');
+
+            alertPlaceholder.append(wrapper);
+
+            alertPlaceholder.style.position = 'fixed';
+            alertPlaceholder.style.left = '50%';
+            alertPlaceholder.style.bottom = '50px';
+            alertPlaceholder.style.transform = 'translateX(-40%)';
+            alertPlaceholder.style.display = 'flex';
+            alertPlaceholder.style.justifyContent = 'center';
+            alertPlaceholder.style.alignItems = 'center';
+
+            setTimeout(() => {
+                wrapper.remove();
+            }, 3000);
+        }
+
+        function appendScript(scriptContent, containerId) {
+            console.log('Starting to append script...');
+            var container = document.getElementById(containerId);
+            container.innerHTML = '';
+
+            var script = document.createElement('script');
+            script.type = 'text/javascript';
+
+            if (scriptContent.startsWith('<script')) {
+                var srcMatch = scriptContent.match(/src="([^"]+)"/);
+                if (srcMatch && srcMatch[1]) {
+                    script.src = srcMatch[1];
+                }
+
+                var dataCanvasIdMatch = scriptContent.match(/data-canvas-id="([^"]+)"/);
+                if (dataCanvasIdMatch && dataCanvasIdMatch[1]) {
+                    script.setAttribute('data-canvas-id', dataCanvasIdMatch[1]);
+                }
+            } else {
+                script.src = scriptContent;
+            }
+
+            container.appendChild(script);
+            console.log('Script added.');
+        }
+
+        function generateScript(affiliateLinkId) {
+            $.ajax({
+                url: '@Url.Action("GenerateScript", "CanvasJS")',
+                type: 'POST',
+                data: { affiliateLinkId: affiliateLinkId },
+                success: function () {
+                    location.reload();
+                },
+                error: function () {
+                    alert('Błąd przy generowaniu skryptu.');
+                }
+            });
+        }
+
+        function loadDropDown(canvasJSId, selectedStyleId, index) {
+            console.log('Requesting styles for CanvasJS ID:', canvasJSId);
+
+            $.ajax({
+                url: '@Url.Action("GetStyles", "CanvasJS")',
+                data: { canvasJSId: canvasJSId },
+                success: function (styles) {
+                    var $dropdown = $('#DropDown' + index);
+                    styles.forEach(function (style) {
+                        var option = $('<option>', {
+                            value: style.canvasJSStyleId,
+                            text: style.canvaStyleName,
+                            selected: style.canvasJSStyleId === selectedStyleId
+                        });
+                        $dropdown.append(option);
+                    });
+
+                    $dropdown.change(function () {
+                        var newStyleId = $(this).val();
+                        updateCanvasStyle(canvasJSId, newStyleId);
+                    });
+                },
+                error: function (error) {
+                    console.error('Failed to load styles:', error);
+                }
+            });
+        }
+
+        function updateCanvasStyle(canvasJSId, styleId) {
+            $.ajax({
+                url: '@Url.Action("UpdateCanvasStyle", "CanvasJS")',
+                type: 'POST',
+                data: { canvasJSId: canvasJSId, styleId: styleId },
+                success: function () {
+                    console.log('Style updated, reloading script...');
+                    location.reload();
+                },
+                error: function () {
+                    alert('Error updating style.');
+                }
+            });
+        }
+
+        function reloadScripts(affiliateLinkId) {
+            $.ajax({
+                url: '@Url.Action("CheckScript", "CanvasJS")',
+                type: 'GET',
+                data: { affiliateLinkId: affiliateLinkId },
+                success: function (responses) {
+                    responses.forEach(function (response, index) {
+                        if (response.exists) {
+                            $('#scriptText' + index).text(response.scriptLink);
+                            appendScript(response.scriptLink, 'script-preview' + index);
+                        }
+                    });
+                },
+                error: function () {
+                    $('.scriptContainer').html('Nie można załadować skryptu.');
+                }
+            });
+        }
+
+        function enableResizable() {
+            const elements = document.querySelectorAll('.resizable');
+
+            elements.forEach(el => {
+                let startX, startWidth;
+
+                el.addEventListener('mousedown', function (e) {
+                    startX = e.clientX;
+                    startWidth = parseInt(document.defaultView.getComputedStyle(el).width, 10);
+
+                    function doDrag(e) {
+                        el.style.width = (startWidth - (e.clientX - startX)) + 'px';
+                    }
+
+                    function stopDrag() {
+                        document.documentElement.removeEventListener('mousemove', doDrag, false);
+                        document.documentElement.removeEventListener('mouseup', stopDrag, false);
+                    }
+
+                    document.documentElement.addEventListener('mousemove', doDrag, false);
+                    document.documentElement.addEventListener('mouseup', stopDrag, false);
+                });
+            });
+        }
+    });
+</script>

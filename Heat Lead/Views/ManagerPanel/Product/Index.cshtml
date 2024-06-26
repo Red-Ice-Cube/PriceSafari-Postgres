@@ -1,0 +1,121 @@
+﻿@model Heat_Lead.Models.ManagerViewModels.ManagerProductViewModel
+
+
+@{
+    Layout = "~/Views/Shared/_PanelLayout.cshtml";
+}
+
+
+<div class="Page-Box">
+    <div class="Page-Box-Container">
+        <div class="Page-Box-Category">
+            <div class="Category-Box-Title">
+                Produkty
+            </div>
+            <partial name="_ManageNavCol" />
+        </div>
+        <div class="Horizontal">
+            <div class="product-upper-box">
+                <div>
+                    <a asp-controller="ProductAssignment" asp-action="Index" class="Button-Page-Small">
+                        Dodaj produkt
+                    </a>
+                </div>
+                <div class="order-search-box">
+                    <input type="text" id="productSearch" placeholder="Wyszukaj produkt">
+                </div>
+            </div>
+            <div class="Vert-table">
+                <table class="table-orders">
+                    <thead>
+                        <tr>
+                            <th scope="col">Produkty (<span id="productCount">0</span>)</th>
+                            <th></th>
+                            <th scope="col">ID</th>
+                            <th scope="col">ID produktu w sklepie</th>
+                            <th scope="col">Cena</th>
+                            <th scope="col">Komisja</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var product in Model.ProductDetails)
+                        {
+                            <tr data-productid="@product.ProductId" style="cursor: pointer;">
+
+                                <td>
+                                    <img src="@product.ProductImage" alt="@product.ProductName" width="80" height="80" />
+                                </td>
+                                <td>
+                                    <p>@product.ProductName</p>
+                                    <p>@product.ProductCategory</p>
+                                </td>
+                                <td>
+                                    @product.ProductId
+                                </td>
+                                <td>
+                                    @foreach (var idStore in product.ProductIdStores)
+                                    {
+                                        <p>@idStore</p>
+                                    }
+                                </td>
+                                <td>
+                                    @product.ProductPrice zł
+                                </td>
+                                <td>
+                                    @product.AffiliateCommission zł
+                                </td>
+                               
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+
+
+
+<script>
+    function calculateProducts() {
+        let productCount = 0;
+        document.querySelectorAll('.table-orders tbody tr').forEach(row => {
+            productCount++;
+
+        });
+        document.getElementById('productCount').innerText = productCount;
+    }
+    window.onload = calculateProducts;
+</script>
+
+<script>
+    $(document).ready(function () {
+     
+        $('#productSearch').on('keyup', function () {
+            var searchText = $(this).val().toLowerCase();
+            $('.table-orders tbody tr').each(function () {
+                var productName = $(this).find('td:nth-child(2)').text().toLowerCase();
+                $(this).toggle(productName.indexOf(searchText) > -1);
+            });
+        });
+
+        $('.table-orders tr[data-productid]').on('click', function () {
+            var productId = $(this).data('productid');
+            window.location.href = '/Product/Edit?id=' + productId; 
+        });
+
+        window.onload = calculateProducts;
+    });
+
+</script>
+
+<script>
+    $(document).ready(function () {
+        $('tbody tr').click(function () {
+            var productId = $(this).data('productid');
+            window.location.href = '/Product/Edit/' + productId;
+        });
+    });
+</script>

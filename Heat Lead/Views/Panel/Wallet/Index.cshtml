@@ -1,0 +1,238 @@
+﻿@model Heat_Lead.Models.ViewModels.WalletViewModel
+
+@{
+    Layout = "~/Views/Shared/_PanelLayout.cshtml";
+}
+
+<div class="Vert">
+    <div class="Vert-1">
+        <div class="Vert-2-Right-Wallet">
+            <div class="Statistics-box" style="background: #004552">
+                <div class="Statistics-box-data">
+                    <div class="Statistics-box-data-value">
+                        @Model.InValidationEarnings zł
+                    </div>
+                    <div class="Statistics-box-data-name">Zarobki oczekujące</div>
+                </div>
+                <img src="~/images/Time-w.svg" alt="Panel Icon" class="Statistics-box-icon" />
+            </div>
+            <div class="Statistics-box" style="background:#06636C">
+                <div class="Statistics-box-data">
+                    <div class="Statistics-box-data-value">
+                        @Model.ReadyEarnings zł
+                    </div>
+                    <div class="Statistics-box-data-name">Zarobki do wypłaty</div>
+                </div>
+                <img src="~/images/Wallet-w.svg" alt="Panel Icon" class="Statistics-box-icon" />
+            </div>
+            <div class="Statistics-box" style="background: #0E7E87">
+                <div class="Statistics-box-data">
+                    <div class="Statistics-box-data-value">
+                        @Model.PaidEarnings zł
+                    </div>
+                    <div class="Statistics-box-data-name">Łączna suma wypłat</div>
+                </div>
+                <img src="~/images/MoneyOut-w.svg" alt="Panel Icon" class="Statistics-box-icon" />
+            </div>
+        </div>
+        <div class="Withdraw">
+            <form asp-action="Withdraw" method="post" id="withdrawForm" class="Withdraw-Inner">
+                <div class="Withdraw-Inner-Title">
+                    Formularz wypłat
+                </div>
+                <div class="checkbox-blank" style="margin-top:24px;">
+                    <input type="checkbox" class="form-check-input" asp-for="WithdrawViewModel.IsCompany" id="isCompany" />
+                    <label asp-for="WithdrawViewModel.IsCompany" style="color: #5C5C5C;">Wypłata na firmę</label>
+                </div>
+                <div class="Withdraw-Inner-Data">
+                    <div class="form-group" style="width:100%;">
+                        <label asp-for="WithdrawViewModel.PostalCode" class="form-label">Kod pocztowy</label>
+                        <input type="text" class="form-control" asp-for="WithdrawViewModel.PostalCode" id="PostalCode" required />
+                        <p><span asp-validation-for="WithdrawViewModel.PostalCode" class="text-danger"></span></p>
+                    </div>
+                    <div class="form-group" style="width:100%;">
+                        <label asp-for="WithdrawViewModel.City">Miasto</label>
+                        <input type="text" class="form-control" asp-for="WithdrawViewModel.City" id="City" required />
+                        <p><span asp-validation-for="WithdrawViewModel.City" class="text-danger"></span></p>
+                    </div>
+                    <div class="form-group" style="width:100%;">
+                        <label asp-for="WithdrawViewModel.Address">Adres</label>
+                        <input type="text" class="form-control" asp-for="WithdrawViewModel.Address" id="Address" required />
+                        <p><span asp-validation-for="WithdrawViewModel.Address" class="text-danger"></span></p>
+                    </div>
+                </div>
+                <div id="personalFields" class="Withdraw-Inner-Data" style="display: block;">
+                    <div class="form-group" style="width:100%;">
+                        <label asp-for="WithdrawViewModel.TaxOffice">Urząd Skarbowy</label>
+                        <input type="text" class="form-control" asp-for="WithdrawViewModel.TaxOffice" id="TaxOffice" required />
+                        <p><span asp-validation-for="WithdrawViewModel.TaxOffice" class="text-danger"></span></p>
+                    </div>
+                    <div class="form-group" style="width:100%;">
+                        <label asp-for="WithdrawViewModel.Pesel">Numer PESEL</label>
+                        <input type="text" class="form-control" asp-for="WithdrawViewModel.Pesel" id="Pesel" maxlength="11" required pattern="\d{11}" title="Numer PESEL musi składać się z 11 cyfr" />
+                        <p><span asp-validation-for="WithdrawViewModel.Pesel" class="text-danger"></span></p>
+                    </div>
+                </div>
+                <div id="companyFields" class="Withdraw-Inner-Data" style="display: none;">
+                    <div class="form-group" style="width:100%;">
+                        <label asp-for="WithdrawViewModel.CompanyName">Nazwa firmy</label>
+                        <input type="text" class="form-control" asp-for="WithdrawViewModel.CompanyName" id="CompanyName" maxlength="100" >
+                        <p><span asp-validation-for="WithdrawViewModel.CompanyName" class="text-danger"></span></p>
+                    </div>
+                    <div class="form-group" style="width:100%;">
+                        <label asp-for="WithdrawViewModel.CompanyTaxNumber">NIP</label>
+                        <input type="text" class="form-control" asp-for="WithdrawViewModel.CompanyTaxNumber" id="CompanyTaxNumber" maxlength="10" required pattern="\d{10}" title="NIP musi składać się z 10 cyfr">
+                        <p><span asp-validation-for="WithdrawViewModel.CompanyTaxNumber" class="text-danger"></span></p>
+                    </div>
+                </div>
+                <div class="Withdraw-Inner-Data">
+                    <div class="form-group" style="width:100%;">
+                        <label asp-for="WithdrawViewModel.BankAccountNumber">Numer konta bankowego</label>
+                        <input type="text" class="form-control" asp-for="WithdrawViewModel.BankAccountNumber" id="BankAccountNumber" maxlength="26" required pattern="\d{26}" title="Numer konta bankowego musi składać się z 26 cyfr" />
+                        <p><span asp-validation-for="WithdrawViewModel.BankAccountNumber" class="text-danger"></span></p>
+                    </div>
+                </div>
+                <div class="Withdraw-Inner-Policy">
+                    <div class="checkbox-blank">
+                        <input type="checkbox" class="form-check-input" asp-for="WithdrawViewModel.AcceptsTerms" id="acceptsTerms" />
+                        <label asp-for="WithdrawViewModel.AcceptsTerms" class="form-label">
+                            Zapoznałem się i akceptuję <a href="/pdf/Regulamin.pdf" class="links-underline">regulamin</a> programu partnerskiego.
+                        </label>
+                        <p><span asp-validation-for="WithdrawViewModel.AcceptsTerms" class="text-danger"></span></p>
+                    </div>
+                    <div class="Withdraw-Inner-Policy-Policy">
+                        <p>Przez wypłacenie środków potwierdzasz, że wszystkie dane przez Ciebie podane są zgodne z prawdą.</p>
+                    </div>
+                    <div class="Withdraw-Inner-Policy-Policy" style="font-weight:500;">
+                        Minimalna kwota do wypłaty @Model.MinimumPayout zł
+                    </div>
+                </div>
+                <div class="Withdraw-Inner-Pay">
+                    <div class="Withdraw-Inner-Pay-Left">
+                        <div class="Withdraw-Inner-Left-Insert">
+                            <div class="form-group">
+                                <label asp-for="WithdrawViewModel.Amount">Kwota do wypłaty</label>
+                                <input type="number" class="form-control" asp-for="WithdrawViewModel.Amount" id="Amount" required step="0.01" min="0" title="Kwota musi być liczbą z maksymalnie dwoma miejscami po przecinku. Użyj kropki jako separatora dziesiętnego." />
+                                <p><span asp-validation-for="WithdrawViewModel.Amount" class="text-danger"></span></p>
+                            </div>
+                        </div>
+                    </div>
+                    <button type="submit" class="Button-Medium-Flex" style="width:80px; height:38px;">Wypłać</button>
+                </div>
+                @if (TempData["ErrorMessage"] != null)
+                {
+                    <div class="validation-summary-errors">
+                        @TempData["ErrorMessage"]
+                    </div>
+                }
+                @if (TempData["SuccessMessage"] != null)
+                {
+                    <div class="validation-summary-success">
+                        @TempData["SuccessMessage"]
+                    </div>
+                }
+            </form>
+        </div>
+    </div>
+    <div class="Vert-2">
+        <div class="order-upper-box">
+            <div class="Order-Container-Title">
+                Twoje wypłaty
+            </div>
+        </div>
+        <div class="Vert-table">
+            <table class="table-orders">
+                <thead>
+                    <tr>
+                        <th scope="col">Numer wypłaty</th>
+                        <th scope="col">Wypłacona kwota</th>
+                        <th scope="col">Data</th>
+                        <th scope="col">Status</th>
+                    </tr>
+                </thead>
+                <tbody id="paycheckHistory">
+                    <tr>
+                        <td colspan="4">Ładowanie...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+
+</div>
+
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        fetch('/Wallet/GetPaycheckHistory')
+            .then(response => response.json())
+            .then(data => {
+                const tbody = document.getElementById('paycheckHistory');
+                tbody.innerHTML = ''; 
+
+                if (data.length > 0) {
+                    data.forEach(paycheck => {
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td>${paycheck.paycheckId}</td>
+                            <td>${paycheck.amount} zł</td>
+                            <td>${new Date(paycheck.creationDate).toLocaleDateString()}</td>
+                            <td>
+                                <div class="Validation ${paycheck.moneySended ? 'Validation-accepted' : ''}">
+                                    ${paycheck.moneySended ? 'Wypłacono' : 'W trakcie'}
+                                </div>
+                            </td>
+                        `;
+                        tbody.appendChild(row);
+                    });
+                } else {
+                    tbody.innerHTML = '<tr><td colspan="4">Brak wypłat do wyświetlenia</td></tr>';
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching paycheck history:', error);
+                const tbody = document.getElementById('paycheckHistory');
+                tbody.innerHTML = '<tr><td colspan="4">Wystąpił błąd podczas ładowania danych</td></tr>';
+            });
+    });
+
+</script>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const isCompanyCheckbox = document.getElementById('isCompany');
+        const companyFields = document.getElementById('companyFields');
+        const personalFields = document.getElementById('personalFields');
+        const peselField = document.getElementById('Pesel');
+        const taxOfficeField = document.getElementById('TaxOffice');
+        const companyNameField = document.getElementById('CompanyName');
+        const companyTaxNumberField = document.getElementById('CompanyTaxNumber');
+
+        function toggleFields(isCompany) {
+            if (isCompany) {
+                companyFields.style.display = '';
+                companyNameField.required = true;
+                companyTaxNumberField.required = true;
+                personalFields.style.display = 'none';
+                peselField.required = false;
+                taxOfficeField.required = false;
+            } else {
+                companyFields.style.display = 'none';
+                companyNameField.required = false;
+                companyTaxNumberField.required = false;
+                personalFields.style.display = '';
+                peselField.required = true;
+                taxOfficeField.required = true;
+            }
+        }
+
+        toggleFields(isCompanyCheckbox.checked);
+
+        isCompanyCheckbox.addEventListener('change', function () {
+            toggleFields(this.checked);
+        });
+    });
+
+
+</script>

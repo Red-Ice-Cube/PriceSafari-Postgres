@@ -1,0 +1,60 @@
+﻿@model Heat_Lead.Models.ViewModels.PromoteViewModel
+
+@{
+    Layout = "~/Views/Shared/_PanelLayout.cshtml";
+}
+
+<div class="Vert">
+    <div class="Vert-table-g">
+        @using (Html.BeginForm("GenerateCodesForCart", "CartCode", FormMethod.Post, new { id = "campaignForm" }))
+      
+        {
+          @Html.AntiForgeryToken()
+            <div class="Vert-Vert">
+                <div class="Vert-Vert-Left">
+                    <div class="Vert-Vert-Left-Title">
+                        Tworzenie kampanii reklamowej
+                    </div>
+                    <div class="Vert-Vert-Left-Box-Input">
+                        <input type="text" id="campaignName" name="CampaignName" required placeholder="Nazwa kampanii" maxlength="40" />
+                    </div>
+                </div>
+                <div class="Vert-Vert-Right">
+                    <button type="button" class="Button-Action-Big" onclick="submitGenerateCodesForCart()">Utwórz kampanie</button>
+
+                </div>
+            </div>
+        }
+
+       
+        <div class="Vert-Vert-flow">
+            <table class="table-products">
+                <thead>
+                    <tr>
+                        <th scope="col">Produkt</th>
+                        <th scope="col"></th>
+                        <th scope="col">Twój zarobek</th>
+                        <th scope="col">Cena</th>
+                        <th scope="col">Czas walidacji</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var product in Model.Products)
+                    {
+                        <tr data-id="@product.ProductId">
+                            <td><img src="@product.ProductImage" alt="@product.ProductName" width="75" height="75" /></td>
+                            <td><p class="p-product">@product.ProductName</p><p class="p-category">@product.Category.CategoryName</p></td>
+
+                            <td>@product.AffiliateCommission zł</td>
+                            <td>@product.ProductPrice zł</td>
+                            <td>@product.Category.Validation dni</td>
+
+                        </tr>
+                    }
+                </tbody>
+
+            </table>
+        </div>
+    </div>
+</div>
+<script src="/js/Affiliate/generate.min.js"></script>

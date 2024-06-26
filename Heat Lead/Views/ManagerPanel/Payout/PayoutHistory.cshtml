@@ -1,0 +1,124 @@
+﻿
+
+@{
+    Layout = "~/Views/Shared/_PanelLayout.cshtml";
+}
+
+<div class="Vert">
+    <div class="Vert-full">
+        <div class="order-upper-box">
+            <div class="Order-Container-Title">
+                Dane wypłaty
+            </div>
+            <div class="Column-bottom">
+                <a asp-action="DonePayouts" class="Button-Page-Small">Wróć do wypłat</a>
+            </div>
+        </div>
+
+        <div class="Withdraw-Inner-Data-Display">
+            <div class="Withdraw-Inner-Data-Personal-Display">
+                <div class="form-group">
+                    Imię i Nazwisko Partnera
+                    <div class="Horizontal">
+                        <div class="form-control">@Model.PartnerName @Model.PartnerSurname</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="Withdraw-Inner-Data-Personal-Display">
+                <div class="form-group">
+                    Adres email
+                    <div class="Horizontal">
+                        <div class="form-control">@Model.PartnerEmail</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="Withdraw-Inner-Data-Personal-Display">
+                <div class="form-group">
+                    Miasto
+                    <div class="Horizontal">
+                        <div class="form-control">@Model.City</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="Withdraw-Inner-Data-Personal-Display">
+                <div class="form-group">
+                    Adres
+                    <div class="Horizontal">
+                        <div class="form-control">@Model.Address</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="Withdraw-Inner-Data-Personal-Display">
+                <div class="form-group">
+                    Kod Pocztowy
+                    <div class="Horizontal">
+                        <div class="form-control">@Model.PostalCode</div>
+                    </div>
+                </div>
+            </div>
+
+            @if (Model.IsCompany)
+            {
+                <div class="Withdraw-Inner-Data-Personal-Display">
+                    <div class="form-group">
+                        Nazwa firmy
+                        <div class="Horizontal">
+                            <div class="form-control">@Model.CompanyName</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="Withdraw-Inner-Data-Personal-Display">
+                    <div class="form-group">
+                        NIP firmy
+                        <div class="Horizontal">
+                            <div class="form-control">@Model.TaxNumber</div>
+                        </div>
+                    </div>
+                </div>
+            }
+            else
+            {
+                <div class="Withdraw-Inner-Data-Personal-Display">
+                    <div class="form-group">
+                        PESEL
+                        <div class="Horizontal">
+                            <div class="form-control">@Model.Pesel</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="Withdraw-Inner-Data-Personal-Display">
+                    <div class="form-group">
+                        Urząd skarbowy
+                        <div class="Horizontal">
+                            <div class="form-control">@Model.TaxOffice</div>
+                        </div>
+                    </div>
+                </div>
+            }
+
+            <div class="Withdraw-Inner-Data-Personal-Display">
+                <div class="form-group">
+                    Numer konta bankowego
+                    <div class="Horizontal">
+                        <div class="form-control">@Model.BankAccountNumber</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="Withdraw-Inner-Data-Personal-Display">
+                <div class="form-group">
+                    Wypłacona kwota
+                    <div class="Horizontal">
+                        <div class="form-control">@Model.Amount</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

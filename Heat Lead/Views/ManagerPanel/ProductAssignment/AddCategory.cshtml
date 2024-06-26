@@ -1,0 +1,64 @@
+﻿@model Heat_Lead.Models.Category
+
+@{
+    Layout = "~/Views/Shared/_PanelLayout.cshtml";
+}
+
+<div class="Page-Box">
+    <div class="Page-Box-Container">
+        <div class="Page-Box-Category">
+            <div class="Category-Box-Title">
+                Dodaj Kategorie
+            </div>
+            <partial name="_ManageNavCol" />
+        </div>
+        <div class="Column-30">
+            <form asp-action="AddCategory" method="post" class="Column-Form">
+                <div class="Column">
+                    <label>Wybierz kanał sprzedaży:</label>
+                    <select asp-for="StoreId" asp-items="@ViewBag.Stores" class="DropDown" required>
+                        <option value=""></option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label asp-for="CodeTracking">Śledzenie kodów rabatowych:</label>
+                    <select asp-for="CodeTracking" class="DropDown">
+                        <option value="false">Nie</option>
+                        <option value="true">Tak</option>
+                    </select>
+                    <span asp-validation-for="CodeTracking" class="text-danger"></span>
+                </div>
+                <div class="form-group">
+                    <label asp-for="CategoryName">Nazwa kategorii:</label>
+                    <input asp-for="CategoryName" class="form-control" maxlength="24" />
+                    <span asp-validation-for="CategoryName" class="text-danger"></span>
+                </div>
+                <div class="form-group">
+                    <label asp-for="Validation">Walidacja (dni):</label>
+                    <input asp-for="Validation" class="form-control" />
+                    <span asp-validation-for="Validation" class="text-danger"></span>
+                </div>
+                <div class="form-group">
+                    <label asp-for="CommissionPercentage">Procentowa wartość prowizji (%):</label>
+                    <input asp-for="CommissionPercentage" class="form-control" type="number" step="0.01" />
+                    <span asp-validation-for="CommissionPercentage" class="text-danger"></span>
+                </div>
+                <div class="form-group">
+                    <button type="submit" class="Button-Add-Small">Dodaj kategorię</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+
+<script>
+    $(document).ready(function () {
+        
+        var $storeDropdown = $('#StoreId'); 
+        if ($storeDropdown.find('option').length > 1) {
+            
+            $storeDropdown.find('option:eq(1)').prop('selected', true);
+        }
+    });
+</script>

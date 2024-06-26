@@ -1,0 +1,67 @@
+﻿@model Heat_Lead.Models.ManagerViewModels.ManagerCategoryViewModel
+
+@{
+    Layout = "~/Views/Shared/_PanelLayout.cshtml";
+}
+
+<div class="Page-Box">
+    <div class="Page-Box-Container">
+        <div class="Page-Box-Category">
+            <div class="Category-Box-Title">
+                Kategorie
+            </div>
+            <partial name="_ManageNavCol" />
+        </div>
+        <div class="Horizontal">
+            <div class="product-upper-box">
+                <div>
+                    <a asp-controller="ProductAssignment" asp-action="AddCategory" class="Button-Page-Small">
+                        Dodaj kategorie
+                    </a>
+                </div>
+            </div>
+            <div class="Vert-table">
+                <table class="table-orders">
+                    <thead>
+                        <tr>
+                            <th scope="col">Nazwa</th>
+                            <th scope="col">Produkty</th>
+                            <th scope="col">Średnia prowizja (%)</th>
+                            <th scope="col">Czas walidacji</th>
+                            <th scope="col">Tracking kodów rabatowych</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var category in Model.CategoryDetails)
+                        {
+                            <tr data-categoryid="@category.CategoryId">
+                                <td>@category.CategoryName</td>
+                                <td>@category.NumberOfProducts</td>
+                                <td>@(category.CommissionPercentage.HasValue ? category.CommissionPercentage.Value.ToString("F2") : "Brak")</td>
+                                <td>@category.Validation dni</td>
+                                <td>@(category.CodeTracking ? "Tak" : "Nie")</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    $(document).ready(function () {
+        $('#productSearch').on('keyup', function () {
+            var searchText = $(this).val().toLowerCase();
+            $('.table-orders tbody tr').each(function () {
+                var productName = $(this).find('td:nth-child(1)').text().toLowerCase();
+                $(this).toggle(productName.indexOf(searchText) > -1);
+            });
+        });
+
+        $('.table-orders tr[data-categoryid]').on('click', function () {
+            var categoryId = $(this).data('categoryid');
+            window.location.href = '/Category/Edit/' + categoryId;
+        });
+    });
+</script>

@@ -1,0 +1,80 @@
+﻿@model IEnumerable<Heat_Lead.Models.ViewModels.StoreViewModel>
+@{
+
+    Layout = "~/Views/Shared/_PanelLayout.cshtml";
+}
+
+<div class="Page-Box">
+
+    <div class="Page-Box-Container">
+        <div class="Page-Box-Category">
+            <div class="Category-Box-Title">
+                Kanały sprzedaży
+
+            </div>
+            <partial name="_ManageNavCol" />
+        </div>
+        <div class="Horizontal">
+            <div class="product-upper-box">
+
+                <div>
+                    <a asp-controller="Store" asp-action="Create" class="Button-Page-Small">
+                        Dodaj kanał sprzedaży
+                    </a>
+                </div>
+
+            </div>
+            <div class="Vert-table">
+                <table class="table-orders">
+
+                    <thead>
+                        <tr>
+                            <th scope="col"></th>
+                            <th scope="col">ID</th>
+                            <th scope="col">Kod</th>
+                            <th scope="col">Nazwa</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var store in Model)
+                        {
+                            <tr data-storeid="@store.Id" style="cursor: pointer;">
+
+
+                                <td>
+                                    <img src="@store.Logo" class="img-container" alt="@store.Name"/>
+                                </td>
+                               
+                                <td>
+                                    @store.Id
+                                </td>
+
+                                <td>
+                                    @store.Code
+                                </td>
+
+                                <td>
+                                    @store.Name
+                                </td>
+
+                            </tr>
+                        }
+
+                    </tbody>
+
+                </table>
+            </div>
+        </div>
+
+    </div>
+
+</div>
+
+<script>
+    $(document).ready(function () {
+        $('tbody tr').click(function () {
+            var storeId = $(this).data('storeid');
+            window.location.href = '/Store/Edit/' + storeId;
+        });
+    });
+</script>

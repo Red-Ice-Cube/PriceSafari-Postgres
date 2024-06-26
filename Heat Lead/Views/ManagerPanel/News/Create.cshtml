@@ -1,0 +1,68 @@
+﻿@model Heat_Lead.Models.ManagerViewModels.ManagerNewsViewModel.ManagerNewsEditViewModel
+
+@{
+    Layout = "~/Views/Shared/_PanelLayout.cshtml";
+}
+
+
+
+<div class="Page-Box">
+
+
+    <div class="Page-Box-Container">
+        <div class="Page-Box-Category">
+            <div class="Category-Box-Title">
+                Utwórz wiadomość
+
+            </div>
+
+        </div>
+
+        <div class="Horizontal">
+
+
+            <img id="newsImageDisplay" src="" alt="Brak zdjęcia" onerror="this.onerror=null; this.src='@Url.Content("~/images/No-Photo.jpg")'; this.alt='Domyślny obraz';" />
+
+
+
+            <form asp-action="Create" method="post" class="Column-Form">
+                <input type="hidden" asp-for="NewsId" />
+
+
+                <div class="form-group">
+                    <label asp-for="Title" class="control-label">Tytuł</label>
+                    <input asp-for="Title" class="form-control" maxlength="40" title="Maksymalna długość 40 znaków" />
+                    <span asp-validation-for="Title" class="text-danger"></span>
+                </div>
+
+               
+                    <div class="form-group">
+                        <label asp-for="Message" class="control-label">Wiadomość</label>
+                        <textarea asp-for="Message" class="form-control" rows="8"></textarea>
+                        <span asp-validation-for="Message" class="text-danger"></span>
+                    </div>
+
+
+
+                <div class="form-group">
+                    <label asp-for="GraphicUrl" class="control-label">URL do grafiki</label>
+                    <input id="newsImageInput" asp-for="GraphicUrl" class="form-control" />
+                    <span asp-validation-for="GraphicUrl" class="text-danger"></span>
+                </div>
+
+
+                <div class="product-upper-box">
+
+                    <button type="submit" class="Button-Add-Small">Zapisz zmiany</button>
+
+
+                </div>
+
+            </form>
+        </div>
+    </div>
+</div>
+
+
+
+<script src="/js/Manager/news.min.js"></script>

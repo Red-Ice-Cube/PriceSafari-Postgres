@@ -1,0 +1,19 @@
+﻿
+@{
+    var controllerName = ViewContext.RouteData.Values["controller"]?.ToString();
+    var actionName = ViewContext.RouteData.Values["action"]?.ToString();
+
+    <div class="@(controllerName == "Product" ? "Flex-Column-Button-Active" : "Flex-Column-Button") menu-link" onclick="location.href='@Url.Action("Index", "Product")'">Produkty</div>
+    <div class="@(controllerName == "Category" ? "Flex-Column-Button-Active" : "Flex-Column-Button") menu-link" onclick="location.href='@Url.Action("Index", "Category")'">Kategorie</div>
+    <div class="@(controllerName == "ManagerAffiliate" ? "Flex-Column-Button-Active" : "Flex-Column-Button") menu-link" onclick="location.href='@Url.Action("Accounts", "ManagerAffiliate")'">Użytkownicy</div>
+    <div class="@(controllerName == "Settings" ? "Flex-Column-Button-Active" : "Flex-Column-Button") menu-link" onclick="location.href='@Url.Action("Index", "Settings")'">Ustawienia</div>
+
+
+
+    @if (User.IsInRole("Admin"))
+    {
+        <div class="@(controllerName == "Store" ? "Flex-Column-Button-Active" : "Flex-Column-Button") menu-link" onclick="location.href='@Url.Action("Index", "Store")'">Kanały sprzedaży</div>
+    }
+
+}
+

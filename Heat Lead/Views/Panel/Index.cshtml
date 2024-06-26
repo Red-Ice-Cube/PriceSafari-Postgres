@@ -1,0 +1,313 @@
+﻿@model Heat_Lead.Models.ViewModels.DashboardViewModel
+
+@{
+    Layout = "~/Views/Shared/_PanelLayout.cshtml";
+}
+
+<div class="View-Panel">
+    <div class="Vert">
+        <div class="Date">
+
+            <div class="Select-Line">
+
+                <button type="button" class="dateShortcut" data-range="today">Dziś</button>
+                <button type="button" class="dateShortcut" data-range="yesterday">Wczoraj</button>
+                <button type="button" class="dateShortcut" data-range="this-week">Bieżący tydzień</button>
+                <button type="button" class="dateShortcut" data-range="last-week">Poprzedni tydzień</button>
+                <button type="button" class="dateShortcut selected" data-range="this-month">Bieżący miesiąc</button>
+            </div>
+
+                <form method="post" id="dateRangeForm">
+
+                    <div class="dateSelect-box">
+
+                        <input type="date" class="dateSelect" name="StartDate" value="@Model.StartDate.ToString("yyyy-MM-dd")" min="2024-01-01" max="2030-12-31" />
+
+                    </div>
+
+                    <div class="dateSelect-box">
+
+                        <input type="date" class="dateSelect" name="EndDate" value="@Model.EndDate.ToString("yyyy-MM-dd")" min="2024-01-01" max="2030-12-31" />
+                    </div>
+
+                </form>
+
+        </div>
+    </div>
+
+    <div class="Vert">
+
+        <div class="Multi-Cover-Statistic-a">
+            <div class="Cover-Statistic-a">
+                <div class="Statistics-box" style="background:#004552">
+
+                    <div class="Statistics-box-data">
+                        <div class="Statistics-box-data-value"
+                             id="totalClicks">
+                            0
+                        </div>
+                        <div class="Statistics-box-data-name">Ruch na stronę</div>
+                    </div>
+
+                    <img src="~/images/Click-w.svg" alt="Panel Icon" class="Statistics-box-icon" />
+                </div>
+                <div class="Statistics-box-mini" style="background: #004552">
+                    <div class="Statistics-box-mini-data">
+                        Stosunek konwersji
+                    </div>
+                    <div class="Statistics-box-mini-data" id="CR">
+                        0.00 %
+                    </div>
+                </div>
+                <div class="Statistics-box-mini" style="background: #004552">
+                    <div class="Statistics-box-mini-data">
+                        Średni koszt kliku
+                    </div>
+                    <div class="Statistics-box-mini-data" id="EPC">
+                        0.00 zł
+                    </div>
+                </div>
+
+            </div>
+            <div class="Cover-Statistic">
+                <div class="Statistics-box" style="background: #06636C">
+
+                    <div class="Statistics-box-data">
+                        <div class="Statistics-box-data-value"
+                             id="totalOrders">
+                            0
+                        </div>
+                        <div class="Statistics-box-data-name">Zamówienia</div>
+
+                    </div>
+
+                    <img src="~/images/Basket-w.svg" alt="Panel Icon" class="Statistics-box-icon" />
+                </div>
+                <div class="Statistics-box-mini" style="background: #06636C">
+                    <div class="Statistics-box-mini-data">
+                        Zaakceptowane
+                    </div>
+                    <div class="Statistics-box-mini-data" id="acceptedOrders">
+                        0
+                    </div>
+                </div>
+                <div class="Statistics-box-mini" style="background: #06636C">
+                    <div class="Statistics-box-mini-data">
+                        Anulowane
+                    </div>
+                    <div class="Statistics-box-mini-data" id="canceledOrders">
+                        0
+                    </div>
+                </div>
+            </div>
+            <div class="Cover-Statistic">
+                <div class="Statistics-box" style="background:#0E7E87">
+                    <div class="Statistics-box-data">
+                        <div class="Statistics-box-data-value"
+                             id="totalSales">
+                            0.00 zł
+                        </div>
+                        <div class="Statistics-box-data-name">Wartość sprzedaży</div>
+                    </div>
+
+                    <img src="~/images/OrderValue-w.svg" alt="Panel Icon" class="Statistics-box-icon" />
+                </div>
+                <div class="Statistics-box-mini" style="background: #0E7E87">
+                    <div class="Statistics-box-mini-data">
+                        Zaakceptowana
+                    </div>
+                    <div class="Statistics-box-mini-data" id="acceptedSales">
+                        0.00 zł
+                    </div>
+                </div>
+                <div class="Statistics-box-mini" style="background: #0E7E87">
+                    <div class="Statistics-box-mini-data">
+                        Anulowana
+                    </div>
+                    <div class="Statistics-box-mini-data" id="canceledSales">
+                        0.00 zł
+                    </div>
+                </div>
+            </div>
+            <div class="Cover-Statistic">
+                <div class="Statistics-box" style="background:  #28A097">
+                    <div class="Statistics-box-data">
+                        <div class="Statistics-box-data-value"
+                             id="totalEarnings">
+                            0.00 zł
+                        </div>
+                        <div class="Statistics-box-data-name">Całkowite zarobki</div>
+                    </div>
+
+                    <img src="~/images/MoneyIn-w.svg" alt="Panel Icon" class="Statistics-box-icon" />
+                </div>
+                <div class="Statistics-box-mini" style="background:  #28A097">
+                    <div class="Statistics-box-mini-data">
+                        Zaakceptowane
+                    </div>
+                    <div class="Statistics-box-mini-data" id="acceptedEarnings">
+                        0.00 zł
+                    </div>
+                </div>
+                <div class="Statistics-box-mini" style="background:  #28A097">
+                    <div class="Statistics-box-mini-data">
+                        Anulowane
+                    </div>
+                    <div class="Statistics-box-mini-data" id="canceledEarnings">
+                        0.00 zł
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <div class="Vert">
+        <div class="News-box">
+
+            @if (Model.LatestNews != null)
+            {
+                <div class="News-box-content">
+                    <div class="News-box-info">
+                        @Model.LatestNews.Title
+                        <div class="News-summary-line">
+                            @Model.LatestNews.CreationDate.ToString("dd.MM.yyyy")
+                        </div>
+                    </div>
+                </div>
+                <div class="News-box-info">
+                    <div class="News-summary-line">
+                        @{
+                            string displayedMessage = Model.LatestNews?.Message ?? string.Empty;
+                            if (displayedMessage.Length > 420)
+                            {
+                                displayedMessage = displayedMessage.Substring(0, 420) + "...";
+                            }
+                        }
+                        @Html.Raw(displayedMessage)
+                        @if (!string.IsNullOrEmpty(Model.LatestNews.Message) && Model.LatestNews.Message.Length > 420)
+                        {
+                            <a href="@Url.Action("Index", "News", new { id = Model.LatestNews.NewsId })">Przejdź do aktualności</a>
+                        }
+                    </div>
+                    @if (!string.IsNullOrEmpty(Model.LatestNews.GraphicUrl))
+                    {
+                        <div class="News-graphic">
+                            <img src="@Model.LatestNews.GraphicUrl" alt="Obrazek" class="news-graphic-img" />
+                        </div>
+                    }
+                </div>
+
+            }
+            else
+            {
+                <p>Brak najnowszych wiadomości.</p>
+            }
+        </div>
+
+        <div class="Statistics-box-earnings-a">
+            <div class="Statistics-box-big-data">
+                <div class="Statistics-box-data">
+                    <div class="Statistics-box-data-value" style="color: #4E4E4E;">
+                        @Model.InValidationEarnings zł
+
+                    </div>
+                    <div class="Statistics-box-data-name" style="color: #4E4E4E;">Zarobki w walidacji</div>
+                </div>
+                <div class="Statistics-box-data">
+                    <div class="Statistics-box-data-value" style="color: #4E4E4E;">
+
+                        @Model.UserWallet.ReadyEarnings zł
+                    </div>
+                    <div class="Statistics-box-data-name" style="color: #4E4E4E;">Zarobki do wypłaty</div>
+                </div>
+                <img src="@Url.Content("~/images/Wallet-b.svg")" alt="Panel Icon" class="Statistics-box-icon" />
+
+            </div>
+            <div class="WalletChart-Box">
+                <canvas id="walletChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <div class="Vert">
+        <div class="Charts-Bar-a">
+            <div class="Select-Line">
+
+                <button type="button" class="agregationShortcut selected" id="showClicksChart">Ruch</button>
+                <button type="button" class="agregationShortcut" id="showOrdersChart">Zamówienia</button>
+                <button type="button" class="agregationShortcut" id="showSalesChart">Sprzedaż</button>
+                <button type="button" class="agregationShortcut" id="showEarningsChart">Prowizja</button>
+
+            </div>
+            <div class="Charts-Box-Bar-a">
+
+                <canvas id="clicksChart"></canvas>
+                <canvas id="earningsChart" style="display: none;"></canvas>
+                <canvas id="ordersChart" style="display: none;"></canvas>
+                <canvas id="salesChart" style="display: none;"></canvas>
+            </div>
+        </div>
+        <div class="Charts-Donought-a">
+
+            <div class="Charts-Box-Donought-a">
+                <div class="Select-Line">
+
+                    <button type="button" class="categoryShortcut selected" id="showcategoryClicksChart">Kliki kategoria</button>
+                    <button type="button" class="categoryShortcut" id="showcategoryEarningsChart">Zarobki kategoria</button>
+
+                </div>
+                <canvas id="categoryClicksChart"></canvas>
+                <canvas id="categoryEarningsChart" style="display: none;"></canvas>
+            </div>
+            <div class="Charts-Box-Donought-a-t">
+                <table class="table-clicks" id="tableCategoryClicksChart">
+                    <thead>
+                        <tr>
+                            <th scope="col">Kategoria</th>
+                            <th scope="col">Kliki</th>
+
+                        </tr>
+                    </thead>
+                    <tbody id="categoryTableBody">
+                        @foreach (var item in Model.CategoryClick)
+                        {
+                            <tr>
+                                <td>@item.CategoryName</td>
+                                <td>@item.CategoryClickCount</td>
+                            </tr>
+                        }
+                    </tbody>
+
+                </table>
+                <table class="table-earnings" id="tableCategoryEarningsChart" style="display: none;">
+                    <thead>
+                        <tr>
+                            <th scope="col">Kategoria</th>
+                            <th scope="col">Zarobki</th>
+
+                        </tr>
+                    </thead>
+                    <tbody id="earningsTableBody">
+                        @foreach (var item in Model.EarningsData)
+                        {
+                            <tr>
+                                <td>@item.Category</td>
+                                <td>@item.Earnings</td>
+                            </tr>
+                        }
+                    </tbody>
+
+                </table>
+
+            </div>
+        </div>
+
+    </div>
+
+</div>
+
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js"></script>
+
+    <script src="/js/Affiliate/panel.min.js"></script>

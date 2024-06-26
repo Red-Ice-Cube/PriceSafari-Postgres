@@ -1,0 +1,48 @@
+﻿@model Heat_Lead.Models.ViewModels.CreateStoreViewModel
+
+@{
+    ViewData["Title"] = "Create";
+    Layout = "~/Views/Shared/_PanelLayout.cshtml";
+}
+
+<div class="Page-Box">
+    <div class="Page-Box-Container">
+        <div class="Page-Box-Category">
+            <div class="Category-Box-Title">Dodaj kanał sprzedaży</div>
+            <partial name="_ManageNavCol" />
+        </div>
+        <div class="Horizontal">
+            <form asp-action="Create" method="post" class="Column-Form">
+                <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+                <div class="form-group">
+                    <label asp-for="StoreName" class="control-label">Nazwa sklepu</label>
+                    <input asp-for="StoreName" class="form-control" />
+                    <span asp-validation-for="StoreName" class="text-danger"></span>
+                </div>
+
+                <div class="form-group">
+                    <label asp-for="APIurl" class="control-label">API URL</label>
+                    <input asp-for="APIurl" class="form-control" />
+                    <span asp-validation-for="APIurl" class="text-danger"></span>
+                </div>
+
+                <div class="form-group">
+                    <label asp-for="APIkey" class="control-label">API Key</label>
+                    <input asp-for="APIkey" class="form-control" />
+                    <span asp-validation-for="APIkey" class="text-danger"></span>
+                </div>
+
+                <div class="form-group">
+                    <label asp-for="LogoUrl" class="control-label">URL Logo</label>
+                    <input asp-for="LogoUrl" class="form-control" />
+                    <span asp-validation-for="LogoUrl" class="text-danger"></span>
+                </div>
+
+                <div class="form-group">
+                    <input type="submit" value="Zapisz" class="Button-Add-Small" />
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

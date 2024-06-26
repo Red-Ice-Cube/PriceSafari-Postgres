@@ -1,0 +1,76 @@
+﻿@model Heat_Lead.Models.ManagerViewModels.SettingsViewModel
+
+@{
+    Layout = "~/Views/Shared/_PanelLayout.cshtml";
+}
+
+<div class="Page-Box">
+    <div class="Page-Box-Container">
+        <div class="Page-Box-Category">
+            <div class="Category-Box-Title">
+                Ustawienia
+            </div>
+            <partial name="_ManageNavCol" />
+        </div>
+        <div class="Column">
+            <div class="Column-Box">
+                <div class="Horizontal-1">
+                Minimalna wypłata
+                    <a asp-action="EditMinimumPayout" class="Button-Add-Small">Edytuj</a>
+                </div>
+                    <div class="value-box">@Model.MinimumPayout zł</div>          
+            </div>
+            <div class="Column-Box">
+                <div class="Horizontal-1">
+                    Ważność plików cookies
+                    <a asp-action="EditCookieLifeTime" class="Button-Add-Small">Edytuj</a>
+                </div>
+                <div class="value-box">@Model.CookieLifeTime dni</div>
+            </div>
+            <div class="Column-Box">
+                <div class="Horizontal-1">
+                    Maksymalna ilość zamówien na plik śledzący
+                    <a asp-action="EditOrdersPerClick" class="Button-Add-Small">Edytuj</a>
+                </div>
+                <div class="value-box">@Model.OrdersPerClick zamówień</div>
+            </div>
+            <div class="Column-Box">
+                <div class="Horizontal-1">
+                    Weryfikacja affiliantów
+                    <a asp-action="EditVerificationRequired" class="Button-Add-Small">Edytuj</a>
+                </div>
+                <div class="value-box">@(Model.VerificationRequired ? "Tak" : "Nie")</div>
+            </div>
+            <div class="Column-Box">
+                <div class="Horizontal-1">
+                    Interwał zapytania API
+                    <a asp-action="EditApiRequestInterval" class="Button-Add-Small">Edytuj</a>
+                </div>
+                <div class="value-box">@Model.ApiRequestInterval sekund</div>
+            </div>
+            <div class="Column-Box">
+                <div class="Horizontal-1">
+                    Zbieranie fingerprintów użytkowników
+                    <a asp-action="EditFingerPrintCollection" class="Button-Add-Small">Edytuj</a>
+                </div>
+                <div class="value-box">@(Model.CollectFingerPrint ? "Tak" : "Nie")</div>
+            </div>
+            <div class="Column-Box">
+                <div class="Horizontal-1">
+                    Wiązanie produktów po kodzie Ean
+                    <a asp-action="EditTrackByEan" class="Button-Add-Small">Edytuj</a>
+                </div>
+                <div class="value-box">@(Model.TrackByEan ? "Tak" : "Nie")</div>
+            </div>
+            <div class="Column-Box">
+                <div class="Horizontal-1">
+                    Opiekun programu
+                    <a asp-action="EditSupervisor" class="Button-Add-Small">Edytuj</a>
+                </div>
+                <div>@Model.SupervisorEmail</div>
+                <div>@Model.SupervisorNumber</div>
+            </div>
+           
+        </div>
+    </div>
+</div>

@@ -1,0 +1,31 @@
+﻿@{
+
+    Layout = "~/Views/Shared/_PanelLayout.cshtml";
+}
+
+
+
+<div class="Page-Box">
+
+    <div class="Category-Box-Title">Ustawienia Konta
+        <form id="logoutForm" class="form-inline" asp-area="Identity" asp-page="/Account/Logout" asp-route-returnUrl="@Url.Action("Index", "Home", new { area = "" })">
+            <button id="logout" type="submit" class="Button-Page-Small-r">Wyloguj się</button>
+        </form>
+
+    </div>
+    <div class="Page-Box-Container">
+        <div class="Page-Box-Category">
+
+            <partial name="_ManageNav" />
+        </div>
+        <div class="Page-Box-Items">
+            @RenderBody()
+        </div>
+    </div>
+        
+   
+</div>
+
+@section Scripts {
+    @RenderSection("Scripts", required: false)
+}

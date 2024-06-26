@@ -1,0 +1,145 @@
+﻿@model Heat_Lead.Models.ManagerViewModels.ManagerAffiliateViewModel
+
+
+
+@{
+    Layout = "~/Views/Shared/_PanelLayout.cshtml";
+}
+
+
+
+<div class="Vert">
+
+    <div class="Page-Title-Box">
+        <div class="Campaign-Container-Title">
+            Partnerzy
+
+        </div>
+
+        <div class="Select-Line">
+            <button id="sortNewest" class="dateShortcut">Najnowsi partnerzy</button>
+            <button id="sortOldest" class="dateShortcut">Najstarsi partnerzy</button>
+            <button id="sortHighestSales" class="dateShortcut">Największa sprzedaż</button>
+            <button id="sortLowestSales" class="dateShortcut">Najmniejsza sprzedaż</button>
+           
+
+        </div>
+
+  
+
+        <div class="campaign-search-box">
+            <input type="text" id="campaignSearch" placeholder="Wyszukaj Partnera">
+        </div>
+    </div>
+</div>
+    <div class="Vert-affiliate">
+
+            @foreach (var affiliate in Model.ManagerAffiliate)
+            {
+    
+                <div class="affiliate-wrapper" data-codepar="@affiliate.CodePAR">
+
+
+
+                        <div class="affiliate-box-head">
+                            <div class="campaign-box-head-name">
+                                @affiliate.Name @affiliate.Surname
+                                <div class="info-box-mini"><div class="new-affiliate">NEW</div><div class="top-affiliate"></div></div>
+                                
+                            </div>
+
+                            <div class="campaign-summary">
+                            
+                                <div class="campaign-summary-line">
+                                        <div class="campaign-summary-line-icon">
+                                            <img src="~/images/Affiliate-b.svg" alt="Panel Icon" width="18" height="18" />
+                                        </div>Kod Partnera: @affiliate.CodePAR
+                                </div>                               
+                                <div class="campaign-summary-line">
+                                    <div class="campaign-summary-line-icon">
+                                        <img src="~/images/Time-b.svg" alt="Panel Icon" width="18" height="18" />
+                                        </div>Data dołączenia:<div class="creationDate-data"></div>
+                                </div>
+                               
+                            </div>
+                <button onclick="redirectToProfile('@affiliate.CodePAR')" class="Button-Page-Small-border">Profil Partnera</button>
+                        </div>
+
+                        <div class="affiliate-box-data">
+                            <div class="affiliate-box-data-info">                                
+                                <div class="campaign-summary">
+                                    Cały okres
+                                    <div class="Hori-Line-w"></div>
+                                    <div class="campaign-summary-line">
+                                        <div class="campaign-summary-line-icon">
+                                            <img src="~/images/Click-b.svg" alt="Panel Icon" width="18" height="18" />
+                                    </div>Ruch na stronę:<div class="fullClicks-data">0</div>
+                                    </div>
+                                    <div class="campaign-summary-line">
+                                        <div class="campaign-summary-line-icon">
+                                            <img src="~/images/OrderValue-b.svg" alt="Panel Icon" width="18" height="18" />
+                                    </div>Sprzedaż:<div class="fullSales-data">0.00 zł</div>
+                                    </div>
+                                    <div class="campaign-summary-line">
+                                        <div class="campaign-summary-line-icon">
+                                        <img src="~/images/Basket-b.svg" alt="Panel Icon" width="18" height="18" />
+                                    </div>Zamówienia:<div class="fullOrders-data">0</div>
+                                    </div>
+                                    <div class="campaign-summary-line">
+                                        <div class="campaign-summary-line-icon">
+                                            <img src="~/images/Chart-b.svg" alt="Panel Icon" width="18" height="18" />
+                                    </div>Konwersja:<div class="fullOrdersToClicksRatio">0.00 %</div>
+                                    </div>
+                                  
+                                </div>
+                            </div>
+                     
+                            <div class="affiliate-box-data-info">
+                                <div class="campaign-summary">
+                                    Ostatnie 30 dni
+                                    <div class="Hori-Line-w"></div>
+                                    <div class="campaign-summary-line">
+                                        <div class="campaign-summary-line-icon">
+                                <img src="~/images/Click-b.svg" alt="Panel Icon" width="18" height="18" />
+                                    </div>Ruch na stronę:<div class="clicks-data">0</div>
+                                    </div>
+                                    <div class="campaign-summary-line">
+                                        <div class="campaign-summary-line-icon">
+                                <img src="~/images/OrderValue-b.svg" alt="Panel Icon" width="18" height="18" />
+                                        </div>Sprzedaż:<div class="sales-data">0.00 zł</div>
+                                    </div>
+                                    <div class="campaign-summary-line">
+                                        <div class="campaign-summary-line-icon">
+                                <img src="~/images/Basket-b.svg" alt="Panel Icon" width="18" height="18" />
+                                        </div>Zamówienia:<div class="orders-data">0</div>
+                                    </div>
+                                    <div class="campaign-summary-line">
+                                        <div class="campaign-summary-line-icon">
+                                            <img src="~/images/Chart-b.svg" alt="Panel Icon" width="18" height="18" />
+                                        </div>Konwersja:<div class="ordersToClicksRatio">0.00 %</div>
+                                    </div>
+
+                                </div>
+                            </div>
+                            <div class="chart-container">
+                                <canvas id="chart-@affiliate.CodePAR"></canvas>
+                            </div>
+                        </div>
+
+                    </div>
+                    
+              
+            }
+        
+    </div>
+
+
+
+
+
+<script>
+    var affiliatesDataUrl = '@Url.Action("GetAffiliatesData", "ManagerAffiliate")';
+    var profileRedirectUrl = '@Url.Action("Profile", "ManagerAffiliateProfile")';
+</script>
+
+<script src="/js/Manager/affiliates.min.js"></script>

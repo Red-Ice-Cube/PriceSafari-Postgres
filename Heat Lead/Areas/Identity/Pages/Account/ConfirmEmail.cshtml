@@ -1,0 +1,43 @@
+﻿@page
+@model ConfirmEmailModel
+
+@{
+    ViewData["Title"] = "Potwierdzenie e-maila";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<div class="main-page">
+    <div class="partner-banner">
+        <a href="@Url.Action("Index", "Home")">
+            <img src="~/images/Banner.png" alt="Home" class="menu-icon" />
+        </a>
+    </div>
+    <div class="login">
+        <div class="heat-lead"></div>
+
+
+
+        <div class="login-box">
+
+            <div class="login-box-head">
+                <div class="login-box-title">E-mail potwierdzony</div>
+                <div class="Main-Text">
+                    @if (Model.StatusMessage.Contains("weryfikację afiliacyjną"))
+                    {
+                        <p>Dziękujemy za potwierdzenie adresu e-mail. Aby dokończyć proces rejestracji, prosimy o uzupełnienie dodatkowych informacji o sobie.</p>
+                        <a href="/Identity/Account/AffiliateVerification?userId=@Model.UserId" class="Main-button">Dodaj opis</a>
+                    }
+                    else
+                    {
+                        <p>Dziękujemy za dołączenie do naszej społeczności i życzymy sukcesów w naszym programie partnerskim!</p>
+                        <a href="/Identity/Account/Login" class="Main-button">Logowanie</a>
+                    }
+                </div>
+            </div>
+
+
+        </div>
+       
+        <div class="heat-lead"><img src="~/images/Heat-Lead-B.png" /></div>
+    </div>
+</div>
