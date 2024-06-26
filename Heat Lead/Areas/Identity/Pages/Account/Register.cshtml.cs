@@ -158,14 +158,7 @@ namespace Heat_Lead.Areas.Identity.Pages.Account
                         values: new { area = "Identity", userId = userId, code = code, returnUrl = returnUrl },
                         protocol: Request.Scheme);
 
-                    var newWallet = new Wallet
-                    {
-                        UserId = user.Id
-                    };
-                    _context.Wallet.Add(newWallet);
-                    await _context.SaveChangesAsync();
-
-                    user.Wallet = newWallet;
+                    
                     await _userManager.UpdateAsync(user);
 
                     await _emailSender.SendEmailAsync(Input.Email, "Potwierdzenie adresu e-mail",

@@ -4,11 +4,11 @@
     {
         public ManagerPanelViewModel()
         {
-            ManagerAffiliateLink = new List<AffiliateLink>();
+        
             ManagerClickCount = new List<ManagerClickCountData>();
         }
 
-        public List<AffiliateLink> ManagerAffiliateLink { get; set; }
+     
         public List<ManagerClickCountData> ManagerClickCount { get; set; }
 
         public int PendingAffiliates { get; set; }

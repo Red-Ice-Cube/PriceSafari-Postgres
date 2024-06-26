@@ -10,20 +10,17 @@ public class Heat_LeadUser : IdentityUser
     public string PartnerSurname { get; set; }
     public string CodePAR { get; set; }
     public DateTime CreationDate { get; set; } = DateTime.Now;
-    public Wallet Wallet { get; set; }
+  
     public bool IsMember { get; set; } = true;
     public bool IsActive { get; set; } = true;
     public AffiliateVerification AffiliateVerification { get; set; }
 
-    public ICollection<Generator> Generator { get; set; }
-    public ICollection<AffiliateLink> AffiliateLink { get; set; }
-    public virtual ICollection<Paycheck> Paycheck { get; set; }
-    public virtual ICollection<CanvasJSStyle> CanvasJSStyles { get; set; } 
+ 
 
     public Heat_LeadUser()
     {
         CodePAR = GenerateUniqueCodePAR();
-        CanvasJSStyles = new HashSet<CanvasJSStyle>(); 
+     
     }
 
     private string GenerateUniqueCodePAR()

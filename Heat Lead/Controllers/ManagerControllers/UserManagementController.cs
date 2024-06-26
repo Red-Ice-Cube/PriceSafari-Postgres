@@ -68,11 +68,10 @@ namespace Heat_Lead.Controllers
                 var result = await _userManager.CreateAsync(user, model.Password);
                 if (result.Succeeded)
                 {
-                    var newWallet = new Wallet { UserId = user.Id };
-                    _context.Wallet.Add(newWallet);
+                    
                     await _context.SaveChangesAsync();
 
-                    user.Wallet = newWallet;
+                    
                     await _userManager.UpdateAsync(user);
 
                     await _userManager.AddToRoleAsync(user, model.SelectedRole);

@@ -1,16 +1,14 @@
 using Heat_Lead.Areas.Identity.Data;
 using Heat_Lead.Data;
 using Heat_Lead.DotEnv;
-using Heat_Lead.IRepo.Class;
-using Heat_Lead.IRepo.Interface;
 using Heat_Lead.Models;
-using Heat_Lead.Services;
-using Heat_Lead.Signal1R;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.EntityFrameworkCore;
+using PriceTracker.Hubs;
+using PriceTracker.Services;
 
-  //elo elo
+//elo elo
 public class Program
 {
     public static async Task Main(string[] args)
@@ -47,12 +45,15 @@ public class Program
 
         builder.Services.AddTransient<IEmailSender, EmailService>();
 
-        builder.Services.AddTransient<IApiService, ApiService>();
-        builder.Services.AddTransient<XmlGeneratorService>();
-        builder.Services.AddScoped<ISettingsService, SettingsService>();
-        builder.Services.AddHostedService<OrdersBackgroundService>();
-        builder.Services.AddScoped<IOrderService, OrderService>();
+
         builder.Services.AddSignalR();
+
+        // Register HttpClient for Scraper
+        builder.Services.AddHttpClient<Scraper>();
+
+        // Register Scraper as a service
+        builder.Services.AddScoped<Scraper>();
+
         builder.Services.AddMemoryCache();
         builder.Services.AddSession(options =>
         {
@@ -78,7 +79,6 @@ public class Program
         app.UseStaticFiles();
         app.UseRouting();
 
-        app.MapHub<UserTrackingHub>("/userTrackingHub");
         app.UseAuthorization();
 
         app.UseSession();
@@ -121,6 +121,9 @@ public class Program
                     await roleManager.CreateAsync(new IdentityRole(role));
             }
         }
+
+        // Map SignalR hub
+        app.MapHub<ScrapingHub>("/scrapingHub");
 
         await app.RunAsync();
     }

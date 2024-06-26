@@ -79,11 +79,8 @@ namespace Heat_Lead.Areas.Identity.Pages.Account.Manage
 
 
             var userId = await _userManager.GetUserIdAsync(user);
-            var orders = _context.Order.Where(o => o.UserId == userId).ToList();
-            foreach (var order in orders)
-            {
-                order.IsDeleted = true;
-            }
+           
+            
 
 
             user.IsActive = false;

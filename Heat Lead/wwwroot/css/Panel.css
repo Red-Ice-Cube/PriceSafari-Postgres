@@ -1001,7 +1001,7 @@ p {
             padding-bottom: 12px;
         }
 
-        
+
 
         .table-orders thead th {
             color: #fff;
@@ -1025,7 +1025,7 @@ p {
         font-weight: 400;
     }
 
-    
+
 
     .table-orders tbody tr:hover {
         background: #F4F4F4;
@@ -2027,6 +2027,7 @@ p {
     align-self: stretch;
     width: 250px;
 }
+
 .Statistics-box-mini-a {
     display: flex;
     padding: 12px 24px;
@@ -3502,4 +3503,35 @@ tr:last-child .sub-line {
     flex: 1;
     width: 100%;
     gap: 16px;
+}
+
+
+
+.colorFilter {
+    outline: none;
+    background-color: white;
+    border: 2px solid gray;
+    border-radius: 4px;
+}
+
+
+    .colorFilter:checked#blueCheckbox {
+        background-color: rgba(14, 126, 135, 0.5);
+        border: 2px solid rgba(14, 126, 135, 1);
+    }
+
+    .colorFilter:checked#yellowCheckbox {
+        background-color: rgba(240, 240, 105, 0.5);
+        border: 2px solid rgba(240, 240, 105, 1);
+    }
+
+    .colorFilter:checked#redCheckbox {
+        background-color: rgba(246, 78, 101, 0.5);
+        border: 2px solid rgba(246, 78, 101, 1);
+    }
+
+
+.colorFilter {
+    width: 16px;
+    height: 16px;
 }

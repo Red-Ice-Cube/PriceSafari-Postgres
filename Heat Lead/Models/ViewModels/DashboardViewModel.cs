@@ -4,7 +4,7 @@
     {
         public DashboardViewModel()
         {
-            AffiliateLink = new List<AffiliateLink>();
+          
             ClickCount = new List<ClickCountData>();
             EarningsData = new List<CodeEarnings>();
             WalletData = new List<WalletData>();
@@ -12,15 +12,15 @@
             Orders = new List<Orders>();
         }
 
-        public List<AffiliateLink> AffiliateLink { get; set; }
+      
         public List<ClickCountData> ClickCount { get; set; }
         public List<CodeEarnings> EarningsData { get; set; }
         public List<WalletData> WalletData { get; set; }
         public List<CategoryClick> CategoryClick { get; set; }
         public List<Orders> Orders { get; set; }
-        public Wallet UserWallet { get; set; }
+
         public decimal InValidationEarnings { get; set; }
-        public News LatestNews { get; set; }
+    
         public DateTime StartDate { get; set; }
         public DateTime EndDate { get; set; }
     }

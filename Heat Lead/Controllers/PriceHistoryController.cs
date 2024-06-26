@@ -54,7 +54,8 @@ namespace PriceTracker.Controllers
 
             ViewBag.Categories = categories;
 
-            return View();
+          
+            return View("~/Views/Panel/PriceHistory/Index.cshtml");
         }
 
 

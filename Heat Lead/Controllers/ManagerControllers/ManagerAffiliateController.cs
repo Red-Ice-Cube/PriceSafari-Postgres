@@ -274,73 +274,7 @@ namespace Heat_Lead.Controllers.ManagerControllers
 
             var affiliatesData = new List<AffiliateData>();
 
-            foreach (var affiliate in affiliates)
-            {
-                var clickDetailsQuery = _context.AffiliateLinkClick
-                    .Include(c => c.AffiliateLink)
-                    .Where(c => c.AffiliateLink.UserId == affiliate.Id && c.ClickTime >= startDate && c.ClickTime < endDate.AddDays(1))
-                    .GroupBy(c => c.ClickTime.Date)
-                    .Select(group => new ClickData
-                    {
-                        ClickTime = group.Key,
-                        Count = group.Count()
-                    });
-
-                var salesDetailsQuery = _context.Order
-                    .Where(o => o.Heat_LeadUser.Id == affiliate.Id && o.CreationDate >= startDate && o.CreationDate < endDate.AddDays(1))
-                    .GroupBy(o => o.CreationDate.Date)
-                    .Select(group => new SalesData
-                    {
-                        SaleTime = group.Key,
-                        Amount = group.Sum(o => o.ProductPrice)
-                    });
-
-                var orderDetails = await _context.Order
-                    .Where(o => o.Heat_LeadUser.Id == affiliate.Id && o.CreationDate >= startDate && o.CreationDate < endDate.AddDays(1))
-                    .CountAsync();
-
-                var fullOrders = await _context.Order
-                   .Where(o => o.Heat_LeadUser.Id == affiliate.Id)
-                   .CountAsync();
-
-                var clickDetails = await clickDetailsQuery.ToDictionaryAsync(c => c.ClickTime.Date);
-                var salesDetails = await salesDetailsQuery.ToDictionaryAsync(s => s.SaleTime.Date);
-
-                var fullClicks = await _context.AffiliateLink
-                    .Where(c => c.UserId == affiliate.Id)
-                    .SumAsync(c => c.ClickCount);
-
-                var fullSales = await _context.Order
-                    .Where(s => s.UserId == affiliate.Id)
-                    .SumAsync(c => c.ProductPrice);
-
-                var creationDate = _context.Users
-                    .Where(h => h.Id == affiliate.Id)
-                    .Select(h => h.CreationDate)
-                    .FirstOrDefault();
-
-                var affiliateData = new AffiliateData
-                {
-                    Affiliate = affiliate.CodePAR,
-                    TotalClicks = clickDetails.Values.Sum(c => c.Count),
-                    TotalSales = salesDetails.Values.Sum(s => s.Amount),
-                    TotalOrders = orderDetails,
-                    FullClicks = fullClicks,
-                    FullSales = fullSales,
-                    FullOrders = fullOrders,
-                    CreationDate = creationDate,
-                    Clicks = new List<ClickData>(),
-                    Sales = new List<SalesData>()
-                };
-
-                for (DateTime date = startDate; date < endDate; date = date.AddDays(1))
-                {
-                    affiliateData.Clicks.Add(clickDetails.ContainsKey(date) ? clickDetails[date] : new ClickData { ClickTime = date, Count = 0 });
-                    affiliateData.Sales.Add(salesDetails.ContainsKey(date) ? salesDetails[date] : new SalesData { SaleTime = date, Amount = 0 });
-                }
-
-                affiliatesData.Add(affiliateData);
-            }
+            
 
             return Json(affiliatesData);
         }
