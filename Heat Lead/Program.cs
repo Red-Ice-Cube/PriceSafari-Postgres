@@ -28,13 +28,13 @@ public class Program
       
         builder.Configuration.AddEnvironmentVariables();
 
-      
-        var dbServer = Environment.GetEnvironmentVariable("DB_SERVER");
-        var dbName = Environment.GetEnvironmentVariable("DB_NAME");
-        var dbUser = Environment.GetEnvironmentVariable("DB_USER");
-        var dbPassword = Environment.GetEnvironmentVariable("DB_PASSWORD");
 
-        var connectionString = $"Data Source={dbServer};Database={dbName};Uid={dbUser};Password={dbPassword};TrustServerCertificate=True";
+        //var dbServer = Environment.GetEnvironmentVariable("DB_SERVER");
+        //var dbName = Environment.GetEnvironmentVariable("DB_NAME");
+        //var dbUser = Environment.GetEnvironmentVariable("DB_USER");
+        //var dbPassword = Environment.GetEnvironmentVariable("DB_PASSWORD");
+
+        var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
 
         builder.Services.AddDbContext<Heat_LeadContext>(options => options.UseSqlServer(connectionString));
 
