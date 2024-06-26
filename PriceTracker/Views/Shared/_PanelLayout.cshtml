@@ -1,0 +1,237 @@
+﻿@using PriceTracker.Areas.Identity.Data;
+@using Microsoft.AspNetCore.Identity
+@inject UserManager<PriceTrackerUser> UserManager
+
+@{
+    var user = await UserManager.GetUserAsync(User);
+    var fullName = $"{user?.PartnerName} {user?.PartnerSurname}";
+}
+
+@{
+    bool isManagerOrAdmin = User.IsInRole("Manager") || User.IsInRole("Admin");
+    bool isMember = User.IsInRole("Member");
+}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@2.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/3.1.9/signalr.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.1/css/all.min.css">
+    <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/slick-carousel@1.8.1/slick/slick.css" />
+    <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/slick-carousel@1.8.1/slick/slick-theme.css" />
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.ckeditor.com/4.16.0/standard/ckeditor.js"></script>
+
+    <link rel="icon" type="image/png" sizes="16x16" href="~/icon/icon.png">
+
+    @* STYLE CSS *@
+
+    <link href="~/css/panel.css" rel="stylesheet" />
+
+    @RenderSection("Scripts", required: false)
+
+    @{
+        ViewData["Title"] = "_PanelLayout";
+    }
+
+    <script>
+        document.write('<style>.Sidebar, .Sidebar-hide { display: none; }</style>');
+        var sidebarState = localStorage.getItem('sidebarState');
+        if (sidebarState === 'hidden') {
+            document.write('<style>.Sidebar-hide { display: flex; }</style>');
+        } else {
+            document.write('<style>.Sidebar { display: flex; }</style>');
+        }
+    </script>
+
+</head>
+
+<body>
+    <div class="Sidebar">
+        <div class="Sidebar-box">
+            <div class="Sidebar-box-name">
+                <div class="BigB">@fullName</div>
+            </div>
+            <div class="Sidebar-box-container">
+                <div class="Sidebar-box-item-left">
+                    <div class="upper-menu-link">
+                        <img src="~/images/Affiliate-b.svg" alt="Menu" style="width: 24px; height: 24px;" /> <partial name="_LoginPartial" />
+                    </div>
+                </div>
+                <div class="Sidebar-box-item-right">
+                    <button id="toggleSidebar1" class="upper-menu-link">
+                        <img src="~/images/Menu-hide-b.svg" alt="Menu" style="width: 24px; height: 24px;" />
+                    </button>
+                </div>
+            </div>
+        </div>
+        <div class="Menu">
+
+            @if (isMember)
+            {
+                var controllerName = ViewContext.RouteData.Values["controller"]?.ToString();
+                var actionName = ViewContext.RouteData.Values["action"]?.ToString();
+
+                <div class="@(controllerName == "Index" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "Home")'">
+                    <img src="~/images/Chart-b.svg" alt="Panel Icon" class="menu-icon" />Panel
+                </div>
+                <div class="@(controllerName == "Store" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("CreateStore", "Store")'">
+                    <img src="~/images/Link-b.svg" alt="Panel Icon" class="menu-icon" />Dodaj Sklep
+                </div>
+                <div class="@(controllerName == "Store" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "Store")'">
+                    <img src="~/images/Link-b.svg" alt="Panel Icon" class="menu-icon" />Sklepy
+                </div>
+            }
+
+            @if (isManagerOrAdmin)
+            {
+                var controllerName = ViewContext.RouteData.Values["controller"]?.ToString();
+                var actionName = ViewContext.RouteData.Values["action"]?.ToString();
+
+                <div class="@(controllerName == "Index" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "Home")'">
+                    <img src="~/images/Chart-b.svg" alt="Panel Icon" class="menu-icon" />
+                </div>
+                <div class="@(controllerName == "Store" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("CreateStore", "Store")'">
+                    <img src="~/images/Link-b.svg" alt="Panel Icon" class="menu-icon" />
+                </div>
+                <div class="@(controllerName == "Store" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "Store")'">
+                    <img src="~/images/Link-b.svg" alt="Panel Icon" class="menu-icon" />
+                </div>
+            }
+        </div>
+        <div class="Sidebar-box">
+            <div class="HeatLead">
+                    <img src="~/images/Heat-Lead-B.png" alt="Menu" width="135" height="38" />
+            </div>
+        </div>
+    </div>
+
+    <div class="Sidebar-hide">
+        <div class="Sidebar-box">
+
+            <button id="toggleSidebar2" class="upper-menu-link">
+                <img src="~/images/Menu-expand-b.svg" alt="Menu" style="width: 24px; height: 24px;" />
+            </button>
+        </div>
+        <div class="Menu-hide">
+
+            @if (isMember)
+            {
+                var controllerName = ViewContext.RouteData.Values["controller"]?.ToString();
+                var actionName = ViewContext.RouteData.Values["action"]?.ToString();
+
+                <div class="@(controllerName == "Panel" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "Panel")'">
+                    <img src="~/images/Chart-b.svg" alt="Panel Icon" class="menu-icon" />
+                </div>
+                <div class="@(controllerName == "Promote" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "Promote")'">
+                    <img src="~/images/Link-b.svg" alt="Panel Icon" class="menu-icon" />
+                </div>
+
+                <div class="@((controllerName == "Campaign" || (controllerName == "CanvasJS" && (actionName == "ManageStyles" || actionName == "Index"))) ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "Campaign")'">
+                    <img src="~/images/Campaigns-b.svg" alt="Panel Icon" class="menu-icon" />
+                </div>
+
+                <div class="@(controllerName == "Data" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "Data")'">
+                    <img src="~/images/Basket-b.svg" alt="Panel Icon" class="menu-icon" />
+                </div>
+                <div class="@(controllerName == "Wallet" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "Wallet")'">
+                    <img src="~/images/MoneyOut-b.svg" alt="Panel Icon" class="menu-icon" />
+                </div>
+                <div class="@(controllerName == "News" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "News")'">
+                    <img src="~/images/Mail-b.svg" alt="Panel Icon" class="menu-icon" />
+                </div>
+            }
+            @if (isManagerOrAdmin)
+            {
+                var controllerName = ViewContext.RouteData.Values["controller"]?.ToString();
+                var actionName = ViewContext.RouteData.Values["action"]?.ToString();
+
+                <div class="@(controllerName == "ManagerPanel" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "ManagerPanel")'">
+                    <img src="~/images/Chart-b.svg" alt="Panel Icon" class="menu-icon" />
+                </div>
+                <div class="@(controllerName == "ManagerOrder" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "ManagerOrder")'">
+                    <img src="~/images/Basket-b.svg" alt="Assign Icon" class="menu-icon" />
+                </div>
+                <div class="@((controllerName == "ManagerAffiliate" && actionName == "Index") || controllerName == "ManagerAffiliateProfile"  ? "active-link" : "inactive-link")
+                    menu-link" onclick="location.href='@Url.Action("Index", "ManagerAffiliate")'">
+                    <img src="~/images/Affiliate-b.svg" alt="Assign Icon" class="menu-icon" />
+                </div>
+                <div class="@(controllerName == "Payout" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "Payout")'">
+                    <img src="~/images/MoneyOut-b.svg" alt="Assign Icon" class="menu-icon" />
+                </div>
+                <div class="@((controllerName == "ManagerAffiliate" && actionName == "Accounts") || controllerName == "ProductAssignment" || controllerName == "Category" || controllerName == "Settings" || controllerName == "Product" || controllerName == "Store" || controllerName == "UserManagement" ? "active-link" : "inactive-link")
+                    menu-link" onclick="location.href='@Url.Action("Index", "Product")'">
+                    <img src="~/images/Settings-b.svg" alt="Assign Icon" class="menu-icon" />
+                </div>
+                <div class="@(controllerName == "ManagerNews" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "ManagerNews")'">
+                    <img src="~/images/Mail-b.svg" alt="Assign Icon" class="menu-icon" />
+                </div>
+            }
+        </div>
+        <div class="Sidebar-box">
+        </div>
+    </div>
+
+    <div class="View">
+        @RenderBody()
+    </div>
+
+</body>
+</html>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        var sidebar = document.querySelector('.Sidebar');
+        var sidebarHide = document.querySelector('.Sidebar-hide');
+
+        var sidebarState = localStorage.getItem('sidebarState');
+        if (sidebarState === 'hidden') {
+            sidebarHide.style.display = "flex";
+            sidebar.style.display = "none";
+        } else {
+            sidebar.style.display = "flex";
+            sidebarHide.style.display = "none";
+        }
+
+        document.getElementById('toggleSidebar1').addEventListener('click', toggleSidebar);
+        document.getElementById('toggleSidebar2').addEventListener('click', toggleSidebar);
+
+        function toggleSidebar() {
+            if (sidebar.style.display === "none" || sidebar.style.display === "") {
+                sidebar.style.display = "flex";
+                sidebarHide.style.display = "none";
+                localStorage.setItem('sidebarState', 'visible');
+            } else {
+                sidebarHide.style.display = "flex";
+                sidebar.style.display = "none";
+                localStorage.setItem('sidebarState', 'hidden');
+            }
+        }
+    });
+</script>
+
+<script>
+    const connection = new signalR.HubConnectionBuilder()
+        .withUrl("/userTrackingHub")
+        .build();
+
+    connection.on("UpdateUserCount", function (userCount) {
+
+    @if (isManagerOrAdmin)
+    {
+        <text>
+                // Aktualizacja elementu HTML z nową liczbą użytkowników online
+                document.getElementById("userCountDisplay").innerText = userCount + " Online";
+        </text>
+    }
+        });
+
+    connection.start().catch(function (err) {
+        return console.error(err.toString());
+    });
+</script>

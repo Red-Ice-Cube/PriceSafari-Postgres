@@ -1,0 +1,32 @@
+﻿@model PriceTracker.Models.ManagerViewModels.EditMinimumPayoutViewModel
+
+
+@{
+
+    Layout = "~/Views/Shared/_PanelLayout.cshtml";
+}
+
+
+<div class="Page-Box">
+    <div class="Page-Box-Container">
+        <div class="Page-Box-Category">
+            <div class="Category-Box-Title">
+                Edytuj minimalną kwote wypłaty
+            </div>
+            <partial name="_ManageNavCol" />
+        </div>
+        <div class="Column-30">
+            <form asp-action="EditMinimumPayout" class="Column-Form" method="post">
+                <div class="form-group">
+                    <label asp-for="MinimumPayout" class="control-label">Minimalna kwota wypłaty</label>
+                    <input asp-for="MinimumPayout" class="form-control" />
+                    <span asp-validation-for="MinimumPayout" class="text-danger"></span>
+                </div>
+                <div asp-validation-summary="ModelOnly" role="alert"></div>
+                <div class="form-group">
+                    <input type="submit" value="Zapisz" class="Button-Add-Small" />
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

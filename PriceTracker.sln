@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.6.33815.320
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PriceTracker", "Heat Lead\PriceTracker.csproj", "{761D3BB4-E0EA-43F6-8454-3BA809FE988A}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PriceTracker", "PriceTracker\PriceTracker.csproj", "{761D3BB4-E0EA-43F6-8454-3BA809FE988A}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

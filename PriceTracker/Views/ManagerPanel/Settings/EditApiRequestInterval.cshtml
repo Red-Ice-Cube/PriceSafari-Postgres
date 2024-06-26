@@ -1,0 +1,40 @@
+﻿@model PriceTracker.Models.ManagerViewModels.EditApiRequestIntervalViewModel
+
+@{
+
+    Layout = "~/Views/Shared/_PanelLayout.cshtml";
+}
+
+<div class="Page-Box">
+    <div class="Page-Box-Container">
+        <div class="Page-Box-Category">
+            <div class="Category-Box-Title">
+                Edytuj zapytanie API
+
+            </div>
+
+            <partial name="_ManageNavCol" />
+        </div>
+
+        <div class="Column-30">
+
+            <form asp-action="EditApiRequestInterval" class="Column-Form" method="post">
+
+                <div class="form-group">
+                    <label asp-for="ApiRequestInterval" class="control-label">Interwał zapytania API (sekundy)</label>
+                    <input asp-for="ApiRequestInterval" class="form-control" />
+                    <span asp-validation-for="ApiRequestInterval" class="text-danger"></span>
+                </div>
+
+                <div asp-validation-summary="ModelOnly" role="alert"></div>
+
+                <div class="form-group">
+                    <input type="submit" value="Zapisz" class="Button-Add-Small" />
+                </div>
+            </form>
+
+        </div>
+
+    </div>
+
+</div>
