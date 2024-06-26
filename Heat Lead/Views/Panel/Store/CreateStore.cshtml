@@ -1,0 +1,17 @@
+﻿@{
+    ViewData["Title"] = "Dodaj Nowy Sklep";
+}
+
+<h2>Dodaj Nowy Sklep</h2>
+
+<form asp-action="CreateStore" method="post">
+    <div class="form-group">
+        <label for="storeName">Nazwa Sklepu</label>
+        <input type="text" class="form-control" id="storeName" name="storeName" required>
+    </div>
+    <div class="form-group">
+        <label for="storeProfile">Profil Sklepu</label>
+        <input type="text" class="form-control" id="storeProfile" name="storeProfile" required>
+    </div>
+    <button type="submit" class="btn btn-primary">Dodaj Sklep</button>
+</form>

@@ -8,7 +8,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
 
-namespace Heat_Lead.Migrations
+namespace PriceTracker.Migrations
 {
     [DbContext(typeof(Heat_LeadContext))]
     partial class Heat_LeadContextModelSnapshot : ModelSnapshot
@@ -1172,6 +1172,134 @@ namespace Heat_Lead.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
+            modelBuilder.Entity("PriceTracker.Models.PriceHistoryClass", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Availability")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int?>("AvailabilityNum")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("Date")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("OfferUrl")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<decimal>("Price")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("ProductId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ScrapHistoryId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ShippingCost")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<decimal?>("ShippingCostNum")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("StoreName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProductId");
+
+                    b.HasIndex("ScrapHistoryId");
+
+                    b.ToTable("PriceHistories");
+                });
+
+            modelBuilder.Entity("PriceTracker.Models.ProductClass", b =>
+                {
+                    b.Property<int>("ProductId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("ProductId"));
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("OfferUrl")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ProductName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("StoreId")
+                        .HasColumnType("int");
+
+                    b.HasKey("ProductId");
+
+                    b.HasIndex("StoreId");
+
+                    b.ToTable("Products");
+                });
+
+            modelBuilder.Entity("PriceTracker.Models.ScrapHistoryClass", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("Date")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("PriceCount")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ProductCount")
+                        .HasColumnType("int");
+
+                    b.Property<int>("StoreId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("StoreId");
+
+                    b.ToTable("ScrapHistories");
+                });
+
+            modelBuilder.Entity("PriceTracker.Models.StoreClass", b =>
+                {
+                    b.Property<int>("StoreId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("StoreId"));
+
+                    b.Property<string>("StoreName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("StoreProfile")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("StoreId");
+
+                    b.ToTable("Stores");
+                });
+
             modelBuilder.Entity("Heat_Lead.Models.AffiliateLink", b =>
                 {
                     b.HasOne("Heat_Lead.Models.Campaign", "Campaign")
@@ -1475,6 +1603,47 @@ namespace Heat_Lead.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("PriceTracker.Models.PriceHistoryClass", b =>
+                {
+                    b.HasOne("PriceTracker.Models.ProductClass", "Product")
+                        .WithMany("PriceHistories")
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("PriceTracker.Models.ScrapHistoryClass", "ScrapHistory")
+                        .WithMany("PriceHistories")
+                        .HasForeignKey("ScrapHistoryId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Product");
+
+                    b.Navigation("ScrapHistory");
+                });
+
+            modelBuilder.Entity("PriceTracker.Models.ProductClass", b =>
+                {
+                    b.HasOne("PriceTracker.Models.StoreClass", "Store")
+                        .WithMany("Products")
+                        .HasForeignKey("StoreId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Store");
+                });
+
+            modelBuilder.Entity("PriceTracker.Models.ScrapHistoryClass", b =>
+                {
+                    b.HasOne("PriceTracker.Models.StoreClass", "Store")
+                        .WithMany("ScrapHistories")
+                        .HasForeignKey("StoreId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Store");
+                });
+
             modelBuilder.Entity("Heat_Lead.Areas.Identity.Data.Heat_LeadUser", b =>
                 {
                     b.Navigation("AffiliateLink");
@@ -1528,6 +1697,23 @@ namespace Heat_Lead.Migrations
             modelBuilder.Entity("Heat_Lead.Models.Wallet", b =>
                 {
                     b.Navigation("Paycheck");
+                });
+
+            modelBuilder.Entity("PriceTracker.Models.ProductClass", b =>
+                {
+                    b.Navigation("PriceHistories");
+                });
+
+            modelBuilder.Entity("PriceTracker.Models.ScrapHistoryClass", b =>
+                {
+                    b.Navigation("PriceHistories");
+                });
+
+            modelBuilder.Entity("PriceTracker.Models.StoreClass", b =>
+                {
+                    b.Navigation("Products");
+
+                    b.Navigation("ScrapHistories");
                 });
 #pragma warning restore 612, 618
         }

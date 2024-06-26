@@ -2,6 +2,7 @@
 using Heat_Lead.Models;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
+using PriceTracker.Models;
 
 namespace Heat_Lead.Data;
 
@@ -137,6 +138,32 @@ public class Heat_LeadContext : IdentityDbContext<Heat_LeadUser>
              .HasIndex(o => new { o.OrderId, o.OrderKey })
              .IsUnique();
 
+
+
+
+        // Konfiguracja relacji między PriceHistoryClass a ScrapHistoryClass
+        modelBuilder.Entity<PriceHistoryClass>()
+            .HasOne(ph => ph.ScrapHistory)
+            .WithMany(sh => sh.PriceHistories)
+            .HasForeignKey(ph => ph.ScrapHistoryId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        // Konfiguracja relacji między ScrapHistoryClass a StoreClass
+        modelBuilder.Entity<ScrapHistoryClass>()
+            .HasOne(sh => sh.Store)
+            .WithMany(s => s.ScrapHistories)
+            .HasForeignKey(sh => sh.StoreId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        // Konfiguracja relacji między PriceHistoryClass a ProductClass
+        modelBuilder.Entity<PriceHistoryClass>()
+            .HasOne(ph => ph.Product)
+            .WithMany(p => p.PriceHistories)
+            .HasForeignKey(ph => ph.ProductId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+
+
         base.OnModelCreating(modelBuilder);
     }
 
@@ -162,4 +189,17 @@ public class Heat_LeadContext : IdentityDbContext<Heat_LeadUser>
     public DbSet<FingerprintData> FingerprintData { get; set; }
     public DbSet<CanvasJS> CanvasJS { get; set; }
     public DbSet<CanvasJSStyle> CanvasJSStyles { get; set; }
+
+
+
+
+
+
+
+
+
+    public DbSet<StoreClass> Stores { get; set; }
+    public DbSet<ProductClass> Products { get; set; }
+    public DbSet<PriceHistoryClass> PriceHistories { get; set; }
+    public DbSet<ScrapHistoryClass> ScrapHistories { get; set; }
 }

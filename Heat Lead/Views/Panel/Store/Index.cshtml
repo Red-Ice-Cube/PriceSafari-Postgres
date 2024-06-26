@@ -1,0 +1,73 @@
+﻿@model IEnumerable<PriceTracker.Models.StoreClass>
+
+@{
+    ViewData["Title"] = "Lista Sklepów";
+}
+
+<h2>Lista Sklepów</h2>
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>Nazwa Sklepu</th>
+            <th>Profil Sklepu</th>
+            <th>Akcje</th>
+            <th>Postęp</th>
+            <th>Status</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var store in Model)
+        {
+            <tr>
+                <td>@store.StoreName</td>
+                <td>@store.StoreProfile</td>
+                <td>
+                    <a asp-controller="Store" asp-action="ScrapeProducts" asp-route-storeId="@store.StoreId" class="btn btn-primary scrape-button" data-store-id="@store.StoreId">Scrapuj Produkty</a>
+                    <a asp-controller="Store" asp-action="ProductList" asp-route-storeId="@store.StoreId" class="btn btn-secondary">Lista Produktów</a>
+                </td>
+                <td>
+                    <div class="progress">
+                        <div class="progress-bar bg-success" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" id="progress-@store.StoreId" style="width: 0%;">0%</div>
+                    </div>
+                </td>
+                <td id="status-@store.StoreId">Oczekiwanie</td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+<a asp-controller="Store" asp-action="CreateStore" class="btn btn-success">Dodaj Nowy Sklep</a>
+
+@section Scripts {
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/5.0.11/signalr.min.js"></script>
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            var connection = new signalR.HubConnectionBuilder().withUrl("/scrapingHub").build();
+
+            connection.on("ReceiveProgressUpdate", function (totalScraped, uniqueProducts, currentPage, totalPages, storeId) {
+                const progressElement = document.querySelector(`#progress-${storeId}`);
+                const statusElement = document.querySelector(`#status-${storeId}`);
+                if (progressElement && statusElement) {
+                    const progressValue = (currentPage / totalPages) * 100;
+                    progressElement.style.width = progressValue + "%";
+                    progressElement.setAttribute("aria-valuenow", progressValue);
+                    progressElement.textContent = Math.round(progressValue) + "%";
+                    statusElement.textContent = `Strona ${currentPage} z ${totalPages} - Zebrano ${uniqueProducts} unikalnych produktów`;
+                }
+            });
+
+            connection.start().catch(function (err) {
+                return console.error(err.toString());
+            });
+
+            document.querySelectorAll(".scrape-button").forEach(button => {
+                button.addEventListener("click", function (event) {
+                    event.preventDefault();
+                    const storeId = this.getAttribute("data-store-id");
+                    fetch(`/Store/ScrapeProducts?storeId=${storeId}`, { method: "GET" });
+                });
+            });
+        });
+    </script>
+}

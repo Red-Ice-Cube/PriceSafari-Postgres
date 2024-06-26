@@ -1,4 +1,28 @@
-﻿body {
+﻿html {
+    font-size: 14px;
+}
+
+@media (min-width: 768px) {
+    html {
+        font-size: 16px;
+    }
+}
+
+.btn:focus, .btn:active:focus, .btn-link.nav-link:focus, .form-control:focus, .form-check-input:focus {
+    box-shadow: 0 0 0 0.1rem white, 0 0 0 0.25rem #258cfb;
+}
+
+html {
+    position: relative;
+    min-height: 100%;
+}
+
+body {
+    margin-bottom: 60px;
+}
+
+
+body {
     display: flex;
     width: 100%;
     height: 100vh;
@@ -110,7 +134,7 @@ p {
     justify-content: flex-start;
     align-items: flex-start;
     align-self: stretch;
-    min-width:720px;
+    min-width: 720px;
 }
 
 
@@ -143,6 +167,7 @@ p {
     display: flex;
     padding: 24px;
     width: 100%;
+    height: 96vh;
     flex-direction: column;
     align-items: flex-start;
     gap: 10px;
@@ -163,7 +188,7 @@ p {
 
 .Page-Box-Category {
     display: flex;
-    min-width: 224px;
+    min-width: 180px;
     flex-direction: column;
     border-right: 1px solid #EDEDED;
     padding: 0px 24px 0px 0px;
@@ -818,20 +843,6 @@ p {
     box-shadow: 0px 4px 4px 0px rgba(0, 0, 0, 0.15);
 }
 
-.Charts-Donought {
-    display: flex;
-    min-width: 380px;
-    width: 28%;
-    align-self: stretch;
-    height: 616px;
-    padding: 24px;
-    flex-direction: column;
-    align-items: center;
-    gap: 24px;
-    border-radius: 8px;
-    background: #FFF;
-    box-shadow: 0px 4px 4px 0px rgba(0, 0, 0, 0.15);
-}
 
 .Charts-Box-Bar {
     display: flex;
@@ -853,133 +864,6 @@ p {
     align-self: stretch;
 }
 
-.table-earnings {
-    width: 100%;
-}
-
-    .table-earnings td {
-        color: #4E4E4E;
-        font-size: 14px;
-        font-weight: 400;
-        padding: 6px 0;
-    }
-
-    .table-earnings th {
-        color: #4E4E4E;
-        font-size: 16px;
-        font-weight: 500;
-        padding: 0px 0px 8px 0px;
-    }
-
-    .table-earnings tbody tr td:first-child::before {
-        content: '';
-        display: inline-block;
-        width: 18px;
-        height: 18px;
-        border-radius: 50%;
-        margin-right: 14px;
-        vertical-align: middle;
-    }
-
-    .table-earnings td:nth-child(2), th:nth-child(2) {
-        text-align: right;
-    }
-
-    .table-earnings tbody tr:nth-child(1) td:first-child::before {
-        background-color: rgba(255, 230, 141, 1);
-    }
-
-    .table-earnings tbody tr:nth-child(2) td:first-child::before {
-        background-color: rgba(255, 201, 120, 1);
-    }
-
-    .table-earnings tbody tr:nth-child(3) td:first-child::before {
-        background-color: rgba(255, 188, 87, 1);
-    }
-
-    .table-earnings tbody tr:nth-child(4) td:first-child::before {
-        background-color: rgba(255, 158, 87, 1);
-    }
-
-    .table-earnings tbody tr:nth-child(5) td:first-child::before {
-        background-color: rgba(247, 128, 95, 1);
-    }
-
-    .table-earnings tbody tr:nth-child(6) td:first-child::before {
-        background-color: rgba(243, 98, 118, 1);
-    }
-
-    .table-earnings tbody tr:nth-child(7) td:first-child::before {
-        background-color: rgba(232, 84, 104, 1);
-    }
-
-    .table-earnings tbody tr:nth-child(8) td:first-child::before {
-        background-color: rgba(233, 88, 149, 1);
-    }
-
-.table-category-orders {
-    width: 100%;
-}
-
-    .table-category-orders td {
-        color: #4E4E4E;
-        font-size: 14px;
-        font-weight: 400;
-        padding: 6px 0;
-    }
-
-    .table-category-orders th {
-        color: #4E4E4E;
-        font-size: 16px;
-        font-weight: 500;
-        padding: 0px 0px 8px 0px;
-    }
-
-    .table-category-orders tbody tr td:first-child::before {
-        content: '';
-        display: inline-block;
-        width: 18px;
-        height: 18px;
-        border-radius: 50%;
-        margin-right: 14px;
-        vertical-align: middle;
-    }
-
-    .table-category-orders td:nth-child(2), th:nth-child(2) {
-        text-align: right;
-    }
-
-    .table-category-orders tbody tr:nth-child(1) td:first-child::before {
-        background-color: rgba(135, 206, 235, 1);
-    }
-
-    .table-category-orders tbody tr:nth-child(2) td:first-child::before {
-        background-color: rgba(100, 149, 237, 1);
-    }
-
-    .table-category-orders tbody tr:nth-child(3) td:first-child::before {
-        background-color: rgba(65, 105, 225, 1);
-    }
-
-    .table-category-orders tbody tr:nth-child(4) td:first-child::before {
-        background-color: rgba(30, 144, 255, 1);
-    }
-
-    .table-category-orders tbody tr:nth-child(5) td:first-child::before {
-        background-color: rgba(0, 191, 255, 1);
-    }
-
-    .table-category-orders tbody tr:nth-child(6) td:first-child::before {
-        background-color: rgba(173, 216, 230, 1);
-    }
-
-    .table-category-orders tbody tr:nth-child(7) td:first-child::before {
-        background-color: rgba(70, 130, 180, 1);
-    }
-
-    .table-category-orders tbody tr:nth-child(8) td:first-child::before {
-        background-color: rgba(176, 224, 230, 1);
-    }
 
 .table-clicks {
     width: 100%;
@@ -1014,41 +898,23 @@ p {
     }
 
     .table-clicks tbody tr:nth-child(1) td:first-child::before {
-        background-color: rgba(68, 240, 240, 1);
+        background-color: rgba(14, 126, 135, 0.5);
     }
 
     .table-clicks tbody tr:nth-child(2) td:first-child::before {
-        background-color: rgba(65, 199, 199, 1);
+        background-color: rgba(240, 240, 105, 0.5);
     }
 
     .table-clicks tbody tr:nth-child(3) td:first-child::before {
-        background-color: rgba(72, 151, 151, 1);
+        background-color: rgba(246, 78, 101, 0.5);
     }
 
-    .table-clicks tbody tr:nth-child(4) td:first-child::before {
-        background-color: rgba(68, 182, 154, 1);
-    }
-
-    .table-clicks tbody tr:nth-child(5) td:first-child::before {
-        background-color: rgba(76, 131, 117, 1);
-    }
-
-    .table-clicks tbody tr:nth-child(6) td:first-child::before {
-        background-color: rgba(71, 117, 117, 1);
-    }
-
-    .table-clicks tbody tr:nth-child(7) td:first-child::before {
-        background-color: rgba(80, 110, 128, 1);
-    }
-
-    .table-clicks tbody tr:nth-child(8) td:first-child::before {
-        background-color: rgba(72, 87, 125, 1);
-    }
 
 .Vert-full {
     display: flex;
     flex-direction: column;
     width: 100%;
+    gap: 24px;
     border-radius: 8px;
     padding: 24px;
     background: #FFF;
@@ -1135,13 +1001,7 @@ p {
             padding-bottom: 12px;
         }
 
-            .table-orders thead th:first-child {
-                border-radius: 8px 0px 0px 8px;
-            }
-
-            .table-orders thead th:last-child {
-                border-radius: 0px 8px 8px 0px;
-            }
+        
 
         .table-orders thead th {
             color: #fff;
@@ -1153,8 +1013,11 @@ p {
         border-bottom: 0.5px solid #eee;
     }
 
+
+
+
     .table-orders td, .table-orders th {
-        padding: 14px 16px;
+        padding: 8px 16px;
         margin-right: 24px;
         text-align: left;
         color: #282828;
@@ -1162,8 +1025,7 @@ p {
         font-weight: 400;
     }
 
-    .table-orders td {
-    }
+    
 
     .table-orders tbody tr:hover {
         background: #F4F4F4;
@@ -1230,7 +1092,7 @@ p {
     background: #e3e3e3;
     border: none;
     cursor: pointer;
-    margin-right:8px;
+    margin-right: 8px;
 }
 
     .Button-Page-Small-icon:hover {
@@ -1305,7 +1167,7 @@ p {
     align-items: center;
     justify-content: center;
     border-radius: 4px;
-    background: #41C7C7;
+    background: #004552;
     color: #fff;
     font-size: 14px;
     font-weight: 400;
@@ -1317,7 +1179,7 @@ p {
     .Button-Add-Small:hover {
         color: #fff;
         text-decoration: none;
-        background: #004552;
+        background: #41C7C7;
     }
 
 .Button-Action-Small {
@@ -1495,7 +1357,7 @@ p {
     width: 100%;
 }
 
-.order-search-box {
+.product-search-box {
     width: 250px;
     display: flex;
     flex-direction: column;
@@ -1504,53 +1366,6 @@ p {
     align-self: stretch;
 }
 
-#productSearch {
-    width: 100%;
-    border: 1px solid #ccc;
-    padding: 4px 4px 4px 24px;
-    border-radius: 32px;
-    outline: none;
-    box-sizing: border-box;
-    color: #4B4B4B;
-    font-size: 14px;
-    font-weight: 400;
-}
-
-    #productSearch:focus {
-        border-color: #41C7C7;
-    }
-
-#accountSearch {
-    width: 100%;
-    border: 1px solid #ccc;
-    padding: 4px 4px 4px 24px;
-    border-radius: 32px;
-    outline: none;
-    box-sizing: border-box;
-    color: #4B4B4B;
-    font-size: 14px;
-    font-weight: 400;
-}
-
-    #accountSearch:focus {
-        border-color: #41C7C7;
-    }
-
-#orderSearch {
-    width: 100%;
-    border: 1px solid #ccc;
-    padding: 4px 4px 4px 24px;
-    border-radius: 32px;
-    outline: none;
-    box-sizing: border-box;
-    color: #4B4B4B;
-    font-size: 14px;
-    font-weight: 400;
-}
-
-    #orderSearch:focus {
-        border-color: #41C7C7;
-    }
 
 .Order-Container-Title {
     display: flex;
@@ -1560,6 +1375,8 @@ p {
     font-size: 26px;
     font-weight: 300;
     flex-direction: column;
+    justify-content: flex-end;
+    justify-content: space-between;
 }
 
 .sort-icon {
@@ -1607,9 +1424,9 @@ p {
 
 .order-upper-box {
     display: flex;
-    justify-content: space-between;
+    justify-content: flex-start;
+    gap: 16px;
     align-items: center;
-    margin-bottom: 24px;
     width: 100%;
 }
 
@@ -2130,27 +1947,27 @@ p {
 
 
 
-.Vert-News::-webkit-scrollbar {
-    width: 12px;
-    position: absolute;
-    right: -32px;
-}
-
-.Vert-News::-webkit-scrollbar-track {
-    background: transparent;
-    margin: 0px 0;
-}
-
-.Vert-News::-webkit-scrollbar-thumb {
-    background: #eee;
-    border-radius: 5px;
-    border: 4px solid transparent;
-    background-clip: content-box;
-}
-
-    .Vert-News::-webkit-scrollbar-thumb:hover {
-        background: #eee;
+    .Vert-News::-webkit-scrollbar {
+        width: 12px;
+        position: absolute;
+        right: -32px;
     }
+
+    .Vert-News::-webkit-scrollbar-track {
+        background: transparent;
+        margin: 0px 0;
+    }
+
+    .Vert-News::-webkit-scrollbar-thumb {
+        background: #eee;
+        border-radius: 5px;
+        border: 4px solid transparent;
+        background-clip: content-box;
+    }
+
+        .Vert-News::-webkit-scrollbar-thumb:hover {
+            background: #eee;
+        }
 
 .View-Panel {
     display: flex;
@@ -2180,16 +1997,12 @@ p {
 
 .Charts-Donought-a {
     display: flex;
-    flex-grow: 1;
-    width: 40%;
-    min-width: 400px;
-    min-height: 390px;
     padding: 24px;
+    flex-grow: 1;
     align-items: center;
+    min-width: 500px;
+    height: 180.5px;
     justify-content: space-between;
-    flex-wrap: wrap;
-    align-self: stretch;
-    gap: 36px;
     border-radius: 8px;
     background: #FFF;
     box-shadow: 0px 4px 4px 0px rgba(0, 0, 0, 0.15);
@@ -2202,16 +2015,7 @@ p {
     max-width: 98%;
 }
 
-.Charts-Box-Donought-a {
-    display: flex;
-    flex-direction: column;
-    padding: 0px;
-    gap: 46px;
-    align-items: center;
-    flex-shrink: 0;
-    align-self: stretch;
-    width: 280px;
-}
+
 
 .Charts-Box-Donought-a-t {
     display: flex;
@@ -2221,9 +2025,8 @@ p {
     align-items: center;
     flex-shrink: 0;
     align-self: stretch;
-    width: 340px;
+    width: 250px;
 }
-
 .Statistics-box-mini-a {
     display: flex;
     padding: 12px 24px;
@@ -2295,22 +2098,8 @@ p {
     flex: 1;
 }
 
-.Multi-Cover-Statistic-a {
-    display: flex;
-    flex-grow: 1;
-    justify-content: center;
-    align-items: center;
-    gap: 16px;
-    align-self: stretch;
-    flex-wrap: wrap;
-    min-width: 400px;
-}
 
-.WalletChart-Box {
-    display: flex;
-    height: 50%;
-    width: 99%;
-}
+
 
 .campaign-summary-line-icon {
     display: flex;
@@ -2580,66 +2369,16 @@ tr:last-child .sub-line {
         background: #0143C3;
     }
 
-.chart-container-cam {
-    display: flex;
-    height: 160px;
-    flex: 1;
-    min-width: 64%;
-    max-width: 95%;
-}
-
-.campaign-search-box {
-    width: 190px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-#campaignSearch {
-    width: 100%;
-    border: 1px solid #ccc;
-    padding: 4px 4px 4px 24px;
-    border-radius: 32px;
-    outline: none;
-    box-sizing: border-box;
-    color: #4B4B4B;
-    font-size: 14px;
-    font-weight: 400;
-}
-
-    #campaignSearch:focus {
-        border-color: #41C7C7;
-    }
-
-.Campaign-Container-Title {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 32px;
-    align-self: stretch;
-    color: #4B4B4B;
-    font-size: 26px;
-    font-weight: 300;
-    margin-top: 0px;
-}
-
-.order-search-box {
-    width: 250px;
-    display: flex;
-    align-items: flex-start;
-    margin-top: 4px;
-    justify-content: flex-start;
-}
 
 #productSearch {
-    width: 100%;
+    width: 250px;
     border: 1px solid #ccc;
-    padding: 4px 4px 4px 24px;
-    border-radius: 32px;
+    padding: 8px 16px;
+    border-radius: 4px;
     outline: none;
     box-sizing: border-box;
     color: #4B4B4B;
-    font-size: 14px;
+    font-size: 16px;
     font-weight: 400;
 }
 
@@ -2647,15 +2386,6 @@ tr:last-child .sub-line {
         border-color: #41C7C7;
     }
 
-.Order-Container-Title {
-    display: flex;
-    gap: 10px;
-    align-self: stretch;
-    color: #4B4B4B;
-    font-size: 26px;
-    font-weight: 300;
-    flex-direction: column;
-}
 
 .sort-icon {
     cursor: pointer;
@@ -2676,12 +2406,7 @@ tr:last-child .sub-line {
     flex-direction: column;
 }
 
-.order-upper-box {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    margin-bottom: 24px;
-}
+
 
 .Withdraw {
     display: flex;
@@ -2703,7 +2428,6 @@ tr:last-child .sub-line {
     justify-content: center;
     align-items: flex-start;
     align-self: stretch;
-   
 }
 
 .Withdraw-Inner-Title {
@@ -3048,30 +2772,7 @@ tr:last-child .sub-line {
             background: #888;
         }
 
-.search-box {
-    width: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin-bottom: 16px;
-    margin-top: 8px;
-}
 
-#productSearch {
-    width: 100%;
-    border: 1px solid #ccc;
-    padding: 4px 4px 4px 24px;
-    border-radius: 32px;
-    outline: none;
-    box-sizing: border-box;
-    color: #4B4B4B;
-    font-size: 14px;
-    font-weight: 400;
-}
-
-    #productSearch:focus {
-        border-color: #41C7C7;
-    }
 
 .form-check {
     display: flex;
@@ -3499,22 +3200,6 @@ tr:last-child .sub-line {
     min-width: 400px;
 }
 
-.Charts-Donought-a {
-    display: flex;
-    flex-grow: 1;
-    width: 40%;
-    min-width: 400px;
-    min-height: 370px;
-    padding: 24px;
-    align-items: center;
-    justify-content: space-between;
-    flex-wrap: wrap;
-    align-self: stretch;
-    gap: 36px;
-    border-radius: 8px;
-    background: #FFF;
-    box-shadow: 0px 4px 4px 0px rgba(0, 0, 0, 0.15);
-}
 
 .Charts-Box-Bar-a {
     display: flex;
@@ -3524,27 +3209,6 @@ tr:last-child .sub-line {
     max-width: 95%;
 }
 
-.Charts-Box-Donought-a {
-    display: flex;
-    flex-direction: column;
-    padding: 0px;
-    gap: 46px;
-    align-items: center;
-    flex-shrink: 0;
-    align-self: stretch;
-    width: 280px;
-}
-
-.Charts-Box-Donought-a-t {
-    display: flex;
-    flex-direction: column;
-    padding: 0px;
-    justify-content: space-between;
-    align-items: center;
-    flex-shrink: 0;
-    align-self: stretch;
-    width: 340px;
-}
 
 .Statistics-box-mini-a {
     display: flex;
@@ -3626,11 +3290,6 @@ tr:last-child .sub-line {
     min-width: 400px;
 }
 
-.WalletChart-Box {
-    display: flex;
-    max-height: 80px;
-    width: 99%;
-}
 
 .value-box {
     display: inline-flex;
@@ -3689,7 +3348,7 @@ tr:last-child .sub-line {
 
 .modal {
     display: none;
-    flex-direction:column;   
+    flex-direction: column;
     position: fixed;
     z-index: 8000;
     left: 0;
@@ -3787,10 +3446,60 @@ tr:last-child .sub-line {
     }
 
     .Vert-Style::-webkit-scrollbar-thumb {
-        background-color: transparent; 
-        border: 3px solid #fff; 
+        background-color: transparent;
+        border: 3px solid #fff;
     }
 
         .Vert-Style::-webkit-scrollbar-thumb:hover {
-            background: #777; 
+            background: #777;
         }
+
+
+.chart-container-cam {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    flex: 1;
+    width: 100%;
+}
+
+.chart-box {
+    display: flex;
+    gap: 8px;
+    justify-content: space-between;
+    align-items: center;
+    align-content: center;
+    align-self: stretch;
+    flex-direction: column;
+    padding: 24px;
+    background: #004552;
+    border-radius: 8px;
+    box-shadow: 0 5px 5px rgba(0, 0, 0, .3);
+    color: rgba(255, 255, 255, .8);
+    width: 100%;
+}
+
+.progress-bar {
+    width: 100%;
+    height: 30px;
+    background-color: rgba(255, 255, 255, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    border-radius: 4px;
+    position: relative;
+}
+
+.progress-bar-inner {
+    height: 100%;
+    border-radius: 4px;
+    background-color: #0E7E87;
+    width: 0;
+}
+
+.bar-List {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    flex: 1;
+    width: 100%;
+    gap: 16px;
+}

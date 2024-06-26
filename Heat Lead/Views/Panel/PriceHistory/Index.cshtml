@@ -1,0 +1,153 @@
+﻿@{
+    ViewData["Title"] = "Historia Cen";
+    var latestScrap = ViewBag.LatestScrap as PriceTracker.Models.ScrapHistoryClass;
+    var storeId = ViewBag.StoreId;
+    var categories = ViewBag.Categories;
+}
+
+@{
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<style>
+    
+    .colorFilter {
+        outline: none;
+        background-color: white;
+        border: 2px solid gray;
+        border-radius: 4px;
+    }
+
+        
+        .colorFilter:checked#blueCheckbox {
+            background-color: rgba(14, 126, 135, 0.5);
+            border: 2px solid rgba(14, 126, 135, 1);
+        }
+
+        .colorFilter:checked#yellowCheckbox {
+            background-color: rgba(240, 240, 105, 0.5);
+            border: 2px solid rgba(240, 240, 105, 1);
+        }
+
+        .colorFilter:checked#redCheckbox {
+            background-color: rgba(246, 78, 101, 0.5);
+            border: 2px solid rgba(246, 78, 101, 1);
+        }
+
+  
+    .colorFilter {
+        width: 16px;
+        height: 16px;
+    }
+
+</style>
+
+<div class="Vert">
+    <div class="Multi-Cover-Statistic-a">
+        <div class="Charts-Donought-a">
+            <div class="Order-Container-Title">
+                Scrapowanie cen @ViewBag.StoreName
+                <div class="form-check-orders">
+                    <div>
+                        <p><strong>ID Scrapowania:</strong> @latestScrap?.Id</p>
+                        <p><strong>Wykonano:</strong> @latestScrap?.Date</p>
+                        <p><strong>Zebrane produkty:</strong> <span id="totalProductCount">@ViewBag.ProductCount</span></p>
+                        <p><strong>Zebrane ceny:</strong> <span id="totalPriceCount">0</span></p>
+                    </div>
+                </div>
+            </div>
+            
+            
+        </div>
+        <div class="Charts-Donought-a">
+            <div class="Charts-Box-Donought-a-t">
+                <table class="table-clicks" id="colorTable">
+                    <thead>
+                        <tr>
+                            <th scope="col">Cena</th>
+                            <th scope="col">Produkty</th>
+                        </tr>
+                    </thead>
+                    <tbody id="colorTableBody">
+                    </tbody>
+                </table>
+            </div>
+            <div class="Charts-Box-Donought-a">
+                <canvas id="colorChart"></canvas>
+            </div>
+        </div>
+    </div>
+    
+    <div class="Page-Box">
+
+        <div class="Page-Box-Container">
+            <div class="Page-Box-Category">
+                <div class="Category-Container-Title">Grupy cenowe</div>
+                <div class="store-section">
+                    <div class="form-check">
+                        <input class="form-check-input colorFilter" type="checkbox" id="blueCheckbox" value="blue">
+                        <label class="form-check-label" for="blueCheckbox">Top cena</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input colorFilter" type="checkbox" id="yellowCheckbox" value="yellow">
+                        <label class="form-check-label" for="yellowCheckbox">Mid cena</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input colorFilter" type="checkbox" id="redCheckbox" value="red">
+                        <label class="form-check-label" for="redCheckbox">Zła cena</label>
+                    </div>
+                </div>
+            </div>
+
+
+
+            <div class="Horizontal">
+                <div class="order-upper-box">
+                    <input type="text" id="productSearch" placeholder="Wyszukaj produkt">
+                    <form id="filterForm">
+                        <select id="category" name="category" class="DropDown">
+                            <option value="">Wszystkie kategorie</option>
+                            @foreach (var category in categories)
+                            {
+                                <option value="@category">@category</option>
+                            }
+                        </select>
+
+                    </form>
+                </div>
+                <div class="Vert-table">
+                    <table class="table-orders" id="priceTable">
+                        <thead>
+                            <tr>
+                                <th>Produkt (<span id="displayedProductCount">0</span>)</th>
+                                <th>TOP cena</th>
+                                <th>Sklep</th>
+                                <th>@ViewBag.StoreName</th>
+                                <th>Różnica(%)</th>
+                                <th>Różnica(PLN)</th>
+                                <th>Porównanie</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+       
+
+        
+
+        
+            
+      
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        var storeId = '@storeId';
+    </script>
+    <script src="~/js/PriceHistory.js"></script>
+}

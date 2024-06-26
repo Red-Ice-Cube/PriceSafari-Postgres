@@ -3,10 +3,10 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
-namespace Heat_Lead.Migrations
+namespace PriceTracker.Migrations
 {
     /// <inheritdoc />
-    public partial class InitialCreation : Migration
+    public partial class Initial : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -187,6 +187,20 @@ namespace Heat_Lead.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_Store", x => x.StoreId);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "Stores",
+                columns: table => new
+                {
+                    StoreId = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    StoreName = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    StoreProfile = table.Column<string>(type: "nvarchar(max)", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Stores", x => x.StoreId);
                 });
 
             migrationBuilder.CreateTable(
@@ -412,6 +426,50 @@ namespace Heat_Lead.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "Products",
+                columns: table => new
+                {
+                    ProductId = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    StoreId = table.Column<int>(type: "int", nullable: false),
+                    ProductName = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    Category = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    OfferUrl = table.Column<string>(type: "nvarchar(max)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Products", x => x.ProductId);
+                    table.ForeignKey(
+                        name: "FK_Products_Stores_StoreId",
+                        column: x => x.StoreId,
+                        principalTable: "Stores",
+                        principalColumn: "StoreId",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "ScrapHistories",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    Date = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    ProductCount = table.Column<int>(type: "int", nullable: false),
+                    PriceCount = table.Column<int>(type: "int", nullable: false),
+                    StoreId = table.Column<int>(type: "int", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_ScrapHistories", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_ScrapHistories_Stores_StoreId",
+                        column: x => x.StoreId,
+                        principalTable: "Stores",
+                        principalColumn: "StoreId",
+                        onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "Paycheck",
                 columns: table => new
                 {
@@ -497,6 +555,40 @@ namespace Heat_Lead.Migrations
                         principalTable: "Category",
                         principalColumn: "CategoryId",
                         onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "PriceHistories",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    ProductId = table.Column<int>(type: "int", nullable: false),
+                    StoreName = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    Date = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    Price = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
+                    OfferUrl = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    ScrapHistoryId = table.Column<int>(type: "int", nullable: false),
+                    ShippingCost = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    ShippingCostNum = table.Column<decimal>(type: "decimal(18,2)", nullable: true),
+                    Availability = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    AvailabilityNum = table.Column<int>(type: "int", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_PriceHistories", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_PriceHistories_Products_ProductId",
+                        column: x => x.ProductId,
+                        principalTable: "Products",
+                        principalColumn: "ProductId",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_PriceHistories_ScrapHistories_ScrapHistoryId",
+                        column: x => x.ScrapHistoryId,
+                        principalTable: "ScrapHistories",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateTable(
@@ -919,6 +1011,16 @@ namespace Heat_Lead.Migrations
                 column: "WalletId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_PriceHistories_ProductId",
+                table: "PriceHistories",
+                column: "ProductId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_PriceHistories_ScrapHistoryId",
+                table: "PriceHistories",
+                column: "ScrapHistoryId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_Product_CategoryId",
                 table: "Product",
                 column: "CategoryId");
@@ -927,6 +1029,16 @@ namespace Heat_Lead.Migrations
                 name: "IX_ProductIdStores_ProductId",
                 table: "ProductIdStores",
                 column: "ProductId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Products_StoreId",
+                table: "Products",
+                column: "StoreId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ScrapHistories_StoreId",
+                table: "ScrapHistories",
+                column: "StoreId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Wallet_UserId",
@@ -993,6 +1105,9 @@ namespace Heat_Lead.Migrations
                 name: "Paycheck");
 
             migrationBuilder.DropTable(
+                name: "PriceHistories");
+
+            migrationBuilder.DropTable(
                 name: "ProductIdStores");
 
             migrationBuilder.DropTable(
@@ -1011,10 +1126,19 @@ namespace Heat_Lead.Migrations
                 name: "Wallet");
 
             migrationBuilder.DropTable(
+                name: "Products");
+
+            migrationBuilder.DropTable(
+                name: "ScrapHistories");
+
+            migrationBuilder.DropTable(
                 name: "Campaigns");
 
             migrationBuilder.DropTable(
                 name: "Product");
+
+            migrationBuilder.DropTable(
+                name: "Stores");
 
             migrationBuilder.DropTable(
                 name: "AspNetUsers");
