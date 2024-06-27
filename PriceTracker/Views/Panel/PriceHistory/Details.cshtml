@@ -21,7 +21,6 @@
             <th>Cena</th>
             <th>Koszt wysyłki</th>
             <th>Dostępność</th>
-            <th>Data</th>
         </tr>
     </thead>
     <tbody>
@@ -30,9 +29,8 @@
             <tr class="price-row" data-store-name="@item.StoreName">
                 <td>@item.StoreName</td>
                 <td>@item.Price.ToString("C")</td>
-                <td>@item.ShippingCost</td>
-                <td>@item.Availability</td>
-                <td>@item.Date.ToShortDateString()</td>
+                <td>@item.ShippingCostNum</td>
+                <td>@item.AvailabilityNum</td>
             </tr>
         }
     </tbody>

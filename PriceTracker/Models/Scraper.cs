@@ -17,9 +17,9 @@ namespace PriceTracker.Services
             _httpClient = httpClient;
         }
 
-        public async Task<(List<(string storeName, decimal price, string shippingCost, decimal? shippingCostNum, string availability, int? availabilityNum)> Prices, string Log)> GetProductPricesAsync(string url)
+        public async Task<(List<(string storeName, decimal price, decimal? shippingCostNum, int? availabilityNum)> Prices, string Log)> GetProductPricesAsync(string url)
         {
-            var prices = new List<(string storeName, decimal price, string shippingCost, decimal? shippingCostNum, string availability, int? availabilityNum)>();
+            var prices = new List<(string storeName, decimal price, decimal? shippingCostNum, int? availabilityNum)>();
             string log;
 
             try
@@ -42,28 +42,33 @@ namespace PriceTracker.Services
                         var availabilityNode = offerNode.SelectSingleNode(".//span[contains(@class, 'instock')]") ??
                                               offerNode.SelectSingleNode(".//span[contains(text(), 'Wysyłka')]");
 
-                        string shippingCost = shippingNode?.InnerText.Trim() ?? "Nieznana";
                         decimal? shippingCostNum = null;
-                        if (shippingNode != null && !shippingNode.InnerText.Contains("Darmowa wysyłka") && !shippingNode.InnerText.Contains("Nieznana"))
+                        if (shippingNode != null)
                         {
-                            var shippingCostText = Regex.Match(shippingNode.InnerText, @"\d+[.,]?\d*").Value;
-                            if (decimal.TryParse(shippingCostText.Replace(",", "."), NumberStyles.Any, CultureInfo.InvariantCulture, out var parsedShippingCost))
+                            if (shippingNode.InnerText.Contains("Darmowa wysyłka"))
                             {
-                                shippingCostNum = parsedShippingCost;
+                                shippingCostNum = 0;
+                            }
+                            else
+                            {
+                                var shippingCostText = Regex.Match(shippingNode.InnerText, @"\d+[.,]?\d*").Value;
+                                if (decimal.TryParse(shippingCostText.Replace(",", "."), NumberStyles.Any, CultureInfo.InvariantCulture, out var parsedShippingCost))
+                                {
+                                    shippingCostNum = parsedShippingCost;
+                                }
                             }
                         }
 
-                        string availability = availabilityNode?.InnerText.Trim() ?? "Nieznana";
                         int? availabilityNum = null;
-                        if (!availability.Contains("Nieznana"))
+                        if (availabilityNode != null)
                         {
-                            if (availability.Contains("Wysyłka w 1 dzień"))
+                            if (availabilityNode.InnerText.Contains("Wysyłka w 1 dzień"))
                             {
                                 availabilityNum = 1;
                             }
-                            else if (availability.Contains("Wysyłka do"))
+                            else if (availabilityNode.InnerText.Contains("Wysyłka do"))
                             {
-                                var daysText = Regex.Match(availability, @"\d+").Value;
+                                var daysText = Regex.Match(availabilityNode.InnerText, @"\d+").Value;
                                 if (int.TryParse(daysText, out var parsedDays))
                                 {
                                     availabilityNum = parsedDays;
@@ -78,7 +83,7 @@ namespace PriceTracker.Services
 
                             if (decimal.TryParse(priceValue, NumberStyles.Any, CultureInfo.InvariantCulture, out decimal price))
                             {
-                                prices.Add((storeName, price, shippingCost, shippingCostNum, availability, availabilityNum));
+                                prices.Add((storeName, price, shippingCostNum, availabilityNum));
                             }
                         }
                     }

@@ -92,6 +92,19 @@ namespace PriceTracker.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "TableSizeInfo",
+                columns: table => new
+                {
+                    TableName = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    SchemaName = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    RowCounts = table.Column<long>(type: "bigint", nullable: false),
+                    UsedSpaceKB = table.Column<long>(type: "bigint", nullable: false)
+                },
+                constraints: table =>
+                {
+                });
+
+            migrationBuilder.CreateTable(
                 name: "AspNetRoleClaims",
                 columns: table => new
                 {
@@ -292,13 +305,9 @@ namespace PriceTracker.Migrations
                         .Annotation("SqlServer:Identity", "1, 1"),
                     ProductId = table.Column<int>(type: "int", nullable: false),
                     StoreName = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    Date = table.Column<DateTime>(type: "datetime2", nullable: false),
                     Price = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
-                    OfferUrl = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     ScrapHistoryId = table.Column<int>(type: "int", nullable: false),
-                    ShippingCost = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     ShippingCostNum = table.Column<decimal>(type: "decimal(18,2)", nullable: true),
-                    Availability = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     AvailabilityNum = table.Column<int>(type: "int", nullable: true)
                 },
                 constraints: table =>
@@ -418,6 +427,9 @@ namespace PriceTracker.Migrations
 
             migrationBuilder.DropTable(
                 name: "Settings");
+
+            migrationBuilder.DropTable(
+                name: "TableSizeInfo");
 
             migrationBuilder.DropTable(
                 name: "AspNetRoles");

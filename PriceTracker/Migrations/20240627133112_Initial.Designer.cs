@@ -12,7 +12,7 @@ using PriceTracker.Data;
 namespace PriceTracker.Migrations
 {
     [DbContext(typeof(PriceTrackerContext))]
-    [Migration("20240627120952_Initial")]
+    [Migration("20240627133112_Initial")]
     partial class Initial
     {
         /// <inheritdoc />
@@ -248,6 +248,25 @@ namespace PriceTracker.Migrations
                     b.ToTable("AspNetUsers", (string)null);
                 });
 
+            modelBuilder.Entity("PriceTracker.Data.TableSizeInfo", b =>
+                {
+                    b.Property<long>("RowCounts")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("SchemaName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("TableName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<long>("UsedSpaceKB")
+                        .HasColumnType("bigint");
+
+                    b.ToTable("TableSizeInfo");
+                });
+
             modelBuilder.Entity("PriceTracker.Models.AffiliateVerification", b =>
                 {
                     b.Property<int>("AffiliateVerificationId")
@@ -311,19 +330,8 @@ namespace PriceTracker.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<string>("Availability")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
                     b.Property<int?>("AvailabilityNum")
                         .HasColumnType("int");
-
-                    b.Property<DateTime>("Date")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("OfferUrl")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
 
                     b.Property<decimal>("Price")
                         .HasColumnType("decimal(18,2)");
@@ -333,10 +341,6 @@ namespace PriceTracker.Migrations
 
                     b.Property<int>("ScrapHistoryId")
                         .HasColumnType("int");
-
-                    b.Property<string>("ShippingCost")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
 
                     b.Property<decimal?>("ShippingCostNum")
                         .HasColumnType("decimal(18,2)");

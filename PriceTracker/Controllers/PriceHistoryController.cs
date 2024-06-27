@@ -100,7 +100,6 @@ namespace PriceTracker.Controllers
                         StoreName = bestPriceEntry.StoreName,
                         MyPrice = myPrice,
                         ScrapId = bestPriceEntry.ScrapHistoryId,
-                        OfferUrl = bestPriceEntry.OfferUrl,
                         PriceDifference = myPrice != 0 ? Math.Round(myPrice - bestPrice, 2) : (decimal?)null,
                         PercentageDifference = myPrice != 0 ? Math.Round(((myPrice - bestPrice) / bestPrice) * 100, 2) : (decimal?)null
                     };

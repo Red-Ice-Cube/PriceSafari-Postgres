@@ -72,13 +72,9 @@ public class PriceScrapingController : Controller
                         {
                             ProductId = product.ProductId,
                             StoreName = priceData.storeName,
-                            Date = DateTime.Now,
                             Price = priceData.price,
-                            OfferUrl = product.OfferUrl,
                             ScrapHistoryId = scrapHistory.Id,
-                            ShippingCost = priceData.shippingCost,
                             ShippingCostNum = priceData.shippingCostNum,
-                            Availability = priceData.availability,
                             AvailabilityNum = priceData.availabilityNum
                         };
 
