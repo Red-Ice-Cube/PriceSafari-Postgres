@@ -1,6 +1,11 @@
 ﻿@model IEnumerable<PriceTracker.Models.PriceHistoryClass>
 
 @{
+
+    Layout = "~/Views/Shared/_PanelLayout.cshtml";
+}
+
+@{
     ViewData["Title"] = "Szczegóły Cen";
     var scrapHistory = ViewBag.ScrapHistory as PriceTracker.Models.ScrapHistoryClass;
     var productName = ViewBag.ProductName as string;

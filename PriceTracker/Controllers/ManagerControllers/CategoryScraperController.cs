@@ -7,7 +7,7 @@ using PriceTracker.Models;
 using HtmlAgilityPack;
 using System;
 
-namespace PriceTracker.Controllers
+namespace PriceTracker.Controllers.ManagerControllers
 {
     public class CategoryScraperController : Controller
     {
@@ -22,7 +22,8 @@ namespace PriceTracker.Controllers
         public async Task<IActionResult> Index()
         {
             var stores = await _context.Stores.ToListAsync();
-            return View(stores);
+
+            return View("~/Views/ManagerPanel/CategoryScraper/Index.cshtml", stores);
         }
 
         [HttpPost]
@@ -43,7 +44,7 @@ namespace PriceTracker.Controllers
 
             await ScrapeCategories(storeId, baseUrl, 0);
 
-            return RedirectToAction("CategoryList", new { storeId = storeId });
+            return RedirectToAction("CategoryList", new { storeId });
         }
 
         private async Task ScrapeCategories(int storeId, string categoryUrl, int depth)
@@ -125,13 +126,14 @@ namespace PriceTracker.Controllers
                 await ScrapeCategories(storeId, subCategoryUrl, 1);
             }
 
-            return RedirectToAction("CategoryList", new { storeId = storeId });
+            return RedirectToAction("CategoryList", new { storeId });
         }
 
         public async Task<IActionResult> CategoryList(int storeId)
         {
             var categories = await _context.Categories.Where(c => c.StoreId == storeId).ToListAsync();
-            return View(categories);
+            
+            return View("~/Views/ManagerPanel/CategoryScraper/CategoryList.cshtml", categories);
         }
     }
 }

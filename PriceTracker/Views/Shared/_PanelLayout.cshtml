@@ -86,6 +86,8 @@
                 <div class="@(controllerName == "Store" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "Store")'">
                     <img src="~/images/Link-b.svg" alt="Panel Icon" class="menu-icon" />Sklepy
                 </div>
+
+                
             }
 
             @if (isManagerOrAdmin)
@@ -93,14 +95,24 @@
                 var controllerName = ViewContext.RouteData.Values["controller"]?.ToString();
                 var actionName = ViewContext.RouteData.Values["action"]?.ToString();
 
-                <div class="@(controllerName == "Index" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "Home")'">
-                    <img src="~/images/Chart-b.svg" alt="Panel Icon" class="menu-icon" />
-                </div>
-                <div class="@(controllerName == "Store" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("CreateStore", "Store")'">
-                    <img src="~/images/Link-b.svg" alt="Panel Icon" class="menu-icon" />
-                </div>
                 <div class="@(controllerName == "Store" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "Store")'">
-                    <img src="~/images/Link-b.svg" alt="Panel Icon" class="menu-icon" />
+                    <img src="~/images/Chart-b.svg" alt="Panel Icon" class="menu-icon" />Sklepy
+                </div>
+
+                <div class="@(controllerName == "CategoryScraper" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "CategoryScraper")'">
+                    <img src="~/images/Link-b.svg" alt="Panel Icon" class="menu-icon" />Kategorie
+                </div>
+                <div class="@(controllerName == "PriceHistory" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "PriceHistory")'">
+                    <img src="~/images/Link-b.svg" alt="Panel Icon" class="menu-icon" />Analiza Cen
+                </div>
+
+                <div class="@(controllerName == "DatabaseSize" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "DatabaseSize")'">
+                    <img src="~/images/Link-b.svg" alt="Panel Icon" class="menu-icon" />Baza danych
+                </div>
+
+                <div class="@((controllerName == "ManagerAffiliate" && actionName == "Accounts") || controllerName == "Settings" || controllerName == "UserManagement" ? "active-link" : "inactive-link")
+                    menu-link" onclick="location.href='@Url.Action("Accounts", "ManagerAffiliate")'">
+                    <img src="~/images/Settings-b.svg" alt="Assign Icon" class="menu-icon" />Konta
                 </div>
             }
         </div>
@@ -145,31 +157,32 @@
                 <div class="@(controllerName == "News" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "News")'">
                     <img src="~/images/Mail-b.svg" alt="Panel Icon" class="menu-icon" />
                 </div>
+
+                
             }
             @if (isManagerOrAdmin)
             {
                 var controllerName = ViewContext.RouteData.Values["controller"]?.ToString();
                 var actionName = ViewContext.RouteData.Values["action"]?.ToString();
 
-                <div class="@(controllerName == "ManagerPanel" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "ManagerPanel")'">
+                <div class="@(controllerName == "Store" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "Store")'">
                     <img src="~/images/Chart-b.svg" alt="Panel Icon" class="menu-icon" />
                 </div>
-                <div class="@(controllerName == "ManagerOrder" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "ManagerOrder")'">
-                    <img src="~/images/Basket-b.svg" alt="Assign Icon" class="menu-icon" />
+
+                <div class="@(controllerName == "CategoryScraper" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "CategoryScraper")'">
+                    <img src="~/images/Link-b.svg" alt="Panel Icon" class="menu-icon" />
                 </div>
-                <div class="@((controllerName == "ManagerAffiliate" && actionName == "Index") || controllerName == "ManagerAffiliateProfile"  ? "active-link" : "inactive-link")
-                    menu-link" onclick="location.href='@Url.Action("Index", "ManagerAffiliate")'">
-                    <img src="~/images/Affiliate-b.svg" alt="Assign Icon" class="menu-icon" />
+                <div class="@(controllerName == "PriceHistory" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "PriceHistory")'">
+                    <img src="~/images/Link-b.svg" alt="Panel Icon" class="menu-icon" />
                 </div>
-                <div class="@(controllerName == "Payout" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "Payout")'">
-                    <img src="~/images/MoneyOut-b.svg" alt="Assign Icon" class="menu-icon" />
+
+                <div class="@(controllerName == "DatabaseSize" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "DatabaseSize")'">
+                    <img src="~/images/Link-b.svg" alt="Panel Icon" class="menu-icon" />
                 </div>
-                <div class="@((controllerName == "ManagerAffiliate" && actionName == "Accounts") || controllerName == "ProductAssignment" || controllerName == "Category" || controllerName == "Settings" || controllerName == "Product" || controllerName == "Store" || controllerName == "UserManagement" ? "active-link" : "inactive-link")
-                    menu-link" onclick="location.href='@Url.Action("Index", "Product")'">
+
+                <div class="@((controllerName == "ManagerAffiliate" && actionName == "Accounts") || controllerName == "Settings" || controllerName == "UserManagement" ? "active-link" : "inactive-link")
+                    menu-link" onclick="location.href='@Url.Action("Accounts", "ManagerAffiliate")'">
                     <img src="~/images/Settings-b.svg" alt="Assign Icon" class="menu-icon" />
-                </div>
-                <div class="@(controllerName == "ManagerNews" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "ManagerNews")'">
-                    <img src="~/images/Mail-b.svg" alt="Assign Icon" class="menu-icon" />
                 </div>
             }
         </div>

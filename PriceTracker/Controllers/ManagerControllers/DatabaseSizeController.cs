@@ -2,7 +2,7 @@
 using PriceTracker.Data;
 using System.Threading.Tasks;
 
-namespace PriceTracker.Controllers
+namespace PriceTracker.Controllers.ManagerControllers
 {
     public class DatabaseSizeController : Controller
     {
@@ -16,7 +16,9 @@ namespace PriceTracker.Controllers
         public async Task<IActionResult> Index()
         {
             var tableSizes = await _context.GetTableSizes();
-            return View(tableSizes);
+            return View("~/Views/ManagerPanel/DatabaseSize/Index.cshtml", tableSizes);
         }
     }
 }
+
+

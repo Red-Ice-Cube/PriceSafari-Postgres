@@ -2,7 +2,7 @@
 using Microsoft.EntityFrameworkCore;
 using PriceTracker.Data;
 
-namespace PriceTracker.Controllers
+namespace PriceTracker.Controllers.ManagerControllers
 {
     public class PriceHistoryController : Controller
     {
@@ -48,8 +48,8 @@ namespace PriceTracker.Controllers
 
             ViewBag.Categories = categories;
 
-          
-            return View("~/Views/Panel/PriceHistory/Index.cshtml");
+
+            return View("~/Views/ManagerPanel/PriceHistory/Index.cshtml");
         }
 
 
@@ -93,15 +93,15 @@ namespace PriceTracker.Controllers
 
                     return new
                     {
-                        ProductId = bestPriceEntry.ProductId,
-                        ProductName = bestPriceEntry.Product.ProductName,
-                        Category = bestPriceEntry.Product.Category,
+                        bestPriceEntry.ProductId,
+                        bestPriceEntry.Product.ProductName,
+                        bestPriceEntry.Product.Category,
                         LowestPrice = bestPrice,
-                        StoreName = bestPriceEntry.StoreName,
+                        bestPriceEntry.StoreName,
                         MyPrice = myPrice,
                         ScrapId = bestPriceEntry.ScrapHistoryId,
                         PriceDifference = myPrice != 0 ? Math.Round(myPrice - bestPrice, 2) : (decimal?)null,
-                        PercentageDifference = myPrice != 0 ? Math.Round(((myPrice - bestPrice) / bestPrice) * 100, 2) : (decimal?)null
+                        PercentageDifference = myPrice != 0 ? Math.Round((myPrice - bestPrice) / bestPrice * 100, 2) : (decimal?)null
                     };
                 })
                 .ToList();
@@ -190,7 +190,7 @@ namespace PriceTracker.Controllers
             ViewBag.ProductName = product.ProductName;
             ViewBag.StoreName = (await _context.Stores.FindAsync(scrapHistory.StoreId))?.StoreName;
 
-            return View(prices);
+            return View("~/Views/ManagerPanel/PriceHistory/Details.cshtml", prices);
         }
     }
 }

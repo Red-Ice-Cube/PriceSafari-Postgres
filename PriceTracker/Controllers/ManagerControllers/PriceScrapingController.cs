@@ -6,8 +6,7 @@ using PriceTracker.Hubs;
 using PriceTracker.Models;
 using PriceTracker.Services;
 using System.Diagnostics;
-using System.Threading;
-using System.Threading.Tasks;
+
 
 public class PriceScrapingController : Controller
 {

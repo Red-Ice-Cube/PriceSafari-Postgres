@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 using System.Linq;
 using System.Collections.Generic;
 
-namespace PriceTracker.Controllers
+namespace PriceTracker.Controllers.ManagerControllers
 {
     public class StoreController : Controller
     {
@@ -25,7 +25,8 @@ namespace PriceTracker.Controllers
         [HttpGet]
         public IActionResult CreateStore()
         {
-            return View();
+            return View("~/Views/ManagerPanel/Store/CreateStore.cshtml");
+
         }
 
         [HttpPost]
@@ -52,7 +53,8 @@ namespace PriceTracker.Controllers
         public async Task<IActionResult> Index()
         {
             var stores = await _context.Stores.ToListAsync();
-            return View(stores);
+
+            return View("~/Views/ManagerPanel/Store/Index.cshtml", stores);
         }
 
         [HttpGet]
@@ -69,7 +71,7 @@ namespace PriceTracker.Controllers
                 await ScrapeCategoryProducts(storeId, category.CategoryName, baseUrlTemplate);
             }
 
-            return RedirectToAction("ProductList", new { storeId = storeId });
+            return RedirectToAction("ProductList", new { storeId });
         }
 
         private async Task ScrapeCategoryProducts(int storeId, string categoryName, string baseUrlTemplate)
@@ -174,7 +176,8 @@ namespace PriceTracker.Controllers
             ViewBag.Categories = categories;
             ViewBag.StoreId = storeId;
 
-            return View(products);
+            return View("~/Views/ManagerPanel/Store/ProductList.cshtml", products);
+
         }
     }
 }

@@ -103,7 +103,7 @@ namespace PriceTracker.Areas.Identity.Pages.Account
 
                     if (roles.Contains("Admin") || roles.Contains("Manager"))
                     {
-                        return RedirectToAction("Index", "ManagerPanel");
+                        return RedirectToAction("Index", "Store");
                     }
                     else if (roles.Contains("Member"))
                     {

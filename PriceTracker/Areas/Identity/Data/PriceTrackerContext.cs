@@ -2,8 +2,7 @@
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using PriceTracker.Areas.Identity.Data;
-using System.Collections.Generic;
-using System.Threading.Tasks;
+
 
 namespace PriceTracker.Data
 {
@@ -40,7 +39,7 @@ namespace PriceTracker.Data
                 .HasForeignKey(ph => ph.ProductId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            // Konfiguracja typu TableSizeInfo jako encja bez klucza
+           
             modelBuilder.Entity<TableSizeInfo>().HasNoKey();
 
             base.OnModelCreating(modelBuilder);

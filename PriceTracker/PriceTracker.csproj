@@ -34,6 +34,7 @@
 
 	<ItemGroup>
 		<Folder Include="Migrations\" />
+		<Folder Include="Views\Panel\" />
 		<Folder Include="wwwroot\js\Home\" />
 		<Folder Include="wwwroot\icon\" />
 		<Folder Include="wwwroot\pdf\" />
