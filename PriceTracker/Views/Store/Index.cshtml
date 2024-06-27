@@ -1,4 +1,6 @@
-﻿@{
+﻿@model IEnumerable<PriceTracker.Models.StoreClass>
+
+@{
     ViewData["Title"] = "Lista Sklepów";
 }
 
@@ -13,6 +15,7 @@
         <tr>
             <th>Nazwa Sklepu</th>
             <th>Profil Sklepu</th>
+            <th>Głębokość Kategorii</th>
             <th>Akcje</th>
             <th>Postęp</th>
             <th>Status</th>
@@ -24,6 +27,12 @@
             <tr>
                 <td>@store.StoreName</td>
                 <td>@store.StoreProfile</td>
+                <td>
+                    <select class="category-depth-select" data-store-id="@store.StoreId">
+                        <option value="0">0</option>
+                        <option value="1">1</option>
+                    </select>
+                </td>
                 <td>
                     <a asp-controller="Store" asp-action="ScrapeProducts" asp-route-storeId="@store.StoreId" class="btn btn-primary scrape-button" data-store-id="@store.StoreId">Scrapuj Produkty</a>
                     <a asp-controller="Store" asp-action="ProductList" asp-route-storeId="@store.StoreId" class="btn btn-secondary">Lista Produktów</a>
@@ -67,7 +76,8 @@
                 button.addEventListener("click", function (event) {
                     event.preventDefault();
                     const storeId = this.getAttribute("data-store-id");
-                    fetch(`/Store/ScrapeProducts?storeId=${storeId}`, { method: "GET" });
+                    const depth = document.querySelector(`.category-depth-select[data-store-id='${storeId}']`).value;
+                    fetch(`/Store/ScrapeProducts?storeId=${storeId}&depth=${depth}`, { method: "GET" });
                 });
             });
         });

@@ -1,16 +1,17 @@
 ﻿@model IEnumerable<PriceTracker.Models.CategoryClass>
 
 @{
-    ViewData["Title"] = "Category List";
+    ViewData["Title"] = "Lista Kategorii";
 }
 
-<h2>Category List</h2>
+<h2>Lista Kategorii</h2>
 
 <table class="table">
     <thead>
         <tr>
-            <th>Category Name</th>
-            <th>Category URL</th>
+            <th>Nazwa Kategorii</th>
+            <th>URL Kategorii</th>
+            <th>Głębokość</th>
         </tr>
     </thead>
     <tbody>
@@ -18,7 +19,8 @@
         {
             <tr>
                 <td>@category.CategoryName</td>
-                <td><a href="@category.CategoryUrl" target="_blank">@category.CategoryUrl</a></td>
+                <td>@category.CategoryUrl</td>
+                <td>@category.Depth</td>
             </tr>
         }
     </tbody>

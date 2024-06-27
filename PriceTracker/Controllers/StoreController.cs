@@ -56,23 +56,23 @@ namespace PriceTracker.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> ScrapeProducts(int storeId)
+        public async Task<IActionResult> ScrapeProducts(int storeId, int depth)
         {
             var store = await _context.Stores.FindAsync(storeId);
             if (store == null) return NotFound();
 
-            var categories = await _context.Categories.Where(c => c.StoreId == storeId).ToListAsync();
+            var categories = await _context.Categories.Where(c => c.StoreId == storeId && c.Depth == depth).ToListAsync();
 
             foreach (var category in categories)
             {
-                var baseUrlTemplate = $"https://www.ceneo.pl{category.CategoryUrl};0192;{store.StoreProfile}-0v;0020-15-0-0-{{0}}.htm";
-                await ScrapeCategoryProducts(storeId, baseUrlTemplate);
+                var baseUrlTemplate = $"https://www.ceneo.pl/{category.CategoryUrl};0192;{store.StoreProfile}-0v;0020-15-0-0-{{0}}.htm";
+                await ScrapeCategoryProducts(storeId, category.CategoryName, baseUrlTemplate);
             }
 
             return RedirectToAction("ProductList", new { storeId = storeId });
         }
 
-        private async Task ScrapeCategoryProducts(int storeId, string baseUrlTemplate)
+        private async Task ScrapeCategoryProducts(int storeId, string categoryName, string baseUrlTemplate)
         {
             var web = new HtmlWeb();
             HtmlDocument doc;
@@ -111,10 +111,9 @@ namespace PriceTracker.Controllers
                         try
                         {
                             var nameNode = product.SelectSingleNode(".//strong[contains(@class, 'cat-prod-box__name')]//a");
-                            var category = product.GetAttributeValue("data-gacategoryname", "");
                             var pid = product.GetAttributeValue("data-pid", "");
 
-                            if (nameNode != null && !string.IsNullOrEmpty(category) && !string.IsNullOrEmpty(pid))
+                            if (nameNode != null && !string.IsNullOrEmpty(pid))
                             {
                                 var name = nameNode.InnerText.Trim();
                                 var offerUrl = "https://www.ceneo.pl/" + pid;
@@ -128,14 +127,14 @@ namespace PriceTracker.Controllers
                                 {
                                     StoreId = storeId,
                                     ProductName = name,
-                                    Category = category,
+                                    Category = categoryName,
                                     OfferUrl = offerUrl
                                 };
 
                                 _context.Products.Add(productEntity);
                                 newProductUrls.Add(offerUrl);
 
-                                Console.WriteLine($"Scraped Product - Name: {name}, Category: {category}, URL: {offerUrl}");
+                                Console.WriteLine($"Scraped Product - Name: {name}, Category: {categoryName}, URL: {offerUrl}");
                             }
                         }
                         catch (Exception ex)
