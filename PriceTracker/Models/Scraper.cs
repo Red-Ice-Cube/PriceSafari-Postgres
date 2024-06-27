@@ -43,39 +43,6 @@ namespace PriceTracker.Services
                                               offerNode.SelectSingleNode(".//span[contains(text(), 'Wysyłka')]");
 
                         decimal? shippingCostNum = null;
-                        if (shippingNode != null)
-                        {
-                            if (shippingNode.InnerText.Contains("Darmowa wysyłka"))
-                            {
-                                shippingCostNum = 0;
-                            }
-                            else
-                            {
-                                var shippingCostText = Regex.Match(shippingNode.InnerText, @"\d+[.,]?\d*").Value;
-                                if (decimal.TryParse(shippingCostText.Replace(",", "."), NumberStyles.Any, CultureInfo.InvariantCulture, out var parsedShippingCost))
-                                {
-                                    shippingCostNum = parsedShippingCost;
-                                }
-                            }
-                        }
-
-                        int? availabilityNum = null;
-                        if (availabilityNode != null)
-                        {
-                            if (availabilityNode.InnerText.Contains("Wysyłka w 1 dzień"))
-                            {
-                                availabilityNum = 1;
-                            }
-                            else if (availabilityNode.InnerText.Contains("Wysyłka do"))
-                            {
-                                var daysText = Regex.Match(availabilityNode.InnerText, @"\d+").Value;
-                                if (int.TryParse(daysText, out var parsedDays))
-                                {
-                                    availabilityNum = parsedDays;
-                                }
-                            }
-                        }
-
                         if (priceNode != null && pennyNode != null && !string.IsNullOrEmpty(storeName))
                         {
                             var priceText = priceNode.InnerText.Trim() + pennyNode.InnerText.Trim();
@@ -83,6 +50,51 @@ namespace PriceTracker.Services
 
                             if (decimal.TryParse(priceValue, NumberStyles.Any, CultureInfo.InvariantCulture, out decimal price))
                             {
+                                if (shippingNode != null)
+                                {
+                                    if (shippingNode.InnerText.Contains("Darmowa wysyłka"))
+                                    {
+                                        shippingCostNum = 0;
+                                    }
+                                    else
+                                    {
+                                        var shippingCostText = Regex.Match(shippingNode.InnerText, @"\d+[.,]?\d*").Value;
+                                        if (!string.IsNullOrEmpty(shippingCostText) && decimal.TryParse(shippingCostText.Replace(",", "."), NumberStyles.Any, CultureInfo.InvariantCulture, out var parsedShippingCost))
+                                        {
+                                            var shippingCostDifference = parsedShippingCost - price;
+                                            if (shippingCostDifference > 0)
+                                            {
+                                                shippingCostNum = shippingCostDifference;
+                                            }
+                                            else
+                                            {
+                                                shippingCostNum = null;
+                                            }
+                                        }
+                                        else
+                                        {
+                                            shippingCostNum = null;
+                                        }
+                                    }
+                                }
+
+                                int? availabilityNum = null;
+                                if (availabilityNode != null)
+                                {
+                                    if (availabilityNode.InnerText.Contains("Wysyłka w 1 dzień"))
+                                    {
+                                        availabilityNum = 1;
+                                    }
+                                    else if (availabilityNode.InnerText.Contains("Wysyłka do"))
+                                    {
+                                        var daysText = Regex.Match(availabilityNode.InnerText, @"\d+").Value;
+                                        if (int.TryParse(daysText, out var parsedDays))
+                                        {
+                                            availabilityNum = parsedDays;
+                                        }
+                                    }
+                                }
+
                                 prices.Add((storeName, price, shippingCostNum, availabilityNum));
                             }
                         }
