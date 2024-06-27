@@ -58,9 +58,21 @@ namespace PriceTracker.Controllers
             var store = await _context.Stores.FindAsync(storeId);
             if (store == null) return NotFound();
 
-            var baseUrl = store.StoreProfile;
+            var storeProfile = store.StoreProfile; // Zakładamy, że to będzie np. "14337"
+            var baseUrlTemplate = "https://www.ceneo.pl/;0192;{0}-0v;0020-15-0-0-{1}.htm";
             var web = new HtmlWeb();
-            var doc = web.Load(baseUrl);
+            HtmlDocument doc;
+
+            try
+            {
+                var initialUrl = string.Format(baseUrlTemplate, storeProfile, 0);
+                doc = web.Load(initialUrl);
+            }
+            catch (Exception ex)
+            {
+                // Log the error (ex.Message) or handle it as needed
+                return StatusCode(500, "Error loading the webpage");
+            }
 
             // Pobieramy liczbę stron
             var pageCountNode = doc.DocumentNode.SelectSingleNode("//input[@id='page-counter']");
@@ -77,47 +89,75 @@ namespace PriceTracker.Controllers
 
             for (int page = 0; page < pageCount; page++)
             {
-                var url = $"{baseUrl.Replace("0-0-0-0.htm", $"0-0-0-{page}.htm")}";
-                doc = web.Load(url);
+                var url = string.Format(baseUrlTemplate, storeProfile, page);
+                Console.WriteLine($"Processing page: {url}"); // Log the current page URL being processed
 
-                var products = doc.DocumentNode.SelectNodes("//div[contains(@class, 'cat-prod-row')]");
+                try
+                {
+                    doc = web.Load(url);
+                }
+                catch (Exception ex)
+                {
+                    // Log the error (ex.Message) or handle it as needed
+                    Console.WriteLine($"Error loading page {page}: {ex.Message}");
+                    continue; // Skip to the next page if there's an error loading the current page
+                }
+
+                var products = doc.DocumentNode.SelectNodes("//div[contains(@class, 'cat-prod-box')]");
                 if (products != null && products.Count > 0)
                 {
                     foreach (var product in products)
                     {
-                        var nameNode = product.SelectSingleNode(".//strong[contains(@class, 'cat-prod-row__name')]//a");
-                        var categoryNode = product.SelectSingleNode(".//div[contains(@class, 'cat-prod-row__category')]//a");
-                        var pid = product.GetAttributeValue("data-pid", "");
-
-                        if (nameNode != null && categoryNode != null && !string.IsNullOrEmpty(pid))
+                        try
                         {
-                            var name = nameNode.InnerText.Trim();
-                            var category = categoryNode.InnerText.Trim();
-                            var fullOfferUrl = "https://www.ceneo.pl/" + pid;
+                            var nameNode = product.SelectSingleNode(".//strong[contains(@class, 'cat-prod-box__name')]//a");
+                            var category = product.GetAttributeValue("data-gacategoryname", "");
+                            var pid = product.GetAttributeValue("data-pid", "");
 
-                            if (existingProductUrls.Contains(fullOfferUrl) || newProductUrls.Contains(fullOfferUrl))
+                            if (nameNode != null && !string.IsNullOrEmpty(category) && !string.IsNullOrEmpty(pid))
                             {
-                                continue;
+                                var name = nameNode.InnerText.Trim();
+                                var offerUrl = "https://www.ceneo.pl/" + pid;
+
+                                if (existingProductUrls.Contains(offerUrl) || newProductUrls.Contains(offerUrl))
+                                {
+                                    continue;
+                                }
+
+                                var productEntity = new ProductClass
+                                {
+                                    StoreId = storeId,
+                                    ProductName = name,
+                                    Category = category,
+                                    OfferUrl = offerUrl
+                                };
+
+                                _context.Products.Add(productEntity);
+                                newProductUrls.Add(offerUrl);
+
+                                // Log the product details for debugging
+                                Console.WriteLine($"Scraped Product - Name: {name}, Category: {category}, URL: {offerUrl}");
                             }
-
-                            var productEntity = new ProductClass
-                            {
-                                StoreId = storeId,
-                                ProductName = name,
-                                Category = category,
-                                OfferUrl = fullOfferUrl
-                            };
-
-                            _context.Products.Add(productEntity);
-                            newProductUrls.Add(fullOfferUrl);
+                            totalScraped++;
+                            await _hubContext.Clients.All.SendAsync("ReceiveProgressUpdate", totalScraped, newProductUrls.Count, page + 1, pageCount, storeId);
                         }
-                        totalScraped++;
-                        await _hubContext.Clients.All.SendAsync("ReceiveProgressUpdate", totalScraped, newProductUrls.Count, page + 1, pageCount, storeId);
+                        catch (Exception ex)
+                        {
+                            // Log the error (ex.Message) or handle it as needed
+                            Console.WriteLine($"Error processing product on page {page}: {ex.Message}");
+                            continue; // Skip the current product if there's an error processing it
+                        }
                     }
 
                     await _context.SaveChangesAsync();
                 }
+                else
+                {
+                    Console.WriteLine($"No products found on page {page}.");
+                }
             }
+
+            Console.WriteLine($"Total pages processed: {pageCount}, Total products scraped: {totalScraped}");
 
             return RedirectToAction("ProductList", new { storeId = storeId });
         }

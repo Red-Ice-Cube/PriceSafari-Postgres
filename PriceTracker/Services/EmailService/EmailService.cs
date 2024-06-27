@@ -15,7 +15,7 @@ public class EmailService : IEmailSender
     {
         _mailServer = Environment.GetEnvironmentVariable("MAIL_SERVER");
         _mailPort = int.Parse(Environment.GetEnvironmentVariable("MAIL_PORT"));
-        _senderName = "HeatLead System";
+        _senderName = "Price Tracker";
         _sender = Environment.GetEnvironmentVariable("MAIL_SENDER");
         _password = Environment.GetEnvironmentVariable("MAIL_PASSWORD");
     }
