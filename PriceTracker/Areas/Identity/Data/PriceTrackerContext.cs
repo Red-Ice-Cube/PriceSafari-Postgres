@@ -2,6 +2,8 @@
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using PriceTracker.Areas.Identity.Data;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace PriceTracker.Data
 {
@@ -20,26 +22,26 @@ namespace PriceTracker.Data
                 .HasForeignKey<AffiliateVerification>(av => av.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            // Konfiguracja relacji między PriceHistoryClass a ScrapHistoryClass
             modelBuilder.Entity<PriceHistoryClass>()
                 .HasOne(ph => ph.ScrapHistory)
                 .WithMany(sh => sh.PriceHistories)
                 .HasForeignKey(ph => ph.ScrapHistoryId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            // Konfiguracja relacji między ScrapHistoryClass a StoreClass
             modelBuilder.Entity<ScrapHistoryClass>()
                 .HasOne(sh => sh.Store)
                 .WithMany(s => s.ScrapHistories)
                 .HasForeignKey(sh => sh.StoreId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            // Konfiguracja relacji między PriceHistoryClass a ProductClass
             modelBuilder.Entity<PriceHistoryClass>()
                 .HasOne(ph => ph.Product)
                 .WithMany(p => p.PriceHistories)
                 .HasForeignKey(ph => ph.ProductId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            // Konfiguracja typu TableSizeInfo jako encja bez klucza
+            modelBuilder.Entity<TableSizeInfo>().HasNoKey();
 
             base.OnModelCreating(modelBuilder);
         }
@@ -50,6 +52,51 @@ namespace PriceTracker.Data
         public DbSet<ProductClass> Products { get; set; }
         public DbSet<PriceHistoryClass> PriceHistories { get; set; }
         public DbSet<ScrapHistoryClass> ScrapHistories { get; set; }
-        public DbSet<CategoryClass> Categories { get; set; } // Dodaj nową tabelę Categories
+        public DbSet<CategoryClass> Categories { get; set; }
+        public DbSet<TableSizeInfo> TableSizeInfo { get; set; }
+
+        public async Task<List<TableSizeInfo>> GetTableSizes()
+        {
+            var query = @"
+                SELECT 
+                    t.name AS TableName,
+                    s.name AS SchemaName,
+                    p.rows AS RowCounts,
+                    SUM(a.total_pages) * 8 AS TotalSpaceKB, 
+                    SUM(a.used_pages) * 8 AS UsedSpaceKB, 
+                    (SUM(a.total_pages) - SUM(a.used_pages)) * 8 AS UnusedSpaceKB
+                FROM 
+                    sys.tables t
+                INNER JOIN      
+                    sys.indexes i ON t.OBJECT_ID = i.object_id
+                INNER JOIN 
+                    sys.partitions p ON i.object_id = p.OBJECT_ID AND i.index_id = p.index_id
+                INNER JOIN 
+                    sys.allocation_units a ON p.partition_id = a.container_id
+                LEFT OUTER JOIN 
+                    sys.schemas s ON t.schema_id = s.schema_id
+                WHERE 
+                    t.name IN ('Products', 'PriceHistories')
+                GROUP BY 
+                    t.Name, s.Name, p.Rows
+                ORDER BY 
+                    TotalSpaceKB DESC";
+
+            return await this.TableSizeInfo.FromSqlRaw(query).ToListAsync();
+        }
+    }
+
+    public class TableSizeInfo
+    {
+        public string TableName { get; set; }
+        public string SchemaName { get; set; }
+        public long RowCounts { get; set; }
+        public long TotalSpaceKB { get; set; }
+        public long UsedSpaceKB { get; set; }
+        public long UnusedSpaceKB { get; set; }
+
+        public double TotalSpaceMB => TotalSpaceKB / 1024.0;
+        public double UsedSpaceMB => UsedSpaceKB / 1024.0;
+        public double UnusedSpaceMB => UnusedSpaceKB / 1024.0;
     }
 }

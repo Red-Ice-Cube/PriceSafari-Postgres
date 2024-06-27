@@ -1,0 +1,31 @@
+﻿@model IEnumerable<PriceTracker.Data.TableSizeInfo>
+
+@{
+    ViewData["Title"] = "Rozmiar Tabel";
+}
+
+<h2>Rozmiar Tabel</h2>
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>Nazwa Tabeli</th>
+            <th>Ilość Wierszy</th>
+            <th>Całkowita Przestrzeń (MB)</th>
+            <th>Użyta Przestrzeń (MB)</th>
+            <th>Nieużyta Przestrzeń (MB)</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var tableSize in Model)
+        {
+            <tr>
+                <td>@tableSize.TableName</td>
+                <td>@tableSize.RowCounts</td>
+                <td>@tableSize.TotalSpaceMB</td>
+                <td>@tableSize.UsedSpaceMB</td>
+                <td>@tableSize.UnusedSpaceMB</td>
+            </tr>
+        }
+    </tbody>
+</table>
