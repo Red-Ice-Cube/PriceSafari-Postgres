@@ -1,0 +1,20 @@
+﻿@model IEnumerable<PriceTracker.Models.StoreClass>
+
+@{
+    ViewData["Title"] = "Scrape Categories";
+}
+
+<h2>Scrape Categories</h2>
+
+<form asp-action="ScrapeCategories" method="post">
+    <div class="form-group">
+        <label for="storeId">Select Store:</label>
+        <select id="storeId" name="storeId" class="form-control">
+            @foreach (var store in Model)
+            {
+                <option value="@store.StoreId">@store.StoreName</option>
+            }
+        </select>
+    </div>
+    <button type="submit" class="btn btn-primary">Scrape Categories</button>
+</form>

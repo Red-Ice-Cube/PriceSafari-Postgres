@@ -271,6 +271,32 @@ namespace PriceTracker.Migrations
                     b.ToTable("AffiliateVerification");
                 });
 
+            modelBuilder.Entity("PriceTracker.Models.CategoryClass", b =>
+                {
+                    b.Property<int>("CategoryId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("CategoryId"));
+
+                    b.Property<string>("CategoryName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("CategoryUrl")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("StoreId")
+                        .HasColumnType("int");
+
+                    b.HasKey("CategoryId");
+
+                    b.HasIndex("StoreId");
+
+                    b.ToTable("Categories");
+                });
+
             modelBuilder.Entity("PriceTracker.Models.PriceHistoryClass", b =>
                 {
                     b.Property<int>("Id")
@@ -501,6 +527,17 @@ namespace PriceTracker.Migrations
                     b.Navigation("PriceTrackerUser");
                 });
 
+            modelBuilder.Entity("PriceTracker.Models.CategoryClass", b =>
+                {
+                    b.HasOne("PriceTracker.Models.StoreClass", "Store")
+                        .WithMany("Categories")
+                        .HasForeignKey("StoreId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Store");
+                });
+
             modelBuilder.Entity("PriceTracker.Models.PriceHistoryClass", b =>
                 {
                     b.HasOne("PriceTracker.Models.ProductClass", "Product")
@@ -560,6 +597,8 @@ namespace PriceTracker.Migrations
 
             modelBuilder.Entity("PriceTracker.Models.StoreClass", b =>
                 {
+                    b.Navigation("Categories");
+
                     b.Navigation("Products");
 
                     b.Navigation("ScrapHistories");

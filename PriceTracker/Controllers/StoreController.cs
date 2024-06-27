@@ -5,6 +5,9 @@ using PriceTracker.Hubs;
 using PriceTracker.Models;
 using Microsoft.EntityFrameworkCore;
 using PriceTracker.Data;
+using System.Threading.Tasks;
+using System.Linq;
+using System.Collections.Generic;
 
 namespace PriceTracker.Controllers
 {
@@ -18,6 +21,7 @@ namespace PriceTracker.Controllers
             _context = context;
             _hubContext = hubContext;
         }
+
         [HttpGet]
         public IActionResult CreateStore()
         {
@@ -44,7 +48,6 @@ namespace PriceTracker.Controllers
             return RedirectToAction("Index");
         }
 
-
         [HttpGet]
         public async Task<IActionResult> Index()
         {
@@ -58,39 +61,31 @@ namespace PriceTracker.Controllers
             var store = await _context.Stores.FindAsync(storeId);
             if (store == null) return NotFound();
 
-            var storeProfile = store.StoreProfile; // Zakładamy, że to będzie np. "14337"
-            var baseUrlTemplate = "https://www.ceneo.pl/;0192;{0}-0v;0020-15-0-0-{1}.htm";
+            var categories = await _context.Categories.Where(c => c.StoreId == storeId).ToListAsync();
+
+            foreach (var category in categories)
+            {
+                var baseUrlTemplate = $"https://www.ceneo.pl{category.CategoryUrl};0192;{store.StoreProfile}-0v;0020-15-0-0-{{0}}.htm";
+                await ScrapeCategoryProducts(storeId, baseUrlTemplate);
+            }
+
+            return RedirectToAction("ProductList", new { storeId = storeId });
+        }
+
+        private async Task ScrapeCategoryProducts(int storeId, string baseUrlTemplate)
+        {
             var web = new HtmlWeb();
             HtmlDocument doc;
-
-            try
-            {
-                var initialUrl = string.Format(baseUrlTemplate, storeProfile, 0);
-                doc = web.Load(initialUrl);
-            }
-            catch (Exception ex)
-            {
-                // Log the error (ex.Message) or handle it as needed
-                return StatusCode(500, "Error loading the webpage");
-            }
-
-            // Pobieramy liczbę stron
-            var pageCountNode = doc.DocumentNode.SelectSingleNode("//input[@id='page-counter']");
+            int page = 0;
             int pageCount = 1;
-            if (pageCountNode != null)
-            {
-                int.TryParse(pageCountNode.GetAttributeValue("data-pagecount", "1"), out pageCount);
-            }
-
-            var existingProductUrls = _context.Products.Where(p => p.StoreId == storeId).Select(p => p.OfferUrl).ToHashSet();
-            int totalScraped = 0;
-            int totalProducts = 0;
+            bool hasMorePages = true;
+            HashSet<string> existingProductUrls = _context.Products.Where(p => p.StoreId == storeId).Select(p => p.OfferUrl).ToHashSet();
             HashSet<string> newProductUrls = new HashSet<string>();
 
-            for (int page = 0; page < pageCount; page++)
+            while (hasMorePages)
             {
-                var url = string.Format(baseUrlTemplate, storeProfile, page);
-                Console.WriteLine($"Processing page: {url}"); // Log the current page URL being processed
+                var url = string.Format(baseUrlTemplate, page);
+                Console.WriteLine($"Processing page: {url}");
 
                 try
                 {
@@ -98,9 +93,14 @@ namespace PriceTracker.Controllers
                 }
                 catch (Exception ex)
                 {
-                    // Log the error (ex.Message) or handle it as needed
                     Console.WriteLine($"Error loading page {page}: {ex.Message}");
-                    continue; // Skip to the next page if there's an error loading the current page
+                    break;
+                }
+
+                var pageCountNode = doc.DocumentNode.SelectSingleNode("//input[@id='page-counter']");
+                if (page == 0 && pageCountNode != null)
+                {
+                    int.TryParse(pageCountNode.GetAttributeValue("data-pagecount", "1"), out pageCount);
                 }
 
                 var products = doc.DocumentNode.SelectNodes("//div[contains(@class, 'cat-prod-box')]");
@@ -135,17 +135,13 @@ namespace PriceTracker.Controllers
                                 _context.Products.Add(productEntity);
                                 newProductUrls.Add(offerUrl);
 
-                                // Log the product details for debugging
                                 Console.WriteLine($"Scraped Product - Name: {name}, Category: {category}, URL: {offerUrl}");
                             }
-                            totalScraped++;
-                            await _hubContext.Clients.All.SendAsync("ReceiveProgressUpdate", totalScraped, newProductUrls.Count, page + 1, pageCount, storeId);
                         }
                         catch (Exception ex)
                         {
-                            // Log the error (ex.Message) or handle it as needed
                             Console.WriteLine($"Error processing product on page {page}: {ex.Message}");
-                            continue; // Skip the current product if there's an error processing it
+                            continue;
                         }
                     }
 
@@ -153,16 +149,18 @@ namespace PriceTracker.Controllers
                 }
                 else
                 {
-                    Console.WriteLine($"No products found on page {page}.");
+                    hasMorePages = false;
+                }
+
+                await _hubContext.Clients.All.SendAsync("ReceiveProgressUpdate", newProductUrls.Count, existingProductUrls.Count + newProductUrls.Count, page + 1, pageCount, storeId);
+
+                page++;
+                if (page >= pageCount)
+                {
+                    hasMorePages = false;
                 }
             }
-
-            Console.WriteLine($"Total pages processed: {pageCount}, Total products scraped: {totalScraped}");
-
-            return RedirectToAction("ProductList", new { storeId = storeId });
         }
-
-
 
         [HttpGet]
         public async Task<IActionResult> ProductList(int storeId)
