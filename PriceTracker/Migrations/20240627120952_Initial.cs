@@ -225,6 +225,7 @@ namespace PriceTracker.Migrations
                     CategoryId = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
                     StoreId = table.Column<int>(type: "int", nullable: false),
+                    Depth = table.Column<int>(type: "int", nullable: false),
                     CategoryName = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     CategoryUrl = table.Column<string>(type: "nvarchar(max)", nullable: false)
                 },
