@@ -7,7 +7,6 @@ using PriceTracker.Models;
 using PriceTracker.Services;
 using System.Diagnostics;
 
-
 public class PriceScrapingController : Controller
 {
     private readonly PriceTrackerContext _context;
@@ -47,6 +46,7 @@ public class PriceScrapingController : Controller
 
         int scrapedCount = 0;
         int totalPrices = 0;
+        int rejectedCount = 0; // Licznik odrzuconych produktów
         var stopwatch = new Stopwatch();
         var tasks = new List<Task>();
         var semaphore = new SemaphoreSlim(50);
@@ -65,6 +65,16 @@ public class PriceScrapingController : Controller
 
                     var (prices, log) = await _scraper.GetProductPricesAsync(product.OfferUrl);
 
+                  
+                    var ourStorePrices = prices.Where(p => p.storeName.ToLower() == store.StoreName.ToLower()).ToList();
+                    if (ourStorePrices.Count == 0 || ourStorePrices.Count == prices.Count)
+                    {
+                   
+                        Interlocked.Increment(ref rejectedCount); 
+                        await _hubContext.Clients.All.SendAsync("ReceiveProgressUpdate", Interlocked.Increment(ref scrapedCount), products.Count, stopwatch.Elapsed.TotalSeconds, rejectedCount);
+                        return;
+                    }
+
                     foreach (var priceData in prices)
                     {
                         var priceHistory = new PriceHistoryClass
@@ -81,10 +91,8 @@ public class PriceScrapingController : Controller
                     }
 
                     await scopedContext.SaveChangesAsync();
-                    Interlocked.Increment(ref scrapedCount);
-                    Interlocked.Add(ref totalPrices, prices.Count);
-                    var elapsedSeconds = stopwatch.Elapsed.TotalSeconds;
-                    await _hubContext.Clients.All.SendAsync("ReceiveProgressUpdate", scrapedCount, products.Count, elapsedSeconds);
+                    Interlocked.Increment(ref totalPrices);
+                    await _hubContext.Clients.All.SendAsync("ReceiveProgressUpdate", Interlocked.Increment(ref scrapedCount), products.Count, stopwatch.Elapsed.TotalSeconds, rejectedCount);
                 }
                 catch (Exception ex)
                 {
@@ -114,5 +122,3 @@ public class PriceScrapingController : Controller
         return await StartScraping(storeId);
     }
 }
-
-

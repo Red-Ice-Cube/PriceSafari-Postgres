@@ -1,6 +1,5 @@
 ﻿document.addEventListener("DOMContentLoaded", function () {
     let allPrices = [];
-    let potentialSavings = [];
     let chartInstance = null;
 
     function loadStores() {
@@ -26,16 +25,11 @@
                     ...price,
                     colorClass: getColorClass(price.priceDifference, price.isUniqueBestPrice, price.isSharedBestPrice)
                 }));
-                potentialSavings = response.potentialSavings.map(price => ({
-                    ...price,
-                    colorClass: "green" // Zielony kolor dla produktów z potencjalną oszczędnością
-                }));
-                const allData = allPrices.concat(potentialSavings);
                 document.getElementById('totalProductCount').textContent = response.productCount;
                 document.getElementById('totalPriceCount').textContent = response.priceCount;
-                renderPrices(allData);
-                renderChart(allData);
-                updateColorTable(allData);
+                renderPrices(allPrices);
+                renderChart(allPrices);
+                updateColorTable(allPrices);
             })
             .catch(error => console.error('Error fetching prices:', error));
     }
@@ -237,7 +231,7 @@
 
     document.querySelectorAll('.colorFilter').forEach(function (checkbox) {
         checkbox.addEventListener('change', function () {
-            filterPricesByCategoryAndColor(allPrices.concat(potentialSavings)); 
+            filterPricesByCategoryAndColor(allPrices);
         });
     });
 

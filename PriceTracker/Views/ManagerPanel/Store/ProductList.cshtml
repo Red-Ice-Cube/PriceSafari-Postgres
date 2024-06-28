@@ -92,7 +92,6 @@
             var productCount = document.querySelectorAll("tbody tr").length;
             document.getElementById("productCount").textContent = productCount;
 
-
             var ctx = document.getElementById('speedChart').getContext('2d');
 
             var gradientFill1 = ctx.createLinearGradient(0, 0, 0, ctx.canvas.clientHeight);
@@ -184,7 +183,7 @@
             var connection = new signalR.HubConnectionBuilder().withUrl("/scrapingHub").build();
             var scrapingComplete = false;
 
-            connection.on("ReceiveProgressUpdate", function (scrapedCount, totalCount, elapsedSeconds) {
+            connection.on("ReceiveProgressUpdate", function (scrapedCount, totalCount, elapsedSeconds, rejectedCount) {
                 if (scrapingComplete) return;
 
                 var percentage = Math.round((scrapedCount / totalCount) * 100);
@@ -194,7 +193,7 @@
 
                 progressBarInner.style.width = percentage + "%";
                 progressBarInner.innerHTML = percentage + "%";
-                progressText.innerHTML = `Zbieranie cen ${scrapedCount}/${totalCount} produktów`;
+                progressText.innerHTML = `Zbieranie cen ${scrapedCount}/${totalCount} produktów (${rejectedCount} odrzuconych)`;
 
                 var currentTime = Math.floor(elapsedSeconds);
 
@@ -212,12 +211,12 @@
 
                 if (scrapedCount === totalCount) {
                     completionMessage.style.display = "block";
-                    completionMessage.innerHTML = `Zebrano ceny dla ${scrapedCount}/${totalCount} produktów.`;
+                    completionMessage.innerHTML = `Zebrano ceny dla ${scrapedCount}/${totalCount} produktów (${rejectedCount} odrzuconych).`;
                     completionMessage.style.color = "#0E7E87";
 
                     progressBarInner.style.backgroundColor = "#0E7E87";
 
-                    progressText.style.display = "none"; // Hide progress text
+                    progressText.style.display = "none"; 
 
                     scrapingComplete = true;
 
@@ -249,5 +248,6 @@
                 });
             });
         });
+
     </script>
 }

@@ -52,13 +52,12 @@ namespace PriceTracker.Controllers.ManagerControllers
             return View("~/Views/ManagerPanel/PriceHistory/Index.cshtml");
         }
 
-
         [HttpGet]
         public async Task<IActionResult> GetPrices(int? storeId)
         {
             if (storeId == null)
             {
-                return Json(new { productCount = 0, priceCount = 0, prices = new List<dynamic>(), potentialSavings = new List<dynamic>() });
+                return Json(new { productCount = 0, priceCount = 0, prices = new List<dynamic>() });
             }
 
             var latestScrap = await _context.ScrapHistories
@@ -68,7 +67,7 @@ namespace PriceTracker.Controllers.ManagerControllers
 
             if (latestScrap == null)
             {
-                return Json(new { productCount = 0, priceCount = 0, prices = new List<dynamic>(), potentialSavings = new List<dynamic>() });
+                return Json(new { productCount = 0, priceCount = 0, prices = new List<dynamic>() });
             }
 
             var storeName = await _context.Stores
@@ -81,7 +80,8 @@ namespace PriceTracker.Controllers.ManagerControllers
                 .Include(ph => ph.Product)
                 .ToListAsync();
 
-            var allPrices = prices.GroupBy(p => p.ProductId)
+            var allPrices = prices
+                .GroupBy(p => p.ProductId)
                 .Select(g =>
                 {
                     var bestPriceEntry = g.OrderBy(p => p.Price).First();
@@ -111,13 +111,15 @@ namespace PriceTracker.Controllers.ManagerControllers
                 })
                 .ToList();
 
-            var potentialSavings = allPrices.Where(p => p.IsUniqueBestPrice).ToList();
+            // Eliminujemy powielone produkty na podstawie ProductId
+            var uniqueAllPrices = allPrices.GroupBy(p => p.ProductId).Select(g => g.First()).ToList();
 
-            var remainingProductCount = allPrices.Count;
+            var remainingProductCount = uniqueAllPrices.Count;
             var remainingPriceCount = prices.Count;
 
-            return Json(new { productCount = remainingProductCount, priceCount = remainingPriceCount, prices = allPrices, potentialSavings = potentialSavings });
+            return Json(new { productCount = remainingProductCount, priceCount = remainingPriceCount, prices = uniqueAllPrices });
         }
+
 
 
 
