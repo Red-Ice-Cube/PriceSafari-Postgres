@@ -3531,6 +3531,21 @@ tr:last-child .sub-line {
     }
 
 
+.price-row .store-name.blue {
+    background-color: rgba(14, 126, 135, 0.5);
+    border: 1px solid rgba(14, 126, 135, 1);
+}
+
+.price-row .store-name.yellow {
+    background-color: rgba(240, 240, 105, 0.5);
+    border: 1px solid rgba(240, 240, 105, 1);
+}
+
+.price-row .store-name.red {
+    background-color: rgba(246, 78, 101, 0.5);
+    border: 1px solid rgba(246, 78, 101, 1);
+}
+
 .colorFilter {
     width: 16px;
     height: 16px;

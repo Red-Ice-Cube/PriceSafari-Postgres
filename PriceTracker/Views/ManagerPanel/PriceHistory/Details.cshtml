@@ -9,7 +9,7 @@
     ViewData["Title"] = "Szczegóły Cen";
     var scrapHistory = ViewBag.ScrapHistory as PriceTracker.Models.ScrapHistoryClass;
     var productName = ViewBag.ProductName as string;
-    var storeName = ViewBag.StoreName as string; 
+    var storeName = ViewBag.StoreName as string;
 }
 
 <h1>@productName</h1>
@@ -19,7 +19,10 @@
     <p><strong>Data Scrapowania:</strong> @scrapHistory.Date</p>
 </div>
 
-<table class="table" id="priceTable">
+
+
+
+   <table class="table-orders" id="priceTable">
     <thead>
         <tr>
             <th>Sklep</th>
@@ -31,10 +34,12 @@
     <tbody>
         @foreach (var item in Model.OrderBy(ph => ph.Price))
         {
+            var priceDifference = item.Price - Model.Min(m => m.Price);
+            var colorClass = priceDifference <= 0 ? "blue" : (priceDifference < 2 ? "yellow" : "red");
             <tr class="price-row" data-store-name="@item.StoreName">
-                <td>@item.StoreName</td>
-                <td>@item.Price.ToString("C")</td>
-                <td>@item.ShippingCostNum</td>
+                <td class="store-name @colorClass">@item.StoreName</td>
+                <td>@item.Price zł</td>
+                <td>@item.ShippingCostNum zł</td>
                 <td>@item.AvailabilityNum</td>
             </tr>
         }
@@ -49,7 +54,7 @@
             rows.forEach(function (row) {
                 var storeName = row.getAttribute("data-store-name").toLowerCase();
                 if (storeName === observedStoreName) {
-                    row.style.fontWeight = "bold";
+                    row.querySelector(".store-name").style.fontWeight = "bold";
                 }
             });
         });
