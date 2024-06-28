@@ -3504,16 +3504,14 @@ tr:last-child .sub-line {
     width: 100%;
     gap: 16px;
 }
-
-
-
 .colorFilter {
     outline: none;
     background-color: white;
     border: 2px solid gray;
     border-radius: 4px;
+    width: 16px;
+    height: 16px;
 }
-
 
     .colorFilter:checked#blueCheckbox {
         background-color: rgba(14, 126, 135, 0.5);
@@ -3530,23 +3528,40 @@ tr:last-child .sub-line {
         border: 2px solid rgba(246, 78, 101, 1);
     }
 
+    .colorFilter:checked#greenCheckbox {
+        background-color: rgba(0, 255, 0, 0.5);
+        border: 2px solid rgba(0, 255, 0, 1);
+    }
 
-.price-row .store-name.blue {
+.price-row.blue {
+    background-color: rgba(14, 126, 135, 0.3);
+}
+
+.price-row.yellow {
+    background-color: rgba(240, 240, 105, 0.3);
+}
+
+.price-row.red {
+    background-color: rgba(246, 78, 101, 0.3);
+}
+
+.price-row.green {
+    background-color: rgba(0, 255, 0, 0.3);
+}
+
+.price-row.blue:hover {
     background-color: rgba(14, 126, 135, 0.5);
-    border: 1px solid rgba(14, 126, 135, 1);
 }
 
-.price-row .store-name.yellow {
+.price-row.yellow:hover {
     background-color: rgba(240, 240, 105, 0.5);
-    border: 1px solid rgba(240, 240, 105, 1);
 }
 
-.price-row .store-name.red {
+.price-row.red:hover {
     background-color: rgba(246, 78, 101, 0.5);
-    border: 1px solid rgba(246, 78, 101, 1);
 }
 
-.colorFilter {
-    width: 16px;
-    height: 16px;
+.price-row.green:hover {
+    background-color: rgba(0, 255, 0, 0.5);
 }
+

@@ -58,7 +58,7 @@ namespace PriceTracker.Controllers.ManagerControllers
         {
             if (storeId == null)
             {
-                return Json(new { productCount = 0, priceCount = 0, prices = new List<dynamic>() });
+                return Json(new { productCount = 0, priceCount = 0, prices = new List<dynamic>(), potentialSavings = new List<dynamic>() });
             }
 
             var latestScrap = await _context.ScrapHistories
@@ -68,7 +68,7 @@ namespace PriceTracker.Controllers.ManagerControllers
 
             if (latestScrap == null)
             {
-                return Json(new { productCount = 0, priceCount = 0, prices = new List<dynamic>() });
+                return Json(new { productCount = 0, priceCount = 0, prices = new List<dynamic>(), potentialSavings = new List<dynamic>() });
             }
 
             var storeName = await _context.Stores
@@ -81,12 +81,14 @@ namespace PriceTracker.Controllers.ManagerControllers
                 .Include(ph => ph.Product)
                 .ToListAsync();
 
-            var filteredPrices = prices.GroupBy(p => p.ProductId)
-                .Where(g => g.Any(p => p.StoreName.ToLower() == storeName.ToLower()) && g.Count() > 1)
+            var allPrices = prices.GroupBy(p => p.ProductId)
                 .Select(g =>
                 {
                     var bestPriceEntry = g.OrderBy(p => p.Price).First();
                     var myPriceEntry = g.FirstOrDefault(p => p.StoreName.ToLower() == storeName.ToLower());
+                    var isSharedBestPrice = g.Count(p => p.Price == bestPriceEntry.Price) > 1;
+                    var isMyBestPrice = myPriceEntry != null && myPriceEntry.Price == bestPriceEntry.Price;
+                    var secondBestPrice = g.Where(p => p.Price > bestPriceEntry.Price).OrderBy(p => p.Price).FirstOrDefault()?.Price ?? 0;
 
                     var bestPrice = bestPriceEntry.Price;
                     var myPrice = myPriceEntry != null ? myPriceEntry.Price : bestPrice;
@@ -100,44 +102,26 @@ namespace PriceTracker.Controllers.ManagerControllers
                         bestPriceEntry.StoreName,
                         MyPrice = myPrice,
                         ScrapId = bestPriceEntry.ScrapHistoryId,
-                        PriceDifference = myPrice != 0 ? Math.Round(myPrice - bestPrice, 2) : (decimal?)null,
-                        PercentageDifference = myPrice != 0 ? Math.Round((myPrice - bestPrice) / bestPrice * 100, 2) : (decimal?)null
+                        PriceDifference = Math.Round(myPrice - bestPrice, 2),
+                        PercentageDifference = Math.Round((myPrice - bestPrice) / bestPrice * 100, 2),
+                        Savings = isMyBestPrice && !isSharedBestPrice ? Math.Round(secondBestPrice - bestPrice, 2) : (decimal?)null,
+                        IsSharedBestPrice = isMyBestPrice && isSharedBestPrice,
+                        IsUniqueBestPrice = isMyBestPrice && !isSharedBestPrice
                     };
                 })
                 .ToList();
 
-            // Usuwanie produktów i powiązanych historii cen, które nie spełniają warunków
-            var excludedProductIds = prices.GroupBy(p => p.ProductId)
-                .Where(g => !g.Any(p => p.StoreName.ToLower() == storeName.ToLower()) || g.Count() <= 1)
-                .Select(g => g.Key)
-                .ToList();
+            var potentialSavings = allPrices.Where(p => p.IsUniqueBestPrice).ToList();
 
-            var productsToRemove = await _context.Products
-                .Where(p => excludedProductIds.Contains(p.ProductId))
-                .ToListAsync();
+            var remainingProductCount = allPrices.Count;
+            var remainingPriceCount = prices.Count;
 
-            _context.Products.RemoveRange(productsToRemove);
-
-            var priceHistoriesToRemove = await _context.PriceHistories
-                .Where(ph => excludedProductIds.Contains(ph.ProductId))
-                .ToListAsync();
-
-            _context.PriceHistories.RemoveRange(priceHistoriesToRemove);
-
-            await _context.SaveChangesAsync();
-
-            // Aktualna liczba produktów po usunięciu
-            var remainingProductCount = await _context.Products
-                .Where(p => p.StoreId == storeId)
-                .CountAsync();
-
-            // Aktualna liczba cen do wyświetlenia
-            var remainingPriceCount = await _context.PriceHistories
-                .Where(ph => ph.ScrapHistoryId == latestScrap.Id)
-                .CountAsync();
-
-            return Json(new { productCount = remainingProductCount, priceCount = remainingPriceCount, prices = filteredPrices });
+            return Json(new { productCount = remainingProductCount, priceCount = remainingPriceCount, prices = allPrices, potentialSavings = potentialSavings });
         }
+
+
+
+
 
         [HttpGet]
         public async Task<IActionResult> GetStores(int? storeId)
@@ -166,7 +150,7 @@ namespace PriceTracker.Controllers.ManagerControllers
             return Json(stores);
         }
 
-        // GET: PriceHistory/Details/5
+       
         public async Task<IActionResult> Details(int scrapId, int productId)
         {
             var scrapHistory = await _context.ScrapHistories.FindAsync(scrapId);
@@ -192,5 +176,9 @@ namespace PriceTracker.Controllers.ManagerControllers
 
             return View("~/Views/ManagerPanel/PriceHistory/Details.cshtml", prices);
         }
+
+        
+
+
     }
 }

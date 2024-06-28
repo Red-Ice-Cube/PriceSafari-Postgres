@@ -1,5 +1,7 @@
 ﻿document.addEventListener("DOMContentLoaded", function () {
     let allPrices = [];
+    let potentialSavings = [];
+    let chartInstance = null;
 
     function loadStores() {
         fetch(`/PriceHistory/GetStores?storeId=${storeId}`)
@@ -22,19 +24,29 @@
             .then(response => {
                 allPrices = response.prices.map(price => ({
                     ...price,
-                    colorClass: getColorClass(price.priceDifference)
+                    colorClass: getColorClass(price.priceDifference, price.isUniqueBestPrice, price.isSharedBestPrice)
                 }));
+                potentialSavings = response.potentialSavings.map(price => ({
+                    ...price,
+                    colorClass: "green" // Zielony kolor dla produktów z potencjalną oszczędnością
+                }));
+                const allData = allPrices.concat(potentialSavings);
                 document.getElementById('totalProductCount').textContent = response.productCount;
                 document.getElementById('totalPriceCount').textContent = response.priceCount;
-                document.getElementById('displayedProductCount').textContent = response.prices.length;
-                renderPrices(allPrices, "");
-                renderChart(allPrices);
-                updateColorTable(allPrices);
+                renderPrices(allData);
+                renderChart(allData);
+                updateColorTable(allData);
             })
             .catch(error => console.error('Error fetching prices:', error));
     }
 
-    function getColorClass(priceDifference) {
+    function getColorClass(priceDifference, isUniqueBestPrice = false, isSharedBestPrice = false) {
+        if (isUniqueBestPrice) {
+            return "green";
+        }
+        if (isSharedBestPrice) {
+            return "blue";
+        }
         if (priceDifference <= 0) {
             return "blue";
         } else if (priceDifference < 2.00) {
@@ -44,7 +56,7 @@
         }
     }
 
-    function filterPricesByCategoryAndColor(data, searchTerm) {
+    function filterPricesByCategoryAndColor(data, searchTerm = "") {
         const selectedCategory = document.getElementById('category').value;
         const selectedColors = Array.from(document.querySelectorAll('.colorFilter:checked')).map(checkbox => checkbox.value);
 
@@ -79,55 +91,52 @@
         filterPricesByCategoryAndColor(filteredPrices, sanitizedInput);
     }
 
-    function renderPrices(data, searchTerm) {
-        const tbody = document.getElementById('priceTable').getElementsByTagName('tbody')[0];
-        tbody.innerHTML = '';
-        data.forEach(item => {
-            let rowColor;
-            if (item.colorClass === "blue") {
-                rowColor = "rgba(14, 126, 135, 0.5)";
-            } else if (item.colorClass === "yellow") {
-                rowColor = "rgba(240, 240, 105, 0.5)";
-            } else {
-                rowColor = "rgba(246, 78, 101, 0.5)";
-            }
-
-            const percentageDifference = item.percentageDifference != null ? item.percentageDifference.toFixed(2) : "N/A";
-            const priceDifference = item.priceDifference != null ? item.priceDifference.toFixed(2) : "N/A";
-
-            const highlightedName = highlightExactMatches(item.productName, searchTerm);
-
-            const row = document.createElement('tr');
-            row.style.backgroundColor = rowColor;
-            row.className = `priceRow ${item.colorClass}`;
-            row.dataset.category = item.category;
-            row.innerHTML = `
-                <td>${highlightedName}</td>
-                <td style="font-weight: 500;">${item.lowestPrice.toFixed(2)} zł</td>
-                <td>${item.storeName}</td>
-                <td style="font-weight: 500;">${item.myPrice.toFixed(2)} zł</td>
-                <td>${percentageDifference}%</td>
-                <td>${priceDifference} zł</td>
-                <td>
-                    <a href="/PriceHistory/Details?scrapId=${item.scrapId}&productId=${item.productId}" class="Button-Add-Small" target="_blank">Szczegóły</a>
-                </td>`;
-            tbody.appendChild(row);
-        });
-        document.getElementById('displayedProductCount').textContent = data.length;
+    function highlightMatches(text, searchTerm) {
+        if (!searchTerm) return text;
+        const regex = new RegExp(`(${searchTerm})`, 'gi');
+        return text.replace(regex, '<span style="color: #9400D3;font-weight: 600;">$1</span>');
     }
 
-    function highlightExactMatches(text, searchTerm) {
-        if (!searchTerm) return text;
+    function renderPrices(data, searchTerm = "") {
+        const selectedColors = Array.from(document.querySelectorAll('.colorFilter:checked')).map(checkbox => checkbox.value);
+        const pricesToRender = selectedColors.length ? data.filter(item => selectedColors.includes(item.colorClass)) : data;
 
-        const regex = new RegExp(`(${searchTerm})`, 'gi');
-        return text.replace(regex, '<span style="background-color: rgba(0, 255, 0, 0.2);">$1</span>');
+        const tbody = document.getElementById('priceTable').getElementsByTagName('tbody')[0];
+        tbody.innerHTML = '';
+        pricesToRender.forEach(item => {
+            const highlightedProductName = highlightMatches(item.productName, searchTerm);
+            const percentageDifference = item.percentageDifference != null ? item.percentageDifference.toFixed(2) : "N/A";
+            const priceDifference = item.priceDifference != null ? item.priceDifference.toFixed(2) : "N/A";
+            const savings = item.colorClass === "green" && item.savings != null ? item.savings.toFixed(2) : "N/A";
+
+            const row = document.createElement('tr');
+            row.className = `price-row ${item.colorClass}`;
+            row.dataset.category = item.category;
+            row.dataset.detailsUrl = `/PriceHistory/Details?scrapId=${item.scrapId}&productId=${item.productId}`;
+            row.innerHTML = `
+            <td>${highlightedProductName}</td>
+            <td style="font-weight: 500;">${item.lowestPrice.toFixed(2)} zł</td>
+            <td>${item.storeName}</td>
+            <td style="font-weight: 500;">${item.myPrice.toFixed(2)} zł</td>
+            <td>${percentageDifference}%</td>
+            <td>${priceDifference} zł</td>
+            <td>${savings} zł</td>`;
+
+            row.addEventListener('click', function () {
+                window.open(this.dataset.detailsUrl, '_blank');
+            });
+
+            tbody.appendChild(row);
+        });
+        document.getElementById('displayedProductCount').textContent = pricesToRender.length;
     }
 
     function renderChart(data) {
         const colorCounts = {
             blue: 0,
             yellow: 0,
-            red: 0
+            red: 0,
+            green: 0
         };
 
         data.forEach(item => {
@@ -135,21 +144,28 @@
         });
 
         const ctx = document.getElementById('colorChart').getContext('2d');
-        new Chart(ctx, {
+
+        if (chartInstance) {
+            chartInstance.destroy();
+        }
+
+        chartInstance = new Chart(ctx, {
             type: 'doughnut',
             data: {
-                labels: ['Top cena', 'Mid cena', 'Zła cena'],
+                labels: ['Top cena', 'Mid cena', 'Zła cena', 'Super cena'],
                 datasets: [{
-                    data: [colorCounts.blue, colorCounts.yellow, colorCounts.red],
+                    data: [colorCounts.blue, colorCounts.yellow, colorCounts.red, colorCounts.green],
                     backgroundColor: [
                         'rgba(14, 126, 135, 0.5)',
                         'rgba(240, 240, 105, 0.5)',
-                        'rgba(246, 78, 101, 0.5)'
+                        'rgba(246, 78, 101, 0.5)',
+                        'rgba(0, 255, 0, 0.5)'
                     ],
                     borderColor: [
                         'rgba(14, 126, 135, 1)',
                         'rgba(240, 240, 105, 1)',
-                        'rgba(246, 78, 101, 1)'
+                        'rgba(246, 78, 101, 1)',
+                        'rgba(0, 255, 0, 1)'
                     ],
                     borderWidth: 1
                 }]
@@ -190,7 +206,8 @@
         const colorCounts = {
             blue: 0,
             yellow: 0,
-            red: 0
+            red: 0,
+            green: 0
         };
 
         data.forEach(item => {
@@ -203,7 +220,8 @@
         const colors = [
             { name: 'Top cena', count: colorCounts.blue },
             { name: 'Mid cena', count: colorCounts.yellow },
-            { name: 'Zła cena', count: colorCounts.red }
+            { name: 'Zła cena', count: colorCounts.red },
+            { name: 'Super cena', count: colorCounts.green }
         ];
 
         colors.forEach(color => {
@@ -219,7 +237,7 @@
 
     document.querySelectorAll('.colorFilter').forEach(function (checkbox) {
         checkbox.addEventListener('change', function () {
-            filterPricesByProductName(document.getElementById('productSearch').value);
+            filterPricesByCategoryAndColor(allPrices.concat(potentialSavings)); 
         });
     });
 
