@@ -1,6 +1,7 @@
 ﻿document.addEventListener("DOMContentLoaded", function () {
     let allPrices = [];
     let chartInstance = null;
+    let myStoreName = "";
 
     function loadStores() {
         fetch(`/PriceHistory/GetStores?storeId=${storeId}`)
@@ -21,9 +22,10 @@
         fetch(`/PriceHistory/GetPrices?storeId=${storeId}`)
             .then(response => response.json())
             .then(response => {
+                myStoreName = response.myStoreName;
                 allPrices = response.prices.map(price => ({
                     ...price,
-                    colorClass: getColorClass(price.priceDifference, price.isUniqueBestPrice, price.isSharedBestPrice)
+                    colorClass: getColorClass(price.priceDifference, price.isUniqueBestPrice, price.isSharedBestPrice, price.savings)
                 }));
                 document.getElementById('totalProductCount').textContent = response.productCount;
                 document.getElementById('totalPriceCount').textContent = response.priceCount;
@@ -34,7 +36,10 @@
             .catch(error => console.error('Error fetching prices:', error));
     }
 
-    function getColorClass(priceDifference, isUniqueBestPrice = false, isSharedBestPrice = false) {
+    function getColorClass(priceDifference, isUniqueBestPrice = false, isSharedBestPrice = false, savings = null) {
+        if (isUniqueBestPrice && savings >= 0.01 && savings <= 1.00) {
+            return "turquoise";
+        }
         if (isUniqueBestPrice) {
             return "green";
         }
@@ -101,26 +106,32 @@
             const highlightedProductName = highlightMatches(item.productName, searchTerm);
             const percentageDifference = item.percentageDifference != null ? item.percentageDifference.toFixed(2) : "N/A";
             const priceDifference = item.priceDifference != null ? item.priceDifference.toFixed(2) : "N/A";
-            const savings = item.colorClass === "green" && item.savings != null ? item.savings.toFixed(2) : "N/A";
+            const savings = item.colorClass === "green" || item.colorClass === "turquoise" ? item.savings != null ? item.savings.toFixed(2) : "N/A" : "N/A";
 
             const box = document.createElement('div');
             box.className = `price-box ${item.colorClass}`;
             box.dataset.detailsUrl = `/PriceHistory/Details?scrapId=${item.scrapId}&productId=${item.productId}`;
             box.innerHTML = `
-                <div class="color-bar ${item.colorClass}"></div>
-                <div class="price-box-column">
-                    <p>${highlightedProductName}</p>
-                    <p>Kategoria: ${item.category}</p>
-                    <p>Sklep: ${item.storeName}</p>
+                <div class="price-box-column-name">${highlightedProductName} ${item.category}</div>
+                <div class="price-box-data">
+                    <div class="color-bar ${item.colorClass}"></div>
+                    <div class="price-box-column">
+                        <div class="price-box-column-text">${item.myPrice.toFixed(2)} zł</div>
+                        <div class="price-box-column-text">${myStoreName}</div>
+                    </div>
+                    <div class="price-box-column-line"></div>
+                    <div class="price-box-column">
+                        <div class="price-box-column-text">${item.lowestPrice.toFixed(2)} zł</div>
+                        <div class="price-box-column-text">${item.storeName}</div>
+                    </div>
+                    <div class="price-box-column-line"></div>
+                    <div class="price-box-column">
+                        ${item.colorClass === "green" || item.colorClass === "turquoise" ? `<p>Oszczędność: ${savings} zł</p>` : ""}
+                        ${item.colorClass === "red" || item.colorClass === "yellow" ? `<p>Różnica (%): ${percentageDifference}%</p>` : ""}
+                        ${item.colorClass === "red" || item.colorClass === "yellow" ? `<p>Różnica (PLN): ${priceDifference} zł</p>` : ""}
+                    </div>
                 </div>
-
-                <div class="price-box-column">
-                    <p>Moja Cena: ${item.myPrice.toFixed(2)} zł</p>
-                    <p>Najniższa Cena: ${item.lowestPrice.toFixed(2)} zł</p>
-                    ${item.colorClass === "green" ? `<p>Oszczędność: ${savings} zł</p>` : ""}
-                    ${item.colorClass === "red" || item.colorClass === "yellow" ? `<p>Różnica (%): ${percentageDifference}%</p>` : ""}
-                    ${item.colorClass === "red" || item.colorClass === "yellow" ? `<p>Różnica (PLN): ${priceDifference} zł</p>` : ""}
-                </div>`;
+            `;
 
             box.addEventListener('click', function () {
                 window.open(this.dataset.detailsUrl, '_blank');
@@ -131,13 +142,13 @@
         document.getElementById('displayedProductCount').textContent = pricesToRender.length;
     }
 
-
     function renderChart(data) {
         const colorCounts = {
             blue: 0,
             yellow: 0,
             red: 0,
-            green: 0
+            green: 0,
+            turquoise: 0
         };
 
         data.forEach(item => {
@@ -153,20 +164,22 @@
         chartInstance = new Chart(ctx, {
             type: 'doughnut',
             data: {
-                labels: ['Top cena', 'Mid cena', 'Zła cena', 'Super cena'],
+                labels: ['Top cena', 'Mid cena', 'Zła cena', 'Super cena', 'Idealna cena'],
                 datasets: [{
-                    data: [colorCounts.blue, colorCounts.yellow, colorCounts.red, colorCounts.green],
+                    data: [colorCounts.blue, colorCounts.yellow, colorCounts.red, colorCounts.green, colorCounts.turquoise],
                     backgroundColor: [
                         'rgba(14, 126, 135, 0.5)',
                         'rgba(240, 240, 105, 0.5)',
                         'rgba(246, 78, 101, 0.5)',
-                        'rgba(0, 255, 0, 0.5)'
+                        'rgba(0, 255, 0, 0.5)',
+                        'rgba(64, 224, 208, 0.5)'
                     ],
                     borderColor: [
                         'rgba(14, 126, 135, 1)',
                         'rgba(240, 240, 105, 1)',
                         'rgba(246, 78, 101, 1)',
-                        'rgba(0, 255, 0, 1)'
+                        'rgba(0, 255, 0, 1)',
+                        'rgba(64, 224, 208, 1)'
                     ],
                     borderWidth: 1
                 }]
@@ -208,7 +221,8 @@
             blue: 0,
             yellow: 0,
             red: 0,
-            green: 0
+            green: 0,
+            turquoise: 0
         };
 
         data.forEach(item => {
@@ -222,7 +236,8 @@
             { name: 'Top cena', count: colorCounts.blue },
             { name: 'Mid cena', count: colorCounts.yellow },
             { name: 'Zła cena', count: colorCounts.red },
-            { name: 'Super cena', count: colorCounts.green }
+            { name: 'Super cena', count: colorCounts.green },
+            { name: 'Idealna cena', count: colorCounts.turquoise }
         ];
 
         colors.forEach(color => {

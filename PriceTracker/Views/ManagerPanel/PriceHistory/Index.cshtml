@@ -22,21 +22,44 @@
         border-radius: 8px;
         padding: 16px;
         width: 100%;
+        flex-direction: column;
         display: flex;
-        gap: 8px;
+        gap: 16px;
         cursor: pointer;
         
+    }
+
+    .price-box-data {
+        display: flex;
+        gap: 24px;
+        width: 100%;
     }
 
     .price-box-column {
         display: flex;
         flex-direction:column;
-        font-size: 16px;
+        gap:12px; 
 
     }
 
+    .price-box-column-line {
+        width: 1px;
+        height: 100%;
+        background-color: grey;
+    }
+
+    .price-box-column-name {
+        font-weight: 500; 
+        font-size: 16px;
+    }
+
+    .price-box-column-text {
+        font-size: 16px;
+        font-weight: 400;
+    }
+
         .price-box .color-bar {
-            width: 10px;
+            width: 14px;
             height: 100%;
         }
 
@@ -54,6 +77,11 @@
 
         .price-box.green .color-bar {
             background-color: rgba(0, 255, 0, 0.5);
+        }
+
+
+        .price-box.turquoise .color-bar {
+            background-color: rgba(0, 255, 100, 0.5);
         }
 
 
@@ -117,6 +145,10 @@
                     <div class="form-check">
                         <input class="form-check-input colorFilter" type="checkbox" id="greenCheckbox" value="green">
                         <label class="form-check-label" for="greenCheckbox">Super cena</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input colorFilter" type="checkbox" id="greenCheckbox" value="turquoise">
+                        <label class="form-check-label" for="turquoiseCheckbox">Idealna cena</label>
                     </div>
                 </div>
             </div>

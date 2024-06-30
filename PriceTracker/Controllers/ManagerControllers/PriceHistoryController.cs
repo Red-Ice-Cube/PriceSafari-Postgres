@@ -111,13 +111,13 @@ namespace PriceTracker.Controllers.ManagerControllers
                 })
                 .ToList();
 
-            // Eliminujemy powielone produkty na podstawie ProductId
+            
             var uniqueAllPrices = allPrices.GroupBy(p => p.ProductId).Select(g => g.First()).ToList();
 
             var remainingProductCount = uniqueAllPrices.Count;
             var remainingPriceCount = prices.Count;
 
-            return Json(new { productCount = remainingProductCount, priceCount = remainingPriceCount, prices = uniqueAllPrices });
+            return Json(new { productCount = remainingProductCount, priceCount = remainingPriceCount, myStoreName = storeName, prices = uniqueAllPrices });
         }
 
 
