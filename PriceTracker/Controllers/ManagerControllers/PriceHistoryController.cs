@@ -1,6 +1,8 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using PriceTracker.Data;
+using PriceTracker.Models;
+using PriceTracker.ViewModels;
 
 namespace PriceTracker.Controllers.ManagerControllers
 {
@@ -57,7 +59,7 @@ namespace PriceTracker.Controllers.ManagerControllers
         {
             if (storeId == null)
             {
-                return Json(new { productCount = 0, priceCount = 0, prices = new List<dynamic>() });
+                return Json(new { productCount = 0, priceCount = 0, myStoreName = "", prices = new List<dynamic>(), setPrice1 = 2.00m, setPrice2 = 2.00m });
             }
 
             var latestScrap = await _context.ScrapHistories
@@ -67,7 +69,7 @@ namespace PriceTracker.Controllers.ManagerControllers
 
             if (latestScrap == null)
             {
-                return Json(new { productCount = 0, priceCount = 0, prices = new List<dynamic>() });
+                return Json(new { productCount = 0, priceCount = 0, myStoreName = "", prices = new List<dynamic>(), setPrice1 = 2.00m, setPrice2 = 2.00m });
             }
 
             var storeName = await _context.Stores
@@ -79,6 +81,10 @@ namespace PriceTracker.Controllers.ManagerControllers
                 .Where(ph => ph.ScrapHistoryId == latestScrap.Id)
                 .Include(ph => ph.Product)
                 .ToListAsync();
+
+            var priceValues = await _context.PriceValues
+                .Where(pv => pv.StoreId == storeId)
+                .FirstOrDefaultAsync() ?? new PriceValueClass();
 
             var allPrices = prices
                 .GroupBy(p => p.ProductId)
@@ -111,16 +117,13 @@ namespace PriceTracker.Controllers.ManagerControllers
                 })
                 .ToList();
 
-            
             var uniqueAllPrices = allPrices.GroupBy(p => p.ProductId).Select(g => g.First()).ToList();
 
             var remainingProductCount = uniqueAllPrices.Count;
             var remainingPriceCount = prices.Count;
 
-            return Json(new { productCount = remainingProductCount, priceCount = remainingPriceCount, myStoreName = storeName, prices = uniqueAllPrices });
+            return Json(new { productCount = remainingProductCount, priceCount = remainingPriceCount, myStoreName = storeName, prices = uniqueAllPrices, setPrice1 = priceValues.SetPrice1, setPrice2 = priceValues.SetPrice2 });
         }
-
-
 
 
 
@@ -152,7 +155,39 @@ namespace PriceTracker.Controllers.ManagerControllers
             return Json(stores);
         }
 
-       
+        [HttpPost]
+        public async Task<IActionResult> SavePriceValues([FromBody] PriceValuesViewModel model)
+        {
+            if (model == null || model.StoreId <= 0)
+            {
+                return BadRequest("Invalid store ID or price values.");
+            }
+
+            var priceValues = await _context.PriceValues
+                .Where(pv => pv.StoreId == model.StoreId)
+                .FirstOrDefaultAsync();
+
+            if (priceValues == null)
+            {
+                priceValues = new PriceValueClass
+                {
+                    StoreId = model.StoreId,
+                    SetPrice1 = model.SetPrice1,
+                    SetPrice2 = model.SetPrice2
+                };
+                _context.PriceValues.Add(priceValues);
+            }
+            else
+            {
+                priceValues.SetPrice1 = model.SetPrice1;
+                priceValues.SetPrice2 = model.SetPrice2;
+                _context.PriceValues.Update(priceValues);
+            }
+
+            await _context.SaveChangesAsync();
+            return Json(new { success = true, message = "Price values updated successfully." });
+        }
+
         public async Task<IActionResult> Details(int scrapId, int productId)
         {
             var scrapHistory = await _context.ScrapHistories.FindAsync(scrapId);

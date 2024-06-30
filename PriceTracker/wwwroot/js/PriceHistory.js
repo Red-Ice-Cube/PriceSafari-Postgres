@@ -2,6 +2,8 @@
     let allPrices = [];
     let chartInstance = null;
     let myStoreName = "";
+    let setPrice1 = 2.00;
+    let setPrice2 = 2.00;
 
     function loadStores() {
         fetch(`/PriceHistory/GetStores?storeId=${storeId}`)
@@ -23,6 +25,8 @@
             .then(response => response.json())
             .then(response => {
                 myStoreName = response.myStoreName;
+                setPrice1 = response.setPrice1;
+                setPrice2 = response.setPrice2;
                 allPrices = response.prices.map(price => ({
                     ...price,
                     colorClass: getColorClass(price.priceDifference, price.isUniqueBestPrice, price.isSharedBestPrice, price.savings)
@@ -31,13 +35,17 @@
                 document.getElementById('totalPriceCount').textContent = response.priceCount;
                 renderPrices(allPrices);
                 renderChart(allPrices);
-                updateColorTable(allPrices);
+                updateColorCounts(allPrices);
+
+                // Initialize price inputs with loaded values
+                document.getElementById('price1').value = setPrice1;
+                document.getElementById('price2').value = setPrice2;
             })
             .catch(error => console.error('Error fetching prices:', error));
     }
 
     function getColorClass(priceDifference, isUniqueBestPrice = false, isSharedBestPrice = false, savings = null) {
-        if (isUniqueBestPrice && savings >= 0.01 && savings <= 1.00) {
+        if (isUniqueBestPrice && savings >= 0.01 && savings <= setPrice1) {
             return "turquoise";
         }
         if (isUniqueBestPrice) {
@@ -48,7 +56,7 @@
         }
         if (priceDifference <= 0) {
             return "blue";
-        } else if (priceDifference < 2.00) {
+        } else if (priceDifference < setPrice2) {
             return "yellow";
         } else {
             return "red";
@@ -185,7 +193,7 @@
                 }]
             },
             options: {
-                aspectRatio: 2.5,
+                aspectRatio: 1,
                 plugins: {
                     legend: {
                         display: false,
@@ -216,7 +224,7 @@
         });
     }
 
-    function updateColorTable(data) {
+    function updateColorCounts(data) {
         const colorCounts = {
             blue: 0,
             yellow: 0,
@@ -229,22 +237,11 @@
             colorCounts[item.colorClass]++;
         });
 
-        const colorTableBody = document.getElementById('colorTableBody');
-        colorTableBody.innerHTML = '';
-
-        const colors = [
-            { name: 'Top cena', count: colorCounts.blue },
-            { name: 'Mid cena', count: colorCounts.yellow },
-            { name: 'Zła cena', count: colorCounts.red },
-            { name: 'Super cena', count: colorCounts.green },
-            { name: 'Idealna cena', count: colorCounts.turquoise }
-        ];
-
-        colors.forEach(color => {
-            const row = document.createElement('tr');
-            row.innerHTML = `<td>${color.name}</td><td>${color.count}</td>`;
-            colorTableBody.appendChild(row);
-        });
+        document.querySelector('label[for="blueCheckbox"]').textContent = `Top cena (${colorCounts.blue})`;
+        document.querySelector('label[for="yellowCheckbox"]').textContent = `Mid cena (${colorCounts.yellow})`;
+        document.querySelector('label[for="redCheckbox"]').textContent = `Zła cena (${colorCounts.red})`;
+        document.querySelector('label[for="greenCheckbox"]').textContent = `Super cena (${colorCounts.green})`;
+        document.querySelector('label[for="turquoiseCheckbox"]').textContent = `Idealna cena (${colorCounts.turquoise})`;
     }
 
     document.getElementById('category').addEventListener('change', function () {
@@ -259,6 +256,59 @@
 
     document.getElementById('productSearch').addEventListener('keyup', function () {
         filterPricesByProductName(this.value);
+    });
+
+    // Listen for changes in price inputs
+    document.getElementById('price1').addEventListener('input', function () {
+        setPrice1 = parseFloat(this.value);
+        allPrices.forEach(price => {
+            price.colorClass = getColorClass(price.priceDifference, price.isUniqueBestPrice, price.isSharedBestPrice, price.savings);
+        });
+        renderPrices(allPrices);
+        renderChart(allPrices);
+        updateColorCounts(allPrices);
+    });
+
+    document.getElementById('price2').addEventListener('input', function () {
+        setPrice2 = parseFloat(this.value);
+        allPrices.forEach(price => {
+            price.colorClass = getColorClass(price.priceDifference, price.isUniqueBestPrice, price.isSharedBestPrice, price.savings);
+        });
+        renderPrices(allPrices);
+        renderChart(allPrices);
+        updateColorCounts(allPrices);
+    });
+
+    document.getElementById('savePriceValues').addEventListener('click', function () {
+        const price1 = parseFloat(document.getElementById('price1').value);
+        const price2 = parseFloat(document.getElementById('price2').value);
+
+        const data = {
+            StoreId: storeId,
+            SetPrice1: price1,
+            SetPrice2: price2
+        };
+
+        fetch('/PriceHistory/SavePriceValues', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(data)
+        })
+            .then(response => response.json())
+            .then(response => {
+                if (response.success) {
+                    alert('Price values updated successfully.');
+                    setPrice1 = price1;
+                    setPrice2 = price2;
+                    // Optionally reload prices or update the display
+                    loadPrices();
+                } else {
+                    alert('Error updating price values: ' + response.message);
+                }
+            })
+            .catch(error => console.error('Error saving price values:', error));
     });
 
     loadStores();

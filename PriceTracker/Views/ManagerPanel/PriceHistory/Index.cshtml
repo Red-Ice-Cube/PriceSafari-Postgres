@@ -8,89 +8,62 @@
 @{
     Layout = "~/Views/Shared/_PanelLayout.cshtml";
 }
-
-
 <style>
-    .price-container {
+    .price-range-settings {
         display: flex;
-        flex-wrap: wrap;
-        gap: 16px;
+        margin-top: 4px;
+        width:140px;
+        font-size: 14px;
     }
 
-    .price-box {
-        border: 1px solid #ccc;
-        border-radius: 8px;
-        padding: 16px;
-        width: 100%;
-        flex-direction: column;
-        display: flex;
-        gap: 16px;
-        cursor: pointer;
-        
-    }
-
-    .price-box-data {
-        display: flex;
-        gap: 24px;
-        width: 100%;
-    }
-
-    .price-box-column {
-        display: flex;
-        flex-direction:column;
-        gap:12px; 
-
-    }
-
-    .price-box-column-line {
-        width: 1px;
-        height: 100%;
-        background-color: grey;
-    }
-
-    .price-box-column-name {
-        font-weight: 500; 
-        font-size: 16px;
-    }
-
-    .price-box-column-text {
-        font-size: 16px;
-        font-weight: 400;
-    }
-
-        .price-box .color-bar {
-            width: 14px;
-            height: 100%;
+        .price-range-settings label {
+            margin-right: 4px;
+            font-size: 14px;
         }
 
-        .price-box.blue .color-bar {
-            background-color: rgba(14, 126, 135, 0.5);
+        .price-range-settings input[type="number"] {
+            width: 88px;
+            padding: 4px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            text-align: right;
+            margin-right: 6px;
+            height: 24px;
+            font-size: 14px;
         }
 
-        .price-box.yellow .color-bar {
+        .price-range-settings .color-circle {
+            width: 16px;
+            height: 24px;
+            margin-left: 3px;
+            border-radius: 4px;
+            display: inline-block;
+            
+        }
+
+        .price-range-settings .turquoise-circle {
+            background-color: rgba(64, 224, 208, 0.5);
+        }
+
+        .price-range-settings .yellow-circle {
             background-color: rgba(240, 240, 105, 0.5);
         }
 
-        .price-box.red .color-bar {
-            background-color: rgba(246, 78, 101, 0.5);
-        }
+    .store-section {
+        display: flex;
+        width:180px;
+        gap:6px;
+        flex-direction: column;    
 
-        .price-box.green .color-bar {
-            background-color: rgba(0, 255, 0, 0.5);
-        }
-
-
-        .price-box.turquoise .color-bar {
-            background-color: rgba(0, 255, 100, 0.5);
-        }
-
-
-
+    }
+       
 </style>
+
 
 <div class="Vert">
     <div class="Multi-Cover-Statistic-a">
         <div class="Charts-Donought-a">
+            
             <div class="Order-Container-Title">
                 Scrapowanie cen @ViewBag.StoreName
                 <div class="form-check-orders">
@@ -106,21 +79,7 @@
             
         </div>
         <div class="Charts-Donought-a">
-            <div class="Charts-Box-Donought-a-t">
-                <table class="table-clicks" id="colorTable">
-                    <thead>
-                        <tr>
-                            <th scope="col">Cena</th>
-                            <th scope="col">Produkty</th>
-                        </tr>
-                    </thead>
-                    <tbody id="colorTableBody">
-                    </tbody>
-                </table>
-            </div>
-            <div class="Charts-Box-Donought-a">
-                <canvas id="colorChart"></canvas>
-            </div>
+           
         </div>
     </div>
     
@@ -128,7 +87,11 @@
 
         <div class="Page-Box-Container">
             <div class="Page-Box-Category">
+                
                 <div class="Category-Container-Title">Grupy cenowe</div>
+                <div class="side-chart-box">
+                    <canvas id="colorChart"></canvas>
+                </div>
                 <div class="store-section">
                     <div class="form-check">
                         <input class="form-check-input colorFilter" type="checkbox" id="blueCheckbox" value="blue">
@@ -147,11 +110,26 @@
                         <label class="form-check-label" for="greenCheckbox">Super cena</label>
                     </div>
                     <div class="form-check">
-                        <input class="form-check-input colorFilter" type="checkbox" id="greenCheckbox" value="turquoise">
+                        <input class="form-check-input colorFilter" type="checkbox" id="turquoiseCheckbox" value="turquoise">
                         <label class="form-check-label" for="turquoiseCheckbox">Idealna cena</label>
                     </div>
+                    <div class="price-range-settings">
+                        <div class="color-circle turquoise-circle"></div>
+                        <label for="price1"></label>
+                        <input type="number" id="price1" value="@ViewBag.SetPrice1" step="0.01" min="0.01"> PLN
+                    </div>
+                    <div class="price-range-settings">
+                        <div class="color-circle yellow-circle"></div>
+                        <label for="price2"></label>
+                        <input type="number" id="price2" value="@ViewBag.SetPrice2" step="0.01" min="0.01"> PLN
+                    </div>
+
+                    <button class="Button-Page-Small" style="margin-top: 16px;" id="savePriceValues">Zapisz</button>
+
                 </div>
+               
             </div>
+
 
 
 
