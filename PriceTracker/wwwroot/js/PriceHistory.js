@@ -302,7 +302,7 @@
                     alert('Price values updated successfully.');
                     setPrice1 = price1;
                     setPrice2 = price2;
-                    // Optionally reload prices or update the display
+                   
                     loadPrices();
                 } else {
                     alert('Error updating price values: ' + response.message);
