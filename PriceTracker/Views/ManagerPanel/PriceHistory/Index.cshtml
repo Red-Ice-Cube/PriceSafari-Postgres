@@ -10,6 +10,55 @@
 }
 
 
+<style>
+    .price-container {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 16px;
+    }
+
+    .price-box {
+        border: 1px solid #ccc;
+        border-radius: 8px;
+        padding: 16px;
+        width: 100%;
+        display: flex;
+        gap: 8px;
+        cursor: pointer;
+        
+    }
+
+    .price-box-column {
+        display: flex;
+        flex-direction:column;
+        font-size: 16px;
+
+    }
+
+        .price-box .color-bar {
+            width: 10px;
+            height: 100%;
+        }
+
+        .price-box.blue .color-bar {
+            background-color: rgba(14, 126, 135, 0.5);
+        }
+
+        .price-box.yellow .color-bar {
+            background-color: rgba(240, 240, 105, 0.5);
+        }
+
+        .price-box.red .color-bar {
+            background-color: rgba(246, 78, 101, 0.5);
+        }
+
+        .price-box.green .color-bar {
+            background-color: rgba(0, 255, 0, 0.5);
+        }
+
+
+
+</style>
 
 <div class="Vert">
     <div class="Multi-Cover-Statistic-a">
@@ -89,22 +138,9 @@
 
                     </form>
                 </div>
+                <div id="displayedProductCount"></div>
                 <div class="Vert-table">
-                    <table class="table-orders" id="priceTable">
-                        <thead>
-                            <tr>
-                                <th>Produkt (<span id="displayedProductCount">0</span>)</th>
-                                <th>TOP cena</th>
-                                <th>Sklep</th>
-                                <th>@ViewBag.StoreName</th>
-                                <th>Różnica(%)</th>
-                                <th>Różnica(PLN)</th>
-                                <th>Oszczedność</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                        </tbody>
-                    </table>
+                    <div id="priceContainer" class="price-container"></div>
                 </div>
             </div>
         </div>

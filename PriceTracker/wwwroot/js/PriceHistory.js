@@ -95,35 +95,42 @@
         const selectedColors = Array.from(document.querySelectorAll('.colorFilter:checked')).map(checkbox => checkbox.value);
         const pricesToRender = selectedColors.length ? data.filter(item => selectedColors.includes(item.colorClass)) : data;
 
-        const tbody = document.getElementById('priceTable').getElementsByTagName('tbody')[0];
-        tbody.innerHTML = '';
+        const container = document.getElementById('priceContainer');
+        container.innerHTML = '';
         pricesToRender.forEach(item => {
             const highlightedProductName = highlightMatches(item.productName, searchTerm);
             const percentageDifference = item.percentageDifference != null ? item.percentageDifference.toFixed(2) : "N/A";
             const priceDifference = item.priceDifference != null ? item.priceDifference.toFixed(2) : "N/A";
             const savings = item.colorClass === "green" && item.savings != null ? item.savings.toFixed(2) : "N/A";
 
-            const row = document.createElement('tr');
-            row.className = `price-row ${item.colorClass}`;
-            row.dataset.category = item.category;
-            row.dataset.detailsUrl = `/PriceHistory/Details?scrapId=${item.scrapId}&productId=${item.productId}`;
-            row.innerHTML = `
-            <td>${highlightedProductName}</td>
-            <td style="font-weight: 500;">${item.lowestPrice.toFixed(2)} zł</td>
-            <td>${item.storeName}</td>
-            <td style="font-weight: 500;">${item.myPrice.toFixed(2)} zł</td>
-            <td>${percentageDifference}%</td>
-            <td>${priceDifference} zł</td>
-            <td>${savings} zł</td>`;
+            const box = document.createElement('div');
+            box.className = `price-box ${item.colorClass}`;
+            box.dataset.detailsUrl = `/PriceHistory/Details?scrapId=${item.scrapId}&productId=${item.productId}`;
+            box.innerHTML = `
+                <div class="color-bar ${item.colorClass}"></div>
+                <div class="price-box-column">
+                    <p>${highlightedProductName}</p>
+                    <p>Kategoria: ${item.category}</p>
+                    <p>Sklep: ${item.storeName}</p>
+                </div>
 
-            row.addEventListener('click', function () {
+                <div class="price-box-column">
+                    <p>Moja Cena: ${item.myPrice.toFixed(2)} zł</p>
+                    <p>Najniższa Cena: ${item.lowestPrice.toFixed(2)} zł</p>
+                    ${item.colorClass === "green" ? `<p>Oszczędność: ${savings} zł</p>` : ""}
+                    ${item.colorClass === "red" || item.colorClass === "yellow" ? `<p>Różnica (%): ${percentageDifference}%</p>` : ""}
+                    ${item.colorClass === "red" || item.colorClass === "yellow" ? `<p>Różnica (PLN): ${priceDifference} zł</p>` : ""}
+                </div>`;
+
+            box.addEventListener('click', function () {
                 window.open(this.dataset.detailsUrl, '_blank');
             });
 
-            tbody.appendChild(row);
+            container.appendChild(box);
         });
         document.getElementById('displayedProductCount').textContent = pricesToRender.length;
     }
+
 
     function renderChart(data) {
         const colorCounts = {
