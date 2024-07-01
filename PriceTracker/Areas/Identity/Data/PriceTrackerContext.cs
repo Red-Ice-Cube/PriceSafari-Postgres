@@ -52,7 +52,9 @@ namespace PriceTracker.Data
         public DbSet<PriceHistoryClass> PriceHistories { get; set; }
         public DbSet<ScrapHistoryClass> ScrapHistories { get; set; }
         public DbSet<CategoryClass> Categories { get; set; }
+        public DbSet<PriceValueClass> PriceValues { get; set; }
         public DbSet<TableSizeInfo> TableSizeInfo { get; set; }
+        
 
         public async Task<List<TableSizeInfo>> GetTableSizes()
         {

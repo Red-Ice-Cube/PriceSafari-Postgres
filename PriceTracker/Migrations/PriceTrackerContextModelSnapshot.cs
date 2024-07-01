@@ -355,6 +355,30 @@ namespace PriceTracker.Migrations
                     b.ToTable("PriceHistories");
                 });
 
+            modelBuilder.Entity("PriceTracker.Models.PriceValueClass", b =>
+                {
+                    b.Property<int>("PriceValueClassId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("PriceValueClassId"));
+
+                    b.Property<decimal>("SetPrice1")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("SetPrice2")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("StoreId")
+                        .HasColumnType("int");
+
+                    b.HasKey("PriceValueClassId");
+
+                    b.HasIndex("StoreId");
+
+                    b.ToTable("PriceValues");
+                });
+
             modelBuilder.Entity("PriceTracker.Models.ProductClass", b =>
                 {
                     b.Property<int>("ProductId")
@@ -420,29 +444,11 @@ namespace PriceTracker.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("SettingsId"));
 
-                    b.Property<bool>("CollectFingerPrint")
-                        .HasColumnType("bit");
-
                     b.Property<string>("ContactEmail")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("ContactNumber")
                         .HasColumnType("nvarchar(max)");
-
-                    b.Property<decimal>("MinimumPayout")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<int>("OrderPerClick")
-                        .HasColumnType("int");
-
-                    b.Property<int>("OrdersProcessIntervalInSeconds")
-                        .HasColumnType("int");
-
-                    b.Property<int>("TTL")
-                        .HasColumnType("int");
-
-                    b.Property<bool>("UseEanForTracking")
-                        .HasColumnType("bit");
 
                     b.Property<bool>("VerificationRequired")
                         .HasColumnType("bit");
@@ -564,6 +570,17 @@ namespace PriceTracker.Migrations
                     b.Navigation("ScrapHistory");
                 });
 
+            modelBuilder.Entity("PriceTracker.Models.PriceValueClass", b =>
+                {
+                    b.HasOne("PriceTracker.Models.StoreClass", "Store")
+                        .WithMany("PriceValues")
+                        .HasForeignKey("StoreId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Store");
+                });
+
             modelBuilder.Entity("PriceTracker.Models.ProductClass", b =>
                 {
                     b.HasOne("PriceTracker.Models.StoreClass", "Store")
@@ -605,6 +622,8 @@ namespace PriceTracker.Migrations
             modelBuilder.Entity("PriceTracker.Models.StoreClass", b =>
                 {
                     b.Navigation("Categories");
+
+                    b.Navigation("PriceValues");
 
                     b.Navigation("Products");
 

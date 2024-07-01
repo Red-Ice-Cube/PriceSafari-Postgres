@@ -8,12 +8,62 @@
 @{
     Layout = "~/Views/Shared/_PanelLayout.cshtml";
 }
+<style>
+    .price-range-settings {
+        display: flex;
+        margin-top: 4px;
+        width:140px;
+        font-size: 14px;
+    }
 
+        .price-range-settings label {
+            margin-right: 4px;
+            font-size: 14px;
+        }
+
+        .price-range-settings input[type="number"] {
+            width: 88px;
+            padding: 4px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            text-align: right;
+            margin-right: 6px;
+            height: 24px;
+            font-size: 14px;
+        }
+
+        .price-range-settings .color-circle {
+            width: 16px;
+            height: 24px;
+            margin-left: 3px;
+            border-radius: 4px;
+            display: inline-block;
+            
+        }
+
+        .price-range-settings .turquoise-circle {
+            background-color: rgba(64, 224, 208, 0.5);
+        }
+
+        .price-range-settings .yellow-circle {
+            background-color: rgba(240, 240, 105, 0.5);
+        }
+
+    .store-section {
+        display: flex;
+        width:180px;
+        gap:6px;
+        flex-direction: column;    
+
+    }
+       
+</style>
 
 
 <div class="Vert">
     <div class="Multi-Cover-Statistic-a">
         <div class="Charts-Donought-a">
+            
             <div class="Order-Container-Title">
                 Scrapowanie cen @ViewBag.StoreName
                 <div class="form-check-orders">
@@ -29,21 +79,7 @@
             
         </div>
         <div class="Charts-Donought-a">
-            <div class="Charts-Box-Donought-a-t">
-                <table class="table-clicks" id="colorTable">
-                    <thead>
-                        <tr>
-                            <th scope="col">Cena</th>
-                            <th scope="col">Produkty</th>
-                        </tr>
-                    </thead>
-                    <tbody id="colorTableBody">
-                    </tbody>
-                </table>
-            </div>
-            <div class="Charts-Box-Donought-a">
-                <canvas id="colorChart"></canvas>
-            </div>
+           
         </div>
     </div>
     
@@ -51,7 +87,11 @@
 
         <div class="Page-Box-Container">
             <div class="Page-Box-Category">
+                
                 <div class="Category-Container-Title">Grupy cenowe</div>
+                <div class="side-chart-box">
+                    <canvas id="colorChart"></canvas>
+                </div>
                 <div class="store-section">
                     <div class="form-check">
                         <input class="form-check-input colorFilter" type="checkbox" id="blueCheckbox" value="blue">
@@ -65,8 +105,32 @@
                         <input class="form-check-input colorFilter" type="checkbox" id="redCheckbox" value="red">
                         <label class="form-check-label" for="redCheckbox">Zła cena</label>
                     </div>
+                    <div class="form-check">
+                        <input class="form-check-input colorFilter" type="checkbox" id="greenCheckbox" value="green">
+                        <label class="form-check-label" for="greenCheckbox">Super cena</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input colorFilter" type="checkbox" id="turquoiseCheckbox" value="turquoise">
+                        <label class="form-check-label" for="turquoiseCheckbox">Idealna cena</label>
+                    </div>
+                    <div class="price-range-settings">
+                        <div class="color-circle turquoise-circle"></div>
+                        <label for="price1"></label>
+                        <input type="number" id="price1" value="@ViewBag.SetPrice1" step="0.01" min="0.01"> PLN
+                    </div>
+                    <div class="price-range-settings">
+                        <div class="color-circle yellow-circle"></div>
+                        <label for="price2"></label>
+                        <input type="number" id="price2" value="@ViewBag.SetPrice2" step="0.01" min="0.01"> PLN
+                    </div>
+
+                    <button class="Button-Page-Small" style="margin-top: 16px;" id="savePriceValues">Zapisz</button>
+
                 </div>
+               
             </div>
+
+
 
 
 
@@ -84,22 +148,9 @@
 
                     </form>
                 </div>
+                <div id="displayedProductCount"></div>
                 <div class="Vert-table">
-                    <table class="table-orders" id="priceTable">
-                        <thead>
-                            <tr>
-                                <th>Produkt (<span id="displayedProductCount">0</span>)</th>
-                                <th>TOP cena</th>
-                                <th>Sklep</th>
-                                <th>@ViewBag.StoreName</th>
-                                <th>Różnica(%)</th>
-                                <th>Różnica(PLN)</th>
-                                <th>Porównanie</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                        </tbody>
-                    </table>
+                    <div id="priceContainer" class="price-container"></div>
                 </div>
             </div>
         </div>

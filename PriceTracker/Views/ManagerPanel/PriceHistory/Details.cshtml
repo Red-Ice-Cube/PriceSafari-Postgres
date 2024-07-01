@@ -1,7 +1,6 @@
 ﻿@model IEnumerable<PriceTracker.Models.PriceHistoryClass>
 
 @{
-
     Layout = "~/Views/Shared/_PanelLayout.cshtml";
 }
 
@@ -19,10 +18,7 @@
     <p><strong>Data Scrapowania:</strong> @scrapHistory.Date</p>
 </div>
 
-
-
-
-   <table class="table-orders" id="priceTable">
+<table class="table-orders" id="priceTable">
     <thead>
         <tr>
             <th>Sklep</th>
@@ -36,8 +32,8 @@
         {
             var priceDifference = item.Price - Model.Min(m => m.Price);
             var colorClass = priceDifference <= 0 ? "blue" : (priceDifference < 2 ? "yellow" : "red");
-            <tr class="price-row" data-store-name="@item.StoreName">
-                <td class="store-name @colorClass">@item.StoreName</td>
+            <tr class="price-row @colorClass" data-store-name="@item.StoreName">
+                <td class="store-name">@item.StoreName</td>
                 <td>@item.Price zł</td>
                 <td>@item.ShippingCostNum zł</td>
                 <td>@item.AvailabilityNum</td>

@@ -192,7 +192,7 @@ p {
     flex-direction: column;
     border-right: 1px solid #EDEDED;
     padding: 0px 24px 0px 0px;
-    align-items: flex-start;
+    align-items: center;
     gap: 10px;
     align-self: stretch;
 }
@@ -3504,16 +3504,14 @@ tr:last-child .sub-line {
     width: 100%;
     gap: 16px;
 }
-
-
-
 .colorFilter {
     outline: none;
     background-color: white;
     border: 2px solid gray;
     border-radius: 4px;
+    width: 16px;
+    height: 16px;
 }
-
 
     .colorFilter:checked#blueCheckbox {
         background-color: rgba(14, 126, 135, 0.5);
@@ -3530,23 +3528,126 @@ tr:last-child .sub-line {
         border: 2px solid rgba(246, 78, 101, 1);
     }
 
+    .colorFilter:checked#greenCheckbox {
+        background-color: rgba(0, 255, 0, 0.5);
+        border: 2px solid rgba(0, 255, 0, 1);
+    }
 
-.price-row .store-name.blue {
+.price-row.blue {
+    background-color: rgba(14, 126, 135, 0.3);
+}
+
+.price-row.yellow {
+    background-color: rgba(240, 240, 105, 0.3);
+}
+
+.price-row.red {
+    background-color: rgba(246, 78, 101, 0.3);
+}
+
+.price-row.green {
+    background-color: rgba(0, 255, 0, 0.3);
+}
+
+.price-row.blue:hover {
     background-color: rgba(14, 126, 135, 0.5);
-    border: 1px solid rgba(14, 126, 135, 1);
 }
 
-.price-row .store-name.yellow {
+.price-row.yellow:hover {
     background-color: rgba(240, 240, 105, 0.5);
-    border: 1px solid rgba(240, 240, 105, 1);
 }
 
-.price-row .store-name.red {
+.price-row.red:hover {
     background-color: rgba(246, 78, 101, 0.5);
-    border: 1px solid rgba(246, 78, 101, 1);
 }
 
-.colorFilter {
-    width: 16px;
-    height: 16px;
+.price-row.green:hover {
+    background-color: rgba(0, 255, 0, 0.5);
+}
+
+
+
+
+
+
+
+.price-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+}
+
+.price-box {
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    padding: 16px;
+    width: 100%;
+    flex-direction: column;
+    display: flex;
+    gap: 16px;
+    cursor: pointer;
+}
+
+.price-box-data {
+    display: flex;
+    gap: 24px;
+    width: 100%;
+}
+
+.price-box-column {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.price-box-column-line {
+    width: 1px;
+    height: 100%;
+    background-color: grey;
+}
+
+.price-box-column-name {
+    font-weight: 500;
+    font-size: 16px;
+}
+
+.price-box-column-text {
+    font-size: 16px;
+    font-weight: 400;
+}
+
+.price-box .color-bar {
+    width: 14px;
+    height: 100%;
+}
+
+.price-box.blue .color-bar {
+    background-color: rgba(14, 126, 135, 0.5);
+}
+
+.price-box.yellow .color-bar {
+    background-color: rgba(240, 240, 105, 0.5);
+}
+
+.price-box.red .color-bar {
+    background-color: rgba(246, 78, 101, 0.5);
+}
+
+.price-box.green .color-bar {
+    background-color: rgba(0, 255, 0, 0.5);
+}
+
+
+.price-box.turquoise .color-bar {
+    background-color: rgba(64, 224, 208, 0.5);
+}
+
+
+.side-chart-box {
+    width: 120px;
+    height: 120px;
+    padding: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
