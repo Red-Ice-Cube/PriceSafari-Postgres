@@ -444,29 +444,11 @@ namespace PriceTracker.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("SettingsId"));
 
-                    b.Property<bool>("CollectFingerPrint")
-                        .HasColumnType("bit");
-
                     b.Property<string>("ContactEmail")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("ContactNumber")
                         .HasColumnType("nvarchar(max)");
-
-                    b.Property<decimal>("MinimumPayout")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<int>("OrderPerClick")
-                        .HasColumnType("int");
-
-                    b.Property<int>("OrdersProcessIntervalInSeconds")
-                        .HasColumnType("int");
-
-                    b.Property<int>("TTL")
-                        .HasColumnType("int");
-
-                    b.Property<bool>("UseEanForTracking")
-                        .HasColumnType("bit");
 
                     b.Property<bool>("VerificationRequired")
                         .HasColumnType("bit");

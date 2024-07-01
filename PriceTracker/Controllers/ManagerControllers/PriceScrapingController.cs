@@ -205,7 +205,7 @@ public class PriceScrapingController : Controller
         int rejectedCount = 0;
         var stopwatch = new Stopwatch();
         var tasks = new List<Task>();
-        var semaphore = new SemaphoreSlim(8);
+        var semaphore = new SemaphoreSlim(1);
 
         stopwatch.Start();
 
@@ -279,11 +279,6 @@ public class PriceScrapingController : Controller
         return await StartScraping(storeId);
     }
 }
-
-
-
-
-
 
 
 

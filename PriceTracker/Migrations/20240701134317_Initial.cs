@@ -62,15 +62,9 @@ namespace PriceTracker.Migrations
                 {
                     SettingsId = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
-                    MinimumPayout = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
-                    TTL = table.Column<int>(type: "int", nullable: false),
-                    OrderPerClick = table.Column<int>(type: "int", nullable: false),
                     ContactEmail = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     ContactNumber = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    VerificationRequired = table.Column<bool>(type: "bit", nullable: false),
-                    CollectFingerPrint = table.Column<bool>(type: "bit", nullable: false),
-                    UseEanForTracking = table.Column<bool>(type: "bit", nullable: false),
-                    OrdersProcessIntervalInSeconds = table.Column<int>(type: "int", nullable: false)
+                    VerificationRequired = table.Column<bool>(type: "bit", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -254,6 +248,27 @@ namespace PriceTracker.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "PriceValues",
+                columns: table => new
+                {
+                    PriceValueClassId = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    StoreId = table.Column<int>(type: "int", nullable: false),
+                    SetPrice1 = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
+                    SetPrice2 = table.Column<decimal>(type: "decimal(18,2)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_PriceValues", x => x.PriceValueClassId);
+                    table.ForeignKey(
+                        name: "FK_PriceValues_Stores_StoreId",
+                        column: x => x.StoreId,
+                        principalTable: "Stores",
+                        principalColumn: "StoreId",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "Products",
                 columns: table => new
                 {
@@ -388,6 +403,11 @@ namespace PriceTracker.Migrations
                 column: "ScrapHistoryId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_PriceValues_StoreId",
+                table: "PriceValues",
+                column: "StoreId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_Products_StoreId",
                 table: "Products",
                 column: "StoreId");
@@ -424,6 +444,9 @@ namespace PriceTracker.Migrations
 
             migrationBuilder.DropTable(
                 name: "PriceHistories");
+
+            migrationBuilder.DropTable(
+                name: "PriceValues");
 
             migrationBuilder.DropTable(
                 name: "Settings");
