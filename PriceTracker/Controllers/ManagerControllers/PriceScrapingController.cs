@@ -49,7 +49,7 @@ public class PriceScrapingController : Controller
         int totalPrices = 0;
         var stopwatch = new Stopwatch();
         var tasks = new List<Task>();
-        var semaphore = new SemaphoreSlim(50);
+        var semaphore = new SemaphoreSlim(1);
 
         stopwatch.Start();
 
