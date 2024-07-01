@@ -13,15 +13,17 @@ namespace PriceTracker.Services
     {
         private readonly HttpClient _httpClient;
         private const string ChromeExecutablePath = @"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe";
-        private const string CookiesFilePath = "cookies.json";
+        private List<(string Reason, string Url)> rejectedProducts = new List<(string Reason, string Url)>();
+
         public Scraper(HttpClient httpClient)
         {
             _httpClient = httpClient;
         }
 
-        public async Task<(List<(string storeName, decimal price, decimal? shippingCostNum, int? availabilityNum)> Prices, string Log)> GetProductPricesAsync(string url)
+        public async Task<(List<(string storeName, decimal price, decimal? shippingCostNum, int? availabilityNum)> Prices, string Log, List<(string Reason, string Url)> RejectedProducts)> GetProductPricesAsync(string url, int tryCount = 1)
         {
             var prices = new List<(string storeName, decimal price, decimal? shippingCostNum, int? availabilityNum)>();
+            var rejectedProducts = new List<(string Reason, string Url)>();
             string log;
 
             try
@@ -30,12 +32,10 @@ namespace PriceTracker.Services
                 var doc = new HtmlDocument();
                 doc.LoadHtml(response);
 
-                
                 if (response.Contains("/Captcha/Add"))
                 {
-                 
-                    (prices, log) = await HandleCaptchaAsync(url);
-                    return (prices, log);
+                    (prices, log, rejectedProducts) = await HandleCaptchaAsync(url);
+                    return (prices, log, rejectedProducts);
                 }
 
                 var offerNodes = doc.DocumentNode.SelectNodes("//li[contains(@class, 'product-offers__list__item')]");
@@ -48,9 +48,9 @@ namespace PriceTracker.Services
                         var priceNode = offerNode.SelectSingleNode(".//span[@class='price-format nowrap']//span[@class='price']//span[@class='value']");
                         var pennyNode = offerNode.SelectSingleNode(".//span[@class='price-format nowrap']//span[@class='price']//span[@class='penny']");
                         var shippingNode = offerNode.SelectSingleNode(".//div[contains(@class, 'free-delivery-label')]") ??
-                                           offerNode.SelectSingleNode(".//span[contains(@class, 'product-delivery-info js_deliveryInfo')]");
+                                            offerNode.SelectSingleNode(".//span[contains(@class, 'product-delivery-info js_deliveryInfo')]");
                         var availabilityNode = offerNode.SelectSingleNode(".//span[contains(@class, 'instock')]") ??
-                                              offerNode.SelectSingleNode(".//span[contains(text(), 'Wysyłka')]");
+                                               offerNode.SelectSingleNode(".//span[contains(text(), 'Wysyłka')]");
 
                         decimal? shippingCostNum = null;
                         if (priceNode != null && pennyNode != null && !string.IsNullOrEmpty(storeName))
@@ -108,22 +108,33 @@ namespace PriceTracker.Services
                                 prices.Add((storeName, price, shippingCostNum, availabilityNum));
                             }
                         }
+                        else
+                        {
+                            string reason = "Missing store name or price information.";
+                            rejectedProducts.Add((reason, url));
+                        }
                     }
                     log = $"Successfully scraped prices from URL: {url}";
-                    return (prices, log);
                 }
-
-                log = $"Failed to find prices on URL: {url}";
-                throw new Exception("Prices not found on the page.");
+                else
+                {
+                    log = $"Failed to find prices on URL: {url}";
+                    string reason = "No offer nodes found.";
+                    rejectedProducts.Add((reason, url));
+                }
             }
             catch (Exception ex)
             {
                 log = $"Error scraping URL: {url}. Exception: {ex.Message}";
-                return (prices, log);
+                string reason = $"Exception: {ex.Message}";
+                rejectedProducts.Add((reason, url));
             }
+
+            return (prices, log, rejectedProducts);
         }
 
-        private async Task<(List<(string storeName, decimal price, decimal? shippingCostNum, int? availabilityNum)> Prices, string Log)> HandleCaptchaAsync(string url)
+
+        private async Task<(List<(string storeName, decimal price, decimal? shippingCostNum, int? availabilityNum)> Prices, string Log, List<(string Reason, string Url)> RejectedProducts)> HandleCaptchaAsync(string url)
         {
             var prices = new List<(string storeName, decimal price, decimal? shippingCostNum, int? availabilityNum)>();
             string log;
@@ -137,48 +148,38 @@ namespace PriceTracker.Services
                     ExecutablePath = ChromeExecutablePath,
                     Args = new string[]
                     {
-                "--no-sandbox",
-                "--disable-setuid-sandbox",
-                "--disable-extensions",
-                "--disable-gpu",
-                "--disable-dev-shm-usage",
-                "--disable-software-rasterizer",
-                "--disable-features=site-per-process",
-                "--disable-features=VizDisplayCompositor",
-                "--disable-blink-features=AutomationControlled"
+                        "--no-sandbox",
+                        "--disable-setuid-sandbox",
+                        "--disable-extensions",
+                        "--disable-gpu",
+                        "--disable-dev-shm-usage",
+                        "--disable-software-rasterizer",
+                        "--disable-features=site-per-process",
+                        "--disable-features=VizDisplayCompositor",
+                        "--disable-blink-features=AutomationControlled"
                     }
                 });
 
                 var page = await browser.NewPageAsync();
 
-                
                 await page.SetUserAgentAsync("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36");
 
-                
                 await page.SetViewportAsync(new ViewPortOptions
                 {
                     Width = 1366,
                     Height = 768
                 });
 
-                if (File.Exists(CookiesFilePath))
-                {
-                    var cookies = System.Text.Json.JsonSerializer.Deserialize<List<CookieParam>>(File.ReadAllText(CookiesFilePath));
-                    await page.SetCookieAsync(cookies.ToArray());
-                }
-
                 Console.WriteLine("Navigating to CAPTCHA page...");
                 await page.GoToAsync("https://www.ceneo.pl/24ado");
                 await Task.Delay(2000);
 
-                
                 Console.WriteLine("Navigating back to the target URL...");
                 await page.GoToAsync(url);
 
                 Console.WriteLine("Waiting for page to load...");
-                await Task.Delay(5000); 
+                await Task.Delay(5000);
 
-               
                 try
                 {
                     var rejectButton = await page.QuerySelectorAsync("button.cookie-consent__buttons__action.js_cookie-consent-necessary[data-role='reject-rodo']");
@@ -217,12 +218,14 @@ namespace PriceTracker.Services
                         if (storeName == null)
                         {
                             Console.WriteLine("Store name is null. Skipping this offer.");
+                            rejectedProducts.Add(("Store name is null", url));
                             continue;
                         }
 
                         if (priceNode == null || pennyNode == null)
                         {
                             Console.WriteLine("Price node or penny node is null. Skipping this offer.");
+                            rejectedProducts.Add(("Price node or penny node is null", url));
                             continue;
                         }
 
@@ -291,7 +294,7 @@ namespace PriceTracker.Services
                 {
                     log = $"Failed to find prices on URL: {url}";
                     Console.WriteLine(log);
-                    throw new Exception("Prices not found on the page.");
+                    rejectedProducts.Add(("No offer nodes found", url));
                 }
 
                 await browser.CloseAsync();
@@ -300,14 +303,13 @@ namespace PriceTracker.Services
             {
                 log = $"Error scraping URL: {url}. Exception: {ex.Message}";
                 Console.WriteLine(log);
+                rejectedProducts.Add(($"Exception: {ex.Message}", url));
             }
 
-            return (prices, log);
+            return (prices, log, rejectedProducts);
         }
-
     }
 }
-
 
 
 

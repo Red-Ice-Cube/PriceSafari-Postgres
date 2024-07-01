@@ -131,18 +131,6 @@
 //        return await StartScraping(storeId);
 //    }
 //}
-
-
-
-
-
-
-
-
-
-
-
-
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
@@ -150,13 +138,7 @@ using PriceTracker.Data;
 using PriceTracker.Hubs;
 using PriceTracker.Models;
 using PriceTracker.Services;
-using System;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
-using System.Net.Http;
-using System.Threading;
-using System.Threading.Tasks;
 
 public class PriceScrapingController : Controller
 {
@@ -203,9 +185,10 @@ public class PriceScrapingController : Controller
         int scrapedCount = 0;
         int totalPrices = 0;
         int rejectedCount = 0;
+        var rejectedProducts = new List<(string Reason, string Url)>();
         var stopwatch = new Stopwatch();
         var tasks = new List<Task>();
-        var semaphore = new SemaphoreSlim(1);
+        var semaphore = new SemaphoreSlim(2);
 
         stopwatch.Start();
 
@@ -220,8 +203,25 @@ public class PriceScrapingController : Controller
                     var scopedContext = scope.ServiceProvider.GetRequiredService<PriceTrackerContext>();
 
                     var scraper = new Scraper(_httpClient);
-                    var (prices, log) = await scraper.GetProductPricesAsync(product.OfferUrl);
-                    Console.WriteLine(log);
+                    var tryCount = 0;
+                    var prices = new List<(string storeName, decimal price, decimal? shippingCostNum, int? availabilityNum)>();
+                    List<(string Reason, string Url)> rejected = new List<(string Reason, string Url)>();
+                    string log = "";
+
+                    do
+                    {
+                        (prices, log, rejected) = await scraper.GetProductPricesAsync(product.OfferUrl, ++tryCount);
+                        Console.WriteLine(log);
+
+                        if (rejected.Count == 0)
+                            break;
+
+                    } while (tryCount < 3);
+
+                    lock (rejectedProducts)
+                    {
+                        rejectedProducts.AddRange(rejected);
+                    }
 
                     var ourStorePrices = prices.Where(p => p.storeName.ToLower() == store.StoreName.ToLower()).ToList();
                     if (ourStorePrices.Count == 0 || ourStorePrices.Count == prices.Count)
@@ -270,6 +270,13 @@ public class PriceScrapingController : Controller
         _context.ScrapHistories.Update(scrapHistory);
         await _context.SaveChangesAsync();
 
+        // Log rejected products
+        Console.WriteLine("Summary of rejected products:");
+        foreach (var rejected in rejectedProducts)
+        {
+            Console.WriteLine($"URL: {rejected.Url}, Reason: {rejected.Reason}");
+        }
+
         return RedirectToAction("ProductList", "Store", new { storeId = storeId });
     }
 
@@ -279,7 +286,6 @@ public class PriceScrapingController : Controller
         return await StartScraping(storeId);
     }
 }
-
 
 
 
