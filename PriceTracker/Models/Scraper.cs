@@ -196,7 +196,7 @@ namespace PriceTracker.Services
                 catch (Exception ex)
                 {
                     Console.WriteLine("Could not find or click 'Nie zgadzam się' button: " + ex.Message);
-                }
+                } 
 
                 Console.WriteLine("Querying for offer nodes...");
                 var offerNodes = await page.QuerySelectorAllAsync("li.product-offers__list__item");
