@@ -145,9 +145,9 @@
                 '</div>' +
                 '<div class="price-box-column-line"></div>' +
                 '<div class="price-box-column">' +
-                (item.colorClass === "green" || item.colorClass === "turquoise" ? '<p>Oszczędność: ' + savings + ' zł</p>' : '') +
-                (item.colorClass === "red" || item.colorClass === "yellow" ? '<p>Różnica: ' + percentageDifference + ' %</p>' : '') +
-                (item.colorClass === "red" || item.colorClass === "yellow" ? '<p>Różnica: ' + priceDifference + ' zł</p>' : '') +
+                (item.colorClass === "green" || item.colorClass === "turquoise" ? '<p>Podnieś: ' + savings + ' zł</p>' : '') +
+                (item.colorClass === "red" || item.colorClass === "yellow" ? '<p>Obniż: ' + percentageDifference + ' %</p>' : '') +
+                (item.colorClass === "red" || item.colorClass === "yellow" ? '<p>Obniż: ' + priceDifference + ' zł</p>' : '') +
                 '</div>' +
                 '<div class="flags-container">' +
                 (item.flagIds.length > 0 ? item.flagIds.map(function (flagId) {
@@ -311,7 +311,7 @@
         filterPricesByProductName(this.value);
     });
 
-    // Listen for changes in price inputs
+  
     document.getElementById('price1').addEventListener('input', function () {
         setPrice1 = parseFloat(this.value);
         allPrices.forEach(price => {
@@ -352,7 +352,7 @@
             .then(response => response.json())
             .then(response => {
                 if (response.success) {
-                    alert('Price values updated successfully.');
+                   
                     setPrice1 = price1;
                     setPrice2 = price2;
 
@@ -361,10 +361,10 @@
                     alert('Error updating price values: ' + response.message);
                 }
             })
-            .catch(error => console.error('Error saving price values:', error));
+            .catch(error => console.error('Błąd w aktualizowaniu wartości:', error));
     });
 
-    // Modal handling
+
     const modal = document.getElementById('flagModal');
     const span = document.getElementsByClassName('close')[0];
 
@@ -382,7 +382,7 @@
         button.addEventListener('click', function () {
             selectedProductId = this.dataset.productId;
             modal.style.display = 'block';
-            // Preselect checkboxes based on existing flags for the product
+           
             fetch(`/ProductFlags/GetFlagsForProduct?productId=${selectedProductId}`)
                 .then(response => response.json())
                 .then(flags => {
@@ -390,7 +390,7 @@
                         checkbox.checked = flags.includes(parseInt(checkbox.value));
                     });
                 })
-                .catch(error => console.error('Error fetching flags for product:', error));
+                .catch(error => console.error('Błąd dodawania flagi:', error));
         });
     });
 
@@ -410,15 +410,14 @@
         })
             .then(response => response.json())
             .then(response => {
-                if (response.success) {
-                    alert('Flags assigned successfully.');
+                if (response.success) {              
                     modal.style.display = 'none';
                     loadPrices();
                 } else {
-                    alert('Error assigning flags: ' + response.message);
+                    alert('Błąd przypisywania flagi: ' + response.message);
                 }
             })
-            .catch(error => console.error('Error assigning flags:', error));
+            .catch(error => console.error('Błąd przypisywania flagi:', error));
     });
 
     loadStores();

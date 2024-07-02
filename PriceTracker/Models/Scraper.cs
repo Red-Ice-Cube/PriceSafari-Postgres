@@ -144,7 +144,7 @@ namespace PriceTracker.Services
                 Console.WriteLine("Launching browser...");
                 var browser = await Puppeteer.LaunchAsync(new LaunchOptions
                 {
-                    Headless = true,
+                    Headless = false,
                     ExecutablePath = ChromeExecutablePath,
                     Args = new string[]
                     {
@@ -172,7 +172,7 @@ namespace PriceTracker.Services
 
                 Console.WriteLine("Navigating to CAPTCHA page...");
                 await page.GoToAsync("https://www.ceneo.pl/24ado");
-                await Task.Delay(2000);
+                await Task.Delay(5000);
 
                 Console.WriteLine("Navigating back to the target URL...");
                 await page.GoToAsync(url);

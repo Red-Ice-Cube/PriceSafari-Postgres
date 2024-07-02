@@ -188,7 +188,7 @@ public class PriceScrapingController : Controller
         var rejectedProducts = new List<(string Reason, string Url)>();
         var stopwatch = new Stopwatch();
         var tasks = new List<Task>();
-        var semaphore = new SemaphoreSlim(4);
+        var semaphore = new SemaphoreSlim(15);
 
         stopwatch.Start();
 
@@ -270,7 +270,7 @@ public class PriceScrapingController : Controller
         _context.ScrapHistories.Update(scrapHistory);
         await _context.SaveChangesAsync();
 
-        // Log rejected products
+
         Console.WriteLine("Summary of rejected products:");
         foreach (var rejected in rejectedProducts)
         {

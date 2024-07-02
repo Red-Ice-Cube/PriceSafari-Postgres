@@ -2934,6 +2934,10 @@ tr:last-child .sub-line {
     cursor: pointer;
 }
 
+    .price-box:hover {
+        background: #F6F6F6;
+    }
+
 .price-box-data {
     display: flex;
     gap: 16px;
@@ -3040,7 +3044,7 @@ tr:last-child .sub-line {
     display: flex;
     justify-content: flex-end;
     align-items: center;
-    width: 100%;
+    flex-grow: 1;
     gap: 4px;
 }
 
