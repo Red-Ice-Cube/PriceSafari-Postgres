@@ -12,7 +12,7 @@ using PriceTracker.Data;
 namespace PriceTracker.Migrations
 {
     [DbContext(typeof(PriceTrackerContext))]
-    [Migration("20240701134317_Initial")]
+    [Migration("20240702094805_Initial")]
     partial class Initial
     {
         /// <inheritdoc />

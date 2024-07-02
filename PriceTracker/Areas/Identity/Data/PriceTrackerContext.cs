@@ -39,7 +39,19 @@ namespace PriceTracker.Data
                 .HasForeignKey(ph => ph.ProductId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-           
+            modelBuilder.Entity<ProductFlag>()
+                .HasKey(pf => new { pf.ProductId, pf.FlagId });
+
+            modelBuilder.Entity<ProductFlag>()
+                .HasOne(pf => pf.Product)
+                .WithMany(p => p.ProductFlags)
+                .HasForeignKey(pf => pf.ProductId);
+
+            modelBuilder.Entity<ProductFlag>()
+                .HasOne(pf => pf.Flag)
+                .WithMany(f => f.ProductFlags)
+                .HasForeignKey(pf => pf.FlagId);
+
             modelBuilder.Entity<TableSizeInfo>().HasNoKey();
 
             base.OnModelCreating(modelBuilder);
@@ -54,7 +66,9 @@ namespace PriceTracker.Data
         public DbSet<CategoryClass> Categories { get; set; }
         public DbSet<PriceValueClass> PriceValues { get; set; }
         public DbSet<TableSizeInfo> TableSizeInfo { get; set; }
-        
+        public DbSet<FlagsClass> Flags { get; set; }
+        public DbSet<ProductFlag> ProductFlags { get; set; }
+
 
         public async Task<List<TableSizeInfo>> GetTableSizes()
         {

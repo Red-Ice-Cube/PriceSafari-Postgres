@@ -1,0 +1,30 @@
+﻿@model IEnumerable<PriceTracker.Models.FlagsClass>
+
+@{
+    ViewData["Title"] = "List Flags";
+}
+
+<h2>List Flags</h2>
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Color</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var item in Model)
+        {
+            <tr>
+                <td>@item.FlagName</td>
+                <td style="background-color:@item.FlagColor">@item.FlagColor</td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+<div>
+    <a asp-action="Create" asp-route-storeId="@ViewBag.StoreId" class="btn btn-primary">Add New Flag</a>
+    <a asp-action="Index" asp-controller="Stores" class="btn btn-secondary">Back to Store List</a>
+</div>
