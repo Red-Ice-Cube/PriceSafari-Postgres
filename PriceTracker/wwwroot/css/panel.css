@@ -1286,7 +1286,7 @@ p {
     align-self: stretch;
     justify-content: space-between;
     width: 100%;
-    gap: 24px;
+    gap: 16px;
     flex: 1;
     flex-wrap: wrap;
 }
@@ -1478,18 +1478,6 @@ p {
             background: #eee;
         }
 
-.News-graphic {
-    width: 120px;
-    height: 120px;
-    overflow: hidden;
-}
-
-.news-graphic-img {
-    max-width: 100%;
-    max-height: 100%;
-    width: auto;
-    height: auto;
-}
 
 .affiliate-wrapper {
     display: flex;
@@ -1806,71 +1794,6 @@ p {
     color: #fff;
 }
 
-.News-box {
-    display: flex;
-    justify-content: flex-start;
-    align-content: flex-start;
-    flex-direction: column;
-    gap: 10px;
-    flex: 1 1 auto;
-    width: 40%;
-    min-width: 400px;
-    min-height: 200px;
-    align-self: stretch;
-    padding: 16px 24px;
-    background: #fff;
-    border-radius: 8px;
-    box-shadow: 0px 5px 5px rgba(0, 0, 0, 0.15);
-    color: #4B4B4B;
-}
-
-.News-box-content {
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-start;
-    align-items: flex-start;
-    gap: 10px;
-    align-self: stretch;
-    font-size: 26px;
-    font-weight: 300;
-}
-
-.News-box-info {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    gap: 24px;
-    align-self: stretch;
-    font-size: 20px;
-    font-weight: 400;
-    color: #4E4E4E
-}
-
-.News-summary {
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-start;
-    align-items: flex-start;
-    gap: 4px;
-    align-self: stretch;
-}
-
-.News-summary-line {
-    display: flex;
-    align-items: flex-start;
-    justify-content: flex-start;
-    flex-direction: column;
-    gap: 6px;
-    align-self: stretch;
-    font-size: 14px;
-    font-weight: 400;
-    color: #4E4E4E;
-}
-
-    .News-summary-line a {
-        color: #41C7C7;
-    }
-
 .img-container {
     max-width: 250px;
     height: 32px;
@@ -1904,70 +1827,6 @@ p {
         margin-left: auto;
     }
 
-.News-graphic {
-    min-width: 120px;
-    min-height: 120px;
-    max-width: 120px;
-    max-height: 120px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-    .News-graphic img {
-        width: 100%;
-        height: 100%;
-        object-fit: contain;
-    }
-
-.News-box-m {
-    display: flex;
-    justify-content: flex-start;
-    align-content: flex-start;
-    flex-direction: column;
-    gap: 16px;
-    width: 100%;
-    min-width: 400px;
-    padding: 24px;
-    background: #fff;
-    border-radius: 8px;
-    border: 1.5px solid #EDEDED;
-    color: #4B4B4B;
-}
-
-.Vert-News {
-    display: flex;
-    flex-direction: column;
-    align-self: stretch;
-    height: 78vh;
-    overflow-y: auto;
-    margin-top: 16px;
-    gap: 36px;
-}
-
-
-
-    .Vert-News::-webkit-scrollbar {
-        width: 12px;
-        position: absolute;
-        right: -32px;
-    }
-
-    .Vert-News::-webkit-scrollbar-track {
-        background: transparent;
-        margin: 0px 0;
-    }
-
-    .Vert-News::-webkit-scrollbar-thumb {
-        background: #eee;
-        border-radius: 5px;
-        border: 4px solid transparent;
-        background-clip: content-box;
-    }
-
-        .Vert-News::-webkit-scrollbar-thumb:hover {
-            background: #eee;
-        }
 
 .View-Panel {
     display: flex;
@@ -2066,30 +1925,6 @@ p {
     align-self: stretch;
 }
 
-.Statistics-box-earnings-a {
-    display: flex;
-    flex: 1 1 auto;
-    min-width: 400px;
-    width: 40%;
-    min-height: 200px;
-    align-self: stretch;
-    flex-direction: column;
-    justify-content: space-between;
-    gap: 24px;
-    padding: 16px 24px;
-    align-items: center;
-    border-radius: 8px;
-    background: #fff;
-    box-shadow: 0px 4px 4px 0px rgba(0, 0, 0, 0.15);
-}
-
-.Statistics-box-data-a {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    flex: 1 1 auto;
-}
-
 .Cover-Statistic-a {
     display: flex;
     flex-direction: column;
@@ -2115,56 +1950,7 @@ p {
     padding: 4px;
 }
 
-.campaign-box-head {
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    gap: 16px;
-    min-width: 280px;
-    max-width: 320px;
-    padding: 24px;
-    background: #004552;
-    border-radius: 8px;
-    box-shadow: 0px 5px 5px rgba(0, 0, 0, 0.15);
-    color: rgba(255, 255, 255, 0.8);
-    border: solid #004552 1px;
-    z-index: 150;
-}
 
-.campaign-box-data {
-    display: flex;
-    row-gap: 24px;
-    gap: 24px;
-    justify-content: space-between;
-    align-items: center;
-    align-content: center;
-    align-self: stretch;
-    flex-wrap: wrap;
-    padding: 24px;
-    background: #004552;
-    border-radius: 8px;
-    box-shadow: 0px 5px 5px rgba(0, 0, 0, 0.3);
-    color: rgba(255, 255, 255, 0.8);
-    width: 100%;
-}
-
-.campaign-box-head-name {
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: flex-start;
-    gap: 10px;
-    align-self: stretch;
-    color: rgba(255, 255, 255, 0.8);
-    font-size: 21px;
-    font-weight: 400;
-}
-
-.camapign-manage-buttons {
-    display: flex;
-    justify-content: flex-end;
-    gap: 16px;
-}
 
 .table-container {
     display: none;
@@ -2286,89 +2072,6 @@ tr:last-child .sub-line {
     gap: 8px;
 }
 
-.Button-Copy {
-    display: flex;
-    justify-content: center;
-    align-content: center;
-    border-radius: 4px;
-    padding: 4px 8px;
-    cursor: pointer;
-    color: #fff;
-    height: 28px;
-    font-size: 13px;
-    font-weight: 400;
-    border: none;
-    margin-left: 0px;
-    background: rgba(14, 126, 135, 0.76);
-}
-
-    .Button-Copy:hover {
-        background: #004552;
-        color: #fff;
-    }
-
-.Button-Gen-JS {
-    display: flex;
-    justify-content: center;
-    align-content: center;
-    border-radius: 4px;
-    padding: 4px 8px;
-    cursor: pointer;
-    color: #fff;
-    height: 28px;
-    font-size: 13px;
-    font-weight: 400;
-    border: none;
-    margin-left: 0px;
-    background: rgba(255, 95, 27, 0.80);
-}
-
-    .Button-Gen-JS:hover {
-        background: rgba(249, 49, 21, 0.90);
-        color: #fff;
-    }
-
-.rounded-input {
-    display: flex;
-    align-content: center;
-    border-radius: 4px;
-    padding: 4px 8px;
-    height: 28px;
-    color: #fff;
-    font-size: 13px;
-    font-weight: 400;
-    border: none;
-    margin-left: 0px;
-    background: rgba(14, 126, 135, 0.76);
-    min-width: 200px;
-    max-width: 350px;
-    overflow: hidden;
-}
-
-.rounded-input-AFI {
-    border-radius: 4px;
-    padding: 2px 8px;
-    box-sizing: border-box;
-    cursor: pointer;
-    color: #fff;
-    font-size: 13px;
-    font-weight: 400;
-    border: none;
-    margin-left: 0px;
-    background: rgba(247, 109, 98, 0.78);
-    width: 80px;
-}
-
-    .rounded-input-AFI:hover {
-        background: rgba(247, 109, 98, 0.97);
-        color: #fff;
-    }
-
-    .rounded-input-AFI:focus {
-        outline: none;
-        border: none;
-        background: #0143C3;
-    }
 
 
 #productSearch {
@@ -2409,101 +2112,6 @@ tr:last-child .sub-line {
 
 
 
-.Withdraw {
-    display: flex;
-    min-width: 360px;
-    padding: 24px;
-    flex-direction: column;
-    align-items: center;
-    gap: 10px;
-    flex: 1 0 0;
-    align-self: stretch;
-    border-radius: 8px;
-    background: #FFF;
-    box-shadow: 0px 4px 4px 0px rgba(0, 0, 0, 0.25);
-}
-
-.Withdraw-Inner {
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: flex-start;
-    align-self: stretch;
-}
-
-.Withdraw-Inner-Title {
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: flex-start;
-    gap: 10px;
-    align-self: stretch;
-    color: #4B4B4B;
-    font-size: 26px;
-    font-weight: 300;
-}
-
-.Withdraw-Inner-Data {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    padding: 16px 0px;
-    align-content: center;
-    gap: 16px;
-    align-self: stretch;
-    color: #252525;
-    font-size: 14px;
-    font-weight: 300;
-}
-
-
-.Withdraw-Inner-Policy {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 10px;
-    align-self: stretch;
-}
-
-.Withdraw-Inner-Policy-Policy {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 4px;
-    align-self: stretch;
-    color: #5C5C5C;
-    font-size: 14px;
-    font-weight: 300;
-}
-
-.Withdraw-Inner-Pay {
-    display: flex;
-    align-items: flex-end;
-    gap: 10px;
-    align-self: stretch;
-    padding-top: 32px;
-    padding-bottom: 32px;
-}
-
-.Withdraw-Inner-Pay-Left {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-}
-
-.Withdraw-Inner-Left-Insert {
-    display: flex;
-    width: 175px;
-    min-width: 120px;
-    max-width: 237px;
-    flex-direction: column;
-    justify-content: center;
-    align-items: flex-start;
-    gap: 4px;
-    color: #252525;
-    font-size: 14px;
-    font-weight: 300;
-}
 
 .Vert-2 {
     display: flex;
@@ -2638,38 +2246,6 @@ tr:last-child .sub-line {
         font-weight: 400;
     }
 
-.Products-Box {
-    display: flex;
-    padding: 24px;
-    justify-content: space-between;
-    align-items: flex-start;
-    gap: 10px;
-    flex: 1 0 0;
-    border-radius: 8px;
-    background: #FFF;
-    box-shadow: 0px 4px 4px 0px rgba(0, 0, 0, 0.25);
-    height: 95vh;
-    max-height: 95vh;
-}
-
-.Products-Box-Category {
-    display: flex;
-    min-width: 254px;
-    flex-direction: column;
-    border-right: 1px solid #EDEDED;
-    padding: 0px 24px 0px 0px;
-    align-items: flex-start;
-    gap: 10px;
-    align-self: stretch;
-}
-
-.Products-Box-Products {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 10px;
-    flex: 1 0 0;
-}
 
 .Category-Container-Title {
     display: flex;
@@ -2702,35 +2278,6 @@ tr:last-child .sub-line {
     font-weight: 400;
 }
 
-.Products-Box-Product {
-    display: flex;
-    padding: 12px;
-    overflow-y: auto;
-    gap: 24px;
-    justify-content: space-between;
-    align-items: flex-start;
-    align-content: flex-start;
-    row-gap: 24px;
-    flex-wrap: wrap;
-    height: 100%;
-}
-
-    .Products-Box-Product::-webkit-scrollbar {
-        width: 4px;
-    }
-
-    .Products-Box-Product::-webkit-scrollbar-track {
-        background: #fff;
-    }
-
-    .Products-Box-Product::-webkit-scrollbar-thumb {
-        background: #eee;
-        border-radius: 5px;
-    }
-
-        .Products-Box-Product::-webkit-scrollbar-thumb:hover {
-            background: #888;
-        }
 
 .Generate-Box {
     display: flex;
@@ -2747,69 +2294,12 @@ tr:last-child .sub-line {
     max-height: 95vh;
 }
 
-.Generate-Box-Box-List {
-    display: flex;
-    padding: 10px 0px;
-    flex-direction: column;
-    align-self: stretch;
-    overflow-y: auto;
-    height: 800px;
-}
-
-    .Generate-Box-Box-List::-webkit-scrollbar {
-        width: 4px;
-    }
-
-    .Generate-Box-Box-List::-webkit-scrollbar-track {
-        background: #fff;
-    }
-
-    .Generate-Box-Box-List::-webkit-scrollbar-thumb {
-        background: #eee;
-        border-radius: 5px;
-    }
-
-        .Generate-Box-Box-List::-webkit-scrollbar-thumb:hover {
-            background: #888;
-        }
-
-
 
 .form-check {
     display: flex;
     align-items: center;
     padding: 0px 0px 0px 24px;
     color: #000;
-    font-size: 14px;
-    font-weight: 400;
-}
-
-.add-to-cart {
-    display: flex;
-    height: 32px;
-    justify-content: center;
-    align-items: center;
-    gap: 10px;
-    align-self: stretch;
-    border-radius: 4px;
-    background: #41C7C7;
-    border: none;
-    color: #FFF;
-    font-size: 14px;
-    font-weight: 400;
-}
-
-.added-to-cart {
-    display: flex;
-    height: 32px;
-    justify-content: center;
-    align-items: center;
-    gap: 10px;
-    align-self: stretch;
-    border-radius: 4px;
-    background: #B5B5B5;
-    border: none;
-    color: #FFF;
     font-size: 14px;
     font-weight: 400;
 }
@@ -2824,118 +2314,6 @@ tr:last-child .sub-line {
     flex-wrap: wrap;
 }
 
-.Product-Container {
-    display: flex;
-    width: 268px;
-    height: 450px;
-    flex-direction: column;
-    align-items: center;
-    gap: 8px;
-    flex-shrink: 0;
-    border-bottom: 1px solid #EDEDED;
-    background: #FFF;
-    padding: 16px;
-    transition: border 0.15s, box-shadow 0.3s;
-}
-
-    .Product-Container:hover {
-        border: 1px solid #B5B5B5;
-        border-radius: 8px;
-        box-shadow: 0px 5px 5px rgba(0, 0, 0, 0.14);
-    }
-
-.Product-Container-Image {
-    display: flex;
-    width: 168px;
-    height: 168px;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    flex-shrink: 0;
-}
-
-.Product-Container-Data {
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    align-items: center;
-    flex: 1 0 0;
-    align-self: stretch;
-}
-
-.Product-Container-Data-Top {
-    display: flex;
-    align-items: flex-start;
-    gap: 10px;
-    align-self: stretch;
-    color: #000;
-    font-size: 17px;
-    font-weight: 400;
-}
-
-.Product-Container-Data-Middle {
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: flex-start;
-    gap: 2px;
-    align-self: stretch;
-}
-
-.Product-Container-Data-Middle-Data {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    color: #4B4B4B;
-    font-size: 13px;
-    font-weight: 400;
-}
-
-.Product-Container-Data-Bottom {
-    display: flex;
-    height: 64px;
-    padding: 0px 0px;
-    justify-content: space-between;
-    align-items: flex-start;
-    align-self: stretch;
-}
-
-.Product-Container-Data-Bottom-Left {
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-end;
-    align-items: flex-start;
-    gap: 2px;
-    flex: 1 0 0;
-    align-self: stretch;
-}
-
-.Product-Container-Data-Bottom-Left-Up {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    color: #000;
-    font-size: 19px;
-    font-weight: 400;
-}
-
-.Product-Container-Data-Bottom-Left-Down {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    color: #4B4B4B;
-    font-size: 13px;
-    font-weight: 400;
-}
-
-.Product-Container-Data-Bottom-Right {
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-end;
-    align-items: flex-end;
-    flex: 1 0 0;
-    align-self: stretch;
-}
 
 .table-products {
     width: 100%;
@@ -3088,59 +2466,7 @@ tr:last-child .sub-line {
     }
 
 
-.Withdraw-Inner-Data-Display {
-    display: flex;
-    justify-content: center;
-    padding: 32px 0px;
-    gap: 16px;
-    align-self: stretch;
-    flex-direction: column;
-    color: #252525;
-    font-size: 14px;
-    font-weight: 300;
-}
 
-.Withdraw-Inner-Data-Personal-Display {
-    display: flex;
-    min-width: 180px;
-    max-width: 420px;
-    flex-direction: column;
-    justify-content: center;
-    align-items: flex-start;
-    gap: 4px;
-    flex: 1 0 0;
-}
-
-.Horizontal-p {
-    display: flex;
-    justify-content: space-between;
-    width: 100%;
-    gap: 24px;
-    flex: 1;
-}
-
-.Withdraw-Inner-Data-Display {
-    display: flex;
-    justify-content: center;
-    padding: 32px 0px;
-    gap: 16px;
-    align-self: stretch;
-    flex-direction: column;
-    color: #252525;
-    font-size: 14px;
-    font-weight: 300;
-}
-
-.Withdraw-Inner-Data-Personal-Display {
-    display: flex;
-    min-width: 180px;
-    max-width: 420px;
-    flex-direction: column;
-    justify-content: center;
-    align-items: flex-start;
-    gap: 4px;
-    flex: 1 0 0;
-}
 
 .MemberStyle {
     display: inline-flex;
@@ -3306,11 +2632,7 @@ tr:last-child .sub-line {
     width: 100px;
 }
 
-.Horizontal-1 {
-    display: flex;
-    width: 300px;
-    justify-content: space-between;
-}
+
 
 .Column-Box {
     display: flex;
@@ -3517,6 +2839,16 @@ tr:last-child .sub-line {
 }
 
 
+.flagCheckbox {
+    outline: none;
+    background-color: white;
+    border: 2px solid gray;
+    border-radius: 4px;
+    width: 16px;
+    height: 16px;
+}
+
+
 
 .colorFilter {
     outline: none;
@@ -3604,16 +2936,16 @@ tr:last-child .sub-line {
 
 .price-box-data {
     display: flex;
-    gap: 8px;
+    gap: 16px;
     width: 100%;
-    margin-top:16px;
+    margin-top:12px;
 }
 
 .price-box-column {
     display: flex;
     flex-direction: column;
-    gap: 12px;
-    min-width: 180px;
+    gap: 4px;
+    min-width: 160px;
 }
 
 .price-box-column-line {
@@ -3710,4 +3042,20 @@ tr:last-child .sub-line {
     align-items: center;
     width: 100%;
     gap: 4px;
+}
+
+.close {
+    display: flex;
+    width: 25.5px;
+    height: 25.5px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    color: #fff;
+    font-size: 13px;
+    font-weight: 400;
+    text-decoration: none;
+    background: #F65063;
+    cursor: pointer;
+    border: none;
 }

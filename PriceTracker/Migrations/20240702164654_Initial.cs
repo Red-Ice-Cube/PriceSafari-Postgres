@@ -248,6 +248,27 @@ namespace PriceTracker.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "Flags",
+                columns: table => new
+                {
+                    FlagId = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    FlagName = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    FlagColor = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    StoreId = table.Column<int>(type: "int", nullable: false),
+                    StoreClassStoreId = table.Column<int>(type: "int", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Flags", x => x.FlagId);
+                    table.ForeignKey(
+                        name: "FK_Flags_Stores_StoreClassStoreId",
+                        column: x => x.StoreClassStoreId,
+                        principalTable: "Stores",
+                        principalColumn: "StoreId");
+                });
+
+            migrationBuilder.CreateTable(
                 name: "PriceValues",
                 columns: table => new
                 {
@@ -310,6 +331,30 @@ namespace PriceTracker.Migrations
                         principalTable: "Stores",
                         principalColumn: "StoreId",
                         onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "ProductFlags",
+                columns: table => new
+                {
+                    ProductId = table.Column<int>(type: "int", nullable: false),
+                    FlagId = table.Column<int>(type: "int", nullable: false),
+                    ProductFlagId = table.Column<int>(type: "int", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_ProductFlags", x => new { x.ProductId, x.FlagId });
+                    table.ForeignKey(
+                        name: "FK_ProductFlags_Flags_FlagId",
+                        column: x => x.FlagId,
+                        principalTable: "Flags",
+                        principalColumn: "FlagId");
+                    table.ForeignKey(
+                        name: "FK_ProductFlags_Products_ProductId",
+                        column: x => x.ProductId,
+                        principalTable: "Products",
+                        principalColumn: "ProductId",
+                        onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateTable(
@@ -393,6 +438,11 @@ namespace PriceTracker.Migrations
                 column: "StoreId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_Flags_StoreClassStoreId",
+                table: "Flags",
+                column: "StoreClassStoreId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_PriceHistories_ProductId",
                 table: "PriceHistories",
                 column: "ProductId");
@@ -406,6 +456,11 @@ namespace PriceTracker.Migrations
                 name: "IX_PriceValues_StoreId",
                 table: "PriceValues",
                 column: "StoreId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ProductFlags_FlagId",
+                table: "ProductFlags",
+                column: "FlagId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Products_StoreId",
@@ -449,6 +504,9 @@ namespace PriceTracker.Migrations
                 name: "PriceValues");
 
             migrationBuilder.DropTable(
+                name: "ProductFlags");
+
+            migrationBuilder.DropTable(
                 name: "Settings");
 
             migrationBuilder.DropTable(
@@ -461,10 +519,13 @@ namespace PriceTracker.Migrations
                 name: "AspNetUsers");
 
             migrationBuilder.DropTable(
-                name: "Products");
+                name: "ScrapHistories");
 
             migrationBuilder.DropTable(
-                name: "ScrapHistories");
+                name: "Flags");
+
+            migrationBuilder.DropTable(
+                name: "Products");
 
             migrationBuilder.DropTable(
                 name: "Stores");

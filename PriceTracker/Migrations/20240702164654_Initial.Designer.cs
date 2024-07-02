@@ -12,8 +12,8 @@ using PriceTracker.Data;
 namespace PriceTracker.Migrations
 {
     [DbContext(typeof(PriceTrackerContext))]
-    [Migration("20240702103128_Flags")]
-    partial class Flags
+    [Migration("20240702164654_Initial")]
+    partial class Initial
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -338,12 +338,15 @@ namespace PriceTracker.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<int?>("StoreClassStoreId")
+                        .HasColumnType("int");
+
                     b.Property<int>("StoreId")
                         .HasColumnType("int");
 
                     b.HasKey("FlagId");
 
-                    b.HasIndex("StoreId");
+                    b.HasIndex("StoreClassStoreId");
 
                     b.ToTable("Flags");
                 });
@@ -600,13 +603,9 @@ namespace PriceTracker.Migrations
 
             modelBuilder.Entity("PriceTracker.Models.FlagsClass", b =>
                 {
-                    b.HasOne("PriceTracker.Models.StoreClass", "Store")
-                        .WithMany()
-                        .HasForeignKey("StoreId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Store");
+                    b.HasOne("PriceTracker.Models.StoreClass", null)
+                        .WithMany("Flags")
+                        .HasForeignKey("StoreClassStoreId");
                 });
 
             modelBuilder.Entity("PriceTracker.Models.PriceHistoryClass", b =>
@@ -706,6 +705,8 @@ namespace PriceTracker.Migrations
             modelBuilder.Entity("PriceTracker.Models.StoreClass", b =>
                 {
                     b.Navigation("Categories");
+
+                    b.Navigation("Flags");
 
                     b.Navigation("PriceValues");
 
