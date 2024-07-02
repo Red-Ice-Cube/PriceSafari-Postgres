@@ -121,7 +121,14 @@
             box.className = 'price-box ' + item.colorClass;
             box.dataset.detailsUrl = '/PriceHistory/Details?scrapId=' + item.scrapId + '&productId=' + item.productId;
             box.innerHTML =
-                '<div class="price-box-column-name">' + highlightedProductName + ' ' + item.category + '</div>' +
+
+                '<div class="price-box-space">' +
+                '<div class="price-box-column-name">' + highlightedProductName + '</div>' +
+                '<button class="assign-flag-button" data-product-id="' + item.productId + '">+ Przypisz flagi</button>' +
+                '</div>' +
+
+                '<div class="price-box-column-category">' + item.category + '</div>' +
+                
                 '<div class="price-box-data">' +
                 '<div class="color-bar ' + item.colorClass + '"></div>' +
                 '<div class="price-box-column">' +
@@ -145,9 +152,7 @@
                     return '<span class="flag" style="color:' + flag.FlagColor + '; border: 2px solid ' + flag.FlagColor + '; background-color:' + hexToRgba(flag.FlagColor, 0.4) + ';">' + flag.FlagName + '</span>';
                 }).join('') : '') +
                 '</div>' +
-                '<div>' +
-                '<button class="assign-flag-button" data-product-id="' + item.productId + '">+ Przypisz flagi</button>' +
-                '</div>' +
+                
                 '</div>';
 
             box.addEventListener('click', function () {

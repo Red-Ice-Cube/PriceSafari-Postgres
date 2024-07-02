@@ -3504,6 +3504,20 @@ tr:last-child .sub-line {
     width: 100%;
     gap: 16px;
 }
+
+
+
+.flagFilter {
+    outline: none;
+    background-color: white;
+    border: 2px solid gray;
+    border-radius: 4px;
+    width: 16px;
+    height: 16px;
+}
+
+
+
 .colorFilter {
     outline: none;
     background-color: white;
@@ -3584,20 +3598,22 @@ tr:last-child .sub-line {
     width: 100%;
     flex-direction: column;
     display: flex;
-    gap: 16px;
+    gap: 8px;
     cursor: pointer;
 }
 
 .price-box-data {
     display: flex;
-    gap: 24px;
+    gap: 8px;
     width: 100%;
+    margin-top:16px;
 }
 
 .price-box-column {
     display: flex;
     flex-direction: column;
     gap: 12px;
+    min-width: 180px;
 }
 
 .price-box-column-line {
@@ -3606,14 +3622,26 @@ tr:last-child .sub-line {
     background-color: grey;
 }
 
+.price-box-space {
+    display:flex;
+    justify-content:space-between;
+    width: 100%;
+}
+
+
 .price-box-column-name {
     font-weight: 500;
+    font-size: 17px;
+}
+
+.price-box-column-category {
+    font-weight: 400;
     font-size: 16px;
 }
 
 .price-box-column-text {
     font-size: 16px;
-    font-weight: 400;
+    font-weight: 500;
 }
 
 .price-box .color-bar {
@@ -3652,18 +3680,34 @@ tr:last-child .sub-line {
     justify-content: center;
 }
 
-
 .flag {
     border-radius: 4px;
     padding: 4px 8px;
-    display: inline-block;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     margin: 2px;
 }
 
-
-.assign-flag-button {
+.assign-flag-button {  
+    display: inline-block;    
+    padding: 4px 6px;
+    align-items: center;
+    justify-content: center;
     border-radius: 4px;
-    padding: 4px 8px;
-    display: inline-block;
-    margin: 2px;
+    color: #4E4E4E;
+    font-size: 13px;
+    font-weight: 400;
+    text-decoration: none;
+    background: #e3e3e3;
+    border: none;
+}
+
+
+.flags-container {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    width: 100%;
+    gap: 4px;
 }
