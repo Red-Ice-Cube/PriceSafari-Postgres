@@ -4,6 +4,7 @@
     let myStoreName = "";
     let setPrice1 = 2.00;
     let setPrice2 = 2.00;
+    let selectedProductId = null;
 
     function loadStores() {
         fetch(`/PriceHistory/GetStores?storeId=${storeId}`)
@@ -63,12 +64,14 @@
         }
     }
 
-    function filterPricesByCategoryAndColor(data, searchTerm = "") {
+    function filterPricesByCategoryAndColorAndFlag(data, searchTerm = "") {
         const selectedCategory = document.getElementById('category').value;
         const selectedColors = Array.from(document.querySelectorAll('.colorFilter:checked')).map(checkbox => checkbox.value);
+        const selectedFlags = Array.from(document.querySelectorAll('.flagFilter:checked')).map(checkbox => parseInt(checkbox.value));
 
         let filteredPrices = selectedCategory ? data.filter(item => item.category === selectedCategory) : data;
         filteredPrices = selectedColors.length ? filteredPrices.filter(item => selectedColors.includes(item.colorClass)) : filteredPrices;
+        filteredPrices = selectedFlags.length ? filteredPrices.filter(item => selectedFlags.some(flag => item.flagIds.includes(flag))) : filteredPrices;
 
         renderPrices(filteredPrices, searchTerm);
     }
@@ -95,7 +98,7 @@
 
         const filteredPrices = [...exactMatches, ...partialMatches, ...regexMatches];
 
-        filterPricesByCategoryAndColor(filteredPrices, sanitizedInput);
+        filterPricesByCategoryAndColorAndFlag(filteredPrices, sanitizedInput);
     }
 
     function highlightMatches(text, searchTerm) {
@@ -104,50 +107,88 @@
         return text.replace(regex, '<span style="color: #9400D3;font-weight: 600;">$1</span>');
     }
 
-    function renderPrices(data, searchTerm = "") {
-        const selectedColors = Array.from(document.querySelectorAll('.colorFilter:checked')).map(checkbox => checkbox.value);
-        const pricesToRender = selectedColors.length ? data.filter(item => selectedColors.includes(item.colorClass)) : data;
 
+    function renderPrices(data, searchTerm = "") {
         const container = document.getElementById('priceContainer');
         container.innerHTML = '';
-        pricesToRender.forEach(item => {
+        data.forEach(item => {
             const highlightedProductName = highlightMatches(item.productName, searchTerm);
             const percentageDifference = item.percentageDifference != null ? item.percentageDifference.toFixed(2) : "N/A";
             const priceDifference = item.priceDifference != null ? item.priceDifference.toFixed(2) : "N/A";
             const savings = item.colorClass === "green" || item.colorClass === "turquoise" ? item.savings != null ? item.savings.toFixed(2) : "N/A" : "N/A";
 
             const box = document.createElement('div');
-            box.className = `price-box ${item.colorClass}`;
-            box.dataset.detailsUrl = `/PriceHistory/Details?scrapId=${item.scrapId}&productId=${item.productId}`;
-            box.innerHTML = `
-                <div class="price-box-column-name">${highlightedProductName} ${item.category}</div>
-                <div class="price-box-data">
-                    <div class="color-bar ${item.colorClass}"></div>
-                    <div class="price-box-column">
-                        <div class="price-box-column-text">${item.myPrice.toFixed(2)} zł</div>
-                        <div class="price-box-column-text">${myStoreName}</div>
-                    </div>
-                    <div class="price-box-column-line"></div>
-                    <div class="price-box-column">
-                        <div class="price-box-column-text">${item.lowestPrice.toFixed(2)} zł</div>
-                        <div class="price-box-column-text">${item.storeName}</div>
-                    </div>
-                    <div class="price-box-column-line"></div>
-                    <div class="price-box-column">
-                        ${item.colorClass === "green" || item.colorClass === "turquoise" ? `<p>Oszczędność: ${savings} zł</p>` : ""}
-                        ${item.colorClass === "red" || item.colorClass === "yellow" ? `<p>Różnica (%): ${percentageDifference}%</p>` : ""}
-                        ${item.colorClass === "red" || item.colorClass === "yellow" ? `<p>Różnica (PLN): ${priceDifference} zł</p>` : ""}
-                    </div>
-                </div>
-            `;
+            box.className = 'price-box ' + item.colorClass;
+            box.dataset.detailsUrl = '/PriceHistory/Details?scrapId=' + item.scrapId + '&productId=' + item.productId;
+            box.innerHTML =
+                '<div class="price-box-column-name">' + highlightedProductName + ' ' + item.category + '</div>' +
+                '<div class="price-box-data">' +
+                '<div class="color-bar ' + item.colorClass + '"></div>' +
+                '<div class="price-box-column">' +
+                '<div class="price-box-column-text">' + item.myPrice.toFixed(2) + ' zł</div>' +
+                '<div class="price-box-column-text">' + myStoreName + '</div>' +
+                '</div>' +
+                '<div class="price-box-column-line"></div>' +
+                '<div class="price-box-column">' +
+                '<div class="price-box-column-text">' + item.lowestPrice.toFixed(2) + ' zł</div>' +
+                '<div class="price-box-column-text">' + item.storeName + '</div>' +
+                '</div>' +
+                '<div class="price-box-column-line"></div>' +
+                '<div class="price-box-column">' +
+                (item.colorClass === "green" || item.colorClass === "turquoise" ? '<p>Oszczędność: ' + savings + ' zł</p>' : '') +
+                (item.colorClass === "red" || item.colorClass === "yellow" ? '<p>Różnica (%): ' + percentageDifference + '%</p>' : '') +
+                (item.colorClass === "red" || item.colorClass === "yellow" ? '<p>Różnica (PLN): ' + priceDifference + ' zł</p>' : '') +
+                '</div>' +
+                '<div class="flags-container">' +
+                (item.flagIds.length > 0 ? item.flagIds.map(function (flagId) {
+                    const flag = flags.find(function (f) { return f.FlagId === flagId; });
+                    return '<span class="flag" style="color:' + flag.FlagColor + '; border: 2px solid ' + flag.FlagColor + '; background-color:' + hexToRgba(flag.FlagColor, 0.4) + ';">' + flag.FlagName + '</span>';
+                }).join('') : '') +
+                '</div>' +
+                '</div>' +
+                '</div>';
 
             box.addEventListener('click', function () {
                 window.open(this.dataset.detailsUrl, '_blank');
             });
 
             container.appendChild(box);
+
+            const assignFlagButton = document.createElement('button');
+            assignFlagButton.className = 'assign-flag-button';
+            assignFlagButton.dataset.productId = item.productId;
+            assignFlagButton.textContent = '+ Przypisz flagi';
+            assignFlagButton.addEventListener('click', function (event) {
+                event.stopPropagation();
+                selectedProductId = this.dataset.productId;
+                modal.style.display = 'block';
+                fetch('/ProductFlags/GetFlagsForProduct?productId=' + selectedProductId)
+                    .then(response => response.json())
+                    .then(flags => {
+                        document.querySelectorAll('.flagCheckbox').forEach(function (checkbox) {
+                            checkbox.checked = flags.includes(parseInt(checkbox.value));
+                        });
+                    })
+                    .catch(error => console.error('Error fetching flags for product:', error));
+            });
+
+            container.appendChild(assignFlagButton);
         });
-        document.getElementById('displayedProductCount').textContent = pricesToRender.length;
+        document.getElementById('displayedProductCount').textContent = data.length;
+    }
+
+    function hexToRgba(hex, alpha) {
+        let r = 0, g = 0, b = 0;
+        if (hex.length == 4) {
+            r = parseInt(hex[1] + hex[1], 16);
+            g = parseInt(hex[2] + hex[2], 16);
+            b = parseInt(hex[3] + hex[3], 16);
+        } else if (hex.length == 7) {
+            r = parseInt(hex[1] + hex[2], 16);
+            g = parseInt(hex[3] + hex[4], 16);
+            b = parseInt(hex[5] + hex[6], 16);
+        }
+        return `rgba(${r}, ${g}, ${b}, ${alpha})`;
     }
 
     function renderChart(data) {
@@ -250,7 +291,13 @@
 
     document.querySelectorAll('.colorFilter').forEach(function (checkbox) {
         checkbox.addEventListener('change', function () {
-            filterPricesByCategoryAndColor(allPrices);
+            filterPricesByCategoryAndColorAndFlag(allPrices);
+        });
+    });
+
+    document.querySelectorAll('.flagFilter').forEach(function (checkbox) {
+        checkbox.addEventListener('change', function () {
+            filterPricesByCategoryAndColorAndFlag(allPrices);
         });
     });
 
@@ -302,13 +349,70 @@
                     alert('Price values updated successfully.');
                     setPrice1 = price1;
                     setPrice2 = price2;
-                   
+
                     loadPrices();
                 } else {
                     alert('Error updating price values: ' + response.message);
                 }
             })
             .catch(error => console.error('Error saving price values:', error));
+    });
+
+    // Modal handling
+    const modal = document.getElementById('flagModal');
+    const span = document.getElementsByClassName('close')[0];
+
+    span.onclick = function () {
+        modal.style.display = 'none';
+    };
+
+    window.onclick = function (event) {
+        if (event.target == modal) {
+            modal.style.display = 'none';
+        }
+    };
+
+    document.querySelectorAll('.assign-flag-button').forEach(button => {
+        button.addEventListener('click', function () {
+            selectedProductId = this.dataset.productId;
+            modal.style.display = 'block';
+            // Preselect checkboxes based on existing flags for the product
+            fetch(`/ProductFlags/GetFlagsForProduct?productId=${selectedProductId}`)
+                .then(response => response.json())
+                .then(flags => {
+                    document.querySelectorAll('.flagCheckbox').forEach(checkbox => {
+                        checkbox.checked = flags.includes(parseInt(checkbox.value));
+                    });
+                })
+                .catch(error => console.error('Error fetching flags for product:', error));
+        });
+    });
+
+    document.getElementById('saveFlagsButton').addEventListener('click', function () {
+        const selectedFlags = Array.from(document.querySelectorAll('.flagCheckbox:checked')).map(checkbox => parseInt(checkbox.value));
+        const data = {
+            productId: selectedProductId,
+            flagIds: selectedFlags
+        };
+
+        fetch('/ProductFlags/AssignFlagsToProduct', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(data)
+        })
+            .then(response => response.json())
+            .then(response => {
+                if (response.success) {
+                    alert('Flags assigned successfully.');
+                    modal.style.display = 'none';
+                    loadPrices();
+                } else {
+                    alert('Error assigning flags: ' + response.message);
+                }
+            })
+            .catch(error => console.error('Error assigning flags:', error));
     });
 
     loadStores();

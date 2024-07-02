@@ -15,7 +15,7 @@ namespace PriceTracker.Models
 
 
         public int StoreId { get; set; }
-        public StoreClass Store { get; set; }
+        
 
         public ICollection<ProductFlag> ProductFlags { get; set; } = new List<ProductFlag>();
     }

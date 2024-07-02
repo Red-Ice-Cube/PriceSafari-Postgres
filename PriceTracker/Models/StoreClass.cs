@@ -13,5 +13,6 @@ namespace PriceTracker.Models
         public ICollection<ProductClass> Products { get; set; } = new List<ProductClass>();
         public ICollection<CategoryClass> Categories { get; set; } = new List<CategoryClass>();
         public ICollection<PriceValueClass> PriceValues { get; set; } = new List<PriceValueClass>();
+        public ICollection<FlagsClass> Flags { get; set; } = new List<FlagsClass>();
     }
 }

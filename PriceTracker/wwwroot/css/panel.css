@@ -3651,3 +3651,11 @@ tr:last-child .sub-line {
     align-items: center;
     justify-content: center;
 }
+
+
+.flag {
+    border-radius: 4px;
+    padding: 4px 8px;
+    display: inline-block;
+    margin: 2px;
+}

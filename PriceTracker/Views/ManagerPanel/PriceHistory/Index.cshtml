@@ -1,8 +1,12 @@
-﻿@{
+﻿@using Newtonsoft.Json
+
+
+@{
     ViewData["Title"] = "Historia Cen";
     var latestScrap = ViewBag.LatestScrap as PriceTracker.Models.ScrapHistoryClass;
     var storeId = ViewBag.StoreId;
-    var categories = ViewBag.Categories;
+    var categories = ViewBag.Categories as List<string>;
+    var flags = ViewBag.Flags as List<PriceTracker.Models.FlagsClass>;
 }
 
 @{
@@ -16,54 +20,49 @@
         font-size: 14px;
     }
 
-        .price-range-settings label {
-            margin-right: 4px;
-            font-size: 14px;
-        }
+    .price-range-settings label {
+        margin-right: 4px;
+        font-size: 14px;
+    }
 
-        .price-range-settings input[type="number"] {
-            width: 88px;
-            padding: 4px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            text-align: right;
-            margin-right: 6px;
-            height: 24px;
-            font-size: 14px;
-        }
+    .price-range-settings input[type="number"] {
+        width: 88px;
+        padding: 4px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        text-align: right;
+        margin-right: 6px;
+        height: 24px;
+        font-size: 14px;
+    }
 
-        .price-range-settings .color-circle {
-            width: 16px;
-            height: 24px;
-            margin-left: 3px;
-            border-radius: 4px;
-            display: inline-block;
-            
-        }
+    .price-range-settings .color-circle {
+        width: 16px;
+        height: 24px;
+        margin-left: 3px;
+        border-radius: 4px;
+        display: inline-block;
+    }
 
-        .price-range-settings .turquoise-circle {
-            background-color: rgba(64, 224, 208, 0.5);
-        }
+    .price-range-settings .turquoise-circle {
+        background-color: rgba(64, 224, 208, 0.5);
+    }
 
-        .price-range-settings .yellow-circle {
-            background-color: rgba(240, 240, 105, 0.5);
-        }
+    .price-range-settings .yellow-circle {
+        background-color: rgba(240, 240, 105, 0.5);
+    }
 
     .store-section {
         display: flex;
         width:180px;
         gap:6px;
-        flex-direction: column;    
-
+        flex-direction: column;
     }
-       
 </style>
-
 
 <div class="Vert">
     <div class="Multi-Cover-Statistic-a">
         <div class="Charts-Donought-a">
-            
             <div class="Order-Container-Title">
                 Scrapowanie cen @ViewBag.StoreName
                 <div class="form-check-orders">
@@ -75,19 +74,31 @@
                     </div>
                 </div>
             </div>
-            
-            
         </div>
         <div class="Charts-Donought-a">
-           
+            <div id="flagModal" class="modal">
+                <div class="modal-content">
+                    <span class="close">&times;</span>
+                    <h2>Przypisz flagi do produktu</h2>
+                    <div id="flagCheckboxes">
+                        @if (flags != null)
+                        {
+                            @foreach (var flag in flags)
+                            {
+                                        <label><input type="checkbox" class="flagCheckbox" value="@flag.FlagId"> @flag.FlagName</label>
+                                        <br />
+                            }
+                        }
+                    </div>
+                    <button id="saveFlagsButton">Zapisz</button>
+                </div>
+            </div>
         </div>
     </div>
-    
-    <div class="Page-Box">
 
+    <div class="Page-Box">
         <div class="Page-Box-Container">
             <div class="Page-Box-Category">
-                
                 <div class="Category-Container-Title">Grupy cenowe</div>
                 <div class="side-chart-box">
                     <canvas id="colorChart"></canvas>
@@ -123,17 +134,19 @@
                         <label for="price2"></label>
                         <input type="number" id="price2" value="@ViewBag.SetPrice2" step="0.01" min="0.01"> PLN
                     </div>
-
                     <button class="Button-Page-Small" style="margin-top: 16px;" id="savePriceValues">Zapisz</button>
-
                 </div>
-               
+                <div class="form-check">
+                    <div class="form-check-label">Filtruj po flagach:</div>
+                    @foreach (var flag in flags)
+                    {
+                            <div class="form-check">
+                                <input class="form-check-input flagFilter" type="checkbox" id="flagCheckbox_@flag.FlagId" value="@flag.FlagId">
+                                <label class="form-check-label" for="flagCheckbox_@flag.FlagId">@flag.FlagName</label>
+                            </div>
+                    }
+                </div>
             </div>
-
-
-
-
-
             <div class="Horizontal">
                 <div class="order-upper-box">
                     <input type="text" id="productSearch" placeholder="Wyszukaj produkt">
@@ -142,10 +155,9 @@
                             <option value="">Wszystkie kategorie</option>
                             @foreach (var category in categories)
                             {
-                                <option value="@category">@category</option>
+                                    <option value="@category">@category</option>
                             }
                         </select>
-
                     </form>
                 </div>
                 <div id="displayedProductCount"></div>
@@ -154,20 +166,15 @@
                 </div>
             </div>
         </div>
-
-       
-
-        
-
-        
-            
-      
     </div>
 </div>
 
 @section Scripts {
-    <script>
-        var storeId = '@storeId';
-    </script>
-    <script src="~/js/PriceHistory.js"></script>
+        <script>
+            var storeId = '@storeId';
+        </script>
+        <script>
+            var flags = @Html.Raw(JsonConvert.SerializeObject(ViewBag.Flags));
+        </script>
+        <script src="~/js/PriceHistory.js"></script>
 }

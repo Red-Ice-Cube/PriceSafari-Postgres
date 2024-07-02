@@ -6,7 +6,7 @@
 
 <h2>Create Flag</h2>
 
-<form asp-action="Create">
+<form asp-action="Create" method="post">
     <div class="form-group">
         <label asp-for="FlagName" class="control-label"></label>
         <input asp-for="FlagName" class="form-control" />
@@ -17,14 +17,14 @@
         <input asp-for="FlagColor" type="color" class="form-control" />
         <span asp-validation-for="FlagColor" class="text-danger"></span>
     </div>
-    <input type="hidden" asp-for="StoreId" value="@ViewBag.StoreId" />
+    <input type="hidden" name="storeId" value="@ViewBag.StoreId" />
     <div class="form-group">
         <input type="submit" value="Create" class="btn btn-primary" />
     </div>
 </form>
 
 <div>
-    <a asp-action="Index" asp-controller="Stores">Back to List</a>
+    <a asp-action="Index" asp-controller="Store">Back to List</a>
 </div>
 
 @section Scripts {

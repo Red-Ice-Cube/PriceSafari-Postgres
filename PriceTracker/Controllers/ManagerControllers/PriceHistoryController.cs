@@ -15,7 +15,6 @@ namespace PriceTracker.Controllers.ManagerControllers
             _context = context;
         }
 
-        // GET: PriceHistory
         public async Task<IActionResult> Index(int? storeId)
         {
             if (storeId == null)
@@ -30,7 +29,7 @@ namespace PriceTracker.Controllers.ManagerControllers
 
             if (latestScrap == null)
             {
-                return View(new List<dynamic>());
+                return View(new List<FlagsClass>());
             }
 
             var storeName = await _context.Stores
@@ -38,21 +37,25 @@ namespace PriceTracker.Controllers.ManagerControllers
                 .Select(sn => sn.StoreName)
                 .FirstOrDefaultAsync();
 
-            ViewBag.LatestScrap = latestScrap;
-            ViewBag.StoreId = storeId;
-            ViewBag.StoreName = storeName;
-
             var categories = await _context.Products
                 .Where(p => p.StoreId == storeId)
                 .Select(p => p.Category)
                 .Distinct()
                 .ToListAsync();
 
-            ViewBag.Categories = categories;
+            var flags = await _context.Flags
+                .Where(f => f.StoreId == storeId)
+                .ToListAsync();
 
+            ViewBag.LatestScrap = latestScrap;
+            ViewBag.StoreId = storeId;
+            ViewBag.StoreName = storeName;
+            ViewBag.Categories = categories;
+            ViewBag.Flags = flags; 
 
             return View("~/Views/ManagerPanel/PriceHistory/Index.cshtml");
         }
+
 
         [HttpGet]
         public async Task<IActionResult> GetPrices(int? storeId)
@@ -65,6 +68,7 @@ namespace PriceTracker.Controllers.ManagerControllers
             var latestScrap = await _context.ScrapHistories
                 .Where(sh => sh.StoreId == storeId)
                 .OrderByDescending(sh => sh.Date)
+                .Select(sh => new { sh.Id, sh.Date })
                 .FirstOrDefaultAsync();
 
             if (latestScrap == null)
@@ -77,14 +81,34 @@ namespace PriceTracker.Controllers.ManagerControllers
                 .Select(s => s.StoreName)
                 .FirstOrDefaultAsync();
 
+            var priceValues = await _context.PriceValues
+                .Where(pv => pv.StoreId == storeId)
+                .Select(pv => new { pv.SetPrice1, pv.SetPrice2 })
+                .FirstOrDefaultAsync();
+
+            if (priceValues == null)
+            {
+                priceValues = new { SetPrice1 = 2.00m, SetPrice2 = 2.00m };
+            }
+
             var prices = await _context.PriceHistories
                 .Where(ph => ph.ScrapHistoryId == latestScrap.Id)
                 .Include(ph => ph.Product)
+                .Select(ph => new
+                {
+                    ph.ProductId,
+                    ph.Product.ProductName,
+                    ph.Product.Category,
+                    ph.Price,
+                    ph.StoreName,
+                    ph.ScrapHistoryId
+                })
                 .ToListAsync();
 
-            var priceValues = await _context.PriceValues
-                .Where(pv => pv.StoreId == storeId)
-                .FirstOrDefaultAsync() ?? new PriceValueClass();
+            var productFlags = await _context.ProductFlags
+                .Where(pf => prices.Select(p => p.ProductId).Contains(pf.ProductId))
+                .GroupBy(pf => pf.ProductId)
+                .ToDictionaryAsync(g => g.Key, g => g.Select(pf => pf.FlagId).ToList());
 
             var allPrices = prices
                 .GroupBy(p => p.ProductId)
@@ -99,11 +123,14 @@ namespace PriceTracker.Controllers.ManagerControllers
                     var bestPrice = bestPriceEntry.Price;
                     var myPrice = myPriceEntry != null ? myPriceEntry.Price : bestPrice;
 
+                    productFlags.TryGetValue(bestPriceEntry.ProductId, out var flagIds);
+                    flagIds = flagIds ?? new List<int>();
+
                     return new
                     {
                         bestPriceEntry.ProductId,
-                        bestPriceEntry.Product.ProductName,
-                        bestPriceEntry.Product.Category,
+                        bestPriceEntry.ProductName,
+                        bestPriceEntry.Category,
                         LowestPrice = bestPrice,
                         bestPriceEntry.StoreName,
                         MyPrice = myPrice,
@@ -112,18 +139,25 @@ namespace PriceTracker.Controllers.ManagerControllers
                         PercentageDifference = Math.Round((myPrice - bestPrice) / bestPrice * 100, 2),
                         Savings = isMyBestPrice && !isSharedBestPrice ? Math.Round(secondBestPrice - bestPrice, 2) : (decimal?)null,
                         IsSharedBestPrice = isMyBestPrice && isSharedBestPrice,
-                        IsUniqueBestPrice = isMyBestPrice && !isSharedBestPrice
+                        IsUniqueBestPrice = isMyBestPrice && !isSharedBestPrice,
+                        FlagIds = flagIds
                     };
                 })
                 .ToList();
 
             var uniqueAllPrices = allPrices.GroupBy(p => p.ProductId).Select(g => g.First()).ToList();
 
-            var remainingProductCount = uniqueAllPrices.Count;
-            var remainingPriceCount = prices.Count;
-
-            return Json(new { productCount = remainingProductCount, priceCount = remainingPriceCount, myStoreName = storeName, prices = uniqueAllPrices, setPrice1 = priceValues.SetPrice1, setPrice2 = priceValues.SetPrice2 });
+            return Json(new
+            {
+                productCount = uniqueAllPrices.Count,
+                priceCount = prices.Count,
+                myStoreName = storeName,
+                prices = uniqueAllPrices,
+                setPrice1 = priceValues.SetPrice1,
+                setPrice2 = priceValues.SetPrice2
+            });
         }
+
 
 
 

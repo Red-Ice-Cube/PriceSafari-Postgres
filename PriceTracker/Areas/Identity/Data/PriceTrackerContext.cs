@@ -40,17 +40,19 @@ namespace PriceTracker.Data
                 .OnDelete(DeleteBehavior.Cascade);
 
             modelBuilder.Entity<ProductFlag>()
-                .HasKey(pf => new { pf.ProductId, pf.FlagId });
+             .HasKey(pf => new { pf.ProductId, pf.FlagId });
 
             modelBuilder.Entity<ProductFlag>()
                 .HasOne(pf => pf.Product)
                 .WithMany(p => p.ProductFlags)
-                .HasForeignKey(pf => pf.ProductId);
+                .HasForeignKey(pf => pf.ProductId)
+                .OnDelete(DeleteBehavior.Cascade);
 
             modelBuilder.Entity<ProductFlag>()
                 .HasOne(pf => pf.Flag)
                 .WithMany(f => f.ProductFlags)
-                .HasForeignKey(pf => pf.FlagId);
+                .HasForeignKey(pf => pf.FlagId)
+                .OnDelete(DeleteBehavior.NoAction);
 
             modelBuilder.Entity<TableSizeInfo>().HasNoKey();
 

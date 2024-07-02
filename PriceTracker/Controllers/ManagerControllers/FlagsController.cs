@@ -20,21 +20,25 @@ namespace PriceTracker.Controllers
         public IActionResult Create(int storeId)
         {
             ViewBag.StoreId = storeId;
-            return View();
+            return View("~/Views/ManagerPanel/Flags/Create.cshtml");
         }
 
         // POST: Flags/Create
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create([Bind("FlagId,FlagName,FlagColor,StoreId")] FlagsClass flag)
+        public async Task<IActionResult> Create([Bind("FlagId,FlagName,FlagColor,StoreId")] FlagsClass flag, int storeId)
         {
+            flag.StoreId = storeId;
+
             if (ModelState.IsValid)
             {
                 _context.Add(flag);
                 await _context.SaveChangesAsync();
-                return RedirectToAction("Details", "Stores", new { id = flag.StoreId });
+                return RedirectToAction("Index", "Store", new { id = storeId });
             }
-            return View(flag);
+
+            ViewBag.StoreId = storeId;
+            return View("~/Views/ManagerPanel/Flags/Create.cshtml", flag);
         }
 
         // GET: Flags/List
@@ -42,7 +46,8 @@ namespace PriceTracker.Controllers
         {
             var flags = await _context.Flags.Where(f => f.StoreId == storeId).ToListAsync();
             ViewBag.StoreId = storeId;
-            return View(flags);
+
+            return View("~/Views/ManagerPanel/Flags/List.cshtml", flags);
         }
     }
 }
