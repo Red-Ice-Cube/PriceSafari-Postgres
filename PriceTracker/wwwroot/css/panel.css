@@ -3659,3 +3659,11 @@ tr:last-child .sub-line {
     display: inline-block;
     margin: 2px;
 }
+
+
+.assign-flag-button {
+    border-radius: 4px;
+    padding: 4px 8px;
+    display: inline-block;
+    margin: 2px;
+}

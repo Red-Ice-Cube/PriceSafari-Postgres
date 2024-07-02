@@ -136,16 +136,18 @@
                     </div>
                     <button class="Button-Page-Small" style="margin-top: 16px;" id="savePriceValues">Zapisz</button>
                 </div>
-                <div class="form-check">
-                    <div class="form-check-label">Filtruj po flagach:</div>
-                    @foreach (var flag in flags)
-                    {
-                            <div class="form-check">
-                                <input class="form-check-input flagFilter" type="checkbox" id="flagCheckbox_@flag.FlagId" value="@flag.FlagId">
-                                <label class="form-check-label" for="flagCheckbox_@flag.FlagId">@flag.FlagName</label>
-                            </div>
-                    }
-                </div>
+                <div class="Category-Container-Title">Flagi</div>
+                       <div class="store-section">
+                            
+                                @foreach (var flag in flags)
+                                {
+                                        <div class="form-check">
+                                            <input class="form-check-input flagFilter" type="checkbox" id="flagCheckbox_@flag.FlagId" value="@flag.FlagId">
+                                            <label class="form-check-label" for="flagCheckbox_@flag.FlagId">@flag.FlagName</label>
+                                        </div>
+                                }
+                            
+                         </div>
             </div>
             <div class="Horizontal">
                 <div class="order-upper-box">

@@ -145,6 +145,8 @@
                     return '<span class="flag" style="color:' + flag.FlagColor + '; border: 2px solid ' + flag.FlagColor + '; background-color:' + hexToRgba(flag.FlagColor, 0.4) + ';">' + flag.FlagName + '</span>';
                 }).join('') : '') +
                 '</div>' +
+                '<div>' +
+                '<button class="assign-flag-button" data-product-id="' + item.productId + '">+ Przypisz flagi</button>' +
                 '</div>' +
                 '</div>';
 
@@ -154,10 +156,7 @@
 
             container.appendChild(box);
 
-            const assignFlagButton = document.createElement('button');
-            assignFlagButton.className = 'assign-flag-button';
-            assignFlagButton.dataset.productId = item.productId;
-            assignFlagButton.textContent = '+ Przypisz flagi';
+            const assignFlagButton = box.querySelector('.assign-flag-button');
             assignFlagButton.addEventListener('click', function (event) {
                 event.stopPropagation();
                 selectedProductId = this.dataset.productId;
@@ -171,8 +170,6 @@
                     })
                     .catch(error => console.error('Error fetching flags for product:', error));
             });
-
-            container.appendChild(assignFlagButton);
         });
         document.getElementById('displayedProductCount').textContent = data.length;
     }
@@ -190,6 +187,7 @@
         }
         return `rgba(${r}, ${g}, ${b}, ${alpha})`;
     }
+
 
     function renderChart(data) {
         const colorCounts = {
