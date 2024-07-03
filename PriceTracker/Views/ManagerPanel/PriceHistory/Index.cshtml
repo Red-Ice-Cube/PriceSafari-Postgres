@@ -44,11 +44,11 @@
         display: inline-block;
     }
 
-    .price-range-settings .turquoise-circle {
-        background-color: rgba(64, 224, 208, 0.5);
+        .price-range-settings .prIdeal-circle {
+        background-color: rgba(0, 156, 42, 0.5);
     }
 
-    .price-range-settings .yellow-circle {
+    .price-range-settings .prMid-circle {
         background-color: rgba(240, 240, 105, 0.5);
     }
 
@@ -70,32 +70,34 @@
                 </div>
                 <div class="store-section">
                     <div class="form-check">
-                        <input class="form-check-input colorFilter" type="checkbox" id="blueCheckbox" value="blue">
-                        <label class="form-check-label" for="blueCheckbox">Top cena</label>
+                        <input class="form-check-input colorFilter" type="checkbox" id="prToHighCheckbox" value="prToHigh">
+                        <label class="form-check-label" for="prToHighCheckbox">Za wysoka cena</label>
+                    </div>
+                  
+                    <div class="form-check">
+                        <input class="form-check-input colorFilter" type="checkbox" id="prMidCheckbox" value="prMid">
+                        <label class="form-check-label" for="prMidCheckbox">Mid cena</label>
+                    </div>
+                   
+                    <div class="form-check">
+                        <input class="form-check-input colorFilter" type="checkbox" id="prGoodCheckbox" value="prGood">
+                        <label class="form-check-label" for="prGoodCheckbox">Top cena</label>
                     </div>
                     <div class="form-check">
-                        <input class="form-check-input colorFilter" type="checkbox" id="yellowCheckbox" value="yellow">
-                        <label class="form-check-label" for="yellowCheckbox">Mid cena</label>
+                        <input class="form-check-input colorFilter" type="checkbox" id="prIdealCheckbox" value="prIdeal">
+                        <label class="form-check-label" for="prIdealCheckbox">Idealna cena</label>
                     </div>
                     <div class="form-check">
-                        <input class="form-check-input colorFilter" type="checkbox" id="redCheckbox" value="red">
-                        <label class="form-check-label" for="redCheckbox">Zła cena</label>
-                    </div>
-                    <div class="form-check">
-                        <input class="form-check-input colorFilter" type="checkbox" id="greenCheckbox" value="green">
-                        <label class="form-check-label" for="greenCheckbox">Super cena</label>
-                    </div>
-                    <div class="form-check">
-                        <input class="form-check-input colorFilter" type="checkbox" id="turquoiseCheckbox" value="turquoise">
-                        <label class="form-check-label" for="turquoiseCheckbox">Idealna cena</label>
+                        <input class="form-check-input colorFilter" type="checkbox" id="prToLowCheckbox" value="prToLow">
+                        <label class="form-check-label" for="prToLowCheckbox">Cena za niska</label>
                     </div>
                     <div class="price-range-settings">
-                        <div class="color-circle turquoise-circle"></div>
+                        <div class="color-circle prIdeal-circle"></div>
                         <label for="price1"></label>
                         <input type="number" id="price1" value="@ViewBag.SetPrice1" step="0.01" min="0.01"> PLN
                     </div>
                     <div class="price-range-settings">
-                        <div class="color-circle yellow-circle"></div>
+                        <div class="color-circle prMid-circle"></div>
                         <label for="price2"></label>
                         <input type="number" id="price2" value="@ViewBag.SetPrice2" step="0.01" min="0.01"> PLN
                     </div>
@@ -114,11 +116,11 @@
                             
                       </div>
 
-                <div class="Category-Container-Title">Bid</div>
+                <div class="Category-Container-Title">Bidowanie</div>
                 <div class="store-section">
 
                     <div class="form-check">
-                        <input class="form-check-input" type="checkbox" id="bidFilter">
+                        <input class="form-check-input bidFilter" type="checkbox" id="bidFilter">
                         <label class="form-check-label" for="bidFilter">Bid</label>
                     </div>
 
@@ -128,15 +130,15 @@
 
                     <div class="form-check">
                         <input class="form-check-input positionFilter" type="checkbox" id="position1" value="1">
-                        <label class="form-check-label" for="position1">Position 1</label>
+                        <label class="form-check-label" for="position1">1 miejsce</label>
                     </div>
                     <div class="form-check">
                         <input class="form-check-input positionFilter" type="checkbox" id="position2" value="2">
-                        <label class="form-check-label" for="position2">Position 2</label>
+                        <label class="form-check-label" for="position2">2 miejsce</label>
                     </div>
                     <div class="form-check">
                         <input class="form-check-input positionFilter" type="checkbox" id="position3" value="3">
-                        <label class="form-check-label" for="position3">Position 3</label>
+                        <label class="form-check-label" for="position3">3 miejsce</label>
                     </div>
 
                 </div>

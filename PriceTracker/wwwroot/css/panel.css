@@ -2859,57 +2859,32 @@ tr:last-child .sub-line {
     height: 16px;
 }
 
-    .colorFilter:checked#blueCheckbox {
+    .colorFilter:checked#prGoodCheckbox {
         background-color: rgba(14, 126, 135, 0.5);
         border: 2px solid rgba(14, 126, 135, 1);
     }
 
-    .colorFilter:checked#yellowCheckbox {
+    .colorFilter:checked#prMidCheckbox {
         background-color: rgba(240, 240, 105, 0.5);
         border: 2px solid rgba(240, 240, 105, 1);
     }
 
-    .colorFilter:checked#redCheckbox {
-        background-color: rgba(246, 78, 101, 0.5);
-        border: 2px solid rgba(246, 78, 101, 1);
+    .colorFilter:checked#prToHighCheckbox {
+        background-color: rgba(238, 17, 17, 0.5);
+        border: 2px solid rgba(238, 17, 17, 1);
     }
 
-    .colorFilter:checked#greenCheckbox {
-        background-color: rgba(0, 255, 0, 0.5);
-        border: 2px solid rgba(0, 255, 0, 1);
+    .colorFilter:checked#prToLowCheckbox {
+        background-color: rgba(86, 0, 178, 0.5);
+        border: 2px solid rgba(86, 0, 178, 1);
     }
 
-.price-row.blue {
-    background-color: rgba(14, 126, 135, 0.3);
-}
+    .colorFilter:checked#prIdealCheckbox {
+        background-color: rgba(0, 156, 42, 0.5);
+        border: 2px solid rgba(0, 156, 42, 1);
+    }
 
-.price-row.yellow {
-    background-color: rgba(240, 240, 105, 0.3);
-}
 
-.price-row.red {
-    background-color: rgba(246, 78, 101, 0.3);
-}
-
-.price-row.green {
-    background-color: rgba(0, 255, 0, 0.3);
-}
-
-.price-row.blue:hover {
-    background-color: rgba(14, 126, 135, 0.5);
-}
-
-.price-row.yellow:hover {
-    background-color: rgba(240, 240, 105, 0.5);
-}
-
-.price-row.red:hover {
-    background-color: rgba(246, 78, 101, 0.5);
-}
-
-.price-row.green:hover {
-    background-color: rgba(0, 255, 0, 0.5);
-}
 
 
 
@@ -2985,31 +2960,31 @@ tr:last-child .sub-line {
     height: 100%;
 }
 
-.price-box.blue .color-bar {
+.price-box.prGood .color-bar {
     background-color: rgba(14, 126, 135, 0.5);
 }
 
-.price-box.yellow .color-bar {
+.price-box.prMid .color-bar {
     background-color: rgba(240, 240, 105, 0.5);
 }
 
-.price-box.red .color-bar {
-    background-color: rgba(246, 78, 101, 0.5);
+.price-box.prToHigh .color-bar {
+    background-color: rgba(238, 17, 17, 0.5);
 }
 
-.price-box.green .color-bar {
-    background-color: rgba(0, 255, 0, 0.5);
+.price-box.prToLow .color-bar {
+    background-color: rgba(86, 0, 178, 0.5);
 }
 
 
-.price-box.turquoise .color-bar {
-    background-color: rgba(64, 224, 208, 0.5);
+.price-box.prIdeal .color-bar {
+    background-color: rgba(0, 156, 42, 0.5);
 }
 
 
 .side-chart-box {
-    width: 120px;
-    height: 120px;
+    width: 140px;
+    height: 140px;
     padding: 10px;
     display: flex;
     align-items: center;
@@ -3066,23 +3041,44 @@ tr:last-child .sub-line {
 
 .Bidding {
     border-radius: 4px;
-    padding: 4px 8px;
+    padding: 1px 5px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    font-size:11px;
     margin: 2px;
-    background: yellow;
-    color:yellow;
-
+    background: #8E0C0C;
+    color: #fff;
 }
 
 .Position {
     border-radius: 4px;
-    padding: 4px 8px;
+    padding: 1px 5px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     margin: 2px;
-    background: grey;
-    color: grey;
+    font-size: 11px;
+    background: #000785;
+    color: #fff;
+}
+
+
+.positionFilter {
+    outline: none;
+    background-color: white;
+    border: 2px solid gray;
+    border-radius: 4px;
+    width: 16px;
+    height: 16px;
+}
+
+
+.bidFilter {
+    outline: none;
+    background-color: white;
+    border: 2px solid gray;
+    border-radius: 4px;
+    width: 16px;
+    height: 16px;
 }

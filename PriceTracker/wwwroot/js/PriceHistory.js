@@ -47,20 +47,20 @@
 
     function getColorClass(priceDifference, isUniqueBestPrice = false, isSharedBestPrice = false, savings = null) {
         if (isUniqueBestPrice && savings >= 0.01 && savings <= setPrice1) {
-            return "turquoise";
+            return "prIdeal";
         }
         if (isUniqueBestPrice) {
-            return "green";
+            return "prToLow";
         }
         if (isSharedBestPrice) {
-            return "blue";
+            return "prGood";
         }
         if (priceDifference <= 0) {
-            return "blue";
+            return "prGood";
         } else if (priceDifference < setPrice2) {
-            return "yellow";
+            return "prMid";
         } else {
-            return "red";
+            return "prToHigh";
         }
     }
 
@@ -126,9 +126,9 @@
             const highlightedProductName = highlightMatches(item.productName, searchTerm);
             const percentageDifference = item.percentageDifference != null ? item.percentageDifference.toFixed(2) : "N/A";
             const priceDifference = item.priceDifference != null ? item.priceDifference.toFixed(2) : "N/A";
-            const savings = item.colorClass === "green" || item.colorClass === "turquoise" ? item.savings != null ? item.savings.toFixed(2) : "N/A" : "N/A";
+            const savings = item.colorClass === "prToLow" || item.colorClass === "prIdeal" ? item.savings != null ? item.savings.toFixed(2) : "N/A" : "N/A";
 
-            // Convert string values to boolean
+           
             const isBidding = item.isBidding === "1";
             const myIsBidding = item.myIsBidding === "1";
 
@@ -148,19 +148,19 @@
                 '<div class="color-bar ' + item.colorClass + '"></div>' +
                 '<div class="price-box-column">' +
                 '<div class="price-box-column-text">' + item.lowestPrice.toFixed(2) + ' zł</div>' +
-                '<div class="price-box-column-text">' + item.storeName + ' ' + (isBidding ? '<span class="Bidding">Bid</span>' : '') + '<span class="Position">Pos: ' + item.position + '</span></div>' +
+                '<div class="price-box-column-text">' + item.storeName + ' ' + (isBidding ? '<span class="Bidding">Bid</span>' : '') + '<span class="Position">Msc ' + item.position + '</span></div>' +
                 '</div>' +
 
                 '<div class="price-box-column-line"></div>' +
                 '<div class="price-box-column">' +
                 '<div class="price-box-column-text">' + item.myPrice.toFixed(2) + ' zł</div>' +
-                '<div class="price-box-column-text">' + myStoreName + ' ' + (myIsBidding ? '<span class="Bidding">Bid</span>' : '') + '<span class="Position">Pos: ' + item.myPosition + '</span></div>' +
+                '<div class="price-box-column-text">' + myStoreName + ' ' + (myIsBidding ? '<span class="Bidding">Bid</span>' : '') + '<span class="Position">Msc ' + item.myPosition + '</span></div>' +
                 '</div>' +
                 '<div class="price-box-column-line"></div>' +
                 '<div class="price-box-column">' +
-                (item.colorClass === "green" || item.colorClass === "turquoise" ? '<p>Podnieś: ' + savings + ' zł</p>' : '') +
-                (item.colorClass === "red" || item.colorClass === "yellow" ? '<p>Obniż: ' + percentageDifference + ' %</p>' : '') +
-                (item.colorClass === "red" || item.colorClass === "yellow" ? '<p>Obniż: ' + priceDifference + ' zł</p>' : '') +
+            (item.colorClass === "prToLow" || item.colorClass === "prIdeal" ? '<p>Podnieś: ' + savings + ' zł</p>' : '') +
+            (item.colorClass === "prToHigh" || item.colorClass === "prMid" ? '<p>Obniż: ' + percentageDifference + ' %</p>' : '') +
+            (item.colorClass === "prToHigh" || item.colorClass === "prMid" ? '<p>Obniż: ' + priceDifference + ' zł</p>' : '') +
                 '</div>' +
                 '<div class="flags-container">' +
                 (item.flagIds.length > 0 ? item.flagIds.map(function (flagId) {
@@ -214,11 +214,11 @@
 
     function renderChart(data) {
         const colorCounts = {
-            blue: 0,
-            yellow: 0,
-            red: 0,
-            green: 0,
-            turquoise: 0
+            prGood: 0,
+            prMid: 0,
+            prToHigh: 0,           
+            prIdeal: 0,
+            prToLow: 0
         };
 
         data.forEach(item => {
@@ -234,22 +234,22 @@
         chartInstance = new Chart(ctx, {
             type: 'doughnut',
             data: {
-                labels: ['Top cena', 'Mid cena', 'Zła cena', 'Super cena', 'Idealna cena'],
+                labels: ['Za wysoka cena', 'Mid cena', 'Top cena', 'Idealna cena', 'Za niska cena'],
                 datasets: [{
-                    data: [colorCounts.blue, colorCounts.yellow, colorCounts.red, colorCounts.green, colorCounts.turquoise],
+                    data: [colorCounts.prToHigh, colorCounts.prMid, colorCounts.prGood, colorCounts.prIdeal, colorCounts.prToLow],
                     backgroundColor: [
-                        'rgba(14, 126, 135, 0.5)',
+                        'rgba(238, 17, 17, 0.5)',
                         'rgba(240, 240, 105, 0.5)',
-                        'rgba(246, 78, 101, 0.5)',
-                        'rgba(0, 255, 0, 0.5)',
-                        'rgba(64, 224, 208, 0.5)'
+                        'rgba(14, 126, 135, 0.5)',                        
+                        'rgba(0, 156, 42, 0.5)',
+                        'rgba(86, 0, 178, 0.5)'
                     ],
                     borderColor: [
-                        'rgba(14, 126, 135, 1)',
+                        'rgba(238, 17, 17, 1)',
                         'rgba(240, 240, 105, 1)',
-                        'rgba(246, 78, 101, 1)',
-                        'rgba(0, 255, 0, 1)',
-                        'rgba(64, 224, 208, 1)'
+                        'rgba(14, 126, 135, 1)',
+                        'rgba(0, 156, 42, 1)',
+                        'rgba(86, 0, 178, 1)'
                     ],
                     borderWidth: 1
                 }]
@@ -277,7 +277,7 @@
                         callbacks: {
                             label: function (context) {
                                 var value = context.parsed;
-                                return 'Liczba Produktów: ' + value;
+                                return 'Produkty: ' + value;
                             }
                         }
                     }
@@ -288,22 +288,23 @@
 
     function updateColorCounts(data) {
         const colorCounts = {
-            blue: 0,
-            yellow: 0,
-            red: 0,
-            green: 0,
-            turquoise: 0
+            prToHigh: 0,
+            prMid: 0,
+            prGood: 0,
+            prIdeal: 0,
+            prToLow: 0
+            
         };
 
         data.forEach(item => {
             colorCounts[item.colorClass]++;
         });
 
-        document.querySelector('label[for="blueCheckbox"]').textContent = `Top cena (${colorCounts.blue})`;
-        document.querySelector('label[for="yellowCheckbox"]').textContent = `Mid cena (${colorCounts.yellow})`;
-        document.querySelector('label[for="redCheckbox"]').textContent = `Zła cena (${colorCounts.red})`;
-        document.querySelector('label[for="greenCheckbox"]').textContent = `Super cena (${colorCounts.green})`;
-        document.querySelector('label[for="turquoiseCheckbox"]').textContent = `Idealna cena (${colorCounts.turquoise})`;
+        document.querySelector('label[for="prToHighCheckbox"]').textContent = `Za wysoka cena (${colorCounts.prToHigh})`;
+        document.querySelector('label[for="prMidCheckbox"]').textContent = `Mid cena (${colorCounts.prMid})`;
+        document.querySelector('label[for="prGoodCheckbox"]').textContent = `Top cena (${colorCounts.prGood})`;
+        document.querySelector('label[for="prIdealCheckbox"]').textContent = `Idealna cena (${colorCounts.prIdeal})`;
+        document.querySelector('label[for="prToLowCheckbox"]').textContent = `Za niska cena (${colorCounts.prToLow})`;
     }
 
     document.getElementById('category').addEventListener('change', function () {
