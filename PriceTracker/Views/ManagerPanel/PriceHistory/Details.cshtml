@@ -9,54 +9,124 @@
     var scrapHistory = ViewBag.ScrapHistory as PriceTracker.Models.ScrapHistoryClass;
     var productName = ViewBag.ProductName as string;
     var storeName = ViewBag.StoreName as string;
+    var setPrice1 = ViewBag.SetPrice1;
+    var setPrice2 = ViewBag.SetPrice2;
 }
 
-<h1>@productName</h1>
+<div class="Vert">
+    <div class="Page-Box">
+        <h1>@productName</h1>
+        <div>
+            <p><strong>ID Scrapowania:</strong> @scrapHistory.Id</p>
+            <p><strong>Data Scrapowania:</strong> @scrapHistory.Date</p>
+        </div>
 
-<div>
-    <p><strong>ID Scrapowania:</strong> @scrapHistory.Id</p>
-    <p><strong>Data Scrapowania:</strong> @scrapHistory.Date</p>
+        <div>
+            <label><input type="checkbox" id="sortPrice" checked> Sortuj po cenie</label>
+            <label><input type="checkbox" id="sortPosition"> Sortuj po pozycji Ceneo</label>
+        </div>
+
+        <table class="table-orders" id="priceTable">
+            <thead>
+                <tr>
+                    <th>Sklep</th>
+                    <th>Cena</th>
+                    <th>Pozycja Ceneo</th>
+                    <th>Bid</th>
+                    <th>Koszt wysyłki</th>
+                    <th>Dostępność</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in Model)
+                {
+                    var priceDifference = item.Price - Model.Min(m => m.Price);
+                    var isUniqueBestPrice = item.Price == Model.Min(m => m.Price) && Model.Count(m => m.Price == item.Price) == 1;
+                    var isSharedBestPrice = item.Price == Model.Min(m => m.Price) && Model.Count(m => m.Price == item.Price) > 1;
+                    var savings = isUniqueBestPrice ? Model.Where(m => m.Price > item.Price).OrderBy(m => m.Price).FirstOrDefault()?.Price - item.Price : (decimal?)null;
+
+                    string getColorClass(decimal priceDifference, bool isUniqueBestPrice, bool isSharedBestPrice, decimal? savings)
+                    {
+                        if (isUniqueBestPrice && savings >= 0.01m && savings <= setPrice1)
+                        {
+                            return "prIdeal";
+                        }
+                        if (isUniqueBestPrice)
+                        {
+                            return "prToLow";
+                        }
+                        if (isSharedBestPrice)
+                        {
+                            return "prGood";
+                        }
+                        if (priceDifference <= 0)
+                        {
+                            return "prGood";
+                        }
+                        else if (priceDifference < setPrice2)
+                        {
+                            return "prMid";
+                        }
+                        else
+                        {
+                            return "prToHigh";
+                        }
+                    }
+
+                    var colorClass = getColorClass(priceDifference, isUniqueBestPrice, isSharedBestPrice, savings);
+                    <tr class="price-row @colorClass" data-store-name="@item.StoreName" data-price="@item.Price" data-position="@item.Position">
+                        <td class="store-name">@item.StoreName</td>
+                        <td>@item.Price zł</td>
+                        <td>@item.Position</td>
+                        <td>@item.IsBidding</td>
+                        <td>@item.ShippingCostNum zł</td>
+                        <td>@item.AvailabilityNum</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
 </div>
-
-<table class="table-orders" id="priceTable">
-    <thead>
-        <tr>
-            <th>Sklep</th>
-            <th>Cena</th>
-            <th>Pozycja Ceneo</th>
-            <th>Bid</th>
-            <th>Koszt wysyłki</th>
-            <th>Dostępność</th>
-        </tr>
-    </thead>
-    <tbody>
-        @foreach (var item in Model.OrderBy(ph => ph.Price))
-        {
-            var priceDifference = item.Price - Model.Min(m => m.Price);
-            var colorClass = priceDifference <= 0 ? "blue" : (priceDifference < 2 ? "yellow" : "red");
-            <tr class="price-row @colorClass" data-store-name="@item.StoreName">
-                <td class="store-name">@item.StoreName</td>
-                <td>@item.Price zł</td>
-                <td>@item.Position</td>
-                <td>@item.IsBidding</td>
-                <td>@item.ShippingCostNum zł</td>
-                <td>@item.AvailabilityNum</td>
-            </tr>
-        }
-    </tbody>
-</table>
 
 @section Scripts {
     <script>
         document.addEventListener("DOMContentLoaded", function () {
             var observedStoreName = "@storeName".toLowerCase();
-            var rows = document.querySelectorAll(".price-row");
+            var rows = Array.from(document.querySelectorAll(".price-row"));
+
             rows.forEach(function (row) {
                 var storeName = row.getAttribute("data-store-name").toLowerCase();
                 if (storeName === observedStoreName) {
                     row.querySelector(".store-name").style.fontWeight = "bold";
                 }
             });
+
+            function sortRowsByPrice() {
+                rows.sort((a, b) => parseFloat(a.getAttribute("data-price")) - parseFloat(b.getAttribute("data-price")));
+                rows.forEach(row => document.querySelector("#priceTable tbody").appendChild(row));
+            }
+
+            function sortRowsByPosition() {
+                rows.sort((a, b) => parseInt(a.getAttribute("data-position")) - parseInt(b.getAttribute("data-position")));
+                rows.forEach(row => document.querySelector("#priceTable tbody").appendChild(row));
+            }
+
+            document.getElementById("sortPrice").addEventListener("change", function () {
+                if (this.checked) {
+                    document.getElementById("sortPosition").checked = false;
+                    sortRowsByPrice();
+                }
+            });
+
+            document.getElementById("sortPosition").addEventListener("change", function () {
+                if (this.checked) {
+                    document.getElementById("sortPrice").checked = false;
+                    sortRowsByPosition();
+                }
+            });
+
+            // Sortowanie domyślnie po cenie
+            sortRowsByPrice();
         });
     </script>
 }

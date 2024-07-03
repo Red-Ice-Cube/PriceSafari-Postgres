@@ -993,55 +993,89 @@ p {
         position: sticky;
         top: 0;
         z-index: 10;
+        background: #004552;
     }
 
         .table-orders thead th {
-            background: #004552;
             padding-top: 12px;
             padding-bottom: 12px;
-        }
-
-
-
-        .table-orders thead th {
             color: #fff;
             font-size: 16px;
             font-weight: 400;
         }
 
+            .table-orders thead th:first-child {
+                border-top-left-radius: 4px;
+            }
+
+            .table-orders thead th:last-child {
+                border-top-right-radius: 4px;
+            }
+
     .table-orders tbody tr {
         border-bottom: 0.5px solid #eee;
     }
 
-
-
-
     .table-orders td, .table-orders th {
         padding: 8px 16px;
-        margin-right: 24px;
         text-align: left;
         color: #282828;
         font-size: 14px;
         font-weight: 400;
     }
 
-
-
     .table-orders tbody tr:hover {
         background: #F4F4F4;
     }
 
-    .table-orders tr[data-codepar] {
-        cursor: pointer;
-    }
-
-    .table-orders tr[data-productid] {
-        cursor: pointer;
-    }
-
+    .table-orders tr[data-codepar],
+    .table-orders tr[data-productid],
     .table-orders tr[data-categoryid] {
         cursor: pointer;
     }
+
+ 
+    .table-orders .price-row.prGood {
+        background-color: rgba(14, 126, 135, 0.3);
+    }
+
+        .table-orders .price-row.prGood:hover {
+            background-color: rgba(14, 126, 135, 0.4);
+        }
+
+    .table-orders .price-row.prMid {
+        background-color: rgba(240, 240, 105, 0.3);
+    }
+
+        .table-orders .price-row.prMid:hover {
+            background-color: rgba(240, 240, 105, 0.4);
+        }
+
+    .table-orders .price-row.prToHigh {
+        background-color: rgba(238, 17, 17, 0.3);
+    }
+
+        .table-orders .price-row.prToHigh:hover {
+            background-color: rgba(238, 17, 17, 0.4);
+        }
+
+    .table-orders .price-row.prToLow {
+        background-color: rgba(86, 0, 178, 0.3);
+    }
+
+        .table-orders .price-row.prToLow:hover {
+            background-color: rgba(86, 0, 178, 0.4);
+        }
+
+    .table-orders .price-row.prIdeal {
+        background-color: rgba(0, 156, 42, 0.15);
+    }
+
+        .table-orders .price-row.prIdeal:hover {
+            background-color: rgba(0, 156, 42, 0.25);
+        }
+
+
 
 .p-category {
     color: #282828;
@@ -2980,6 +3014,52 @@ tr:last-child .sub-line {
 .price-box.prIdeal .color-bar {
     background-color: rgba(0, 156, 42, 0.5);
 }
+
+
+.prGood {
+    background-color: rgba(14, 126, 135, 0.15);
+}
+
+.prMid {
+    background-color: rgba(240, 240, 105, 0.15);
+}
+
+.prToHigh {
+    background-color: rgba(238, 17, 17, 0.15);
+}
+
+.prToLow {
+    background-color: rgba(86, 0, 178, 0.15);
+}
+
+.prIdeal {
+    background-color: rgba(0, 156, 42, 0.15);
+}
+
+
+
+.prGood:hover {
+    background-color: rgba(14, 126, 135, 0.20);
+}
+
+.prMid:hover {
+    background-color: rgba(240, 240, 105, 0.20);
+}
+
+.prToHigh:hover {
+    background-color: rgba(238, 17, 17, 0.20);
+}
+
+.prToLow:hover {
+    background-color: rgba(86, 0, 178, 0.20);
+}
+
+.prIdeal:hover {
+    background-color: rgba(0, 156, 42, 0.20);
+}
+
+
+
 
 
 .side-chart-box {
