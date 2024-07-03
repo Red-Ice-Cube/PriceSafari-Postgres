@@ -61,41 +61,6 @@
 </style>
 
 <div class="Vert">
-    <div class="Multi-Cover-Statistic-a">
-        <div class="Charts-Donought-a">
-            <div class="Order-Container-Title">
-                Scrapowanie cen @ViewBag.StoreName
-                <div class="form-check-orders">
-                    <div>
-                        <p><strong>ID Scrapowania:</strong> @latestScrap?.Id</p>
-                        <p><strong>Wykonano:</strong> @latestScrap?.Date</p>
-                        <p><strong>Zebrane produkty:</strong> <span id="totalProductCount">@ViewBag.ProductCount</span></p>
-                        <p><strong>Zebrane ceny:</strong> <span id="totalPriceCount">0</span></p>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="Charts-Donought-a">
-            <div id="flagModal" class="modal">
-                <div class="modal-content">
-                    <span class="close">&times;</span>
-                    <h2>Przypisz flagi do produktu</h2>
-                    <div id="flagCheckboxes">
-                        @if (flags != null)
-                        {
-                            @foreach (var flag in flags)
-                            {
-                                        <label><input type="checkbox" class="flagCheckbox" value="@flag.FlagId"> @flag.FlagName</label>
-                                        <br />
-                            }
-                        }
-                    </div>
-                    <button id="saveFlagsButton">Zapisz</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
     <div class="Page-Box">
         <div class="Page-Box-Container">
             <div class="Page-Box-Category">
@@ -151,6 +116,7 @@
             </div>
             <div class="Horizontal">
                 <div class="order-upper-box">
+                    
                     <input type="text" id="productSearch" placeholder="Wyszukaj produkt">
                     <form id="filterForm">
                         <select id="category" name="category" class="DropDown">
@@ -161,8 +127,26 @@
                             }
                         </select>
                     </form>
+                    
+                        <div class="form-check-orders">
+                            <div>
+                                <p><strong>Sklep:</strong> <span>@ViewBag.StoreName</span></p>
+                                <p><strong>Zebrane ceny:</strong> <span id="totalPriceCount">0</span></p>
+                            </div>
+                        </div>
+                        <div class="form-check-orders">
+                            <div>
+                                <p><strong>ID Scrapowania:</strong> @latestScrap?.Id</p>
+                                <p><strong>Wykonano:</strong> @latestScrap?.Date</p>
+                              
+                            </div>
+                        </div>
+                  
                 </div>
-                <div id="displayedProductCount"></div>
+                <div class="price-box-column-category" id="displayedProductCount">
+                </div>
+               
+                
                 <div class="Vert-table">
                     <div id="priceContainer" class="price-container"></div>
                 </div>
@@ -180,3 +164,26 @@
         </script>
         <script src="~/js/PriceHistory.js"></script>
 }
+
+
+<div id="flagModal" class="modal">
+    <div class="modal-content">
+        <div class="price-box-space">
+            <div class="price-box-column-name">Przypisz flagi do produktu</div>
+            <span class="close">&times;</span>
+        </div>
+       
+        
+        <div id="flagCheckboxes">
+            @if (flags != null)
+            {
+                @foreach (var flag in flags)
+                {
+                    <label><input type="checkbox" class="form-check-input flagCheckbox" value="@flag.FlagId"> @flag.FlagName</label>
+                    <br />
+                }
+            }
+        </div>
+        <button class="Button-Page-Small" id="saveFlagsButton">Zapisz</button>
+    </div>
+</div>

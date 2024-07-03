@@ -144,7 +144,7 @@ namespace PriceTracker.Services
                 Console.WriteLine("Launching browser...");
                 var browser = await Puppeteer.LaunchAsync(new LaunchOptions
                 {
-                    Headless = true,
+                    Headless = false,
                     ExecutablePath = ChromeExecutablePath,
                     Args = new string[]
                     {
@@ -172,7 +172,7 @@ namespace PriceTracker.Services
 
                 Console.WriteLine("Navigating to CAPTCHA page...");
                 await page.GoToAsync("https://www.ceneo.pl/24ado");
-                await Task.Delay(2000);
+                await Task.Delay(5000);
 
                 Console.WriteLine("Navigating back to the target URL...");
                 await page.GoToAsync(url);
@@ -196,7 +196,7 @@ namespace PriceTracker.Services
                 catch (Exception ex)
                 {
                     Console.WriteLine("Could not find or click 'Nie zgadzam się' button: " + ex.Message);
-                }
+                } 
 
                 Console.WriteLine("Querying for offer nodes...");
                 var offerNodes = await page.QuerySelectorAllAsync("li.product-offers__list__item");

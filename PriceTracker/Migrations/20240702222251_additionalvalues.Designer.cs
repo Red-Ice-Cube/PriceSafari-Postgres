@@ -12,8 +12,8 @@ using PriceTracker.Data;
 namespace PriceTracker.Migrations
 {
     [DbContext(typeof(PriceTrackerContext))]
-    [Migration("20240702094805_Initial")]
-    partial class Initial
+    [Migration("20240702222251_additionalvalues")]
+    partial class additionalvalues
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -322,6 +322,35 @@ namespace PriceTracker.Migrations
                     b.ToTable("Categories");
                 });
 
+            modelBuilder.Entity("PriceTracker.Models.FlagsClass", b =>
+                {
+                    b.Property<int>("FlagId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("FlagId"));
+
+                    b.Property<string>("FlagColor")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("FlagName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int?>("StoreClassStoreId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("StoreId")
+                        .HasColumnType("int");
+
+                    b.HasKey("FlagId");
+
+                    b.HasIndex("StoreClassStoreId");
+
+                    b.ToTable("Flags");
+                });
+
             modelBuilder.Entity("PriceTracker.Models.PriceHistoryClass", b =>
                 {
                     b.Property<int>("Id")
@@ -331,6 +360,12 @@ namespace PriceTracker.Migrations
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<int?>("AvailabilityNum")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsBidding")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("Position")
                         .HasColumnType("int");
 
                     b.Property<decimal>("Price")
@@ -410,6 +445,24 @@ namespace PriceTracker.Migrations
                     b.HasIndex("StoreId");
 
                     b.ToTable("Products");
+                });
+
+            modelBuilder.Entity("PriceTracker.Models.ProductFlag", b =>
+                {
+                    b.Property<int>("ProductId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("FlagId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ProductFlagId")
+                        .HasColumnType("int");
+
+                    b.HasKey("ProductId", "FlagId");
+
+                    b.HasIndex("FlagId");
+
+                    b.ToTable("ProductFlags");
                 });
 
             modelBuilder.Entity("PriceTracker.Models.ScrapHistoryClass", b =>
@@ -554,6 +607,13 @@ namespace PriceTracker.Migrations
                     b.Navigation("Store");
                 });
 
+            modelBuilder.Entity("PriceTracker.Models.FlagsClass", b =>
+                {
+                    b.HasOne("PriceTracker.Models.StoreClass", null)
+                        .WithMany("Flags")
+                        .HasForeignKey("StoreClassStoreId");
+                });
+
             modelBuilder.Entity("PriceTracker.Models.PriceHistoryClass", b =>
                 {
                     b.HasOne("PriceTracker.Models.ProductClass", "Product")
@@ -595,6 +655,25 @@ namespace PriceTracker.Migrations
                     b.Navigation("Store");
                 });
 
+            modelBuilder.Entity("PriceTracker.Models.ProductFlag", b =>
+                {
+                    b.HasOne("PriceTracker.Models.FlagsClass", "Flag")
+                        .WithMany("ProductFlags")
+                        .HasForeignKey("FlagId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("PriceTracker.Models.ProductClass", "Product")
+                        .WithMany("ProductFlags")
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Flag");
+
+                    b.Navigation("Product");
+                });
+
             modelBuilder.Entity("PriceTracker.Models.ScrapHistoryClass", b =>
                 {
                     b.HasOne("PriceTracker.Models.StoreClass", "Store")
@@ -612,9 +691,16 @@ namespace PriceTracker.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("PriceTracker.Models.FlagsClass", b =>
+                {
+                    b.Navigation("ProductFlags");
+                });
+
             modelBuilder.Entity("PriceTracker.Models.ProductClass", b =>
                 {
                     b.Navigation("PriceHistories");
+
+                    b.Navigation("ProductFlags");
                 });
 
             modelBuilder.Entity("PriceTracker.Models.ScrapHistoryClass", b =>
@@ -625,6 +711,8 @@ namespace PriceTracker.Migrations
             modelBuilder.Entity("PriceTracker.Models.StoreClass", b =>
                 {
                     b.Navigation("Categories");
+
+                    b.Navigation("Flags");
 
                     b.Navigation("PriceValues");
 
