@@ -3063,3 +3063,26 @@ tr:last-child .sub-line {
     cursor: pointer;
     border: none;
 }
+
+.Bidding {
+    border-radius: 4px;
+    padding: 4px 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin: 2px;
+    background: yellow;
+    color:yellow;
+
+}
+
+.Position {
+    border-radius: 4px;
+    padding: 4px 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin: 2px;
+    background: grey;
+    color: grey;
+}

@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using ChartJs.Blazor.ChartJS.Common.Enums;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using PriceTracker.Data;
 using PriceTracker.Models;
@@ -101,7 +102,9 @@ namespace PriceTracker.Controllers.ManagerControllers
                     ph.Product.Category,
                     ph.Price,
                     ph.StoreName,
-                    ph.ScrapHistoryId
+                    ph.ScrapHistoryId,
+                    ph.Position,         
+                    ph.IsBidding
                 })
                 .ToListAsync();
 
@@ -140,6 +143,10 @@ namespace PriceTracker.Controllers.ManagerControllers
                         Savings = isMyBestPrice && !isSharedBestPrice ? Math.Round(secondBestPrice - bestPrice, 2) : (decimal?)null,
                         IsSharedBestPrice = isMyBestPrice && isSharedBestPrice,
                         IsUniqueBestPrice = isMyBestPrice && !isSharedBestPrice,
+                        IsBidding = bestPriceEntry.IsBidding,        
+                        Position = bestPriceEntry.Position,        
+                        MyIsBidding = myPriceEntry?.IsBidding,      
+                        MyPosition = myPriceEntry?.Position,
                         FlagIds = flagIds
                     };
                 })

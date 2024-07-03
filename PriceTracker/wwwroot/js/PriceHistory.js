@@ -68,13 +68,24 @@
         const selectedCategory = document.getElementById('category').value;
         const selectedColors = Array.from(document.querySelectorAll('.colorFilter:checked')).map(checkbox => checkbox.value);
         const selectedFlags = Array.from(document.querySelectorAll('.flagFilter:checked')).map(checkbox => parseInt(checkbox.value));
+        const selectedBid = document.getElementById('bidFilter').checked;
+        const selectedPositions = Array.from(document.querySelectorAll('.positionFilter:checked')).map(checkbox => parseInt(checkbox.value));
 
         let filteredPrices = selectedCategory ? data.filter(item => item.category === selectedCategory) : data;
         filteredPrices = selectedColors.length ? filteredPrices.filter(item => selectedColors.includes(item.colorClass)) : filteredPrices;
         filteredPrices = selectedFlags.length ? filteredPrices.filter(item => selectedFlags.some(flag => item.flagIds.includes(flag))) : filteredPrices;
 
+        if (selectedBid) {
+            filteredPrices = filteredPrices.filter(item => item.myIsBidding === "1");
+        }
+
+        if (selectedPositions.length) {
+            filteredPrices = filteredPrices.filter(item => selectedPositions.includes(parseInt(item.myPosition)));
+        }
+
         renderPrices(filteredPrices, searchTerm);
     }
+
 
     function filterPricesByProductName(name) {
         const sanitizedInput = name.trim();
@@ -117,6 +128,10 @@
             const priceDifference = item.priceDifference != null ? item.priceDifference.toFixed(2) : "N/A";
             const savings = item.colorClass === "green" || item.colorClass === "turquoise" ? item.savings != null ? item.savings.toFixed(2) : "N/A" : "N/A";
 
+            // Convert string values to boolean
+            const isBidding = item.isBidding === "1";
+            const myIsBidding = item.myIsBidding === "1";
+
             const box = document.createElement('div');
             box.className = 'price-box ' + item.colorClass;
             box.dataset.detailsUrl = '/PriceHistory/Details?scrapId=' + item.scrapId + '&productId=' + item.productId;
@@ -128,20 +143,18 @@
                 '</div>' +
 
                 '<div class="price-box-column-category">' + item.category + '</div>' +
-                
+
                 '<div class="price-box-data">' +
                 '<div class="color-bar ' + item.colorClass + '"></div>' +
                 '<div class="price-box-column">' +
-                
-
                 '<div class="price-box-column-text">' + item.lowestPrice.toFixed(2) + ' zł</div>' +
-                '<div class="price-box-column-text">' + item.storeName + '</div>' +
+                '<div class="price-box-column-text">' + item.storeName + ' ' + (isBidding ? '<span class="Bidding">Bid</span>' : '') + '<span class="Position">Pos: ' + item.position + '</span></div>' +
                 '</div>' +
 
                 '<div class="price-box-column-line"></div>' +
                 '<div class="price-box-column">' +
                 '<div class="price-box-column-text">' + item.myPrice.toFixed(2) + ' zł</div>' +
-                '<div class="price-box-column-text">' + myStoreName + '</div>' +
+                '<div class="price-box-column-text">' + myStoreName + ' ' + (myIsBidding ? '<span class="Bidding">Bid</span>' : '') + '<span class="Position">Pos: ' + item.myPosition + '</span></div>' +
                 '</div>' +
                 '<div class="price-box-column-line"></div>' +
                 '<div class="price-box-column">' +
@@ -155,7 +168,7 @@
                     return '<span class="flag" style="color:' + flag.FlagColor + '; border: 2px solid ' + flag.FlagColor + '; background-color:' + hexToRgba(flag.FlagColor, 0.3) + ';">' + flag.FlagName + '</span>';
                 }).join('') : '') +
                 '</div>' +
-                
+
                 '</div>';
 
             box.addEventListener('click', function () {
@@ -181,6 +194,8 @@
         });
         document.getElementById('displayedProductCount').textContent = data.length;
     }
+
+
 
     function hexToRgba(hex, alpha) {
         let r = 0, g = 0, b = 0;
@@ -295,21 +310,24 @@
         filterPricesByProductName(document.getElementById('productSearch').value);
     });
 
-    document.querySelectorAll('.colorFilter').forEach(function (checkbox) {
+    document.getElementById('category').addEventListener('change', function () {
+        filterPricesByProductName(document.getElementById('productSearch').value);
+    });
+
+    document.querySelectorAll('.colorFilter, .flagFilter, .positionFilter').forEach(function (checkbox) {
         checkbox.addEventListener('change', function () {
             filterPricesByCategoryAndColorAndFlag(allPrices);
         });
     });
 
-    document.querySelectorAll('.flagFilter').forEach(function (checkbox) {
-        checkbox.addEventListener('change', function () {
-            filterPricesByCategoryAndColorAndFlag(allPrices);
-        });
+    document.getElementById('bidFilter').addEventListener('change', function () {
+        filterPricesByCategoryAndColorAndFlag(allPrices);
     });
 
     document.getElementById('productSearch').addEventListener('keyup', function () {
         filterPricesByProductName(this.value);
     });
+
 
   
     document.getElementById('price1').addEventListener('input', function () {
