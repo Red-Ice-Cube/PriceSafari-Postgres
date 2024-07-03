@@ -23,6 +23,8 @@
         <tr>
             <th>Sklep</th>
             <th>Cena</th>
+            <th>Pozycja Ceneo</th>
+            <th>Bid</th>
             <th>Koszt wysyłki</th>
             <th>Dostępność</th>
         </tr>
@@ -35,6 +37,8 @@
             <tr class="price-row @colorClass" data-store-name="@item.StoreName">
                 <td class="store-name">@item.StoreName</td>
                 <td>@item.Price zł</td>
+                <td>@item.Position</td>
+                <td>@item.IsBidding</td>
                 <td>@item.ShippingCostNum zł</td>
                 <td>@item.AvailabilityNum</td>
             </tr>

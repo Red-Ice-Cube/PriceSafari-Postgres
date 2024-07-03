@@ -366,6 +366,8 @@ namespace PriceTracker.Migrations
                     ProductId = table.Column<int>(type: "int", nullable: false),
                     StoreName = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     Price = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
+                    IsBidding = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    Position = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     ScrapHistoryId = table.Column<int>(type: "int", nullable: false),
                     ShippingCostNum = table.Column<decimal>(type: "decimal(18,2)", nullable: true),
                     AvailabilityNum = table.Column<int>(type: "int", nullable: true)

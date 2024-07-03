@@ -12,8 +12,8 @@ using PriceTracker.Data;
 namespace PriceTracker.Migrations
 {
     [DbContext(typeof(PriceTrackerContext))]
-    [Migration("20240702223118_bidd")]
-    partial class bidd
+    [Migration("20240703111508_Initial")]
+    partial class Initial
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -362,11 +362,13 @@ namespace PriceTracker.Migrations
                     b.Property<int?>("AvailabilityNum")
                         .HasColumnType("int");
 
-                    b.Property<bool?>("IsBidding")
-                        .HasColumnType("bit");
+                    b.Property<string>("IsBidding")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
 
-                    b.Property<int?>("Position")
-                        .HasColumnType("int");
+                    b.Property<string>("Position")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<decimal>("Price")
                         .HasColumnType("decimal(18,2)");

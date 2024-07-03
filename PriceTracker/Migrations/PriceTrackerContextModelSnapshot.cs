@@ -359,11 +359,13 @@ namespace PriceTracker.Migrations
                     b.Property<int?>("AvailabilityNum")
                         .HasColumnType("int");
 
-                    b.Property<bool?>("IsBidding")
-                        .HasColumnType("bit");
+                    b.Property<string>("IsBidding")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
 
-                    b.Property<int?>("Position")
-                        .HasColumnType("int");
+                    b.Property<string>("Position")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<decimal>("Price")
                         .HasColumnType("decimal(18,2)");

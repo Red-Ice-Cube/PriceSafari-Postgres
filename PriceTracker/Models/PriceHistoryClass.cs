@@ -12,8 +12,8 @@ namespace PriceTracker.Models
         public ProductClass Product { get; set; }
         public string StoreName { get; set; }
         public decimal Price { get; set; }
-        public bool? IsBidding { get; set; }
-        public int? Position { get; set; }
+        public string IsBidding { get; set; }
+        public string Position { get; set; }
         public int ScrapHistoryId { get; set; }
         public ScrapHistoryClass ScrapHistory { get; set; }
         public decimal? ShippingCostNum { get; set; }

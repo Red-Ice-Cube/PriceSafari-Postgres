@@ -1,137 +1,4 @@
-﻿//using Microsoft.AspNetCore.Mvc;
-//using Microsoft.AspNetCore.SignalR;
-//using Microsoft.EntityFrameworkCore;
-//using PriceTracker.Data;
-//using PriceTracker.Hubs;
-//using PriceTracker.Models;
-//using PriceTracker.Services;
-//using System;
-//using System.Collections.Generic;
-//using System.Diagnostics;
-//using System.Linq;
-//using System.Threading;
-//using System.Threading.Tasks;
-
-//public class PriceScrapingController : Controller
-//{
-//    private readonly PriceTrackerContext _context;
-//    private readonly IHubContext<ScrapingHub> _hubContext;
-//    private readonly IServiceProvider _serviceProvider;
-
-//    public PriceScrapingController(PriceTrackerContext context, IHubContext<ScrapingHub> hubContext, IServiceProvider serviceProvider)
-//    {
-//        _context = context;
-//        _hubContext = hubContext;
-//        _serviceProvider = serviceProvider;
-//    }
-
-//    [HttpPost]
-//    public async Task<IActionResult> StartScraping(int storeId)
-//    {
-//        var store = await _context.Stores.FindAsync(storeId);
-//        if (store == null)
-//        {
-//            Console.WriteLine("Store not found.");
-//            return NotFound("Store not found.");
-//        }
-
-//        var products = await _context.Products.Where(p => p.StoreId == storeId).ToListAsync();
-//        if (products == null || !products.Any())
-//        {
-//            Console.WriteLine("No products found to scrape.");
-//            return NotFound("No products found to scrape.");
-//        }
-
-//        var scrapHistory = new ScrapHistoryClass
-//        {
-//            Date = DateTime.Now,
-//            ProductCount = products.Count,
-//            PriceCount = 0,
-//            StoreId = storeId
-//        };
-//        _context.ScrapHistories.Add(scrapHistory);
-//        await _context.SaveChangesAsync();
-
-//        int scrapedCount = 0;
-//        int totalPrices = 0;
-//        int rejectedCount = 0;
-//        var stopwatch = new Stopwatch();
-//        var tasks = new List<Task>();
-//        var semaphore = new SemaphoreSlim(5);
-
-//        stopwatch.Start();
-
-//        foreach (var product in products)
-//        {
-//            tasks.Add(Task.Run(async () =>
-//            {
-//                await semaphore.WaitAsync();
-//                try
-//                {
-//                    using var scope = _serviceProvider.CreateScope();
-//                    var scopedContext = scope.ServiceProvider.GetRequiredService<PriceTrackerContext>();
-
-//                    var puppeteerScraper = new PuppeteerScraper();
-//                    var (prices, log) = await puppeteerScraper.GetProductPricesAsync(product.OfferUrl);
-//                    Console.WriteLine(log);
-
-//                    var ourStorePrices = prices.Where(p => p.storeName.ToLower() == store.StoreName.ToLower()).ToList();
-//                    if (ourStorePrices.Count == 0 || ourStorePrices.Count == prices.Count)
-//                    {
-//                        Interlocked.Increment(ref rejectedCount);
-//                        await _hubContext.Clients.All.SendAsync("ReceiveProgressUpdate", Interlocked.Increment(ref scrapedCount), products.Count, stopwatch.Elapsed.TotalSeconds, rejectedCount);
-//                        return;
-//                    }
-
-//                    foreach (var priceData in prices)
-//                    {
-//                        var priceHistory = new PriceHistoryClass
-//                        {
-//                            ProductId = product.ProductId,
-//                            StoreName = priceData.storeName,
-//                            Price = priceData.price,
-//                            ScrapHistoryId = scrapHistory.Id,
-//                            ShippingCostNum = priceData.shippingCostNum,
-//                            AvailabilityNum = priceData.availabilityNum
-//                        };
-
-//                        scopedContext.PriceHistories.Add(priceHistory);
-//                    }
-
-//                    await scopedContext.SaveChangesAsync();
-//                    Interlocked.Increment(ref totalPrices);
-//                    await _hubContext.Clients.All.SendAsync("ReceiveProgressUpdate", Interlocked.Increment(ref scrapedCount), products.Count, stopwatch.Elapsed.TotalSeconds, rejectedCount);
-//                }
-//                catch (Exception ex)
-//                {
-//                    var log = $"Error scraping URL: {product.OfferUrl}. Exception: {ex.Message}";
-//                    Console.WriteLine(log);
-//                }
-//                finally
-//                {
-//                    semaphore.Release();
-//                }
-//            }));
-//        }
-
-//        await Task.WhenAll(tasks);
-
-//        stopwatch.Stop();
-
-//        scrapHistory.PriceCount = totalPrices;
-//        _context.ScrapHistories.Update(scrapHistory);
-//        await _context.SaveChangesAsync();
-
-//        return RedirectToAction("ProductList", "Store", new { storeId = storeId });
-//    }
-
-//    [HttpGet]
-//    public async Task<IActionResult> StartScrapingGet(int storeId)
-//    {
-//        return await StartScraping(storeId);
-//    }
-//}
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using PriceTracker.Data;
@@ -154,6 +21,7 @@ public class PriceScrapingController : Controller
         _serviceProvider = serviceProvider;
         _httpClient = httpClient;
     }
+
 
     [HttpPost]
     public async Task<IActionResult> StartScraping(int storeId)
@@ -188,7 +56,7 @@ public class PriceScrapingController : Controller
         var rejectedProducts = new List<(string Reason, string Url)>();
         var stopwatch = new Stopwatch();
         var tasks = new List<Task>();
-        var semaphore = new SemaphoreSlim(15);
+        var semaphore = new SemaphoreSlim(1);
 
         stopwatch.Start();
 
@@ -204,7 +72,7 @@ public class PriceScrapingController : Controller
 
                     var scraper = new Scraper(_httpClient);
                     var tryCount = 0;
-                    var prices = new List<(string storeName, decimal price, decimal? shippingCostNum, int? availabilityNum)>();
+                    var prices = new List<(string storeName, decimal price, decimal? shippingCostNum, int? availabilityNum, string isBidding, string position)>();
                     List<(string Reason, string Url)> rejected = new List<(string Reason, string Url)>();
                     string log = "";
 
@@ -240,7 +108,9 @@ public class PriceScrapingController : Controller
                             Price = priceData.price,
                             ScrapHistoryId = scrapHistory.Id,
                             ShippingCostNum = priceData.shippingCostNum,
-                            AvailabilityNum = priceData.availabilityNum
+                            AvailabilityNum = priceData.availabilityNum,
+                            IsBidding = priceData.isBidding,
+                            Position = priceData.position
                         };
 
                         scopedContext.PriceHistories.Add(priceHistory);
@@ -269,7 +139,6 @@ public class PriceScrapingController : Controller
         scrapHistory.PriceCount = totalPrices;
         _context.ScrapHistories.Update(scrapHistory);
         await _context.SaveChangesAsync();
-
 
         Console.WriteLine("Summary of rejected products:");
         foreach (var rejected in rejectedProducts)

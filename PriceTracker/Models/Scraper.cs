@@ -19,10 +19,9 @@ namespace PriceTracker.Services
         {
             _httpClient = httpClient;
         }
-
-        public async Task<(List<(string storeName, decimal price, decimal? shippingCostNum, int? availabilityNum)> Prices, string Log, List<(string Reason, string Url)> RejectedProducts)> GetProductPricesAsync(string url, int tryCount = 1)
+        public async Task<(List<(string storeName, decimal price, decimal? shippingCostNum, int? availabilityNum, string isBidding, string position)> Prices, string Log, List<(string Reason, string Url)> RejectedProducts)> GetProductPricesAsync(string url, int tryCount = 1)
         {
-            var prices = new List<(string storeName, decimal price, decimal? shippingCostNum, int? availabilityNum)>();
+            var prices = new List<(string storeName, decimal price, decimal? shippingCostNum, int? availabilityNum, string isBidding, string position)>();
             var rejectedProducts = new List<(string Reason, string Url)>();
             string log;
 
@@ -52,6 +51,20 @@ namespace PriceTracker.Services
                         var availabilityNode = offerNode.SelectSingleNode(".//span[contains(@class, 'instock')]") ??
                                                offerNode.SelectSingleNode(".//span[contains(text(), 'Wysyłka')]");
 
+                        var offerContainer = offerNode.SelectSingleNode(".//div[contains(@class, 'product-offer__container')]");
+                        var offerType = offerContainer?.GetAttributeValue("data-offertype", "");
+                        var isBidding = (offerType == "CPC_Bid" || offerType == "CPC_Bid_Basket") ? "1" : "0";
+                        var position = offerContainer?.GetAttributeValue("data-position", "");
+
+                        // Logging the extracted values
+                        Console.WriteLine($"storeName: {storeName}");
+                        Console.WriteLine($"priceNode: {priceNode?.InnerText}");
+                        Console.WriteLine($"pennyNode: {pennyNode?.InnerText}");
+                        Console.WriteLine($"shippingNode: {shippingNode?.InnerText}");
+                        Console.WriteLine($"availabilityNode: {availabilityNode?.InnerText}");
+                        Console.WriteLine($"isBidding: {isBidding}");
+                        Console.WriteLine($"position: {position}");
+
                         decimal? shippingCostNum = null;
                         if (priceNode != null && pennyNode != null && !string.IsNullOrEmpty(storeName))
                         {
@@ -71,15 +84,7 @@ namespace PriceTracker.Services
                                         var shippingCostText = Regex.Match(shippingNode.InnerText, @"\d+[.,]?\d*").Value;
                                         if (!string.IsNullOrEmpty(shippingCostText) && decimal.TryParse(shippingCostText.Replace(",", "."), NumberStyles.Any, CultureInfo.InvariantCulture, out var parsedShippingCost))
                                         {
-                                            var shippingCostDifference = parsedShippingCost - price;
-                                            if (shippingCostDifference > 0)
-                                            {
-                                                shippingCostNum = shippingCostDifference;
-                                            }
-                                            else
-                                            {
-                                                shippingCostNum = null;
-                                            }
+                                            shippingCostNum = parsedShippingCost;
                                         }
                                         else
                                         {
@@ -105,7 +110,7 @@ namespace PriceTracker.Services
                                     }
                                 }
 
-                                prices.Add((storeName, price, shippingCostNum, availabilityNum));
+                                prices.Add((storeName, price, shippingCostNum, availabilityNum, isBidding, position));
                             }
                         }
                         else
@@ -134,9 +139,10 @@ namespace PriceTracker.Services
         }
 
 
-        private async Task<(List<(string storeName, decimal price, decimal? shippingCostNum, int? availabilityNum)> Prices, string Log, List<(string Reason, string Url)> RejectedProducts)> HandleCaptchaAsync(string url)
+        private async Task<(List<(string storeName, decimal price, decimal? shippingCostNum, int? availabilityNum, string isBidding, string position)> Prices, string Log, List<(string Reason, string Url)> RejectedProducts)> HandleCaptchaAsync(string url)
         {
-            var prices = new List<(string storeName, decimal price, decimal? shippingCostNum, int? availabilityNum)>();
+            var prices = new List<(string storeName, decimal price, decimal? shippingCostNum, int? availabilityNum, string isBidding, string position)>();
+            var rejectedProducts = new List<(string Reason, string Url)>();
             string log;
 
             try
@@ -148,15 +154,15 @@ namespace PriceTracker.Services
                     ExecutablePath = ChromeExecutablePath,
                     Args = new string[]
                     {
-                        "--no-sandbox",
-                        "--disable-setuid-sandbox",
-                        "--disable-extensions",
-                        "--disable-gpu",
-                        "--disable-dev-shm-usage",
-                        "--disable-software-rasterizer",
-                        "--disable-features=site-per-process",
-                        "--disable-features=VizDisplayCompositor",
-                        "--disable-blink-features=AutomationControlled"
+                "--no-sandbox",
+                "--disable-setuid-sandbox",
+                "--disable-extensions",
+                "--disable-gpu",
+                "--disable-dev-shm-usage",
+                "--disable-software-rasterizer",
+                "--disable-features=site-per-process",
+                "--disable-features=VizDisplayCompositor",
+                "--disable-blink-features=AutomationControlled"
                     }
                 });
 
@@ -196,7 +202,7 @@ namespace PriceTracker.Services
                 catch (Exception ex)
                 {
                     Console.WriteLine("Could not find or click 'Nie zgadzam się' button: " + ex.Message);
-                } 
+                }
 
                 Console.WriteLine("Querying for offer nodes...");
                 var offerNodes = await page.QuerySelectorAllAsync("li.product-offers__list__item");
@@ -213,6 +219,11 @@ namespace PriceTracker.Services
                                            await offerNode.QuerySelectorAsync("span.product-delivery-info.js_deliveryInfo");
                         var availabilityNode = await offerNode.QuerySelectorAsync("span.instock") ??
                                                (await offerNode.XPathAsync(".//span[contains(text(), 'Wysyłka')]")).FirstOrDefault();
+
+                        var offerContainer = await offerNode.QuerySelectorAsync(".product-offer__container");
+                        var offerType = await (await offerContainer.GetPropertyAsync("data-offertype"))?.JsonValueAsync<string>();
+                        var isBidding = (offerType == "CPC_Bid" || offerType == "CPC_Bid_Basket") ? "1" : "0";
+                        var position = await (await offerContainer.GetPropertyAsync("data-position"))?.JsonValueAsync<string>();
 
                         Console.WriteLine($"Processing offer from store: {storeName}");
                         if (storeName == null)
@@ -284,7 +295,7 @@ namespace PriceTracker.Services
                                 }
                             }
 
-                            prices.Add((storeName, price, shippingCostNum, availabilityNum));
+                            prices.Add((storeName, price, shippingCostNum, availabilityNum, isBidding, position));
                         }
                     }
                     log = $"Successfully scraped prices from URL: {url}";
@@ -308,8 +319,14 @@ namespace PriceTracker.Services
 
             return (prices, log, rejectedProducts);
         }
+
+
+
     }
 }
+
+
+
 
 
 
