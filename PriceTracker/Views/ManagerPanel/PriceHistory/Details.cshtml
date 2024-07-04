@@ -16,16 +16,40 @@
 
 <div class="Vert">
     <div class="Page-Box">
-        <h1>@productName</h1>
-        <div>
-            <p><strong>ID Scrapowania:</strong> @scrapHistory.Id</p>
-            <p><strong>Data Scrapowania:</strong> @scrapHistory.Date</p>
+        <div class="price-box-space">
+            <div class="price-box-column-name">
+                @productName
+            </div>
+            <a href="@url" class="Button-Action-Small" target="_blank">
+                Ceneo
+            </a>
         </div>
-        <p><strong>Link</strong> @url </p>
-        <div>
-            <label><input type="checkbox" id="sortPrice" checked> Sortuj po cenie</label>
-            <label><input type="checkbox" id="sortPosition"> Sortuj po pozycji Ceneo</label>
+        <div class="form-check-orders">
+            <div>
+                <p><strong>Wykonano:</strong> @scrapHistory?.Date</p>
+
+            </div>
         </div>
+
+        <div class="price-box-space">
+            <div class="store-section">
+                <div class="form-check">
+                    <input class="form-check-input sortFilter" type="checkbox" id="sortPrice" checked>
+                    <label class="form-check-label" for="sortPrice">Sortuj po cenie</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input sortFilter" type="checkbox" id="sortPosition">
+                    <label class="form-check-label" for="sortPosition">Sortuj po pozycji Ceneo</label>
+                </div>
+            </div>
+          
+        </div>
+       
+       
+        
+        
+
+   
         <div class="Vert-table">
             <table class="table-orders" id="priceTable">
                 <thead>
@@ -100,7 +124,7 @@
                             {
                                 return "Availability14Days";
                             }
-                            
+
                             return "";
                         }
 
@@ -122,7 +146,11 @@
                                 }
                             </td>
                             <td>
-                                @if (item.ShippingCostNum == 0)
+                                @if (item.ShippingCostNum == null)
+                                {
+                                    <div class="BD">Brak danych</div>
+                                }
+                                else if (item.ShippingCostNum == 0)
                                 {
                                     <div class="FreeShipping">Free</div>
                                 }
@@ -149,7 +177,6 @@
                                     {
                                         <div>Wysyłka w 14 dni</div>
                                     }
-                                    
                                     else if (item.AvailabilityNum == null)
                                     {
                                         <div>Brak danych</div>
@@ -160,6 +187,7 @@
                     }
                 </tbody>
             </table>
+
 
 
         </div>
@@ -179,7 +207,7 @@
                 var storeName = row.getAttribute("data-store-name").toLowerCase();
                 if (storeName === observedStoreName) {
                     row.querySelector(".store-name").style.fontWeight = "bold";
-                    row.querySelector(".store-price").style.fontWeight = "bold"; 
+                    row.querySelector(".store-price").style.fontWeight = "bold";
                 }
             });
 
@@ -193,20 +221,20 @@
                 rows.forEach(row => document.querySelector("#priceTable tbody").appendChild(row));
             }
 
-            document.getElementById("sortPrice").addEventListener("change", function () {
-                if (this.checked) {
+            function handleSortChange() {
+                if (this.id === "sortPrice" && this.checked) {
                     document.getElementById("sortPosition").checked = false;
                     sortRowsByPrice();
-                }
-            });
-
-            document.getElementById("sortPosition").addEventListener("change", function () {
-                if (this.checked) {
+                } else if (this.id === "sortPosition" && this.checked) {
                     document.getElementById("sortPrice").checked = false;
                     sortRowsByPosition();
                 }
-            });
+            }
 
+            document.getElementById("sortPrice").addEventListener("change", handleSortChange);
+            document.getElementById("sortPosition").addEventListener("change", handleSortChange);
+
+           
             sortRowsByPrice();
         });
     </script>
