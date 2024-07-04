@@ -56,7 +56,7 @@ namespace PriceTracker.Services
                         var isBidding = (offerType == "CPC_Bid" || offerType == "CPC_Bid_Basket") ? "1" : "0";
                         var position = offerContainer?.GetAttributeValue("data-position", "");
 
-                        // Logging the extracted values
+                       
                         Console.WriteLine($"storeName: {storeName}");
                         Console.WriteLine($"priceNode: {priceNode?.InnerText}");
                         Console.WriteLine($"pennyNode: {pennyNode?.InnerText}");
@@ -75,13 +75,18 @@ namespace PriceTracker.Services
                             {
                                 if (shippingNode != null)
                                 {
-                                    if (shippingNode.InnerText.Contains("Darmowa wysyłka"))
+                                    var shippingText = shippingNode.InnerText.Trim();
+                                    if (shippingText.Contains("Darmowa wysyłka"))
                                     {
                                         shippingCostNum = 0;
                                     }
+                                    else if (shippingText.Contains("szczegóły dostawy"))
+                                    {
+                                        shippingCostNum = null;
+                                    }
                                     else
                                     {
-                                        var shippingCostText = Regex.Match(shippingNode.InnerText, @"\d+[.,]?\d*").Value;
+                                        var shippingCostText = Regex.Match(shippingText, @"\d+[.,]?\d*").Value;
                                         if (!string.IsNullOrEmpty(shippingCostText) && decimal.TryParse(shippingCostText.Replace(",", "."), NumberStyles.Any, CultureInfo.InvariantCulture, out var parsedShippingCost))
                                         {
                                             shippingCostNum = parsedShippingCost;

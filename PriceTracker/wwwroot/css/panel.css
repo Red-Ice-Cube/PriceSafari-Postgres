@@ -3106,27 +3106,29 @@ tr:last-child .sub-line {
 .Position,
 .FreeShipping,
 .PaidShipping,
+.BD,
 .Availability1Day,
+.Availability3Days,
 .Availability7Days,
-.Availability14Days,
-.AvailabilityMoreThan14Days {
+.Availability14Days {
     border-radius: 4px;
-    padding: 1px 5px;
+    padding: 2px 5px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     font-size: 11px;
+    font-weight: 500;
     margin: 2px;
     color: #fff;
 }
 
 
 .Bidding {
-    background: #8E0C0C;
+    background: #E25E00;
 }
 
 .Position {
-    background: #000785;
+    background: #00ACCB;
 }
 
 .FreeShipping {
@@ -3137,23 +3139,25 @@ tr:last-child .sub-line {
     background: #FFA500;
 }
 
+.BD {
+    background: #A0A0A0;
+}
+
 .Availability1Day {
     background: #006400; 
 }
 
-.Availability7Days {
-    background: #FFA500; 
+.Availability3Days {
+    background: #FFA500;
 }
 
-.Availability14Days {
+.Availability7Days {
     background: #8B0000;
 }
 
-.AvailabilityMoreThan14Days {
-    background: #000000; 
+.Availability14Days {
+    background: #000000;
 }
-
-
 
 
 .positionFilter {
