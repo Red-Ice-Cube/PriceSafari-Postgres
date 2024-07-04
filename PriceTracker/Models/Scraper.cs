@@ -3,6 +3,7 @@ using PuppeteerSharp;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Net;
 using System.Net.Http;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
@@ -19,6 +20,7 @@ namespace PriceTracker.Services
         {
             _httpClient = httpClient;
         }
+
         public async Task<(List<(string storeName, decimal price, decimal? shippingCostNum, int? availabilityNum, string isBidding, string position)> Prices, string Log, List<(string Reason, string Url)> RejectedProducts)> GetProductPricesAsync(string url, int tryCount = 1)
         {
             var prices = new List<(string storeName, decimal price, decimal? shippingCostNum, int? availabilityNum, string isBidding, string position)>();
@@ -56,7 +58,7 @@ namespace PriceTracker.Services
                         var isBidding = (offerType == "CPC_Bid" || offerType == "CPC_Bid_Basket") ? "1" : "0";
                         var position = offerContainer?.GetAttributeValue("data-position", "");
 
-                       
+                        // Logging the extracted values
                         Console.WriteLine($"storeName: {storeName}");
                         Console.WriteLine($"priceNode: {priceNode?.InnerText}");
                         Console.WriteLine($"pennyNode: {pennyNode?.InnerText}");
@@ -75,25 +77,40 @@ namespace PriceTracker.Services
                             {
                                 if (shippingNode != null)
                                 {
-                                    var shippingText = shippingNode.InnerText.Trim();
+                                    var shippingText = WebUtility.HtmlDecode(shippingNode.InnerText.Trim());
+                                    Console.WriteLine($"Shipping text found: {shippingText}");  
+
                                     if (shippingText.Contains("Darmowa wysyłka"))
                                     {
                                         shippingCostNum = 0;
+                                        Console.WriteLine("Shipping cost set to 0 due to 'Darmowa wysyłka'");
                                     }
                                     else if (shippingText.Contains("szczegóły dostawy"))
                                     {
                                         shippingCostNum = null;
+                                        Console.WriteLine("Shipping cost set to null due to 'szczegóły dostawy'");
                                     }
                                     else
                                     {
                                         var shippingCostText = Regex.Match(shippingText, @"\d+[.,]?\d*").Value;
-                                        if (!string.IsNullOrEmpty(shippingCostText) && decimal.TryParse(shippingCostText.Replace(",", "."), NumberStyles.Any, CultureInfo.InvariantCulture, out var parsedShippingCost))
+                                        if (!string.IsNullOrEmpty(shippingCostText))
                                         {
-                                            shippingCostNum = parsedShippingCost;
+                                            Console.WriteLine($"Shipping cost found: {shippingCostText}");  
+                                            if (decimal.TryParse(shippingCostText.Replace(",", "."), NumberStyles.Any, CultureInfo.InvariantCulture, out var parsedShippingCost))
+                                            {
+                                                shippingCostNum = parsedShippingCost;
+                                                Console.WriteLine($"Parsed shipping cost: {shippingCostNum}");  
+                                            }
+                                            else
+                                            {
+                                                shippingCostNum = null;
+                                                Console.WriteLine("Shipping cost set to null due to parsing failure");
+                                            }
                                         }
                                         else
                                         {
                                             shippingCostNum = null;
+                                            Console.WriteLine("Shipping cost set to null due to empty cost text");
                                         }
                                     }
                                 }
