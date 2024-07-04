@@ -25,66 +25,142 @@
             <label><input type="checkbox" id="sortPrice" checked> Sortuj po cenie</label>
             <label><input type="checkbox" id="sortPosition"> Sortuj po pozycji Ceneo</label>
         </div>
-
-        <table class="table-orders" id="priceTable">
-            <thead>
-                <tr>
-                    <th>Sklep</th>
-                    <th>Cena</th>
-                    <th>Pozycja Ceneo</th>
-                    <th>Bid</th>
-                    <th>Koszt wysyłki</th>
-                    <th>Dostępność</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach (var item in Model)
-                {
-                    var priceDifference = item.Price - Model.Min(m => m.Price);
-                    var isUniqueBestPrice = item.Price == Model.Min(m => m.Price) && Model.Count(m => m.Price == item.Price) == 1;
-                    var isSharedBestPrice = item.Price == Model.Min(m => m.Price) && Model.Count(m => m.Price == item.Price) > 1;
-                    var savings = isUniqueBestPrice ? Model.Where(m => m.Price > item.Price).OrderBy(m => m.Price).FirstOrDefault()?.Price - item.Price : (decimal?)null;
-
-                    string getColorClass(decimal priceDifference, bool isUniqueBestPrice, bool isSharedBestPrice, decimal? savings)
-                    {
-                        if (isUniqueBestPrice && savings >= 0.01m && savings <= setPrice1)
-                        {
-                            return "prIdeal";
-                        }
-                        if (isUniqueBestPrice)
-                        {
-                            return "prToLow";
-                        }
-                        if (isSharedBestPrice)
-                        {
-                            return "prGood";
-                        }
-                        if (priceDifference <= 0)
-                        {
-                            return "prGood";
-                        }
-                        else if (priceDifference < setPrice2)
-                        {
-                            return "prMid";
-                        }
-                        else
-                        {
-                            return "prToHigh";
-                        }
-                    }
-
-                    var colorClass = getColorClass(priceDifference, isUniqueBestPrice, isSharedBestPrice, savings);
-                    <tr class="price-row @colorClass" data-store-name="@item.StoreName" data-price="@item.Price" data-position="@item.Position">
-                        <td class="store-name">@item.StoreName</td>
-                        <td>@item.Price zł</td>
-                        <td>@item.Position</td>
-                        <td>@item.IsBidding</td>
-                        <td>@item.ShippingCostNum zł</td>
-                        <td>@item.AvailabilityNum</td>
+        <div class="Vert-table">
+            <table class="table-orders" id="priceTable">
+                <thead>
+                    <tr>
+                        <th></th>
+                        <th>Sklep</th>
+                        <th>Cena</th>
+                        <th>Pozycja Ceneo</th>
+                        <th>Bid</th>
+                        <th>Koszt wysyłki</th>
+                        <th>Dostępność</th>
                     </tr>
-                }
-            </tbody>
-        </table>
+                </thead>
+                <tbody>
+                    @foreach (var item in Model)
+                    {
+                        var priceDifference = item.Price - Model.Min(m => m.Price);
+                        var isUniqueBestPrice = item.Price == Model.Min(m => m.Price) && Model.Count(m => m.Price == item.Price) == 1;
+                        var isSharedBestPrice = item.Price == Model.Min(m => m.Price) && Model.Count(m => m.Price == item.Price) > 1;
+                        var savings = isUniqueBestPrice ? Model.Where(m => m.Price > item.Price).OrderBy(m => m.Price).FirstOrDefault()?.Price - item.Price : (decimal?)null;
+
+                        string getColorClass(decimal priceDifference, bool isUniqueBestPrice, bool isSharedBestPrice, decimal? savings)
+                        {
+                            if (isUniqueBestPrice && savings >= 0.01m && savings <= setPrice1)
+                            {
+                                return "prIdeal";
+                            }
+                            if (isUniqueBestPrice)
+                            {
+                                return "prToLow";
+                            }
+                            if (isSharedBestPrice)
+                            {
+                                return "prGood";
+                            }
+                            if (priceDifference <= 0)
+                            {
+                                return "prGood";
+                            }
+                            else if (priceDifference < setPrice2)
+                            {
+                                return "prMid";
+                            }
+                            else
+                            {
+                                return "prToHigh";
+                            }
+                        }
+
+                        var colorClass = getColorClass(priceDifference, isUniqueBestPrice, isSharedBestPrice, savings);
+                        var shippingCost = item.ShippingCostNum == 0 ? "Free" : $"{item.ShippingCostNum - item.Price} zł";
+
+                        string getAvailabilityClass(int? availabilityNum)
+                        {
+                            if (availabilityNum == null)
+                            {
+                                return "";
+                            }
+                            if (availabilityNum == 1)
+                            {
+                                return "Availability1Day";
+                            }
+                            if (availabilityNum == 7)
+                            {
+                                return "Availability7Days";
+                            }
+                            if (availabilityNum == 14)
+                            {
+                                return "Availability14Days";
+                            }
+                            if (availabilityNum > 14)
+                            {
+                                return "AvailabilityMoreThan14Days";
+                            }
+                            return "";
+                        }
+
+                        var availabilityClass = getAvailabilityClass(item.AvailabilityNum);
+
+                        <tr class="price-row @colorClass" data-store-name="@item.StoreName" data-price="@item.Price" data-position="@item.Position">
+                            <td>
+                                <div class="color-bar @colorClass"></div>
+                            </td>
+                            <td class="store-name">
+                                @item.StoreName
+                            </td>
+                            <td>@item.Price zł</td>
+                            <td><div class="Position">Msc @item.Position</div></td>
+                            <td>
+                                @if (item.IsBidding == "1")
+                                {
+                                    <div class="Bidding">Bid</div>
+                                }
+                            </td>
+                            <td>
+                                @if (item.ShippingCostNum == 0)
+                                {
+                                    <div class="FreeShipping">Free</div>
+                                }
+                                else
+                                {
+                                    <div class="PaidShipping">@shippingCost</div>
+                                }
+                            </td>
+                            <td>
+                                @if (item.AvailabilityNum != null)
+                                {
+                                    <div class="@availabilityClass">
+                                        @if (item.AvailabilityNum == 1)
+                                        {
+                                            <div>Wysyłka w 1 dzień</div>
+                                        }
+                                        else if (item.AvailabilityNum == 7)
+                                        {
+                                            <div>Wysyłka w 7 dni</div>
+                                        }
+                                        else if (item.AvailabilityNum == 14)
+                                        {
+                                            <div>Wysyłka w 14 dni</div>
+                                        }
+                                        else if (item.AvailabilityNum > 14)
+                                        {
+                                            <div>Wysyłka w @item.AvailabilityNum dni</div>
+                                        }
+                                    </div>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+
+        </div>
+        
+
+
     </div>
 </div>
 
@@ -125,7 +201,7 @@
                 }
             });
 
-            // Sortowanie domyślnie po cenie
+         
             sortRowsByPrice();
         });
     </script>

@@ -1035,44 +1035,34 @@ p {
     }
 
  
-    .table-orders .price-row.prGood {
-        background-color: rgba(14, 126, 135, 0.3);
-    }
+    
 
         .table-orders .price-row.prGood:hover {
-            background-color: rgba(14, 126, 135, 0.4);
+            background-color: rgba(14, 126, 135, 0.11);
         }
 
-    .table-orders .price-row.prMid {
-        background-color: rgba(240, 240, 105, 0.3);
-    }
+   
 
         .table-orders .price-row.prMid:hover {
-            background-color: rgba(240, 240, 105, 0.4);
+            background-color: rgba(240, 240, 105, 0.11);
         }
 
-    .table-orders .price-row.prToHigh {
-        background-color: rgba(238, 17, 17, 0.3);
-    }
+    
 
         .table-orders .price-row.prToHigh:hover {
-            background-color: rgba(238, 17, 17, 0.4);
+            background-color: rgba(238, 17, 17, 0.11);
         }
 
-    .table-orders .price-row.prToLow {
-        background-color: rgba(86, 0, 178, 0.3);
-    }
+    
 
         .table-orders .price-row.prToLow:hover {
-            background-color: rgba(86, 0, 178, 0.4);
+            background-color: rgba(86, 0, 178, 0.11);
         }
 
-    .table-orders .price-row.prIdeal {
-        background-color: rgba(0, 156, 42, 0.15);
-    }
+  
 
         .table-orders .price-row.prIdeal:hover {
-            background-color: rgba(0, 156, 42, 0.25);
+            background-color: rgba(0, 156, 42, 0.11);
         }
 
 
@@ -2989,73 +2979,53 @@ tr:last-child .sub-line {
     font-weight: 500;
 }
 
-.price-box .color-bar {
+
+.color-bar {
     width: 14px;
     height: 100%;
+    min-height:30px;
 }
 
-.price-box.prGood .color-bar {
+.prGood .color-bar {
     background-color: rgba(14, 126, 135, 0.5);
 }
 
-.price-box.prMid .color-bar {
+.prMid .color-bar {
     background-color: rgba(240, 240, 105, 0.5);
 }
 
-.price-box.prToHigh .color-bar {
+.prToHigh .color-bar {
     background-color: rgba(238, 17, 17, 0.5);
 }
 
-.price-box.prToLow .color-bar {
+.prToLow .color-bar {
     background-color: rgba(86, 0, 178, 0.5);
 }
 
-
-.price-box.prIdeal .color-bar {
+.prIdeal .color-bar {
     background-color: rgba(0, 156, 42, 0.5);
-}
-
-
-.prGood {
-    background-color: rgba(14, 126, 135, 0.15);
-}
-
-.prMid {
-    background-color: rgba(240, 240, 105, 0.15);
-}
-
-.prToHigh {
-    background-color: rgba(238, 17, 17, 0.15);
-}
-
-.prToLow {
-    background-color: rgba(86, 0, 178, 0.15);
-}
-
-.prIdeal {
-    background-color: rgba(0, 156, 42, 0.15);
 }
 
 
 
 .prGood:hover {
-    background-color: rgba(14, 126, 135, 0.20);
+    background-color: rgba(14, 126, 135, 0.08);
 }
 
 .prMid:hover {
-    background-color: rgba(240, 240, 105, 0.20);
+    background-color: rgba(240, 240, 105, 0.08);
 }
 
 .prToHigh:hover {
-    background-color: rgba(238, 17, 17, 0.20);
+    background-color: rgba(238, 17, 17, 0.08);
 }
 
 .prToLow:hover {
-    background-color: rgba(86, 0, 178, 0.20);
+    background-color: rgba(86, 0, 178, 0.08);
 }
 
 .prIdeal:hover {
-    background-color: rgba(0, 156, 42, 0.20);
+    background-color: rgba(0, 156, 42, 0.08);
 }
 
 
@@ -3131,17 +3101,59 @@ tr:last-child .sub-line {
     color: #fff;
 }
 
-.Position {
+
+.Bidding,
+.Position,
+.FreeShipping,
+.PaidShipping,
+.Availability1Day,
+.Availability7Days,
+.Availability14Days,
+.AvailabilityMoreThan14Days {
     border-radius: 4px;
     padding: 1px 5px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    margin: 2px;
     font-size: 11px;
-    background: #000785;
+    margin: 2px;
     color: #fff;
 }
+
+
+.Bidding {
+    background: #8E0C0C;
+}
+
+.Position {
+    background: #000785;
+}
+
+.FreeShipping {
+    background: #006400; 
+}
+
+.PaidShipping {
+    background: #FFA500;
+}
+
+.Availability1Day {
+    background: #006400; 
+}
+
+.Availability7Days {
+    background: #FFA500; 
+}
+
+.Availability14Days {
+    background: #8B0000;
+}
+
+.AvailabilityMoreThan14Days {
+    background: #000000; 
+}
+
+
 
 
 .positionFilter {
