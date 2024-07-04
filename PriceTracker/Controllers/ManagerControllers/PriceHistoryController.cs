@@ -248,14 +248,29 @@ namespace PriceTracker.Controllers.ManagerControllers
                 return NotFound();
             }
 
+            // Pobierz wartości setPrice1 i setPrice2 z bazy danych
+            var priceValues = await _context.PriceValues
+                .Where(pv => pv.StoreId == scrapHistory.StoreId)
+                .Select(pv => new { pv.SetPrice1, pv.SetPrice2 })
+                .FirstOrDefaultAsync();
+
+            if (priceValues == null)
+            {
+                priceValues = new { SetPrice1 = 2.00m, SetPrice2 = 2.00m }; // Domyślne wartości
+            }
+
             ViewBag.ScrapHistory = scrapHistory;
             ViewBag.ProductName = product.ProductName;
             ViewBag.StoreName = (await _context.Stores.FindAsync(scrapHistory.StoreId))?.StoreName;
+            ViewBag.SetPrice1 = priceValues.SetPrice1;
+            ViewBag.SetPrice2 = priceValues.SetPrice2;
 
             return View("~/Views/ManagerPanel/PriceHistory/Details.cshtml", prices);
         }
 
-        
+
+
+
 
 
     }
