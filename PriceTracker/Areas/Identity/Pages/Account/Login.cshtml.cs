@@ -107,7 +107,7 @@ namespace PriceTracker.Areas.Identity.Pages.Account
                     }
                     else if (roles.Contains("Member"))
                     {
-                        return RedirectToAction("Index", "Panel");
+                        return RedirectToAction("Index", "Chanel");
                     }
                     else
                     {

@@ -1,0 +1,30 @@
+﻿@{
+    ViewData["Title"] = "Lista Sklepów";
+    Layout = "~/Views/Shared/_PanelLayout.cshtml";
+}
+
+<h2>Lista Sklepów</h2>
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>Nazwa Sklepu</th>          
+     
+      
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var store in Model)
+        {
+            <tr>
+                <td>@store.StoreName</td>
+                     
+                <td>
+                    <a asp-controller="PriceHistory" asp-action="Index" asp-route-storeId="@store.StoreId" class="btn btn-secondary">Ceny</a>
+                 
+                </td>
+              
+            </tr>
+        }
+    </tbody>
+</table>
