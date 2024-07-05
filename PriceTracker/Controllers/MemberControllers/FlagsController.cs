@@ -46,7 +46,7 @@ namespace PriceTracker.Controllers.MemberControllers
             }
 
             ViewBag.StoreId = storeId;
-            return View("~/Views/ManagerPanel/Flags/Create.cshtml");
+            return View("~/Views/Panel/Flags/Create.cshtml");
         }
 
         // POST: Flags/Create
@@ -69,7 +69,7 @@ namespace PriceTracker.Controllers.MemberControllers
             }
 
             ViewBag.StoreId = storeId;
-            return View("~/Views/ManagerPanel/Flags/Create.cshtml", flag);
+            return View("~/Views/Panel/Flags/Create.cshtml", flag);
         }
 
         // GET: Flags/List
@@ -83,7 +83,7 @@ namespace PriceTracker.Controllers.MemberControllers
             var flags = await _context.Flags.Where(f => f.StoreId == storeId).ToListAsync();
             ViewBag.StoreId = storeId;
 
-            return View("~/Views/ManagerPanel/Flags/List.cshtml", flags);
+            return View("~/Views/Panel/Flags/List.cshtml", flags);
         }
     }
 }

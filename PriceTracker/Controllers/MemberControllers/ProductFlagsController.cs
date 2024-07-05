@@ -5,7 +5,7 @@ using PriceTracker.Data;
 using PriceTracker.Models;
 using PriceTracker.ViewModels;
 
-namespace PriceTracker.Controllers.ManagerControllers
+namespace PriceTracker.Controllers.MemberControllers
 {
     [Authorize(Roles = "Admin, Manager, Member")]
     public class ProductFlagsController : Controller
