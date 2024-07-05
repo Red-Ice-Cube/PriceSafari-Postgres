@@ -8,6 +8,8 @@ using Microsoft.EntityFrameworkCore;
 
 using PriceTracker.Hubs;
 using PriceTracker.Services;
+using static Plotly.NET.StyleParam.DrawingStyle;
+using System.Xml.Linq;
 
 //elo elo
 public class Program
@@ -28,12 +30,12 @@ public class Program
         builder.Configuration.AddEnvironmentVariables();
 
 
-        //var dbServer = Environment.GetEnvironmentVariable("DB_SERVER");
-        //var dbName = Environment.GetEnvironmentVariable("DB_NAME");
-        //var dbUser = Environment.GetEnvironmentVariable("DB_USER");
-        //var dbPassword = Environment.GetEnvironmentVariable("DB_PASSWORD");
+        var dbServer = Environment.GetEnvironmentVariable("DB_SERVER");
+        var dbName = Environment.GetEnvironmentVariable("DB_NAME");
+        var dbUser = Environment.GetEnvironmentVariable("DB_USER");
+        var dbPassword = Environment.GetEnvironmentVariable("DB_PASSWORD");
 
-        var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
+        var connectionString = $"Data Source={dbServer};Database={dbName};Uid={dbUser};Password={dbPassword};TrustServerCertificate=True";
 
         builder.Services.AddDbContext<PriceTrackerContext>(options => options.UseSqlServer(connectionString));
 

@@ -334,6 +334,31 @@ namespace PriceTracker.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "UserStores",
+                columns: table => new
+                {
+                    UserId = table.Column<string>(type: "nvarchar(450)", nullable: false),
+                    StoreId = table.Column<int>(type: "int", nullable: false),
+                    Id = table.Column<int>(type: "int", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_UserStores", x => new { x.UserId, x.StoreId });
+                    table.ForeignKey(
+                        name: "FK_UserStores_AspNetUsers_UserId",
+                        column: x => x.UserId,
+                        principalTable: "AspNetUsers",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_UserStores_Stores_StoreId",
+                        column: x => x.StoreId,
+                        principalTable: "Stores",
+                        principalColumn: "StoreId",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "ProductFlags",
                 columns: table => new
                 {
@@ -473,6 +498,11 @@ namespace PriceTracker.Migrations
                 name: "IX_ScrapHistories_StoreId",
                 table: "ScrapHistories",
                 column: "StoreId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_UserStores_StoreId",
+                table: "UserStores",
+                column: "StoreId");
         }
 
         /// <inheritdoc />
@@ -515,10 +545,10 @@ namespace PriceTracker.Migrations
                 name: "TableSizeInfo");
 
             migrationBuilder.DropTable(
-                name: "AspNetRoles");
+                name: "UserStores");
 
             migrationBuilder.DropTable(
-                name: "AspNetUsers");
+                name: "AspNetRoles");
 
             migrationBuilder.DropTable(
                 name: "ScrapHistories");
@@ -528,6 +558,9 @@ namespace PriceTracker.Migrations
 
             migrationBuilder.DropTable(
                 name: "Products");
+
+            migrationBuilder.DropTable(
+                name: "AspNetUsers");
 
             migrationBuilder.DropTable(
                 name: "Stores");

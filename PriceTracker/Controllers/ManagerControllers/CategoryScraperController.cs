@@ -7,6 +7,7 @@ using PriceTracker.Models;
 using HtmlAgilityPack;
 using System;
 using Microsoft.AspNetCore.Authorization;
+using System.Net;
 
 namespace PriceTracker.Controllers.ManagerControllers
 {
@@ -77,7 +78,7 @@ namespace PriceTracker.Controllers.ManagerControllers
                     var categoryNameNode = depth == 0 ? node : node.SelectSingleNode(".//div[@class='nav-item__name']");
                     if (categoryNameNode != null)
                     {
-                        var categoryName = categoryNameNode.InnerText.Trim();
+                        var categoryName = WebUtility.HtmlDecode(categoryNameNode.InnerText.Trim());
                         var categoryUrlSegment = node.GetAttributeValue("href", "").Split(';')[0].Trim('/');
 
                         var existingCategory = await _context.Categories

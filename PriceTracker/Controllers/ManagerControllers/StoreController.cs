@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using System.Linq;
 using System.Collections.Generic;
 using Microsoft.AspNetCore.Authorization;
+using System.Net;
 
 namespace PriceTracker.Controllers.ManagerControllers
 {
@@ -119,7 +120,7 @@ namespace PriceTracker.Controllers.ManagerControllers
 
                             if (nameNode != null && !string.IsNullOrEmpty(pid))
                             {
-                                var name = nameNode.InnerText.Trim();
+                                var name = WebUtility.HtmlDecode(nameNode.InnerText.Trim());
                                 var offerUrl = "https://www.ceneo.pl/" + pid;
 
                                 if (existingProductUrls.Contains(offerUrl) || newProductUrls.Contains(offerUrl))

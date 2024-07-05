@@ -12,7 +12,7 @@ using PriceTracker.Data;
 namespace PriceTracker.Migrations
 {
     [DbContext(typeof(PriceTrackerContext))]
-    [Migration("20240703111508_Initial")]
+    [Migration("20240705122102_Initial")]
     partial class Initial
     {
         /// <inheritdoc />
@@ -162,92 +162,6 @@ namespace PriceTracker.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
-            modelBuilder.Entity("PriceTracker.Areas.Identity.Data.PriceTrackerUser", b =>
-                {
-                    b.Property<string>("Id")
-                        .HasColumnType("nvarchar(450)");
-
-                    b.Property<int>("AccessFailedCount")
-                        .HasColumnType("int");
-
-                    b.Property<string>("CodePAR")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("ConcurrencyStamp")
-                        .IsConcurrencyToken()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime>("CreationDate")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Email")
-                        .HasMaxLength(256)
-                        .HasColumnType("nvarchar(256)");
-
-                    b.Property<bool>("EmailConfirmed")
-                        .HasColumnType("bit");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("bit");
-
-                    b.Property<bool>("IsMember")
-                        .HasColumnType("bit");
-
-                    b.Property<bool>("LockoutEnabled")
-                        .HasColumnType("bit");
-
-                    b.Property<DateTimeOffset?>("LockoutEnd")
-                        .HasColumnType("datetimeoffset");
-
-                    b.Property<string>("NormalizedEmail")
-                        .HasMaxLength(256)
-                        .HasColumnType("nvarchar(256)");
-
-                    b.Property<string>("NormalizedUserName")
-                        .HasMaxLength(256)
-                        .HasColumnType("nvarchar(256)");
-
-                    b.Property<string>("PartnerName")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("PartnerSurname")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("PasswordHash")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("PhoneNumber")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<bool>("PhoneNumberConfirmed")
-                        .HasColumnType("bit");
-
-                    b.Property<string>("SecurityStamp")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<bool>("TwoFactorEnabled")
-                        .HasColumnType("bit");
-
-                    b.Property<string>("UserName")
-                        .HasMaxLength(256)
-                        .HasColumnType("nvarchar(256)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("NormalizedEmail")
-                        .HasDatabaseName("EmailIndex");
-
-                    b.HasIndex("NormalizedUserName")
-                        .IsUnique()
-                        .HasDatabaseName("UserNameIndex")
-                        .HasFilter("[NormalizedUserName] IS NOT NULL");
-
-                    b.ToTable("AspNetUsers", (string)null);
-                });
-
             modelBuilder.Entity("PriceTracker.Data.TableSizeInfo", b =>
                 {
                     b.Property<long>("RowCounts")
@@ -395,6 +309,24 @@ namespace PriceTracker.Migrations
                     b.ToTable("PriceHistories");
                 });
 
+            modelBuilder.Entity("PriceTracker.Models.PriceTrackerUserStore", b =>
+                {
+                    b.Property<string>("UserId")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<int>("StoreId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Id")
+                        .HasColumnType("int");
+
+                    b.HasKey("UserId", "StoreId");
+
+                    b.HasIndex("StoreId");
+
+                    b.ToTable("UserStores");
+                });
+
             modelBuilder.Entity("PriceTracker.Models.PriceValueClass", b =>
                 {
                     b.Property<int>("PriceValueClassId")
@@ -536,6 +468,92 @@ namespace PriceTracker.Migrations
                     b.ToTable("Stores");
                 });
 
+            modelBuilder.Entity("PriceTrackerUser", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<int>("AccessFailedCount")
+                        .HasColumnType("int");
+
+                    b.Property<string>("CodePAR")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ConcurrencyStamp")
+                        .IsConcurrencyToken()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreationDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Email")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<bool>("EmailConfirmed")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsMember")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("LockoutEnabled")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTimeOffset?>("LockoutEnd")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("NormalizedEmail")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<string>("NormalizedUserName")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<string>("PartnerName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("PartnerSurname")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("PasswordHash")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("PhoneNumber")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("PhoneNumberConfirmed")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("SecurityStamp")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("TwoFactorEnabled")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("UserName")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("NormalizedEmail")
+                        .HasDatabaseName("EmailIndex");
+
+                    b.HasIndex("NormalizedUserName")
+                        .IsUnique()
+                        .HasDatabaseName("UserNameIndex")
+                        .HasFilter("[NormalizedUserName] IS NOT NULL");
+
+                    b.ToTable("AspNetUsers", (string)null);
+                });
+
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
                 {
                     b.HasOne("Microsoft.AspNetCore.Identity.IdentityRole", null)
@@ -547,7 +565,7 @@ namespace PriceTracker.Migrations
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserClaim<string>", b =>
                 {
-                    b.HasOne("PriceTracker.Areas.Identity.Data.PriceTrackerUser", null)
+                    b.HasOne("PriceTrackerUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -556,7 +574,7 @@ namespace PriceTracker.Migrations
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserLogin<string>", b =>
                 {
-                    b.HasOne("PriceTracker.Areas.Identity.Data.PriceTrackerUser", null)
+                    b.HasOne("PriceTrackerUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -571,7 +589,7 @@ namespace PriceTracker.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("PriceTracker.Areas.Identity.Data.PriceTrackerUser", null)
+                    b.HasOne("PriceTrackerUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -580,7 +598,7 @@ namespace PriceTracker.Migrations
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserToken<string>", b =>
                 {
-                    b.HasOne("PriceTracker.Areas.Identity.Data.PriceTrackerUser", null)
+                    b.HasOne("PriceTrackerUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -589,7 +607,7 @@ namespace PriceTracker.Migrations
 
             modelBuilder.Entity("PriceTracker.Models.AffiliateVerification", b =>
                 {
-                    b.HasOne("PriceTracker.Areas.Identity.Data.PriceTrackerUser", "PriceTrackerUser")
+                    b.HasOne("PriceTrackerUser", "PriceTrackerUser")
                         .WithOne("AffiliateVerification")
                         .HasForeignKey("PriceTracker.Models.AffiliateVerification", "UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -633,6 +651,25 @@ namespace PriceTracker.Migrations
                     b.Navigation("Product");
 
                     b.Navigation("ScrapHistory");
+                });
+
+            modelBuilder.Entity("PriceTracker.Models.PriceTrackerUserStore", b =>
+                {
+                    b.HasOne("PriceTracker.Models.StoreClass", "StoreClass")
+                        .WithMany("UserStores")
+                        .HasForeignKey("StoreId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("PriceTrackerUser", "PriceTrackerUser")
+                        .WithMany("UserStores")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("PriceTrackerUser");
+
+                    b.Navigation("StoreClass");
                 });
 
             modelBuilder.Entity("PriceTracker.Models.PriceValueClass", b =>
@@ -687,12 +724,6 @@ namespace PriceTracker.Migrations
                     b.Navigation("Store");
                 });
 
-            modelBuilder.Entity("PriceTracker.Areas.Identity.Data.PriceTrackerUser", b =>
-                {
-                    b.Navigation("AffiliateVerification")
-                        .IsRequired();
-                });
-
             modelBuilder.Entity("PriceTracker.Models.FlagsClass", b =>
                 {
                     b.Navigation("ProductFlags");
@@ -721,6 +752,16 @@ namespace PriceTracker.Migrations
                     b.Navigation("Products");
 
                     b.Navigation("ScrapHistories");
+
+                    b.Navigation("UserStores");
+                });
+
+            modelBuilder.Entity("PriceTrackerUser", b =>
+                {
+                    b.Navigation("AffiliateVerification")
+                        .IsRequired();
+
+                    b.Navigation("UserStores");
                 });
 #pragma warning restore 612, 618
         }
