@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using PriceTracker.Data;
 using PriceTracker.Models;
@@ -7,6 +8,7 @@ using System.Threading.Tasks;
 
 namespace PriceTracker.Controllers
 {
+    [Authorize(Roles = "Admin, Member, Manager")]
     public class FlagsController : Controller
     {
         private readonly PriceTrackerContext _context;

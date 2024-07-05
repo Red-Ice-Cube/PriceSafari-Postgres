@@ -1,4 +1,5 @@
 ﻿using ChartJs.Blazor.ChartJS.Common.Enums;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using PriceTracker.Data;
@@ -7,6 +8,7 @@ using PriceTracker.ViewModels;
 
 namespace PriceTracker.Controllers.ManagerControllers
 {
+    [Authorize(Roles = "Admin, Manager, Member")]
     public class PriceHistoryController : Controller
     {
         private readonly PriceTrackerContext _context;

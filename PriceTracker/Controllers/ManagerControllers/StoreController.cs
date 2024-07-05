@@ -8,9 +8,11 @@ using PriceTracker.Data;
 using System.Threading.Tasks;
 using System.Linq;
 using System.Collections.Generic;
+using Microsoft.AspNetCore.Authorization;
 
 namespace PriceTracker.Controllers.ManagerControllers
 {
+    [Authorize(Roles = "Admin")]
     public class StoreController : Controller
     {
         private readonly PriceTrackerContext _context;

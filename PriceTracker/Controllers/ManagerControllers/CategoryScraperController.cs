@@ -6,9 +6,11 @@ using PriceTracker.Data;
 using PriceTracker.Models;
 using HtmlAgilityPack;
 using System;
+using Microsoft.AspNetCore.Authorization;
 
 namespace PriceTracker.Controllers.ManagerControllers
 {
+    [Authorize(Roles = "Admin")]
     public class CategoryScraperController : Controller
     {
         private readonly PriceTrackerContext _context;

@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using PriceTracker.Data;
@@ -7,6 +8,7 @@ using PriceTracker.Models;
 using PriceTracker.Services;
 using System.Diagnostics;
 
+[Authorize(Roles = "Admin")]
 public class PriceScrapingController : Controller
 {
     private readonly PriceTrackerContext _context;

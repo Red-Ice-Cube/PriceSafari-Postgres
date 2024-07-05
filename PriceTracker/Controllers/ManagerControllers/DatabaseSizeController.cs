@@ -1,9 +1,11 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using PriceTracker.Data;
 using System.Threading.Tasks;
 
 namespace PriceTracker.Controllers.ManagerControllers
 {
+    [Authorize(Roles = "Admin")]
     public class DatabaseSizeController : Controller
     {
         private readonly PriceTrackerContext _context;
