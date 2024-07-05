@@ -1,4 +1,4 @@
-﻿using PriceTracker.Areas.Identity.Data;
+﻿
 using PriceTracker.Data;
 using PriceTracker.Models;
 using PriceTracker.Models.ManagerViewModels;
@@ -8,7 +8,7 @@ using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.EntityFrameworkCore;
-using PriceTracker.Areas.Identity.Data;
+
 using System.Text.Encodings.Web;
 
 namespace PriceTracker.Controllers

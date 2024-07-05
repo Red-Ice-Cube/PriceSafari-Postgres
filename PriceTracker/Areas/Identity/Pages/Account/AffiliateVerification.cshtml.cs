@@ -1,13 +1,13 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using System.ComponentModel.DataAnnotations;
-using PriceTracker.Areas.Identity.Data;
+
 using PriceTracker.Data;
 using PriceTracker.Models;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.RazorPages;
-using System.Threading.Tasks;
+
 using Microsoft.EntityFrameworkCore;
-using PriceTracker.Areas.Identity.Data;
+
 
 namespace PriceTracker.Areas.Identity.Pages.Account
 {

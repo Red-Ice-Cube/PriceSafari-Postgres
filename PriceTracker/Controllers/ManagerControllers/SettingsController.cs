@@ -1,4 +1,4 @@
-﻿using PriceTracker.Areas.Identity.Data;
+﻿
 using PriceTracker.Data;
 using PriceTracker.Models.ManagerViewModels;
 using Microsoft.AspNetCore.Authorization;

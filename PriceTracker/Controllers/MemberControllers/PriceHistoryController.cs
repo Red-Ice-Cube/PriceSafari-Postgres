@@ -6,7 +6,7 @@ using PriceTracker.Data;
 using PriceTracker.Models;
 using PriceTracker.ViewModels;
 
-namespace PriceTracker.Controllers.ManagerControllers
+namespace PriceTracker.Controllers.MemberControllers
 {
     [Authorize(Roles = "Admin, Manager, Member")]
     public class PriceHistoryController : Controller
@@ -54,9 +54,9 @@ namespace PriceTracker.Controllers.ManagerControllers
             ViewBag.StoreId = storeId;
             ViewBag.StoreName = storeName;
             ViewBag.Categories = categories;
-            ViewBag.Flags = flags; 
+            ViewBag.Flags = flags;
 
-            return View("~/Views/ManagerPanel/PriceHistory/Index.cshtml");
+            return View("~/Views/Panel/PriceHistory/Index.cshtml");
         }
 
 
@@ -105,7 +105,7 @@ namespace PriceTracker.Controllers.ManagerControllers
                     ph.Price,
                     ph.StoreName,
                     ph.ScrapHistoryId,
-                    ph.Position,         
+                    ph.Position,
                     ph.IsBidding
                 })
                 .ToListAsync();
@@ -145,9 +145,9 @@ namespace PriceTracker.Controllers.ManagerControllers
                         Savings = isMyBestPrice && !isSharedBestPrice ? Math.Round(secondBestPrice - bestPrice, 2) : (decimal?)null,
                         IsSharedBestPrice = isMyBestPrice && isSharedBestPrice,
                         IsUniqueBestPrice = isMyBestPrice && !isSharedBestPrice,
-                        IsBidding = bestPriceEntry.IsBidding,        
-                        Position = bestPriceEntry.Position,        
-                        MyIsBidding = myPriceEntry?.IsBidding,      
+                        bestPriceEntry.IsBidding,
+                        bestPriceEntry.Position,
+                        MyIsBidding = myPriceEntry?.IsBidding,
                         MyPosition = myPriceEntry?.Position,
                         FlagIds = flagIds
                     };
@@ -250,7 +250,7 @@ namespace PriceTracker.Controllers.ManagerControllers
                 return NotFound();
             }
 
-        
+
             var priceValues = await _context.PriceValues
                 .Where(pv => pv.StoreId == scrapHistory.StoreId)
                 .Select(pv => new { pv.SetPrice1, pv.SetPrice2 })
@@ -258,7 +258,7 @@ namespace PriceTracker.Controllers.ManagerControllers
 
             if (priceValues == null)
             {
-                priceValues = new { SetPrice1 = 2.00m, SetPrice2 = 2.00m }; 
+                priceValues = new { SetPrice1 = 2.00m, SetPrice2 = 2.00m };
             }
 
             ViewBag.ScrapHistory = scrapHistory;
@@ -268,7 +268,7 @@ namespace PriceTracker.Controllers.ManagerControllers
             ViewBag.SetPrice1 = priceValues.SetPrice1;
             ViewBag.SetPrice2 = priceValues.SetPrice2;
 
-            return View("~/Views/ManagerPanel/PriceHistory/Details.cshtml", prices);
+            return View("~/Views/Panel/PriceHistory/Details.cshtml", prices);
         }
 
 

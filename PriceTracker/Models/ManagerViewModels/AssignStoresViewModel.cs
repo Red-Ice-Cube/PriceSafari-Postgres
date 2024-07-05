@@ -1,0 +1,12 @@
+﻿
+
+namespace PriceTracker.Models.ManagerViewModels
+{
+    public class AssignStoresViewModel
+    {
+        public List<PriceTrackerUser> Users { get; set; }
+        public List<StoreClass> Stores { get; set; }
+        public string SelectedUserId { get; set; }
+        public List<int> SelectedStoreIds { get; set; }
+    }
+}

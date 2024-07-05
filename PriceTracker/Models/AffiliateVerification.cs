@@ -1,4 +1,4 @@
-﻿using PriceTracker.Areas.Identity.Data;
+﻿
 using System.ComponentModel.DataAnnotations;
 
 namespace PriceTracker.Models

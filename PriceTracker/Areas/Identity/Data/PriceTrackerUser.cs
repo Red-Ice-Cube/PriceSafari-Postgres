@@ -1,8 +1,5 @@
-﻿using PriceTracker.Models;
-using Microsoft.AspNetCore.Identity;
-
-
-namespace PriceTracker.Areas.Identity.Data;
+﻿using Microsoft.AspNetCore.Identity;
+using PriceTracker.Models;
 
 public class PriceTrackerUser : IdentityUser
 {
@@ -15,12 +12,11 @@ public class PriceTrackerUser : IdentityUser
     public bool IsActive { get; set; } = true;
     public AffiliateVerification AffiliateVerification { get; set; }
 
-
+    public ICollection<PriceTrackerUserStore> UserStores { get; set; } = new List<PriceTrackerUserStore>();  
 
     public PriceTrackerUser()
     {
         CodePAR = GenerateUniqueCodePAR();
-
     }
 
     private string GenerateUniqueCodePAR()

@@ -1,7 +1,4 @@
 ﻿
-using PriceTracker.Areas.Identity.Data;
-using PriceTracker.Data;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 
 

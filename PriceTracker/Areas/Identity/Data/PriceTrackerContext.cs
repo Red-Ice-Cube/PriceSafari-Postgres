@@ -1,8 +1,6 @@
 ﻿using PriceTracker.Models;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
-using PriceTracker.Areas.Identity.Data;
-
 
 namespace PriceTracker.Data
 {
@@ -13,8 +11,23 @@ namespace PriceTracker.Data
         {
         }
 
+        public DbSet<Settings> Settings { get; set; }
+        public DbSet<AffiliateVerification> AffiliateVerification { get; set; }
+        public DbSet<StoreClass> Stores { get; set; }
+        public DbSet<ProductClass> Products { get; set; }
+        public DbSet<PriceHistoryClass> PriceHistories { get; set; }
+        public DbSet<ScrapHistoryClass> ScrapHistories { get; set; }
+        public DbSet<CategoryClass> Categories { get; set; }
+        public DbSet<PriceValueClass> PriceValues { get; set; }
+        public DbSet<TableSizeInfo> TableSizeInfo { get; set; }
+        public DbSet<FlagsClass> Flags { get; set; }
+        public DbSet<ProductFlag> ProductFlags { get; set; }
+        public DbSet<PriceTrackerUserStore> UserStores { get; set; }
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
+            base.OnModelCreating(modelBuilder);
+
             modelBuilder.Entity<PriceTrackerUser>()
                 .HasOne(u => u.AffiliateVerification)
                 .WithOne(av => av.PriceTrackerUser)
@@ -40,7 +53,7 @@ namespace PriceTracker.Data
                 .OnDelete(DeleteBehavior.Cascade);
 
             modelBuilder.Entity<ProductFlag>()
-             .HasKey(pf => new { pf.ProductId, pf.FlagId });
+                .HasKey(pf => new { pf.ProductId, pf.FlagId });
 
             modelBuilder.Entity<ProductFlag>()
                 .HasOne(pf => pf.Product)
@@ -56,21 +69,19 @@ namespace PriceTracker.Data
 
             modelBuilder.Entity<TableSizeInfo>().HasNoKey();
 
-            base.OnModelCreating(modelBuilder);
+            modelBuilder.Entity<PriceTrackerUserStore>()  // <- Użyj aliasu
+                .HasKey(us => new { us.UserId, us.StoreId });
+
+            modelBuilder.Entity<PriceTrackerUserStore>()  // <- Użyj aliasu
+                .HasOne(us => us.PriceTrackerUser)
+                .WithMany(u => u.UserStores)
+                .HasForeignKey(us => us.UserId);
+
+            modelBuilder.Entity<PriceTrackerUserStore>()  // <- Użyj aliasu
+                .HasOne(us => us.StoreClass)
+                .WithMany(s => s.UserStores)
+                .HasForeignKey(us => us.StoreId);
         }
-
-        public DbSet<Settings> Settings { get; set; }
-        public DbSet<AffiliateVerification> AffiliateVerification { get; set; }
-        public DbSet<StoreClass> Stores { get; set; }
-        public DbSet<ProductClass> Products { get; set; }
-        public DbSet<PriceHistoryClass> PriceHistories { get; set; }
-        public DbSet<ScrapHistoryClass> ScrapHistories { get; set; }
-        public DbSet<CategoryClass> Categories { get; set; }
-        public DbSet<PriceValueClass> PriceValues { get; set; }
-        public DbSet<TableSizeInfo> TableSizeInfo { get; set; }
-        public DbSet<FlagsClass> Flags { get; set; }
-        public DbSet<ProductFlag> ProductFlags { get; set; }
-
 
         public async Task<List<TableSizeInfo>> GetTableSizes()
         {
@@ -111,6 +122,5 @@ namespace PriceTracker.Data
         public long UsedSpaceKB { get; set; }
 
         public double UsedSpaceMB => UsedSpaceKB / 1024.0;
-
     }
 }

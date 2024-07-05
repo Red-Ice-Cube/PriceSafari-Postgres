@@ -1,6 +1,4 @@
-﻿#nullable disable
-
-using PriceTracker.Areas.Identity.Data;
+﻿
 using PriceTracker.Data;
 using PriceTracker.Models;
 using Microsoft.AspNetCore.Authentication;
@@ -13,10 +11,6 @@ using Microsoft.EntityFrameworkCore;
 using System.ComponentModel.DataAnnotations;
 using System.Text;
 using System.Text.Encodings.Web;
-using System.Threading;
-using System.Threading.Tasks;
-using System.Linq;
-using PriceTracker.Areas.Identity.Data;
 
 namespace PriceTracker.Areas.Identity.Pages.Account
 {

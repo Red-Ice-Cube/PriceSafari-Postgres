@@ -6,7 +6,7 @@ using PriceTracker.Models;
 using System.Linq;
 using System.Threading.Tasks;
 
-namespace PriceTracker.Controllers
+namespace PriceTracker.Controllers.MemberControllers
 {
     [Authorize(Roles = "Admin, Member, Manager")]
     public class FlagsController : Controller

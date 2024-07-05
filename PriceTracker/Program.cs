@@ -1,11 +1,11 @@
-using PriceTracker.Areas.Identity.Data;
+
 using PriceTracker.Data;
 using PriceTracker.DotEnv;
 using PriceTracker.Models;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.EntityFrameworkCore;
-using PriceTracker.Areas.Identity.Data;
+
 using PriceTracker.Hubs;
 using PriceTracker.Services;
 

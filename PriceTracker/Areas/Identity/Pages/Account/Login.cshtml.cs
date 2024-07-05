@@ -1,13 +1,13 @@
 ﻿#nullable disable
 
-using PriceTracker.Areas.Identity.Data;
+
 using PriceTracker.Data;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
-using PriceTracker.Areas.Identity.Data;
+
 using System.ComponentModel.DataAnnotations;
 
 namespace PriceTracker.Areas.Identity.Pages.Account
