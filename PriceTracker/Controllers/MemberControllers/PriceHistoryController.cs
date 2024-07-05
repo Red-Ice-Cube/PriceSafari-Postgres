@@ -140,10 +140,16 @@ namespace PriceTracker.Controllers.MemberControllers
                 })
                 .ToListAsync();
 
-            var productFlags = await _context.ProductFlags
-                .Where(pf => prices.Select(p => p.ProductId).Contains(pf.ProductId))
+            var productIds = prices.Select(p => p.ProductId).ToList();
+
+            var storeFlags = await _context.Flags
+                .Where(f => f.StoreId == storeId)
+                .ToListAsync();
+
+            var productFlagsDictionary = storeFlags
+                .SelectMany(flag => _context.ProductFlags.Where(pf => pf.FlagId == flag.FlagId).Select(pf => new { pf.ProductId, pf.FlagId }))
                 .GroupBy(pf => pf.ProductId)
-                .ToDictionaryAsync(g => g.Key, g => g.Select(pf => pf.FlagId).ToList());
+                .ToDictionary(g => g.Key, g => g.Select(pf => pf.FlagId).ToList());
 
             var allPrices = prices
                 .GroupBy(p => p.ProductId)
@@ -158,7 +164,7 @@ namespace PriceTracker.Controllers.MemberControllers
                     var bestPrice = bestPriceEntry.Price;
                     var myPrice = myPriceEntry != null ? myPriceEntry.Price : bestPrice;
 
-                    productFlags.TryGetValue(bestPriceEntry.ProductId, out var flagIds);
+                    productFlagsDictionary.TryGetValue(bestPriceEntry.ProductId, out var flagIds);
                     flagIds = flagIds ?? new List<int>();
 
                     return new

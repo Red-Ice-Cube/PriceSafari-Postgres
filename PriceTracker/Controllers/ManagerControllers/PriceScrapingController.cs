@@ -58,7 +58,7 @@ public class PriceScrapingController : Controller
         var rejectedProducts = new List<(string Reason, string Url)>();
         var stopwatch = new Stopwatch();
         var tasks = new List<Task>();
-        var semaphore = new SemaphoreSlim(4);
+        var semaphore = new SemaphoreSlim(8);
 
         stopwatch.Start();
 
