@@ -1,10 +1,14 @@
 ﻿using ChartJs.Blazor.ChartJS.Common.Enums;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using PriceTracker.Data;
 using PriceTracker.Models;
 using PriceTracker.ViewModels;
+using System.Linq;
+using System.Security.Claims;
+using System.Threading.Tasks;
 
 namespace PriceTracker.Controllers.MemberControllers
 {
@@ -12,10 +16,27 @@ namespace PriceTracker.Controllers.MemberControllers
     public class PriceHistoryController : Controller
     {
         private readonly PriceTrackerContext _context;
+        private readonly UserManager<PriceTrackerUser> _userManager;
 
-        public PriceHistoryController(PriceTrackerContext context)
+        public PriceHistoryController(PriceTrackerContext context, UserManager<PriceTrackerUser> userManager)
         {
             _context = context;
+            _userManager = userManager;
+        }
+
+        private async Task<bool> UserHasAccessToStore(int storeId)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var user = await _userManager.FindByIdAsync(userId);
+            var isAdminOrManager = await _userManager.IsInRoleAsync(user, "Admin") || await _userManager.IsInRoleAsync(user, "Manager");
+
+            if (!isAdminOrManager)
+            {
+                var hasAccess = await _context.UserStores.AnyAsync(us => us.UserId == userId && us.StoreId == storeId);
+                return hasAccess;
+            }
+
+            return true;
         }
 
         public async Task<IActionResult> Index(int? storeId)
@@ -23,6 +44,11 @@ namespace PriceTracker.Controllers.MemberControllers
             if (storeId == null)
             {
                 return NotFound("Store ID not provided.");
+            }
+
+            if (!await UserHasAccessToStore(storeId.Value))
+            {
+                return Content("Nie ma takiego sklepu");
             }
 
             var latestScrap = await _context.ScrapHistories
@@ -59,13 +85,17 @@ namespace PriceTracker.Controllers.MemberControllers
             return View("~/Views/Panel/PriceHistory/Index.cshtml");
         }
 
-
         [HttpGet]
         public async Task<IActionResult> GetPrices(int? storeId)
         {
             if (storeId == null)
             {
                 return Json(new { productCount = 0, priceCount = 0, myStoreName = "", prices = new List<dynamic>(), setPrice1 = 2.00m, setPrice2 = 2.00m });
+            }
+
+            if (!await UserHasAccessToStore(storeId.Value))
+            {
+                return Json(new { error = "Nie ma takiego sklepu" });
             }
 
             var latestScrap = await _context.ScrapHistories
@@ -167,14 +197,15 @@ namespace PriceTracker.Controllers.MemberControllers
             });
         }
 
-
-
-
-
         [HttpGet]
         public async Task<IActionResult> GetStores(int? storeId)
         {
             if (storeId == null)
+            {
+                return Json(new List<string>());
+            }
+
+            if (!await UserHasAccessToStore(storeId.Value))
             {
                 return Json(new List<string>());
             }
@@ -204,6 +235,11 @@ namespace PriceTracker.Controllers.MemberControllers
             if (model == null || model.StoreId <= 0)
             {
                 return BadRequest("Invalid store ID or price values.");
+            }
+
+            if (!await UserHasAccessToStore(model.StoreId))
+            {
+                return BadRequest("Nie ma takiego sklepu");
             }
 
             var priceValues = await _context.PriceValues
@@ -239,6 +275,11 @@ namespace PriceTracker.Controllers.MemberControllers
                 return NotFound();
             }
 
+            if (!await UserHasAccessToStore(scrapHistory.StoreId))
+            {
+                return Content("Nie ma takiego sklepu");
+            }
+
             var prices = await _context.PriceHistories
                 .Where(ph => ph.ScrapHistoryId == scrapId && ph.ProductId == productId)
                 .Include(ph => ph.Product)
@@ -249,7 +290,6 @@ namespace PriceTracker.Controllers.MemberControllers
             {
                 return NotFound();
             }
-
 
             var priceValues = await _context.PriceValues
                 .Where(pv => pv.StoreId == scrapHistory.StoreId)
@@ -270,11 +310,5 @@ namespace PriceTracker.Controllers.MemberControllers
 
             return View("~/Views/Panel/PriceHistory/Details.cshtml", prices);
         }
-
-
-
-
-
-
     }
 }
