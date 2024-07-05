@@ -12,8 +12,8 @@ using PriceTracker.Data;
 namespace PriceTracker.Migrations
 {
     [DbContext(typeof(PriceTrackerContext))]
-    [Migration("20240705122102_Initial")]
-    partial class Initial
+    [Migration("20240705154617_Initial Creation")]
+    partial class InitialCreation
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
