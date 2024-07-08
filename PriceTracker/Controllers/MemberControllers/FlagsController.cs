@@ -37,41 +37,6 @@ namespace PriceTracker.Controllers.MemberControllers
             return true;
         }
 
-        // GET: Flags/Create
-        public async Task<IActionResult> Create(int storeId)
-        {
-            if (!await UserHasAccessToStore(storeId))
-            {
-                return Content("Nie ma takiego sklepu");
-            }
-
-            ViewBag.StoreId = storeId;
-            return View("~/Views/Panel/Flags/Create.cshtml");
-        }
-
-        // POST: Flags/Create
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create([Bind("FlagId,FlagName,FlagColor,StoreId")] FlagsClass flag, int storeId)
-        {
-            if (!await UserHasAccessToStore(storeId))
-            {
-                return Content("Nie ma takiego sklepu");
-            }
-
-            flag.StoreId = storeId;
-
-            if (ModelState.IsValid)
-            {
-                _context.Add(flag);
-                await _context.SaveChangesAsync();
-                return RedirectToAction("List", new { storeId = storeId });
-            }
-
-            ViewBag.StoreId = storeId;
-            return View("~/Views/Panel/Flags/Create.cshtml", flag);
-        }
-
         // GET: Flags/List
         public async Task<IActionResult> List(int storeId)
         {
@@ -81,9 +46,80 @@ namespace PriceTracker.Controllers.MemberControllers
             }
 
             var flags = await _context.Flags.Where(f => f.StoreId == storeId).ToListAsync();
+            var store = await _context.Stores.Where(f => f.StoreId == storeId).FirstOrDefaultAsync();
+
             ViewBag.StoreId = storeId;
+            ViewBag.StoreName = store?.StoreName;
 
             return View("~/Views/Panel/Flags/List.cshtml", flags);
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> Create([Bind("FlagId,FlagName,FlagColor,StoreId")] FlagsClass flag)
+        {
+            if (!await UserHasAccessToStore(flag.StoreId))
+            {
+                return Content("Nie ma takiego sklepu");
+            }
+
+            if (ModelState.IsValid)
+            {
+                _context.Add(flag);
+                await _context.SaveChangesAsync();
+                return Ok();
+            }
+
+            return BadRequest(ModelState);
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> UpdateFlagName(int id, string flagName)
+        {
+            var flag = await _context.Flags.FindAsync(id);
+            if (flag == null)
+            {
+                return NotFound();
+            }
+
+            flag.FlagName = flagName;
+            _context.Update(flag);
+            await _context.SaveChangesAsync();
+
+            return Ok();
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> UpdateFlagColor(int id, string flagColor)
+        {
+            var flag = await _context.Flags.FindAsync(id);
+            if (flag == null)
+            {
+                return NotFound();
+            }
+
+            flag.FlagColor = flagColor;
+            _context.Update(flag);
+            await _context.SaveChangesAsync();
+
+            return Ok();
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> Delete(int id)
+        {
+            var flag = await _context.Flags.FindAsync(id);
+            if (flag == null)
+            {
+                return NotFound();
+            }
+
+            var productFlags = await _context.ProductFlags.Where(pf => pf.FlagId == id).ToListAsync();
+            _context.ProductFlags.RemoveRange(productFlags);
+
+            _context.Flags.Remove(flag);
+            await _context.SaveChangesAsync();
+
+            return Ok();
         }
     }
 }

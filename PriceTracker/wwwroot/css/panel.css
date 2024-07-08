@@ -3048,6 +3048,7 @@ tr:last-child .sub-line {
     align-items: center;
     justify-content: center;
     margin: 2px;
+    font-weight: 500;
 }
 
 .assign-flag-button {  
