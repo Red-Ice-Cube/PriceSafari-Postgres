@@ -89,9 +89,6 @@ namespace PriceTracker.Controllers.MemberControllers
 
 
 
-
-
-
         [HttpGet]
         public async Task<IActionResult> GetPrices(int? storeId, string competitorStore = null)
         {
@@ -142,7 +139,8 @@ namespace PriceTracker.Controllers.MemberControllers
                     ph.ProductId,
                     ph.Price,
                     ph.Position,
-                    ph.IsBidding
+                    ph.IsBidding,
+                    ph.AvailabilityNum
                 })
                 .ToListAsync();
 
@@ -161,7 +159,8 @@ namespace PriceTracker.Controllers.MemberControllers
                     ph.StoreName,
                     ph.ScrapHistoryId,
                     ph.Position,
-                    ph.IsBidding
+                    ph.IsBidding,
+                    ph.AvailabilityNum
                 })
                 .ToListAsync();
 
@@ -190,13 +189,33 @@ namespace PriceTracker.Controllers.MemberControllers
 
                     var isSharedBestPrice = g.Count(p => p.Price == bestPriceEntry.Price) > 1;
                     var isMyBestPrice = myPriceEntry != null && myPriceEntry.Price == bestPriceEntry.Price;
-                    var secondBestPrice = g.Where(p => p.Price > bestPriceEntry.Price).OrderBy(p => p.Price).FirstOrDefault()?.Price ?? 0;
+
+                    var secondBestPrice = g
+                        .Where(p => p.Price > bestPriceEntry.Price && p.Price != myPriceEntry.Price)
+                        .OrderBy(p => p.Price)
+                        .FirstOrDefault()?.Price ?? 0;
 
                     var bestPrice = bestPriceEntry.Price;
                     var myPrice = myPriceEntry != null ? myPriceEntry.Price : bestPrice;
 
                     productFlagsDictionary.TryGetValue(bestPriceEntry.ProductId, out var flagIds);
                     flagIds = flagIds ?? new List<int>();
+
+                    bool isUniqueBestPrice;
+                    decimal? savings;
+
+                    if (string.IsNullOrEmpty(competitorStore))
+                    {
+                        // Logika dla porównania do najlepszej ceny rynkowej
+                        isUniqueBestPrice = isMyBestPrice && !isSharedBestPrice && secondBestPrice > myPrice;
+                        savings = isUniqueBestPrice ? Math.Round(secondBestPrice - bestPrice, 2) : (decimal?)null;
+                    }
+                    else
+                    {
+                        // Logika dla porównania do konkretnego sklepu
+                        isUniqueBestPrice = myPrice < bestPrice;
+                        savings = isUniqueBestPrice ? Math.Abs(Math.Round(myPrice - bestPrice, 2)) : (decimal?)null;
+                    }
 
                     return new
                     {
@@ -209,14 +228,16 @@ namespace PriceTracker.Controllers.MemberControllers
                         ScrapId = bestPriceEntry.ScrapHistoryId,
                         PriceDifference = Math.Round(myPrice - bestPrice, 2),
                         PercentageDifference = Math.Round((myPrice - bestPrice) / bestPrice * 100, 2),
-                        Savings = isMyBestPrice && !isSharedBestPrice ? Math.Round(secondBestPrice - bestPrice, 2) : (decimal?)null,
+                        Savings = savings,
                         IsSharedBestPrice = isMyBestPrice && isSharedBestPrice,
-                        IsUniqueBestPrice = isMyBestPrice && !isSharedBestPrice,
+                        IsUniqueBestPrice = isUniqueBestPrice,
                         bestPriceEntry.IsBidding,
                         bestPriceEntry.Position,
                         MyIsBidding = myPriceEntry?.IsBidding,
                         MyPosition = myPriceEntry?.Position,
-                        FlagIds = flagIds
+                        FlagIds = flagIds,
+                        Delivery = bestPriceEntry.AvailabilityNum,
+                        MyDelivery = myPriceEntry?.AvailabilityNum
                     };
                 })
                 .ToList();
@@ -233,6 +254,10 @@ namespace PriceTracker.Controllers.MemberControllers
                 setPrice2 = priceValues.SetPrice2
             });
         }
+
+
+
+
 
 
 

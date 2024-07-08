@@ -133,15 +133,16 @@
             const priceDifference = item.priceDifference != null ? item.priceDifference.toFixed(2) : "N/A";
             const savings = item.colorClass === "prToLow" || item.colorClass === "prIdeal" ? item.savings != null ? item.savings.toFixed(2) : "N/A" : "N/A";
 
-
             const isBidding = item.isBidding === "1";
             const myIsBidding = item.myIsBidding === "1";
+
+            const deliveryClass = getDeliveryClass(item.delivery);
+            const myDeliveryClass = getDeliveryClass(item.myDelivery);
 
             const box = document.createElement('div');
             box.className = 'price-box ' + item.colorClass;
             box.dataset.detailsUrl = '/PriceHistory/Details?scrapId=' + item.scrapId + '&productId=' + item.productId;
             box.innerHTML =
-
                 '<div class="price-box-space">' +
                 '<div class="price-box-column-name">' + highlightedProductName + '</div>' +
                 '<button class="assign-flag-button" data-product-id="' + item.productId + '">+ Przypisz flagi</button>' +
@@ -153,13 +154,13 @@
                 '<div class="color-bar ' + item.colorClass + '"></div>' +
                 '<div class="price-box-column">' +
                 '<div class="price-box-column-text">' + item.lowestPrice.toFixed(2) + ' zł</div>' +
-                '<div class="price-box-column-text">' + item.storeName + ' ' + (isBidding ? '<span class="Bidding">Bid</span>' : '') + '<span class="Position">Msc ' + item.position + '</span></div>' +
+                '<div class="price-box-column-text">' + item.storeName + ' ' + (isBidding ? '<span class="Bidding">Bid</span>' : '') + '<span class="Position">Msc ' + item.position + '</span>' + (item.delivery != null ? '<span class="' + deliveryClass + '">Wysyłka w ' + item.delivery + ' dni</span>' : '') + '</div>' +
                 '</div>' +
 
                 '<div class="price-box-column-line"></div>' +
                 '<div class="price-box-column">' +
                 '<div class="price-box-column-text">' + item.myPrice.toFixed(2) + ' zł</div>' +
-                '<div class="price-box-column-text">' + myStoreName + ' ' + (myIsBidding ? '<span class="Bidding">Bid</span>' : '') + '<span class="Position">Msc ' + item.myPosition + '</span></div>' +
+                '<div class="price-box-column-text">' + myStoreName + ' ' + (myIsBidding ? '<span class="Bidding">Bid</span>' : '') + '<span class="Position">Msc ' + item.myPosition + '</span>' + (item.myDelivery != null ? '<span class="' + myDeliveryClass + '">Wysyłka w ' + item.myDelivery + ' dni</span>' : '') + '</div>' +
                 '</div>' +
                 '<div class="price-box-column-line"></div>' +
                 '<div class="price-box-column">' +
@@ -200,7 +201,12 @@
         document.getElementById('displayedProductCount').textContent = data.length;
     }
 
-
+    function getDeliveryClass(days) {
+        if (days <= 1) return 'Availability1Day';
+        if (days <= 3) return 'Availability3Days';
+        if (days <= 7) return 'Availability7Days';
+        return 'Availability14Days';
+    }
 
     function hexToRgba(hex, alpha) {
         let r = 0, g = 0, b = 0;
@@ -215,6 +221,7 @@
         }
         return `rgba(${r}, ${g}, ${b}, ${alpha})`;
     }
+
 
 
     function renderChart(data) {
