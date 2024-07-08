@@ -1,6 +1,5 @@
 ﻿@using Newtonsoft.Json
 
-
 @{
     ViewData["Title"] = "Historia Cen";
     var latestScrap = ViewBag.LatestScrap as PriceTracker.Models.ScrapHistoryClass;
@@ -12,7 +11,6 @@
 @{
     Layout = "~/Views/Shared/_PanelLayout.cshtml";
 }
-
 
 <div class="Vert">
     <div class="Page-Box">
@@ -27,12 +25,12 @@
                         <input class="form-check-input colorFilter" type="checkbox" id="prToHighCheckbox" value="prToHigh">
                         <label class="form-check-label" for="prToHighCheckbox">Za wysoka cena</label>
                     </div>
-                  
+
                     <div class="form-check">
                         <input class="form-check-input colorFilter" type="checkbox" id="prMidCheckbox" value="prMid">
                         <label class="form-check-label" for="prMidCheckbox">Mid cena</label>
                     </div>
-                   
+
                     <div class="form-check">
                         <input class="form-check-input colorFilter" type="checkbox" id="prGoodCheckbox" value="prGood">
                         <label class="form-check-label" for="prGoodCheckbox">Top cena</label>
@@ -58,17 +56,17 @@
                     <button class="Button-Page-Small" style="margin-top: 16px;" id="savePriceValues">Zapisz</button>
                 </div>
                 <div class="Category-Container-Title">Flagi</div>
-                      <div class="store-section">
-                            
-                                @foreach (var flag in flags)
-                                {
-                                        <div class="form-check">
-                                            <input class="form-check-input flagFilter" type="checkbox" id="flagCheckbox_@flag.FlagId" value="@flag.FlagId">
-                                            <label class="form-check-label" for="flagCheckbox_@flag.FlagId">@flag.FlagName</label>
-                                        </div>
-                                }
-                            
-                      </div>
+                <div class="store-section">
+
+                    @foreach (var flag in flags)
+                    {
+                        <div class="form-check">
+                            <input class="form-check-input flagFilter" type="checkbox" id="flagCheckbox_@flag.FlagId" value="@flag.FlagId">
+                            <label class="form-check-label" for="flagCheckbox_@flag.FlagId">@flag.FlagName</label>
+                        </div>
+                    }
+
+                </div>
 
                 <div class="Category-Container-Title">Bidowanie</div>
                 <div class="store-section">
@@ -99,37 +97,43 @@
             </div>
             <div class="Horizontal">
                 <div class="order-upper-box">
-                    
+
                     <input type="text" id="productSearch" placeholder="Wyszukaj produkt">
                     <form id="filterForm">
                         <select id="category" name="category" class="DropDown">
                             <option value="">Wszystkie kategorie</option>
                             @foreach (var category in categories)
                             {
-                                    <option value="@category">@category</option>
+                                <option value="@category">@category</option>
                             }
                         </select>
                     </form>
-                    
-                        <div class="form-check-orders">
-                            <div>
-                                <p><strong>Sklep:</strong> <span>@ViewBag.StoreName</span></p>
-                                <p><strong>Zebrane ceny:</strong> <span id="totalPriceCount">0</span></p>
-                            </div>
+
+                    <div class="form-check-orders">
+                        <div>
+                            <p><strong>Sklep:</strong> <span>@ViewBag.StoreName</span></p>
+                            <p><strong>Zebrane ceny:</strong> <span id="totalPriceCount">0</span></p>
                         </div>
-                        <div class="form-check-orders">
-                            <div>
-                                <p><strong>ID Scrapowania:</strong> @latestScrap?.Id</p>
-                                <p><strong>Wykonano:</strong> @latestScrap?.Date</p>
-                              
-                            </div>
+                    </div>
+                    <div class="form-check-orders">
+                        <div>
+                            <p><strong>ID Scrapowania:</strong> @latestScrap?.Id</p>
+                            <p><strong>Wykonano:</strong> @latestScrap?.Date</p>
+
                         </div>
-                  
+                    </div>
+
                 </div>
                 <div class="price-box-column-category" id="displayedProductCount">
                 </div>
-               
-                
+
+                <div>
+                    <label for="competitorStoreSelect">Wybierz sklep konkurencyjny:</label>
+                    <select id="competitorStoreSelect" name="competitorStore" class="DropDown">
+                        <option value="">Wybierz sklep</option>
+                    </select>
+                </div>
+
                 <div class="Vert-table">
                     <div id="priceContainer" class="price-container"></div>
                 </div>
@@ -139,15 +143,14 @@
 </div>
 
 @section Scripts {
-        <script>
-            var storeId = '@storeId';
-        </script>
-        <script>
-            var flags = @Html.Raw(JsonConvert.SerializeObject(ViewBag.Flags));
-        </script>
-        <script src="~/js/PriceHistory.js"></script>
+    <script>
+        var storeId = '@storeId';
+    </script>
+    <script>
+        var flags = @Html.Raw(JsonConvert.SerializeObject(ViewBag.Flags));
+    </script>
+    <script src="~/js/PriceHistory.js"></script>
 }
-
 
 <div id="flagModal" class="modal">
     <div class="modal-content">
@@ -155,8 +158,6 @@
             <div class="price-box-column-name">Przypisz flagi do produktu</div>
             <span class="close">&times;</span>
         </div>
-       
-        
         <div id="flagCheckboxes">
             @if (flags != null)
             {

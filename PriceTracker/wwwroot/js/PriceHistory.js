@@ -5,24 +5,30 @@
     let setPrice1 = 2.00;
     let setPrice2 = 2.00;
     let selectedProductId = null;
+    let competitorStore = null;
 
     function loadStores() {
         fetch(`/PriceHistory/GetStores?storeId=${storeId}`)
             .then(response => response.json())
             .then(stores => {
-                const storeSelect = document.getElementById('storeName');
+                const storeSelect = document.getElementById('competitorStoreSelect');
                 stores.forEach(store => {
                     const option = document.createElement('option');
                     option.value = store;
                     option.text = store;
                     storeSelect.appendChild(option);
                 });
+
+                storeSelect.addEventListener('change', function () {
+                    competitorStore = this.value;
+                    loadPrices();
+                });
             })
             .catch(error => console.error('Error fetching stores:', error));
     }
 
     function loadPrices() {
-        fetch(`/PriceHistory/GetPrices?storeId=${storeId}`)
+        fetch(`/PriceHistory/GetPrices?storeId=${storeId}&competitorStore=${competitorStore}`)
             .then(response => response.json())
             .then(response => {
                 myStoreName = response.myStoreName;
@@ -32,13 +38,12 @@
                     ...price,
                     colorClass: getColorClass(price.priceDifference, price.isUniqueBestPrice, price.isSharedBestPrice, price.savings)
                 }));
-               
+
                 document.getElementById('totalPriceCount').textContent = response.priceCount;
                 renderPrices(allPrices);
                 renderChart(allPrices);
                 updateColorCounts(allPrices);
 
-          
                 document.getElementById('price1').value = setPrice1;
                 document.getElementById('price2').value = setPrice2;
             })
@@ -128,7 +133,7 @@
             const priceDifference = item.priceDifference != null ? item.priceDifference.toFixed(2) : "N/A";
             const savings = item.colorClass === "prToLow" || item.colorClass === "prIdeal" ? item.savings != null ? item.savings.toFixed(2) : "N/A" : "N/A";
 
-           
+
             const isBidding = item.isBidding === "1";
             const myIsBidding = item.myIsBidding === "1";
 
@@ -158,9 +163,9 @@
                 '</div>' +
                 '<div class="price-box-column-line"></div>' +
                 '<div class="price-box-column">' +
-            (item.colorClass === "prToLow" || item.colorClass === "prIdeal" ? '<p>Podnieś: ' + savings + ' zł</p>' : '') +
-            (item.colorClass === "prToHigh" || item.colorClass === "prMid" ? '<p>Obniż: ' + percentageDifference + ' %</p>' : '') +
-            (item.colorClass === "prToHigh" || item.colorClass === "prMid" ? '<p>Obniż: ' + priceDifference + ' zł</p>' : '') +
+                (item.colorClass === "prToLow" || item.colorClass === "prIdeal" ? '<p>Podnieś: ' + savings + ' zł</p>' : '') +
+                (item.colorClass === "prToHigh" || item.colorClass === "prMid" ? '<p>Obniż: ' + percentageDifference + ' %</p>' : '') +
+                (item.colorClass === "prToHigh" || item.colorClass === "prMid" ? '<p>Obniż: ' + priceDifference + ' zł</p>' : '') +
                 '</div>' +
                 '<div class="flags-container">' +
                 (item.flagIds.length > 0 ? item.flagIds.map(function (flagId) {
@@ -216,7 +221,7 @@
         const colorCounts = {
             prGood: 0,
             prMid: 0,
-            prToHigh: 0,           
+            prToHigh: 0,
             prIdeal: 0,
             prToLow: 0
         };
@@ -240,7 +245,7 @@
                     backgroundColor: [
                         'rgba(238, 17, 17, 0.5)',
                         'rgba(240, 240, 105, 0.5)',
-                        'rgba(14, 126, 135, 0.5)',                        
+                        'rgba(14, 126, 135, 0.5)',
                         'rgba(0, 156, 42, 0.5)',
                         'rgba(86, 0, 178, 0.5)'
                     ],
@@ -293,7 +298,7 @@
             prGood: 0,
             prIdeal: 0,
             prToLow: 0
-            
+
         };
 
         data.forEach(item => {
@@ -330,7 +335,7 @@
     });
 
 
-  
+
     document.getElementById('price1').addEventListener('input', function () {
         setPrice1 = parseFloat(this.value);
         allPrices.forEach(price => {
@@ -371,7 +376,6 @@
             .then(response => response.json())
             .then(response => {
                 if (response.success) {
-                   
                     setPrice1 = price1;
                     setPrice2 = price2;
 
@@ -401,7 +405,7 @@
         button.addEventListener('click', function () {
             selectedProductId = this.dataset.productId;
             modal.style.display = 'block';
-           
+
             fetch(`/ProductFlags/GetFlagsForProduct?productId=${selectedProductId}`)
                 .then(response => response.json())
                 .then(flags => {
@@ -429,7 +433,7 @@
         })
             .then(response => response.json())
             .then(response => {
-                if (response.success) {              
+                if (response.success) {
                     modal.style.display = 'none';
                     loadPrices();
                 } else {
