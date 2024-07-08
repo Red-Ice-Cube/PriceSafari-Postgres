@@ -5,7 +5,7 @@
     let setPrice1 = 2.00;
     let setPrice2 = 2.00;
     let selectedProductId = null;
-    let competitorStore = null;
+    let competitorStore = "";
 
     function loadStores() {
         fetch(`/PriceHistory/GetStores?storeId=${storeId}`)
@@ -75,6 +75,8 @@
         const selectedFlags = Array.from(document.querySelectorAll('.flagFilter:checked')).map(checkbox => parseInt(checkbox.value));
         const selectedBid = document.getElementById('bidFilter').checked;
         const selectedPositions = Array.from(document.querySelectorAll('.positionFilter:checked')).map(checkbox => parseInt(checkbox.value));
+        const selectedDeliveryMyStore = Array.from(document.querySelectorAll('.deliveryFilterMyStore:checked')).map(checkbox => parseInt(checkbox.value));
+        const selectedDeliveryCompetitor = Array.from(document.querySelectorAll('.deliveryFilterCompetitor:checked')).map(checkbox => parseInt(checkbox.value));
 
         let filteredPrices = selectedCategory ? data.filter(item => item.category === selectedCategory) : data;
         filteredPrices = selectedColors.length ? filteredPrices.filter(item => selectedColors.includes(item.colorClass)) : filteredPrices;
@@ -88,9 +90,16 @@
             filteredPrices = filteredPrices.filter(item => selectedPositions.includes(parseInt(item.myPosition)));
         }
 
+        if (selectedDeliveryMyStore.length) {
+            filteredPrices = filteredPrices.filter(item => selectedDeliveryMyStore.includes(item.myDelivery));
+        }
+
+        if (selectedDeliveryCompetitor.length) {
+            filteredPrices = filteredPrices.filter(item => selectedDeliveryCompetitor.includes(item.delivery));
+        }
+
         renderPrices(filteredPrices, searchTerm);
     }
-
 
     function filterPricesByProductName(name) {
         const sanitizedInput = name.trim();
@@ -123,7 +132,6 @@
         return text.replace(regex, '<span style="color: #9400D3;font-weight: 600;">$1</span>');
     }
 
-
     function renderPrices(data, searchTerm = "") {
         const container = document.getElementById('priceContainer');
         container.innerHTML = '';
@@ -154,13 +162,21 @@
                 '<div class="color-bar ' + item.colorClass + '"></div>' +
                 '<div class="price-box-column">' +
                 '<div class="price-box-column-text">' + item.lowestPrice.toFixed(2) + ' zł</div>' +
-                '<div class="price-box-column-text">' + item.storeName + ' ' + (isBidding ? '<span class="Bidding">Bid</span>' : '') + '<span class="Position">Msc ' + item.position + '</span>' + (item.delivery != null ? '<span class="' + deliveryClass + '">Wysyłka w ' + item.delivery + ' dni</span>' : '') + '</div>' +
+                '<div class="price-box-column-text">' + item.storeName + ' ' +
+                (isBidding ? '<span class="Bidding">Bid</span>' : '') +
+                '<span class="Position">Msc ' + item.position + '</span>' +
+                (item.delivery != null ? '<span class="' + deliveryClass + '">Wysyłka w ' + (item.delivery == 1 ? '1 dzień' : item.delivery + ' dni') + '</span>' : '') +
+                '</div>' +
                 '</div>' +
 
                 '<div class="price-box-column-line"></div>' +
                 '<div class="price-box-column">' +
                 '<div class="price-box-column-text">' + item.myPrice.toFixed(2) + ' zł</div>' +
-                '<div class="price-box-column-text">' + myStoreName + ' ' + (myIsBidding ? '<span class="Bidding">Bid</span>' : '') + '<span class="Position">Msc ' + item.myPosition + '</span>' + (item.myDelivery != null ? '<span class="' + myDeliveryClass + '">Wysyłka w ' + item.myDelivery + ' dni</span>' : '') + '</div>' +
+                '<div class="price-box-column-text">' + myStoreName + ' ' +
+                (myIsBidding ? '<span class="Bidding">Bid</span>' : '') +
+                '<span class="Position">Msc ' + item.myPosition + '</span>' +
+                (item.myDelivery != null ? '<span class="' + myDeliveryClass + '">Wysyłka w ' + (item.myDelivery == 1 ? '1 dzień' : item.myDelivery + ' dni') + '</span>' : '') +
+                '</div>' +
                 '</div>' +
                 '<div class="price-box-column-line"></div>' +
                 '<div class="price-box-column">' +
@@ -221,8 +237,6 @@
         }
         return `rgba(${r}, ${g}, ${b}, ${alpha})`;
     }
-
-
 
     function renderChart(data) {
         const colorCounts = {
@@ -323,11 +337,7 @@
         filterPricesByProductName(document.getElementById('productSearch').value);
     });
 
-    document.getElementById('category').addEventListener('change', function () {
-        filterPricesByProductName(document.getElementById('productSearch').value);
-    });
-
-    document.querySelectorAll('.colorFilter, .flagFilter, .positionFilter').forEach(function (checkbox) {
+    document.querySelectorAll('.colorFilter, .flagFilter, .positionFilter, .deliveryFilterMyStore, .deliveryFilterCompetitor').forEach(function (checkbox) {
         checkbox.addEventListener('change', function () {
             filterPricesByCategoryAndColorAndFlag(allPrices);
         });
@@ -340,8 +350,6 @@
     document.getElementById('productSearch').addEventListener('keyup', function () {
         filterPricesByProductName(this.value);
     });
-
-
 
     document.getElementById('price1').addEventListener('input', function () {
         setPrice1 = parseFloat(this.value);
@@ -393,7 +401,6 @@
             })
             .catch(error => console.error('Błąd w aktualizowaniu wartości:', error));
     });
-
 
     const modal = document.getElementById('flagModal');
     const span = document.getElementsByClassName('close')[0];
