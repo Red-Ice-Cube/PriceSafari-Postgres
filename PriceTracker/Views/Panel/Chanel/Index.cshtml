@@ -5,32 +5,45 @@
     Layout = "~/Views/Shared/_PanelLayout.cshtml";
 }
 
-<h2>Lista Sklepów</h2>
 
-@if (Model != null && Model.Any())
-{
-    <table class="table">
-        <thead>
-            <tr>
-                <th>Nazwa Sklepu</th>
-                <th>Akcje</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var store in Model)
-            {
-                <tr>
-                    <td>@store.StoreName</td>
-                    <td>
-                        <a asp-controller="PriceHistory" asp-action="Index" asp-route-storeId="@store.StoreId" class="btn btn-secondary">Ceny</a>
-                        <a asp-controller="Flags" asp-action="List" asp-route-storeId="@store.StoreId" class="btn btn-warning">Flagi</a>
-                    </td>
-                </tr>
-            }
-        </tbody>
-    </table>
-}
-else
-{
-    <p>Nie masz przypisanych żadnych sklepów.</p>
-}
+
+<div class="Vert">
+    <div class="Vert-full">
+        <div class="Order-Container-Title">
+            Kanały
+        </div>
+        @if (Model != null && Model.Any())
+        {
+            <div class="Vert-table">
+                <table class="table-orders">
+                    <thead>
+                        <tr>
+                            <th>Kanał</th>
+                            <th></th>
+                          
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var store in Model)
+                        {
+                            <tr>
+                                <td>@store.StoreName</td>
+                                <td>
+                                    <a asp-controller="PriceHistory" asp-action="Index" asp-route-storeId="@store.StoreId" class="Button-Page-Small-b">Ceny</a>
+                          
+                                </td>
+                              
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            
+            </div>
+        }
+        else
+        {
+        <p>Nie masz przypisanych żadnych sklepów.</p>
+        }
+    </div>
+</div>
+

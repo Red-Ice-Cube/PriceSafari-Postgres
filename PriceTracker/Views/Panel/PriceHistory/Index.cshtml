@@ -59,7 +59,7 @@
 
                     <div class="Category-Container-Select" style="margin-top:-8px;">Flagi</div>
                     <div class="store-section">
-
+                        <a asp-controller="Flags" asp-action="List" asp-route-storeId="@ViewBag.StoreId" class="Button-Page-Small">Flagi</a>
                         @foreach (var flag in flags)
                         {
                             <div class="form-check">
