@@ -1,4 +1,4 @@
-﻿@model PriceTracker.Controllers.ManagerControllers.DatabaseSizeViewModel
+﻿@model PriceTracker.Controllers.ManagerControllers.DatabaseSizeSummaryViewModel
 
 @{
     ViewData["Title"] = "Rozmiar Tabel";
@@ -7,27 +7,25 @@
 
 <h2>Rozmiar Tabel</h2>
 
+<h3>Łączna ilość PriceHistories: @Model.TotalPriceHistories</h3>
+<h3>Łączna użyta przestrzeń: @Model.TotalUsedSpaceMB MB</h3>
+
 <table class="table">
     <thead>
         <tr>
             <th>Nazwa Sklepu</th>
-            <th>ID Scrapowania</th>
-            <th>Ilość PriceHistories</th>
-            <th>Użyta Przestrzeń (MB)</th>
+            <th>Łączna ilość PriceHistories</th>
+            <th>Łączna użyta przestrzeń (MB)</th>
         </tr>
     </thead>
     <tbody>
-        @foreach (var item in Model.TableSizes)
+        @foreach (var item in Model.StoreSummaries)
         {
             <tr>
-                <td>@item.StoreName</td>
-                <td>@item.ScrapHistoryId</td>
-                <td>@item.PriceHistoriesCount</td>
-                <td>@item.UsedSpaceMB</td>
+                <td><a href="@Url.Action("StoreDetails", new { storeId = item.StoreId })">@item.StoreName</a></td>
+                <td>@item.TotalPriceHistoriesCount</td>
+                <td>@item.TotalUsedSpaceMB</td>
             </tr>
         }
     </tbody>
 </table>
-
-<h3>Łączna ilość PriceHistories: @Model.TotalPriceHistories</h3>
-<h3>Łączna użyta przestrzeń: @Model.TotalUsedSpaceMB MB</h3>

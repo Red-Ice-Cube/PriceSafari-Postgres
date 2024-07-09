@@ -1,0 +1,28 @@
+﻿@model PriceTracker.Controllers.ManagerControllers.StoreDetailsViewModel
+
+@{
+    ViewData["Title"] = "Szczegóły Sklepu";
+    Layout = "~/Views/Shared/_PanelLayout.cshtml";
+}
+
+<h2>Szczegóły Sklepu: @Model.StoreName</h2>
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>ID Scrapowania</th>
+            <th>Ilość PriceHistories</th>
+            <th>Użyta Przestrzeń (MB)</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var item in Model.TableSizes)
+        {
+            <tr>
+                <td>@item.ScrapHistoryId</td>
+                <td>@item.PriceHistoriesCount</td>
+                <td>@item.UsedSpaceMB</td>
+            </tr>
+        }
+    </tbody>
+</table>

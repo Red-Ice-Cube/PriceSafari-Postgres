@@ -13,6 +13,8 @@ namespace PriceTracker.Controllers.ManagerControllers
     public class DatabaseSizeController : Controller
     {
         private readonly PriceTrackerContext _context;
+        private static decimal totalUsedSpaceMB;
+        private static int totalPriceHistoriesCount;
 
         public DatabaseSizeController(PriceTrackerContext context)
         {
@@ -21,7 +23,6 @@ namespace PriceTracker.Controllers.ManagerControllers
 
         public async Task<IActionResult> Index()
         {
-            // Pobranie wszystkich PriceHistories z grupowaniem według ScrapHistoryId i StoreId
             var priceHistories = await _context.PriceHistories
                 .GroupBy(ph => new { ph.ScrapHistoryId, ph.ScrapHistory.StoreId, ph.ScrapHistory.Store.StoreName })
                 .Select(g => new
@@ -33,7 +34,6 @@ namespace PriceTracker.Controllers.ManagerControllers
                 })
                 .ToListAsync();
 
-            // Obliczanie rozmiaru danych
             var totalSizeKB = await CalculateTotalSpaceForPriceHistories();
 
             var tableSizes = new List<TableSizeInfo>();
@@ -49,26 +49,73 @@ namespace PriceTracker.Controllers.ManagerControllers
                     StoreName = ph.StoreName,
                     PriceHistoriesCount = ph.PriceHistoriesCount,
                     TotalSpaceKB = totalSpaceKB,
-                    UsedSpaceMB = totalSpaceKB / 1024.0m
+                    UsedSpaceMB = Math.Round(totalSpaceKB / 1024.0m, 4)
                 });
             }
 
-            // Sumowanie wartości
-            var totalUsedSpaceMB = tableSizes.Sum(ts => ts.UsedSpaceMB);
-            var totalPriceHistories = tableSizes.Sum(ts => ts.PriceHistoriesCount);
+            totalUsedSpaceMB = tableSizes.Sum(ts => ts.UsedSpaceMB);
+            totalPriceHistoriesCount = tableSizes.Sum(ts => ts.PriceHistoriesCount);
 
-            // Sortowanie wyników
-            var sortedTableSizes = tableSizes.OrderByDescending(ts => ts.ScrapHistoryId).ToList();
+            var storeSummaries = tableSizes
+                .GroupBy(ts => new { ts.StoreId, ts.StoreName })
+                .Select(g => new StoreSummaryViewModel
+                {
+                    StoreId = (int)g.Key.StoreId,
+                    StoreName = g.Key.StoreName,
+                    TotalPriceHistoriesCount = g.Sum(ts => ts.PriceHistoriesCount),
+                    TotalUsedSpaceMB = Math.Round(g.Sum(ts => ts.UsedSpaceMB), 4)
+                })
+                .ToList();
 
-            // Przygotowanie danych do widoku
-            var viewModel = new DatabaseSizeViewModel
+            var viewModel = new DatabaseSizeSummaryViewModel
             {
-                TableSizes = sortedTableSizes,
-                TotalUsedSpaceMB = totalUsedSpaceMB,
-                TotalPriceHistories = totalPriceHistories
+                StoreSummaries = storeSummaries,
+                TotalUsedSpaceMB = Math.Round(totalUsedSpaceMB, 4),
+                TotalPriceHistories = totalPriceHistoriesCount
             };
 
             return View("~/Views/ManagerPanel/DatabaseSize/Index.cshtml", viewModel);
+        }
+
+        public async Task<IActionResult> StoreDetails(int storeId)
+        {
+            var priceHistories = await _context.PriceHistories
+                .Where(ph => ph.ScrapHistory.StoreId == storeId)
+                .GroupBy(ph => new { ph.ScrapHistoryId, ph.ScrapHistory.StoreId, ph.ScrapHistory.Store.StoreName })
+                .Select(g => new
+                {
+                    ScrapHistoryId = g.Key.ScrapHistoryId,
+                    StoreId = g.Key.StoreId,
+                    StoreName = g.Key.StoreName,
+                    PriceHistoriesCount = g.Count()
+                })
+                .ToListAsync();
+
+            var tableSizes = new List<TableSizeInfo>();
+
+            foreach (var ph in priceHistories)
+            {
+                var totalSpaceKB = (totalUsedSpaceMB * 1024m) * ph.PriceHistoriesCount / totalPriceHistoriesCount;
+
+                tableSizes.Add(new TableSizeInfo
+                {
+                    ScrapHistoryId = ph.ScrapHistoryId,
+                    StoreId = ph.StoreId,
+                    StoreName = ph.StoreName,
+                    PriceHistoriesCount = ph.PriceHistoriesCount,
+                    TotalSpaceKB = (long)totalSpaceKB,
+                    UsedSpaceMB = Math.Round(totalSpaceKB / 1024.0m, 4)
+                });
+            }
+
+            var store = await _context.Stores.FindAsync(storeId);
+            var viewModel = new StoreDetailsViewModel
+            {
+                StoreName = store.StoreName,
+                TableSizes = tableSizes
+            };
+
+            return View("~/Views/ManagerPanel/DatabaseSize/StoreDetails.cshtml", viewModel);
         }
 
         private async Task<long> CalculateTotalSpaceForPriceHistories()
@@ -111,10 +158,24 @@ namespace PriceTracker.Controllers.ManagerControllers
         public int PriceHistoriesCount { get; set; }
     }
 
-    public class DatabaseSizeViewModel
+    public class DatabaseSizeSummaryViewModel
     {
-        public List<TableSizeInfo> TableSizes { get; set; }
+        public List<StoreSummaryViewModel> StoreSummaries { get; set; }
         public decimal TotalUsedSpaceMB { get; set; }
         public int TotalPriceHistories { get; set; }
+    }
+
+    public class StoreSummaryViewModel
+    {
+        public int StoreId { get; set; }
+        public string StoreName { get; set; }
+        public int TotalPriceHistoriesCount { get; set; }
+        public decimal TotalUsedSpaceMB { get; set; }
+    }
+
+    public class StoreDetailsViewModel
+    {
+        public string StoreName { get; set; }
+        public List<TableSizeInfo> TableSizes { get; set; }
     }
 }
