@@ -1,0 +1,217 @@
+[
+  {
+    "outputFileName": "wwwroot/css/panel.min.css",
+    "inputFiles": [
+      "wwwroot/css/Panel.css"
+    ],
+    "minify": {
+      "enabled": true
+    }
+  },
+
+  {
+    "outputFileName": "wwwroot/css/login.min.css",
+    "inputFiles": [
+      "wwwroot/css/Login.css"
+    ],
+    "minify": {
+      "enabled": true
+    }
+  },
+  {
+    "outputFileName": "wwwroot/css/home.min.css",
+    "inputFiles": [
+      "wwwroot/css/Home.css"
+    ],
+    "minify": {
+      "enabled": true
+    }
+  },
+
+  {
+    "outputFileName": "wwwroot/js/Affiliate/panel.min.js",
+    "inputFiles": [
+      "wwwroot/js/Affiliate/Panel.js"
+    ],
+    "minify": {
+      "enabled": true
+    }
+  },
+  {
+    "outputFileName": "wwwroot/js/Affiliate/promote.min.js",
+    "inputFiles": [
+      "wwwroot/js/Affiliate/Promote.js"
+    ],
+    "minify": {
+      "enabled": true
+    }
+  },
+  {
+    "outputFileName": "wwwroot/js/Affiliate/managestyle.min.js",
+    "inputFiles": [
+      "wwwroot/js/Affiliate/ManageStyle.js"
+    ],
+    "minify": {
+      "enabled": true
+    }
+  },
+  {
+    "outputFileName": "wwwroot/js/Affiliate/generate.min.js",
+    "inputFiles": [
+      "wwwroot/js/Affiliate/Generate.js"
+    ],
+    "minify": {
+      "enabled": true
+    }
+  },
+  {
+    "outputFileName": "wwwroot/js/Affiliate/data.min.js",
+    "inputFiles": [
+      "wwwroot/js/Affiliate/Data.js"
+    ],
+    "minify": {
+      "enabled": true
+    }
+  },
+  {
+    "outputFileName": "wwwroot/js/Affiliate/campaign.min.js",
+    "inputFiles": [
+      "wwwroot/js/Affiliate/Campaign.js"
+    ],
+    "minify": {
+      "enabled": true
+    }
+  },
+  {
+    "outputFileName": "wwwroot/js/Home/index.min.js",
+    "inputFiles": [
+      "wwwroot/js/Home/Index.js"
+    ],
+    "minify": {
+      "enabled": true
+    }
+  },
+
+  {
+    "outputFileName": "wwwroot/js/Manager/affiliateprofile.min.js",
+    "inputFiles": [
+      "wwwroot/js/Manager/AffiliateProfile.js"
+    ],
+    "minify": {
+      "enabled": true
+    }
+  },
+  {
+    "outputFileName": "wwwroot/js/Manager/affiliates.min.js",
+    "inputFiles": [
+      "wwwroot/js/Manager/Affiliates.js"
+    ],
+    "minify": {
+      "enabled": true
+    }
+  },
+  {
+    "outputFileName": "wwwroot/js/Manager/managerpanel.min.js",
+    "inputFiles": [
+      "wwwroot/js/Manager/ManagerPanel.js"
+    ],
+    "minify": {
+      "enabled": true
+    }
+  },
+  {
+    "outputFileName": "wwwroot/js/Manager/news.min.js",
+    "inputFiles": [
+      "wwwroot/js/Manager/News.js"
+    ],
+    "minify": {
+      "enabled": true
+    }
+  },
+  {
+    "outputFileName": "wwwroot/js/Manager/order.min.js",
+    "inputFiles": [
+      "wwwroot/js/Manager/Order.js"
+    ],
+    "minify": {
+      "enabled": true
+    }
+  },
+  {
+    "outputFileName": "wwwroot/js/Manager/payoutdetails.min.js",
+    "inputFiles": [
+      "wwwroot/js/Manager/PayoutDetails.js"
+    ],
+    "minify": {
+      "enabled": true
+    }
+  },
+  {
+    "outputFileName": "wwwroot/js/Manager/productmanager.min.js",
+    "inputFiles": [
+      "wwwroot/js/Manager/ProductManager.js"
+    ],
+    "minify": {
+      "enabled": true
+    }
+  },
+
+  {
+    "outputFileName": "wwwroot/canvas/checkstorebutton.min.js",
+    "inputFiles": [
+      "wwwroot/canvas/checkStoreButton.js"
+    ],
+    "minify": {
+      "enabled": true
+    }
+  },
+  {
+    "outputFileName": "wwwroot/canvas/checkstorebuttonframe.min.js",
+    "inputFiles": [
+      "wwwroot/canvas/checkStoreButtonFrame.js"
+    ],
+    "minify": {
+      "enabled": true
+    }
+  },
+  {
+    "outputFileName": "wwwroot/canvas/checkstorebuttonframeplus.min.js",
+    "inputFiles": [
+      "wwwroot/canvas/checkStoreButtonFramePlus.js"
+    ],
+    "minify": {
+      "enabled": true
+    }
+  },
+
+  {
+    "outputFileName": "wwwroot/gtm/fingerprint.min.js",
+    "inputFiles": [
+      "wwwroot/gtm/Fingerprint.js"
+    ],
+    "minify": {
+      "enabled": true
+    }
+  },
+
+  {
+    "outputFileName": "wwwroot/gtm/dataextraction.min.js",
+    "inputFiles": [
+      "wwwroot/gtm/DataExtraction.js"
+    ],
+    "minify": {
+      "enabled": true
+    }
+  },
+
+  {
+    "outputFileName": "wwwroot/gtm/embedtrack.min.js",
+    "inputFiles": [
+      "wwwroot/gtm/EmbedTrack.js"
+    ],
+    "minify": {
+      "enabled": true
+    }
+  }
+
+]

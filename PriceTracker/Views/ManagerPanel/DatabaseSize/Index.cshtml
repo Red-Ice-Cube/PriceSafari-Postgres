@@ -1,11 +1,7 @@
-﻿@model IEnumerable<PriceTracker.Data.TableSizeInfo>
+﻿@model PriceTracker.Controllers.ManagerControllers.DatabaseSizeViewModel
 
 @{
     ViewData["Title"] = "Rozmiar Tabel";
-}
-
-@{
-
     Layout = "~/Views/Shared/_PanelLayout.cshtml";
 }
 
@@ -14,19 +10,24 @@
 <table class="table">
     <thead>
         <tr>
-            <th>Nazwa Tabeli</th>
-            <th>Ilość Wierszy</th>
+            <th>Nazwa Sklepu</th>
+            <th>ID Scrapowania</th>
+            <th>Ilość PriceHistories</th>
             <th>Użyta Przestrzeń (MB)</th>
         </tr>
     </thead>
     <tbody>
-        @foreach (var tableSize in Model)
+        @foreach (var item in Model.TableSizes)
         {
             <tr>
-                <td>@tableSize.TableName</td>
-                <td>@tableSize.RowCounts</td>
-                <td>@tableSize.UsedSpaceMB</td>
+                <td>@item.StoreName</td>
+                <td>@item.ScrapHistoryId</td>
+                <td>@item.PriceHistoriesCount</td>
+                <td>@item.UsedSpaceMB</td>
             </tr>
         }
     </tbody>
 </table>
+
+<h3>Łączna ilość PriceHistories: @Model.TotalPriceHistories</h3>
+<h3>Łączna użyta przestrzeń: @Model.TotalUsedSpaceMB MB</h3>

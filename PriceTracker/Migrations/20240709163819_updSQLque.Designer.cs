@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using PriceTracker.Data;
 
@@ -11,9 +12,11 @@ using PriceTracker.Data;
 namespace PriceTracker.Migrations
 {
     [DbContext(typeof(PriceTrackerContext))]
-    partial class PriceTrackerContextModelSnapshot : ModelSnapshot
+    [Migration("20240709163819_updSQLque")]
+    partial class updSQLque
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -241,6 +244,31 @@ namespace PriceTracker.Migrations
                     b.HasIndex("StoreClassStoreId");
 
                     b.ToTable("Flags");
+                });
+
+            modelBuilder.Entity("PriceTracker.Models.ManagerViewModels.TableSizeInfo", b =>
+                {
+                    b.Property<long>("RowCounts")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("SchemaName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("TableName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<decimal>("TotalSpaceMB")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("UnusedSpaceMB")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("UsedSpaceMB")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.ToTable("TableSizeInfo");
                 });
 
             modelBuilder.Entity("PriceTracker.Models.PriceHistoryClass", b =>

@@ -19,7 +19,6 @@ namespace PriceTracker.Data
         public DbSet<ScrapHistoryClass> ScrapHistories { get; set; }
         public DbSet<CategoryClass> Categories { get; set; }
         public DbSet<PriceValueClass> PriceValues { get; set; }
-        public DbSet<TableSizeInfo> TableSizeInfo { get; set; }
         public DbSet<FlagsClass> Flags { get; set; }
         public DbSet<ProductFlag> ProductFlags { get; set; }
         public DbSet<PriceTrackerUserStore> UserStores { get; set; }
@@ -67,60 +66,18 @@ namespace PriceTracker.Data
                 .HasForeignKey(pf => pf.FlagId)
                 .OnDelete(DeleteBehavior.NoAction);
 
-            modelBuilder.Entity<TableSizeInfo>().HasNoKey();
-
-            modelBuilder.Entity<PriceTrackerUserStore>()  // <- Użyj aliasu
+            modelBuilder.Entity<PriceTrackerUserStore>()
                 .HasKey(us => new { us.UserId, us.StoreId });
 
-            modelBuilder.Entity<PriceTrackerUserStore>()  // <- Użyj aliasu
+            modelBuilder.Entity<PriceTrackerUserStore>()
                 .HasOne(us => us.PriceTrackerUser)
                 .WithMany(u => u.UserStores)
                 .HasForeignKey(us => us.UserId);
 
-            modelBuilder.Entity<PriceTrackerUserStore>()  // <- Użyj aliasu
+            modelBuilder.Entity<PriceTrackerUserStore>()
                 .HasOne(us => us.StoreClass)
                 .WithMany(s => s.UserStores)
                 .HasForeignKey(us => us.StoreId);
         }
-
-        public async Task<List<TableSizeInfo>> GetTableSizes()
-        {
-            var query = @"
-                SELECT 
-                    t.name AS TableName,
-                    s.name AS SchemaName,
-                    p.rows AS RowCounts,
-                    SUM(a.total_pages) * 8 AS TotalSpaceKB, 
-                    SUM(a.used_pages) * 8 AS UsedSpaceKB, 
-                    (SUM(a.total_pages) - SUM(a.used_pages)) * 8 AS UnusedSpaceKB
-                FROM 
-                    sys.tables t
-                INNER JOIN      
-                    sys.indexes i ON t.OBJECT_ID = i.object_id
-                INNER JOIN 
-                    sys.partitions p ON i.object_id = p.OBJECT_ID AND i.index_id = p.index_id
-                INNER JOIN 
-                    sys.allocation_units a ON p.partition_id = a.container_id
-                LEFT OUTER JOIN 
-                    sys.schemas s ON t.schema_id = s.schema_id
-                WHERE 
-                    t.name IN ('Products', 'PriceHistories')
-                GROUP BY 
-                    t.Name, s.Name, p.Rows
-                ORDER BY 
-                    TotalSpaceKB DESC";
-
-            return await this.TableSizeInfo.FromSqlRaw(query).ToListAsync();
-        }
-    }
-
-    public class TableSizeInfo
-    {
-        public string TableName { get; set; }
-        public string SchemaName { get; set; }
-        public long RowCounts { get; set; }
-        public long UsedSpaceKB { get; set; }
-
-        public double UsedSpaceMB => UsedSpaceKB / 1024.0;
     }
 }
