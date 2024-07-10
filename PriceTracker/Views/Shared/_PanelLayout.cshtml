@@ -130,10 +130,9 @@
                 var controllerName = ViewContext.RouteData.Values["controller"]?.ToString();
                 var actionName = ViewContext.RouteData.Values["action"]?.ToString();
 
-                <div class="@(controllerName == "Chanel" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "Chanel")'">
-                    <img src="~/images/Link-b.svg" alt="Panel Icon" class="menu-icon" />Sklepy
+                <div class="@(controllerName == "Chanel" || controllerName == "PriceHistory" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "Chanel")'">
+                    <img src="~/images/Campaigns-b.svg" alt="Panel Icon" class="menu-icon" />
                 </div>
-
                 
             }
             @if (isManagerOrAdmin)
