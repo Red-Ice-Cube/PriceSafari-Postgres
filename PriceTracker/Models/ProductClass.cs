@@ -16,6 +16,9 @@ namespace PriceTracker.Models
         public string Category { get; set; }
         public string OfferUrl { get; set; }
 
+        public int? ExternalId { get; set; }
+        public decimal? ExternalPrice { get; set; }
+
         public ICollection<PriceHistoryClass> PriceHistories { get; set; } = new List<PriceHistoryClass>();
         public ICollection<ProductFlag> ProductFlags { get; set; } = new List<ProductFlag>();
     }
