@@ -3,7 +3,10 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using PriceTracker.Data;
+using PriceTracker.Models.ViewModels;
 using System.Security.Claims;
+using System.Threading.Tasks;
+using System.Linq;
 
 namespace PriceTracker.Controllers.MemberControllers
 {
@@ -24,12 +27,26 @@ namespace PriceTracker.Controllers.MemberControllers
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
-            var stores = await _context.UserStores
+            var userStores = await _context.UserStores
                 .Where(us => us.UserId == userId)
-                .Select(us => us.StoreClass)
+                .Include(us => us.StoreClass)
+                .ThenInclude(s => s.ScrapHistories)
+                .Include(us => us.StoreClass)
+                .ThenInclude(s => s.Products)
+              
                 .ToListAsync();
 
-            return View("~/Views/Panel/Chanel/Index.cshtml", stores);
+            var stores = userStores.Select(us => us.StoreClass).ToList();
+
+            var storeDetails = stores.Select(store => new ChanelViewModel
+            {
+                StoreId = store.StoreId,
+                StoreName = store.StoreName,
+                LastScrapeDate = store.ScrapHistories.OrderByDescending(sh => sh.Date).FirstOrDefault()?.Date,    
+                ProductCount = store.ScrapHistories.OrderByDescending(sh => sh.Date).FirstOrDefault()?.PriceCount
+            }).ToList();
+
+            return View("~/Views/Panel/Chanel/Index.cshtml", storeDetails);
         }
     }
 }

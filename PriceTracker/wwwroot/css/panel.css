@@ -107,8 +107,22 @@ p {
 
 
 
+.link-line {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border-radius: 8px;
+    color: #353535;
+    font-size: 15px;
+    font-weight: 300;
+    text-decoration: none
+}
 
-
+    .link-line:hover{
+        text-decoration: none;
+        color: #41c7c7;
+        font-weight: 300
+    }
 
 
 
@@ -2284,6 +2298,7 @@ tr:last-child .sub-line {
 .Category-Container-Select {
     display: flex;
     align-items: flex-start;
+    justify-content:space-between;
     align-self: stretch;
     color: rgba(0, 0, 0, 1);
     font-size: 15px;

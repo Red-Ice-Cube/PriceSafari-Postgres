@@ -1,11 +1,9 @@
-﻿@model List<PriceTracker.Models.StoreClass>
+﻿@model List<PriceTracker.Models.ViewModels.ChanelViewModel>
+
 
 @{
-    ViewData["Title"] = "Lista Sklepów";
     Layout = "~/Views/Shared/_PanelLayout.cshtml";
 }
-
-
 
 <div class="Vert">
     <div class="Vert-full">
@@ -19,31 +17,45 @@
                     <thead>
                         <tr>
                             <th>Kanał</th>
-                            <th></th>
+                            <th>Ostatnie scrapowanie</th>
+                            <th>Ilość Produktów</th>
                           
+                      
                         </tr>
                     </thead>
                     <tbody>
                         @foreach (var store in Model)
                         {
-                            <tr>
+                            <tr class="store-row" style="cursor:pointer;" data-url="@Url.Action("Index", "PriceHistory", new { storeId = store.StoreId })">
                                 <td>@store.StoreName</td>
-                                <td>
-                                    <a asp-controller="PriceHistory" asp-action="Index" asp-route-storeId="@store.StoreId" class="Button-Page-Small-b">Ceny</a>
-                          
-                                </td>
-                              
+                                <td>@store.LastScrapeDate?.ToString("g")</td>
+
+                                <td>@store.ProductCount</td>
+                                
                             </tr>
                         }
                     </tbody>
                 </table>
-            
             </div>
         }
         else
         {
-        <p>Nie masz przypisanych żadnych sklepów.</p>
+            <p>Nie masz przypisanych żadnych sklepów.</p>
         }
     </div>
 </div>
 
+@section Scripts {
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            var rows = document.querySelectorAll('.store-row');
+            rows.forEach(function (row) {
+                row.addEventListener('click', function (e) {
+                    if (!e.target.classList.contains('Button-Page-Small-b')) {
+                        window.location.href = row.getAttribute('data-url');
+                    }
+                });
+            });
+        });
+    </script>
+}
