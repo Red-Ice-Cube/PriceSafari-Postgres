@@ -131,7 +131,6 @@
         const regex = new RegExp(`(${searchTerm})`, 'gi');
         return text.replace(regex, '<span style="color: #9400D3;font-weight: 600;">$1</span>');
     }
-
     function renderPrices(data, searchTerm = "") {
         const container = document.getElementById('priceContainer');
         container.innerHTML = '';
@@ -150,58 +149,101 @@
             const box = document.createElement('div');
             box.className = 'price-box ' + item.colorClass;
             box.dataset.detailsUrl = '/PriceHistory/Details?scrapId=' + item.scrapId + '&productId=' + item.productId;
-            box.innerHTML =
-                '<div class="price-box-space">' +
-                '<div class="price-box-column-name">' + highlightedProductName + '</div>' +
-                '<button class="assign-flag-button" data-product-id="' + item.productId + '">+ Przypisz flagi</button>' +
-                '</div>' +
 
-                '<div class="price-box-column-category">' +
-                item.category +
-                (item.externalId ? '<span class="ApiBox">API ID: ' + item.externalId + '</span>' : '') +
-                '</div>' +
+            const priceBoxSpace = document.createElement('div');
+            priceBoxSpace.className = 'price-box-space';
+            const priceBoxColumnName = document.createElement('div');
+            priceBoxColumnName.className = 'price-box-column-name';
+            priceBoxColumnName.innerHTML = highlightedProductName;
+            const assignFlagButton = document.createElement('button');
+            assignFlagButton.className = 'assign-flag-button';
+            assignFlagButton.dataset.productId = item.productId;
+            assignFlagButton.innerHTML = '+ Przypisz flagi';
 
-                '<div class="price-box-data">' +
-                '<div class="color-bar ' + item.colorClass + '"></div>' +
-                '<div class="price-box-column">' +
+            priceBoxSpace.appendChild(priceBoxColumnName);
+            priceBoxSpace.appendChild(assignFlagButton);
+
+            const priceBoxColumnCategory = document.createElement('div');
+            priceBoxColumnCategory.className = 'price-box-column-category';
+            priceBoxColumnCategory.innerHTML = item.category;
+            if (item.externalId) {
+                const apiBox = document.createElement('span');
+                apiBox.className = 'ApiBox';
+                apiBox.innerHTML = 'API ID: ' + item.externalId;
+                priceBoxColumnCategory.appendChild(apiBox);
+            }
+
+            const priceBoxData = document.createElement('div');
+            priceBoxData.className = 'price-box-data';
+
+            const colorBar = document.createElement('div');
+            colorBar.className = 'color-bar ' + item.colorClass;
+
+            const priceBoxColumnLowestPrice = document.createElement('div');
+            priceBoxColumnLowestPrice.className = 'price-box-column';
+            priceBoxColumnLowestPrice.innerHTML =
                 '<div class="price-box-column-text">' + item.lowestPrice.toFixed(2) + ' zł</div>' +
                 '<div class="price-box-column-text">' + item.storeName + ' ' +
                 (isBidding ? '<span class="Bidding">Bid</span>' : '') +
                 '<span class="Position">Msc ' + item.position + '</span>' +
                 (item.delivery != null ? '<span class="' + deliveryClass + '">Wysyłka w ' + (item.delivery == 1 ? '1 dzień' : item.delivery + ' dni') + '</span>' : '') +
-                '</div>' +
-                '</div>' +
+                '</div>';
 
-                '<div class="price-box-column-line"></div>' +
-                '<div class="price-box-column">' +
+            const priceBoxColumnMyPrice = document.createElement('div');
+            priceBoxColumnMyPrice.className = 'price-box-column';
+            priceBoxColumnMyPrice.innerHTML =
                 '<div class="price-box-column-text">' + item.myPrice.toFixed(2) + ' zł</div>' +
                 '<div class="price-box-column-text">' + myStoreName + ' ' +
                 (myIsBidding ? '<span class="Bidding">Bid</span>' : '') +
                 '<span class="Position">Msc ' + item.myPosition + '</span>' +
                 (item.myDelivery != null ? '<span class="' + myDeliveryClass + '">Wysyłka w ' + (item.myDelivery == 1 ? '1 dzień' : item.myDelivery + ' dni') + '</span>' : '') +
-                '</div>' +
                 '</div>';
 
-            // Dodajemy blok dla External Price
+            const priceBoxColumnInfo = document.createElement('div');
+            priceBoxColumnInfo.className = 'price-box-column';
+            priceBoxColumnInfo.innerHTML =
+                (item.colorClass === "prToLow" || item.colorClass === "prIdeal" ? '<p>Podnieś: ' + savings + ' zł</p>' : '') +
+                (item.colorClass === "prToHigh" || item.colorClass === "prMid" ? '<p>Obniż: ' + percentageDifference + ' %</p>' : '') +
+                (item.colorClass === "prToHigh" || item.colorClass === "prMid" ? '<p>Obniż: ' + priceDifference + ' zł</p>' : '');
+
+            const priceBoxColumnExternalPrice = document.createElement('div');
+            priceBoxColumnExternalPrice.className = 'price-box-column';
             if (item.externalPrice !== null) {
                 const externalPriceDifference = (item.externalPrice - item.myPrice).toFixed(2);
                 const externalPriceDifferenceText = (item.externalPrice > item.myPrice ? '+' : '') + externalPriceDifference;
-                box.innerHTML +=
-                    '<div class="price-box-column-line"></div>' +
-                    '<div class="price-box-column">' +
+                priceBoxColumnExternalPrice.innerHTML =
                     '<div class="price-box-column-text">' + item.externalPrice.toFixed(2) + ' zł</div>' +
-                    '<div class="price-box-column-text">Zaktualizowano cenę o ' + externalPriceDifferenceText + ' zł</div>' +
-                    '</div>';
+                    '<div class="price-box-column-text">Zaktualizowano cenę o ' + externalPriceDifferenceText + ' zł</div>';
             }
 
-            box.innerHTML +=
-                '<div class="flags-container">' +
-                (item.flagIds.length > 0 ? item.flagIds.map(function (flagId) {
+            // Flagi
+            const flagsContainer = document.createElement('div');
+            flagsContainer.className = 'flags-container';
+            if (item.flagIds.length > 0) {
+                item.flagIds.forEach(function (flagId) {
                     const flag = flags.find(function (f) { return f.FlagId === flagId; });
-                    return '<span class="flag" style="color:' + flag.FlagColor + '; border: 2px solid ' + flag.FlagColor + '; background-color:' + hexToRgba(flag.FlagColor, 0.3) + ';">' + flag.FlagName + '</span>';
-                }).join('') : '') +
-                '</div>' +
-                '</div>';
+                    const flagSpan = document.createElement('span');
+                    flagSpan.className = 'flag';
+                    flagSpan.style.color = flag.FlagColor;
+                    flagSpan.style.border = '2px solid ' + flag.FlagColor;
+                    flagSpan.style.backgroundColor = hexToRgba(flag.FlagColor, 0.3);
+                    flagSpan.innerHTML = flag.FlagName;
+                    flagsContainer.appendChild(flagSpan);
+                });
+            }
+
+            priceBoxData.appendChild(colorBar);
+            priceBoxData.appendChild(priceBoxColumnLowestPrice);
+            priceBoxData.appendChild(priceBoxColumnMyPrice);
+            priceBoxData.appendChild(priceBoxColumnInfo);
+            if (item.externalPrice !== null) {
+                priceBoxData.appendChild(priceBoxColumnExternalPrice);
+            }
+            priceBoxData.appendChild(flagsContainer);
+
+            box.appendChild(priceBoxSpace);
+            box.appendChild(priceBoxColumnCategory);
+            box.appendChild(priceBoxData);
 
             box.addEventListener('click', function () {
                 window.open(this.dataset.detailsUrl, '_blank');
@@ -209,7 +251,6 @@
 
             container.appendChild(box);
 
-            const assignFlagButton = box.querySelector('.assign-flag-button');
             assignFlagButton.addEventListener('click', function (event) {
                 event.stopPropagation();
                 selectedProductId = this.dataset.productId;
@@ -226,6 +267,7 @@
         });
         document.getElementById('displayedProductCount').textContent = data.length;
     }
+
 
 
     function getDeliveryClass(days) {
