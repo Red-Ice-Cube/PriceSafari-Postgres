@@ -9,8 +9,11 @@ using PriceTracker.Data;
 using PriceTracker.Models;
 using PriceTracker.ViewModels;
 using System.Linq;
+using System.Net.Http.Headers;
+using System.Net.Http;
 using System.Security.Claims;
 using System.Threading.Tasks;
+using System.Xml.Linq;
 
 namespace PriceTracker.Controllers.MemberControllers
 {
@@ -18,11 +21,15 @@ namespace PriceTracker.Controllers.MemberControllers
     public class PriceHistoryController : Controller
     {
         private readonly PriceTrackerContext _context;
+        private readonly IHttpClientFactory _httpClientFactory;
+        private readonly ILogger<PriceHistoryController> _logger;
         private readonly UserManager<PriceTrackerUser> _userManager;
 
-        public PriceHistoryController(PriceTrackerContext context, UserManager<PriceTrackerUser> userManager)
+        public PriceHistoryController(PriceTrackerContext context, IHttpClientFactory httpClientFactory, ILogger<PriceHistoryController> logger, UserManager<PriceTrackerUser> userManager)
         {
             _context = context;
+            _httpClientFactory = httpClientFactory;
+            _logger = logger;
             _userManager = userManager;
         }
 
@@ -206,13 +213,13 @@ namespace PriceTracker.Controllers.MemberControllers
 
                     if (string.IsNullOrEmpty(competitorStore))
                     {
-                        // Logika dla porównania do najlepszej ceny rynkowej
+                       
                         isUniqueBestPrice = isMyBestPrice && !isSharedBestPrice && secondBestPrice > myPrice;
                         savings = isUniqueBestPrice ? Math.Round(secondBestPrice - bestPrice, 2) : (decimal?)null;
                     }
                     else
                     {
-                        // Logika dla porównania do konkretnego sklepu
+     
                         isUniqueBestPrice = myPrice < bestPrice;
                         savings = isUniqueBestPrice ? Math.Abs(Math.Round(myPrice - bestPrice, 2)) : (decimal?)null;
                     }
@@ -255,6 +262,130 @@ namespace PriceTracker.Controllers.MemberControllers
             });
         }
 
+        [HttpPost]
+        public async Task<IActionResult> UpdatePricesFromExternalStore(int storeId)
+        {
+            var store = await _context.Stores.FindAsync(storeId);
+            if (store == null || string.IsNullOrEmpty(store.StoreApiUrl) || string.IsNullOrEmpty(store.StoreApiKey))
+            {
+                return BadRequest("Sklep nie jest połączony z zewnętrznym API.");
+            }
+
+            var products = await _context.Products
+                .Where(p => p.StoreId == storeId && p.ExternalId.HasValue)
+                .ToListAsync();
+
+            var latestScrap = await _context.ScrapHistories
+                .Where(sh => sh.StoreId == storeId)
+                .OrderByDescending(sh => sh.Date)
+                .Select(sh => new { sh.Id, sh.Date })
+                .FirstOrDefaultAsync();
+
+            if (latestScrap == null)
+            {
+                return BadRequest("Brak ostatniego scrapowania dla sklepu.");
+            }
+
+            int totalProducts = products.Count;
+            int updatedCount = 0;
+            int skippedCount = 0;
+
+            foreach (var product in products)
+            {
+                try
+                {
+                    var latestPriceInfo = await _context.PriceHistories
+                        .Where(ph => ph.ProductId == product.ProductId && ph.ScrapHistoryId == latestScrap.Id && ph.StoreName == store.StoreName)
+                        .Select(ph => new { ph.Price, ph.Id })
+                        .FirstOrDefaultAsync();
+
+                    if (latestPriceInfo == null)
+                    {
+                        _logger.LogWarning("Brak ceny z ostatniego scrapowania dla produktu ID: {ProductId}, ExternalId: {ExternalId}", product.ProductId, product.ExternalId);
+                        continue;
+                    }
+
+                    var latestPrice = latestPriceInfo.Price;
+                    var priceHistoryId = latestPriceInfo.Id;
+
+                    _logger.LogInformation("Dla produktu ID: {ProductId}, ExternalId: {ExternalId}, cena z ostatniego scrapowania: {LatestPrice}, PriceHistoryId: {PriceHistoryId}",
+                        product.ProductId, product.ExternalId, latestPrice, priceHistoryId);
+
+                    var priceResult = await GetExternalStorePrice(store.StoreApiUrl, store.StoreApiKey, product.ExternalId.Value);
+
+                    _logger.LogInformation("Dla produktu ID: {ProductId}, ExternalId: {ExternalId}, cena z API: {ExternalPrice}", product.ProductId, product.ExternalId, priceResult.Price);
+
+                    if (priceResult.Price != latestPrice)
+                    {
+                        product.ExternalPrice = priceResult.Price;
+                        updatedCount++;
+                    }
+                    else
+                    {
+                        product.ExternalPrice = null;
+                        skippedCount++;
+                    }
+
+                    _logger.LogInformation("Zaktualizowano cenę dla produktu ID: {ProductId}, ExternalId: {ExternalId}", product.ProductId, product.ExternalId);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Błąd podczas aktualizacji ceny dla produktu ID: {ProductId}, ExternalId: {ExternalId}", product.ProductId, product.ExternalId);
+                }
+            }
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new { totalProducts, updatedCount, skippedCount });
+        }
+
+        private async Task<ExternalStorePriceResult> GetExternalStorePrice(string apiUrl, string apiKey, int externalId)
+        {
+            var client = _httpClientFactory.CreateClient();
+            var byteArray = System.Text.Encoding.ASCII.GetBytes($"{apiKey}:");
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", Convert.ToBase64String(byteArray));
+
+            try
+            {
+                var response = await client.GetStringAsync($"{apiUrl}{externalId}");
+                var doc = XDocument.Parse(response);
+
+                var priceElement = doc.Descendants("price").FirstOrDefault();
+                if (priceElement != null)
+                {
+                    if (decimal.TryParse(priceElement.Value, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var price))
+                    {
+                        return new ExternalStorePriceResult
+                        {
+                            Price = price
+                        };
+                    }
+                    else
+                    {
+                        throw new Exception("Failed to parse price value");
+                    }
+                }
+                else
+                {
+                    throw new Exception("Price element not found in XML response");
+                }
+            }
+            catch (HttpRequestException ex)
+            {
+                _logger.LogError(ex, "HTTP request error fetching price for external product ID: {ExternalId}", externalId);
+                throw;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error fetching price for external product ID: {ExternalId}", externalId);
+                throw;
+            }
+        }
+
+        public class ExternalStorePriceResult
+        {
+            public decimal Price { get; set; }
+        }
 
 
 
@@ -409,6 +540,9 @@ namespace PriceTracker.Controllers.MemberControllers
 
             return Ok();
         }
+
+
+
 
     }
 }
