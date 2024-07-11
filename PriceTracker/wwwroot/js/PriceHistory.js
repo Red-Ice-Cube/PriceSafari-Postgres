@@ -156,7 +156,10 @@
                 '<button class="assign-flag-button" data-product-id="' + item.productId + '">+ Przypisz flagi</button>' +
                 '</div>' +
 
-                '<div class="price-box-column-category">' + item.category + '</div>' +
+                '<div class="price-box-column-category">' +
+                item.category +
+                (item.externalId ? '<span class="ApiBox">API ID: ' + item.externalId + '</span>' : '') +
+                '</div>' +
 
                 '<div class="price-box-data">' +
                 '<div class="color-bar ' + item.colorClass + '"></div>' +
@@ -177,20 +180,27 @@
                 '<span class="Position">Msc ' + item.myPosition + '</span>' +
                 (item.myDelivery != null ? '<span class="' + myDeliveryClass + '">Wysyłka w ' + (item.myDelivery == 1 ? '1 dzień' : item.myDelivery + ' dni') + '</span>' : '') +
                 '</div>' +
-                '</div>' +
-                '<div class="price-box-column-line"></div>' +
-                '<div class="price-box-column">' +
-                (item.colorClass === "prToLow" || item.colorClass === "prIdeal" ? '<p>Podnieś: ' + savings + ' zł</p>' : '') +
-                (item.colorClass === "prToHigh" || item.colorClass === "prMid" ? '<p>Obniż: ' + percentageDifference + ' %</p>' : '') +
-                (item.colorClass === "prToHigh" || item.colorClass === "prMid" ? '<p>Obniż: ' + priceDifference + ' zł</p>' : '') +
-                '</div>' +
+                '</div>';
+
+            // Dodajemy blok dla External Price
+            if (item.externalPrice !== null) {
+                const externalPriceDifference = (item.externalPrice - item.myPrice).toFixed(2);
+                const externalPriceDifferenceText = (item.externalPrice > item.myPrice ? '+' : '') + externalPriceDifference;
+                box.innerHTML +=
+                    '<div class="price-box-column-line"></div>' +
+                    '<div class="price-box-column">' +
+                    '<div class="price-box-column-text">' + item.externalPrice.toFixed(2) + ' zł</div>' +
+                    '<div class="price-box-column-text">Zaktualizowano cenę o ' + externalPriceDifferenceText + ' zł</div>' +
+                    '</div>';
+            }
+
+            box.innerHTML +=
                 '<div class="flags-container">' +
                 (item.flagIds.length > 0 ? item.flagIds.map(function (flagId) {
                     const flag = flags.find(function (f) { return f.FlagId === flagId; });
                     return '<span class="flag" style="color:' + flag.FlagColor + '; border: 2px solid ' + flag.FlagColor + '; background-color:' + hexToRgba(flag.FlagColor, 0.3) + ';">' + flag.FlagName + '</span>';
                 }).join('') : '') +
                 '</div>' +
-
                 '</div>';
 
             box.addEventListener('click', function () {
@@ -216,6 +226,7 @@
         });
         document.getElementById('displayedProductCount').textContent = data.length;
     }
+
 
     function getDeliveryClass(days) {
         if (days <= 1) return 'Availability1Day';
