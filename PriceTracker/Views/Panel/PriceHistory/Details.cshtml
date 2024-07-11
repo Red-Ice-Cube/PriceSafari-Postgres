@@ -23,6 +23,9 @@
             <a href="@url" class="Button-Action-Small" target="_blank">
                 Ceneo
             </a>
+            <button type="button" class="Button-Action-Small" id="editExternalIdButton">
+                Edytuj External Id
+            </button>
         </div>
         <div class="form-check-orders">
             <div>
@@ -42,14 +45,9 @@
                     <label class="form-check-label" for="sortPosition">Sortuj po pozycji Ceneo</label>
                 </div>
             </div>
-          
-        </div>
-       
-       
-        
-        
 
-   
+        </div>
+
         <div class="Vert-table">
             <table class="table-orders" id="priceTable">
                 <thead>
@@ -188,16 +186,45 @@
                 </tbody>
             </table>
 
-
-
         </div>
-        
-
 
     </div>
 </div>
 
+
+
+<div class="modal fade" id="editExternalIdModal" tabindex="-1" role="dialog" aria-labelledby="editExternalIdModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="price-box-column-name" id="editExternalIdModalLabel">Edytuj External Id</div>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="editExternalIdForm">
+                    <div class="form-group" style="margin-bottom:16px;">
+                        <label for="editExternalId" class="control-label">External Id</label>
+                        <input type="text" id="editExternalId" class="form-control" />
+                    </div>
+                   
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="Button-Page-Small-r" id="deleteExternalId">Usuń External Id</button>
+                <button type="button" class="Button-Page-Small-b" id="saveExternalIdChanges">Zapisz zmiany</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+
 @section Scripts {
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    
     <script>
         document.addEventListener("DOMContentLoaded", function () {
             var observedStoreName = "@storeName".toLowerCase();
@@ -234,8 +261,60 @@
             document.getElementById("sortPrice").addEventListener("change", handleSortChange);
             document.getElementById("sortPosition").addEventListener("change", handleSortChange);
 
-           
             sortRowsByPrice();
+        });
+    </script>
+    <script>
+        $(document).ready(function () {
+            $('#editExternalIdButton').on('click', function () {
+                
+                var externalId = '@(ViewBag.ExternalId ?? "")';
+              
+
+                $('#editExternalId').val(externalId);
+        
+
+                $('#editExternalIdModal').modal('show');
+            });
+
+            $('#saveExternalIdChanges').on('click', function () {
+                var externalId = $('#editExternalId').val();
+               
+
+                $.ajax({
+                    url: '@Url.Action("UpdateExternalId", "PriceHistory")',
+                    type: 'POST',
+                    data: {
+                        productId: @ViewBag.ProductId,
+                        externalId: externalId,
+                   
+                    },
+                    success: function () {
+                        $('#editExternalIdModal').modal('hide');
+                        location.reload();
+                    },
+                    error: function () {
+                        alert('Error updating External Id');
+                    }
+                });
+            });
+
+            $('#deleteExternalId').on('click', function () {
+                $.ajax({
+                    url: '@Url.Action("DeleteExternalId", "PriceHistory")',
+                    type: 'POST',
+                    data: {
+                        productId: @ViewBag.ProductId
+                            },
+                    success: function () {
+                        $('#editExternalIdModal').modal('hide');
+                        location.reload();
+                    },
+                    error: function () {
+                        alert('Error deleting External Id');
+                    }
+                });
+            });
         });
     </script>
 }
