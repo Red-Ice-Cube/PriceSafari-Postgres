@@ -96,171 +96,171 @@ namespace PriceTracker.Controllers.MemberControllers
 
 
 
-        [HttpGet]
-        public async Task<IActionResult> GetPrices(int? storeId, string competitorStore = null)
-        {
-            if (storeId == null)
-            {
-                return Json(new { productCount = 0, priceCount = 0, myStoreName = "", prices = new List<dynamic>(), setPrice1 = 2.00m, setPrice2 = 2.00m });
-            }
+        //[HttpGet]
+        //public async Task<IActionResult> GetPrices(int? storeId, string competitorStore = null)
+        //{
+        //    if (storeId == null)
+        //    {
+        //        return Json(new { productCount = 0, priceCount = 0, myStoreName = "", prices = new List<dynamic>(), setPrice1 = 2.00m, setPrice2 = 2.00m });
+        //    }
 
-            if (!await UserHasAccessToStore(storeId.Value))
-            {
-                return Json(new { error = "Nie ma takiego sklepu" });
-            }
+        //    if (!await UserHasAccessToStore(storeId.Value))
+        //    {
+        //        return Json(new { error = "Nie ma takiego sklepu" });
+        //    }
 
-            var latestScrap = await _context.ScrapHistories
-                .Where(sh => sh.StoreId == storeId)
-                .OrderByDescending(sh => sh.Date)
-                .Select(sh => new { sh.Id, sh.Date })
-                .FirstOrDefaultAsync();
+        //    var latestScrap = await _context.ScrapHistories
+        //        .Where(sh => sh.StoreId == storeId)
+        //        .OrderByDescending(sh => sh.Date)
+        //        .Select(sh => new { sh.Id, sh.Date })
+        //        .FirstOrDefaultAsync();
 
-            if (latestScrap == null)
-            {
-                return Json(new { productCount = 0, priceCount = 0, myStoreName = "", prices = new List<dynamic>(), setPrice1 = 2.00m, setPrice2 = 2.00m });
-            }
+        //    if (latestScrap == null)
+        //    {
+        //        return Json(new { productCount = 0, priceCount = 0, myStoreName = "", prices = new List<dynamic>(), setPrice1 = 2.00m, setPrice2 = 2.00m });
+        //    }
 
-            var storeName = await _context.Stores
-                .Where(s => s.StoreId == storeId)
-                .Select(s => s.StoreName)
-                .FirstOrDefaultAsync();
+        //    var storeName = await _context.Stores
+        //        .Where(s => s.StoreId == storeId)
+        //        .Select(s => s.StoreName)
+        //        .FirstOrDefaultAsync();
 
-            var priceValues = await _context.PriceValues
-                .Where(pv => pv.StoreId == storeId)
-                .Select(pv => new { pv.SetPrice1, pv.SetPrice2 })
-                .FirstOrDefaultAsync();
+        //    var priceValues = await _context.PriceValues
+        //        .Where(pv => pv.StoreId == storeId)
+        //        .Select(pv => new { pv.SetPrice1, pv.SetPrice2 })
+        //        .FirstOrDefaultAsync();
 
-            if (priceValues == null)
-            {
-                priceValues = new { SetPrice1 = 2.00m, SetPrice2 = 2.00m };
-            }
+        //    if (priceValues == null)
+        //    {
+        //        priceValues = new { SetPrice1 = 2.00m, SetPrice2 = 2.00m };
+        //    }
 
-            var pricesQuery = _context.PriceHistories
-                .Include(ph => ph.Product)
-                .Where(ph => ph.ScrapHistoryId == latestScrap.Id);
+        //    var pricesQuery = _context.PriceHistories
+        //        .Include(ph => ph.Product)
+        //        .Where(ph => ph.ScrapHistoryId == latestScrap.Id);
 
-            var pricesForOurStore = await _context.PriceHistories
-                .Where(ph => ph.ScrapHistoryId == latestScrap.Id && ph.StoreName.ToLower() == storeName.ToLower())
-                .Select(ph => new
-                {
-                    ph.ProductId,
-                    ph.Price,
-                    ph.Position,
-                    ph.IsBidding,
-                    ph.AvailabilityNum
-                })
-                .ToListAsync();
+        //    var pricesForOurStore = await _context.PriceHistories
+        //        .Where(ph => ph.ScrapHistoryId == latestScrap.Id && ph.StoreName.ToLower() == storeName.ToLower())
+        //        .Select(ph => new
+        //        {
+        //            ph.ProductId,
+        //            ph.Price,
+        //            ph.Position,
+        //            ph.IsBidding,
+        //            ph.AvailabilityNum
+        //        })
+        //        .ToListAsync();
 
-            if (!string.IsNullOrEmpty(competitorStore))
-            {
-                pricesQuery = pricesQuery.Where(ph => ph.StoreName.ToLower() == competitorStore.ToLower());
-            }
+        //    if (!string.IsNullOrEmpty(competitorStore))
+        //    {
+        //        pricesQuery = pricesQuery.Where(ph => ph.StoreName.ToLower() == competitorStore.ToLower());
+        //    }
 
-            var prices = await pricesQuery
-                .Select(ph => new
-                {
-                    ph.ProductId,
-                    ph.Product.ProductName,
-                    ph.Product.Category,
-                    ph.Price,
-                    ph.StoreName,
-                    ph.ScrapHistoryId,
-                    ph.Position,
-                    ph.IsBidding,
-                    ph.AvailabilityNum
-                })
-                .ToListAsync();
+        //    var prices = await pricesQuery
+        //        .Select(ph => new
+        //        {
+        //            ph.ProductId,
+        //            ph.Product.ProductName,
+        //            ph.Product.Category,
+        //            ph.Price,
+        //            ph.StoreName,
+        //            ph.ScrapHistoryId,
+        //            ph.Position,
+        //            ph.IsBidding,
+        //            ph.AvailabilityNum
+        //        })
+        //        .ToListAsync();
 
-            var productIds = prices.Select(p => p.ProductId).ToList();
+        //    var productIds = prices.Select(p => p.ProductId).ToList();
 
-            var storeFlags = await _context.Flags
-                .Where(f => f.StoreId == storeId)
-                .ToListAsync();
+        //    var storeFlags = await _context.Flags
+        //        .Where(f => f.StoreId == storeId)
+        //        .ToListAsync();
 
-            var productFlagsDictionary = storeFlags
-                .SelectMany(flag => _context.ProductFlags.Where(pf => pf.FlagId == flag.FlagId).Select(pf => new { pf.ProductId, pf.FlagId }))
-                .GroupBy(pf => pf.ProductId)
-                .ToDictionary(g => g.Key, g => g.Select(pf => pf.FlagId).ToList());
+        //    var productFlagsDictionary = storeFlags
+        //        .SelectMany(flag => _context.ProductFlags.Where(pf => pf.FlagId == flag.FlagId).Select(pf => new { pf.ProductId, pf.FlagId }))
+        //        .GroupBy(pf => pf.ProductId)
+        //        .ToDictionary(g => g.Key, g => g.Select(pf => pf.FlagId).ToList());
 
-            var allPrices = prices
-                .GroupBy(p => p.ProductId)
-                .Select(g =>
-                {
-                    var bestPriceEntry = g.OrderBy(p => p.Price).First();
-                    var myPriceEntry = pricesForOurStore.FirstOrDefault(p => p.ProductId == g.Key);
+        //    var allPrices = prices
+        //        .GroupBy(p => p.ProductId)
+        //        .Select(g =>
+        //        {
+        //            var bestPriceEntry = g.OrderBy(p => p.Price).First();
+        //            var myPriceEntry = pricesForOurStore.FirstOrDefault(p => p.ProductId == g.Key);
 
-                    if (!string.IsNullOrEmpty(competitorStore))
-                    {
-                        bestPriceEntry = g.FirstOrDefault(p => p.StoreName.ToLower() == competitorStore.ToLower()) ?? bestPriceEntry;
-                    }
+        //            if (!string.IsNullOrEmpty(competitorStore))
+        //            {
+        //                bestPriceEntry = g.FirstOrDefault(p => p.StoreName.ToLower() == competitorStore.ToLower()) ?? bestPriceEntry;
+        //            }
 
-                    var isSharedBestPrice = g.Count(p => p.Price == bestPriceEntry.Price) > 1;
-                    var isMyBestPrice = myPriceEntry != null && myPriceEntry.Price == bestPriceEntry.Price;
+        //            var isSharedBestPrice = g.Count(p => p.Price == bestPriceEntry.Price) > 1;
+        //            var isMyBestPrice = myPriceEntry != null && myPriceEntry.Price == bestPriceEntry.Price;
 
-                    var secondBestPrice = g
-                        .Where(p => p.Price > bestPriceEntry.Price && p.Price != myPriceEntry.Price)
-                        .OrderBy(p => p.Price)
-                        .FirstOrDefault()?.Price ?? 0;
+        //            var secondBestPrice = g
+        //                .Where(p => p.Price > bestPriceEntry.Price && p.Price != myPriceEntry.Price)
+        //                .OrderBy(p => p.Price)
+        //                .FirstOrDefault()?.Price ?? 0;
 
-                    var bestPrice = bestPriceEntry.Price;
-                    var myPrice = myPriceEntry != null ? myPriceEntry.Price : bestPrice;
+        //            var bestPrice = bestPriceEntry.Price;
+        //            var myPrice = myPriceEntry != null ? myPriceEntry.Price : bestPrice;
 
-                    productFlagsDictionary.TryGetValue(bestPriceEntry.ProductId, out var flagIds);
-                    flagIds = flagIds ?? new List<int>();
+        //            productFlagsDictionary.TryGetValue(bestPriceEntry.ProductId, out var flagIds);
+        //            flagIds = flagIds ?? new List<int>();
 
-                    bool isUniqueBestPrice;
-                    decimal? savings;
+        //            bool isUniqueBestPrice;
+        //            decimal? savings;
 
-                    if (string.IsNullOrEmpty(competitorStore))
-                    {
+        //            if (string.IsNullOrEmpty(competitorStore))
+        //            {
                        
-                        isUniqueBestPrice = isMyBestPrice && !isSharedBestPrice && secondBestPrice > myPrice;
-                        savings = isUniqueBestPrice ? Math.Round(secondBestPrice - bestPrice, 2) : (decimal?)null;
-                    }
-                    else
-                    {
+        //                isUniqueBestPrice = isMyBestPrice && !isSharedBestPrice && secondBestPrice > myPrice;
+        //                savings = isUniqueBestPrice ? Math.Round(secondBestPrice - bestPrice, 2) : (decimal?)null;
+        //            }
+        //            else
+        //            {
      
-                        isUniqueBestPrice = myPrice < bestPrice;
-                        savings = isUniqueBestPrice ? Math.Abs(Math.Round(myPrice - bestPrice, 2)) : (decimal?)null;
-                    }
+        //                isUniqueBestPrice = myPrice < bestPrice;
+        //                savings = isUniqueBestPrice ? Math.Abs(Math.Round(myPrice - bestPrice, 2)) : (decimal?)null;
+        //            }
 
-                    return new
-                    {
-                        bestPriceEntry.ProductId,
-                        bestPriceEntry.ProductName,
-                        bestPriceEntry.Category,
-                        LowestPrice = bestPrice,
-                        bestPriceEntry.StoreName,
-                        MyPrice = myPrice,
-                        ScrapId = bestPriceEntry.ScrapHistoryId,
-                        PriceDifference = Math.Round(myPrice - bestPrice, 2),
-                        PercentageDifference = Math.Round((myPrice - bestPrice) / bestPrice * 100, 2),
-                        Savings = savings,
-                        IsSharedBestPrice = isMyBestPrice && isSharedBestPrice,
-                        IsUniqueBestPrice = isUniqueBestPrice,
-                        bestPriceEntry.IsBidding,
-                        bestPriceEntry.Position,
-                        MyIsBidding = myPriceEntry?.IsBidding,
-                        MyPosition = myPriceEntry?.Position,
-                        FlagIds = flagIds,
-                        Delivery = bestPriceEntry.AvailabilityNum,
-                        MyDelivery = myPriceEntry?.AvailabilityNum
-                    };
-                })
-                .ToList();
+        //            return new
+        //            {
+        //                bestPriceEntry.ProductId,
+        //                bestPriceEntry.ProductName,
+        //                bestPriceEntry.Category,
+        //                LowestPrice = bestPrice,
+        //                bestPriceEntry.StoreName,
+        //                MyPrice = myPrice,
+        //                ScrapId = bestPriceEntry.ScrapHistoryId,
+        //                PriceDifference = Math.Round(myPrice - bestPrice, 2),
+        //                PercentageDifference = Math.Round((myPrice - bestPrice) / bestPrice * 100, 2),
+        //                Savings = savings,
+        //                IsSharedBestPrice = isMyBestPrice && isSharedBestPrice,
+        //                IsUniqueBestPrice = isUniqueBestPrice,
+        //                bestPriceEntry.IsBidding,
+        //                bestPriceEntry.Position,
+        //                MyIsBidding = myPriceEntry?.IsBidding,
+        //                MyPosition = myPriceEntry?.Position,
+        //                FlagIds = flagIds,
+        //                Delivery = bestPriceEntry.AvailabilityNum,
+        //                MyDelivery = myPriceEntry?.AvailabilityNum
+        //            };
+        //        })
+        //        .ToList();
 
-            var uniqueAllPrices = allPrices.GroupBy(p => p.ProductId).Select(g => g.First()).ToList();
+        //    var uniqueAllPrices = allPrices.GroupBy(p => p.ProductId).Select(g => g.First()).ToList();
 
-            return Json(new
-            {
-                productCount = uniqueAllPrices.Count,
-                priceCount = prices.Count,
-                myStoreName = storeName,
-                prices = uniqueAllPrices,
-                setPrice1 = priceValues.SetPrice1,
-                setPrice2 = priceValues.SetPrice2
-            });
-        }
+        //    return Json(new
+        //    {
+        //        productCount = uniqueAllPrices.Count,
+        //        priceCount = prices.Count,
+        //        myStoreName = storeName,
+        //        prices = uniqueAllPrices,
+        //        setPrice1 = priceValues.SetPrice1,
+        //        setPrice2 = priceValues.SetPrice2
+        //    });
+        //}
 
         [HttpPost]
         public async Task<IActionResult> UpdatePricesFromExternalStore(int storeId)

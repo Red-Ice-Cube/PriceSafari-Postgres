@@ -64,7 +64,7 @@ namespace PriceTracker.Data
                 .HasOne(pf => pf.Flag)
                 .WithMany(f => f.ProductFlags)
                 .HasForeignKey(pf => pf.FlagId)
-                .OnDelete(DeleteBehavior.NoAction);
+                .OnDelete(DeleteBehavior.Cascade);
 
             modelBuilder.Entity<PriceTrackerUserStore>()
                 .HasKey(us => new { us.UserId, us.StoreId });
