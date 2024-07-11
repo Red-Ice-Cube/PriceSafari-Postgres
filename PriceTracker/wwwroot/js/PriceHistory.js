@@ -200,7 +200,7 @@
                 '</div>';
 
             const priceBoxColumnInfo = document.createElement('div');
-            priceBoxColumnInfo.className = 'price-box-column';
+            priceBoxColumnInfo.className = 'price-box-column-action ' + item.colorClass;
             priceBoxColumnInfo.innerHTML =
                 (item.colorClass === "prToLow" || item.colorClass === "prIdeal" ? '<p>Podnieś: ' + savings + ' zł</p>' : '') +
                 (item.colorClass === "prToHigh" || item.colorClass === "prMid" ? '<p>Obniż: ' + percentageDifference + ' %</p>' : '') +

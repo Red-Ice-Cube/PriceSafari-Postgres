@@ -2973,6 +2973,39 @@ tr:last-child .sub-line {
     border-right: 1px solid #808080;
 }
 
+.price-box-column-action {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 160px;
+    padding-left: 8px;
+    padding-right: 8px;
+   border-radius:4px;
+}
+
+.prGood .price-box-column-action {
+    border: 1px solid rgba(14, 126, 135, 0.5);
+}
+
+.prMid .price-box-column-action {
+    border: 1px solid rgba(240, 240, 105, 0.5);
+}
+
+.prToHigh .price-box-column-action {
+    border: 1px solid rgba(238, 17, 17, 0.5);
+}
+
+.prToLow .price-box-column-action {
+    border: 1px solid rgba(86, 0, 178, 0.5);
+}
+
+.prIdeal .price-box-column-action {
+    border: 1px solid rgba(0, 156, 42, 0.5);
+}
+
+
+
+
 .price-box-column-line {
     width: 1px;
     height: 100%;
