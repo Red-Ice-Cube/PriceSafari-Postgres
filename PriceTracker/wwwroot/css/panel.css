@@ -2983,26 +2983,24 @@ tr:last-child .sub-line {
    border-radius:4px;
 }
 
-.prGood .price-box-column-action {
-    border: 1px solid rgba(14, 126, 135, 0.5);
-}
 
-.prMid .price-box-column-action {
-    border: 1px solid rgba(240, 240, 105, 0.5);
-}
 
-.prToHigh .price-box-column-action {
-    border: 1px solid rgba(238, 17, 17, 0.5);
-}
 
-.prToLow .price-box-column-action {
-    border: 1px solid rgba(86, 0, 178, 0.5);
-}
 
-.prIdeal .price-box-column-action {
-    border: 1px solid rgba(0, 156, 42, 0.5);
-}
 
+.price-box-column-api {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    width: 180px;
+    align-content:flex-start;   
+    padding-left: 8px;
+    padding-right: 8px;
+    border-radius: 4px;
+    background: rgba(0, 0, 0, 0.7);
+    border: solid 2px rgba(0, 0, 0, 1);
+}
+    
 
 
 
@@ -3025,14 +3023,25 @@ tr:last-child .sub-line {
 }
 
 .price-box-column-category {
+    display: flex;
     font-weight: 400;
     font-size: 16px;
+    width: 100%;
+    justify-content: space-between;
 }
 
 .price-box-column-text {
     font-size: 16px;
     font-weight: 500;
 }
+
+.price-box-column-text-api {
+    font-size: 14px;
+    font-weight: 400;
+    color: white;
+
+}
+
 
 
 .color-bar {
@@ -3218,14 +3227,15 @@ tr:last-child .sub-line {
 .ApiBox {
     border-radius: 4px;
     padding: 2px 5px;
+    width: 98.81px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    background: rgba(148, 0, 211, 0.1);
+    background: rgba(0, 0, 0, 0.7);
+    border: solid 2px rgba(0, 0, 0, 1);
     font-size: 11px;
     font-weight: 500;
-    margin: 2px;
-    color: #9400D3;
+    color: white;
 }
 
 

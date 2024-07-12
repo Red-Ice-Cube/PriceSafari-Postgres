@@ -20,12 +20,15 @@
             <div class="price-box-column-name">
                 @productName
             </div>
-            <a href="@url" class="Button-Action-Small" target="_blank">
-                Ceneo
-            </a>
-            <button type="button" class="Button-Action-Small" id="editExternalIdButton">
-                Edytuj External Id
-            </button>
+            <div>
+                <a href="@url" class="Button-Page-Small-r" target="_blank">
+                    Ceneo
+                </a>
+                <button type="button" class="Button-Page-Small-b" id="editExternalIdButton">
+                    Edytuj API ID
+                </button>
+            </div>
+            
         </div>
         <div class="form-check-orders">
             <div>
@@ -197,7 +200,7 @@
     <div class="modal-dialog" role="document">
         <div class="modal-content">
             <div class="modal-header">
-                <div class="price-box-column-name" id="editExternalIdModalLabel">Edytuj External Id</div>
+                <div class="price-box-column-name" id="editExternalIdModalLabel">Edytuj API ID produktu</div>
                 <button type="button" class="close" data-dismiss="modal" aria-label="Close">
                     <span aria-hidden="true">&times;</span>
                 </button>
@@ -205,14 +208,14 @@
             <div class="modal-body">
                 <form id="editExternalIdForm">
                     <div class="form-group" style="margin-bottom:16px;">
-                        <label for="editExternalId" class="control-label">External Id</label>
+                        <label for="editExternalId" class="control-label">API Product ID</label>
                         <input type="text" id="editExternalId" class="form-control" />
                     </div>
                    
                 </form>
             </div>
             <div class="modal-footer">
-                <button type="button" class="Button-Page-Small-r" id="deleteExternalId">Usuń External Id</button>
+                <button type="button" class="Button-Page-Small-r" id="deleteExternalId">Usuń API ID</button>
                 <button type="button" class="Button-Page-Small-b" id="saveExternalIdChanges">Zapisz zmiany</button>
             </div>
         </div>

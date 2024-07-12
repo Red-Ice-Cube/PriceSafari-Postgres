@@ -169,7 +169,7 @@
             if (item.externalId) {
                 const apiBox = document.createElement('span');
                 apiBox.className = 'ApiBox';
-                apiBox.innerHTML = 'API ID: ' + item.externalId;
+                apiBox.innerHTML = 'API ID  ' + item.externalId;
                 priceBoxColumnCategory.appendChild(apiBox);
             }
 
@@ -200,20 +200,20 @@
                 '</div>';
 
             const priceBoxColumnInfo = document.createElement('div');
-            priceBoxColumnInfo.className = 'price-box-column-action ' + item.colorClass;
+            priceBoxColumnInfo.className = 'price-box-column-action';
             priceBoxColumnInfo.innerHTML =
                 (item.colorClass === "prToLow" || item.colorClass === "prIdeal" ? '<p>Podnieś: ' + savings + ' zł</p>' : '') +
                 (item.colorClass === "prToHigh" || item.colorClass === "prMid" ? '<p>Obniż: ' + percentageDifference + ' %</p>' : '') +
                 (item.colorClass === "prToHigh" || item.colorClass === "prMid" ? '<p>Obniż: ' + priceDifference + ' zł</p>' : '');
 
             const priceBoxColumnExternalPrice = document.createElement('div');
-            priceBoxColumnExternalPrice.className = 'price-box-column';
+            priceBoxColumnExternalPrice.className = 'price-box-column-api';
             if (item.externalPrice !== null) {
                 const externalPriceDifference = (item.externalPrice - item.myPrice).toFixed(2);
                 const externalPriceDifferenceText = (item.externalPrice > item.myPrice ? '+' : '') + externalPriceDifference;
                 priceBoxColumnExternalPrice.innerHTML =
-                    '<div class="price-box-column-text">' + item.externalPrice.toFixed(2) + ' zł</div>' +
-                    '<div class="price-box-column-text">Zaktualizowano cenę o ' + externalPriceDifferenceText + ' zł</div>';
+                    '<div class="price-box-column-text-api">Nowa cena: ' + item.externalPrice.toFixed(2) + ' zł</div>' +
+                    '<div class="price-box-column-text-api">Zmiana: ' + externalPriceDifferenceText + ' zł</div>';
             }
 
             // Flagi
