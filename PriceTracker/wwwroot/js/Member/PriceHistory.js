@@ -69,7 +69,7 @@
         }
     }
 
-    function filterPricesByCategoryAndColorAndFlag(data, searchTerm = "") {
+    function filterPricesByCategoryAndColorAndFlag(data) {
         const selectedCategory = document.getElementById('category').value;
         const selectedColors = Array.from(document.querySelectorAll('.colorFilter:checked')).map(checkbox => checkbox.value);
         const selectedFlags = Array.from(document.querySelectorAll('.flagFilter:checked')).map(checkbox => parseInt(checkbox.value));
@@ -98,39 +98,28 @@
             filteredPrices = filteredPrices.filter(item => selectedDeliveryCompetitor.includes(item.delivery));
         }
 
-        renderPrices(filteredPrices, searchTerm);
+        return filteredPrices;
     }
 
     function filterPricesByProductName(name) {
-        const sanitizedInput = name.trim();
-
-        const exactMatches = allPrices.filter(item =>
-            item.productName.includes(sanitizedInput)
-        );
-
+        const sanitizedInput = name.replace(/[^a-zA-Z0-9\s.-]/g, '').trim();
         const sanitizedInputLowerCase = sanitizedInput.toLowerCase().replace(/\s+/g, '');
-        const partialMatches = allPrices.filter(item =>
-            !item.productName.includes(sanitizedInput) &&
-            item.productName.toLowerCase().replace(/\s+/g, '').includes(sanitizedInputLowerCase)
-        );
 
-        const regex = new RegExp(sanitizedInputLowerCase.split('').join('.*'), 'i');
-        const regexMatches = allPrices.filter(item =>
-            !item.productName.includes(sanitizedInput) &&
-            !item.productName.toLowerCase().replace(/\s+/g, '').includes(sanitizedInputLowerCase) &&
-            regex.test(item.productName.toLowerCase().replace(/\s+/g, '').replace(/[^a-zA-Z0-9]/g, ''))
-        );
+        const filteredPrices = allPrices.filter(item => {
+            const sanitizedProductName = item.productName.toLowerCase().replace(/[^a-zA-Z0-9\s.-]/g, '').replace(/\s+/g, '');
+            return sanitizedProductName.includes(sanitizedInputLowerCase);
+        });
 
-        const filteredPrices = [...exactMatches, ...partialMatches, ...regexMatches];
-
-        filterPricesByCategoryAndColorAndFlag(filteredPrices, sanitizedInput);
+        renderPrices(filteredPrices, sanitizedInput);
     }
 
     function highlightMatches(text, searchTerm) {
         if (!searchTerm) return text;
-        const regex = new RegExp(`(${searchTerm})`, 'gi');
+        const sanitizedSearchTerm = searchTerm.replace(/[^a-zA-Z0-9\s.-]/g, '');
+        const regex = new RegExp(`(${sanitizedSearchTerm})`, 'gi');
         return text.replace(regex, '<span style="color: #9400D3;font-weight: 600;">$1</span>');
     }
+
     function renderPrices(data, searchTerm = "") {
         const container = document.getElementById('priceContainer');
         container.innerHTML = '';
@@ -216,7 +205,6 @@
                     '<div class="price-box-column-text-api">Zmiana: ' + externalPriceDifferenceText + ' zł</div>';
             }
 
-            // Flagi
             const flagsContainer = document.createElement('div');
             flagsContainer.className = 'flags-container';
             if (item.flagIds.length > 0) {
@@ -267,8 +255,6 @@
         });
         document.getElementById('displayedProductCount').textContent = data.length;
     }
-
-
 
     function getDeliveryClass(days) {
         if (days <= 1) return 'Availability1Day';
@@ -372,7 +358,6 @@
             prGood: 0,
             prIdeal: 0,
             prToLow: 0
-
         };
 
         data.forEach(item => {
@@ -386,18 +371,25 @@
         document.querySelector('label[for="prToLowCheckbox"]').textContent = `Za niska cena (${colorCounts.prToLow})`;
     }
 
+    function filterPricesAndUpdateUI() {
+        const filteredPrices = filterPricesByCategoryAndColorAndFlag(allPrices);
+        renderPrices(filteredPrices);
+        renderChart(filteredPrices);
+        updateColorCounts(filteredPrices);
+    }
+
     document.getElementById('category').addEventListener('change', function () {
-        filterPricesByProductName(document.getElementById('productSearch').value);
+        filterPricesAndUpdateUI();
     });
 
     document.querySelectorAll('.colorFilter, .flagFilter, .positionFilter, .deliveryFilterMyStore, .deliveryFilterCompetitor').forEach(function (checkbox) {
         checkbox.addEventListener('change', function () {
-            filterPricesByCategoryAndColorAndFlag(allPrices);
+            filterPricesAndUpdateUI();
         });
     });
 
     document.getElementById('bidFilter').addEventListener('change', function () {
-        filterPricesByCategoryAndColorAndFlag(allPrices);
+        filterPricesAndUpdateUI();
     });
 
     document.getElementById('productSearch').addEventListener('keyup', function () {
@@ -409,9 +401,7 @@
         allPrices.forEach(price => {
             price.colorClass = getColorClass(price.priceDifference, price.isUniqueBestPrice, price.isSharedBestPrice, price.savings);
         });
-        renderPrices(allPrices);
-        renderChart(allPrices);
-        updateColorCounts(allPrices);
+        filterPricesAndUpdateUI();
     });
 
     document.getElementById('price2').addEventListener('input', function () {
@@ -419,9 +409,7 @@
         allPrices.forEach(price => {
             price.colorClass = getColorClass(price.priceDifference, price.isUniqueBestPrice, price.isSharedBestPrice, price.savings);
         });
-        renderPrices(allPrices);
-        renderChart(allPrices);
-        updateColorCounts(allPrices);
+        filterPricesAndUpdateUI();
     });
 
     document.getElementById('savePriceValues').addEventListener('click', function () {

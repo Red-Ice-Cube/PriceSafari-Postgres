@@ -47,6 +47,25 @@
     }
   }
 
+  //{
+  //  "outputFileName": "wwwroot/js/Manager/scrape.min.js",
+  //  "inputFiles": [
+  //    "wwwroot/js/Manager/scrape.js"
+  //  ],
+  //  "minify": {
+  //    "enabled": true
+  //  }
+  //},
+  //{
+  //  "outputFileName": "wwwroot/js/Member/pricehistory.min.js",
+  //  "inputFiles": [
+  //    "wwwroot/js/Member/PriceHistory.js"
+  //  ],
+  //  "minify": {
+  //    "enabled": true
+  //  }
+  //}
+
   
 
 ]

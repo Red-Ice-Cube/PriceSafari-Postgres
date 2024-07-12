@@ -189,7 +189,7 @@
                         </div>
                     </div>
 
-                    <button class="Button-Page-Small-b" id="updatePricesButton">Aktualizuj Ceny API</button>
+                    <button class="Button-Page-Small-b" id="updatePricesButton">API</button>
 
                 </div>
                 <div class="price-box-column-category" id="displayedProductCount">
@@ -214,7 +214,7 @@
     <script>
         var flags = @Html.Raw(JsonConvert.SerializeObject(ViewBag.Flags));
     </script>
-    <script src="~/js/PriceHistory.js"></script>
+    <script src="~/js/member/pricehistory.js"></script>
     <script>
         $(document).ready(function () {
             $('#updatePricesButton').on('click', function () {
