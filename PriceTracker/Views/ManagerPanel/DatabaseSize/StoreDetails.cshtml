@@ -13,6 +13,7 @@
             <th>ID Scrapowania</th>
             <th>Ilość PriceHistories</th>
             <th>Użyta Przestrzeń (MB)</th>
+            <th>Akcje</th> 
         </tr>
     </thead>
     <tbody>
@@ -22,6 +23,11 @@
                 <td>@item.ScrapHistoryId</td>
                 <td>@item.PriceHistoriesCount</td>
                 <td>@item.UsedSpaceMB</td>
+                <td>
+                    <form method="post" asp-action="DeleteScrapHistory" asp-route-id="@item.ScrapHistoryId" onsubmit="return confirm('Czy na pewno chcesz usunąć to scrapowanie?');">
+                        <button type="submit" class="btn btn-danger">Usuń</button>
+                    </form>
+                </td> 
             </tr>
         }
     </tbody>

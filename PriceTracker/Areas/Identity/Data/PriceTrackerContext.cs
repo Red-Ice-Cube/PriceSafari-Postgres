@@ -37,7 +37,7 @@ namespace PriceTracker.Data
                 .HasOne(ph => ph.ScrapHistory)
                 .WithMany(sh => sh.PriceHistories)
                 .HasForeignKey(ph => ph.ScrapHistoryId)
-                .OnDelete(DeleteBehavior.Restrict);
+                .OnDelete(DeleteBehavior.Cascade);
 
             modelBuilder.Entity<ScrapHistoryClass>()
                 .HasOne(sh => sh.Store)

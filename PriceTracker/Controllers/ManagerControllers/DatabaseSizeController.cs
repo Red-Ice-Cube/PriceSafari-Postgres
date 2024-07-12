@@ -117,6 +117,19 @@ namespace PriceTracker.Controllers.ManagerControllers
 
             return View("~/Views/ManagerPanel/DatabaseSize/StoreDetails.cshtml", viewModel);
         }
+        [HttpPost]
+        public async Task<IActionResult> DeleteScrapHistory(int id)
+        {
+            var scrapHistory = await _context.ScrapHistories.FindAsync(id);
+            if (scrapHistory != null)
+            {
+                int storeId = scrapHistory.StoreId; 
+                _context.ScrapHistories.Remove(scrapHistory);
+                await _context.SaveChangesAsync();
+                return RedirectToAction(nameof(StoreDetails), new { storeId }); 
+            }
+            return RedirectToAction(nameof(Index));
+        }
 
         private async Task<long> CalculateTotalSpaceForPriceHistories()
         {
