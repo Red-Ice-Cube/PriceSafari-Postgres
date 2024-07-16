@@ -1835,10 +1835,12 @@ p {
 
 .img-container {
     max-width: 250px;
-    height: 32px;
+    height: 28px;
     display: flex;
     align-items: center;
     overflow: hidden;
+    margin-top: 8px;
+    margin-bottom: 8px;
 }
 
     .img-container img {

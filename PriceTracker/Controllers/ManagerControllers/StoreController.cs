@@ -33,7 +33,7 @@ namespace PriceTracker.Controllers.ManagerControllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> CreateStore(string storeName, string storeProfile)
+        public async Task<IActionResult> CreateStore(string storeName, string storeProfile, string? apiUrl, string? apiKey, string? logoUrl, int? productPack)
         {
             if (string.IsNullOrEmpty(storeName) || string.IsNullOrEmpty(storeProfile))
             {
@@ -43,7 +43,12 @@ namespace PriceTracker.Controllers.ManagerControllers
             var store = new StoreClass
             {
                 StoreName = storeName,
-                StoreProfile = storeProfile
+                StoreProfile = storeProfile,
+                StoreApiUrl = apiUrl,
+                StoreApiKey = apiKey,
+                StoreLogoUrl = logoUrl,
+                ProductsToScrap = productPack
+
             };
 
             _context.Stores.Add(store);

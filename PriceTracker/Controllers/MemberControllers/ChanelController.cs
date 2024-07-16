@@ -42,6 +42,7 @@ namespace PriceTracker.Controllers.MemberControllers
             {
                 StoreId = store.StoreId,
                 StoreName = store.StoreName,
+                LogoUrl = store.StoreLogoUrl,
                 LastScrapeDate = store.ScrapHistories.OrderByDescending(sh => sh.Date).FirstOrDefault()?.Date,    
                 ProductCount = store.ScrapHistories.OrderByDescending(sh => sh.Date).FirstOrDefault()?.PriceCount
             }).ToList();

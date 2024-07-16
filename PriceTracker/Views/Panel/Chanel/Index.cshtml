@@ -15,6 +15,7 @@
                 <table class="table-orders">
                     <thead>
                         <tr>
+                            <th></th>
                             <th>Kanał</th>
                             <th>Ostatnie scrapowanie</th>
                             <th>Czas od ostatniego scrapowania</th>
@@ -25,7 +26,13 @@
                         @foreach (var store in Model)
                         {
                             <tr class="store-row" style="cursor:pointer;" data-url="@Url.Action("Index", "PriceHistory", new { storeId = store.StoreId })" data-last-scrape="@store.LastScrapeDate?.ToString("o")">
-                                <td>@store.StoreName</td>
+                                <td>
+                                    <img src="@store.LogoUrl" class="img-container" alt="@store.StoreName" />
+                                </td>
+                                <td>
+                                   @store.StoreName
+                                                             
+                                </td>
                                 <td>@store.LastScrapeDate?.ToString("g")</td>
                                 <td class="time-since-last-scrape"></td>
                                 <td>@store.ProductCount</td>

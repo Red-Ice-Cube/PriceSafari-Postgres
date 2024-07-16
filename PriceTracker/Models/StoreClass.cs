@@ -10,6 +10,7 @@ namespace PriceTracker.Models
         public string? StoreProfile { get; set; }
         public string? StoreApiUrl {  get; set; }
         public string? StoreApiKey {  get; set; }
+        public string? StoreLogoUrl {  get; set; }
 
         public int? ProductsToScrap { get; set; }
 
