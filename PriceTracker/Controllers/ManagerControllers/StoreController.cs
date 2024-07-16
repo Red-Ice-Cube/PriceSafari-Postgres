@@ -189,21 +189,28 @@ namespace PriceTracker.Controllers.ManagerControllers
             return RedirectToAction("Index");
         }
 
+
+
+
         [HttpGet]
         public async Task<IActionResult> ProductList(int storeId)
         {
             var store = await _context.Stores.FindAsync(storeId);
             if (store == null) return NotFound();
 
-            var products = await _context.Products.Where(p => p.StoreId == storeId).ToListAsync();
+            var products = await _context.Products.Where(p => p.StoreId == storeId && p.IsScrapable).ToListAsync();
+            var allProducts = await _context.Products.Where(p => p.StoreId == storeId).ToListAsync();
+
             var categories = products.Select(p => p.Category).Distinct().ToList();
 
             ViewBag.StoreName = store.StoreName;
             ViewBag.Categories = categories;
             ViewBag.StoreId = storeId;
+            ViewBag.AllProducts = allProducts;
+            ViewBag.ScrapableProducts = products;
+            ViewBag.RejectedProductsCount = allProducts.Count(p => p.IsRejected);
 
             return View("~/Views/ManagerPanel/Store/ProductList.cshtml", products);
-
         }
 
         [HttpPost]
@@ -219,6 +226,22 @@ namespace PriceTracker.Controllers.ManagerControllers
             await _context.SaveChangesAsync();
 
             return RedirectToAction("Index");
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> ClearRejectedProducts(int storeId)
+        {
+            var products = await _context.Products
+                .Where(p => p.StoreId == storeId && p.IsRejected)
+                .ToListAsync();
+
+            foreach (var product in products)
+            {
+                product.IsRejected = false;
+            }
+
+            await _context.SaveChangesAsync();
+            return RedirectToAction("ProductList", new { storeId });
         }
     }
 }

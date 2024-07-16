@@ -81,6 +81,14 @@ namespace PriceTracker.Controllers.MemberControllers
                 .Distinct()
                 .ToListAsync();
 
+            var rejectedproducts = await _context.Products
+                .Where(p => p.StoreId == storeId && p.IsRejected)
+                .CountAsync();
+
+            var scrapedproducts = await _context.Products
+                .Where(p => p.StoreId == storeId && p.IsScrapable)              
+                .CountAsync();
+
             var flags = await _context.Flags
                 .Where(f => f.StoreId == storeId)
                 .ToListAsync();
@@ -90,6 +98,8 @@ namespace PriceTracker.Controllers.MemberControllers
             ViewBag.StoreName = storeName;
             ViewBag.Categories = categories;
             ViewBag.Flags = flags;
+            ViewBag.IsRejected = rejectedproducts;
+            ViewBag.ScrapedProducts = scrapedproducts;
 
             return View("~/Views/Panel/PriceHistory/Index.cshtml");
         }
@@ -136,10 +146,10 @@ namespace PriceTracker.Controllers.MemberControllers
 
             var pricesQuery = _context.PriceHistories
                 .Include(ph => ph.Product)
-                .Where(ph => ph.ScrapHistoryId == latestScrap.Id);
+                .Where(ph => ph.ScrapHistoryId == latestScrap.Id && !ph.Product.IsRejected);
 
             var pricesForOurStore = await _context.PriceHistories
-                .Where(ph => ph.ScrapHistoryId == latestScrap.Id && ph.StoreName.ToLower() == storeName.ToLower())
+                .Where(ph => ph.ScrapHistoryId == latestScrap.Id && ph.StoreName.ToLower() == storeName.ToLower() && !ph.Product.IsRejected)
                 .Select(ph => new
                 {
                     ph.ProductId,
@@ -181,7 +191,6 @@ namespace PriceTracker.Controllers.MemberControllers
                 .GroupBy(pf => pf.ProductId)
                 .ToDictionary(g => g.Key, g => g.Select(pf => pf.FlagId).ToList());
 
-            
             var productsWithExternalInfo = await _context.Products
                 .Where(p => p.StoreId == storeId && p.ExternalId.HasValue)
                 .Select(p => new { p.ProductId, p.ExternalId, p.ExternalPrice })
@@ -270,6 +279,7 @@ namespace PriceTracker.Controllers.MemberControllers
                 setPrice2 = priceValues.SetPrice2
             });
         }
+
 
 
         [HttpPost]

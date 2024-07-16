@@ -1,6 +1,7 @@
 ﻿document.addEventListener("DOMContentLoaded", function () {
-    var productCount = document.querySelectorAll("tbody tr").length;
-    document.getElementById("productCount").textContent = productCount;
+    var scrapableProducts = document.querySelectorAll("tbody tr");
+    var productCount = scrapableProducts.length;
+    document.getElementById("scrapableProductCount").textContent = productCount;
 
     var ctx = document.getElementById('speedChart').getContext('2d');
 

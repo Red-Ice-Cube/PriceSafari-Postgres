@@ -7,6 +7,7 @@ using PriceTracker.Hubs;
 using PriceTracker.Models;
 using PriceTracker.Services;
 using System.Diagnostics;
+using System.Net.Http;
 
 [Authorize(Roles = "Admin")]
 public class PriceScrapingController : Controller
@@ -35,7 +36,10 @@ public class PriceScrapingController : Controller
             return NotFound("Store not found.");
         }
 
-        var products = await _context.Products.Where(p => p.StoreId == storeId).ToListAsync();
+        var products = await _context.Products
+            .Where(p => p.StoreId == storeId && p.IsScrapable)
+            .ToListAsync();
+
         if (products == null || !products.Any())
         {
             Console.WriteLine("No products found to scrape.");
@@ -56,6 +60,7 @@ public class PriceScrapingController : Controller
         int totalPrices = 0;
         int rejectedCount = 0;
         var rejectedProducts = new List<(string Reason, string Url)>();
+        var actualRejectedProducts = new List<ProductClass>();
         var stopwatch = new Stopwatch();
         var tasks = new List<Task>();
         var semaphore = new SemaphoreSlim(30);
@@ -86,7 +91,7 @@ public class PriceScrapingController : Controller
                         if (rejected.Count == 0)
                             break;
 
-                    } while (tryCount < 3);
+                    } while (tryCount < 2);
 
                     lock (rejectedProducts)
                     {
@@ -96,6 +101,10 @@ public class PriceScrapingController : Controller
                     var ourStorePrices = prices.Where(p => p.storeName.ToLower() == store.StoreName.ToLower()).ToList();
                     if (ourStorePrices.Count == 0 || ourStorePrices.Count == prices.Count)
                     {
+                        lock (actualRejectedProducts)
+                        {
+                            actualRejectedProducts.Add(product);
+                        }
                         Interlocked.Increment(ref rejectedCount);
                         await _hubContext.Clients.All.SendAsync("ReceiveProgressUpdate", Interlocked.Increment(ref scrapedCount), products.Count, stopwatch.Elapsed.TotalSeconds, rejectedCount);
                         return;
@@ -142,14 +151,21 @@ public class PriceScrapingController : Controller
         _context.ScrapHistories.Update(scrapHistory);
         await _context.SaveChangesAsync();
 
-        Console.WriteLine("Summary of rejected products:");
-        foreach (var rejected in rejectedProducts)
+        foreach (var product in actualRejectedProducts)
         {
-            Console.WriteLine($"URL: {rejected.Url}, Reason: {rejected.Reason}");
+            product.IsRejected = true;
+        }
+        await _context.SaveChangesAsync();
+
+        Console.WriteLine("Summary of rejected products:");
+        foreach (var product in actualRejectedProducts)
+        {
+            Console.WriteLine($"URL: {product.OfferUrl}");
         }
 
-        return RedirectToAction("ProductList", "Store", new { storeId = storeId });
+        return RedirectToAction("ProductList", "Store", new { storeId });
     }
+
 
     [HttpGet]
     public async Task<IActionResult> StartScrapingGet(int storeId)
