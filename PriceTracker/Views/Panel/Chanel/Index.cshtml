@@ -1,6 +1,5 @@
 ﻿@model List<PriceTracker.Models.ViewModels.ChanelViewModel>
 
-
 @{
     Layout = "~/Views/Shared/_PanelLayout.cshtml";
 }
@@ -18,20 +17,18 @@
                         <tr>
                             <th>Kanał</th>
                             <th>Ostatnie scrapowanie</th>
+                            <th>Czas od ostatniego scrapowania</th>
                             <th>Ilość Produktów</th>
-                          
-                      
                         </tr>
                     </thead>
                     <tbody>
                         @foreach (var store in Model)
                         {
-                            <tr class="store-row" style="cursor:pointer;" data-url="@Url.Action("Index", "PriceHistory", new { storeId = store.StoreId })">
+                            <tr class="store-row" style="cursor:pointer;" data-url="@Url.Action("Index", "PriceHistory", new { storeId = store.StoreId })" data-last-scrape="@store.LastScrapeDate?.ToString("o")">
                                 <td>@store.StoreName</td>
                                 <td>@store.LastScrapeDate?.ToString("g")</td>
-
+                                <td class="time-since-last-scrape"></td>
                                 <td>@store.ProductCount</td>
-                                
                             </tr>
                         }
                     </tbody>
@@ -55,6 +52,18 @@
                         window.location.href = row.getAttribute('data-url');
                     }
                 });
+
+                var lastScrapeDate = row.getAttribute('data-last-scrape');
+                if (lastScrapeDate) {
+                    var lastScrape = new Date(lastScrapeDate);
+                    var now = new Date();
+                    var diff = Math.abs(now - lastScrape);
+                    var hours = Math.floor(diff / 36e5);
+                    var minutes = Math.floor((diff % 36e5) / 60000);
+                    row.querySelector('.time-since-last-scrape').textContent = `${hours} godzin ${minutes} minut`;
+                } else {
+                    row.querySelector('.time-since-last-scrape').textContent = 'Brak danych';
+                }
             });
         });
     </script>
