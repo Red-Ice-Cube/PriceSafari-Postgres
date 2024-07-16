@@ -166,6 +166,29 @@ namespace PriceTracker.Controllers.ManagerControllers
             }
         }
 
+
+        [HttpPost]
+        public async Task<IActionResult> DeleteStore(int storeId)
+        {
+            var store = await _context.Stores.Include(s => s.Products)
+                                             .Include(s => s.Categories)
+                                             .Include(s => s.ScrapHistories)
+                                             .Include(s => s.PriceValues)
+                                             .Include(s => s.Flags)
+                                             .Include(s => s.UserStores)
+                                             .FirstOrDefaultAsync(s => s.StoreId == storeId);
+
+            if (store == null)
+            {
+                return NotFound();
+            }
+
+            _context.Stores.Remove(store);
+            await _context.SaveChangesAsync();
+
+            return RedirectToAction("Index");
+        }
+
         [HttpGet]
         public async Task<IActionResult> ProductList(int storeId)
         {

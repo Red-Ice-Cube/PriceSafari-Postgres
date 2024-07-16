@@ -77,7 +77,8 @@ namespace PriceTracker.Data
             modelBuilder.Entity<PriceTrackerUserStore>()
                 .HasOne(us => us.StoreClass)
                 .WithMany(s => s.UserStores)
-                .HasForeignKey(us => us.StoreId);
+                .HasForeignKey(us => us.StoreId)
+                .OnDelete(DeleteBehavior.Cascade);
         }
     }
 }

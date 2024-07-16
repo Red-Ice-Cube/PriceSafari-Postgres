@@ -16,6 +16,7 @@
             <th>Akcje</th>
             <th>Postęp</th>
             <th>Status</th>
+            <th>Usuń</th>
         </tr>
     </thead>
     <tbody>
@@ -41,6 +42,12 @@
                     </div>
                 </td>
                 <td id="status-@store.StoreId">Oczekiwanie</td>
+                <td>
+                    <form asp-controller="Store" asp-action="DeleteStore" method="post" onsubmit="return confirm('Czy na pewno chcesz usunąć ten sklep?');">
+                        <input type="hidden" name="storeId" value="@store.StoreId" />
+                        <button type="submit" class="btn btn-danger">Usuń</button>
+                    </form>
+                </td>
             </tr>
         }
     </tbody>
