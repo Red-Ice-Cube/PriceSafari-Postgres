@@ -16,6 +16,7 @@
             <th>Akcje</th>
             <th>Postęp</th>
             <th>Status</th>
+            <th>Produkty do Scrapowania</th>
             <th>Usuń</th>
         </tr>
     </thead>
@@ -42,6 +43,13 @@
                     </div>
                 </td>
                 <td id="status-@store.StoreId">Oczekiwanie</td>
+                <td>
+                    <form asp-controller="Store" asp-action="UpdateProductsToScrap" method="post" class="form-inline">
+                        <input type="hidden" name="storeId" value="@store.StoreId" />
+                        <input type="number" name="productsToScrap" value="@store.ProductsToScrap" class="form-control" />
+                        <button type="submit" class="btn btn-primary">Zapisz</button>
+                    </form>
+                </td>
                 <td>
                     <form asp-controller="Store" asp-action="DeleteStore" method="post" onsubmit="return confirm('Czy na pewno chcesz usunąć ten sklep?');">
                         <input type="hidden" name="storeId" value="@store.StoreId" />

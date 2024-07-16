@@ -79,7 +79,11 @@
 
 
                 <div class="@(controllerName == "Chanel" || controllerName == "PriceHistory" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "Chanel")'">
-                    <img src="~/images/Campaigns-b.svg" alt="Panel Icon" class="menu-icon" />Kanały
+                    <img src="~/images/Campaigns-b.svg" alt="Panel Icon" class="menu-icon" />Ceny
+                </div>
+
+                <div class="@(controllerName == "Product" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("StoreList", "Product")'">
+                    <img src="~/images/Campaigns-b.svg" alt="Panel Icon" class="menu-icon" />Produkty
                 </div>
 
                 
@@ -133,7 +137,11 @@
                 <div class="@(controllerName == "Chanel" || controllerName == "PriceHistory" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "Chanel")'">
                     <img src="~/images/Campaigns-b.svg" alt="Panel Icon" class="menu-icon" />
                 </div>
-                
+
+                <div class="@(controllerName == "Product" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("StoreList", "Product")'">
+                    <img src="~/images/Campaigns-b.svg" alt="Panel Icon" class="menu-icon" />
+                </div>
+
             }
             @if (isManagerOrAdmin)
             {

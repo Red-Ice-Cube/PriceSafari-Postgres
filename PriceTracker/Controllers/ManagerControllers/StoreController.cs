@@ -205,5 +205,20 @@ namespace PriceTracker.Controllers.ManagerControllers
             return View("~/Views/ManagerPanel/Store/ProductList.cshtml", products);
 
         }
+
+        [HttpPost]
+        public async Task<IActionResult> UpdateProductsToScrap(int storeId, int productsToScrap)
+        {
+            var store = await _context.Stores.FindAsync(storeId);
+            if (store == null)
+            {
+                return NotFound();
+            }
+
+            store.ProductsToScrap = productsToScrap;
+            await _context.SaveChangesAsync();
+
+            return RedirectToAction("Index");
+        }
     }
 }

@@ -1,0 +1,54 @@
+﻿@model List<PriceTracker.Models.ViewModels.ChanelViewModel>
+
+@{
+    Layout = "~/Views/Shared/_PanelLayout.cshtml";
+}
+
+<div class="Vert">
+    <div class="Vert-full">
+        <div class="Order-Container-Title">
+            Lista Sklepów
+        </div>
+        @if (Model != null && Model.Any())
+        {
+            <div class="Vert-table">
+                <table class="table-orders">
+                    <thead>
+                        <tr>
+                            <th>Sklep</th>
+                            <th>Ilość Przypisanych Produktów</th>
+                            <th>Dozwolona Ilość Produktów</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var store in Model)
+                        {
+                            <tr class="store-row" style="cursor:pointer;" data-url="@Url.Action("ProductList", "Product", new { storeId = store.StoreId })">
+                                <td>@store.StoreName</td>
+                                <td>@store.ProductCount</td>
+                                <td>@store.AllowedProducts</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+        else
+        {
+            <p>Nie masz przypisanych żadnych sklepów.</p>
+        }
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            var rows = document.querySelectorAll('.store-row');
+            rows.forEach(function (row) {
+                row.addEventListener('click', function (e) {
+                    window.location.href = row.getAttribute('data-url');
+                });
+            });
+        });
+    </script>
+}

@@ -2959,8 +2959,7 @@ tr:last-child .sub-line {
 
 .price-box-data {
     display: flex;
-  
-    margin-top:12px;
+    margin-top: 12px;
 }
 
 .price-box-column {
@@ -2968,8 +2967,8 @@ tr:last-child .sub-line {
     flex-direction: column;
     gap: 4px;
     min-width: 160px;
-    padding-left: 8px;
-    padding-right: 8px;
+    padding-left: 12px;
+    padding-right: 12px;
     border-right: 1px solid #808080;
 }
 

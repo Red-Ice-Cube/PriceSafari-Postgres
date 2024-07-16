@@ -6,5 +6,6 @@
         public string StoreName { get; set; }
         public DateTime? LastScrapeDate { get; set; }
         public int? ProductCount { get; set; }
+        public int? AllowedProducts { get; set; }
     }
 }

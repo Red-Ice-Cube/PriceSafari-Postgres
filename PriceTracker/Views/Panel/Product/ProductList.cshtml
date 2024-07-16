@@ -1,0 +1,70 @@
+﻿@model IEnumerable<PriceTracker.Models.ProductClass>
+
+@{
+    ViewData["Title"] = "Lista Produktów";
+    Layout = "~/Views/Shared/_PanelLayout.cshtml";
+}
+
+<h2>Lista produktów dla sklepu @ViewBag.StoreName</h2>
+<p>Dozwolona liczba produktów do scrapowania: @ViewBag.ProductsToScrap</p>
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>Nazwa Produktu</th>
+            <th>Kategoria</th>
+            <th>Adres URL</th>
+            <th>Do Scrapowania</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var product in Model)
+        {
+            <tr>
+                <td>@product.ProductName</td>
+                <td>@product.Category</td>
+                <td><a href="@product.OfferUrl" target="_blank">@product.OfferUrl</a></td>
+                <td>
+                    <input type="checkbox" class="scrapable-checkbox" data-product-id="@product.ProductId" @(product.IsScrapable ? "checked" : "") />
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@section Scripts {
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            var checkboxes = document.querySelectorAll('.scrapable-checkbox');
+            checkboxes.forEach(function (checkbox) {
+                checkbox.addEventListener('change', function () {
+                    var productId = this.getAttribute('data-product-id');
+                    var isScrapable = this.checked;
+
+                    console.log(`Product ID: ${productId}, Is Scrapable: ${isScrapable}`);
+
+                    fetch('@Url.Action("UpdateScrapableProduct", "Product")?productId=' + productId + '&isScrapable=' + isScrapable, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                    })
+                        .then(response => {
+                            if (!response.ok) {
+                                throw new Error('Network response was not ok');
+                            }
+                            return response.json();
+                        })
+                        .then(data => {
+                            if (!data.success) {
+                                alert('Wystąpił błąd podczas aktualizacji statusu scrapowania.');
+                            }
+                        })
+                        .catch(error => {
+                            console.error('There was a problem with your fetch operation:', error);
+                        });
+                });
+            });
+        });
+    </script>
+}
