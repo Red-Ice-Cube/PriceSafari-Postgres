@@ -6,11 +6,17 @@
 }
 
 <h2>Lista produktów dla sklepu @ViewBag.StoreName</h2>
-<p>Dozwolona liczba produktów do scrapowania: @ViewBag.ProductsToScrap</p>
+<p>Przypisano: <span id="scrapable-count">@ViewBag.ScrapableCount</span>/<span id="products-to-scrap">@ViewBag.ProductsToScrap</span> produktów z wyświetlanych <span id="total-products">@ViewBag.TotalProducts</span> produktów.</p>
+
+<div>
+    <button id="select-all" class="btn btn-primary">Zaznacz wszystkie</button>
+    <button id="deselect-all" class="btn btn-secondary">Odznacz wszystkie</button>
+</div>
 
 <table class="table">
     <thead>
         <tr>
+            <th>Nr</th>
             <th>Nazwa Produktu</th>
             <th>Kategoria</th>
             <th>Adres URL</th>
@@ -18,14 +24,15 @@
         </tr>
     </thead>
     <tbody>
-        @foreach (var product in Model)
+        @foreach (var product in Model.Select((value, index) => new { value, index }))
         {
             <tr>
-                <td>@product.ProductName</td>
-                <td>@product.Category</td>
-                <td><a href="@product.OfferUrl" target="_blank">@product.OfferUrl</a></td>
+                <td>@(product.index + 1)</td>
+                <td>@product.value.ProductName</td>
+                <td>@product.value.Category</td>
+                <td><a href="@product.value.OfferUrl" target="_blank">@product.value.OfferUrl</a></td>
                 <td>
-                    <input type="checkbox" class="scrapable-checkbox" data-product-id="@product.ProductId" @(product.IsScrapable ? "checked" : "") />
+                    <input type="checkbox" class="scrapable-checkbox" data-product-id="@product.value.ProductId" @(product.value.IsScrapable ? "checked" : "") />
                 </td>
             </tr>
         }
@@ -36,6 +43,37 @@
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             var checkboxes = document.querySelectorAll('.scrapable-checkbox');
+            var selectAllButton = document.getElementById('select-all');
+            var deselectAllButton = document.getElementById('deselect-all');
+            var maxScrapable = @ViewBag.ProductsToScrap;
+            var scrapableCount = @ViewBag.ScrapableCount;
+
+            function updateScrapableCount(increment) {
+                scrapableCount += increment;
+                document.getElementById('scrapable-count').textContent = scrapableCount;
+            }
+
+            function sendBulkUpdateRequest(url, productIds, callback) {
+                fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(productIds)
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (!data.success) {
+                            alert(data.message || 'Wystąpił błąd podczas aktualizacji statusu scrapowania.');
+                        } else {
+                            callback();
+                        }
+                    })
+                    .catch(error => {
+                        console.error('There was a problem with your fetch operation:', error);
+                    });
+            }
+
             checkboxes.forEach(function (checkbox) {
                 checkbox.addEventListener('change', function () {
                     var productId = this.getAttribute('data-product-id');
@@ -49,21 +87,51 @@
                             'Content-Type': 'application/json'
                         },
                     })
-                        .then(response => {
-                            if (!response.ok) {
-                                throw new Error('Network response was not ok');
-                            }
-                            return response.json();
-                        })
+                        .then(response => response.json())
                         .then(data => {
                             if (!data.success) {
-                                alert('Wystąpił błąd podczas aktualizacji statusu scrapowania.');
+                                alert(data.message || 'Wystąpił błąd podczas aktualizacji statusu scrapowania.');
+                                checkbox.checked = !isScrapable; // Revert the change
+                            } else {
+                                updateScrapableCount(isScrapable ? 1 : -1);
                             }
                         })
                         .catch(error => {
                             console.error('There was a problem with your fetch operation:', error);
                         });
                 });
+            });
+
+            selectAllButton.addEventListener('click', function () {
+                var count = scrapableCount;
+                var productIds = [];
+                checkboxes.forEach(function (checkbox) {
+                    if (count < maxScrapable && !checkbox.checked) {
+                        checkbox.checked = true;
+                        productIds.push(parseInt(checkbox.getAttribute('data-product-id')));
+                        count++;
+                    }
+                });
+                if (productIds.length > 0) {
+                    sendBulkUpdateRequest('@Url.Action("UpdateMultipleScrapableProducts", "Product")?storeId=@ViewBag.StoreId', productIds, function () {
+                        updateScrapableCount(productIds.length);
+                    });
+                }
+            });
+
+            deselectAllButton.addEventListener('click', function () {
+                var productIds = [];
+                checkboxes.forEach(function (checkbox) {
+                    if (checkbox.checked) {
+                        checkbox.checked = false;
+                        productIds.push(parseInt(checkbox.getAttribute('data-product-id')));
+                    }
+                });
+                if (productIds.length > 0) {
+                    sendBulkUpdateRequest('@Url.Action("ResetMultipleScrapableProducts", "Product")?storeId=@ViewBag.StoreId', productIds, function () {
+                        updateScrapableCount(-productIds.length);
+                    });
+                }
             });
         });
     </script>
