@@ -37,8 +37,8 @@ public class PriceScrapingController : Controller
         }
 
         var products = await _context.Products
-            .Where(p => p.StoreId == storeId && p.IsScrapable)
-            .ToListAsync();
+          .Where(p => p.StoreId == storeId && p.IsScrapable && !p.IsRejected)
+          .ToListAsync();
 
         if (products == null || !products.Any())
         {
