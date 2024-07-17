@@ -5,11 +5,8 @@ using PriceTracker.Models;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.EntityFrameworkCore;
-
 using PriceTracker.Hubs;
 using PriceTracker.Services;
-using static Plotly.NET.StyleParam.DrawingStyle;
-using System.Xml.Linq;
 
 //elo elo
 public class Program
