@@ -1179,6 +1179,26 @@ p {
         background: #F56069;
     }
 
+.Button-Page-Small-o {
+    display: inline-flex;
+    padding: 6px 16px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    background: #F76D62;
+    color: #fff;
+    font-size: 14px;
+    font-weight: 400;
+    text-decoration: none;
+    border: none;
+}
+
+    .Button-Page-Small-o:hover {
+        color: #fff;
+        text-decoration: none;
+        background: #E3463A;
+    }
+
 
 .Button-Page-Small-b {
     display: inline-flex;
@@ -2878,6 +2898,7 @@ tr:last-child .sub-line {
     flex: 1;
     width: 100%;
     gap: 16px;
+    font-size:15px;
 }
 
 
