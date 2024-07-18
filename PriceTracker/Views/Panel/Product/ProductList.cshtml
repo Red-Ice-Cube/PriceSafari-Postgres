@@ -1,138 +1,253 @@
-﻿@model IEnumerable<PriceTracker.Models.ProductClass>
-
-@{
+﻿@{
     ViewData["Title"] = "Lista Produktów";
     Layout = "~/Views/Shared/_PanelLayout.cshtml";
 }
 
 <h2>Lista produktów dla sklepu @ViewBag.StoreName</h2>
-<p>Przypisano: <span id="scrapable-count">@ViewBag.ScrapableCount</span>/<span id="products-to-scrap">@ViewBag.ProductsToScrap</span> produktów z wyświetlanych <span id="total-products">@ViewBag.TotalProducts</span> produktów.</p>
+<p>Przypisano: <span id="scrapable-count"></span> produktów z wyświetlanych <span id="total-products"></span> produktów. Odrzucono: <span id="rejected-count"></span> produktów.</p>
 
 <div>
     <button id="select-all" class="btn btn-primary">Zaznacz wszystkie</button>
     <button id="deselect-all" class="btn btn-secondary">Odznacz wszystkie</button>
 </div>
 
-<table class="table">
-    <thead>
-        <tr>
-            <th>Nr</th>
-            <th>Nazwa Produktu</th>
-            <th>Kategoria</th>
-            <th>Adres URL</th>
-            <th>Do Scrapowania</th>
-        </tr>
-    </thead>
-    <tbody>
-        @foreach (var product in Model.Select((value, index) => new { value, index }))
-        {
+<div>
+    <label>Do scrapowania:</label>
+    <label><input type="radio" name="filter-scrapable" value="all" checked /> Wszystko</label>
+    <label><input type="radio" name="filter-scrapable" value="yes" /> Tak</label>
+    <label><input type="radio" name="filter-scrapable" value="no" /> Nie</label>
+</div>
+<div>
+    <label>Odrzucone:</label>
+    <label><input type="radio" name="filter-rejected" value="all" checked /> Wszystko</label>
+    <label><input type="radio" name="filter-rejected" value="yes" /> Tak</label>
+    <label><input type="radio" name="filter-rejected" value="no" /> Nie</label>
+</div>
+
+<div>
+    <label>Szukaj: <input type="text" id="search-input" placeholder="Wpisz nazwę produktu" /></label>
+</div>
+
+<div class="Vert-table">
+    <table class="table-orders">
+        <thead>
             <tr>
-                <td>@(product.index + 1)</td>
-                <td>@product.value.ProductName</td>
-                <td>@product.value.Category</td>
-                <td><a href="@product.value.OfferUrl" target="_blank">@product.value.OfferUrl</a></td>
-                <td>
-                    <input type="checkbox" class="scrapable-checkbox" data-product-id="@product.value.ProductId" @(product.value.IsScrapable ? "checked" : "") />
-                </td>
+                <th>Nazwa Produktu (<span id="displayed-count"></span>)</th>
+                <th>Kategoria</th>
+                <th>Adres URL</th>
+                <th>Do Scrapowania</th>
+                <th>Odrzucony</th>
             </tr>
-        }
-    </tbody>
-</table>
+        </thead>
+        <tbody id="product-list">
+        </tbody>
+    </table>
+</div>
 
 @section Scripts {
     <script>
         document.addEventListener('DOMContentLoaded', function () {
-            var checkboxes = document.querySelectorAll('.scrapable-checkbox');
+            var storeId = @ViewBag.StoreId;
             var selectAllButton = document.getElementById('select-all');
             var deselectAllButton = document.getElementById('deselect-all');
-            var maxScrapable = @ViewBag.ProductsToScrap;
-            var scrapableCount = @ViewBag.ScrapableCount;
+            var filterScrapableRadios = document.getElementsByName('filter-scrapable');
+            var filterRejectedRadios = document.getElementsByName('filter-rejected');
+            var searchInput = document.getElementById('search-input');
+            var scrapableCount = 0;
+            var totalProducts = 0;
+            var rejectedCount = 0;
+            var allProducts = [];
 
-            function updateScrapableCount(increment) {
-                scrapableCount += increment;
+            function updateCounters(products) {
+                scrapableCount = products.filter(p => p.isScrapable).length;
+                rejectedCount = products.filter(p => p.isRejected).length;
+                totalProducts = products.length;
                 document.getElementById('scrapable-count').textContent = scrapableCount;
+                document.getElementById('total-products').textContent = totalProducts;
+                document.getElementById('rejected-count').textContent = rejectedCount;
             }
 
-            function sendBulkUpdateRequest(url, productIds, callback) {
-                fetch(url, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(productIds)
-                })
+            function updateRowColor(row, isScrapable, isRejected) {
+                var bgColor = isScrapable && isRejected ? "rgba(128, 0, 128, 0.3)" :
+                    isScrapable ? "rgba(14, 126, 135, 0.3)" :
+                        isRejected ? "rgba(238, 17, 17, 0.3)" : "rgba(128, 128, 128, 0.3)";
+                row.style.backgroundColor = bgColor;
+            }
+
+            function highlightMatches(text, searchTerm) {
+                if (!searchTerm) return text;
+                const sanitizedSearchTerm = searchTerm.replace(/[^a-zA-Z0-9\s.-]/g, '');
+                const regex = new RegExp(`(${sanitizedSearchTerm})`, 'gi');
+                return text.replace(regex, '<span style="color: #9400D3; font-weight: 600;">$1</span>');
+            }
+
+            function renderProducts(products, searchTerm = "") {
+                var tbody = document.getElementById('product-list');
+                tbody.innerHTML = '';
+                products.forEach(function (product, index) {
+                    var row = document.createElement('tr');
+                    row.classList.add('product-row');
+                    row.setAttribute('data-scrapable', product.isScrapable);
+                    row.setAttribute('data-rejected', product.isRejected);
+                    updateRowColor(row, product.isScrapable, product.isRejected);
+
+                    var highlightedProductName = highlightMatches(product.productName, searchTerm);
+
+                    row.innerHTML = `
+                                <td>${highlightedProductName}</td>
+                                <td>${product.category}</td>
+                                <td><a href="${product.offerUrl}" target="_blank">${product.offerUrl}</a></td>
+                                <td>
+                                    <input type="checkbox" class="scrapable-checkbox" data-product-id="${product.productId}" ${product.isScrapable ? "checked" : ""} />
+                                </td>
+                                <td>${product.isRejected ? "Tak" : "Nie"}</td>
+                            `;
+
+                    row.querySelector('.scrapable-checkbox').addEventListener('change', function () {
+                        var isScrapable = this.checked;
+                        var productId = this.getAttribute('data-product-id');
+
+                        fetch('@Url.Action("UpdateScrapableProduct", "Product")', {
+                            method: 'PUT',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({ productId: productId, isScrapable: isScrapable })
+                        })
+                            .then(response => response.json())
+                            .then(data => {
+                                if (!data.success) {
+                                    alert(data.message || 'Wystąpił błąd podczas aktualizacji statusu scrapowania.');
+                                    this.checked = !isScrapable; // Revert the change
+                                } else {
+                                    updateRowColor(row, isScrapable, product.isRejected);
+                                    fetchProducts(); // Refresh the product list
+                                }
+                            })
+                            .catch(error => {
+                                console.error('There was a problem with your fetch operation:', error);
+                            });
+                    });
+
+                    tbody.appendChild(row);
+                });
+                document.getElementById('displayed-count').textContent = products.length;
+            }
+
+            function filterProductsByName(name) {
+                const sanitizedInput = name.replace(/[^a-zA-Z0-9\s.-]/g, '').trim();
+                const sanitizedInputLowerCase = sanitizedInput.toLowerCase().replace(/\s+/g, '');
+
+                return allProducts.filter(product => {
+                    const sanitizedProductName = product.productName.toLowerCase().replace(/[^a-zA-Z0-9\s.-]/g, '').replace(/\s+/g, '');
+                    return sanitizedProductName.includes(sanitizedInputLowerCase);
+                });
+            }
+
+            function filterRows() {
+                var selectedScrapable = document.querySelector('input[name="filter-scrapable"]:checked').value;
+                var selectedRejected = document.querySelector('input[name="filter-rejected"]:checked').value;
+                var searchTerm = searchInput.value;
+
+                var filteredProducts = filterProductsByName(searchTerm);
+
+                var displayedProducts = filteredProducts.filter(product => {
+                    var scrapableMatch = (selectedScrapable === 'all') ||
+                        (selectedScrapable === 'yes' && product.isScrapable) ||
+                        (selectedScrapable === 'no' && !product.isScrapable);
+                    var rejectedMatch = (selectedRejected === 'all') ||
+                        (selectedRejected === 'yes' && product.isRejected) ||
+                        (selectedRejected === 'no' && !product.isRejected);
+
+                    return scrapableMatch && rejectedMatch;
+                });
+
+                renderProducts(displayedProducts, searchTerm);
+                updateDisplayedCount(displayedProducts.length);
+            }
+
+            function updateDisplayedCount(count) {
+                document.getElementById('displayed-count').textContent = count;
+            }
+
+            function fetchProducts() {
+                fetch('@Url.Action("GetProducts", "Product")?storeId=' + storeId)
                     .then(response => response.json())
                     .then(data => {
-                        if (!data.success) {
-                            alert(data.message || 'Wystąpił błąd podczas aktualizacji statusu scrapowania.');
-                        } else {
-                            callback();
-                        }
+                        allProducts = data;
+                        updateCounters(allProducts);
+                        filterRows();
                     })
                     .catch(error => {
-                        console.error('There was a problem with your fetch operation:', error);
+                        console.error('Error fetching products:', error);
                     });
             }
 
-            checkboxes.forEach(function (checkbox) {
-                checkbox.addEventListener('change', function () {
-                    var productId = this.getAttribute('data-product-id');
-                    var isScrapable = this.checked;
+            filterScrapableRadios.forEach(function (radio) {
+                radio.addEventListener('change', filterRows);
+            });
 
-                    console.log(`Product ID: ${productId}, Is Scrapable: ${isScrapable}`);
+            filterRejectedRadios.forEach(function (radio) {
+                radio.addEventListener('change', filterRows);
+            });
 
-                    fetch('@Url.Action("UpdateScrapableProduct", "Product")?productId=' + productId + '&isScrapable=' + isScrapable, {
-                        method: 'PUT',
+            searchInput.addEventListener('input', filterRows);
+
+            selectAllButton.addEventListener('click', function () {
+                var productIds = [];
+                document.querySelectorAll('.scrapable-checkbox').forEach(function (checkbox) {
+                    if (!checkbox.checked) {
+                        checkbox.checked = true;
+                        productIds.push(parseInt(checkbox.getAttribute('data-product-id')));
+                    }
+                });
+                if (productIds.length > 0) {
+                    fetch('@Url.Action("UpdateMultipleScrapableProducts", "Product")?storeId=' + storeId, {
+                        method: 'POST',
                         headers: {
                             'Content-Type': 'application/json'
                         },
+                        body: JSON.stringify(productIds)
                     })
                         .then(response => response.json())
                         .then(data => {
-                            if (!data.success) {
-                                alert(data.message || 'Wystąpił błąd podczas aktualizacji statusu scrapowania.');
-                                checkbox.checked = !isScrapable; // Revert the change
-                            } else {
-                                updateScrapableCount(isScrapable ? 1 : -1);
+                            if (data.success) {
+                                fetchProducts(); // Refresh the product list
                             }
                         })
                         .catch(error => {
                             console.error('There was a problem with your fetch operation:', error);
                         });
-                });
-            });
-
-            selectAllButton.addEventListener('click', function () {
-                var count = scrapableCount;
-                var productIds = [];
-                checkboxes.forEach(function (checkbox) {
-                    if (count < maxScrapable && !checkbox.checked) {
-                        checkbox.checked = true;
-                        productIds.push(parseInt(checkbox.getAttribute('data-product-id')));
-                        count++;
-                    }
-                });
-                if (productIds.length > 0) {
-                    sendBulkUpdateRequest('@Url.Action("UpdateMultipleScrapableProducts", "Product")?storeId=@ViewBag.StoreId', productIds, function () {
-                        updateScrapableCount(productIds.length);
-                    });
                 }
             });
 
             deselectAllButton.addEventListener('click', function () {
                 var productIds = [];
-                checkboxes.forEach(function (checkbox) {
-                    if (checkbox.checked) {
-                        checkbox.checked = false;
-                        productIds.push(parseInt(checkbox.getAttribute('data-product-id')));
-                    }
+                document.querySelectorAll('.scrapable-checkbox:checked').forEach(function (checkbox) {
+                    checkbox.checked = false;
+                    productIds.push(parseInt(checkbox.getAttribute('data-product-id')));
                 });
                 if (productIds.length > 0) {
-                    sendBulkUpdateRequest('@Url.Action("ResetMultipleScrapableProducts", "Product")?storeId=@ViewBag.StoreId', productIds, function () {
-                        updateScrapableCount(-productIds.length);
-                    });
+                    fetch('@Url.Action("ResetMultipleScrapableProducts", "Product")?storeId=' + storeId, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(productIds)
+                    })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                fetchProducts(); // Refresh the product list
+                            }
+                        })
+                        .catch(error => {
+                            console.error('There was a problem with your fetch operation:', error);
+                        });
                 }
             });
+
+            fetchProducts();
         });
     </script>
 }

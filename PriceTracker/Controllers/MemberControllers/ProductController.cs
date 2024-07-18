@@ -3,11 +3,11 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using PriceTracker.Data;
 using PriceTracker.Models;
-using PriceTracker.Models.ViewModels;
 using System.Linq;
 using System.Security.Claims;
 using System.Threading.Tasks;
 using System.Collections.Generic;
+using PriceTracker.Models.ViewModels;
 
 namespace PriceTracker.Controllers
 {
@@ -48,33 +48,60 @@ namespace PriceTracker.Controllers
         [HttpGet]
         public async Task<IActionResult> ProductList(int storeId)
         {
-            var store = await _context.Stores.FindAsync(storeId);
-            if (store == null)
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+            var userStore = await _context.UserStores
+                .FirstOrDefaultAsync(us => us.UserId == userId && us.StoreId == storeId);
+
+            if (userStore == null)
             {
-                return NotFound();
+                return Forbid();
+            }
+
+            var store = await _context.Stores.FindAsync(storeId);
+            if (store == null) return NotFound();
+
+            ViewBag.StoreName = store.StoreName;
+            ViewBag.StoreId = storeId;
+
+            return View("~/Views/Panel/Product/ProductList.cshtml");
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GetProducts(int storeId)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+            var userStore = await _context.UserStores
+                .FirstOrDefaultAsync(us => us.UserId == userId && us.StoreId == storeId);
+
+            if (userStore == null)
+            {
+                return Forbid();
             }
 
             var products = await _context.Products
                 .Where(p => p.StoreId == storeId)
+                .Select(p => new
+                {
+                    p.ProductId,
+                    p.ProductName,
+                    p.Category,
+                    p.OfferUrl,
+                    p.IsScrapable,
+                    p.IsRejected
+                })
                 .ToListAsync();
 
-            var scrapableCount = products.Count(p => p.IsScrapable);
-
-            ViewBag.StoreName = store.StoreName;
-            ViewBag.ProductsToScrap = store.ProductsToScrap;
-            ViewBag.ScrapableCount = scrapableCount;
-            ViewBag.TotalProducts = products.Count();
-            ViewBag.StoreId = storeId;
-
-            return View("~/Views/Panel/Product/ProductList.cshtml", products);
+            return Json(products);
         }
 
         [HttpPut]
-        public async Task<IActionResult> UpdateScrapableProduct(int productId, bool isScrapable)
+        public async Task<IActionResult> UpdateScrapableProduct([FromBody] ProductUpdateRequest request)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
-            var product = await _context.Products.Include(p => p.Store).FirstOrDefaultAsync(p => p.ProductId == productId);
+            var product = await _context.Products.Include(p => p.Store).FirstOrDefaultAsync(p => p.ProductId == request.ProductId);
             if (product == null)
             {
                 return NotFound();
@@ -89,16 +116,23 @@ namespace PriceTracker.Controllers
             }
 
             var scrapableCount = await _context.Products.CountAsync(p => p.StoreId == product.StoreId && p.IsScrapable);
-            if (isScrapable && scrapableCount >= product.Store.ProductsToScrap)
+            if (request.IsScrapable && scrapableCount >= product.Store.ProductsToScrap)
             {
                 return Json(new { success = false, message = "Przekroczono limit produktów do scrapowania." });
             }
 
-            product.IsScrapable = isScrapable;
+            product.IsScrapable = request.IsScrapable;
             await _context.SaveChangesAsync();
 
             return Json(new { success = true });
         }
+
+        public class ProductUpdateRequest
+        {
+            public int ProductId { get; set; }
+            public bool IsScrapable { get; set; }
+        }
+
 
         [HttpPost]
         public async Task<IActionResult> UpdateMultipleScrapableProducts(int storeId, [FromBody] List<int> productIds)
