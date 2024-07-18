@@ -22,6 +22,7 @@ namespace PriceTracker.Data
         public DbSet<FlagsClass> Flags { get; set; }
         public DbSet<ProductFlag> ProductFlags { get; set; }
         public DbSet<PriceTrackerUserStore> UserStores { get; set; }
+        public DbSet<ProductMap> ProductMaps { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

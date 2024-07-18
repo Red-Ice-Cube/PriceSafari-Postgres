@@ -12,6 +12,7 @@ namespace PriceTracker.Models
         public string? StoreApiKey {  get; set; }
         public string? StoreLogoUrl {  get; set; }
 
+        public string? ProductMapXmlUrl { get; set; }
         public int? ProductsToScrap { get; set; }
 
         public ICollection<ScrapHistoryClass> ScrapHistories { get; set; } = new List<ScrapHistoryClass>();

@@ -1,0 +1,31 @@
+﻿@model IEnumerable<PriceTracker.Models.ProductMap>
+
+@{
+    Layout = "~/Views/Shared/_PanelLayout.cshtml";
+}
+
+<h2>Zmapowane Produkty dla sklepu @ViewBag.StoreName</h2>
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>Nazwa Produktu</th>
+            <th>Numer Katalogowy</th>
+            <th>EAN</th>
+            <th>URL</th>
+            <th>Główne Zdjęcie</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var product in Model)
+        {
+            <tr>
+                <td>@product.Name</td>
+                <td>@product.CatalogNumber</td>
+                <td>@product.Ean</td>
+                <td><a href="@product.Url" target="_blank">@product.Url</a></td>
+                <td><img src="@product.MainUrl" alt="@product.Name" style="max-width: 100px;" /></td>
+            </tr>
+        }
+    </tbody>
+</table>

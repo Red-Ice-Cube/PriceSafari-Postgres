@@ -1,0 +1,40 @@
+﻿@model IEnumerable<PriceTracker.Models.StoreClass>
+
+@{
+    Layout = "~/Views/Shared/_PanelLayout.cshtml";
+}
+
+<h2>Import Produktów z XML</h2>
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>Nazwa Sklepu</th>
+            <th>URL do mapowania produktów</th>
+            <th>Akcje</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var store in Model)
+        {
+            <tr>
+                <td>@store.StoreName</td>
+                <td>@store.ProductMapXmlUrl</td>
+                <td>
+                    @if (!string.IsNullOrEmpty(store.ProductMapXmlUrl))
+                    {
+                        <form asp-action="ImportProductsFromXml" method="post" style="display:inline;">
+                            <input type="hidden" name="storeId" value="@store.StoreId" />
+                            <button type="submit" class="btn btn-primary">Importuj Produkty</button>
+                        </form>
+                        <a asp-action="MappedProducts" asp-route-storeId="@store.StoreId" class="btn btn-secondary">Pokaż Zmapowane Produkty</a>
+                    }
+                    else
+                    {
+                        <span>Brak URL do mapowania produktów</span>
+                    }
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>

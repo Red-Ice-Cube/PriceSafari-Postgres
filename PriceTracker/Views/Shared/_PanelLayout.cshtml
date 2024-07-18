@@ -111,6 +111,11 @@
                     menu-link" onclick="location.href='@Url.Action("Accounts", "ManagerAffiliate")'">
                     <img src="~/images/Settings-b.svg" alt="Assign Icon" class="menu-icon" />Konta
                 </div>
+
+
+                <div class="@(controllerName == "ProductMapping" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "ProductMapping")'">
+                    <img src="~/images/Link-b.svg" alt="Panel Icon" class="menu-icon" />Mapowanie
+                </div>
             }
         </div>
         <div class="Sidebar-box">
@@ -164,6 +169,12 @@
                 <div class="@((controllerName == "ManagerAffiliate" && actionName == "Accounts") || controllerName == "Settings" || controllerName == "UserManagement" ? "active-link" : "inactive-link")
                     menu-link" onclick="location.href='@Url.Action("Accounts", "ManagerAffiliate")'">
                     <img src="~/images/Settings-b.svg" alt="Assign Icon" class="menu-icon" />
+                </div>
+
+
+
+                <div class="@(controllerName == "ProductMapping" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "ProductMapping")'">
+                    <img src="~/images/Link-b.svg" alt="Panel Icon" class="menu-icon" />
                 </div>
             }
         </div>
