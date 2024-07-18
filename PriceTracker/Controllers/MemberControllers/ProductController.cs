@@ -89,9 +89,11 @@ namespace PriceTracker.Controllers
                     p.OfferUrl,
                     p.IsScrapable,
                     p.IsRejected,
-                    p.MainUrl,
                     p.Url,
-                    p.CatalogNumber
+                    p.CatalogNumber,
+                    p.ExternalId,
+                    p.Ean
+                   
                 })
                 .ToListAsync();
 

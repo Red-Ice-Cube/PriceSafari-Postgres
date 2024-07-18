@@ -77,6 +77,7 @@
         const selectedPositions = Array.from(document.querySelectorAll('.positionFilter:checked')).map(checkbox => parseInt(checkbox.value));
         const selectedDeliveryMyStore = Array.from(document.querySelectorAll('.deliveryFilterMyStore:checked')).map(checkbox => parseInt(checkbox.value));
         const selectedDeliveryCompetitor = Array.from(document.querySelectorAll('.deliveryFilterCompetitor:checked')).map(checkbox => parseInt(checkbox.value));
+        const selectedExternalPrice = Array.from(document.querySelectorAll('.externalPriceFilter:checked')).map(checkbox => checkbox.value);
 
         let filteredPrices = selectedCategory ? data.filter(item => item.category === selectedCategory) : data;
         filteredPrices = selectedColors.length ? filteredPrices.filter(item => selectedColors.includes(item.colorClass)) : filteredPrices;
@@ -96,6 +97,12 @@
 
         if (selectedDeliveryCompetitor.length) {
             filteredPrices = filteredPrices.filter(item => selectedDeliveryCompetitor.includes(item.delivery));
+        }
+
+        if (selectedExternalPrice.includes("yes")) {
+            filteredPrices = filteredPrices.filter(item => item.externalPrice !== null);
+        } else if (selectedExternalPrice.includes("no")) {
+            filteredPrices = filteredPrices.filter(item => item.externalPrice === null);
         }
 
         return filteredPrices;
@@ -274,7 +281,7 @@
             g = parseInt(hex[3] + hex[4], 16);
             b = parseInt(hex[5] + hex[6], 16);
         }
-        return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+        return `rgba(${r}, ${g}, ${b}, alpha)`;
     }
 
     function renderChart(data) {
@@ -382,7 +389,7 @@
         filterPricesAndUpdateUI();
     });
 
-    document.querySelectorAll('.colorFilter, .flagFilter, .positionFilter, .deliveryFilterMyStore, .deliveryFilterCompetitor').forEach(function (checkbox) {
+    document.querySelectorAll('.colorFilter, .flagFilter, .positionFilter, .deliveryFilterMyStore, .deliveryFilterCompetitor, .externalPriceFilter').forEach(function (checkbox) {
         checkbox.addEventListener('change', function () {
             filterPricesAndUpdateUI();
         });

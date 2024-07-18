@@ -12,6 +12,7 @@
     var url = ViewBag.Url;
     var setPrice1 = ViewBag.SetPrice1;
     var setPrice2 = ViewBag.SetPrice2;
+    
 }
 
 <div class="Vert">
@@ -19,37 +20,47 @@
         <div class="price-box-space">
             <div class="price-box-column-name">
                 @productName
+                <div class="form-check-orders" style="margin: 16px;">
+                    <div>
+                        <p><strong>Wykonano:</strong> @scrapHistory?.Date</p>
+
+                    </div>
+                </div>
+
+                <div class="store-section">
+
+                    <div class="form-check">
+                        <input class="form-check-input sortFilter" type="checkbox" id="sortPrice" checked>
+                        <label class="form-check-label" for="sortPrice">Sortuj po cenie</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input sortFilter" type="checkbox" id="sortPosition">
+                        <label class="form-check-label" for="sortPosition">Sortuj po pozycji Ceneo</label>
+                    </div>
+                </div>
+                <div style="margin-top: 16px;">
+                    <a href="@url" class="Button-Page-Small-o" target="_blank">
+                        Ceneo
+                    </a>
+                    <a href="@ViewBag.ExtertnalUrl" class="Button-Page-Small-b" target="_blank">
+                        Twoja strona
+                    </a>
+
+                    <button type="button" class="Button-Page-Small-r" id="editExternalIdButton">
+                        API ID @ViewBag.ApiId
+                    </button>
+                </div>
             </div>
             <div>
-                <a href="@url" class="Button-Page-Small-r" target="_blank">
-                    Ceneo
-                </a>
-                <button type="button" class="Button-Page-Small-b" id="editExternalIdButton">
-                    Edytuj API ID
-                </button>
+                <img src="@ViewBag.Img" style="height: 180px; width: 180px;" />
             </div>
+           
             
         </div>
-        <div class="form-check-orders">
-            <div>
-                <p><strong>Wykonano:</strong> @scrapHistory?.Date</p>
+      
+   
 
-            </div>
-        </div>
-
-        <div class="price-box-space">
-            <div class="store-section">
-                <div class="form-check">
-                    <input class="form-check-input sortFilter" type="checkbox" id="sortPrice" checked>
-                    <label class="form-check-label" for="sortPrice">Sortuj po cenie</label>
-                </div>
-                <div class="form-check">
-                    <input class="form-check-input sortFilter" type="checkbox" id="sortPosition">
-                    <label class="form-check-label" for="sortPosition">Sortuj po pozycji Ceneo</label>
-                </div>
-            </div>
-
-        </div>
+       
 
         <div class="Vert-table">
             <table class="table-orders" id="priceTable">

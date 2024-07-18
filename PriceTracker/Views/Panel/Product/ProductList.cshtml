@@ -49,6 +49,7 @@
             <table class="table-orders">
                 <thead>
                     <tr>
+               
                         <th>Nazwa Produktu (<span id="displayed-count"></span>)</th>
                         <th>Kategoria</th>
                         <th>Nmr Katalogowy</th>
@@ -119,6 +120,7 @@
                     var highlightedProductName = highlightMatches(product.productName, searchTerm);
 
                     row.innerHTML = `
+                            
                                 <td>${highlightedProductName}</td>
                                 <td>${product.category}</td>
                                 <td>${product.catalogNumber}</td>

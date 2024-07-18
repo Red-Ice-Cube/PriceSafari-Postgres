@@ -522,6 +522,11 @@ namespace PriceTracker.Controllers.MemberControllers
             ViewBag.ProductId = productId; 
             ViewBag.ExternalId = product.ExternalId;
             ViewBag.ExternalPrice = product.ExternalPrice;
+            ViewBag.Img = product.MainUrl;
+            ViewBag.Ean = product.Ean;
+            ViewBag.CatalogNum = product.CatalogNumber;
+            ViewBag.ExtertnalUrl = product.Url;
+            ViewBag.ApiId = product.ExternalId;
 
             return View("~/Views/Panel/PriceHistory/Details.cshtml", prices);
         }
