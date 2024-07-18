@@ -66,7 +66,6 @@ namespace PriceTracker.Controllers
 
             return View("~/Views/Panel/Product/ProductList.cshtml");
         }
-
         [HttpGet]
         public async Task<IActionResult> GetProducts(int storeId)
         {
@@ -89,12 +88,16 @@ namespace PriceTracker.Controllers
                     p.Category,
                     p.OfferUrl,
                     p.IsScrapable,
-                    p.IsRejected
+                    p.IsRejected,
+                    p.MainUrl,
+                    p.Url,
+                    p.CatalogNumber
                 })
                 .ToListAsync();
 
             return Json(products);
         }
+
 
         [HttpPut]
         public async Task<IActionResult> UpdateScrapableProduct([FromBody] ProductUpdateRequest request)

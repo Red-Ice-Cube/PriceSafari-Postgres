@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using PriceTracker.Data;
 
@@ -11,9 +12,11 @@ using PriceTracker.Data;
 namespace PriceTracker.Migrations
 {
     [DbContext(typeof(PriceTrackerContext))]
-    partial class PriceTrackerContextModelSnapshot : ModelSnapshot
+    [Migration("20240718131352_mainurlnull")]
+    partial class mainurlnull
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -337,14 +340,8 @@ namespace PriceTracker.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("ProductId"));
 
-                    b.Property<string>("CatalogNumber")
-                        .HasColumnType("nvarchar(max)");
-
                     b.Property<string>("Category")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Ean")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<int?>("ExternalId")
@@ -359,9 +356,6 @@ namespace PriceTracker.Migrations
                     b.Property<bool>("IsScrapable")
                         .HasColumnType("bit");
 
-                    b.Property<string>("MainUrl")
-                        .HasColumnType("nvarchar(max)");
-
                     b.Property<string>("OfferUrl")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -372,9 +366,6 @@ namespace PriceTracker.Migrations
 
                     b.Property<int>("StoreId")
                         .HasColumnType("int");
-
-                    b.Property<string>("Url")
-                        .HasColumnType("nvarchar(max)");
 
                     b.HasKey("ProductId");
 

@@ -16,7 +16,14 @@ namespace PriceTracker.Models
         public string Category { get; set; }
         public string OfferUrl { get; set; }
 
+
         public int? ExternalId { get; set; }
+
+        public string? Url { get; set; }
+        public string? CatalogNumber { get; set; }
+        public string? Ean { get; set; }
+        public string? MainUrl { get; set; }
+
         public decimal? ExternalPrice { get; set; }
         public bool IsScrapable { get; set; } = false;
 

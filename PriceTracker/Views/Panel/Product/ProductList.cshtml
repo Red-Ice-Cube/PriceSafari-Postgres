@@ -51,7 +51,9 @@
                     <tr>
                         <th>Nazwa Produktu (<span id="displayed-count"></span>)</th>
                         <th>Kategoria</th>
-                        <th>Adres URL</th>
+                        <th>Nmr Katalogowy</th>
+                        <th>Ceno URL</th>
+                        <th>@ViewBag.StoreName</th>
                         <th>Do Scrapowania</th>
                         <th>Odrzucony</th>
                     </tr>
@@ -119,7 +121,9 @@
                     row.innerHTML = `
                                 <td>${highlightedProductName}</td>
                                 <td>${product.category}</td>
+                                <td>${product.catalogNumber}</td>
                                 <td><a href="${product.offerUrl}" target="_blank">${product.offerUrl}</a></td>
+                                <td><a href="${product.url}" target="_blank">${product.url}</a></td>
                                 <td>
                                     <input type="checkbox" class="scrapable-checkbox" data-product-id="${product.productId}" ${product.isScrapable ? "checked" : ""} />
                                 </td>
@@ -141,10 +145,10 @@
                             .then(data => {
                                 if (!data.success) {
                                     alert(data.message || 'Wystąpił błąd podczas aktualizacji statusu scrapowania.');
-                                    this.checked = !isScrapable; // Revert the change
+                                    this.checked = !isScrapable; 
                                 } else {
                                     updateRowColor(row, isScrapable, product.isRejected);
-                                    fetchProducts(); // Refresh the product list
+                                    fetchProducts(); 
                                 }
                             })
                             .catch(error => {
@@ -235,7 +239,7 @@
                         .then(response => response.json())
                         .then(data => {
                             if (data.success) {
-                                fetchProducts(); // Refresh the product list
+                                fetchProducts(); 
                             }
                         })
                         .catch(error => {
@@ -261,7 +265,7 @@
                         .then(response => response.json())
                         .then(data => {
                             if (data.success) {
-                                fetchProducts(); // Refresh the product list
+                                fetchProducts();
                             }
                         })
                         .catch(error => {

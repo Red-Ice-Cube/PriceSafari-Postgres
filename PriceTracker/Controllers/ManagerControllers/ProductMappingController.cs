@@ -70,16 +70,7 @@ namespace PriceTracker.Controllers.ManagerControllers
                     }
                     else
                     {
-                        var newProduct = new ProductMap
-                        {
-                            StoreId = storeId,
-                            ExternalId = product.ExternalId,
-                            Url = product.Url,
-                            CatalogNumber = product.CatalogNumber,
-                            Ean = product.Ean,
-                            MainUrl = product.MainUrl
-                        };
-                        await _context.ProductMaps.AddAsync(newProduct);
+                        await _context.ProductMaps.AddAsync(product);
                     }
                 }
 
@@ -101,8 +92,46 @@ namespace PriceTracker.Controllers.ManagerControllers
                 .Where(p => p.StoreId == storeId)
                 .ToListAsync();
 
+            var storeProducts = await _context.Products
+                .Where(p => p.StoreId == storeId)
+                .ToListAsync();
+
             ViewBag.StoreName = store.StoreName;
+            ViewBag.StoreProducts = storeProducts;
+            ViewBag.StoreId = storeId;
+
             return View("~/Views/ManagerPanel/ProductMapping/MappedProducts.cshtml", mappedProducts);
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> MapProducts(int storeId)
+        {
+            var storeProducts = await _context.Products
+                .Where(p => p.StoreId == storeId)
+                .ToListAsync();
+
+            var mappedProducts = await _context.ProductMaps
+                .Where(p => p.StoreId == storeId)
+                .ToListAsync();
+
+            foreach (var storeProduct in storeProducts)
+            {
+                var mappedProduct = mappedProducts
+                    .FirstOrDefault(mp => mp.CatalogNumber == storeProduct.ProductName.Split(' ').Last());
+
+                if (mappedProduct != null)
+                {
+                    storeProduct.ExternalId = int.Parse(mappedProduct.ExternalId);
+                    storeProduct.Url = mappedProduct.Url;
+                    storeProduct.CatalogNumber = mappedProduct.CatalogNumber;
+                    storeProduct.Ean = mappedProduct.Ean;
+                    storeProduct.MainUrl = mappedProduct.MainUrl;
+                }
+            }
+
+            await _context.SaveChangesAsync();
+
+            return RedirectToAction("MappedProducts", new { storeId });
         }
     }
 }

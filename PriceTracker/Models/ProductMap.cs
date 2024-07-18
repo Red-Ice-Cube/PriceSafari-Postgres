@@ -11,6 +11,6 @@ namespace PriceTracker.Models
         public string Url { get; set; }
         public string CatalogNumber { get; set; }
         public string Ean { get; set; }
-        public string MainUrl { get; set; }
+        public string? MainUrl { get; set; }
     }
 }
