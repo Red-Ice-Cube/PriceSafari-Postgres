@@ -3,46 +3,69 @@
     Layout = "~/Views/Shared/_PanelLayout.cshtml";
 }
 
-<h2>Lista produktów dla sklepu @ViewBag.StoreName</h2>
-<p>Przypisano: <span id="scrapable-count"></span> produktów z wyświetlanych <span id="total-products"></span> produktów. Odrzucono: <span id="rejected-count"></span> produktów.</p>
 
-<div>
-    <button id="select-all" class="btn btn-primary">Zaznacz wszystkie</button>
-    <button id="deselect-all" class="btn btn-secondary">Odznacz wszystkie</button>
+
+<div class="Vert">
+    <div class="Vert-full">
+        <div class="Order-Container-Title">
+            Lista produktów @ViewBag.StoreName
+            <div class="bar-List">
+                <div>
+                    <strong>Przypisano: </strong><span id="scrapable-count"></span>
+                </div>
+                <div>
+                    <strong>Łącznie produktów: </strong><span id="total-products"></span>
+                </div>
+                <div>
+                    <strong>Odrzuconych: </strong><span id="rejected-count"></span>
+                </div>
+            </div>
+        </div>
+        <div class="bar-List">
+            <button id="select-all" class="Button-Page-Small-b">Zaznacz wszystkie</button>
+            <button id="deselect-all" class="Button-Page-Small-r">Odznacz wszystkie</button>
+
+        </div>
+
+        <div>
+            <label>Do scrapowania:</label>
+            <label><input type="radio" name="filter-scrapable" value="all" checked /> Wszystko</label>
+            <label><input type="radio" name="filter-scrapable" value="yes" /> Tak</label>
+            <label><input type="radio" name="filter-scrapable" value="no" /> Nie</label>
+        </div>
+        <div>
+            <label>Odrzucone:</label>
+            <label><input type="radio" name="filter-rejected" value="all" checked /> Wszystko</label>
+            <label><input type="radio" name="filter-rejected" value="yes" /> Tak</label>
+            <label><input type="radio" name="filter-rejected" value="no" /> Nie</label>
+        </div>
+
+        <div>
+            <input type="text" id="productSearch" placeholder="Wyszukaj produkt" />
+        </div>
+
+
+        <div class="Vert-table">
+            <table class="table-orders">
+                <thead>
+                    <tr>
+                        <th>Nazwa Produktu (<span id="displayed-count"></span>)</th>
+                        <th>Kategoria</th>
+                        <th>Adres URL</th>
+                        <th>Do Scrapowania</th>
+                        <th>Odrzucony</th>
+                    </tr>
+                </thead>
+                <tbody id="product-list">
+                </tbody>
+            </table>
+        </div>
+    </div>
 </div>
 
-<div>
-    <label>Do scrapowania:</label>
-    <label><input type="radio" name="filter-scrapable" value="all" checked /> Wszystko</label>
-    <label><input type="radio" name="filter-scrapable" value="yes" /> Tak</label>
-    <label><input type="radio" name="filter-scrapable" value="no" /> Nie</label>
-</div>
-<div>
-    <label>Odrzucone:</label>
-    <label><input type="radio" name="filter-rejected" value="all" checked /> Wszystko</label>
-    <label><input type="radio" name="filter-rejected" value="yes" /> Tak</label>
-    <label><input type="radio" name="filter-rejected" value="no" /> Nie</label>
-</div>
 
-<div>
-    <label>Szukaj: <input type="text" id="search-input" placeholder="Wpisz nazwę produktu" /></label>
-</div>
 
-<div class="Vert-table">
-    <table class="table-orders">
-        <thead>
-            <tr>
-                <th>Nazwa Produktu (<span id="displayed-count"></span>)</th>
-                <th>Kategoria</th>
-                <th>Adres URL</th>
-                <th>Do Scrapowania</th>
-                <th>Odrzucony</th>
-            </tr>
-        </thead>
-        <tbody id="product-list">
-        </tbody>
-    </table>
-</div>
+
 
 @section Scripts {
     <script>
@@ -52,7 +75,7 @@
             var deselectAllButton = document.getElementById('deselect-all');
             var filterScrapableRadios = document.getElementsByName('filter-scrapable');
             var filterRejectedRadios = document.getElementsByName('filter-rejected');
-            var searchInput = document.getElementById('search-input');
+            var searchInput = document.getElementById('productSearch');
             var scrapableCount = 0;
             var totalProducts = 0;
             var rejectedCount = 0;
