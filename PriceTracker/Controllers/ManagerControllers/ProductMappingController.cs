@@ -50,7 +50,6 @@ namespace PriceTracker.Controllers.ManagerControllers
                         StoreId = storeId,
                         ExternalId = x.Attribute("id")?.Value,
                         Url = x.Attribute("url")?.Value,
-                        Name = x.Element("name")?.Value,
                         CatalogNumber = x.Descendants("a")
                                          .FirstOrDefault(a => a.Attribute("name")?.Value == "Kod_producenta")?.Value,
                         Ean = x.Descendants("a")
@@ -66,7 +65,6 @@ namespace PriceTracker.Controllers.ManagerControllers
                     if (existingProduct != null)
                     {
                         existingProduct.Url = product.Url;
-                        existingProduct.Name = product.Name;
                         existingProduct.CatalogNumber = product.CatalogNumber;
                         existingProduct.MainUrl = product.MainUrl;
                     }
@@ -77,7 +75,6 @@ namespace PriceTracker.Controllers.ManagerControllers
                             StoreId = storeId,
                             ExternalId = product.ExternalId,
                             Url = product.Url,
-                            Name = product.Name,
                             CatalogNumber = product.CatalogNumber,
                             Ean = product.Ean,
                             MainUrl = product.MainUrl
