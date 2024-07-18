@@ -58,7 +58,6 @@ namespace PriceTracker.Services
                         var isBidding = (offerType == "CPC_Bid" || offerType == "CPC_Bid_Basket") ? "1" : "0";
                         var position = offerContainer?.GetAttributeValue("data-position", "");
 
-                        // Logging the extracted values
                         Console.WriteLine($"storeName: {storeName}");
                         Console.WriteLine($"priceNode: {priceNode?.InnerText}");
                         Console.WriteLine($"pennyNode: {pennyNode?.InnerText}");
