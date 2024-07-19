@@ -101,42 +101,107 @@ namespace PriceTracker.Controllers
         }
 
 
+        //[HttpPut]
+        //public async Task<IActionResult> UpdateScrapableProduct([FromBody] ProductUpdateRequest request)
+        //{
+        //    var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        //    var product = await _context.Products.Include(p => p.Store).FirstOrDefaultAsync(p => p.ProductId == request.ProductId);
+        //    if (product == null)
+        //    {
+        //        return NotFound();
+        //    }
+
+        //    var userStore = await _context.UserStores
+        //        .FirstOrDefaultAsync(us => us.UserId == userId && us.StoreId == product.StoreId);
+
+        //    if (userStore == null)
+        //    {
+        //        return Forbid();
+        //    }
+
+        //    var scrapableCount = await _context.Products.CountAsync(p => p.StoreId == product.StoreId && p.IsScrapable);
+        //    if (request.IsScrapable && scrapableCount >= product.Store.ProductsToScrap)
+        //    {
+        //        return Json(new { success = false, message = "Przekroczono limit produktów do scrapowania." });
+        //    }
+
+        //    product.IsScrapable = request.IsScrapable;
+        //    await _context.SaveChangesAsync();
+
+        //    return Json(new { success = true });
+        //}
+
+        //public class ProductUpdateRequest
+        //{
+        //    public int ProductId { get; set; }
+        //    public bool IsScrapable { get; set; }
+        //}
+
+
         [HttpPut]
         public async Task<IActionResult> UpdateScrapableProduct([FromBody] ProductUpdateRequest request)
         {
+            var logs = new List<string>();
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            logs.Add($"User ID: {userId}");
 
-            var product = await _context.Products.Include(p => p.Store).FirstOrDefaultAsync(p => p.ProductId == request.ProductId);
-            if (product == null)
+            try
             {
-                return NotFound();
+                // Ładowanie produktu
+                var product = await _context.Products.Include(p => p.Store).FirstOrDefaultAsync(p => p.ProductId == request.ProductId);
+                if (product == null)
+                {
+                    logs.Add("Product not found.");
+                    return Json(new { success = false, message = "Product not found.", logs });
+                }
+
+                logs.Add($"Product ID: {product.ProductId}, Store ID: {product.StoreId}");
+
+                // Ładowanie relacji użytkownika do sklepu
+                var userStore = await _context.UserStores
+                    .FirstOrDefaultAsync(us => us.UserId == userId && us.StoreId == product.StoreId);
+
+                if (userStore == null)
+                {
+                    logs.Add("User store not found.");
+                    return Json(new { success = false, message = "User store not found.", logs });
+                }
+
+                // Liczenie produktów scrapowalnych
+                var scrapableCount = await _context.Products.CountAsync(p => p.StoreId == product.StoreId && p.IsScrapable);
+                logs.Add($"Scrapable count: {scrapableCount}, Store ProductsToScrap: {product.Store.ProductsToScrap}");
+
+                // Sprawdzenie limitu produktów scrapowalnych
+                if (!product.IsScrapable && scrapableCount >= product.Store.ProductsToScrap)
+                {
+                    logs.Add("Scrapable product limit exceeded.");
+                    return Json(new { success = false, message = "Przekroczono limit produktów do scrapowania.", logs });
+                }
+
+                // Odwrócenie stanu scrapowalności produktu
+                product.IsScrapable = !product.IsScrapable;
+                await _context.SaveChangesAsync();
+                logs.Add("Product updated successfully.");
+
+                return Json(new { success = true, logs, newIsScrapable = product.IsScrapable });
             }
-
-            var userStore = await _context.UserStores
-                .FirstOrDefaultAsync(us => us.UserId == userId && us.StoreId == product.StoreId);
-
-            if (userStore == null)
+            catch (Exception ex)
             {
-                return Forbid();
+                logs.Add($"Exception: {ex.Message}");
+                if (ex.InnerException != null)
+                {
+                    logs.Add($"Inner Exception: {ex.InnerException.Message}");
+                }
+                return StatusCode(500, new { success = false, message = "Internal Server Error", logs });
             }
-
-            var scrapableCount = await _context.Products.CountAsync(p => p.StoreId == product.StoreId && p.IsScrapable);
-            if (request.IsScrapable && scrapableCount >= product.Store.ProductsToScrap)
-            {
-                return Json(new { success = false, message = "Przekroczono limit produktów do scrapowania." });
-            }
-
-            product.IsScrapable = request.IsScrapable;
-            await _context.SaveChangesAsync();
-
-            return Json(new { success = true });
         }
 
         public class ProductUpdateRequest
         {
             public int ProductId { get; set; }
-            public bool IsScrapable { get; set; }
         }
+
 
 
         [HttpPost]
