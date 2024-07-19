@@ -7,7 +7,7 @@
 <div class="Vert">
     <div class="Vert-full">
         <div class="Order-Container-Title">
-            Lista Sklepów
+            Produkty
         </div>
         @if (Model != null && Model.Any())
         {
@@ -15,6 +15,7 @@
                 <table class="table-orders">
                     <thead>
                         <tr>
+                            <th></th>
                             <th>Sklep</th>
                             <th>Ilość Przypisanych Produktów</th>
                             <th>Dozwolona Ilość Produktów</th>
@@ -24,6 +25,9 @@
                         @foreach (var store in Model)
                         {
                             <tr class="store-row" style="cursor:pointer;" data-url="@Url.Action("ProductList", "Product", new { storeId = store.StoreId })">
+                                <td>
+                                    <img src="@store.LogoUrl" class="img-container" alt="@store.StoreName" />
+                                </td>
                                 <td>@store.StoreName</td>
                                 <td>@store.ProductCount</td>
                                 <td>@store.AllowedProducts</td>

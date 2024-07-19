@@ -38,6 +38,7 @@ namespace PriceTracker.Controllers
             {
                 StoreId = store.StoreId,
                 StoreName = store.StoreName,
+                LogoUrl = store.StoreLogoUrl,
                 ProductCount = store.Products.Count(p => p.IsScrapable),
                 AllowedProducts = store.ProductsToScrap
             }).ToList();
