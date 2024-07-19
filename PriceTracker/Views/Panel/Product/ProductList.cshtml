@@ -62,9 +62,9 @@
             <table class="table-orders">
                 <thead>
                     <tr>
-               
+                        <th></th>
                         <th>Produkt (<span id="displayed-count"></span>)</th>
-                        <th>Kategoria</th>
+                        <th>Ean</th>
                         <th>Oznaczenie</th>
                         <th>Ceno</th>
                         <th>@ViewBag.StoreName</th>
@@ -132,15 +132,21 @@
 
                     var highlightedProductName = highlightMatches(product.productName, searchTerm);
 
-                   
                     var offerUrlButton = product.offerUrl ? `<a href="${product.offerUrl}" class="Button-Page-Small-o" target="_blank">Ceneo</a>` : '';
                     var urlButton = product.url ? `<a href="${product.url}" class="Button-Page-Small-b" target="_blank">Strona</a>` : '';
                     var catalogNumber = product.catalogNumber ? product.catalogNumber : '';
+                    var ean = product.ean ? product.ean : '';
+
+                    var imageUrl = product.mainUrl ? product.mainUrl : '';
+
+                    var imageCell = imageUrl ? `<img src="${imageUrl}" style="width: 90px; height: 90px; object-fit: contain; background-color: white;" />` : `<div style="width: 90px; height: 90px;"></div>`;
 
                     row.innerHTML = `
+                              <td>${imageCell}</td>
                     <td>${highlightedProductName}</td>
-                    <td>${product.category}</td>
+                    <td>${ean}</td>
                     <td>${catalogNumber}</td>
+                  
                     <td>${offerUrlButton}</td>
                     <td>${urlButton}</td>
                     <td>
@@ -179,6 +185,7 @@
                 });
                 document.getElementById('displayed-count').textContent = products.length;
             }
+
 
 
 
