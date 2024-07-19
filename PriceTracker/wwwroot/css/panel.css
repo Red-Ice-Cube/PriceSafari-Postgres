@@ -3300,7 +3300,7 @@ tr:last-child .sub-line {
 }
 
 
-.deliveryFilterCompetitor {
+.deliveryFilterCompetitor, .externalPriceFilter {
     outline: none;
     background-color: white;
     border: 2px solid gray;
