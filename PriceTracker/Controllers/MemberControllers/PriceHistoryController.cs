@@ -14,6 +14,8 @@ using System.Net.Http;
 using System.Security.Claims;
 using System.Threading.Tasks;
 using System.Xml.Linq;
+using Microsoft.AspNetCore.SignalR;
+using PriceTracker.Hubs;
 
 namespace PriceTracker.Controllers.MemberControllers
 {
@@ -24,13 +26,20 @@ namespace PriceTracker.Controllers.MemberControllers
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly ILogger<PriceHistoryController> _logger;
         private readonly UserManager<PriceTrackerUser> _userManager;
+        private readonly IHubContext<ScrapingHub> _hubContext;
 
-        public PriceHistoryController(PriceTrackerContext context, IHttpClientFactory httpClientFactory, ILogger<PriceHistoryController> logger, UserManager<PriceTrackerUser> userManager)
+        public PriceHistoryController(
+            PriceTrackerContext context,
+            IHttpClientFactory httpClientFactory,
+            ILogger<PriceHistoryController> logger,
+            UserManager<PriceTrackerUser> userManager,
+            IHubContext<ScrapingHub> hubContext)
         {
             _context = context;
             _httpClientFactory = httpClientFactory;
             _logger = logger;
             _userManager = userManager;
+            _hubContext = hubContext;
         }
 
         private async Task<bool> UserHasAccessToStore(int storeId)
@@ -282,6 +291,7 @@ namespace PriceTracker.Controllers.MemberControllers
 
 
 
+
         [HttpPost]
         public async Task<IActionResult> UpdatePricesFromExternalStore(int storeId)
         {
@@ -309,6 +319,7 @@ namespace PriceTracker.Controllers.MemberControllers
             int totalProducts = products.Count;
             int updatedCount = 0;
             int skippedCount = 0;
+            int processedCount = 0;
 
             foreach (var product in products)
             {
@@ -328,12 +339,7 @@ namespace PriceTracker.Controllers.MemberControllers
                     var latestPrice = latestPriceInfo.Price;
                     var priceHistoryId = latestPriceInfo.Id;
 
-                    _logger.LogInformation("Dla produktu ID: {ProductId}, ExternalId: {ExternalId}, cena z ostatniego scrapowania: {LatestPrice}, PriceHistoryId: {PriceHistoryId}",
-                        product.ProductId, product.ExternalId, latestPrice, priceHistoryId);
-
                     var priceResult = await GetExternalStorePrice(store.StoreApiUrl, store.StoreApiKey, product.ExternalId.Value);
-
-                    _logger.LogInformation("Dla produktu ID: {ProductId}, ExternalId: {ExternalId}, cena z API: {ExternalPrice}", product.ProductId, product.ExternalId, priceResult.Price);
 
                     if (priceResult.Price != latestPrice)
                     {
@@ -345,6 +351,9 @@ namespace PriceTracker.Controllers.MemberControllers
                         product.ExternalPrice = null;
                         skippedCount++;
                     }
+
+                    processedCount++;
+                    await _hubContext.Clients.All.SendAsync("ReceiveProgressUpdate", processedCount, totalProducts, updatedCount, skippedCount);
 
                     _logger.LogInformation("Zaktualizowano cenę dla produktu ID: {ProductId}, ExternalId: {ExternalId}", product.ProductId, product.ExternalId);
                 }
@@ -525,7 +534,7 @@ namespace PriceTracker.Controllers.MemberControllers
             ViewBag.Img = product.MainUrl;
             ViewBag.Ean = product.Ean;
             ViewBag.CatalogNum = product.CatalogNumber;
-            ViewBag.ExtertnalUrl = product.Url;
+            ViewBag.ExternalUrl = product.Url;
             ViewBag.ApiId = product.ExternalId;
 
             return View("~/Views/Panel/PriceHistory/Details.cshtml", prices);
