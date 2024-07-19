@@ -145,12 +145,12 @@
                     row.querySelector('.scrapable-checkbox').addEventListener('change', function () {
                         var productId = this.getAttribute('data-product-id');
 
-                        fetch('@Url.Action("UpdateScrapableProduct", "Product")', {
-                            method: 'PUT',
+                        fetch('@Url.Action("UpdateScrapableProduct", "Product")?storeId=' + storeId, {
+                            method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json'
                             },
-                            body: JSON.stringify({ productId: productId })
+                            body: JSON.stringify(productId)
                         })
                             .then(response => response.json())
                             .then(data => {
@@ -287,5 +287,7 @@
 
             fetchProducts();
         });
+
+
     </script>
 }
