@@ -62,10 +62,8 @@
       "wwwroot/js/Member/PriceHistory.js"
     ],
     "minify": {
-      "enabled": false 
+      "enabled": true
     }
   }
-
-  
 
 ]
