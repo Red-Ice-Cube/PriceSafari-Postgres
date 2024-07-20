@@ -171,7 +171,7 @@ namespace PriceTracker.Services
                 Console.WriteLine("Launching browser...");
                 var browser = await Puppeteer.LaunchAsync(new LaunchOptions
                 {
-                    Headless = false,
+                    Headless = true,
                     ExecutablePath = ChromeExecutablePath,
                     Args = new string[]
                     {
