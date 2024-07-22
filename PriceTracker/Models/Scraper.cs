@@ -1,4 +1,10 @@
-﻿using HtmlAgilityPack;
+﻿
+
+
+
+//DZIALAJACA WERSJA POWOLNA Z PUPETERE ALE POPRAWNIE
+
+using HtmlAgilityPack;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
