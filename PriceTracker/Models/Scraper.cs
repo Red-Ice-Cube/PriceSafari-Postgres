@@ -13,7 +13,7 @@ namespace PriceTracker.Services
     public class Scraper
     {
         private readonly HttpClient _httpClient;
-        private Microsoft.Playwright.IBrowser _browser;
+        private IBrowser _browser;
         private IPage _page;
         private List<(string Reason, string Url)> rejectedProducts = new List<(string Reason, string Url)>();
 
@@ -138,6 +138,12 @@ namespace PriceTracker.Services
             return (prices, log, rejectedProducts);
         }
 
+
+
+
+
+
+
         public async Task<(List<(string storeName, decimal price, decimal? shippingCostNum, int? availabilityNum, string isBidding, string position)> Prices, string Log, List<(string Reason, string Url)> RejectedProducts)> HandleCaptchaAsync(string url)
         {
             var priceResults = new List<(string storeName, decimal price, decimal? shippingCostNum, int? availabilityNum, string isBidding, string position)>();
@@ -150,7 +156,7 @@ namespace PriceTracker.Services
                 _browser = await playwright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions
                 {
                     Headless = false,
-                    Args = new[] { "--no-sandbox" }
+                    Args = new[] { "--no-sandbox", "--disable-setuid-sandbox", "--disable-gpu" }
                 });
                 _page = await _browser.NewPageAsync();
 
@@ -162,16 +168,6 @@ namespace PriceTracker.Services
                     priceResults.AddRange(prices);
                     log = scrapeLog;
                     rejectedProducts.AddRange(scrapeRejectedProducts);
-
-                    // Kontynuuj przetwarzanie kolejnych URL-i w tej samej karcie przeglądarki
-                    var urls = new List<string> { "https://www.ceneo.pl/89956293", "https://www.ceneo.pl/149922831", "https://www.ceneo.pl/112786847" }; // dodaj tutaj swoje URL-e
-                    foreach (var nextUrl in urls)
-                    {
-                        var (nextPrices, nextLog, nextRejectedProducts) = await ScrapePricesFromPage(nextUrl);
-                        priceResults.AddRange(nextPrices);
-                        log += nextLog;
-                        rejectedProducts.AddRange(nextRejectedProducts);
-                    }
                 }
                 else
                 {
@@ -196,18 +192,15 @@ namespace PriceTracker.Services
             {
                 Console.WriteLine("Navigating to the target URL...");
                 await _page.GotoAsync(url);
-                await Task.Delay(5000);
 
                 var currentUrl = _page.Url;
                 if (currentUrl.Contains("/Captcha/Add"))
                 {
                     Console.WriteLine("CAPTCHA detected, navigating to error page...");
-                    await _page.GotoAsync("https://www.ceneo.pl/24ado");
-                    await Task.Delay(5000);
+                    await _page.GotoAsync("https://www.ceneo.pl/777");
 
                     Console.WriteLine("Navigating back to the target URL...");
                     await _page.GotoAsync(url);
-                    await Task.Delay(5000);
 
                     currentUrl = _page.Url;
                     if (currentUrl.Contains("/Captcha/Add"))
@@ -216,15 +209,11 @@ namespace PriceTracker.Services
                     }
                 }
 
-                var rejectButton = await _page.QuerySelectorAsync("button.cookie-consent__buttons__action.js_cookie-consent-necessary[data-role='reject-rodo']");
+                var rejectButton = await _page.WaitForSelectorAsync("button.cookie-consent__buttons__action.js_cookie-consent-necessary[data-role='reject-rodo']", new PageWaitForSelectorOptions { Timeout = 5000 });
                 if (rejectButton != null)
                 {
                     await rejectButton.ClickAsync();
                     Console.WriteLine("Clicked 'Nie zgadzam się' button.");
-                }
-                else
-                {
-                    Console.WriteLine("'Nie zgadzam się' button not found.");
                 }
 
                 return true;
@@ -244,7 +233,6 @@ namespace PriceTracker.Services
 
             Console.WriteLine("Navigating to the target URL...");
             await _page.GotoAsync(url);
-            await Task.Delay(5000);
 
             Console.WriteLine("Querying for offer nodes...");
             var offerNodes = await _page.QuerySelectorAllAsync("li.product-offers__list__item");
@@ -341,6 +329,7 @@ namespace PriceTracker.Services
         }
 
     }
+
 }
 
 
