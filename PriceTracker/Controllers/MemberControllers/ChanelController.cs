@@ -31,8 +31,8 @@ namespace PriceTracker.Controllers.MemberControllers
                 .Where(us => us.UserId == userId)
                 .Include(us => us.StoreClass)
                 .ThenInclude(s => s.ScrapHistories)
-                .Include(us => us.StoreClass)
-                .ThenInclude(s => s.Products)
+                
+          
               
                 .ToListAsync();
 
@@ -44,7 +44,7 @@ namespace PriceTracker.Controllers.MemberControllers
                 StoreName = store.StoreName,
                 LogoUrl = store.StoreLogoUrl,
                 LastScrapeDate = store.ScrapHistories.OrderByDescending(sh => sh.Date).FirstOrDefault()?.Date,    
-                ProductCount = store.ScrapHistories.OrderByDescending(sh => sh.Date).FirstOrDefault()?.PriceCount
+             
             }).ToList();
 
             return View("~/Views/Panel/Chanel/Index.cshtml", storeDetails);
