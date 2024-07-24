@@ -1,10 +1,4 @@
-﻿
-
-
-
-//DZIALAJACA WERSJA POWOLNA Z PUPETERE ALE POPRAWNIE
-
-using HtmlAgilityPack;
+﻿using HtmlAgilityPack;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -143,10 +137,6 @@ namespace PriceTracker.Services
 
             return (prices, log, rejectedProducts);
         }
-
-
-
-
 
 
 
@@ -337,9 +327,6 @@ namespace PriceTracker.Services
     }
 
 }
-
-
-
 
 
 //using HtmlAgilityPack;

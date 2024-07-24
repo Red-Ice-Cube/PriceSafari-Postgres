@@ -194,11 +194,15 @@ public class PriceScrapingController : Controller
         return RedirectToAction("GetUniqueScrapingUrls");
     }
 
-   
     [HttpGet]
     public async Task<IActionResult> GetUniqueScrapingUrls()
     {
         var uniqueUrls = await _context.CoOfrs.ToListAsync();
+        var coOfrPriceHistories = await _context.CoOfrPriceHistories.ToListAsync();
+
+        var scrapedUrlsCount = coOfrPriceHistories.Select(ph => ph.CoOfrClassId).Distinct().Count();
+        ViewBag.ScrapedUrlsCount = scrapedUrlsCount;
+
         return View("~/Views/ManagerPanel/Store/GetUniqueScrapingUrls.cshtml", uniqueUrls);
     }
 
@@ -206,9 +210,12 @@ public class PriceScrapingController : Controller
     public async Task<IActionResult> StartScrapingByCoOfrUrls()
     {
         var coOfrs = await _context.CoOfrs.ToListAsync();
-        var urls = coOfrs.Select(co => co.OfferUrl).ToList();
+        var coOfrPriceHistories = await _context.CoOfrPriceHistories.ToListAsync();
 
-        if (urls == null || !urls.Any())
+        var scrapedCoOfrIds = coOfrPriceHistories.Select(ph => ph.CoOfrClassId).Distinct().ToList();
+        var urlsToScrape = coOfrs.Where(co => !scrapedCoOfrIds.Contains(co.Id)).Select(co => co.OfferUrl).ToList();
+
+        if (urlsToScrape == null || !urlsToScrape.Any())
         {
             Console.WriteLine("No URLs found to scrape.");
             return NotFound("No URLs found to scrape.");
@@ -222,8 +229,9 @@ public class PriceScrapingController : Controller
         var stopwatch = new Stopwatch();
         stopwatch.Start();
 
-        foreach (var coOfr in coOfrs)
+        foreach (var url in urlsToScrape)
         {
+            var coOfr = coOfrs.First(co => co.OfferUrl == url);
             tasks.Add(Task.Run(async () =>
             {
                 await semaphore.WaitAsync();

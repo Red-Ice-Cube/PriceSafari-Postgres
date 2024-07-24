@@ -137,21 +137,18 @@
         return console.error(err.toString());
     });
 
+    var storeId = document.querySelector('.Vert').dataset.storeId;
+
     $('#scrapingForm').on('submit', function (e) {
         e.preventDefault();
         var form = $(this);
         var url = form.attr('action');
-        var selectedUrls = [];
 
-        $('input[name="selectedUrls"]:checked').each(function () {
-            selectedUrls.push($(this).val());
-        });
+        url = url.split('?')[0];
 
         $.ajax({
-            url: url,
-            method: 'POST',
-            contentType: 'application/json',
-            data: JSON.stringify(selectedUrls),
+            url: url + '?storeId=' + storeId,
+            method: 'GET',
             success: function () {
                 console.log('Scraping started successfully');
             },
