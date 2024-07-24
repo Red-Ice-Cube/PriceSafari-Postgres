@@ -1,0 +1,37 @@
+﻿@model StoreProductsViewModel
+
+@{
+    ViewBag.Title = "Produkty sklepu " + Model.StoreName;
+    Layout = "~/Views/Shared/_PanelLayout.cshtml";
+}
+
+<h2>Produkty sklepu @Model.StoreName</h2>
+
+<form asp-action="MapCoOfrToPriceHistory" asp-controller="PriceScraping" method="post">
+    <input type="hidden" name="storeId" value="@ViewBag.StoreId" />
+    <button type="submit" class="btn btn-primary">Mapuj CoOfr do PriceHistory</button>
+</form>
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>Product ID</th>
+            <th>Product Name</th>
+            <th>Category</th>
+            <th>Offer URL</th>
+            <th>CoOfr ID</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var product in Model.Products)
+        {
+            <tr>
+                <td>@product.ProductId</td>
+                <td>@product.ProductName</td>
+                <td>@product.Category</td>
+                <td>@product.OfferUrl</td>
+                <td>@product.CoOfrId</td>
+            </tr>
+        }
+    </tbody>
+</table>

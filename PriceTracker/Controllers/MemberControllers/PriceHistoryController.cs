@@ -225,7 +225,7 @@ namespace PriceTracker.Controllers.MemberControllers
                     var isMyBestPrice = myPriceEntry != null && myPriceEntry.Price == bestPriceEntry.Price;
 
                     var secondBestPrice = g
-                        .Where(p => p.Price > bestPriceEntry.Price && p.Price != myPriceEntry.Price)
+                        .Where(p => p.Price > bestPriceEntry.Price && p.Price != myPriceEntry?.Price)
                         .OrderBy(p => p.Price)
                         .FirstOrDefault()?.Price ?? 0;
 

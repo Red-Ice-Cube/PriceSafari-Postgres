@@ -286,5 +286,106 @@ public class PriceScrapingController : Controller
     }
 
 
+    [HttpGet]
+    public async Task<IActionResult> GetStoreProductsWithCoOfrIds(int storeId)
+    {
+        var store = await _context.Stores.FindAsync(storeId);
+        if (store == null)
+        {
+            return NotFound();
+        }
+
+        var products = await _context.Products
+            .Where(p => p.StoreId == storeId)
+            .ToListAsync();
+
+        var coOfrClasses = await _context.CoOfrs.ToListAsync();
+
+        var productCoOfrViewModels = products.Select(product => new ProductCoOfrViewModel
+        {
+            ProductId = product.ProductId,
+            ProductName = product.ProductName,
+            Category = product.Category,
+            OfferUrl = product.OfferUrl,
+            CoOfrId = coOfrClasses.FirstOrDefault(co => co.ProductIds.Contains(product.ProductId))?.Id
+        }).ToList();
+
+        var viewModel = new StoreProductsViewModel
+        {
+            StoreName = store.StoreName,
+            Products = productCoOfrViewModels
+        };
+
+        ViewBag.StoreId = storeId; 
+
+        return View("~/Views/ManagerPanel/Store/GetStoreProductsWithCoOfrIds.cshtml", viewModel);
+    }
+
+
+    [HttpPost]
+    public async Task<IActionResult> MapCoOfrToPriceHistory(int storeId)
+    {
+        var store = await _context.Stores.FindAsync(storeId);
+        if (store == null)
+        {
+            return NotFound();
+        }
+
+        var products = await _context.Products
+            .Where(p => p.StoreId == storeId)
+            .ToListAsync();
+
+        var coOfrClasses = await _context.CoOfrs.ToListAsync();
+        var coOfrPriceHistories = await _context.CoOfrPriceHistories.ToListAsync();
+
+        var scrapHistory = new ScrapHistoryClass
+        {
+            Date = DateTime.Now,
+            StoreId = storeId,
+            ProductCount = products.Count,
+            PriceCount = 0,
+            Store = store
+        };
+
+        var priceHistories = new List<PriceHistoryClass>();
+
+        foreach (var product in products)
+        {
+            var coOfrId = coOfrClasses.FirstOrDefault(co => co.ProductIds.Contains(product.ProductId))?.Id;
+            if (coOfrId != null)
+            {
+                var coOfrPriceHistory = coOfrPriceHistories.Where(ph => ph.CoOfrClassId == coOfrId).ToList();
+
+                foreach (var coOfrPrice in coOfrPriceHistory)
+                {
+                    var priceHistory = new PriceHistoryClass
+                    {
+                        ProductId = product.ProductId,
+                        StoreName = coOfrPrice.StoreName,
+                        Price = coOfrPrice.Price,
+                        IsBidding = coOfrPrice.IsBidding,
+                        Position = coOfrPrice.Position,
+                        ShippingCostNum = coOfrPrice.ShippingCostNum,
+                        AvailabilityNum = coOfrPrice.AvailabilityNum,
+                        ScrapHistory = scrapHistory
+                    };
+
+                    priceHistories.Add(priceHistory);
+                }
+            }
+        }
+
+        scrapHistory.PriceCount = priceHistories.Count;
+        _context.ScrapHistories.Add(scrapHistory);
+        _context.PriceHistories.AddRange(priceHistories);
+
+        await _context.SaveChangesAsync();
+
+        return RedirectToAction("GetStoreProductsWithCoOfrIds", new { storeId });
+    }
+
+
+
+
 }
 
