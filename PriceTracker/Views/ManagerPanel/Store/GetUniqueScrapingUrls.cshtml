@@ -1,0 +1,78 @@
+﻿@model IEnumerable<CoOfrClass>
+
+@{
+    ViewBag.Title = "Unikalne URL do Scrapowania";
+    Layout = "~/Views/Shared/_PanelLayout.cshtml";
+    var totalUrls = Model.Count();
+    var totalProducts = Model.Sum(item => item.ProductIds.Count);
+}
+
+<div class="Vert" data-store-id="uniqueUrls">
+    <div class="Vert-full">
+        <div class="Order-Container-Title">
+            Lista unikalnych URL do scrapowania
+            <div class="bar-List">
+                <div>
+                    <strong>Łączna liczba URL: </strong><span id="totalUrlCount">@totalUrls</span>
+                </div>
+                <div>
+                    <strong>Łączna liczba produktów: </strong><span id="totalProductCount">@totalProducts</span>
+                </div>
+            </div>
+        </div>
+        <div class="bar-List">
+            <form asp-action="GroupAndSaveUniqueUrls" asp-controller="PriceScraping" method="post">
+                <button type="submit" class="Button-Add-Small">Scal produkty</button>
+            </form>
+            <form id="scrapingForm" asp-action="StartScrapingByCoOfrUrls" asp-controller="PriceScraping" method="post">
+                <button type="submit" class="Button-Add-Small">Rozpocznij scrapowanie cen</button>
+            </form>
+        </div>
+        <div class="order-upper-box">
+            <div class="chart-box">
+                <div class="chart-container-cam">
+                    <div class="progress-bar">
+                        <div id="progressBarInner" class="progress-bar-inner"></div>
+                    </div>
+                </div>
+                <div id="progressText" class="mt-2"></div>
+                <div id="completionMessage" class="mt-2" style="display: none;"></div>
+                <div class="chart-container-cam">
+                    <canvas id="speedChart"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="Vert-table">
+            <table class="table-orders">
+                <thead>
+                    <tr>
+                        <th>Offer URL</th>
+                        <th>Product IDs</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in Model)
+                    {
+                        <tr class="product-row" style="background-color: rgba(14, 126, 135, 0.3)">
+                            <td>@item.OfferUrl</td>
+                            <td>@string.Join(", ", item.ProductIds)</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <style>
+        #speedChart {
+            width: 100% !important;
+            height: 200px !important;
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/3.1.11/signalr.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="~/js/manager/ScrapeAll.js"></script>
+}

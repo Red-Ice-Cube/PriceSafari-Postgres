@@ -172,5 +172,119 @@ public class PriceScrapingController : Controller
     {
         return await StartScraping(storeId);
     }
+
+
+    [HttpPost]
+    public async Task<IActionResult> GroupAndSaveUniqueUrls()
+    {
+        var uniqueUrls = await _context.Products
+            .Where(p => p.IsScrapable && !p.IsRejected)
+            .GroupBy(p => p.OfferUrl)
+            .Select(g => new CoOfrClass
+            {
+                OfferUrl = g.Key,
+                ProductIds = g.Select(p => p.ProductId).ToList()
+            })
+            .ToListAsync();
+
+        _context.CoOfrs.RemoveRange(_context.CoOfrs);  
+        _context.CoOfrs.AddRange(uniqueUrls); 
+        await _context.SaveChangesAsync();
+
+        return RedirectToAction("GetUniqueScrapingUrls");
+    }
+
+   
+    [HttpGet]
+    public async Task<IActionResult> GetUniqueScrapingUrls()
+    {
+        var uniqueUrls = await _context.CoOfrs.ToListAsync();
+        return View("~/Views/ManagerPanel/Store/GetUniqueScrapingUrls.cshtml", uniqueUrls);
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> StartScrapingByCoOfrUrls()
+    {
+        var coOfrs = await _context.CoOfrs.ToListAsync();
+        var urls = coOfrs.Select(co => co.OfferUrl).ToList();
+
+        if (urls == null || !urls.Any())
+        {
+            Console.WriteLine("No URLs found to scrape.");
+            return NotFound("No URLs found to scrape.");
+        }
+
+        var tasks = new List<Task>();
+        var semaphore = new SemaphoreSlim(4);
+        int totalPrices = 0;
+        int scrapedCount = 0;
+        int rejectedCount = 0;
+        var stopwatch = new Stopwatch();
+        stopwatch.Start();
+
+        foreach (var coOfr in coOfrs)
+        {
+            tasks.Add(Task.Run(async () =>
+            {
+                await semaphore.WaitAsync();
+                try
+                {
+                    using var scope = _serviceProvider.CreateScope();
+                    var scopedContext = scope.ServiceProvider.GetRequiredService<PriceTrackerContext>();
+
+                    var scraper = new Scraper(_httpClient);
+                    var tryCount = 0;
+                    var prices = new List<(string storeName, decimal price, decimal? shippingCostNum, int? availabilityNum, string isBidding, string position)>();
+                    List<(string Reason, string Url)> rejected = new List<(string Reason, string Url)>();
+                    string log = "";
+
+                    do
+                    {
+                        (prices, log, rejected) = await scraper.GetProductPricesAsync(coOfr.OfferUrl, ++tryCount);
+                        Console.WriteLine(log);
+
+                        if (rejected.Count == 0)
+                            break;
+
+                    } while (tryCount < 2);
+
+                    var priceHistories = prices.Select(priceData => new CoOfrPriceHistoryClass
+                    {
+                        CoOfrClassId = coOfr.Id,
+                        StoreName = priceData.storeName,
+                        Price = priceData.price,
+                        ShippingCostNum = priceData.shippingCostNum,
+                        AvailabilityNum = priceData.availabilityNum,
+                        IsBidding = priceData.isBidding,
+                        Position = priceData.position
+                    }).ToList();
+
+                    await scopedContext.CoOfrPriceHistories.AddRangeAsync(priceHistories);
+                    await scopedContext.SaveChangesAsync();
+
+                    Interlocked.Add(ref totalPrices, priceHistories.Count);
+                    Interlocked.Increment(ref scrapedCount);
+                    await _hubContext.Clients.All.SendAsync("ReceiveProgressUpdate", scrapedCount, coOfrs.Count, stopwatch.Elapsed.TotalSeconds, rejectedCount);
+                }
+                catch (Exception ex)
+                {
+                    var log = $"Error scraping URL: {coOfr.OfferUrl}. Exception: {ex.Message}";
+                    Console.WriteLine(log);
+                }
+                finally
+                {
+                    semaphore.Release();
+                }
+            }));
+        }
+
+        await Task.WhenAll(tasks);
+
+        stopwatch.Stop();
+
+        return Ok(new { Message = "Scraping completed.", TotalPrices = totalPrices, RejectedCount = rejectedCount });
+    }
+
+
 }
 

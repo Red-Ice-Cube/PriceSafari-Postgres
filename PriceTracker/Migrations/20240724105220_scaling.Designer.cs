@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using PriceTracker.Data;
 
@@ -11,9 +12,11 @@ using PriceTracker.Data;
 namespace PriceTracker.Migrations
 {
     [DbContext(typeof(PriceTrackerContext))]
-    partial class PriceTrackerContextModelSnapshot : ModelSnapshot
+    [Migration("20240724105220_scaling")]
+    partial class scaling
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -233,45 +236,6 @@ namespace PriceTracker.Migrations
                     b.HasIndex("StoreId");
 
                     b.ToTable("Categories");
-                });
-
-            modelBuilder.Entity("PriceTracker.Models.CoOfrPriceHistoryClass", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<int?>("AvailabilityNum")
-                        .HasColumnType("int");
-
-                    b.Property<int>("CoOfrClassId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("IsBidding")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Position")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<decimal>("Price")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<decimal?>("ShippingCostNum")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<string>("StoreName")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CoOfrClassId");
-
-                    b.ToTable("CoOfrPriceHistories");
                 });
 
             modelBuilder.Entity("PriceTracker.Models.FlagsClass", b =>
@@ -736,17 +700,6 @@ namespace PriceTracker.Migrations
                         .IsRequired();
 
                     b.Navigation("Store");
-                });
-
-            modelBuilder.Entity("PriceTracker.Models.CoOfrPriceHistoryClass", b =>
-                {
-                    b.HasOne("CoOfrClass", "CoOfr")
-                        .WithMany()
-                        .HasForeignKey("CoOfrClassId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("CoOfr");
                 });
 
             modelBuilder.Entity("PriceTracker.Models.FlagsClass", b =>

@@ -23,6 +23,8 @@ namespace PriceTracker.Data
         public DbSet<ProductFlag> ProductFlags { get; set; }
         public DbSet<PriceTrackerUserStore> UserStores { get; set; }
         public DbSet<ProductMap> ProductMaps { get; set; }
+        public DbSet<CoOfrClass> CoOfrs { get; set; }
+        public DbSet<CoOfrPriceHistoryClass> CoOfrPriceHistories { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
