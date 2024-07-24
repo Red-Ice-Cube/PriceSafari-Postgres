@@ -137,18 +137,14 @@
         return console.error(err.toString());
     });
 
-    var storeId = document.querySelector('.Vert').dataset.storeId;
-
     $('#scrapingForm').on('submit', function (e) {
         e.preventDefault();
         var form = $(this);
         var url = form.attr('action');
 
-        url = url.split('?')[0];
-
         $.ajax({
-            url: url + '?storeId=' + storeId,
-            method: 'GET',
+            url: url,
+            method: 'POST',
             success: function () {
                 console.log('Scraping started successfully');
             },

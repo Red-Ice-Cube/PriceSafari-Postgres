@@ -3,9 +3,9 @@
 @{
     ViewBag.Title = "Unikalne URL do Scrapowania";
     Layout = "~/Views/Shared/_PanelLayout.cshtml";
-    var totalUrls = Model.Count();
+    var totalUrls = ViewBag.TotalUrlsCount;
+    var scrapedUrlsCount = ViewBag.ScrapedUrlsCount;
     var totalProducts = Model.Sum(item => item.ProductIds.Count);
-    var scrapedUrlsCount = ViewBag.ScrapedUrlsCount ?? 0;
 }
 
 <div class="Vert" data-store-id="uniqueUrls">
@@ -20,7 +20,10 @@
                     <strong>Łączna liczba produktów: </strong><span id="totalProductCount">@totalProducts</span>
                 </div>
                 <div>
-                    <strong>Scrapowane URL: </strong><span id="scrapedUrlCount">@scrapedUrlsCount</span>/<span>@totalUrls</span>
+                    <strong>Zescrapowane URL: </strong><span id="scrapedUrlCount">@scrapedUrlsCount</span>
+                </div>
+                <div>
+                    <strong>Postęp scrapowania: </strong><span id="scrapingProgress">@scrapedUrlsCount / @totalUrls</span>
                 </div>
             </div>
         </div>
@@ -31,8 +34,11 @@
             <form id="scrapingForm" asp-action="StartScrapingByCoOfrUrls" asp-controller="PriceScraping" method="post">
                 <button type="submit" class="Button-Add-Small">Rozpocznij scrapowanie cen</button>
             </form>
-            <form asp-action="ClearScrapedData" asp-controller="PriceScraping" method="post">
-                <button type="submit" class="Button-Page-Small-r">Wyczyść dane</button>
+            <form id="captchaScrapingForm" asp-action="StartScrapingWithCaptchaHandling" asp-controller="PriceScraping" method="post">
+                <button type="submit" class="Button-Add-Small">Rozpocznij scrapowanie z obsługą CAPTCHA</button>
+            </form>
+            <form asp-action="ClearCoOfrPriceHistories" asp-controller="PriceScraping" method="post">
+                <button type="submit" class="Button-Add-Small">Oczyść zescrapowane dane</button>
             </form>
         </div>
         <div class="order-upper-box">
