@@ -332,69 +332,74 @@ public class PriceScrapingController : Controller
             return NotFound("No URLs found to scrape.");
         }
 
-        var scraper = new Scraper(_httpClientFactory.CreateClient());
+       
+        var urlGroups = urls.Select((url, index) => new { url, index })
+                            .GroupBy(x => x.index % 6)
+                            .Select(g => g.Select(x => x.url).ToList())
+                            .ToList();
+
         var tasks = new List<Task>();
-        var semaphore = new SemaphoreSlim(1);
         int totalPrices = 0;
         int scrapedCount = 0;
         int rejectedCount = 0;
         var stopwatch = new Stopwatch();
         stopwatch.Start();
 
-        await scraper.InitializeBrowserAsync();
-
-        foreach (var coOfr in coOfrs.Where(co => !scrapedCoOfrIds.Contains(co.Id)))
+        foreach (var urlGroup in urlGroups)
         {
             tasks.Add(Task.Run(async () =>
             {
-                await semaphore.WaitAsync();
-                try
+                var httpClient = _httpClientFactory.CreateClient();
+                var captchaScraper = new CaptchaScraper(httpClient);
+
+                await captchaScraper.InitializeBrowserAsync();
+
+                foreach (var url in urlGroup)
                 {
-                    using var scope = _serviceProvider.CreateScope();
-                    var scopedContext = scope.ServiceProvider.GetRequiredService<PriceTrackerContext>();
-
-                    var (prices, log, rejected) = await scraper.HandleCaptchaAndScrapePricesAsync(coOfr.OfferUrl);
-                    Console.WriteLine(log);
-
-                    var priceHistories = prices.Select(priceData => new CoOfrPriceHistoryClass
+                    try
                     {
-                        CoOfrClassId = coOfr.Id,
-                        StoreName = priceData.storeName,
-                        Price = priceData.price,
-                        ShippingCostNum = priceData.shippingCostNum,
-                        AvailabilityNum = priceData.availabilityNum,
-                        IsBidding = priceData.isBidding,
-                        Position = priceData.position
-                    }).ToList();
+                        using var scope = _serviceProvider.CreateScope();
+                        var scopedContext = scope.ServiceProvider.GetRequiredService<PriceTrackerContext>();
 
-                    await scopedContext.CoOfrPriceHistories.AddRangeAsync(priceHistories);
-                    await scopedContext.SaveChangesAsync();
+                        var (prices, log, rejected) = await captchaScraper.HandleCaptchaAndScrapePricesAsync(url);
+                        Console.WriteLine(log);
 
-                    Interlocked.Add(ref totalPrices, priceHistories.Count);
-                    Interlocked.Increment(ref scrapedCount);
-                    await _hubContext.Clients.All.SendAsync("ReceiveProgressUpdate", scrapedCount, coOfrs.Count, stopwatch.Elapsed.TotalSeconds, rejectedCount);
+                        var coOfr = coOfrs.First(co => co.OfferUrl == url);
+                        var priceHistories = prices.Select(priceData => new CoOfrPriceHistoryClass
+                        {
+                            CoOfrClassId = coOfr.Id,
+                            StoreName = priceData.storeName,
+                            Price = priceData.price,
+                            ShippingCostNum = priceData.shippingCostNum,
+                            AvailabilityNum = priceData.availabilityNum,
+                            IsBidding = priceData.isBidding,
+                            Position = priceData.position
+                        }).ToList();
+
+                        await scopedContext.CoOfrPriceHistories.AddRangeAsync(priceHistories);
+                        await scopedContext.SaveChangesAsync();
+
+                        Interlocked.Add(ref totalPrices, priceHistories.Count);
+                        Interlocked.Increment(ref scrapedCount);
+                        await _hubContext.Clients.All.SendAsync("ReceiveProgressUpdate", scrapedCount, coOfrs.Count, stopwatch.Elapsed.TotalSeconds, rejectedCount);
+                    }
+                    catch (Exception ex)
+                    {
+                        var log = $"Error scraping URL: {url}. Exception: {ex.Message}";
+                        Console.WriteLine(log);
+                    }
                 }
-                catch (Exception ex)
-                {
-                    var log = $"Error scraping URL: {coOfr.OfferUrl}. Exception: {ex.Message}";
-                    Console.WriteLine(log);
-                }
-                finally
-                {
-                    semaphore.Release();
-                }
+
+                await captchaScraper.CloseBrowserAsync();
             }));
         }
 
         await Task.WhenAll(tasks);
 
-        await scraper.CloseBrowserAsync();
-
         stopwatch.Stop();
 
         return Ok(new { Message = "Scraping completed.", TotalPrices = totalPrices, RejectedCount = rejectedCount });
     }
-
 
 
     [HttpGet]

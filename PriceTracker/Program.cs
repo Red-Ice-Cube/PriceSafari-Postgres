@@ -54,6 +54,17 @@ public class Program
         // Register Scraper as a service
         builder.Services.AddScoped<Scraper>();
 
+        // Register HttpClient for CaptchaScraper
+        builder.Services.AddHttpClient<CaptchaScraper>();
+
+        // Register CaptchaScraper as a service
+        builder.Services.AddScoped<CaptchaScraper>();
+
+
+
+
+
+
         builder.Services.AddMemoryCache();
         builder.Services.AddSession(options =>
         {
