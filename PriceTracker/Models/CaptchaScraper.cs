@@ -16,34 +16,14 @@ namespace PriceTracker.Models
             _httpClient = httpClient;
         }
 
-        public async Task InitializeBrowserAsync(string browserType = "chromium")
+        public async Task InitializeBrowserAsync()
         {
             var playwright = await Playwright.CreateAsync();
-            switch (browserType.ToLower())
+            _browser = await playwright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions
             {
-                case "firefox":
-                    _browser = await playwright.Firefox.LaunchAsync(new BrowserTypeLaunchOptions
-                    {
-                        Headless = false,
-                        Args = new[] { "--no-sandbox", "--disable-setuid-sandbox", "--disable-gpu" }
-                    });
-                    break;
-                case "webkit":
-                    _browser = await playwright.Webkit.LaunchAsync(new BrowserTypeLaunchOptions
-                    {
-                        Headless = false,
-                        Args = new[] { "--no-sandbox", "--disable-setuid-sandbox", "--disable-gpu" }
-                    });
-                    break;
-                case "chromium":
-                default:
-                    _browser = await playwright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions
-                    {
-                        Headless = false,
-                        Args = new[] { "--no-sandbox", "--disable-setuid-sandbox", "--disable-gpu" }
-                    });
-                    break;
-            }
+                Headless = false,
+                Args = new[] { "--no-sandbox", "--disable-setuid-sandbox", "--disable-gpu" }
+            });
 
             var context = await _browser.NewContextAsync(new BrowserNewContextOptions
             {
@@ -52,6 +32,7 @@ namespace PriceTracker.Models
 
             _page = await context.NewPageAsync();
         }
+
 
         public async Task CloseBrowserAsync()
         {

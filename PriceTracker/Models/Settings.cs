@@ -12,6 +12,9 @@ namespace PriceTracker.Models
 
         public bool VerificationRequired { get; set; } = false;
 
+        public int CaptchaSpeed { get; set; } = 3;
+        public int ScrapSemaphoreSlim { get; set; } = 3;
+
 
 
         public Settings()

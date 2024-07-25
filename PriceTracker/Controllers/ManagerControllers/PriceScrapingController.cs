@@ -31,6 +31,15 @@ public class PriceScrapingController : Controller
     [HttpPost]
     public async Task<IActionResult> StartScraping(int storeId)
     {
+        var settings = await _context.Settings.FirstOrDefaultAsync();
+        if (settings == null)
+        {
+            Console.WriteLine("Settings not found.");
+            return NotFound("Settings not found.");
+        }
+
+        int scrapSemaphoreSlim = settings.ScrapSemaphoreSlim;
+
         var store = await _context.Stores.FindAsync(storeId);
         if (store == null)
         {
@@ -39,8 +48,8 @@ public class PriceScrapingController : Controller
         }
 
         var products = await _context.Products
-          .Where(p => p.StoreId == storeId && p.IsScrapable && !p.IsRejected)
-          .ToListAsync();
+            .Where(p => p.StoreId == storeId && p.IsScrapable && !p.IsRejected)
+            .ToListAsync();
 
         if (products == null || !products.Any())
         {
@@ -65,7 +74,7 @@ public class PriceScrapingController : Controller
         var actualRejectedProducts = new List<ProductClass>();
         var stopwatch = new Stopwatch();
         var tasks = new List<Task>();
-        var semaphore = new SemaphoreSlim(4);
+        var semaphore = new SemaphoreSlim(scrapSemaphoreSlim);
 
         stopwatch.Start();
 
@@ -167,6 +176,7 @@ public class PriceScrapingController : Controller
 
         return RedirectToAction("ProductList", "Store", new { storeId });
     }
+
 
 
     [HttpGet]
@@ -311,9 +321,18 @@ public class PriceScrapingController : Controller
         return Ok(new { Message = "Scraping completed.", TotalPrices = totalPrices, RejectedCount = rejectedCount });
     }
 
- [HttpPost]
+    [HttpPost]
     public async Task<IActionResult> StartScrapingWithCaptchaHandling()
     {
+        var settings = await _context.Settings.FirstOrDefaultAsync();
+        if (settings == null)
+        {
+            Console.WriteLine("Settings not found.");
+            return NotFound("Settings not found.");
+        }
+
+        int captchaSpeed = settings.CaptchaSpeed;
+
         var coOfrs = await _context.CoOfrs.ToListAsync();
         var scrapedCoOfrIds = await _context.CoOfrPriceHistories
             .Select(ph => ph.CoOfrClassId)
@@ -331,9 +350,8 @@ public class PriceScrapingController : Controller
             return NotFound("No URLs found to scrape.");
         }
 
-      
         var urlGroups = urls.Select((url, index) => new { url, index })
-                            .GroupBy(x => x.index % 1)
+                            .GroupBy(x => x.index % captchaSpeed)
                             .Select(g => g.Select(x => x.url).ToList())
                             .ToList();
 
@@ -344,14 +362,14 @@ public class PriceScrapingController : Controller
         var stopwatch = new Stopwatch();
         stopwatch.Start();
 
-        foreach (var (urlGroup, browserType) in urlGroups.Zip(new[] { "chromium" }))
+        foreach (var urlGroup in urlGroups)
         {
             tasks.Add(Task.Run(async () =>
             {
                 var httpClient = _httpClientFactory.CreateClient();
                 var captchaScraper = new CaptchaScraper(httpClient);
 
-                await captchaScraper.InitializeBrowserAsync(browserType);
+                await captchaScraper.InitializeBrowserAsync();
 
                 foreach (var url in urlGroup)
                 {
@@ -399,6 +417,8 @@ public class PriceScrapingController : Controller
 
         return Ok(new { Message = "Scraping completed.", TotalPrices = totalPrices, RejectedCount = rejectedCount });
     }
+
+
 
 
     [HttpGet]
