@@ -61,10 +61,6 @@ public class Program
         builder.Services.AddScoped<CaptchaScraper>();
 
 
-
-
-
-
         builder.Services.AddMemoryCache();
         builder.Services.AddSession(options =>
         {
