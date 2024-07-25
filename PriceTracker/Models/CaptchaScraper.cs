@@ -1,8 +1,6 @@
-﻿
-
-
-using Microsoft.Playwright;
+﻿using Microsoft.Playwright;
 using System.Globalization;
+using System.Linq;
 using System.Text.RegularExpressions;
 
 namespace PriceTracker.Models
@@ -49,7 +47,7 @@ namespace PriceTracker.Models
 
             var context = await _browser.NewContextAsync(new BrowserNewContextOptions
             {
-                ViewportSize = new ViewportSize { Width = 690, Height = 590 }
+                ViewportSize = new ViewportSize { Width = 780, Height = 590 }
             });
 
             _page = await context.NewPageAsync();
@@ -114,6 +112,7 @@ namespace PriceTracker.Models
             var prices = new List<(string storeName, decimal price, decimal? shippingCostNum, int? availabilityNum, string isBidding, string position)>();
             var rejectedProducts = new List<(string Reason, string Url)>();
             string log;
+            int positionCounter = 1;
 
             Console.WriteLine("Querying for offer nodes...");
             var offerNodes = await _page.QuerySelectorAllAsync("li.product-offers__list__item");
@@ -124,23 +123,43 @@ namespace PriceTracker.Models
                 foreach (var offerNode in offerNodes)
                 {
                     var storeName = await (await offerNode.QuerySelectorAsync("div.product-offer__store img"))?.GetAttributeAsync("alt");
+
+                    // Check if storeName is null or contains only white space
+                    if (string.IsNullOrWhiteSpace(storeName))
+                    {
+                        var storeLink = await offerNode.QuerySelectorAsync("li.offer-shop-opinions a.link.js_product-offer-link");
+                        if (storeLink != null)
+                        {
+                            var offerParameter = await storeLink.GetAttributeAsync("offer-parameter");
+                            Console.WriteLine($"Found store name in offer-parameter: {offerParameter}");
+                            if (!string.IsNullOrEmpty(offerParameter))
+                            {
+                                var match = Regex.Match(offerParameter, @"sklepy/([^\-]+)-s\d+;");
+                                if (match.Success)
+                                {
+                                    storeName = match.Groups[1].Value;
+                                }
+                            }
+                        }
+                    }
+
                     var priceNode = await offerNode.QuerySelectorAsync("span.price-format span.price span.value");
                     var pennyNode = await offerNode.QuerySelectorAsync("span.price-format span.price span.penny");
                     var shippingNode = await offerNode.QuerySelectorAsync("div.free-delivery-label") ??
                                        await offerNode.QuerySelectorAsync("span.product-delivery-info.js_deliveryInfo");
                     var availabilityNode = await offerNode.QuerySelectorAsync("span.instock") ??
-                                           await offerNode.QuerySelectorAsync("span.product-delivery-info");
+                                           await offerNode.QuerySelectorAsync("div.product-availability span");
 
                     var offerContainer = await offerNode.QuerySelectorAsync(".product-offer__container");
                     var offerType = await offerContainer?.GetAttributeAsync("data-offertype");
-                    var isBidding = (offerType == "CPC_Bid" || offerType == "CPC_Bid_Basket") ? "1" : "0";
-                    var position = await offerContainer?.GetAttributeAsync("data-position");
+                    var isBidding = offerType?.Contains("Bid") == true ? "1" : "0";
+                    var position = positionCounter.ToString();
+                    positionCounter++;
 
-                    if (storeName == null)
-                    {
-                        rejectedProducts.Add(("Store name is null", url));
-                        continue;
-                    }
+                    // Log the found store name and offer type
+                    Console.WriteLine($"Store name found: {storeName}");
+                    Console.WriteLine($"Offer type found: {offerType}");
+                    Console.WriteLine($"Position assigned: {position}");
 
                     if (priceNode == null || pennyNode == null)
                     {
@@ -157,9 +176,10 @@ namespace PriceTracker.Models
                         if (shippingNode != null)
                         {
                             var shippingText = await shippingNode.InnerTextAsync();
-                            if (shippingText.Contains("Darmowa wysyłka"))
+                            Console.WriteLine($"Shipping info found: {shippingText}");
+                            if (shippingText.Contains("DARMOWA WYSYŁKA") || shippingText.Contains("bezpłatna dostawa"))
                             {
-                                shippingCostNum = 0;
+                                shippingCostNum = 0.00m;
                             }
                             else
                             {
@@ -179,6 +199,7 @@ namespace PriceTracker.Models
                         if (availabilityNode != null)
                         {
                             var availabilityText = await availabilityNode.InnerTextAsync();
+                            Console.WriteLine($"Availability info found: {availabilityText}");
                             if (availabilityText.Contains("Wysyłka w 1 dzień"))
                             {
                                 availabilityNum = 1;
@@ -186,10 +207,20 @@ namespace PriceTracker.Models
                             else if (availabilityText.Contains("Wysyłka do"))
                             {
                                 var daysText = Regex.Match(availabilityText, @"\d+").Value;
+                                Console.WriteLine($"Parsed days: {daysText}");
                                 if (int.TryParse(daysText, out var parsedDays))
                                 {
                                     availabilityNum = parsedDays;
                                 }
+                                else
+                                {
+                                    availabilityNum = null;
+                                }
+                            }
+                            else
+                            {
+                                Console.WriteLine("No matching text for availability found.");
+                                availabilityNum = null;
                             }
                         }
 
@@ -208,5 +239,10 @@ namespace PriceTracker.Models
 
             return (prices, log, rejectedProducts);
         }
+
+
+
+
+
     }
 }

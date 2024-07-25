@@ -333,7 +333,7 @@ public class PriceScrapingController : Controller
 
       
         var urlGroups = urls.Select((url, index) => new { url, index })
-                            .GroupBy(x => x.index % 6)
+                            .GroupBy(x => x.index % 1)
                             .Select(g => g.Select(x => x.url).ToList())
                             .ToList();
 
@@ -344,7 +344,7 @@ public class PriceScrapingController : Controller
         var stopwatch = new Stopwatch();
         stopwatch.Start();
 
-        foreach (var (urlGroup, browserType) in urlGroups.Zip(new[] { "chromium", "chromium", "chromium", "chromium", "chromium", "chromium" }))
+        foreach (var (urlGroup, browserType) in urlGroups.Zip(new[] { "chromium" }))
         {
             tasks.Add(Task.Run(async () =>
             {
