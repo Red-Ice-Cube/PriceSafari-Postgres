@@ -18,18 +18,38 @@ namespace PriceTracker.Models
             _httpClient = httpClient;
         }
 
-        public async Task InitializeBrowserAsync()
+        public async Task InitializeBrowserAsync(string browserType = "chromium")
         {
             var playwright = await Playwright.CreateAsync();
-            _browser = await playwright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions
+            switch (browserType.ToLower())
             {
-                Headless = false,
-                Args = new[] { "--no-sandbox", "--disable-setuid-sandbox", "--disable-gpu" }
-            });
+                case "firefox":
+                    _browser = await playwright.Firefox.LaunchAsync(new BrowserTypeLaunchOptions
+                    {
+                        Headless = false,
+                        Args = new[] { "--no-sandbox", "--disable-setuid-sandbox", "--disable-gpu" }
+                    });
+                    break;
+                case "webkit":
+                    _browser = await playwright.Webkit.LaunchAsync(new BrowserTypeLaunchOptions
+                    {
+                        Headless = false,
+                        Args = new[] { "--no-sandbox", "--disable-setuid-sandbox", "--disable-gpu" }
+                    });
+                    break;
+                case "chromium":
+                default:
+                    _browser = await playwright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions
+                    {
+                        Headless = false,
+                        Args = new[] { "--no-sandbox", "--disable-setuid-sandbox", "--disable-gpu" }
+                    });
+                    break;
+            }
 
             var context = await _browser.NewContextAsync(new BrowserNewContextOptions
             {
-                ViewportSize = new ViewportSize { Width = 650, Height = 500 }
+                ViewportSize = new ViewportSize { Width = 690, Height = 590 }
             });
 
             _page = await context.NewPageAsync();

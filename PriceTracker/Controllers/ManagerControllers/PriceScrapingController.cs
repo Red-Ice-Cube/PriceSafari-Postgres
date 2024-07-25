@@ -311,8 +311,7 @@ public class PriceScrapingController : Controller
         return Ok(new { Message = "Scraping completed.", TotalPrices = totalPrices, RejectedCount = rejectedCount });
     }
 
-
-    [HttpPost]
+ [HttpPost]
     public async Task<IActionResult> StartScrapingWithCaptchaHandling()
     {
         var coOfrs = await _context.CoOfrs.ToListAsync();
@@ -332,7 +331,7 @@ public class PriceScrapingController : Controller
             return NotFound("No URLs found to scrape.");
         }
 
-       
+      
         var urlGroups = urls.Select((url, index) => new { url, index })
                             .GroupBy(x => x.index % 6)
                             .Select(g => g.Select(x => x.url).ToList())
@@ -345,14 +344,14 @@ public class PriceScrapingController : Controller
         var stopwatch = new Stopwatch();
         stopwatch.Start();
 
-        foreach (var urlGroup in urlGroups)
+        foreach (var (urlGroup, browserType) in urlGroups.Zip(new[] { "chromium", "chromium", "chromium", "chromium", "chromium", "chromium" }))
         {
             tasks.Add(Task.Run(async () =>
             {
                 var httpClient = _httpClientFactory.CreateClient();
                 var captchaScraper = new CaptchaScraper(httpClient);
 
-                await captchaScraper.InitializeBrowserAsync();
+                await captchaScraper.InitializeBrowserAsync(browserType);
 
                 foreach (var url in urlGroup)
                 {
