@@ -212,14 +212,14 @@ public async Task<IActionResult> StartScraping(int storeId)
     public async Task<IActionResult> GetUniqueScrapingUrls()
     {
         var uniqueUrls = await _context.CoOfrs.ToListAsync();
-        var coOfrPriceHistories = await _context.CoOfrPriceHistories.ToListAsync();
-
-        var scrapedUrlsCount = coOfrPriceHistories.Select(ph => ph.CoOfrClassId).Distinct().Count();
+        var scrapedUrlsCount = uniqueUrls.Count(u => u.IsScraped);
         ViewBag.ScrapedUrlsCount = scrapedUrlsCount;
         ViewBag.TotalUrlsCount = uniqueUrls.Count;
 
         return View("~/Views/ManagerPanel/Store/GetUniqueScrapingUrls.cshtml", uniqueUrls);
     }
+
+
 
 
     [HttpPost]
@@ -235,22 +235,15 @@ public async Task<IActionResult> StartScraping(int storeId)
     [HttpPost]
     public async Task<IActionResult> StartScrapingByCoOfrUrls()
     {
-        var coOfrs = await _context.CoOfrs.ToListAsync();
-        var scrapedCoOfrIds = await _context.CoOfrPriceHistories
-            .Select(ph => ph.CoOfrClassId)
-            .Distinct()
-            .ToListAsync();
+        var coOfrs = await _context.CoOfrs.Where(co => !co.IsScraped).ToListAsync();  // Filtruj tylko te, które nie są zescrapowane
 
-        var urls = coOfrs
-            .Where(co => !scrapedCoOfrIds.Contains(co.Id))
-            .Select(co => co.OfferUrl)
-            .ToList();
-
-        if (urls == null || !urls.Any())
+        if (!coOfrs.Any())
         {
             Console.WriteLine("No URLs found to scrape.");
             return NotFound("No URLs found to scrape.");
         }
+
+        var urls = coOfrs.Select(co => co.OfferUrl).ToList();
 
         var tasks = new List<Task>();
         var semaphore = new SemaphoreSlim(1);
@@ -260,7 +253,7 @@ public async Task<IActionResult> StartScraping(int storeId)
         var stopwatch = new Stopwatch();
         stopwatch.Start();
 
-        foreach (var coOfr in coOfrs.Where(co => !scrapedCoOfrIds.Contains(co.Id)))
+        foreach (var coOfr in coOfrs)
         {
             tasks.Add(Task.Run(async () =>
             {
@@ -301,8 +294,8 @@ public async Task<IActionResult> StartScraping(int storeId)
                     await scopedContext.SaveChangesAsync();
 
                     // Aktualizacja IsScraped na true
-                    var coOfrToUpdate = await scopedContext.CoOfrs.FindAsync(coOfr.Id);
-                    coOfrToUpdate.IsScraped = true;
+                    coOfr.IsScraped = true;
+                    scopedContext.CoOfrs.Update(coOfr);
                     await scopedContext.SaveChangesAsync();
 
                     Interlocked.Add(ref totalPrices, priceHistories.Count);
@@ -329,6 +322,9 @@ public async Task<IActionResult> StartScraping(int storeId)
     }
 
 
+
+
+
     [HttpPost]
     public async Task<IActionResult> StartScrapingWithCaptchaHandling()
     {
@@ -341,22 +337,15 @@ public async Task<IActionResult> StartScraping(int storeId)
 
         int captchaSpeed = settings.CaptchaSpeed;
 
-        var coOfrs = await _context.CoOfrs.ToListAsync();
-        var scrapedCoOfrIds = await _context.CoOfrPriceHistories
-            .Select(ph => ph.CoOfrClassId)
-            .Distinct()
-            .ToListAsync();
+        var coOfrs = await _context.CoOfrs.Where(co => !co.IsScraped).ToListAsync();  
 
-        var urls = coOfrs
-            .Where(co => !scrapedCoOfrIds.Contains(co.Id))
-            .Select(co => co.OfferUrl)
-            .ToList();
-
-        if (!urls.Any())
+        if (!coOfrs.Any())
         {
             Console.WriteLine("No URLs found to scrape.");
             return NotFound("No URLs found to scrape.");
         }
+
+        var urls = coOfrs.Select(co => co.OfferUrl).ToList();
 
         var urlGroups = urls.Select((url, index) => new { url, index })
                             .GroupBy(x => x.index % captchaSpeed)
@@ -404,6 +393,11 @@ public async Task<IActionResult> StartScraping(int storeId)
                         await scopedContext.CoOfrPriceHistories.AddRangeAsync(priceHistories);
                         await scopedContext.SaveChangesAsync();
 
+                        
+                        coOfr.IsScraped = true;
+                        scopedContext.CoOfrs.Update(coOfr);
+                        await scopedContext.SaveChangesAsync();
+
                         Interlocked.Add(ref totalPrices, priceHistories.Count);
                         Interlocked.Increment(ref scrapedCount);
                         await _hubContext.Clients.All.SendAsync("ReceiveProgressUpdate", scrapedCount, coOfrs.Count, stopwatch.Elapsed.TotalSeconds, rejectedCount);
@@ -425,6 +419,7 @@ public async Task<IActionResult> StartScraping(int storeId)
 
         return Ok(new { Message = "Scraping completed.", TotalPrices = totalPrices, RejectedCount = rejectedCount });
     }
+
 
 
 
