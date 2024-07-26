@@ -8,6 +8,7 @@ using PriceTracker.Models;
 using PriceTracker.Services;
 using System.Diagnostics;
 using System.Net.Http;
+using System.Threading;
 
 [Authorize(Roles = "Admin")]
 public class PriceScrapingController : Controller
@@ -17,7 +18,7 @@ public class PriceScrapingController : Controller
     private readonly IServiceProvider _serviceProvider;
     private readonly HttpClient _httpClient;
     private readonly IHttpClientFactory _httpClientFactory;
-
+    private static CancellationTokenSource _cancellationTokenSource = new CancellationTokenSource();
     public PriceScrapingController(PriceTrackerContext context, IHubContext<ScrapingHub> hubContext, IServiceProvider serviceProvider, HttpClient httpClient, IHttpClientFactory httpClientFactory)
     {
         _context = context;
@@ -242,10 +243,26 @@ public async Task<IActionResult> StartScraping(int storeId)
         return RedirectToAction("GetUniqueScrapingUrls");
     }
 
+    private void ResetCancellationToken()
+    {
+        _cancellationTokenSource.Cancel();
+        _cancellationTokenSource.Dispose();
+        _cancellationTokenSource = new CancellationTokenSource();
+    }
+
+    [HttpPost]
+    public IActionResult StopScraping()
+    {
+        ResetCancellationToken();
+        return Ok(new { Message = "Scraping stopped." });
+    }
 
     [HttpPost]
     public async Task<IActionResult> StartScrapingByCoOfrUrls()
     {
+        ResetCancellationToken();
+        var cancellationToken = _cancellationTokenSource.Token;
+
         var coOfrs = await _context.CoOfrs.Where(co => !co.IsScraped).ToListAsync();
 
         if (!coOfrs.Any())
@@ -254,10 +271,8 @@ public async Task<IActionResult> StartScraping(int storeId)
             return NotFound("No URLs found to scrape.");
         }
 
-        var urls = coOfrs.Select(co => co.OfferUrl).ToList();
-
         var tasks = new List<Task>();
-        var semaphore = new SemaphoreSlim(1);
+        var semaphore = new SemaphoreSlim(4);
         int totalPrices = 0;
         int scrapedCount = 0;
         int rejectedCount = 0;
@@ -268,7 +283,7 @@ public async Task<IActionResult> StartScraping(int storeId)
         {
             tasks.Add(Task.Run(async () =>
             {
-                await semaphore.WaitAsync();
+                await semaphore.WaitAsync(cancellationToken);
                 try
                 {
                     using var scope = _serviceProvider.CreateScope();
@@ -288,6 +303,9 @@ public async Task<IActionResult> StartScraping(int storeId)
                         if (rejected.Count == 0)
                             break;
 
+                        // Sprawdzamy czy anulowano
+                        cancellationToken.ThrowIfCancellationRequested();
+
                     } while (tryCount < 2);
 
                     var priceHistories = prices.Select(priceData => new CoOfrPriceHistoryClass
@@ -301,18 +319,16 @@ public async Task<IActionResult> StartScraping(int storeId)
                         Position = priceData.position
                     }).ToList();
 
-                    await scopedContext.CoOfrPriceHistories.AddRangeAsync(priceHistories);
-                    await scopedContext.SaveChangesAsync();
+                    await scopedContext.CoOfrPriceHistories.AddRangeAsync(priceHistories, cancellationToken);
+                    await scopedContext.SaveChangesAsync(cancellationToken);
 
-                    // Aktualizacja IsScraped na true i dodanie nowych pól
                     coOfr.IsScraped = true;
                     coOfr.ScrapingMethod = "Http";
                     coOfr.PricesCount = priceHistories.Count;
                     coOfr.IsRejected = (priceHistories.Count == 0);
                     scopedContext.CoOfrs.Update(coOfr);
-                    await scopedContext.SaveChangesAsync();
+                    await scopedContext.SaveChangesAsync(cancellationToken);
 
-                    // Wysyłanie aktualizacji przez SignalR
                     await _hubContext.Clients.All.SendAsync("ReceiveScrapingUpdate", coOfr.OfferUrl, coOfr.IsScraped, coOfr.IsRejected, coOfr.ScrapingMethod, coOfr.PricesCount);
 
                     Interlocked.Add(ref totalPrices, priceHistories.Count);
@@ -322,6 +338,13 @@ public async Task<IActionResult> StartScraping(int storeId)
                         Interlocked.Increment(ref rejectedCount);
                     }
                     await _hubContext.Clients.All.SendAsync("ReceiveProgressUpdate", scrapedCount, coOfrs.Count, stopwatch.Elapsed.TotalSeconds, rejectedCount);
+
+                    
+                    cancellationToken.ThrowIfCancellationRequested();
+                }
+                catch (OperationCanceledException)
+                {
+                    Console.WriteLine("Scraping canceled.");
                 }
                 catch (Exception ex)
                 {
@@ -332,19 +355,31 @@ public async Task<IActionResult> StartScraping(int storeId)
                 {
                     semaphore.Release();
                 }
-            }));
+            }, cancellationToken));
         }
 
-        await Task.WhenAll(tasks);
+        try
+        {
+            await Task.WhenAll(tasks);
+        }
+        catch (OperationCanceledException)
+        {
+            Console.WriteLine("Scraping was canceled.");
+        }
 
         stopwatch.Stop();
 
         return Ok(new { Message = "Scraping completed.", TotalPrices = totalPrices, RejectedCount = rejectedCount });
     }
 
+
+
     [HttpPost]
     public async Task<IActionResult> StartScrapingWithCaptchaHandling()
     {
+        ResetCancellationToken();
+        var cancellationToken = _cancellationTokenSource.Token;
+
         var settings = await _context.Settings.FirstOrDefaultAsync();
         if (settings == null)
         {
@@ -410,7 +445,6 @@ public async Task<IActionResult> StartScraping(int storeId)
                         await scopedContext.CoOfrPriceHistories.AddRangeAsync(priceHistories);
                         await scopedContext.SaveChangesAsync();
 
-                        // Aktualizacja nowych pól
                         coOfr.IsScraped = true;
                         coOfr.ScrapingMethod = "HandleCaptcha";
                         coOfr.PricesCount = priceHistories.Count;
@@ -418,7 +452,6 @@ public async Task<IActionResult> StartScraping(int storeId)
                         scopedContext.CoOfrs.Update(coOfr);
                         await scopedContext.SaveChangesAsync();
 
-                        // Wysyłanie aktualizacji przez SignalR
                         await _hubContext.Clients.All.SendAsync("ReceiveScrapingUpdate", coOfr.OfferUrl, coOfr.IsScraped, coOfr.IsRejected, coOfr.ScrapingMethod, coOfr.PricesCount);
 
                         Interlocked.Add(ref totalPrices, priceHistories.Count);
@@ -428,6 +461,13 @@ public async Task<IActionResult> StartScraping(int storeId)
                             Interlocked.Increment(ref rejectedCount);
                         }
                         await _hubContext.Clients.All.SendAsync("ReceiveProgressUpdate", scrapedCount, coOfrs.Count, stopwatch.Elapsed.TotalSeconds, rejectedCount);
+
+                        if (cancellationToken.IsCancellationRequested)
+                        {
+                            Console.WriteLine("Scraping canceled.");
+                            await captchaScraper.CloseBrowserAsync();
+                            return;
+                        }
                     }
                     catch (Exception ex)
                     {
@@ -437,10 +477,17 @@ public async Task<IActionResult> StartScraping(int storeId)
                 }
 
                 await captchaScraper.CloseBrowserAsync();
-            }));
+            }, cancellationToken));
         }
 
-        await Task.WhenAll(tasks);
+        try
+        {
+            await Task.WhenAll(tasks);
+        }
+        catch (OperationCanceledException)
+        {
+            Console.WriteLine("Scraping was canceled.");
+        }
 
         stopwatch.Stop();
 

@@ -89,20 +89,19 @@
 
     var connection = new signalR.HubConnectionBuilder().withUrl("/scrapingHub").build();
     var scrapingComplete = false;
-    var initialLoad = true;
 
     connection.on("ReceiveScrapingUpdate", function (offerUrl, isScraped, isRejected, scrapingMethod, pricesCount) {
-        // Generate a safe ID from offerUrl
-        var rowId = "row-" + offerUrl.replace(/[^a-zA-Z0-9]/g, '_');
+        var rowId = "row-" + offerUrl;
         var row = document.getElementById(rowId);
         var rowClass = isRejected && isScraped ? "rejected-row" : isScraped ? "scraped-row" : "unscraped-row";
 
-        if (initialLoad) {
-            document.getElementById("scrapingTableBody").innerHTML = "";
-            initialLoad = false;
-        }
-
-        if (!row) {
+        if (row) {
+            row.className = "product-row " + rowClass;
+            row.cells[2].innerText = isScraped ? "Tak" : "Nie";
+            row.cells[3].innerText = isRejected ? "Tak" : "Nie";
+            row.cells[4].innerText = scrapingMethod;
+            row.cells[5].innerText = pricesCount;
+        } else {
             var newRow = `<tr id="${rowId}" class="product-row ${rowClass}">
                             <td>${offerUrl}</td>
                             <td></td>
@@ -112,12 +111,6 @@
                             <td>${pricesCount}</td>
                         </tr>`;
             document.getElementById("scrapingTableBody").insertAdjacentHTML('beforeend', newRow);
-        } else {
-            row.className = "product-row " + rowClass;
-            row.cells[2].innerText = isScraped ? "Tak" : "Nie";
-            row.cells[3].innerText = isRejected ? "Tak" : "Nie";
-            row.cells[4].innerText = scrapingMethod;
-            row.cells[5].innerText = pricesCount;
         }
 
         updateCounters();
@@ -171,18 +164,27 @@
         var form = $(this);
         var url = form.attr('action');
 
-        // Ukryj pierwotną tabelę po rozpoczęciu scrapowania
-        document.getElementById("scrapingTableBody").style.display = "none";
-
         $.ajax({
             url: url,
             method: 'POST',
             success: function () {
                 console.log('Scraping started successfully');
-                document.getElementById("scrapingTableBody").style.display = "";
             },
             error: function () {
                 console.error('Error starting scraping');
+            }
+        });
+    });
+
+    $('#stopScrapingButton').on('click', function () {
+        $.ajax({
+            url: '/PriceScraping/StopScraping',
+            method: 'POST',
+            success: function () {
+                console.log('Scraping stopped successfully');
+            },
+            error: function () {
+                console.error('Error stopping scraping');
             }
         });
     });
@@ -207,15 +209,4 @@
         document.getElementById("totalPricesCount").textContent = totalPricesCount;
         document.getElementById("totalRejectedCount").textContent = totalRejectedCount;
     }
-
-    String.prototype.hashCode = function () {
-        var hash = 0, i, chr;
-        if (this.length === 0) return hash;
-        for (i = 0; i < this.length; i++) {
-            chr = this.charCodeAt(i);
-            hash = ((hash << 5) - hash) + chr;
-            hash |= 0;
-        }
-        return hash;
-    };
 });

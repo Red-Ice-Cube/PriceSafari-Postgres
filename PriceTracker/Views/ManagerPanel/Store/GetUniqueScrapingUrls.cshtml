@@ -35,17 +35,18 @@
         </div>
         <div class="bar-List">
             <form asp-action="GroupAndSaveUniqueUrls" asp-controller="PriceScraping" method="post">
-                <button type="submit" class="Button-Add-Small">Scal produkty</button>
+                <button type="submit" class="Button-Page-Small-b">Scal produkty</button>
             </form>
             <form id="scrapingForm" asp-action="StartScrapingByCoOfrUrls" asp-controller="PriceScraping" method="post">
-                <button type="submit" class="Button-Add-Small">Rozpocznij scrapowanie cen</button>
+                <button type="submit" class="Button-Page-Small-b">Rozpocznij scrapowanie cen</button>
             </form>
             <form id="captchaScrapingForm" asp-action="StartScrapingWithCaptchaHandling" asp-controller="PriceScraping" method="post">
-                <button type="submit" class="Button-Add-Small">Rozpocznij scrapowanie z obsługą CAPTCHA</button>
+                <button type="submit" class="Button-Page-Small-b">Rozpocznij scrapowanie z obsługą CAPTCHA</button>
             </form>
             <form asp-action="ClearCoOfrPriceHistories" asp-controller="PriceScraping" method="post">
-                <button type="submit" class="Button-Add-Small">Oczyść zescrapowane dane</button>
+                <button type="submit" class="Button-Page-Small-o">Oczyść zescrapowane dane</button>
             </form>
+            <button id="stopScrapingButton" class="Button-Page-Small-r">Przerwij scrapowanie</button>
         </div>
         <div class="order-upper-box">
             <div class="chart-box">
@@ -65,19 +66,20 @@
             <table id="initialTable" class="table-orders">
                 <thead>
                     <tr>
-                        <th>Offer URL (ilość)</th>
+                        <th>Offer URL</th>
                         <th>Product IDs</th>
                         <th>Zescrapowane</th>
                         <th>Odrzucone</th>
                         <th>Metoda Scrapowania</th>
-                        <th>Liczba Cen (ilość)</th>
+                        <th>Liczba Cen</th>
                     </tr>
                 </thead>
                 <tbody id="scrapingTableBody">
                     @foreach (var item in Model)
                     {
+                        var rowId = $"row-{item.OfferUrl}";
                         var rowClass = item.IsRejected && item.IsScraped ? "rejected-row" : item.IsScraped ? "scraped-row" : "unscraped-row";
-                        <tr id="row-@item.OfferUrl.GetHashCode()" class="product-row @rowClass">
+                        <tr id="@rowId" class="product-row @rowClass">
                             <td>@item.OfferUrl</td>
                             <td>@string.Join(", ", item.ProductIds)</td>
                             <td>@(item.IsScraped ? "Tak" : "Nie")</td>
