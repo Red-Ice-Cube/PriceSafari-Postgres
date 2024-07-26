@@ -195,16 +195,18 @@ public class PriceScrapingController : Controller
             .Select(g => new CoOfrClass
             {
                 OfferUrl = g.Key,
-                ProductIds = g.Select(p => p.ProductId).ToList()
+                ProductIds = g.Select(p => p.ProductId).ToList(),
+                IsScraped = false  
             })
             .ToListAsync();
 
-        _context.CoOfrs.RemoveRange(_context.CoOfrs);  
-        _context.CoOfrs.AddRange(uniqueUrls); 
+        _context.CoOfrs.RemoveRange(_context.CoOfrs);
+        _context.CoOfrs.AddRange(uniqueUrls);
         await _context.SaveChangesAsync();
 
         return RedirectToAction("GetUniqueScrapingUrls");
     }
+
 
     [HttpGet]
     public async Task<IActionResult> GetUniqueScrapingUrls()
@@ -298,6 +300,11 @@ public class PriceScrapingController : Controller
                     await scopedContext.CoOfrPriceHistories.AddRangeAsync(priceHistories);
                     await scopedContext.SaveChangesAsync();
 
+                    // Aktualizacja IsScraped na true
+                    var coOfrToUpdate = await scopedContext.CoOfrs.FindAsync(coOfr.Id);
+                    coOfrToUpdate.IsScraped = true;
+                    await scopedContext.SaveChangesAsync();
+
                     Interlocked.Add(ref totalPrices, priceHistories.Count);
                     Interlocked.Increment(ref scrapedCount);
                     await _hubContext.Clients.All.SendAsync("ReceiveProgressUpdate", scrapedCount, coOfrs.Count, stopwatch.Elapsed.TotalSeconds, rejectedCount);
@@ -320,6 +327,7 @@ public class PriceScrapingController : Controller
 
         return Ok(new { Message = "Scraping completed.", TotalPrices = totalPrices, RejectedCount = rejectedCount });
     }
+
 
     [HttpPost]
     public async Task<IActionResult> StartScrapingWithCaptchaHandling()

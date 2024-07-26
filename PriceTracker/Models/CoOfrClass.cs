@@ -1,6 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
 
 public class CoOfrClass
 {
@@ -8,4 +6,5 @@ public class CoOfrClass
     public int Id { get; set; }
     public string OfferUrl { get; set; }
     public List<int> ProductIds { get; set; } = new List<int>();
+    public bool IsScraped { get; set; }  
 }

@@ -61,6 +61,7 @@
                     <tr>
                         <th>Offer URL</th>
                         <th>Product IDs</th>
+                        <th>Zescrapowane</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -69,6 +70,7 @@
                         <tr class="product-row" style="background-color: rgba(14, 126, 135, 0.3)">
                             <td>@item.OfferUrl</td>
                             <td>@string.Join(", ", item.ProductIds)</td>
+                            <td>@(item.IsScraped ? "Tak" : "Nie")</td>
                         </tr>
                     }
                 </tbody>
