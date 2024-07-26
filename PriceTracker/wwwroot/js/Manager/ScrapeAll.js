@@ -1,8 +1,4 @@
 ﻿document.addEventListener("DOMContentLoaded", function () {
-    var scrapableUrls = document.querySelectorAll("tbody tr");
-    var urlCount = scrapableUrls.length;
-    document.getElementById("totalUrlCount").textContent = urlCount;
-
     var ctx = document.getElementById('speedChart').getContext('2d');
 
     var gradientFill1 = ctx.createLinearGradient(0, 0, 0, ctx.canvas.clientHeight);
@@ -93,22 +89,55 @@
 
     var connection = new signalR.HubConnectionBuilder().withUrl("/scrapingHub").build();
     var scrapingComplete = false;
+    var initialLoad = true;
 
-    connection.on("ReceiveProgressUpdate", function (scrapedCount, totalCount, elapsedSeconds, rejectedCount) {
+    connection.on("ReceiveScrapingUpdate", function (offerUrl, isScraped, isRejected, scrapingMethod, pricesCount) {
+        // Generate a safe ID from offerUrl
+        var rowId = "row-" + offerUrl.replace(/[^a-zA-Z0-9]/g, '_');
+        var row = document.getElementById(rowId);
+        var rowClass = isRejected && isScraped ? "rejected-row" : isScraped ? "scraped-row" : "unscraped-row";
+
+        if (initialLoad) {
+            document.getElementById("scrapingTableBody").innerHTML = "";
+            initialLoad = false;
+        }
+
+        if (!row) {
+            var newRow = `<tr id="${rowId}" class="product-row ${rowClass}">
+                            <td>${offerUrl}</td>
+                            <td></td>
+                            <td>${isScraped ? "Tak" : "Nie"}</td>
+                            <td>${isRejected ? "Tak" : "Nie"}</td>
+                            <td>${scrapingMethod}</td>
+                            <td>${pricesCount}</td>
+                        </tr>`;
+            document.getElementById("scrapingTableBody").insertAdjacentHTML('beforeend', newRow);
+        } else {
+            row.className = "product-row " + rowClass;
+            row.cells[2].innerText = isScraped ? "Tak" : "Nie";
+            row.cells[3].innerText = isRejected ? "Tak" : "Nie";
+            row.cells[4].innerText = scrapingMethod;
+            row.cells[5].innerText = pricesCount;
+        }
+
+        updateCounters();
+    });
+
+    connection.on("ReceiveProgressUpdate", function (totalScraped, uniqueProducts, elapsedSeconds, rejectedCount) {
         if (scrapingComplete) return;
 
-        var percentage = Math.round((scrapedCount / totalCount) * 100);
+        var percentage = Math.round((totalScraped / uniqueProducts) * 100);
         var progressBarInner = document.getElementById("progressBarInner");
         var progressText = document.getElementById("progressText");
         var completionMessage = document.getElementById("completionMessage");
 
         progressBarInner.style.width = percentage + "%";
         progressBarInner.innerHTML = percentage + "%";
-        progressText.innerHTML = `Zbieranie cen ${scrapedCount}/${totalCount} produktów (${rejectedCount} odrzuconych)`;
+        progressText.innerHTML = `Zbieranie cen ${totalScraped}/${uniqueProducts} produktów (${rejectedCount} odrzuconych)`;
 
         var currentTime = Math.floor(elapsedSeconds);
 
-        var speed = (scrapedCount / elapsedSeconds).toFixed(2);
+        var speed = (totalScraped / elapsedSeconds).toFixed(2);
 
         if (speedChart.data.labels.length > 0 && currentTime === speedChart.data.labels[speedChart.data.labels.length - 1]) {
             var lastIndex = speedChart.data.labels.length - 1;
@@ -120,9 +149,9 @@
 
         speedChart.update();
 
-        if (scrapedCount === totalCount) {
+        if (totalScraped === uniqueProducts) {
             completionMessage.style.display = "block";
-            completionMessage.innerHTML = `Zebrano ceny dla ${scrapedCount}/${totalCount} produktów (${rejectedCount} odrzuconych).`;
+            completionMessage.innerHTML = `Zebrano ceny dla ${totalScraped}/${uniqueProducts} produktów (${rejectedCount} odrzuconych).`;
             completionMessage.style.color = "#0E7E87";
 
             progressBarInner.style.backgroundColor = "#0E7E87";
@@ -142,15 +171,51 @@
         var form = $(this);
         var url = form.attr('action');
 
+        // Ukryj pierwotną tabelę po rozpoczęciu scrapowania
+        document.getElementById("scrapingTableBody").style.display = "none";
+
         $.ajax({
             url: url,
             method: 'POST',
             success: function () {
                 console.log('Scraping started successfully');
+                document.getElementById("scrapingTableBody").style.display = "";
             },
             error: function () {
                 console.error('Error starting scraping');
             }
         });
     });
+
+    function updateCounters() {
+        var rows = document.querySelectorAll("#scrapingTableBody tr");
+        var totalUrls = rows.length;
+        var totalProductIds = 0;
+        var totalPricesCount = 0;
+        var totalRejectedCount = 0;
+
+        rows.forEach(function (row) {
+            totalProductIds += row.querySelectorAll('td')[1].textContent.split(', ').length;
+            totalPricesCount += parseInt(row.querySelectorAll('td')[5].textContent) || 0;
+            if (row.querySelectorAll('td')[3].innerText === "Tak") {
+                totalRejectedCount++;
+            }
+        });
+
+        document.getElementById("totalUrlCount").textContent = totalUrls;
+        document.getElementById("totalProductCount").textContent = totalProductIds;
+        document.getElementById("totalPricesCount").textContent = totalPricesCount;
+        document.getElementById("totalRejectedCount").textContent = totalRejectedCount;
+    }
+
+    String.prototype.hashCode = function () {
+        var hash = 0, i, chr;
+        if (this.length === 0) return hash;
+        for (i = 0; i < this.length; i++) {
+            chr = this.charCodeAt(i);
+            hash = ((hash << 5) - hash) + chr;
+            hash |= 0;
+        }
+        return hash;
+    };
 });

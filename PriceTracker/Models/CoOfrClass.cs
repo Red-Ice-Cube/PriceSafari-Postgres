@@ -7,6 +7,7 @@ public class CoOfrClass
     public string OfferUrl { get; set; }
     public List<int> ProductIds { get; set; } = new List<int>();
     public bool IsScraped { get; set; }
-    public string? ScrapingMethod { get; set; }  // Nowe pole
-    public int PricesCount { get; set; }  // Nowe pole
+    public string? ScrapingMethod { get; set; }  
+    public int PricesCount { get; set; }  
+    public bool IsRejected { get; set; }
 }

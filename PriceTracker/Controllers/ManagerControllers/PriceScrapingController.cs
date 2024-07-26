@@ -225,10 +225,10 @@ public async Task<IActionResult> StartScraping(int storeId)
     [HttpPost]
     public async Task<IActionResult> ClearCoOfrPriceHistories()
     {
-        // Użyj ExecuteSqlRaw do wykonania bezpośredniego polecenia SQL
+        
         await _context.Database.ExecuteSqlRawAsync("TRUNCATE TABLE CoOfrPriceHistories");
 
-        // Opcjonalnie, zaktualizuj odpowiednie pola w CoOfrClass, jeśli istnieją zależności
+  
         var coOfrs = await _context.CoOfrs.ToListAsync();
         foreach (var coOfr in coOfrs)
         {
@@ -243,12 +243,10 @@ public async Task<IActionResult> StartScraping(int storeId)
     }
 
 
-
-
     [HttpPost]
     public async Task<IActionResult> StartScrapingByCoOfrUrls()
     {
-        var coOfrs = await _context.CoOfrs.Where(co => !co.IsScraped).ToListAsync();  // Filtruj tylko te, które nie są zescrapowane
+        var coOfrs = await _context.CoOfrs.Where(co => !co.IsScraped).ToListAsync();
 
         if (!coOfrs.Any())
         {
@@ -310,11 +308,19 @@ public async Task<IActionResult> StartScraping(int storeId)
                     coOfr.IsScraped = true;
                     coOfr.ScrapingMethod = "Http";
                     coOfr.PricesCount = priceHistories.Count;
+                    coOfr.IsRejected = (priceHistories.Count == 0);
                     scopedContext.CoOfrs.Update(coOfr);
                     await scopedContext.SaveChangesAsync();
 
+                    // Wysyłanie aktualizacji przez SignalR
+                    await _hubContext.Clients.All.SendAsync("ReceiveScrapingUpdate", coOfr.OfferUrl, coOfr.IsScraped, coOfr.IsRejected, coOfr.ScrapingMethod, coOfr.PricesCount);
+
                     Interlocked.Add(ref totalPrices, priceHistories.Count);
                     Interlocked.Increment(ref scrapedCount);
+                    if (coOfr.IsRejected)
+                    {
+                        Interlocked.Increment(ref rejectedCount);
+                    }
                     await _hubContext.Clients.All.SendAsync("ReceiveProgressUpdate", scrapedCount, coOfrs.Count, stopwatch.Elapsed.TotalSeconds, rejectedCount);
                 }
                 catch (Exception ex)
@@ -335,10 +341,6 @@ public async Task<IActionResult> StartScraping(int storeId)
 
         return Ok(new { Message = "Scraping completed.", TotalPrices = totalPrices, RejectedCount = rejectedCount });
     }
-
-
-
-
 
     [HttpPost]
     public async Task<IActionResult> StartScrapingWithCaptchaHandling()
@@ -412,11 +414,19 @@ public async Task<IActionResult> StartScraping(int storeId)
                         coOfr.IsScraped = true;
                         coOfr.ScrapingMethod = "HandleCaptcha";
                         coOfr.PricesCount = priceHistories.Count;
+                        coOfr.IsRejected = (priceHistories.Count == 0);
                         scopedContext.CoOfrs.Update(coOfr);
                         await scopedContext.SaveChangesAsync();
 
+                        // Wysyłanie aktualizacji przez SignalR
+                        await _hubContext.Clients.All.SendAsync("ReceiveScrapingUpdate", coOfr.OfferUrl, coOfr.IsScraped, coOfr.IsRejected, coOfr.ScrapingMethod, coOfr.PricesCount);
+
                         Interlocked.Add(ref totalPrices, priceHistories.Count);
                         Interlocked.Increment(ref scrapedCount);
+                        if (coOfr.IsRejected)
+                        {
+                            Interlocked.Increment(ref rejectedCount);
+                        }
                         await _hubContext.Clients.All.SendAsync("ReceiveProgressUpdate", scrapedCount, coOfrs.Count, stopwatch.Elapsed.TotalSeconds, rejectedCount);
                     }
                     catch (Exception ex)
@@ -436,8 +446,6 @@ public async Task<IActionResult> StartScraping(int storeId)
 
         return Ok(new { Message = "Scraping completed.", TotalPrices = totalPrices, RejectedCount = rejectedCount });
     }
-
-
 
 
 

@@ -1,6 +1,4 @@
-﻿
-
-using Microsoft.AspNetCore.SignalR;
+﻿using Microsoft.AspNetCore.SignalR;
 
 namespace PriceTracker.Hubs
 {
@@ -10,6 +8,10 @@ namespace PriceTracker.Hubs
         {
             await Clients.All.SendAsync("ReceiveProgressUpdate", totalScraped, uniqueProducts, elapsedSeconds, rejectedCount);
         }
+
+        public async Task SendScrapingUpdate(string offerUrl, bool isScraped, bool isRejected, string scrapingMethod, int pricesCount)
+        {
+            await Clients.All.SendAsync("ReceiveScrapingUpdate", offerUrl, isScraped, isRejected, scrapingMethod, pricesCount);
+        }
     }
 }
-

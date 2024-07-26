@@ -25,6 +25,12 @@
                 <div>
                     <strong>Postęp scrapowania: </strong><span id="scrapingProgress">@scrapedUrlsCount / @totalUrls</span>
                 </div>
+                <div>
+                    <strong>Łączna liczba cen: </strong><span id="totalPricesCount">0</span>
+                </div>
+                <div>
+                    <strong>Łączna liczba odrzuconych: </strong><span id="totalRejectedCount">0</span>
+                </div>
             </div>
         </div>
         <div class="bar-List">
@@ -56,23 +62,26 @@
             </div>
         </div>
         <div class="Vert-table">
-            <table class="table-orders">
+            <table id="initialTable" class="table-orders">
                 <thead>
                     <tr>
-                        <th>Offer URL</th>
+                        <th>Offer URL (ilość)</th>
                         <th>Product IDs</th>
                         <th>Zescrapowane</th>
+                        <th>Odrzucone</th>
                         <th>Metoda Scrapowania</th>
-                        <th>Liczba Cen</th>
+                        <th>Liczba Cen (ilość)</th>
                     </tr>
                 </thead>
-                <tbody>
+                <tbody id="scrapingTableBody">
                     @foreach (var item in Model)
                     {
-                        <tr class="product-row @(item.IsScraped ? "scraped-row" : "unscraped-row")">
+                        var rowClass = item.IsRejected && item.IsScraped ? "rejected-row" : item.IsScraped ? "scraped-row" : "unscraped-row";
+                        <tr id="row-@item.OfferUrl.GetHashCode()" class="product-row @rowClass">
                             <td>@item.OfferUrl</td>
                             <td>@string.Join(", ", item.ProductIds)</td>
                             <td>@(item.IsScraped ? "Tak" : "Nie")</td>
+                            <td>@(item.IsRejected ? "Tak" : "Nie")</td>
                             <td>@item.ScrapingMethod</td>
                             <td>@item.PricesCount</td>
                         </tr>
@@ -82,7 +91,6 @@
         </div>
     </div>
 </div>
-
 
 @section Scripts {
     <style>
@@ -97,6 +105,10 @@
 
         .scraped-row {
             background-color: #e0f7fa; /* Lekko niebieski kolor */
+        }
+
+        .rejected-row {
+            background-color: #ffcccc; /* Lekko czerwony kolor */
         }
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/3.1.11/signalr.min.js"></script>
