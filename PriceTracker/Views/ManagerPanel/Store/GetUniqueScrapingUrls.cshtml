@@ -62,15 +62,19 @@
                         <th>Offer URL</th>
                         <th>Product IDs</th>
                         <th>Zescrapowane</th>
+                        <th>Metoda Scrapowania</th>
+                        <th>Liczba Cen</th>
                     </tr>
                 </thead>
                 <tbody>
                     @foreach (var item in Model)
                     {
-                        <tr class="product-row" style="background-color: rgba(14, 126, 135, 0.3)">
+                        <tr class="product-row @(item.IsScraped ? "scraped-row" : "unscraped-row")">
                             <td>@item.OfferUrl</td>
                             <td>@string.Join(", ", item.ProductIds)</td>
                             <td>@(item.IsScraped ? "Tak" : "Nie")</td>
+                            <td>@item.ScrapingMethod</td>
+                            <td>@item.PricesCount</td>
                         </tr>
                     }
                 </tbody>
@@ -79,11 +83,20 @@
     </div>
 </div>
 
+
 @section Scripts {
     <style>
         #speedChart {
             width: 100% !important;
             height: 200px !important;
+        }
+
+        .unscraped-row {
+            background-color: #d3d3d3; /* Szary kolor */
+        }
+
+        .scraped-row {
+            background-color: #e0f7fa; /* Lekko niebieski kolor */
         }
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/3.1.11/signalr.min.js"></script>

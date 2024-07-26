@@ -225,10 +225,23 @@ public async Task<IActionResult> StartScraping(int storeId)
     [HttpPost]
     public async Task<IActionResult> ClearCoOfrPriceHistories()
     {
-        _context.CoOfrPriceHistories.RemoveRange(_context.CoOfrPriceHistories);
+        // Użyj ExecuteSqlRaw do wykonania bezpośredniego polecenia SQL
+        await _context.Database.ExecuteSqlRawAsync("TRUNCATE TABLE CoOfrPriceHistories");
+
+        // Opcjonalnie, zaktualizuj odpowiednie pola w CoOfrClass, jeśli istnieją zależności
+        var coOfrs = await _context.CoOfrs.ToListAsync();
+        foreach (var coOfr in coOfrs)
+        {
+            coOfr.IsScraped = false;
+            coOfr.ScrapingMethod = null;
+            coOfr.PricesCount = 0;
+        }
+        _context.CoOfrs.UpdateRange(coOfrs);
         await _context.SaveChangesAsync();
+
         return RedirectToAction("GetUniqueScrapingUrls");
     }
+
 
 
 
@@ -293,8 +306,10 @@ public async Task<IActionResult> StartScraping(int storeId)
                     await scopedContext.CoOfrPriceHistories.AddRangeAsync(priceHistories);
                     await scopedContext.SaveChangesAsync();
 
-                    // Aktualizacja IsScraped na true
+                    // Aktualizacja IsScraped na true i dodanie nowych pól
                     coOfr.IsScraped = true;
+                    coOfr.ScrapingMethod = "Http";
+                    coOfr.PricesCount = priceHistories.Count;
                     scopedContext.CoOfrs.Update(coOfr);
                     await scopedContext.SaveChangesAsync();
 
@@ -337,7 +352,7 @@ public async Task<IActionResult> StartScraping(int storeId)
 
         int captchaSpeed = settings.CaptchaSpeed;
 
-        var coOfrs = await _context.CoOfrs.Where(co => !co.IsScraped).ToListAsync();  
+        var coOfrs = await _context.CoOfrs.Where(co => !co.IsScraped).ToListAsync();
 
         if (!coOfrs.Any())
         {
@@ -393,8 +408,10 @@ public async Task<IActionResult> StartScraping(int storeId)
                         await scopedContext.CoOfrPriceHistories.AddRangeAsync(priceHistories);
                         await scopedContext.SaveChangesAsync();
 
-                        
+                        // Aktualizacja nowych pól
                         coOfr.IsScraped = true;
+                        coOfr.ScrapingMethod = "HandleCaptcha";
+                        coOfr.PricesCount = priceHistories.Count;
                         scopedContext.CoOfrs.Update(coOfr);
                         await scopedContext.SaveChangesAsync();
 
