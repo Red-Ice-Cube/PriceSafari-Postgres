@@ -85,6 +85,7 @@ public class CompetitorsController : Controller
             {
                 ph.ProductId,
                 ph.Product.ProductName,
+                ph.Product.OfferUrl,
                 ph.Price,
                 ph.ScrapHistoryId
             })
@@ -94,7 +95,7 @@ public class CompetitorsController : Controller
 
         foreach (var price in prices)
         {
-            Console.WriteLine($"ProductId: {price.ProductId}, ProductName: {price.ProductName}, Price: {price.Price}, ScrapHistoryId: {price.ScrapHistoryId}");
+            Console.WriteLine($"ProductId: {price.ProductId}, ProductName: {price.ProductName}, OfferUrl: {price.OfferUrl}, Price: {price.Price}, ScrapHistoryId: {price.ScrapHistoryId}");
         }
 
         return Json(prices);

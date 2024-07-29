@@ -8,18 +8,18 @@
 
 <div>
     <label for="scrapHistorySelect">Wybierz scrapowanie:</label>
-    <select id="scrapHistorySelect">
-        <!-- Opcje zostaną załadowane dynamicznie przez JavaScript -->
-    </select>
+    <div id="scrapHistoryCheckboxes">
+        <!-- Checkboxy zostaną załadowane dynamicznie przez JavaScript -->
+    </div>
     <button id="loadPricesBtn" class="btn btn-primary">Załaduj ceny</button>
 </div>
 
 <table class="table">
     <thead>
         <tr>
+            <th>#</th>
             <th>Nazwa Produktu</th>
-            <th>Cena</th>
-            <th>Scrapowanie</th>
+            <th>URL</th>
         </tr>
     </thead>
     <tbody id="priceTableBody">
@@ -32,8 +32,9 @@
         document.addEventListener('DOMContentLoaded', () => {
             loadScrapHistoryOptions();
             document.getElementById('loadPricesBtn').addEventListener('click', () => {
-                const selectedScrapHistoryId = document.getElementById('scrapHistorySelect').value;
-                loadCompetitorPrices(selectedScrapHistoryId);
+                const selectedScrapHistoryIds = Array.from(document.querySelectorAll('#scrapHistoryCheckboxes input[type="checkbox"]:checked'))
+                    .map(checkbox => checkbox.value);
+                loadCompetitorPrices(selectedScrapHistoryIds);
             });
         });
 
@@ -41,46 +42,115 @@
             fetch(`/Competitors/GetScrapHistoryIds?storeId=${@storeId}`)
                 .then(response => response.json())
                 .then(scrapHistoryIds => {
-                    const select = document.getElementById('scrapHistorySelect');
+                    const container = document.getElementById('scrapHistoryCheckboxes');
                     scrapHistoryIds.forEach(scrap => {
-                        const option = document.createElement('option');
-                        option.value = scrap.id;
-                        option.text = `${new Date(scrap.date).toLocaleString()} (${scrap.id})`;
-                        select.appendChild(option);
+                        const label = document.createElement('label');
+                        label.style.display = 'block';
+                        const checkbox = document.createElement('input');
+                        checkbox.type = 'checkbox';
+                        checkbox.value = scrap.id;
+                        label.appendChild(checkbox);
+                        label.appendChild(document.createTextNode(`${new Date(scrap.date).toLocaleString()} (${scrap.id})`));
+                        container.appendChild(label);
                     });
                 })
                 .catch(error => console.error('Error loading scrap history options:', error));
         }
 
-        function loadCompetitorPrices(scrapHistoryId) {
-            const requestData = {
-                storeId: @storeId,
-                competitorStoreName: '@competitorStoreName',
-                scrapHistoryId: parseInt(scrapHistoryId)
-            };
+        const loadedPrices = {};
 
-            fetch('/Competitors/GetCompetitorPrices', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(requestData)
-            })
-                .then(response => response.json())
-                .then(data => {
-                    const tableBody = document.getElementById('priceTableBody');
-                    tableBody.innerHTML = '';
-                    data.forEach(price => {
-                        const row = document.createElement('tr');
-                        row.innerHTML = `
-                                    <td>${price.productName}</td>
-                                    <td>${price.price.toFixed(2)} PLN</td>
-                                    <td>${price.scrapHistoryId}</td>
-                                `;
-                        tableBody.appendChild(row);
-                    });
+        function loadCompetitorPrices(scrapHistoryIds) {
+            scrapHistoryIds.forEach(scrapHistoryId => {
+                const requestData = {
+                    storeId: @storeId,
+                    competitorStoreName: '@competitorStoreName',
+                    scrapHistoryId: parseInt(scrapHistoryId)
+                };
+
+                fetch('/Competitors/GetCompetitorPrices', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(requestData)
                 })
-                .catch(error => console.error('Error loading competitor prices:', error));
+                    .then(response => response.json())
+                    .then(data => {
+                        if (!loadedPrices[scrapHistoryId]) {
+                            loadedPrices[scrapHistoryId] = [];
+                        }
+                        data.forEach(price => {
+                            loadedPrices[scrapHistoryId].push(price);
+                        });
+                        renderPrices();
+                    })
+                    .catch(error => console.error('Error loading competitor prices:', error));
+            });
+        }
+
+        function renderPrices() {
+            const tableBody = document.getElementById('priceTableBody');
+            tableBody.innerHTML = '';
+
+            let rowIndex = 1;
+            const urlProductMap = {};
+
+            // Mapowanie URL na produkty
+            for (const [scrapHistoryId, prices] of Object.entries(loadedPrices)) {
+                prices.forEach(price => {
+                    if (!urlProductMap[price.offerUrl]) {
+                        urlProductMap[price.offerUrl] = { productName: price.productName, data: {} };
+                    }
+                    urlProductMap[price.offerUrl].data[scrapHistoryId] = price.price;
+                });
+            }
+
+            // Dodaj nagłówki dla scrapHistoryId
+            const theadRow = document.querySelector('table thead tr');
+            theadRow.innerHTML = `
+                        <th>#</th>
+                        <th>Nazwa Produktu</th>
+                        <th>URL</th>
+                    `;
+            const uniqueScrapHistoryIds = Object.keys(loadedPrices);
+            uniqueScrapHistoryIds.forEach(id => {
+                const th = document.createElement('th');
+                th.textContent = `Cena (${id})`;
+                theadRow.appendChild(th);
+            });
+
+            // Renderowanie tabeli
+            for (const [url, product] of Object.entries(urlProductMap)) {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                            <td>${rowIndex}</td>
+                            <td>${product.productName}</td>
+                            <td><a href="${url}" target="_blank">${url}</a></td>
+                        `;
+
+                uniqueScrapHistoryIds.forEach((id, index) => {
+                    const td = document.createElement('td');
+                    const currentPrice = product.data[id] ? product.data[id].toFixed(2) : 'Brak danych';
+                    td.textContent = currentPrice + ' PLN';
+
+                    if (index > 0) {
+                        const previousId = uniqueScrapHistoryIds[index - 1];
+                        const previousPrice = product.data[previousId] ? product.data[previousId] : null;
+                        if (previousPrice) {
+                            if (product.data[id] > previousPrice) {
+                                td.style.color = 'green';
+                            } else if (product.data[id] < previousPrice) {
+                                td.style.color = 'red';
+                            }
+                        }
+                    }
+
+                    row.appendChild(td);
+                });
+
+                tableBody.appendChild(row);
+                rowIndex++;
+            }
         }
     </script>
 }
