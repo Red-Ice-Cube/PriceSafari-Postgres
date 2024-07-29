@@ -86,6 +86,10 @@
                     <img src="~/images/Campaigns-b.svg" alt="Panel Icon" class="menu-icon" />Produkty
                 </div>
 
+                <div class="@(controllerName == "Competitors" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "Competitors")'">
+                    <img src="~/images/Campaigns-b.svg" alt="Panel Icon" class="menu-icon" />Konkurencja
+                </div>
+
                 
             }
 

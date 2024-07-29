@@ -1,0 +1,27 @@
+﻿@model IEnumerable<StoreClass>
+
+@{
+    ViewBag.Title = "Wybierz Sklep";
+}
+
+<h2>Wybierz Sklep</h2>
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>Nazwa Sklepu</th>
+            <th>Akcje</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var store in Model)
+        {
+            <tr>
+                <td>@store.StoreName</td>
+                <td>
+                    <a href="@Url.Action("Competitors", "Competitors", new { storeId = store.StoreId })" class="btn btn-primary">Pokaż Konkurentów</a>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>

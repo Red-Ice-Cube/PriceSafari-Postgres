@@ -1,0 +1,29 @@
+﻿@model IEnumerable<dynamic>
+
+@{
+    ViewBag.Title = "Konkurenci dla " + ViewBag.StoreName;
+}
+
+<h2>Konkurenci dla @ViewBag.StoreName</h2>
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>Nazwa Sklepu</th>
+            <th>Wspólne Produkty</th>
+            <th>Akcje</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var competitor in Model)
+        {
+            <tr>
+                <td>@competitor.StoreName</td>
+                <td>@competitor.CommonProductsCount</td>
+                <td>
+                    <a href="@Url.Action("CompetitorScrapings", "Competitors", new { competitorStoreName = competitor.StoreName, storeId = ViewBag.StoreId })" class="btn btn-primary">Pokaż Scrapowania</a>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>

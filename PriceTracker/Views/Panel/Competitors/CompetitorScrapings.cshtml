@@ -1,0 +1,27 @@
+﻿@model IEnumerable<ScrapHistoryClass>
+
+@{
+    ViewBag.Title = "Scrapowania dla " + ViewBag.CompetitorStoreName;
+}
+
+<h2>Scrapowania dla @ViewBag.CompetitorStoreName</h2>
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>Data Scrapowania</th>
+            <th>Akcje</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var scrap in Model)
+        {
+            <tr>
+                <td>@scrap.Date</td>
+                <td>
+                    <a href="@Url.Action("CompetitorPrices", "Competitors", new { scrapHistoryId = scrap.Id, competitorStoreName = ViewBag.CompetitorStoreName })" class="btn btn-primary">Pokaż Ceny</a>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>

@@ -1,0 +1,33 @@
+﻿@model IEnumerable<dynamic>
+
+@{
+    ViewBag.Title = "Ceny produktów dla " + ViewBag.CompetitorStoreName;
+}
+
+<h2>Ceny produktów dla @ViewBag.CompetitorStoreName</h2>
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>Nazwa Produktu</th>
+            <th>Cena</th>
+            <th>Pozycja</th>
+            <th>Licytacja</th>
+            <th>Dostępność</th>
+            <th>Koszt Wysyłki</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var price in Model)
+        {
+            <tr>
+                <td>@price.ProductName</td>
+                <td>@price.Price</td>
+                <td>@price.Position</td>
+                <td>@price.IsBidding</td>
+                <td>@price.AvailabilityNum</td>
+                <td>@price.ShippingCostNum</td>
+            </tr>
+        }
+    </tbody>
+</table>
