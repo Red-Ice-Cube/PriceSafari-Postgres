@@ -1,33 +1,86 @@
-﻿@model IEnumerable<dynamic>
-
-@{
+﻿@{
     ViewBag.Title = "Ceny produktów dla " + ViewBag.CompetitorStoreName;
+    var storeId = ViewBag.StoreId;
+    var competitorStoreName = ViewBag.CompetitorStoreName;
 }
 
-<h2>Ceny produktów dla @ViewBag.CompetitorStoreName</h2>
+<h2>Ceny produktów dla @competitorStoreName</h2>
+
+<div>
+    <label for="scrapHistorySelect">Wybierz scrapowanie:</label>
+    <select id="scrapHistorySelect">
+        <!-- Opcje zostaną załadowane dynamicznie przez JavaScript -->
+    </select>
+    <button id="loadPricesBtn" class="btn btn-primary">Załaduj ceny</button>
+</div>
 
 <table class="table">
     <thead>
         <tr>
             <th>Nazwa Produktu</th>
             <th>Cena</th>
-            <th>Pozycja</th>
-            <th>Licytacja</th>
-            <th>Dostępność</th>
-            <th>Koszt Wysyłki</th>
+            <th>Scrapowanie</th>
         </tr>
     </thead>
-    <tbody>
-        @foreach (var price in Model)
-        {
-            <tr>
-                <td>@price.ProductName</td>
-                <td>@price.Price</td>
-                <td>@price.Position</td>
-                <td>@price.IsBidding</td>
-                <td>@price.AvailabilityNum</td>
-                <td>@price.ShippingCostNum</td>
-            </tr>
-        }
+    <tbody id="priceTableBody">
+        <!-- Ceny produktów zostaną załadowane dynamicznie przez JavaScript -->
     </tbody>
 </table>
+
+@section Scripts {
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            loadScrapHistoryOptions();
+            document.getElementById('loadPricesBtn').addEventListener('click', () => {
+                const selectedScrapHistoryId = document.getElementById('scrapHistorySelect').value;
+                loadCompetitorPrices(selectedScrapHistoryId);
+            });
+        });
+
+        function loadScrapHistoryOptions() {
+            fetch(`/Competitors/GetScrapHistoryIds?storeId=${@storeId}`)
+                .then(response => response.json())
+                .then(scrapHistoryIds => {
+                    const select = document.getElementById('scrapHistorySelect');
+                    scrapHistoryIds.forEach(scrap => {
+                        const option = document.createElement('option');
+                        option.value = scrap.id;
+                        option.text = `${new Date(scrap.date).toLocaleString()} (${scrap.id})`;
+                        select.appendChild(option);
+                    });
+                })
+                .catch(error => console.error('Error loading scrap history options:', error));
+        }
+
+        function loadCompetitorPrices(scrapHistoryId) {
+            const requestData = {
+                storeId: @storeId,
+                competitorStoreName: '@competitorStoreName',
+                scrapHistoryId: parseInt(scrapHistoryId)
+            };
+
+            fetch('/Competitors/GetCompetitorPrices', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(requestData)
+            })
+                .then(response => response.json())
+                .then(data => {
+                    const tableBody = document.getElementById('priceTableBody');
+                    tableBody.innerHTML = '';
+                    data.forEach(price => {
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                                    <td>${price.productName}</td>
+                                    <td>${price.price.toFixed(2)} PLN</td>
+                                    <td>${price.scrapHistoryId}</td>
+                                `;
+                        tableBody.appendChild(row);
+                    });
+                })
+                .catch(error => console.error('Error loading competitor prices:', error));
+        }
+    </script>
+}

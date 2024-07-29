@@ -1,7 +1,7 @@
 ﻿@model IEnumerable<dynamic>
-
 @{
     ViewBag.Title = "Konkurenci dla " + ViewBag.StoreName;
+    var storeId = ViewBag.StoreId;
 }
 
 <h2>Konkurenci dla @ViewBag.StoreName</h2>
@@ -21,7 +21,7 @@
                 <td>@competitor.StoreName</td>
                 <td>@competitor.CommonProductsCount</td>
                 <td>
-                    <a href="@Url.Action("CompetitorScrapings", "Competitors", new { competitorStoreName = competitor.StoreName, storeId = ViewBag.StoreId })" class="btn btn-primary">Pokaż Scrapowania</a>
+                    <a href="@Url.Action("CompetitorPrices", "Competitors", new { storeId = storeId, competitorStoreName = competitor.StoreName })" class="btn btn-primary">Pokaż Ceny</a>
                 </td>
             </tr>
         }
