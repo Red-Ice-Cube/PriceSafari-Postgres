@@ -87,9 +87,6 @@ namespace PriceTracker.Controllers.MemberControllers
                 .Distinct()
                 .ToListAsync();
 
-            var rejectedproducts = await _context.Products
-                .Where(p => p.StoreId == storeId && p.IsRejected)
-                .CountAsync();
 
             var scrapedproducts = await _context.Products
                 .Where(p => p.StoreId == storeId && p.IsScrapable)              
@@ -104,7 +101,6 @@ namespace PriceTracker.Controllers.MemberControllers
             ViewBag.StoreName = storeName;
             ViewBag.Categories = categories;
             ViewBag.Flags = flags;
-            ViewBag.IsRejected = rejectedproducts;
             ViewBag.ScrapedProducts = scrapedproducts;
 
             return View("~/Views/Panel/PriceHistory/Index.cshtml");
@@ -116,7 +112,7 @@ namespace PriceTracker.Controllers.MemberControllers
         {
             if (storeId == null)
             {
-                return Json(new { productCount = 0, priceCount = 0, myStoreName = "", prices = new List<dynamic>(), setPrice1 = 2.00m, setPrice2 = 2.00m });
+                return Json(new { productCount = 0, priceCount = 0, myStoreName = "", prices = new List<dynamic>(), missedProducts = new List<dynamic>(), setPrice1 = 2.00m, setPrice2 = 2.00m });
             }
 
             if (!await UserHasAccessToStore(storeId.Value))
@@ -132,7 +128,7 @@ namespace PriceTracker.Controllers.MemberControllers
 
             if (latestScrap == null)
             {
-                return Json(new { productCount = 0, priceCount = 0, myStoreName = "", prices = new List<dynamic>(), setPrice1 = 2.00m, setPrice2 = 2.00m });
+                return Json(new { productCount = 0, priceCount = 0, myStoreName = "", prices = new List<dynamic>(), missedProducts = new List<dynamic>(), setPrice1 = 2.00m, setPrice2 = 2.00m });
             }
 
             var storeName = await _context.Stores
@@ -275,12 +271,40 @@ namespace PriceTracker.Controllers.MemberControllers
 
             var uniqueAllPrices = allPrices.GroupBy(p => p.ProductId).Select(g => g.First()).ToList();
 
+            var allStoreProducts = await _context.Products
+                .Where(p => p.StoreId == storeId)
+                .ToListAsync();
+
+            var missedProducts = allStoreProducts
+                .Where(p => !productIds.Contains(p.ProductId))
+                .Select(p => new { p.ProductId, p.ProductName, p.Category })
+                .ToList();
+
+            // Update IsRejected for missed products
+            foreach (var missedProduct in missedProducts)
+            {
+                var product = allStoreProducts.FirstOrDefault(p => p.ProductId == missedProduct.ProductId);
+                if (product != null)
+                {
+                    product.IsRejected = true;
+                }
+            }
+            await _context.SaveChangesAsync();
+
+            // Log missed products
+            foreach (var missedProduct in missedProducts)
+            {
+                Console.WriteLine($"Missed product: {missedProduct.ProductName} (ID: {missedProduct.ProductId})");
+            }
+
             return Json(new
             {
                 productCount = uniqueAllPrices.Count,
                 priceCount = prices.Count,
                 myStoreName = storeName,
                 prices = uniqueAllPrices,
+                missedProducts = missedProducts,
+                missedProductsCount = missedProducts.Count,
                 setPrice1 = priceValues.SetPrice1,
                 setPrice2 = priceValues.SetPrice2
             });

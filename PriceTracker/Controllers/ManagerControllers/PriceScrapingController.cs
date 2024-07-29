@@ -373,7 +373,6 @@ public async Task<IActionResult> StartScraping(int storeId)
     }
 
 
-
     [HttpPost]
     public async Task<IActionResult> StartScrapingWithCaptchaHandling()
     {
@@ -398,11 +397,17 @@ public async Task<IActionResult> StartScraping(int storeId)
         }
 
         var urls = coOfrs.Select(co => co.OfferUrl).ToList();
+        var urlGroups = new List<List<string>>();
 
-        var urlGroups = urls.Select((url, index) => new { url, index })
-                            .GroupBy(x => x.index % captchaSpeed)
-                            .Select(g => g.Select(x => x.url).ToList())
-                            .ToList();
+        for (int i = 0; i < captchaSpeed; i++)
+        {
+            urlGroups.Add(new List<string>());
+        }
+
+        for (int i = 0; i < urls.Count; i++)
+        {
+            urlGroups[i % captchaSpeed].Add(urls[i]);
+        }
 
         var tasks = new List<Task>();
         int totalPrices = 0;
@@ -493,6 +498,7 @@ public async Task<IActionResult> StartScraping(int storeId)
 
         return Ok(new { Message = "Scraping completed.", TotalPrices = totalPrices, RejectedCount = rejectedCount });
     }
+
 
 
 
