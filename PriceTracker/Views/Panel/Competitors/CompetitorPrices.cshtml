@@ -2,6 +2,7 @@
     ViewBag.Title = "Ceny produktów dla " + ViewBag.CompetitorStoreName;
     var storeId = ViewBag.StoreId;
     var competitorStoreName = ViewBag.CompetitorStoreName;
+    var storeName = ViewBag.StoreName;
 }
 
 <h2>Ceny produktów dla @competitorStoreName</h2>
@@ -9,7 +10,6 @@
 <div>
     <label for="scrapHistorySelect">Wybierz scrapowanie:</label>
     <div id="scrapHistoryCheckboxes">
-        <!-- Checkboxy zostaną załadowane dynamicznie przez JavaScript -->
     </div>
 </div>
 
@@ -18,21 +18,54 @@
     <label><input type="checkbox" id="filterIncrease" value="increase"> Podwyżka</label>
     <label><input type="checkbox" id="filterDecrease" value="decrease"> Obniżka</label>
     <label><input type="checkbox" id="filterChange" value="change"> Zmiana</label>
-    <label><input type="checkbox" id="filterAll" value="all"> Wszystkie</label>
 </div>
 
-<table class="table">
-    <thead>
-        <tr>
-            <th>#</th>
-            <th>Nazwa Produktu</th>
-            <th>URL</th>
-        </tr>
-    </thead>
-    <tbody id="priceTableBody">
-        <!-- Ceny produktów zostaną załadowane dynamicznie przez JavaScript -->
-    </tbody>
-</table>
+<style>
+    .scrollable-table-container {
+        overflow-x: auto;
+    }
+
+    .table th, .table td {
+        min-width: 250px;
+        white-space: nowrap;
+    }
+
+    .nowrap {
+        white-space: nowrap;
+    }
+
+    .flex-column {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .product-url-button {
+        display: inline-block;
+        margin-top: 5px;
+        padding: 5px 10px;
+        background-color: #007bff;
+        color: white;
+        text-decoration: none;
+        border-radius: 5px;
+    }
+
+        .product-url-button:hover {
+            background-color: #0056b3;
+        }
+</style>
+
+<div class="scrollable-table-container">
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Produkt</th>
+                <th>Kanał</th>
+            </tr>
+        </thead>
+        <tbody id="priceTableBody">
+        </tbody>
+    </table>
+</div>
 
 @section Scripts {
     <script>
@@ -101,30 +134,32 @@
             const tableBody = document.getElementById('priceTableBody');
             tableBody.innerHTML = '';
 
-            let rowIndex = 1;
+  
             const urlProductMap = {};
 
             // Mapowanie URL na produkty
             for (const [scrapHistoryId, prices] of Object.entries(loadedPrices)) {
                 prices.forEach(price => {
                     if (!urlProductMap[price.offerUrl]) {
-                        urlProductMap[price.offerUrl] = { productName: price.productName, data: {} };
+                        urlProductMap[price.offerUrl] = { productName: price.productName, data: {}, ourData: {} };
                     }
                     urlProductMap[price.offerUrl].data[scrapHistoryId] = price.price;
+                    urlProductMap[price.offerUrl].ourData[scrapHistoryId] = price.ourPrice;
                 });
             }
 
             // Dodaj nagłówki dla scrapHistoryId
             const theadRow = document.querySelector('table thead tr');
             theadRow.innerHTML = `
-                        <th>#</th>
-                        <th>Nazwa Produktu</th>
-                        <th>URL</th>
+                      
+                        <th>Produkt</th>
+                        <th>Kanał</th>
                     `;
             const uniqueScrapHistoryIds = Object.keys(loadedPrices);
             uniqueScrapHistoryIds.forEach(id => {
                 const th = document.createElement('th');
                 th.textContent = `Cena (${id})`;
+                th.style.minWidth = "250px";
                 theadRow.appendChild(th);
             });
 
@@ -132,53 +167,70 @@
             for (const [url, product] of Object.entries(urlProductMap)) {
                 const row = document.createElement('tr');
                 row.innerHTML = `
-                            <td>${rowIndex}</td>
-                            <td>${product.productName}</td>
-                            <td><a href="${url}" target="_blank">${url}</a></td>
+                          
+                            <td class="nowrap">${product.productName}<br><a href="${url}" target="_blank" class="product-url-button">Ceneo</a></td>
+                            <td>
+                                <div class="flex-column">
+                                    <span>@competitorStoreName</span>
+                                    <span>@storeName</span>
+                                </div>
+                            </td>
                         `;
-
                 let showRow = true;
                 let priceChanges = [];
                 let hasChange = false;
 
                 uniqueScrapHistoryIds.forEach((id, index) => {
                     const td = document.createElement('td');
-                    const currentPrice = product.data[id] ? product.data[id].toFixed(2) : 'Brak danych';
-                    td.textContent = currentPrice + ' PLN';
+                    const currentPrice = product.data[id] ? product.data[id].toFixed(2) : null;
+                    let tdContent = currentPrice ? `<p>${currentPrice} PLN` : '<p></p>';
 
-                    if (index > 0) {
+                    if (index > 0 && currentPrice !== null) {
                         const previousId = uniqueScrapHistoryIds[index - 1];
                         const previousPrice = product.data[previousId] ? product.data[previousId] : null;
-                        if (previousPrice) {
+
+                        if (previousPrice !== null) {
                             const priceDifference = product.data[id] - previousPrice;
                             const percentageDifference = ((priceDifference / previousPrice) * 100).toFixed(2);
-                            const differenceText = priceDifference.toFixed(2) + ' PLN';
 
-                            const differenceElement = document.createElement('p');
-                            differenceElement.textContent = differenceText;
-
-                            if (product.data[id] > previousPrice) {
-                                td.innerHTML += ' <span>&uarr;</span>';
-                                td.style.color = 'red';
-                                td.style.fontWeight = 'bold';
-                                differenceElement.style.color = 'red';
-                                differenceElement.textContent += ` (${percentageDifference}%)`;
-                                priceChanges.push({ change: 'increase', priceDifference, percentageDifference });
-                                hasChange = true;
-                            } else if (product.data[id] < previousPrice) {
-                                td.innerHTML += ' <span>&darr;</span>';
-                                td.style.color = 'green';
-                                td.style.fontWeight = 'bold';
-                                differenceElement.style.color = 'green';
-                                differenceElement.textContent += ` (${percentageDifference}%)`;
-                                priceChanges.push({ change: 'decrease', priceDifference, percentageDifference });
+                            if (priceDifference !== 0) {
+                                const differenceElement = ` <span style="color: ${priceDifference > 0 ? 'red' : 'green'}; font-weight: bold;">
+                                            ${priceDifference.toFixed(2)} PLN (${percentageDifference}%) ${priceDifference > 0 ? '&uarr;' : '&darr;'}
+                                        </span>`;
+                                tdContent += differenceElement;
+                                priceChanges.push({ change: priceDifference > 0 ? 'increase' : 'decrease', priceDifference, percentageDifference });
                                 hasChange = true;
                             }
-
-                            td.appendChild(differenceElement);
                         }
                     }
 
+                    const ourPrice = product.ourData[id] ? product.ourData[id].toFixed(2) : null;
+                    if (ourPrice) {
+                        tdContent += `<br>${ourPrice} PLN`;
+
+                        if (index > 0 && ourPrice !== null) {
+                            const previousId = uniqueScrapHistoryIds[index - 1];
+                            const previousOurPrice = product.ourData[previousId] ? product.ourData[previousId] : null;
+
+                            if (previousOurPrice !== null) {
+                                const ourPriceDifference = product.ourData[id] - previousOurPrice;
+                                const ourPercentageDifference = ((ourPriceDifference / previousOurPrice) * 100).toFixed(2);
+
+                                if (ourPriceDifference !== 0) {
+                                    const ourDifferenceElement = `<span style="color: ${ourPriceDifference > 0 ? 'purple' : 'blue'}; font-weight: bold;">
+                                                ${ourPriceDifference.toFixed(2)} PLN (${ourPercentageDifference}%) ${ourPriceDifference > 0 ? '&uarr;' : '&darr;'}
+                                            </span>`;
+                                    tdContent += ourDifferenceElement;
+                                    priceChanges.push({ change: ourPriceDifference > 0 ? 'ourIncrease' : 'ourDecrease', priceDifference: ourPriceDifference, percentageDifference: ourPercentageDifference });
+                                    hasChange = true;
+                                }
+                            }
+                        }
+                    }
+
+                    tdContent += `</p>`;
+                    td.innerHTML = tdContent;
+                    td.classList.add('nowrap');
                     row.appendChild(td);
                 });
 
@@ -186,24 +238,20 @@
                 const filterIncrease = document.getElementById('filterIncrease').checked;
                 const filterDecrease = document.getElementById('filterDecrease').checked;
                 const filterChange = document.getElementById('filterChange').checked;
-                const filterAll = document.getElementById('filterAll').checked;
 
                 if (filterIncrease && !priceChanges.some(change => change.change === 'increase')) {
                     showRow = false;
                 }
-                if (filterDecrease && !priceChanges.some(change => change.change === 'decrease')) {
+                if (filterDecrease && !priceChanges.some(change === 'decrease')) {
                     showRow = false;
                 }
                 if (filterChange && !hasChange) {
                     showRow = false;
                 }
-                if (filterAll) {
-                    showRow = true;
-                }
 
                 if (showRow) {
                     tableBody.appendChild(row);
-                    rowIndex++;
+              
                 }
             }
         }

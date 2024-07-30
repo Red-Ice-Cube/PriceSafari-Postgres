@@ -52,8 +52,14 @@ public class CompetitorsController : Controller
 
     public async Task<IActionResult> CompetitorPrices(int storeId, string competitorStoreName)
     {
+        var storeName = await _context.Stores
+            .Where(s => s.StoreId == storeId)
+            .Select(s => s.StoreName) 
+            .FirstOrDefaultAsync();
+
         ViewBag.CompetitorStoreName = competitorStoreName;
         ViewBag.StoreId = storeId;
+        ViewBag.StoreName = storeName;
         return View("~/Views/Panel/Competitors/CompetitorPrices.cshtml");
     }
 
@@ -79,7 +85,22 @@ public class CompetitorsController : Controller
     {
         Console.WriteLine($"Received request for competitor prices with parameters: storeId={request.StoreId}, competitorStoreName={request.CompetitorStoreName}, scrapHistoryId={request.ScrapHistoryId}");
 
-        var prices = await _context.PriceHistories
+        var storeName = await _context.Stores
+            .Where(s => s.StoreId == request.StoreId)
+            .Select(s => s.StoreName)
+            .FirstOrDefaultAsync();
+
+        var ourPrices = await _context.PriceHistories
+            .Where(ph => ph.Product.StoreId == request.StoreId && ph.StoreName == storeName && ph.ScrapHistoryId == request.ScrapHistoryId)
+            .Select(ph => new
+            {
+                ph.ProductId,
+                ph.Price,
+                StoreName = ph.StoreName
+            })
+            .ToListAsync();
+
+        var competitorPrices = await _context.PriceHistories
             .Where(ph => ph.ScrapHistoryId == request.ScrapHistoryId && ph.StoreName == request.CompetitorStoreName)
             .Select(ph => new
             {
@@ -91,15 +112,26 @@ public class CompetitorsController : Controller
             })
             .ToListAsync();
 
-        Console.WriteLine($"Found {prices.Count} prices for competitor {request.CompetitorStoreName} in scrap history {request.ScrapHistoryId}");
-
-        foreach (var price in prices)
+        var combinedPrices = competitorPrices.Select(cp => new
         {
-            Console.WriteLine($"ProductId: {price.ProductId}, ProductName: {price.ProductName}, OfferUrl: {price.OfferUrl}, Price: {price.Price}, ScrapHistoryId: {price.ScrapHistoryId}");
+            cp.ProductId,
+            cp.ProductName,
+            cp.OfferUrl,
+            cp.Price,
+            cp.ScrapHistoryId,
+            OurPrice = ourPrices.FirstOrDefault(op => op.ProductId == cp.ProductId)?.Price ?? 0
+        }).ToList();
+
+        Console.WriteLine($"Found {combinedPrices.Count} prices for competitor {request.CompetitorStoreName} in scrap history {request.ScrapHistoryId}");
+
+        foreach (var price in combinedPrices)
+        {
+            Console.WriteLine($"ProductId: {price.ProductId}, ProductName: {price.ProductName}, OfferUrl: {price.OfferUrl}, Price: {price.Price}, OurPrice: {price.OurPrice}, ScrapHistoryId: {price.ScrapHistoryId}");
         }
 
-        return Json(prices);
+        return Json(combinedPrices);
     }
+
 
 
 
