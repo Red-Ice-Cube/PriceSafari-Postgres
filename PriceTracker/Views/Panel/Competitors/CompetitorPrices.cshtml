@@ -11,7 +11,14 @@
     <div id="scrapHistoryCheckboxes">
         <!-- Checkboxy zostaną załadowane dynamicznie przez JavaScript -->
     </div>
-    <button id="loadPricesBtn" class="btn btn-primary">Załaduj ceny</button>
+</div>
+
+<div>
+    <label>Filtruj zmiany cen:</label>
+    <label><input type="checkbox" id="filterIncrease" value="increase"> Podwyżka</label>
+    <label><input type="checkbox" id="filterDecrease" value="decrease"> Obniżka</label>
+    <label><input type="checkbox" id="filterChange" value="change"> Zmiana</label>
+    <label><input type="checkbox" id="filterAll" value="all"> Wszystkie</label>
 </div>
 
 <table class="table">
@@ -31,10 +38,9 @@
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             loadScrapHistoryOptions();
-            document.getElementById('loadPricesBtn').addEventListener('click', () => {
-                const selectedScrapHistoryIds = Array.from(document.querySelectorAll('#scrapHistoryCheckboxes input[type="checkbox"]:checked'))
-                    .map(checkbox => checkbox.value);
-                loadCompetitorPrices(selectedScrapHistoryIds);
+
+            document.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+                checkbox.addEventListener('change', renderPrices);
             });
         });
 
@@ -49,6 +55,14 @@
                         const checkbox = document.createElement('input');
                         checkbox.type = 'checkbox';
                         checkbox.value = scrap.id;
+                        checkbox.addEventListener('change', () => {
+                            if (checkbox.checked) {
+                                loadCompetitorPrices([scrap.id]);
+                            } else {
+                                delete loadedPrices[scrap.id];
+                                renderPrices();
+                            }
+                        });
                         label.appendChild(checkbox);
                         label.appendChild(document.createTextNode(`${new Date(scrap.date).toLocaleString()} (${scrap.id})`));
                         container.appendChild(label);
@@ -76,12 +90,7 @@
                 })
                     .then(response => response.json())
                     .then(data => {
-                        if (!loadedPrices[scrapHistoryId]) {
-                            loadedPrices[scrapHistoryId] = [];
-                        }
-                        data.forEach(price => {
-                            loadedPrices[scrapHistoryId].push(price);
-                        });
+                        loadedPrices[scrapHistoryId] = data;
                         renderPrices();
                     })
                     .catch(error => console.error('Error loading competitor prices:', error));
@@ -128,6 +137,10 @@
                             <td><a href="${url}" target="_blank">${url}</a></td>
                         `;
 
+                let showRow = true;
+                let priceChanges = [];
+                let hasChange = false;
+
                 uniqueScrapHistoryIds.forEach((id, index) => {
                     const td = document.createElement('td');
                     const currentPrice = product.data[id] ? product.data[id].toFixed(2) : 'Brak danych';
@@ -137,19 +150,61 @@
                         const previousId = uniqueScrapHistoryIds[index - 1];
                         const previousPrice = product.data[previousId] ? product.data[previousId] : null;
                         if (previousPrice) {
+                            const priceDifference = product.data[id] - previousPrice;
+                            const percentageDifference = ((priceDifference / previousPrice) * 100).toFixed(2);
+                            const differenceText = priceDifference.toFixed(2) + ' PLN';
+
+                            const differenceElement = document.createElement('p');
+                            differenceElement.textContent = differenceText;
+
                             if (product.data[id] > previousPrice) {
-                                td.style.color = 'green';
-                            } else if (product.data[id] < previousPrice) {
+                                td.innerHTML += ' <span>&uarr;</span>';
                                 td.style.color = 'red';
+                                td.style.fontWeight = 'bold';
+                                differenceElement.style.color = 'red';
+                                differenceElement.textContent += ` (${percentageDifference}%)`;
+                                priceChanges.push({ change: 'increase', priceDifference, percentageDifference });
+                                hasChange = true;
+                            } else if (product.data[id] < previousPrice) {
+                                td.innerHTML += ' <span>&darr;</span>';
+                                td.style.color = 'green';
+                                td.style.fontWeight = 'bold';
+                                differenceElement.style.color = 'green';
+                                differenceElement.textContent += ` (${percentageDifference}%)`;
+                                priceChanges.push({ change: 'decrease', priceDifference, percentageDifference });
+                                hasChange = true;
                             }
+
+                            td.appendChild(differenceElement);
                         }
                     }
 
                     row.appendChild(td);
                 });
 
-                tableBody.appendChild(row);
-                rowIndex++;
+                // Filtruj na podstawie wybranego filtru zmian cen
+                const filterIncrease = document.getElementById('filterIncrease').checked;
+                const filterDecrease = document.getElementById('filterDecrease').checked;
+                const filterChange = document.getElementById('filterChange').checked;
+                const filterAll = document.getElementById('filterAll').checked;
+
+                if (filterIncrease && !priceChanges.some(change => change.change === 'increase')) {
+                    showRow = false;
+                }
+                if (filterDecrease && !priceChanges.some(change => change.change === 'decrease')) {
+                    showRow = false;
+                }
+                if (filterChange && !hasChange) {
+                    showRow = false;
+                }
+                if (filterAll) {
+                    showRow = true;
+                }
+
+                if (showRow) {
+                    tableBody.appendChild(row);
+                    rowIndex++;
+                }
             }
         }
     </script>

@@ -106,7 +106,6 @@ namespace PriceTracker.Controllers.MemberControllers
             return View("~/Views/Panel/PriceHistory/Index.cshtml");
         }
 
-
         [HttpGet]
         public async Task<IActionResult> GetPrices(int? storeId, string competitorStore = null)
         {
@@ -280,16 +279,19 @@ namespace PriceTracker.Controllers.MemberControllers
                 .Select(p => new { p.ProductId, p.ProductName, p.Category })
                 .ToList();
 
-            // Update IsRejected for missed products
-            foreach (var missedProduct in missedProducts)
+            // Update IsRejected for missed products only if competitorStore is not specified
+            if (string.IsNullOrEmpty(competitorStore))
             {
-                var product = allStoreProducts.FirstOrDefault(p => p.ProductId == missedProduct.ProductId);
-                if (product != null)
+                foreach (var missedProduct in missedProducts)
                 {
-                    product.IsRejected = true;
+                    var product = allStoreProducts.FirstOrDefault(p => p.ProductId == missedProduct.ProductId);
+                    if (product != null)
+                    {
+                        product.IsRejected = true;
+                    }
                 }
+                await _context.SaveChangesAsync();
             }
-            await _context.SaveChangesAsync();
 
             // Log missed products
             foreach (var missedProduct in missedProducts)
