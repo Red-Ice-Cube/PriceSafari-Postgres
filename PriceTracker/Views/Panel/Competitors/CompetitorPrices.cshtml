@@ -1,432 +1,7 @@
-﻿@{
-    ViewBag.Title = "Ceny produktów dla " + ViewBag.CompetitorStoreName;
-    var storeId = ViewBag.StoreId;
-    var competitorStoreName = ViewBag.CompetitorStoreName;
-    var storeName = ViewBag.StoreName;
-}
+﻿
 
-@{
-    Layout = "~/Views/Shared/_PanelLayout.cshtml";
-}
 
 
-<style>
-    .scrollable-table-container {
-        overflow-x: auto;
-    }
-
-    .table th, .table td {
-        min-width: 250px;
-        white-space: nowrap;
-    }
-
-    .nowrap {
-        white-space: nowrap;
-    }
-
-    .flex-column {
-        display: flex;
-        flex-direction: column;
-    }
-
-    .product-url-button {
-        display: inline-block;
-        margin-top: 5px;
-        padding: 5px 10px;
-        background-color: #007bff;
-        color: white;
-        text-decoration: none;
-        border-radius: 5px;
-    }
-
-        .product-url-button:hover {
-            background-color: #0056b3;
-        }
-
-    .priceBox-style-c {
-        display: inline-flex;
-        align-self: center;
-        padding: 4px 0px;
-        align-items: center;
-        justify-content: center;
-        border-radius: 8px;
-        font-size: 15px;
-        font-weight: 400;
-        color: #000;
-    }
-
-    .priceBox-style-o {
-        display: inline-flex;
-        align-self: center;
-        padding: 4px 0px;
-        align-items: center;
-        justify-content: center;
-        border-radius: 8px;
-        font-size: 15px;
-        font-weight: 400;
-        color: #000;
-    }
-
-
-    .priceBox-diff-up {
-        display: inline-flex;
-        align-self: center;
-        padding: 4px 12px;
-        align-items: center;
-        justify-content: center;
-        border-radius: 8px;
-        font-size: 14px;
-        font-weight: 400;
-        border: 1px solid #FF6347;
-        background: rgba(255, 99, 71, 0.20);
-        color: #FF6347;
-
-    }
-
-    .priceBox-diff-down {
-        display: inline-flex;
-        align-self: center;
-        padding: 4px 12px;
-        align-items: center;
-        justify-content: center;
-        border-radius: 8px;
-        font-size: 14px;
-        font-weight: 400;
-        border: 1px solid #00C6A2;
-        background: rgba(0, 198, 162, 0.20);
-        color: #00C6A2 !important;
-    }
-
-
-    .Price-box-content-c {
-        display:flex;
-        gap: 6px;
-        padding: 4px;
-        justify-content: space-between;
-        border-bottom: 0.5px solid #004552;
-
-    }
-
-    .Price-box-content-o {
-        display:flex;
-        padding:4px;
-        gap: 6px;
-        justify-content:space-between;
-        border-top: 0.2px solid #004552;
-
-    }
-
-    .Price-box-content-c-t {
-        display: flex;
-        padding: 4px;
-        white-space: nowrap; /* Zapobiega zawijaniu tekstu */
-        overflow: hidden; /* Ukrywa nadmiarowy tekst */
-        text-overflow: ellipsis; /* Dodaje wielokropek, jeśli tekst jest zbyt długi */
-    }
-
-    .Price-box-content-o-t {
-        display: flex;
-        padding: 4px;
-        white-space: nowrap; /* Zapobiega zawijaniu tekstu */
-        overflow: hidden; /* Ukrywa nadmiarowy tekst */
-        text-overflow: ellipsis; /* Dodaje wielokropek, jeśli tekst jest zbyt długi */
-    }
-
-
-</style>
-
-
-<div class="Vert">
-    <div class="Page-Box">
-        <div class="Page-Box-Container">
-            <div class="Page-Box-Category">
-                <div class="Category-Container-Title">Historia cen</div>
-           
-                    <div class="filterBox">
-
-
-
-                    <div class="Category-Container-Select">Zmiany</div>
-                        <div class="store-section">
-                            <div class="filter-category">
-
-                                <div class="form-check">
-                                    <input class="form-check-input deliveryFilterCompetitor" type="checkbox" id="filterIncrease" value="increase">
-                                    <label class="form-check-label" for="filterIncrease">Podwyżka</label>
-                                </div>
-                                <div class="form-check">
-                                    <input class="form-check-input deliveryFilterCompetitor" type="checkbox" id="filterDecrease" value="decrease">
-                                    <label class="form-check-label" for="filterDecrease">Obniżka</label>
-                                </div>
-                                <div class="form-check">
-                                    <input class="form-check-input deliveryFilterCompetitor" type="checkbox" id="filterChange" value="change">
-                                    <label class="form-check-label" for="filterChange">Zmiana</label>
-                                </div>
-                               
-                            </div>
-                        </div>
-                    <div>
-
-                    <div class="Category-Container-Select">Data</div>
-                        <div class="store-section">
-                            <div class="filter-category">
-                           
-                                <div id="scrapHistoryCheckboxes"></div>
-                            </div>
-                        </div>
-                    </div>
-                    </div>
-                
-            </div>
-            <div class="Horizontal-x">
-          
-                    <div class="order-upper-box">
-
-                        <input type="text" id="productSearch" placeholder="Wyszukaj produkt">
-
-                        <div class="form-check-orders">
-                            <div>
-                                <p><strong>Sklep: </strong>@competitorStoreName <span></span></p>
-
-                            </div>
-                        </div>
-
-                    </div>
-                <div class="Vert-table">
-                    <div class="scrollable-table-container">
-                        <table class="table-orders">
-                            <thead>
-                                <tr>
-                                    <th>Produkt</th>
-                                    <th>Kanał</th>
-                                </tr>
-                            </thead>
-                            <tbody id="priceTableBody">
-                            </tbody>
-                        </table>
-                    </div> 
-                </div>
-                
-            </div>
-
-        </div>
-    </div>
-</div>
-
-
-
-@section Scripts {
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            loadScrapHistoryOptions();
-
-            document.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
-                checkbox.addEventListener('change', renderPrices);
-            });
-        });
-
-        function loadScrapHistoryOptions() {
-            fetch(`/Competitors/GetScrapHistoryIds?storeId=${@storeId}`)
-                .then(response => response.json())
-                .then(scrapHistoryIds => {
-                    const container = document.getElementById('scrapHistoryCheckboxes');
-                    scrapHistoryIds.forEach(scrap => {
-                        const label = document.createElement('label');
-                        label.className = 'form-check-label';
-                        label.style.display = 'block';
-
-                        const checkbox = document.createElement('input');
-                        checkbox.type = 'checkbox';
-                        checkbox.value = scrap.id;
-                        checkbox.dataset.date = scrap.date; // Przechowujemy datę w atrybucie danych
-                        checkbox.className = 'form-check-input deliveryFilterCompetitor';
-
-                        checkbox.addEventListener('change', () => {
-                            if (checkbox.checked) {
-                                loadCompetitorPrices([scrap.id]);
-                            } else {
-                                delete loadedPrices[scrap.id];
-                                renderPrices();
-                            }
-                        });
-
-                        const date = new Date(scrap.date);
-                        const formattedDate = `${date.getDate()}.${date.getMonth() + 1}.${date.getFullYear()}`;
-
-                        label.appendChild(checkbox);
-                        label.appendChild(document.createTextNode(formattedDate));
-                        container.appendChild(label);
-                    });
-                })
-                .catch(error => console.error('Error loading scrap history options:', error));
-        }
-
-
-        const loadedPrices = {};
-
-        function loadCompetitorPrices(scrapHistoryIds) {
-            scrapHistoryIds.forEach(scrapHistoryId => {
-                const requestData = {
-                    storeId: @storeId,
-                    competitorStoreName: '@competitorStoreName',
-                    scrapHistoryId: parseInt(scrapHistoryId)
-                };
-
-                fetch('/Competitors/GetCompetitorPrices', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(requestData)
-                })
-                    .then(response => response.json())
-                    .then(data => {
-                        loadedPrices[scrapHistoryId] = data;
-                        renderPrices();
-                    })
-                    .catch(error => console.error('Error loading competitor prices:', error));
-            });
-        }
-
-        function renderPrices() {
-            const tableBody = document.getElementById('priceTableBody');
-            tableBody.innerHTML = '';
-
-  
-            const urlProductMap = {};
-
-            // Mapowanie URL na produkty
-            for (const [scrapHistoryId, prices] of Object.entries(loadedPrices)) {
-                prices.forEach(price => {
-                    if (!urlProductMap[price.offerUrl]) {
-                        urlProductMap[price.offerUrl] = { productName: price.productName, data: {}, ourData: {} };
-                    }
-                    urlProductMap[price.offerUrl].data[scrapHistoryId] = price.price;
-                    urlProductMap[price.offerUrl].ourData[scrapHistoryId] = price.ourPrice;
-                });
-            }
-
-            // Dodaj nagłówki dla scrapHistoryId
-            const theadRow = document.querySelector('table thead tr');
-            theadRow.innerHTML = `
-                <th>Produkt</th>
-                <th>Kanał</th>
-            `;
-
-            const uniqueScrapHistoryIds = Object.keys(loadedPrices);
-            uniqueScrapHistoryIds.forEach(id => {
-                const th = document.createElement('th');
-
-                // Pobieramy formatowaną datę z pierwszego checkboxa o danym id
-                const checkbox = document.querySelector(`input[type="checkbox"][value="${id}"]`);
-                if (checkbox) {
-                    const date = new Date(checkbox.dataset.date);
-                    const formattedDate = `${date.getDate()}.${date.getMonth() + 1}.${date.getFullYear()}`;
-                    th.textContent = `${formattedDate}`;
-                } else {
-                    th.textContent = `Cena (${id})`; // Zapasowy tekst w razie braku checkboxa
-                }
-
-                theadRow.appendChild(th);
-            });
-
-            // Renderowanie tabeli
-            for (const [url, product] of Object.entries(urlProductMap)) {
-                const row = document.createElement('tr');
-                row.innerHTML = `
-                <td class="nowrap">${product.productName}<br><a href="${url}" target="_blank" class="product-url-button">Ceneo</a></td>
-                <td>
-                    <div class="flex-column">
-                        <div class="Price-box-content-c-t"><div class="priceBox-style-c">@competitorStoreName</div></div>
-                        <div class="Price-box-content-o-t"><div class="priceBox-style-o">@storeName</div></div>
-                    </div>
-                </td>
-            `;
-                let showRow = true;
-                let priceChanges = [];
-                let hasChange = false;
-
-                uniqueScrapHistoryIds.forEach((id, index) => {
-                    const td = document.createElement('td');
-                    const currentPrice = product.data[id] ? product.data[id].toFixed(2) : "B/D";
-                    let tdContent = currentPrice !== "B/D" ? `<div class="Price-box-content-c"><div class="priceBox-style-c">${currentPrice} PLN</div>` : '<div class="Price-box-content-c"><div class="priceBox-style-c">B/D</div>';
-
-                    if (index > 0 && currentPrice !== "B/D") {
-                        const previousId = uniqueScrapHistoryIds[index - 1];
-                        const previousPrice = product.data[previousId] ? product.data[previousId] : null;
-
-                        if (previousPrice !== null) {
-                            const priceDifference = product.data[id] - previousPrice;
-                            const percentageDifference = ((priceDifference / previousPrice) * 100).toFixed(2);
-
-                            if (priceDifference !== 0) {
-                                const differenceElement = ` <div class="${priceDifference > 0 ? 'priceBox-diff-down' : 'priceBox-diff-up'}">
-                                ${priceDifference.toFixed(2)} PLN (${percentageDifference}%) ${priceDifference > 0 ? '&uarr;' : '&darr;'}
-                                    </div>`;
-                                tdContent += differenceElement;
-                                priceChanges.push({ change: priceDifference > 0 ? 'increase' : 'decrease', priceDifference, percentageDifference });
-                                hasChange = true;
-                            }
-                        }
-                    }
-
-                    tdContent += '</div>';  // Dodano zamknięcie dla Price-box-content-c
-
-                    const ourPrice = product.ourData[id] ? product.ourData[id].toFixed(2) : "B/D";
-                    if (ourPrice !== "B/D") {
-                        tdContent += `<div class="Price-box-content-o"><div class="priceBox-style-o">${ourPrice} PLN</div>`;
-
-                        if (index > 0 && ourPrice !== "B/D") {
-                            const previousId = uniqueScrapHistoryIds[index - 1];
-                            const previousOurPrice = product.ourData[previousId] ? product.ourData[previousId] : null;
-
-                            if (previousOurPrice !== null) {
-                                const ourPriceDifference = product.ourData[id] - previousOurPrice;
-                                const ourPercentageDifference = ((ourPriceDifference / previousOurPrice) * 100).toFixed(2);
-
-                                if (ourPriceDifference !== 0) {
-                                    const ourDifferenceElement = `<div class="${ourPriceDifference > 0 ? 'priceBox-diff-down' : 'priceBox-diff-up'}">
-                                    ${ourPriceDifference.toFixed(2)} PLN (${ourPercentageDifference}%) ${ourPriceDifference > 0 ? '&uarr;' : '&darr;'}
-                                        </div>`;
-                                    tdContent += ourDifferenceElement;
-                                    priceChanges.push({ change: ourPriceDifference > 0 ? 'ourIncrease' : 'ourDecrease', priceDifference: ourPriceDifference, percentageDifference: ourPercentageDifference });
-                                    hasChange = true;
-                                }
-                            }
-                        }
-                        tdContent += '</div>'; // Dodano zamknięcie dla Price-box-content-o
-                    } else {
-                        tdContent += '<div class="Price-box-content-o"><div class="priceBox-style-o">B/D</div></div>'; // Dodano "B/D" dla naszej ceny
-                    }
-
-                    td.innerHTML = tdContent;
-                    td.classList.add('nowrap');
-                    row.appendChild(td);
-                });
-
-                // Filtruj na podstawie wybranego filtru zmian cen
-                const filterIncrease = document.getElementById('filterIncrease').checked;
-                const filterDecrease = document.getElementById('filterDecrease').checked;
-                const filterChange = document.getElementById('filterChange').checked;
-
-                if (filterIncrease && !priceChanges.some(change => change.change === 'increase')) {
-                    showRow = false;
-                }
-                if (filterDecrease && !priceChanges.some(change => change.change === 'decrease')) {
-                    showRow = false;
-                }
-                if (filterChange && !hasChange) {
-                    showRow = false;
-                }
-
-                if (showRow) {
-                    tableBody.appendChild(row);
-                }
-            }
-
-        }
-    </script>
-}
 
 
 
@@ -632,15 +207,19 @@
     </div>
 </div>
 
-
-
 @section Scripts {
+
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             loadScrapHistoryOptions();
 
             document.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
                 checkbox.addEventListener('change', renderPrices);
+            });
+
+            // Obsługa wyszukiwania
+            document.getElementById('productSearch').addEventListener('keyup', function () {
+                filterProducts(this.value);
             });
         });
 
@@ -681,6 +260,7 @@
         }
 
         const loadedPrices = {};
+        let allProducts = {};  // Zmienna przechowująca wszystkie produkty
 
         function loadCompetitorPrices(scrapHistoryIds) {
             scrapHistoryIds.forEach(scrapHistoryId => {
@@ -722,6 +302,9 @@
                 });
             }
 
+            // Zapisujemy wszystkie produkty w zmiennej allProducts
+            allProducts = urlProductMap;
+
             const theadRow = document.querySelector('table thead tr');
             theadRow.innerHTML = `
                         <th>Produkt</th>
@@ -744,14 +327,31 @@
                 theadRow.appendChild(th);
             });
 
-            for (const [productId, product] of Object.entries(urlProductMap)) {
+            displayProducts(urlProductMap);  // Wyświetlenie produktów
+        }
+
+        // Funkcja do filtrowania produktów
+        function filterProducts(searchTerm) {
+            const filteredProducts = {};
+            for (const [productId, product] of Object.entries(allProducts)) {
+                if (product.productName.toLowerCase().includes(searchTerm.toLowerCase())) {
+                    filteredProducts[productId] = product;
+                }
+            }
+            displayProducts(filteredProducts);
+        }
+
+        // Funkcja do wyświetlania produktów
+        function displayProducts(products) {
+            const tableBody = document.getElementById('priceTableBody');
+            tableBody.innerHTML = '';
+
+            for (const [productId, product] of Object.entries(products)) {
+                let showRow = true;
+                let priceChanges = [];
+                let hasChange = false;
+
                 const row = document.createElement('tr');
-
-
-                row.addEventListener('click', () => {
-                    const url = `/PriceHistory/Details?productId=${productId}&scrapId=${product.scrapHistoryId}`;
-                    window.location.href = url;
-                });
 
                 row.innerHTML = `
                             <td><div class="price-box-column-name-com">${product.productName}</div></td>
@@ -762,8 +362,8 @@
                                 </div>
                             </td>
                         `;
-                let showRow = true;
 
+                const uniqueScrapHistoryIds = Object.keys(loadedPrices);
                 uniqueScrapHistoryIds.forEach((id, index) => {
                     const td = document.createElement('td');
                     const currentPrice = product.data[id] ? product.data[id].toFixed(2) : "B/D";
@@ -779,14 +379,18 @@
 
                             if (priceDifference !== 0) {
                                 const differenceElement = ` <div class="${priceDifference > 0 ? 'priceBox-diff-down' : 'priceBox-diff-up'}">
-                                        ${priceDifference.toFixed(2)} PLN (${percentageDifference}%) ${priceDifference > 0 ? '&uarr;' : '&darr;'}
-                                            </div>`;
+                                            ${priceDifference.toFixed(2)} PLN (${percentageDifference}%) ${priceDifference > 0 ? '&uarr;' : '&darr;'}
+                                                </div>`;
                                 tdContent += differenceElement;
+
+                                // Zapisujemy zmiany dla filtrowania
+                                priceChanges.push({ change: priceDifference > 0 ? 'increase' : 'decrease', priceDifference, percentageDifference });
+                                hasChange = true;
                             }
                         }
                     }
 
-                    tdContent += '</div>';  // Dodano zamknięcie dla Price-box-content-c
+                    tdContent += '</div>';
 
                     const ourPrice = product.ourData[id] ? product.ourData[id].toFixed(2) : "B/D";
                     if (ourPrice !== "B/D") {
@@ -802,9 +406,13 @@
 
                                 if (ourPriceDifference !== 0) {
                                     const ourDifferenceElement = `<div class="${ourPriceDifference > 0 ? 'priceBox-diff-down' : 'priceBox-diff-up'}">
-                                            ${ourPriceDifference.toFixed(2)} PLN (${ourPercentageDifference}%) ${ourPriceDifference > 0 ? '&uarr;' : '&darr;'}
-                                                </div>`;
+                                                ${ourPriceDifference.toFixed(2)} PLN (${ourPercentageDifference}%) ${ourPriceDifference > 0 ? '&uarr;' : '&darr;'}
+                                                    </div>`;
                                     tdContent += ourDifferenceElement;
+
+                                    // Zapisujemy zmiany dla filtrowania
+                                    priceChanges.push({ change: ourPriceDifference > 0 ? 'ourIncrease' : 'ourDecrease', priceDifference: ourPriceDifference, percentageDifference: ourPercentageDifference });
+                                    hasChange = true;
                                 }
                             }
                         }
@@ -816,17 +424,17 @@
                     td.innerHTML = tdContent;
                     td.classList.add('nowrap');
 
-                    // Dodanie obsługi kliknięcia na komórkę
-                    td.addEventListener('click', (event) => {
+                    // Dodanie obsługi kliknięcia na komórkę z ceną
+                    td.querySelector('.Price-box-content-c, .Price-box-content-o').addEventListener('click', (event) => {
                         event.stopPropagation(); // Zapobiega przekierowaniu przez kliknięcie w wiersz
                         const url = `/PriceHistory/Details?productId=${productId}&scrapId=${id}`;
                         window.open(url, '_blank'); // Otwiera w nowej karcie
                     });
 
-
                     row.appendChild(td);
                 });
 
+                // Filtrujemy wiersze na podstawie zmian cen
                 const filterIncrease = document.getElementById('filterIncrease').checked;
                 const filterDecrease = document.getElementById('filterDecrease').checked;
                 const filterChange = document.getElementById('filterChange').checked;
@@ -844,8 +452,6 @@
                 if (showRow) {
                     tableBody.appendChild(row);
                 }
-
-                tableBody.appendChild(row);
             }
         }
 
