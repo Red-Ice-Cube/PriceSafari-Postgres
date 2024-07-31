@@ -1,23 +1,57 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using PriceTracker.Data;
 using PriceTracker.Models;
 using System.Linq;
+using System.Security.Claims;
 using System.Threading.Tasks;
 
+[Authorize(Roles = "Admin, Member, Manager")]
 public class CompetitorsController : Controller
 {
     private readonly PriceTrackerContext _context;
+    private readonly UserManager<PriceTrackerUser> _userManager;
 
-    public CompetitorsController(PriceTrackerContext context)
+    public CompetitorsController(PriceTrackerContext context, UserManager<PriceTrackerUser> userManager)
     {
         _context = context;
+        _userManager = userManager;
     }
 
-   
+    private async Task<bool> UserHasAccessToStore(int storeId)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        var user = await _userManager.FindByIdAsync(userId);
+        var isAdminOrManager = await _userManager.IsInRoleAsync(user, "Admin") || await _userManager.IsInRoleAsync(user, "Manager");
+
+        if (!isAdminOrManager)
+        {
+            var hasAccess = await _context.UserStores.AnyAsync(us => us.UserId == userId && us.StoreId == storeId);
+            return hasAccess;
+        }
+
+        return true;
+    }
+
+
     public async Task<IActionResult> Index()
     {
-        var stores = await _context.Stores.ToListAsync();
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        var userStores = await _context.UserStores
+            .Where(us => us.UserId == userId)
+            .Include(us => us.StoreClass)
+            .ThenInclude(s => s.ScrapHistories)
+
+
+
+            .ToListAsync();
+
+        var stores = userStores.Select(us => us.StoreClass).ToList();
+
+      
         return View("~/Views/Panel/Competitors/Index.cshtml", stores);
     }
 
@@ -25,6 +59,12 @@ public class CompetitorsController : Controller
 
     public async Task<IActionResult> Competitors(int storeId)
     {
+
+        if (!await UserHasAccessToStore(storeId))
+        {
+            return Content("Nie ma takiego sklepu");
+        }
+
         var storeName = await _context.Stores
             .Where(s => s.StoreId == storeId)
             .Select(s => s.StoreName)
@@ -52,6 +92,12 @@ public class CompetitorsController : Controller
 
     public async Task<IActionResult> CompetitorPrices(int storeId, string competitorStoreName)
     {
+
+        if (!await UserHasAccessToStore(storeId))
+        {
+            return Content("Nie ma takiego sklepu");
+        }
+
         var storeName = await _context.Stores
             .Where(s => s.StoreId == storeId)
             .Select(s => s.StoreName) 
@@ -65,6 +111,12 @@ public class CompetitorsController : Controller
 
     public async Task<IActionResult> GetScrapHistoryIds(int storeId)
     {
+
+        if (!await UserHasAccessToStore(storeId))
+        {
+            return Content("Nie ma takiego sklepu");
+        }
+
         var scrapHistoryIds = await _context.ScrapHistories
             .Where(sh => sh.StoreId == storeId)
             .OrderByDescending(sh => sh.Date)
@@ -83,7 +135,17 @@ public class CompetitorsController : Controller
     [HttpPost]
     public async Task<IActionResult> GetCompetitorPrices([FromBody] GetCompetitorPricesRequest request)
     {
+
+
         Console.WriteLine($"Received request for competitor prices with parameters: storeId={request.StoreId}, competitorStoreName={request.CompetitorStoreName}, scrapHistoryId={request.ScrapHistoryId}");
+
+        var storeId = request.StoreId;
+
+
+        if (!await UserHasAccessToStore(storeId))
+        {
+            return Content("Nie ma takiego sklepu");
+        }
 
         var storeName = await _context.Stores
             .Where(s => s.StoreId == request.StoreId)
