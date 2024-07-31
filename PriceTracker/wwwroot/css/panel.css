@@ -3067,7 +3067,14 @@ tr:last-child .sub-line {
 
 .price-box-column-name {
     font-weight: 300;
-    font-size: 21px;
+    font-size: 20px;
+}
+
+.price-box-column-name-com {
+    display:flex;
+    min-width:350px;
+    font-weight: 300;
+    font-size: 18px;
 }
 
 .price-box-column-category {
