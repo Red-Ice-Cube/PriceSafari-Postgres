@@ -46,19 +46,19 @@
     .priceBox-style-c {
         display: inline-flex;
         align-self: center;
-        padding: 4px 12px;
+        padding: 4px 0px;
         align-items: center;
         justify-content: center;
         border-radius: 8px;
         font-size: 15px;
         font-weight: 400;
-        color: #fff;
+        color: #000;
     }
 
     .priceBox-style-o {
         display: inline-flex;
         align-self: center;
-        padding: 4px 12px;
+        padding: 4px 0px;
         align-items: center;
         justify-content: center;
         border-radius: 8px;
@@ -100,28 +100,25 @@
 
     .Price-box-content-c {
         display:flex;
+        gap: 6px;
+        padding: 4px;
         justify-content: space-between;
-        width: 320px;
-        background: #505050;
-        padding:6px;
-        gap: 6px;    
+        border-bottom: 0.5px solid #004552;
 
     }
 
     .Price-box-content-o {
         display:flex;
-        justify-content:space-between;
-        width: 320px;
-        background: #eaeaea;
-        padding: 6px;
+        padding:4px;
         gap: 6px;
+        justify-content:space-between;
+        border-top: 0.2px solid #004552;
+
     }
 
     .Price-box-content-c-t {
         display: flex;
-        background: #505050;
-        padding: 6px;
-        gap: 6px;
+        padding: 4px;
         white-space: nowrap; /* Zapobiega zawijaniu tekstu */
         overflow: hidden; /* Ukrywa nadmiarowy tekst */
         text-overflow: ellipsis; /* Dodaje wielokropek, jeśli tekst jest zbyt długi */
@@ -129,9 +126,7 @@
 
     .Price-box-content-o-t {
         display: flex;
-        background: #eaeaea;
-        padding: 6px;
-        gap: 6px;
+        padding: 4px;
         white-space: nowrap; /* Zapobiega zawijaniu tekstu */
         overflow: hidden; /* Ukrywa nadmiarowy tekst */
         text-overflow: ellipsis; /* Dodaje wielokropek, jeśli tekst jest zbyt długi */
@@ -191,7 +186,7 @@
 
                         <div class="form-check-orders">
                             <div>
-                                <p><strong>Sklep</strong>@competitorStoreName <span></span></p>
+                                <p><strong>Sklep: </strong>@competitorStoreName <span></span></p>
 
                             </div>
                         </div>
@@ -339,25 +334,24 @@
             for (const [url, product] of Object.entries(urlProductMap)) {
                 const row = document.createElement('tr');
                 row.innerHTML = `
-                          
-                            <td class="nowrap">${product.productName}<br><a href="${url}" target="_blank" class="product-url-button">Ceneo</a></td>
-                            <td>
-                                <div class="flex-column">
-                                                            <div class="Price-box-content-c-t"><div class="priceBox-style-c">@competitorStoreName</div></div>
-                                                            <div class="Price-box-content-o-t"><div class="priceBox-style-o">@storeName</div></div>
-                                </div>
-                            </td>
-                        `;
+                <td class="nowrap">${product.productName}<br><a href="${url}" target="_blank" class="product-url-button">Ceneo</a></td>
+                <td>
+                    <div class="flex-column">
+                        <div class="Price-box-content-c-t"><div class="priceBox-style-c">@competitorStoreName</div></div>
+                        <div class="Price-box-content-o-t"><div class="priceBox-style-o">@storeName</div></div>
+                    </div>
+                </td>
+            `;
                 let showRow = true;
                 let priceChanges = [];
                 let hasChange = false;
 
                 uniqueScrapHistoryIds.forEach((id, index) => {
                     const td = document.createElement('td');
-                    const currentPrice = product.data[id] ? product.data[id].toFixed(2) : null;
-                    let tdContent = currentPrice ? `<div class="Price-box-content-c"><div class="priceBox-style-c">${currentPrice} PLN</div>` : '<p></p>';
+                    const currentPrice = product.data[id] ? product.data[id].toFixed(2) : "B/D";
+                    let tdContent = currentPrice !== "B/D" ? `<div class="Price-box-content-c"><div class="priceBox-style-c">${currentPrice} PLN</div>` : '<div class="Price-box-content-c"><div class="priceBox-style-c">B/D</div>';
 
-                    if (index > 0 && currentPrice !== null) {
+                    if (index > 0 && currentPrice !== "B/D") {
                         const previousId = uniqueScrapHistoryIds[index - 1];
                         const previousPrice = product.data[previousId] ? product.data[previousId] : null;
 
@@ -367,8 +361,8 @@
 
                             if (priceDifference !== 0) {
                                 const differenceElement = ` <div class="${priceDifference > 0 ? 'priceBox-diff-down' : 'priceBox-diff-up'}">
-                                    ${priceDifference.toFixed(2)} PLN (${percentageDifference}%) ${priceDifference > 0 ? '&uarr;' : '&darr;'}
-                                        </div>`;
+                                ${priceDifference.toFixed(2)} PLN (${percentageDifference}%) ${priceDifference > 0 ? '&uarr;' : '&darr;'}
+                                    </div>`;
                                 tdContent += differenceElement;
                                 priceChanges.push({ change: priceDifference > 0 ? 'increase' : 'decrease', priceDifference, percentageDifference });
                                 hasChange = true;
@@ -378,11 +372,11 @@
 
                     tdContent += '</div>';  // Dodano zamknięcie dla Price-box-content-c
 
-                    const ourPrice = product.ourData[id] ? product.ourData[id].toFixed(2) : null;
-                    if (ourPrice) {
+                    const ourPrice = product.ourData[id] ? product.ourData[id].toFixed(2) : "B/D";
+                    if (ourPrice !== "B/D") {
                         tdContent += `<div class="Price-box-content-o"><div class="priceBox-style-o">${ourPrice} PLN</div>`;
 
-                        if (index > 0 && ourPrice !== null) {
+                        if (index > 0 && ourPrice !== "B/D") {
                             const previousId = uniqueScrapHistoryIds[index - 1];
                             const previousOurPrice = product.ourData[previousId] ? product.ourData[previousId] : null;
 
@@ -392,8 +386,8 @@
 
                                 if (ourPriceDifference !== 0) {
                                     const ourDifferenceElement = `<div class="${ourPriceDifference > 0 ? 'priceBox-diff-down' : 'priceBox-diff-up'}">
-                                        ${ourPriceDifference.toFixed(2)} PLN (${ourPercentageDifference}%) ${ourPriceDifference > 0 ? '&uarr;' : '&darr;'}
-                                            </div>`;
+                                    ${ourPriceDifference.toFixed(2)} PLN (${ourPercentageDifference}%) ${ourPriceDifference > 0 ? '&uarr;' : '&darr;'}
+                                        </div>`;
                                     tdContent += ourDifferenceElement;
                                     priceChanges.push({ change: ourPriceDifference > 0 ? 'ourIncrease' : 'ourDecrease', priceDifference: ourPriceDifference, percentageDifference: ourPercentageDifference });
                                     hasChange = true;
@@ -401,13 +395,14 @@
                             }
                         }
                         tdContent += '</div>'; // Dodano zamknięcie dla Price-box-content-o
+                    } else {
+                        tdContent += '<div class="Price-box-content-o"><div class="priceBox-style-o">B/D</div></div>'; // Dodano "B/D" dla naszej ceny
                     }
 
                     td.innerHTML = tdContent;
                     td.classList.add('nowrap');
                     row.appendChild(td);
                 });
-
 
                 // Filtruj na podstawie wybranego filtru zmian cen
                 const filterIncrease = document.getElementById('filterIncrease').checked;
@@ -417,7 +412,7 @@
                 if (filterIncrease && !priceChanges.some(change => change.change === 'increase')) {
                     showRow = false;
                 }
-                if (filterDecrease && !priceChanges.some(change === 'decrease')) {
+                if (filterDecrease && !priceChanges.some(change => change.change === 'decrease')) {
                     showRow = false;
                 }
                 if (filterChange && !hasChange) {
@@ -426,9 +421,9 @@
 
                 if (showRow) {
                     tableBody.appendChild(row);
-              
                 }
             }
+
         }
     </script>
 }
