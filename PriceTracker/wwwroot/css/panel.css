@@ -1348,6 +1348,17 @@ p {
     gap: 16px;
     flex: 1;
     flex-wrap: wrap;
+
+}
+.Horizontal-x {
+    display: flex;
+    align-self: stretch;
+    justify-content: space-between;
+    width: 100%;
+    gap: 16px;
+    flex: 1;
+    flex-wrap: wrap;
+    overflow-y: auto;
 }
 
 .Validation {

@@ -5,20 +5,10 @@
     var storeName = ViewBag.StoreName;
 }
 
-<h2>Ceny produktów dla @competitorStoreName</h2>
+@{
+    Layout = "~/Views/Shared/_PanelLayout.cshtml";
+}
 
-<div>
-    <label for="scrapHistorySelect">Wybierz scrapowanie:</label>
-    <div id="scrapHistoryCheckboxes">
-    </div>
-</div>
-
-<div>
-    <label>Filtruj zmiany cen:</label>
-    <label><input type="checkbox" id="filterIncrease" value="increase"> Podwyżka</label>
-    <label><input type="checkbox" id="filterDecrease" value="decrease"> Obniżka</label>
-    <label><input type="checkbox" id="filterChange" value="change"> Zmiana</label>
-</div>
 
 <style>
     .scrollable-table-container {
@@ -52,20 +42,183 @@
         .product-url-button:hover {
             background-color: #0056b3;
         }
+
+    .priceBox-style-c {
+        display: inline-flex;
+        align-self: center;
+        padding: 4px 12px;
+        align-items: center;
+        justify-content: center;
+        border-radius: 8px;
+        font-size: 15px;
+        font-weight: 400;
+        color: #fff;
+    }
+
+    .priceBox-style-o {
+        display: inline-flex;
+        align-self: center;
+        padding: 4px 12px;
+        align-items: center;
+        justify-content: center;
+        border-radius: 8px;
+        font-size: 15px;
+        font-weight: 400;
+        color: #000;
+    }
+
+
+    .priceBox-diff-up {
+        display: inline-flex;
+        align-self: center;
+        padding: 4px 12px;
+        align-items: center;
+        justify-content: center;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 400;
+        border: 1px solid #FF6347;
+        background: rgba(255, 99, 71, 0.20);
+        color: #FF6347;
+
+    }
+
+    .priceBox-diff-down {
+        display: inline-flex;
+        align-self: center;
+        padding: 4px 12px;
+        align-items: center;
+        justify-content: center;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 400;
+        border: 1px solid #00C6A2;
+        background: rgba(0, 198, 162, 0.20);
+        color: #00C6A2 !important;
+    }
+
+
+    .Price-box-content-c {
+        display:flex;
+        justify-content: space-between;
+        width: 320px;
+        background: #505050;
+        padding:6px;
+        gap: 6px;    
+
+    }
+
+    .Price-box-content-o {
+        display:flex;
+        justify-content:space-between;
+        width: 320px;
+        background: #eaeaea;
+        padding: 6px;
+        gap: 6px;
+    }
+
+    .Price-box-content-c-t {
+        display: flex;
+        background: #505050;
+        padding: 6px;
+        gap: 6px;
+        white-space: nowrap; /* Zapobiega zawijaniu tekstu */
+        overflow: hidden; /* Ukrywa nadmiarowy tekst */
+        text-overflow: ellipsis; /* Dodaje wielokropek, jeśli tekst jest zbyt długi */
+    }
+
+    .Price-box-content-o-t {
+        display: flex;
+        background: #eaeaea;
+        padding: 6px;
+        gap: 6px;
+        white-space: nowrap; /* Zapobiega zawijaniu tekstu */
+        overflow: hidden; /* Ukrywa nadmiarowy tekst */
+        text-overflow: ellipsis; /* Dodaje wielokropek, jeśli tekst jest zbyt długi */
+    }
+
+
 </style>
 
-<div class="scrollable-table-container">
-    <table class="table">
-        <thead>
-            <tr>
-                <th>Produkt</th>
-                <th>Kanał</th>
-            </tr>
-        </thead>
-        <tbody id="priceTableBody">
-        </tbody>
-    </table>
+
+<div class="Vert">
+    <div class="Page-Box">
+        <div class="Page-Box-Container">
+            <div class="Page-Box-Category">
+                <div class="Category-Container-Title">Historia cen</div>
+           
+                    <div class="filterBox">
+
+
+
+                    <div class="Category-Container-Select">Zmiany</div>
+                        <div class="store-section">
+                            <div class="filter-category">
+
+                                <div class="form-check">
+                                    <input class="form-check-input deliveryFilterCompetitor" type="checkbox" id="filterIncrease" value="increase">
+                                    <label class="form-check-label" for="filterIncrease">Podwyżka</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input deliveryFilterCompetitor" type="checkbox" id="filterDecrease" value="decrease">
+                                    <label class="form-check-label" for="filterDecrease">Obniżka</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input deliveryFilterCompetitor" type="checkbox" id="filterChange" value="change">
+                                    <label class="form-check-label" for="filterChange">Zmiana</label>
+                                </div>
+                               
+                            </div>
+                        </div>
+                    <div>
+
+                    <div class="Category-Container-Select">Data</div>
+                        <div class="store-section">
+                            <div class="filter-category">
+                           
+                                <div id="scrapHistoryCheckboxes"></div>
+                            </div>
+                        </div>
+                    </div>
+                    </div>
+                
+            </div>
+            <div class="Horizontal-x">
+          
+                    <div class="order-upper-box">
+
+                        <input type="text" id="productSearch" placeholder="Wyszukaj produkt">
+
+                        <div class="form-check-orders">
+                            <div>
+                                <p><strong>Sklep</strong>@competitorStoreName <span></span></p>
+
+                            </div>
+                        </div>
+
+                    </div>
+                <div class="Vert-table">
+                    <div class="scrollable-table-container">
+                        <table class="table-orders">
+                            <thead>
+                                <tr>
+                                    <th>Produkt</th>
+                                    <th>Kanał</th>
+                                </tr>
+                            </thead>
+                            <tbody id="priceTableBody">
+                            </tbody>
+                        </table>
+                    </div> 
+                </div>
+                
+            </div>
+
+        </div>
+    </div>
 </div>
+
+
 
 @section Scripts {
     <script>
@@ -84,10 +237,15 @@
                     const container = document.getElementById('scrapHistoryCheckboxes');
                     scrapHistoryIds.forEach(scrap => {
                         const label = document.createElement('label');
+                        label.className = 'form-check-label';
                         label.style.display = 'block';
+
                         const checkbox = document.createElement('input');
                         checkbox.type = 'checkbox';
                         checkbox.value = scrap.id;
+                        checkbox.dataset.date = scrap.date; // Przechowujemy datę w atrybucie danych
+                        checkbox.className = 'form-check-input deliveryFilterCompetitor';
+
                         checkbox.addEventListener('change', () => {
                             if (checkbox.checked) {
                                 loadCompetitorPrices([scrap.id]);
@@ -96,13 +254,18 @@
                                 renderPrices();
                             }
                         });
+
+                        const date = new Date(scrap.date);
+                        const formattedDate = `${date.getDate()}.${date.getMonth() + 1}.${date.getFullYear()}`;
+
                         label.appendChild(checkbox);
-                        label.appendChild(document.createTextNode(`${new Date(scrap.date).toLocaleString()} (${scrap.id})`));
+                        label.appendChild(document.createTextNode(formattedDate));
                         container.appendChild(label);
                     });
                 })
                 .catch(error => console.error('Error loading scrap history options:', error));
         }
+
 
         const loadedPrices = {};
 
@@ -151,15 +314,24 @@
             // Dodaj nagłówki dla scrapHistoryId
             const theadRow = document.querySelector('table thead tr');
             theadRow.innerHTML = `
-                      
-                        <th>Produkt</th>
-                        <th>Kanał</th>
-                    `;
+                <th>Produkt</th>
+                <th>Kanał</th>
+            `;
+
             const uniqueScrapHistoryIds = Object.keys(loadedPrices);
             uniqueScrapHistoryIds.forEach(id => {
                 const th = document.createElement('th');
-                th.textContent = `Cena (${id})`;
-                th.style.minWidth = "250px";
+
+                // Pobieramy formatowaną datę z pierwszego checkboxa o danym id
+                const checkbox = document.querySelector(`input[type="checkbox"][value="${id}"]`);
+                if (checkbox) {
+                    const date = new Date(checkbox.dataset.date);
+                    const formattedDate = `${date.getDate()}.${date.getMonth() + 1}.${date.getFullYear()}`;
+                    th.textContent = `${formattedDate}`;
+                } else {
+                    th.textContent = `Cena (${id})`; // Zapasowy tekst w razie braku checkboxa
+                }
+
                 theadRow.appendChild(th);
             });
 
@@ -171,8 +343,8 @@
                             <td class="nowrap">${product.productName}<br><a href="${url}" target="_blank" class="product-url-button">Ceneo</a></td>
                             <td>
                                 <div class="flex-column">
-                                    <span>@competitorStoreName</span>
-                                    <span>@storeName</span>
+                                                            <div class="Price-box-content-c-t"><div class="priceBox-style-c">@competitorStoreName</div></div>
+                                                            <div class="Price-box-content-o-t"><div class="priceBox-style-o">@storeName</div></div>
                                 </div>
                             </td>
                         `;
@@ -183,7 +355,7 @@
                 uniqueScrapHistoryIds.forEach((id, index) => {
                     const td = document.createElement('td');
                     const currentPrice = product.data[id] ? product.data[id].toFixed(2) : null;
-                    let tdContent = currentPrice ? `<p>${currentPrice} PLN` : '<p></p>';
+                    let tdContent = currentPrice ? `<div class="Price-box-content-c"><div class="priceBox-style-c">${currentPrice} PLN</div>` : '<p></p>';
 
                     if (index > 0 && currentPrice !== null) {
                         const previousId = uniqueScrapHistoryIds[index - 1];
@@ -194,9 +366,9 @@
                             const percentageDifference = ((priceDifference / previousPrice) * 100).toFixed(2);
 
                             if (priceDifference !== 0) {
-                                const differenceElement = ` <span style="color: ${priceDifference > 0 ? 'red' : 'green'}; font-weight: bold;">
-                                            ${priceDifference.toFixed(2)} PLN (${percentageDifference}%) ${priceDifference > 0 ? '&uarr;' : '&darr;'}
-                                        </span>`;
+                                const differenceElement = ` <div class="${priceDifference > 0 ? 'priceBox-diff-down' : 'priceBox-diff-up'}">
+                                    ${priceDifference.toFixed(2)} PLN (${percentageDifference}%) ${priceDifference > 0 ? '&uarr;' : '&darr;'}
+                                        </div>`;
                                 tdContent += differenceElement;
                                 priceChanges.push({ change: priceDifference > 0 ? 'increase' : 'decrease', priceDifference, percentageDifference });
                                 hasChange = true;
@@ -204,9 +376,11 @@
                         }
                     }
 
+                    tdContent += '</div>';  // Dodano zamknięcie dla Price-box-content-c
+
                     const ourPrice = product.ourData[id] ? product.ourData[id].toFixed(2) : null;
                     if (ourPrice) {
-                        tdContent += `<br>${ourPrice} PLN`;
+                        tdContent += `<div class="Price-box-content-o"><div class="priceBox-style-o">${ourPrice} PLN</div>`;
 
                         if (index > 0 && ourPrice !== null) {
                             const previousId = uniqueScrapHistoryIds[index - 1];
@@ -217,22 +391,23 @@
                                 const ourPercentageDifference = ((ourPriceDifference / previousOurPrice) * 100).toFixed(2);
 
                                 if (ourPriceDifference !== 0) {
-                                    const ourDifferenceElement = `<span style="color: ${ourPriceDifference > 0 ? 'purple' : 'blue'}; font-weight: bold;">
-                                                ${ourPriceDifference.toFixed(2)} PLN (${ourPercentageDifference}%) ${ourPriceDifference > 0 ? '&uarr;' : '&darr;'}
-                                            </span>`;
+                                    const ourDifferenceElement = `<div class="${ourPriceDifference > 0 ? 'priceBox-diff-down' : 'priceBox-diff-up'}">
+                                        ${ourPriceDifference.toFixed(2)} PLN (${ourPercentageDifference}%) ${ourPriceDifference > 0 ? '&uarr;' : '&darr;'}
+                                            </div>`;
                                     tdContent += ourDifferenceElement;
                                     priceChanges.push({ change: ourPriceDifference > 0 ? 'ourIncrease' : 'ourDecrease', priceDifference: ourPriceDifference, percentageDifference: ourPercentageDifference });
                                     hasChange = true;
                                 }
                             }
                         }
+                        tdContent += '</div>'; // Dodano zamknięcie dla Price-box-content-o
                     }
 
-                    tdContent += `</p>`;
                     td.innerHTML = tdContent;
                     td.classList.add('nowrap');
                     row.appendChild(td);
                 });
+
 
                 // Filtruj na podstawie wybranego filtru zmian cen
                 const filterIncrease = document.getElementById('filterIncrease').checked;
