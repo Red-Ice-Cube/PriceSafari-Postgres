@@ -601,6 +601,31 @@ public async Task<IActionResult> StartScraping(int storeId)
     }
 
 
+    [HttpPost]
+    public async Task<IActionResult> ClearRejectedAndScrapedProducts()
+    {
+       
+        var productsToReset = await _context.CoOfrs
+            .Where(co => co.IsScraped && co.IsRejected)
+            .ToListAsync();
+
+        if (productsToReset.Any())
+        {
+           
+            foreach (var product in productsToReset)
+            {
+                product.IsScraped = false;
+                product.IsRejected = false;
+            }
+
+          
+            _context.CoOfrs.UpdateRange(productsToReset);
+            await _context.SaveChangesAsync();
+        }
+
+  
+        return RedirectToAction("GetUniqueScrapingUrls");
+    }
 
 
 }

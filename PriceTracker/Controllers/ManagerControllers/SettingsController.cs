@@ -83,7 +83,7 @@ namespace PriceTracker.Controllers.ManagerControllers
             return View("~/Views/ManagerPanel/Settings/EditVerificationRequired.cshtml", viewModel);
         }
 
-        // GET: Settings/EditSupervisor
+       
         public async Task<IActionResult> EditSupervisor()
         {
             var settings = await _context.Settings.FirstOrDefaultAsync();
@@ -101,7 +101,7 @@ namespace PriceTracker.Controllers.ManagerControllers
             return View("~/Views/ManagerPanel/Settings/EditSupervisor.cshtml", viewModel);
         }
 
-        // POST: Settings/EditSupervisor
+      
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> EditSupervisor(EditSupervisorViewModel viewModel)
