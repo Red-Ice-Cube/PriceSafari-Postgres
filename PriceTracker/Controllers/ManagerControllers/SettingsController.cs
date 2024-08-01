@@ -30,18 +30,59 @@ namespace PriceTracker.Controllers.ManagerControllers
 
             var viewModel = new SettingsViewModel
             {
-
                 VerificationRequired = settings.VerificationRequired,
                 SupervisorEmail = settings.ContactEmail,
                 SupervisorNumber = settings.ContactNumber,
-
-                
+                CaptchaSpeed = settings.CaptchaSpeed,
+                ScrapingSpeed = settings.ScrapSemaphoreSlim
             };
 
             return View("~/Views/ManagerPanel/Settings/Index.cshtml", viewModel);
         }
 
-        
+
+
+        // GET: Settings/EditSpeedSettings
+        public async Task<IActionResult> EditSpeedSettings()
+        {
+            var settings = await _context.Settings.FirstOrDefaultAsync();
+            if (settings == null)
+            {
+                return NotFound();
+            }
+
+            var viewModel = new EditSpeedSettingsViewModel
+            {
+                CaptchaSpeed = settings.CaptchaSpeed,
+                ScrapingSpeed = settings.ScrapSemaphoreSlim
+            };
+
+            return View("~/Views/ManagerPanel/Settings/EditSpeedSettings.cshtml", viewModel);
+        }
+
+        // POST: Settings/EditSpeedSettings
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> EditSpeedSettings(EditSpeedSettingsViewModel viewModel)
+        {
+            if (ModelState.IsValid)
+            {
+                var settings = await _context.Settings.FirstOrDefaultAsync();
+                if (settings == null)
+                {
+                    return NotFound();
+                }
+
+                settings.CaptchaSpeed = viewModel.CaptchaSpeed;
+                settings.ScrapSemaphoreSlim = viewModel.ScrapingSpeed;
+                _context.Update(settings);
+                await _context.SaveChangesAsync();
+
+                return RedirectToAction(nameof(Index));
+            }
+
+            return View("~/Views/ManagerPanel/Settings/EditSpeedSettings.cshtml", viewModel);
+        }
 
         // GET: Settings/EditVerificationRequired
         public async Task<IActionResult> EditVerificationRequired()

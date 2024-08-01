@@ -30,7 +30,15 @@
                 <div>@Model.SupervisorEmail</div>
                 <div>@Model.SupervisorNumber</div>
             </div>
-           
+            <div class="Column-Box">
+                <div class="Horizontal-1">
+                    Ustawienia Prędkości
+                    <a asp-action="EditSpeedSettings" class="Button-Add-Small">Edytuj</a>
+                </div>
+                <div class="value-box">Prędkość CAPTCHA: @Model.CaptchaSpeed</div>
+                <div class="value-box">Prędkość Scrapowania: @Model.ScrapingSpeed</div>
+            </div>
+
         </div>
     </div>
 </div>

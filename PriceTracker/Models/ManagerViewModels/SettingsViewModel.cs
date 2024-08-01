@@ -2,11 +2,12 @@
 {
     public class SettingsViewModel
     {
-
         public bool VerificationRequired { get; set; }
         public string? SupervisorEmail { get; set; }
         public string? SupervisorNumber { get; set; }
-       
+
+        public int CaptchaSpeed { get; set; }
+        public int ScrapingSpeed { get; set; }
     }
 
     public class EditVerificationRequiredViewModel
@@ -20,4 +21,9 @@
         public string? SupervisorNumber { get; set; }
     }
 
+    public class EditSpeedSettingsViewModel
+    {
+        public int CaptchaSpeed { get; set; }
+        public int ScrapingSpeed { get; set; }
+    }
 }
