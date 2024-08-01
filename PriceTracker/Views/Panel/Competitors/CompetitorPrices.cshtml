@@ -1,13 +1,4 @@
-﻿
-
-
-
-
-
-
-
-
-@{
+﻿@{
     ViewBag.Title = "Ceny produktów dla " + ViewBag.CompetitorStoreName;
     var storeId = ViewBag.StoreId;
     var competitorStoreName = ViewBag.CompetitorStoreName;
@@ -158,6 +149,26 @@
                             </div>
 
                         </div>
+
+                        <div class="filter-category">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="filterPriceData1" value="1">
+                                <label class="form-check-label" for="filterPriceData1">Tylko nasza cena (PriceData 1)</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="filterPriceData2" value="2">
+                                <label class="form-check-label" for="filterPriceData2">Tylko cena konkurencji (PriceData 2)</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="filterPriceData3" value="3">
+                                <label class="form-check-label" for="filterPriceData3">Nasza i konkurencji (PriceData 3)</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="filterPriceData0" value="0">
+                                <label class="form-check-label" for="filterPriceData0">Brak cen (PriceData 0)</label>
+                            </div>
+                        </div>
+
                     </div>
                     <div>
 
@@ -208,16 +219,16 @@
 </div>
 
 @section Scripts {
-
-    <script>
+<script>
         document.addEventListener('DOMContentLoaded', () => {
             loadScrapHistoryOptions();
 
+            // Dodaj event listener dla wszystkich checkboxów, w tym nowych checkboxów dla PriceData
             document.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
                 checkbox.addEventListener('change', renderPrices);
             });
 
-            // Obsługa wyszukiwania
+            // Obsługa wyszukiwania produktów
             document.getElementById('productSearch').addEventListener('keyup', function () {
                 filterProducts(this.value);
             });
@@ -260,7 +271,7 @@
         }
 
         const loadedPrices = {};
-        let allProducts = {};  // Zmienna przechowująca wszystkie produkty
+        let allProducts = {};
 
         function loadCompetitorPrices(scrapHistoryIds) {
             scrapHistoryIds.forEach(scrapHistoryId => {
@@ -295,14 +306,20 @@
             for (const [scrapHistoryId, prices] of Object.entries(loadedPrices)) {
                 prices.forEach(price => {
                     if (!urlProductMap[price.productId]) {
-                        urlProductMap[price.productId] = { productName: price.productName, scrapHistoryId: scrapHistoryId, data: {}, ourData: {}, offerUrl: price.offerUrl };
+                        urlProductMap[price.productId] = {
+                            productName: price.productName,
+                            scrapHistoryId: scrapHistoryId,
+                            data: {},
+                            ourData: {},
+                            priceData: price.priceData, // dodano priceData do mapy produktów
+                            offerUrl: price.offerUrl
+                        };
                     }
                     urlProductMap[price.productId].data[scrapHistoryId] = price.price;
                     urlProductMap[price.productId].ourData[scrapHistoryId] = price.ourPrice;
                 });
             }
 
-            // Zapisujemy wszystkie produkty w zmiennej allProducts
             allProducts = urlProductMap;
 
             const theadRow = document.querySelector('table thead tr');
@@ -327,10 +344,9 @@
                 theadRow.appendChild(th);
             });
 
-            displayProducts(urlProductMap);  // Wyświetlenie produktów
+            displayProducts(urlProductMap);
         }
 
-        // Funkcja do filtrowania produktów
         function filterProducts(searchTerm) {
             const filteredProducts = {};
             for (const [productId, product] of Object.entries(allProducts)) {
@@ -341,15 +357,22 @@
             displayProducts(filteredProducts);
         }
 
-        // Funkcja do wyświetlania produktów
         function displayProducts(products) {
             const tableBody = document.getElementById('priceTableBody');
             tableBody.innerHTML = '';
+
+            // Pobierz zaznaczone filtry priceData
+            const selectedPriceDataFilters = Array.from(document.querySelectorAll('input[type="checkbox"][id^="filterPriceData"]:checked')).map(cb => parseInt(cb.value));
 
             for (const [productId, product] of Object.entries(products)) {
                 let showRow = true;
                 let priceChanges = [];
                 let hasChange = false;
+
+                // Filtruj na podstawie priceData
+                if (selectedPriceDataFilters.length > 0 && !selectedPriceDataFilters.includes(product.priceData)) {
+                    showRow = false;
+                }
 
                 const row = document.createElement('tr');
 
@@ -455,5 +478,5 @@
             }
         }
 
-    </script>
+</script>
 }
