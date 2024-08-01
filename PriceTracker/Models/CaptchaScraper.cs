@@ -125,6 +125,8 @@ namespace PriceTracker.Models
             return (priceResults, log, rejectedProducts);
         }
 
+
+
         private async Task<(List<(string storeName, decimal price, decimal? shippingCostNum, int? availabilityNum, string isBidding, string position)> Prices, string Log, List<(string Reason, string Url)> RejectedProducts)> ScrapePricesFromCurrentPage(string url)
         {
             var prices = new List<(string storeName, decimal price, decimal? shippingCostNum, int? availabilityNum, string isBidding, string position)>();
@@ -140,7 +142,22 @@ namespace PriceTracker.Models
                 Console.WriteLine($"Found {offerNodes.Length} offer nodes.");
                 foreach (var offerNode in offerNodes)
                 {
+                    // Sprawdź, czy oferta jest częścią "similar-offers"
+                    var parentList = await offerNode.EvaluateFunctionAsync<string>("el => el.closest('ul')?.classList?.toString()");
+                    Console.WriteLine($"Parent list classes: {parentList}");
+
+                    if (parentList != null && parentList.Contains("similar-offers"))
+                    {
+                        Console.WriteLine("Ignoring similar offer.");
+                        rejectedProducts.Add(("Similar offer detected", url));
+                        continue; // Pomijamy podobne oferty
+                    }
+
+                    // Logowanie informacji o aktualnym offerNode
+                    Console.WriteLine("Processing a valid offer node...");
+
                     var storeName = await (await offerNode.QuerySelectorAsync("div.product-offer__store img"))?.EvaluateFunctionAsync<string>("el => el.alt");
+                    Console.WriteLine($"Store name: {storeName}");
 
                     if (string.IsNullOrWhiteSpace(storeName))
                     {
@@ -148,7 +165,7 @@ namespace PriceTracker.Models
                         if (storeLink != null)
                         {
                             var offerParameter = await storeLink.EvaluateFunctionAsync<string>("el => el.getAttribute('offer-parameter')");
-                            Console.WriteLine($"Found store name in offer-parameter: {offerParameter}");
+                            Console.WriteLine($"Offer parameter: {offerParameter}");
                             if (!string.IsNullOrEmpty(offerParameter))
                             {
                                 var match = Regex.Match(offerParameter, @"sklepy/([^;]+);");
@@ -162,16 +179,20 @@ namespace PriceTracker.Models
                                         storeName = storeName.Substring(0, hyphenIndex);
                                     }
                                 }
+                                Console.WriteLine($"Extracted store name: {storeName}");
                             }
                         }
                     }
 
                     var priceNode = await offerNode.QuerySelectorAsync("span.price-format span.price span.value");
                     var pennyNode = await offerNode.QuerySelectorAsync("span.price-format span.price span.penny");
+                    Console.WriteLine($"Price node: {priceNode != null}, Penny node: {pennyNode != null}");
+
                     var shippingNode = await offerNode.QuerySelectorAsync("div.free-delivery-label") ??
                                        await offerNode.QuerySelectorAsync("span.product-delivery-info.js_deliveryInfo");
                     var availabilityNode = await offerNode.QuerySelectorAsync("span.instock") ??
                                            await offerNode.QuerySelectorAsync("div.product-availability span");
+                    Console.WriteLine($"Shipping node: {shippingNode != null}, Availability node: {availabilityNode != null}");
 
                     var offerContainer = await offerNode.QuerySelectorAsync(".product-offer__container");
                     var offerType = await offerContainer?.EvaluateFunctionAsync<string>("el => el.getAttribute('data-offertype')");
@@ -179,27 +200,29 @@ namespace PriceTracker.Models
                     var position = positionCounter.ToString();
                     positionCounter++;
 
-                    // Log the found store name and offer type
-                    Console.WriteLine($"Store name found: {storeName}");
-                    Console.WriteLine($"Offer type found: {offerType}");
-                    Console.WriteLine($"Position assigned: {position}");
+                  
+                    Console.WriteLine($"Offer type: {offerType}, Is bidding: {isBidding}, Position: {position}");
 
                     if (priceNode == null || pennyNode == null)
                     {
+                        Console.WriteLine("Price node or penny node is null, skipping this offer.");
                         rejectedProducts.Add(("Price node or penny node is null", url));
                         continue;
                     }
 
                     decimal? shippingCostNum = null;
                     var priceText = (await priceNode.EvaluateFunctionAsync<string>("el => el.innerText")).Trim() + (await pennyNode.EvaluateFunctionAsync<string>("el => el.innerText")).Trim();
+                    Console.WriteLine($"Price text: {priceText}");
+
                     var priceValue = Regex.Replace(priceText, @"[^\d,.]", "").Replace(",", ".").Trim();
+                    Console.WriteLine($"Price value: {priceValue}");
 
                     if (decimal.TryParse(priceValue, NumberStyles.Any, CultureInfo.InvariantCulture, out decimal price))
                     {
                         if (shippingNode != null)
                         {
                             var shippingText = await shippingNode.EvaluateFunctionAsync<string>("el => el.innerText");
-                            Console.WriteLine($"Shipping info found: {shippingText}");
+                            Console.WriteLine($"Shipping info: {shippingText}");
                             if (shippingText.Contains("DARMOWA WYSYŁKA") || shippingText.Contains("bezpłatna dostawa"))
                             {
                                 shippingCostNum = 0.00m;
@@ -222,7 +245,7 @@ namespace PriceTracker.Models
                         if (availabilityNode != null)
                         {
                             var availabilityText = await availabilityNode.EvaluateFunctionAsync<string>("el => el.innerText");
-                            Console.WriteLine($"Availability info found: {availabilityText}");
+                            Console.WriteLine($"Availability info: {availabilityText}");
                             if (availabilityText.Contains("Wysyłka w 1 dzień"))
                             {
                                 availabilityNum = 1;
@@ -230,7 +253,7 @@ namespace PriceTracker.Models
                             else if (availabilityText.Contains("Wysyłka do"))
                             {
                                 var daysText = Regex.Match(availabilityText, @"\d+").Value;
-                                Console.WriteLine($"Parsed days: {daysText}");
+                                Console.WriteLine($"Parsed days for availability: {daysText}");
                                 if (int.TryParse(daysText, out var parsedDays))
                                 {
                                     availabilityNum = parsedDays;
@@ -248,6 +271,12 @@ namespace PriceTracker.Models
                         }
 
                         prices.Add((storeName, price, shippingCostNum, availabilityNum, isBidding, position));
+                        Console.WriteLine($"Added price: StoreName={storeName}, Price={price}, ShippingCost={shippingCostNum}, Availability={availabilityNum}, IsBidding={isBidding}, Position={position}");
+                    }
+                    else
+                    {
+                        Console.WriteLine("Failed to parse price, skipping this offer.");
+                        rejectedProducts.Add(("Failed to parse price", url));
                     }
                 }
                 log = $"Successfully scraped prices from URL: {url}";
@@ -262,5 +291,7 @@ namespace PriceTracker.Models
 
             return (prices, log, rejectedProducts);
         }
+
+
     }
 }

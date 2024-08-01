@@ -226,19 +226,11 @@ public async Task<IActionResult> StartScraping(int storeId)
     [HttpPost]
     public async Task<IActionResult> ClearCoOfrPriceHistories()
     {
-        
+        // Truncate table for clearing history
         await _context.Database.ExecuteSqlRawAsync("TRUNCATE TABLE CoOfrPriceHistories");
 
-  
-        var coOfrs = await _context.CoOfrs.ToListAsync();
-        foreach (var coOfr in coOfrs)
-        {
-            coOfr.IsScraped = false;
-            coOfr.ScrapingMethod = null;
-            coOfr.PricesCount = 0;
-        }
-        _context.CoOfrs.UpdateRange(coOfrs);
-        await _context.SaveChangesAsync();
+        // Batch update instead of looping
+        await _context.Database.ExecuteSqlRawAsync("UPDATE CoOfrs SET IsScraped = 0, ScrapingMethod = NULL, PricesCount = 0");
 
         return RedirectToAction("GetUniqueScrapingUrls");
     }
