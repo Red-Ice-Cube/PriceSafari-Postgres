@@ -1,0 +1,15 @@
+﻿@{
+    ViewData["Title"] = "Google Scraper";
+}
+
+<h1>Google Scraper</h1>
+
+<form asp-action="StartScraping" method="post">
+    <label for="title">Product Title:</label>
+    <input type="text" id="title" name="title" required value="Karcher EWM 2 Bezprzewodowy (300mm, 2,5Ah) Bateryjny Mop Elektryczny" /><br /><br />
+
+    <label for="storeName">Store Name:</label>
+    <input type="text" id="storeName" name="storeName" required /><br /><br />
+
+    <button type="submit">Run Scraper</button>
+</form>
