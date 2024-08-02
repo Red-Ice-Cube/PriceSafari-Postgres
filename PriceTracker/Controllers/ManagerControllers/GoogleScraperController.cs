@@ -10,7 +10,7 @@ public class GoogleScraperController : Controller
     }
 
     [HttpPost]
-    public async Task<IActionResult> StartScraping(string title, string storeName)
+    public async Task<IActionResult> StartScraping(string title, string storeName, string targetUrl)
     {
         var scraper = new GoogleScraper();
         await scraper.InitializeBrowserAsync();
@@ -20,6 +20,9 @@ public class GoogleScraperController : Controller
 
         // Perform matching after scraping
         scraper.MatchReviews();
+
+        // Now, let's open and scrape the offers
+        await scraper.OpenAndScrapeMatchedOffersAsync(targetUrl);
 
         await scraper.CloseBrowserAsync();
 

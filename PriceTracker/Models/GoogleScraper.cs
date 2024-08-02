@@ -5,6 +5,10 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
+using PuppeteerSharp;
+using PuppeteerSharp.Media;
+
+
 public class GoogleScraper
 {
     private IBrowser _browser;
@@ -12,6 +16,9 @@ public class GoogleScraper
 
     private List<int> storeReviewCounts = new List<int>();
     private List<(string Url, int ReviewCount)> urlReviewCounts = new List<(string, int)>();
+    private List<string> matchedUrls = new List<string>();
+
+
 
     public async Task InitializeBrowserAsync()
     {
@@ -20,13 +27,47 @@ public class GoogleScraper
         _browser = await Puppeteer.LaunchAsync(new LaunchOptions
         {
             Headless = false,
-            Args = new[] { "--no-sandbox", "--disable-setuid-sandbox", "--disable-gpu", "--window-size=1920,1080" }
+            Args = new[]
+            {
+                "--no-sandbox",
+                "--disable-setuid-sandbox",
+                "--disable-gpu",
+                "--window-size=1920,1080",
+                "--disable-blink-features=AutomationControlled"
+            }
         });
+
         _page = await _browser.NewPageAsync();
-        await _page.SetViewportAsync(new ViewPortOptions { Width = 1920, Height = 1080 });
+
+
+        await _page.SetUserAgentAsync("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/113.0.5672.126 Safari/537.36");
+
+   
+        await _page.SetViewportAsync(new ViewPortOptions
+        {
+            Width = 1920,
+            Height = 1080,
+            IsMobile = false
+        });
+
+   
+      
+        await _page.EvaluateFunctionOnNewDocumentAsync(@"() => {
+            Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
+            Object.defineProperty(navigator, 'languages', {get: () => ['pl-PL', 'pl']});
+            Object.defineProperty(navigator, 'platform', {get: () => 'Win32'});
+            Object.defineProperty(navigator, 'hardwareConcurrency', {get: () => 4});
+            Object.defineProperty(navigator, 'deviceMemory', {get: () => 8});
+            Object.defineProperty(navigator, 'doNotTrack', {get: () => '1'});
+            Object.defineProperty(navigator, 'onLine', {get: () => true});
+        }");
+
+     
+        await _page.EmulateTimezoneAsync("Europe/Warsaw");
     }
 
-    public async Task InitializeAndSearchAsync(string title)
+
+public async Task InitializeAndSearchAsync(string title)
     {
         Console.WriteLine("Navigating to Google Shopping...");
         await _page.GoToAsync("https://shopping.google.com/");
@@ -42,12 +83,22 @@ public class GoogleScraper
         var searchInputSelector = "input[name='q']";
         await _page.WaitForSelectorAsync(searchInputSelector);
         Console.WriteLine($"Searching for: {title}");
-        await _page.TypeAsync(searchInputSelector, title);
+
+        // Symulowane, nieregularne wpisywanie tekstu
+        Random random = new Random();
+        foreach (char c in title)
+        {
+            await _page.TypeAsync(searchInputSelector, c.ToString());
+            await Task.Delay(random.Next(21, 59)); // Oczekiwanie między 71 a 249 ms przed wpisaniem kolejnego znaku
+        }
+
         await _page.Keyboard.PressAsync("Enter");
 
         Console.WriteLine("Waiting for the page to load...");
         await _page.WaitForSelectorAsync("div.KZmu8e");
     }
+
+
 
     private int ExtractReviewCount(string reviewText)
     {
@@ -58,7 +109,7 @@ public class GoogleScraper
             string cleanNumber = match.Groups[1].Value.Replace(" ", "").Replace(" ", "");
             return int.Parse(cleanNumber);
         }
-        return 0; // Return 0 if no number is found
+        return 0; 
     }
 
     public async Task SearchStoreNameAsync(string storeName)
@@ -157,6 +208,10 @@ public class GoogleScraper
         }
     }
 
+
+
+
+
     public void MatchReviews()
     {
         foreach (var storeReview in storeReviewCounts)
@@ -166,10 +221,105 @@ public class GoogleScraper
                 if (storeReview == urlReview.ReviewCount)
                 {
                     Console.WriteLine($"ZnalezionyMatch: URL={urlReview.Url}, Liczba opinii={urlReview.ReviewCount}");
+                    matchedUrls.Add(urlReview.Url);
                 }
             }
         }
     }
+
+
+    public async Task OpenAndScrapeMatchedOffersAsync(string targetUrl)
+    {
+        foreach (var url in matchedUrls)
+        {
+            string matchedUrl = $"https://www.google.com/shopping/product/{url}/offers";
+            Console.WriteLine($"Otwieranie URL: {matchedUrl}");
+
+            bool targetUrlFound = false;
+            string currentPageUrl = matchedUrl;
+
+            while (!targetUrlFound)
+            {
+                await _page.GoToAsync(currentPageUrl);
+                await _page.WaitForSelectorAsync("tr.sh-osd__offer-row");
+                await _page.EvaluateFunctionAsync("() => { window.scrollBy(0, window.innerHeight); }");
+                await Task.Delay(4000);
+
+                var offerElements = await _page.QuerySelectorAllAsync("tr.sh-osd__offer-row");
+
+                foreach (var offerElement in offerElements)
+                {
+                    var linkElement = await offerElement.QuerySelectorAsync("a.b5ycib.shntl");
+                    if (linkElement != null)
+                    {
+                        var offerUrl = await linkElement.EvaluateFunctionAsync<string>("el => el.getAttribute('href')");
+                        if (!string.IsNullOrEmpty(offerUrl))
+                        {
+                            string cleanedUrl = CleanUrl(offerUrl);
+                            Console.WriteLine($"Oczyszczony ProductStoreUrl: {cleanedUrl}");
+
+                            if (cleanedUrl == targetUrl)
+                            {
+                                Console.WriteLine($"TargetUrlFound on: {matchedUrl}");
+                                targetUrlFound = true;
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                if (targetUrlFound)
+                {
+                    break;
+                }
+
+                var nextButton = await _page.QuerySelectorAsync("a.internal-link[data-url*='start']:last-child");
+                if (nextButton == null || (await nextButton.EvaluateFunctionAsync<string>("el => el.innerText")) != "Dalej")
+                {
+                    Console.WriteLine("Brak dalszych stron lub osiągnięto ostatnią stronę.");
+                    break;
+                }
+
+                string nextPageUrlPart = await nextButton.EvaluateFunctionAsync<string>("el => el.getAttribute('data-url')");
+                currentPageUrl = "https://www.google.com" + nextPageUrlPart;
+                await Task.Delay(1000);
+            }
+
+            if (targetUrlFound)
+            {
+                break;
+            }
+        }
+    }
+
+
+
+
+    private string CleanUrl(string url)
+    {
+ 
+        string decodedUrl = System.Web.HttpUtility.UrlDecode(url);
+
+      
+        string cleanedUrl = decodedUrl.Replace("/url?q=", "");
+
+     
+        int questionMarkIndex = cleanedUrl.IndexOf("?");
+        if (questionMarkIndex > 0)
+        {
+            cleanedUrl = cleanedUrl.Substring(0, questionMarkIndex);
+        }
+
+     
+        int ampersandIndex = cleanedUrl.IndexOf("&");
+        if (ampersandIndex > 0)
+        {
+            cleanedUrl = cleanedUrl.Substring(0, ampersandIndex);
+        }
+
+        return cleanedUrl;
+    }
+
 
     public async Task CloseBrowserAsync()
     {
