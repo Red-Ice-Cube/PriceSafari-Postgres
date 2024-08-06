@@ -6,8 +6,8 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
 using PuppeteerSharp;
-using PuppeteerSharp.Media;
 
+using PuppeteerSharp.Media;
 
 public class GoogleScraper
 {
@@ -17,8 +17,6 @@ public class GoogleScraper
     private List<int> storeReviewCounts = new List<int>();
     private List<(string Url, int ReviewCount)> urlReviewCounts = new List<(string, int)>();
     private List<string> matchedUrls = new List<string>();
-
-
 
     public async Task InitializeBrowserAsync()
     {
@@ -39,10 +37,8 @@ public class GoogleScraper
 
         _page = await _browser.NewPageAsync();
 
-
         await _page.SetUserAgentAsync("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/113.0.5672.126 Safari/537.36");
 
-   
         await _page.SetViewportAsync(new ViewPortOptions
         {
             Width = 1920,
@@ -50,8 +46,6 @@ public class GoogleScraper
             IsMobile = false
         });
 
-   
-      
         await _page.EvaluateFunctionOnNewDocumentAsync(@"() => {
             Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
             Object.defineProperty(navigator, 'languages', {get: () => ['pl-PL', 'pl']});
@@ -62,12 +56,10 @@ public class GoogleScraper
             Object.defineProperty(navigator, 'onLine', {get: () => true});
         }");
 
-     
         await _page.EmulateTimezoneAsync("Europe/Warsaw");
     }
 
-
-public async Task InitializeAndSearchAsync(string title)
+    public async Task InitializeAndSearchAsync(string title)
     {
         Console.WriteLine("Navigating to Google Shopping...");
         await _page.GoToAsync("https://shopping.google.com/");
@@ -84,12 +76,11 @@ public async Task InitializeAndSearchAsync(string title)
         await _page.WaitForSelectorAsync(searchInputSelector);
         Console.WriteLine($"Searching for: {title}");
 
-        // Symulowane, nieregularne wpisywanie tekstu
         Random random = new Random();
         foreach (char c in title)
         {
             await _page.TypeAsync(searchInputSelector, c.ToString());
-            await Task.Delay(random.Next(21, 59)); // Oczekiwanie między 71 a 249 ms przed wpisaniem kolejnego znaku
+            await Task.Delay(random.Next(21, 59));
         }
 
         await _page.Keyboard.PressAsync("Enter");
@@ -98,18 +89,15 @@ public async Task InitializeAndSearchAsync(string title)
         await _page.WaitForSelectorAsync("div.KZmu8e");
     }
 
-
-
     private int ExtractReviewCount(string reviewText)
     {
         var match = Regex.Match(reviewText, @"(\d[\d\s]*)\s+opini");
         if (match.Success)
         {
-            // Remove any non-breaking spaces and standard spaces in large numbers (e.g., "2 812" -> "2812")
             string cleanNumber = match.Groups[1].Value.Replace(" ", "").Replace(" ", "");
             return int.Parse(cleanNumber);
         }
-        return 0; 
+        return 0;
     }
 
     public async Task SearchStoreNameAsync(string storeName)
@@ -208,10 +196,6 @@ public async Task InitializeAndSearchAsync(string title)
         }
     }
 
-
-
-
-
     public void MatchReviews()
     {
         foreach (var storeReview in storeReviewCounts)
@@ -227,90 +211,125 @@ public async Task InitializeAndSearchAsync(string title)
         }
     }
 
-
     public async Task OpenAndScrapeMatchedOffersAsync(string targetUrl)
     {
+        bool targetUrlFound = false;
+
         foreach (var url in matchedUrls)
         {
             string matchedUrl = $"https://www.google.com/shopping/product/{url}/offers";
             Console.WriteLine($"Otwieranie URL: {matchedUrl}");
 
-            bool targetUrlFound = false;
-            string currentPageUrl = matchedUrl;
-
-            while (!targetUrlFound)
-            {
-                await _page.GoToAsync(currentPageUrl);
-                await _page.WaitForSelectorAsync("tr.sh-osd__offer-row");
-                await _page.EvaluateFunctionAsync("() => { window.scrollBy(0, window.innerHeight); }");
-                await Task.Delay(4000);
-
-                var offerElements = await _page.QuerySelectorAllAsync("tr.sh-osd__offer-row");
-
-                foreach (var offerElement in offerElements)
-                {
-                    var linkElement = await offerElement.QuerySelectorAsync("a.b5ycib.shntl");
-                    if (linkElement != null)
-                    {
-                        var offerUrl = await linkElement.EvaluateFunctionAsync<string>("el => el.getAttribute('href')");
-                        if (!string.IsNullOrEmpty(offerUrl))
-                        {
-                            string cleanedUrl = CleanUrl(offerUrl);
-                            Console.WriteLine($"Oczyszczony ProductStoreUrl: {cleanedUrl}");
-
-                            if (cleanedUrl == targetUrl)
-                            {
-                                Console.WriteLine($"TargetUrlFound on: {matchedUrl}");
-                                targetUrlFound = true;
-                                break;
-                            }
-                        }
-                    }
-                }
-
-                if (targetUrlFound)
-                {
-                    break;
-                }
-
-                var nextButton = await _page.QuerySelectorAsync("a.internal-link[data-url*='start']:last-child");
-                if (nextButton == null || (await nextButton.EvaluateFunctionAsync<string>("el => el.innerText")) != "Dalej")
-                {
-                    Console.WriteLine("Brak dalszych stron lub osiągnięto ostatnią stronę.");
-                    break;
-                }
-
-                string nextPageUrlPart = await nextButton.EvaluateFunctionAsync<string>("el => el.getAttribute('data-url')");
-                currentPageUrl = "https://www.google.com" + nextPageUrlPart;
-                await Task.Delay(1000);
-            }
+            targetUrlFound = await ScrapeOffersAsync(matchedUrl, targetUrl);
 
             if (targetUrlFound)
             {
                 break;
             }
         }
+
+        if (!targetUrlFound)
+        {
+            Console.WriteLine("Nie znaleziono targetUrl w matchedUrls, rozpoczynanie przeszukiwania wszystkich URL.");
+            await OpenAndScrapeAllOffersAsync(targetUrl);
+        }
     }
 
+    public async Task<bool> ScrapeOffersAsync(string pageUrl, string targetUrl)
+    {
+        bool targetUrlFound = false;
+        string currentPageUrl = pageUrl;
 
+        while (!targetUrlFound)
+        {
+            await _page.GoToAsync(currentPageUrl);
+            await _page.WaitForSelectorAsync("tr.sh-osd__offer-row");
+            await _page.EvaluateFunctionAsync("() => { window.scrollBy(0, window.innerHeight); }");
+            await Task.Delay(4000);
 
+            var offerElements = await _page.QuerySelectorAllAsync("tr.sh-osd__offer-row");
+
+            foreach (var offerElement in offerElements)
+            {
+                var linkElement = await offerElement.QuerySelectorAsync("a.b5ycib.shntl");
+                if (linkElement != null)
+                {
+                    var offerUrl = await linkElement.EvaluateFunctionAsync<string>("el => el.getAttribute('href')");
+                    if (!string.IsNullOrEmpty(offerUrl))
+                    {
+                        string cleanedUrl = CleanUrl(offerUrl);
+                        Console.WriteLine($"Oczyszczony ProductStoreUrl: {cleanedUrl}");
+
+                        if (cleanedUrl == targetUrl)
+                        {
+                            Console.WriteLine($"TargetUrlFound on: {pageUrl}");
+                            targetUrlFound = true;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if (targetUrlFound)
+            {
+                break;
+            }
+
+            var nextButton = await _page.QuerySelectorAsync("a.internal-link[data-url*='start']:last-child");
+            if (nextButton == null || (await nextButton.EvaluateFunctionAsync<string>("el => el.innerText")) != "Dalej")
+            {
+                Console.WriteLine("Brak dalszych stron lub osiągnięto ostatnią stronę.");
+                break;
+            }
+
+            string nextPageUrlPart = await nextButton.EvaluateFunctionAsync<string>("el => el.getAttribute('data-url')");
+            currentPageUrl = "https://www.google.com" + nextPageUrlPart;
+            await Task.Delay(1000);
+        }
+
+        return targetUrlFound;
+    }
+
+    public async Task OpenAndScrapeAllOffersAsync(string targetUrl)
+    {
+        var productContainers = await _page.QuerySelectorAllAsync("div.sh-dgr__content");
+        Console.WriteLine($"Przeszukiwanie wszystkich {productContainers.Length} produktów...");
+
+        foreach (var container in productContainers)
+        {
+            var urlElement = await container.QuerySelectorAsync("a.xCpuod");
+            if (urlElement != null)
+            {
+                var url = await urlElement.EvaluateFunctionAsync<string>("el => el.getAttribute('href')");
+                if (!string.IsNullOrEmpty(url))
+                {
+                    string cleanedUrl = CleanUrl(url);
+                    Console.WriteLine($"Oczyszczony URL produktu: {cleanedUrl}");
+
+                    string offersPageUrl = $"https://www.google.com/shopping/product/{cleanedUrl}/offers";
+                    bool targetUrlFound = await ScrapeOffersAsync(offersPageUrl, targetUrl);
+
+                    if (targetUrlFound)
+                    {
+                        break;
+                    }
+                }
+            }
+        }
+    }
 
     private string CleanUrl(string url)
     {
- 
         string decodedUrl = System.Web.HttpUtility.UrlDecode(url);
 
-      
         string cleanedUrl = decodedUrl.Replace("/url?q=", "");
 
-     
         int questionMarkIndex = cleanedUrl.IndexOf("?");
         if (questionMarkIndex > 0)
         {
             cleanedUrl = cleanedUrl.Substring(0, questionMarkIndex);
         }
 
-     
         int ampersandIndex = cleanedUrl.IndexOf("&");
         if (ampersandIndex > 0)
         {
@@ -319,7 +338,6 @@ public async Task InitializeAndSearchAsync(string title)
 
         return cleanedUrl;
     }
-
 
     public async Task CloseBrowserAsync()
     {

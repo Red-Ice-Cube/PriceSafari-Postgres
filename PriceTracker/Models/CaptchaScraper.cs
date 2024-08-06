@@ -80,27 +80,27 @@ namespace PriceTracker.Models
 
                     while (!allOffersLoaded)
                     {
-                        // Scrolluj w dół
+                        
                         await _page.EvaluateExpressionAsync("window.scrollBy(0, document.body.scrollHeight)");
-                        await Task.Delay(1000); // Czekaj chwilę po scrollowaniu
+                        await Task.Delay(500); 
 
-                        // Sprawdź, czy przycisk jest dostępny
+                       
                         var showAllOffersButton = await _page.QuerySelectorAsync("span.show-remaining-offers__trigger.js_remainingTrigger");
                         if (showAllOffersButton != null)
                         {
                             Console.WriteLine("Found 'Pokaż wszystkie oferty' button, clicking...");
                             await showAllOffersButton.ClickAsync();
 
-                            // Czekaj na załadowanie dodatkowych ofert
+                     
                             await _page.WaitForSelectorAsync("li.product-offers__list__item", new WaitForSelectorOptions { Visible = true });
                         }
                         else
                         {
-                            // Jeśli nie ma przycisku, oznacza to, że wszystkie oferty są załadowane
+                            
                             allOffersLoaded = true;
                         }
 
-                        // Sprawdź, czy dotarłeś do końca strony
+                     
                         var scrollPosition = await _page.EvaluateFunctionAsync<int>("() => window.pageYOffset + window.innerHeight");
                         var documentHeight = await _page.EvaluateFunctionAsync<int>("() => document.body.scrollHeight");
                         if (scrollPosition >= documentHeight)
@@ -110,7 +110,7 @@ namespace PriceTracker.Models
                     }
                 }
 
-                // Zbierz dane po załadowaniu wszystkich ofert
+                
                 var (prices, scrapeLog, scrapeRejectedProducts) = await ScrapePricesFromCurrentPage(url);
                 priceResults.AddRange(prices);
                 log = scrapeLog;
@@ -142,7 +142,7 @@ namespace PriceTracker.Models
                 Console.WriteLine($"Found {offerNodes.Length} offer nodes.");
                 foreach (var offerNode in offerNodes)
                 {
-                    // Sprawdź, czy oferta jest częścią "similar-offers"
+                   
                     var parentList = await offerNode.EvaluateFunctionAsync<string>("el => el.closest('ul')?.classList?.toString()");
                     Console.WriteLine($"Parent list classes: {parentList}");
 
@@ -150,10 +150,9 @@ namespace PriceTracker.Models
                     {
                         Console.WriteLine("Ignoring similar offer.");
                         rejectedProducts.Add(("Similar offer detected", url));
-                        continue; // Pomijamy podobne oferty
+                        continue; 
                     }
 
-                    // Logowanie informacji o aktualnym offerNode
                     Console.WriteLine("Processing a valid offer node...");
 
                     var storeName = await (await offerNode.QuerySelectorAsync("div.product-offer__store img"))?.EvaluateFunctionAsync<string>("el => el.alt");
