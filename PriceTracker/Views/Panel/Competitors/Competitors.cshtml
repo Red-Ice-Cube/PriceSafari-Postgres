@@ -8,26 +8,182 @@
     Layout = "~/Views/Shared/_PanelLayout.cshtml";
 }
 
-<h2>Konkurenci dla @ViewBag.StoreName</h2>
+<style>
+    canvas[id^="chart-"] {
+        max-width: 300px; 
+        height: 60px; 
+    }
 
-<table class="table">
-    <thead>
-        <tr>
-            <th>Nazwa Sklepu</th>
-            <th>Wspólne Produkty</th>
-            <th>Akcje</th>
-        </tr>
-    </thead>
-    <tbody>
-        @foreach (var competitor in Model)
-        {
-            <tr>
-                <td>@competitor.StoreName</td>
-                <td>@competitor.CommonProductsCount</td>
-                <td>
-                    <a href="@Url.Action("CompetitorPrices", "Competitors", new { storeId = storeId, competitorStoreName = competitor.StoreName })" class="btn btn-primary">Pokaż Ceny</a>
-                </td>
-            </tr>
-        }
-    </tbody>
-</table>
+   
+    #competitors-table tbody tr {
+        cursor: pointer;
+    }
+</style>
+
+<div class="Vert">
+    <div class="Page-Box">
+        <div class="price-box-space">
+            <div class="Order-Container-Title">
+                Konkurenci @ViewBag.StoreName
+                <div class="bar-List">
+                    <div>
+                        <strong>Konkurenci: </strong><span id="scrapable-count"></span>
+                    </div>
+                </div>
+            </div>
+
+            <div>
+                <input type="text" id="storeSearch" placeholder="Wyszukaj sklep" />
+            </div>
+        </div>
+
+        <div class="Vert-table">
+            <table class="table-orders" id="competitors-table">
+                <thead>
+                    <tr>
+                        <th>Nazwa Sklepu</th>
+                        <th>Wspólne Produkty</th>
+                        <th>Porównanie Cen</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var competitor in Model)
+                    {
+                        <tr data-url="@Url.Action("CompetitorPrices", "Competitors", new { storeId = storeId, competitorStoreName = competitor.StoreName })">
+                            <td class="competitor-name">@competitor.StoreName</td>
+                            <td>@competitor.CommonProductsCount</td>
+                            <td>
+                                <canvas id="chart-@competitor.StoreName"
+                                        data-same="@competitor.SamePriceCount"
+                                        data-higher="@competitor.HigherPriceCount"
+                                        data-lower="@competitor.LowerPriceCount"
+                                        data-total="@competitor.CommonProductsCount"></canvas>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const canvases = document.querySelectorAll('canvas[id^="chart-"]');
+        const searchInput = document.getElementById('storeSearch');
+        const competitorTableRows = document.querySelectorAll('#competitors-table tbody tr');
+        const scrapableCountSpan = document.getElementById('scrapable-count');
+
+        
+        canvases.forEach(canvas => {
+            const ctx = canvas.getContext('2d');
+            const samePriceCount = parseInt(canvas.getAttribute('data-same'));
+            const higherPriceCount = parseInt(canvas.getAttribute('data-higher'));
+            const lowerPriceCount = parseInt(canvas.getAttribute('data-lower'));
+            const totalCount = parseInt(canvas.getAttribute('data-total'));
+
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['Produkty'], 
+                    datasets: [
+                        {
+                            label: 'Taka sama cena',
+                            data: [samePriceCount],
+                            backgroundColor: '#0000FF', 
+                            barThickness: 20, 
+                        },
+                        {
+                            label: 'Wyższa cena',
+                            data: [higherPriceCount],
+                            backgroundColor: '#FF0000',
+                            barThickness: 20, 
+                        },
+                        {
+                            label: 'Niższa cena',
+                            data: [lowerPriceCount],
+                            backgroundColor: '#008000',
+                            barThickness: 20, 
+                        }
+                    ]
+                },
+                options: {
+                    indexAxis: 'y', 
+                    scales: {
+                        x: {
+                            beginAtZero: true,
+                            stacked: true,
+                            max: totalCount, 
+                            display: false, 
+                            grid: {
+                                display: false 
+                            }
+                        },
+                        y: {
+                            stacked: true, 
+                            display: false, 
+                            grid: {
+                                display: false 
+                            }
+                        }
+                    },
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: function (context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) {
+                                        label += ': ';
+                                    }
+                                    if (context.raw !== null) {
+                                        label += context.raw;
+                                    }
+                                    return label;
+                                }
+                            }
+                        }
+                    },
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false 
+                        }
+                    }
+                }
+            });
+        });
+
+
+        searchInput.addEventListener('input', function () {
+            const searchTerm = searchInput.value.toLowerCase();
+            let visibleCount = 0;
+
+            competitorTableRows.forEach(row => {
+                const competitorName = row.querySelector('.competitor-name').textContent.toLowerCase();
+
+                if (competitorName.includes(searchTerm)) {
+                    row.style.display = '';
+                    visibleCount++;
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+
+            scrapableCountSpan.textContent = visibleCount;
+        });
+
+       
+        scrapableCountSpan.textContent = competitorTableRows.length;
+
+     
+        competitorTableRows.forEach(row => {
+            row.addEventListener('click', function () {
+                const url = row.getAttribute('data-url');
+                if (url) {
+                    window.location.href = url;
+                }
+            });
+        });
+    });
+</script>

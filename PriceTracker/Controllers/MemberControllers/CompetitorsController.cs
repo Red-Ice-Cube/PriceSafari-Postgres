@@ -57,11 +57,8 @@ public class CompetitorsController : Controller
         return View("~/Views/Panel/Competitors/Index.cshtml", stores);
     }
 
-
-
     public async Task<IActionResult> Competitors(int storeId)
     {
-
         if (!await UserHasAccessToStore(storeId))
         {
             return Content("Nie ma takiego sklepu");
@@ -72,19 +69,41 @@ public class CompetitorsController : Controller
             .Select(s => s.StoreName)
             .FirstOrDefaultAsync();
 
-        var competitors = await _context.PriceHistories
-            .Where(ph => ph.Product.StoreId == storeId)
-            .Select(ph => new { ph.StoreName, ph.ProductId })
-            .Distinct()
+        var latestScrap = await _context.ScrapHistories
+            .Where(sh => sh.StoreId == storeId)
+            .OrderByDescending(sh => sh.Date)
+            .Select(sh => new { sh.Id, sh.Date })
+            .FirstOrDefaultAsync();
+
+        if (latestScrap == null)
+        {
+            return Content("Brak danych o cenach.");
+        }
+
+        // Pobranie cen dla naszego sklepu
+        var myPrices = await _context.PriceHistories
+            .Where(ph => ph.ScrapHistoryId == latestScrap.Id && ph.StoreName.ToLower() == storeName.ToLower())
+            .Select(ph => new { ph.ProductId, ph.Price })
+            .ToListAsync();
+
+        // Pobranie cen konkurentów
+        var competitorPrices = await _context.PriceHistories
+            .Where(ph => ph.ScrapHistoryId == latestScrap.Id && ph.StoreName.ToLower() != storeName.ToLower())
+            .ToListAsync();
+
+        // Grupowanie po konkurentach
+        var competitors = competitorPrices
             .GroupBy(ph => ph.StoreName)
             .Select(g => new
             {
                 StoreName = g.Key,
-                CommonProductsCount = g.Count()
+                CommonProductsCount = g.Count(),
+                SamePriceCount = g.Count(ph => myPrices.Any(mp => mp.ProductId == ph.ProductId && mp.Price == ph.Price)),
+                HigherPriceCount = g.Count(ph => myPrices.Any(mp => mp.ProductId == ph.ProductId && mp.Price < ph.Price)),
+                LowerPriceCount = g.Count(ph => myPrices.Any(mp => mp.ProductId == ph.ProductId && mp.Price > ph.Price))
             })
-            .Where(c => c.StoreName != storeName)
             .OrderByDescending(c => c.CommonProductsCount)
-            .ToListAsync();
+            .ToList();
 
         ViewBag.StoreName = storeName;
         ViewBag.StoreId = storeId;
