@@ -36,6 +36,7 @@
                 <td>
                     <a asp-controller="Store" asp-action="ScrapeProducts" asp-route-storeId="@store.StoreId" class="btn btn-primary scrape-button" data-store-id="@store.StoreId">Scrapuj Produkty</a>
                     <a asp-controller="Store" asp-action="ProductList" asp-route-storeId="@store.StoreId" class="btn btn-secondary">Lista Produktów</a>
+                    <a asp-controller="GoogleScraper" asp-action="ProductList" asp-route-storeId="@store.StoreId" class="btn btn-secondary">Lista Produktów Google</a>
                     <a asp-controller="Flags" asp-action="List" asp-route-storeId="@store.StoreId" class="btn btn-warning">Flagi</a>
                     <a asp-controller="PriceScraping" asp-action="GetStoreProductsWithCoOfrIds" asp-route-storeId="@store.StoreId" class="btn btn-info">Produkty z CoOfr IDs</a>
                 </td>

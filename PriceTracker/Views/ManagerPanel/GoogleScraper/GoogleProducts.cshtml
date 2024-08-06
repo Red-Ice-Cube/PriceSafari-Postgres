@@ -1,0 +1,26 @@
+﻿@model IEnumerable<PriceTracker.Models.ProductClass>
+
+@{
+    ViewData["Title"] = "Produkty na Google Shopping";
+    Layout = "~/Views/Shared/_PanelLayout.cshtml";
+}
+
+<h2>Produkty sklepu @ViewBag.StoreName na Google Shopping</h2>
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>Nazwa Produktu</th>
+            <th>Nazwa w Sklepie</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var product in Model)
+        {
+            <tr>
+                <td>@product.ProductName</td>
+                <td>@product.ProductNameInStoreForGoogle</td>
+            </tr>
+        }
+    </tbody>
+</table>
