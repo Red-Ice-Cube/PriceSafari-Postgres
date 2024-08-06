@@ -10,7 +10,7 @@
 
 <style>
     canvas[id^="chart-"] {
-        max-width: 300px; 
+        max-width: 500px; 
         height: 60px; 
     }
 
@@ -87,23 +87,30 @@
                 data: {
                     labels: ['Produkty'], 
                     datasets: [
-                        {
-                            label: 'Taka sama cena',
-                            data: [samePriceCount],
-                            backgroundColor: '#0000FF', 
-                            barThickness: 20, 
-                        },
+                   
                         {
                             label: 'Wyższa cena',
                             data: [higherPriceCount],
-                            backgroundColor: '#FF0000',
-                            barThickness: 20, 
+                            backgroundColor: 'rgba(0, 156, 42, 0.7)',
+                            borderColor: 'rgba(255, 255, 255, 1)',
+                            borderWidth: 1,
+                            barThickness: 18
+                        },
+                        {
+                            label: 'Taka sama cena',
+                            data: [samePriceCount],
+                            backgroundColor: 'rgba(14, 126, 135, 0.7)',
+                            borderColor: 'rgba(255, 255, 255, 1)',
+                            borderWidth: 1,
+                            barThickness: 18
                         },
                         {
                             label: 'Niższa cena',
                             data: [lowerPriceCount],
-                            backgroundColor: '#008000',
-                            barThickness: 20, 
+                            backgroundColor: 'rgba(238, 17, 17, 0.7)',
+                            borderColor: 'rgba(255, 255, 255, 1)',
+                            borderWidth: 1,
+                            barThickness: 18
                         }
                     ]
                 },
