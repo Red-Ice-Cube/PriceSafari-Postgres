@@ -1,26 +1,33 @@
 ﻿@model IEnumerable<PriceTracker.Models.ProductClass>
 
 @{
-    ViewData["Title"] = "Produkty na Google Shopping";
+    ViewData["Title"] = "Lista Produktów";
     Layout = "~/Views/Shared/_PanelLayout.cshtml";
+    var storeId = ViewBag.StoreId;
 }
 
-<h2>Produkty sklepu @ViewBag.StoreName na Google Shopping</h2>
+<h2>Products for Google Scraping</h2>
 
-<table class="table">
-    <thead>
-        <tr>
-            <th>Nazwa Produktu</th>
-            <th>Nazwa w Sklepie</th>
-        </tr>
-    </thead>
-    <tbody>
-        @foreach (var product in Model)
-        {
+<form asp-action="StartScrapingForProducts" method="post">
+    <input type="hidden" name="storeId" value="@storeId" />
+
+    <table>
+        <thead>
             <tr>
-                <td>@product.ProductName</td>
-                <td>@product.ProductNameInStoreForGoogle</td>
+                <th>Product Name</th>
+                <th>Product URL</th>
             </tr>
-        }
-    </tbody>
-</table>
+        </thead>
+        <tbody>
+            @foreach (var product in Model)
+            {
+                <tr>
+                    <td>@product.ProductNameInStoreForGoogle</td>
+                    <td>@product.Url</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+
+    <button type="submit">Start Scraping</button>
+</form>

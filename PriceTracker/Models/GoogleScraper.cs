@@ -1,18 +1,11 @@
 ﻿using PuppeteerSharp;
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Text.RegularExpressions;
-using System.Threading.Tasks;
-
-using PuppeteerSharp;
-
-using PuppeteerSharp.Media;
 
 public class GoogleScraper
 {
     private IBrowser _browser;
     private IPage _page;
+    private string? _scrapedGoogleUrl;
 
     private List<int> storeReviewCounts = new List<int>();
     private List<(string Url, int ReviewCount)> urlReviewCounts = new List<(string, int)>();
@@ -211,7 +204,7 @@ public class GoogleScraper
         }
     }
 
-    public async Task OpenAndScrapeMatchedOffersAsync(string targetUrl)
+    public async Task OpenAndScrapeMatchedOffersAsync(string targetUrl, string storeName)
     {
         bool targetUrlFound = false;
 
@@ -220,7 +213,7 @@ public class GoogleScraper
             string matchedUrl = $"https://www.google.com/shopping/product/{url}/offers";
             Console.WriteLine($"Otwieranie URL: {matchedUrl}");
 
-            targetUrlFound = await ScrapeOffersAsync(matchedUrl, targetUrl);
+            targetUrlFound = await ScrapeOffersAsync(matchedUrl, targetUrl, storeName);
 
             if (targetUrlFound)
             {
@@ -231,46 +224,133 @@ public class GoogleScraper
         if (!targetUrlFound)
         {
             Console.WriteLine("Nie znaleziono targetUrl w matchedUrls, rozpoczynanie przeszukiwania wszystkich URL.");
-            await OpenAndScrapeAllOffersAsync(targetUrl);
+            await OpenAndScrapeAllOffersAsync(targetUrl, storeName);
         }
     }
 
-    public async Task<bool> ScrapeOffersAsync(string pageUrl, string targetUrl)
+
+
+
+
+
+    public async Task<bool> ScrapeOffersAsync(string pageUrl, string targetUrl, string storeName)
     {
         bool targetUrlFound = false;
         string currentPageUrl = pageUrl;
 
         while (!targetUrlFound)
         {
+            Console.WriteLine($"Odwiedzanie strony: {currentPageUrl}");
             await _page.GoToAsync(currentPageUrl);
             await _page.WaitForSelectorAsync("tr.sh-osd__offer-row");
             await _page.EvaluateFunctionAsync("() => { window.scrollBy(0, window.innerHeight); }");
             await Task.Delay(4000);
 
             var offerElements = await _page.QuerySelectorAllAsync("tr.sh-osd__offer-row");
+            Console.WriteLine("Przeszukuję oferty na stronie.");
+
+            bool storeNameFound = false;
 
             foreach (var offerElement in offerElements)
             {
-                var linkElement = await offerElement.QuerySelectorAsync("a.b5ycib.shntl");
-                if (linkElement != null)
+                var storeElement = await offerElement.QuerySelectorAsync("a.b5ycib.shntl");
+                if (storeElement != null)
                 {
-                    var offerUrl = await linkElement.EvaluateFunctionAsync<string>("el => el.getAttribute('href')");
-                    if (!string.IsNullOrEmpty(offerUrl))
-                    {
-                        string cleanedUrl = CleanUrl(offerUrl);
-                        Console.WriteLine($"Oczyszczony ProductStoreUrl: {cleanedUrl}");
+                    var storeText = await storeElement.EvaluateFunctionAsync<string>("el => el.innerText");
+                    string cleanedStoreText = CleanText(storeText);
+                    string cleanedStoreName = CleanText(storeName);
 
-                        if (cleanedUrl == targetUrl)
+                    Console.WriteLine($"Znaleziono nazwę sklepu: {cleanedStoreText}");
+
+                    if (cleanedStoreText.Contains(cleanedStoreName, StringComparison.OrdinalIgnoreCase))
+                    {
+                        storeNameFound = true;
+                        Console.WriteLine($"Nazwa sklepu pasuje do {cleanedStoreName}.");
+
+                        var linkElement = await offerElement.QuerySelectorAsync("a.b5ycib.shntl");
+                        if (linkElement != null)
                         {
-                            Console.WriteLine($"TargetUrlFound on: {pageUrl}");
-                            targetUrlFound = true;
+                            var offerUrl = await linkElement.EvaluateFunctionAsync<string>("el => el.getAttribute('href')");
+                            if (!string.IsNullOrEmpty(offerUrl))
+                            {
+                                string cleanedUrl = CleanUrl(offerUrl);
+                                Console.WriteLine($"Oczyszczony ProductStoreUrl: {cleanedUrl}");
+
+                                if (cleanedUrl.Equals(targetUrl, StringComparison.OrdinalIgnoreCase))
+                                {
+                                    Console.WriteLine($"TargetUrlFound on: {pageUrl}");
+                                    _scrapedGoogleUrl = pageUrl;
+                                    targetUrlFound = true;
+                                    break;
+                                }
+                            }
+                        }
+
+                        // Jeśli znaleziono nazwę sklepu, sprawdź ukryte oferty
+                        var hiddenOfferButton = await offerElement.QuerySelectorAsync("div[data-url][role='button']");
+                        if (hiddenOfferButton != null)
+                        {
+                            Console.WriteLine("Znaleziono przycisk do rozwinięcia ukrytych ofert.");
+                            await hiddenOfferButton.ClickAsync();
+                            await Task.Delay(2000); // Daj czas na rozwinięcie ukrytych ofert
+
+                            // Sprawdź, czy kontener ukrytych ofert został prawidłowo załadowany
+                            var hiddenContainerId = await hiddenOfferButton.EvaluateFunctionAsync<string>("el => el.getAttribute('data-container-id')");
+                            Console.WriteLine($"ID kontenera ukrytych ofert: {hiddenContainerId}");
+
+                            var hiddenOfferContainer = await _page.QuerySelectorAsync($"#{hiddenContainerId}");
+                            if (hiddenOfferContainer != null)
+                            {
+                                Console.WriteLine("Kontener ukrytych ofert załadowany.");
+
+                                var hiddenOfferElements = await hiddenOfferContainer.QuerySelectorAllAsync("tr.sh-osd__offer-row");
+                                Console.WriteLine($"Znaleziono {hiddenOfferElements.Length} ukrytych ofert.");
+
+                                foreach (var hiddenOfferElement in hiddenOfferElements)
+                                {
+                                    var hiddenLinkElement = await hiddenOfferElement.QuerySelectorAsync("a.b5ycib.shntl");
+                                    if (hiddenLinkElement != null)
+                                    {
+                                        var hiddenOfferUrl = await hiddenLinkElement.EvaluateFunctionAsync<string>("el => el.getAttribute('href')");
+                                        if (!string.IsNullOrEmpty(hiddenOfferUrl))
+                                        {
+                                            string hiddenCleanedUrl = CleanUrl(hiddenOfferUrl);
+                                            Console.WriteLine($"Oczyszczony Ukryty ProductStoreUrl: {hiddenCleanedUrl}");
+
+                                            if (hiddenCleanedUrl.Equals(targetUrl, StringComparison.OrdinalIgnoreCase))
+                                            {
+                                                Console.WriteLine($"TargetUrlFound on: {pageUrl}");
+                                                _scrapedGoogleUrl = pageUrl;
+                                                targetUrlFound = true;
+                                                break;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            else
+                            {
+                                Console.WriteLine("Nie udało się załadować kontenera ukrytych ofert.");
+                            }
+                        }
+                        else
+                        {
+                            Console.WriteLine("Nie znaleziono przycisku do rozwinięcia ukrytych ofert.");
+                        }
+
+                        if (targetUrlFound)
+                        {
                             break;
                         }
+                    }
+                    else
+                    {
+                        Console.WriteLine($"Nazwa sklepu {cleanedStoreName} nie pasuje do znalezionej nazwy {cleanedStoreText}.");
                     }
                 }
             }
 
-            if (targetUrlFound)
+            if (targetUrlFound || storeNameFound)
             {
                 break;
             }
@@ -284,13 +364,32 @@ public class GoogleScraper
 
             string nextPageUrlPart = await nextButton.EvaluateFunctionAsync<string>("el => el.getAttribute('data-url')");
             currentPageUrl = "https://www.google.com" + nextPageUrlPart;
+            Console.WriteLine($"Przechodzę do następnej strony: {currentPageUrl}");
             await Task.Delay(1000);
         }
 
         return targetUrlFound;
     }
 
-    public async Task OpenAndScrapeAllOffersAsync(string targetUrl)
+    private string CleanText(string text)
+    {
+        // Usuwa dodatkowe fragmenty tekstu, zamienia na małe litery i usuwa dodatkowe spacje
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return string.Empty;
+        }
+        // Usuwanie niechcianych fragmentów (można dostosować do konkretnego przypadku)
+        text = text.Replace("Otwiera się w nowym oknie", string.Empty);
+        return text.Trim().ToLower();
+    }
+
+
+
+
+
+
+
+    public async Task OpenAndScrapeAllOffersAsync(string targetUrl, string storeName)
     {
         var productContainers = await _page.QuerySelectorAllAsync("div.sh-dgr__content");
         Console.WriteLine($"Przeszukiwanie wszystkich {productContainers.Length} produktów...");
@@ -307,7 +406,7 @@ public class GoogleScraper
                     Console.WriteLine($"Oczyszczony URL produktu: {cleanedUrl}");
 
                     string offersPageUrl = $"https://www.google.com/shopping/product/{cleanedUrl}/offers";
-                    bool targetUrlFound = await ScrapeOffersAsync(offersPageUrl, targetUrl);
+                    bool targetUrlFound = await ScrapeOffersAsync(offersPageUrl, targetUrl, storeName);
 
                     if (targetUrlFound)
                     {
@@ -317,6 +416,10 @@ public class GoogleScraper
             }
         }
     }
+
+
+
+
 
     private string CleanUrl(string url)
     {
@@ -337,6 +440,11 @@ public class GoogleScraper
         }
 
         return cleanedUrl;
+    }
+
+    public string? GetScrapedGoogleUrl()
+    {
+        return _scrapedGoogleUrl;
     }
 
     public async Task CloseBrowserAsync()
