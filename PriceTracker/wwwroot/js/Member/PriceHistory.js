@@ -330,22 +330,22 @@
         chartInstance = new Chart(ctx, {
             type: 'doughnut',
             data: {
-                labels: ['Za wysoka cena', 'Mid cena', 'Top cena', 'Idealna cena', 'Za niska cena'],
+                labels: ['Cena Zawyżona', 'Cena Suboptymalna', 'Cena Konkurencyjna', 'Cena Strategiczna', 'Cena Zaniżona'],
                 datasets: [{
                     data: [colorCounts.prToHigh, colorCounts.prMid, colorCounts.prGood, colorCounts.prIdeal, colorCounts.prToLow],
                     backgroundColor: [
-                        'rgba(238, 17, 17, 0.5)',
-                        'rgba(240, 240, 105, 0.5)',
-                        'rgba(14, 126, 135, 0.5)',
-                        'rgba(0, 156, 42, 0.5)',
-                        'rgba(86, 0, 178, 0.5)'
+                        'rgba(221, 63, 55, 0.8)',
+                        'rgba(251, 176, 172, 0.8)',
+                        'rgba(141, 255, 217, 0.8)',
+                        'rgba(5, 164, 106, 0.8)',
+                        'rgba(53, 64, 81, 0.8)'
                     ],
                     borderColor: [
-                        'rgba(238, 17, 17, 1)',
-                        'rgba(240, 240, 105, 1)',
-                        'rgba(14, 126, 135, 1)',
-                        'rgba(0, 156, 42, 1)',
-                        'rgba(86, 0, 178, 1)'
+                        'rgba(221, 63, 55, 1)',
+                        'rgba(251, 176, 172, 1)',
+                        'rgba(141, 255, 217, 1)',
+                        'rgba(5, 164, 106, 1)',
+                        'rgba(53, 64, 81, 1)'
                     ],
                     borderWidth: 1
                 }]
@@ -395,11 +395,11 @@
             colorCounts[item.colorClass]++;
         });
 
-        document.querySelector('label[for="prToHighCheckbox"]').textContent = `Za wysoka cena (${colorCounts.prToHigh})`;
-        document.querySelector('label[for="prMidCheckbox"]').textContent = `Mid cena (${colorCounts.prMid})`;
-        document.querySelector('label[for="prGoodCheckbox"]').textContent = `Top cena (${colorCounts.prGood})`;
-        document.querySelector('label[for="prIdealCheckbox"]').textContent = `Idealna cena (${colorCounts.prIdeal})`;
-        document.querySelector('label[for="prToLowCheckbox"]').textContent = `Za niska cena (${colorCounts.prToLow})`;
+        document.querySelector('label[for="prToHighCheckbox"]').textContent = `Zawyżona (${colorCounts.prToHigh})`;
+        document.querySelector('label[for="prMidCheckbox"]').textContent = `Suboptymalna (${colorCounts.prMid})`;
+        document.querySelector('label[for="prGoodCheckbox"]').textContent = `Konkurencyjna (${colorCounts.prGood})`;
+        document.querySelector('label[for="prIdealCheckbox"]').textContent = `Strategiczna (${colorCounts.prIdeal})`;
+        document.querySelector('label[for="prToLowCheckbox"]').textContent = `Zaniżona (${colorCounts.prToLow})`;
     }
 
     function filterPricesAndUpdateUI() {

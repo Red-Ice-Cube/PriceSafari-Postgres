@@ -373,12 +373,12 @@ public class GoogleScraper
 
     private string CleanText(string text)
     {
-        // Usuwa dodatkowe fragmenty tekstu, zamienia na małe litery i usuwa dodatkowe spacje
+        
         if (string.IsNullOrWhiteSpace(text))
         {
             return string.Empty;
         }
-        // Usuwanie niechcianych fragmentów (można dostosować do konkretnego przypadku)
+     
         text = text.Replace("Otwiera się w nowym oknie", string.Empty);
         return text.Trim().ToLower();
     }
@@ -405,7 +405,7 @@ public class GoogleScraper
                     string cleanedUrl = CleanUrl(url);
                     Console.WriteLine($"Oczyszczony URL produktu: {cleanedUrl}");
 
-                    string offersPageUrl = $"https://www.google.com/shopping/product/{cleanedUrl}/offers";
+                    string offersPageUrl = $"https://www.google.com{cleanedUrl}/offers";
                     bool targetUrlFound = await ScrapeOffersAsync(offersPageUrl, targetUrl, storeName);
 
                     if (targetUrlFound)

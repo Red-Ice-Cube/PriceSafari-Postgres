@@ -361,7 +361,7 @@ p {
     align-items: center;
     flex-shrink: 0;
     align-self: stretch;
-    background: linear-gradient(270deg, #004552 0%, #001C21 100%);
+    background: linear-gradient(270deg, #202430 0%, #101317 100%);
     box-shadow: 0px 4px 4px 0px rgba(0, 0, 0, 0.25) inset;
 }
 
@@ -375,7 +375,7 @@ p {
     align-items: center;
     flex-shrink: 0;
     align-self: stretch;
-    background: linear-gradient(270deg, #004552 0%, #001C21 100%);
+    background: linear-gradient(270deg, #202430 0%, #101317 100%);
     box-shadow: 0px 4px 4px 0px rgba(0, 0, 0, 0.25) inset;
 }
 
@@ -417,7 +417,7 @@ p {
     gap: 10px;
     flex-shrink: 0;
     align-self: stretch;
-    background: rgba(14, 126, 135, 0.4);
+    background: rgba(0, 0, 0, 0.25);
     color: white;
     font-size: 18px;
     font-weight: 400;
@@ -450,7 +450,7 @@ p {
 
     .inactive-link:hover {
         transform: scale(1.05);
-        background: rgba(14, 126, 135, 0.1);
+        background: rgba(0, 0, 0, 0.1);
     }
 
 .active-link:hover {
@@ -1008,7 +1008,7 @@ p {
         position: sticky;
         top: 0;
         z-index: 10;
-        background: #004552;
+        background: #202430;
     }
 
         .table-orders thead th {
@@ -1049,36 +1049,37 @@ p {
         cursor: pointer;
     }
 
- 
-    
 
-        .table-orders .price-row.prGood:hover {
-            background-color: rgba(14, 126, 135, 0.11);
-        }
 
-   
 
-        .table-orders .price-row.prMid:hover {
-            background-color: rgba(240, 240, 105, 0.11);
-        }
+    .table-orders .price-row.prGood:hover {
+        background-color: rgba(141, 255, 217, 0.15);
+    }
 
-    
 
-        .table-orders .price-row.prToHigh:hover {
-            background-color: rgba(238, 17, 17, 0.11);
-        }
 
-    
+    .table-orders .price-row.prMid:hover {
+        background-color: rgba(251, 176, 172, 0.15);
+    }
 
-        .table-orders .price-row.prToLow:hover {
-            background-color: rgba(86, 0, 178, 0.11);
-        }
 
-  
 
-        .table-orders .price-row.prIdeal:hover {
-            background-color: rgba(0, 156, 42, 0.11);
-        }
+    .table-orders .price-row.prToHigh:hover {
+        background-color: rgba(221, 63, 55, 0.15);
+    }
+
+
+
+    .table-orders .price-row.prToLow:hover {
+        background-color: rgba(53, 64, 81, 0.15);
+    }
+
+
+
+    .table-orders .price-row.prIdeal:hover {
+        background-color: rgba(5, 164, 106, 0.15);
+    }
+
 
 
 
@@ -1226,7 +1227,7 @@ p {
     align-items: center;
     justify-content: center;
     border-radius: 4px;
-    background: #41C7C7;
+    background: #202430;
     color: #fff;
     font-size: 14px;
     font-weight: 400;
@@ -1237,7 +1238,7 @@ p {
     .Button-Page-Small-b:hover {
         color: #fff;
         text-decoration: none;
-        background: #004552;
+        background: #101317;
     }
 
 .Button-Add-Small {
@@ -1678,28 +1679,6 @@ p {
     max-width: 95%;
 }
 
-.campaign-search-box {
-    width: 200px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-#campaignSearch {
-    width: 100%;
-    border: 1px solid #ccc;
-    padding: 4px 4px 4px 24px;
-    border-radius: 32px;
-    outline: none;
-    box-sizing: border-box;
-    color: #4B4B4B;
-    font-size: 14px;
-    font-weight: 400;
-}
-
-    #campaignSearch:focus {
-        border-color: #41C7C7;
-    }
 
 .Vert-Line-w {
     display: flex;
@@ -1751,15 +1730,6 @@ p {
     margin: 0 auto;
 }
 
-#newsImageDisplay {
-    width: 350px;
-    height: 350px;
-    object-fit: cover;
-    border-radius: 4px;
-    border: 1px solid #E9E9E9;
-    display: block;
-    margin: 0 auto;
-}
 
 #storeLogoDisplay {
     width: 400px;
@@ -1816,7 +1786,7 @@ p {
 }
 
     .DropDown:focus {
-        border: 1px solid #41C7C7;
+        border: 1px solid #F65063;
     }
 
 
@@ -1837,7 +1807,7 @@ p {
     align-content: center;
     align-self: stretch;
     padding-bottom: 6px;
-    border-bottom: 1px solid #41C7C7;
+    border-bottom: 1px solid #F65063;
 }
 
 .Sidebar-box-container {
@@ -1929,104 +1899,6 @@ p {
     gap: 16px;
 }
 
-.Charts-Bar-a {
-    display: flex;
-    flex-grow: 1;
-    min-height: 390px;
-    width: 40%;
-    padding: 24px;
-    flex-direction: column;
-    align-items: center;
-    justify-content: space-between;
-    align-self: stretch;
-    gap: 24px;
-    border-radius: 8px;
-    background: #FFF;
-    box-shadow: 0px 4px 4px 0px rgba(0, 0, 0, 0.15);
-    min-width: 400px;
-}
-
-.Charts-Donought-a {
-    display: flex;
-    padding: 24px;
-    flex-grow: 1;
-    align-items: center;
-    min-width: 500px;
-    height: 180.5px;
-    justify-content: space-between;
-    border-radius: 8px;
-    background: #FFF;
-    box-shadow: 0px 4px 4px 0px rgba(0, 0, 0, 0.15);
-}
-
-.Charts-Box-Bar-a {
-    display: flex;
-    height: 80%;
-    min-width: 95%;
-    max-width: 98%;
-}
-
-
-
-.Charts-Box-Donought-a-t {
-    display: flex;
-    flex-direction: column;
-    padding: 0px;
-    justify-content: space-between;
-    align-items: center;
-    flex-shrink: 0;
-    align-self: stretch;
-    width: 250px;
-}
-
-.Statistics-box-mini-a {
-    display: flex;
-    padding: 12px 24px;
-    justify-content: space-between;
-    align-items: center;
-    align-self: stretch;
-    border-radius: 8px;
-    box-shadow: 0px 4px 4px 0px rgba(0, 0, 0, 0.15);
-    color: #FFF;
-    font-size: 14px;
-    font-weight: 400;
-}
-
-.Statistics-box-mini-data-a {
-    display: flex;
-    align-items: center;
-}
-
-.Statistics-box-big-data-a {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    align-self: stretch;
-}
-
-.Statistics-box-a {
-    display: flex;
-    min-width: 200px;
-    padding: 16px 24px;
-    justify-content: center;
-    align-items: center;
-    gap: 8px;
-    flex: 1;
-    border-radius: 8px;
-    box-shadow: 0px 4px 4px 0px rgba(0, 0, 0, 0.15);
-    align-self: stretch;
-}
-
-.Cover-Statistic-a {
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    gap: 8px;
-    flex: 1;
-}
-
-
 
 
 .campaign-summary-line-icon {
@@ -2049,13 +1921,7 @@ p {
     margin-top: 31px;
 }
 
-.dragged-item {
-    opacity: 0.8;
-}
 
-.campaign-wrapper {
-    transition: transform 0.3s;
-}
 
 .table-bordered {
     margin-left: 58px;
@@ -2143,31 +2009,28 @@ tr:last-child .sub-line {
     border-radius: 4px;
 }
 
-.toggle-text {
-    margin-right: 10px;
-    user-select: none;
-}
-
-.p-category {
-    color: #282828;
-    font-size: 12px;
-    font-weight: 400;
-    margin: 0px;
-}
-
-.p-product {
-    display: flex;
-    color: #282828;
-    font-size: 16px;
-    font-weight: 400;
-    margin: 0px;
-    gap: 8px;
-}
 
 
 
 #productSearch {
 
+    border: 1px solid #ccc;
+    padding: 5px 12px;
+    border-radius: 4px;
+    outline: none;
+    color: #4B4B4B;
+    font-size: 14px;
+    font-weight: 400;
+    height:33px;
+}
+
+    #productSearch:focus {
+        border-color: #F65063;
+    }
+
+
+
+#storeSearch {
     border: 1px solid #ccc;
     padding: 5px 12px;
     border-radius: 4px;
@@ -2178,8 +2041,8 @@ tr:last-child .sub-line {
     font-weight: 400;
 }
 
-    #productSearch:focus {
-        border-color: #41C7C7;
+    #storeSearch:focus {
+        border-color: #F65063;
     }
 
 
@@ -2268,13 +2131,13 @@ tr:last-child .sub-line {
 }
 
     .links-underline:hover {
-        color: #41C7C7 !important;
+        color: #F65063 !important;
     }
 
 .form-check-input {
     outline: none;
     box-shadow: none;
-    border: 1px solid #41C7C7;
+    border: 1px solid #F65063;
     margin-right: 8px;
 }
 
@@ -2284,8 +2147,8 @@ tr:last-child .sub-line {
     }
 
     .form-check-input:checked {
-        border: 1px solid #41C7C7;
-        background-color: #41C7C7;
+        border: 1px solid #F65063;
+        background-color: #F65063;
         box-shadow: none;
     }
 
@@ -2294,7 +2157,7 @@ tr:last-child .sub-line {
 }
 
     .checkbox:hover {
-        color: #41C7C7;
+        color: #F65063;
     }
 
 .checkbox-blank {
@@ -2980,28 +2843,28 @@ tr:last-child .sub-line {
 }
 
     .colorFilter:checked#prGoodCheckbox {
-        background-color: rgba(14, 126, 135, 0.5);
-        border: 2px solid rgba(14, 126, 135, 1);
+        background-color: rgba(141, 255, 217, 0.7);
+        border: 2px solid rgba(141, 255, 217, 1);
     }
 
     .colorFilter:checked#prMidCheckbox {
-        background-color: rgba(240, 240, 105, 0.5);
-        border: 2px solid rgba(240, 240, 105, 1);
+        background-color: rgba(251, 176, 172, 0.7);
+        border: 2px solid rgba(251, 176, 172, 1);
     }
 
     .colorFilter:checked#prToHighCheckbox {
-        background-color: rgba(238, 17, 17, 0.5);
-        border: 2px solid rgba(238, 17, 17, 1);
+        background-color: rgba(221, 63, 55, 0.7);
+        border: 2px solid rgba(221, 63, 55, 1);
     }
 
     .colorFilter:checked#prToLowCheckbox {
-        background-color: rgba(86, 0, 178, 0.5);
-        border: 2px solid rgba(86, 0, 178, 1);
+        background-color: rgba(53, 64, 81, 0.7);
+        border: 2px solid rgba(53, 64, 81, 1);
     }
 
     .colorFilter:checked#prIdealCheckbox {
-        background-color: rgba(0, 156, 42, 0.5);
-        border: 2px solid rgba(0, 156, 42, 1);
+        background-color: rgba(5, 164, 106, 0.7);
+        border: 2px solid rgba(5, 164, 106, 1);
     }
 
 
@@ -3126,45 +2989,45 @@ tr:last-child .sub-line {
 }
 
 .prGood .color-bar {
-    background-color: rgba(14, 126, 135, 0.5);
+    background-color: rgba(141, 255, 217, 0.7);
 }
 
 .prMid .color-bar {
-    background-color: rgba(240, 240, 105, 0.5);
+    background-color: rgba(251, 176, 172, 0.7);
 }
 
 .prToHigh .color-bar {
-    background-color: rgba(238, 17, 17, 0.5);
+    background-color: rgba(221, 63, 55, 0.7);
 }
 
 .prToLow .color-bar {
-    background-color: rgba(86, 0, 178, 0.5);
+    background-color: rgba(53, 64, 81, 0.7);
 }
 
 .prIdeal .color-bar {
-    background-color: rgba(0, 156, 42, 0.5);
+    background-color: rgba(5, 164, 106, 0.7);
 }
 
 
 
 .prGood:hover {
-    background-color: rgba(14, 126, 135, 0.08);
+    background-color: rgba(141, 255, 217, 0.15);
 }
 
 .prMid:hover {
-    background-color: rgba(240, 240, 105, 0.08);
+    background-color: rgba(251, 176, 172, 0.15);
 }
 
 .prToHigh:hover {
-    background-color: rgba(238, 17, 17, 0.08);
+    background-color: rgba(221, 63, 55, 0.15);
 }
 
 .prToLow:hover {
-    background-color: rgba(86, 0, 178, 0.08);
+    background-color: rgba(53, 64, 81, 0.15);
 }
 
 .prIdeal:hover {
-    background-color: rgba(0, 156, 42, 0.08);
+    background-color: rgba(5, 164, 106, 0.15);
 }
 
 
@@ -3428,11 +3291,11 @@ tr:last-child .sub-line {
     }
 
     .price-range-settings .prIdeal-circle {
-        background-color: rgba(0, 156, 42, 0.5);
+        background-color: rgba(5, 164, 106, 0.7);
     }
 
     .price-range-settings .prMid-circle {
-        background-color: rgba(240, 240, 105, 0.5);
+        background-color: rgba(251, 176, 172, 0.7);
     }
 
 .store-section {
