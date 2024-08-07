@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using PriceTracker.Data;
@@ -6,6 +7,8 @@ using PriceTracker.Hubs;
 using System.Net.Http;
 using System.Threading.Tasks;
 
+
+[Authorize(Roles = "Admin")]
 public class GoogleScraperController : Controller
 
 {
@@ -16,13 +19,6 @@ public class GoogleScraperController : Controller
         _context = context;
     }
 
-    [HttpGet]
-    public IActionResult Index()
-    {
-        return View("~/Views/ManagerPanel/GoogleScraper/Index.cshtml");
-    }
-
-   
     [HttpPost]
     public async Task<IActionResult> StartScrapingForProducts(int storeId)
     {
