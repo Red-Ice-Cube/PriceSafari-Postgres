@@ -67,7 +67,7 @@
     }
 
     .no-price {
-        color: #777; /* Lżejszy kolor dla B/D */
+        color: #777; 
         display:flex;
         width:100%;
     }
@@ -75,7 +75,7 @@
     .flex-row {
         display: flex;
         flex-direction: row;
-        gap: 16px; /* Odstęp między boksami */
+        gap: 16px; 
     }
 
     .flex-column {
@@ -227,6 +227,9 @@
                             <p><strong>Sklep: </strong>@competitorStoreName <span></span></p>
 
                         </div>
+                        <div>
+                            <strong>Produkty: </strong><span id="scrapable-count"></span>
+                        </div>
                     </div>
 
                 </div>
@@ -253,15 +256,17 @@
 
 @section Scripts {
 <script>
+
+
         document.addEventListener('DOMContentLoaded', () => {
             loadScrapHistoryOptions();
 
-            // Dodaj event listener dla wszystkich checkboxów, w tym nowych checkboxów dla PriceData
+            
             document.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
                 checkbox.addEventListener('change', renderPrices);
             });
 
-            // Obsługa wyszukiwania produktów
+            
             document.getElementById('productSearch').addEventListener('keyup', function () {
                 filterProducts(this.value);
             });
@@ -400,6 +405,8 @@
             const filterDecrease = document.getElementById('filterDecrease').checked;
             const filterChange = document.getElementById('filterChange').checked;
 
+            let productCount = 0;
+
             for (const [productId, product] of Object.entries(products)) {
                 let showRow = true;
                 let hasChange = false;
@@ -513,7 +520,7 @@
                     row.appendChild(td);
                 });
 
-                // Aplikowanie filtrów
+             
                 if (filterIncrease && !hasIncrease) {
                     showRow = false;
                 }
@@ -526,10 +533,14 @@
 
                 if (showRow) {
                     tableBody.appendChild(row);
+                    productCount++; 
                 }
+
             }
+            document.getElementById('scrapable-count').textContent = productCount;
         }
 
+ 
 
 </script>
 }

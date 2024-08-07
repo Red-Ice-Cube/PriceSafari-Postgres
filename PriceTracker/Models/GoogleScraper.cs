@@ -373,12 +373,12 @@ public class GoogleScraper
 
     private string CleanText(string text)
     {
-        // Usuwa dodatkowe fragmenty tekstu, zamienia na małe litery i usuwa dodatkowe spacje
+        
         if (string.IsNullOrWhiteSpace(text))
         {
             return string.Empty;
         }
-        // Usuwanie niechcianych fragmentów (można dostosować do konkretnego przypadku)
+     
         text = text.Replace("Otwiera się w nowym oknie", string.Empty);
         return text.Trim().ToLower();
     }

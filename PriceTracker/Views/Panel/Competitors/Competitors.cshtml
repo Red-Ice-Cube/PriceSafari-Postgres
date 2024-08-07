@@ -9,9 +9,21 @@
 }
 
 <style>
+
+    .competitorsBarBox {
+        display:flex;
+        width:534px;
+        background: #F4F4F4;
+        justify-content:center;
+        align-content:center;
+        height:48px;
+        border-radius: 8px;
+    }
+
+
     canvas[id^="chart-"] {
         max-width: 500px; 
-        height: 60px; 
+        height: 48px; 
     }
 
    
@@ -53,11 +65,13 @@
                             <td class="competitor-name">@competitor.StoreName</td>
                             <td>@competitor.CommonProductsCount</td>
                             <td>
+                                <div class="competitorsBarBox">
                                 <canvas id="chart-@competitor.StoreName"
                                         data-same="@competitor.SamePriceCount"
                                         data-higher="@competitor.HigherPriceCount"
                                         data-lower="@competitor.LowerPriceCount"
                                         data-total="@competitor.CommonProductsCount"></canvas>
+                                </div>
                             </td>
                         </tr>
                     }
