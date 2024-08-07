@@ -8,20 +8,13 @@ using System.Threading.Tasks;
 
 public class GoogleScraperController : Controller
 
-        
-
 {
-
-
     private readonly PriceTrackerContext _context;
-
 
     public GoogleScraperController(PriceTrackerContext context)
     {
         _context = context;
-       
     }
-
 
     [HttpGet]
     public IActionResult Index()
@@ -29,24 +22,7 @@ public class GoogleScraperController : Controller
         return View("~/Views/ManagerPanel/GoogleScraper/Index.cshtml");
     }
 
-    [HttpPost]
-    public async Task<IActionResult> StartScraping(string title, string storeName, string targetUrl)
-    {
-        var scraper = new GoogleScraper();
-        await scraper.InitializeBrowserAsync();
-        await scraper.InitializeAndSearchAsync(title);
-        await scraper.SearchStoreNameAsync(storeName);
-        await scraper.SearchUrlAndReviewsWithFallbackAsync();
-
-        scraper.MatchReviews();
-
-        await scraper.OpenAndScrapeMatchedOffersAsync(targetUrl, storeName);  
-
-        await scraper.CloseBrowserAsync();
-
-        return Content("Scraping completed. Check the console for output.");
-    }
-
+   
     [HttpPost]
     public async Task<IActionResult> StartScrapingForProducts(int storeId)
     {
@@ -82,9 +58,6 @@ public class GoogleScraperController : Controller
         return Content("Scraping completed for all products. Check the database for updated Google URLs.");
     }
 
-
-
-
     [HttpGet]
     public async Task<IActionResult> ProductList(int storeId)
     {
@@ -102,10 +75,6 @@ public class GoogleScraperController : Controller
         ViewBag.StoreId = storeId;
         return View("~/Views/ManagerPanel/GoogleScraper/ProductList.cshtml", products);
     }
-
-
-
-
 
     [HttpGet]
     public async Task<IActionResult> GoogleProducts(int storeId)
@@ -126,11 +95,6 @@ public class GoogleScraperController : Controller
         return View("~/Views/ManagerPanel/GoogleScraper/GoogleProducts.cshtml", products);
     }
 
-
-
-
-
-
     [HttpPost]
     public async Task<IActionResult> ToggleGoogleStatus(int productId)
     {
@@ -145,7 +109,6 @@ public class GoogleScraperController : Controller
 
         return RedirectToAction("ProductList", new { storeId = product.StoreId });
     }
-
 
     [HttpPost]
     public async Task<IActionResult> UpdateProductNameInStoreForGoogle(int productId, string productNameInStoreForGoogle)

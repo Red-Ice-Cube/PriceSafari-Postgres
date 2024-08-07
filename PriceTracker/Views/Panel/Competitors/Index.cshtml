@@ -4,28 +4,59 @@
     ViewBag.Title = "Wybierz Sklep";
 }
 
+
+
 @{
     Layout = "~/Views/Shared/_PanelLayout.cshtml";
 }
 
-<h2>Wybierz Sklep</h2>
-
-<table class="table">
-    <thead>
-        <tr>
-            <th>Nazwa Sklepu</th>
-            <th>Akcje</th>
-        </tr>
-    </thead>
-    <tbody>
-        @foreach (var store in Model)
+<div class="Vert">
+    <div class="Vert-full">
+        <div class="Order-Container-Title">
+            Konkurencja
+        </div>
+        @if (Model != null && Model.Any())
         {
-            <tr>
-                <td>@store.StoreName</td>
-                <td>
-                    <a href="@Url.Action("Competitors", "Competitors", new { storeId = store.StoreId })" class="btn btn-primary">Pokaż Konkurentów</a>
-                </td>
-            </tr>
+            <div class="Vert-table">
+                <table class="table-orders">
+                    <thead>
+                        <tr>
+                            <th></th>
+                            <th>Sklep</th>
+                          
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var store in Model)
+                        {
+                            <tr class="store-row" style="cursor:pointer;" data-url="@Url.Action("Competitors", "Competitors", new { storeId = store.StoreId })">
+                                <td>
+                                    <img src="@store.StoreLogoUrl" class="img-container" alt="@store.StoreName" />
+                                </td>
+                                <td>@store.StoreName</td>
+                                
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
         }
-    </tbody>
-</table>
+        else
+        {
+            <p>Nie masz przypisanych żadnych sklepów.</p>
+        }
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            var rows = document.querySelectorAll('.store-row');
+            rows.forEach(function (row) {
+                row.addEventListener('click', function (e) {
+                    window.location.href = row.getAttribute('data-url');
+                });
+            });
+        });
+    </script>
+}

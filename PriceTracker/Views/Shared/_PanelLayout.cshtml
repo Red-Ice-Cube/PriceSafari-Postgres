@@ -87,7 +87,7 @@
                 </div>
 
                 <div class="@(controllerName == "Competitors" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "Competitors")'">
-                    <img src="~/images/Campaigns-b.svg" alt="Panel Icon" class="menu-icon" />Konkurencja
+                    <img src="~/images/Link-b.svg" alt="Panel Icon" class="menu-icon" />Konkurencja
                 </div>
 
                 
@@ -150,6 +150,11 @@
                 <div class="@(controllerName == "Product" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("StoreList", "Product")'">
                     <img src="~/images/Campaigns-b.svg" alt="Panel Icon" class="menu-icon" />
                 </div>
+
+                <div class="@(controllerName == "Competitors" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "Competitors")'">
+                    <img src="~/images/Link-b.svg" alt="Panel Icon" class="menu-icon" />
+                </div>
+
 
             }
             @if (isManagerOrAdmin)
