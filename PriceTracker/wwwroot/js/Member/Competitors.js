@@ -21,24 +21,24 @@
                     {
                         label: 'Masz niższą cene',
                         data: [higherPriceCount],
-                        backgroundColor: 'rgba(0, 156, 42, 0.7)',
-                        borderColor: 'rgba(255, 255, 255, 1)',
+                        backgroundColor: 'rgba(5, 164, 106, 0.7)',
+                        borderColor: 'rgba(5, 164, 106, 1)',
                         borderWidth: 1,
                         barThickness: 18
                     },
                     {
                         label: 'Taka sama cena',
                         data: [samePriceCount],
-                        backgroundColor: 'rgba(14, 126, 135, 0.7)',
-                        borderColor: 'rgba(255, 255, 255, 1)',
+                        backgroundColor: 'rgba(141, 255, 217, 0.7)',
+                        borderColor: 'rgba(141, 255, 217, 1)',
                         borderWidth: 1,
                         barThickness: 18
                     },
                     {
                         label: 'Masz wyższą cene',
                         data: [lowerPriceCount],
-                        backgroundColor: 'rgba(238, 17, 17, 0.7)',
-                        borderColor: 'rgba(255, 255, 255, 1)',
+                        backgroundColor: 'rgba(221, 63, 55, 0.7)',
+                        borderColor: 'rgba(221, 63, 55, 1)',
                         borderWidth: 1,
                         barThickness: 18
                     }
