@@ -365,6 +365,7 @@ public async Task<IActionResult> StartScraping(int storeId)
     }
 
 
+
     [HttpPost]
     public async Task<IActionResult> StartScrapingWithCaptchaHandling()
     {
@@ -381,24 +382,13 @@ public async Task<IActionResult> StartScraping(int storeId)
         int captchaSpeed = settings.CaptchaSpeed;
 
         var coOfrs = await _context.CoOfrs.Where(co => !co.IsScraped).ToListAsync();
+        var urls = coOfrs.Select(co => co.OfferUrl).ToList();
+        var urlQueue = new Queue<string>(urls);
 
-        if (!coOfrs.Any())
+        if (!urls.Any())
         {
             Console.WriteLine("No URLs found to scrape.");
             return NotFound("No URLs found to scrape.");
-        }
-
-        var urls = coOfrs.Select(co => co.OfferUrl).ToList();
-        var urlGroups = new List<List<string>>();
-
-        for (int i = 0; i < captchaSpeed; i++)
-        {
-            urlGroups.Add(new List<string>());
-        }
-
-        for (int i = 0; i < urls.Count; i++)
-        {
-            urlGroups[i % captchaSpeed].Add(urls[i]);
         }
 
         var tasks = new List<Task>();
@@ -408,88 +398,246 @@ public async Task<IActionResult> StartScraping(int storeId)
         var stopwatch = new Stopwatch();
         stopwatch.Start();
 
-        foreach (var urlGroup in urlGroups)
+        using (var semaphore = new SemaphoreSlim(captchaSpeed))
         {
-            tasks.Add(Task.Run(async () =>
+            for (int i = 0; i < captchaSpeed; i++)
             {
-                var httpClient = _httpClientFactory.CreateClient();
-                var captchaScraper = new CaptchaScraper(httpClient);
-
-                await captchaScraper.InitializeBrowserAsync();
-
-                foreach (var url in urlGroup)
+                tasks.Add(Task.Run(async () =>
                 {
+                    await semaphore.WaitAsync(cancellationToken);
+
                     try
                     {
-                        using var scope = _serviceProvider.CreateScope();
-                        var scopedContext = scope.ServiceProvider.GetRequiredService<PriceTrackerContext>();
+                        var httpClient = _httpClientFactory.CreateClient();
+                        var captchaScraper = new CaptchaScraper(httpClient);
 
-                        var (prices, log, rejected) = await captchaScraper.HandleCaptchaAndScrapePricesAsync(url);
-                        Console.WriteLine(log);
+                        await captchaScraper.InitializeBrowserAsync();
 
-                        var coOfr = coOfrs.First(co => co.OfferUrl == url);
-                        var priceHistories = prices.Select(priceData => new CoOfrPriceHistoryClass
+                        while (urlQueue.Count > 0)
                         {
-                            CoOfrClassId = coOfr.Id,
-                            StoreName = priceData.storeName,
-                            Price = priceData.price,
-                            ShippingCostNum = priceData.shippingCostNum,
-                            AvailabilityNum = priceData.availabilityNum,
-                            IsBidding = priceData.isBidding,
-                            Position = priceData.position
-                        }).ToList();
+                            string url;
+                            lock (urlQueue)
+                            {
+                                if (urlQueue.Count == 0)
+                                {
+                                    break;
+                                }
+                                url = urlQueue.Dequeue();
+                            }
 
-                        await scopedContext.CoOfrPriceHistories.AddRangeAsync(priceHistories);
-                        await scopedContext.SaveChangesAsync();
+                            try
+                            {
+                                using var scope = _serviceProvider.CreateScope();
+                                var scopedContext = scope.ServiceProvider.GetRequiredService<PriceTrackerContext>();
 
-                        coOfr.IsScraped = true;
-                        coOfr.ScrapingMethod = "HandleCaptcha";
-                        coOfr.PricesCount = priceHistories.Count;
-                        coOfr.IsRejected = (priceHistories.Count == 0);
-                        scopedContext.CoOfrs.Update(coOfr);
-                        await scopedContext.SaveChangesAsync();
+                                var (prices, log, rejected) = await captchaScraper.HandleCaptchaAndScrapePricesAsync(url);
+                                Console.WriteLine(log);
 
-                        await _hubContext.Clients.All.SendAsync("ReceiveScrapingUpdate", coOfr.OfferUrl, coOfr.IsScraped, coOfr.IsRejected, coOfr.ScrapingMethod, coOfr.PricesCount);
+                                var coOfr = coOfrs.First(co => co.OfferUrl == url);
+                                var priceHistories = prices.Select(priceData => new CoOfrPriceHistoryClass
+                                {
+                                    CoOfrClassId = coOfr.Id,
+                                    StoreName = priceData.storeName,
+                                    Price = priceData.price,
+                                    ShippingCostNum = priceData.shippingCostNum,
+                                    AvailabilityNum = priceData.availabilityNum,
+                                    IsBidding = priceData.isBidding,
+                                    Position = priceData.position
+                                }).ToList();
 
-                        Interlocked.Add(ref totalPrices, priceHistories.Count);
-                        Interlocked.Increment(ref scrapedCount);
-                        if (coOfr.IsRejected)
-                        {
-                            Interlocked.Increment(ref rejectedCount);
+                                await scopedContext.CoOfrPriceHistories.AddRangeAsync(priceHistories);
+                                await scopedContext.SaveChangesAsync();
+
+                                coOfr.IsScraped = true;
+                                coOfr.ScrapingMethod = "HandleCaptcha";
+                                coOfr.PricesCount = priceHistories.Count;
+                                coOfr.IsRejected = (priceHistories.Count == 0);
+                                scopedContext.CoOfrs.Update(coOfr);
+                                await scopedContext.SaveChangesAsync();
+
+                                await _hubContext.Clients.All.SendAsync("ReceiveScrapingUpdate", coOfr.OfferUrl, coOfr.IsScraped, coOfr.IsRejected, coOfr.ScrapingMethod, coOfr.PricesCount);
+
+                                Interlocked.Add(ref totalPrices, priceHistories.Count);
+                                Interlocked.Increment(ref scrapedCount);
+                                if (coOfr.IsRejected)
+                                {
+                                    Interlocked.Increment(ref rejectedCount);
+                                }
+                                await _hubContext.Clients.All.SendAsync("ReceiveProgressUpdate", scrapedCount, coOfrs.Count, stopwatch.Elapsed.TotalSeconds, rejectedCount);
+
+                                if (cancellationToken.IsCancellationRequested)
+                                {
+                                    Console.WriteLine("Scraping canceled.");
+                                    await captchaScraper.CloseBrowserAsync();
+                                    return;
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                var log = $"Error scraping URL: {url}. Exception: {ex.Message}";
+                                Console.WriteLine(log);
+                            }
                         }
-                        await _hubContext.Clients.All.SendAsync("ReceiveProgressUpdate", scrapedCount, coOfrs.Count, stopwatch.Elapsed.TotalSeconds, rejectedCount);
 
-                        if (cancellationToken.IsCancellationRequested)
-                        {
-                            Console.WriteLine("Scraping canceled.");
-                            await captchaScraper.CloseBrowserAsync();
-                            return;
-                        }
+                        await captchaScraper.CloseBrowserAsync();
                     }
-                    catch (Exception ex)
+                    finally
                     {
-                        var log = $"Error scraping URL: {url}. Exception: {ex.Message}";
-                        Console.WriteLine(log);
+                        semaphore.Release();
                     }
-                }
+                }, cancellationToken));
+            }
 
-                await captchaScraper.CloseBrowserAsync();
-            }, cancellationToken));
-        }
-
-        try
-        {
-            await Task.WhenAll(tasks);
-        }
-        catch (OperationCanceledException)
-        {
-            Console.WriteLine("Scraping was canceled.");
+            try
+            {
+                await Task.WhenAll(tasks);
+            }
+            catch (OperationCanceledException)
+            {
+                Console.WriteLine("Scraping was canceled.");
+            }
         }
 
         stopwatch.Stop();
 
         return Ok(new { Message = "Scraping completed.", TotalPrices = totalPrices, RejectedCount = rejectedCount });
     }
+
+
+
+
+
+
+
+
+
+
+
+    //[HttpPost]
+    //public async Task<IActionResult> StartScrapingWithCaptchaHandling()
+    //{
+    //    ResetCancellationToken();
+    //    var cancellationToken = _cancellationTokenSource.Token;
+
+    //    var settings = await _context.Settings.FirstOrDefaultAsync();
+    //    if (settings == null)
+    //    {
+    //        Console.WriteLine("Settings not found.");
+    //        return NotFound("Settings not found.");
+    //    }
+
+    //    int captchaSpeed = settings.CaptchaSpeed;
+
+    //    var coOfrs = await _context.CoOfrs.Where(co => !co.IsScraped).ToListAsync();
+
+    //    if (!coOfrs.Any())
+    //    {
+    //        Console.WriteLine("No URLs found to scrape.");
+    //        return NotFound("No URLs found to scrape.");
+    //    }
+
+    //    var urls = coOfrs.Select(co => co.OfferUrl).ToList();
+    //    var urlGroups = new List<List<string>>();
+
+    //    for (int i = 0; i < captchaSpeed; i++)
+    //    {
+    //        urlGroups.Add(new List<string>());
+    //    }
+
+    //    for (int i = 0; i < urls.Count; i++)
+    //    {
+    //        urlGroups[i % captchaSpeed].Add(urls[i]);
+    //    }
+
+    //    var tasks = new List<Task>();
+    //    int totalPrices = 0;
+    //    int scrapedCount = 0;
+    //    int rejectedCount = 0;
+    //    var stopwatch = new Stopwatch();
+    //    stopwatch.Start();
+
+    //    foreach (var urlGroup in urlGroups)
+    //    {
+    //        tasks.Add(Task.Run(async () =>
+    //        {
+    //            var httpClient = _httpClientFactory.CreateClient();
+    //            var captchaScraper = new CaptchaScraper(httpClient);
+
+    //            await captchaScraper.InitializeBrowserAsync();
+
+    //            foreach (var url in urlGroup)
+    //            {
+    //                try
+    //                {
+    //                    using var scope = _serviceProvider.CreateScope();
+    //                    var scopedContext = scope.ServiceProvider.GetRequiredService<PriceTrackerContext>();
+
+    //                    var (prices, log, rejected) = await captchaScraper.HandleCaptchaAndScrapePricesAsync(url);
+    //                    Console.WriteLine(log);
+
+    //                    var coOfr = coOfrs.First(co => co.OfferUrl == url);
+    //                    var priceHistories = prices.Select(priceData => new CoOfrPriceHistoryClass
+    //                    {
+    //                        CoOfrClassId = coOfr.Id,
+    //                        StoreName = priceData.storeName,
+    //                        Price = priceData.price,
+    //                        ShippingCostNum = priceData.shippingCostNum,
+    //                        AvailabilityNum = priceData.availabilityNum,
+    //                        IsBidding = priceData.isBidding,
+    //                        Position = priceData.position
+    //                    }).ToList();
+
+    //                    await scopedContext.CoOfrPriceHistories.AddRangeAsync(priceHistories);
+    //                    await scopedContext.SaveChangesAsync();
+
+    //                    coOfr.IsScraped = true;
+    //                    coOfr.ScrapingMethod = "HandleCaptcha";
+    //                    coOfr.PricesCount = priceHistories.Count;
+    //                    coOfr.IsRejected = (priceHistories.Count == 0);
+    //                    scopedContext.CoOfrs.Update(coOfr);
+    //                    await scopedContext.SaveChangesAsync();
+
+    //                    await _hubContext.Clients.All.SendAsync("ReceiveScrapingUpdate", coOfr.OfferUrl, coOfr.IsScraped, coOfr.IsRejected, coOfr.ScrapingMethod, coOfr.PricesCount);
+
+    //                    Interlocked.Add(ref totalPrices, priceHistories.Count);
+    //                    Interlocked.Increment(ref scrapedCount);
+    //                    if (coOfr.IsRejected)
+    //                    {
+    //                        Interlocked.Increment(ref rejectedCount);
+    //                    }
+    //                    await _hubContext.Clients.All.SendAsync("ReceiveProgressUpdate", scrapedCount, coOfrs.Count, stopwatch.Elapsed.TotalSeconds, rejectedCount);
+
+    //                    if (cancellationToken.IsCancellationRequested)
+    //                    {
+    //                        Console.WriteLine("Scraping canceled.");
+    //                        await captchaScraper.CloseBrowserAsync();
+    //                        return;
+    //                    }
+    //                }
+    //                catch (Exception ex)
+    //                {
+    //                    var log = $"Error scraping URL: {url}. Exception: {ex.Message}";
+    //                    Console.WriteLine(log);
+    //                }
+    //            }
+
+    //            await captchaScraper.CloseBrowserAsync();
+    //        }, cancellationToken));
+    //    }
+
+    //    try
+    //    {
+    //        await Task.WhenAll(tasks);
+    //    }
+    //    catch (OperationCanceledException)
+    //    {
+    //        Console.WriteLine("Scraping was canceled.");
+    //    }
+
+    //    stopwatch.Stop();
+
+    //    return Ok(new { Message = "Scraping completed.", TotalPrices = totalPrices, RejectedCount = rejectedCount });
+    //}
 
 
 
