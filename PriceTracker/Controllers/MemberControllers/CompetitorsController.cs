@@ -171,7 +171,7 @@ public class CompetitorsController : Controller
             .Select(s => s.StoreName)
             .FirstOrDefaultAsync();
 
-        // Pobierz ceny naszego sklepu
+        // Pobierz nasze ceny
         var ourPrices = await _context.PriceHistories
             .Where(ph => ph.Product.StoreId == request.StoreId && ph.StoreName == storeName && ph.ScrapHistoryId == request.ScrapHistoryId)
             .Select(ph => new
@@ -184,7 +184,7 @@ public class CompetitorsController : Controller
             })
             .ToListAsync();
 
-        // Pobierz ceny konkurencji
+        // Pobierz ceny konkurenta
         var competitorPrices = await _context.PriceHistories
             .Where(ph => ph.ScrapHistoryId == request.ScrapHistoryId && ph.StoreName == request.CompetitorStoreName)
             .Select(ph => new
@@ -197,58 +197,27 @@ public class CompetitorsController : Controller
             })
             .ToListAsync();
 
-        // Połącz ceny, dodając nasze ceny nawet wtedy, gdy konkurencja ich nie ma
+        // Połącz ceny tylko tych produktów, dla których mamy zarówno naszą cenę, jak i cenę konkurenta
         var combinedPrices = ourPrices
             .Select(op => {
                 var competitorPrice = competitorPrices.FirstOrDefault(cp => cp.ProductId == op.ProductId);
-                return new
+                if (competitorPrice != null)
                 {
-                    op.ProductId,
-                    ProductName = competitorPrice?.ProductName ?? op.ProductName,
-                    OfferUrl = competitorPrice?.OfferUrl ?? op.OfferUrl,
-                    Price = competitorPrice?.Price ?? 0m, // Użyj typu decimal dla Price
-                    ScrapHistoryId = request.ScrapHistoryId,
-                    OurPrice = op.Price, // Użyj typu decimal dla OurPrice
-                    PriceData = competitorPrice != null ? 3 : 1  // Jeśli jest cena konkurencji i nasza to 3, inaczej 1
-                };
+                    return new
+                    {
+                        op.ProductId,
+                        ProductName = competitorPrice.ProductName,
+                        OfferUrl = competitorPrice.OfferUrl,
+                        Price = competitorPrice.Price,
+                        ScrapHistoryId = request.ScrapHistoryId,
+                        OurPrice = op.Price,
+                        PriceData = 3  // Oznaczenie, że mamy kompletne dane
+                    };
+                }
+                return null;
             })
+            .Where(result => result != null)
             .ToList();
-
-        // Dodaj ceny konkurencji, które nie były wcześniej uwzględnione
-        combinedPrices.AddRange(competitorPrices
-            .Where(cp => !combinedPrices.Any(p => p.ProductId == cp.ProductId))
-            .Select(cp => new
-            {
-                cp.ProductId,
-                cp.ProductName,
-                cp.OfferUrl,
-                cp.Price,
-                cp.ScrapHistoryId,
-                OurPrice = ourPrices.FirstOrDefault(op => op.ProductId == cp.ProductId)?.Price ?? 0m, // Użyj typu decimal dla OurPrice
-                PriceData = 2  // Jeśli tylko konkurencja ma cenę, to ustawiamy PriceData na 2
-            })
-            .ToList());
-
-        // Uzupełnij produkty, które nie mają żadnych cen
-        var allProductIds = ourPrices.Select(op => op.ProductId)
-                                      .Union(competitorPrices.Select(cp => cp.ProductId))
-                                      .Distinct();
-
-        var missingPrices = allProductIds
-            .Where(pid => !combinedPrices.Any(cp => cp.ProductId == pid))
-            .Select(pid => new
-            {
-                ProductId = pid,
-                ProductName = "Unknown",
-                OfferUrl = string.Empty,
-                Price = 0m, // Użyj typu decimal dla Price
-                ScrapHistoryId = request.ScrapHistoryId,
-                OurPrice = 0m, // Użyj typu decimal dla OurPrice
-                PriceData = 0  // Ustawiamy PriceData na 0, jeśli nikt nie ma ceny
-            })
-            .ToList();
-
-        combinedPrices.AddRange(missingPrices);
 
         Console.WriteLine($"Found {combinedPrices.Count} prices for competitor {request.CompetitorStoreName} in scrap history {request.ScrapHistoryId}");
 
@@ -259,6 +228,7 @@ public class CompetitorsController : Controller
 
         return Json(combinedPrices);
     }
+
 
 
 

@@ -2039,10 +2039,10 @@ tr:last-child .sub-line {
     padding: 5px 12px;
     border-radius: 4px;
     outline: none;
-    box-sizing: border-box;
     color: #4B4B4B;
     font-size: 14px;
     font-weight: 400;
+    height:33px;
 }
 
     #productSearch:focus {
