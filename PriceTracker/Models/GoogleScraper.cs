@@ -405,7 +405,7 @@ public class GoogleScraper
                     string cleanedUrl = CleanUrl(url);
                     Console.WriteLine($"Oczyszczony URL produktu: {cleanedUrl}");
 
-                    string offersPageUrl = $"https://www.google.com/shopping/product/{cleanedUrl}/offers";
+                    string offersPageUrl = $"https://www.google.com{cleanedUrl}/offers";
                     bool targetUrlFound = await ScrapeOffersAsync(offersPageUrl, targetUrl, storeName);
 
                     if (targetUrlFound)
