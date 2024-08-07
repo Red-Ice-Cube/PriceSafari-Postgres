@@ -19,7 +19,7 @@
                 datasets: [
 
                     {
-                        label: 'Wyższa cena',
+                        label: 'Masz niższą cene',
                         data: [higherPriceCount],
                         backgroundColor: 'rgba(0, 156, 42, 0.7)',
                         borderColor: 'rgba(255, 255, 255, 1)',
@@ -35,7 +35,7 @@
                         barThickness: 18
                     },
                     {
-                        label: 'Niższa cena',
+                        label: 'Masz wyższą cene',
                         data: [lowerPriceCount],
                         backgroundColor: 'rgba(238, 17, 17, 0.7)',
                         borderColor: 'rgba(255, 255, 255, 1)',

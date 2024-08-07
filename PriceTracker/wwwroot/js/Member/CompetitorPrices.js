@@ -140,7 +140,6 @@ function filterProducts(searchTerm) {
     }
     displayProducts(filteredProducts);
 }
-
 function displayProducts(products) {
     const tableBody = document.getElementById('priceTableBody');
     tableBody.innerHTML = '';
@@ -240,8 +239,8 @@ function displayProducts(products) {
             td.innerHTML = tdContent;
             td.classList.add('nowrap');
 
-            td.querySelector('.Price-box-content-c, .Price-box-content-o').addEventListener('click', (event) => {
-                event.stopPropagation();
+            // Przeniesienie całego bloku przy kliknięciu
+            td.addEventListener('click', () => {
                 const url = `/PriceHistory/Details?productId=${productId}&scrapId=${id}`;
                 window.open(url, '_blank');
             });
@@ -267,3 +266,4 @@ function displayProducts(products) {
 
     document.getElementById('scrapable-count').textContent = productCount;
 }
+
