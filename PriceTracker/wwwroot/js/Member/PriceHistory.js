@@ -330,22 +330,22 @@
         chartInstance = new Chart(ctx, {
             type: 'doughnut',
             data: {
-                labels: ['Cena Zawyżona', 'Cena Suboptymalna', 'Cena Konkurencyjna', 'Cena Strategiczna', 'Cena Zaniżona'],
+                labels: ['Zawyżona', 'Suboptymalna', 'Konkurencyjna', 'Strategiczna', 'Zaniżona'],
                 datasets: [{
                     data: [colorCounts.prToHigh, colorCounts.prMid, colorCounts.prGood, colorCounts.prIdeal, colorCounts.prToLow],
                     backgroundColor: [
-                        'rgba(221, 63, 55, 0.8)',
-                        'rgba(251, 176, 172, 0.8)',
-                        'rgba(141, 255, 217, 0.8)',
-                        'rgba(5, 164, 106, 0.8)',
-                        'rgba(53, 64, 81, 0.8)'
+                        'rgba(171, 37, 32, 0.8)',
+                        'rgba(242, 217, 190, 0.8)',
+                        'rgba(117, 152, 112, 0.8)',
+                        'rgba(0, 145, 123, 0.8)',
+                        'rgba(6, 6, 6, 0.8)'
                     ],
                     borderColor: [
-                        'rgba(221, 63, 55, 1)',
-                        'rgba(251, 176, 172, 1)',
-                        'rgba(141, 255, 217, 1)',
-                        'rgba(5, 164, 106, 1)',
-                        'rgba(53, 64, 81, 1)'
+                        'rgba(171, 37, 32, 1)',
+                        'rgba(242, 217, 190, 1)',
+                        'rgba(117, 152, 112, 1)',
+                        'rgba(0, 145, 123, 1)',
+                        'rgba(6, 6, 6, 1)'
                     ],
                     borderWidth: 1
                 }]
