@@ -1060,7 +1060,7 @@ p {
 
 
     .table-orders .price-row.prMid:hover {
-        background-color: rgba(242, 217, 190, 0.15);
+        background-color: rgba(224, 168, 66, 0.15);
     }
 
 
@@ -1089,7 +1089,7 @@ p {
 }
 
 .prMid:hover {
-    background-color: rgba(242, 217, 190, 0.15);
+    background-color: rgba(224, 168, 66, 0.15);
 }
 
 .prToHigh:hover {
@@ -2871,8 +2871,8 @@ tr:last-child .sub-line {
     }
 
     .colorFilter:checked#prMidCheckbox {
-        background-color: rgba(242, 217, 190, 0.7);
-        border: 2px solid rgba(242, 217, 190, 1);
+        background-color: rgba(224, 168, 66, 0.7);
+        border: 2px solid rgba(224, 168, 66, 1);
     }
 
     .colorFilter:checked#prToHighCheckbox {
@@ -3015,7 +3015,7 @@ tr:last-child .sub-line {
 }
 
 .prMid .color-bar {
-    background-color: rgba(242, 217, 190, 0.7);
+    background-color: rgba(224, 168, 66, 0.7);
 }
 
 .prToHigh .color-bar {
@@ -3298,7 +3298,7 @@ tr:last-child .sub-line {
     }
 
     .price-range-settings .prMid-circle {
-        background-color: rgba(242, 217, 190, 0.7);
+        background-color: rgba(224, 168, 66, 0.7);
     }
 
 .store-section {

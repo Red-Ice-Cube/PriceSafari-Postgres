@@ -335,14 +335,14 @@
                     data: [colorCounts.prToHigh, colorCounts.prMid, colorCounts.prGood, colorCounts.prIdeal, colorCounts.prToLow],
                     backgroundColor: [
                         'rgba(171, 37, 32, 0.8)',
-                        'rgba(242, 217, 190, 0.8)',
+                        'rgba(224, 168, 66, 0.8)',
                         'rgba(117, 152, 112, 0.8)',
                         'rgba(0, 145, 123, 0.8)',
                         'rgba(6, 6, 6, 0.8)'
                     ],
                     borderColor: [
                         'rgba(171, 37, 32, 1)',
-                        'rgba(242, 217, 190, 1)',
+                        'rgba(224, 168, 66, 1)',
                         'rgba(117, 152, 112, 1)',
                         'rgba(0, 145, 123, 1)',
                         'rgba(6, 6, 6, 1)'
