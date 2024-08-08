@@ -208,10 +208,10 @@
                     <div class="form-check-orders">
                         <div>
                             <p><strong>ID Scrapowania:</strong> @latestScrap?.Id</p>
-                            <p><strong>Wykonano:</strong> @latestScrap?.Date</p>
-
+                            <p><strong>Wykonano:</strong> @latestScrap?.Date.ToString("dd.MM.yyyy")</p>
                         </div>
                     </div>
+
 
                   
 
@@ -311,7 +311,7 @@
                 <div id="updateProgress" style="display: none;">
                     <p>Proszę czekać, trwa aktualizacja...</p>
                     <div class="progress">
-                        <div id="progressBarInner" class="progress-bar" role="progressbar" style="width: 0%; background-color: #1B3C37;">
+                        <div id="progressBarInner" class="progress-bar" role="progressbar" style="width: 0%; background-color: #202430;">
                             0%
                         </div>
                     </div>
