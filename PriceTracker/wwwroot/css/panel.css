@@ -68,7 +68,7 @@ body {
 }
 
 .BigB {
-    color: white;
+    color: #fff;
     font-size: 22px;
     font-weight: 300;
 }
@@ -361,7 +361,7 @@ p {
     align-items: center;
     flex-shrink: 0;
     align-self: stretch;
-    background: linear-gradient(270deg, #0A2F29 0%, #041210 100%);
+    background: #222222;
     box-shadow: 0px 4px 4px 0px rgba(0, 0, 0, 0.25) inset;
 }
 
@@ -375,7 +375,7 @@ p {
     align-items: center;
     flex-shrink: 0;
     align-self: stretch;
-    background: linear-gradient(270deg, #0A2F29 0%, #041210 100%);
+    background: #222222;
     box-shadow: 0px 4px 4px 0px rgba(0, 0, 0, 0.25) inset;
 }
 
@@ -1008,8 +1008,9 @@ p {
         position: sticky;
         top: 0;
         z-index: 10;
-        background: #0A2F29;
+        background: #222222;
     }
+
 
         .table-orders thead th {
             padding-top: 12px;
@@ -1137,8 +1138,7 @@ p {
     .Button-Page-Small:hover {
         color: #fff;
         text-decoration: none;
-        background: #1B3C37;
-       
+        background: #323232;
     }
 
 .Button-Page-Small-icon {
@@ -1291,7 +1291,7 @@ p {
     align-items: center;
     justify-content: center;
     border-radius: 4px;
-    background: #1B3C37;
+    background: #454545;
     color: #fff;
     font-size: 14px;
     font-weight: 400;
@@ -1830,7 +1830,7 @@ p {
     align-content: center;
     align-self: stretch;
     padding-bottom: 6px;
-    border-bottom: 1px solid #F2D9BE;
+    border-bottom: 1px solid #fff;
 }
 
 .Sidebar-box-container {
@@ -1874,7 +1874,7 @@ p {
     padding: 0px;
     margin: 0px;
     border: none;
-    color: #fff;
+    color: #E3DBD2;
 }
 
 .img-container {
@@ -2048,7 +2048,7 @@ tr:last-child .sub-line {
 }
 
     #productSearch:focus {
-        border-color: #1B3C37;
+        border-color: #222222;
     }
 
 
@@ -2065,7 +2065,7 @@ tr:last-child .sub-line {
 }
 
     #storeSearch:focus {
-        border-color: #1B3C37;
+        border-color: #222222;
     }
 
 
@@ -2150,17 +2150,17 @@ tr:last-child .sub-line {
 }
 
 .links-underline {
-    color: #5C5C5C !important;
+    color: #222222 !important;
 }
 
     .links-underline:hover {
-        color: #1B3C37 !important;
+        color: #222222 !important;
     }
 
 .form-check-input {
     outline: none;
     box-shadow: none;
-    border: 1px solid #1B3C37;
+    border: 1px solid #222222;
     margin-right: 8px;
 }
 
@@ -2170,8 +2170,8 @@ tr:last-child .sub-line {
     }
 
     .form-check-input:checked {
-        border: 1px solid #1B3C37;
-        background-color: #1B3C37;
+        border: 1px solid #222222;
+        background-color: #222222;
         box-shadow: none;
     }
 
@@ -2180,7 +2180,7 @@ tr:last-child .sub-line {
 }
 
     .checkbox:hover {
-        color: #1B3C37;
+        color: #222222;
     }
 
 .checkbox-blank {
@@ -2951,8 +2951,8 @@ tr:last-child .sub-line {
     padding-left: 8px;
     padding-right: 8px;
     border-radius: 4px;
-    background: rgba(27, 60, 55, 0.9);
-    border: solid 2px rgba(27, 60, 55, 1);
+    background: rgba(34, 34, 34, 0.8);
+    border: solid 2px rgba(34, 34, 34, 1);
 }
     
 
@@ -3172,8 +3172,8 @@ tr:last-child .sub-line {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    background: rgba(27, 60, 55, 0.9);
-    border: solid 2px rgba(27, 60, 55, 1);
+    background: rgba(34, 34, 34, 0.8);
+    border: solid 2px rgba(34, 34, 34, 1);
     font-size: 11px;
     font-weight: 500;
     color: white;

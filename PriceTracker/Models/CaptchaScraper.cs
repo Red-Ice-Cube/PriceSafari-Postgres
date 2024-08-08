@@ -1,6 +1,5 @@
 ﻿using PuppeteerSharp;
 using System.Globalization;
-using System.Linq;
 using System.Text.RegularExpressions;
 
 namespace PriceTracker.Models
@@ -214,7 +213,7 @@ namespace PriceTracker.Models
                     if (shippingNode != null)
                     {
                         var shippingText = await shippingNode.EvaluateFunctionAsync<string>("el => el.innerText");
-                        if (shippingText.Contains("DARMOWA WYSYŁKA") || shippingText.Contains("bezpłatna dostawa"))
+                        if (shippingText.Contains("Darmowa wysyłka") || shippingText.Contains("bezpłatna dostawa"))
                         {
                             shippingCostNum = 0.00m;
                         }
