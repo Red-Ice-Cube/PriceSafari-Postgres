@@ -22,25 +22,25 @@
                 </div>
                 <div class="store-section">
                     <div class="form-check">
-                        <input class="form-check-input colorFilter" type="checkbox" id="prToHighCheckbox" value="prToHigh">
+                        <input class="form-check-input colorFilter" type="checkbox" id="prToHighCheckbox" value="prToHigh" checked>
                         <label class="form-check-label" for="prToHighCheckbox">Zawyżona </label>
                     </div>
 
                     <div class="form-check">
-                        <input class="form-check-input colorFilter" type="checkbox" id="prMidCheckbox" value="prMid">
+                        <input class="form-check-input colorFilter" type="checkbox" id="prMidCheckbox" value="prMid" checked>
                         <label class="form-check-label" for="prMidCheckbox">Suboptymalna </label>
                     </div>
 
                     <div class="form-check">
-                        <input class="form-check-input colorFilter" type="checkbox" id="prGoodCheckbox" value="prGood">
+                        <input class="form-check-input colorFilter" type="checkbox" id="prGoodCheckbox" value="prGood" checked>
                         <label class="form-check-label" for="prGoodCheckbox">Konkurencyjna </label>
                     </div>
                     <div class="form-check">
-                        <input class="form-check-input colorFilter" type="checkbox" id="prIdealCheckbox" value="prIdeal">
+                        <input class="form-check-input colorFilter" type="checkbox" id="prIdealCheckbox" value="prIdeal" checked>
                         <label class="form-check-label" for="prIdealCheckbox">Strategiczna </label>
                     </div>
                     <div class="form-check">
-                        <input class="form-check-input colorFilter" type="checkbox" id="prToLowCheckbox" value="prToLow">
+                        <input class="form-check-input colorFilter" type="checkbox" id="prToLowCheckbox" value="prToLow" checked>
                         <label class="form-check-label" for="prToLowCheckbox">Zaniżona </label>
                     </div>
                     <div class="price-range-settings">
@@ -55,6 +55,7 @@
                     </div>
                     <button class="Button-Page-Small" style="margin-top: 16px;" id="savePriceValues">Zapisz</button>
                 </div>
+
                 <div class="filterBox">
 
                     <div class="Category-Container-Select" style="margin-top:-2px;">Flagi  <a asp-controller="Flags" asp-action="List" asp-route-storeId="@ViewBag.StoreId" class="link-line">+ Dodaj Flage</a></div>

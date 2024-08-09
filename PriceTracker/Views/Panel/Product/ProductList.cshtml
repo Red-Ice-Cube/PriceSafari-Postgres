@@ -13,7 +13,7 @@
         justify-content: center;
         background: rgba(128, 0, 128, 0.3);
         border: solid 2px rgba(128, 0, 128, 1);
-        font-size: 13px;
+        font-size: 14px;
         font-weight: 500;
         color: rgba(128, 0, 128, 1);
         
@@ -28,7 +28,7 @@
         justify-content: center;
         background: rgba(14, 126, 135, 0.3);
         border: solid 2px rgba(14, 126, 135, 1);
-        font-size: 13px;
+        font-size: 14px;
         font-weight: 500;
         color: rgba(14, 126, 135, 1);
     }
@@ -41,7 +41,7 @@
         justify-content: center;
         background: rgba(238, 17, 17, 0.3);
         border: solid 2px rgba(238, 17, 17, 1);
-        font-size: 13px;
+        font-size: 14px;
         font-weight: 500;
         color: rgba(238, 17, 17, 1);
     }
@@ -54,7 +54,7 @@
         justify-content: center;
         background: rgba(128, 128, 128, 0.3);
         border: solid 2px rgba(128, 128, 128, 1);
-        font-size: 13px;
+        font-size: 14px;
         font-weight: 500;
         color: rgba(128, 128, 128, 1);
     }
@@ -98,28 +98,26 @@
                 Lista produktów @ViewBag.StoreName
                 <div class="bar-List">
                     <div>
-                        <strong>Przypisano: </strong><span id="scrapable-count"></span>
-                    </div>
-                    <div>
                         <strong>Łącznie produktów: </strong><span id="total-products"></span>
                     </div>
                     <div>
-                        <strong>Odrzuconych: </strong><span id="rejected-count"></span>
+                        <strong>Przypisano: </strong><span id="scrapable-count"></span>
                     </div>
+                  
+                  
                 </div>
             </div>
 
             <div>
+                <button id="select-all" class="Button-Page-Small-b">Zaznacz wszystkie</button>
+                <button id="deselect-all" class="Button-Page-Small-r">Odznacz wszystkie</button>
                 <input type="text" id="productSearch" placeholder="Wyszukaj produkt" />
             </div>
         </div>
 
         <div class="price-box-space">
-            <div class="bar-List">
-                <button id="select-all" class="Button-Page-Small-b">Zaznacz wszystkie</button>
-                <button id="deselect-all" class="Button-Page-Small-r">Odznacz wszystkie</button>
-            </div>
-            <div>
+          
+            
                 <div class="store-section">
 
                     <div class="form-check">
@@ -130,7 +128,7 @@
                         <input class="form-check-input status-filter" type="checkbox" id="inactive" value="inactive" data-status="inactive" checked>
                         <label class="form-check-label" for="inactive">Nieaktywny (<span id="count-inactive">0</span>) </label>
                     </div>
-
+             
                     <div class="form-check">
                         <input class="form-check-input status-filter" type="checkbox" id="active-rejected" value="active-rejected" data-status="active-rejected" checked>
                         <label class="form-check-label" for="active-rejected">Odrzucony (<span id="count-active-rejected">0</span>) </label>
@@ -140,8 +138,8 @@
                         <label class="form-check-label" for="inactive-rejected">Wyłączony (<span id="count-inactive-rejected">0</span>) </label>
                     </div>
                 </div>
-            </div>
-
+            
+          
         </div>
 
         <div class="Vert-table">
@@ -192,7 +190,7 @@
 
                 document.getElementById('scrapable-count').textContent = scrapableCount;
                 document.getElementById('total-products').textContent = totalProducts;
-                document.getElementById('rejected-count').textContent = rejectedCount;
+           
             }
 
 
