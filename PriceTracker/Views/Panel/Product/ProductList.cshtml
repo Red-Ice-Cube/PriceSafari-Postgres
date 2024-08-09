@@ -3,6 +3,94 @@
     Layout = "~/Views/Shared/_PanelLayout.cshtml";
 }
 
+
+<style>
+    .StatusBoxProduct-1 {
+        display: inline-flex;
+        padding: 2px 5px;
+        border-radius: 4px;
+        align-items: center;
+        justify-content: center;
+        background: rgba(128, 0, 128, 0.3);
+        border: solid 2px rgba(128, 0, 128, 1);
+        font-size: 13px;
+        font-weight: 500;
+        color: rgba(128, 0, 128, 1);
+        
+
+    }
+
+    .StatusBoxProduct-2 {
+        display: inline-flex;
+        padding: 2px 5px;
+        border-radius: 4px;
+        align-items: center;
+        justify-content: center;
+        background: rgba(14, 126, 135, 0.3);
+        border: solid 2px rgba(14, 126, 135, 1);
+        font-size: 13px;
+        font-weight: 500;
+        color: rgba(14, 126, 135, 1);
+    }
+
+    .StatusBoxProduct-3 {
+        display: inline-flex;
+        padding: 2px 5px;
+        border-radius: 4px;
+        align-items: center;
+        justify-content: center;
+        background: rgba(238, 17, 17, 0.3);
+        border: solid 2px rgba(238, 17, 17, 1);
+        font-size: 13px;
+        font-weight: 500;
+        color: rgba(238, 17, 17, 1);
+    }
+
+    .StatusBoxProduct-4 {
+        display: inline-flex;
+        padding: 2px 5px;
+        border-radius: 4px;
+        align-items: center;
+        justify-content: center;
+        background: rgba(128, 128, 128, 0.3);
+        border: solid 2px rgba(128, 128, 128, 1);
+        font-size: 13px;
+        font-weight: 500;
+        color: rgba(128, 128, 128, 1);
+    }
+
+
+
+    .scrapable-checkbox {
+        appearance: none; /* Usuwa domyślny wygląd checkboxa */
+        width: 44px;
+        height: 44px;
+        background-color: red;
+        border: 2px solid black;
+        border-radius: 24px;
+        position: relative;
+        cursor: pointer;
+    }
+
+        .scrapable-checkbox:checked {
+            background-color: red;
+        }
+
+            .scrapable-checkbox:checked::after {
+                content: "";
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                width: 40px;
+                height: 40px;
+                background-color: green;
+                border-radius: 24px;
+            }
+
+
+</style>
+
 <div class="Vert">
     <div class="Vert-full">
         <div class="price-box-space">
@@ -32,38 +120,45 @@
                 <button id="deselect-all" class="Button-Page-Small-r">Odznacz wszystkie</button>
             </div>
             <div>
-                <div>
-                    <label>Scrapować:</label>
-                    <label><input type="radio" name="filter-scrapable" value="all" checked /> Wszystko</label>
-                    <label><input type="radio" name="filter-scrapable" value="yes" /> Tak</label>
-                    <label><input type="radio" name="filter-scrapable" value="no" /> Nie</label>
+                <div class="store-section">
+
+                    <div class="form-check">
+                        <input class="form-check-input status-filter" type="checkbox" id="active" value="active" data-status="active" checked>
+                        <label class="form-check-label" for="active">Aktywny (<span id="count-active">0</span>) </label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input status-filter" type="checkbox" id="inactive" value="inactive" data-status="inactive" checked>
+                        <label class="form-check-label" for="inactive">Nieaktywny (<span id="count-inactive">0</span>) </label>
+                    </div>
+
+                    <div class="form-check">
+                        <input class="form-check-input status-filter" type="checkbox" id="active-rejected" value="active-rejected" data-status="active-rejected" checked>
+                        <label class="form-check-label" for="active-rejected">Odrzucony (<span id="count-active-rejected">0</span>) </label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input status-filter" type="checkbox" id="inactive-rejected" value="inactive-rejected" data-status="inactive-rejected" checked>
+                        <label class="form-check-label" for="inactive-rejected">Wyłączony (<span id="count-inactive-rejected">0</span>) </label>
+                    </div>
                 </div>
-
-                <div>
-
-                    <label>Odrzucony:</label>
-                    <label><input type="radio" name="filter-rejected" value="all" checked /> Wszystko</label>
-                    <label><input type="radio" name="filter-rejected" value="yes" /> Tak</label>
-                    <label><input type="radio" name="filter-rejected" value="no" /> Nie</label>
-                </div>
-
             </div>
+
         </div>
 
         <div class="Vert-table">
             <table class="table-orders">
                 <thead>
                     <tr>
-                        <th></th>
                         <th>Produkt (<span id="displayed-count"></span>)</th>
+                        <th></th>                     
                         <th>Ean</th>
                         <th>Oznaczenie</th>
                         <th>Ceno</th>
                         <th>@ViewBag.StoreName</th>
-                        <th>Scrapować</th>
-                        <th>Odrzucony</th>
+                        <th>Scrapować</th>                    
+                        <th>Status</th> 
                     </tr>
                 </thead>
+
                 <tbody id="product-list">
                 </tbody>
             </table>
@@ -77,35 +172,47 @@
             var storeId = @ViewBag.StoreId;
             var selectAllButton = document.getElementById('select-all');
             var deselectAllButton = document.getElementById('deselect-all');
-            var filterScrapableRadios = document.getElementsByName('filter-scrapable');
-            var filterRejectedRadios = document.getElementsByName('filter-rejected');
             var searchInput = document.getElementById('productSearch');
-            var scrapableCount = 0;
-            var totalProducts = 0;
-            var rejectedCount = 0;
             var allProducts = [];
 
             function updateCounters(products) {
-                scrapableCount = products.filter(p => p.isScrapable).length;
-                rejectedCount = products.filter(p => p.isRejected).length;
-                totalProducts = products.length;
+                var activeRejectedCount = products.filter(p => p.isScrapable && p.isRejected).length;
+                var activeCount = products.filter(p => p.isScrapable && !p.isRejected).length;
+                var inactiveRejectedCount = products.filter(p => !p.isScrapable && p.isRejected).length;
+                var inactiveCount = products.filter(p => !p.isScrapable && !p.isRejected).length;
+
+                document.getElementById('count-active-rejected').textContent = activeRejectedCount;
+                document.getElementById('count-active').textContent = activeCount;
+                document.getElementById('count-inactive-rejected').textContent = inactiveRejectedCount;
+                document.getElementById('count-inactive').textContent = inactiveCount;
+
+                var scrapableCount = activeRejectedCount + activeCount;
+                var rejectedCount = activeRejectedCount + inactiveRejectedCount;
+                var totalProducts = products.length;
+
                 document.getElementById('scrapable-count').textContent = scrapableCount;
                 document.getElementById('total-products').textContent = totalProducts;
                 document.getElementById('rejected-count').textContent = rejectedCount;
             }
 
-            function updateRowColor(row, isScrapable, isRejected) {
-                var bgColor = isScrapable && isRejected ? "rgba(128, 0, 128, 0.3)" :
-                    isScrapable ? "rgba(14, 126, 135, 0.3)" :
-                        isRejected ? "rgba(238, 17, 17, 0.3)" : "rgba(128, 128, 128, 0.3)";
-                row.style.backgroundColor = bgColor;
-            }
 
             function highlightMatches(text, searchTerm) {
                 if (!searchTerm) return text;
                 const sanitizedSearchTerm = searchTerm.replace(/[^a-zA-Z0-9\s.-]/g, '');
                 const regex = new RegExp(`(${sanitizedSearchTerm})`, 'gi');
                 return text.replace(regex, '<span style="color: #9400D3; font-weight: 600;">$1</span>');
+            }
+
+            function getProductStatus(product) {
+                if (product.isScrapable && product.isRejected) {
+                    return "active-rejected";
+                } else if (product.isScrapable) {
+                    return "active";
+                } else if (product.isRejected) {
+                    return "inactive-rejected";
+                } else {
+                    return "inactive";
+                }
             }
 
             function renderProducts(products, searchTerm = "") {
@@ -116,22 +223,36 @@
                     row.classList.add('product-row');
                     row.setAttribute('data-scrapable', product.isScrapable);
                     row.setAttribute('data-rejected', product.isRejected);
-                    updateRowColor(row, product.isScrapable, product.isRejected);
 
                     var highlightedProductName = highlightMatches(product.productName, searchTerm);
 
-                    var offerUrlButton = product.offerUrl ? `<a href="${product.offerUrl}" class="Button-Page-Small-o" target="_blank">Ceneo</a>` : '';
-                    var urlButton = product.url ? `<a href="${product.url}" class="Button-Page-Small-b" target="_blank">Strona</a>` : '';
+                    var offerUrlButton = product.offerUrl ? `<a href="${product.offerUrl}" class="Button-Page-Small" target="_blank">Ceneo</a>` : '';
+                    var urlButton = product.url ? `<a href="${product.url}" class="Button-Page-Small" target="_blank">Strona</a>` : '';
                     var catalogNumber = product.catalogNumber ? product.catalogNumber : '';
                     var ean = product.ean ? product.ean : '';
-
                     var imageUrl = product.mainUrl ? product.mainUrl : '';
-
                     var imageCell = imageUrl ? `<img src="${imageUrl}" style="width: 90px; height: 90px; object-fit: contain; background-color: white;" />` : `<div style="width: 90px; height: 90px;"></div>`;
 
+                    var statusBoxClass = "";
+                    var statusText = "";
+
+                    if (product.isScrapable && product.isRejected) {
+                        statusBoxClass = "StatusBoxProduct-1";
+                        statusText = "Odrzucony";
+                    } else if (product.isScrapable) {
+                        statusBoxClass = "StatusBoxProduct-2";
+                        statusText = "Aktywny";
+                    } else if (product.isRejected) {
+                        statusBoxClass = "StatusBoxProduct-3";
+                        statusText = "Wyłączony";
+                    } else {
+                        statusBoxClass = "StatusBoxProduct-4";
+                        statusText = "Nieaktywny";
+                    }
+
                     row.innerHTML = `
-                        <td>${imageCell}</td>
                         <td>${highlightedProductName}</td>
+                        <td>${imageCell}</td>
                         <td>${ean}</td>
                         <td>${catalogNumber}</td>
                         <td>${offerUrlButton}</td>
@@ -139,7 +260,7 @@
                         <td>
                             <input type="checkbox" class="scrapable-checkbox" data-product-id="${product.productId}" ${product.isScrapable ? "checked" : ""} />
                         </td>
-                        <td>${product.isRejected ? "Tak" : "Nie"}</td>
+                        <td><div class="${statusBoxClass}">${statusText}</div></td> <!-- Nowa kolumna Status z boksem -->
                     `;
 
                     row.querySelector('.scrapable-checkbox').addEventListener('change', function () {
@@ -158,7 +279,6 @@
                                     alert(data.message || 'Wystąpił błąd podczas aktualizacji statusu scrapowania.');
                                     this.checked = !this.checked;
                                 } else {
-                                    updateRowColor(row, data.newIsScrapable, product.isRejected);
                                     fetchProducts();
                                 }
                             })
@@ -172,6 +292,22 @@
                 document.getElementById('displayed-count').textContent = products.length;
             }
 
+            function filterRows() {
+                var selectedStatuses = Array.from(document.querySelectorAll('.status-filter:checked'))
+                    .map(checkbox => checkbox.getAttribute('data-status'));
+
+                var searchTerm = searchInput.value;
+                var filteredProducts = filterProductsByName(searchTerm);
+
+                var displayedProducts = filteredProducts.filter(product => {
+                    var productStatus = getProductStatus(product);
+                    return selectedStatuses.length === 0 || selectedStatuses.includes(productStatus);
+                });
+
+                renderProducts(displayedProducts, searchTerm);
+                updateDisplayedCount(displayedProducts.length);
+            }
+
             function filterProductsByName(name) {
                 const sanitizedInput = name.replace(/[^a-zA-Z0-9\s.-]/g, '').trim();
                 const sanitizedInputLowerCase = sanitizedInput.toLowerCase().replace(/\s+/g, '');
@@ -182,31 +318,6 @@
                 });
             }
 
-            function filterRows() {
-                var selectedScrapable = document.querySelector('input[name="filter-scrapable"]:checked').value;
-                var selectedRejected = document.querySelector('input[name="filter-rejected"]:checked').value;
-                var searchTerm = searchInput.value;
-
-                var filteredProducts = filterProductsByName(searchTerm);
-
-                var displayedProducts = filteredProducts.filter(product => {
-                    var scrapableMatch = (selectedScrapable === 'all') ||
-                        (selectedScrapable === 'yes' && product.isScrapable) ||
-                        (selectedScrapable === 'no' && !product.isScrapable);
-                    var rejectedMatch = (selectedRejected === 'all') ||
-                        (selectedRejected === 'yes' && product.isRejected) ||
-                        (selectedRejected === 'no' && !product.isRejected);
-
-                    return scrapableMatch && rejectedMatch;
-                });
-
-                renderProducts(displayedProducts, searchTerm);
-                updateDisplayedCount(displayedProducts.length);
-            }
-
-            function updateDisplayedCount(count) {
-                document.getElementById('displayed-count').textContent = count;
-            }
 
             function fetchProducts() {
                 fetch('@Url.Action("GetProducts", "Product")?storeId=' + storeId)
@@ -221,12 +332,9 @@
                     });
             }
 
-            filterScrapableRadios.forEach(function (radio) {
-                radio.addEventListener('change', filterRows);
-            });
-
-            filterRejectedRadios.forEach(function (radio) {
-                radio.addEventListener('change', filterRows);
+            // Dodaj nasłuchiwanie na checkboxy statusów
+            document.querySelectorAll('.status-filter').forEach(function (checkbox) {
+                checkbox.addEventListener('change', filterRows);
             });
 
             searchInput.addEventListener('input', filterRows);
@@ -287,7 +395,6 @@
 
             fetchProducts();
         });
-
 
     </script>
 }
