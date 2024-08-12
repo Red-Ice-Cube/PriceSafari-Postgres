@@ -52,7 +52,7 @@
 
 .login {
     display: flex;
-    padding: 16px 24px;
+    padding: 24px 20px;
     align-self: stretch;
     flex: 1;
     flex-direction: column;
