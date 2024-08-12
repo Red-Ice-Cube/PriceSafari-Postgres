@@ -14,7 +14,7 @@
 function loadScrapHistoryOptions(storeId, competitorStoreName) {
     fetch(`/Competitors/GetScrapHistoryIds?storeId=${storeId}`)
         .then(response => response.json())
-        .then(scrapHistoryIds => {
+        .then(scrapHistoryIds => {1
             const container = document.getElementById('scrapHistoryCheckboxes');
             let firstCheckbox = null;
 
@@ -239,7 +239,7 @@ function displayProducts(products) {
             td.innerHTML = tdContent;
             td.classList.add('nowrap');
 
-            // Przeniesienie całego bloku przy kliknięciu
+         
             td.addEventListener('click', () => {
                 const url = `/PriceHistory/Details?productId=${productId}&scrapId=${id}`;
                 window.open(url, '_blank');

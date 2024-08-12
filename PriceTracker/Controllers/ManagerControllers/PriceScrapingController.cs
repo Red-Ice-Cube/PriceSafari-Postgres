@@ -242,6 +242,11 @@ public async Task<IActionResult> StartScraping(int storeId)
         _cancellationTokenSource = new CancellationTokenSource();
     }
 
+
+
+
+
+
     [HttpPost]
     public IActionResult StopScraping()
     {

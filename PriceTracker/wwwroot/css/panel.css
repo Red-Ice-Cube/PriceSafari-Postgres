@@ -21,7 +21,6 @@ body {
     margin-bottom: 60px;
 }
 
-
 body {
     display: flex;
     width: 100%;
@@ -104,9 +103,6 @@ p {
     overflow-y: auto;
 }
 
-
-
-
 .link-line {
     display: flex;
     justify-content: center;
@@ -123,12 +119,6 @@ p {
         color: #1B3C37;
         font-weight: 300
     }
-
-
-
-
-
-
 
 .Vert {
     display: flex;
@@ -150,8 +140,6 @@ p {
     align-self: stretch;
     min-width: 720px;
 }
-
-
 
 .Vert::-webkit-scrollbar {
     width: 4px;
@@ -209,7 +197,7 @@ p {
     align-items: center;
     gap: 10px;
     align-self: stretch;
-    height:89vh;
+    height: 89vh;
 }
 
 .Category-Box-Title {
@@ -858,7 +846,6 @@ p {
     box-shadow: 0px 4px 4px 0px rgba(0, 0, 0, 0.15);
 }
 
-
 .Charts-Box-Bar {
     display: flex;
     padding: 16px;
@@ -878,7 +865,6 @@ p {
     flex-shrink: 0;
     align-self: stretch;
 }
-
 
 .table-clicks {
     width: 100%;
@@ -923,7 +909,6 @@ p {
     .table-clicks tbody tr:nth-child(3) td:first-child::before {
         background-color: rgba(246, 78, 101, 0.5);
     }
-
 
 .Vert-full {
     display: flex;
@@ -1011,7 +996,6 @@ p {
         background: #222222;
     }
 
-
         .table-orders thead th {
             padding-top: 12px;
             padding-bottom: 12px;
@@ -1050,39 +1034,25 @@ p {
         cursor: pointer;
     }
 
-
-
-
     .table-orders .price-row.prGood:hover {
         background-color: rgba(117, 152, 112, 0.15);
     }
-
-
 
     .table-orders .price-row.prMid:hover {
         background-color: rgba(224, 168, 66, 0.15);
     }
 
-
-
     .table-orders .price-row.prToHigh:hover {
         background-color: rgba(171, 37, 32, 0.15);
     }
-
-
 
     .table-orders .price-row.prToLow:hover {
         background-color: rgba(6, 6, 6, 0.15);
     }
 
-
-
     .table-orders .price-row.prIdeal:hover {
         background-color: rgba(0, 145, 123, 0.15);
     }
-
-
-
 
 .prGood:hover {
     background-color: rgba(117, 152, 112, 0.15);
@@ -1103,8 +1073,6 @@ p {
 .prIdeal:hover {
     background-color: rgba(0, 145, 123, 0.15);
 }
-
-
 
 .p-category {
     color: #282828;
@@ -1242,7 +1210,6 @@ p {
         text-decoration: none;
         background: #E3463A;
     }
-
 
 .Button-Page-Small-b {
     display: inline-flex;
@@ -1392,8 +1359,8 @@ p {
     gap: 16px;
     flex: 1;
     flex-wrap: wrap;
-
 }
+
 .Horizontal-x {
     display: flex;
     align-self: stretch;
@@ -1443,8 +1410,6 @@ p {
     color: #8A2BE2;
 }
 
-
-
 .button-Box {
     display: flex;
     height: 40px;
@@ -1479,7 +1444,6 @@ p {
     justify-content: center;
     align-self: stretch;
 }
-
 
 .Order-Container-Title {
     display: flex;
@@ -1592,7 +1556,6 @@ p {
             background: #eee;
         }
 
-
 .affiliate-wrapper {
     display: flex;
     gap: 16px;
@@ -1702,7 +1665,6 @@ p {
     max-width: 95%;
 }
 
-
 .Vert-Line-w {
     display: flex;
     width: 1px;
@@ -1752,7 +1714,6 @@ p {
     display: block;
     margin: 0 auto;
 }
-
 
 #storeLogoDisplay {
     width: 400px;
@@ -1811,8 +1772,6 @@ p {
     .DropDown:focus {
         border: 1px solid #1B3C37;
     }
-
-
 
 .Sidebar-box {
     display: flex;
@@ -1894,7 +1853,6 @@ p {
         margin-left: auto;
     }
 
-
 .img-container-product {
     display: flex;
     height: 22px;
@@ -1912,7 +1870,6 @@ p {
         margin-left: auto;
     }
 
-
 .View-Panel {
     display: flex;
     flex-direction: column;
@@ -1921,8 +1878,6 @@ p {
     width: 100%;
     gap: 16px;
 }
-
-
 
 .campaign-summary-line-icon {
     display: flex;
@@ -1937,14 +1892,10 @@ p {
     padding: 4px;
 }
 
-
-
 .table-container {
     display: none;
     margin-top: 31px;
 }
-
-
 
 .table-bordered {
     margin-left: 58px;
@@ -2032,11 +1983,7 @@ tr:last-child .sub-line {
     border-radius: 4px;
 }
 
-
-
-
 #productSearch {
-
     border: 1px solid #ccc;
     padding: 5px 12px;
     border-radius: 4px;
@@ -2044,14 +1991,12 @@ tr:last-child .sub-line {
     color: #4B4B4B;
     font-size: 14px;
     font-weight: 400;
-    height:33px;
+    height: 33px;
 }
 
     #productSearch:focus {
         border-color: #222222;
     }
-
-
 
 #storeSearch {
     border: 1px solid #ccc;
@@ -2067,7 +2012,6 @@ tr:last-child .sub-line {
     #storeSearch:focus {
         border-color: #222222;
     }
-
 
 .sort-icon {
     cursor: pointer;
@@ -2087,9 +2031,6 @@ tr:last-child .sub-line {
     font-weight: 400;
     flex-direction: column;
 }
-
-
-
 
 .Vert-2 {
     display: flex;
@@ -2224,7 +2165,6 @@ tr:last-child .sub-line {
         font-weight: 400;
     }
 
-
 .Category-Container-Title {
     display: flex;
     align-items: flex-start;
@@ -2237,13 +2177,13 @@ tr:last-child .sub-line {
 .Category-Container-Select {
     display: flex;
     align-items: flex-start;
-    justify-content:space-between;
+    justify-content: space-between;
     align-self: stretch;
     color: rgba(0, 0, 0, 1);
     font-size: 15px;
     font-weight: 500;
-    margin-top:20px;
-    margin-bottom:8px;
+    margin-top: 20px;
+    margin-bottom: 8px;
 }
 
 .button-plain {
@@ -2268,7 +2208,6 @@ tr:last-child .sub-line {
     font-weight: 400;
 }
 
-
 .Generate-Box {
     display: flex;
     width: 284px;
@@ -2283,7 +2222,6 @@ tr:last-child .sub-line {
     height: 95vh;
     max-height: 95vh;
 }
-
 
 .form-check {
     display: flex;
@@ -2303,7 +2241,6 @@ tr:last-child .sub-line {
     align-self: stretch;
     flex-wrap: wrap;
 }
-
 
 .table-products {
     width: 100%;
@@ -2438,7 +2375,6 @@ tr:last-child .sub-line {
         border-color: #41C7C7;
     }
 
-
 #campaignName {
     width: 100%;
     border: 1px solid #ccc;
@@ -2454,9 +2390,6 @@ tr:last-child .sub-line {
     #campaignName:focus {
         border-color: #41C7C7;
     }
-
-
-
 
 .MemberStyle {
     display: inline-flex;
@@ -2517,7 +2450,6 @@ tr:last-child .sub-line {
     min-width: 400px;
 }
 
-
 .Charts-Box-Bar-a {
     display: flex;
     height: 180px;
@@ -2525,7 +2457,6 @@ tr:last-child .sub-line {
     min-width: 90%;
     max-width: 95%;
 }
-
 
 .Statistics-box-mini-a {
     display: flex;
@@ -2607,7 +2538,6 @@ tr:last-child .sub-line {
     min-width: 400px;
 }
 
-
 .value-box {
     display: inline-flex;
     justify-content: center;
@@ -2621,8 +2551,6 @@ tr:last-child .sub-line {
     background: #e3e3e3;
     width: 100px;
 }
-
-
 
 .Column-Box {
     display: flex;
@@ -2692,7 +2620,6 @@ tr:last-child .sub-line {
     font-weight: 400;
 }
 
-
 .checkerboard {
     overflow: hidden;
     width: 500px;
@@ -2736,7 +2663,6 @@ tr:last-child .sub-line {
     cursor: ew-resize;
 }
 
-
 .Vert-Style {
     display: flex;
     flex-direction: column;
@@ -2746,7 +2672,6 @@ tr:last-child .sub-line {
     overflow-y: auto;
     gap: 36px;
 }
-
 
     .Vert-Style::-webkit-scrollbar {
         width: 10px;
@@ -2766,7 +2691,6 @@ tr:last-child .sub-line {
         .Vert-Style::-webkit-scrollbar-thumb:hover {
             background: #777;
         }
-
 
 .chart-container-cam {
     display: flex;
@@ -2808,8 +2732,6 @@ tr:last-child .sub-line {
     width: 0;
 }
 
-
-
 .progress {
     width: 100%;
     height: 32px;
@@ -2817,11 +2739,9 @@ tr:last-child .sub-line {
     border: 1px solid #4E4E4E;
     border-radius: 4px;
     position: relative;
-    margin-top:16px;
-    margin-bottom:16px;
+    margin-top: 16px;
+    margin-bottom: 16px;
 }
-
-
 
 .bar-List {
     display: flex;
@@ -2830,10 +2750,8 @@ tr:last-child .sub-line {
     flex: 1;
     width: 100%;
     gap: 16px;
-    font-size:15px;
+    font-size: 15px;
 }
-
-
 
 .flagFilter {
     outline: none;
@@ -2844,7 +2762,6 @@ tr:last-child .sub-line {
     height: 16px;
 }
 
-
 .flagCheckbox {
     outline: none;
     background-color: white;
@@ -2853,8 +2770,6 @@ tr:last-child .sub-line {
     width: 16px;
     height: 16px;
 }
-
-
 
 .colorFilter {
     outline: none;
@@ -2890,7 +2805,6 @@ tr:last-child .sub-line {
         border: 2px solid rgba(0, 145, 123, 1);
     }
 
-
 .status-filter {
     outline: none;
     background-color: white;
@@ -2899,7 +2813,6 @@ tr:last-child .sub-line {
     width: 16px;
     height: 16px;
 }
-
 
     .status-filter:checked#active {
         background-color: rgba(14, 126, 135, 0.7);
@@ -2921,16 +2834,14 @@ tr:last-child .sub-line {
         border: 2px solid rgba(238, 17, 17, 1);
     }
 
-
-
-
-
-
 .price-container {
     display: flex;
     flex-wrap: wrap;
     gap: 16px;
 }
+
+
+
 
 .price-box {
     border: 1px solid #ccc;
@@ -2969,13 +2880,8 @@ tr:last-child .sub-line {
     min-width: 160px;
     padding-left: 8px;
     padding-right: 8px;
-   border-radius:4px;
+    border-radius: 4px;
 }
-
-
-
-
-
 
 .price-box-column-api {
     display: flex;
@@ -2989,9 +2895,6 @@ tr:last-child .sub-line {
     background: rgba(34, 34, 34, 0.8);
     border: solid 2px rgba(34, 34, 34, 1);
 }
-    
-
-
 
 .price-box-column-line {
     width: 1px;
@@ -3000,11 +2903,10 @@ tr:last-child .sub-line {
 }
 
 .price-box-space {
-    display:flex;
-    justify-content:space-between;
+    display: flex;
+    justify-content: space-between;
     width: 100%;
 }
-
 
 .price-box-column-name {
     font-weight: 300;
@@ -3012,8 +2914,8 @@ tr:last-child .sub-line {
 }
 
 .price-box-column-name-com {
-    display:flex;
-    min-width:350px;
+    display: flex;
+    min-width: 350px;
     font-weight: 300;
     font-size: 18px;
 }
@@ -3037,12 +2939,10 @@ tr:last-child .sub-line {
     color: #fff;
 }
 
-
-
 .color-bar {
     width: 14px;
     height: 100%;
-    min-height:30px;
+    min-height: 30px;
 }
 
 .prGood .color-bar {
@@ -3065,13 +2965,6 @@ tr:last-child .sub-line {
     background-color: rgba(0, 145, 123, 0.7);
 }
 
-
-
-
-
-
-
-
 .side-chart-box {
     width: 140px;
     height: 140px;
@@ -3091,8 +2984,8 @@ tr:last-child .sub-line {
     font-weight: 500;
 }
 
-.assign-flag-button {  
-    display: inline-block;    
+.assign-flag-button {
+    display: inline-block;
     padding: 4px 6px;
     align-items: center;
     justify-content: center;
@@ -3104,7 +2997,6 @@ tr:last-child .sub-line {
     background: #e3e3e3;
     border: none;
 }
-
 
 .flags-container {
     display: flex;
@@ -3136,12 +3028,11 @@ tr:last-child .sub-line {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    font-size:11px;
+    font-size: 11px;
     margin: 2px;
     background: #8E0C0C;
     color: #fff;
 }
-
 
 .Bidding,
 .Position,
@@ -3163,7 +3054,6 @@ tr:last-child .sub-line {
     color: #fff;
 }
 
-
 .Bidding {
     background: #FF662B;
 }
@@ -3173,7 +3063,7 @@ tr:last-child .sub-line {
 }
 
 .FreeShipping {
-    background: #006400; 
+    background: #006400;
 }
 
 .PaidShipping {
@@ -3185,7 +3075,7 @@ tr:last-child .sub-line {
 }
 
 .Availability1Day {
-    background: #006400; 
+    background: #006400;
 }
 
 .Availability3Days {
@@ -3214,8 +3104,6 @@ tr:last-child .sub-line {
     color: white;
 }
 
-
-
 .positionFilter {
     outline: none;
     background-color: white;
@@ -3233,7 +3121,6 @@ tr:last-child .sub-line {
     width: 16px;
     height: 16px;
 }
-
 
 .bidFilter {
     outline: none;
@@ -3253,7 +3140,6 @@ tr:last-child .sub-line {
     height: 16px;
 }
 
-
 .deliveryFilterCompetitor, .externalPriceFilter {
     outline: none;
     background-color: white;
@@ -3263,8 +3149,6 @@ tr:last-child .sub-line {
     height: 16px;
 }
 
-
-
 .filterBox {
     display: flex;
     padding: 10px 0;
@@ -3272,7 +3156,6 @@ tr:last-child .sub-line {
     overflow-y: auto;
     max-height: 100%;
 }
-
 
     .filterBox::-webkit-scrollbar {
         width: 12px;
@@ -3295,7 +3178,6 @@ tr:last-child .sub-line {
         .filterBox::-webkit-scrollbar-thumb:hover {
             background: #eee;
         }
-
 
 .price-range-settings {
     display: flex;

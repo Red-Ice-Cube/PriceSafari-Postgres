@@ -4,8 +4,6 @@
     var competitorStoreName = ViewBag.CompetitorStoreName;
     var storeName = ViewBag.StoreName;
 
-
-
     <script>
         var storeId = '@storeId';
         var competitorStoreName = '@competitorStoreName';
@@ -17,7 +15,6 @@
 @{
     Layout = "~/Views/Shared/_PanelLayout.cshtml";
 }
-
 
 <style>
     .scrollable-table-container {
@@ -44,29 +41,26 @@
         font-weight: 400;
         color: #000;
         border-bottom: 0.5px solid #1B3C37;
-    
-    }
 
+    }
 
     .PriceTagBox-c {
         display:flex;
         justify-content: flex-start;
-  
-     
+
     }
 
     .PriceTagBox-o {
         display: flex;
         justify-content: flex-end;
-   
- 
+
     }
 
     .priceBox-style-o {
         display: flex;
         padding: 4px 0px;
         align-items: center;
-        justify-content: flex-end;     
+        justify-content: flex-end;
         height: 40PX;
         gap: 8px;
         font-size: 15px;
@@ -76,7 +70,7 @@
     }
 
     .no-price {
-        color: #777; 
+        color: #777;
         display:flex;
         width:100%;
     }
@@ -84,15 +78,13 @@
     .flex-row {
         display: flex;
         flex-direction: row;
-        gap: 16px; 
+        gap: 16px;
     }
 
     .flex-column {
         display: flex;
         flex-direction: column;
     }
-
-
 
     .priceBox-diff-up {
         display: inline-flex;
@@ -122,15 +114,13 @@
         color: #AB2520 !important;
     }
 
-
     .Price-box-content-c {
         display: flex;
         flex-direction: column;
         gap: 6px;
         padding: 4px;
         width: 300px;
-  
-      
+
     }
 
     .Price-box-content-o {
@@ -139,29 +129,41 @@
         padding: 4px;
         width: 300px;
         gap: 6px;
-  
-     
+
     }
 
     .Price-box-content-c-t {
         display: flex;
         padding: 4px;
-        white-space: nowrap; /* Zapobiega zawijaniu tekstu */
-        overflow: hidden; /* Ukrywa nadmiarowy tekst */
-        text-overflow: ellipsis; /* Dodaje wielokropek, jeśli tekst jest zbyt długi */
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
 
     .Price-box-content-o-t {
         display: flex;
         padding: 4px;
         justify-content: flex-end;
-        white-space: nowrap; /* Zapobiega zawijaniu tekstu */
-        overflow: hidden; /* Ukrywa nadmiarowy tekst */
-        text-overflow: ellipsis; /* Dodaje wielokropek, jeśli tekst jest zbyt długi */
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
 
-</style>
+    .scrollable-table-container {
+        max-height: 79vh;
+        overflow-y: auto;
+        position: relative;
+    }
 
+    .table-orders thead {
+        position: sticky;
+        top: 0;
+        z-index: 1;
+     
+    }
+
+
+</style>
 
 <div class="Vert">
     <div class="Page-Box">
@@ -170,8 +172,6 @@
                 <div class="Category-Container-Title">Historia cen</div>
 
                 <div class="filterBox" style="padding-left:16px;">
-
-
 
                     <div class="Category-Container-Select">Zmiany</div>
                     <div class="store-section">
@@ -191,8 +191,6 @@
                             </div>
 
                         </div>
-
-                       
 
                     </div>
                     <div>
@@ -225,9 +223,6 @@
                         <input type="text" id="productSearch" placeholder="Wyszukaj produkt">
                     </div>
 
-
-                  
-
                 </div>
                 <div class="Vert-table">
                     <div class="scrollable-table-container">
@@ -236,6 +231,7 @@
                                 <tr>
                                     <th>Produkt</th>
                                     <th>Kanał</th>
+                                   
                                 </tr>
                             </thead>
                             <tbody id="priceTableBody">
@@ -244,14 +240,11 @@
                     </div>
                 </div>
 
+
             </div>
 
         </div>
     </div>
 </div>
 
-
-
     <script src="~/js/member/competitorprices.js"></script>
-
-
