@@ -191,7 +191,7 @@ public async Task<IActionResult> StartScraping(int storeId)
     public async Task<IActionResult> GroupAndSaveUniqueUrls()
     {
         var uniqueUrls = await _context.Products
-            .Where(p => p.IsScrapable && !p.IsRejected)
+            .Where(p => p.IsScrapable)
             .GroupBy(p => p.OfferUrl)
             .Select(g => new CoOfrClass
             {
@@ -682,7 +682,6 @@ public async Task<IActionResult> StartScraping(int storeId)
         return View("~/Views/ManagerPanel/Store/GetStoreProductsWithCoOfrIds.cshtml", viewModel);
     }
 
-
     [HttpPost]
     public async Task<IActionResult> MapCoOfrToPriceHistory(int storeId)
     {
@@ -710,12 +709,15 @@ public async Task<IActionResult> StartScraping(int storeId)
 
         var priceHistories = new List<PriceHistoryClass>();
 
-        foreach (var product in products)
+        // Użycie równoległego przetwarzania
+        await Task.Run(() => Parallel.ForEach(products, product =>
         {
             var coOfrId = coOfrClasses.FirstOrDefault(co => co.ProductIds.Contains(product.ProductId))?.Id;
             if (coOfrId != null)
             {
                 var coOfrPriceHistory = coOfrPriceHistories.Where(ph => ph.CoOfrClassId == coOfrId).ToList();
+
+                bool hasStorePrice = false;
 
                 foreach (var coOfrPrice in coOfrPriceHistory)
                 {
@@ -731,10 +733,29 @@ public async Task<IActionResult> StartScraping(int storeId)
                         ScrapHistory = scrapHistory
                     };
 
-                    priceHistories.Add(priceHistory);
+                    lock (priceHistories)
+                    {
+                        priceHistories.Add(priceHistory);
+                    }
+
+                    // Sprawdzamy, czy cena jest przypisana do naszego sklepu
+                    if (string.Equals(coOfrPrice.StoreName, store.StoreName, StringComparison.OrdinalIgnoreCase))
+                    {
+                        hasStorePrice = true;
+                    }
+                }
+
+                // Jeśli żadna z cen nie jest przypisana do naszego sklepu, oznacz produkt jako odrzucony
+                if (!hasStorePrice)
+                {
+                    lock (_context)
+                    {
+                        product.IsRejected = true;
+                        _context.SaveChanges();
+                    }
                 }
             }
-        }
+        }));
 
         scrapHistory.PriceCount = priceHistories.Count;
         _context.ScrapHistories.Add(scrapHistory);
@@ -744,6 +765,8 @@ public async Task<IActionResult> StartScraping(int storeId)
 
         return RedirectToAction("GetStoreProductsWithCoOfrIds", new { storeId });
     }
+
+
 
 
     [HttpPost]

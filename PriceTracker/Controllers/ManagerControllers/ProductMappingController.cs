@@ -40,7 +40,7 @@ namespace PriceTracker.Controllers.ManagerControllers
                 var response = await client.GetStringAsync(store.ProductMapXmlUrl);
                 var xml = XDocument.Parse(response);
 
-                // Grupowanie produktów według EAN i wybieranie najtańszego
+                
                 var products = xml.Descendants("o")
                     .GroupBy(x => x.Descendants("a")
                         .FirstOrDefault(a => a.Attribute("name")?.Value == "EAN")?.Value)

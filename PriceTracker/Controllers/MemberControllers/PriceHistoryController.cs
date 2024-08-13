@@ -149,18 +149,6 @@ namespace PriceTracker.Controllers.MemberControllers
                 .Include(ph => ph.Product)
                 .Where(ph => ph.ScrapHistoryId == latestScrap.Id && !ph.Product.IsRejected);
 
-            var pricesForOurStore = await _context.PriceHistories
-                .Where(ph => ph.ScrapHistoryId == latestScrap.Id && ph.StoreName.ToLower() == storeName.ToLower() && !ph.Product.IsRejected)
-                .Select(ph => new
-                {
-                    ph.ProductId,
-                    ph.Price,
-                    ph.Position,
-                    ph.IsBidding,
-                    ph.AvailabilityNum
-                })
-                .ToListAsync();
-
             if (!string.IsNullOrEmpty(competitorStore))
             {
                 pricesQuery = pricesQuery.Where(ph => ph.StoreName.ToLower() == competitorStore.ToLower());
@@ -201,134 +189,85 @@ namespace PriceTracker.Controllers.MemberControllers
                 .ToDictionary(p => p.ProductId, p => new { p.ExternalId, p.ExternalPrice });
 
             var allPrices = prices
-             .GroupBy(p => p.ProductId)
-             .Select(g =>
-             {
-                 var bestPriceEntry = g.OrderBy(p => p.Price).First();
-                 var myPriceEntry = pricesForOurStore.FirstOrDefault(p => p.ProductId == g.Key);
-                 var productInfo = productExternalInfoDictionary.ContainsKey(g.Key) ? productExternalInfoDictionary[g.Key] : null;
+                .GroupBy(p => p.ProductId)
+                .Select(g =>
+                {
+                    var bestPriceEntry = g.OrderBy(p => p.Price).First();
+                    var myPriceEntry = prices.FirstOrDefault(p => p.ProductId == g.Key && p.StoreName.ToLower() == storeName.ToLower());
+                    var productInfo = productExternalInfoDictionary.ContainsKey(g.Key) ? productExternalInfoDictionary[g.Key] : null;
 
-                 if (!string.IsNullOrEmpty(competitorStore))
-                 {
-                     bestPriceEntry = g.FirstOrDefault(p => p.StoreName.ToLower() == competitorStore.ToLower()) ?? bestPriceEntry;
-                 }
+                    var isSharedBestPrice = g.Count(p => p.Price == bestPriceEntry.Price) > 1;
+                    var isMyBestPrice = myPriceEntry != null && myPriceEntry.Price == bestPriceEntry.Price;
 
-              
-                 if (myPriceEntry?.Position == null)
-                 {
-                    
-                     var productToReject = _context.Products.FirstOrDefault(p => p.ProductId == g.Key);
-                     if (productToReject != null)
-                     {
-                         productToReject.IsRejected = true;
-                         _context.SaveChanges(); 
-                     }
+                    var secondBestPrice = g
+                        .Where(p => p.Price > bestPriceEntry.Price && p.Price != myPriceEntry?.Price)
+                        .OrderBy(p => p.Price)
+                        .FirstOrDefault()?.Price ?? 0;
 
-                     return null; 
-                 }
+                    var bestPrice = bestPriceEntry.Price;
+                    var myPrice = myPriceEntry != null ? myPriceEntry.Price : bestPrice;
 
-                 var isSharedBestPrice = g.Count(p => p.Price == bestPriceEntry.Price) > 1;
-                 var isMyBestPrice = myPriceEntry != null && myPriceEntry.Price == bestPriceEntry.Price;
+                    productFlagsDictionary.TryGetValue(bestPriceEntry.ProductId, out var flagIds);
+                    flagIds = flagIds ?? new List<int>();
 
-                 var secondBestPrice = g
-                     .Where(p => p.Price > bestPriceEntry.Price && p.Price != myPriceEntry?.Price)
-                     .OrderBy(p => p.Price)
-                     .FirstOrDefault()?.Price ?? 0;
+                    bool isUniqueBestPrice;
+                    decimal? savings;
 
-                 var bestPrice = bestPriceEntry.Price;
-                 var myPrice = myPriceEntry != null ? myPriceEntry.Price : bestPrice;
+                    if (string.IsNullOrEmpty(competitorStore))
+                    {
+                        isUniqueBestPrice = isMyBestPrice && !isSharedBestPrice && secondBestPrice > myPrice;
+                        savings = isUniqueBestPrice ? Math.Round(secondBestPrice - bestPrice, 2) : (decimal?)null;
+                    }
+                    else
+                    {
+                        isUniqueBestPrice = myPrice < bestPrice;
+                        savings = isUniqueBestPrice ? Math.Abs(Math.Round(myPrice - bestPrice, 2)) : (decimal?)null;
+                    }
 
-                 productFlagsDictionary.TryGetValue(bestPriceEntry.ProductId, out var flagIds);
-                 flagIds = flagIds ?? new List<int>();
-
-                 bool isUniqueBestPrice;
-                 decimal? savings;
-
-                 if (string.IsNullOrEmpty(competitorStore))
-                 {
-                     isUniqueBestPrice = isMyBestPrice && !isSharedBestPrice && secondBestPrice > myPrice;
-                     savings = isUniqueBestPrice ? Math.Round(secondBestPrice - bestPrice, 2) : (decimal?)null;
-                 }
-                 else
-                 {
-                     isUniqueBestPrice = myPrice < bestPrice;
-                     savings = isUniqueBestPrice ? Math.Abs(Math.Round(myPrice - bestPrice, 2)) : (decimal?)null;
-                 }
-
-                 return new
-                 {
-                     bestPriceEntry.ProductId,
-                     bestPriceEntry.ProductName,
-                     bestPriceEntry.Category,
-                     LowestPrice = bestPrice,
-                     bestPriceEntry.StoreName,
-                     MyPrice = myPrice,
-                     ScrapId = bestPriceEntry.ScrapHistoryId,
-                     PriceDifference = Math.Round(myPrice - bestPrice, 2),
-                     PercentageDifference = Math.Round((myPrice - bestPrice) / bestPrice * 100, 2),
-                     Savings = savings,
-                     IsSharedBestPrice = isMyBestPrice && isSharedBestPrice,
-                     IsUniqueBestPrice = isUniqueBestPrice,
-                     bestPriceEntry.IsBidding,
-                     bestPriceEntry.Position,
-                     MyIsBidding = myPriceEntry?.IsBidding,
-                     MyPosition = myPriceEntry?.Position,
-                     FlagIds = flagIds,
-                     Delivery = bestPriceEntry.AvailabilityNum,
-                     MyDelivery = myPriceEntry?.AvailabilityNum,
-                     ExternalId = productInfo?.ExternalId,
-                     ExternalPrice = productInfo?.ExternalPrice,
-                 };
-             })
-             .Where(p => p != null) // Usuwamy produkty, które zostały oznaczone jako odrzucone
-             .ToList();
-
-
-            var uniqueAllPrices = allPrices.GroupBy(p => p.ProductId).Select(g => g.First()).ToList();
-
-            var allStoreProducts = await _context.Products
-                .Where(p => p.StoreId == storeId)
-                .ToListAsync();
-
-            var missedProducts = allStoreProducts
-                .Where(p => !productIds.Contains(p.ProductId))
-                .Select(p => new { p.ProductId, p.ProductName, p.Category })
+                    return new
+                    {
+                        bestPriceEntry.ProductId,
+                        bestPriceEntry.ProductName,
+                        bestPriceEntry.Category,
+                        LowestPrice = bestPrice,
+                        bestPriceEntry.StoreName,
+                        MyPrice = myPrice,
+                        ScrapId = bestPriceEntry.ScrapHistoryId,
+                        PriceDifference = Math.Round(myPrice - bestPrice, 2),
+                        PercentageDifference = Math.Round((myPrice - bestPrice) / bestPrice * 100, 2),
+                        Savings = savings,
+                        IsSharedBestPrice = isMyBestPrice && isSharedBestPrice,
+                        IsUniqueBestPrice = isUniqueBestPrice,
+                        bestPriceEntry.IsBidding,
+                        bestPriceEntry.Position,
+                        MyIsBidding = myPriceEntry?.IsBidding,
+                        MyPosition = myPriceEntry?.Position,
+                        FlagIds = flagIds,
+                        Delivery = bestPriceEntry.AvailabilityNum,
+                        MyDelivery = myPriceEntry?.AvailabilityNum,
+                        ExternalId = productInfo?.ExternalId,
+                        ExternalPrice = productInfo?.ExternalPrice,
+                    };
+                })
                 .ToList();
 
-            // Update IsRejected for missed products only if competitorStore is not specified
-            if (string.IsNullOrEmpty(competitorStore))
-            {
-                foreach (var missedProduct in missedProducts)
-                {
-                    var product = allStoreProducts.FirstOrDefault(p => p.ProductId == missedProduct.ProductId);
-                    if (product != null)
-                    {
-                        product.IsRejected = true;
-                    }
-                }
-                await _context.SaveChangesAsync();
-            }
-
-            // Log missed products
-            foreach (var missedProduct in missedProducts)
-            {
-                Console.WriteLine($"Missed product: {missedProduct.ProductName} (ID: {missedProduct.ProductId})");
-            }
+            var missedProducts = await _context.Products
+                .Where(p => p.StoreId == storeId && p.IsRejected && p.IsScrapable)
+                .Select(p => new { p.ProductId, p.ProductName, p.Category })
+                .ToListAsync();
 
             return Json(new
             {
-                productCount = uniqueAllPrices.Count,
+                productCount = allPrices.Count,
                 priceCount = prices.Count,
                 myStoreName = storeName,
-                prices = uniqueAllPrices,
+                prices = allPrices,
                 missedProducts = missedProducts,
                 missedProductsCount = missedProducts.Count,
                 setPrice1 = priceValues.SetPrice1,
                 setPrice2 = priceValues.SetPrice2
             });
         }
-
-
 
 
         [HttpPost]

@@ -62,8 +62,17 @@ namespace PriceTracker.Controllers.ManagerControllers
         {
             var stores = await _context.Stores.ToListAsync();
 
+            var lastScrapDates = await _context.ScrapHistories
+                .GroupBy(sh => sh.StoreId)
+                .Select(g => new { StoreId = g.Key, LastScrapDate = g.Max(sh => sh.Date) })
+                .ToDictionaryAsync(x => x.StoreId, x => (DateTime?)x.LastScrapDate);
+
+            ViewBag.LastScrapDates = lastScrapDates;
+
             return View("~/Views/ManagerPanel/Store/Index.cshtml", stores);
         }
+
+
 
         [HttpGet]
         public async Task<IActionResult> ScrapeProducts(int storeId, int depth)

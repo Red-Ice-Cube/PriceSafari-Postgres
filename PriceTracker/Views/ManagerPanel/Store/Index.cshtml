@@ -3,6 +3,7 @@
 @{
     ViewData["Title"] = "Lista Sklepów";
     Layout = "~/Views/Shared/_PanelLayout.cshtml";
+    var lastScrapDates = ViewBag.LastScrapDates as Dictionary<int, DateTime?>;
 }
 
 <h2>Lista Sklepów</h2>
@@ -15,6 +16,7 @@
             <th>Profil Sklepu</th>
             <th>Głębokość Kategorii</th>
             <th>Akcje</th>
+            <th>Przydzielenie tablic</th>
             <th>Postęp</th>
             <th>Status</th>
             <th>Produkty do Scrapowania</th>
@@ -39,6 +41,16 @@
                     <a asp-controller="GoogleScraper" asp-action="ProductList" asp-route-storeId="@store.StoreId" class="btn btn-secondary">Lista Produktów Google</a>
                     <a asp-controller="Flags" asp-action="List" asp-route-storeId="@store.StoreId" class="btn btn-warning">Flagi</a>
                     <a asp-controller="PriceScraping" asp-action="GetStoreProductsWithCoOfrIds" asp-route-storeId="@store.StoreId" class="btn btn-info">Produkty z CoOfr IDs</a>
+                </td>
+                <td>
+                    @if (lastScrapDates != null && lastScrapDates.ContainsKey(store.StoreId))
+                    {
+                        @lastScrapDates[store.StoreId]?.ToString("yyyy-MM-dd HH:mm")
+                    }
+                    else
+                    {
+                        <span>Brak danych</span>
+                    }
                 </td>
                 <td>
                     <div class="progress">
