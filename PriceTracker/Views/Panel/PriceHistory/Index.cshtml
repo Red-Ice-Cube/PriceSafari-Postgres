@@ -59,16 +59,8 @@
                 <div class="filterBox">
 
                     <div class="Category-Container-Select" style="margin-top:-2px;">Flagi  <a asp-controller="Flags" asp-action="List" asp-route-storeId="@ViewBag.StoreId" class="link-line">+ Dodaj Flage</a></div>
-                    <div class="store-section">
-                    
-                        @foreach (var flag in flags)
-                        {
-                            <div class="form-check">
-                                <input class="form-check-input flagFilter" type="checkbox" id="flagCheckbox_@flag.FlagId" value="@flag.FlagId">
-                                <label class="form-check-label" for="flagCheckbox_@flag.FlagId">@flag.FlagName</label>
-                            </div>
-                        }
-
+                    <div class="store-section" id="flagContainer">
+                        <!-- Flagi będą renderowane dynamicznie tutaj -->
                     </div>
 
                     <div class="Category-Container-Select" >Bidowanie</div>
@@ -327,18 +319,11 @@
     </div>
 </div>
 
-
-
-
-
-
-
-
 <div id="flagModal" class="modal">
     <div class="modal-content">
         <div class="price-box-space">
             <div class="price-box-column-name">Przypisz flagi do produktu</div>
-            <span class="close">&times;</span>
+        
         </div>
         <div id="flagCheckboxes">
             @if (flags != null)

@@ -6,6 +6,7 @@
     let setPrice2 = 2.00;
     let selectedProductId = null;
     let competitorStore = "";
+    let selectedFlags = new Set(); 
 
     function loadStores() {
         fetch(`/PriceHistory/GetStores?storeId=${storeId}`)
@@ -45,13 +46,11 @@
                 document.getElementById('price2').value = setPrice2;
                 document.getElementById('missedProductsCount').textContent = missedProductsCount;
 
-               
-                const currentSearchTerm = document.getElementById('productSearch').value;
+                updateFlagCounts(allPrices);  // Aktualizacja flag na podstawie pobranych cen
 
-               
+                const currentSearchTerm = document.getElementById('productSearch').value;
                 let filteredPrices = allPrices;
 
-              
                 if (currentSearchTerm) {
                     filteredPrices = filteredPrices.filter(price => {
                         const sanitizedInput = currentSearchTerm.replace(/[^a-zA-Z0-9\s.-]/g, '').trim();
@@ -61,10 +60,8 @@
                     });
                 }
 
-             
                 filteredPrices = filterPricesByCategoryAndColorAndFlag(filteredPrices);
 
-            
                 renderPrices(filteredPrices);
                 renderChart(filteredPrices);
                 updateColorCounts(filteredPrices);
@@ -72,31 +69,63 @@
             .catch(error => console.error('Error fetching prices:', error));
     }
 
+    function updateFlagCounts(prices) {
+        const flagCounts = {};
+        let noFlagCount = 0;
 
+        prices.forEach(price => {
+            if (price.flagIds.length === 0) {
+                noFlagCount++;
+            }
+            price.flagIds.forEach(flagId => {
+                if (!flagCounts[flagId]) {
+                    flagCounts[flagId] = 0;
+                }
+                flagCounts[flagId]++;
+            });
+        });
 
-    function getColorClass(priceDifference, isUniqueBestPrice = false, isSharedBestPrice = false, savings = null) {
-        if (isUniqueBestPrice && savings >= 0.01 && savings <= setPrice1) {
-            return "prIdeal";
-        }
-        if (isUniqueBestPrice) {
-            return "prToLow";
-        }
-        if (isSharedBestPrice) {
-            return "prGood";
-        }
-        if (priceDifference <= 0) {
-            return "prGood";
-        } else if (priceDifference < setPrice2) {
-            return "prMid";
-        } else {
-            return "prToHigh";
-        }
+        const flagContainer = document.getElementById('flagContainer');
+        flagContainer.innerHTML = ''; // Wyczyszczenie poprzednich checkboxów
+
+        // Aktualizacja istniejących flag
+        flags.forEach(flag => {
+            const count = flagCounts[flag.FlagId] || 0;
+            const flagElement = `
+            <div class="form-check">
+                <input class="form-check-input flagFilter" type="checkbox" id="flagCheckbox_${flag.FlagId}" value="${flag.FlagId}" ${selectedFlags.has(flag.FlagId.toString()) ? 'checked' : ''}>
+                <label class="form-check-label" for="flagCheckbox_${flag.FlagId}">${flag.FlagName} (${count})</label>
+            </div>
+        `;
+            flagContainer.innerHTML += flagElement;
+        });
+
+        // Dodanie filtra dla produktów bez flag
+        const noFlagElement = `
+        <div class="form-check">
+            <input class="form-check-input flagFilter" type="checkbox" id="noFlagCheckbox" value="noFlag" ${selectedFlags.has('noFlag') ? 'checked' : ''}>
+            <label class="form-check-label" for="noFlagCheckbox">Brak flagi (${noFlagCount})</label>
+        </div>
+        `;
+        flagContainer.innerHTML += noFlagElement;
+
+        // Podpięcie event listenerów do nowych checkboxów
+        document.querySelectorAll('.flagFilter').forEach(checkbox => {
+            checkbox.addEventListener('change', function () {
+                const flagValue = this.value;
+                if (this.checked) {
+                    selectedFlags.add(flagValue);
+                } else {
+                    selectedFlags.delete(flagValue);
+                }
+                filterPricesAndUpdateUI();
+            });
+        });
     }
 
     function filterPricesByCategoryAndColorAndFlag(data) {
         const selectedCategory = document.getElementById('category').value;
         const selectedColors = Array.from(document.querySelectorAll('.colorFilter:checked')).map(checkbox => checkbox.value);
-        const selectedFlags = Array.from(document.querySelectorAll('.flagFilter:checked')).map(checkbox => parseInt(checkbox.value));
         const selectedBid = document.getElementById('bidFilter').checked;
         const selectedPositions = Array.from(document.querySelectorAll('.positionFilter:checked')).map(checkbox => parseInt(checkbox.value));
         const selectedDeliveryMyStore = Array.from(document.querySelectorAll('.deliveryFilterMyStore:checked')).map(checkbox => parseInt(checkbox.value));
@@ -104,8 +133,16 @@
         const selectedExternalPrice = Array.from(document.querySelectorAll('.externalPriceFilter:checked')).map(checkbox => checkbox.value);
 
         let filteredPrices = selectedCategory ? data.filter(item => item.category === selectedCategory) : data;
-        filteredPrices = selectedColors.length ? filteredPrices.filter(item => selectedColors.includes(item.colorClass)) : filteredPrices;
-        filteredPrices = selectedFlags.length ? filteredPrices.filter(item => selectedFlags.some(flag => item.flagIds.includes(flag))) : filteredPrices;
+
+        if (selectedColors.length) {
+            filteredPrices = filteredPrices.filter(item => selectedColors.includes(item.colorClass));
+        }
+
+        if (selectedFlags.has("noFlag")) {
+            filteredPrices = filteredPrices.filter(item => item.flagIds.length === 0);
+        } else if (selectedFlags.size > 0) {
+            filteredPrices = filteredPrices.filter(item => Array.from(selectedFlags).some(flag => item.flagIds.includes(parseInt(flag))));
+        }
 
         if (selectedBid) {
             filteredPrices = filteredPrices.filter(item => item.myIsBidding === "1");
@@ -130,6 +167,25 @@
         }
 
         return filteredPrices;
+    }
+
+    function getColorClass(priceDifference, isUniqueBestPrice = false, isSharedBestPrice = false, savings = null) {
+        if (isUniqueBestPrice && savings >= 0.01 && savings <= setPrice1) {
+            return "prIdeal";
+        }
+        if (isUniqueBestPrice) {
+            return "prToLow";
+        }
+        if (isSharedBestPrice) {
+            return "prGood";
+        }
+        if (priceDifference <= 0) {
+            return "prGood";
+        } else if (priceDifference < setPrice2) {
+            return "prMid";
+        } else {
+            return "prToHigh";
+        }
     }
 
     function filterPricesByProductName(name) {
@@ -407,7 +463,9 @@
         renderPrices(filteredPrices);
         renderChart(filteredPrices);
         updateColorCounts(filteredPrices);
+        updateFlagCounts(filteredPrices);
     }
+
 
     document.getElementById('category').addEventListener('change', function () {
         filterPricesAndUpdateUI();
@@ -466,7 +524,7 @@
                     setPrice1 = price1;
                     setPrice2 = price2;
 
-                    loadPrices();
+                    loadPrices(); 
                 } else {
                     alert('Error updating price values: ' + response.message);
                 }
@@ -521,7 +579,7 @@
             .then(response => {
                 if (response.success) {
                     modal.style.display = 'none';
-                    loadPrices();
+                    loadPrices(); 
                 } else {
                     alert('Błąd przypisywania flagi: ' + response.message);
                 }
