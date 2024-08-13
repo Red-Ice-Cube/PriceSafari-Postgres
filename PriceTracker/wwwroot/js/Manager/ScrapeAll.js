@@ -103,13 +103,13 @@
             row.cells[5].innerText = pricesCount;
         } else {
             var newRow = `<tr id="${rowId}" class="product-row ${rowClass}">
-                            <td>${offerUrl}</td>
-                            <td></td>
-                            <td>${isScraped ? "Tak" : "Nie"}</td>
-                            <td>${isRejected ? "Tak" : "Nie"}</td>
-                            <td>${scrapingMethod}</td>
-                            <td>${pricesCount}</td>
-                        </tr>`;
+                        <td>${offerUrl}</td>
+                        <td></td>
+                        <td>${isScraped ? "Tak" : "Nie"}</td>
+                        <td>${isRejected ? "Tak" : "Nie"}</td>
+                        <td>${scrapingMethod}</td>
+                        <td>${pricesCount}</td>
+                    </tr>`;
             document.getElementById("scrapingTableBody").insertAdjacentHTML('beforeend', newRow);
         }
 
@@ -210,3 +210,6 @@
         document.getElementById("totalRejectedCount").textContent = totalRejectedCount;
     }
 });
+
+
+

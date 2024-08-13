@@ -23,7 +23,28 @@ namespace PriceTracker.Models
             _browser = (Browser)await Puppeteer.LaunchAsync(new LaunchOptions
             {
                 Headless = false,
-                Args = new[] { "--no-sandbox", "--disable-setuid-sandbox", "--disable-gpu" }
+                Args = new[]
+                {
+                    "--no-sandbox",
+                    "--disable-setuid-sandbox",
+                    "--disable-gpu",
+                    "--disable-background-timer-throttling",
+                    "--disable-backgrounding-occluded-windows",
+                    "--mute-audio",
+                    "--disable-software-rasterizer",
+                    "--disable-extensions",
+                    "--disable-background-networking",
+                    "--disable-sync",
+                    "--disable-translate",
+                    "--disable-background-timer-throttling",
+                    "--disable-renderer-backgrounding",
+                    "--disable-device-discovery-notifications",
+                    "--disable-default-apps",
+                    "--no-default-browser-check",
+                    "--no-first-run",
+                    "--disable-hang-monitor",
+                    "--disable-prompt-on-repost"
+                }
             });
 
             _page = (Page)await _browser.NewPageAsync();
