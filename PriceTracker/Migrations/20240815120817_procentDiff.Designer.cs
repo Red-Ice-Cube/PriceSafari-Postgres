@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using PriceTracker.Data;
 
@@ -11,9 +12,11 @@ using PriceTracker.Data;
 namespace PriceTracker.Migrations
 {
     [DbContext(typeof(PriceTrackerContext))]
-    partial class PriceTrackerContextModelSnapshot : ModelSnapshot
+    [Migration("20240815120817_procentDiff")]
+    partial class procentDiff
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -384,12 +387,6 @@ namespace PriceTracker.Migrations
                         .HasColumnType("int");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("PriceValueClassId"));
-
-                    b.Property<decimal>("PercentageDifferenceFromSetPrice1")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<decimal>("PercentageDifferenceFromSetPrice2")
-                        .HasColumnType("decimal(18,2)");
 
                     b.Property<decimal>("SetPrice1")
                         .HasColumnType("decimal(18,2)");
