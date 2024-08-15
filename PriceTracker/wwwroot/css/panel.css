@@ -3203,7 +3203,8 @@ tr:last-child .sub-line {
     }
 
     .price-range-settings .color-circle {
-        width: 16px;
+        min-width: 16px;
+        max-width: 16px;
         height: 24px;
         margin-left: 3px;
         border-radius: 4px;
