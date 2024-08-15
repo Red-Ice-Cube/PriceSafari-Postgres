@@ -8,6 +8,7 @@
     let competitorStore = "";
     let selectedFlags = new Set(); 
 
+
     function loadStores() {
         fetch(`/PriceHistory/GetStores?storeId=${storeId}`)
             .then(response => response.json())
@@ -38,7 +39,7 @@
                 missedProductsCount = response.missedProductsCount;
                 allPrices = response.prices.map(price => ({
                     ...price,
-                    colorClass: getColorClass(price.priceDifference, price.isUniqueBestPrice, price.isSharedBestPrice, price.savings)
+                    colorClass: getColorClass(price.percentageDifference, price.isUniqueBestPrice, price.isSharedBestPrice, price.savings)
                 }));
 
                 document.getElementById('totalPriceCount').textContent = response.priceCount;
@@ -68,6 +69,7 @@
             })
             .catch(error => console.error('Error fetching prices:', error));
     }
+
 
     function updateFlagCounts(prices) {
         const flagCounts = {};
@@ -169,24 +171,38 @@
         return filteredPrices;
     }
 
-    function getColorClass(priceDifference, isUniqueBestPrice = false, isSharedBestPrice = false, savings = null) {
-        if (isUniqueBestPrice && savings >= 0.01 && savings <= setPrice1) {
+    function getColorClass(percentageDifference, isUniqueBestPrice = false, isSharedBestPrice = false, savings = null) {
+        
+        if (isUniqueBestPrice && percentageDifference <= setPrice1) {
             return "prIdeal";
         }
-        if (isUniqueBestPrice) {
+
+        
+        if (isUniqueBestPrice && percentageDifference > setPrice1) {
             return "prToLow";
         }
+
+       
         if (isSharedBestPrice) {
             return "prGood";
         }
-        if (priceDifference <= 0) {
+
+      
+        if (percentageDifference <= 0) {
             return "prGood";
-        } else if (priceDifference < setPrice2) {
-            return "prMid";
-        } else {
-            return "prToHigh";
         }
+
+     
+        if (percentageDifference < setPrice2) {
+            return "prMid";
+        }
+
+    
+        return "prToHigh";
     }
+
+
+
 
     function filterPricesByProductName(name) {
         const sanitizedInput = name.replace(/[^a-zA-Z0-9\s.-]/g, '').trim();
@@ -206,6 +222,7 @@
         const regex = new RegExp(`(${sanitizedSearchTerm})`, 'gi');
         return text.replace(regex, '<span style="color: #9400D3;font-weight: 600;">$1</span>');
     }
+  
 
     function renderPrices(data, searchTerm = "") {
         const container = document.getElementById('priceContainer');
@@ -214,7 +231,7 @@
             const highlightedProductName = highlightMatches(item.productName, searchTerm);
             const percentageDifference = item.percentageDifference != null ? item.percentageDifference.toFixed(2) : "N/A";
             const priceDifference = item.priceDifference != null ? item.priceDifference.toFixed(2) : "N/A";
-            const savings = item.colorClass === "prToLow" || item.colorClass === "prIdeal" ? item.savings != null ? item.savings.toFixed(2) : "N/A" : "N/A";
+            const savings = item.savings != null ? item.savings.toFixed(2) : "N/A";
 
             const isBidding = item.isBidding === "1";
             const myIsBidding = item.myIsBidding === "1";
@@ -245,7 +262,7 @@
             if (item.externalId) {
                 const apiBox = document.createElement('span');
                 apiBox.className = 'ApiBox';
-                apiBox.innerHTML = 'API ID  ' + item.externalId;
+                apiBox.innerHTML = 'API ID ' + item.externalId;
                 priceBoxColumnCategory.appendChild(apiBox);
             }
 
@@ -277,10 +294,18 @@
 
             const priceBoxColumnInfo = document.createElement('div');
             priceBoxColumnInfo.className = 'price-box-column-action';
-            priceBoxColumnInfo.innerHTML =
-                (item.colorClass === "prToLow" || item.colorClass === "prIdeal" ? '<p>Podnieś: ' + savings + ' zł</p>' : '') +
-                (item.colorClass === "prToHigh" || item.colorClass === "prMid" ? '<p>Obniż: ' + percentageDifference + ' %</p>' : '') +
-                (item.colorClass === "prToHigh" || item.colorClass === "prMid" ? '<p>Obniż: ' + priceDifference + ' zł</p>' : '');
+
+            if (item.colorClass === "prToLow" || item.colorClass === "prIdeal") {
+                priceBoxColumnInfo.innerHTML =
+                    '<p>Podnieś: ' + savings + ' zł</p>' +
+                    '<p>Podnieś: ' + percentageDifference + ' %</p>';
+            } else if (item.colorClass === "prMid" || item.colorClass === "prToHigh") {
+                priceBoxColumnInfo.innerHTML =
+                    '<p>Obniż: ' + priceDifference + ' zł</p>' +
+                    '<p>Obniż: ' + percentageDifference + ' %</p>';
+            } else if (item.colorClass === "prGood") {
+                priceBoxColumnInfo.innerHTML = '<p>Brak działań</p>';
+            }
 
             const priceBoxColumnExternalPrice = document.createElement('div');
             priceBoxColumnExternalPrice.className = 'price-box-column-api';
@@ -342,6 +367,10 @@
         });
         document.getElementById('displayedProductCount').textContent = data.length;
     }
+
+
+
+
 
     function getDeliveryClass(days) {
         if (days <= 1) return 'Availability1Day';
@@ -488,7 +517,7 @@
     document.getElementById('price1').addEventListener('input', function () {
         setPrice1 = parseFloat(this.value);
         allPrices.forEach(price => {
-            price.colorClass = getColorClass(price.priceDifference, price.isUniqueBestPrice, price.isSharedBestPrice, price.savings);
+            price.colorClass = getColorClass(price.percentageDifference, price.isUniqueBestPrice, price.isSharedBestPrice, price.savings);
         });
         filterPricesAndUpdateUI();
     });
@@ -496,10 +525,12 @@
     document.getElementById('price2').addEventListener('input', function () {
         setPrice2 = parseFloat(this.value);
         allPrices.forEach(price => {
-            price.colorClass = getColorClass(price.priceDifference, price.isUniqueBestPrice, price.isSharedBestPrice, price.savings);
+            price.colorClass = getColorClass(price.percentageDifference, price.isUniqueBestPrice, price.isSharedBestPrice, price.savings);
         });
         filterPricesAndUpdateUI();
     });
+
+
 
     document.getElementById('savePriceValues').addEventListener('click', function () {
         const price1 = parseFloat(document.getElementById('price1').value);

@@ -5,8 +5,5 @@
         public int StoreId { get; set; }
         public decimal SetPrice1 { get; set; } = 2.00m;
         public decimal SetPrice2 { get; set; } = 2.00m;
-
-        public decimal PercentageDifferenceFromSetPrice1 { get; set; } = 2.00m;
-        public decimal PercentageDifferenceFromSetPrice2 { get; set; } = 2.00m;
     }
 }

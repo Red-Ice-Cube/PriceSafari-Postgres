@@ -200,9 +200,9 @@ namespace PriceTracker.Controllers.MemberControllers
                     var isMyBestPrice = myPriceEntry != null && myPriceEntry.Price == bestPriceEntry.Price;
 
                     var secondBestPrice = g
-                        .Where(p => p.Price > bestPriceEntry.Price && p.Price != myPriceEntry?.Price)
+                        .Where(p => p.Price > myPriceEntry.Price)  
                         .OrderBy(p => p.Price)
-                        .FirstOrDefault()?.Price ?? 0;
+                        .FirstOrDefault()?.Price ?? myPriceEntry.Price;  
 
                     var bestPrice = bestPriceEntry.Price;
                     var myPrice = myPriceEntry != null ? myPriceEntry.Price : bestPrice;
@@ -212,16 +212,19 @@ namespace PriceTracker.Controllers.MemberControllers
 
                     bool isUniqueBestPrice;
                     decimal? savings;
+                    decimal? percentageDifference;
 
                     if (string.IsNullOrEmpty(competitorStore))
                     {
                         isUniqueBestPrice = isMyBestPrice && !isSharedBestPrice && secondBestPrice > myPrice;
                         savings = isUniqueBestPrice ? Math.Round(secondBestPrice - bestPrice, 2) : (decimal?)null;
+                        percentageDifference = isMyBestPrice ? Math.Round((secondBestPrice - myPrice) / myPrice * 100, 2) : Math.Round((myPrice - bestPrice) / bestPrice * 100, 2);
                     }
                     else
                     {
                         isUniqueBestPrice = myPrice < bestPrice;
                         savings = isUniqueBestPrice ? Math.Abs(Math.Round(myPrice - bestPrice, 2)) : (decimal?)null;
+                        percentageDifference = Math.Round((myPrice - bestPrice) / bestPrice * 100, 2);
                     }
 
                     return new
@@ -234,7 +237,7 @@ namespace PriceTracker.Controllers.MemberControllers
                         MyPrice = myPrice,
                         ScrapId = bestPriceEntry.ScrapHistoryId,
                         PriceDifference = Math.Round(myPrice - bestPrice, 2),
-                        PercentageDifference = Math.Round((myPrice - bestPrice) / bestPrice * 100, 2),
+                        PercentageDifference = percentageDifference,
                         Savings = savings,
                         IsSharedBestPrice = isMyBestPrice && isSharedBestPrice,
                         IsUniqueBestPrice = isUniqueBestPrice,
@@ -268,6 +271,7 @@ namespace PriceTracker.Controllers.MemberControllers
                 setPrice2 = priceValues.SetPrice2
             });
         }
+
 
 
         [HttpPost]
