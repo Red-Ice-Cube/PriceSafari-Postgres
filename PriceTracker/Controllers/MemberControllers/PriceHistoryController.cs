@@ -111,7 +111,16 @@ namespace PriceTracker.Controllers.MemberControllers
         {
             if (storeId == null)
             {
-                return Json(new { productCount = 0, priceCount = 0, myStoreName = "", prices = new List<dynamic>(), missedProducts = new List<dynamic>(), setPrice1 = 2.00m, setPrice2 = 2.00m });
+                return Json(new
+                {
+                    productCount = 0,
+                    priceCount = 0,
+                    myStoreName = "",
+                    prices = new List<dynamic>(),
+                    missedProducts = new List<dynamic>(),
+                    setPrice1 = 2.00m,
+                    setPrice2 = 2.00m
+                });
             }
 
             if (!await UserHasAccessToStore(storeId.Value))
@@ -127,7 +136,16 @@ namespace PriceTracker.Controllers.MemberControllers
 
             if (latestScrap == null)
             {
-                return Json(new { productCount = 0, priceCount = 0, myStoreName = "", prices = new List<dynamic>(), missedProducts = new List<dynamic>(), setPrice1 = 2.00m, setPrice2 = 2.00m });
+                return Json(new
+                {
+                    productCount = 0,
+                    priceCount = 0,
+                    myStoreName = "",
+                    prices = new List<dynamic>(),
+                    missedProducts = new List<dynamic>(),
+                    setPrice1 = 2.00m,
+                    setPrice2 = 2.00m
+                });
             }
 
             var storeName = await _context.Stores
@@ -151,7 +169,8 @@ namespace PriceTracker.Controllers.MemberControllers
 
             if (!string.IsNullOrEmpty(competitorStore))
             {
-                pricesQuery = pricesQuery.Where(ph => ph.StoreName.ToLower() == competitorStore.ToLower());
+                // Dla przypadku gdy competitorStore jest ustawiony
+                pricesQuery = pricesQuery.Where(ph => ph.StoreName.ToLower() == storeName.ToLower() || ph.StoreName.ToLower() == competitorStore.ToLower());
             }
 
             var prices = await pricesQuery
@@ -193,21 +212,23 @@ namespace PriceTracker.Controllers.MemberControllers
                 .Select(g =>
                 {
                     var bestPriceEntry = g.OrderBy(p => p.Price).First();
-                    var myPriceEntry = prices.FirstOrDefault(p => p.ProductId == g.Key && p.StoreName.ToLower() == storeName.ToLower());
-                    var productInfo = productExternalInfoDictionary.ContainsKey(g.Key) ? productExternalInfoDictionary[g.Key] : null;
+                    var myPriceEntry = g.FirstOrDefault(p => p.StoreName.ToLower() == storeName.ToLower());
+                    var competitorPriceEntry = g.FirstOrDefault(p => !string.IsNullOrEmpty(competitorStore) && p.StoreName.ToLower() == competitorStore.ToLower());
 
-                    var isSharedBestPrice = g.Count(p => p.Price == bestPriceEntry.Price) > 1;
-                    var isMyBestPrice = myPriceEntry != null && myPriceEntry.Price == bestPriceEntry.Price;
-
-                    var secondBestPrice = g
-                        .Where(p => p.Price > myPriceEntry.Price)  
-                        .OrderBy(p => p.Price)
-                        .FirstOrDefault()?.Price ?? myPriceEntry.Price;  
+                    if (!string.IsNullOrEmpty(competitorStore))
+                    {
+                        // Jeżeli `competitorStore` jest podany, odrzucamy produkty, które nie mają zarówno naszej ceny, jak i ceny konkurencyjnej
+                        if (myPriceEntry == null || competitorPriceEntry == null)
+                        {
+                            return null;
+                        }
+                        bestPriceEntry = competitorPriceEntry; // Ustawienie ceny konkurencyjnej jako bestPrice
+                    }
 
                     var bestPrice = bestPriceEntry.Price;
                     var myPrice = myPriceEntry != null ? myPriceEntry.Price : bestPrice;
 
-                    productFlagsDictionary.TryGetValue(bestPriceEntry.ProductId, out var flagIds);
+                    productFlagsDictionary.TryGetValue(g.Key, out var flagIds);
                     flagIds = flagIds ?? new List<int>();
 
                     bool isUniqueBestPrice;
@@ -216,9 +237,15 @@ namespace PriceTracker.Controllers.MemberControllers
 
                     if (string.IsNullOrEmpty(competitorStore))
                     {
-                        isUniqueBestPrice = isMyBestPrice && !isSharedBestPrice && secondBestPrice > myPrice;
+                        var isSharedBestPrice = g.Count(p => p.Price == bestPriceEntry.Price) > 1;
+                        var secondBestPrice = g
+                            .Where(p => p.Price > myPrice)
+                            .OrderBy(p => p.Price)
+                            .FirstOrDefault()?.Price ?? myPrice;
+
+                        isUniqueBestPrice = myPrice == bestPrice && !isSharedBestPrice && secondBestPrice > myPrice;
                         savings = isUniqueBestPrice ? Math.Round(secondBestPrice - bestPrice, 2) : (decimal?)null;
-                        percentageDifference = isMyBestPrice ? Math.Round((secondBestPrice - myPrice) / myPrice * 100, 2) : Math.Round((myPrice - bestPrice) / bestPrice * 100, 2);
+                        percentageDifference = isUniqueBestPrice ? Math.Round((secondBestPrice - myPrice) / myPrice * 100, 2) : Math.Round((myPrice - bestPrice) / bestPrice * 100, 2);
                     }
                     else
                     {
@@ -237,9 +264,9 @@ namespace PriceTracker.Controllers.MemberControllers
                         MyPrice = myPrice,
                         ScrapId = bestPriceEntry.ScrapHistoryId,
                         PriceDifference = Math.Round(myPrice - bestPrice, 2),
-                        PercentageDifference = percentageDifference,
+                        PercentageDifference = Math.Abs(percentageDifference.Value),
                         Savings = savings,
-                        IsSharedBestPrice = isMyBestPrice && isSharedBestPrice,
+                        IsSharedBestPrice = string.IsNullOrEmpty(competitorStore) && myPrice == bestPrice && g.Count(p => p.Price == bestPrice) > 1,
                         IsUniqueBestPrice = isUniqueBestPrice,
                         bestPriceEntry.IsBidding,
                         bestPriceEntry.Position,
@@ -248,10 +275,11 @@ namespace PriceTracker.Controllers.MemberControllers
                         FlagIds = flagIds,
                         Delivery = bestPriceEntry.AvailabilityNum,
                         MyDelivery = myPriceEntry?.AvailabilityNum,
-                        ExternalId = productInfo?.ExternalId,
-                        ExternalPrice = productInfo?.ExternalPrice,
+                        ExternalId = productExternalInfoDictionary.ContainsKey(g.Key) ? productExternalInfoDictionary[g.Key].ExternalId : null,
+                        ExternalPrice = productExternalInfoDictionary.ContainsKey(g.Key) ? productExternalInfoDictionary[g.Key].ExternalPrice : null
                     };
                 })
+                .Where(p => p != null) // Filtracja odrzuconych produktów
                 .ToList();
 
             var missedProducts = await _context.Products

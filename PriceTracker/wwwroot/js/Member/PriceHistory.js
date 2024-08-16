@@ -486,13 +486,38 @@ document.addEventListener("DOMContentLoaded", function () {
         document.querySelector('label[for="prToLowCheckbox"]').textContent = `Zaniżona (${colorCounts.prToLow})`;
     }
 
-    function filterPricesAndUpdateUI() {
-        const filteredPrices = filterPricesByCategoryAndColorAndFlag(allPrices);
+
+    function sortByNameAZ(data) {
+        return data.sort((a, b) => a.productName.localeCompare(b.productName));
+    }
+
+    function sortByNameZA(data) {
+        return data.sort((a, b) => b.productName.localeCompare(a.productName));
+    }
+
+    function sortByPriceAsc(data) {
+        return data.sort((a, b) => a.lowestPrice - b.lowestPrice);
+    }
+
+    function sortByPriceDesc(data) {
+        return data.sort((a, b) => b.lowestPrice - a.lowestPrice);
+    }
+
+
+
+    function filterPricesAndUpdateUI(sortFunction = null) {
+        let filteredPrices = filterPricesByCategoryAndColorAndFlag(allPrices);
+
+        if (sortFunction) {
+            filteredPrices = sortFunction(filteredPrices);
+        }
+
         renderPrices(filteredPrices);
         renderChart(filteredPrices);
         updateColorCounts(filteredPrices);
         updateFlagCounts(filteredPrices);
     }
+
 
     document.getElementById('category').addEventListener('change', function () {
         filterPricesAndUpdateUI();
@@ -511,6 +536,31 @@ document.addEventListener("DOMContentLoaded", function () {
     document.getElementById('productSearch').addEventListener('keyup', function () {
         filterPricesByProductName(this.value);
     });
+
+    document.getElementById('sortNameAZ').addEventListener('click', function () {
+        let filteredPrices = filterPricesByCategoryAndColorAndFlag(allPrices);
+        const sortedPrices = sortByNameAZ(filteredPrices);
+        renderPrices(sortedPrices);
+    });
+
+    document.getElementById('sortNameZA').addEventListener('click', function () {
+        let filteredPrices = filterPricesByCategoryAndColorAndFlag(allPrices);
+        const sortedPrices = sortByNameZA(filteredPrices);
+        renderPrices(sortedPrices);
+    });
+
+    document.getElementById('sortPriceAsc').addEventListener('click', function () {
+        let filteredPrices = filterPricesByCategoryAndColorAndFlag(allPrices);
+        const sortedPrices = sortByPriceAsc(filteredPrices);
+        renderPrices(sortedPrices);
+    });
+
+    document.getElementById('sortPriceDesc').addEventListener('click', function () {
+        let filteredPrices = filterPricesByCategoryAndColorAndFlag(allPrices);
+        const sortedPrices = sortByPriceDesc(filteredPrices);
+        renderPrices(sortedPrices);
+    });
+
 
     document.getElementById('usePriceDifference').addEventListener('change', function () {
         const usePriceDifference = this.checked;
