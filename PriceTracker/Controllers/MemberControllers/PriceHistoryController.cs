@@ -79,6 +79,11 @@ namespace PriceTracker.Controllers.MemberControllers
             var storeName = await _context.Stores
                 .Where(sn => sn.StoreId == storeId)
                 .Select(sn => sn.StoreName)
+                .FirstOrDefaultAsync();  
+            
+            var storeLogo = await _context.Stores
+                .Where(sn => sn.StoreId == storeId)
+                .Select(sn => sn.StoreLogoUrl)
                 .FirstOrDefaultAsync();
 
             var categories = await _context.Products
@@ -99,6 +104,7 @@ namespace PriceTracker.Controllers.MemberControllers
             ViewBag.LatestScrap = latestScrap;
             ViewBag.StoreId = storeId;
             ViewBag.StoreName = storeName;
+            ViewBag.StoreLogo = storeLogo;
             ViewBag.Categories = categories;
             ViewBag.Flags = flags;
             ViewBag.ScrapedProducts = scrapedproducts;

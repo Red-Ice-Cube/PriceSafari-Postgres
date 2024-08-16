@@ -4,6 +4,7 @@
     ViewData["Title"] = "Historia Cen";
     var latestScrap = ViewBag.LatestScrap as PriceTracker.Models.ScrapHistoryClass;
     var storeId = ViewBag.StoreId;
+    var storeLogo = ViewBag.StoreLogo;
     var categories = ViewBag.Categories as List<string>;
     var flags = ViewBag.Flags as List<PriceTracker.Models.FlagsClass>;
 }
@@ -57,6 +58,9 @@
     }
 
         #sortingButtons button, #sortButtonsContainer button {
+            display: flex;
+            align-items: center;
+            justify-content: center;
             padding: 2px 12px;
             border: none;
             background-color: #e3e3e3;
@@ -67,25 +71,49 @@
             border-radius: 4px;
         }
 
-            /* Stylizacja dla aktywnego przycisku */
+        
             #sortingButtons button.active, #sortButtonsContainer button.active {
                 background-color: #323232;
                 color: #e3e3e3;
             }
 
-            /* Stylizacja hover */
+        
             #sortingButtons button:hover, #sortButtonsContainer button:hover {
                 background-color: #ccc;
                 color: #4e4e4e;
             }
 
-            /* Wyłączenie hover dla aktywnego przycisku */
+          
             #sortingButtons button.active:hover, #sortButtonsContainer button.active:hover {
                 background-color: #323232;
                 color: #e3e3e3;
-                cursor: pointer; /* Opcjonalnie można zmienić kursor na domyślny */
+                cursor: pointer; 
             }
 
+    .ProductCount{
+        display: flex;
+        align-items: center;
+        justify-content:center;
+        padding: 2px 12px;
+        width:64px;
+        border: 1px solid #4e4e4e;
+        color: #4e4e4e;
+        font-size: 13px;
+        border-radius: 4px;
+    }
+
+    .SimpleSpace {
+        display:flex;
+        justify-content:space-between;
+        width:100%
+      
+    }
+
+    .SimpleHorizontal {
+        display: flex;
+        gap: 8px;
+
+    }
 
 </style>
 
@@ -270,29 +298,30 @@
                         </select>
                     </div>
                     <button class="Button-Page-Small" id="updatePricesButton">API</button>
-                   
 
-                    <div class="form-check-orders">
-                        <div>
-                            <p><strong>Sklep:</strong> <span>@ViewBag.StoreName</span></p>
-                            <p><strong>Ceny:</strong> <span id="totalPriceCount">0</span></p>
+                    <div class="SimpleSpace">
+                        <div class="SimpleHorizontal">
+                                <div class="form-check-orders">
+                                    <div>
+
+                                        <p><strong>Data:</strong> @latestScrap?.Date.ToString("dd.MM.yyyy")</p>
+                                        <p><strong>Ceny:</strong> <span id="totalPriceCount">0</span></p>
+                                    </div>
+                                </div>
+                                <div class="form-check-orders">
+
+                                    <div>
+                                        <p><strong>Produkty:</strong> @ViewBag.ScrapedProducts</p>
+                                        <p><strong>Odrzucone:</strong> <span id="missedProductsCount">0</span></p>
+                                    </div>
+
+                                </div>
                         </div>
+                        <div><img src="@storeLogo" class="img-container" /></div>
+                            
                     </div>
-                    <div class="form-check-orders">
-
-                        <div>
-                            <p><strong>Scrapowane:</strong> @ViewBag.ScrapedProducts</p>
-                            <p><strong>Odrzucone:</strong> <span id="missedProductsCount">0</span></p>
-                        </div>
-
-                    </div>
-                    <div class="form-check-orders">
-                        <div>
-                            <p><strong>ID Scrapowania:</strong> @latestScrap?.Id</p>
-                            <p><strong>Wykonano:</strong> @latestScrap?.Date.ToString("dd.MM.yyyy")</p>
-                        </div>
-                    </div>
-
+                 
+                    
 
                   
 
@@ -301,7 +330,7 @@
               
                
                 <div id="sortingButtons">
-                    <div  id="displayedProductCount">
+                    <div class="ProductCount" id="displayedProductCount">
                     </div>
                     <button id="sortNameAZ">A-Z</button>
                     <button id="sortNameZA">Z-A</button>
