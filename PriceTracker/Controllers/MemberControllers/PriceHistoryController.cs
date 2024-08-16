@@ -169,7 +169,7 @@ namespace PriceTracker.Controllers.MemberControllers
 
             if (!string.IsNullOrEmpty(competitorStore))
             {
-                // Dla przypadku gdy competitorStore jest ustawiony
+                
                 pricesQuery = pricesQuery.Where(ph => ph.StoreName.ToLower() == storeName.ToLower() || ph.StoreName.ToLower() == competitorStore.ToLower());
             }
 
@@ -217,12 +217,12 @@ namespace PriceTracker.Controllers.MemberControllers
 
                     if (!string.IsNullOrEmpty(competitorStore))
                     {
-                        // Jeżeli `competitorStore` jest podany, odrzucamy produkty, które nie mają zarówno naszej ceny, jak i ceny konkurencyjnej
+                       
                         if (myPriceEntry == null || competitorPriceEntry == null)
                         {
                             return null;
                         }
-                        bestPriceEntry = competitorPriceEntry; // Ustawienie ceny konkurencyjnej jako bestPrice
+                        bestPriceEntry = competitorPriceEntry;
                     }
 
                     var bestPrice = bestPriceEntry.Price;
