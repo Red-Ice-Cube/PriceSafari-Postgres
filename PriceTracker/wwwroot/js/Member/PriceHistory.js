@@ -8,6 +8,8 @@ document.addEventListener("DOMContentLoaded", function () {
     let selectedProductId = null;
     let competitorStore = "";
     let selectedFlags = new Set();
+    let lastSortFunction = null; 
+    let lastClickedButton = null; 
 
 
     function loadStores() {
@@ -46,7 +48,7 @@ document.addEventListener("DOMContentLoaded", function () {
                     let valueToUse;
 
                     if (usePriceDifference) {
-                        // Jeżeli istnieje wartość savings, używamy jej jako valueToUse, w przeciwnym razie używamy priceDifference
+                        
                         valueToUse = price.savings !== null ? price.savings : price.priceDifference;
                     } else {
                         valueToUse = price.percentageDifference;
@@ -505,53 +507,54 @@ document.addEventListener("DOMContentLoaded", function () {
 
     function sortByRaiseAmountAsc(data) {
         return data
-            .filter(item => item.savings !== null) // Filtrujemy tylko produkty z savings
-            .sort((a, b) => a.savings - b.savings); // Sortowanie rosnące po savings
+            .filter(item => item.savings !== null) 
+            .sort((a, b) => a.savings - b.savings); 
     }
 
     function sortByRaiseAmountDesc(data) {
         return data
-            .filter(item => item.savings !== null) // Filtrujemy tylko produkty z savings
-            .sort((a, b) => b.savings - a.savings); // Sortowanie malejące po savings
+            .filter(item => item.savings !== null) 
+            .sort((a, b) => b.savings - a.savings); 
     }
 
     function sortByRaisePercentageAsc(data) {
         return data
-            .filter(item => item.savings !== null) // Filtrujemy tylko produkty z savings
-            .sort((a, b) => a.percentageDifference - b.percentageDifference); // Sortowanie rosnące po percentageDifference
+            .filter(item => item.savings !== null)
+            .sort((a, b) => a.percentageDifference - b.percentageDifference); 
     }
 
     function sortByRaisePercentageDesc(data) {
         return data
-            .filter(item => item.savings !== null) // Filtrujemy tylko produkty z savings
-            .sort((a, b) => b.percentageDifference - a.percentageDifference); // Sortowanie malejące po percentageDifference
+            .filter(item => item.savings !== null) 
+            .sort((a, b) => b.percentageDifference - a.percentageDifference); 
     }
 
     //obniz
 
     function sortByLowerAmountAsc(data) {
         return data
-            .filter(item => item.savings === null && item.priceDifference !== 0) // Filtrujemy tylko produkty bez savings i z priceDifference różnym od 0
-            .sort((a, b) => a.priceDifference - b.priceDifference); // Sortowanie rosnące po priceDifference
+            .filter(item => item.savings === null && item.priceDifference !== 0)
+            .sort((a, b) => a.priceDifference - b.priceDifference);
     }
 
     function sortByLowerAmountDesc(data) {
         return data
-            .filter(item => item.savings === null && item.priceDifference !== 0) // Filtrujemy tylko produkty bez savings i z priceDifference różnym od 0
-            .sort((a, b) => b.priceDifference - a.priceDifference); // Sortowanie malejące po priceDifference
+            .filter(item => item.savings === null && item.priceDifference !== 0) 
+            .sort((a, b) => b.priceDifference - a.priceDifference); 
     }
 
     function sortByLowerPercentageAsc(data) {
         return data
-            .filter(item => item.savings === null && item.priceDifference !== 0) // Filtrujemy tylko produkty bez savings i z priceDifference różnym od 0
-            .sort((a, b) => a.percentageDifference - b.percentageDifference); // Sortowanie rosnące po percentageDifference
+            .filter(item => item.savings === null && item.priceDifference !== 0)
+            .sort((a, b) => a.percentageDifference - b.percentageDifference);
     }
 
     function sortByLowerPercentageDesc(data) {
         return data
-            .filter(item => item.savings === null && item.priceDifference !== 0) // Filtrujemy tylko produkty bez savings i z priceDifference różnym od 0
-            .sort((a, b) => b.percentageDifference - a.percentageDifference); // Sortowanie malejące po percentageDifference
+            .filter(item => item.savings === null && item.priceDifference !== 0) 
+            .sort((a, b) => b.percentageDifference - a.percentageDifference); 
     }
+
 
 
 
@@ -559,7 +562,18 @@ document.addEventListener("DOMContentLoaded", function () {
         let filteredPrices = filterPricesByCategoryAndColorAndFlag(allPrices);
 
         if (sortFunction) {
-            filteredPrices = sortFunction(filteredPrices);
+            if (lastSortFunction === sortFunction) {
+              
+                sortFunction = null;
+                lastSortFunction = null;
+                resetButtonStyles();
+            } else {
+                lastSortFunction = sortFunction;
+                filteredPrices = sortFunction(filteredPrices);
+                highlightActiveButton(this);
+            }
+        } else {
+            lastSortFunction = null;
         }
 
         renderPrices(filteredPrices);
@@ -568,7 +582,26 @@ document.addEventListener("DOMContentLoaded", function () {
         updateFlagCounts(filteredPrices);
     }
 
+    function resetButtonStyles() {
+        if (lastClickedButton) {
+            lastClickedButton.classList.remove("active");
+        }
+    }
 
+    function highlightActiveButton(button) {
+        resetButtonStyles();
+        button.classList.add("active");
+        lastClickedButton = button;
+    }
+
+    document.querySelectorAll("#sortingButtons button, #sortButtonsContainer button").forEach(button => {
+        button.addEventListener("click", function () {
+            const sortFunctionName = this.getAttribute('id');
+            const sortFunction = window[sortFunctionName].bind(null);  
+
+            filterPricesAndUpdateUI.call(this, sortFunction);
+        });
+    });
 
     document.getElementById('category').addEventListener('change', function () {
         filterPricesAndUpdateUI();
@@ -588,56 +621,54 @@ document.addEventListener("DOMContentLoaded", function () {
         filterPricesByProductName(this.value);
     });
 
+
     document.getElementById('sortNameAZ').addEventListener('click', function () {
-        filterPricesAndUpdateUI(sortByNameAZ);
+        filterPricesAndUpdateUI.call(this, sortByNameAZ);
     });
 
     document.getElementById('sortNameZA').addEventListener('click', function () {
-        filterPricesAndUpdateUI(sortByNameZA);
+        filterPricesAndUpdateUI.call(this, sortByNameZA);
     });
 
     document.getElementById('sortPriceAsc').addEventListener('click', function () {
-        filterPricesAndUpdateUI(sortByPriceAsc);
+        filterPricesAndUpdateUI.call(this, sortByPriceAsc);
     });
 
     document.getElementById('sortPriceDesc').addEventListener('click', function () {
-        filterPricesAndUpdateUI(sortByPriceDesc);
+        filterPricesAndUpdateUI.call(this, sortByPriceDesc);
     });
 
     document.getElementById('sortRaiseAmountAsc').addEventListener('click', function () {
-        filterPricesAndUpdateUI(sortByRaiseAmountAsc);
+        filterPricesAndUpdateUI.call(this, sortByRaiseAmountAsc);
     });
 
     document.getElementById('sortRaiseAmountDesc').addEventListener('click', function () {
-        filterPricesAndUpdateUI(sortByRaiseAmountDesc);
+        filterPricesAndUpdateUI.call(this, sortByRaiseAmountDesc);
     });
 
     document.getElementById('sortRaisePercentageAsc').addEventListener('click', function () {
-        filterPricesAndUpdateUI(sortByRaisePercentageAsc);
+        filterPricesAndUpdateUI.call(this, sortByRaisePercentageAsc);
     });
 
     document.getElementById('sortRaisePercentageDesc').addEventListener('click', function () {
-        filterPricesAndUpdateUI(sortByRaisePercentageDesc);
+        filterPricesAndUpdateUI.call(this, sortByRaisePercentageDesc);
     });
 
-    // Sortowanie Obniż
-
     document.getElementById('sortLowerAmountAsc').addEventListener('click', function () {
-        filterPricesAndUpdateUI(sortByLowerAmountAsc);
+        filterPricesAndUpdateUI.call(this, sortByLowerAmountAsc);
     });
 
     document.getElementById('sortLowerAmountDesc').addEventListener('click', function () {
-        filterPricesAndUpdateUI(sortByLowerAmountDesc);
+        filterPricesAndUpdateUI.call(this, sortByLowerAmountDesc);
     });
 
     document.getElementById('sortLowerPercentageAsc').addEventListener('click', function () {
-        filterPricesAndUpdateUI(sortByLowerPercentageAsc);
+        filterPricesAndUpdateUI.call(this, sortByLowerPercentageAsc);
     });
 
     document.getElementById('sortLowerPercentageDesc').addEventListener('click', function () {
-        filterPricesAndUpdateUI(sortByLowerPercentageDesc);
+        filterPricesAndUpdateUI.call(this, sortByLowerPercentageDesc);
     });
-
 
     document.getElementById('usePriceDifference').addEventListener('change', function () {
         const usePriceDifference = this.checked;

@@ -21,7 +21,6 @@
         border-radius: 4px;
         position: relative;
         cursor: pointer;
-        font-family: Arial, sans-serif;
         font-size: 14px;
         color: #4e4e4e;
         text-align: center;
@@ -50,6 +49,44 @@
             background-color: #323232;
             color: #e3e3e3;
         }
+
+
+    #sortingButtons, #sortButtonsContainer {
+        display: flex;
+        gap: 10px;
+    }
+
+        #sortingButtons button, #sortButtonsContainer button {
+            padding: 2px 12px;
+            border: none;
+            background-color: #e3e3e3;
+            color: #4e4e4e;
+            font-size: 13px;
+            cursor: pointer;
+            transition: background-color 0.3s, color 0.3s;
+            border-radius: 4px;
+        }
+
+            /* Stylizacja dla aktywnego przycisku */
+            #sortingButtons button.active, #sortButtonsContainer button.active {
+                background-color: #323232;
+                color: #e3e3e3;
+            }
+
+            /* Stylizacja hover */
+            #sortingButtons button:hover, #sortButtonsContainer button:hover {
+                background-color: #ccc;
+                color: #4e4e4e;
+            }
+
+            /* Wyłączenie hover dla aktywnego przycisku */
+            #sortingButtons button.active:hover, #sortButtonsContainer button.active:hover {
+                background-color: #323232;
+                color: #e3e3e3;
+                cursor: pointer; /* Opcjonalnie można zmienić kursor na domyślny */
+            }
+
+
 </style>
 
 <div class="Vert">
@@ -262,24 +299,27 @@
                 </div>
 
               
-                <div class="price-box-column-category" id="displayedProductCount">
-                </div>
+               
                 <div id="sortingButtons">
-                    <button id="sortNameAZ">Sortuj nazwę A-Z</button>
-                    <button id="sortNameZA">Sortuj nazwę Z-A</button>
-                    <button id="sortPriceAsc">Sortuj od najtańszego</button>
-                    <button id="sortPriceDesc">Sortuj od najdroższego</button>
+                    <div  id="displayedProductCount">
+                    </div>
+                    <button id="sortNameAZ">A-Z</button>
+                    <button id="sortNameZA">Z-A</button>
+                    <button id="sortPriceAsc">Cena ↑</button>
+                    <button id="sortPriceDesc">Cena ↓</button>
+                    <div id="sortButtonsContainer">
+                        <button id="sortRaiseAmountAsc">Podnieś PLN ↑</button>
+                        <button id="sortRaisePercentageAsc">Podnieś % ↑</button>
+                        <button id="sortRaiseAmountDesc">Podnieś PLN ↓</button>                     
+                        <button id="sortRaisePercentageDesc">Podnieś % ↓</button>
+                        <button id="sortLowerAmountAsc">Obniż PLN ↑</button>
+                        <button id="sortLowerPercentageAsc">Obniż % ↑</button>
+                        <button id="sortLowerAmountDesc">Obniż PLN ↓</button>
+                    
+                        <button id="sortLowerPercentageDesc">Obniż % ↓</button>
+                    </div>
                 </div>
-                <div id="sortButtonsContainer">
-                    <button id="sortRaiseAmountAsc">Sortuj Podnieś o (Kwota) ↑</button>
-                    <button id="sortRaiseAmountDesc">Sortuj Podnieś o (Kwota) ↓</button>
-                    <button id="sortRaisePercentageAsc">Sortuj Podnieś o (%) ↑</button>
-                    <button id="sortRaisePercentageDesc">Sortuj Podnieś o (%) ↓</button>
-                    <button id="sortLowerAmountAsc">Sortuj Obniż o (Kwota) ↑</button>
-                    <button id="sortLowerAmountDesc">Sortuj Obniż o (Kwota) ↓</button>
-                    <button id="sortLowerPercentageAsc">Sortuj Obniż o (%) ↑</button>
-                    <button id="sortLowerPercentageDesc">Sortuj Obniż o (%) ↓</button>
-                </div>
+          
 
 
             
