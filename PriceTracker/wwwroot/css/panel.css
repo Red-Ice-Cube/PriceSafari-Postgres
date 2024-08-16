@@ -116,7 +116,7 @@ p {
 
     .link-line:hover {
         text-decoration: none;
-        color: #1B3C37;
+        color: #41C7C7;
         font-weight: 300
     }
 
@@ -1774,7 +1774,7 @@ p {
 }
 
     .DropDown:focus {
-        border: 1px solid #1B3C37;
+        border: 1px solid #41C7C7;
     }
 
 .Sidebar-box {
@@ -1999,7 +1999,7 @@ tr:last-child .sub-line {
 }
 
     #productSearch:focus {
-        border-color: #222222;
+        border-color: #41C7C7;
     }
 
 #storeSearch {
@@ -2014,7 +2014,7 @@ tr:last-child .sub-line {
 }
 
     #storeSearch:focus {
-        border-color: #222222;
+        border-color: #41C7C7;
     }
 
 .sort-icon {
