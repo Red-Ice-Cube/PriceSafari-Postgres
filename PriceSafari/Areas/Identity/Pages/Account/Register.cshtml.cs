@@ -75,7 +75,7 @@ namespace PriceSafari.Areas.Identity.Pages.Account
             public string ConfirmPassword { get; set; }
 
             [Required(ErrorMessage = "Musisz zaakceptować regulamin, aby kontynuować.")]
-            [Display(Name = "Akceptuję regulamin programu partnerskiego")]
+            [Display(Name = "Akceptuję regulamin")]
             public bool AcceptsTerms { get; set; }
         }
 

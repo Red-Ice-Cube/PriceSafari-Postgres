@@ -41,9 +41,9 @@ public class GoogleScraperController : Controller
 
             scraper.MatchReviews();
 
-            await scraper.OpenAndScrapeMatchedOffersAsync(product.Url, store.StoreName);  // Dodanie storeName
+            await scraper.OpenAndScrapeMatchedOffersAsync(product.Url, store.StoreName);  
 
-            // Pobierz znaleziony URL i zaktualizuj produkt
+          
             product.GoogleUrl = scraper.GetScrapedGoogleUrl();
 
             await scraper.CloseBrowserAsync();

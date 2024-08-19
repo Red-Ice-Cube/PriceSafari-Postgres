@@ -98,7 +98,7 @@ namespace PriceSafari.Controllers
                         else
                         {
                             affiliateVerification.IsVerified = true;
-                            affiliateVerification.AffiliateDescription = affiliateVerificationDescription; // Aktualizacja opisu
+                            affiliateVerification.AffiliateDescription = affiliateVerificationDescription; 
                         }
                         await _context.SaveChangesAsync();
                     }
@@ -110,7 +110,7 @@ namespace PriceSafari.Controllers
                         var callbackUrl = Url.Page("/Account/ConfirmEmail", pageHandler: null, values: new { area = "Identity", userId = user.Id, code = code }, protocol: Request.Scheme);
 
                         await _sender.SendEmailAsync(model.Email, "Potwierdzenie adresu e-mail",
-                            $"Zostałeś zaproszony do programu. Tutaj potwierdzisz adres swojego konta menadżerskiego: <a href='{HtmlEncoder.Default.Encode(callbackUrl)}'>kliknij tutaj</a>.<br/>Twoje hasło logowania: {model.Password}");
+                            $"Rozpoczeliśmy przygototwywanie twojego konta w programie PriceSafari. Prosimy o potwierdzenie adresu e-mail klikając w ten link: <a href='{HtmlEncoder.Default.Encode(callbackUrl)}'>kliknij tutaj</a>.<br/>Twoje tymczasowe hasło logowania: {model.Password} Po zalogowaniu do panelu, prosimy o zmianę hasła.");
                     }
                     else
                     {

@@ -86,7 +86,7 @@ namespace PriceSafari.Areas.Identity.Pages.Account
                     var affiliateVerification = await _context.AffiliateVerification.FirstOrDefaultAsync(av => av.UserId == user.Id);
                     if (affiliateVerification == null || !affiliateVerification.IsVerified)
                     {
-                        ModelState.AddModelError(string.Empty, "Twoje konto oczekuje na weryfikację przez administratora programu. Po zatwierdzeniu wiadomości z opisem, będziesz mógł się zalogować.");
+                        ModelState.AddModelError(string.Empty, "Konto jest jeszcze przygototwywane. Po zakończonej konfiguracji powiadomimy Cię o tym mailowo.");
                         return Page();
                     }
                 }
@@ -116,7 +116,7 @@ namespace PriceSafari.Areas.Identity.Pages.Account
                 }
                 else
                 {
-                    // Obsługa innych wyników logowania
+                   
                     ModelState.AddModelError(string.Empty, "Błędne dane logowania.");
                     return Page();
                 }
