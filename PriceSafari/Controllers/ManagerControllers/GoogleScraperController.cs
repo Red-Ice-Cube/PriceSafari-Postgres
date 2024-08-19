@@ -1,11 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using PriceSafari.Data;
-using PriceSafari.Hubs;
-using System.Net.Http;
-using System.Threading.Tasks;
 
 
 [Authorize(Roles = "Admin")]

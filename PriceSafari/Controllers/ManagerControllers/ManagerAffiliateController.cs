@@ -126,7 +126,7 @@ namespace PriceSafari.Controllers.ManagerControllers
                 UserJoin = user.CreationDate,
                 Status = user.IsActive,
                 Verification = user.AffiliateVerification?.IsVerified ?? false,
-                Description = user.AffiliateVerification?.AffiliateDescription
+                //Description = user.AffiliateVerification?.AffiliateDescription
             };
 
             return View("~/Views/ManagerPanel/Affiliates/UserProfile.cshtml", managerUserProfileViewModel);

@@ -10,7 +10,7 @@ namespace PriceSafari.Models
         public string? ContactEmail { get; set; }
         public string? ContactNumber { get; set; }
 
-        public bool VerificationRequired { get; set; } = false;
+        public bool VerificationRequired { get; set; } = true;
 
         public int CaptchaSpeed { get; set; } = 3;
         public int ScrapSemaphoreSlim { get; set; } = 3;

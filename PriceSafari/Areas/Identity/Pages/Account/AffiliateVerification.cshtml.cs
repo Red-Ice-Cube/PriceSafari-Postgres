@@ -1,87 +1,87 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using System.ComponentModel.DataAnnotations;
+﻿//using Microsoft.AspNetCore.Mvc;
+//using System.ComponentModel.DataAnnotations;
 
-using PriceSafari.Data;
-using PriceSafari.Models;
-using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.Mvc.RazorPages;
+//using PriceSafari.Data;
+//using PriceSafari.Models;
+//using Microsoft.AspNetCore.Identity;
+//using Microsoft.AspNetCore.Mvc.RazorPages;
 
-using Microsoft.EntityFrameworkCore;
-
-
-namespace PriceSafari.Areas.Identity.Pages.Account
-{
+//using Microsoft.EntityFrameworkCore;
 
 
-    public class AffiliateVerificationModel : PageModel
-    {
-        private readonly UserManager<PriceSafariUser> _userManager;
-        private readonly PriceSafariContext _context;
+//namespace PriceSafari.Areas.Identity.Pages.Account
+//{
 
-        public AffiliateVerificationModel(UserManager<PriceSafariUser> userManager, PriceSafariContext context)
-        {
-            _userManager = userManager;
-            _context = context;
-        }
 
-        [BindProperty]
-        public InputModel Input { get; set; }
+//    public class AffiliateVerificationModel : PageModel
+//    {
+//        private readonly UserManager<PriceSafariUser> _userManager;
+//        private readonly PriceSafariContext _context;
 
-        public string UserId { get; set; }
+//        public AffiliateVerificationModel(UserManager<PriceSafariUser> userManager, PriceSafariContext context)
+//        {
+//            _userManager = userManager;
+//            _context = context;
+//        }
 
-        public class InputModel
-        {
-            [Required(ErrorMessage = "Opis jest wymagany.")]
-            [StringLength(500, ErrorMessage = "Opis nie może przekraczać 500 znaków.")]
-            public string AffiliateDescription { get; set; }
-        }
+//        [BindProperty]
+//        public InputModel Input { get; set; }
 
-        public async Task<IActionResult> OnGetAsync(string userId)
-        {
-            UserId = userId;
-            var user = await _userManager.FindByIdAsync(userId);
-            if (user == null || !user.EmailConfirmed)
-            {
-                return NotFound("Nie można załadować użytkownika lub e-mail nie został potwierdzony.");
-            }
-            return Page();
-        }
+//        public string UserId { get; set; }
 
-        public async Task<IActionResult> OnPostAsync(string userId)
-        {
-            UserId = userId;
-            var user = await _userManager.FindByIdAsync(userId);
-            if (user == null || !user.EmailConfirmed)
-            {
-                return NotFound("Nie można załadować użytkownika lub e-mail nie został potwierdzony.");
-            }
+//        public class InputModel
+//        {
+//            [Required(ErrorMessage = "Opis jest wymagany.")]
+//            [StringLength(500, ErrorMessage = "Opis nie może przekraczać 500 znaków.")]
+//            public string AffiliateDescription { get; set; }
+//        }
 
-            var existingVerification = await _context.AffiliateVerification
-                .FirstOrDefaultAsync(av => av.UserId == user.Id);
+//        public async Task<IActionResult> OnGetAsync(string userId)
+//        {
+//            UserId = userId;
+//            var user = await _userManager.FindByIdAsync(userId);
+//            if (user == null || !user.EmailConfirmed)
+//            {
+//                return NotFound("Nie można załadować użytkownika lub e-mail nie został potwierdzony.");
+//            }
+//            return Page();
+//        }
 
-            if (existingVerification != null)
-            {
-                existingVerification.AffiliateDescription = Input.AffiliateDescription;
-                existingVerification.IsVerified = false;
-            }
-            else
-            {
-                var newVerification = new AffiliateVerification
-                {
-                    UserId = user.Id,
-                    AffiliateDescription = Input.AffiliateDescription,
-                    IsVerified = false
-                };
+//        public async Task<IActionResult> OnPostAsync(string userId)
+//        {
+//            UserId = userId;
+//            var user = await _userManager.FindByIdAsync(userId);
+//            if (user == null || !user.EmailConfirmed)
+//            {
+//                return NotFound("Nie można załadować użytkownika lub e-mail nie został potwierdzony.");
+//            }
 
-                _context.AffiliateVerification.Add(newVerification);
-            }
+//            var existingVerification = await _context.AffiliateVerification
+//                .FirstOrDefaultAsync(av => av.UserId == user.Id);
 
-            await _context.SaveChangesAsync();
+//            if (existingVerification != null)
+//            {
+//                existingVerification.AffiliateDescription = Input.AffiliateDescription;
+//                existingVerification.IsVerified = false;
+//            }
+//            else
+//            {
+//                var newVerification = new AffiliateVerification
+//                {
+//                    UserId = user.Id,
+//                    AffiliateDescription = Input.AffiliateDescription,
+//                    IsVerified = false
+//                };
 
-            // Przekierowanie na stronę potwierdzenia
-            return RedirectToPage("./AffiliateVerificationConfirmation");
-        }
+//                _context.AffiliateVerification.Add(newVerification);
+//            }
 
-    }
+//            await _context.SaveChangesAsync();
 
-}
+//            // Przekierowanie na stronę potwierdzenia
+//            return RedirectToPage("./AffiliateVerificationConfirmation");
+//        }
+
+//    }
+
+//}

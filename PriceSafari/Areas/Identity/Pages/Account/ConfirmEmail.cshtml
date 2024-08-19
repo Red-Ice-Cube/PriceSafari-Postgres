@@ -15,29 +15,24 @@
     <div class="login">
         <div class="heat-lead"></div>
 
-
-
         <div class="login-box">
 
             <div class="login-box-head">
                 <div class="login-box-title">E-mail potwierdzony</div>
                 <div class="Main-Text">
-                    @if (Model.StatusMessage.Contains("weryfikację afiliacyjną"))
+                    @if (Model.StatusMessage.Contains("Twoje konto jest już gotowe"))
                     {
-                        <p>Dziękujemy za potwierdzenie adresu e-mail. Aby dokończyć proces rejestracji, prosimy o uzupełnienie dodatkowych informacji o sobie.</p>
-                        <a href="/Identity/Account/AffiliateVerification?userId=@Model.UserId" class="Main-button">Dodaj opis</a>
+                        <p>@Model.StatusMessage</p>
+                        <a href="/Identity/Account/Login" class="Main-button">Logowanie</a>
                     }
                     else
                     {
-                        <p>Dziękujemy za dołączenie do naszej społeczności i życzymy sukcesów w naszym programie partnerskim!</p>
-                        <a href="/Identity/Account/Login" class="Main-button">Logowanie</a>
+                        <p>@Model.StatusMessage</p>
                     }
                 </div>
             </div>
 
-
         </div>
-
 
         <div class="price-safari"><img src="~/images/PriceSafari.png" alt="PriceSafari" /></div>
     </div>

@@ -1,4 +1,3 @@
-
 using PriceSafari.Data;
 using PriceSafari.DotEnv;
 using PriceSafari.Models;
@@ -8,7 +7,6 @@ using Microsoft.EntityFrameworkCore;
 using PriceSafari.Hubs;
 using PriceSafari.Services;
 
-
 public class Program
 {
     public static async Task Main(string[] args)
@@ -17,23 +15,12 @@ public class Program
         var dotenv = Path.Combine(root, ".env");
         DotEnv.Load(dotenv);
 
-
         var builder = WebApplication.CreateBuilder(args);
 
-     
         builder.Configuration.AddJsonFile("appsettings.json", optional: false, reloadOnChange: true);
-
-      
         builder.Configuration.AddEnvironmentVariables();
 
-
-        var dbServer = Environment.GetEnvironmentVariable("DB_SERVER");
-        var dbName = Environment.GetEnvironmentVariable("DB_NAME");
-        var dbUser = Environment.GetEnvironmentVariable("DB_USER");
-        var dbPassword = Environment.GetEnvironmentVariable("DB_PASSWORD");
-
-        var connectionString = $"Data Source={dbServer};Database={dbName};Uid={dbUser};Password={dbPassword};TrustServerCertificate=True";
-
+        var connectionString = $"Data Source=(localdb)\\MSSQLLocalDB;Initial Catalog=PriceSafari;Integrated Security=True;Connect Timeout=30;Encrypt=False;Trust Server Certificate=False;Application Intent=ReadWrite;Multi Subnet Failover=False";
         builder.Services.AddDbContext<PriceSafariContext>(options => options.UseSqlServer(connectionString));
 
         builder.Services.AddDefaultIdentity<PriceSafariUser>(options => options.SignIn.RequireConfirmedAccount = true)
@@ -44,18 +31,13 @@ public class Program
         builder.Services.AddHttpClient();
 
         builder.Services.AddTransient<IEmailSender, EmailService>();
-
-
         builder.Services.AddSignalR();
 
         builder.Services.AddHttpClient<Scraper>();
-
         builder.Services.AddScoped<Scraper>();
 
         builder.Services.AddHttpClient<CaptchaScraper>();
-
         builder.Services.AddScoped<CaptchaScraper>();
-
 
         builder.Services.AddMemoryCache();
         builder.Services.AddSession(options =>
@@ -73,13 +55,11 @@ public class Program
             app.UseHsts();
         }
 
-     
         app.UseHttpsRedirection();
         app.UseStaticFiles();
         app.UseRouting();
 
         app.UseAuthorization();
-
         app.UseSession();
 
         app.MapControllerRoute(
@@ -91,7 +71,6 @@ public class Program
         using (var scope = app.Services.CreateScope())
         {
             var services = scope.ServiceProvider;
-
             try
             {
                 var context = services.GetRequiredService<PriceSafariContext>();
@@ -102,16 +81,18 @@ public class Program
                     context.Settings.Add(defaultSettings);
                     await context.SaveChangesAsync();
                 }
+
+                await CreateDefaultAdmin(services);
             }
-            catch (Exception)
+            catch (Exception ex)
             {
+                Console.WriteLine(ex.Message);
             }
         }
 
         using (var scope = app.Services.CreateScope())
         {
             var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
-
             var roles = new[] { "Admin", "Manager", "Member" };
 
             foreach (var role in roles)
@@ -125,4 +106,67 @@ public class Program
 
         await app.RunAsync();
     }
+
+    private static async Task CreateDefaultAdmin(IServiceProvider serviceProvider)
+    {
+        var userManager = serviceProvider.GetRequiredService<UserManager<PriceSafariUser>>();
+        var roleManager = serviceProvider.GetRequiredService<RoleManager<IdentityRole>>();
+        var context = serviceProvider.GetRequiredService<PriceSafariContext>();
+
+        if (!userManager.Users.Any())
+        {
+            // SprawdŸ i utwórz rolê admina, jeœli nie istnieje
+            if (!await roleManager.RoleExistsAsync("Admin"))
+            {
+                await roleManager.CreateAsync(new IdentityRole("Admin"));
+            }
+
+            // Utwórz domyœlnego u¿ytkownika admina
+            var adminUser = new PriceSafariUser
+            {
+                UserName = "mateusz.werner@myjki.com",
+                Email = "mateusz.werner@myjki.com",
+                EmailConfirmed = true,
+                PartnerName = "Mateusz",
+                PartnerSurname = "Werner",
+                IsMember = false,
+                IsActive = true
+            };
+
+            var result = await userManager.CreateAsync(adminUser, "Test1234$");
+            if (result.Succeeded)
+            {
+                await userManager.AddToRoleAsync(adminUser, "Admin");
+
+                // Dodanie rekordu do tabeli AffiliateVerification z IsVerified = true
+                var affiliateVerification = new AffiliateVerification
+                {
+                    UserId = adminUser.Id,
+                    IsVerified = true
+                };
+                context.AffiliateVerification.Add(affiliateVerification);
+                await context.SaveChangesAsync();
+            }
+            else
+            {
+                // Logowanie b³êdów
+                foreach (var error in result.Errors)
+                {
+                    Console.WriteLine(error.Description);
+                }
+            }
+        }
+    }
 }
+
+
+
+
+
+
+//var dbServer = Environment.GetEnvironmentVariable("DB_SERVER");
+//var dbName = Environment.GetEnvironmentVariable("DB_NAME");
+//var dbUser = Environment.GetEnvironmentVariable("DB_USER");
+//var dbPassword = Environment.GetEnvironmentVariable("DB_PASSWORD");
+
+//var connectionString = $"Data Source={dbServer};Database={dbName};Uid={dbUser};Password={dbPassword};TrustServerCertificate=True";

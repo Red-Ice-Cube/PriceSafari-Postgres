@@ -44,22 +44,16 @@ namespace PriceSafari.Areas.Identity.Pages.Account
             {
                 UserId = userId;
 
-                // Sprawdzenie, czy ustawienia wymagają weryfikacji i czy użytkownik jest członkiem
-                var settings = await _context.Settings.FirstOrDefaultAsync();
-                if (!user.IsMember)
+                var affiliateVerification = await _context.AffiliateVerification.FirstOrDefaultAsync(av => av.UserId == userId);
+                if (affiliateVerification != null && affiliateVerification.IsVerified)
                 {
-                    // Użytkownik jest Adminem/Managerem
-                    StatusMessage = "Dziękujemy za potwierdzenie adresu e-mail. Jako administrator/manager jesteś już zweryfikowany.";
-                }
-                else if (settings != null && settings.VerificationRequired)
-                {
-                    // Wymagana jest weryfikacja afiliacyjna
-                    StatusMessage = "Dziękujemy za potwierdzenie adresu e-mail. Proszę uzupełnić weryfikację afiliacyjną.";
+                    // Użytkownik jest zweryfikowany
+                    StatusMessage = "Dziękujemy za weryfikację adresu email. Twoje konto jest już gotowe i możesz się zalogować.";
                 }
                 else
                 {
-                    // Weryfikacja nie jest wymagana
-                    StatusMessage = "Dziękujemy za potwierdzenie adresu e-mail.";
+                    // Użytkownik nie jest jeszcze zweryfikowany
+                    StatusMessage = "Dziękujemy za potwierdzenie maila. Obecnie konfigurujemy Twój panel. Gdy będzie gotowy, powiadomimy Cię o tym mailowo i będziesz mógł się zalogować.";
                 }
             }
             else
@@ -69,5 +63,6 @@ namespace PriceSafari.Areas.Identity.Pages.Account
 
             return Page();
         }
+
     }
 }

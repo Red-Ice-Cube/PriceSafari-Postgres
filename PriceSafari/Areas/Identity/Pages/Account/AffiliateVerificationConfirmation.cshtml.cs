@@ -1,16 +1,16 @@
 ﻿
-using Microsoft.AspNetCore.Mvc.RazorPages;
+//using Microsoft.AspNetCore.Mvc.RazorPages;
 
 
-namespace PriceSafari.Areas.Identity.Pages.Account
-{
+//namespace PriceSafari.Areas.Identity.Pages.Account
+//{
 
 
-    public class AffiliateVerificationConfirmationModel : PageModel
-    {
+//    public class AffiliateVerificationConfirmationModel : PageModel
+//    {
      
 
      
-    }
+//    }
 
-}
+//}
