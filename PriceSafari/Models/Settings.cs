@@ -20,7 +20,7 @@ namespace PriceSafari.Models
         public Settings()
         {
 
-            VerificationRequired = false;
+            VerificationRequired = true;
         }
     }
 }
