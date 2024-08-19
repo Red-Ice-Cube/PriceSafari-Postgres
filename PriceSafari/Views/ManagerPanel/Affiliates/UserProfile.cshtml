@@ -1,0 +1,100 @@
+﻿@model PriceSafari.Models.ManagerViewModels.ManagerUserProfileViewModel
+
+
+@{
+    Layout = "~/Views/Shared/_PanelLayout.cshtml";
+}
+
+
+
+<div class="Page-Box">
+    <div class="Page-Box-Container">
+        <div class="Page-Box-Category">
+            <div class="Category-Box-Title">
+                Profil użytkownika
+
+            </div>
+
+            <partial name="_ManageNavCol" />
+        </div>
+
+        <div class="Column-Form">
+            <div class="campaign-box-head-name" style="font-size: 26px; color: #4B4B4B; font-weight:300;">
+                Konto @Model.UserName @Model.UserSurname
+
+
+            </div>
+
+            <div class="campaign-summary">
+
+                <div class="campaign-summary-line" style="font-size: 14px;">
+                    <div class="campaign-summary-line-icon">
+                        <img src="~/images/Affiliate-b.svg" alt="Panel Icon" width="18" height="18" />
+                    </div>Kod Partnera: @Model.UserCode
+                </div>
+                <div class="campaign-summary-line" style="font-size: 14px;">
+                    <div class="campaign-summary-line-icon">
+                        <img src="~/images/Time-b.svg" alt="Panel Icon" width="18" height="18" />
+                    </div>Data dołączenia: @Model.UserJoin
+                </div>
+                <div class="campaign-summary-line" style="font-size: 14px;">
+                    <div class="campaign-summary-line-icon">
+                        <img src="~/images/Mail-b.svg" alt="Panel Icon" width="18" height="18" />
+                    </div>E-mail: @Model.UserEmail
+                </div>
+
+            </div>
+
+            <div class="campaign-summary">
+
+                <div class="campaign-summary-line" style="font-size: 14px;">
+                    <div class="campaign-summary-line-icon">
+                        <img src="~/images/Affiliate-b.svg" alt="Panel Icon" width="18" height="18" />
+                    </div>Opis Partnera: @Model.Description
+                </div>
+                <div class="campaign-summary-line" style="font-size: 14px;">
+                    <div class="campaign-summary-line-icon">
+                        <img src="~/images/Time-b.svg" alt="Panel Icon" width="18" height="18" />
+                    </div>Weryfikacja Partnera: @(Model.Verification ? "Zatwierdzony" : "Czeka na weryfikację")
+                </div>
+
+            </div>
+
+            <div class="campaign-summary" style="margin-top: 64px;">
+                @if (Model.Status)
+                {
+                    <form asp-action="BlockUser" method="post" asp-antiforgery="true">
+                        <input type="hidden" name="codePAR" value="@Model.UserCode" />
+                        <button type="submit" class="Button-Page-Small-r" style="width: 180px;">Zablokuj użytkownika</button>
+                    </form>
+                }
+                else
+                {
+                    <form asp-action="UnblockUser" method="post" asp-antiforgery="true">
+                        <input type="hidden" name="codePAR" value="@Model.UserCode" />
+                        <button type="submit" class="Button-Page-Small" style="width: 180px;">Odblokuj użytkownika</button>
+                    </form>
+                }
+
+
+                @if (!Model.Verification)
+                {
+                    <form asp-action="VerifyUser" method="post">
+                        <input type="hidden" name="codePAR" value="@Model.UserCode" />
+                        <button type="submit" class="Button-Add-Small" style="width: 180px;">Zaakceptuj użytkownika</button>
+                    </form>
+                }
+               
+
+            </div>
+      
+
+        </div>
+       
+
+
+    </div>
+
+
+</div>
+

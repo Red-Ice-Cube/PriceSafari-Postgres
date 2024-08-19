@@ -1,0 +1,128 @@
+﻿@model IEnumerable<PriceSafari.Models.ProductClass>
+
+@{
+    ViewData["Title"] = "Lista Produktów";
+    Layout = "~/Views/Shared/_PanelLayout.cshtml";
+}
+
+<h2>Lista Produktów dla sklepu @ViewBag.StoreName</h2>
+
+<a asp-controller="GoogleScraper" asp-action="GoogleProducts" asp-route-storeId="@ViewBag.StoreId" class="btn btn-info">Produkty na Google Shopping</a>
+
+<div class="filters">
+    <div class="form-group">
+        <label>Produkt na Google Shopping:</label>
+        <select id="onGoogleFilter" class="form-control">
+            <option value="all">Wszystkie</option>
+            <option value="true">Tak</option>
+            <option value="false">Nie</option>
+        </select>
+    </div>
+    <div class="form-group">
+        <label>URL Oferty:</label>
+        <select id="hasUrlFilter" class="form-control">
+            <option value="all">Wszystkie</option>
+            <option value="true">Tak</option>
+            <option value="false">Nie</option>
+        </select>
+    </div>
+    <div class="form-group">
+        <label>Google URL:</label>
+        <select id="hasGoogleUrlFilter" class="form-control">
+            <option value="all">Wszystkie</option>
+            <option value="true">Tak</option>
+            <option value="false">Nie</option>
+        </select>
+    </div>
+    <div class="form-group">
+        <label>Nazwa w Sklepie:</label>
+        <select id="hasProductNameInStoreFilter" class="form-control">
+            <option value="all">Wszystkie</option>
+            <option value="true">Tak</option>
+            <option value="false">Nie</option>
+        </select>
+    </div>
+    <button onclick="filterProducts()" class="btn btn-primary">Filtruj</button>
+</div>
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>Nazwa Produktu</th>
+            <th>URL Oferty</th>
+            <th>Google URL</th>
+            <th>Produkt na Google</th>
+            <th>Nazwa w Sklepie</th>
+            <th>Akcje</th>
+        </tr>
+    </thead>
+    <tbody id="productTableBody">
+        @foreach (var product in Model)
+        {
+            <tr>
+                <td>@product.ProductName</td>
+                <td><a href="@product.Url" target="_blank">@product.Url</a></td>
+                <td>@product.GoogleUrl</td>
+                <td>@product.OnGoogle.ToString().ToLower()</td>
+                <td>@product.ProductNameInStoreForGoogle != null</td>
+                <td>
+                    <form asp-action="UpdateProductNameInStoreForGoogle" method="post">
+                        <input type="hidden" name="productId" value="@product.ProductId" />
+                        <input type="text" name="productNameInStoreForGoogle" value="@product.ProductNameInStoreForGoogle" class="form-control" />
+                        <button type="submit" class="btn btn-primary">Aktualizuj</button>
+                    </form>
+                </td>
+                <td>
+                    <form asp-action="ToggleGoogleStatus" method="post">
+                        <input type="hidden" name="productId" value="@product.ProductId" />
+                        <button type="submit" class="btn btn-primary">@product.OnGoogle ? "Usuń z Google" : "Dodaj do Google"</button>
+                    </form>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@section Scripts {
+    <script>
+        function filterProducts() {
+            var onGoogleFilter = document.getElementById("onGoogleFilter").value;
+            var hasUrlFilter = document.getElementById("hasUrlFilter").value;
+            var hasGoogleUrlFilter = document.getElementById("hasGoogleUrlFilter").value;
+            var hasProductNameInStoreFilter = document.getElementById("hasProductNameInStoreFilter").value;
+
+            var rows = document.querySelectorAll("#productTableBody tr");
+
+            rows.forEach(row => {
+                var onGoogle = row.cells[3].textContent.trim().toLowerCase();
+                var hasUrl = row.cells[1].querySelector("a").href !== "";
+                var hasGoogleUrl = row.cells[2].textContent.trim() !== "";
+                var hasProductNameInStore = row.cells[4].textContent.trim() !== "false";
+
+                var show = true;
+
+                if (onGoogleFilter !== "all" && (onGoogleFilter === "true" && onGoogle !== "true" || onGoogleFilter === "false" && onGoogle !== "false")) {
+                    show = false;
+                }
+
+                if (hasUrlFilter !== "all" && (hasUrlFilter === "true" && !hasUrl || hasUrlFilter === "false" && hasUrl)) {
+                    show = false;
+                }
+
+                if (hasGoogleUrlFilter !== "all" && (hasGoogleUrlFilter === "true" && !hasGoogleUrl || hasGoogleUrlFilter === "false" && hasGoogleUrl)) {
+                    show = false;
+                }
+
+                if (hasProductNameInStoreFilter !== "all" && (hasProductNameInStoreFilter === "true" && !hasProductNameInStore || hasProductNameInStoreFilter === "false" && hasProductNameInStore)) {
+                    show = false;
+                }
+
+                if (show) {
+                    row.style.display = "";
+                } else {
+                    row.style.display = "none";
+                }
+            });
+        }
+    </script>
+}

@@ -1,0 +1,41 @@
+﻿@page
+@model PriceSafari.Areas.Identity.Pages.Account.AffiliateVerificationModel
+
+@{
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<div class="main-page">
+    <div class="partner-banner">
+        <a href="@Url.Action("Index", "Home")">
+            <img src="~/images/Banner.gif" alt="Home" class="menu-icon" />
+        </a>
+    </div>
+    <div class="login">
+        <div class="heat-lead"></div>
+        <form method="post" class="login-box">
+            <div class="login-box-head">
+                <div class="login-box-title">Dodaj Opis</div>
+                <a asp-page="./Login" class="links">Zaloguj się</a>
+            </div>
+
+            <div class="form-floating">
+                <textarea asp-for="Input.AffiliateDescription" class="form-control" autocomplete="off" aria-required="true" placeholder="Opis" style="height: 300px;"></textarea>
+                <label asp-for="Input.AffiliateDescription">Opis (maksymalnie 500 znaków)</label>
+                <span asp-validation-for="Input.AffiliateDescription" class="text-danger"></span>
+            </div>
+
+
+            <input type="hidden" asp-for="UserId" />
+            <button id="submitDescription" type="submit" class="login-button">Wyślij opis</button>
+
+            <div asp-validation-summary="ModelOnly" role="alert"></div>
+        </form>
+
+        <div class="price-safari"><img src="~/images/PriceSafari.png" alt="PriceSafari" /></div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

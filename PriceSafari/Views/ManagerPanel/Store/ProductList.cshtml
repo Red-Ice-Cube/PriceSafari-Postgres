@@ -1,0 +1,96 @@
+﻿@model IEnumerable<PriceSafari.Models.ProductClass>
+
+@{
+    ViewData["Title"] = "Product List";
+    var categories = ViewBag.Categories as List<string>;
+    var storeId = ViewBag.StoreId;
+    var allProducts = ViewBag.AllProducts as List<PriceSafari.Models.ProductClass>;
+    var scrapableProducts = ViewBag.ScrapableProducts as List<PriceSafari.Models.ProductClass>;
+    var rejectedProductsCount = ViewBag.RejectedProductsCount;
+    var productsToScrap = scrapableProducts.Count() - rejectedProductsCount;
+}
+
+@{
+    Layout = "~/Views/Shared/_PanelLayout.cshtml";
+}
+
+<div class="Vert" data-store-id="@storeId">
+    <div class="Vert-full">
+        <div class="Order-Container-Title">
+            Lista produktów @ViewBag.StoreName
+            <div class="bar-List">
+                <div>
+                    <strong>Łączna liczba produktów: </strong><span id="totalProductCount">@allProducts.Count()</span>
+                </div>
+                <div>
+                    <strong>Przypisane do scrapowania: </strong><span id="scrapableProductCount">@scrapableProducts.Count()</span>
+                </div>             
+              
+            </div>
+        </div>
+        <div class="bar-List">
+            <form id="scrapingForm" asp-controller="PriceScraping" asp-action="StartScrapingGet" method="get">
+                <input type="hidden" name="storeId" value="@storeId" />
+                <button type="submit" class="Button-Add-Small">Rozpocznij scrapowanie cen @productsToScrap produktów</button>
+            </form>
+            <form id="clearRejectedForm" asp-controller="Store" asp-action="ClearRejectedProducts" method="post">
+                <input type="hidden" name="storeId" value="@storeId" />
+                <button type="submit" class="Button-Page-Small-o">Resetuj odrzucone @rejectedProductsCount produkty</button>
+            </form>
+
+            <form id="priceHistoryForm" asp-controller="PriceHistory" asp-action="Index" method="get">
+                <input type="hidden" name="storeId" value="@storeId" />
+                <button type="submit" class="Button-Page-Small-r">Panel Cen</button>
+            </form>
+          
+        </div>
+        <div class="order-upper-box">
+            <div class="chart-box">
+                <div class="chart-container-cam">
+                    <div class="progress-bar">
+                        <div id="progressBarInner" class="progress-bar-inner"></div>
+                    </div>
+                </div>
+                <div id="progressText" class="mt-2"></div>
+                <div id="completionMessage" class="mt-2" style="display: none;"></div>
+                <div class="chart-container-cam">
+                    <canvas id="speedChart"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="Vert-table">
+            <table class="table-orders">
+                <thead>
+                    <tr>
+                        <th>Nazwa</th>
+                        <th>Kategoria</th>
+                        <th>Odrzucony</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var product in Model)
+                    {
+                        <tr class="product-row" data-category="@product.Category" style="background-color: @(product.IsRejected ? "rgba(238, 17, 17, 0.3)" : "rgba(14, 126, 135, 0.3)")">
+                            <td>@product.ProductName</td>
+                            <td>@product.Category</td>
+                            <td>@(product.IsRejected ? "Tak" : "Nie")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <style>
+        #speedChart {
+            width: 100% !important;
+            height: 200px !important;
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/3.1.11/signalr.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="~/js/manager/scrape.min.js"></script>
+}

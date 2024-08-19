@@ -1,0 +1,67 @@
+﻿@model IEnumerable<PriceSafari.Models.ProductMap>
+@{
+    ViewData["Title"] = "Zmapowane Produkty";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    var storeProducts = ViewBag.StoreProducts as IEnumerable<PriceSafari.Models.ProductClass>;
+    var storeId = ViewBag.StoreId;
+}
+
+<h2>Zmapowane Produkty dla sklepu @ViewBag.StoreName</h2>
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>Zdjęcie</th>
+            <th>External ID</th>
+            <th>Numer Katalogowy</th>
+            <th>EAN</th>
+            <th>URL</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var product in Model)
+        {
+            <tr>
+                <td><img src="@product.MainUrl" alt="@product.CatalogNumber" style="max-width: 100px;" /></td>
+                <td>@product.ExternalId</td>
+                <td>@product.CatalogNumber</td>
+                <td>@product.Ean</td>
+                <td><a href="@product.Url" target="_blank">@product.Url</a></td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+<h2>Produkty Sklepu @ViewBag.StoreName</h2>
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>Produkt</th>
+            <th>Kategoria</th>
+            <th>URL</th>
+            <th>External ID</th>
+            <th>Numer Katalogowy</th>
+            <th>EAN</th>
+            <th>Zdjęcie</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var product in storeProducts)
+        {
+            <tr>
+                <td>@product.ProductName</td>
+                <td>@product.Category</td>
+                <td><a href="@product.OfferUrl" target="_blank">@product.OfferUrl</a></td>
+                <td>@product.ExternalId</td>
+                <td>@product.CatalogNumber</td>
+                <td>@product.Ean</td>
+                <td><img src="@product.MainUrl" alt="@product.CatalogNumber" style="max-width: 100px;" /></td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+<form method="post" action="@Url.Action("MapProducts", "ProductMapping", new { storeId })">
+    <button type="submit" class="btn btn-primary">Mapuj Produkty</button>
+</form>
