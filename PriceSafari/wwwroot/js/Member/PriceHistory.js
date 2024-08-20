@@ -205,10 +205,37 @@
 
     function highlightMatches(text, searchTerm) {
         if (!searchTerm) return text;
-        const sanitizedSearchTerm = searchTerm.replace(/[^a-zA-Z0-9\s.-]/g, '');
-        const regex = new RegExp(`(${sanitizedSearchTerm})`, 'gi');
-        return text.replace(regex, '<span style="color: #9400D3;font-weight: 600;">$1</span>');
+
+        // Sanityzacja wyszukiwanego terminu
+        const sanitizedSearchTerm = searchTerm.replace(/[^a-zA-Z0-9\s/.-]/g, '').replace(/\s+/g, '');
+
+        let searchIndex = 0;
+        let result = '';
+
+        for (let i = 0; i < text.length; i++) {
+            // Ignorowanie białych znaków w wyszukiwanej frazie
+            const currentChar = text[i].toLowerCase();
+
+            if (sanitizedSearchTerm[searchIndex] === currentChar.replace(/\s+/g, '') ||
+                sanitizedSearchTerm[searchIndex] === text[i].replace(/\s+/g, '')) {
+                result += `<span style="color: #9400D3;font-weight: 600;">${text[i]}</span>`;
+                searchIndex++;
+            } else {
+                result += text[i];
+            }
+
+            // Jeśli przeszliśmy przez cały wyszukiwany termin, nie musimy dalej podkreślać
+            if (searchIndex >= sanitizedSearchTerm.length) {
+                result += text.slice(i + 1);
+                break;
+            }
+        }
+
+        return result;
     }
+
+
+
 
     function renderPrices(data) {
         const container = document.getElementById('priceContainer');
@@ -356,6 +383,7 @@
 
         document.getElementById('displayedProductCount').textContent = data.length;
     }
+
 
     function getDeliveryClass(days) {
         if (days <= 1) return 'Availability1Day';
@@ -537,11 +565,36 @@
     }
 
     function filterPricesAndUpdateUI(sortFunction = null) {
-        const currentSearchTerm = document.getElementById('productSearch').value.toLowerCase().trim();
+        const currentSearchTerm = document.getElementById('productSearch').value.toLowerCase().replace(/\s+/g, '').trim();
 
         let filteredPrices = allPrices.filter(price => {
-            const sanitizedProductName = price.productName.toLowerCase().replace(/[^a-zA-Z0-9\s.-]/g, '').replace(/\s+/g, '');
+            const sanitizedProductName = price.productName.toLowerCase().replace(/[^a-zA-Z0-9\s/.-]/g, '').replace(/\s+/g, '');
             return sanitizedProductName.includes(currentSearchTerm);
+        });
+
+        // Sortowanie wyników na podstawie dokładnego dopasowania ciągu znaków
+        filteredPrices.sort((a, b) => {
+            const sanitizedProductNameA = a.productName.toLowerCase().replace(/[^a-zA-Z0-9\s/.-]/g, '').replace(/\s+/g, '');
+            const sanitizedProductNameB = b.productName.toLowerCase().replace(/[^a-zA-Z0-9\s/.-]/g, '').replace(/\s+/g, '');
+
+            const exactMatchIndexA = getExactMatchIndex(sanitizedProductNameA, currentSearchTerm);
+            const exactMatchIndexB = getExactMatchIndex(sanitizedProductNameB, currentSearchTerm);
+
+            // Najpierw sortujemy na podstawie pozycji pierwszego dokładnego dopasowania (im bliżej początku, tym lepiej)
+            if (exactMatchIndexA !== exactMatchIndexB) {
+                return exactMatchIndexA - exactMatchIndexB;
+            }
+
+            // Jeśli pozycja jest taka sama, sortujemy po długości dopasowania (im dłuższe, tym lepiej)
+            const matchLengthA = getLongestMatchLength(sanitizedProductNameA, currentSearchTerm);
+            const matchLengthB = getLongestMatchLength(sanitizedProductNameB, currentSearchTerm);
+
+            if (matchLengthA !== matchLengthB) {
+                return matchLengthB - matchLengthA;
+            }
+
+            // Jeśli nadal równe, sortujemy alfabetycznie
+            return a.productName.localeCompare(b.productName);
         });
 
         filteredPrices = filterPricesByCategoryAndColorAndFlag(filteredPrices);
@@ -567,6 +620,29 @@
         updateColorCounts(filteredPrices);
         updateFlagCounts(filteredPrices);
     }
+
+    function getExactMatchIndex(text, searchTerm) {
+  
+        return text.indexOf(searchTerm);
+    }
+
+    function getLongestMatchLength(text, searchTerm) {
+        let maxLength = 0;
+
+        for (let i = 0; i < text.length; i++) {
+            for (let j = i; j <= text.length; j++) {
+                const substring = text.slice(i, j);
+                if (searchTerm.includes(substring) && substring.length > maxLength) {
+                    maxLength = substring.length;
+                }
+            }
+        }
+
+        return maxLength;
+    }
+
+
+
 
     function resetButtonStyles() {
         if (lastClickedButton) {
