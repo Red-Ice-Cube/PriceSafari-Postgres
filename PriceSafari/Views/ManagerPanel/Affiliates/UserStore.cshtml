@@ -4,33 +4,48 @@
     Layout = "~/Views/Shared/_PanelLayout.cshtml";
 }
 
-<h2>Assigned Stores</h2>
 
-<table class="table">
-    <thead>
-        <tr>
-            <th>Name</th>
-            <th>Stores</th>
-            <th>Action</th>
-        </tr>
-    </thead>
-    <tbody>
-        @foreach (var user in Model)
-        {
-            <tr>
-                <td>@user.FullName</td>
-                <td>
-                    @foreach (var store in user.Stores)
-                    {
-                        <span>@store.StoreName</span>
 
-                        <br />
-                    }
-                </td>
-                <td>
-                    <a asp-action="AssignStores" asp-route-userId="@user.UserId" class="btn btn-primary">Edit</a>
-                </td>
-            </tr>
-        }
-    </tbody>
-</table>
+<div class="Page-Box">
+    <div class="Page-Box-Container">
+        <div class="Page-Box-Category">
+            <div class="Category-Box-Title">
+                Kanały
+            </div>
+
+            <partial name="_ManageNavCol" />
+        </div>
+
+
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Stores</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var user in Model)
+                {
+                    <tr>
+                        <td>@user.FullName</td>
+                        <td>
+                            @foreach (var store in user.Stores)
+                            {
+                                <span>@store.StoreName</span>
+
+                                <br />
+                            }
+                        </td>
+                        <td>
+                            <a asp-action="AssignStores" asp-route-userId="@user.UserId" class="btn btn-primary">Edit</a>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+
+    </div>
+</div>
+

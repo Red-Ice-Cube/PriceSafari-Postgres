@@ -5,7 +5,7 @@
 
 
     <div class="@(controllerName == "ManagerAffiliate" ? "Flex-Column-Button-Active" : "Flex-Column-Button") menu-link" onclick="location.href='@Url.Action("Accounts", "ManagerAffiliate")'">Użytkownicy</div>
-    <div class="@(controllerName == "StoreAssignment" ? "Flex-Column-Button-Active" : "Flex-Column-Button") menu-link" onclick="location.href='@Url.Action("UserStore", "StoreAssignment")'">Dodaj kanały</div>
+    <div class="@(controllerName == "StoreAssignment" ? "Flex-Column-Button-Active" : "Flex-Column-Button") menu-link" onclick="location.href='@Url.Action("UserStore", "StoreAssignment")'">Kanały</div>
     
 
 
@@ -13,7 +13,7 @@
 
     @if (User.IsInRole("Admin"))
     {
-        <div class="@(controllerName == "Settings" ? "Flex-Column-Button-Active" : "Flex-Column-Button") menu-link" onclick="location.href='@Url.Action("Index", "Settings")'">Ustawienia Scrapowania</div>
+        <div class="@(controllerName == "Settings" ? "Flex-Column-Button-Active" : "Flex-Column-Button") menu-link" onclick="location.href='@Url.Action("Index", "Settings")'">Scrapowanie</div>
     }
 
 }
