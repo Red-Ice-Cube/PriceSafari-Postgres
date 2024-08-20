@@ -56,15 +56,6 @@
       "enabled": true
     }
   },
-  //{
-  //  "outputFileName": "wwwroot/js/Member/pricehistory.min.js",
-  //  "inputFiles": [
-  //    "wwwroot/js/Member/PriceHistory.js"
-  //  ],
-  //  "minify": {
-  //    "enabled": false
-  //  }
-  //},
   {
     "outputFileName": "wwwroot/js/Member/competitors.min.js",
     "inputFiles": [
@@ -74,14 +65,5 @@
       "enabled": true
     }
   }
-  //{
-  //  "outputFileName": "wwwroot/js/Member/competitorprices.min.js",
-  //  "inputFiles": [
-  //    "wwwroot/js/Member/CompetitorPrices.js"
-  //  ],
-  //  "minify": {
-  //    "enabled": true
-  //  }
-  //}
 
 ]
