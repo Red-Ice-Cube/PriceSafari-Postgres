@@ -52,12 +52,12 @@
         }
 
 
-    #sortingButtons, #sortButtonsContainer {
+    #sortingButtons {
         display: flex;
         gap: 10px;
     }
 
-        #sortingButtons button, #sortButtonsContainer button {
+        #sortingButtons button{
             display: flex;
             align-items: center;
             justify-content: center;
@@ -72,19 +72,19 @@
         }
 
         
-            #sortingButtons button.active, #sortButtonsContainer button.active {
+            #sortingButtons button.active {
                 background-color: #323232;
                 color: #e3e3e3;
             }
 
         
-            #sortingButtons button:hover, #sortButtonsContainer button:hover {
+            #sortingButtons button:hover {
                 background-color: #ccc;
                 color: #4e4e4e;
             }
 
           
-            #sortingButtons button.active:hover, #sortButtonsContainer button.active:hover {
+            #sortingButtons button.active:hover,{
                 background-color: #323232;
                 color: #e3e3e3;
                 cursor: pointer; 
@@ -327,27 +327,23 @@
 
                 </div>
 
-              
-               
+
                 <div id="sortingButtons">
-                    <div class="ProductCount" id="displayedProductCount">
-                    </div>
+                    <div class="ProductCount" id="displayedProductCount"></div>
                     <button id="sortNameAZ">A-Z</button>
                     <button id="sortNameZA">Z-A</button>
                     <button id="sortPriceAsc">Cena ↑</button>
                     <button id="sortPriceDesc">Cena ↓</button>
-                    <div id="sortButtonsContainer">
-                        <button id="sortRaiseAmountAsc">Podnieś PLN ↑</button>
-                        <button id="sortRaisePercentageAsc">Podnieś % ↑</button>
-                        <button id="sortRaiseAmountDesc">Podnieś PLN ↓</button>                     
-                        <button id="sortRaisePercentageDesc">Podnieś % ↓</button>
-                        <button id="sortLowerAmountAsc">Obniż PLN ↑</button>
-                        <button id="sortLowerPercentageAsc">Obniż % ↑</button>
-                        <button id="sortLowerAmountDesc">Obniż PLN ↓</button>
-                    
-                        <button id="sortLowerPercentageDesc">Obniż % ↓</button>
-                    </div>
+                    <button id="sortRaiseAmountAsc">Podnieś PLN ↑</button>
+                    <button id="sortRaisePercentageAsc">Podnieś % ↑</button>
+                    <button id="sortRaiseAmountDesc">Podnieś PLN ↓</button>
+                    <button id="sortRaisePercentageDesc">Podnieś % ↓</button>
+                    <button id="sortLowerAmountAsc">Obniż PLN ↑</button>
+                    <button id="sortLowerPercentageAsc">Obniż % ↑</button>
+                    <button id="sortLowerAmountDesc">Obniż PLN ↓</button>
+                    <button id="sortLowerPercentageDesc">Obniż % ↓</button>
                 </div>
+
           
 
 

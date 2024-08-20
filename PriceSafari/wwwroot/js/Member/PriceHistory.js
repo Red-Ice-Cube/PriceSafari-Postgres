@@ -48,7 +48,7 @@ document.addEventListener("DOMContentLoaded", function () {
                     let valueToUse;
 
                     if (usePriceDifference) {
-                        
+
                         valueToUse = price.savings !== null ? price.savings : price.priceDifference;
                     } else {
                         valueToUse = price.percentageDifference;
@@ -81,12 +81,18 @@ document.addEventListener("DOMContentLoaded", function () {
 
                 filteredPrices = filterPricesByCategoryAndColorAndFlag(filteredPrices);
 
+                // Zastosuj sortowanie, jeśli któryś przycisk sortowania jest aktywny
+                if (lastSortFunction && lastClickedButton) {
+                    filteredPrices = lastSortFunction(filteredPrices);
+                }
+
                 renderPrices(filteredPrices);
                 renderChart(filteredPrices);
                 updateColorCounts(filteredPrices);
             })
             .catch(error => console.error('Error fetching prices:', error));
     }
+
 
     function updateFlagCounts(prices) {
         const flagCounts = {};
@@ -207,18 +213,6 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
 
-    function filterPricesByProductName(name) {
-        const sanitizedInput = name.replace(/[^a-zA-Z0-9\s.-]/g, '').trim();
-        const sanitizedInputLowerCase = sanitizedInput.toLowerCase().replace(/\s+/g, '');
-
-        const filteredPrices = allPrices.filter(item => {
-            const sanitizedProductName = item.productName.toLowerCase().replace(/[^a-zA-Z0-9\s.-]/g, '').replace(/\s+/g, '');
-            return sanitizedProductName.includes(sanitizedInputLowerCase);
-        });
-
-        renderPrices(filteredPrices, sanitizedInput);
-    }
-
     function highlightMatches(text, searchTerm) {
         if (!searchTerm) return text;
         const sanitizedSearchTerm = searchTerm.replace(/[^a-zA-Z0-9\s.-]/g, '');
@@ -227,149 +221,153 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
 
-    function renderPrices(data, searchTerm = "") {
-        const container = document.getElementById('priceContainer');
-        container.innerHTML = '';
-        data.forEach(item => {
-            const highlightedProductName = highlightMatches(item.productName, searchTerm);
-            const percentageDifference = item.percentageDifference != null ? item.percentageDifference.toFixed(2) : "N/A";
-            const priceDifference = item.priceDifference != null ? item.priceDifference.toFixed(2) : "N/A";
-            const savings = item.savings != null ? item.savings.toFixed(2) : "N/A";
+    function renderPrices(data) {
+    const container = document.getElementById('priceContainer');
+    const currentSearchTerm = document.getElementById('productSearch').value.trim(); // Pobierz aktualny wyszukiwany termin
+    container.innerHTML = '';
 
-            const isBidding = item.isBidding === "1";
-            const myIsBidding = item.myIsBidding === "1";
+    data.forEach(item => {
+        const highlightedProductName = highlightMatches(item.productName, currentSearchTerm); // Użyj aktualnego terminu do podświetlania
+        const percentageDifference = item.percentageDifference != null ? item.percentageDifference.toFixed(2) : "N/A";
+        const priceDifference = item.priceDifference != null ? item.priceDifference.toFixed(2) : "N/A";
+        const savings = item.savings != null ? item.savings.toFixed(2) : "N/A";
 
-            const deliveryClass = getDeliveryClass(item.delivery);
-            const myDeliveryClass = getDeliveryClass(item.myDelivery);
+        const isBidding = item.isBidding === "1";
+        const myIsBidding = item.myIsBidding === "1";
 
-            const box = document.createElement('div');
-            box.className = 'price-box ' + item.colorClass;
-            box.dataset.detailsUrl = '/PriceHistory/Details?scrapId=' + item.scrapId + '&productId=' + item.productId;
+        const deliveryClass = getDeliveryClass(item.delivery);
+        const myDeliveryClass = getDeliveryClass(item.myDelivery);
 
-            const priceBoxSpace = document.createElement('div');
-            priceBoxSpace.className = 'price-box-space';
-            const priceBoxColumnName = document.createElement('div');
-            priceBoxColumnName.className = 'price-box-column-name';
-            priceBoxColumnName.innerHTML = highlightedProductName;
-            const assignFlagButton = document.createElement('button');
-            assignFlagButton.className = 'assign-flag-button';
-            assignFlagButton.dataset.productId = item.productId;
-            assignFlagButton.innerHTML = '+ Przypisz flagi';
+        const box = document.createElement('div');
+        box.className = 'price-box ' + item.colorClass;
+        box.dataset.detailsUrl = '/PriceHistory/Details?scrapId=' + item.scrapId + '&productId=' + item.productId;
 
-            priceBoxSpace.appendChild(priceBoxColumnName);
-            priceBoxSpace.appendChild(assignFlagButton);
+        const priceBoxSpace = document.createElement('div');
+        priceBoxSpace.className = 'price-box-space';
+        const priceBoxColumnName = document.createElement('div');
+        priceBoxColumnName.className = 'price-box-column-name';
+        priceBoxColumnName.innerHTML = highlightedProductName; // Użyj podświetlonej nazwy produktu
+        const assignFlagButton = document.createElement('button');
+        assignFlagButton.className = 'assign-flag-button';
+        assignFlagButton.dataset.productId = item.productId;
+        assignFlagButton.innerHTML = '+ Przypisz flagi';
 
-            const priceBoxColumnCategory = document.createElement('div');
-            priceBoxColumnCategory.className = 'price-box-column-category';
-            priceBoxColumnCategory.innerHTML = item.category;
-            if (item.externalId) {
-                const apiBox = document.createElement('span');
-                apiBox.className = 'ApiBox';
-                apiBox.innerHTML = 'API ID ' + item.externalId;
-                priceBoxColumnCategory.appendChild(apiBox);
-            }
+        priceBoxSpace.appendChild(priceBoxColumnName);
+        priceBoxSpace.appendChild(assignFlagButton);
 
-            const priceBoxData = document.createElement('div');
-            priceBoxData.className = 'price-box-data';
+        const priceBoxColumnCategory = document.createElement('div');
+        priceBoxColumnCategory.className = 'price-box-column-category';
+        priceBoxColumnCategory.innerHTML = item.category;
+        if (item.externalId) {
+            const apiBox = document.createElement('span');
+            apiBox.className = 'ApiBox';
+            apiBox.innerHTML = 'API ID ' + item.externalId;
+            priceBoxColumnCategory.appendChild(apiBox);
+        }
 
-            const colorBar = document.createElement('div');
-            colorBar.className = 'color-bar ' + item.colorClass;
+        const priceBoxData = document.createElement('div');
+        priceBoxData.className = 'price-box-data';
 
-            const priceBoxColumnLowestPrice = document.createElement('div');
-            priceBoxColumnLowestPrice.className = 'price-box-column';
-            priceBoxColumnLowestPrice.innerHTML =
-                '<div class="price-box-column-text">' + item.lowestPrice.toFixed(2) + ' zł</div>' +
-                '<div class="price-box-column-text">' + item.storeName + ' ' +
-                (isBidding ? '<span class="Bidding">Bid</span>' : '') +
-                '<span class="Position">Msc ' + item.position + '</span>' +
-                (item.delivery != null ? '<span class="' + deliveryClass + '">Wysyłka w ' + (item.delivery == 1 ? '1 dzień' : item.delivery + ' dni') + '</span>' : '') +
-                '</div>';
+        const colorBar = document.createElement('div');
+        colorBar.className = 'color-bar ' + item.colorClass;
 
-            const priceBoxColumnMyPrice = document.createElement('div');
-            priceBoxColumnMyPrice.className = 'price-box-column';
-            priceBoxColumnMyPrice.innerHTML =
-                '<div class="price-box-column-text">' + item.myPrice.toFixed(2) + ' zł</div>' +
-                '<div class="price-box-column-text">' + myStoreName + ' ' +
-                (myIsBidding ? '<span class="Bidding">Bid</span>' : '') +
-                '<span class="Position">Msc ' + item.myPosition + '</span>' +
-                (item.myDelivery != null ? '<span class="' + myDeliveryClass + '">Wysyłka w ' + (item.myDelivery == 1 ? '1 dzień' : item.myDelivery + ' dni') + '</span>' : '') +
-                '</div>';
+        const priceBoxColumnLowestPrice = document.createElement('div');
+        priceBoxColumnLowestPrice.className = 'price-box-column';
+        priceBoxColumnLowestPrice.innerHTML =
+            '<div class="price-box-column-text">' + item.lowestPrice.toFixed(2) + ' zł</div>' +
+            '<div class="price-box-column-text">' + item.storeName + ' ' +
+            (isBidding ? '<span class="Bidding">Bid</span>' : '') +
+            '<span class="Position">Msc ' + item.position + '</span>' +
+            (item.delivery != null ? '<span class="' + deliveryClass + '">Wysyłka w ' + (item.delivery == 1 ? '1 dzień' : item.delivery + ' dni') + '</span>' : '') +
+            '</div>';
 
-            const priceBoxColumnInfo = document.createElement('div');
-            priceBoxColumnInfo.className = 'price-box-column-action';
+        const priceBoxColumnMyPrice = document.createElement('div');
+        priceBoxColumnMyPrice.className = 'price-box-column';
+        priceBoxColumnMyPrice.innerHTML =
+            '<div class="price-box-column-text">' + item.myPrice.toFixed(2) + ' zł</div>' +
+            '<div class="price-box-column-text">' + myStoreName + ' ' +
+            (myIsBidding ? '<span class="Bidding">Bid</span>' : '') +
+            '<span class="Position">Msc ' + item.myPosition + '</span>' +
+            (item.myDelivery != null ? '<span class="' + myDeliveryClass + '">Wysyłka w ' + (item.myDelivery == 1 ? '1 dzień' : item.myDelivery + ' dni') + '</span>' : '') +
+            '</div>';
 
-            if (item.colorClass === "prToLow" || item.colorClass === "prIdeal") {
-                priceBoxColumnInfo.innerHTML =
-                    '<p>Podnieś: ' + savings + ' zł</p>' +
-                    '<p>Podnieś: ' + percentageDifference + ' %</p>';
-            } else if (item.colorClass === "prMid" || item.colorClass === "prToHigh") {
-                priceBoxColumnInfo.innerHTML =
-                    '<p>Obniż: ' + priceDifference + ' zł</p>' +
-                    '<p>Obniż: ' + percentageDifference + ' %</p>';
-            } else if (item.colorClass === "prGood") {
-                priceBoxColumnInfo.innerHTML = '<p>Brak działań</p>';
-            }
+        const priceBoxColumnInfo = document.createElement('div');
+        priceBoxColumnInfo.className = 'price-box-column-action';
 
-            const priceBoxColumnExternalPrice = document.createElement('div');
-            priceBoxColumnExternalPrice.className = 'price-box-column-api';
-            if (item.externalPrice !== null) {
-                const externalPriceDifference = (item.externalPrice - item.myPrice).toFixed(2);
-                const externalPriceDifferenceText = (item.externalPrice > item.myPrice ? '+' : '') + externalPriceDifference;
-                priceBoxColumnExternalPrice.innerHTML =
-                    '<div class="price-box-column-text-api">Nowa cena: ' + item.externalPrice.toFixed(2) + ' zł</div>' +
-                    '<div class="price-box-column-text-api">Zmiana: ' + externalPriceDifferenceText + ' zł</div>';
-            }
+        if (item.colorClass === "prToLow" || item.colorClass === "prIdeal") {
+            priceBoxColumnInfo.innerHTML =
+                '<p>Podnieś: ' + savings + ' zł</p>' +
+                '<p>Podnieś: ' + percentageDifference + ' %</p>';
+        } else if (item.colorClass === "prMid" || item.colorClass === "prToHigh") {
+            priceBoxColumnInfo.innerHTML =
+                '<p>Obniż: ' + priceDifference + ' zł</p>' +
+                '<p>Obniż: ' + percentageDifference + ' %</p>';
+        } else if (item.colorClass === "prGood") {
+            priceBoxColumnInfo.innerHTML = '<p>Brak działań</p>';
+        }
 
-            const flagsContainer = document.createElement('div');
-            flagsContainer.className = 'flags-container';
-            if (item.flagIds.length > 0) {
-                item.flagIds.forEach(function (flagId) {
-                    const flag = flags.find(function (f) { return f.FlagId === flagId; });
-                    const flagSpan = document.createElement('span');
-                    flagSpan.className = 'flag';
-                    flagSpan.style.color = flag.FlagColor;
-                    flagSpan.style.border = '2px solid ' + flag.FlagColor;
-                    flagSpan.style.backgroundColor = hexToRgba(flag.FlagColor, 0.3);
-                    flagSpan.innerHTML = flag.FlagName;
-                    flagsContainer.appendChild(flagSpan);
-                });
-            }
+        const priceBoxColumnExternalPrice = document.createElement('div');
+        priceBoxColumnExternalPrice.className = 'price-box-column-api';
+        if (item.externalPrice !== null) {
+            const externalPriceDifference = (item.externalPrice - item.myPrice).toFixed(2);
+            const externalPriceDifferenceText = (item.externalPrice > item.myPrice ? '+' : '') + externalPriceDifference;
+            priceBoxColumnExternalPrice.innerHTML =
+                '<div class="price-box-column-text-api">Nowa cena: ' + item.externalPrice.toFixed(2) + ' zł</div>' +
+                '<div class="price-box-column-text-api">Zmiana: ' + externalPriceDifferenceText + ' zł</div>';
+        }
 
-            priceBoxData.appendChild(colorBar);
-            priceBoxData.appendChild(priceBoxColumnLowestPrice);
-            priceBoxData.appendChild(priceBoxColumnMyPrice);
-            priceBoxData.appendChild(priceBoxColumnInfo);
-            if (item.externalPrice !== null) {
-                priceBoxData.appendChild(priceBoxColumnExternalPrice);
-            }
-            priceBoxData.appendChild(flagsContainer);
-
-            box.appendChild(priceBoxSpace);
-            box.appendChild(priceBoxColumnCategory);
-            box.appendChild(priceBoxData);
-
-            box.addEventListener('click', function () {
-                window.open(this.dataset.detailsUrl, '_blank');
+        const flagsContainer = document.createElement('div');
+        flagsContainer.className = 'flags-container';
+        if (item.flagIds.length > 0) {
+            item.flagIds.forEach(function (flagId) {
+                const flag = flags.find(function (f) { return f.FlagId === flagId; });
+                const flagSpan = document.createElement('span');
+                flagSpan.className = 'flag';
+                flagSpan.style.color = flag.FlagColor;
+                flagSpan.style.border = '2px solid ' + flag.FlagColor;
+                flagSpan.style.backgroundColor = hexToRgba(flag.FlagColor, 0.3);
+                flagSpan.innerHTML = flag.FlagName;
+                flagsContainer.appendChild(flagSpan);
             });
+        }
 
-            container.appendChild(box);
+        priceBoxData.appendChild(colorBar);
+        priceBoxData.appendChild(priceBoxColumnLowestPrice);
+        priceBoxData.appendChild(priceBoxColumnMyPrice);
+        priceBoxData.appendChild(priceBoxColumnInfo);
+        if (item.externalPrice !== null) {
+            priceBoxData.appendChild(priceBoxColumnExternalPrice);
+        }
+        priceBoxData.appendChild(flagsContainer);
 
-            assignFlagButton.addEventListener('click', function (event) {
-                event.stopPropagation();
-                selectedProductId = this.dataset.productId;
-                modal.style.display = 'block';
-                fetch('/ProductFlags/GetFlagsForProduct?productId=' + selectedProductId)
-                    .then(response => response.json())
-                    .then(flags => {
-                        document.querySelectorAll('.flagCheckbox').forEach(function (checkbox) {
-                            checkbox.checked = flags.includes(parseInt(checkbox.value));
-                        });
-                    })
-                    .catch(error => console.error('Error fetching flags for product:', error));
-            });
+        box.appendChild(priceBoxSpace);
+        box.appendChild(priceBoxColumnCategory);
+        box.appendChild(priceBoxData);
+
+        box.addEventListener('click', function () {
+            window.open(this.dataset.detailsUrl, '_blank');
         });
-        document.getElementById('displayedProductCount').textContent = data.length;
-    }
+
+        container.appendChild(box);
+
+        assignFlagButton.addEventListener('click', function (event) {
+            event.stopPropagation();
+            selectedProductId = this.dataset.productId;
+            modal.style.display = 'block';
+            fetch('/ProductFlags/GetFlagsForProduct?productId=' + selectedProductId)
+                .then(response => response.json())
+                .then(flags => {
+                    document.querySelectorAll('.flagCheckbox').forEach(function (checkbox) {
+                        checkbox.checked = flags.includes(parseInt(checkbox.value));
+                    });
+                })
+                .catch(error => console.error('Error fetching flags for product:', error));
+        });
+    });
+
+    document.getElementById('displayedProductCount').textContent = data.length;
+}
+
 
 
 
@@ -555,25 +553,32 @@ document.addEventListener("DOMContentLoaded", function () {
             .sort((a, b) => b.percentageDifference - a.percentageDifference); 
     }
 
-
-
-
     function filterPricesAndUpdateUI(sortFunction = null) {
-        let filteredPrices = filterPricesByCategoryAndColorAndFlag(allPrices);
+        const currentSearchTerm = document.getElementById('productSearch').value.toLowerCase().trim();
 
+        let filteredPrices = allPrices.filter(price => {
+            const sanitizedProductName = price.productName.toLowerCase().replace(/[^a-zA-Z0-9\s.-]/g, '').replace(/\s+/g, '');
+            return sanitizedProductName.includes(currentSearchTerm);
+        });
+
+        filteredPrices = filterPricesByCategoryAndColorAndFlag(filteredPrices);
+
+        // Zawsze stosuj ostatnią funkcję sortowania, jeśli istnieje
         if (sortFunction) {
             if (lastSortFunction === sortFunction) {
-              
                 sortFunction = null;
                 lastSortFunction = null;
                 resetButtonStyles();
             } else {
                 lastSortFunction = sortFunction;
-                filteredPrices = sortFunction(filteredPrices);
                 highlightActiveButton(this);
+                lastClickedButton = this;
             }
-        } else {
-            lastSortFunction = null;
+        }
+
+        // Jeśli jest ustawiona funkcja sortowania, zastosuj ją
+        if (lastSortFunction) {
+            filteredPrices = lastSortFunction(filteredPrices);
         }
 
         renderPrices(filteredPrices);
@@ -581,6 +586,9 @@ document.addEventListener("DOMContentLoaded", function () {
         updateColorCounts(filteredPrices);
         updateFlagCounts(filteredPrices);
     }
+
+
+
 
     function resetButtonStyles() {
         if (lastClickedButton) {
@@ -594,31 +602,33 @@ document.addEventListener("DOMContentLoaded", function () {
         lastClickedButton = button;
     }
 
-    document.querySelectorAll("#sortingButtons button, #sortButtonsContainer button").forEach(button => {
+    document.querySelectorAll("#sortingButtons button").forEach(button => {
         button.addEventListener("click", function () {
             const sortFunctionName = this.getAttribute('id');
-            const sortFunction = window[sortFunctionName].bind(null);  
+            const sortFunction = window[sortFunctionName].bind(null);
 
             filterPricesAndUpdateUI.call(this, sortFunction);
         });
     });
 
+
+    document.getElementById('productSearch').addEventListener('input', function () {
+        filterPricesAndUpdateUI(lastSortFunction);
+    });
+
     document.getElementById('category').addEventListener('change', function () {
-        filterPricesAndUpdateUI();
+        filterPricesAndUpdateUI(lastSortFunction);
     });
 
     document.querySelectorAll('.colorFilter, .flagFilter, .positionFilter, .deliveryFilterMyStore, .deliveryFilterCompetitor, .externalPriceFilter').forEach(function (checkbox) {
         checkbox.addEventListener('change', function () {
-            filterPricesAndUpdateUI();
+            filterPricesAndUpdateUI(lastSortFunction);
         });
     });
 
-    document.getElementById('bidFilter').addEventListener('change', function () {
-        filterPricesAndUpdateUI();
-    });
 
-    document.getElementById('productSearch').addEventListener('keyup', function () {
-        filterPricesByProductName(this.value);
+    document.getElementById('bidFilter').addEventListener('change', function () {
+        filterPricesAndUpdateUI(lastSortFunction);
     });
 
 
