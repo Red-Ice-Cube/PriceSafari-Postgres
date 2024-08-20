@@ -51,13 +51,12 @@
             color: #e3e3e3;
         }
 
-
     #sortingButtons {
         display: flex;
         gap: 10px;
     }
 
-        #sortingButtons button{
+        #sortingButtons button {
             display: flex;
             align-items: center;
             justify-content: center;
@@ -71,31 +70,28 @@
             border-radius: 4px;
         }
 
-        
             #sortingButtons button.active {
                 background-color: #323232;
                 color: #e3e3e3;
             }
 
-        
             #sortingButtons button:hover {
                 background-color: #ccc;
                 color: #4e4e4e;
             }
 
-          
-            #sortingButtons button.active:hover,{
+            #sortingButtons button.active:hover, {
                 background-color: #323232;
                 color: #e3e3e3;
-                cursor: pointer; 
+                cursor: pointer;
             }
 
-    .ProductCount{
+    .ProductCount {
         display: flex;
         align-items: center;
-        justify-content:center;
+        justify-content: center;
         padding: 2px 12px;
-        width:64px;
+        width: 64px;
         border: 1px solid #4e4e4e;
         color: #4e4e4e;
         font-size: 13px;
@@ -103,16 +99,14 @@
     }
 
     .SimpleSpace {
-        display:flex;
-        justify-content:space-between;
-        width:100%
-      
+        display: flex;
+        justify-content: space-between;
+        width: 100%
     }
 
     .SimpleHorizontal {
         display: flex;
         gap: 8px;
-
     }
 
 </style>
@@ -149,7 +143,6 @@
                         <label class="form-check-label" for="prToLowCheckbox">Zaniżona </label>
                     </div>
 
-
                     <div class="price-range-settings">
                         <div class="color-circle prIdeal-circle"></div>
                         <label for="price1"></label>
@@ -163,8 +156,6 @@
                         <span id="unitLabel2"></span>
                     </div>
 
-
-
                     <div>
                         <input class="diffCheckBox" style="margin-top: 10px;" type="checkbox" id="usePriceDifference" checked />
 
@@ -176,10 +167,9 @@
 
                     <div class="Category-Container-Select" style="margin-top:-2px;">Flagi  <a asp-controller="Flags" asp-action="List" asp-route-storeId="@ViewBag.StoreId" class="link-line">+ Dodaj Flage</a></div>
                     <div class="store-section" id="flagContainer">
-                     
                     </div>
 
-                    <div class="Category-Container-Select" >Bidowanie</div>
+                    <div class="Category-Container-Select">Bidowanie</div>
                     <div class="store-section">
 
                         <div class="form-check">
@@ -270,12 +260,9 @@
                             </div>
                         </div>
 
-
                     </div>
 
-
                 </div>
-               
 
             </div>
             <div class="Horizontal">
@@ -301,32 +288,26 @@
 
                     <div class="SimpleSpace">
                         <div class="SimpleHorizontal">
-                                <div class="form-check-orders">
-                                    <div>
+                            <div class="form-check-orders">
+                                <div>
 
-                                        <p><strong>Data:</strong> @latestScrap?.Date.ToString("dd.MM.yyyy")</p>
-                                        <p><strong>Ceny:</strong> <span id="totalPriceCount">0</span></p>
-                                    </div>
+                                    <p><strong>Data:</strong> @latestScrap?.Date.ToString("dd.MM.yyyy")</p>
+                                    <p><strong>Ceny:</strong> <span id="totalPriceCount">0</span></p>
                                 </div>
-                                <div class="form-check-orders">
+                            </div>
+                            <div class="form-check-orders">
 
-                                    <div>
-                                        <p><strong>Produkty:</strong> @ViewBag.ScrapedProducts</p>
-                                        <p><strong>Odrzucone:</strong> <span id="missedProductsCount">0</span></p>
-                                    </div>
-
+                                <div>
+                                    <p><strong>Produkty:</strong> @ViewBag.ScrapedProducts</p>
+                                    <p><strong>Odrzucone:</strong> <span id="missedProductsCount">0</span></p>
                                 </div>
+
+                            </div>
                         </div>
-                      
-                            
-                    </div>
-                 
-                    
 
-                  
+                    </div>
 
                 </div>
-
 
                 <div id="sortingButtons">
                     <div class="ProductCount" id="displayedProductCount"></div>
@@ -344,10 +325,6 @@
                     <button id="sortLowerPercentageDesc">Obniż % ↓</button>
                 </div>
 
-          
-
-
-            
                 <div class="Vert-table">
                     <div id="priceContainer" class="price-container"></div>
                 </div>
@@ -358,14 +335,14 @@
 @section Scripts {
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/5.0.9/signalr.min.js"></script> <!-- SignalR library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/5.0.9/signalr.min.js"></script>
     <script>
         var storeId = '@storeId';
     </script>
     <script>
         var flags = @Html.Raw(JsonConvert.SerializeObject(ViewBag.Flags));
     </script>
-    <script src="~/js/member/pricehistory.min.js"></script>
+    <script src="~/js/member/pricehistory.js"></script>
     <script>
         $(document).ready(function () {
             var connection = new signalR.HubConnectionBuilder().withUrl("/scrapingHub").build();
@@ -422,31 +399,30 @@
             });
         });
     </script>
-    
-<script>
-document.addEventListener("DOMContentLoaded", function() {
-    const usePriceDifferenceCheckbox = document.getElementById('usePriceDifference');
-    const unitLabel1 = document.getElementById('unitLabel1');
-    const unitLabel2 = document.getElementById('unitLabel2');
 
-    function updateUnits() {
-        if (usePriceDifferenceCheckbox.checked) {
-            unitLabel1.textContent = 'PLN';
-            unitLabel2.textContent = 'PLN';
-        } else {
-            unitLabel1.textContent = '%';
-            unitLabel2.textContent = '%';
-        }
-    }
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const usePriceDifferenceCheckbox = document.getElementById('usePriceDifference');
+            const unitLabel1 = document.getElementById('unitLabel1');
+            const unitLabel2 = document.getElementById('unitLabel2');
 
+            function updateUnits() {
+                if (usePriceDifferenceCheckbox.checked) {
+                    unitLabel1.textContent = 'PLN';
+                    unitLabel2.textContent = 'PLN';
+                } else {
+                    unitLabel1.textContent = '%';
+                    unitLabel2.textContent = '%';
+                }
+            }
 
-    usePriceDifferenceCheckbox.addEventListener('change', function() {
-        updateUnits();
-    });
+            usePriceDifferenceCheckbox.addEventListener('change', function () {
+                updateUnits();
+            });
 
-    updateUnits();
-});
-</script>
+            updateUnits();
+        });
+    </script>
 }
 
 <div class="modal fade" id="updatePricesModal" tabindex="-1" role="dialog" aria-labelledby="updatePricesModalLabel" aria-hidden="true">
@@ -482,7 +458,7 @@ document.addEventListener("DOMContentLoaded", function() {
     <div class="modal-content">
         <div class="price-box-space">
             <div class="price-box-column-name">Przypisz flagi do produktu</div>
-        
+
         </div>
         <div id="flagCheckboxes">
             @if (flags != null)
