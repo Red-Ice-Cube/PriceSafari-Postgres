@@ -250,12 +250,16 @@ namespace PriceSafari.Controllers.ManagerControllers
             _context.Update(userToVerify);
             await _context.SaveChangesAsync();
 
-            var emailSubject = "Witamy w programie partnerskim!";
+            var emailSubject = "Price Safari - Twój Panel jest Gotowy!";
             var loginUrl = $"{Request.Scheme}://{Request.Host}/Identity/Account/Login";
-            var emailBody = $"<h1>Witaj na pokładzie!</h1>" +
-                            $"<p>Dziękujemy za cierpliwość, po przejrzeniu Twojej aplikacji przyjęliśmy Cię do naszego programu partnerskiego! " +
-                            $"Możesz się teraz zalogować i korzystać z pełni możliwości naszego programu.</p>" +
-                            $"<p><a href='{loginUrl}'>Kliknij tutaj, aby się zalogować</a></p>";
+            var emailBody = $"<h1>Twój Panel Jest Gotowy!</h1>" +
+                            $"<p>Szanowny Kliencie,</p>" +
+                            $"<p>Z przyjemnością informujemy, że Twój panel w aplikacji Price Safari został pomyślnie przygotowany." +
+                            $" Teraz możesz się zalogować i skorzystać z pełnej funkcjonalności naszego programu.</p>" +
+                            $"<p><a href='{loginUrl}'>Kliknij tutaj, aby się zalogować</a></p>" +
+                            $"<p>Dziękujemy za zaufanie i życzymy owocnego korzystania z naszego oprogramowania!</p>" +
+                            $"<p>Z pozdrowieniami,<br/>Zespół Price Safari</p>";
+
 
             await _emailSender.SendEmailAsync(userToVerify.Email, emailSubject, emailBody);
 
