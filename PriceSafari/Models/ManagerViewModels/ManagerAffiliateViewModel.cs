@@ -19,6 +19,7 @@
         public bool Verification { get; set; }
         public string? Role { get; set; }
         public string? UserName { get; set; }
+        public bool EmailConfirmed { get; set; }
     }
 
     // DTOs używane dla szczegółowych danych afiliantów

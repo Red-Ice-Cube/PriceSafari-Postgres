@@ -68,7 +68,7 @@ namespace PriceSafari.Controllers.ManagerControllers
             var isUserAdmin = await _userManager.IsInRoleAsync(currentUser, "Admin");
 
             var allUsers = await _context.Users
-                .Include(u => u.AffiliateVerification) // Dołącz informacje o weryfikacji
+                .Include(u => u.AffiliateVerification)
                 .OrderByDescending(u => u.CreationDate)
                 .ToListAsync();
 
@@ -90,7 +90,8 @@ namespace PriceSafari.Controllers.ManagerControllers
                 UserName = user.UserName,
                 Status = user.IsActive,
                 Verification = user.AffiliateVerification?.IsVerified ?? false,
-                Role = string.Join(", ", _userManager.GetRolesAsync(user).Result)
+                Role = string.Join(", ", _userManager.GetRolesAsync(user).Result),
+                EmailConfirmed = user.EmailConfirmed  
             }).ToList();
 
             var model = new ManagerAffiliateViewModel
@@ -100,6 +101,7 @@ namespace PriceSafari.Controllers.ManagerControllers
 
             return View("~/Views/ManagerPanel/Affiliates/Accounts.cshtml", model);
         }
+
 
         public async Task<IActionResult> UserProfile(string codePAR)
         {

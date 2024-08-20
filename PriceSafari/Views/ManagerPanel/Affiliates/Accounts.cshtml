@@ -40,14 +40,12 @@
 
                     <thead>
                         <tr>
-                            <th scope="col">Użytkownicy (<span id="accountsCount">0</span>)</th>                           
+                            <th scope="col">Użytkownicy (<span id="accountsCount">0</span>)</th>
                             <th scope="col">Kod</th>
                             <th scope="col">Weryfikacja</th>
                             <th scope="col">Status</th>
                             <th scope="col">Uprawnienia</th>
-
-
-
+                            <th scope="col">E-mail</th> <!-- Nowa kolumna -->
                         </tr>
                     </thead>
                     <tbody>
@@ -79,18 +77,18 @@
                                     {
                                         <div class="MemberStyle">@affiliate.Role</div>
                                     }
-                                    else 
+                                    else
                                     {
                                         @affiliate.Role
                                     }
                                 </td>
-                              
+                                <td>
+                                    @(affiliate.EmailConfirmed ? "Potwierdzony" : "Niepotwierdzony") <!-- Nowe pole -->
+                                </td>
                             </tr>
                         }
                     </tbody>
 
-
-                </table>
             </div>
         </div>
 
