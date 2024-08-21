@@ -11,7 +11,7 @@
 <div class="main-page">
     <div class="partner-banner">
         <a href="@Url.Action("Index", "Home")">
-            <img src="~/images/Banner.gif" alt="Home" class="menu-icon" />
+            <img id="homeBanner" src="~/images/Home-Banner-L.gif" alt="Price Safari">
         </a>
     </div>
     <div class="login">
@@ -54,6 +54,18 @@
     </div>
 </div>
 
+
+<script>
+    function freezeGif() {
+        var banner = document.getElementById("homeBanner");
+
+        var currentSrc = banner.src;
+        var frozenFrameSrc = currentSrc.replace('.gif', '.png');
+        banner.src = frozenFrameSrc;
+    }
+
+    setTimeout(freezeGif, 5000);
+</script>
 
 
 

@@ -20,18 +20,15 @@
         <a href="/Identity/Account/Register" class="mobile-action-button">Dołącz za darmo</a>
     </div>
 
-
     <div class="Vert-Home">
         <div class="Vert-50">
             <div class="Text-Box">
                 <h1 class="Text-Box-Title">Monitoring cen konkurencji</h1>
 
-
-
                 <div class="Text-Box-Text">
                     <p>
-                        Zwiększ swoje zyski, popraw zwrot z inwestycji w reklamy produktowe i bądź na bieżąco z rynkiem dzięki Price Safari – zaawansowanemu narzędziu do monitorowania cen produktów w sklepach internetowych i na platformach sprzedażowych. Śledź konkurencję, dostosowuj ceny na bieżąco i maksymalizuj zyski dzięki precyzyjnym analizom rynku. 
-                        
+                        Zwiększ swoje zyski, popraw zwrot z inwestycji w reklamy produktowe i bądź na bieżąco z rynkiem dzięki Price Safari – zaawansowanemu narzędziu do monitorowania cen produktów w sklepach internetowych i na platformach sprzedażowych. Śledź konkurencję, dostosowuj ceny na bieżąco i maksymalizuj zyski dzięki precyzyjnym analizom rynku.
+
                     </p>
 
                     <p>
@@ -59,7 +56,7 @@
                         <p class="Icon-Box-Text-Text">Monitoruj ceny konkurencji na bieżąco, by zawsze być o krok przed nimi.</p>
                     </div>
                 </div>
-              
+
                 <div class="Icon-Box">
                     <div class="Icon-Box-Icon">
                         <img src="~/images/Click.svg" alt="Szybkie Wdrożenie">
@@ -71,11 +68,11 @@
                 </div>
             </div>
 
-
         </div>
         <div class="Vert-50">
-            <img src="~/images homepage/Home-Banner-L.gif" alt="Price Safari">
+            <img id="homeBanner" src="~/images homepage/Home-Banner-L.gif" alt="Price Safari">
         </div>
+
     </div>
     <div class="Vert-Space-Dark">
         <div class="Vert-List">
@@ -133,7 +130,7 @@
             </div>
         </div>
     </div>
-   
+
     <div class="Nav-Bar-Fotter">
         <div class="Nav-Bar-Scal">
 
@@ -147,3 +144,15 @@
 </div>
 <script src="/js/Home/index.min.js"></script>
 
+
+<script>
+    function freezeGif() {
+        var banner = document.getElementById("homeBanner");
+
+        var currentSrc = banner.src;
+        var frozenFrameSrc = currentSrc.replace('.gif', '.png');
+        banner.src = frozenFrameSrc;
+    }
+
+    setTimeout(freezeGif, 5000);
+</script>
