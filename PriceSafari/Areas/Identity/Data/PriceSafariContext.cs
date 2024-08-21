@@ -25,6 +25,7 @@ namespace PriceSafari.Data
         public DbSet<ProductMap> ProductMaps { get; set; }
         public DbSet<CoOfrClass> CoOfrs { get; set; }
         public DbSet<CoOfrPriceHistoryClass> CoOfrPriceHistories { get; set; }
+        public DbSet<ClientProfile> ClientProfiles { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -82,6 +83,12 @@ namespace PriceSafari.Data
                 .WithMany(s => s.UserStores)
                 .HasForeignKey(us => us.StoreId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<ClientProfile>()
+               .HasOne(cp => cp.CreatedByUser)
+               .WithMany()
+               .HasForeignKey(cp => cp.CreatedByUserId)
+               .OnDelete(DeleteBehavior.Restrict);
         }
     }
 }

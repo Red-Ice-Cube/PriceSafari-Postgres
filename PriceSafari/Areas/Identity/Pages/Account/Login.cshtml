@@ -12,7 +12,10 @@
     <div class="partner-banner">
         <a href="@Url.Action("Index", "Home")">
             <img id="homeBanner" src="~/images/Home-Banner-L.gif" alt="Price Safari">
+            <img id="preloadedImage" src="~/images/Home-Banner-L.png" alt="Preloaded Frame" style="display: none;">
         </a>
+
+
     </div>
     <div class="login">
         <div class="heat-lead"></div>
@@ -58,13 +61,24 @@
 <script>
     function freezeGif() {
         var banner = document.getElementById("homeBanner");
+        var frozenFrameSrc = banner.src.replace('.gif', '.png');
 
-        var currentSrc = banner.src;
-        var frozenFrameSrc = currentSrc.replace('.gif', '.png');
-        banner.src = frozenFrameSrc;
+
+        var preloadedImage = document.getElementById("preloadedImage");
+
+        if (preloadedImage.complete) {
+
+            banner.src = frozenFrameSrc;
+        } else {
+
+            preloadedImage.onload = function () {
+                banner.src = frozenFrameSrc;
+            };
+        }
     }
 
     setTimeout(freezeGif, 5000);
+
 </script>
 
 

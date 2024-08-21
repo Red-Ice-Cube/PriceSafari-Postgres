@@ -71,7 +71,10 @@
         </div>
         <div class="Vert-50">
             <img id="homeBanner" src="~/images homepage/Home-Banner-L.gif" alt="Price Safari">
+            
+            <img id="preloadedImage" src="~/images homepage/Home-Banner-L.png" alt="Preloaded Frame" style="display: none;">
         </div>
+
 
     </div>
     <div class="Vert-Space-Dark">
@@ -148,11 +151,22 @@
 <script>
     function freezeGif() {
         var banner = document.getElementById("homeBanner");
+        var frozenFrameSrc = banner.src.replace('.gif', '.png');
 
-        var currentSrc = banner.src;
-        var frozenFrameSrc = currentSrc.replace('.gif', '.png');
-        banner.src = frozenFrameSrc;
+  
+        var preloadedImage = document.getElementById("preloadedImage");
+
+        if (preloadedImage.complete) {
+         
+            banner.src = frozenFrameSrc;
+        } else {
+       
+            preloadedImage.onload = function () {
+                banner.src = frozenFrameSrc;
+            };
+        }
     }
 
     setTimeout(freezeGif, 5000);
+
 </script>
