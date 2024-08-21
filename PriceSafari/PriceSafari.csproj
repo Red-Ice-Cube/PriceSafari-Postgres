@@ -12,6 +12,7 @@
 		<PackageReference Include="ChartJS" Version="23.1.11" />
 		<PackageReference Include="ChartJs.Blazor" Version="1.1.0" />
 		<PackageReference Include="DotNetEnv" Version="3.1.0" />
+		<PackageReference Include="EFCore.BulkExtensions" Version="8.1.0" />
 		<PackageReference Include="HtmlAgilityPack" Version="1.11.62" />
 		<PackageReference Include="HtmlSanitizer" Version="8.1.870" />
 		<PackageReference Include="jQuery" Version="3.7.1" />

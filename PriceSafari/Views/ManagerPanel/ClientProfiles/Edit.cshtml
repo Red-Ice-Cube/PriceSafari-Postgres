@@ -1,0 +1,88 @@
+﻿@model PriceSafari.Models.ClientProfile
+
+@{
+    ViewData["Title"] = "Edytuj profil";
+}
+
+<h2>Edytuj profil</h2>
+
+<form asp-action="Edit" id="clientProfileForm">
+    <div class="form-group">
+        <label for="CeneoProfileUrl">Adres URL Profilu</label>
+        <input type="url" class="form-control" id="CeneoProfileUrl" name="CeneoProfileUrl" value="@Model.CeneoProfileUrl" />
+        <small id="urlError" class="form-text text-danger" style="display:none;">Ten klient jest już zapisany</small>
+    </div>
+    <div class="form-group">
+        <label for="CeneoProfileName">Nazwa Firmy</label>
+        <input type="text" class="form-control" id="CeneoProfileName" name="CeneoProfileName" value="@Model.CeneoProfileName" required />
+    </div>
+    <div class="form-group">
+        <label for="CeneoProfileEmail">Email</label>
+        <input type="email" class="form-control" id="CeneoProfileEmail" name="CeneoProfileEmail" value="@Model.CeneoProfileEmail" required />
+    </div>
+    <div class="form-group">
+        <label for="CeneoProfileTelephone">Telefon</label>
+        <input type="tel" class="form-control" id="CeneoProfileTelephone" name="CeneoProfileTelephone" value="@Model.CeneoProfileTelephone" required />
+    </div>
+    <div class="form-group">
+        <label for="CeneoProfileProductCount">Liczba Produktów</label>
+        <input type="number" class="form-control" id="CeneoProfileProductCount" name="CeneoProfileProductCount" value="@Model.CeneoProfileProductCount" />
+    </div>
+    <div class="form-group">
+        <label for="Status">Status</label>
+        <select class="form-control" id="Status" name="Status">
+            @foreach (var status in Enum.GetValues(typeof(PriceSafari.Models.ClientStatus)))
+            {
+                @if (Model.Status == (PriceSafari.Models.ClientStatus)status)
+                {
+                    <option value="@status" selected>@status</option>
+                }
+                else
+                {
+                    <option value="@status">@status</option>
+                }
+            }
+        </select>
+    </div>
+    <div class="form-group" id="meetingDateDiv" @(Model.Status == PriceSafari.Models.ClientStatus.UmówionoSpotkanie ? "" : "style='display:none'")>
+        <label for="ScheduledMeetingDate">Data spotkania</label>
+        <input type="datetime-local" class="form-control" id="ScheduledMeetingDate" name="ScheduledMeetingDate" value="@Model.ScheduledMeetingDate?.ToString("yyyy-MM-ddTHH:mm")" />
+    </div>
+    <button type="submit" class="btn btn-primary">Zapisz zmiany</button>
+</form>
+
+@section Scripts {
+    <script>
+        $(document).ready(function () {
+            $('#CeneoProfileUrl').on('blur', function () {
+                var originalUrl = $(this).val();
+                var trimmedUrl = originalUrl.split(';')[0];
+                $(this).val(trimmedUrl);
+
+                // AJAX call to check if the URL already exists
+                $.ajax({
+                    url: '@Url.Action("CheckUrlExists", "ClientProfile")', // Replace with actual controller action
+                    type: 'GET',
+                    data: { url: trimmedUrl, id: @Model.ClientProfileId },
+                    success: function (response) {
+                        if (response.exists) {
+                            $('#urlError').show();
+                            $('button[type="submit"]').prop('disabled', true);
+                        } else {
+                            $('#urlError').hide();
+                            $('button[type="submit"]').prop('disabled', false);
+                        }
+                    }
+                });
+            });
+
+            document.getElementById('Status').addEventListener('change', function () {
+                if (this.value === 'UmówionoSpotkanie') {
+                    document.getElementById('meetingDateDiv').style.display = 'block';
+                } else {
+                    document.getElementById('meetingDateDiv').style.display = 'none';
+                }
+            });
+        });
+    </script>
+}

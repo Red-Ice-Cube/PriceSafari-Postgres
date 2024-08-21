@@ -85,10 +85,10 @@ namespace PriceSafari.Data
                 .OnDelete(DeleteBehavior.Cascade);
 
             modelBuilder.Entity<ClientProfile>()
-               .HasOne(cp => cp.CreatedByUser)
-               .WithMany()
-               .HasForeignKey(cp => cp.CreatedByUserId)
-               .OnDelete(DeleteBehavior.Restrict);
+                 .HasOne(cp => cp.CreatedByUser)
+                 .WithMany()
+                 .HasForeignKey(cp => cp.CreatedByUserId)
+                 .OnDelete(DeleteBehavior.Restrict);
         }
     }
 }

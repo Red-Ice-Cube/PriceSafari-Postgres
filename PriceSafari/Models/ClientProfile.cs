@@ -8,9 +8,10 @@ namespace PriceSafari.Models
     {
         NowyKontakt,
         WysłanoMaila,
-        Zadzwoniono,
         UzyskanoOdpowiedź,
-        UmówionoSpotkanie
+        UmówionoSpotkanie,
+        KlientTestujeOprogramowanie,  
+        KlientZakupilOprogramowanie
     }
 
     public class ClientProfile

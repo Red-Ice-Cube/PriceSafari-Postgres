@@ -1,0 +1,59 @@
+﻿@model PriceSafari.Models.ClientProfile
+
+@{
+    ViewData["Title"] = "Dodaj nowy profil";
+}
+
+<h2>Dodaj nowy profil</h2>
+
+<form asp-action="Create" id="clientProfileForm">
+    <div class="form-group">
+        <label for="CeneoProfileUrl">Adres URL Profilu</label>
+        <input type="url" class="form-control" id="CeneoProfileUrl" name="CeneoProfileUrl" />
+        <small id="urlError" class="form-text text-danger" style="display:none;">Ten klient jest już zapisany</small>
+    </div>
+    <div class="form-group">
+        <label for="CeneoProfileName">Nazwa Firmy</label>
+        <input type="text" class="form-control" id="CeneoProfileName" name="CeneoProfileName" required />
+    </div>
+    <div class="form-group">
+        <label for="CeneoProfileEmail">Email</label>
+        <input type="email" class="form-control" id="CeneoProfileEmail" name="CeneoProfileEmail" required />
+    </div>
+    <div class="form-group">
+        <label for="CeneoProfileTelephone">Telefon</label>
+        <input type="tel" class="form-control" id="CeneoProfileTelephone" name="CeneoProfileTelephone" required />
+    </div>
+    <div class="form-group">
+        <label for="CeneoProfileProductCount">Liczba Produktów</label>
+        <input type="number" class="form-control" id="CeneoProfileProductCount" name="CeneoProfileProductCount" />
+    </div>
+    <button type="submit" class="btn btn-primary">Zapisz</button>
+</form>
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+<script>
+    $(document).ready(function () {
+        $('#CeneoProfileUrl').on('blur', function () {
+            var originalUrl = $(this).val();
+            var trimmedUrl = originalUrl.split(';')[0];
+            $(this).val(trimmedUrl);
+
+            // AJAX call to check if the URL already exists
+            $.ajax({
+                url: '@Url.Action("CheckUrlExists", "ClientProfile")',
+                type: 'GET',
+                data: { url: trimmedUrl },
+                success: function (response) {
+                    if (response.exists) {
+                        $('#urlError').show();
+                        $('button[type="submit"]').prop('disabled', true);
+                    } else {
+                        $('#urlError').hide();
+                        $('button[type="submit"]').prop('disabled', false);
+                    }
+                }
+            });
+        });
+    });
+</script>

@@ -1,5 +1,77 @@
-﻿@*
-    For more information on enabling MVC for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860
-*@
+﻿@model IEnumerable<PriceSafari.Models.ClientProfile>
+
 @{
+    ViewData["Title"] = "Lista Klientów";
+}
+
+<h2>Lista Klientów</h2>
+
+<p>
+    <a class="btn btn-primary" asp-action="Create">Dodaj nowy profil</a>
+</p>
+
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Imię</th>
+            <th>Email</th>
+            <th>Telefon</th>
+            <th>URL</th>
+            <th>Liczba Produktów</th>
+            <th>Status</th>
+            <th>Stworzony przez</th>
+            <th>Akcje</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var item in Model)
+        {
+            <tr>
+                <td>@item.CeneoProfileName</td>
+                <td>@item.CeneoProfileEmail</td>
+                <td>@item.CeneoProfileTelephone</td>
+                <td>@item.CeneoProfileUrl</td>
+                <td>@item.CeneoProfileProductCount</td>
+                <td>
+                    <span class="badge" style="background-color:@GetStatusColor(item.Status)">
+                        @GetStatusDisplayName(item.Status)
+                    </span>
+                </td>
+                <td>@item.CreatedByUser?.PartnerName @item.CreatedByUser?.PartnerSurname</td>
+                <td>
+                    <a class="btn btn-info" asp-action="Edit" asp-route-id="@item.ClientProfileId">Edytuj</a>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@functions {
+    public string GetStatusColor(PriceSafari.Models.ClientStatus status)
+    {
+        return status switch
+        {
+            PriceSafari.Models.ClientStatus.NowyKontakt => "#17a2b8", // Blue
+            PriceSafari.Models.ClientStatus.WysłanoMaila => "#ffc107", // Yellow
+            PriceSafari.Models.ClientStatus.UzyskanoOdpowiedź => "#28a745", // Green
+            PriceSafari.Models.ClientStatus.UmówionoSpotkanie => "#007bff", // Dark Blue
+            PriceSafari.Models.ClientStatus.KlientTestujeOprogramowanie => "#6f42c1", // Purple
+            PriceSafari.Models.ClientStatus.KlientZakupilOprogramowanie => "#dc3545", // Red
+            _ => "#6c757d" // Grey for default
+        };
+    }
+
+    public string GetStatusDisplayName(PriceSafari.Models.ClientStatus status)
+    {
+        return status switch
+        {
+            PriceSafari.Models.ClientStatus.NowyKontakt => "Nowy Kontakt",
+            PriceSafari.Models.ClientStatus.WysłanoMaila => "Wysłano Maila",
+            PriceSafari.Models.ClientStatus.UzyskanoOdpowiedź => "Uzyskano Odpowiedź",
+            PriceSafari.Models.ClientStatus.UmówionoSpotkanie => "Umówiono Spotkanie",
+            PriceSafari.Models.ClientStatus.KlientTestujeOprogramowanie => "Klient Testuje Oprogramowanie",
+            PriceSafari.Models.ClientStatus.KlientZakupilOprogramowanie => "Klient Zakupił Oprogramowanie",
+            _ => "Nieznany"
+        };
+    }
 }
