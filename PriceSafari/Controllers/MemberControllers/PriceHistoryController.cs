@@ -86,7 +86,7 @@ namespace PriceSafari.Controllers.MemberControllers
                 .Select(sn => sn.StoreLogoUrl)
                 .FirstOrDefaultAsync();
 
-            // Pobieranie kategorii produktów z ostatniego scrapowania, które nie są odrzucone
+         
             var categories = await _context.PriceHistories
                 .Where(ph => ph.ScrapHistoryId == latestScrap.Id && !ph.Product.IsRejected)
                 .Select(ph => ph.Product.Category)
