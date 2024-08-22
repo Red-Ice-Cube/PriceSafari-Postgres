@@ -82,6 +82,7 @@ namespace PriceSafari.Controllers
                 {
                     p.ProductId,
                     p.ProductName,
+                    p.Category,
                     p.OfferUrl,
                     p.IsScrapable,
                     p.IsRejected,
@@ -158,8 +159,6 @@ namespace PriceSafari.Controllers
             }
         }
 
-
-
         [HttpPost]
         public async Task<IActionResult> UpdateMultipleScrapableProducts(int storeId, [FromBody] List<int> productIds)
         {
@@ -179,14 +178,14 @@ namespace PriceSafari.Controllers
                 return NotFound();
             }
 
-            var currentScrapableCount = store.Products.Count(p => p.IsScrapable);
-            var availableCount = store.ProductsToScrap - currentScrapableCount;
+            int? currentScrapableCount = store.Products.Count(p => p.IsScrapable);
+            int? availableCount = store.ProductsToScrap - currentScrapableCount;
 
             var productsToUpdate = store.Products.Where(p => productIds.Contains(p.ProductId)).ToList();
 
-            if (productsToUpdate.Count > availableCount)
+            if (availableCount.HasValue && productsToUpdate.Count > availableCount.Value)
             {
-                return Json(new { success = false, message = "Przekroczono limit produktów do scrapowania." });
+                productsToUpdate = productsToUpdate.Take(availableCount.Value).ToList();
             }
 
             foreach (var product in productsToUpdate)
@@ -196,8 +195,14 @@ namespace PriceSafari.Controllers
 
             await _context.SaveChangesAsync();
 
+            if (productsToUpdate.Count < productIds.Count)
+            {
+                return Json(new { success = true, message = $"Zaktualizowano {productsToUpdate.Count} z {productIds.Count} produktów. Przekroczono limit produktów do scrapowania." });
+            }
+
             return Json(new { success = true });
         }
+
 
         [HttpPost]
         public async Task<IActionResult> ResetMultipleScrapableProducts(int storeId, [FromBody] List<int> productIds)

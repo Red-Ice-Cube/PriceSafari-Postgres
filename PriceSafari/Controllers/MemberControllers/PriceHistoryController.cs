@@ -79,22 +79,22 @@ namespace PriceSafari.Controllers.MemberControllers
             var storeName = await _context.Stores
                 .Where(sn => sn.StoreId == storeId)
                 .Select(sn => sn.StoreName)
-                .FirstOrDefaultAsync();  
-            
+                .FirstOrDefaultAsync();
+
             var storeLogo = await _context.Stores
                 .Where(sn => sn.StoreId == storeId)
                 .Select(sn => sn.StoreLogoUrl)
                 .FirstOrDefaultAsync();
 
-            var categories = await _context.Products
-                .Where(p => p.StoreId == storeId)
-                .Select(p => p.Category)
+            // Pobieranie kategorii produktów z ostatniego scrapowania, które nie są odrzucone
+            var categories = await _context.PriceHistories
+                .Where(ph => ph.ScrapHistoryId == latestScrap.Id && !ph.Product.IsRejected)
+                .Select(ph => ph.Product.Category)
                 .Distinct()
                 .ToListAsync();
 
-
             var scrapedproducts = await _context.Products
-                .Where(p => p.StoreId == storeId && p.IsScrapable)              
+                .Where(p => p.StoreId == storeId && p.IsScrapable)
                 .CountAsync();
 
             var flags = await _context.Flags
@@ -111,6 +111,8 @@ namespace PriceSafari.Controllers.MemberControllers
 
             return View("~/Views/Panel/PriceHistory/Index.cshtml");
         }
+
+
 
         [HttpGet]
         public async Task<IActionResult> GetPrices(int? storeId, string competitorStore = null)

@@ -62,7 +62,7 @@
 
 
     .scrapable-checkbox {
-        appearance: none; /* Usuwa domyślny wygląd checkboxa */
+        appearance: none; 
         width: 44px;
         height: 44px;
         background-color: red;
@@ -110,7 +110,10 @@
 
             <div>
                 <button id="select-all" class="Button-Page-Small-b">Zaznacz wszystkie</button>
-                <button id="deselect-all" class="Button-Page-Small-r">Odznacz wszystkie</button>
+                <button id="deselect-all" class="Button-Page-Small-r">Odznacz wszystkie</button>               
+                <select id="categoryDropdown" class="DropDown">
+                    <option value="all">Wszystkie</option>
+                </select>
                 <input type="text" id="productSearch" placeholder="Wyszukaj produkt" />
             </div>
         </div>
@@ -171,34 +174,53 @@
             var selectAllButton = document.getElementById('select-all');
             var deselectAllButton = document.getElementById('deselect-all');
             var searchInput = document.getElementById('productSearch');
+            var categoryDropdown = document.getElementById('categoryDropdown');
             var allProducts = [];
+            var lastScrollPosition = 0;
+            var selectedCategory = 'all';
 
-            function updateCounters(products) {
-                var activeRejectedCount = products.filter(p => p.isScrapable && p.isRejected).length;
-                var activeCount = products.filter(p => p.isScrapable && !p.isRejected).length;
-                var inactiveRejectedCount = products.filter(p => !p.isScrapable && p.isRejected).length;
-                var inactiveCount = products.filter(p => !p.isScrapable && !p.isRejected).length;
-
-                document.getElementById('count-active-rejected').textContent = activeRejectedCount;
-                document.getElementById('count-active').textContent = activeCount;
-                document.getElementById('count-inactive-rejected').textContent = inactiveRejectedCount;
-                document.getElementById('count-inactive').textContent = inactiveCount;
-
-                var scrapableCount = activeRejectedCount + activeCount;
-                var rejectedCount = activeRejectedCount + inactiveRejectedCount;
-                var totalProducts = products.length;
-
-                document.getElementById('scrapable-count').textContent = scrapableCount;
-                document.getElementById('total-products').textContent = totalProducts;
-           
+            function saveState() {
+                lastScrollPosition = window.scrollY;
+                selectedCategory = categoryDropdown.value;
             }
 
+            function restoreState() {
+                categoryDropdown.value = selectedCategory;
+                window.scrollTo(0, lastScrollPosition);
+            }
 
-            function highlightMatches(text, searchTerm) {
-                if (!searchTerm) return text;
-                const sanitizedSearchTerm = searchTerm.replace(/[^a-zA-Z0-9\s.-]/g, '');
-                const regex = new RegExp(`(${sanitizedSearchTerm})`, 'gi');
-                return text.replace(regex, '<span style="color: #9400D3; font-weight: 600;">$1</span>');
+            function decodeHTML(html) {
+                var txt = document.createElement("textarea");
+                txt.innerHTML = html;
+                return txt.value;
+            }
+
+            function populateCategoryDropdown(categoriesWithCount) {
+                categoriesWithCount.sort((a, b) => b.count - a.count);
+                categoryDropdown.innerHTML = '<option value="all">Wszystkie (' + allProducts.length + ')</option>';
+                categoriesWithCount.forEach(category => {
+                    var decodedCategoryName = decodeHTML(category.name);
+                    var option = document.createElement('option');
+                    option.value = decodedCategoryName;
+                    option.textContent = `${decodedCategoryName} (${category.count})`;
+                    categoryDropdown.appendChild(option);
+                });
+                restoreState();
+            }
+
+            function filterProductsByCategory(products, category) {
+                if (category === 'all') {
+                    return products;
+                }
+                return products.filter(product => decodeHTML(product.category) === category);
+            }
+
+            function filterProductsByName(products, name) {
+                const sanitizedInput = name.replace(/[^a-zA-Z0-9\s.-]/g, '').trim().toLowerCase();
+                return products.filter(product => {
+                    const sanitizedProductName = product.productName.toLowerCase().replace(/[^a-zA-Z0-9\s.-]/g, '').trim();
+                    return sanitizedProductName.includes(sanitizedInput);
+                });
             }
 
             function getProductStatus(product) {
@@ -213,22 +235,45 @@
                 }
             }
 
+            function updateCounters(products) {
+                var activeRejectedCount = allProducts.filter(p => p.isScrapable && p.isRejected).length;
+                var activeCount = allProducts.filter(p => p.isScrapable && !p.isRejected).length;
+                var inactiveRejectedCount = allProducts.filter(p => !p.isScrapable && p.isRejected).length;
+                var inactiveCount = allProducts.filter(p => !p.isScrapable && !p.isRejected).length;
+
+                document.getElementById('count-active-rejected').textContent = activeRejectedCount;
+                document.getElementById('count-active').textContent = activeCount;
+                document.getElementById('count-inactive-rejected').textContent = inactiveRejectedCount;
+                document.getElementById('count-inactive').textContent = inactiveCount;
+
+                var scrapableCount = activeRejectedCount + activeCount;
+                document.getElementById('scrapable-count').textContent = scrapableCount;
+                document.getElementById('total-products').textContent = allProducts.length;
+            }
+
+            function highlightMatches(text, searchTerm) {
+                if (!searchTerm) return text;
+                const sanitizedSearchTerm = searchTerm.replace(/[^a-zA-Z0-9\s.-]/g, '');
+                const regex = new RegExp(`(${sanitizedSearchTerm})`, 'gi');
+                return text.replace(regex, '<span style="color: #9400D3; font-weight: 600;">$1</span>');
+            }
+
             function renderProducts(products, searchTerm = "") {
                 var tbody = document.getElementById('product-list');
                 tbody.innerHTML = '';
-                products.forEach(function (product, index) {
+                products.forEach(function (product) {
                     var row = document.createElement('tr');
                     row.classList.add('product-row');
                     row.setAttribute('data-scrapable', product.isScrapable);
                     row.setAttribute('data-rejected', product.isRejected);
 
                     var highlightedProductName = highlightMatches(product.productName, searchTerm);
-
+                    var category = product.category || '';
                     var offerUrlButton = product.offerUrl ? `<a href="${product.offerUrl}" class="Button-Page-Small" target="_blank">Ceneo</a>` : '';
                     var urlButton = product.url ? `<a href="${product.url}" class="Button-Page-Small" target="_blank">Strona</a>` : '';
-                    var catalogNumber = product.catalogNumber ? product.catalogNumber : '';
-                    var ean = product.ean ? product.ean : '';
-                    var imageUrl = product.mainUrl ? product.mainUrl : '';
+                    var catalogNumber = product.catalogNumber || '';
+                    var ean = product.ean || '';
+                    var imageUrl = product.mainUrl || '';
                     var imageCell = imageUrl ? `<img src="${imageUrl}" style="width: 90px; height: 90px; object-fit: contain; background-color: white;" />` : `<div style="width: 90px; height: 90px;"></div>`;
 
                     var statusBoxClass = "";
@@ -249,19 +294,20 @@
                     }
 
                     row.innerHTML = `
-                        <td>${highlightedProductName}</td>
-                        <td>${imageCell}</td>
-                        <td>${ean}</td>
-                        <td>${catalogNumber}</td>
-                        <td>${offerUrlButton}</td>
-                        <td>${urlButton}</td>
-                        <td>
-                            <input type="checkbox" class="scrapable-checkbox" data-product-id="${product.productId}" ${product.isScrapable ? "checked" : ""} />
-                        </td>
-                        <td><div class="${statusBoxClass}">${statusText}</div></td> <!-- Nowa kolumna Status z boksem -->
-                    `;
+                                <td> <p>${highlightedProductName}</p><p>${category}</p></td>
+                                <td>${imageCell}</td>
+                                <td>${ean}</td>
+                                <td>${catalogNumber}</td>
+                                <td>${offerUrlButton}</td>
+                                <td>${urlButton}</td>
+                                <td>
+                                    <input type="checkbox" class="scrapable-checkbox" data-product-id="${product.productId}" ${product.isScrapable ? "checked" : ""} />
+                                </td>
+                                <td><div class="${statusBoxClass}">${statusText}</div></td>
+                            `;
 
                     row.querySelector('.scrapable-checkbox').addEventListener('change', function () {
+                        saveState();
                         var productId = this.getAttribute('data-product-id');
 
                         fetch('@Url.Action("UpdateScrapableProduct", "Product")?storeId=' + storeId, {
@@ -288,6 +334,7 @@
                     tbody.appendChild(row);
                 });
                 document.getElementById('displayed-count').textContent = products.length;
+                window.scrollTo(0, lastScrollPosition);
             }
 
             function filterRows() {
@@ -295,33 +342,39 @@
                     .map(checkbox => checkbox.getAttribute('data-status'));
 
                 var searchTerm = searchInput.value;
-                var filteredProducts = filterProductsByName(searchTerm);
+                var filteredProducts = filterProductsByName(allProducts, searchTerm);
 
-                var displayedProducts = filteredProducts.filter(product => {
-                    var productStatus = getProductStatus(product);
-                    return selectedStatuses.length === 0 || selectedStatuses.includes(productStatus);
-                });
+                if (selectedStatuses.length > 0) {
+                    filteredProducts = filteredProducts.filter(product => {
+                        var productStatus = getProductStatus(product);
+                        return selectedStatuses.includes(productStatus);
+                    });
+                }
 
-                renderProducts(displayedProducts, searchTerm);
-                updateDisplayedCount(displayedProducts.length);
+                filteredProducts = filterProductsByCategory(filteredProducts, selectedCategory);
+
+                renderProducts(filteredProducts, searchTerm);
+                updateCounters(filteredProducts);
             }
-
-            function filterProductsByName(name) {
-                const sanitizedInput = name.replace(/[^a-zA-Z0-9\s.-]/g, '').trim();
-                const sanitizedInputLowerCase = sanitizedInput.toLowerCase().replace(/\s+/g, '');
-
-                return allProducts.filter(product => {
-                    const sanitizedProductName = product.productName.toLowerCase().replace(/[^a-zA-Z0-9\s.-]/g, '').replace(/\s+/g, '');
-                    return sanitizedProductName.includes(sanitizedInputLowerCase);
-                });
-            }
-
 
             function fetchProducts() {
                 fetch('@Url.Action("GetProducts", "Product")?storeId=' + storeId)
                     .then(response => response.json())
                     .then(data => {
                         allProducts = data;
+
+                        var categoriesWithCount = allProducts.reduce((acc, product) => {
+                            let category = product.category || "Inne";
+                            let categoryObj = acc.find(cat => cat.name === category);
+                            if (categoryObj) {
+                                categoryObj.count++;
+                            } else {
+                                acc.push({ name: category, count: 1 });
+                            }
+                            return acc;
+                        }, []);
+
+                        populateCategoryDropdown(categoriesWithCount);
                         updateCounters(allProducts);
                         filterRows();
                     })
@@ -330,12 +383,15 @@
                     });
             }
 
-            // Dodaj nasłuchiwanie na checkboxy statusów
             document.querySelectorAll('.status-filter').forEach(function (checkbox) {
                 checkbox.addEventListener('change', filterRows);
             });
 
             searchInput.addEventListener('input', filterRows);
+            categoryDropdown.addEventListener('change', function () {
+                saveState();
+                filterRows();
+            });
 
             selectAllButton.addEventListener('click', function () {
                 var productIds = [];
@@ -393,6 +449,5 @@
 
             fetchProducts();
         });
-
     </script>
 }
