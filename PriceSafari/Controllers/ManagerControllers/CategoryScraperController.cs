@@ -29,27 +29,6 @@ namespace PriceSafari.Controllers.ManagerControllers
             return View("~/Views/ManagerPanel/CategoryScraper/Index.cshtml", stores);
         }
 
-        [HttpPost]
-        public async Task<IActionResult> ScrapeCategories(int storeId)
-        {
-            Console.WriteLine("ScrapeCategories started for storeId: " + storeId);
-
-            var store = await _context.Stores.FindAsync(storeId);
-            if (store == null)
-            {
-                Console.WriteLine("Store not found for storeId: " + storeId);
-                return NotFound();
-            }
-
-            var storeProfile = store.StoreProfile;
-            var baseUrl = $"https://www.ceneo.pl/;{storeProfile}-0v.htm";
-            Console.WriteLine("Base URL: " + baseUrl);
-
-            await ScrapeCategories(storeId, baseUrl, 0);
-
-            return RedirectToAction("CategoryList", new { storeId });
-        }
-
         private async Task ScrapeCategories(int storeId, string categoryUrl, int depth)
         {
             Console.WriteLine("Scraping categories from URL: " + categoryUrl + " at depth: " + depth);
@@ -68,13 +47,16 @@ namespace PriceSafari.Controllers.ManagerControllers
                 return;
             }
 
+            // Wybór XPath na podstawie głębokości
             var categoryNodes = doc.DocumentNode.SelectNodes(depth == 0 ? "//span[@class='cat-nav__title']/a" : "//div[@class='cat-nav__card']/a");
+
             if (categoryNodes != null && categoryNodes.Count > 0)
             {
                 Console.WriteLine("Found " + categoryNodes.Count + " category nodes.");
 
                 foreach (var node in categoryNodes)
                 {
+                    // Namierzanie nazwy kategorii na podstawie głębokości
                     var categoryNameNode = depth == 0 ? node : node.SelectSingleNode(".//div[@class='nav-item__name']");
                     if (categoryNameNode != null)
                     {
@@ -103,7 +85,8 @@ namespace PriceSafari.Controllers.ManagerControllers
                             Console.WriteLine("Category already exists: " + categoryName + " at depth: " + depth);
                         }
 
-                        if (depth == 0)
+                        // Kontynuacja skrapowania dla głębokości < 3
+                        if (depth < 3)
                         {
                             var subCategoryUrl = "https://www.ceneo.pl" + node.GetAttributeValue("href", "");
                             await ScrapeCategories(storeId, subCategoryUrl, depth + 1);
@@ -118,16 +101,22 @@ namespace PriceSafari.Controllers.ManagerControllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> ScrapeSubcategories(int storeId)
+        public async Task<IActionResult> ScrapeCategories(int storeId)
         {
-            Console.WriteLine("ScrapeSubcategories started for storeId: " + storeId);
+            Console.WriteLine("ScrapeCategories started for storeId: " + storeId);
 
-            var categories = await _context.Categories.Where(c => c.StoreId == storeId && c.Depth == 0).ToListAsync();
-            foreach (var category in categories)
+            var store = await _context.Stores.FindAsync(storeId);
+            if (store == null)
             {
-                var subCategoryUrl = "https://www.ceneo.pl" + category.CategoryUrl + ";0-0.htm";
-                await ScrapeCategories(storeId, subCategoryUrl, 1);
+                Console.WriteLine("Store not found for storeId: " + storeId);
+                return NotFound();
             }
+
+            var storeProfile = store.StoreProfile;
+            var baseUrl = $"https://www.ceneo.pl/;{storeProfile}-0v.htm";
+            Console.WriteLine("Base URL: " + baseUrl);
+
+            await ScrapeCategories(storeId, baseUrl, 0);
 
             return RedirectToAction("CategoryList", new { storeId });
         }
@@ -135,8 +124,10 @@ namespace PriceSafari.Controllers.ManagerControllers
         public async Task<IActionResult> CategoryList(int storeId)
         {
             var categories = await _context.Categories.Where(c => c.StoreId == storeId).ToListAsync();
-            
+
             return View("~/Views/ManagerPanel/CategoryScraper/CategoryList.cshtml", categories);
         }
+
+
     }
 }
