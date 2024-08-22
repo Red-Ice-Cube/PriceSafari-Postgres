@@ -131,8 +131,9 @@ namespace PriceSafari.Controllers.ManagerControllers
                         {
                             var nameNode = product.SelectSingleNode(".//strong[contains(@class, 'cat-prod-box__name')]//a");
                             var pid = product.GetAttributeValue("data-pid", "");
+                            var gaCategoryName = product.GetAttributeValue("data-gacategoryname", "");
 
-                            if (nameNode != null && !string.IsNullOrEmpty(pid))
+                            if (nameNode != null && !string.IsNullOrEmpty(pid) && !string.IsNullOrEmpty(gaCategoryName))
                             {
                                 var name = WebUtility.HtmlDecode(nameNode.InnerText.Trim());
                                 var offerUrl = "https://www.ceneo.pl/" + pid;
@@ -142,18 +143,21 @@ namespace PriceSafari.Controllers.ManagerControllers
                                     continue;
                                 }
 
+                               
+                                var trimmedCategoryName = gaCategoryName.Split('/').LastOrDefault()?.Trim() ?? categoryName;
+
                                 var productEntity = new ProductClass
                                 {
                                     StoreId = storeId,
                                     ProductName = name,
-                                    Category = categoryName,
+                                    Category = trimmedCategoryName,
                                     OfferUrl = offerUrl
                                 };
 
                                 _context.Products.Add(productEntity);
                                 newProductUrls.Add(offerUrl);
 
-                                Console.WriteLine($"Scraped Product - Name: {name}, Category: {categoryName}, URL: {offerUrl}");
+                                Console.WriteLine($"Scraped Product - Name: {name}, Category: {trimmedCategoryName}, URL: {offerUrl}");
                             }
                         }
                         catch (Exception ex)
@@ -179,6 +183,7 @@ namespace PriceSafari.Controllers.ManagerControllers
                 }
             }
         }
+
 
 
         [HttpPost]
