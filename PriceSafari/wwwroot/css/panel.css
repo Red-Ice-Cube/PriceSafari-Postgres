@@ -2002,6 +2002,22 @@ tr:last-child .sub-line {
         border-color: #41C7C7;
     }
 
+
+#accountSearch {
+    border: 1px solid #ccc;
+    padding: 5px 12px;
+    border-radius: 4px;
+    outline: none;
+    color: #4B4B4B;
+    font-size: 14px;
+    font-weight: 400;
+    height: 33px;
+}
+
+    #productSearch:focus {
+        border-color: #41C7C7;
+    }
+
 #storeSearch {
     border: 1px solid #ccc;
     padding: 5px 12px;
@@ -2013,7 +2029,7 @@ tr:last-child .sub-line {
     font-weight: 400;
 }
 
-    #storeSearch:focus {
+    #accountSearch:focus {
         border-color: #41C7C7;
     }
 

@@ -1,0 +1,10 @@
+﻿@{
+    var controllerName = ViewContext.RouteData.Values["controller"]?.ToString();
+    var actionName = ViewContext.RouteData.Values["action"]?.ToString();
+
+
+    <div class="@(controllerName == "ClientProfile" ? "Flex-Column-Button-Active" : "Flex-Column-Button") menu-link" onclick="location.href='@Url.Action("Index", "ClientProfile")'">Kontakty</div>
+
+
+}
+

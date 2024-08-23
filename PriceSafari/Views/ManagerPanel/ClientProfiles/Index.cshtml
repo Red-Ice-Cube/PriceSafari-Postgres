@@ -1,50 +1,134 @@
 ﻿@model IEnumerable<PriceSafari.Models.ClientProfile>
 
 @{
-    ViewData["Title"] = "Lista Klientów";
+    Layout = "~/Views/Shared/_PanelLayout.cshtml";
 }
 
-<h2>Lista Klientów</h2>
 
-<p>
-    <a class="btn btn-primary" asp-action="Create">Dodaj nowy profil</a>
-</p>
 
-<table class="table table-striped">
-    <thead>
-        <tr>
-            <th>Imię</th>
-            <th>Email</th>
-            <th>Telefon</th>
-            <th>URL</th>
-            <th>Liczba Produktów</th>
-            <th>Status</th>
-            <th>Stworzony przez</th>
-            <th>Akcje</th>
-        </tr>
-    </thead>
-    <tbody>
-        @foreach (var item in Model)
-        {
-            <tr>
-                <td>@item.CeneoProfileName</td>
-                <td>@item.CeneoProfileEmail</td>
-                <td>@item.CeneoProfileTelephone</td>
-                <td>@item.CeneoProfileUrl</td>
-                <td>@item.CeneoProfileProductCount</td>
-                <td>
-                    <span class="badge" style="background-color:@GetStatusColor(item.Status)">
-                        @GetStatusDisplayName(item.Status)
-                    </span>
-                </td>
-                <td>@item.CreatedByUser?.PartnerName @item.CreatedByUser?.PartnerSurname</td>
-                <td>
-                    <a class="btn btn-info" asp-action="Edit" asp-route-id="@item.ClientProfileId">Edytuj</a>
-                </td>
-            </tr>
-        }
-    </tbody>
-</table>
+
+
+
+
+
+<div class="Page-Box">
+
+
+    <div class="Page-Box-Container">
+        <div class="Page-Box-Category">
+            <div class="Category-Box-Title">
+                Kontakty
+
+            </div>
+
+            <partial name="_ContactNavCol" />
+        </div>
+        <div class="Horizontal">
+            <div class="product-upper-box">
+                <div>
+
+               
+
+                    <a class="Button-Page-Small" asp-action="Create">Dodaj nowy profil</a>
+                    
+
+
+                </div>
+                <div class="order-search-box">
+                    <input type="text" id="accountSearch" placeholder="Wyszukaj użytkownika">
+                </div>
+
+
+
+            </div>
+            <div class="Vert-table">
+                <table class="table-orders">
+
+                    <thead>
+                        <tr>
+                            <th>Firma (<span id="accountsCount">0</span>)</th>
+                            <th>Email</th>
+                            <th>Telefon</th>
+                            <th>Url</th>
+                            <th>Produkty</th>
+                            <th>Status</th>
+                            <th>Dodał</th>
+                          
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var item in Model)
+                        {
+                            <tr data-contact="@item.ClientProfileId" style="cursor:pointer;">
+                                <td>@item.CeneoProfileName</td>
+                                <td>@item.CeneoProfileEmail</td>
+                                <td>@item.CeneoProfileTelephone</td>
+                                <td>@item.CeneoProfileUrl</td>
+                                <td>@item.CeneoProfileProductCount</td>
+                                <td>
+                                    <span class="badge" style="background-color:@GetStatusColor(item.Status)">
+                                        @GetStatusDisplayName(item.Status)
+                                    </span>
+                                </td>
+                                <td>@item.CreatedByUser?.PartnerName @item.CreatedByUser?.PartnerSurname</td>
+                             
+                            </tr>
+                        }
+                    </tbody>
+
+            </div>
+        </div>
+
+
+    </div>
+
+
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        document.querySelectorAll('.table-orders tr[data-contact]').forEach(row => {
+            row.addEventListener('click', function () {
+                var clientId = this.getAttribute('data-contact');
+                window.location.href = '/ClientProfile/Edit/' + clientId;
+            });
+        });
+    });
+
+</script>
+
+<script>
+    function calculateAccounts() {
+
+        let accountsCount = 0;
+
+        document.querySelectorAll('.table-orders tbody tr').forEach(row => {
+            accountsCount++;
+
+        });
+
+
+        document.getElementById('accountsCount').innerText = accountsCount;
+    }
+
+
+    window.onload = calculateAccounts;
+</script>
+
+
+<script>
+    $(document).ready(function () {
+        $('#accountSearch').on('keyup', function () {
+            var searchText = $(this).val().toLowerCase();
+
+            $('.table-orders tbody tr').each(function () {
+                var contactName = $(this).find('td:nth-child(1)').text().toLowerCase();
+                $(this).toggle(contactName.indexOf(searchText) > -1);
+            });
+        });
+    });
+
+</script>
 
 @functions {
     public string GetStatusColor(PriceSafari.Models.ClientStatus status)
@@ -57,7 +141,7 @@
             PriceSafari.Models.ClientStatus.UmówionoSpotkanie => "#007bff", // Dark Blue
             PriceSafari.Models.ClientStatus.KlientTestujeOprogramowanie => "#6f42c1", // Purple
             PriceSafari.Models.ClientStatus.KlientZakupilOprogramowanie => "#dc3545", // Red
-            _ => "#6c757d" // Grey for default
+            _ => "#6c757d"
         };
     }
 
