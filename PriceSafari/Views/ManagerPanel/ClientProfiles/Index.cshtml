@@ -4,46 +4,25 @@
     Layout = "~/Views/Shared/_PanelLayout.cshtml";
 }
 
-
-
-
-
-
-
-
 <div class="Page-Box">
-
-
     <div class="Page-Box-Container">
         <div class="Page-Box-Category">
             <div class="Category-Box-Title">
                 Kontakty
-
             </div>
-
             <partial name="_ContactNavCol" />
         </div>
         <div class="Horizontal">
             <div class="product-upper-box">
                 <div>
-
-               
-
                     <a class="Button-Page-Small" asp-action="Create">Dodaj nowy profil</a>
-                    
-
-
                 </div>
                 <div class="order-search-box">
-                    <input type="text" id="accountSearch" placeholder="Wyszukaj użytkownika">
+                    <input type="text" id="accountSearch" placeholder="Wyszukaj firme">
                 </div>
-
-
-
             </div>
             <div class="Vert-table">
                 <table class="table-orders">
-
                     <thead>
                         <tr>
                             <th>Firma (<span id="accountsCount">0</span>)</th>
@@ -53,7 +32,6 @@
                             <th>Produkty</th>
                             <th>Status</th>
                             <th>Dodał</th>
-                          
                         </tr>
                     </thead>
                     <tbody>
@@ -71,20 +49,14 @@
                                     </span>
                                 </td>
                                 <td>@item.CreatedByUser?.PartnerName @item.CreatedByUser?.PartnerSurname</td>
-                             
+
                             </tr>
                         }
                     </tbody>
-
             </div>
         </div>
-
-
     </div>
-
-
 </div>
-
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         document.querySelectorAll('.table-orders tr[data-contact]').forEach(row => {
@@ -96,7 +68,6 @@
     });
 
 </script>
-
 <script>
     function calculateAccounts() {
 
@@ -106,16 +77,10 @@
             accountsCount++;
 
         });
-
-
         document.getElementById('accountsCount').innerText = accountsCount;
     }
-
-
     window.onload = calculateAccounts;
 </script>
-
-
 <script>
     $(document).ready(function () {
         $('#accountSearch').on('keyup', function () {
@@ -135,12 +100,13 @@
     {
         return status switch
         {
-            PriceSafari.Models.ClientStatus.NowyKontakt => "#17a2b8", // Blue
-            PriceSafari.Models.ClientStatus.WysłanoMaila => "#ffc107", // Yellow
-            PriceSafari.Models.ClientStatus.UzyskanoOdpowiedź => "#28a745", // Green
-            PriceSafari.Models.ClientStatus.UmówionoSpotkanie => "#007bff", // Dark Blue
-            PriceSafari.Models.ClientStatus.KlientTestujeOprogramowanie => "#6f42c1", // Purple
-            PriceSafari.Models.ClientStatus.KlientZakupilOprogramowanie => "#dc3545", // Red
+            PriceSafari.Models.ClientStatus.Nowy => "#17a2b8",
+            PriceSafari.Models.ClientStatus.Mail => "#ffc107",
+            PriceSafari.Models.ClientStatus.Urabiany => "#28a745",
+            PriceSafari.Models.ClientStatus.Spotkanie => "#007bff",
+            PriceSafari.Models.ClientStatus.Testuje => "#6f42c1", 
+            PriceSafari.Models.ClientStatus.Frajer => "#000", 
+            PriceSafari.Models.ClientStatus.Ojebane => "#dc3545", 
             _ => "#6c757d"
         };
     }
@@ -149,12 +115,13 @@
     {
         return status switch
         {
-            PriceSafari.Models.ClientStatus.NowyKontakt => "Nowy Kontakt",
-            PriceSafari.Models.ClientStatus.WysłanoMaila => "Wysłano Maila",
-            PriceSafari.Models.ClientStatus.UzyskanoOdpowiedź => "Uzyskano Odpowiedź",
-            PriceSafari.Models.ClientStatus.UmówionoSpotkanie => "Umówiono Spotkanie",
-            PriceSafari.Models.ClientStatus.KlientTestujeOprogramowanie => "Klient Testuje Oprogramowanie",
-            PriceSafari.Models.ClientStatus.KlientZakupilOprogramowanie => "Klient Zakupił Oprogramowanie",
+            PriceSafari.Models.ClientStatus.Nowy => "Nowy Kontakt",
+            PriceSafari.Models.ClientStatus.Mail => "Wysłano Maila",
+            PriceSafari.Models.ClientStatus.Urabiany => "Rozmowy w toku",
+            PriceSafari.Models.ClientStatus.Spotkanie => "Umówiono Spotkanie",
+            PriceSafari.Models.ClientStatus.Testuje => "Testuje oprogramowanie",
+            PriceSafari.Models.ClientStatus.Frajer => "Klient frajer",
+            PriceSafari.Models.ClientStatus.Ojebane => "Oprogramowanie ojebane",
             _ => "Nieznany"
         };
     }

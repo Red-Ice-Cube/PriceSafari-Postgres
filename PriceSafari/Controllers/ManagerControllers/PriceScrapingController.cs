@@ -691,6 +691,7 @@ public class PriceScrapingController : Controller
         };
 
         var priceHistories = new List<PriceHistoryClass>();
+        var rejectedProducts = new List<ProductClass>(); // Lista do przechowywania odrzuconych produktów
 
         // Użycie równoległego przetwarzania
         await Task.Run(() => Parallel.ForEach(products, product =>
@@ -728,13 +729,18 @@ public class PriceScrapingController : Controller
                     }
                 }
 
-                // Jeśli żadna z cen nie jest przypisana do naszego sklepu, oznacz produkt jako odrzucony
+             
                 if (!hasStorePrice)
                 {
                     lock (_context)
                     {
                         product.IsRejected = true;
                         _context.SaveChanges();
+                    }
+
+                    lock (rejectedProducts)
+                    {
+                        rejectedProducts.Add(product); 
                     }
                 }
             }
@@ -746,8 +752,27 @@ public class PriceScrapingController : Controller
 
         await _context.SaveChangesAsync();
 
+        // Logowanie odrzuconych produktów
+        foreach (var rejectedProduct in rejectedProducts)
+        {
+            var relatedPrices = coOfrPriceHistories
+                .Where(ph => ph.CoOfrClassId == coOfrClasses.FirstOrDefault(co => co.ProductIds.Contains(rejectedProduct.ProductId))?.Id)
+                .Select(ph => new { ph.StoreName, ph.Price })
+                .ToList();
+
+            Console.WriteLine($"Produkt odrzucony: {rejectedProduct.ProductName}");
+            Console.WriteLine($"Sklep użyty do porównania: {store.StoreName}");
+            Console.WriteLine("Ceny z innych sklepów:");
+
+            foreach (var price in relatedPrices)
+            {
+                Console.WriteLine($"- Sklep: {price.StoreName}, Cena: {price.Price}");
+            }
+        }
+
         return RedirectToAction("GetStoreProductsWithCoOfrIds", new { storeId });
     }
+
 
     [HttpPost]
     public async Task<IActionResult> ClearRejectedAndScrapedProducts()

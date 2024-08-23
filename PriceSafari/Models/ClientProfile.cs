@@ -6,12 +6,13 @@ namespace PriceSafari.Models
 {
     public enum ClientStatus
     {
-        NowyKontakt,
-        WysłanoMaila,
-        UzyskanoOdpowiedź,
-        UmówionoSpotkanie,
-        KlientTestujeOprogramowanie,  
-        KlientZakupilOprogramowanie
+        Nowy,
+        Mail,
+        Urabiany,
+        Spotkanie,
+        Testuje,
+        Frajer,
+        Ojebane
     }
 
     public class ClientProfile
@@ -31,7 +32,7 @@ namespace PriceSafari.Models
         public string CreatedByUserId { get; set; }
         public PriceSafariUser CreatedByUser { get; set; }
 
-        public ClientStatus Status { get; set; } = ClientStatus.NowyKontakt;
+        public ClientStatus Status { get; set; } = ClientStatus.Nowy;
 
         public DateTime? ScheduledMeetingDate { get; set; }
     }

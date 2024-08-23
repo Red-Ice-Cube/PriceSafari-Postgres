@@ -1,55 +1,83 @@
 ﻿@model PriceSafari.Models.ClientProfile
 
+
+
 @{
-    ViewData["Title"] = "Edytuj profil";
+    Layout = "~/Views/Shared/_PanelLayout.cshtml";
 }
 
-<h2>Edytuj profil</h2>
+<div class="Page-Box">
+    <div class="Page-Box-Container">
+        <div class="Page-Box-Category">
+            <div class="Category-Box-Title">
+                Edytuj Profil
 
-<form asp-action="Edit" id="clientProfileForm">
-    <div class="form-group">
-        <label for="CeneoProfileUrl">Adres URL Profilu</label>
-        <input type="url" class="form-control" id="CeneoProfileUrl" name="CeneoProfileUrl" value="@Model.CeneoProfileUrl" />
-        <small id="urlError" class="form-text text-danger" style="display:none;">Ten klient jest już zapisany</small>
+            </div>
+
+            <partial name="_ContactNavCol" />
+        </div>
+
+        <div class="Column-30">
+
+
+
+
+            <form asp-action="Edit" id="clientProfileForm" class="Column-Form">
+                <div class="form-group">
+                    <label for="CeneoProfileUrl" class="control-label">Url Ceneo</label>
+                    <input type="url" class="form-control" id="CeneoProfileUrl" name="CeneoProfileUrl" value="@Model.CeneoProfileUrl" readonly />
+                </div>
+
+                <div class="form-group">
+                    <label for="CeneoProfileName" class="control-label">Nazwa Firmy</label>
+                    <input type="text" class="form-control" id="CeneoProfileName" name="CeneoProfileName" value="@Model.CeneoProfileName" required />
+                </div>
+                <div class="form-group">
+                    <label for="CeneoProfileEmail" class="control-label">Email</label>
+                    <input type="email" class="form-control" id="CeneoProfileEmail" name="CeneoProfileEmail" value="@Model.CeneoProfileEmail" required />
+                </div>
+                <div class="form-group">
+                    <label for="CeneoProfileTelephone" class="control-label">Telefon</label>
+                    <input type="tel" class="form-control" id="CeneoProfileTelephone" name="CeneoProfileTelephone" value="@Model.CeneoProfileTelephone" required />
+                </div>
+                <div class="form-group">
+                    <label for="CeneoProfileProductCount" class="control-label">Liczba Produktów</label>
+                    <input type="number" class="form-control" id="CeneoProfileProductCount" name="CeneoProfileProductCount" value="@Model.CeneoProfileProductCount" />
+                </div>
+                <div class="form-group">
+                    <label for="Status">Status</label>
+                    <select class="form-control" id="Status" name="Status">
+                        @foreach (var status in Enum.GetValues(typeof(PriceSafari.Models.ClientStatus)))
+                        {
+                            @if (Model.Status == (PriceSafari.Models.ClientStatus)status)
+                            {
+                                <option value="@status" selected>@status</option>
+                            }
+                            else
+                            {
+                                <option value="@status">@status</option>
+                            }
+                        }
+                    </select>
+                </div>
+                <div class="form-group" id="meetingDateDiv" @(Model.Status == PriceSafari.Models.ClientStatus.Spotkanie ? "" : "style='display:none'")>
+                    <label for="ScheduledMeetingDate" class="control-label">Data spotkania</label>
+                    <input type="datetime-local" class="form-control" id="ScheduledMeetingDate" name="ScheduledMeetingDate" value="@Model.ScheduledMeetingDate?.ToString("yyyy-MM-ddTHH:mm")" />
+                </div>
+                <button type="submit" class="Button-Add-Small">Zapisz zmiany</button>
+            </form>
+
+
+
+        </div>
+
     </div>
-    <div class="form-group">
-        <label for="CeneoProfileName">Nazwa Firmy</label>
-        <input type="text" class="form-control" id="CeneoProfileName" name="CeneoProfileName" value="@Model.CeneoProfileName" required />
-    </div>
-    <div class="form-group">
-        <label for="CeneoProfileEmail">Email</label>
-        <input type="email" class="form-control" id="CeneoProfileEmail" name="CeneoProfileEmail" value="@Model.CeneoProfileEmail" required />
-    </div>
-    <div class="form-group">
-        <label for="CeneoProfileTelephone">Telefon</label>
-        <input type="tel" class="form-control" id="CeneoProfileTelephone" name="CeneoProfileTelephone" value="@Model.CeneoProfileTelephone" required />
-    </div>
-    <div class="form-group">
-        <label for="CeneoProfileProductCount">Liczba Produktów</label>
-        <input type="number" class="form-control" id="CeneoProfileProductCount" name="CeneoProfileProductCount" value="@Model.CeneoProfileProductCount" />
-    </div>
-    <div class="form-group">
-        <label for="Status">Status</label>
-        <select class="form-control" id="Status" name="Status">
-            @foreach (var status in Enum.GetValues(typeof(PriceSafari.Models.ClientStatus)))
-            {
-                @if (Model.Status == (PriceSafari.Models.ClientStatus)status)
-                {
-                    <option value="@status" selected>@status</option>
-                }
-                else
-                {
-                    <option value="@status">@status</option>
-                }
-            }
-        </select>
-    </div>
-    <div class="form-group" id="meetingDateDiv" @(Model.Status == PriceSafari.Models.ClientStatus.UmówionoSpotkanie ? "" : "style='display:none'")>
-        <label for="ScheduledMeetingDate">Data spotkania</label>
-        <input type="datetime-local" class="form-control" id="ScheduledMeetingDate" name="ScheduledMeetingDate" value="@Model.ScheduledMeetingDate?.ToString("yyyy-MM-ddTHH:mm")" />
-    </div>
-    <button type="submit" class="btn btn-primary">Zapisz zmiany</button>
-</form>
+
+</div>
+
+
+
+
 
 @section Scripts {
     <script>

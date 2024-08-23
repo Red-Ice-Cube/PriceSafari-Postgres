@@ -214,23 +214,40 @@ namespace PriceSafari.Controllers.ManagerControllers
         [HttpGet]
         public async Task<IActionResult> ProductList(int storeId)
         {
+            
             var store = await _context.Stores.FindAsync(storeId);
             if (store == null) return NotFound();
 
-            var products = await _context.Products.Where(p => p.StoreId == storeId && p.IsScrapable).ToListAsync();
-            var allProducts = await _context.Products.Where(p => p.StoreId == storeId).ToListAsync();
+          
+            var products = await _context.Products
+                .Where(p => p.StoreId == storeId && p.IsScrapable)
+                .ToListAsync();
 
+         
+            var allProducts = await _context.Products
+                .Where(p => p.StoreId == storeId)
+                .ToListAsync();
+
+           
+            var rejectedProducts = allProducts
+                .Where(p => p.IsRejected && p.IsScrapable)
+                .ToList();
+
+         
             var categories = products.Select(p => p.Category).Distinct().ToList();
 
+     
             ViewBag.StoreName = store.StoreName;
             ViewBag.Categories = categories;
             ViewBag.StoreId = storeId;
             ViewBag.AllProducts = allProducts;
             ViewBag.ScrapableProducts = products;
-            ViewBag.RejectedProductsCount = allProducts.Count(p => p.IsRejected);
+            ViewBag.RejectedProductsCount = rejectedProducts.Count;  
 
+  
             return View("~/Views/ManagerPanel/Store/ProductList.cshtml", products);
         }
+
 
         [HttpPost]
         public async Task<IActionResult> UpdateProductsToScrap(int storeId, int productsToScrap)
@@ -250,17 +267,23 @@ namespace PriceSafari.Controllers.ManagerControllers
         [HttpPost]
         public async Task<IActionResult> ClearRejectedProducts(int storeId)
         {
+            // Pobieramy wszystkie produkty dla danego sklepu, które są odrzucone i mogą być zeskrobane
             var products = await _context.Products
-                .Where(p => p.StoreId == storeId && p.IsRejected)
+                .Where(p => p.StoreId == storeId && p.IsRejected && p.IsScrapable)
                 .ToListAsync();
 
+            // Ustawiamy IsRejected na false tylko dla produktów spełniających warunki
             foreach (var product in products)
             {
                 product.IsRejected = false;
             }
 
+            // Zapisujemy zmiany do bazy danych
             await _context.SaveChangesAsync();
+
+            // Przekierowanie do listy produktów po zakończeniu operacji
             return RedirectToAction("ProductList", new { storeId });
         }
+
     }
 }
