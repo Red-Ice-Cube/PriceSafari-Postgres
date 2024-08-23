@@ -81,10 +81,12 @@
 
 .Nav-Bar-Button, .Contrast-Button {
     display: flex;
+    padding: 2px 24px;
     justify-content: center;
     align-items: center;
-    border-radius: 8px;
-    color: #fff;
+    border-radius: 24px;
+    color: #41C7C7;
+    border: 1px solid #41C7C7;
     font-size: 18px;
     font-weight: 400;
     text-decoration: none;
@@ -92,8 +94,9 @@
 
     .Nav-Bar-Button:hover, .Contrast-Button:hover {
         text-decoration: none;
-        color: #41C7C7;
-        font-weight: 400;
+        color: #fff;
+        border: 1px solid #fff;
+        
     }
 
 .Vert-Home {
@@ -393,7 +396,7 @@
     justify-content: center;
     width:100%;
     align-items: center;
-    background: #1C8F98;
+    background: #212529;
     color: #fff;
     font-size: 20px;
     font-weight: 300;
