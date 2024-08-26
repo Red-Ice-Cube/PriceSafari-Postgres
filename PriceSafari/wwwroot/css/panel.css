@@ -1022,7 +1022,7 @@ p {
     .table-orders td, .table-orders th {
         padding: 8px 16px;
         text-align: left;
-        color: #282828;
+        color: #222222;
         font-size: 14px;
         font-weight: 400;
     }
@@ -1171,8 +1171,30 @@ p {
     .Button-Page-Small-r:hover {
         color: #fff;
         text-decoration: none;
-        background: #F56069;
+        background: #b60000;
     }
+
+
+.Button-Page-Small-y {
+    display: inline-flex;
+    padding: 6px 16px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    background: #e6bf06;
+    color: #fff;
+    font-size: 14px;
+    font-weight: 400;
+    text-decoration: none;
+    border: none;
+}
+
+    .Button-Page-Small-y:hover {
+        color: #fff;
+        text-decoration: none;
+        background: #d9a600;
+    }
+
 
 .Button-Page-Small-bl {
     display: inline-flex;
@@ -1180,7 +1202,7 @@ p {
     align-items: center;
     justify-content: center;
     border-radius: 4px;
-    background: #000;
+    background: #41C7C7;
     color: #fff;
     font-size: 14px;
     font-weight: 400;
@@ -1191,7 +1213,7 @@ p {
     .Button-Page-Small-bl:hover {
         color: #fff;
         text-decoration: none;
-        background: #464646;
+        background: #004552;
     }
 
 .Button-Page-Small-o {
@@ -1220,7 +1242,7 @@ p {
     align-items: center;
     justify-content: center;
     border-radius: 4px;
-    background: #202430;
+    background: #222222;
     color: #fff;
     font-size: 14px;
     font-weight: 400;
@@ -1231,7 +1253,7 @@ p {
     .Button-Page-Small-b:hover {
         color: #fff;
         text-decoration: none;
-        background: #101317;
+        background: #000;
     }
 
 .Button-Add-Small {
@@ -2730,7 +2752,7 @@ tr:last-child .sub-line {
     align-self: stretch;
     flex-direction: column;
     padding: 24px;
-    background: #004552;
+    background: #222222;
     border-radius: 8px;
     box-shadow: 0 5px 5px rgba(0, 0, 0, .3);
     color: rgba(255, 255, 255, .8);
