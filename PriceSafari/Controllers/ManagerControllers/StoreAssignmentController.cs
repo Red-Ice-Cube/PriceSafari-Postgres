@@ -2,12 +2,9 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
 using PriceSafari.Data;
 using PriceSafari.Models;
 using PriceSafari.Models.ManagerViewModels;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace PriceSafari.Controllers
 {

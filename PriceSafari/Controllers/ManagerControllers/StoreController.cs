@@ -5,9 +5,6 @@ using PriceSafari.Hubs;
 using PriceSafari.Models;
 using Microsoft.EntityFrameworkCore;
 using PriceSafari.Data;
-using System.Threading.Tasks;
-using System.Linq;
-using System.Collections.Generic;
 using Microsoft.AspNetCore.Authorization;
 using System.Net;
 
@@ -29,7 +26,6 @@ namespace PriceSafari.Controllers.ManagerControllers
         public IActionResult CreateStore()
         {
             return View("~/Views/ManagerPanel/Store/CreateStore.cshtml");
-
         }
 
         [HttpPost]
@@ -48,7 +44,6 @@ namespace PriceSafari.Controllers.ManagerControllers
                 StoreApiKey = apiKey,
                 StoreLogoUrl = logoUrl,
                 ProductsToScrap = productPack
-
             };
 
             _context.Stores.Add(store);
@@ -71,8 +66,6 @@ namespace PriceSafari.Controllers.ManagerControllers
 
             return View("~/Views/ManagerPanel/Store/Index.cshtml", stores);
         }
-
-
 
         [HttpGet]
         public async Task<IActionResult> ScrapeProducts(int storeId, int depth)
@@ -143,7 +136,6 @@ namespace PriceSafari.Controllers.ManagerControllers
                                     continue;
                                 }
 
-                               
                                 var trimmedCategoryName = gaCategoryName.Split('/').LastOrDefault()?.Trim() ?? categoryName;
 
                                 var productEntity = new ProductClass
@@ -184,8 +176,6 @@ namespace PriceSafari.Controllers.ManagerControllers
             }
         }
 
-
-
         [HttpPost]
         public async Task<IActionResult> DeleteStore(int storeId)
         {
@@ -208,46 +198,35 @@ namespace PriceSafari.Controllers.ManagerControllers
             return RedirectToAction("Index");
         }
 
-
-
-
         [HttpGet]
         public async Task<IActionResult> ProductList(int storeId)
         {
-            
             var store = await _context.Stores.FindAsync(storeId);
             if (store == null) return NotFound();
 
-          
             var products = await _context.Products
                 .Where(p => p.StoreId == storeId && p.IsScrapable)
                 .ToListAsync();
 
-         
             var allProducts = await _context.Products
                 .Where(p => p.StoreId == storeId)
                 .ToListAsync();
 
-           
             var rejectedProducts = allProducts
                 .Where(p => p.IsRejected && p.IsScrapable)
                 .ToList();
 
-         
             var categories = products.Select(p => p.Category).Distinct().ToList();
 
-     
             ViewBag.StoreName = store.StoreName;
             ViewBag.Categories = categories;
             ViewBag.StoreId = storeId;
             ViewBag.AllProducts = allProducts;
             ViewBag.ScrapableProducts = products;
-            ViewBag.RejectedProductsCount = rejectedProducts.Count;  
+            ViewBag.RejectedProductsCount = rejectedProducts.Count;
 
-  
             return View("~/Views/ManagerPanel/Store/ProductList.cshtml", products);
         }
-
 
         [HttpPost]
         public async Task<IActionResult> UpdateProductsToScrap(int storeId, int productsToScrap)
@@ -284,6 +263,5 @@ namespace PriceSafari.Controllers.ManagerControllers
             // Przekierowanie do listy produktów po zakończeniu operacji
             return RedirectToAction("ProductList", new { storeId });
         }
-
     }
 }

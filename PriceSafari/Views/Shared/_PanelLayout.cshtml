@@ -8,7 +8,8 @@
 }
 
 @{
-    bool isManagerOrAdmin = User.IsInRole("Manager") || User.IsInRole("Admin");
+    bool isManager = User.IsInRole("Manager");
+    bool isAdmin =  User.IsInRole("Admin");
     bool isMember = User.IsInRole("Member");
 }
 
@@ -93,7 +94,7 @@
                 
             }
 
-            @if (isManagerOrAdmin)
+            @if (isAdmin)
             {
                 var controllerName = ViewContext.RouteData.Values["controller"]?.ToString();
                 var actionName = ViewContext.RouteData.Values["action"]?.ToString();
@@ -121,9 +122,21 @@
                     <img src="~/images/Link-bone.svg" alt="Panel Icon" class="menu-icon" />Mapowanie
                 </div>
                 <div class="@(controllerName == "ClientProfile" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "ClientProfile")'">
-                    <img src="~/images/Link-bone.svg" alt="Panel Icon" class="menu-icon" />Klienci
+                    <img src="~/images/Affiliate-bone.svg" alt="Panel Icon" class="menu-icon" />Klienci
                 </div>
             }
+
+            @if (isManager){
+
+                var controllerName = ViewContext.RouteData.Values["controller"]?.ToString();
+                var actionName = ViewContext.RouteData.Values["action"]?.ToString();
+
+
+                <div class="@(controllerName == "ClientProfile" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "ClientProfile")'">
+                    <img src="~/images/Affiliate-bone.svg" alt="Panel Icon" class="menu-icon" />Klienci
+                </div>
+            }
+
         </div>
         <div class="Sidebar-box">
             <div class="PriceSafari">
@@ -160,7 +173,7 @@
 
 
             }
-            @if (isManagerOrAdmin)
+            @if (isAdmin)
             {
                 var controllerName = ViewContext.RouteData.Values["controller"]?.ToString();
                 var actionName = ViewContext.RouteData.Values["action"]?.ToString();
@@ -186,9 +199,25 @@
 
 
                 <div class="@(controllerName == "ProductMapping" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "ProductMapping")'">
-                    <img src="~/images/Link-bone.svg" alt="Panel Icon" class="menu-icon" />
+                    <img src="~/images/Affiliate-bone.svg" alt="Panel Icon" class="menu-icon" />
                 </div>
             }
+
+
+
+            @if (isManager)
+            {
+
+                var controllerName = ViewContext.RouteData.Values["controller"]?.ToString();
+                var actionName = ViewContext.RouteData.Values["action"]?.ToString();
+
+
+                <div class="@(controllerName == "ClientProfile" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "ClientProfile")'">
+                    <img src="~/images/Affiliate-bone.svg" alt="Panel Icon" class="menu-icon" />
+                </div>
+            }
+
+
         </div>
         <div class="Sidebar-box">
         </div>

@@ -11,7 +11,7 @@ using PriceSafari.Data;
 
 namespace PriceSafari.Controllers.ManagerControllers
 {
-    [Authorize(Roles = "Manager, Admin")]
+    [Authorize(Roles = "Admin")]
     public class ManagerAffiliateController : Controller
 
     {

@@ -10,7 +10,7 @@ using System.Linq;
 using System.Security.Claims;
 using System.Threading.Tasks;
 
-[Authorize(Roles = "Admin, Member, Manager")]
+[Authorize(Roles = "Member")]
 public class CompetitorsController : Controller
 {
     private readonly PriceSafariContext _context;
