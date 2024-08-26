@@ -101,10 +101,15 @@ namespace PriceSafari.Areas.Identity.Pages.Account
 
                     // Przekieruj na odpowiednią stronę w zależności od roli użytkownika
 
-                    if (roles.Contains("Admin") || roles.Contains("Manager"))
+                    if (roles.Contains("Admin"))
                     {
                         return RedirectToAction("Index", "Store");
                     }
+                    else if (roles.Contains("Manager"))
+                    {
+                        return RedirectToAction("Index", "ClientProfile");
+                    }
+
                     else if (roles.Contains("Member"))
                     {
                         return RedirectToAction("Index", "Chanel");
