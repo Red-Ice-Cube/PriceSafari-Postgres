@@ -20,14 +20,14 @@ public class Program
         builder.Configuration.AddJsonFile("appsettings.json", optional: false, reloadOnChange: true);
         builder.Configuration.AddEnvironmentVariables();
 
-        //var dbServer = Environment.GetEnvironmentVariable("DB_SERVER");
-        //var dbName = Environment.GetEnvironmentVariable("DB_NAME");
-        //var dbUser = Environment.GetEnvironmentVariable("DB_USER");
-        //var dbPassword = Environment.GetEnvironmentVariable("DB_PASSWORD");
+        var dbServer = Environment.GetEnvironmentVariable("DB_SERVER");
+        var dbName = Environment.GetEnvironmentVariable("DB_NAME");
+        var dbUser = Environment.GetEnvironmentVariable("DB_USER");
+        var dbPassword = Environment.GetEnvironmentVariable("DB_PASSWORD");
 
-        //var connectionString = $"Data Source={dbServer};Database={dbName};Uid={dbUser};Password={dbPassword};TrustServerCertificate=True";
+        var connectionString = $"Data Source={dbServer};Database={dbName};Uid={dbUser};Password={dbPassword};TrustServerCertificate=True";
 
-        var connectionString = $"Data Source=(localdb)\\MSSQLLocalDB;Initial Catalog=PriceSafariDBLH;Integrated Security=True;Connect Timeout=30;Encrypt=False;Trust Server Certificate=False;Application Intent=ReadWrite;Multi Subnet Failover=False";
+        //var connectionString = $"Data Source=(localdb)\\MSSQLLocalDB;Initial Catalog=PriceSafariDBLH;Integrated Security=True;Connect Timeout=30;Encrypt=False;Trust Server Certificate=False;Application Intent=ReadWrite;Multi Subnet Failover=False";
         builder.Services.AddDbContext<PriceSafariContext>(options => options.UseSqlServer(connectionString));
 
         builder.Services.AddDefaultIdentity<PriceSafariUser>(options => options.SignIn.RequireConfirmedAccount = true)
