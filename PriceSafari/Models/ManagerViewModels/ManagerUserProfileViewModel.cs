@@ -9,6 +9,5 @@
         public bool Status { get; set; }
         public DateTime UserJoin { get; set; }
         public bool Verification { get; set; }
-        public string? Description { get; set; }
     }
 }
