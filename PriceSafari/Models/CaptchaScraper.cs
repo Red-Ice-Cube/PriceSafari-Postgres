@@ -75,7 +75,8 @@ namespace PriceSafari.Models
             await _page.CloseAsync();
             await _browser.CloseAsync();
         }
-       
+
+
 
         public async Task<(List<(string storeName, decimal price, decimal? shippingCostNum, int? availabilityNum, string isBidding, string position)> Prices, string Log, List<(string Reason, string Url)> RejectedProducts)> HandleCaptchaAndScrapePricesAsync(string url)
         {
@@ -90,29 +91,15 @@ namespace PriceSafari.Models
                 var currentUrl = _page.Url;
 
                 // Sprawdź, czy przeglądarka została przekierowana na stronę z CAPTCHA
-                if (currentUrl.Contains("/Captcha/Add"))
+                while (currentUrl.Contains("/Captcha/Add"))
                 {
-                    bool captchaBypassed = false;
+                    Console.WriteLine("Captcha detected. Please solve it manually in the browser.");
 
-                    for (int attempt = 0; attempt < 2; attempt++)
+                    // Czekaj, aż użytkownik ręcznie rozwiąże CAPTCHA
+                    while (currentUrl.Contains("/Captcha/Add"))
                     {
-                        await _page.GoToAsync("https://www.ceneo.pl/859");
-                        await Task.Delay(1000);
-                        await _page.GoToAsync(url);
-
-                        currentUrl = _page.Url;
-                        if (!currentUrl.Contains("/Captcha/Add"))
-                        {
-                            captchaBypassed = true;
-                            break;
-                        }
-                    }
-
-                    if (!captchaBypassed)
-                    {
-                        log = $"Failed to solve CAPTCHA for URL: {url}";
-                        rejectedProducts.Add(("CAPTCHA not solved", url));
-                        return (priceResults, log, rejectedProducts);
+                        await Task.Delay(2000); // Czekaj 2 sekundy przed kolejnym sprawdzeniem
+                        currentUrl = _page.Url; // Aktualizuj URL, aby sprawdzić, czy CAPTCHA zostało rozwiązane
                     }
                 }
 
@@ -169,6 +156,101 @@ namespace PriceSafari.Models
 
             return (priceResults, log, rejectedProducts);
         }
+
+
+
+        //public async Task<(List<(string storeName, decimal price, decimal? shippingCostNum, int? availabilityNum, string isBidding, string position)> Prices, string Log, List<(string Reason, string Url)> RejectedProducts)> HandleCaptchaAndScrapePricesAsync(string url)
+        //{
+        //    var priceResults = new List<(string storeName, decimal price, decimal? shippingCostNum, int? availabilityNum, string isBidding, string position)>();
+        //    var rejectedProducts = new List<(string Reason, string Url)>();
+        //    string log;
+
+        //    try
+        //    {
+        //        // Przejdź do strony
+        //        await _page.GoToAsync(url);
+        //        var currentUrl = _page.Url;
+
+        //        // Sprawdź, czy przeglądarka została przekierowana na stronę z CAPTCHA
+        //        if (currentUrl.Contains("/Captcha/Add"))
+        //        {
+        //            bool captchaBypassed = false;
+
+        //            for (int attempt = 0; attempt < 2; attempt++)
+        //            {
+        //                await _page.GoToAsync("https://www.ceneo.pl/859");
+        //                await Task.Delay(1000);
+        //                await _page.GoToAsync(url);
+
+        //                currentUrl = _page.Url;
+        //                if (!currentUrl.Contains("/Captcha/Add"))
+        //                {
+        //                    captchaBypassed = true;
+        //                    break;
+        //                }
+        //            }
+
+        //            if (!captchaBypassed)
+        //            {
+        //                log = $"Failed to solve CAPTCHA for URL: {url}";
+        //                rejectedProducts.Add(("CAPTCHA not solved", url));
+        //                return (priceResults, log, rejectedProducts);
+        //            }
+        //        }
+
+        //        // Jeśli pojawi się baner cookie, kliknij "Nie zgadzam się"
+        //        var rejectButton = await _page.QuerySelectorAsync("button.cookie-consent__buttons__action.js_cookie-consent-necessary[data-role='reject-rodo']");
+        //        if (rejectButton != null)
+        //        {
+        //            await rejectButton.ClickAsync();
+        //        }
+
+        //        // Ładowanie wszystkich ofert
+        //        var offerNodes = await _page.QuerySelectorAllAsync("li.product-offers__list__item");
+
+        //        if (offerNodes.Length == 15)
+        //        {
+        //            bool allOffersLoaded = false;
+
+        //            while (!allOffersLoaded)
+        //            {
+        //                await _page.EvaluateExpressionAsync("window.scrollBy(0, document.body.scrollHeight)");
+        //                await Task.Delay(600);
+
+        //                var showAllOffersButton = await _page.QuerySelectorAsync("span.show-remaining-offers__trigger.js_remainingTrigger");
+        //                if (showAllOffersButton != null)
+        //                {
+        //                    await showAllOffersButton.ClickAsync();
+        //                    await _page.WaitForSelectorAsync("li.product-offers__list__item", new WaitForSelectorOptions { Visible = true });
+        //                }
+        //                else
+        //                {
+        //                    allOffersLoaded = true;
+        //                }
+
+        //                var scrollPosition = await _page.EvaluateFunctionAsync<int>("() => window.pageYOffset + window.innerHeight");
+        //                var documentHeight = await _page.EvaluateFunctionAsync<int>("() => document.body.scrollHeight");
+        //                if (scrollPosition >= documentHeight)
+        //                {
+        //                    allOffersLoaded = true;
+        //                }
+        //            }
+        //        }
+
+        //        // Scrapowanie cen
+        //        var (prices, scrapeLog, scrapeRejectedProducts) = await ScrapePricesFromCurrentPage(url);
+        //        priceResults.AddRange(prices);
+        //        log = scrapeLog;
+        //        rejectedProducts.AddRange(scrapeRejectedProducts);
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        log = $"Error scraping URL: {url}. Exception: {ex.Message}";
+        //        rejectedProducts.Add(($"Exception: {ex.Message}", url));
+        //    }
+
+        //    return (priceResults, log, rejectedProducts);
+        //}
 
         private async Task<(List<(string storeName, decimal price, decimal? shippingCostNum, int? availabilityNum, string isBidding, string position)> Prices, string Log, List<(string Reason, string Url)> RejectedProducts)> ScrapePricesFromCurrentPage(string url)
         {
