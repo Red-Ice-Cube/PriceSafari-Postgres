@@ -26,72 +26,87 @@ namespace PriceSafari.Models
             IBrowserType browserTypeInstance;
             BrowserTypeLaunchOptions launchOptions = new BrowserTypeLaunchOptions
             {
-                Headless = false,  // Uruchomienie przeglądarki w trybie widocznym
-                Args = new[] { "--no-sandbox", "--disable-setuid-sandbox", "--disable-gpu" }
+                Headless = false,
+                Args = new[]
+                {
+            "--no-sandbox",
+            "--disable-setuid-sandbox",
+            "--disable-gpu",
+            "--disable-blink-features=AutomationControlled"  
+        }
             };
 
-            // Jeśli używamy Chromium, podaj ścieżkę do Chrome
             if (browserType == "chromium")
             {
-                launchOptions.ExecutablePath = @"C:\Program Files\Google\Chrome\Application\chrome.exe"; // Ścieżka do lokalnie zainstalowanego Chrome
+                launchOptions.ExecutablePath = @"C:\Program Files\Google\Chrome\Application\chrome.exe";
+                browserTypeInstance = _playwright.Chromium;
             }
-
-            if (browserType == "firefox")
+            else if (browserType == "firefox")
             {
                 browserTypeInstance = _playwright.Firefox;
             }
-            else if (browserType == "webkit")
+            else
             {
                 browserTypeInstance = _playwright.Webkit;
             }
-            else
-            {
-                browserTypeInstance = _playwright.Chromium; // Domyślnie Chromium
-            }
 
-            // Uruchamianie przeglądarki
             _browser = await browserTypeInstance.LaunchAsync(launchOptions);
 
-            // Tworzenie kontekstu przeglądarki z niestandardowym User-Agent
             _context = await _browser.NewContextAsync(new BrowserNewContextOptions
             {
                 UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36",
-                ViewportSize = new ViewportSize { Width = 1280, Height = 800 }, // Ustawienia Viewport
+                ViewportSize = new ViewportSize { Width = 1280, Height = 800 },
                 ExtraHTTPHeaders = new Dictionary<string, string>
-                {
-                    { "Accept-Language", "en-US,en;q=0.9" },
-                    { "Referer", "https://www.google.com/" }
-                }
+        {
+            { "Accept-Language", "pl-PL,pl;q=0.9,en-US;q=0.8,en;q=0.7" },
+            { "Referer", "https://www.google.pl/" }
+        },
+                TimezoneId = "Europe/Warsaw",
+               
+                Locale = "pl-PL"
             });
 
-            // Otwórz nową stronę w utworzonym kontekście
             _page = await _context.NewPageAsync();
 
-            // Ukryj właściwość 'navigator.webdriver'
-            await _page.AddInitScriptAsync(@"() => {
-                Object.defineProperty(navigator, 'webdriver', { get: () => false });
+            // Dodaj init script, żeby ukryć webdriver
+            await _page.EvaluateAsync(@"() => {
+                Object.defineProperty(navigator, 'webdriver', {
+                    get: () => false,
+                    configurable: true
+                });
             }");
+
+            Console.WriteLine("Rozgrzewka bota. Czekam 5 minut...");
+            await Task.Delay(TimeSpan.FromMinutes(5));
+            Console.WriteLine("Rozgrzewka zakończona. Rozpoczynamy scrapowanie.");
         }
 
+
         private readonly List<string> _userAgents = new List<string>
-        {
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36",
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:90.0) Gecko/20100101 Firefox/90.0",
-            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.1.2 Safari/605.1.15"
-        };
+{
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:90.0) Gecko/20100101 Firefox/90.0",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.1.2 Safari/605.1.15"
+};
 
         public async Task SetRandomUserAgentAsync()
         {
             Random random = new Random();
             var userAgent = _userAgents[random.Next(_userAgents.Count)];
 
-            // Stwórz nowy kontekst z losowym User-Agent
             _context = await _browser.NewContextAsync(new BrowserNewContextOptions
             {
-                UserAgent = userAgent
+                UserAgent = userAgent,
+                TimezoneId = "Europe/Warsaw",
+                
+                Locale = "pl-PL",
+                ExtraHTTPHeaders = new Dictionary<string, string>
+        {
+            { "Accept-Language", "pl-PL,pl;q=0.9,en-US;q=0.8,en;q=0.7" },
+            { "Referer", "https://www.google.pl/" }
+        }
             });
 
-            // Otwórz nową stronę w kontekście z losowym User-Agent
             _page = await _context.NewPageAsync();
         }
 
@@ -100,6 +115,7 @@ namespace PriceSafari.Models
             await _page.CloseAsync();
             await _browser.CloseAsync();
         }
+
 
         public async Task<(List<(string storeName, decimal price, decimal? shippingCostNum, int? availabilityNum, string isBidding, string position)> Prices, string Log, List<(string Reason, string Url)> RejectedProducts)> HandleCaptchaAndScrapePricesAsync(string url)
         {
