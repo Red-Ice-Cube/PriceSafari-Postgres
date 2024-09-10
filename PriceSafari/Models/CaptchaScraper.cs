@@ -422,7 +422,7 @@ namespace PriceSafari.Models
             _httpClient = httpClient;
         }
 
-        public async Task InitializeBrowserAsync()
+        public async Task InitializeBrowserAsync(int warmupTimeInSeconds = 1)
         {
             var browserFetcher = new BrowserFetcher();
             await browserFetcher.DownloadAsync();
@@ -433,33 +433,34 @@ namespace PriceSafari.Models
                 Headless = false,
                 Args = new[]
                 {
-                    "--no-sandbox",
-                    "--disable-setuid-sandbox",
-                    "--disable-gpu",
-                    "--disable-blink-features=AutomationControlled",
-                    "--disable-software-rasterizer",
-                    "--disable-extensions"
-                }
+            "--no-sandbox",
+            "--disable-setuid-sandbox",
+            "--disable-gpu",
+            "--disable-blink-features=AutomationControlled",
+            "--disable-software-rasterizer",
+            "--disable-extensions"
+        }
             });
 
             _page = (Page)await _browser.NewPageAsync();
 
+            // Wyłączenie JavaScript na stronie
+            await _page.SetJavaScriptEnabledAsync(false);
+
             // Ukrywanie automatyzacji
             await _page.EvaluateFunctionAsync(@"() => {
-                Object.defineProperty(navigator, 'webdriver', { get: () => false });
-                Object.defineProperty(navigator, 'languages', { get: () => ['pl-PL', 'pl'] });
-                Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3] });
-            }");
+        Object.defineProperty(navigator, 'webdriver', { get: () => false });
+        Object.defineProperty(navigator, 'languages', { get: () => ['pl-PL', 'pl'] });
+        Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3] });
+    }");
 
             // Ustawienia przeglądarki
             await _page.SetViewportAsync(new ViewPortOptions { Width = 1280, Height = 800 });
-
 
             await _page.SetRequestInterceptionAsync(true);
 
             _page.Request += async (sender, e) =>
             {
-
                 if (e.Request.ResourceType == ResourceType.Image ||
                     e.Request.ResourceType == ResourceType.StyleSheet ||
                     e.Request.ResourceType == ResourceType.Font)
@@ -473,14 +474,21 @@ namespace PriceSafari.Models
             };
 
             await _page.SetExtraHttpHeadersAsync(new Dictionary<string, string>
-            {
-                { "Accept-Language", "pl-PL,pl;q=0.9,en-US;q=0.8,en;q=0.7" }
-            });
+    {
+        { "Accept-Language", "pl-PL,pl;q=0.9,en-US;q=0.8,en;q=0.7" }
+    });
+
             await _page.SetUserAgentAsync("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36");
             await _page.EmulateTimezoneAsync("Europe/Warsaw");
 
-            Console.WriteLine("Bot gotowy do scrapowania...");
+            Console.WriteLine($"Bot gotowy, teraz rozgrzewka przez {warmupTimeInSeconds} sekund...");
+
+            // Rozgrzewka (opóźnienie)
+            await Task.Delay(warmupTimeInSeconds * 1000);
+
+            Console.WriteLine("Rozgrzewka zakończona. Bot gotowy do scrapowania.");
         }
+
 
         public async Task CloseBrowserAsync()
         {
