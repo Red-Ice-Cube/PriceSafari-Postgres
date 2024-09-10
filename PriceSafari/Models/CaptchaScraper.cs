@@ -29,17 +29,18 @@ namespace PriceSafari.Models
                 Headless = false,
                 Args = new[]
                 {
-            "--no-sandbox",
-            "--disable-setuid-sandbox",
-            "--disable-gpu",
-            "--disable-blink-features=AutomationControlled" ,
-             "--enable-http2"
-        }
+                    "--no-sandbox",
+                    "--disable-setuid-sandbox",
+                    "--disable-gpu",
+                    "--disable-blink-features=AutomationControlled" ,
+                     "--enable-http2"
+                }
             };
 
             if (browserType == "chromium")
             {
-                launchOptions.ExecutablePath = @"C:\Program Files\Google\Chrome\Application\chrome.exe";
+                //launchOptions.ExecutablePath = @"C:\Program Files\Google\Chrome\Application\chrome.exe";
+                launchOptions.ExecutablePath = @"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe"; 
                 browserTypeInstance = _playwright.Chromium;
             }
             else if (browserType == "firefox")
@@ -55,7 +56,7 @@ namespace PriceSafari.Models
 
             _context = await _browser.NewContextAsync(new BrowserNewContextOptions
             {
-                UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36",
+                UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
                 ViewportSize = new ViewportSize { Width = 1280, Height = 800 },
                 ExtraHTTPHeaders = new Dictionary<string, string>
         {
@@ -78,16 +79,16 @@ namespace PriceSafari.Models
             }");
 
             Console.WriteLine("Rozgrzewka bota. Czekam 5 minut...");
-            await Task.Delay(TimeSpan.FromMinutes(1));
+            await Task.Delay(TimeSpan.FromSeconds(20));
             Console.WriteLine("Rozgrzewka zakończona. Rozpoczynamy scrapowanie.");
         }
 
 
         private readonly List<string> _userAgents = new List<string>
         {
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36",
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:90.0) Gecko/20100101 Firefox/90.0",
-            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.1.2 Safari/605.1.15"
+         
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36"
+          
         };
 
         public async Task SetRandomUserAgentAsync()
@@ -117,19 +118,17 @@ namespace PriceSafari.Models
             await _browser.CloseAsync();
         }
 
-
-        public async Task<(List<(string storeName, decimal price, decimal? shippingCostNum, int? availabilityNum, string isBidding, string position)> Prices, string Log, List<(string Reason, string Url)> RejectedProducts)> HandleCaptchaAndScrapePricesAsync(string url)
+        public async Task<(List<(string storeName, decimal price, decimal? shippingCostNum, int? availabilityNum, string isBidding, string? position)> Prices, string Log, List<(string Reason, string Url)> RejectedProducts)> HandleCaptchaAndScrapePricesAsync(string url)
         {
-            var priceResults = new List<(string storeName, decimal price, decimal? shippingCostNum, int? availabilityNum, string isBidding, string position)>();
+            var priceResults = new List<(string storeName, decimal price, decimal? shippingCostNum, int? availabilityNum, string isBidding, string? position)>();
             var rejectedProducts = new List<(string Reason, string Url)>();
             string log;
 
             try
             {
-                // Przejdź do strony
+                // Przejdź do głównego URL
                 await _page.GotoAsync(url);
                 var currentUrl = _page.Url;
-
 
                 while (currentUrl.Contains("/Captcha/Add"))
                 {
@@ -139,76 +138,78 @@ namespace PriceSafari.Models
                     // Czekaj, aż użytkownik ręcznie rozwiąże CAPTCHA
                     while (currentUrl.Contains("/Captcha/Add"))
                     {
-                        await Task.Delay(2000); // Czekaj 2 sekundy przed kolejnym sprawdzeniem
-                        currentUrl = _page.Url; // Aktualizuj URL, aby sprawdzić, czy CAPTCHA zostało rozwiązane
+                        await Task.Delay(2000);
+                        currentUrl = _page.Url;
                     }
 
                     log = $"CAPTCHA solved for URL: {url}";
                     Console.WriteLine(log);
                 }
 
-
-                var rejectButton = await _page.QuerySelectorAsync("button.cookie-consent__buttons__action.js_cookie-consent-necessary[data-role='reject-rodo']");
-                if (rejectButton != null)
+                // Pobieranie liczby ofert (np. "Oferty (20)")
+                var totalOffersText = await _page.QuerySelectorAsync("span.page-tab__title.js_prevent-middle-button-click");
+                var totalOffersCount = 0;
+                if (totalOffersText != null)
                 {
-                    await rejectButton.ClickAsync();
+                    var textContent = await totalOffersText.InnerTextAsync();
+                    var match = Regex.Match(textContent, @"\d+");
+                    if (match.Success)
+                    {
+                        totalOffersCount = int.Parse(match.Value);
+                    }
                 }
 
+                Console.WriteLine($"Total number of offers: {totalOffersCount}");
 
-                var offerNodes = await _page.QuerySelectorAllAsync("li.product-offers__list__item");
-                int initialOfferCount = offerNodes.Count;
+                // Scrapowanie z głównego URL
+                var (mainPrices, scrapeLog, scrapeRejectedProducts) = await ScrapePricesFromCurrentPage(url, true); // Scrapowanie z głównego URL z pozycjami
+                priceResults.AddRange(mainPrices);
+                log = scrapeLog;
+                rejectedProducts.AddRange(scrapeRejectedProducts);
 
-                if (initialOfferCount == 15)
+                // Jeśli liczba ofert jest większa niż 15, przejdź do URL z filtrowaniem
+                if (totalOffersCount > 15)
                 {
-                    bool allOffersLoaded = false;
+                    // Przejście do URL z sortowaniem najwyzej ocenieanych 
+                    var sortedUrl = $"{url};0281-1.htm";
+                    await _page.GotoAsync(sortedUrl);
 
-                    while (!allOffersLoaded)
+                    var (sortedPrices, sortedLog, sortedRejectedProducts) = await ScrapePricesFromCurrentPage(sortedUrl, false); // Scrapowanie z posortowanego URL bez pozycji
+                    log += sortedLog;
+                    rejectedProducts.AddRange(sortedRejectedProducts);
+
+                    // Łączenie wyników
+                    foreach (var sortedPrice in sortedPrices)
                     {
-                        await _page.EvaluateAsync("window.scrollBy(0, document.body.scrollHeight)");
-                        await Task.Delay(600);
+                        if (!priceResults.Any(p => p.storeName == sortedPrice.storeName && p.price == sortedPrice.price))
+                        {
+                            // Dodajemy tylko nowe oferty, których jeszcze nie ma w priceResults
+                            priceResults.Add(sortedPrice);
+                        }
+                    }
 
-                        var showAllOffersButton = await _page.QuerySelectorAsync("span.show-remaining-offers__trigger.js_remainingTrigger");
-                        if (showAllOffersButton != null)
-                        {
-                            await showAllOffersButton.ClickAsync();
-                            await Task.Delay(2000); // Czas na załadowanie ofert
-                            offerNodes = await _page.QuerySelectorAllAsync("li.product-offers__list__item");
-                        }
-                        else
-                        {
-                            allOffersLoaded = true;
-                        }
+                    // Jeśli nadal brakuje ofert, przejdź do kolejnego sortowania
+                    if (priceResults.Count < totalOffersCount)
+                    {
+                        var nextSortedUrl = $"{url};0281-0.htm"; // Sortowanie od następnej strony
+                        await _page.GotoAsync(nextSortedUrl);
 
-                        if (offerNodes.Count > 15)
+                        var (nextSortedPrices, nextSortedLog, nextSortedRejectedProducts) = await ScrapePricesFromCurrentPage(nextSortedUrl, false);
+                        log += nextSortedLog;
+                        rejectedProducts.AddRange(nextSortedRejectedProducts);
+
+                        // Łączenie wyników z dodatkowego sortowania
+                        foreach (var nextSortedPrice in nextSortedPrices)
                         {
-                            allOffersLoaded = true;
-                        }
-                        else if (offerNodes.Count == 15)
-                        {
-                            // Jeśli po kliknięciu liczba ofert nadal wynosi 15, oznacz URL jako odrzucony
-                            var coOfr = new CoOfrClass
+                            if (!priceResults.Any(p => p.storeName == nextSortedPrice.storeName && p.price == nextSortedPrice.price))
                             {
-                                OfferUrl = url,
-                                IsScraped = true,
-                                IsRejected = true,
-                                ScrapingMethod = "HandleCaptcha",
-                                PricesCount = 0
-                            };
-
-                            log = $"URL rejected after failing to load more than 15 offers: {url}";
-                            rejectedProducts.Add(("Failed to load more than 15 offers", url));
-
-                            // Zakończ scrapowanie bez zapisywania wyników
-                            return (priceResults, log, rejectedProducts);
+                                priceResults.Add(nextSortedPrice);
+                            }
                         }
                     }
                 }
 
-                // Scrapowanie cen
-                var (prices, scrapeLog, scrapeRejectedProducts) = await ScrapePricesFromCurrentPage(url);
-                priceResults.AddRange(prices);
-                log = scrapeLog;
-                rejectedProducts.AddRange(scrapeRejectedProducts);
+                log += $"Scraping completed, found {priceResults.Count} unique offers in total.";
             }
             catch (Exception ex)
             {
@@ -219,10 +220,12 @@ namespace PriceSafari.Models
             return (priceResults, log, rejectedProducts);
         }
 
-        private async Task<(List<(string storeName, decimal price, decimal? shippingCostNum, int? availabilityNum, string isBidding, string position)> Prices, string Log, List<(string Reason, string Url)> RejectedProducts)> ScrapePricesFromCurrentPage(string url)
+        // Funkcja scrapująca z opcją dodania lub pominięcia pozycji, z obsługą najtańszych ofert z wariantów
+        private async Task<(List<(string storeName, decimal price, decimal? shippingCostNum, int? availabilityNum, string isBidding, string? position)> Prices, string Log, List<(string Reason, string Url)> RejectedProducts)> ScrapePricesFromCurrentPage(string url, bool includePosition)
         {
-            var prices = new List<(string storeName, decimal price, decimal? shippingCostNum, int? availabilityNum, string isBidding, string position)>();
+            var prices = new List<(string storeName, decimal price, decimal? shippingCostNum, int? availabilityNum, string isBidding, string? position)>();
             var rejectedProducts = new List<(string Reason, string Url)>();
+            var storeOffers = new Dictionary<string, (decimal price, decimal? shippingCostNum, int? availabilityNum, string isBidding, string? position)>(); // Służy do przechowywania najtańszych ofert dla każdego sklepu
             string log;
             int positionCounter = 1;
 
@@ -334,12 +337,34 @@ namespace PriceSafari.Models
                     var offerContainer = await offerNode.QuerySelectorAsync(".product-offer__container");
                     var offerType = await offerContainer?.EvaluateAsync<string>("el => el.getAttribute('data-offertype')");
                     var isBidding = offerType?.Contains("Bid") == true ? "1" : "0";
-                    var position = positionCounter.ToString();
+
+                    string? position = includePosition ? positionCounter.ToString() : null;
                     positionCounter++;
 
-                    prices.Add((storeName, price, shippingCostNum, availabilityNum, isBidding, position));
-                    Console.WriteLine($"Added price: StoreName={storeName}, Price={price}, ShippingCost={shippingCostNum}, Availability={availabilityNum}, IsBidding={isBidding}, Position={position}");
+                    // Sprawdź, czy oferta z tego sklepu już istnieje, i jeśli istnieje, sprawdź, czy nowa oferta jest tańsza
+                    if (storeOffers.ContainsKey(storeName))
+                    {
+                        if (price < storeOffers[storeName].price)
+                        {
+                            // Zaktualizuj ofertę, jeśli nowa cena jest niższa
+                            storeOffers[storeName] = (price, shippingCostNum, availabilityNum, isBidding, position);
+                            Console.WriteLine($"Updated price for store: StoreName={storeName}, Price={price}, ShippingCost={shippingCostNum}, Availability={availabilityNum}, IsBidding={isBidding}, Position={position}");
+                        }
+                        else
+                        {
+                            Console.WriteLine($"Found more expensive offer for store {storeName}, ignoring.");
+                        }
+                    }
+                    else
+                    {
+                        // Dodajemy nową ofertę
+                        storeOffers[storeName] = (price, shippingCostNum, availabilityNum, isBidding, position);
+                        Console.WriteLine($"Added price: StoreName={storeName}, Price={price}, ShippingCost={shippingCostNum}, Availability={availabilityNum}, IsBidding={isBidding}, Position={position}");
+                    }
                 }
+
+                // Zamiana dictionary na listę
+                prices = storeOffers.Select(x => (x.Key, x.Value.price, x.Value.shippingCostNum, x.Value.availabilityNum, x.Value.isBidding, x.Value.position)).ToList();
 
                 log = $"Successfully scraped prices from URL: {url}";
                 Console.WriteLine(log);
@@ -353,6 +378,10 @@ namespace PriceSafari.Models
 
             return (prices, log, rejectedProducts);
         }
+
+
+
+
     }
 }
 
