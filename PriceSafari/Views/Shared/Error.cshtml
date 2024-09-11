@@ -1,25 +1,33 @@
 ﻿@model ErrorViewModel
 @{
-    ViewData["Title"] = "Error";
+    ViewData["Title"] = "Błąd";
 }
 
-<h1 class="text-danger">Error.</h1>
-<h2 class="text-danger">An error occurred while processing your request.</h2>
+<h1 class="text-danger">Błąd programu</h1>
+<h2 class="text-danger">Wystąpił problem podczas przetwarzania Twojego żądania.</h2>
 
 @if (Model.ShowRequestId)
 {
     <p>
-        <strong>Request ID:</strong> <code>@Model.RequestId</code>
+        <strong>Identyfikator żądania:</strong> <code>@Model.RequestId</code>
     </p>
 }
 
-<h3>Development Mode</h3>
 <p>
-    Swapping to <strong>Development</strong> environment will display more detailed information about the error that occurred.
+    Wystąpił błąd aplikacji. Prosimy spróbować ponownie zalogować się lub wrócić do strony głównej.
 </p>
+
+<a href="/Account/Login" class="btn btn-primary">Zaloguj się ponownie</a>
+<a href="/" class="btn btn-secondary">Strona główna</a>
+
+<h3>Informacje techniczne</h3>
 <p>
-    <strong>The Development environment shouldn't be enabled for deployed applications.</strong>
-    It can result in displaying sensitive information from exceptions to end users.
-    For local debugging, enable the <strong>Development</strong> environment by setting the <strong>ASPNETCORE_ENVIRONMENT</strong> environment variable to <strong>Development</strong>
-    and restarting the app.
+    Jeśli problem będzie się powtarzał, skontaktuj się z administratorem systemu, podając szczegóły błędu i poniższy identyfikator żądania.
 </p>
+
+@if (Model.ShowRequestId)
+{
+    <p>
+        <strong>Identyfikator żądania:</strong> <code>@Model.RequestId</code>
+    </p>
+}

@@ -67,7 +67,8 @@
                 <thead>
                     <tr>
                         <th></th>
-                        <th>Sklep</th>
+                        <th>Sklep (@Model.Count())</th>
+
                         <th>Cena</th>
                         <th>Pozycja Ceneo</th>
                         <th>Bid</th>
@@ -150,7 +151,18 @@
                                 @item.StoreName
                             </td>
                             <td class="store-price">@item.Price zł</td>
-                            <td><div class="Position">Msc @item.Position</div></td>
+                            <td>
+                                @if (item.Position != null)
+                                {
+                                    <div class="Position">Msc @item.Position</div>
+                                }
+                                else
+                                {
+                                    <div class="Position" style="background-color: #4B0089;">Mało widoczne</div> 
+                                }
+                            </td>
+
+
                             <td>
                                 @if (item.IsBidding == "1")
                                 {
