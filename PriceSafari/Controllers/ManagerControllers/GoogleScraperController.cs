@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using PriceSafari.Data;
+using PriceSafari.Models;
 
 
 [Authorize(Roles = "Admin")]
@@ -14,7 +15,6 @@ public class GoogleScraperController : Controller
     {
         _context = context;
     }
-
     [HttpPost]
     public async Task<IActionResult> StartScrapingForProducts(int storeId)
     {
@@ -23,32 +23,84 @@ public class GoogleScraperController : Controller
         {
             return NotFound();
         }
-        var products = await _context.Products
-              .Where(p => p.StoreId == storeId && p.OnGoogle && (string.IsNullOrEmpty(p.GoogleUrl)))
-              .ToListAsync();
 
-        foreach (var product in products)
+        var scraper = new GoogleScraper();
+        await scraper.InitializeBrowserAsync();
+
+        bool moreProductsToProcess = true;
+
+        while (moreProductsToProcess)
         {
-            var scraper = new GoogleScraper();
-            await scraper.InitializeBrowserAsync();
-            await scraper.InitializeAndSearchAsync(product.ProductNameInStoreForGoogle);
-            await scraper.SearchStoreNameAsync(store.StoreName);
-            await scraper.SearchUrlAndReviewsWithFallbackAsync();
+            var products = await _context.Products
+                .Where(p => p.StoreId == storeId && p.OnGoogle && !string.IsNullOrEmpty(p.Url) && string.IsNullOrEmpty(p.GoogleUrl))
+                .ToListAsync();
 
-            scraper.MatchReviews();
+            // Wyświetlenie listy URL, które będą przetwarzane
+            Console.WriteLine("Product URLs to be processed:");
+            foreach (var product in products)
+            {
+                Console.WriteLine($"Product: {product.ProductName}, URL: {product.Url}");
+            }
 
-            await scraper.OpenAndScrapeMatchedOffersAsync(product.Url, store.StoreName);  
+            if (!products.Any())
+            {
+                moreProductsToProcess = false;
+                Console.WriteLine("No more products to process.");
+                break;
+            }
 
-          
-            product.GoogleUrl = scraper.GetScrapedGoogleUrl();
+            foreach (var product in products)
+            {
+                try
+                {
+                    await scraper.InitializeAndSearchAsync(product.ProductNameInStoreForGoogle);
 
-            await scraper.CloseBrowserAsync();
+                    // Najpierw nawiguj do sklepu
+                    var searchUrls = new List<string> { product.Url };
+                    await scraper.SearchAndNavigateToStoreAsync(store.StoreName, searchUrls);
+
+                    // Wyniki dopasowania URL i aktualizacja produktu
+                    var matchedUrls = await scraper.SearchForMatchingProductUrlsAsync(searchUrls);
+                    foreach (var (storeUrl, googleProductUrl) in matchedUrls)
+                    {
+                        var matchedProduct = products.FirstOrDefault(p => p.Url == storeUrl);
+                        if (matchedProduct != null && string.IsNullOrEmpty(matchedProduct.GoogleUrl))  // Aktualizacja tylko jeśli GoogleUrl jest puste
+                        {
+                            matchedProduct.GoogleUrl = googleProductUrl;
+                            Console.WriteLine($"Updated product: {matchedProduct.ProductName}, GoogleUrl: {matchedProduct.GoogleUrl}");
+
+                            _context.Products.Update(matchedProduct);
+                            await _context.SaveChangesAsync();
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Error processing product: {ex.Message}");
+                }
+            }
+
+            // Odśwież listę produktów, aby uwzględnić tylko te, które jeszcze nie mają GoogleUrl
+            products = await _context.Products
+                .Where(p => p.StoreId == storeId && p.OnGoogle && !string.IsNullOrEmpty(p.Url) && string.IsNullOrEmpty(p.GoogleUrl))
+                .ToListAsync();
+
+            if (!products.Any())
+            {
+                moreProductsToProcess = false;
+                Console.WriteLine("No more products left to process.");
+            }
         }
 
-        await _context.SaveChangesAsync();
-
-        return Content("Scraping completed for all products. Check the database for updated Google URLs.");
+        await scraper.CloseBrowserAsync();
+        return Content("Scraping completed.");
     }
+
+
+
+
+
+
 
     [HttpGet]
     public async Task<IActionResult> ProductList(int storeId)

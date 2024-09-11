@@ -35,18 +35,17 @@ namespace PriceSafari.Models
             "--disable-dev-shm-usage",
             "--disable-features=IsolateOrigins,site-per-process",
             "--disable-infobars",
-            "--use-gl=swiftshader",  // Użyj WebGL
-            "--enable-webgl",        // Włącz WebGL
-            "--ignore-gpu-blocklist" // Ignoruj blokowanie GPU
+            "--use-gl=swiftshader",  
+            "--enable-webgl",       
+            "--ignore-gpu-blocklist" 
         }
             });
 
             _page = (Page)await _browser.NewPageAsync();
 
-            // Ustawienie, czy włączyć JavaScript, na podstawie ustawień
+           
             await _page.SetJavaScriptEnabledAsync(settings.JavaScript);
 
-            // Ukrywanie Puppeteer i symulacja rzeczywistego środowiska przeglądarki
             await _page.EvaluateFunctionAsync(@"() => {
                 Object.defineProperty(navigator, 'webdriver', { get: () => false, configurable: true });
 
@@ -218,6 +217,25 @@ namespace PriceSafari.Models
                             }
                         }
                     }
+
+                    // zaufane opinie i najszybsza wysylka
+                    if (priceResults.Count < totalOffersCount)
+                    {
+                        var fastestDeliveryUrl = $"{url};0282-1;02516.htm";
+                        await _page.GoToAsync(fastestDeliveryUrl);
+
+                        var (fastestDeliveryPrices, fastestDeliveryLog, fastestDeliveryRejectedProducts) = await ScrapePricesFromCurrentPage(fastestDeliveryUrl, false);
+                        log += fastestDeliveryLog;
+                        rejectedProducts.AddRange(fastestDeliveryRejectedProducts);
+
+                        foreach (var fastestDeliveryPrice in fastestDeliveryPrices)
+                        {
+                            if (!priceResults.Any(p => p.storeName == fastestDeliveryPrice.storeName && p.price == fastestDeliveryPrice.price))
+                            {
+                                priceResults.Add(fastestDeliveryPrice);
+                            }
+                        }
+                    }
                 }
 
                 log += $"Scraping completed, found {priceResults.Count} unique offers in total.";
@@ -230,6 +248,7 @@ namespace PriceSafari.Models
 
             return (priceResults, log, rejectedProducts);
         }
+
 
         private async Task<int> GetTotalOffersCountAsync()
         {
