@@ -15,6 +15,8 @@ namespace PriceSafari.Models
         public int Semophore { get; set; } = 3;
         public int WarmUpTime { get; set; } = 30;
         public bool HeadLess { get; set; } = false;
+        public bool JavaScript { get; set; } = false;
+        public bool Styles { get; set; } = false;
 
 
 

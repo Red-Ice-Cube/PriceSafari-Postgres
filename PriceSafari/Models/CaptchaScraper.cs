@@ -1,4 +1,5 @@
 ﻿using PuppeteerSharp;
+using System;
 using System.Globalization;
 using System.Text.RegularExpressions;
 
@@ -15,67 +16,155 @@ namespace PriceSafari.Models
             _httpClient = httpClient;
         }
 
+
         public async Task InitializeBrowserAsync(Settings settings)
         {
             var browserFetcher = new BrowserFetcher();
             await browserFetcher.DownloadAsync();
 
-           
             _browser = (Browser)await Puppeteer.LaunchAsync(new LaunchOptions
             {
                 Headless = settings.HeadLess,
                 Args = new[]
                 {
-                    "--no-sandbox",
-                    "--disable-setuid-sandbox",
-                    "--disable-gpu",
-                    "--disable-blink-features=AutomationControlled",
-                    "--disable-software-rasterizer",
-                    "--disable-extensions"
-                }
+            "--no-sandbox",
+            "--disable-setuid-sandbox",
+            "--disable-gpu",
+            "--disable-blink-features=AutomationControlled",
+            "--disable-software-rasterizer",
+            "--disable-extensions",
+            "--disable-dev-shm-usage",
+            "--disable-features=IsolateOrigins,site-per-process",
+            "--disable-infobars",
+            "--use-gl=swiftshader",  // Użyj WebGL
+            "--enable-webgl",        // Włącz WebGL
+            "--ignore-gpu-blocklist" // Ignoruj blokowanie GPU
+        }
             });
 
             _page = (Page)await _browser.NewPageAsync();
-            await _page.SetJavaScriptEnabledAsync(false);
 
+            // Ustawienie, czy włączyć JavaScript, na podstawie ustawień
+            await _page.SetJavaScriptEnabledAsync(settings.JavaScript);
+
+            // Ukrywanie Puppeteer i symulacja rzeczywistego środowiska przeglądarki
             await _page.EvaluateFunctionAsync(@"() => {
-                Object.defineProperty(navigator, 'webdriver', { get: () => false });
-                Object.defineProperty(navigator, 'languages', { get: () => ['pl-PL', 'pl'] });
-                Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3] });
+                Object.defineProperty(navigator, 'webdriver', { get: () => false, configurable: true });
+
+               
+                Object.defineProperty(navigator, 'plugins', {
+                    get: () => [
+                        { name: 'Chrome PDF Viewer' },
+                        { name: 'Native Client' },
+                        { name: 'Widevine Content Decryption Module' }
+                    ],
+                    configurable: true
+                });
+
+              
+                if (navigator.userAgent.includes('Macintosh')) {
+                    Object.defineProperty(navigator, 'languages', { get: () => ['en-US', 'en'], configurable: true });
+                } else if (navigator.userAgent.includes('Linux')) {
+                    Object.defineProperty(navigator, 'languages', { get: () => ['pl-PL', 'pl'], configurable: true });
+                } else {
+                    Object.defineProperty(navigator, 'languages', { get: () => ['pl-PL', 'pl'], configurable: true });
+                }
+
+                if (!window.chrome) {
+                    Object.defineProperty(window, 'chrome', { get: () => ({ runtime: {} }) });
+                }
+
+           
+                Object.defineProperty(navigator, 'getBattery', { get: () => Promise.resolve(null) });
+
+             
+                Object.defineProperty(navigator, 'hardwareConcurrency', { get: () => 4 });
+
+              
+                Object.defineProperty(navigator, 'doNotTrack', { get: () => '1' });
+
+                const originalQuery = window.navigator.permissions.query;
+                window.navigator.permissions.query = (parameters) => (
+                    parameters.name === 'notifications' ?
+                    Promise.resolve({ state: 'denied' }) :
+                    originalQuery(parameters)
+                );
+
+              
+                Object.defineProperty(navigator, 'userAgentData', { get: () => ({
+                    brands: [{ brand: 'Google Chrome', version: '91' }],
+                    mobile: false
+                })});
             }");
 
-            await _page.SetViewportAsync(new ViewPortOptions { Width = 1280, Height = 800 });
+           
+            var commonResolutions = new List<(int width, int height)>
+            {
+                (1280, 720),
+                (1366, 768),
+                (1600, 900),
+                (1920, 1080)
+            };
 
+          
+            var random = new Random();
+            var randomResolution = commonResolutions[random.Next(commonResolutions.Count)];
+            await _page.SetViewportAsync(new ViewPortOptions { Width = randomResolution.width, Height = randomResolution.height });
+
+            
             await _page.SetRequestInterceptionAsync(true);
-
             _page.Request += async (sender, e) =>
             {
-                if (e.Request.ResourceType == ResourceType.Image ||
-                    e.Request.ResourceType == ResourceType.StyleSheet ||
-                    e.Request.ResourceType == ResourceType.Font)
+                if (settings.Styles == false)
                 {
-                    await e.Request.AbortAsync();
+                   
+                    if (e.Request.ResourceType == ResourceType.Image ||
+                        e.Request.ResourceType == ResourceType.StyleSheet ||
+                        e.Request.ResourceType == ResourceType.Font)
+                    {
+                        await e.Request.AbortAsync();
+                    }
+                    else
+                    {
+                        await e.Request.ContinueAsync();
+                    }
                 }
                 else
                 {
+                   
                     await e.Request.ContinueAsync();
                 }
             };
 
+           
             await _page.SetExtraHttpHeadersAsync(new Dictionary<string, string>
             {
                 { "Accept-Language", "pl-PL,pl;q=0.9,en-US;q=0.8,en;q=0.7" }
             });
 
-            await _page.SetUserAgentAsync("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36");
+          
+            var userAgentList = new List<string>
+            {
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.212 Safari/537.36",
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36",
+                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.1.2 Safari/605.1.15",
+                "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.96 Safari/537.36"
+            };
+
+            var randomUserAgent = userAgentList[random.Next(userAgentList.Count)];
+            await _page.SetUserAgentAsync(randomUserAgent);
+
             await _page.EmulateTimezoneAsync("Europe/Warsaw");
 
             Console.WriteLine($"Bot gotowy, teraz rozgrzewka przez {settings.WarmUpTime} sekund...");
-
             await Task.Delay(settings.WarmUpTime * 1000);
-
             Console.WriteLine("Rozgrzewka zakończona. Bot gotowy do scrapowania.");
         }
+
+
+
+
 
         public async Task CloseBrowserAsync()
         {
