@@ -593,20 +593,23 @@ namespace PriceSafari.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("SettingsId"));
 
-                    b.Property<int>("CaptchaSpeed")
-                        .HasColumnType("int");
-
                     b.Property<string>("ContactEmail")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("ContactNumber")
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<int>("ScrapSemaphoreSlim")
+                    b.Property<bool>("HeadLess")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("Sempophore")
                         .HasColumnType("int");
 
                     b.Property<bool>("VerificationRequired")
                         .HasColumnType("bit");
+
+                    b.Property<int>("WarmUpTime")
+                        .HasColumnType("int");
 
                     b.HasKey("SettingsId");
 

@@ -5,36 +5,35 @@
 namespace PriceSafari.Migrations
 {
     /// <inheritdoc />
-    public partial class speeeeed : Migration
+    public partial class Addextrasett : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.AddColumn<int>(
-                name: "Sempophore",
-                table: "Settings",
-                type: "int",
-                nullable: false,
-                defaultValue: 0);
-
-            migrationBuilder.AddColumn<int>(
+            migrationBuilder.RenameColumn(
                 name: "ScrapSemaphoreSlim",
                 table: "Settings",
-                type: "int",
+                newName: "WarmUpTime");
+
+            migrationBuilder.AddColumn<bool>(
+                name: "HeadLess",
+                table: "Settings",
+                type: "bit",
                 nullable: false,
-                defaultValue: 0);
+                defaultValue: false);
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropColumn(
-                name: "Sempophore",
+                name: "HeadLess",
                 table: "Settings");
 
-            migrationBuilder.DropColumn(
-                name: "ScrapSemaphoreSlim",
-                table: "Settings");
+            migrationBuilder.RenameColumn(
+                name: "WarmUpTime",
+                table: "Settings",
+                newName: "ScrapSemaphoreSlim");
         }
     }
 }

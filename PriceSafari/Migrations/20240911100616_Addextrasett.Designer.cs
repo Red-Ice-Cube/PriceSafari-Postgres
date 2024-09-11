@@ -12,8 +12,8 @@ using PriceSafari.Data;
 namespace PriceSafari.Migrations
 {
     [DbContext(typeof(PriceSafariContext))]
-    [Migration("20240910154812_PositNull")]
-    partial class PositNull
+    [Migration("20240911100616_Addextrasett")]
+    partial class Addextrasett
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -377,7 +377,6 @@ namespace PriceSafari.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Position")
-                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<decimal>("Price")
@@ -597,20 +596,23 @@ namespace PriceSafari.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("SettingsId"));
 
-                    b.Property<int>("Sempophore")
-                        .HasColumnType("int");
-
                     b.Property<string>("ContactEmail")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("ContactNumber")
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<int>("ScrapSemaphoreSlim")
+                    b.Property<bool>("HeadLess")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("Sempophore")
                         .HasColumnType("int");
 
                     b.Property<bool>("VerificationRequired")
                         .HasColumnType("bit");
+
+                    b.Property<int>("WarmUpTime")
+                        .HasColumnType("int");
 
                     b.HasKey("SettingsId");
 
