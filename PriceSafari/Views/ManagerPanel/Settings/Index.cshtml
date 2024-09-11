@@ -32,11 +32,12 @@
             </div>
             <div class="Column-Box">
                 <div class="Horizontal-1">
-                    Ustawienia Prędkości
+                    Ustawienia Bota
                     <a asp-action="EditSpeedSettings" class="Button-Add-Small">Edytuj</a>
                 </div>
-                <div class="value-box">Prędkość CAPTCHA: @Model.Semophore</div>
-                <div class="value-box">Prędkość Scrapowania: @Model.WarmUp</div>
+                <div class="value-box">Semofory: @Model.Semophore</div>
+                <div class="value-box">Rozgrzewka: @Model.WarmUp</div>
+                <div class="value-box">Tryb Bezgłowicowy: @(Model.Headless ? "Tak" : "Nie")</div>
             </div>
 
         </div>

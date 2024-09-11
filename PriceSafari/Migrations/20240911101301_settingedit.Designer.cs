@@ -12,15 +12,15 @@ using PriceSafari.Data;
 namespace PriceSafari.Migrations
 {
     [DbContext(typeof(PriceSafariContext))]
-    [Migration("20240815120817_procentDiff")]
-    partial class procentDiff
+    [Migration("20240911101301_settingedit")]
+    partial class settingedit
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "8.0.7")
+                .HasAnnotation("ProductVersion", "8.0.8")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
@@ -203,9 +203,6 @@ namespace PriceSafari.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("AffiliateVerificationId"));
 
-                    b.Property<string>("AffiliateDescription")
-                        .HasColumnType("nvarchar(max)");
-
                     b.Property<bool>("IsVerified")
                         .HasColumnType("bit");
 
@@ -250,6 +247,53 @@ namespace PriceSafari.Migrations
                     b.ToTable("Categories");
                 });
 
+            modelBuilder.Entity("PriceSafari.Models.ClientProfile", b =>
+                {
+                    b.Property<int>("ClientProfileId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("ClientProfileId"));
+
+                    b.Property<string>("CeneoProfileEmail")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("CeneoProfileName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("CeneoProfileProductCount")
+                        .HasColumnType("int");
+
+                    b.Property<string>("CeneoProfileTelephone")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("CeneoProfileUrl")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("CreatedByUserId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<DateTime>("CreationDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("ScheduledMeetingDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.HasKey("ClientProfileId");
+
+                    b.HasIndex("CreatedByUserId");
+
+                    b.ToTable("ClientProfiles");
+                });
+
             modelBuilder.Entity("PriceSafari.Models.CoOfrPriceHistoryClass", b =>
                 {
                     b.Property<int>("Id")
@@ -269,7 +313,6 @@ namespace PriceSafari.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Position")
-                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<decimal>("Price")
@@ -334,7 +377,6 @@ namespace PriceSafari.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Position")
-                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<decimal>("Price")
@@ -554,20 +596,23 @@ namespace PriceSafari.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("SettingsId"));
 
-                    b.Property<int>("CaptchaSpeed")
-                        .HasColumnType("int");
-
                     b.Property<string>("ContactEmail")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("ContactNumber")
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<int>("ScrapSemaphoreSlim")
+                    b.Property<bool>("HeadLess")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("CaptchaSpeed")
                         .HasColumnType("int");
 
                     b.Property<bool>("VerificationRequired")
                         .HasColumnType("bit");
+
+                    b.Property<int>("WarmUpTime")
+                        .HasColumnType("int");
 
                     b.HasKey("SettingsId");
 
@@ -766,6 +811,17 @@ namespace PriceSafari.Migrations
                         .IsRequired();
 
                     b.Navigation("Store");
+                });
+
+            modelBuilder.Entity("PriceSafari.Models.ClientProfile", b =>
+                {
+                    b.HasOne("PriceSafariUser", "CreatedByUser")
+                        .WithMany()
+                        .HasForeignKey("CreatedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("CreatedByUser");
                 });
 
             modelBuilder.Entity("PriceSafari.Models.CoOfrPriceHistoryClass", b =>

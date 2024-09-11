@@ -8,6 +8,7 @@
 
         public int Semophore { get; set; }
         public int WarmUp { get; set; }
+        public bool Headless { get; set; }
     }
 
     public class EditVerificationRequiredViewModel
@@ -25,5 +26,7 @@
     {
         public int Semophore { get; set; }
         public int WarmUp { get; set; }
+
+        public bool Headless { get; set; }
     }
 }

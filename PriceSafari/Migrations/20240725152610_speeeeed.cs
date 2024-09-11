@@ -11,7 +11,7 @@ namespace PriceSafari.Migrations
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.AddColumn<int>(
-                name: "Sempophore",
+                name: "CaptchaSpeed",
                 table: "Settings",
                 type: "int",
                 nullable: false,
@@ -29,7 +29,7 @@ namespace PriceSafari.Migrations
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropColumn(
-                name: "Sempophore",
+                name: "CaptchaSpeed",
                 table: "Settings");
 
             migrationBuilder.DropColumn(

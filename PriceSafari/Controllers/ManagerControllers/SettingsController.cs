@@ -33,8 +33,9 @@ namespace PriceSafari.Controllers.ManagerControllers
                 VerificationRequired = settings.VerificationRequired,
                 SupervisorEmail = settings.ContactEmail,
                 SupervisorNumber = settings.ContactNumber,
-                Semophore = settings.Sempophore,
+                Semophore = settings.CaptchaSpeed,
                 WarmUp = settings.WarmUpTime,
+                Headless = settings.HeadLess
             };
 
             return View("~/Views/ManagerPanel/Settings/Index.cshtml", viewModel);
@@ -53,8 +54,9 @@ namespace PriceSafari.Controllers.ManagerControllers
 
             var viewModel = new EditSpeedSettingsViewModel
             {
-                Semophore = settings.Sempophore,
-                WarmUp = settings.WarmUpTime
+                Semophore = settings.CaptchaSpeed,
+                WarmUp = settings.WarmUpTime,
+                Headless = settings.HeadLess
             };
 
             return View("~/Views/ManagerPanel/Settings/EditSpeedSettings.cshtml", viewModel);
@@ -73,8 +75,9 @@ namespace PriceSafari.Controllers.ManagerControllers
                     return NotFound();
                 }
 
-                settings.Sempophore = viewModel.Semophore;
+                settings.CaptchaSpeed = viewModel.Semophore;
                 settings.WarmUpTime = viewModel.WarmUp;
+                settings.HeadLess = viewModel.Headless;
                 _context.Update(settings);
                 await _context.SaveChangesAsync();
 

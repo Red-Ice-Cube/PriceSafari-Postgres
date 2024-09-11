@@ -554,7 +554,7 @@ namespace PriceSafari.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("SettingsId"));
 
-                    b.Property<int>("Sempophore")
+                    b.Property<int>("CaptchaSpeed")
                         .HasColumnType("int");
 
                     b.Property<int>("CardsPerBrowser")

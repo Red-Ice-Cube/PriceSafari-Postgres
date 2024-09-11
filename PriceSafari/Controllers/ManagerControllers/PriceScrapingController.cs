@@ -213,7 +213,7 @@ public class PriceScrapingController : Controller
             return NotFound("Settings not found.");
         }
 
-        int captchaSpeed = settings.Sempophore;
+        int captchaSpeed = settings.CaptchaSpeed;
 
         var coOfrs = await _context.CoOfrs.Where(co => !co.IsScraped).ToListAsync();
         var urls = coOfrs.Select(co => co.OfferUrl).ToList();

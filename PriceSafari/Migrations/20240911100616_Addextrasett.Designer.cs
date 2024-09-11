@@ -605,7 +605,7 @@ namespace PriceSafari.Migrations
                     b.Property<bool>("HeadLess")
                         .HasColumnType("bit");
 
-                    b.Property<int>("Sempophore")
+                    b.Property<int>("CaptchaSpeed")
                         .HasColumnType("int");
 
                     b.Property<bool>("VerificationRequired")
