@@ -16,7 +16,6 @@ namespace PriceSafari.Models
             _httpClient = httpClient;
         }
 
-
         public async Task InitializeBrowserAsync(Settings settings)
         {
             var browserFetcher = new BrowserFetcher();
@@ -51,7 +50,6 @@ namespace PriceSafari.Models
             await _page.EvaluateFunctionAsync(@"() => {
                 Object.defineProperty(navigator, 'webdriver', { get: () => false, configurable: true });
 
-               
                 Object.defineProperty(navigator, 'plugins', {
                     get: () => [
                         { name: 'Chrome PDF Viewer' },
@@ -61,7 +59,6 @@ namespace PriceSafari.Models
                     configurable: true
                 });
 
-              
                 if (navigator.userAgent.includes('Macintosh')) {
                     Object.defineProperty(navigator, 'languages', { get: () => ['en-US', 'en'], configurable: true });
                 } else if (navigator.userAgent.includes('Linux')) {
@@ -74,13 +71,10 @@ namespace PriceSafari.Models
                     Object.defineProperty(window, 'chrome', { get: () => ({ runtime: {} }) });
                 }
 
-           
                 Object.defineProperty(navigator, 'getBattery', { get: () => Promise.resolve(null) });
 
-             
                 Object.defineProperty(navigator, 'hardwareConcurrency', { get: () => 4 });
 
-              
                 Object.defineProperty(navigator, 'doNotTrack', { get: () => '1' });
 
                 const originalQuery = window.navigator.permissions.query;
@@ -90,14 +84,12 @@ namespace PriceSafari.Models
                     originalQuery(parameters)
                 );
 
-              
                 Object.defineProperty(navigator, 'userAgentData', { get: () => ({
                     brands: [{ brand: 'Google Chrome', version: '91' }],
                     mobile: false
                 })});
             }");
 
-           
             var commonResolutions = new List<(int width, int height)>
             {
                 (1280, 720),
@@ -106,18 +98,15 @@ namespace PriceSafari.Models
                 (1920, 1080)
             };
 
-          
             var random = new Random();
             var randomResolution = commonResolutions[random.Next(commonResolutions.Count)];
             await _page.SetViewportAsync(new ViewPortOptions { Width = randomResolution.width, Height = randomResolution.height });
 
-            
             await _page.SetRequestInterceptionAsync(true);
             _page.Request += async (sender, e) =>
             {
                 if (settings.Styles == false)
                 {
-                   
                     if (e.Request.ResourceType == ResourceType.Image ||
                         e.Request.ResourceType == ResourceType.StyleSheet ||
                         e.Request.ResourceType == ResourceType.Font)
@@ -131,18 +120,15 @@ namespace PriceSafari.Models
                 }
                 else
                 {
-                   
                     await e.Request.ContinueAsync();
                 }
             };
 
-           
             await _page.SetExtraHttpHeadersAsync(new Dictionary<string, string>
             {
                 { "Accept-Language", "pl-PL,pl;q=0.9,en-US;q=0.8,en;q=0.7" }
             });
 
-          
             var userAgentList = new List<string>
             {
                 "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
@@ -161,10 +147,6 @@ namespace PriceSafari.Models
             await Task.Delay(settings.WarmUpTime * 1000);
             Console.WriteLine("Rozgrzewka zakończona. Bot gotowy do scrapowania.");
         }
-
-
-
-
 
         public async Task CloseBrowserAsync()
         {
@@ -442,10 +424,6 @@ namespace PriceSafari.Models
         }
     }
 }
-
-
-
-
 
 //using Microsoft.EntityFrameworkCore;
 //using Microsoft.Playwright;

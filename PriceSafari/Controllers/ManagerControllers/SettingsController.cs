@@ -35,7 +35,9 @@ namespace PriceSafari.Controllers.ManagerControllers
                 SupervisorNumber = settings.ContactNumber,
                 Semophore = settings.Semophore,
                 WarmUp = settings.WarmUpTime,
-                Headless = settings.HeadLess
+                Headless = settings.HeadLess,
+                JS = settings.JavaScript,
+                Style = settings.Styles
             };
 
             return View("~/Views/ManagerPanel/Settings/Index.cshtml", viewModel);
@@ -56,7 +58,9 @@ namespace PriceSafari.Controllers.ManagerControllers
             {
                 Semophore = settings.Semophore,
                 WarmUp = settings.WarmUpTime,
-                Headless = settings.HeadLess
+                Headless = settings.HeadLess,
+                JS = settings.JavaScript,
+                Style = settings.Styles
             };
 
             return View("~/Views/ManagerPanel/Settings/EditSpeedSettings.cshtml", viewModel);
@@ -78,6 +82,8 @@ namespace PriceSafari.Controllers.ManagerControllers
                 settings.Semophore = viewModel.Semophore;
                 settings.WarmUpTime = viewModel.WarmUp;
                 settings.HeadLess = viewModel.Headless;
+                settings.Styles = viewModel.Style;
+                settings.JavaScript = viewModel.JS;
                 _context.Update(settings);
                 await _context.SaveChangesAsync();
 

@@ -9,6 +9,9 @@
         public int Semophore { get; set; }
         public int WarmUp { get; set; }
         public bool Headless { get; set; }
+
+        public bool JS { get; set; }
+        public bool Style { get; set; }
     }
 
     public class EditVerificationRequiredViewModel
@@ -28,5 +31,7 @@
         public int WarmUp { get; set; }
 
         public bool Headless { get; set; }
+        public bool JS { get; set; }
+        public bool Style { get; set; }
     }
 }

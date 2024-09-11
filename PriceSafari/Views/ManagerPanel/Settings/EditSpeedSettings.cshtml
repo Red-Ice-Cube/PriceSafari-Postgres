@@ -36,6 +36,22 @@
                     </select>
                 </div>
 
+                <div class="form-group">
+                    <label asp-for="JS" class="control-label">JavaScript</label>
+                    <select asp-for="JS" class="form-control">
+                        <option value="true">Tak</option>
+                        <option value="false">Nie</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label asp-for="Style" class="control-label">Style</label>
+                    <select asp-for="Style" class="form-control">
+                        <option value="true">Tak</option>
+                        <option value="false">Nie</option>
+                    </select>
+                </div>
+
                 <div asp-validation-summary="ModelOnly" role="alert"></div>
 
                 <div class="form-group">
