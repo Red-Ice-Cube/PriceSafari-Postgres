@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using PriceSafari.Data;
 using PriceSafari.Models;
+using System.Xml.Linq;
 
 
 [Authorize(Roles = "Admin")]
@@ -120,7 +121,69 @@ public class GoogleScraperController : Controller
         return View("~/Views/ManagerPanel/GoogleScraper/ProductList.cshtml", products);
     }
 
-    [HttpGet]
+
+ 
+
+    [HttpPost]
+    public async Task<IActionResult> UpdateProductNamesFromUrl(string xmlUrl)
+    {
+        if (string.IsNullOrEmpty(xmlUrl))
+        {
+            return BadRequest("URL pliku XML jest wymagany.");
+        }
+
+        try
+        {
+            // Pobierz plik XML z URL-a
+            using (var httpClient = new HttpClient())
+            {
+                var response = await httpClient.GetAsync(xmlUrl);
+                if (!response.IsSuccessStatusCode)
+                {
+                    return BadRequest("Nie udało się pobrać pliku XML.");
+                }
+
+                var xmlContent = await response.Content.ReadAsStringAsync();
+                var doc = XDocument.Parse(xmlContent);
+
+                // Parsowanie pliku XML
+                var productElements = doc.Descendants("item");
+
+                foreach (var item in productElements)
+                {
+                    var urlElement = item.Element("link")?.Value.Trim();
+                    var nameElement = item.Element("title")?.Value.Trim();
+
+                    if (!string.IsNullOrEmpty(urlElement) && !string.IsNullOrEmpty(nameElement))
+                    {
+                        // Znajdź produkt po URL w bazie danych
+                        var product = await _context.Products
+                            .FirstOrDefaultAsync(p => p.Url == urlElement);
+
+                        if (product != null)
+                        {
+                            // Zaktualizuj nazwę produktu
+                            product.ProductNameInStoreForGoogle = nameElement;
+                            _context.Products.Update(product);
+                        }
+                    }
+                }
+
+                // Zapisz zmiany w bazie danych
+                await _context.SaveChangesAsync();
+            }
+
+            return RedirectToAction("ProductList");
+        }
+        catch (Exception ex)
+        {
+            return BadRequest($"Wystąpił błąd podczas przetwarzania pliku XML: {ex.Message}");
+        }
+    }
+
+
+
+[HttpGet]
     public async Task<IActionResult> GoogleProducts(int storeId)
     {
         var store = await _context.Stores.FindAsync(storeId);

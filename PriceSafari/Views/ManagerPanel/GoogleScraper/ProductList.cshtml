@@ -43,6 +43,18 @@
         </select>
     </div>
     <button onclick="filterProducts()" class="btn btn-primary">Filtruj</button>
+
+    <form asp-action="UpdateProductNamesFromUrl" method="post">
+        <div class="form-group">
+            <label for="xmlUrl">Wprowadź URL pliku XML</label>
+            <input type="text" class="form-control" id="xmlUrl" name="xmlUrl" placeholder="https://example.com/products.xml" required>
+        </div>
+        <button type="submit" class="btn btn-primary">Zaktualizuj produkty z XML</button>
+    </form>
+
+
+
+
 </div>
 
 <table class="table">
