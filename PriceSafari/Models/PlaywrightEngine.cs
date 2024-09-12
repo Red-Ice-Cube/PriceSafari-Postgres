@@ -15,7 +15,7 @@ namespace PriceSafari.Models
 
         public PlaywrightEngine(HttpClient httpClient)
         {
-            _httpClient = httpClient;
+            _httpClient = httpClient; 
         }
 
         public async Task InitializeBrowserAsync(Settings settings)
