@@ -18,118 +18,133 @@ namespace PriceSafari.Models
             _httpClient = httpClient; 
         }
 
-        public async Task InitializeBrowserAsync(Settings settings)
-        {
-            _playwright = await Playwright.CreateAsync();
-            _browser = await _playwright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions
+        
+
+            public async Task InitializeBrowserAsync(Settings settings)
             {
-                Headless = settings.HeadLess,
-                ExecutablePath = @"C:\Users\Mateusz Werner\Desktop\.NET\PriceSafari\wwwroot\WebDriver\Application\chrome.exe", 
-                Args = new[]
+                _playwright = await Playwright.CreateAsync();
+
+                var browserType = "Chrome";  
+                var browserVersion = "128.0.6613.137";
+                var executablePath = GetBrowserExecutablePath(browserType, browserVersion);
+                var userAgent = GetUserAgent(browserType, browserVersion);
+
+                _browser = await _playwright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions
                 {
-                    "--no-sandbox",
-                    "--disable-setuid-sandbox",
-                    "--disable-gpu",
-                    "--disable-blink-features=AutomationControlled",
-                    "--disable-software-rasterizer",
-                    "--disable-extensions",
-                    "--disable-dev-shm-usage",
-                    "--disable-features=IsolateOrigins,site-per-process",
-                    "--disable-infobars",
-                    "--use-gl=swiftshader",
-                    "--enable-webgl",
-                    "--ignore-gpu-blocklist"
-                }
-            });
-
-            var randomUserAgent = GetRandomUserAgent();
-
-            // Tworzymy nowy kontekst z opcją JavaScriptEnabled ustawioną na podstawie ustawień
-            _context = await _browser.NewContextAsync(new BrowserNewContextOptions
-            {
-                UserAgent = randomUserAgent,
-                TimezoneId = "Europe/Warsaw",
-                JavaScriptEnabled = settings.JavaScript // Ustawienie włączania lub wyłączania JavaScript
-            });
-
-            _page = await _context.NewPageAsync();
-
-            await _page.EvaluateAsync(@"() => {
-                Object.defineProperty(navigator, 'webdriver', { get: () => false, configurable: true });
-
-                Object.defineProperty(navigator, 'plugins', {
-                    get: () => [
-                        { name: 'Chrome PDF Viewer' },
-                        { name: 'Native Client' },
-                        { name: 'Widevine Content Decryption Module' }
-                    ],
-                    configurable: true
+                    Headless = settings.HeadLess,
+                    ExecutablePath = executablePath,
+                    Args = GetBrowserLaunchArguments()
                 });
 
-                if (navigator.userAgent.includes('Macintosh')) {
-                    Object.defineProperty(navigator, 'languages', { get: () => ['en-US', 'en'], configurable: true });
-                } else if (navigator.userAgent.includes('Linux')) {
-                    Object.defineProperty(navigator, 'languages', { get: () => ['pl-PL', 'pl'], configurable: true });
-                } else {
-                    Object.defineProperty(navigator, 'languages', { get: () => ['pl-PL', 'pl'], configurable: true });
-                }
-
-                if (!window.chrome) {
-                    Object.defineProperty(window, 'chrome', { get: () => ({ runtime: {} }) });
-                }
-
-                Object.defineProperty(navigator, 'getBattery', { get: () => Promise.resolve(null) });
-                Object.defineProperty(navigator, 'hardwareConcurrency', { get: () => 4 });
-                Object.defineProperty(navigator, 'doNotTrack', { get: () => '1' });
-            }");
-
-            var commonResolutions = new List<(int width, int height)>
-            {
-                (1280, 720),
-                (1366, 768),
-                (1600, 900),
-                (1920, 1080)
-            };
-
-            var random = new Random();
-            var randomResolution = commonResolutions[random.Next(commonResolutions.Count)];
-            await _page.SetViewportSizeAsync(randomResolution.width, randomResolution.height);
-
-            await _page.RouteAsync("**/*", async route =>
-            {
-                var request = route.Request;
-                if (!settings.Styles &&
-                    (request.ResourceType == "image" ||
-                     request.ResourceType == "stylesheet" ||
-                     request.ResourceType == "font"))
+                _context = await _browser.NewContextAsync(new BrowserNewContextOptions
                 {
-                    await route.AbortAsync();
-                }
-                else
+                    UserAgent = userAgent,
+                    ViewportSize = new ViewportSize { Width = 1920, Height = 1080 },
+                    TimezoneId = "Europe/Warsaw",
+                    JavaScriptEnabled = settings.JavaScript
+                });
+
+                _page = await _context.NewPageAsync();
+
+                await ConfigureBrowserMasking();
+                await ConfigureBrowserRoutes(settings);
+
+                Console.WriteLine($"Bot gotowy, teraz rozgrzewka przez {settings.WarmUpTime} sekund...");
+                await Task.Delay(settings.WarmUpTime * 1000);
+                Console.WriteLine("Rozgrzewka zakończona. Bot gotowy do scrapowania.");
+            }
+
+           
+            private string[] GetBrowserLaunchArguments()
+            {
+                return new[]
                 {
-                    await route.ContinueAsync();
-                }
+            "--no-sandbox",
+            "--disable-setuid-sandbox",
+            "--disable-gpu",
+            "--disable-blink-features=AutomationControlled",
+            "--disable-software-rasterizer",
+            "--disable-extensions",
+            "--disable-dev-shm-usage",
+            "--disable-features=IsolateOrigins,site-per-process",
+            "--disable-infobars",
+            "--use-gl=swiftshader",
+            "--enable-webgl",
+            "--ignore-gpu-blocklist"
+        };
+            }
+
+            // Metoda do maskowania przeglądarki
+            private async Task ConfigureBrowserMasking()
+            {
+                await _page.EvaluateAsync(@"() => {
+            Object.defineProperty(navigator, 'webdriver', { get: () => false, configurable: true });
+            Object.defineProperty(navigator, 'plugins', {
+                get: () => [
+                    { name: 'Chrome PDF Viewer' },
+                    { name: 'Native Client' },
+                    { name: 'Widevine Content Decryption Module' }
+                ],
+                configurable: true
             });
 
-            Console.WriteLine($"Bot gotowy, teraz rozgrzewka przez {settings.WarmUpTime} sekund...");
-            await Task.Delay(settings.WarmUpTime * 1000);
-            Console.WriteLine("Rozgrzewka zakończona. Bot gotowy do scrapowania.");
-        }
+            Object.defineProperty(navigator, 'languages', { get: () => ['pl-PL', 'pl'], configurable: true });
+            if (!window.chrome) {
+                Object.defineProperty(window, 'chrome', { get: () => ({ runtime: {} }) });
+            }
 
-        private string GetRandomUserAgent()
-        {
-            var userAgentList = new List<string>
+            Object.defineProperty(navigator, 'getBattery', { get: () => Promise.resolve(null) });
+            Object.defineProperty(navigator, 'hardwareConcurrency', { get: () => 4 });
+            Object.defineProperty(navigator, 'doNotTrack', { get: () => '1' });
+        }");
+            }
+
+            private async Task ConfigureBrowserRoutes(Settings settings)
             {
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.212 Safari/537.36",
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36",
-                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.1.2 Safari/605.1.15",
-                "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.96 Safari/537.36"
-            };
+                await _page.RouteAsync("**/*", async route =>
+                {
+                    var request = route.Request;
+                    if (!settings.Styles &&
+                        (request.ResourceType == "image" ||
+                         request.ResourceType == "stylesheet" ||
+                         request.ResourceType == "font"))
+                    {
+                        await route.AbortAsync();
+                    }
+                    else
+                    {
+                        await route.ContinueAsync();
+                    }
+                });
+            }
 
-            var random = new Random();
-            return userAgentList[random.Next(userAgentList.Count)];
-        }
+           
+            private string GetUserAgent(string browserType, string version)
+            {
+                if (browserType == "Chrome" && version == "128.0.6613.137")
+                {
+                    return "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.6613.137 Safari/537.36";
+                }
+                
+                return "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36";
+            }
+
+          
+            private string GetBrowserExecutablePath(string browserType, string version)
+            {
+                if (browserType == "Chrome" && version == "128.0.6613.137")
+                {
+                    return @"C:\Users\Mateusz Werner\Desktop\.NET\PriceSafari\wwwroot\WebDriver\Chrome\chrome.exe";
+                }
+             
+
+                throw new Exception($"Brak zdefiniowanej ścieżki dla wersji {browserType}: {version}");
+            }
+        
+
+
+
+
 
         public async Task CloseBrowserAsync()
         {
