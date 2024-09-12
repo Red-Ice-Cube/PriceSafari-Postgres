@@ -182,8 +182,31 @@ public class GoogleScraperController : Controller
     }
 
 
+    [HttpPost]
+    public async Task<IActionResult> SetOnGoogleForAll()
+    {
+        // Pobierz wszystkie produkty, które mają nazwę w `ProductNameInStoreForGoogle`
+        var products = await _context.Products
+            .Where(p => !string.IsNullOrEmpty(p.ProductNameInStoreForGoogle))
+            .ToListAsync();
 
-[HttpGet]
+        foreach (var product in products)
+        {
+            // Ustaw `OnGoogle` na true dla każdego produktu z nazwą
+            product.OnGoogle = true;
+            _context.Products.Update(product);
+        }
+
+        // Zapisz zmiany w bazie danych
+        await _context.SaveChangesAsync();
+
+        return RedirectToAction("ProductList", new { storeId = products.FirstOrDefault()?.StoreId });
+    }
+
+
+
+
+    [HttpGet]
     public async Task<IActionResult> GoogleProducts(int storeId)
     {
         var store = await _context.Stores.FindAsync(storeId);
