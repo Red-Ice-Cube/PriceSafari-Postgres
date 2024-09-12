@@ -200,6 +200,34 @@ public class GoogleScraperController : Controller
         return RedirectToAction("ProductList", new { storeId = products.FirstOrDefault()?.StoreId });
     }
 
+    [HttpPost]
+    public async Task<IActionResult> RemoveWordFromProductNames(string wordToRemove)
+    {
+        if (string.IsNullOrEmpty(wordToRemove))
+        {
+            return BadRequest("Słowo do usunięcia jest wymagane.");
+        }
+
+        // Pobierz wszystkie produkty, które mają nazwę w `ProductNameInStoreForGoogle`
+        var products = await _context.Products
+            .Where(p => !string.IsNullOrEmpty(p.ProductNameInStoreForGoogle))
+            .ToListAsync();
+
+        // Przetwórz każdą nazwę, usuwając określone słowo
+        foreach (var product in products)
+        {
+            if (product.ProductNameInStoreForGoogle.Contains(wordToRemove, StringComparison.OrdinalIgnoreCase))
+            {
+                product.ProductNameInStoreForGoogle = product.ProductNameInStoreForGoogle.Replace(wordToRemove, "", StringComparison.OrdinalIgnoreCase).Trim();
+                _context.Products.Update(product);
+            }
+        }
+
+        // Zapisz zmiany w bazie danych
+        await _context.SaveChangesAsync();
+
+        return RedirectToAction("ProductList", new { storeId = products.FirstOrDefault()?.StoreId });
+    }
 
 
 

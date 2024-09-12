@@ -57,6 +57,13 @@
     </form>
 
 
+    <form asp-action="RemoveWordFromProductNames" method="post" class="mt-3">
+        <div class="form-group">
+            <label for="wordToRemove">Słowo do usunięcia z nazw produktów:</label>
+            <input type="text" class="form-control" id="wordToRemove" name="wordToRemove" placeholder="Wpisz słowo" required>
+        </div>
+        <button type="submit" class="btn btn-danger">Usuń słowo z nazw produktów</button>
+    </form>
 
 </div>
 
@@ -79,7 +86,7 @@
                 <td><a href="@product.Url" target="_blank">@product.Url</a></td>
                 <td>@product.GoogleUrl</td>
                 <td>@product.OnGoogle.ToString().ToLower()</td>
-                <td>@product.ProductNameInStoreForGoogle != null</td>
+                <td>@product.ProductNameInStoreForGoogle</td>
                 <td>
                     <form asp-action="UpdateProductNameInStoreForGoogle" method="post">
                         <input type="hidden" name="productId" value="@product.ProductId" />
