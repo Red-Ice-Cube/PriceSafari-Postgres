@@ -24,7 +24,7 @@ namespace PriceSafari.Models
             _browser = await _playwright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions
             {
                 Headless = settings.HeadLess,
-                ExecutablePath = @"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe", // Ścieżka do uruchomienia Chrome
+                ExecutablePath = @"C:\Users\Mateusz Werner\Desktop\.NET\PriceSafari\wwwroot\WebDriver\Application\chrome.exe", 
                 Args = new[]
                 {
                     "--no-sandbox",
