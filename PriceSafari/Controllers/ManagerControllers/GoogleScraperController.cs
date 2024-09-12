@@ -16,6 +16,8 @@ public class GoogleScraperController : Controller
     {
         _context = context;
     }
+
+
     [HttpPost]
     public async Task<IActionResult> StartScrapingForProducts(int storeId)
     {
@@ -65,7 +67,7 @@ public class GoogleScraperController : Controller
                     foreach (var (storeUrl, googleProductUrl) in matchedUrls)
                     {
                         var matchedProduct = products.FirstOrDefault(p => p.Url == storeUrl);
-                        if (matchedProduct != null && string.IsNullOrEmpty(matchedProduct.GoogleUrl))  // Aktualizacja tylko jeśli GoogleUrl jest puste
+                        if (matchedProduct != null && string.IsNullOrEmpty(matchedProduct.GoogleUrl))  
                         {
                             matchedProduct.GoogleUrl = googleProductUrl;
                             Console.WriteLine($"Updated product: {matchedProduct.ProductName}, GoogleUrl: {matchedProduct.GoogleUrl}");
