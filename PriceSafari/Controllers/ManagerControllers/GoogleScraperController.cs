@@ -38,13 +38,6 @@ public class GoogleScraperController : Controller
                 .Where(p => p.StoreId == storeId && p.OnGoogle && !string.IsNullOrEmpty(p.Url) && string.IsNullOrEmpty(p.GoogleUrl))
                 .ToListAsync();
 
-            // Wyświetlenie listy URL, które będą przetwarzane
-            Console.WriteLine("Product URLs to be processed:");
-            foreach (var product in products)
-            {
-                Console.WriteLine($"Product: {product.ProductName}, URL: {product.Url}");
-            }
-
             if (!products.Any())
             {
                 moreProductsToProcess = false;
@@ -58,16 +51,18 @@ public class GoogleScraperController : Controller
                 {
                     await scraper.InitializeAndSearchAsync(product.ProductNameInStoreForGoogle);
 
-                    // Najpierw nawiguj do sklepu
-                    var searchUrls = new List<string> { product.Url };
+                    // Nawiguj do sklepu
+                    var searchUrls = products.Select(p => p.Url).ToList();
                     await scraper.SearchAndNavigateToStoreAsync(store.StoreName, searchUrls);
 
-                    // Wyniki dopasowania URL i aktualizacja produktu
+                    // Szukaj pasujących URL w Google Shopping
                     var matchedUrls = await scraper.SearchForMatchingProductUrlsAsync(searchUrls);
+
+                    // Aktualizuj produkty na podstawie dopasowanych URL
                     foreach (var (storeUrl, googleProductUrl) in matchedUrls)
                     {
                         var matchedProduct = products.FirstOrDefault(p => p.Url == storeUrl);
-                        if (matchedProduct != null && string.IsNullOrEmpty(matchedProduct.GoogleUrl))  
+                        if (matchedProduct != null && string.IsNullOrEmpty(matchedProduct.GoogleUrl))
                         {
                             matchedProduct.GoogleUrl = googleProductUrl;
                             Console.WriteLine($"Updated product: {matchedProduct.ProductName}, GoogleUrl: {matchedProduct.GoogleUrl}");
@@ -83,7 +78,7 @@ public class GoogleScraperController : Controller
                 }
             }
 
-            // Odśwież listę produktów, aby uwzględnić tylko te, które jeszcze nie mają GoogleUrl
+            // Odśwież listę produktów do przetworzenia
             products = await _context.Products
                 .Where(p => p.StoreId == storeId && p.OnGoogle && !string.IsNullOrEmpty(p.Url) && string.IsNullOrEmpty(p.GoogleUrl))
                 .ToListAsync();

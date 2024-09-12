@@ -130,8 +130,6 @@ public class GoogleScraper
             var productContainers = await _page.QuerySelectorAllAsync("div.sh-dgr__gr-auto.sh-dgr__grid-result");
             Console.WriteLine($"Found {productContainers.Length} product boxes on the store page.");
 
-            int matchCount = 0;  // Licznik dopasowanych URL
-
             foreach (var container in productContainers)
             {
                 string? googleProductUrl = null;
@@ -161,29 +159,29 @@ public class GoogleScraper
                         {
                             if (storeUrl.Contains(searchUrl) && !string.IsNullOrEmpty(googleProductUrl))
                             {
-                                matchedUrls.Add((storeUrl, googleProductUrl));
-                                matchCount++;  // Zwiększ licznik, gdy znajdziemy dopasowanie
-                                Console.WriteLine($"Matched Google Product URL: {googleProductUrl} with store URL: {storeUrl}");
+                                // Dopasowanie do listy URL
+                                matchedUrls.Add((searchUrl, googleProductUrl));
+                                Console.WriteLine($"Matched Google Product URL: {googleProductUrl} with store URL: {searchUrl}");
                             }
                         }
                     }
                 }
-                catch (MessageException ex)
+                catch (Exception ex)
                 {
                     Console.WriteLine($"Error processing product container: {ex.Message}");
                 }
             }
 
-            // Podsumowanie dopasowań
-            Console.WriteLine($"Total matched URLs: {matchCount}");
+            Console.WriteLine($"Total matched URLs: {matchedUrls.Count}");
         }
-        catch (MessageException ex)
+        catch (Exception ex)
         {
             Console.WriteLine($"Error searching for product URLs: {ex.Message}");
         }
 
         return matchedUrls;
     }
+
 
 
     private string CleanGoogleUrl(string url)
