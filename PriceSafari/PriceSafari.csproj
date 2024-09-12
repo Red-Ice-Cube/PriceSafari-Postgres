@@ -8,6 +8,13 @@
 	</PropertyGroup>
 
 	<ItemGroup>
+	  <Compile Remove="Nowy folder\**" />
+	  <Content Remove="Nowy folder\**" />
+	  <EmbeddedResource Remove="Nowy folder\**" />
+	  <None Remove="Nowy folder\**" />
+	</ItemGroup>
+
+	<ItemGroup>
 		<PackageReference Include="BuildBundlerMinifier" Version="3.2.449" />
 		<PackageReference Include="ChartJS" Version="23.1.12" />
 		<PackageReference Include="ChartJs.Blazor" Version="1.1.0" />
@@ -37,7 +44,6 @@
 
 	<ItemGroup>
 		<Folder Include="Migrations\" />
-		<Folder Include="Nowy folder\" />
 		<Folder Include="wwwroot\js\Home\" />
 		<Folder Include="wwwroot\icon\" />
 		<Folder Include="wwwroot\pdf\" />
