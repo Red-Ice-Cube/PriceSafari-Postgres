@@ -35,15 +35,16 @@
         </div>
         <div class="bar-List">
          
-         @*    <form id="scrapingForm" asp-action="StartScrapingByCoOfrUrls" asp-controller="PriceScraping" method="post">
-                <button type="submit" class="Button-Page-Small-b">Rozpocznij scrapowanie cen</button>
-            </form> *@
+
 
             <form asp-action="GroupAndSaveUniqueUrls" asp-controller="PriceScraping" method="post">
                 <button type="submit" class="Button-Page-Small-b">Scal produkty</button>
             </form>
             <form id="captchaScrapingForm" asp-action="StartScrapingWithCaptchaHandling" asp-controller="PriceScraping" method="post">
-                <button type="submit" class="Button-Page-Small-bl">Rozpocznij scrapowanie z obsługą CAPTCHA</button>
+                <button type="submit" class="Button-Page-Small-bl">Rozpocznij scrapowanie Pupeeter</button>
+            </form>
+            <form id="playwrightScrapingForm" asp-action="StartScrapingWithPlaywrightEngine" asp-controller="PriceScraping" method="post">
+                <button type="submit" class="Button-Page-Small-bl">Rozpocznij scrapowanie Playwright</button>
             </form>
           
             <button id="stopScrapingButton" class="Button-Page-Small-y">Przerwij scrapowanie</button>

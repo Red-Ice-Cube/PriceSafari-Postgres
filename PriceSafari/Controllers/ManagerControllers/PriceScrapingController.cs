@@ -284,7 +284,7 @@ public class PriceScrapingController : Controller
 
                                     await scopedContext.CoOfrPriceHistories.AddRangeAsync(priceHistories);
                                     coOfr.IsScraped = true;
-                                    coOfr.ScrapingMethod = "HandleCaptcha";
+                                    coOfr.ScrapingMethod = "Pupeeteer";
                                     coOfr.PricesCount = priceHistories.Count;
                                     coOfr.IsRejected = (priceHistories.Count == 0);
                                     scopedContext.CoOfrs.Update(coOfr);
@@ -339,6 +339,154 @@ public class PriceScrapingController : Controller
 
         return Ok(new { Message = "Scraping completed.", TotalPrices = totalPrices, RejectedCount = rejectedCount });
     }
+
+
+
+
+
+
+    [HttpPost]
+    public async Task<IActionResult> StartScrapingWithPlaywrightEngine()
+    {
+        ResetCancellationToken();
+        var cancellationToken = _cancellationTokenSource.Token;
+
+        var settings = await _context.Settings.FirstOrDefaultAsync();
+        if (settings == null)
+        {
+            Console.WriteLine("Settings not found.");
+            return NotFound("Settings not found.");
+        }
+
+        int playwrightSpeed = settings.Semophore;
+
+        var coOfrs = await _context.CoOfrs.Where(co => !co.IsScraped).ToListAsync();
+        var urls = coOfrs.Select(co => co.OfferUrl).ToList();
+        var urlQueue = new Queue<string>(urls);
+
+        if (!urls.Any())
+        {
+            Console.WriteLine("No URLs found to scrape.");
+            return NotFound("No URLs found to scrape.");
+        }
+
+        var tasks = new List<Task>();
+        int totalPrices = 0;
+        int scrapedCount = 0;
+        int rejectedCount = 0;
+        var stopwatch = new Stopwatch();
+        stopwatch.Start();
+
+        using (var semaphore = new SemaphoreSlim(playwrightSpeed))
+        {
+            for (int i = 0; i < playwrightSpeed; i++)
+            {
+                tasks.Add(Task.Run(async () =>
+                {
+                    await semaphore.WaitAsync(cancellationToken);
+
+                    try
+                    {
+                        var httpClient = _httpClientFactory.CreateClient();
+                        var playwrightScraper = new PlaywrightEngine(httpClient);
+
+
+                        await playwrightScraper.InitializeBrowserAsync(settings);
+
+                        while (urlQueue.Count > 0)
+                        {
+                            string url;
+                            lock (urlQueue)
+                            {
+                                if (urlQueue.Count == 0)
+                                {
+                                    break;
+                                }
+                                url = urlQueue.Dequeue();
+                            }
+
+                            try
+                            {
+                                using var scope = _serviceProvider.CreateScope();
+                                var scopedContext = scope.ServiceProvider.GetRequiredService<PriceSafariContext>();
+
+                                var (prices, log, rejected) = await playwrightScraper.PlaywrightScrapePricesAsync(url);
+                                Console.WriteLine(log);
+
+                                if (prices.Count > 0)
+                                {
+                                    var coOfr = coOfrs.First(co => co.OfferUrl == url);
+                                    var priceHistories = prices.Select(priceData => new CoOfrPriceHistoryClass
+                                    {
+                                        CoOfrClassId = coOfr.Id,
+                                        StoreName = priceData.storeName,
+                                        Price = priceData.price,
+                                        ShippingCostNum = priceData.shippingCostNum,
+                                        AvailabilityNum = priceData.availabilityNum,
+                                        IsBidding = priceData.isBidding,
+                                        Position = priceData.position
+                                    }).ToList();
+
+                                    await scopedContext.CoOfrPriceHistories.AddRangeAsync(priceHistories);
+                                    coOfr.IsScraped = true;
+                                    coOfr.ScrapingMethod = "Playwright";
+                                    coOfr.PricesCount = priceHistories.Count;
+                                    coOfr.IsRejected = (priceHistories.Count == 0);
+                                    scopedContext.CoOfrs.Update(coOfr);
+                                    await scopedContext.SaveChangesAsync();
+
+                                    await _hubContext.Clients.All.SendAsync("ReceiveScrapingUpdate", coOfr.OfferUrl, coOfr.IsScraped, coOfr.IsRejected, coOfr.ScrapingMethod, coOfr.PricesCount);
+
+                                    Interlocked.Add(ref totalPrices, priceHistories.Count);
+                                    Interlocked.Increment(ref scrapedCount);
+                                    if (coOfr.IsRejected)
+                                    {
+                                        Interlocked.Increment(ref rejectedCount);
+                                    }
+                                    await _hubContext.Clients.All.SendAsync("ReceiveProgressUpdate", scrapedCount, coOfrs.Count, stopwatch.Elapsed.TotalSeconds, rejectedCount);
+                                }
+
+                                if (cancellationToken.IsCancellationRequested)
+                                {
+                                    Console.WriteLine("Scraping canceled.");
+                                    await playwrightScraper.CloseBrowserAsync();
+                                    return;
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                var log = $"Error scraping URL: {url}. Exception: {ex.Message}";
+                                Console.WriteLine(log);
+                            }
+                        }
+
+                        await playwrightScraper.CloseBrowserAsync();
+                    }
+                    finally
+                    {
+                        semaphore.Release();
+                    }
+                }, cancellationToken));
+
+            }
+
+            try
+            {
+                await Task.WhenAll(tasks);
+            }
+            catch (OperationCanceledException)
+            {
+                Console.WriteLine("Scraping was canceled.");
+            }
+        }
+
+        stopwatch.Stop();
+
+        return Ok(new { Message = "Scraping completed.", TotalPrices = totalPrices, RejectedCount = rejectedCount });
+    }
+
+
+
 
 
 
