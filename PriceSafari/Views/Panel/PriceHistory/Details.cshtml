@@ -16,7 +16,7 @@
     var img = ViewBag.Img as string;
 }
 
-<div class="Vert">
+<div class="Vert" data-store-name="@storeName">
     <div class="Page-Box">
         <div class="price-box-space">
             <div class="price-box-column-name">
@@ -243,45 +243,8 @@
 @section Scripts {
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
-    <script>
-        document.addEventListener("DOMContentLoaded", function () {
-            var observedStoreName = "@storeName".toLowerCase();
-            var rows = Array.from(document.querySelectorAll(".price-row"));
-
-            rows.forEach(function (row) {
-                var storeName = row.getAttribute("data-store-name").toLowerCase();
-                if (storeName === observedStoreName) {
-                    row.querySelector(".store-name").style.fontWeight = "bold";
-                    row.querySelector(".store-price").style.fontWeight = "bold";
-                }
-            });
-
-            function sortRowsByPrice() {
-                rows.sort((a, b) => parseFloat(a.getAttribute("data-price")) - parseFloat(b.getAttribute("data-price")));
-                rows.forEach(row => document.querySelector("#priceTable tbody").appendChild(row));
-            }
-
-            function sortRowsByPosition() {
-                rows.sort((a, b) => parseInt(a.getAttribute("data-position")) - parseInt(b.getAttribute("data-position")));
-                rows.forEach(row => document.querySelector("#priceTable tbody").appendChild(row));
-            }
-
-            function handleSortChange() {
-                if (this.id === "sortPrice" && this.checked) {
-                    document.getElementById("sortPosition").checked = false;
-                    sortRowsByPrice();
-                } else if (this.id === "sortPosition" && this.checked) {
-                    document.getElementById("sortPrice").checked = false;
-                    sortRowsByPosition();
-                }
-            }
-
-            document.getElementById("sortPrice").addEventListener("change", handleSortChange);
-            document.getElementById("sortPosition").addEventListener("change", handleSortChange);
-
-            sortRowsByPrice();
-        });
-    </script>
+    <script src="~/js/member/pricedetails.min.js"></script>
+  
     <script>
         $(document).ready(function () {
             $('#editExternalIdButton').on('click', function () {
