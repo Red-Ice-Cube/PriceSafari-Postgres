@@ -9,9 +9,11 @@
 <h2 class="mt-4 mb-4">Products for Google Scraping</h2>
 
 <div class="d-flex mb-3">
-    <button id="startScraping" class="btn btn-primary me-2">Start Scraping</button>
-    <button id="updatePendingStatuses" class="btn btn-secondary">Update Pending Products</button>
+    <button id="startScraping" class="btn btn-primary me-2">Uruchom BOT</button>
+    <button id="updatePendingStatuses" class="btn btn-secondary me-2">Przelicz korekty</button>
+    <button id="resetNotFoundStatuses" class="btn btn-warning">Resetuj nieznalezione</button> <!-- Nowy przycisk -->
 </div>
+
 
 <h3>Podsumowanie</h3>
 <div class="d-flex mb-3">
@@ -51,6 +53,12 @@
             $('#updatePendingStatuses').click(function () {
                 console.log("Update Pending Statuses button clicked.");
                 updatePendingProducts();
+            });
+
+            // Reset Not Found statuses button
+            $('#resetNotFoundStatuses').click(function () {
+                console.log("Reset Not Found Statuses button clicked.");
+                resetNotFoundProducts();
             });
 
             function loadProducts() {
@@ -107,6 +115,24 @@
                 });
             }
 
+            function resetNotFoundProducts() {
+                console.log("Sending POST request to reset not found products...");
+                $.ajax({
+                    type: "POST",
+                    url: '@Url.Action("ResetNotFoundProducts", "GoogleScraper")',
+                    data: { storeId: '@storeId' },
+                    success: function (response) {
+                        console.log("Not Found products reset successfully.");
+                        loadProducts(); // Po zresetowaniu statusów odśwież produkty
+                    },
+                    error: function (xhr, status, error) {
+                        console.error("Error resetting not found products: ", error);
+                        console.error("Response status: ", status);
+                        console.error("Response details: ", xhr.responseText);
+                    }
+                });
+            }
+
             function updateTable(products) {
                 console.log("Updating product table...");
                 // Clear the table body before updating
@@ -154,5 +180,6 @@
                 $('#notFoundCount').text(notFoundCount);
             }
         });
+
     </script>
 }
