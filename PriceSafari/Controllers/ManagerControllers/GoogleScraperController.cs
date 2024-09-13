@@ -238,9 +238,9 @@ public class GoogleScraperController : Controller
             .Where(p => p.StoreId == storeId && p.OnGoogle)
             .ToListAsync();
 
-        if (Request.Headers["X-Requested-With"] == "XMLHttpRequest") // Sprawdzenie, czy jest to żądanie AJAX
+        if (Request.Headers["X-Requested-With"] == "XMLHttpRequest") 
         {
-            // Jeśli to żądanie AJAX, zwróć dane w formacie JSON
+            
             var jsonProducts = products.Select(p => new
             {
                 p.ProductId,
@@ -253,7 +253,7 @@ public class GoogleScraperController : Controller
             return Json(jsonProducts);
         }
 
-        // Jeśli to zwykłe żądanie HTML, zwróć widok
+ 
         ViewBag.StoreName = store.StoreName;
         ViewBag.StoreId = storeId;
         return View("~/Views/ManagerPanel/GoogleScraper/GoogleProducts.cshtml", products);
@@ -262,19 +262,19 @@ public class GoogleScraperController : Controller
     [HttpPost]
     public async Task<IActionResult> UpdatePendingProducts(int storeId)
     {
-        // Pobieramy produkty, które mają GoogleUrl i nie mają ustawionego FoundOnGoogle na true
+       
         var pendingProducts = await _context.Products
             .Where(p => p.StoreId == storeId && !string.IsNullOrEmpty(p.GoogleUrl) && (p.FoundOnGoogle == null || p.FoundOnGoogle == false))
             .ToListAsync();
 
         foreach (var product in pendingProducts)
         {
-            // Jeżeli produkt ma GoogleUrl, ustawiamy FoundOnGoogle na true
+          
             product.FoundOnGoogle = true;
             _context.Products.Update(product);
         }
 
-        // Zapisujemy zmiany w bazie danych
+     
         await _context.SaveChangesAsync();
 
         return Ok();
@@ -284,19 +284,19 @@ public class GoogleScraperController : Controller
     [HttpPost]
     public async Task<IActionResult> ResetNotFoundProducts(int storeId)
     {
-        // Pobieramy produkty, które mają FoundOnGoogle ustawione na false
+      
         var notFoundProducts = await _context.Products
             .Where(p => p.StoreId == storeId && p.FoundOnGoogle == false)
             .ToListAsync();
 
         foreach (var product in notFoundProducts)
         {
-            // Ustawiamy FoundOnGoogle na null
+  
             product.FoundOnGoogle = null;
             _context.Products.Update(product);
         }
 
-        // Zapisujemy zmiany w bazie danych
+ 
         await _context.SaveChangesAsync();
 
         return Ok();
