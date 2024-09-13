@@ -103,8 +103,8 @@ public class GoogleScraper
 
                            
                             await _page.GoToAsync(fullUrl, new NavigationOptions { Timeout = 30000, WaitUntil = new[] { WaitUntilNavigation.Load } });
-                            Console.WriteLine("Navigated to the store. Waiting for 3 seconds...");
-                            await Task.Delay(3000);
+                            Console.WriteLine("Navigated to the store. Waiting for 1,6 seconds...");
+                            await Task.Delay(1600);
 
                             
                             return;

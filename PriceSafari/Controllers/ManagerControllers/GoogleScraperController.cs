@@ -33,8 +33,9 @@ public class GoogleScraperController : Controller
         while (moreProductsToProcess)
         {
             var products = await _context.Products
-                .Where(p => p.StoreId == storeId && p.OnGoogle && !string.IsNullOrEmpty(p.Url) && string.IsNullOrEmpty(p.GoogleUrl))
+                .Where(p => p.StoreId == storeId && p.OnGoogle && !string.IsNullOrEmpty(p.Url) && string.IsNullOrEmpty(p.GoogleUrl) && (p.FoundOnGoogle == null || p.FoundOnGoogle == true))
                 .ToListAsync();
+
 
             if (!products.Any())
             {
@@ -54,17 +55,30 @@ public class GoogleScraperController : Controller
 
                     var matchedUrls = await scraper.SearchForMatchingProductUrlsAsync(searchUrls);
 
+                    bool productFound = false;
+
                     foreach (var (storeUrl, googleProductUrl) in matchedUrls)
                     {
                         var matchedProduct = products.FirstOrDefault(p => p.Url == storeUrl);
                         if (matchedProduct != null && string.IsNullOrEmpty(matchedProduct.GoogleUrl))
                         {
                             matchedProduct.GoogleUrl = googleProductUrl;
+                            matchedProduct.FoundOnGoogle = true;
                             Console.WriteLine($"Updated product: {matchedProduct.ProductName}, GoogleUrl: {matchedProduct.GoogleUrl}");
 
                             _context.Products.Update(matchedProduct);
                             await _context.SaveChangesAsync();
+                            productFound = true;
                         }
+                    }
+
+                    // Jeśli produkt nie został znaleziony
+                    if (!productFound)
+                    {
+                        product.FoundOnGoogle = false;
+                        Console.WriteLine($"Product not found on Google: {product.ProductName}");
+                        _context.Products.Update(product);
+                        await _context.SaveChangesAsync();
                     }
                 }
                 catch (Exception ex)
@@ -72,6 +86,7 @@ public class GoogleScraperController : Controller
                     Console.WriteLine($"Error processing product: {ex.Message}");
                 }
             }
+
 
             products = await _context.Products
                 .Where(p => p.StoreId == storeId && p.OnGoogle && !string.IsNullOrEmpty(p.Url) && string.IsNullOrEmpty(p.GoogleUrl))
@@ -215,11 +230,46 @@ public class GoogleScraperController : Controller
             .Where(p => p.StoreId == storeId && p.OnGoogle)
             .ToListAsync();
 
+        if (Request.Headers["X-Requested-With"] == "XMLHttpRequest") // Sprawdzenie, czy jest to żądanie AJAX
+        {
+            // Jeśli to żądanie AJAX, zwróć dane w formacie JSON
+            var jsonProducts = products.Select(p => new
+            {
+                p.ProductId,
+                p.ProductNameInStoreForGoogle,
+                p.Url,
+                p.FoundOnGoogle,
+                p.GoogleUrl
+            }).ToList();
+
+            return Json(jsonProducts);
+        }
+
+        // Jeśli to zwykłe żądanie HTML, zwróć widok
         ViewBag.StoreName = store.StoreName;
-        ViewBag.StoreName = store.StoreId;
         ViewBag.StoreId = storeId;
         return View("~/Views/ManagerPanel/GoogleScraper/GoogleProducts.cshtml", products);
     }
+
+
+    [HttpPost]
+    public async Task<IActionResult> UpdatePendingProducts(int storeId)
+    {
+        var pendingProducts = await _context.Products
+            .Where(p => p.StoreId == storeId && p.GoogleUrl != null && p.FoundOnGoogle == null)
+            .ToListAsync();
+
+        foreach (var product in pendingProducts)
+        {
+            product.FoundOnGoogle = true;
+            _context.Products.Update(product);
+        }
+
+        await _context.SaveChangesAsync();
+
+        return Ok(); 
+    }
+
 
     [HttpPost]
     public async Task<IActionResult> ToggleGoogleStatus(int productId)
