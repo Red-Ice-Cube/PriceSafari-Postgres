@@ -55,7 +55,7 @@ public class GoogleScraper
             var searchInputSelector = "input[name='q']";
             await _page.WaitForSelectorAsync(searchInputSelector);
 
-            // Logowanie tytułu, który będzie wpisywany w wyszukiwarkę
+         
             Console.WriteLine($"Entering product title in search bar: {title}");
 
             foreach (char c in title)
@@ -80,12 +80,12 @@ public class GoogleScraper
 
         try
         {
-            // Oczekiwanie na załadowanie elementów sklepu
+           
             await _page.WaitForSelectorAsync("span.DON5yf", new WaitForSelectorOptions { Timeout = 15000 });
             var sellerContainers = await _page.QuerySelectorAllAsync("span.DON5yf");
             Console.WriteLine($"Found {sellerContainers.Length} seller elements.");
 
-            // Szukanie sklepu w liście elementów
+           
             foreach (var container in sellerContainers)
             {
                 var sellerElement = await container.QuerySelectorAsync("span.lg3aE");
@@ -101,12 +101,12 @@ public class GoogleScraper
                             var href = await linkElement.EvaluateFunctionAsync<string>("el => el.href");
                             string fullUrl = href.StartsWith("http") ? href : $"https://www.google.com{href}";
 
-                            // Nawigacja do sklepu
+                           
                             await _page.GoToAsync(fullUrl, new NavigationOptions { Timeout = 30000, WaitUntil = new[] { WaitUntilNavigation.Load } });
                             Console.WriteLine("Navigated to the store. Waiting for 3 seconds...");
                             await Task.Delay(3000);
 
-                            // Po nawigacji kończymy, a kontroler może sam wywołać SearchForMatchingProductUrlsAsync
+                            
                             return;
                         }
                     }
@@ -126,7 +126,7 @@ public class GoogleScraper
 
         try
         {
-            // Pobierz wszystkie kontenery produktów na stronie sklepu
+            
             var productContainers = await _page.QuerySelectorAllAsync("div.sh-dgr__gr-auto.sh-dgr__grid-result");
             Console.WriteLine($"Found {productContainers.Length} product boxes on the store page.");
 
@@ -137,7 +137,7 @@ public class GoogleScraper
 
                 try
                 {
-                    // Pobierz Google Product URL
+                   
                     var googleProductLinkElement = await container.QuerySelectorAsync("a.xCpuod");
                     if (googleProductLinkElement != null)
                     {
@@ -146,7 +146,6 @@ public class GoogleScraper
                         Console.WriteLine($"Found Google Shopping URL: {googleProductUrl}");
                     }
 
-                    // Pobierz Store URL
                     var storeLinkElement = await container.QuerySelectorAsync("a[href*='/url?url=']");
                     if (storeLinkElement != null)
                     {
@@ -154,12 +153,12 @@ public class GoogleScraper
                         storeUrl = CleanUrl(storeUrl);
                         Console.WriteLine($"Found Store URL: {storeUrl}");
 
-                        // Sprawdź, czy storeUrl pasuje do któregoś z podanych searchUrls
+                        
                         foreach (var searchUrl in searchUrls)
                         {
                             if (storeUrl.Contains(searchUrl) && !string.IsNullOrEmpty(googleProductUrl))
                             {
-                                // Dopasowanie do listy URL
+                               
                                 matchedUrls.Add((searchUrl, googleProductUrl));
                                 Console.WriteLine($"Matched Google Product URL: {googleProductUrl} with store URL: {searchUrl}");
                             }

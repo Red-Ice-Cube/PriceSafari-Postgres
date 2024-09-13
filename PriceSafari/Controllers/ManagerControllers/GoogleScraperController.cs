@@ -5,7 +5,6 @@ using PriceSafari.Data;
 using PriceSafari.Models;
 using System.Xml.Linq;
 
-
 [Authorize(Roles = "Admin")]
 public class GoogleScraperController : Controller
 
@@ -16,7 +15,6 @@ public class GoogleScraperController : Controller
     {
         _context = context;
     }
-
 
     [HttpPost]
     public async Task<IActionResult> StartScrapingForProducts(int storeId)
@@ -51,14 +49,11 @@ public class GoogleScraperController : Controller
                 {
                     await scraper.InitializeAndSearchAsync(product.ProductNameInStoreForGoogle);
 
-                    // Nawiguj do sklepu
                     var searchUrls = products.Select(p => p.Url).ToList();
                     await scraper.SearchAndNavigateToStoreAsync(store.StoreName, searchUrls);
 
-                    // Szukaj pasujących URL w Google Shopping
                     var matchedUrls = await scraper.SearchForMatchingProductUrlsAsync(searchUrls);
 
-                    // Aktualizuj produkty na podstawie dopasowanych URL
                     foreach (var (storeUrl, googleProductUrl) in matchedUrls)
                     {
                         var matchedProduct = products.FirstOrDefault(p => p.Url == storeUrl);
@@ -78,7 +73,6 @@ public class GoogleScraperController : Controller
                 }
             }
 
-            // Odśwież listę produktów do przetworzenia
             products = await _context.Products
                 .Where(p => p.StoreId == storeId && p.OnGoogle && !string.IsNullOrEmpty(p.Url) && string.IsNullOrEmpty(p.GoogleUrl))
                 .ToListAsync();
@@ -93,12 +87,6 @@ public class GoogleScraperController : Controller
         await scraper.CloseBrowserAsync();
         return Content("Scraping completed.");
     }
-
-
-
-
-
-
 
     [HttpGet]
     public async Task<IActionResult> ProductList(int storeId)
@@ -118,9 +106,6 @@ public class GoogleScraperController : Controller
         return View("~/Views/ManagerPanel/GoogleScraper/ProductList.cshtml", products);
     }
 
-
- 
-
     [HttpPost]
     public async Task<IActionResult> UpdateProductNamesFromUrl(string xmlUrl)
     {
@@ -131,7 +116,6 @@ public class GoogleScraperController : Controller
 
         try
         {
-            // Pobierz plik XML z URL-a
             using (var httpClient = new HttpClient())
             {
                 var response = await httpClient.GetAsync(xmlUrl);
@@ -143,7 +127,6 @@ public class GoogleScraperController : Controller
                 var xmlContent = await response.Content.ReadAsStringAsync();
                 var doc = XDocument.Parse(xmlContent);
 
-                // Parsowanie pliku XML
                 var productElements = doc.Descendants("item");
 
                 foreach (var item in productElements)
@@ -153,20 +136,17 @@ public class GoogleScraperController : Controller
 
                     if (!string.IsNullOrEmpty(urlElement) && !string.IsNullOrEmpty(nameElement))
                     {
-                        // Znajdź produkt po URL w bazie danych
                         var product = await _context.Products
                             .FirstOrDefaultAsync(p => p.Url == urlElement);
 
                         if (product != null)
                         {
-                            // Zaktualizuj nazwę produktu
                             product.ProductNameInStoreForGoogle = nameElement;
                             _context.Products.Update(product);
                         }
                     }
                 }
 
-                // Zapisz zmiany w bazie danych
                 await _context.SaveChangesAsync();
             }
 
@@ -178,23 +158,19 @@ public class GoogleScraperController : Controller
         }
     }
 
-
     [HttpPost]
     public async Task<IActionResult> SetOnGoogleForAll()
     {
-        // Pobierz wszystkie produkty, które mają nazwę w `ProductNameInStoreForGoogle`
         var products = await _context.Products
             .Where(p => !string.IsNullOrEmpty(p.ProductNameInStoreForGoogle))
             .ToListAsync();
 
         foreach (var product in products)
         {
-            // Ustaw `OnGoogle` na true dla każdego produktu z nazwą
             product.OnGoogle = true;
             _context.Products.Update(product);
         }
 
-        // Zapisz zmiany w bazie danych
         await _context.SaveChangesAsync();
 
         return RedirectToAction("ProductList", new { storeId = products.FirstOrDefault()?.StoreId });
@@ -208,12 +184,10 @@ public class GoogleScraperController : Controller
             return BadRequest("Słowo do usunięcia jest wymagane.");
         }
 
-        // Pobierz wszystkie produkty, które mają nazwę w `ProductNameInStoreForGoogle`
         var products = await _context.Products
             .Where(p => !string.IsNullOrEmpty(p.ProductNameInStoreForGoogle))
             .ToListAsync();
 
-        // Przetwórz każdą nazwę, usuwając określone słowo
         foreach (var product in products)
         {
             if (product.ProductNameInStoreForGoogle.Contains(wordToRemove, StringComparison.OrdinalIgnoreCase))
@@ -223,13 +197,10 @@ public class GoogleScraperController : Controller
             }
         }
 
-        // Zapisz zmiany w bazie danych
         await _context.SaveChangesAsync();
 
         return RedirectToAction("ProductList", new { storeId = products.FirstOrDefault()?.StoreId });
     }
-
-
 
     [HttpGet]
     public async Task<IActionResult> GoogleProducts(int storeId)
