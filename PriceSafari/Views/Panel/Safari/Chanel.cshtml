@@ -25,7 +25,7 @@
                     <tbody>
                         @foreach (var store in Model)
                         {
-                            <tr class="store-row" style="cursor:pointer;" data-url="@Url.Action("Index", "PriceHistory", new { storeId = store.StoreId })" data-last-scrape="@store.LastScrapeDate?.ToString("o")">
+                            <tr class="store-row" style="cursor:pointer;" data-url="@Url.Action("Index", "Safari", new { storeId = store.StoreId })" data-last-scrape="@store.LastScrapeDate?.ToString("o")">
                                 <td>
                                     <img src="@store.LogoUrl" class="img-container" alt="@store.StoreName" />
                                 </td>

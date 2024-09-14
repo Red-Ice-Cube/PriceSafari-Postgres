@@ -63,8 +63,8 @@ namespace PriceSafari.Controllers
             }
 
             var products = await _context.Products
-                .Where(p => p.StoreId == storeId)
-                .ToListAsync();
+                 .Where(p => p.StoreId == storeId && p.OnGoogle ==true && p.FoundOnGoogle ==true)
+                 .ToListAsync();
 
             if (Request.Headers["X-Requested-With"] == "XMLHttpRequest")
             {
@@ -82,7 +82,7 @@ namespace PriceSafari.Controllers
 
             ViewBag.StoreName = store.StoreName;
             ViewBag.StoreId = storeId;
-            return View("~/Views/ManagerPanel/GoogleShoppingProducts/Index.cshtml", products);
+            return View("~/Views/Panel/Safari/Index.cshtml", products);
         }
 
        
