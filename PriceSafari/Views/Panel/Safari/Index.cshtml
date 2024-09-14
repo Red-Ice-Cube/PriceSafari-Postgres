@@ -1,0 +1,185 @@
+﻿@model IEnumerable<PriceSafari.Models.ProductClass>
+
+@{
+    ViewData["Title"] = "Lista Produktów";
+    Layout = "~/Views/Shared/_PanelLayout.cshtml";
+    var storeId = ViewBag.StoreId;
+}
+
+<h2 class="mt-4 mb-4">Products for Google Scraping</h2>
+
+<div class="d-flex mb-3">
+    <button id="startScraping" class="btn btn-primary me-2">Uruchom BOT</button>
+    <button id="updatePendingStatuses" class="btn btn-secondary me-2">Przelicz korekty</button>
+    <button id="resetNotFoundStatuses" class="btn btn-warning">Resetuj nieznalezione</button> 
+</div>
+
+
+<h3>Podsumowanie</h3>
+<div class="d-flex mb-3">
+    <p class="me-4">Liczba produktów znalezionych: <span id="foundCount" class="badge bg-success">0</span></p>
+    <p class="me-4">Liczba produktów do znalezienia: <span id="pendingCount" class="badge bg-secondary">0</span></p>
+    <p>Liczba produktów nieznalezionych: <span id="notFoundCount" class="badge bg-danger">0</span></p>
+</div>
+
+<table class="table table-bordered table-striped">
+    <thead class="table-dark">
+        <tr>
+            <th>Product Name</th>
+            <th>Product URL</th>
+            <th>Found on Google</th>
+            <th>Google URL</th>
+        </tr>
+    </thead>
+    <tbody id="productTable">
+   
+    </tbody>
+</table>
+
+@section Scripts {
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+        $(document).ready(function () {
+            console.log("Document ready, loading products...");
+            loadProducts(); // Ładowanie produktów przy wejściu na stronę
+
+            // Start scraping button
+            $('#startScraping').click(function () {
+                console.log("Start Scraping button clicked.");
+                startScraping();
+            });
+
+            // Update pending statuses button
+            $('#updatePendingStatuses').click(function () {
+                console.log("Update Pending Statuses button clicked.");
+                updatePendingProducts();
+            });
+
+            // Reset Not Found statuses button
+            $('#resetNotFoundStatuses').click(function () {
+                console.log("Reset Not Found Statuses button clicked.");
+                resetNotFoundProducts();
+            });
+
+            function loadProducts() {
+                console.log("Sending GET request to load products...");
+                $.ajax({
+                    type: "GET",
+                    url: '@Url.Action("GoogleProducts", "GoogleScraper")',
+                    data: { storeId: '@storeId' },
+                    success: function (products) {
+                        console.log("Received products from server:", products);
+                        updateTable(products); // Aktualizacja tabeli i liczników
+                    },
+                    error: function (xhr, status, error) {
+                        console.error("Error loading products: ", error);
+                        console.error("Response status: ", status);
+                        console.error("Response details: ", xhr.responseText);
+                    }
+                });
+            }
+
+            function startScraping() {
+                console.log("Sending POST request to start scraping...");
+                $.ajax({
+                    type: "POST",
+                    url: '@Url.Action("StartScrapingForProducts", "GoogleScraper")',
+                    data: { storeId: '@storeId' },
+                    success: function (response) {
+                        console.log("Scraping started successfully");
+                        loadProducts(); // Po zakończeniu scrapowania odśwież produkty
+                    },
+                    error: function (xhr, status, error) {
+                        console.error("Error starting scraping: ", error);
+                        console.error("Response status: ", status);
+                        console.error("Response details: ", xhr.responseText);
+                    }
+                });
+            }
+
+            function updatePendingProducts() {
+                console.log("Sending POST request to update pending products...");
+                $.ajax({
+                    type: "POST",
+                    url: '@Url.Action("UpdatePendingProducts", "GoogleScraper")',
+                    data: { storeId: '@storeId' },
+                    success: function (response) {
+                        console.log("Pending products updated successfully.");
+                        loadProducts(); // Po zaktualizowaniu statusów odśwież produkty
+                    },
+                    error: function (xhr, status, error) {
+                        console.error("Error updating pending products: ", error);
+                        console.error("Response status: ", status);
+                        console.error("Response details: ", xhr.responseText);
+                    }
+                });
+            }
+
+            function resetNotFoundProducts() {
+                console.log("Sending POST request to reset not found products...");
+                $.ajax({
+                    type: "POST",
+                    url: '@Url.Action("ResetNotFoundProducts", "GoogleScraper")',
+                    data: { storeId: '@storeId' },
+                    success: function (response) {
+                        console.log("Not Found products reset successfully.");
+                        loadProducts(); // Po zresetowaniu statusów odśwież produkty
+                    },
+                    error: function (xhr, status, error) {
+                        console.error("Error resetting not found products: ", error);
+                        console.error("Response status: ", status);
+                        console.error("Response details: ", xhr.responseText);
+                    }
+                });
+            }
+
+            function updateTable(products) {
+                console.log("Updating product table...");
+                // Clear the table body before updating
+                $('#productTable').empty();
+                var foundCount = 0;
+                var pendingCount = 0;
+                var notFoundCount = 0;
+
+                // Iterate through products and update the table
+                $.each(products, function (index, product) {
+                    console.log("Processing product:", product);
+
+                    var foundOnGoogleBadge = '<span class="badge bg-secondary">Pending</span>';
+                    if (product.foundOnGoogle === true) {
+                        foundOnGoogleBadge = '<span class="badge bg-success">Found</span>';
+                        foundCount++;
+                    } else if (product.foundOnGoogle === false) {
+                        foundOnGoogleBadge = '<span class="badge bg-danger">Not Found</span>';
+                        notFoundCount++;
+                    } else {
+                        pendingCount++; // Pending products also count as "remaining"
+                    }
+
+                    var googleUrl = product.googleUrl || '';
+
+                    var row = '<tr id="productRow-' + product.productId + '">' +
+                        '<td>' + product.productNameInStoreForGoogle + '</td>' +
+                        '<td><a href="' + product.url + '" target="_blank">' + product.url + '</a></td>' +
+                        '<td>' + foundOnGoogleBadge + '</td>' +
+                        '<td><a href="' + googleUrl + '" target="_blank">' + googleUrl + '</a></td>' +
+                        '</tr>';
+
+                    $('#productTable').append(row);
+                });
+
+                // Now update the product counts based on the results received from the server
+                console.log("Updating counts: Found:", foundCount, "Pending:", pendingCount, "Not Found:", notFoundCount);
+                updateProductCounts(foundCount, pendingCount, notFoundCount);
+            }
+
+            function updateProductCounts(foundCount, pendingCount, notFoundCount) {
+                console.log("Updating UI counts...");
+                $('#foundCount').text(foundCount);
+                $('#pendingCount').text(pendingCount);
+                $('#notFoundCount').text(notFoundCount);
+            }
+        });
+
+    </script>
+}

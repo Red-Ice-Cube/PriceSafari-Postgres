@@ -2,20 +2,53 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using PriceSafari.Data;
+using PriceSafari.Models.ViewModels;
+using System.Security.Claims;
 
 namespace PriceSafari.Controllers
 {
-    public class GoogleShoppingProductsController : Controller
+    public class SafariController : Controller
     {
         
 
         private readonly PriceSafariContext _context;
         private readonly UserManager<PriceSafariUser> _userManager;
 
-        public GoogleShoppingProductsController(PriceSafariContext context, UserManager<PriceSafariUser> userManager)
+        public SafariController(PriceSafariContext context, UserManager<PriceSafariUser> userManager)
         {
             _context = context;
             _userManager = userManager;
+        }
+
+
+
+
+        [HttpGet]
+        public async Task<IActionResult> Chanel()
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+            var userStores = await _context.UserStores
+                .Where(us => us.UserId == userId)
+                .Include(us => us.StoreClass)
+                .ThenInclude(s => s.ScrapHistories)
+
+
+
+                .ToListAsync();
+
+            var stores = userStores.Select(us => us.StoreClass).ToList();
+
+            var storeDetails = stores.Select(store => new ChanelViewModel
+            {
+                StoreId = store.StoreId,
+                StoreName = store.StoreName,
+                LogoUrl = store.StoreLogoUrl,
+                LastScrapeDate = store.ScrapHistories.OrderByDescending(sh => sh.Date).FirstOrDefault()?.Date,
+
+            }).ToList();
+
+            return View("~/Views/Panel/Safari/Chanel.cshtml", storeDetails);
         }
 
 
