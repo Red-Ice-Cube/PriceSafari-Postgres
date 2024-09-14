@@ -72,6 +72,7 @@ namespace PriceSafari.Controllers
                 {
                     p.ProductId,
                     p.ProductNameInStoreForGoogle,
+                    p.CatalogNumber,
                     p.Url,
                     p.FoundOnGoogle,
                     p.GoogleUrl

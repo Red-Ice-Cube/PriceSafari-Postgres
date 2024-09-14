@@ -6,8 +6,6 @@
     var storeId = ViewBag.StoreId;
 }
 
-
-
 <div class="Vert">
     <div class="Vert-full">
         <div class="price-box-space">
@@ -21,19 +19,17 @@
             </div>
 
             <div>
-            
                 <input type="text" id="productSearch" placeholder="Wyszukaj produkt" />
             </div>
         </div>
-
-       
 
         <div class="Vert-table">
             <table class="table-orders">
                 <thead>
                     <tr>
                         <th>Nazwa</th>
-                        <th>Url</th>                
+                        <th>Indeks</th>
+                        <th>Url</th>
                         <th>Google Url</th>
                         <th>Status</th>
                     </tr>
@@ -46,14 +42,15 @@
     </div>
 </div>
 
-
 @section Scripts {
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script>
         $(document).ready(function () {
             console.log("Document ready, loading products");
+            var allProducts = [];
             loadProducts();
 
+            // Wczytaj produkty z serwera
             function loadProducts() {
                 console.log("Sending GET request to load products...");
                 $.ajax({
@@ -62,7 +59,8 @@
                     data: { storeId: '@storeId' },
                     success: function (products) {
                         console.log("Received products from server:", products);
-                        updateTable(products);
+                        allProducts = products;
+                        updateTable(products); // Renderuj wszystkie produkty
                     },
                     error: function (xhr, status, error) {
                         console.error("Error loading products: ", error);
@@ -72,13 +70,23 @@
                 });
             }
 
-            function updateTable(products) {
+            // Funkcja podświetlająca wpisany tekst w nazwach produktów
+            function highlightMatches(text, searchTerm) {
+                if (!searchTerm) return text;
+                const sanitizedSearchTerm = searchTerm.replace(/[^a-zA-Z0-9\s.-]/g, '');
+                const regex = new RegExp(`(${sanitizedSearchTerm})`, 'gi');
+                return text.replace(regex, '<span style="color: #9400D3; font-weight: 600;">$1</span>');
+            }
+
+      
+            function updateTable(products, searchTerm = "") {
                 console.log("Updating product table...");
                 $('#productTable').empty();
                 var foundCount = 0;
 
                 $.each(products, function (index, product) {
-                    console.log("Processing product:", product);
+                    var highlightedProductName = highlightMatches(product.productNameInStoreForGoogle, searchTerm);
+                    var highlightedCatalogNumber = highlightMatches(product.catalogNumber, searchTerm);
 
                     var foundOnGoogleBadge = '<span class="badge bg-secondary">Pending</span>';
                     if (product.foundOnGoogle === true) {
@@ -89,11 +97,11 @@
                     var googleUrl = product.googleUrl || '';
 
                     var row = '<tr id="productRow-' + product.productId + '">' +
-                        '<td>' + product.productNameInStoreForGoogle + '</td>' +
+                        '<td>' + highlightedProductName + '</td>' +
+                        '<td>' + highlightedCatalogNumber + '</td>' +
                         '<td><a href="' + product.url + '" target="_blank">' + product.url + '</a></td>' +
                         '<td><a href="' + googleUrl + '" target="_blank">' + googleUrl + '</a></td>' +
                         '<td>' + foundOnGoogleBadge + '</td>' +
-                      
                         '</tr>';
 
                     $('#productTable').append(row);
@@ -103,10 +111,24 @@
                 updateProductCounts(foundCount);
             }
 
+           
             function updateProductCounts(foundCount) {
                 console.log("Updating UI count...");
                 $('#foundCount').text(foundCount);
             }
+
+            
+            $('#productSearch').on('input', function () {
+                var searchTerm = $(this).val().toLowerCase();
+
+           
+                var filteredProducts = allProducts.filter(function (product) {
+                    return product.productNameInStoreForGoogle.toLowerCase().includes(searchTerm) ||
+                        product.catalogNumber.toLowerCase().includes(searchTerm);
+                });
+
+                updateTable(filteredProducts, searchTerm); 
+            });
         });
     </script>
 }
