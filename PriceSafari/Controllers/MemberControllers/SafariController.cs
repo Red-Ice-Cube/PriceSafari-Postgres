@@ -51,20 +51,30 @@ namespace PriceSafari.Controllers
             return View("~/Views/Panel/Safari/Chanel.cshtml", storeDetails);
         }
 
-
-
         [HttpGet]
         public async Task<IActionResult> Index(int storeId)
         {
+            if (storeId == null)
+            {
+                return NotFound("Store ID not provided.");
+            }
+
+            // Pobieranie sklepu, aby upewnić się, że istnieje
             var store = await _context.Stores.FindAsync(storeId);
             if (store == null)
             {
-                return NotFound();
+                return NotFound("Store not found.");
             }
 
+            // Pobieranie produktów związanych z Google i które zostały znalezione na Google
             var products = await _context.Products
-                 .Where(p => p.StoreId == storeId && p.OnGoogle ==true && p.FoundOnGoogle ==true)
-                 .ToListAsync();
+                .Where(p => p.StoreId == storeId && p.OnGoogle == true && p.FoundOnGoogle == true)
+                .Include(p => p.ProductFlags) // Pobieranie flag związanych z produktem
+                .ThenInclude(pf => pf.Flag)   // Ładowanie informacji o flagach
+                .ToListAsync();
+
+            // Pobieranie listy flag i przypisywanie do produktów
+            var flags = await _context.Flags.ToListAsync();
 
             if (Request.Headers["X-Requested-With"] == "XMLHttpRequest")
             {
@@ -75,7 +85,8 @@ namespace PriceSafari.Controllers
                     p.CatalogNumber,
                     p.Url,
                     p.FoundOnGoogle,
-                    p.GoogleUrl
+                    p.GoogleUrl,
+                    Flags = p.ProductFlags.Select(pf => pf.Flag.FlagName).ToList() // Zbieranie nazw flag
                 }).ToList();
 
                 return Json(jsonProducts);
@@ -83,9 +94,10 @@ namespace PriceSafari.Controllers
 
             ViewBag.StoreName = store.StoreName;
             ViewBag.StoreId = storeId;
+
             return View("~/Views/Panel/Safari/Index.cshtml", products);
         }
 
-       
+
     }
 }

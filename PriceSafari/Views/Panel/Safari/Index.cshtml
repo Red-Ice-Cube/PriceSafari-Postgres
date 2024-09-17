@@ -32,6 +32,7 @@
                         <th>Url</th>
                         <th>Google Url</th>
                         <th>Status</th>
+                        <th>Flagi</th> <!-- Nowa kolumna dla flag -->
                     </tr>
                 </thead>
 
@@ -42,30 +43,26 @@
     </div>
 </div>
 
+
 @section Scripts {
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script>
         $(document).ready(function () {
-            console.log("Document ready, loading products");
             var allProducts = [];
             loadProducts();
 
             // Wczytaj produkty z serwera
             function loadProducts() {
-                console.log("Sending GET request to load products...");
                 $.ajax({
                     type: "GET",
                     url: '@Url.Action("Index", "Safari")',
-                    data: { storeId: '@storeId' },
+                    data: { storeId: '@ViewBag.StoreId' },
                     success: function (products) {
-                        console.log("Received products from server:", products);
                         allProducts = products;
                         updateTable(products); // Renderuj wszystkie produkty
                     },
                     error: function (xhr, status, error) {
                         console.error("Error loading products: ", error);
-                        console.error("Response status: ", status);
-                        console.error("Response details: ", xhr.responseText);
                     }
                 });
             }
@@ -78,9 +75,7 @@
                 return text.replace(regex, '<span style="color: #9400D3; font-weight: 600;">$1</span>');
             }
 
-      
             function updateTable(products, searchTerm = "") {
-                console.log("Updating product table...");
                 $('#productTable').empty();
                 var foundCount = 0;
 
@@ -96,38 +91,37 @@
 
                     var googleUrl = product.googleUrl || '';
 
+                    // Generowanie listy flag
+                    var flagList = product.flags && product.flags.length > 0
+                        ? product.flags.join(", ")
+                        : "Brak flag";
+
                     var row = '<tr id="productRow-' + product.productId + '">' +
                         '<td>' + highlightedProductName + '</td>' +
                         '<td>' + highlightedCatalogNumber + '</td>' +
                         '<td><a href="' + product.url + '" target="_blank">' + product.url + '</a></td>' +
                         '<td><a href="' + googleUrl + '" target="_blank">' + googleUrl + '</a></td>' +
                         '<td>' + foundOnGoogleBadge + '</td>' +
-                        '</tr>';
+                        '<td>' + flagList + '</td>' + <!--Dodajemy flagi w nowej kolumnie -->
+                            '</tr>';
 
                     $('#productTable').append(row);
                 });
 
-                console.log("Updating count: Found:", foundCount);
                 updateProductCounts(foundCount);
             }
 
-           
             function updateProductCounts(foundCount) {
-                console.log("Updating UI count...");
                 $('#foundCount').text(foundCount);
             }
 
-            
             $('#productSearch').on('input', function () {
                 var searchTerm = $(this).val().toLowerCase();
-
-           
                 var filteredProducts = allProducts.filter(function (product) {
                     return product.productNameInStoreForGoogle.toLowerCase().includes(searchTerm) ||
                         product.catalogNumber.toLowerCase().includes(searchTerm);
                 });
-
-                updateTable(filteredProducts, searchTerm); 
+                updateTable(filteredProducts, searchTerm);
             });
         });
     </script>
