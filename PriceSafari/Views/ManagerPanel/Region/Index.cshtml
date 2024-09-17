@@ -1,0 +1,28 @@
+﻿@model IEnumerable<PriceSafari.Models.Region>
+
+<h1>Regions</h1>
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Currency</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var region in Model)
+        {
+            <tr>
+                <td>@region.Name</td>
+                <td>@region.Currency</td>
+                <td>
+                    <a asp-action="Edit" asp-route-id="@region.RegionId">Edit</a> |
+                    <a asp-action="Delete" asp-route-id="@region.RegionId">Delete</a>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+<a asp-action="Add" class="btn btn-primary">Add New Region</a>

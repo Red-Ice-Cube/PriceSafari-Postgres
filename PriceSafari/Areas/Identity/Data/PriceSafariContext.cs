@@ -26,11 +26,31 @@ namespace PriceSafari.Data
         public DbSet<CoOfrClass> CoOfrs { get; set; }
         public DbSet<CoOfrPriceHistoryClass> CoOfrPriceHistories { get; set; }
         public DbSet<ClientProfile> ClientProfiles { get; set; }
+        public DbSet<Region> Regions { get; set; }
+        public DbSet<PriceData> PriceData { get; set; }
+        public DbSet<ScrapeRun> ScrapeRuns { get; set; }
+
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
 
+            // Relacja jeden-do-wielu między Region a PriceData
+            modelBuilder.Entity<PriceData>()
+                .HasOne(pd => pd.Region)
+                .WithMany(r => r.PriceData)
+                .HasForeignKey(pd => pd.RegionId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // Relacja jeden-do-wielu między ScrapeRun a PriceData
+            modelBuilder.Entity<PriceData>()
+                .HasOne(pd => pd.ScrapeRun)
+                .WithMany(sr => sr.PriceData)
+                .HasForeignKey(pd => pd.ScrapeRunId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+
+            // Dodatkowe relacje z istniejącymi encjami, jak w oryginalnym przykładzie:
             modelBuilder.Entity<PriceSafariUser>()
                 .HasOne(u => u.AffiliateVerification)
                 .WithOne(av => av.PriceSafariUser)
@@ -90,5 +110,6 @@ namespace PriceSafari.Data
                  .HasForeignKey(cp => cp.CreatedByUserId)
                  .OnDelete(DeleteBehavior.Restrict);
         }
+
     }
 }

@@ -1,0 +1,17 @@
+﻿@model PriceSafari.Models.Region
+
+<h1>Add New Region</h1>
+
+<form asp-action="Add" method="post">
+    <div class="form-group">
+        <label for="Name">Name</label>
+        <input type="text" class="form-control" asp-for="Name" />
+        <span asp-validation-for="Name" class="text-danger"></span>
+    </div>
+    <div class="form-group">
+        <label for="Currency">Currency</label>
+        <input type="text" class="form-control" asp-for="Currency" />
+        <span asp-validation-for="Currency" class="text-danger"></span>
+    </div>
+    <button type="submit" class="btn btn-primary">Save</button>
+</form>
