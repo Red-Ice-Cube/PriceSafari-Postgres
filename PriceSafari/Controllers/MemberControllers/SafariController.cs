@@ -161,6 +161,61 @@ namespace PriceSafari.Controllers
             return Json(new { success = true });
         }
 
+
+
+
+        [HttpPost]
+        public async Task<IActionResult> ToggleBatchProductAssignment([FromBody] BatchAssignmentRequest request)
+        {
+            // Log the incoming request data
+            Console.WriteLine($"ToggleBatchProductAssignment called with ReportId: {request.ReportId}, IsAssigned: {request.IsAssigned}, ProductIds: {string.Join(",", request.ProductIds)}");
+
+            if (request.ReportId == 0 || request.ProductIds == null || !request.ProductIds.Any())
+            {
+                return Json(new { success = false, message = "Niepoprawne dane." });
+            }
+
+            var report = await _context.PriceSafariReports.FindAsync(request.ReportId);
+            if (report == null)
+            {
+                return Json(new { success = false, message = "Raport nie istnieje." });
+            }
+
+            try
+            {
+                if (request.IsAssigned)
+                {
+                    var productsToAdd = request.ProductIds.Except(report.ProductIds).ToList();
+                    report.ProductIds.AddRange(productsToAdd);
+                }
+                else
+                {
+                    report.ProductIds.RemoveAll(p => request.ProductIds.Contains(p));
+                }
+
+                _context.PriceSafariReports.Update(report);
+                await _context.SaveChangesAsync();
+
+                return Json(new { success = true });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error while updating report: {ex.Message}");
+                return Json(new { success = false, message = "Wystąpił błąd podczas zapisywania raportu." });
+            }
+        }
+
+        // Request model
+        public class BatchAssignmentRequest
+        {
+            public int ReportId { get; set; }
+            public List<int> ProductIds { get; set; }
+            public bool IsAssigned { get; set; }
+        }
+
+
+
+
         [HttpGet]
         public async Task<IActionResult> GetReportProducts(int reportId)
         {
