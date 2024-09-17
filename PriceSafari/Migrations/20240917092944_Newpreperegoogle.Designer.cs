@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using PriceSafari.Data;
 
@@ -11,9 +12,11 @@ using PriceSafari.Data;
 namespace PriceSafari.Migrations
 {
     [DbContext(typeof(PriceSafariContext))]
-    partial class PriceTrackerContextModelSnapshot : ModelSnapshot
+    [Migration("20240917092944_Newpreperegoogle")]
+    partial class Newpreperegoogle
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -373,14 +376,17 @@ namespace PriceSafari.Migrations
                     b.Property<bool>("IsScraped")
                         .HasColumnType("bit");
 
-                    b.Property<string>("ProductIds")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                    b.Property<int>("ProductId")
+                        .HasColumnType("int");
 
                     b.Property<int>("RegionId")
                         .HasColumnType("int");
 
                     b.HasKey("ScrapingProductId");
+
+                    b.HasIndex("ProductId");
+
+                    b.HasIndex("RegionId");
 
                     b.ToTable("GoogleScrapingProducts");
                 });
@@ -949,6 +955,25 @@ namespace PriceSafari.Migrations
                     b.HasOne("PriceSafari.Models.StoreClass", null)
                         .WithMany("Flags")
                         .HasForeignKey("StoreClassStoreId");
+                });
+
+            modelBuilder.Entity("PriceSafari.Models.GoogleScrapingProduct", b =>
+                {
+                    b.HasOne("PriceSafari.Models.ProductClass", "Product")
+                        .WithMany()
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("PriceSafari.Models.Region", "Region")
+                        .WithMany()
+                        .HasForeignKey("RegionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Product");
+
+                    b.Navigation("Region");
                 });
 
             modelBuilder.Entity("PriceSafari.Models.PriceData", b =>

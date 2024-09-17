@@ -30,6 +30,9 @@ namespace PriceSafari.Data
         public DbSet<PriceData> PriceData { get; set; }
         public DbSet<ScrapeRun> ScrapeRuns { get; set; }
 
+        public DbSet<GoogleScrapingProduct> GoogleScrapingProducts { get; set; }
+
+
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

@@ -1,0 +1,33 @@
+﻿@model IEnumerable<PriceSafari.Models.GoogleScrapingProduct>
+
+@{
+    ViewBag.Title = "Prepared Products";
+}
+
+<h1>Prepared Products for Scraping</h1>
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>Google URL</th>
+            <th>Region ID</th>
+            <th>Product IDs</th>
+            <th>Scraped Status</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var scrapingProduct in Model)
+        {
+            <tr>
+                <td>@scrapingProduct.GoogleUrl</td>
+                <td>@scrapingProduct.RegionId</td>
+                <td>@string.Join(", ", scrapingProduct.ProductIds)</td> <!-- Wyświetlamy listę ProductIds -->
+                <td>@scrapingProduct.IsScraped ? "Scraped" : "Not Scraped"</td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+<form asp-action="ClearPreparedProducts" method="post" onsubmit="return confirm('Are you sure you want to clear all prepared products?');">
+    <button type="submit" class="btn btn-danger mt-3">Clear All Prepared Products</button>
+</form>

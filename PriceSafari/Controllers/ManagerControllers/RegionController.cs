@@ -108,7 +108,7 @@ namespace PriceSafari.Controllers
                 return NotFound();
             }
 
-            return View(region);
+            return View("~/Views/ManagerPanel/Region/Delete.cshtml", region);
         }
 
         // POST: Region/Delete/5
