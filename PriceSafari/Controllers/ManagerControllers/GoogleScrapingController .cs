@@ -107,36 +107,40 @@ namespace PriceSafari.Controllers
         //SCRAPER
 
 
-
         [HttpPost]
-        public async Task<IActionResult> StartScraping()
+        public async Task<IActionResult> StartScraping(Settings settings)
         {
-            // Inicjalizacja scrapera
-            await _scraper.InitializeAsync();
+            // Inicjalizacja przeglądarki
+            await _scraper.InitializeAsync(settings);
+            Console.WriteLine("Przeglądarka zainicjalizowana.");
 
-            // Pobieranie wszystkich produktów do scrapowania
+            // Pobranie produktów do scrapowania
             var scrapingProducts = await _context.GoogleScrapingProducts
                 .Where(gsp => !gsp.IsScraped)
                 .ToListAsync();
 
+            Console.WriteLine($"Znaleziono {scrapingProducts.Count} produktów do scrapowania.");
+
             foreach (var scrapingProduct in scrapingProducts)
             {
-                // Zbieranie cen dla danego produktu
+                // Scrapowanie danych cen
+                Console.WriteLine($"Rozpoczęcie scrapowania dla URL: {scrapingProduct.GoogleUrl}");
                 var scrapedPrices = await _scraper.ScrapePricesAsync(scrapingProduct);
 
-                // Zapisanie wyników scrapowania w bazie danych
+                // Zapis danych w bazie
                 _context.PriceData.AddRange(scrapedPrices);
+                await _context.SaveChangesAsync(); // Zapis po każdym URL
+                Console.WriteLine($"Zapisano {scrapedPrices.Count} ofert do bazy.");
 
-                // Aktualizacja statusu produktu, że został zescrapowany
+                // Aktualizacja statusu produktu
                 scrapingProduct.IsScraped = true;
                 _context.GoogleScrapingProducts.Update(scrapingProduct);
+                await _context.SaveChangesAsync(); // Zapis aktualizacji statusu
+                Console.WriteLine($"Zaktualizowano status produktu {scrapingProduct.ScrapingProductId}.");
             }
 
-            // Zapisanie wyników w bazie danych
-            await _context.SaveChangesAsync();
-
-            // Zamykanie przeglądarki
             await _scraper.CloseAsync();
+            Console.WriteLine("Przeglądarka zamknięta.");
 
             return RedirectToAction("PreparedProducts");
         }

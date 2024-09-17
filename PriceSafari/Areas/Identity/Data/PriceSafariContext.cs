@@ -38,19 +38,7 @@ namespace PriceSafari.Data
         {
             base.OnModelCreating(modelBuilder);
 
-            // Relacja jeden-do-wielu między Region a PriceData
-            modelBuilder.Entity<PriceData>()
-                .HasOne(pd => pd.Region)
-                .WithMany(r => r.PriceData)
-                .HasForeignKey(pd => pd.RegionId)
-                .OnDelete(DeleteBehavior.Restrict);
-
-            // Relacja jeden-do-wielu między ScrapeRun a PriceData
-            modelBuilder.Entity<PriceData>()
-                .HasOne(pd => pd.ScrapeRun)
-                .WithMany(sr => sr.PriceData)
-                .HasForeignKey(pd => pd.ScrapeRunId)
-                .OnDelete(DeleteBehavior.Cascade);
+          
 
 
             // Dodatkowe relacje z istniejącymi encjami, jak w oryginalnym przykładzie:
