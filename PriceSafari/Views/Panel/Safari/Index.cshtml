@@ -41,6 +41,19 @@
                 </div>
             </div>
 
+            <!-- Flag Filters Section -->
+            <div class="flag-filters">
+                <h5>Filtruj według flag:</h5>
+                <ul id="flagFilterList">
+                    @foreach (var flag in Model.SelectMany(p => p.ProductFlags).Select(pf => pf.Flag.FlagName).Distinct())
+                    {
+                        <li>
+                            <input type="checkbox" class="flag-checkbox" value="@flag" /> @flag
+                        </li>
+                    }
+                </ul>
+            </div>
+
             <div>
                 <input type="text" id="productSearch" placeholder="Wyszukaj produkt" />
             </div>
@@ -51,7 +64,7 @@
                 <thead>
                     <tr>
                         <th>Zaznacz</th>
-                        <th>Nazwa</th>
+                        <th>Nazwa (<span id="productCount">@Model.Count()</span>)</th>
                         <th>Indeks</th>
                         <th>Url</th>
                         <th>Google Url</th>
@@ -98,6 +111,7 @@
     </div>
 </div>
 
+
 @section Scripts {
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script>
@@ -114,25 +128,60 @@
             }).ToList()));
 
             var currentAssignedProductIds = [];
+            var selectedReportId = null;
+
+            // Function to highlight matches in product names and catalog numbers
+            function highlightMatches(text, searchTerm) {
+                if (!searchTerm) return text;
+                var regex = new RegExp('(' + searchTerm + ')', 'gi');
+                return text.replace(regex, '<span style="color: #9400D3; font-weight: 600;">$1</span>');
+            }
+
+            // Function to filter and update the product table
+            function filterAndUpdateTable() {
+                var searchTerm = $('#productSearch').val().toLowerCase();
+                var selectedFlags = $('.flag-checkbox:checked').map(function () {
+                    return $(this).val();
+                }).get();
+
+                var filteredProducts = allProducts.filter(function (product) {
+                    var matchesSearch = product.productNameInStoreForGoogle.toLowerCase().includes(searchTerm) ||
+                        product.catalogNumber.toLowerCase().includes(searchTerm);
+                    var matchesFlags = selectedFlags.length === 0 || selectedFlags.some(flag => product.flags.includes(flag));
+                    return matchesSearch && matchesFlags;
+                });
+
+                updateTable(filteredProducts, searchTerm);
+            }
 
             // Function to update the product table
-            function updateTable(products) {
+            function updateTable(products, searchTerm = '') {
                 $('#productTable').empty();
                 products.forEach(function (product) {
+                    var productNameHighlighted = highlightMatches(product.productNameInStoreForGoogle, searchTerm);
+                    var catalogNumberHighlighted = highlightMatches(product.catalogNumber, searchTerm);
                     var isChecked = currentAssignedProductIds.includes(product.productId) ? 'checked' : '';
+                    var isDisabled = selectedReportId ? '' : 'disabled'; // Disable checkboxes if no report selected
+
                     var row = `<tr>
-                                <td><input type="checkbox" class="product-checkbox" data-product-id="${product.productId}" ${isChecked} /></td>
-                                <td>${product.productNameInStoreForGoogle}</td>
-                                <td>${product.catalogNumber}</td>
-                                <td><a href="${product.url}" target="_blank">${product.url}</a></td>
-                                <td><a href="${product.googleUrl}" target="_blank">${product.googleUrl}</a></td>
-                                <td>${product.foundOnGoogle ? '<span class="badge bg-success">Found</span>' : '<span class="badge bg-secondary">Pending</span>'}</td>
-                                <td>${product.flags.length ? product.flags.join(", ") : 'Brak flag'}</td>
-                            </tr>`;
+                                        <td><input type="checkbox" class="product-checkbox" data-product-id="${product.productId}" ${isChecked} ${isDisabled} /></td>
+                                        <td>${productNameHighlighted}</td>
+                                        <td>${catalogNumberHighlighted}</td>
+                                        <td><a href="${product.url}" target="_blank">${product.url}</a></td>
+                                        <td><a href="${product.googleUrl}" target="_blank">${product.googleUrl}</a></td>
+                                        <td>${product.foundOnGoogle ? '<span class="badge bg-success">Found</span>' : '<span class="badge bg-secondary">Pending</span>'}</td>
+                                        <td>${product.flags.length ? product.flags.join(", ") : 'Brak flag'}</td>
+                                    </tr>`;
                     $('#productTable').append(row);
                 });
                 enableCheckboxes();
-                updateAssignedCount();
+                updateProductCount(products.length); // Update the displayed product count
+                updateAssignedCount(); // Update the count of assigned products
+            }
+
+            // Update displayed product count
+            function updateProductCount(count) {
+                $('#productCount').text(count);
             }
 
             // Attach event handlers to checkboxes
@@ -141,6 +190,7 @@
                     var productId = $(this).data('product-id');
                     var isChecked = $(this).is(':checked');
                     triggerBatchProductAssignment([productId], isChecked);
+                    updateAssignedCount(); // Call to update the assigned count on checkbox change
                 });
             }
 
@@ -167,8 +217,7 @@
 
             // Function to handle batch product assignment
             function triggerBatchProductAssignment(productIds, isAssigned) {
-                var reportId = $('#reportSelection').val();
-                if (!reportId) {
+                if (!selectedReportId) {
                     alert("Wybierz raport przed zaznaczeniem produktu.");
                     return;
                 }
@@ -178,7 +227,7 @@
                         type: "POST",
                         url: '@Url.Action("ToggleBatchProductAssignment", "Safari")',
                         data: JSON.stringify({
-                            reportId: parseInt(reportId),
+                            reportId: parseInt(selectedReportId),
                             productIds: productIds,
                             isAssigned: isAssigned
                         }),
@@ -190,7 +239,7 @@
                                 } else {
                                     currentAssignedProductIds = currentAssignedProductIds.filter(id => !productIds.includes(id));
                                 }
-                                updateAssignedCount();
+                                updateAssignedCount(); // Update the count of assigned products
                             } else {
                                 alert("Wystąpił błąd podczas aktualizacji raportu.");
                             }
@@ -202,36 +251,45 @@
                 }
             }
 
-            // Update assigned product count
+            // Update assigned product count dynamically
             function updateAssignedCount() {
-                $('#assignedCount').text(currentAssignedProductIds.length);
+                var assignedCount = $('input.product-checkbox:checked').length; // Count checked checkboxes
+                $('#assignedCount').text(assignedCount);
             }
 
-            // Handle report selection
+            // Handle flag filtering (OR condition)
+            $('.flag-checkbox').on('change', function () {
+                filterAndUpdateTable();
+            });
+
+            // Handle search with highlighting
+            $('#productSearch').on('input', function () {
+                filterAndUpdateTable();
+            });
+
+            // Handle report selection and disable/enable checkboxes
             $('#reportSelection').on('change', function () {
-                var reportId = $(this).val();
-                if (reportId) {
+                selectedReportId = $(this).val();
+                if (selectedReportId) {
                     $.ajax({
                         type: "GET",
                         url: '@Url.Action("GetReportProducts", "Safari")',
-                        data: { reportId: reportId },
+                        data: { reportId: selectedReportId },
                         success: function (response) {
                             if (response.success) {
                                 currentAssignedProductIds = response.productIds;
-                                updateTable(allProducts);
+                                filterAndUpdateTable(); // Reapply the current filters
                             }
                         }
                     });
                 } else {
                     currentAssignedProductIds = [];
-                    updateTable(allProducts);
+                    filterAndUpdateTable();
                 }
             });
 
             // Load initial data
-            updateTable(allProducts);
+            filterAndUpdateTable();
         });
-
-
     </script>
 }
