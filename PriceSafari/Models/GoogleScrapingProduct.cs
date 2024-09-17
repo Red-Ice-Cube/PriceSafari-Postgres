@@ -11,6 +11,7 @@ namespace PriceSafari.Models
         public List<int> ProductIds { get; set; } = new List<int>(); // Lista ProductIds zamiast pojedynczego ProductId
         public string GoogleUrl { get; set; }
         public int RegionId { get; set; }
-        public bool IsScraped { get; set; } = false;
+        public bool? IsScraped { get; set; }
+        public int OffersCount { get; set; }
     }
 }

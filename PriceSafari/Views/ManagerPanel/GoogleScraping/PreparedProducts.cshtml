@@ -1,10 +1,4 @@
-﻿@model IEnumerable<PriceSafari.Models.GoogleScrapingProduct>
-
-@{
-    ViewBag.Title = "Prepared Products";
-}
-
-<h1>Prepared Products for Scraping</h1>
+﻿@model List<GoogleScrapingProduct>
 
 <form asp-action="StartScraping" method="post">
     <button type="submit" class="btn btn-primary">Start Scraping</button>
@@ -14,25 +8,52 @@
     <button type="submit" class="btn btn-danger mt-3">Clear All Prepared Products</button>
 </form>
 
+<form asp-action="ResetAllScrapingStatuses" method="post">
+    <button type="submit" class="btn btn-danger">Resetuj Wszystkie Statusy</button>
+</form>
+
 
 <table class="table">
     <thead>
         <tr>
+            <th>Product ID</th>
             <th>Google URL</th>
             <th>Region ID</th>
-            <th>Scraped Status</th>
+            <th>Status Scrapowania</th>
+            <th>Znalezione oferty</th>
+            <th>Akcja</th>
         </tr>
     </thead>
     <tbody>
-        @foreach (var scrapingProduct in Model)
+        @foreach (var product in Model)
         {
             <tr>
-                <td>@scrapingProduct.GoogleUrl</td>
-                <td>@scrapingProduct.RegionId</td>
-                <td>@scrapingProduct.IsScraped ? "Scraped" : "Not Scraped"</td>
+                <td>@product.ScrapingProductId</td>
+                <td>@product.GoogleUrl</td>
+                <td>@product.RegionId</td>
+                <td>
+                    @if (product.IsScraped == true)
+                    {
+                        <span style="color:green;">Zescrapowano</span>
+                    }
+                    else if (product.IsScraped == false)
+                    {
+                        <span style="color:red;">Nieudane</span>
+                    }
+                    else
+                    {
+                        <span style="color:gray;">Nie zescrapowano</span>
+                    }
+                </td>
+                <td>@product.OffersCount</td>
+                <td>
+                    <form asp-action="ResetScrapingStatus" method="post">
+                        <input type="hidden" name="productId" value="@product.ScrapingProductId" />
+                        <button type="submit" class="btn btn-warning">Resetuj Status</button>
+                    </form>
+                </td>
             </tr>
         }
     </tbody>
 </table>
-
 

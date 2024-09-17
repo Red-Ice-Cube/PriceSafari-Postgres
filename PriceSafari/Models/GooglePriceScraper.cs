@@ -45,24 +45,25 @@ namespace PriceSafari.Services
         public async Task<List<PriceData>> ScrapePricesAsync(GoogleScrapingProduct scrapingProduct)
         {
             var scrapedData = new List<PriceData>();
-            var seenStoreNames = new HashSet<string>(); // Zestaw do śledzenia już zebranych nazw sklepów
+            var seenStoreNames = new HashSet<string>(); 
             string productOffersUrl = $"{scrapingProduct.GoogleUrl}/offers";
-            string googleBaseUrl = "https://www.google.com"; // Dodajemy bazowy URL do względnych adresów
+            string googleBaseUrl = "https://www.google.com"; 
             bool hasNextPage = true;
+            int totalOffersCount = 0; 
 
             try
             {
-                // Dopóki istnieje przycisk "Next", scraper kontynuuje
+               
                 while (hasNextPage)
                 {
                     Console.WriteLine($"Odwiedzanie URL: {productOffersUrl}");
                     await _page.GoToAsync(productOffersUrl, new NavigationOptions { WaitUntil = new[] { WaitUntilNavigation.Networkidle2 } });
-                    await Task.Delay(3000); // Dodajemy opóźnienie po załadowaniu strony
+                    await Task.Delay(500); 
 
-                    // Sprawdzanie, czy elementy są dostępne
                     var offerRowsSelector = "#sh-osd__online-sellers-cont > tr";
                     var offerRows = await _page.QuerySelectorAllAsync(offerRowsSelector);
                     var offersCount = offerRows.Length;
+                    totalOffersCount += offersCount; 
 
                     if (offersCount == 0)
                     {
@@ -72,31 +73,31 @@ namespace PriceSafari.Services
 
                     Console.WriteLine($"Znaleziono {offersCount} ofert. Rozpoczynam scrapowanie...");
 
-                    // Iterowanie przez wiersze ofert i zbieranie danych
+                  
                     for (int i = 1; i <= offersCount; i++)
                     {
-                        // Selektory dla nazwy sklepu, ceny i oferty
+                        
                         var storeNameSelector = $"#sh-osd__online-sellers-cont > tr:nth-child({i}) > td:nth-child(1) > div.kPMwsc > a";
                         var priceSelector = $"#sh-osd__online-sellers-cont > tr:nth-child({i}) > td:nth-child(4) > span";
                         var priceWithDeliverySelector = $"#sh-osd__online-sellers-cont > tr:nth-child({i}) > td:nth-child(5) > div > div.drzWO";
                         var offerUrlSelector = $"#sh-osd__online-sellers-cont > tr:nth-child({i}) > td:nth-child(1) > div.kPMwsc > a";
 
-                        // Pobieranie nazwy sklepu
+                      
                         var storeNameElement = await _page.QuerySelectorAsync(storeNameSelector);
                         if (storeNameElement != null)
                         {
                             var storeName = await storeNameElement.EvaluateFunctionAsync<string>("node => node.firstChild.textContent.trim()");
                             Console.WriteLine($"Znaleziono sklep: {storeName}");
 
-                            // Sprawdzanie, czy nazwa sklepu została już zebrana
+                          
                             if (seenStoreNames.Contains(storeName))
                             {
                                 Console.WriteLine("Znaleziono już zebrany sklep. Zakończono scrapowanie dla tego produktu.");
-                                return scrapedData; // Kończymy scrapowanie, jeśli nazwa sklepu była już zebrana
+                                return scrapedData; 
                             }
                             else
                             {
-                                // Dodajemy nazwę sklepu do zebranych
+                              
                                 seenStoreNames.Add(storeName);
 
                                 // Pobieranie ceny
@@ -132,7 +133,7 @@ namespace PriceSafari.Services
                                     RegionId = scrapingProduct.RegionId
                                 });
 
-                                await Task.Delay(100); // Krótkie opóźnienie przed przetworzeniem kolejnej oferty
+                                await Task.Delay(50); 
                             }
                         }
                         else
@@ -174,7 +175,7 @@ namespace PriceSafari.Services
                         hasNextPage = false; // Kończymy, gdy nie ma paginacji
                     }
 
-                    await Task.Delay(3000); // Dodajemy opóźnienie przed przejściem na kolejną stronę
+                    await Task.Delay(500); // Dodajemy opóźnienie przed przejściem na kolejną stronę
                 }
 
                 Console.WriteLine($"Zakończono przetwarzanie {scrapedData.Count} ofert.");
@@ -184,8 +185,12 @@ namespace PriceSafari.Services
                 Console.WriteLine($"Błąd podczas scrapowania: {ex.Message}");
             }
 
+            // Aktualizujemy liczbę ofert w produkcie
+            scrapingProduct.OffersCount = totalOffersCount;
+
             return scrapedData;
         }
+
 
 
         // Funkcja pomocnicza do wyciągania liczbowej części ceny

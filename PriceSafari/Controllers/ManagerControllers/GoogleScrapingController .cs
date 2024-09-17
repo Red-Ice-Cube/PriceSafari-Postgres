@@ -102,11 +102,38 @@ namespace PriceSafari.Controllers
         }
 
 
+        [HttpPost]
+        public async Task<IActionResult> ResetScrapingStatus(int productId)
+        {
+            var product = await _context.GoogleScrapingProducts.FindAsync(productId);
+            if (product != null)
+            {
+                product.IsScraped = null;
+                _context.GoogleScrapingProducts.Update(product);
+                await _context.SaveChangesAsync();
+            }
+
+            return RedirectToAction("PreparedProducts");
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> ResetAllScrapingStatuses()
+        {
+            var products = await _context.GoogleScrapingProducts.ToListAsync();
+            foreach (var product in products)
+            {
+                product.IsScraped = null;
+                _context.GoogleScrapingProducts.Update(product);
+            }
+
+            await _context.SaveChangesAsync();
+
+            return RedirectToAction("PreparedProducts");
+        }
+
 
 
         //SCRAPER
-
-
         [HttpPost]
         public async Task<IActionResult> StartScraping(Settings settings)
         {
@@ -116,27 +143,37 @@ namespace PriceSafari.Controllers
 
             // Pobranie produktów do scrapowania
             var scrapingProducts = await _context.GoogleScrapingProducts
-                .Where(gsp => !gsp.IsScraped)
+                .Where(gsp => gsp.IsScraped == null)
                 .ToListAsync();
 
             Console.WriteLine($"Znaleziono {scrapingProducts.Count} produktów do scrapowania.");
 
             foreach (var scrapingProduct in scrapingProducts)
             {
-                // Scrapowanie danych cen
-                Console.WriteLine($"Rozpoczęcie scrapowania dla URL: {scrapingProduct.GoogleUrl}");
-                var scrapedPrices = await _scraper.ScrapePricesAsync(scrapingProduct);
+                try
+                {
+                    // Scrapowanie danych cen
+                    Console.WriteLine($"Rozpoczęcie scrapowania dla URL: {scrapingProduct.GoogleUrl}");
+                    var scrapedPrices = await _scraper.ScrapePricesAsync(scrapingProduct);
 
-                // Zapis danych w bazie
-                _context.PriceData.AddRange(scrapedPrices);
-                await _context.SaveChangesAsync(); // Zapis po każdym URL
-                Console.WriteLine($"Zapisano {scrapedPrices.Count} ofert do bazy.");
+                    // Zapis danych w bazie
+                    _context.PriceData.AddRange(scrapedPrices);
+                    await _context.SaveChangesAsync();
+                    Console.WriteLine($"Zapisano {scrapedPrices.Count} ofert do bazy.");
 
-                // Aktualizacja statusu produktu
-                scrapingProduct.IsScraped = true;
+                    // Aktualizacja statusu produktu
+                    scrapingProduct.IsScraped = true;
+                }
+                catch (Exception ex)
+                {
+                    // W przypadku błędu ustawiamy IsScraped na false
+                    scrapingProduct.IsScraped = false;
+                    Console.WriteLine($"Błąd podczas scrapowania produktu {scrapingProduct.ScrapingProductId}: {ex.Message}");
+                }
+
                 _context.GoogleScrapingProducts.Update(scrapingProduct);
-                await _context.SaveChangesAsync(); // Zapis aktualizacji statusu
-                Console.WriteLine($"Zaktualizowano status produktu {scrapingProduct.ScrapingProductId}.");
+                await _context.SaveChangesAsync(); // Zapis aktualizacji statusu i liczby ofert
+                Console.WriteLine($"Zaktualizowano status i liczbę ofert dla produktu {scrapingProduct.ScrapingProductId}.");
             }
 
             await _scraper.CloseAsync();
@@ -144,5 +181,7 @@ namespace PriceSafari.Controllers
 
             return RedirectToAction("PreparedProducts");
         }
+
+
     }
 }
