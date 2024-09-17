@@ -31,6 +31,7 @@ namespace PriceSafari.Data
         public DbSet<ScrapeRun> ScrapeRuns { get; set; }
 
         public DbSet<GoogleScrapingProduct> GoogleScrapingProducts { get; set; }
+        public DbSet<PriceSafariReport> PriceSafariReports { get; set; }
 
 
 

@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using PriceSafari.Data;
+using PriceSafari.Models;
 using PriceSafari.Models.ViewModels;
 using System.Security.Claims;
 
@@ -54,49 +55,129 @@ namespace PriceSafari.Controllers
         [HttpGet]
         public async Task<IActionResult> Index(int storeId)
         {
-            if (storeId == null)
+            if (storeId == 0)
             {
                 return NotFound("Store ID not provided.");
             }
 
-            // Pobieranie sklepu, aby upewnić się, że istnieje
             var store = await _context.Stores.FindAsync(storeId);
             if (store == null)
             {
                 return NotFound("Store not found.");
             }
 
-            // Pobieranie produktów związanych z Google i które zostały znalezione na Google
+            // Pobieranie produktów związanych ze sklepem
             var products = await _context.Products
                 .Where(p => p.StoreId == storeId && p.OnGoogle == true && p.FoundOnGoogle == true)
-                .Include(p => p.ProductFlags) // Pobieranie flag związanych z produktem
-                .ThenInclude(pf => pf.Flag)   // Ładowanie informacji o flagach
+                .Include(p => p.ProductFlags)
+                .ThenInclude(pf => pf.Flag)
                 .ToListAsync();
 
-            // Pobieranie listy flag i przypisywanie do produktów
-            var flags = await _context.Flags.ToListAsync();
+            // Pobieranie raportów związanych z danym sklepem
+            var reports = await _context.PriceSafariReports
+                .Where(r => r.StoreId == storeId)
+                .ToListAsync();
 
-            if (Request.Headers["X-Requested-With"] == "XMLHttpRequest")
-            {
-                var jsonProducts = products.Select(p => new
-                {
-                    p.ProductId,
-                    p.ProductNameInStoreForGoogle,
-                    p.CatalogNumber,
-                    p.Url,
-                    p.FoundOnGoogle,
-                    p.GoogleUrl,
-                    Flags = p.ProductFlags.Select(pf => pf.Flag.FlagName).ToList() // Zbieranie nazw flag
-                }).ToList();
-
-                return Json(jsonProducts);
-            }
-
+            // Przekazanie danych do widoku
+            ViewBag.Reports = reports;
             ViewBag.StoreName = store.StoreName;
             ViewBag.StoreId = storeId;
 
+
             return View("~/Views/Panel/Safari/Index.cshtml", products);
         }
+
+
+
+
+
+
+
+
+        [HttpGet]
+        public async Task<IActionResult> CreateReport(int storeId)
+        {
+            // Pobieranie listy regionów
+            var regions = await _context.Regions.ToListAsync();
+            ViewBag.Regions = regions;
+            ViewBag.StoreId = storeId; // Pass StoreId to the view
+
+            return View("~/Views/Panel/Safari/CreateReport.cshtml");
+        }
+
+
+        [HttpPost]
+        public async Task<IActionResult> CreateReport(string reportName, List<int> regionIds, int storeId)
+        {
+            if (string.IsNullOrEmpty(reportName) || regionIds == null || regionIds.Count == 0)
+            {
+                return BadRequest("Nazwa raportu i regiony są wymagane.");
+            }
+
+            var report = new PriceSafariReport
+            {
+                ReportName = reportName,
+                RegionIds = regionIds,
+                StoreId = storeId, // Save the StoreId
+                CreatedDate = DateTime.Now
+            };
+
+            _context.PriceSafariReports.Add(report);
+            await _context.SaveChangesAsync();
+
+            return RedirectToAction("Index", new { storeId });
+        }
+
+
+        [HttpPost]
+        public async Task<IActionResult> ToggleProductAssignment(int reportId, int productId, bool isAssigned)
+        {
+            if (reportId == 0 || productId == 0)
+            {
+                return Json(new { success = false, message = "Niepoprawne dane." });
+            }
+
+            var report = await _context.PriceSafariReports.FindAsync(reportId);
+            if (report == null)
+            {
+                return Json(new { success = false, message = "Raport nie istnieje." });
+            }
+
+            if (isAssigned)
+            {
+                if (!report.ProductIds.Contains(productId))
+                {
+                    report.ProductIds.Add(productId);
+                }
+            }
+            else
+            {
+                report.ProductIds.Remove(productId);
+            }
+
+            _context.PriceSafariReports.Update(report);
+            await _context.SaveChangesAsync();
+
+            return Json(new { success = true });
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GetReportProducts(int reportId)
+        {
+            if (reportId == 0)
+            {
+                return Json(new { success = false, message = "Niepoprawne dane raportu." });
+            }
+
+            var report = await _context.PriceSafariReports.FindAsync(reportId);
+            if (report == null)
+            {
+                return Json(new { success = false, message = "Raport nie istnieje." });
+            }
+
+            return Json(new { success = true, productIds = report.ProductIds });
+        }
+
 
 
     }
