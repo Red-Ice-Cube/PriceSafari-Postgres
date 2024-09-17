@@ -129,6 +129,35 @@ public class GoogleScraperController : Controller
         return View("~/Views/ManagerPanel/GoogleScraper/ProductList.cshtml", products);
     }
 
+
+    [HttpPost]
+    public async Task<IActionResult> ValidateGoogleUrls(int storeId)
+    {
+        // Pobranie produktów z prawidłowym statusem FoundOnGoogle i GoogleUrl
+        var products = await _context.Products
+            .Where(p => p.StoreId == storeId && p.FoundOnGoogle == true && !string.IsNullOrEmpty(p.GoogleUrl))
+            .ToListAsync();
+
+        foreach (var product in products)
+        {
+            // Sprawdzenie, czy GoogleUrl spełnia wymagany schemat (czy zawiera "shopping/product")
+            if (!product.GoogleUrl.Contains("shopping/product"))
+            {
+                // Jeżeli URL jest nieprawidłowy, aktualizujemy produkt
+                product.FoundOnGoogle = false;
+                product.GoogleUrl = null;
+
+                _context.Products.Update(product);
+            }
+        }
+
+        // Zapisanie zmian w bazie danych
+        await _context.SaveChangesAsync();
+
+        return RedirectToAction("ProductList", new { storeId });
+    }
+
+
     [HttpPost]
     public async Task<IActionResult> UpdateProductNamesFromUrl(string xmlUrl)
     {

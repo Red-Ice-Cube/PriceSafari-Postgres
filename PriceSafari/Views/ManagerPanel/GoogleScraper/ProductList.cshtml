@@ -42,6 +42,12 @@
             <option value="false">Nie</option>
         </select>
     </div>
+
+
+    <form asp-action="ValidateGoogleUrls" method="post">
+        <input type="hidden" name="storeId" value="@ViewBag.StoreId" />
+        <button type="submit" class="btn btn-warning">Validate Google URLs</button>
+    </form>
     <button onclick="filterProducts()" class="btn btn-primary">Filtruj</button>
 
     <form asp-action="UpdateProductNamesFromUrl" method="post">
