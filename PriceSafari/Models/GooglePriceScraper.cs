@@ -45,21 +45,22 @@ namespace PriceSafari.Services
         public async Task<List<PriceData>> ScrapePricesAsync(GoogleScrapingProduct scrapingProduct)
         {
             var scrapedData = new List<PriceData>();
-            var seenStoreNames = new HashSet<string>(); 
+            var seenStoreNames = new HashSet<string>(); // Zestaw do śledzenia już zebranych nazw sklepów
             string productOffersUrl = $"{scrapingProduct.GoogleUrl}/offers";
-            string googleBaseUrl = "https://www.google.com"; 
+            string googleBaseUrl = "https://www.google.com"; // Dodajemy bazowy URL do względnych adresów
             bool hasNextPage = true;
-            int totalOffersCount = 0; 
+            int totalOffersCount = 0; // Liczba wszystkich ofert
 
             try
             {
-               
+                
                 while (hasNextPage)
                 {
                     Console.WriteLine($"Odwiedzanie URL: {productOffersUrl}");
                     await _page.GoToAsync(productOffersUrl, new NavigationOptions { WaitUntil = new[] { WaitUntilNavigation.Networkidle2 } });
-                    await Task.Delay(500); 
+                    await Task.Delay(50); 
 
+                    
                     var offerRowsSelector = "#sh-osd__online-sellers-cont > tr";
                     var offerRows = await _page.QuerySelectorAllAsync(offerRowsSelector);
                     var offersCount = offerRows.Length;
@@ -68,73 +69,59 @@ namespace PriceSafari.Services
                     if (offersCount == 0)
                     {
                         Console.WriteLine("Brak ofert na stronie.");
-                        return scrapedData;
+                        break;
                     }
 
                     Console.WriteLine($"Znaleziono {offersCount} ofert. Rozpoczynam scrapowanie...");
 
-                  
+                 
                     for (int i = 1; i <= offersCount; i++)
                     {
-                        
                         var storeNameSelector = $"#sh-osd__online-sellers-cont > tr:nth-child({i}) > td:nth-child(1) > div.kPMwsc > a";
                         var priceSelector = $"#sh-osd__online-sellers-cont > tr:nth-child({i}) > td:nth-child(4) > span";
                         var priceWithDeliverySelector = $"#sh-osd__online-sellers-cont > tr:nth-child({i}) > td:nth-child(5) > div > div.drzWO";
                         var offerUrlSelector = $"#sh-osd__online-sellers-cont > tr:nth-child({i}) > td:nth-child(1) > div.kPMwsc > a";
 
-                      
                         var storeNameElement = await _page.QuerySelectorAsync(storeNameSelector);
                         if (storeNameElement != null)
                         {
                             var storeName = await storeNameElement.EvaluateFunctionAsync<string>("node => node.firstChild.textContent.trim()");
                             Console.WriteLine($"Znaleziono sklep: {storeName}");
 
-                          
                             if (seenStoreNames.Contains(storeName))
                             {
                                 Console.WriteLine("Znaleziono już zebrany sklep. Zakończono scrapowanie dla tego produktu.");
                                 return scrapedData; 
                             }
-                            else
+
+                            seenStoreNames.Add(storeName);
+
+                            var priceElement = await _page.QuerySelectorAsync(priceSelector);
+                            var priceText = priceElement != null ? await priceElement.EvaluateFunctionAsync<string>("node => node.textContent.trim()") : "Brak ceny";
+                            Console.WriteLine($"Cena: {priceText}");
+
+                            var priceWithDeliveryElement = await _page.QuerySelectorAsync(priceWithDeliverySelector);
+                            var priceWithDeliveryText = priceWithDeliveryElement != null ? await priceWithDeliveryElement.EvaluateFunctionAsync<string>("node => node.textContent.trim()") : priceText;
+                            Console.WriteLine($"Cena z dostawą: {priceWithDeliveryText}");
+
+                            var priceDecimal = ExtractPrice(priceText);
+                            var priceWithDeliveryDecimal = ExtractPrice(priceWithDeliveryText);
+
+                            var offerUrlElement = await _page.QuerySelectorAsync(offerUrlSelector);
+                            var offerUrl = offerUrlElement != null ? await offerUrlElement.EvaluateFunctionAsync<string>("node => node.href") : "Brak URL";
+                            Console.WriteLine($"URL oferty: {offerUrl}");
+
+                            scrapedData.Add(new PriceData
                             {
-                              
-                                seenStoreNames.Add(storeName);
+                                StoreName = storeName,
+                                Price = priceDecimal,
+                                PriceWithDelivery = priceWithDeliveryDecimal,
+                                OfferUrl = offerUrl,
+                                ScrapingProductId = scrapingProduct.ScrapingProductId,
+                                RegionId = scrapingProduct.RegionId
+                            });
 
-                                // Pobieranie ceny
-                                var priceElement = await _page.QuerySelectorAsync(priceSelector);
-                                var priceText = priceElement != null ? await priceElement.EvaluateFunctionAsync<string>("node => node.textContent.trim()") : "Brak ceny";
-                                Console.WriteLine($"Cena: {priceText}");
-
-                                // Pobieranie ceny z dostawą
-                                var priceWithDeliveryElement = await _page.QuerySelectorAsync(priceWithDeliverySelector);
-                                var priceWithDeliveryText = priceWithDeliveryElement != null ? await priceWithDeliveryElement.EvaluateFunctionAsync<string>("node => node.textContent.trim()") : priceText;
-                                Console.WriteLine($"Cena z dostawą: {priceWithDeliveryText}");
-
-                                // Wyciąganie liczby z tekstu ceny i ceny z dostawą oraz konwersja na decimal
-                                var priceDecimal = ExtractPrice(priceText);
-                                var priceWithDeliveryDecimal = ExtractPrice(priceWithDeliveryText);
-
-                                Console.WriteLine($"Oczyszczona cena produktu: {priceDecimal}");
-                                Console.WriteLine($"Oczyszczona cena z dostawą: {priceWithDeliveryDecimal}");
-
-                                // Pobieranie URL oferty
-                                var offerUrlElement = await _page.QuerySelectorAsync(offerUrlSelector);
-                                var offerUrl = offerUrlElement != null ? await offerUrlElement.EvaluateFunctionAsync<string>("node => node.href") : "Brak URL";
-                                Console.WriteLine($"URL oferty: {offerUrl}");
-
-                                // Dodajemy dane do listy wyników
-                                scrapedData.Add(new PriceData
-                                {
-                                    StoreName = storeName,
-                                    Price = priceDecimal,
-                                    PriceWithDelivery = priceWithDeliveryDecimal,
-                                    OfferUrl = offerUrl,
-                                    ScrapingProductId = scrapingProduct.ScrapingProductId,
-                                    RegionId = scrapingProduct.RegionId
-                                });
-
-                                await Task.Delay(50); 
-                            }
+                            await Task.Delay(5); 
                         }
                         else
                         {
@@ -142,7 +129,7 @@ namespace PriceSafari.Services
                         }
                     }
 
-                    // Sprawdzanie, czy istnieje przycisk "Next"
+               
                     var paginationElement = await _page.QuerySelectorAsync("#sh-fp__pagination-button-wrapper");
                     if (paginationElement != null)
                     {
@@ -153,10 +140,9 @@ namespace PriceSafari.Services
                         {
                             string nextPageUrl = await nextPageElement.EvaluateFunctionAsync<string>("node => node.getAttribute('data-url') || node.href");
 
-                            // Sprawdzanie, czy URL jest względny
                             if (!nextPageUrl.StartsWith("http"))
                             {
-                                nextPageUrl = googleBaseUrl + nextPageUrl; // Dodanie pełnego URL-a, jeśli jest to względny adres
+                                nextPageUrl = googleBaseUrl + nextPageUrl;
                             }
 
                             productOffersUrl = nextPageUrl;
@@ -166,16 +152,16 @@ namespace PriceSafari.Services
                         else
                         {
                             Console.WriteLine("Brak przycisku 'Next'.");
-                            hasNextPage = false; // Kończymy, gdy nie ma przycisku "Next"
+                            hasNextPage = false;
                         }
                     }
                     else
                     {
                         Console.WriteLine("Nie znaleziono elementu paginacji.");
-                        hasNextPage = false; // Kończymy, gdy nie ma paginacji
+                        hasNextPage = false;
                     }
 
-                    await Task.Delay(500); // Dodajemy opóźnienie przed przejściem na kolejną stronę
+                    await Task.Delay(50); 
                 }
 
                 Console.WriteLine($"Zakończono przetwarzanie {scrapedData.Count} ofert.");
@@ -185,11 +171,12 @@ namespace PriceSafari.Services
                 Console.WriteLine($"Błąd podczas scrapowania: {ex.Message}");
             }
 
-            // Aktualizujemy liczbę ofert w produkcie
+          
             scrapingProduct.OffersCount = totalOffersCount;
 
             return scrapedData;
         }
+
 
 
 

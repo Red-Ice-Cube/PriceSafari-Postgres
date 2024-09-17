@@ -83,13 +83,31 @@ namespace PriceSafari.Controllers
 
 
 
-
         // GET: Scraping/PreparedProducts
-        public async Task<IActionResult> PreparedProducts()
+        public async Task<IActionResult> PreparedProducts(int? selectedRegion)
         {
-            var scrapingProducts = await _context.GoogleScrapingProducts.ToListAsync();
+            // Pobieranie produktów do scrapowania z filtrowaniem według regionu, jeśli wybrano
+            var scrapingProductsQuery = _context.GoogleScrapingProducts.AsQueryable();
+
+            if (selectedRegion.HasValue)
+            {
+                scrapingProductsQuery = scrapingProductsQuery.Where(sp => sp.RegionId == selectedRegion.Value);
+            }
+
+            var scrapingProducts = await scrapingProductsQuery.ToListAsync();
+
+            // Pobieranie listy regionów do ViewBag
+            ViewBag.Regions = await _context.Regions
+                .Select(r => new { r.RegionId, r.Name })
+                .ToListAsync();
+
+            // Przekazujemy również wybrany region do widoku, aby zachować wybór
+            ViewBag.SelectedRegion = selectedRegion;
+
+            // Renderowanie odpowiedniego widoku
             return View("~/Views/ManagerPanel/GoogleScraping/PreparedProducts.cshtml", scrapingProducts);
         }
+
 
         // POST: Scraping/ClearPreparedProducts
         [HttpPost]
@@ -101,7 +119,7 @@ namespace PriceSafari.Controllers
             return RedirectToAction("PreparedProducts");
         }
 
-
+        // Usuwanie powiązanych danych przy resetowaniu statusu dla pojedynczego produktu
         [HttpPost]
         public async Task<IActionResult> ResetScrapingStatus(int productId)
         {
@@ -109,6 +127,11 @@ namespace PriceSafari.Controllers
             if (product != null)
             {
                 product.IsScraped = null;
+
+                // Usuwanie powiązanych danych z tabeli PriceData
+                var relatedPrices = _context.PriceData.Where(pd => pd.ScrapingProductId == productId);
+                _context.PriceData.RemoveRange(relatedPrices);
+
                 _context.GoogleScrapingProducts.Update(product);
                 await _context.SaveChangesAsync();
             }
@@ -116,13 +139,20 @@ namespace PriceSafari.Controllers
             return RedirectToAction("PreparedProducts");
         }
 
+        // Usuwanie powiązanych danych przy resetowaniu statusów wszystkich produktów
         [HttpPost]
         public async Task<IActionResult> ResetAllScrapingStatuses()
         {
             var products = await _context.GoogleScrapingProducts.ToListAsync();
+
             foreach (var product in products)
             {
                 product.IsScraped = null;
+
+                // Usuwanie powiązanych danych z tabeli PriceData
+                var relatedPrices = _context.PriceData.Where(pd => pd.ScrapingProductId == product.ScrapingProductId);
+                _context.PriceData.RemoveRange(relatedPrices);
+
                 _context.GoogleScrapingProducts.Update(product);
             }
 
@@ -132,21 +162,26 @@ namespace PriceSafari.Controllers
         }
 
 
-
-        //SCRAPER
+        // SCRAPER
         [HttpPost]
-        public async Task<IActionResult> StartScraping(Settings settings)
+        public async Task<IActionResult> StartScraping(Settings settings, int? selectedRegion)
         {
             // Inicjalizacja przeglądarki
             await _scraper.InitializeAsync(settings);
             Console.WriteLine("Przeglądarka zainicjalizowana.");
 
-            // Pobranie produktów do scrapowania
-            var scrapingProducts = await _context.GoogleScrapingProducts
-                .Where(gsp => gsp.IsScraped == null)
-                .ToListAsync();
+            // Pobranie produktów do scrapowania z wybranego regionu
+            var scrapingProductsQuery = _context.GoogleScrapingProducts
+                .Where(gsp => gsp.IsScraped == null);
 
-            Console.WriteLine($"Znaleziono {scrapingProducts.Count} produktów do scrapowania.");
+            if (selectedRegion.HasValue)
+            {
+                scrapingProductsQuery = scrapingProductsQuery.Where(gsp => gsp.RegionId == selectedRegion.Value);
+            }
+
+            var scrapingProducts = await scrapingProductsQuery.ToListAsync();
+
+            Console.WriteLine($"Znaleziono {scrapingProducts.Count} produktów do scrapowania w regionie {selectedRegion}.");
 
             foreach (var scrapingProduct in scrapingProducts)
             {
@@ -161,19 +196,21 @@ namespace PriceSafari.Controllers
                     await _context.SaveChangesAsync();
                     Console.WriteLine($"Zapisano {scrapedPrices.Count} ofert do bazy.");
 
-                    // Aktualizacja statusu produktu
+                    // Aktualizacja statusu produktu i liczby ofert
                     scrapingProduct.IsScraped = true;
+                    scrapingProduct.OffersCount = scrapedPrices.Count;
                 }
                 catch (Exception ex)
                 {
                     // W przypadku błędu ustawiamy IsScraped na false
                     scrapingProduct.IsScraped = false;
+                    scrapingProduct.OffersCount = 0;
                     Console.WriteLine($"Błąd podczas scrapowania produktu {scrapingProduct.ScrapingProductId}: {ex.Message}");
                 }
 
                 _context.GoogleScrapingProducts.Update(scrapingProduct);
-                await _context.SaveChangesAsync(); // Zapis aktualizacji statusu i liczby ofert
-                Console.WriteLine($"Zaktualizowano status i liczbę ofert dla produktu {scrapingProduct.ScrapingProductId}.");
+                await _context.SaveChangesAsync();
+                Console.WriteLine($"Zaktualizowano status i liczbę ofert dla produktu {scrapingProduct.ScrapingProductId}: {scrapingProduct.OffersCount}.");
             }
 
             await _scraper.CloseAsync();
@@ -181,6 +218,7 @@ namespace PriceSafari.Controllers
 
             return RedirectToAction("PreparedProducts");
         }
+
 
 
     }

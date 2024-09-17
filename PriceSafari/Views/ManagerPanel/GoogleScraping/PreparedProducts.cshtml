@@ -1,6 +1,16 @@
 ﻿@model List<GoogleScrapingProduct>
 
 <form asp-action="StartScraping" method="post">
+    <div class="form-group">
+        <label for="region">Wybierz Region:</label>
+        <select name="selectedRegion" class="form-control" id="region">
+            <option value="">Wybierz...</option>
+            @foreach (var region in ViewBag.Regions)
+            {
+                <option value="@region.RegionId">@region.Name</option>
+            }
+        </select>
+    </div>
     <button type="submit" class="btn btn-primary">Start Scraping</button>
 </form>
 
@@ -11,7 +21,6 @@
 <form asp-action="ResetAllScrapingStatuses" method="post">
     <button type="submit" class="btn btn-danger">Resetuj Wszystkie Statusy</button>
 </form>
-
 
 <table class="table">
     <thead>
@@ -56,4 +65,3 @@
         }
     </tbody>
 </table>
-
