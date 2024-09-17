@@ -1,6 +1,4 @@
-﻿using PriceSafari.Services;
-using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
+﻿using System.ComponentModel.DataAnnotations;
 
 namespace PriceSafari.Models
 {
@@ -9,25 +7,22 @@ namespace PriceSafari.Models
         [Key]
         public int PriceDataId { get; set; }
 
-        // Powiązanie z produktem
-        [ForeignKey("ProductClass")]
-        public int ProductId { get; set; }
-        public ProductClass Product { get; set; }
+        // Powiązanie z GoogleScrapingProduct
+        public int ScrapingProductId { get; set; }
 
-        // Cena produktu w danym regionie
+        // Cena produktu
         public decimal Price { get; set; }
 
-        // Powiązanie z regionem
-        [ForeignKey("Region")]
-        public int RegionId { get; set; }
-        public Region Region { get; set; }
+        // Cena z dostawą (opcjonalne)
+        public decimal PriceWithDelivery { get; set; }
 
-        // Powiązanie ze scrapowaniem
-        [ForeignKey("ScrapeRun")]
-        public int ScrapeRunId { get; set; }
-        public ScrapeRun ScrapeRun { get; set; }
-
+        // Nazwa sklepu
         public string StoreName { get; set; }
+
+        // URL do oferty
         public string OfferUrl { get; set; }
+
+        // Region, w którym cena była sprawdzana
+        public int RegionId { get; set; }
     }
 }

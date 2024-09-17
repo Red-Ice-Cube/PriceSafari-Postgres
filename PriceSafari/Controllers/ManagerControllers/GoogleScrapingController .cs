@@ -2,6 +2,7 @@
 using Microsoft.EntityFrameworkCore;
 using PriceSafari.Data;
 using PriceSafari.Models;
+using PriceSafari.Services;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -10,10 +11,12 @@ namespace PriceSafari.Controllers
     public class GoogleScrapingController : Controller
     {
         private readonly PriceSafariContext _context;
+        private readonly GooglePriceScraper _scraper;
 
         public GoogleScrapingController(PriceSafariContext context)
         {
             _context = context;
+            _scraper = new GooglePriceScraper();
         }
 
         // Akcja przygotowania produktów do scrapowania
@@ -95,6 +98,46 @@ namespace PriceSafari.Controllers
         {
             _context.GoogleScrapingProducts.RemoveRange(_context.GoogleScrapingProducts);
             await _context.SaveChangesAsync();
+            return RedirectToAction("PreparedProducts");
+        }
+
+
+
+
+        //SCRAPER
+
+
+
+        [HttpPost]
+        public async Task<IActionResult> StartScraping()
+        {
+            // Inicjalizacja scrapera
+            await _scraper.InitializeAsync();
+
+            // Pobieranie wszystkich produktów do scrapowania
+            var scrapingProducts = await _context.GoogleScrapingProducts
+                .Where(gsp => !gsp.IsScraped)
+                .ToListAsync();
+
+            foreach (var scrapingProduct in scrapingProducts)
+            {
+                // Zbieranie cen dla danego produktu
+                var scrapedPrices = await _scraper.ScrapePricesAsync(scrapingProduct);
+
+                // Zapisanie wyników scrapowania w bazie danych
+                _context.PriceData.AddRange(scrapedPrices);
+
+                // Aktualizacja statusu produktu, że został zescrapowany
+                scrapingProduct.IsScraped = true;
+                _context.GoogleScrapingProducts.Update(scrapingProduct);
+            }
+
+            // Zapisanie wyników w bazie danych
+            await _context.SaveChangesAsync();
+
+            // Zamykanie przeglądarki
+            await _scraper.CloseAsync();
+
             return RedirectToAction("PreparedProducts");
         }
     }
