@@ -40,15 +40,6 @@ namespace PriceSafari.Services
             //await _page.SetJavaScriptEnabledAsync(settings.JavaScript);
             Console.WriteLine("Przeglądarka zainicjalizowana.");
         }
-
-
-
-
-
-
-
-
-
         public async Task<List<PriceData>> ScrapePricesAsync(GoogleScrapingProduct scrapingProduct)
         {
             var scrapedData = new List<PriceData>();
