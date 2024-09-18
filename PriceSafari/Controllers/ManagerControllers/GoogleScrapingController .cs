@@ -240,11 +240,11 @@ namespace PriceSafari.Controllers
         [HttpPost]
         public async Task<IActionResult> StartScraping(Settings settings, int? selectedRegion)
         {
-            // Inicjalizacja przeglądarki
+            
             await _scraper.InitializeAsync(settings);
             Console.WriteLine("Przeglądarka zainicjalizowana.");
 
-            // Pobranie produktów do scrapowania z wybranego regionu
+            
             var scrapingProductsQuery = _context.GoogleScrapingProducts
                 .Where(gsp => gsp.IsScraped == null);
 
@@ -261,22 +261,22 @@ namespace PriceSafari.Controllers
             {
                 try
                 {
-                    // Scrapowanie danych cen
+                   
                     Console.WriteLine($"Rozpoczęcie scrapowania dla URL: {scrapingProduct.GoogleUrl}");
                     var scrapedPrices = await _scraper.ScrapePricesAsync(scrapingProduct);
 
-                    // Zapis danych w bazie
+                 
                     _context.PriceData.AddRange(scrapedPrices);
                     await _context.SaveChangesAsync();
                     Console.WriteLine($"Zapisano {scrapedPrices.Count} ofert do bazy.");
 
-                    // Aktualizacja statusu produktu i liczby ofert
+                    
                     scrapingProduct.IsScraped = true;
                     scrapingProduct.OffersCount = scrapedPrices.Count;
                 }
                 catch (Exception ex)
                 {
-                    // W przypadku błędu ustawiamy IsScraped na false
+                    
                     scrapingProduct.IsScraped = false;
                     scrapingProduct.OffersCount = 0;
                     Console.WriteLine($"Błąd podczas scrapowania produktu {scrapingProduct.ScrapingProductId}: {ex.Message}");
