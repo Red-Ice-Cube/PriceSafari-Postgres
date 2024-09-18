@@ -245,14 +245,16 @@ namespace PriceSafari.Controllers
             return RedirectToAction("PreparedProducts");
         }
 
-
         [HttpPost]
-        public async Task<IActionResult> StartScraping(Settings settings, int? selectedRegion)
+        public async Task<IActionResult> StartScraping(int? selectedRegion)
         {
+            // Zawsze pobieramy ustawienia z bazy danych
+            var settings = await _context.Settings.FirstOrDefaultAsync();
+
             if (settings == null)
             {
-                Console.WriteLine("Settings object is null.");
-                return BadRequest("Settings cannot be null.");
+                Console.WriteLine("Settings not found in the database.");
+                return BadRequest("Settings not found.");
             }
 
             var scrapingProductsQuery = _context.GoogleScrapingProducts
@@ -273,7 +275,6 @@ namespace PriceSafari.Controllers
 
             Console.WriteLine($"Znaleziono {scrapingProducts.Count} produktów do scrapowania w regionie {selectedRegion}.");
 
-            
             if (_hubContext != null)
             {
                 await _hubContext.Clients.All.SendAsync("ReceiveProgressUpdate", 0, scrapingProducts.Count, 0, 0);
@@ -283,6 +284,7 @@ namespace PriceSafari.Controllers
                 Console.WriteLine("Hub context is null.");
             }
 
+            // Pobieramy wartość semafora z ustawień
             int maxConcurrentScrapers = settings.Semophore;
             var semaphore = new SemaphoreSlim(maxConcurrentScrapers);
             var tasks = new List<Task>();
@@ -346,7 +348,6 @@ namespace PriceSafari.Controllers
                                 await scopedContext.SaveChangesAsync();
                                 Console.WriteLine($"Zaktualizowano status i liczbę ofert dla produktu {scrapingProduct.ScrapingProductId}: {scrapingProduct.OffersCount}.");
 
-                                
                                 Interlocked.Increment(ref totalScraped);
                                 double elapsedSeconds = stopwatch.Elapsed.TotalSeconds;
                                 await _hubContext.Clients.All.SendAsync("ReceiveProgressUpdate", totalScraped, scrapingProducts.Count, elapsedSeconds, 0);

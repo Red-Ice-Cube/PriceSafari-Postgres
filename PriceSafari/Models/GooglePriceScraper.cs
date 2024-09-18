@@ -46,12 +46,12 @@ namespace PriceSafari.Services
         public async Task<List<PriceData>> ScrapePricesAsync(GoogleScrapingProduct scrapingProduct)
         {
             var scrapedData = new List<PriceData>();
-            var storeBestOffers = new Dictionary<string, PriceData>(); // Store the best offers for each store
+            var storeBestOffers = new Dictionary<string, PriceData>(); 
 
-            // Pobieranie identyfikatora produktu z URL
+          
             string productId = ExtractProductId(scrapingProduct.GoogleUrl);
 
-            // Tworzenie URL z "/offers" oraz dynamicznym parametrem ?prds=cid:<productId>,cond:1
+           
             string productOffersUrl = $"{scrapingProduct.GoogleUrl}/offers?prds=cid:{productId},cond:1";
             bool hasNextPage = true;
             int totalOffersCount = 0;
@@ -59,16 +59,16 @@ namespace PriceSafari.Services
 
             try
             {
-                while (hasNextPage)
+                while (hasNextPage && currentPage < 3)
                 {
-                    // Dodajemy parametr start do URL, aby przechodzić na kolejne strony
+                    
                     string paginatedUrl = currentPage == 0 ? productOffersUrl : $"{productOffersUrl},start:{currentPage * 20}";
 
                     Console.WriteLine($"Odwiedzanie URL: {paginatedUrl}");
                     await _page.GoToAsync(paginatedUrl, new NavigationOptions { WaitUntil = new[] { WaitUntilNavigation.Networkidle2 } });
                     await Task.Delay(50);
 
-                    // Sprawdzenie i kliknięcie przycisków rozwijających oferty
+                   
                     var moreOffersButtons = await _page.QuerySelectorAllAsync("div.cNMlI");
                     if (moreOffersButtons.Length > 0)
                     {
@@ -76,11 +76,11 @@ namespace PriceSafari.Services
                         {
                             Console.WriteLine("Znaleziono przycisk 'Jeszcze oferty'. Klikam, aby rozwinąć.");
                             await button.ClickAsync();
-                            await Task.Delay(500); // Czekamy, aż oferty się załadują
+                            await Task.Delay(10); 
                         }
                     }
 
-                    // Zbieranie ofert podstawowych
+                   
                     var offerRowsSelector = "#sh-osd__online-sellers-cont > tr";
                     var offerRows = await _page.QuerySelectorAllAsync(offerRowsSelector);
                     var offersCount = offerRows.Length;
@@ -94,7 +94,7 @@ namespace PriceSafari.Services
 
                     Console.WriteLine($"Znaleziono {offersCount} ofert. Rozpoczynam scrapowanie...");
 
-                    // Zbieranie normalnych ofert
+                    
                     for (int i = 1; i <= offersCount; i++)
                     {
                         var storeNameSelector = $"#sh-osd__online-sellers-cont > tr:nth-child({i}) > td:nth-child(1) > div.kPMwsc > a";
@@ -123,7 +123,7 @@ namespace PriceSafari.Services
                             var offerUrl = offerUrlElement != null ? await offerUrlElement.EvaluateFunctionAsync<string>("node => node.href") : "Brak URL";
                             Console.WriteLine($"URL oferty: {offerUrl}");
 
-                            // Sprawdzenie, czy oferta dla sklepu już istnieje
+                         
                             if (storeBestOffers.ContainsKey(storeName))
                             {
                                 var existingOffer = storeBestOffers[storeName];
@@ -257,7 +257,7 @@ namespace PriceSafari.Services
                         hasNextPage = false;
                     }
 
-                    await Task.Delay(100);
+                    await Task.Delay(10);
                 }
 
                 // Dodajemy wszystkie najlepsze oferty do listy scrapedData
