@@ -41,6 +41,14 @@ namespace PriceSafari.Services
             Console.WriteLine("Przeglądarka zainicjalizowana.");
         }
 
+
+
+
+
+
+
+
+
         public async Task<List<PriceData>> ScrapePricesAsync(GoogleScrapingProduct scrapingProduct)
         {
             var scrapedData = new List<PriceData>();
@@ -54,13 +62,17 @@ namespace PriceSafari.Services
             string googleBaseUrl = "https://www.google.com";
             bool hasNextPage = true;
             int totalOffersCount = 0;
+            int currentPage = 0;
 
             try
             {
                 while (hasNextPage)
                 {
-                    Console.WriteLine($"Odwiedzanie URL: {productOffersUrl}");
-                    await _page.GoToAsync(productOffersUrl, new NavigationOptions { WaitUntil = new[] { WaitUntilNavigation.Networkidle2 } });
+                    // Dodajemy parametr start do URL, aby przechodzić na kolejne strony
+                    string paginatedUrl = currentPage == 0 ? productOffersUrl : $"{productOffersUrl},start:{currentPage * 20}";
+
+                    Console.WriteLine($"Odwiedzanie URL: {paginatedUrl}");
+                    await _page.GoToAsync(paginatedUrl, new NavigationOptions { WaitUntil = new[] { WaitUntilNavigation.Networkidle2 } });
                     await Task.Delay(50);
 
                     var offerRowsSelector = "#sh-osd__online-sellers-cont > tr";
@@ -89,40 +101,39 @@ namespace PriceSafari.Services
                             var storeName = await storeNameElement.EvaluateFunctionAsync<string>("node => node.firstChild.textContent.trim()");
                             Console.WriteLine($"Znaleziono sklep: {storeName}");
 
-                            if (seenStoreNames.Contains(storeName))
+                            if (!seenStoreNames.Contains(storeName))
                             {
-                                Console.WriteLine("Znaleziono już zebrany sklep. Zakończono scrapowanie dla tego produktu.");
-                                return scrapedData;
+                                var priceElement = await _page.QuerySelectorAsync(priceSelector);
+                                var priceText = priceElement != null ? await priceElement.EvaluateFunctionAsync<string>("node => node.textContent.trim()") : "Brak ceny";
+                                Console.WriteLine($"Cena: {priceText}");
+
+                                var priceWithDeliveryElement = await _page.QuerySelectorAsync(priceWithDeliverySelector);
+                                var priceWithDeliveryText = priceWithDeliveryElement != null ? await priceWithDeliveryElement.EvaluateFunctionAsync<string>("node => node.textContent.trim()") : priceText;
+                                Console.WriteLine($"Cena z dostawą: {priceWithDeliveryText}");
+
+                                var priceDecimal = ExtractPrice(priceText);
+                                var priceWithDeliveryDecimal = ExtractPrice(priceWithDeliveryText);
+
+                                var offerUrlElement = await _page.QuerySelectorAsync(offerUrlSelector);
+                                var offerUrl = offerUrlElement != null ? await offerUrlElement.EvaluateFunctionAsync<string>("node => node.href") : "Brak URL";
+                                Console.WriteLine($"URL oferty: {offerUrl}");
+
+                                scrapedData.Add(new PriceData
+                                {
+                                    StoreName = storeName,
+                                    Price = priceDecimal,
+                                    PriceWithDelivery = priceWithDeliveryDecimal,
+                                    OfferUrl = offerUrl,
+                                    ScrapingProductId = scrapingProduct.ScrapingProductId,
+                                    RegionId = scrapingProduct.RegionId
+                                });
+
+                                seenStoreNames.Add(storeName);
                             }
-
-                            seenStoreNames.Add(storeName);
-
-                            var priceElement = await _page.QuerySelectorAsync(priceSelector);
-                            var priceText = priceElement != null ? await priceElement.EvaluateFunctionAsync<string>("node => node.textContent.trim()") : "Brak ceny";
-                            Console.WriteLine($"Cena: {priceText}");
-
-                            var priceWithDeliveryElement = await _page.QuerySelectorAsync(priceWithDeliverySelector);
-                            var priceWithDeliveryText = priceWithDeliveryElement != null ? await priceWithDeliveryElement.EvaluateFunctionAsync<string>("node => node.textContent.trim()") : priceText;
-                            Console.WriteLine($"Cena z dostawą: {priceWithDeliveryText}");
-
-                            var priceDecimal = ExtractPrice(priceText);
-                            var priceWithDeliveryDecimal = ExtractPrice(priceWithDeliveryText);
-
-                            var offerUrlElement = await _page.QuerySelectorAsync(offerUrlSelector);
-                            var offerUrl = offerUrlElement != null ? await offerUrlElement.EvaluateFunctionAsync<string>("node => node.href") : "Brak URL";
-                            Console.WriteLine($"URL oferty: {offerUrl}");
-
-                            scrapedData.Add(new PriceData
+                            else
                             {
-                                StoreName = storeName,
-                                Price = priceDecimal,
-                                PriceWithDelivery = priceWithDeliveryDecimal,
-                                OfferUrl = offerUrl,
-                                ScrapingProductId = scrapingProduct.ScrapingProductId,
-                                RegionId = scrapingProduct.RegionId
-                            });
-
-                            await Task.Delay(100);
+                                Console.WriteLine($"Sklep {storeName} już zebrany.");
+                            }
                         }
                         else
                         {
@@ -130,28 +141,20 @@ namespace PriceSafari.Services
                         }
                     }
 
+                    // Sprawdzenie, czy istnieje kolejna strona nawigacyjna
                     var paginationElement = await _page.QuerySelectorAsync("#sh-fp__pagination-button-wrapper");
                     if (paginationElement != null)
                     {
-                        Console.WriteLine("Znaleziono element paginacji.");
-                        var nextPageElement = await paginationElement.QuerySelectorAsync("a[aria-label='Next'], span.R9e18b a.internal-link");
-
+                        var nextPageElement = await paginationElement.QuerySelectorAsync("a.internal-link[data-url*='start']");
                         if (nextPageElement != null)
                         {
-                            string nextPageUrl = await nextPageElement.EvaluateFunctionAsync<string>("node => node.getAttribute('data-url') || node.href");
-
-                            if (!nextPageUrl.StartsWith("http"))
-                            {
-                                nextPageUrl = googleBaseUrl + nextPageUrl;
-                            }
-
-                            productOffersUrl = nextPageUrl;
-                            Console.WriteLine($"Przechodzę do następnej strony: {productOffersUrl}");
+                            currentPage++;
+                            Console.WriteLine($"Przechodzę do następnej strony: {currentPage}");
                             hasNextPage = true;
                         }
                         else
                         {
-                            Console.WriteLine("Brak przycisku 'Next'.");
+                            Console.WriteLine("Brak kolejnej strony.");
                             hasNextPage = false;
                         }
                     }
@@ -161,7 +164,7 @@ namespace PriceSafari.Services
                         hasNextPage = false;
                     }
 
-                    await Task.Delay(50);
+                    await Task.Delay(100);
                 }
 
                 Console.WriteLine($"Zakończono przetwarzanie {scrapedData.Count} ofert.");
@@ -176,30 +179,31 @@ namespace PriceSafari.Services
             return scrapedData;
         }
 
-        // Funkcja pomocnicza do wyciągania identyfikatora produktu z URL
+
+
         private string ExtractProductId(string url)
         {
-            // Zakładam, że URL ma format: https://www.google.com/shopping/product/<productId>/offers
+         
             var match = Regex.Match(url, @"product/(\d+)/offers");
             if (match.Success)
             {
-                return match.Groups[1].Value; // Zwracamy productId
+                return match.Groups[1].Value;
             }
-            return string.Empty; // Zwracamy pusty string, jeśli nie znaleziono
+            return string.Empty;
         }
 
 
 
-        // Funkcja pomocnicza do wyciągania liczbowej części ceny
+      
         private decimal ExtractPrice(string priceText)
         {
             try
             {
-                // Wyciąganie liczby z tekstu ceny, uwzględniającej separatory tysięcy (spacje) oraz przecinek lub kropkę jako separator dziesiętny
+            
                 var priceMatch = Regex.Match(priceText, @"[\d\s,]+");
                 if (priceMatch.Success)
                 {
-                    // Zamiana spacji (separator tysięcy) oraz przecinka na kropkę (separator dziesiętny)
+                 
                     var priceString = priceMatch.Value.Replace(" ", "").Replace(",", ".");
                     if (decimal.TryParse(priceString, NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out decimal priceDecimal))
                     {
@@ -212,13 +216,13 @@ namespace PriceSafari.Services
                 Console.WriteLine($"Błąd podczas przetwarzania ceny: {ex.Message}");
             }
 
-            return 0; // Zwracamy 0, jeśli nie udało się przetworzyć ceny
+            return 0;
         }
 
 
 
 
-        // Zamknięcie przeglądarki
+        
         public async Task CloseAsync()
         {
             await _page.CloseAsync();

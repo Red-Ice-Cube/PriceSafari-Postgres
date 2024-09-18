@@ -193,12 +193,17 @@ namespace PriceSafari.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> ClearPreparedProducts()
         {
-            _context.GoogleScrapingProducts.RemoveRange(_context.GoogleScrapingProducts);
-            await _context.SaveChangesAsync();
+            
+            await _context.Database.ExecuteSqlRawAsync("DELETE FROM GoogleScrapingProducts");
+
+      
+            await _context.Database.ExecuteSqlRawAsync("DELETE FROM PriceData");
+
+           
             return RedirectToAction("PreparedProducts");
         }
 
-        // Usuwanie powiązanych danych przy resetowaniu statusu dla pojedynczego produktu
+
         [HttpPost]
         public async Task<IActionResult> ResetScrapingStatus(int productId)
         {
@@ -207,7 +212,7 @@ namespace PriceSafari.Controllers
             {
                 product.IsScraped = null;
 
-                // Usuwanie powiązanych danych z tabeli PriceData
+            
                 var relatedPrices = _context.PriceData.Where(pd => pd.ScrapingProductId == productId);
                 _context.PriceData.RemoveRange(relatedPrices);
 
@@ -218,7 +223,7 @@ namespace PriceSafari.Controllers
             return RedirectToAction("PreparedProducts");
         }
 
-        // Usuwanie powiązanych danych przy resetowaniu statusów wszystkich produktów
+   
         [HttpPost]
         public async Task<IActionResult> ResetAllScrapingStatuses()
         {
@@ -228,7 +233,7 @@ namespace PriceSafari.Controllers
             {
                 product.IsScraped = null;
 
-                // Usuwanie powiązanych danych z tabeli PriceData
+           
                 var relatedPrices = _context.PriceData.Where(pd => pd.ScrapingProductId == product.ScrapingProductId);
                 _context.PriceData.RemoveRange(relatedPrices);
 
@@ -268,7 +273,7 @@ namespace PriceSafari.Controllers
 
             Console.WriteLine($"Znaleziono {scrapingProducts.Count} produktów do scrapowania w regionie {selectedRegion}.");
 
-            // Send the initial number of products to scrape via SignalR
+            
             if (_hubContext != null)
             {
                 await _hubContext.Clients.All.SendAsync("ReceiveProgressUpdate", 0, scrapingProducts.Count, 0, 0);
@@ -341,7 +346,7 @@ namespace PriceSafari.Controllers
                                 await scopedContext.SaveChangesAsync();
                                 Console.WriteLine($"Zaktualizowano status i liczbę ofert dla produktu {scrapingProduct.ScrapingProductId}: {scrapingProduct.OffersCount}.");
 
-                                // Aktualizacja liczby zescrapowanych produktów
+                                
                                 Interlocked.Increment(ref totalScraped);
                                 double elapsedSeconds = stopwatch.Elapsed.TotalSeconds;
                                 await _hubContext.Clients.All.SendAsync("ReceiveProgressUpdate", totalScraped, scrapingProducts.Count, elapsedSeconds, 0);
