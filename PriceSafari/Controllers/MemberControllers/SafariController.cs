@@ -118,14 +118,40 @@ namespace PriceSafari.Controllers
             {
                 ReportName = reportName,
                 RegionIds = regionIds,
-                StoreId = storeId, // Save the StoreId
-                CreatedDate = DateTime.Now
+                StoreId = storeId,
+                CreatedDate = DateTime.Now,
+                Prepared = null // Raport nie jest jeszcze przygotowany
             };
 
             _context.PriceSafariReports.Add(report);
             await _context.SaveChangesAsync();
 
             return RedirectToAction("Index", new { storeId });
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> StartReportPreparation(int reportId)
+        {
+            var report = await _context.PriceSafariReports.FindAsync(reportId);
+            if (report == null)
+            {
+                return Json(new { success = false, message = "Raport nie istnieje." });
+            }
+
+            // Sprawdź, czy istnieje inny raport w przygotowaniu dla tego sklepu
+            var existingPreparingReport = await _context.PriceSafariReports
+                .FirstOrDefaultAsync(r => r.StoreId == report.StoreId && r.Prepared == false);
+
+            if (existingPreparingReport != null)
+            {
+                return Json(new { success = false, message = "Inny raport jest w trakcie przygotowania. Nie można zlecić kolejnego." });
+            }
+
+            report.Prepared = false; // Ustaw status na "w trakcie przygotowania"
+            _context.PriceSafariReports.Update(report);
+            await _context.SaveChangesAsync();
+
+            return Json(new { success = true, message = "Raport został zlecony do przygotowania." });
         }
 
 

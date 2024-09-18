@@ -1,47 +1,60 @@
-﻿@model IEnumerable<PriceSafari.Models.ProductClass>
+﻿@model IEnumerable<dynamic>
 
-@{
-    ViewBag.Title = "Prepare Products for Scraping";
-}
+<h1>Lista raportów, powiązanych produktów i regionów</h1>
 
-<h1>Prepare Products for Scraping</h1>
-
-<form asp-action="ClearPreparedProducts" method="post" onsubmit="return confirm('Are you sure you want to clear all prepared products?');">
-    <button type="submit" class="btn btn-danger mt-3">Clear All Prepared Products</button>
-</form>
-
-<!-- Przycisk do przejścia do listy produktów przygotowanych do scrapowania -->
-<a asp-action="PreparedProducts" class="btn btn-info mt-3">View Prepared Products</a>
-
-<form asp-action="Assign" method="post">
-    <div class="form-group">
-        <label for="Region">Select Region:</label>
-        <select class="form-control" name="regionId" required>
-            @foreach (var region in ViewBag.Regions)
-            {
-                <option value="@region.RegionId">@region.Name (@region.Currency)</option>
-            }
-        </select>
-    </div>
-
-    <button type="submit" class="btn btn-primary">Assign Products to Region</button>
+<form asp-action="UnpackReports" method="post">
+    <button type="submit" class="btn btn-primary">Rozpakuj wybrane raporty</button>
     <table class="table">
         <thead>
             <tr>
-                <th>Product Name</th>
-                <th>Google URL</th>
+                <th>Nazwa raportu</th>
+                <th>Sklep</th>
+                <th>Produkty</th>
+                <th>Regiony</th>
+                <th>Wybierz raport</th>
             </tr>
         </thead>
         <tbody>
-            @foreach (var product in Model)
+            @foreach (var report in Model)
             {
                 <tr>
-                    <td>@product.ProductName</td>
-                    <td>@product.GoogleUrl</td>
+                    <td>@report.ReportName</td>
+                    <td>@report.StoreName</td>
+                    <td>
+                        <ul>
+                            @foreach (var product in report.Products)
+                            {
+                                <li>
+                                    <strong>@product.ProductName</strong>
+                                    @if (!string.IsNullOrEmpty(product.GoogleUrl))
+                                    {
+                                        <span>@product.GoogleUrl</span>
+                                    }
+                                    else
+                                    {
+                                        <span>Brak URL</span>
+                                    }
+                                    <!-- Dodanie ukrytych pól dla ID produktów -->
+                                    <input type="hidden" name="ProductIds[@report.ReportId]" value="@product.ProductId" />
+                                </li>
+                            }
+                        </ul>
+                    </td>
+                    <td>
+                        <ul>
+                            @foreach (var region in report.Regions)
+                            {
+                                <li>@region.RegionName</li>
+                                <!-- Dodanie ukrytych pól dla ID regionów -->
+                                <input type="hidden" name="RegionIds[@report.ReportId]" value="@region.RegionId" />
+                            }
+                        </ul>
+                    </td>
+                    <td>
+                        <input type="checkbox" name="selectedReportIds" value="@report.ReportId" />
+                    </td>
                 </tr>
             }
         </tbody>
     </table>
-
-
 </form>

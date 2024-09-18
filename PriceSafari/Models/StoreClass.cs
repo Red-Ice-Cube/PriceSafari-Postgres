@@ -8,9 +8,9 @@ namespace PriceSafari.Models
         public int StoreId { get; set; }
         public string StoreName { get; set; }
         public string? StoreProfile { get; set; }
-        public string? StoreApiUrl {  get; set; }
-        public string? StoreApiKey {  get; set; }
-        public string? StoreLogoUrl {  get; set; }
+        public string? StoreApiUrl { get; set; }
+        public string? StoreApiKey { get; set; }
+        public string? StoreLogoUrl { get; set; }
 
         public string? ProductMapXmlUrl { get; set; }
         public int? ProductsToScrap { get; set; }
@@ -21,5 +21,7 @@ namespace PriceSafari.Models
         public ICollection<PriceValueClass> PriceValues { get; set; } = new List<PriceValueClass>();
         public ICollection<FlagsClass> Flags { get; set; } = new List<FlagsClass>();
         public ICollection<PriceSafariUserStore> UserStores { get; set; } = new List<PriceSafariUserStore>();
+
+    
     }
 }

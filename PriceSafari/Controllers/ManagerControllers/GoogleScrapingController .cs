@@ -19,60 +19,134 @@ namespace PriceSafari.Controllers
             _scraper = new GooglePriceScraper();
         }
 
-        // Akcja przygotowania produktów do scrapowania
-        public IActionResult Prepare()
+        public async Task<IActionResult> Prepare()
         {
-            var productsToScrape = _context.Products
-                .Where(p => p.FoundOnGoogle == true && !string.IsNullOrEmpty(p.GoogleUrl))
-                .ToList();
+           
+            var reportsToPrepare = await _context.PriceSafariReports
+                .Where(r => r.Prepared == false)
+                .ToListAsync();
 
-            var regions = _context.Regions.ToList();
-            ViewBag.Regions = regions;
+          
+            var allProducts = await _context.Products.ToListAsync();
 
-            return View("~/Views/ManagerPanel/GoogleScraping/Prepare.cshtml", productsToScrape);
+          
+            var allRegions = await _context.Regions.ToListAsync();
+
+            
+            var allStores = await _context.Stores.ToListAsync();
+
+         
+            var productsById = allProducts.ToDictionary(p => p.ProductId);
+
+           
+            var regionsById = allRegions.ToDictionary(r => r.RegionId);
+
+         
+            var storesById = allStores.ToDictionary(s => s.StoreId);
+
+         
+            var reportData = new List<object>();
+
+            foreach (var report in reportsToPrepare)
+            {
+               
+                var reportProductDetails = report.ProductIds
+                    .Where(id => productsById.ContainsKey(id))
+                    .Select(id => new
+                    {
+                        ProductId = id,
+                        ProductName = productsById[id].ProductName,
+                        GoogleUrl = productsById[id].GoogleUrl
+                    })
+                    .ToList();
+
+             
+                var reportRegionDetails = report.RegionIds
+                    .Where(id => regionsById.ContainsKey(id))
+                    .Select(id => new
+                    {
+                        RegionId = id,
+                        RegionName = regionsById[id].Name
+                    })
+                    .ToList();
+
+            
+                var reportStoreDetails = storesById.ContainsKey(report.StoreId)
+                    ? storesById[report.StoreId].StoreName
+                    : "Brak sklepu";
+
+
+                reportData.Add(new
+                {
+                    ReportId = report.ReportId, // Dodanie ReportId
+                    ReportName = report.ReportName,
+                    StoreName = reportStoreDetails,
+                    ProductCount = reportProductDetails.Count,
+                    Products = reportProductDetails,
+                    Regions = reportRegionDetails
+                });
+
+            }
+
+
+            return View("~/Views/ManagerPanel/GoogleScraping/Prepare.cshtml", reportData);
         }
+
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Assign(int regionId)
+        public async Task<IActionResult> UnpackReports(List<int> selectedReportIds, Dictionary<int, List<int>> ProductIds, Dictionary<int, List<int>> RegionIds)
         {
-            if (regionId <= 0)
+            if (selectedReportIds == null || !selectedReportIds.Any())
             {
-                return BadRequest("Invalid region selected.");
+                return BadRequest("Nie wybrano żadnych raportów.");
             }
 
-            // Pobieranie produktów do scrapowania
-            var products = await _context.Products
-                .Where(p => p.FoundOnGoogle == true && !string.IsNullOrEmpty(p.GoogleUrl))
-                .ToListAsync();
-
-            foreach (var product in products)
+            // Przetwarzanie wybranych raportów
+            foreach (var reportId in selectedReportIds)
             {
-                // Sprawdzenie, czy już istnieje taki GoogleUrl dla tego samego regionu
-                var existingScrapingProduct = await _context.GoogleScrapingProducts
-                    .FirstOrDefaultAsync(gsp => gsp.GoogleUrl == product.GoogleUrl && gsp.RegionId == regionId);
-
-                if (existingScrapingProduct != null)
+                if (!ProductIds.ContainsKey(reportId) || !RegionIds.ContainsKey(reportId))
                 {
-                    // Jeśli już istnieje, dodajemy nowy ProductId do listy, jeśli jeszcze go nie ma
-                    if (!existingScrapingProduct.ProductIds.Contains(product.ProductId))
-                    {
-                        existingScrapingProduct.ProductIds.Add(product.ProductId);
-                        _context.GoogleScrapingProducts.Update(existingScrapingProduct);
-                    }
+                    continue; // Pomiń raport, jeśli brakuje ID produktów lub regionów
                 }
-                else
-                {
-                    // Jeśli nie istnieje, tworzymy nowy wpis
-                    var newScrapingProduct = new GoogleScrapingProduct
-                    {
-                        GoogleUrl = product.GoogleUrl,
-                        RegionId = regionId,
-                        ProductIds = new List<int> { product.ProductId },
-                        IsScraped = false
-                    };
 
-                    _context.GoogleScrapingProducts.Add(newScrapingProduct);
+                var productIdsForReport = ProductIds[reportId];
+                var regionIdsForReport = RegionIds[reportId];
+
+                foreach (var productId in productIdsForReport)
+                {
+                    var product = await _context.Products.FindAsync(productId);
+                    if (product == null) continue;
+
+                    foreach (var regionId in regionIdsForReport)
+                    {
+                        // Sprawdzenie, czy już istnieje taki GoogleUrl dla tego samego regionu
+                        var existingScrapingProduct = await _context.GoogleScrapingProducts
+                            .FirstOrDefaultAsync(gsp => gsp.GoogleUrl == product.GoogleUrl && gsp.RegionId == regionId);
+
+                        if (existingScrapingProduct != null)
+                        {
+                            // Jeśli już istnieje, dodajemy nowy ProductId do listy, jeśli jeszcze go nie ma
+                            if (!existingScrapingProduct.ProductIds.Contains(productId))
+                            {
+                                existingScrapingProduct.ProductIds.Add(productId);
+                                _context.GoogleScrapingProducts.Update(existingScrapingProduct);
+                            }
+                        }
+                        else
+                        {
+                            // Jeśli nie istnieje, tworzymy nowy wpis
+                            var newScrapingProduct = new GoogleScrapingProduct
+                            {
+                                GoogleUrl = product.GoogleUrl,
+                                RegionId = regionId,
+                                ProductIds = new List<int> { productId },
+                                IsScraped = false
+                            };
+
+                            _context.GoogleScrapingProducts.Add(newScrapingProduct);
+                        }
+                    }
                 }
             }
 

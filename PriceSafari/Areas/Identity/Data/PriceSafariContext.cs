@@ -101,6 +101,7 @@ namespace PriceSafari.Data
                  .WithMany()
                  .HasForeignKey(cp => cp.CreatedByUserId)
                  .OnDelete(DeleteBehavior.Restrict);
+
         }
 
     }
