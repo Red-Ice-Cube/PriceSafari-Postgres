@@ -1,8 +1,11 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using PriceSafari.Data;
+using PriceSafari.Hubs;
 using PriceSafari.Models;
 using PriceSafari.Services;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -12,11 +15,13 @@ namespace PriceSafari.Controllers
     {
         private readonly PriceSafariContext _context;
         private readonly GooglePriceScraper _scraper;
+        private readonly IHubContext<ScrapingHub> _hubContext;
 
-        public GoogleScrapingController(PriceSafariContext context)
+        public GoogleScrapingController(PriceSafariContext context, IHubContext<ScrapingHub> hubContext)
         {
             _context = context;
             _scraper = new GooglePriceScraper();
+            _hubContext = hubContext;
         }
 
         public async Task<IActionResult> Prepare()
@@ -141,7 +146,7 @@ namespace PriceSafari.Controllers
                                 GoogleUrl = product.GoogleUrl,
                                 RegionId = regionId,
                                 ProductIds = new List<int> { productId },
-                                IsScraped = false
+                                IsScraped = null
                             };
 
                             _context.GoogleScrapingProducts.Add(newScrapingProduct);
@@ -236,15 +241,15 @@ namespace PriceSafari.Controllers
         }
 
 
-        // SCRAPER
         [HttpPost]
         public async Task<IActionResult> StartScraping(Settings settings, int? selectedRegion)
         {
-            
-            await _scraper.InitializeAsync(settings);
-            Console.WriteLine("Przeglądarka zainicjalizowana.");
+            if (settings == null)
+            {
+                Console.WriteLine("Settings object is null.");
+                return BadRequest("Settings cannot be null.");
+            }
 
-            
             var scrapingProductsQuery = _context.GoogleScrapingProducts
                 .Where(gsp => gsp.IsScraped == null);
 
@@ -255,43 +260,113 @@ namespace PriceSafari.Controllers
 
             var scrapingProducts = await scrapingProductsQuery.ToListAsync();
 
-            Console.WriteLine($"Znaleziono {scrapingProducts.Count} produktów do scrapowania w regionie {selectedRegion}.");
-
-            foreach (var scrapingProduct in scrapingProducts)
+            if (!scrapingProducts.Any())
             {
-                try
-                {
-                   
-                    Console.WriteLine($"Rozpoczęcie scrapowania dla URL: {scrapingProduct.GoogleUrl}");
-                    var scrapedPrices = await _scraper.ScrapePricesAsync(scrapingProduct);
-
-                 
-                    _context.PriceData.AddRange(scrapedPrices);
-                    await _context.SaveChangesAsync();
-                    Console.WriteLine($"Zapisano {scrapedPrices.Count} ofert do bazy.");
-
-                    
-                    scrapingProduct.IsScraped = true;
-                    scrapingProduct.OffersCount = scrapedPrices.Count;
-                }
-                catch (Exception ex)
-                {
-                    
-                    scrapingProduct.IsScraped = false;
-                    scrapingProduct.OffersCount = 0;
-                    Console.WriteLine($"Błąd podczas scrapowania produktu {scrapingProduct.ScrapingProductId}: {ex.Message}");
-                }
-
-                _context.GoogleScrapingProducts.Update(scrapingProduct);
-                await _context.SaveChangesAsync();
-                Console.WriteLine($"Zaktualizowano status i liczbę ofert dla produktu {scrapingProduct.ScrapingProductId}: {scrapingProduct.OffersCount}.");
+                Console.WriteLine("No products found to scrape.");
+                return NotFound("No products found to scrape.");
             }
 
-            await _scraper.CloseAsync();
-            Console.WriteLine("Przeglądarka zamknięta.");
+            Console.WriteLine($"Znaleziono {scrapingProducts.Count} produktów do scrapowania w regionie {selectedRegion}.");
+
+            // Send the initial number of products to scrape via SignalR
+            if (_hubContext != null)
+            {
+                await _hubContext.Clients.All.SendAsync("ReceiveProgressUpdate", 0, scrapingProducts.Count, 0, 0);
+            }
+            else
+            {
+                Console.WriteLine("Hub context is null.");
+            }
+
+            int maxConcurrentScrapers = settings.Semophore;
+            var semaphore = new SemaphoreSlim(maxConcurrentScrapers);
+            var tasks = new List<Task>();
+
+            var productQueue = new Queue<GoogleScrapingProduct>(scrapingProducts);
+            var serviceScopeFactory = HttpContext.RequestServices.GetRequiredService<IServiceScopeFactory>();
+
+            int totalScraped = 0;
+            var stopwatch = new Stopwatch();
+            stopwatch.Start();
+
+            for (int i = 0; i < maxConcurrentScrapers; i++)
+            {
+                tasks.Add(Task.Run(async () =>
+                {
+                    await semaphore.WaitAsync();
+
+                    var scraper = new GooglePriceScraper();
+                    if (scraper == null)
+                    {
+                        Console.WriteLine("Scraper object is null.");
+                        return;
+                    }
+
+                    await scraper.InitializeAsync(settings);
+
+                    while (true)
+                    {
+                        GoogleScrapingProduct scrapingProduct = null;
+
+                        lock (productQueue)
+                        {
+                            if (productQueue.Count > 0)
+                            {
+                                scrapingProduct = productQueue.Dequeue();
+                            }
+                        }
+
+                        if (scrapingProduct == null)
+                        {
+                            break;
+                        }
+
+                        try
+                        {
+                            using (var scope = serviceScopeFactory.CreateScope())
+                            {
+                                var scopedContext = scope.ServiceProvider.GetRequiredService<PriceSafariContext>();
+
+                                Console.WriteLine($"Rozpoczęcie scrapowania dla URL: {scrapingProduct.GoogleUrl}");
+                                var scrapedPrices = await scraper.ScrapePricesAsync(scrapingProduct);
+
+                                scopedContext.PriceData.AddRange(scrapedPrices);
+                                await scopedContext.SaveChangesAsync();
+                                Console.WriteLine($"Zapisano {scrapedPrices.Count} ofert do bazy.");
+
+                                scrapingProduct.IsScraped = true;
+                                scrapingProduct.OffersCount = scrapedPrices.Count;
+
+                                scopedContext.GoogleScrapingProducts.Update(scrapingProduct);
+                                await scopedContext.SaveChangesAsync();
+                                Console.WriteLine($"Zaktualizowano status i liczbę ofert dla produktu {scrapingProduct.ScrapingProductId}: {scrapingProduct.OffersCount}.");
+
+                                // Aktualizacja liczby zescrapowanych produktów
+                                Interlocked.Increment(ref totalScraped);
+                                double elapsedSeconds = stopwatch.Elapsed.TotalSeconds;
+                                await _hubContext.Clients.All.SendAsync("ReceiveProgressUpdate", totalScraped, scrapingProducts.Count, elapsedSeconds, 0);
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine($"Błąd podczas scrapowania produktu {scrapingProduct.ScrapingProductId}: {ex.Message}");
+                        }
+                    }
+
+                    await scraper.CloseAsync();
+                    semaphore.Release();
+                }));
+            }
+
+            await Task.WhenAll(tasks);
+            stopwatch.Stop();
+            Console.WriteLine("Wszystkie taski zakończone.");
 
             return RedirectToAction("PreparedProducts");
         }
+
+
+
 
 
 

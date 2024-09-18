@@ -134,7 +134,11 @@
                 </div>
 
                 <div class="@(controllerName == "Prepare" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Prepare", "GoogleScraping")'">
-                    <img src="~/images/Affiliate-bone.svg" alt="Panel Icon" class="menu-icon" />GoogleScraping
+                    <img src="~/images/Affiliate-bone.svg" alt="Panel Icon" class="menu-icon" />Raporty kolejka
+                </div>
+
+                <div class="@(controllerName == "PreparedProducts" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("PreparedProducts", "GoogleScraping")'">
+                    <img src="~/images/Link-bone.svg" alt="Panel Icon" class="menu-icon" />Google Scraper
                 </div>
             }
 

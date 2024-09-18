@@ -22,6 +22,17 @@
     <button type="submit" class="btn btn-danger">Resetuj Wszystkie Statusy</button>
 </form>
 
+<!-- Progres bar dla statusu scrapowania -->
+<div class="d-flex mb-3">
+    <p class="me-4">Liczba produktów do scrapowania: <span id="totalCount" class="badge bg-secondary">0</span></p>
+    <p>Liczba zescrapowanych produktów: <span id="scrapedCount" class="badge bg-success">0</span></p>
+</div>
+
+<div class="progress mb-3">
+    <div id="scrapingProgressBar" class="progress-bar" role="progressbar" style="width: 0%" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
+</div>
+
+<!-- Tabela produktów -->
 <table class="table">
     <thead>
         <tr>
@@ -33,10 +44,10 @@
             <th>Akcja</th>
         </tr>
     </thead>
-    <tbody>
+    <tbody id="productTable">
         @foreach (var product in Model)
         {
-            <tr>
+            <tr id="productRow-@product.ScrapingProductId">
                 <td>@product.ScrapingProductId</td>
                 <td>@product.GoogleUrl</td>
                 <td>@product.RegionId</td>
@@ -65,3 +76,45 @@
         }
     </tbody>
 </table>
+@section Scripts {
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/5.0.11/signalr.min.js"></script> <!-- Użycie oficjalnej wersji SignalR -->
+    <script>
+        $(document).ready(function () {
+          
+
+            
+            const connection = new signalR.HubConnectionBuilder().withUrl("/scrapingHub").build();
+
+           
+            connection.on("ReceiveProgressUpdate", function (totalScraped, totalProducts, elapsedSeconds, rejectedCount) {
+              
+
+                $('#scrapedCount').text(totalScraped);
+                $('#totalCount').text(totalProducts);
+
+            
+                const progressPercentage = Math.round((totalScraped / totalProducts) * 100);
+                $('#scrapingProgressBar').css('width', progressPercentage + '%').attr('aria-valuenow', progressPercentage).text(progressPercentage + '%');
+
+                // Opcjonalnie, możesz także zaktualizować tabelę na podstawie nowych danych
+                updateTableRow(totalScraped);
+            });
+
+            connection.start().then(function () {
+                console.log("SignalR connection established.");
+            }).catch(function (err) {
+                return console.error(err.toString());
+            });
+
+            // Funkcja do aktualizacji wiersza w tabeli
+            function updateTableRow(productId) {
+                const row = $('#productRow-' + productId);
+                if (row.length) {
+                    row.find('td:eq(3)').html('<span style="color:green;">Zescrapowano</span>'); // Aktualizacja statusu scrapowania
+                }
+            }
+        });
+    </script>
+}
+
