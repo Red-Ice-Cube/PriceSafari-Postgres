@@ -13,5 +13,6 @@ namespace PriceSafari.Models
         public int RegionId { get; set; }
         public bool? IsScraped { get; set; }
         public int OffersCount { get; set; }
+   
     }
 }
