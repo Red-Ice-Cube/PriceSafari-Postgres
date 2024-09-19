@@ -52,6 +52,35 @@ namespace PriceSafari.Controllers
             return View("~/Views/Panel/Safari/Chanel.cshtml", storeDetails);
         }
 
+
+        [HttpGet]
+        public async Task<IActionResult> StoreReports(int storeId)
+        {
+            if (storeId == 0)
+            {
+                return NotFound("Store ID not provided.");
+            }
+
+            var store = await _context.Stores.FindAsync(storeId);
+            if (store == null)
+            {
+                return NotFound("Store not found.");
+            }
+
+            // Pobieranie raportów powiązanych z danym sklepem, które mają Prepared na true lub false
+            var reports = await _context.PriceSafariReports
+                .Where(r => r.StoreId == storeId && r.Prepared != null) // Wykluczamy null
+                .ToListAsync();
+
+            ViewBag.StoreName = store.StoreName;
+            ViewBag.StoreId = storeId;
+
+            return View("~/Views/Panel/Safari/PriceSafariReport.cshtml", reports);
+        }
+
+
+
+
         [HttpGet]
         public async Task<IActionResult> Index(int storeId)
         {

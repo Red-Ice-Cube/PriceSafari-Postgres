@@ -1,0 +1,46 @@
+﻿@model List<PriceSafari.Models.PriceSafariReport>
+
+<h2>Raporty sklepu: @ViewBag.StoreName</h2>
+
+
+<a href="@Url.Action("Index", "Safari", new { storeId = ViewBag.StoreId })" class="btn btn-primary" style="margin-bottom: 20px;">Dodaj raport</a>
+
+@if (Model.Any())
+{
+    <table>
+        <thead>
+            <tr>
+                <th>Nazwa raportu</th>
+                <th>Data utworzenia</th>
+                <th>Status</th>
+                <th>Akcje</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var report in Model)
+            {
+                <tr>
+                    <td>@report.ReportName</td>
+                    <td>@report.CreatedDate.ToString("yyyy-MM-dd HH:mm")</td>
+                    <td>
+                        @if (report.Prepared == true)
+                        {
+                            <span style="color: green;">Przygotowany</span>
+                        }
+                        else if (report.Prepared == false)
+                        {
+                            <span style="color: red;">Nieprzygotowany</span>
+                        }
+                    </td>
+                    <td>
+                        <a href="@Url.Action("ViewReport", "Safari", new { reportId = report.ReportId })">Zobacz szczegóły raportu</a>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+else
+{
+    <p>Brak raportów do wyświetlenia.</p>
+}
