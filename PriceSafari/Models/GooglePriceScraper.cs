@@ -76,7 +76,7 @@ namespace PriceSafari.Services
                         {
                             Console.WriteLine("Znaleziono przycisk 'Jeszcze oferty'. Klikam, aby rozwinąć.");
                             await button.ClickAsync();
-                            await Task.Delay(10); 
+                            await Task.Delay(320); 
                         }
                     }
 
