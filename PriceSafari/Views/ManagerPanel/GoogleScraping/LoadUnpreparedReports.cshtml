@@ -1,0 +1,40 @@
+﻿@model List<PriceSafari.Models.PriceSafariReport>
+
+<h2>Raporty do przygotowania</h2>
+
+@if (Model.Any())
+{
+    <table>
+        <thead>
+            <tr>
+                <th>Nazwa raportu</th>
+                <th>Data utworzenia</th>
+                <th>Akcje</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var report in Model)
+            {
+                <tr>
+                    <td>@report.ReportName</td>
+                    <td>@report.CreatedDate.ToString("yyyy-MM-dd HH:mm")</td>
+                    <td>
+                        <a href="@Url.Action("ViewReportProducts", "GoogleScraping", new { reportId = report.ReportId })">Przygotuj raport</a> |
+                        <form asp-action="SaveReportProducts" method="post" style="display:inline;">
+                            <input type="hidden" name="reportId" value="@report.ReportId" />
+                            <button type="submit">Zapisz raport do GlobalPriceReport</button>
+                        </form>
+                    </td>
+                    <td>
+                        <a href="@Url.Action("ViewGlobalPriceReport", "GoogleScraping")">Zobacz raport cenowy</a>
+                    </td>
+
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+else
+{
+    <p>Brak raportów do wyświetlenia.</p>
+}

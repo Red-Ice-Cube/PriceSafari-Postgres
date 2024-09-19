@@ -1,0 +1,40 @@
+﻿@model List<PriceSafari.Models.ManagerViewModels.GroupedGlobalPriceReportViewModel>
+
+<h2>Raport globalnych cen produktów</h2>
+
+@if (Model.Any())
+{
+    <table>
+        <thead>
+            <tr>
+                <th>Nazwa produktu</th>
+                <th>Google URL</th>
+                <th>Ceny</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var productGroup in Model)
+            {
+                <tr>
+                    <td>@productGroup.ProductName</td>
+                    <td><a href="@productGroup.GoogleUrl" target="_blank">@productGroup.GoogleUrl</a></td>
+                    <td>
+                        <ul>
+                            @foreach (var price in productGroup.Prices)
+                            {
+                                <li>
+                                    Region: @price.RegionId, Cena: @price.Price zł, Cena z dostawą: @price.PriceWithDelivery zł, Sklep: @price.StoreName,
+                                    <a href="@price.OfferUrl" target="_blank">Zobacz ofertę</a>
+                                </li>
+                            }
+                        </ul>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+else
+{
+    <p>Brak raportów do wyświetlenia.</p>
+}

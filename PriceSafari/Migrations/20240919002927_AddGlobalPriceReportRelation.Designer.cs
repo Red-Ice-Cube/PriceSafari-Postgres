@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using PriceSafari.Data;
 
@@ -11,9 +12,11 @@ using PriceSafari.Data;
 namespace PriceSafari.Migrations
 {
     [DbContext(typeof(PriceSafariContext))]
-    partial class PriceTrackerContextModelSnapshot : ModelSnapshot
+    [Migration("20240919002927_AddGlobalPriceReportRelation")]
+    partial class AddGlobalPriceReportRelation
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -466,8 +469,6 @@ namespace PriceSafari.Migrations
 
                     b.HasIndex("ScrapeRunId");
 
-                    b.HasIndex("ScrapingProductId");
-
                     b.ToTable("PriceData");
                 });
 
@@ -616,9 +617,6 @@ namespace PriceSafari.Migrations
                     b.Property<bool?>("FoundOnGoogle")
                         .HasColumnType("bit");
 
-                    b.Property<int?>("GoogleScrapingProductScrapingProductId")
-                        .HasColumnType("int");
-
                     b.Property<string>("GoogleUrl")
                         .HasColumnType("nvarchar(max)");
 
@@ -652,8 +650,6 @@ namespace PriceSafari.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.HasKey("ProductId");
-
-                    b.HasIndex("GoogleScrapingProductScrapingProductId");
 
                     b.HasIndex("StoreId");
 
@@ -1058,14 +1054,6 @@ namespace PriceSafari.Migrations
                     b.HasOne("PriceSafari.Models.ScrapeRun", null)
                         .WithMany("PriceData")
                         .HasForeignKey("ScrapeRunId");
-
-                    b.HasOne("PriceSafari.Models.GoogleScrapingProduct", "ScrapingProduct")
-                        .WithMany("PriceData")
-                        .HasForeignKey("ScrapingProductId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("ScrapingProduct");
                 });
 
             modelBuilder.Entity("PriceSafari.Models.PriceHistoryClass", b =>
@@ -1119,10 +1107,6 @@ namespace PriceSafari.Migrations
 
             modelBuilder.Entity("PriceSafari.Models.ProductClass", b =>
                 {
-                    b.HasOne("PriceSafari.Models.GoogleScrapingProduct", null)
-                        .WithMany("Products")
-                        .HasForeignKey("GoogleScrapingProductScrapingProductId");
-
                     b.HasOne("PriceSafari.Models.StoreClass", "Store")
                         .WithMany("Products")
                         .HasForeignKey("StoreId")
@@ -1165,13 +1149,6 @@ namespace PriceSafari.Migrations
             modelBuilder.Entity("PriceSafari.Models.FlagsClass", b =>
                 {
                     b.Navigation("ProductFlags");
-                });
-
-            modelBuilder.Entity("PriceSafari.Models.GoogleScrapingProduct", b =>
-                {
-                    b.Navigation("PriceData");
-
-                    b.Navigation("Products");
                 });
 
             modelBuilder.Entity("PriceSafari.Models.ProductClass", b =>

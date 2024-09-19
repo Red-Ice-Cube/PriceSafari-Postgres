@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using PriceSafari.Data;
 
@@ -11,9 +12,11 @@ using PriceSafari.Data;
 namespace PriceSafari.Migrations
 {
     [DbContext(typeof(PriceSafariContext))]
-    partial class PriceTrackerContextModelSnapshot : ModelSnapshot
+    [Migration("20240918232321_addraportpricesaf")]
+    partial class addraportpricesaf
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -53,44 +56,6 @@ namespace PriceSafari.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("CoOfrs");
-                });
-
-            modelBuilder.Entity("GlobalPriceReport", b =>
-                {
-                    b.Property<int>("ReportId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("ReportId"));
-
-                    b.Property<string>("OfferUrl")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<decimal>("Price")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<decimal>("PriceWithDelivery")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<int>("ProductId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("RegionId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("ScrapingProductId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("StoreName")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.HasKey("ReportId");
-
-                    b.HasIndex("ProductId");
-
-                    b.ToTable("GlobalPriceReports");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole", b =>
@@ -396,6 +361,45 @@ namespace PriceSafari.Migrations
                     b.ToTable("Flags");
                 });
 
+            modelBuilder.Entity("PriceSafari.Models.GlobalPriceReport", b =>
+                {
+                    b.Property<int>("ReportId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("ReportId"));
+
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("OfferUrl")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<decimal>("Price")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("PriceWithDelivery")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("ProductId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("RegionId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ScrapingProductId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("StoreName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("ReportId");
+
+                    b.ToTable("GlobalPriceReports");
+                });
+
             modelBuilder.Entity("PriceSafari.Models.GoogleScrapingProduct", b =>
                 {
                     b.Property<int>("ScrapingProductId")
@@ -465,8 +469,6 @@ namespace PriceSafari.Migrations
                     b.HasIndex("RegionId");
 
                     b.HasIndex("ScrapeRunId");
-
-                    b.HasIndex("ScrapingProductId");
 
                     b.ToTable("PriceData");
                 });
@@ -616,9 +618,6 @@ namespace PriceSafari.Migrations
                     b.Property<bool?>("FoundOnGoogle")
                         .HasColumnType("bit");
 
-                    b.Property<int?>("GoogleScrapingProductScrapingProductId")
-                        .HasColumnType("int");
-
                     b.Property<string>("GoogleUrl")
                         .HasColumnType("nvarchar(max)");
 
@@ -652,8 +651,6 @@ namespace PriceSafari.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.HasKey("ProductId");
-
-                    b.HasIndex("GoogleScrapingProductScrapingProductId");
 
                     b.HasIndex("StoreId");
 
@@ -934,17 +931,6 @@ namespace PriceSafari.Migrations
                     b.ToTable("AspNetUsers", (string)null);
                 });
 
-            modelBuilder.Entity("GlobalPriceReport", b =>
-                {
-                    b.HasOne("PriceSafari.Models.ProductClass", "Product")
-                        .WithMany()
-                        .HasForeignKey("ProductId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Product");
-                });
-
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
                 {
                     b.HasOne("Microsoft.AspNetCore.Identity.IdentityRole", null)
@@ -1058,14 +1044,6 @@ namespace PriceSafari.Migrations
                     b.HasOne("PriceSafari.Models.ScrapeRun", null)
                         .WithMany("PriceData")
                         .HasForeignKey("ScrapeRunId");
-
-                    b.HasOne("PriceSafari.Models.GoogleScrapingProduct", "ScrapingProduct")
-                        .WithMany("PriceData")
-                        .HasForeignKey("ScrapingProductId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("ScrapingProduct");
                 });
 
             modelBuilder.Entity("PriceSafari.Models.PriceHistoryClass", b =>
@@ -1119,10 +1097,6 @@ namespace PriceSafari.Migrations
 
             modelBuilder.Entity("PriceSafari.Models.ProductClass", b =>
                 {
-                    b.HasOne("PriceSafari.Models.GoogleScrapingProduct", null)
-                        .WithMany("Products")
-                        .HasForeignKey("GoogleScrapingProductScrapingProductId");
-
                     b.HasOne("PriceSafari.Models.StoreClass", "Store")
                         .WithMany("Products")
                         .HasForeignKey("StoreId")
@@ -1165,13 +1139,6 @@ namespace PriceSafari.Migrations
             modelBuilder.Entity("PriceSafari.Models.FlagsClass", b =>
                 {
                     b.Navigation("ProductFlags");
-                });
-
-            modelBuilder.Entity("PriceSafari.Models.GoogleScrapingProduct", b =>
-                {
-                    b.Navigation("PriceData");
-
-                    b.Navigation("Products");
                 });
 
             modelBuilder.Entity("PriceSafari.Models.ProductClass", b =>

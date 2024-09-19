@@ -32,6 +32,7 @@ namespace PriceSafari.Data
 
         public DbSet<GoogleScrapingProduct> GoogleScrapingProducts { get; set; }
         public DbSet<PriceSafariReport> PriceSafariReports { get; set; }
+        public DbSet<GlobalPriceReport> GlobalPriceReports { get; set; }
 
 
 
@@ -102,6 +103,7 @@ namespace PriceSafari.Data
                  .HasForeignKey(cp => cp.CreatedByUserId)
                  .OnDelete(DeleteBehavior.Restrict);
 
+         
         }
 
     }

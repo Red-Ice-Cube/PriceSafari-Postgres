@@ -1,0 +1,49 @@
+﻿@model List<PriceSafari.Models.ManagerViewModels.GroupedProductViewModel>
+
+<h2>Produkty z różnych regionów</h2>
+
+@if (Model.Any())
+{
+    <table>
+        <thead>
+            <tr>
+                <th>Google URL</th>
+                <th>Raport ID</th> <!-- Nowa kolumna dla RaportId -->
+                <th>Produkty</th>
+                <th>Ceny z różnych regionów</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var productGroup in Model)
+            {
+                <tr>
+                    <td><a href="@productGroup.GoogleUrl" target="_blank">@productGroup.GoogleUrl</a></td>
+                    <td>@productGroup.RaportId</td> <!-- Wyświetlanie RaportId -->
+                    <td>
+                        <ul>
+                            @foreach (var productName in productGroup.ProductNames)
+                            {
+                                <li>@productName</li>
+                            }
+                        </ul>
+                    </td>
+                    <td>
+                        <ul>
+                            @foreach (var price in productGroup.RegionPrices)
+                            {
+                                <li>
+                                    Region: @price.RegionId, Cena: @price.Price zł, Cena z dostawą: @price.PriceWithDelivery zł, Sklep: @price.StoreName,
+                                    <a href="@price.OfferUrl" target="_blank">Zobacz ofertę</a>
+                                </li>
+                            }
+                        </ul>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+else
+{
+    <p>Brak produktów.</p>
+}

@@ -140,6 +140,10 @@
                 <div class="@(controllerName == "PreparedProducts" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("PreparedProducts", "GoogleScraping")'">
                     <img src="~/images/Link-bone.svg" alt="Panel Icon" class="menu-icon" />Google Scraper
                 </div>
+
+                <div class="@(controllerName == "LoadUnpreparedReports" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("LoadUnpreparedReports", "GoogleScraping")'">
+                    <img src="~/images/Link-bone.svg" alt="Panel Icon" class="menu-icon" />Generuj raporty
+                </div>
             }
 
             @if (isManager){
