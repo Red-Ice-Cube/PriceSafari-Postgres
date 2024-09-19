@@ -584,6 +584,7 @@ namespace PriceSafari.Controllers
                                 StoreName = price.StoreName,
                                 OfferUrl = price.OfferUrl,
                                 RegionId = scrapingProduct.RegionId,
+                                PriceSafariReportId = reportId
                             };
 
                             globalPriceReports.Add(newReport);

@@ -78,6 +78,51 @@ namespace PriceSafari.Controllers
             return View("~/Views/Panel/Safari/PriceSafariReport.cshtml", reports);
         }
 
+        [HttpGet]
+        public async Task<IActionResult> SafariReportAnalysis(int reportId)
+        {
+            if (reportId == 0)
+            {
+                return NotFound("Nieprawidłowy identyfikator raportu.");
+            }
+
+            
+            var report = await _context.PriceSafariReports
+                .FirstOrDefaultAsync(r => r.ReportId == reportId);
+
+            if (report == null)
+            {
+                return NotFound("Raport nie został znaleziony.");
+            }
+
+            
+            var globalPriceReports = await _context.GlobalPriceReports
+                .Where(gpr => gpr.PriceSafariReportId == reportId) 
+                .Include(gpr => gpr.Product) 
+                .OrderBy(gpr => gpr.CalculatedPrice) 
+                .ToListAsync();
+
+         
+            var viewModel = new SafariReportAnalysisViewModel
+            {
+                ReportName = report.ReportName,
+                CreatedDate = report.CreatedDate,
+                ProductPrices = globalPriceReports.Select(gpr => new ProductPriceViewModel
+                {
+                    ProductName = gpr.Product?.ProductName,
+                    GoogleUrl = gpr.Product?.GoogleUrl,
+                    Price = gpr.Price,
+                    PriceWithDelivery = gpr.PriceWithDelivery,
+                    CalculatedPrice = gpr.CalculatedPrice,
+                    CalculatedPriceWithDelivery = gpr.CalculatedPriceWithDelivery,
+                    StoreName = gpr.StoreName,
+                    OfferUrl = gpr.OfferUrl,
+                    RegionId = gpr.RegionId
+                }).ToList()
+            };
+
+            return View("~/Views/Panel/Safari/SafariReportAnalysis.cshtml", viewModel);
+        }
 
 
 

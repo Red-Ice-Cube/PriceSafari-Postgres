@@ -1,0 +1,56 @@
+﻿@model PriceSafari.Models.ViewModels.SafariReportAnalysisViewModel
+
+@{
+    Layout = "~/Views/Shared/_PanelLayout.cshtml";
+}
+
+
+
+
+<div class="Vert">
+    <div class="Vert-full">
+        <div class="Order-Container-Title">
+            Raport cenowy @Model.ReportName
+        </div>
+        <p>Data utworzenia: @Model.CreatedDate.ToString("yyyy-MM-dd HH:mm")</p>
+
+
+        @if (Model.ProductPrices.Any())
+        {
+            <table class="table-orders">
+                <thead>
+                    <tr>
+                        <th>Nazwa produktu</th>
+                        <th>Cena</th>
+                        <th>Cena z dostawą</th>
+                        <th>Przeliczona cena</th>
+                        <th>Przeliczona cena z dostawą</th>
+                        <th>Sklep</th>
+                        <th>URL Oferty</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var product in Model.ProductPrices)
+                    {
+                        <tr>
+                            <td>@product.ProductName</td>
+                            <td>@product.Price</td>
+                            <td>@product.PriceWithDelivery</td>
+                            <td>@product.CalculatedPrice</td>
+                            <td>@product.CalculatedPriceWithDelivery</td>
+                            <td>@product.StoreName</td>
+                            <td><a href="@product.OfferUrl" target="_blank">Zobacz ofertę</a></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+        else
+        {
+            <p>Brak danych do wyświetlenia dla tego raportu.</p>
+        }
+    </div>
+</div>
+
+
+

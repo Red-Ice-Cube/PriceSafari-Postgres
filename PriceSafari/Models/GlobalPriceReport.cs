@@ -1,6 +1,6 @@
 ﻿using PriceSafari.Models;
-using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.ComponentModel.DataAnnotations;
 
 public class GlobalPriceReport
 {
@@ -11,7 +11,7 @@ public class GlobalPriceReport
 
     public int ProductId { get; set; }
     [ForeignKey("ProductId")]
-    public ProductClass Product { get; set; }  // Dodanie relacji do ProductClass
+    public ProductClass Product { get; set; }
 
     public decimal Price { get; set; }
     public decimal CalculatedPrice { get; set; }
@@ -22,8 +22,11 @@ public class GlobalPriceReport
 
     // Klucz obcy do Region
     public int RegionId { get; set; }
-
-    // Nawigacja do Region
     [ForeignKey("RegionId")]
     public Region Region { get; set; }
+
+    // Nowy klucz obcy do raportu
+    public int PriceSafariReportId { get; set; }
+    [ForeignKey("PriceSafariReportId")]
+    public PriceSafariReport PriceSafariReport { get; set; }
 }
