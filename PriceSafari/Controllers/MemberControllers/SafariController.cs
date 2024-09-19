@@ -116,6 +116,7 @@ namespace PriceSafari.Controllers
 
                     return new ProductPriceViewModel
                     {
+                        ProductId = lowestPrice.ProductId,
                         ProductName = lowestPrice?.Product?.ProductName,
                         GoogleUrl = lowestPrice?.Product?.GoogleUrl,
                         Price = lowestPrice?.Price ?? 0,
@@ -139,9 +140,75 @@ namespace PriceSafari.Controllers
                 ProductPrices = productPrices
             };
 
+            // Przekazujemy reportId przez ViewBag
+            ViewBag.ReportId = reportId;
+
             // Przekazujemy dane do widoku
             return View("~/Views/Panel/Safari/SafariReportAnalysis.cshtml", viewModel);
         }
+
+        [HttpGet]
+        public async Task<IActionResult> ProductPriceDetails(int reportId, int productId)
+        {
+            if (reportId == 0 || productId == 0)
+            {
+                return NotFound("Nieprawidłowe identyfikatory raportu lub produktu.");
+            }
+
+            // Pobieramy dane z GlobalPriceReports, łącznie z PriceSafariReport i Store
+            var productPrices = await _context.GlobalPriceReports
+                .Where(gpr => gpr.PriceSafariReportId == reportId && gpr.ProductId == productId)
+                .Include(gpr => gpr.PriceSafariReport)  // Właściwość nawigacyjna do raportu
+                .ThenInclude(psr => psr.Store)          // Sklep powiązany z raportem
+                .Include(gpr => gpr.Region)             // Region powiązany z ofertą
+                .OrderBy(gpr => gpr.CalculatedPrice)    // Sortowanie po cenie
+                .ToListAsync();
+
+            if (!productPrices.Any())
+            {
+                return NotFound("Brak danych dla wybranego produktu.");
+            }
+
+            // Tworzymy model widoku
+            var viewModel = new ProductPriceDetailsViewModel
+            {
+                ProductName = productPrices.FirstOrDefault()?.Product?.ProductName ?? "Brak nazwy produktu",
+                ReportId = reportId,
+                Prices = productPrices.Select(gpr =>
+                {
+                    // Sprawdzamy, czy PriceSafariReport jest null
+                    if (gpr.PriceSafariReport == null)
+                    {
+                        Console.WriteLine($"Brak PriceSafariReport dla GlobalPriceReportId: {gpr.ReportId}");
+                    }
+
+                    // Sprawdzamy, czy Store jest null
+                    if (gpr.PriceSafariReport?.Store == null)
+                    {
+                        Console.WriteLine($"Brak Store dla PriceSafariReportId: {gpr.PriceSafariReportId}");
+                    }
+
+                    // Sprawdzamy, czy Region jest null
+                    if (gpr.Region == null)
+                    {
+                        Console.WriteLine($"Brak Region dla RegionId: {gpr.RegionId}");
+                    }
+
+                    // Tworzymy PriceDetailsViewModel, obsługując wartości null
+                    return new PriceDetailsViewModel
+                    {
+                        StoreName = gpr.StoreName ?? "Brak sklepu",
+                        RegionName = gpr.Region?.Name ?? "Brak regionu",
+                        CalculatedPrice = gpr.CalculatedPrice,
+                        PriceWithDelivery = gpr.CalculatedPriceWithDelivery,
+                        OfferUrl = gpr.OfferUrl ?? "Brak URL oferty"
+                    };
+                }).ToList()
+            };
+
+            return View("~/Views/Panel/Safari/ProductPriceDetails.cshtml", viewModel);
+        }
+
 
 
 

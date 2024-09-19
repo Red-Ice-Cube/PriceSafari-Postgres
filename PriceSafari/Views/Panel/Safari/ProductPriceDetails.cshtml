@@ -1,0 +1,37 @@
+﻿@model PriceSafari.Models.ViewModels.ProductPriceDetailsViewModel
+
+@{
+    Layout = "~/Views/Shared/_PanelLayout.cshtml";
+}
+
+<div class="Vert">
+    <div class="Vert-full">
+        <div class="Order-Container-Title">
+            Szczegóły cenowe dla produktu: @Model.ProductName
+        </div>
+
+        <table class="table-orders">
+            <thead>
+                <tr>
+                    <th>Nazwa sklepu</th>
+                    <th>Region</th>
+                    <th>Cena</th>
+                    <th>Cena z dostawą</th>
+                    <th>URL Oferty</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var price in Model.Prices)
+                {
+                    <tr>
+                        <td>@price.StoreName</td>
+                        <td>@price.RegionName</td>
+                        <td>@price.CalculatedPrice</td>
+                        <td>@price.PriceWithDelivery</td>
+                        <td><a href="@price.OfferUrl" target="_blank">Zobacz ofertę</a></td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

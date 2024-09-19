@@ -4,9 +4,6 @@
     Layout = "~/Views/Shared/_PanelLayout.cshtml";
 }
 
-
-
-
 <div class="Vert">
     <div class="Vert-full">
         <div class="Order-Container-Title">
@@ -15,14 +12,13 @@
         <p>Data utworzenia: @Model.CreatedDate.ToString("yyyy-MM-dd HH:mm")</p>
         <p>Sklep: @Model.StoreName</p>
 
-
         @if (Model.ProductPrices.Any())
         {
             <table class="table-orders">
                 <thead>
                     <tr>
                         <th>Nazwa produktu</th>
-                        <th>Najniższa cena</th>                
+                        <th>Najniższa cena</th>
                         <th>Nasza cena</th>
                         <th>URL Oferty</th>
                     </tr>
@@ -31,9 +27,12 @@
                     @foreach (var product in Model.ProductPrices)
                     {
                         <tr>
-                            <td>@product.ProductName</td>
+                            <td>
+                                <a href="@Url.Action("ProductPriceDetails", "Safari", new { reportId = ViewBag.ReportId, productId = product.ProductId })">
+                                    @product.ProductName
+                                </a>
+                            </td>
                             <td>@product.CalculatedPrice</td>
-                           
                             <td>@product.OurCalculatedPrice</td>
                             <td><a href="@product.OfferUrl" target="_blank">Zobacz ofertę</a></td>
                         </tr>
@@ -47,6 +46,3 @@
         }
     </div>
 </div>
-
-
-
