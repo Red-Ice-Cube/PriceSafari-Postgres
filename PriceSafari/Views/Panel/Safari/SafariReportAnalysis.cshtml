@@ -11,38 +11,39 @@
         </div>
         <p>Data utworzenia: @Model.CreatedDate.ToString("yyyy-MM-dd HH:mm")</p>
         <p>Sklep: @Model.StoreName</p>
-
-        @if (Model.ProductPrices.Any())
-        {
-            <table class="table-orders">
-                <thead>
-                    <tr>
-                        <th>Nazwa produktu</th>
-                        <th>Najniższa cena</th>
-                        <th>Nasza cena</th>
-                        <th>URL Oferty</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var product in Model.ProductPrices)
-                    {
+        <div class="Vert-table">
+            @if (Model.ProductPrices.Any())
+            {
+                <table class="table-orders">
+                    <thead>
                         <tr>
-                            <td>
-                                <a href="@Url.Action("ProductPriceDetails", "Safari", new { reportId = ViewBag.ReportId, productId = product.ProductId })">
-                                    @product.ProductName
-                                </a>
-                            </td>
-                            <td>@product.CalculatedPrice</td>
-                            <td>@product.OurCalculatedPrice</td>
-                            <td><a href="@product.OfferUrl" target="_blank">Zobacz ofertę</a></td>
+                            <th>Nazwa produktu</th>
+                            <th>Najniższa cena</th>
+                            <th>Nasza cena</th>
+                            <th>URL Oferty</th>
                         </tr>
-                    }
-                </tbody>
-            </table>
-        }
-        else
-        {
-            <p>Brak danych do wyświetlenia dla tego raportu.</p>
-        }
+                    </thead>
+                    <tbody>
+                        @foreach (var product in Model.ProductPrices)
+                        {
+                            <tr>
+                                <td>
+                                    <a href="@Url.Action("ProductPriceDetails", "Safari", new { reportId = ViewBag.ReportId, productId = product.ProductId })">
+                                        @product.ProductName
+                                    </a>
+                                </td>
+                                <td>@product.CalculatedPrice</td>
+                                <td>@product.OurCalculatedPrice</td>
+                                <td><a href="@product.OfferUrl" target="_blank">Zobacz ofertę</a></td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+            else
+            {
+                <p>Brak danych do wyświetlenia dla tego raportu.</p>
+            }
+        </div>
     </div>
 </div>

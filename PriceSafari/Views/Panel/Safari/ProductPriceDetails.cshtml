@@ -2,36 +2,82 @@
 
 @{
     Layout = "~/Views/Shared/_PanelLayout.cshtml";
+    int position = 1;
 }
 
 <div class="Vert">
-    <div class="Vert-full">
-        <div class="Order-Container-Title">
-            Szczegóły cenowe dla produktu: @Model.ProductName
+    <div class="Page-Box">
+
+        <div class="price-box-space">
+            <div class="price-box-column-name">
+                @Model.ProductName
+                <div class="form-check-orders" style="margin: 16px;">
+                    <div>
+                        <p><strong>Produkty:</strong> i</p>
+                    </div>
+                </div>
+
+                <div class="store-section">
+                    <div class="form-check">
+                        <input class="form-check-input sortFilter" type="checkbox" id="sortPrice" checked>
+                        <label class="form-check-label" for="sortPrice">Sortuj po cenie</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input sortFilter" type="checkbox" id="sortPosition">
+                        <label class="form-check-label" for="sortPosition">Sortuj po pozycji Ceneo</label>
+                    </div>
+                </div>
+                <div style="margin-top: 16px;">
+                    <button type="button" class="Button-Page-Small-r" id="editExternalIdButton">
+                        API ID @ViewBag.ApiId
+                    </button>
+                </div>
+            </div>
+            @if (!string.IsNullOrEmpty(Model.ProductImg))
+            {
+                <div>
+                    <img src="@Model.ProductImg" style="height: 180px; width: 180px;" />
+                </div>
+            }
         </div>
 
-        <table class="table-orders">
-            <thead>
-                <tr>
-                    <th>Nazwa sklepu</th>
-                    <th>Region</th>
-                    <th>Cena</th>
-                    <th>Cena z dostawą</th>
-                    <th>URL Oferty</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach (var price in Model.Prices)
-                {
+        <div class="Vert-table">
+            <table class="table-orders">
+                <thead>
                     <tr>
-                        <td>@price.StoreName</td>
-                        <td>@price.RegionName</td>
-                        <td>@price.CalculatedPrice</td>
-                        <td>@price.PriceWithDelivery</td>
-                        <td><a href="@price.OfferUrl" target="_blank">Zobacz ofertę</a></td>
+                        <th>Sklep (@Model.Prices.Count())</th>
+                        <th>Miejsce</th>
+                        <th>Region</th>
+                        <th>Cena</th>
+                        <th>Cena z dostawą</th>
+                        <th>URL Oferty</th>
                     </tr>
-                }
-            </tbody>
-        </table>
+                </thead>
+                <tbody>
+                    @foreach (var price in Model.Prices)
+                    {
+                        <tr>
+                            <td>
+                                
+                                @if (string.Equals(price.StoreName, Model.MyStore, StringComparison.OrdinalIgnoreCase))
+                                {
+                                    <strong>@price.StoreName</strong>
+                                }
+                                else
+                                {
+                                    @price.StoreName
+                                }
+                            </td>
+                            <td><div class="Position">Msc @position</div></td>
+                            <td>@price.RegionName</td>
+                            <td>@price.CalculatedPrice</td>
+                            <td>@price.PriceWithDelivery</td>
+                            <td><a href="@price.OfferUrl" target="_blank">Zobacz ofertę</a></td>
+                        </tr>
+                        position++;
+                    }
+                </tbody>
+            </table>
+        </div>
     </div>
 </div>
