@@ -103,7 +103,20 @@ namespace PriceSafari.Data
                  .HasForeignKey(cp => cp.CreatedByUserId)
                  .OnDelete(DeleteBehavior.Restrict);
 
-         
+            modelBuilder.Entity<GoogleScrapingProduct>()
+     .HasOne(gsp => gsp.Region)
+     .WithMany(r => r.GoogleScrapingProducts)
+     .HasForeignKey(gsp => gsp.RegionId)
+     .OnDelete(DeleteBehavior.Restrict);  // Zmieniamy kaskadowe usuwanie na Restrict
+
+            modelBuilder.Entity<GlobalPriceReport>()
+                .HasOne(gpr => gpr.Region)
+                .WithMany(r => r.GlobalPriceReports)
+                .HasForeignKey(gpr => gpr.RegionId)
+                .OnDelete(DeleteBehavior.Cascade);  // Kaskadowe usuwanie dla GlobalPriceReport
+
+
+
         }
 
     }

@@ -429,66 +429,99 @@ namespace PriceSafari.Controllers
 
 
         //[HttpPost]
-        //public async Task<IActionResult> SaveReportProducts(int reportId)
-        //{
-        //    using var transaction = await _context.Database.BeginTransactionAsync();
-
-        //    try
+        //    public async Task<IActionResult> SaveReportProducts(int reportId)
         //    {
-        //        var scrapingProducts = await _context.GoogleScrapingProducts
-        //            .Where(sp => sp.PriceSafariRaportId == reportId)
-        //            .ToListAsync();
+        //        using var transaction = await _context.Database.BeginTransactionAsync();
+        //        Stopwatch stopwatch = new Stopwatch();
 
-        //        if (!scrapingProducts.Any())
+        //        try
         //        {
-        //            return NotFound("Brak produktów dla tego raportu.");
-        //        }
+        //            Console.WriteLine("Rozpoczęto przetwarzanie raportu...");
+        //            stopwatch.Start();
 
-        //        var priceDataList = await _context.PriceData.ToListAsync();
+        //            // Pobieranie produktów z raportu, uwzględniając powiązania z PriceData i ProductClass
+        //            stopwatch.Restart();
+        //            var scrapingProducts = await _context.GoogleScrapingProducts
+        //                .Include(sp => sp.Products)  // Ładowanie powiązanych produktów
+        //                .Include(sp => sp.PriceData) // Ładowanie powiązanych danych cenowych
+        //                .Where(sp => sp.PriceSafariRaportId == reportId)
+        //                .ToListAsync();
+        //            stopwatch.Stop();
+        //            Console.WriteLine($"Pobranie produktów i powiązań zajęło: {stopwatch.ElapsedMilliseconds} ms");
 
-        //        var globalPriceReports = new List<GlobalPriceReport>();
-
-        //        foreach (var scrapingProduct in scrapingProducts)
-        //        {
-        //            var productPrices = priceDataList
-        //                .Where(pd => pd.ScrapingProductId == scrapingProduct.ScrapingProductId)
-        //                .ToList();
-
-        //            foreach (var price in productPrices)
+        //            if (!scrapingProducts.Any())
         //            {
-        //                var newReport = new GlobalPriceReport
-        //                {
-        //                    ScrapingProductId = scrapingProduct.ScrapingProductId,
-        //                    ProductId = scrapingProduct.ProductIds.FirstOrDefault(),
-        //                    Price = price.Price,
-        //                    PriceWithDelivery = price.PriceWithDelivery,
-        //                    StoreName = price.StoreName,
-        //                    OfferUrl = price.OfferUrl,
-        //                    RegionId = scrapingProduct.RegionId,
-
-        //                };
-
-        //                globalPriceReports.Add(newReport);
+        //                return NotFound("Brak produktów dla tego raportu.");
         //            }
+
+        //            var globalPriceReports = new List<GlobalPriceReport>();
+
+        //            // Przetwarzanie produktów
+        //            stopwatch.Restart();
+        //            foreach (var scrapingProduct in scrapingProducts)
+        //            {
+        //                foreach (var price in scrapingProduct.PriceData)
+        //                {
+        //                    var product = scrapingProduct.Products.FirstOrDefault(); // Pobranie pierwszego produktu z powiązanej kolekcji
+
+        //                    var newReport = new GlobalPriceReport
+        //                    {
+        //                        ScrapingProductId = scrapingProduct.ScrapingProductId,
+        //                        ProductId = product?.ProductId ?? 0,  // Upewniamy się, że produkt istnieje
+        //                        Price = price.Price,
+        //                        PriceWithDelivery = price.PriceWithDelivery,
+        //                        StoreName = price.StoreName,
+        //                        OfferUrl = price.OfferUrl,
+        //                        RegionId = scrapingProduct.RegionId,
+        //                    };
+
+        //                    globalPriceReports.Add(newReport);
+        //                }
+        //            }
+        //            stopwatch.Stop();
+        //            Console.WriteLine($"Przetwarzanie produktów zajęło: {stopwatch.ElapsedMilliseconds} ms");
+
+        //            var bulkConfig = new BulkConfig
+        //            {
+        //                CustomDestinationTableName = "heatlead1_SQL_user.GlobalPriceReports",
+        //                BulkCopyTimeout = 0, // No timeout
+        //            };
+
+        //            // Podział na partie i zapis do bazy
+        //            stopwatch.Restart();
+        //            var batchSize = 1000; // Zależnie od możliwości serwera
+        //            var totalBatches = (int)Math.Ceiling((double)globalPriceReports.Count / batchSize);
+
+        //            for (int i = 0; i < globalPriceReports.Count; i += batchSize)
+        //            {
+        //                var batch = globalPriceReports.Skip(i).Take(batchSize).ToList();
+        //                stopwatch.Restart();
+        //                await _context.BulkInsertAsync(batch, bulkConfig);
+        //                stopwatch.Stop();
+
+        //                // Informacja o przetworzonych paczkach
+        //                Console.WriteLine($"Przetworzono partię {i / batchSize + 1} z {totalBatches}. Liczba rekordów: {batch.Count}, Czas zapisania paczki: {stopwatch.ElapsedMilliseconds} ms");
+        //            }
+
+        //            stopwatch.Stop();
+        //            Console.WriteLine($"Całkowity czas zapisu wszystkich paczek: {stopwatch.ElapsedMilliseconds} ms");
+
+        //            await transaction.CommitAsync();
+
+        //            Console.WriteLine("Zakończono przetwarzanie raportu.");
+
+        //            return RedirectToAction("PreparedProducts");
         //        }
-
-        //        await _context.GlobalPriceReports.AddRangeAsync(globalPriceReports);
-        //        await _context.SaveChangesAsync();
-
-        //        await transaction.CommitAsync();
-
-        //        return RedirectToAction("PreparedProducts");
+        //        catch (Exception ex)
+        //        {
+        //            await transaction.RollbackAsync();
+        //            Console.WriteLine($"Błąd podczas zapisywania raportu: {ex.Message}");
+        //            throw;
+        //        }
         //    }
-        //    catch (Exception)
-        //    {
-        //        await transaction.RollbackAsync();
-        //        throw;
-        //    }
-        //}
 
 
-
-    [HttpPost]
+        [HttpPost]
         public async Task<IActionResult> SaveReportProducts(int reportId)
         {
             using var transaction = await _context.Database.BeginTransactionAsync();
@@ -499,11 +532,12 @@ namespace PriceSafari.Controllers
                 Console.WriteLine("Rozpoczęto przetwarzanie raportu...");
                 stopwatch.Start();
 
-                // Pobieranie produktów z raportu, uwzględniając powiązania z PriceData i ProductClass
+                // Pobieranie produktów z raportu, uwzględniając powiązania z PriceData, ProductClass i Region
                 stopwatch.Restart();
                 var scrapingProducts = await _context.GoogleScrapingProducts
                     .Include(sp => sp.Products)  // Ładowanie powiązanych produktów
                     .Include(sp => sp.PriceData) // Ładowanie powiązanych danych cenowych
+                    .Include(sp => sp.Region)    // Ładowanie powiązanego regionu
                     .Where(sp => sp.PriceSafariRaportId == reportId)
                     .ToListAsync();
                 stopwatch.Stop();
@@ -520,26 +554,54 @@ namespace PriceSafari.Controllers
                 stopwatch.Restart();
                 foreach (var scrapingProduct in scrapingProducts)
                 {
+                    var region = await _context.Regions.FindAsync(scrapingProduct.RegionId);
+                    if (region == null)
+                    {
+                        Console.WriteLine($"Nie znaleziono regionu dla RegionId: {scrapingProduct.RegionId}");
+                        continue; // Jeśli region nie istnieje, przejdź do kolejnego produktu
+                    }
+
                     foreach (var price in scrapingProduct.PriceData)
                     {
-                        var product = scrapingProduct.Products.FirstOrDefault(); // Pobranie pierwszego produktu z powiązanej kolekcji
-
-                        var newReport = new GlobalPriceReport
+                        // Przetwarzanie każdego ProductId w liście ProductIds
+                        foreach (var productId in scrapingProduct.ProductIds)
                         {
-                            ScrapingProductId = scrapingProduct.ScrapingProductId,
-                            ProductId = product?.ProductId ?? 0,  // Upewniamy się, że produkt istnieje
-                            Price = price.Price,
-                            PriceWithDelivery = price.PriceWithDelivery,
-                            StoreName = price.StoreName,
-                            OfferUrl = price.OfferUrl,
-                            RegionId = scrapingProduct.RegionId,
-                        };
+                            // Znajdowanie produktu w bazie danych na podstawie ProductId
+                            var product = await _context.Products.FindAsync(productId);
 
-                        globalPriceReports.Add(newReport);
+                            if (product == null)
+                            {
+                                Console.WriteLine($"Nie znaleziono produktu dla ProductId: {productId}");
+                                continue;
+                            }
+
+                            var calculatedPrice = price.Price * region.CurrencyValue;
+                            var calculatedPriceWithDelivery = price.PriceWithDelivery * region.CurrencyValue;
+
+                            var newReport = new GlobalPriceReport
+                            {
+                                ScrapingProductId = scrapingProduct.ScrapingProductId,
+                                ProductId = product.ProductId,  // Ustawienie poprawnego ProductId
+                                Price = price.Price,
+                                CalculatedPrice = calculatedPrice, // Przeliczona cena
+                                PriceWithDelivery = price.PriceWithDelivery,
+                                CalculatedPriceWithDelivery = calculatedPriceWithDelivery, // Przeliczona cena z dostawą
+                                StoreName = price.StoreName,
+                                OfferUrl = price.OfferUrl,
+                                RegionId = scrapingProduct.RegionId,
+                            };
+
+                            globalPriceReports.Add(newReport);
+                        }
                     }
                 }
+
+            
                 stopwatch.Stop();
                 Console.WriteLine($"Przetwarzanie produktów zajęło: {stopwatch.ElapsedMilliseconds} ms");
+
+                // Sortowanie produktów według najniższej CalculatedPrice
+                globalPriceReports = globalPriceReports.OrderBy(r => r.CalculatedPrice).ToList();
 
                 var bulkConfig = new BulkConfig
                 {
@@ -580,17 +642,13 @@ namespace PriceSafari.Controllers
             }
         }
 
-
-
-
-
-
-    [HttpGet]
+        [HttpGet]
         public async Task<IActionResult> ViewGlobalPriceReport()
         {
             // Pobieramy raporty cen globalnych razem z powiązanymi produktami
             var globalPriceReports = await _context.GlobalPriceReports
                 .Include(gpr => gpr.Product) // Bezpośrednie pobranie produktów
+                .OrderBy(gpr => gpr.CalculatedPrice) // Sortowanie po CalculatedPrice
                 .ToListAsync();
 
             if (!globalPriceReports.Any())
@@ -603,13 +661,14 @@ namespace PriceSafari.Controllers
                 .GroupBy(r => r.ProductId)
                 .Select(g => new GroupedGlobalPriceReportViewModel
                 {
-                    // Pobieranie nazwy produktu i GoogleUrl bez dodatkowego zapytania
                     ProductName = g.FirstOrDefault()?.Product?.ProductName,
                     GoogleUrl = g.FirstOrDefault()?.Product?.GoogleUrl,
                     Prices = g.Select(r => new GlobalPriceReportViewModel
                     {
-                        Price = r.Price,
-                        PriceWithDelivery = r.PriceWithDelivery,
+                        CalculatedPrice = r.CalculatedPrice, // Przeliczona cena
+                        CalculatedPriceWithDelivery = r.CalculatedPriceWithDelivery, // Przeliczona cena z dostawą
+                        Price = r.Price, // Oryginalna cena
+                        PriceWithDelivery = r.PriceWithDelivery, // Oryginalna cena z dostawą
                         StoreName = r.StoreName,
                         OfferUrl = r.OfferUrl,
                         RegionId = r.RegionId
@@ -622,6 +681,25 @@ namespace PriceSafari.Controllers
         }
 
 
+
+        [HttpPost]
+        public async Task<IActionResult> TruncateGlobalPriceReports()
+        {
+            try
+            {
+                // Truncate Table jest szybki, ale nie działa z tabelami powiązanymi z kluczami obcymi
+                await _context.Database.ExecuteSqlRawAsync("TRUNCATE TABLE GlobalPriceReports");
+
+                TempData["SuccessMessage"] = "Wszystkie wpisy w tabeli GlobalPriceReport zostały pomyślnie usunięte.";
+                return RedirectToAction("ViewGlobalPriceReport");
+            }
+            catch (Exception ex)
+            {
+                // Zwraca wiadomość o błędzie
+                TempData["ErrorMessage"] = $"Wystąpił błąd podczas usuwania raportów: {ex.Message}";
+                return RedirectToAction("ViewGlobalPriceReport");
+            }
+        }
 
 
         [HttpGet]

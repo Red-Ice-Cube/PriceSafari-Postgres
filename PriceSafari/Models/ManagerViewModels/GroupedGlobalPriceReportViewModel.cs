@@ -11,8 +11,11 @@
     {
         public decimal Price { get; set; }
         public decimal PriceWithDelivery { get; set; }
+        public decimal CalculatedPrice { get; set; }
+        public decimal CalculatedPriceWithDelivery { get; set; }
         public string StoreName { get; set; }
         public string OfferUrl { get; set; }
         public int RegionId { get; set; }
     }
+
 }

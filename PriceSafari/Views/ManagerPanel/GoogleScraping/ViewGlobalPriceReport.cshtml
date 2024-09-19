@@ -1,9 +1,13 @@
 ﻿@model List<PriceSafari.Models.ManagerViewModels.GroupedGlobalPriceReportViewModel>
 
-<h2>Raport globalnych cen produktów</h2>
+<h2 class="my-4">Raport globalnych cen produktów</h2>
 
 @if (Model.Any())
 {
+    <form asp-action="TruncateGlobalPriceReports" method="post">
+        <button type="submit" class="btn btn-danger">Usuń wszystkie raporty</button>
+    </form>
+
     <table>
         <thead>
             <tr>
@@ -20,10 +24,15 @@
                     <td><a href="@productGroup.GoogleUrl" target="_blank">@productGroup.GoogleUrl</a></td>
                     <td>
                         <ul>
-                            @foreach (var price in productGroup.Prices)
+                            @foreach (var price in productGroup.Prices.OrderBy(p => p.CalculatedPrice)) 
                             {
                                 <li>
-                                    Region: @price.RegionId, Cena: @price.Price zł, Cena z dostawą: @price.PriceWithDelivery zł, Sklep: @price.StoreName,
+                                    Region: @price.RegionId, 
+                                    Przeliczona cena: @price.CalculatedPrice zł, 
+                                    Przeliczona cena z dostawą: @price.CalculatedPriceWithDelivery zł, 
+                                    Oryginalna cena: @price.Price zł, 
+                                    Cena z dostawą: @price.PriceWithDelivery zł, 
+                                    Sklep: @price.StoreName,
                                     <a href="@price.OfferUrl" target="_blank">Zobacz ofertę</a>
                                 </li>
                             }

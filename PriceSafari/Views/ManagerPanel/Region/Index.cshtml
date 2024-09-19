@@ -7,6 +7,7 @@
         <tr>
             <th>Name</th>
             <th>Currency</th>
+            <th>Currency Value</th> <!-- Nowa kolumna dla CurrencyValue -->
             <th></th>
         </tr>
     </thead>
@@ -16,6 +17,7 @@
             <tr>
                 <td>@region.Name</td>
                 <td>@region.Currency</td>
+                <td>@region.CurrencyValue</td> <!-- Wyświetlanie CurrencyValue -->
                 <td>
                     <a asp-action="Edit" asp-route-id="@region.RegionId">Edit</a> |
                     <a asp-action="Delete" asp-route-id="@region.RegionId">Delete</a>

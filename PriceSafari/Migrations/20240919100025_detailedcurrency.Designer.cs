@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using PriceSafari.Data;
 
@@ -11,9 +12,11 @@ using PriceSafari.Data;
 namespace PriceSafari.Migrations
 {
     [DbContext(typeof(PriceSafariContext))]
-    partial class PriceTrackerContextModelSnapshot : ModelSnapshot
+    [Migration("20240919100025_detailedcurrency")]
+    partial class detailedcurrency
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -95,8 +98,6 @@ namespace PriceSafari.Migrations
                     b.HasKey("ReportId");
 
                     b.HasIndex("ProductId");
-
-                    b.HasIndex("RegionId");
 
                     b.ToTable("GlobalPriceReports");
                 });
@@ -434,8 +435,6 @@ namespace PriceSafari.Migrations
 
                     b.HasKey("ScrapingProductId");
 
-                    b.HasIndex("RegionId");
-
                     b.ToTable("GoogleScrapingProducts");
                 });
 
@@ -735,7 +734,7 @@ namespace PriceSafari.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<decimal>("CurrencyValue")
-                        .HasColumnType("decimal(18, 4)");
+                        .HasColumnType("decimal(18,2)");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -955,15 +954,7 @@ namespace PriceSafari.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("PriceSafari.Models.Region", "Region")
-                        .WithMany("GlobalPriceReports")
-                        .HasForeignKey("RegionId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
                     b.Navigation("Product");
-
-                    b.Navigation("Region");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
@@ -1066,17 +1057,6 @@ namespace PriceSafari.Migrations
                     b.HasOne("PriceSafari.Models.StoreClass", null)
                         .WithMany("Flags")
                         .HasForeignKey("StoreClassStoreId");
-                });
-
-            modelBuilder.Entity("PriceSafari.Models.GoogleScrapingProduct", b =>
-                {
-                    b.HasOne("PriceSafari.Models.Region", "Region")
-                        .WithMany("GoogleScrapingProducts")
-                        .HasForeignKey("RegionId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("Region");
                 });
 
             modelBuilder.Entity("PriceSafari.Models.PriceData", b =>
@@ -1215,10 +1195,6 @@ namespace PriceSafari.Migrations
 
             modelBuilder.Entity("PriceSafari.Models.Region", b =>
                 {
-                    b.Navigation("GlobalPriceReports");
-
-                    b.Navigation("GoogleScrapingProducts");
-
                     b.Navigation("PriceData");
                 });
 
