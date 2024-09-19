@@ -21,7 +21,7 @@ namespace PriceSafari.Models
         public ICollection<PriceValueClass> PriceValues { get; set; } = new List<PriceValueClass>();
         public ICollection<FlagsClass> Flags { get; set; } = new List<FlagsClass>();
         public ICollection<PriceSafariUserStore> UserStores { get; set; } = new List<PriceSafariUserStore>();
+        public ICollection<PriceSafariReport> PriceSafariReports { get; set; }
 
-    
     }
 }

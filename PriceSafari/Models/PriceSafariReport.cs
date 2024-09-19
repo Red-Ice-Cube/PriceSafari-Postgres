@@ -13,6 +13,10 @@ namespace PriceSafari.Models
         public string ReportName { get; set; }
 
         public int StoreId { get; set; }
+
+        [ForeignKey("StoreId")]  // Powiązanie z encją Store
+        public StoreClass Store { get; set; }  // Właściwość nawigacyjna
+
         public DateTime CreatedDate { get; set; } = DateTime.Now;
 
         public List<int>? ProductIds { get; set; } = new List<int>();
@@ -20,6 +24,5 @@ namespace PriceSafari.Models
         public List<int> RegionIds { get; set; } = new List<int>();
 
         public bool? Prepared { get; set; }
-
     }
 }

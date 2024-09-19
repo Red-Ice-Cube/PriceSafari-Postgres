@@ -104,16 +104,23 @@ namespace PriceSafari.Data
                  .OnDelete(DeleteBehavior.Restrict);
 
             modelBuilder.Entity<GoogleScrapingProduct>()
-     .HasOne(gsp => gsp.Region)
-     .WithMany(r => r.GoogleScrapingProducts)
-     .HasForeignKey(gsp => gsp.RegionId)
-     .OnDelete(DeleteBehavior.Restrict);  // Zmieniamy kaskadowe usuwanie na Restrict
+                 .HasOne(gsp => gsp.Region)
+                 .WithMany(r => r.GoogleScrapingProducts)
+                 .HasForeignKey(gsp => gsp.RegionId)
+                 .OnDelete(DeleteBehavior.Restrict);  
 
             modelBuilder.Entity<GlobalPriceReport>()
                 .HasOne(gpr => gpr.Region)
                 .WithMany(r => r.GlobalPriceReports)
                 .HasForeignKey(gpr => gpr.RegionId)
-                .OnDelete(DeleteBehavior.Cascade);  // Kaskadowe usuwanie dla GlobalPriceReport
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<PriceSafariReport>()
+      .HasOne(psr => psr.Store)  // Powiązanie z encją StoreClass
+      .WithMany(s => s.PriceSafariReports)  // Wiele raportów w sklepie
+      .HasForeignKey(psr => psr.StoreId)  // Klucz obcy StoreId
+      .OnDelete(DeleteBehavior.Restrict);  // Zmieniamy na Restrict, aby uniknąć problemu z wieloma ścieżkami kaskadowymi
+
 
 
 

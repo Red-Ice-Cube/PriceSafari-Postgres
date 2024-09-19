@@ -4,6 +4,7 @@
     {
         public string ReportName { get; set; }
         public DateTime CreatedDate { get; set; }
+        public string StoreName { get; set; }  // Nazwa sklepu, który utworzył raport
         public List<ProductPriceViewModel> ProductPrices { get; set; }
     }
 
@@ -18,6 +19,8 @@
         public string StoreName { get; set; }
         public string OfferUrl { get; set; }
         public int RegionId { get; set; }
+        public decimal OurCalculatedPrice { get; set; }  // Nasza przeliczona cena
     }
+
 
 }
