@@ -5,6 +5,7 @@
         public string ProductName { get; set; }
         public string? ProductImg { get; set; }
         public int ReportId { get; set; }
+        public string? GoogleProductUrl { get; set; }
         public string MyStore { get; set; }
         public List<PriceDetailsViewModel> Prices { get; set; }
     }

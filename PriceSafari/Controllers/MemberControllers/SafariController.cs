@@ -67,9 +67,9 @@ namespace PriceSafari.Controllers
                 return NotFound("Store not found.");
             }
 
-            // Pobieranie raportów powiązanych z danym sklepem, które mają Prepared na true lub false
+            
             var reports = await _context.PriceSafariReports
-                .Where(r => r.StoreId == storeId && r.Prepared != null) // Wykluczamy null
+                .Where(r => r.StoreId == storeId && r.Prepared != null) 
                 .ToListAsync();
 
             ViewBag.StoreName = store.StoreName;
@@ -86,9 +86,9 @@ namespace PriceSafari.Controllers
                 return NotFound("Nieprawidłowy identyfikator raportu.");
             }
 
-            // Pobieramy raport wraz z powiązanym sklepem
+          
             var report = await _context.PriceSafariReports
-                .Include(r => r.Store)  // Powiązana encja Store
+                .Include(r => r.Store)  
                 .FirstOrDefaultAsync(r => r.ReportId == reportId);
 
             if (report == null)
@@ -96,23 +96,23 @@ namespace PriceSafari.Controllers
                 return NotFound("Raport nie został znaleziony.");
             }
 
-            // Pobieramy powiązane dane z GlobalPriceReports na podstawie PriceSafariReportId
+            
             var globalPriceReports = await _context.GlobalPriceReports
                 .Where(gpr => gpr.PriceSafariReportId == reportId)
-                .Include(gpr => gpr.Product) // Powiązane produkty
-                .OrderBy(gpr => gpr.CalculatedPrice) // Sortowanie po przeliczonych cenach
+                .Include(gpr => gpr.Product) 
+                .OrderBy(gpr => gpr.CalculatedPrice) 
                 .ToListAsync();
 
-            // Pobieramy nazwę sklepu z raportu
+           
             var storeName = report.Store?.StoreName?.ToLower();
 
-            // Grupa produktów z najniższą ceną oraz naszą ceną
+            
             var productPrices = globalPriceReports
                 .GroupBy(gpr => gpr.ProductId)
                 .Select(group =>
                 {
-                    var lowestPrice = group.OrderBy(gpr => gpr.CalculatedPrice).FirstOrDefault(); // Najniższa cena
-                    var ourPrice = group.FirstOrDefault(gpr => gpr.StoreName.ToLower() == storeName); // Nasza cena
+                    var lowestPrice = group.OrderBy(gpr => gpr.CalculatedPrice).FirstOrDefault(); 
+                    var ourPrice = group.FirstOrDefault(gpr => gpr.StoreName.ToLower() == storeName); 
 
                     return new ProductPriceViewModel
                     {
@@ -123,10 +123,9 @@ namespace PriceSafari.Controllers
                         PriceWithDelivery = lowestPrice?.PriceWithDelivery ?? 0,
                         CalculatedPrice = lowestPrice?.CalculatedPrice ?? 0,
                         CalculatedPriceWithDelivery = lowestPrice?.CalculatedPriceWithDelivery ?? 0,
-                        StoreName = ourPrice?.StoreName,
-                        OfferUrl = ourPrice?.OfferUrl,
+                        StoreName = ourPrice?.StoreName,                    
                         RegionId = lowestPrice?.RegionId ?? 0,
-                        OurCalculatedPrice = ourPrice?.CalculatedPrice ?? 0  // Nasza przeliczona cena
+                        OurCalculatedPrice = ourPrice?.CalculatedPrice ?? 0 
                     };
                 })
                 .ToList();
@@ -136,14 +135,14 @@ namespace PriceSafari.Controllers
             {
                 ReportName = report.ReportName,
                 CreatedDate = report.CreatedDate,
-                StoreName = report.Store?.StoreName,  // Przekazujemy nazwę sklepu
+                StoreName = report.Store?.StoreName,  
                 ProductPrices = productPrices
             };
 
-            // Przekazujemy reportId przez ViewBag
+      
             ViewBag.ReportId = reportId;
 
-            // Przekazujemy dane do widoku
+        
             return View("~/Views/Panel/Safari/SafariReportAnalysis.cshtml", viewModel);
         }
 
@@ -158,14 +157,14 @@ namespace PriceSafari.Controllers
                 return NotFound("Nieprawidłowe identyfikatory raportu lub produktu.");
             }
 
-            // Pobieramy dane z GlobalPriceReports, łącznie z Product, PriceSafariReport i Store
+            
             var productPrices = await _context.GlobalPriceReports
                 .Where(gpr => gpr.PriceSafariReportId == reportId && gpr.ProductId == productId)
-                .Include(gpr => gpr.Product)  // Upewniamy się, że produkt jest wczytany
+                .Include(gpr => gpr.Product)  
                 .Include(gpr => gpr.PriceSafariReport)
-                .ThenInclude(psr => psr.Store)  // Sklep powiązany z raportem
-                .Include(gpr => gpr.Region)     // Region powiązany z ofertą
-                .OrderBy(gpr => gpr.CalculatedPrice)  // Sortowanie po cenie
+                .ThenInclude(psr => psr.Store)  
+                .Include(gpr => gpr.Region)     
+                .OrderBy(gpr => gpr.CalculatedPrice)  
                 .ToListAsync();
 
            
@@ -177,13 +176,14 @@ namespace PriceSafari.Controllers
                 return NotFound("Brak informacji o produkcie.");
             }
 
-            // Tworzymy model widoku
+           
             var viewModel = new ProductPriceDetailsViewModel
             {
                 ProductName = product.ProductName ?? "Brak nazwy produktu",
                 MyStore = product.Store.StoreName,
                 ProductImg = product?.MainUrl,
                 ReportId = reportId,
+                GoogleProductUrl = product?.GoogleUrl,
                 Prices = productPrices.Select(gpr =>
                 {
                     return new PriceDetailsViewModel

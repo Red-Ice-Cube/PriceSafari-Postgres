@@ -18,7 +18,6 @@
         public decimal CalculatedPrice { get; set; }
         public decimal CalculatedPriceWithDelivery { get; set; }
         public string StoreName { get; set; }
-        public string OfferUrl { get; set; }
         public int RegionId { get; set; }
         public decimal OurCalculatedPrice { get; set; }  // Nasza przeliczona cena
     }

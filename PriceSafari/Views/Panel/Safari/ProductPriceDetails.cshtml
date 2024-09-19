@@ -28,10 +28,15 @@
                     </div>
                 </div>
                 <div style="margin-top: 16px;">
-                    <button type="button" class="Button-Page-Small-r" id="editExternalIdButton">
-                        API ID @ViewBag.ApiId
+                    <button type="button" class="Button-Page-Small-b" id="locateStoreButton">
+                        Zlokalizuj mnie
                     </button>
+                    <button type="button" class="Button-Page-Small-bl" onclick="window.open('@Model.GoogleProductUrl', '_blank')">
+                        Google Products
+                    </button>
+                    
                 </div>
+
             </div>
             @if (!string.IsNullOrEmpty(Model.ProductImg))
             {
@@ -81,3 +86,36 @@
         </div>
     </div>
 </div>
+
+<script>
+    document.getElementById('locateStoreButton').addEventListener('click', function () {
+        var tableContainer = document.querySelector('.Vert-table');
+        var rows = document.querySelectorAll('table.table-orders tbody tr');
+        var found = false;
+
+        rows.forEach(function (row) {
+            var storeCell = row.querySelector('td strong'); 
+            if (storeCell) {
+             
+                var rowOffset = row.offsetTop - tableContainer.offsetTop;
+                tableContainer.scrollTo({
+                    top: rowOffset - (tableContainer.clientHeight / 7) + (row.clientHeight / 1), 
+                    behavior: 'smooth'
+                });
+
+               
+                row.style.backgroundColor = 'lightgray';
+                setTimeout(function () {
+                    row.style.transition = 'background-color 1s ease';
+                    row.style.backgroundColor = ''; 
+                }, 1000); 
+
+                found = true;
+            }
+        });
+
+        if (!found) {
+            alert('Nie znaleziono Twojego sklepu.');
+        }
+    });
+</script>
