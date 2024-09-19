@@ -9,6 +9,7 @@
             <tr>
                 <th>Nazwa raportu</th>
                 <th>Data utworzenia</th>
+                <th>Status</th>
                 <th>Akcje</th>
             </tr>
         </thead>
@@ -19,6 +20,17 @@
                     <td>@report.ReportName</td>
                     <td>@report.CreatedDate.ToString("yyyy-MM-dd HH:mm")</td>
                     <td>
+                        <!-- Wizualna prezentacja statusu Prepared -->
+                        @if (report.Prepared == true)
+                        {
+                            <span style="color: green;">Przygotowany</span>
+                        }
+                        else if (report.Prepared == false)
+                        {
+                            <span style="color: red;">Nieprzygotowany</span>
+                        }
+                    </td>
+                    <td>
                         <a href="@Url.Action("ViewReportProducts", "GoogleScraping", new { reportId = report.ReportId })">Przygotuj raport</a> |
                         <form asp-action="SaveReportProducts" method="post" style="display:inline;">
                             <input type="hidden" name="reportId" value="@report.ReportId" />
@@ -28,7 +40,6 @@
                     <td>
                         <a href="@Url.Action("ViewGlobalPriceReport", "GoogleScraping")">Zobacz raport cenowy</a>
                     </td>
-
                 </tr>
             }
         </tbody>

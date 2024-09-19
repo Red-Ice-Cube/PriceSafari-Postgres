@@ -520,7 +520,6 @@ namespace PriceSafari.Controllers
         //        }
         //    }
 
-
         [HttpPost]
         public async Task<IActionResult> SaveReportProducts(int reportId)
         {
@@ -532,12 +531,11 @@ namespace PriceSafari.Controllers
                 Console.WriteLine("Rozpoczęto przetwarzanie raportu...");
                 stopwatch.Start();
 
-                // Pobieranie produktów z raportu, uwzględniając powiązania z PriceData, ProductClass i Region
                 stopwatch.Restart();
                 var scrapingProducts = await _context.GoogleScrapingProducts
-                    .Include(sp => sp.Products)  // Ładowanie powiązanych produktów
-                    .Include(sp => sp.PriceData) // Ładowanie powiązanych danych cenowych
-                    .Include(sp => sp.Region)    // Ładowanie powiązanego regionu
+                    .Include(sp => sp.Products)
+                    .Include(sp => sp.PriceData)
+                    .Include(sp => sp.Region)
                     .Where(sp => sp.PriceSafariRaportId == reportId)
                     .ToListAsync();
                 stopwatch.Stop();
@@ -550,7 +548,6 @@ namespace PriceSafari.Controllers
 
                 var globalPriceReports = new List<GlobalPriceReport>();
 
-                // Przetwarzanie produktów
                 stopwatch.Restart();
                 foreach (var scrapingProduct in scrapingProducts)
                 {
@@ -558,15 +555,13 @@ namespace PriceSafari.Controllers
                     if (region == null)
                     {
                         Console.WriteLine($"Nie znaleziono regionu dla RegionId: {scrapingProduct.RegionId}");
-                        continue; // Jeśli region nie istnieje, przejdź do kolejnego produktu
+                        continue;
                     }
 
                     foreach (var price in scrapingProduct.PriceData)
                     {
-                        // Przetwarzanie każdego ProductId w liście ProductIds
                         foreach (var productId in scrapingProduct.ProductIds)
                         {
-                            // Znajdowanie produktu w bazie danych na podstawie ProductId
                             var product = await _context.Products.FindAsync(productId);
 
                             if (product == null)
@@ -581,11 +576,11 @@ namespace PriceSafari.Controllers
                             var newReport = new GlobalPriceReport
                             {
                                 ScrapingProductId = scrapingProduct.ScrapingProductId,
-                                ProductId = product.ProductId,  // Ustawienie poprawnego ProductId
+                                ProductId = product.ProductId,
                                 Price = price.Price,
-                                CalculatedPrice = calculatedPrice, // Przeliczona cena
+                                CalculatedPrice = calculatedPrice,
                                 PriceWithDelivery = price.PriceWithDelivery,
-                                CalculatedPriceWithDelivery = calculatedPriceWithDelivery, // Przeliczona cena z dostawą
+                                CalculatedPriceWithDelivery = calculatedPriceWithDelivery,
                                 StoreName = price.StoreName,
                                 OfferUrl = price.OfferUrl,
                                 RegionId = scrapingProduct.RegionId,
@@ -596,22 +591,19 @@ namespace PriceSafari.Controllers
                     }
                 }
 
-            
                 stopwatch.Stop();
                 Console.WriteLine($"Przetwarzanie produktów zajęło: {stopwatch.ElapsedMilliseconds} ms");
 
-                // Sortowanie produktów według najniższej CalculatedPrice
                 globalPriceReports = globalPriceReports.OrderBy(r => r.CalculatedPrice).ToList();
 
                 var bulkConfig = new BulkConfig
                 {
                     CustomDestinationTableName = "heatlead1_SQL_user.GlobalPriceReports",
-                    BulkCopyTimeout = 0, // No timeout
+                    BulkCopyTimeout = 0,
                 };
 
-                // Podział na partie i zapis do bazy
                 stopwatch.Restart();
-                var batchSize = 1000; // Zależnie od możliwości serwera
+                var batchSize = 1000;
                 var totalBatches = (int)Math.Ceiling((double)globalPriceReports.Count / batchSize);
 
                 for (int i = 0; i < globalPriceReports.Count; i += batchSize)
@@ -621,12 +613,20 @@ namespace PriceSafari.Controllers
                     await _context.BulkInsertAsync(batch, bulkConfig);
                     stopwatch.Stop();
 
-                    // Informacja o przetworzonych paczkach
                     Console.WriteLine($"Przetworzono partię {i / batchSize + 1} z {totalBatches}. Liczba rekordów: {batch.Count}, Czas zapisania paczki: {stopwatch.ElapsedMilliseconds} ms");
                 }
 
                 stopwatch.Stop();
                 Console.WriteLine($"Całkowity czas zapisu wszystkich paczek: {stopwatch.ElapsedMilliseconds} ms");
+
+                // Zmiana statusu raportu na "Prepared"
+                var report = await _context.PriceSafariReports.FindAsync(reportId);
+                if (report != null)
+                {
+                    report.Prepared = true;
+                    _context.PriceSafariReports.Update(report);
+                    await _context.SaveChangesAsync();
+                }
 
                 await transaction.CommitAsync();
 
@@ -641,6 +641,9 @@ namespace PriceSafari.Controllers
                 throw;
             }
         }
+
+
+
 
         [HttpGet]
         public async Task<IActionResult> ViewGlobalPriceReport()
@@ -701,23 +704,23 @@ namespace PriceSafari.Controllers
             }
         }
 
-
         [HttpGet]
         public async Task<IActionResult> LoadUnpreparedReports()
         {
-            // Pobieramy raporty z 'Prepared' ustawionym na false
-            var unpreparedReports = await _context.PriceSafariReports
-                .Where(r => r.Prepared == false)
+            // Pobieramy raporty, które mają ustawione Prepared na true lub false (wykluczamy null)
+            var reports = await _context.PriceSafariReports
+                .Where(r => r.Prepared != null) // Wyklucza null
                 .ToListAsync();
 
-            if (!unpreparedReports.Any())
+            if (!reports.Any())
             {
                 return NotFound("Brak raportów do wyświetlenia.");
             }
 
             // Przekazujemy listę raportów do widoku
-            return View("~/Views/ManagerPanel/GoogleScraping/LoadUnpreparedReports.cshtml", unpreparedReports);
+            return View("~/Views/ManagerPanel/GoogleScraping/LoadUnpreparedReports.cshtml", reports);
         }
+
 
 
     }
