@@ -67,7 +67,7 @@
                         <th>Dostawa PLN</th>
                         <th>Cena</th>
                         <th>Dostawa</th>
-                        <th>URL Oferty</th>
+                        <th>Ofert</th>
                     </tr>
                 </thead>
                 <tbody id="offersTableBody">
@@ -86,16 +86,37 @@
                             </td>
                             <td><div class="Position">Msc @position</div></td>
                             <td>
-                                <div style="display:flex; ">
+                                <div style="display:flex;">
                                     <img src="~/images/@(price.RegionName).png" alt="@price.RegionName" style="display:flex; align-self:center; width: 28px; height: 20px; margin-right:8px;" />
                                     @price.RegionName
                                 </div>
-                               
                             </td>
                             <td>@price.CalculatedPrice PLN</td>
-                            <td>@price.CalculatedPriceWithDelivery PLN</td>
+                            <td>
+                              
+
+                                @if ((price.CalculatedPriceWithDelivery - price.CalculatedPrice) == 0)
+                                {
+                                    <div class="FreeShipping">Free</div>
+                                }
+                                else
+                                {
+                                    <div class="PaidShipping">@((price.CalculatedPriceWithDelivery - price.CalculatedPrice)) PLN</div>
+                                }
+                            </td>
                             <td>@price.Price @price.Currency</td>
-                            <td>@price.PriceWithDelivery @price.Currency</td>
+                            <td>
+                                @if ((price.PriceWithDelivery - price.Price) == 0)
+                                {
+                                    <div class="FreeShipping">Free</div>
+                                }
+                                else
+                                {
+                                    <div class="PaidShipping">@((price.PriceWithDelivery - price.Price)) @price.Currency</div>
+                                }
+                            </td>
+                            
+                            
                             <td>
                                 <button type="button" class="Button-Page-Small" onclick="window.open('@price.OfferUrl', '_blank')">
                                     Oferta
@@ -105,6 +126,8 @@
                         position++;
                     }
                 </tbody>
+
+
             </table>
         </div>
     </div>

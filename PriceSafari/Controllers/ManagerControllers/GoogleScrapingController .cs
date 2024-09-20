@@ -625,6 +625,7 @@ namespace PriceSafari.Controllers
                 if (report != null)
                 {
                     report.Prepared = true;
+                    report.ReadyDate = DateTime.Now;
                     _context.PriceSafariReports.Update(report);
                     await _context.SaveChangesAsync();
                 }
