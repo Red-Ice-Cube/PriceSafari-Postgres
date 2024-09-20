@@ -129,7 +129,7 @@ namespace PriceSafari.Services
                                 var existingOffer = storeBestOffers[storeName];
                                 if (priceWithDeliveryDecimal < existingOffer.PriceWithDelivery)
                                 {
-                                    // Zastępujemy istniejącą ofertę, jeśli nowa ma niższą cenę z dostawą
+                              
                                     storeBestOffers[storeName] = new PriceData
                                     {
                                         StoreName = storeName,

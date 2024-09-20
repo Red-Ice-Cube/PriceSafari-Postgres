@@ -4,6 +4,11 @@
     Layout = "~/Views/Shared/_PanelLayout.cshtml";
     int position = 1;
 }
+@{
+    var countryProductCounts = Model.Prices
+        .GroupBy(p => p.RegionName)
+        .ToDictionary(g => g.Key, g => g.Count());
+}
 
 <div class="Vert">
     <div class="Page-Box">
@@ -11,33 +16,36 @@
         <div class="price-box-space">
             <div class="price-box-column-name">
                 @Model.ProductName
-                <div class="form-check-orders" style="margin: 16px;">
-                    <div>
-                        <p><strong>Produkty:</strong> i</p>
-                    </div>
-                </div>
+              
 
-                <div class="store-section">
-                    <div class="form-check">
-                        <input class="form-check-input sortFilter" type="checkbox" id="sortPrice" checked>
-                        <label class="form-check-label" for="sortPrice">Sortuj po cenie</label>
-                    </div>
-                    <div class="form-check">
-                        <input class="form-check-input sortFilter" type="checkbox" id="sortPosition">
-                        <label class="form-check-label" for="sortPosition">Sortuj po pozycji Ceneo</label>
-                    </div>
-                </div>
-                <div style="margin-top: 16px;">
+              
+                  
+              
+
+
+                <div style="margin-top: 110px;">
+                    <select id="countryFilter" class="DropDown" style="width: 220px;" onchange="filterByCountry()">
+                        <option value="All">
+                           
+                            Wszystkie kraje (@Model.Prices.Count())
+                        </option>
+                        @foreach (var country in countryProductCounts)
+                        {
+                            <option value="@country.Key">
+
+                                @country.Key (@country.Value)
+                            </option>
+                        }
+                    </select>
                     <button type="button" class="Button-Page-Small-b" id="locateStoreButton">
                         Zlokalizuj mnie
                     </button>
                     <button type="button" class="Button-Page-Small-bl" onclick="window.open('@Model.GoogleProductUrl', '_blank')">
                         Google Products
                     </button>
-                    
                 </div>
-
             </div>
+
             @if (!string.IsNullOrEmpty(Model.ProductImg))
             {
                 <div>
@@ -46,24 +54,24 @@
             }
         </div>
 
+        <!-- Tabela z ofertami -->
         <div class="Vert-table">
             <table class="table-orders">
                 <thead>
                     <tr>
-                        <th>Sklep (@Model.Prices.Count())</th>
-                        <th>Miejsce</th>
-                        <th>Region</th>
+                        <th>Sklep</th>
+                        <th>Pozycja</th>
+                        <th>Kraj</th>
                         <th>Cena</th>
                         <th>Cena z dostawą</th>
                         <th>URL Oferty</th>
                     </tr>
                 </thead>
-                <tbody>
+                <tbody id="offersTableBody">
                     @foreach (var price in Model.Prices)
                     {
-                        <tr>
+                        <tr data-country="@price.RegionName">
                             <td>
-                                
                                 @if (string.Equals(price.StoreName, Model.MyStore, StringComparison.OrdinalIgnoreCase))
                                 {
                                     <strong>@price.StoreName</strong>
@@ -74,10 +82,20 @@
                                 }
                             </td>
                             <td><div class="Position">Msc @position</div></td>
-                            <td>@price.RegionName</td>
-                            <td>@price.CalculatedPrice</td>
-                            <td>@price.PriceWithDelivery</td>
-                            <td><a href="@price.OfferUrl" target="_blank">Zobacz ofertę</a></td>
+                            <td>
+                                <div style="display:flex; ">
+                                    <img src="~/images/@(price.RegionName).png" alt="@price.RegionName" style="display:flex; align-self:center; width: 28px; height: 20px; margin-right:8px;" />
+                                    @price.RegionName
+                                </div>
+                               
+                            </td>
+                            <td>@price.CalculatedPrice PLN</td>
+                            <td>@price.PriceWithDelivery PLN</td>
+                            <td>
+                                <button type="button" class="Button-Page-Small" onclick="window.open('@price.OfferUrl', '_blank')">
+                                    Oferta
+                                </button>
+                            </td>
                         </tr>
                         position++;
                     }
@@ -87,28 +105,43 @@
     </div>
 </div>
 
+<!-- JavaScript do filtrowania ofert -->
 <script>
+    function filterByCountry() {
+        var selectedCountry = document.getElementById('countryFilter').value;
+        var rows = document.querySelectorAll('#offersTableBody tr');
+
+        rows.forEach(function (row) {
+            var country = row.getAttribute('data-country');
+            if (selectedCountry === 'All' || country === selectedCountry) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        });
+    }
+
     document.getElementById('locateStoreButton').addEventListener('click', function () {
         var tableContainer = document.querySelector('.Vert-table');
         var rows = document.querySelectorAll('table.table-orders tbody tr');
         var found = false;
 
         rows.forEach(function (row) {
-            var storeCell = row.querySelector('td strong'); 
+            var storeCell = row.querySelector('td strong');
             if (storeCell) {
-             
+
                 var rowOffset = row.offsetTop - tableContainer.offsetTop;
                 tableContainer.scrollTo({
-                    top: rowOffset - (tableContainer.clientHeight / 7) + (row.clientHeight / 1), 
+                    top: rowOffset - (tableContainer.clientHeight / 7) + (row.clientHeight / 1),
                     behavior: 'smooth'
                 });
 
-               
+
                 row.style.backgroundColor = 'lightgray';
                 setTimeout(function () {
                     row.style.transition = 'background-color 1s ease';
-                    row.style.backgroundColor = ''; 
-                }, 1000); 
+                    row.style.backgroundColor = '';
+                }, 1000);
 
                 found = true;
             }
