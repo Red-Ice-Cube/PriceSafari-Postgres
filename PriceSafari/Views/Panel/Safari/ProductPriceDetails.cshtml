@@ -14,7 +14,7 @@
     <div class="Page-Box">
 
         <div class="price-box-space">
-            <div class="price-box-column-name">
+            <div class="price-box-column-name" >
                 @Model.ProductName
                 <div class="form-check-orders" style="margin: 16px;">
                     <div>
@@ -24,7 +24,7 @@
                     </div>
                 </div>
 
-                <div style="margin-top: 70px;">
+                <div style="margin-top: 50px;">
                     <select id="countryFilter" class="DropDown" style="width: 220px;" onchange="filterByCountry()">
                         <option value="All">
                            
@@ -38,13 +38,16 @@
                             </option>
                         }
                     </select>
-                    <button type="button" class="Button-Page-Small-b" id="locateStoreButton">
+                    <button type="button" class="Button-Page-Small-bl" id="locateStoreButton">
                         Zlokalizuj mnie
                     </button>
-                    <button type="button" class="Button-Page-Small-bl" onclick="window.open('@Model.GoogleProductUrl', '_blank')">
+                    <button type="button" class="Button-Page-Small-b" onclick="window.open('@Model.GoogleProductUrl', '_blank')">
                         Google Products
                     </button>
                 </div>
+            </div>
+            <div style="display:flex; width:50%; height:180px;">
+                <canvas id="priceChart" width="100%" height="100"></canvas>
             </div>
 
             @if (!string.IsNullOrEmpty(Model.ProductImg))
@@ -178,5 +181,72 @@
         if (!found) {
             alert('Nie znaleziono Twojego sklepu.');
         }
+    });
+</script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+     
+        const prices = @Html.Raw(Json.Serialize(Model.Prices.Select(p => p.CalculatedPrice)));
+        const stores = @Html.Raw(Json.Serialize(Model.Prices.Select(p => p.StoreName)));
+        const myStore = '@Model.MyStore'.toLowerCase(); 
+
+     
+        const sortedData = prices.map((price, index) => ({ price, store: stores[index] }))
+            .sort((a, b) => b.price - a.price);
+
+
+        const sortedPrices = sortedData.map(item => item.price);
+        const sortedStores = sortedData.map(item => item.store);
+
+       
+        const barColors = sortedStores.map(store => {
+            return store.toLowerCase() === myStore ? 'rgba(65, 199, 199, 0.4)' : 'rgba(34, 34, 34, 0.4)';
+        });
+
+
+        const borderColors = sortedStores.map(store => {
+            return store.toLowerCase() === myStore ? 'rgba(65, 199, 199, 1)' : 'rgba(34, 34, 34, 1)';
+        });
+
+        // Konfiguracja wykresu
+        const ctx = document.getElementById('priceChart').getContext('2d');
+        const chart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: sortedStores, 
+                datasets: [{
+                    label: 'Cena PLN',
+                    data: sortedPrices,
+                    backgroundColor: barColors,
+                    borderColor: borderColors,
+                    borderWidth: 2,
+                    borderRadius: 2
+                }]
+
+            },
+            options: {
+                maintainAspectRatio: false, 
+                scales: {
+                    y: {
+                        beginAtZero: true, 
+                        ticks: {
+                           
+                            callback: function (value) {
+                                return value + ' PLN';
+                            }
+                        }
+                    },
+                    x: {
+                        display: false 
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false 
+                    }
+                }
+            }
+        });
     });
 </script>
