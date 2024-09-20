@@ -170,6 +170,9 @@ namespace PriceSafari.Controllers
            
             var product = productPrices.FirstOrDefault()?.Product;
 
+            var report = await _context.PriceSafariReports
+                .FirstOrDefaultAsync(rep => rep.ReportId == reportId);
+
             if (product == null)
             {
                 Console.WriteLine("Brak produktu w wynikach zapytania.");
@@ -183,6 +186,7 @@ namespace PriceSafari.Controllers
                 MyStore = product.Store.StoreName,
                 ProductImg = product?.MainUrl,
                 ReportId = reportId,
+                RaportName = report.ReportName,
                 GoogleProductUrl = product?.GoogleUrl,
                 Prices = productPrices.Select(gpr =>
                 {
@@ -190,8 +194,11 @@ namespace PriceSafari.Controllers
                     {
                         StoreName = gpr.StoreName,
                         RegionName = gpr.Region?.Name ?? "Brak regionu",
+                        Price = gpr.Price,
                         CalculatedPrice = gpr.CalculatedPrice,
-                        PriceWithDelivery = gpr.CalculatedPriceWithDelivery,
+                        PriceWithDelivery = gpr.PriceWithDelivery,
+                        CalculatedPriceWithDelivery = gpr.CalculatedPriceWithDelivery,
+                        Currency = gpr.Region.Currency,
                         OfferUrl = gpr.OfferUrl ?? "Brak URL oferty"
                     };
                 }).ToList()

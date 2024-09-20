@@ -16,14 +16,15 @@
         <div class="price-box-space">
             <div class="price-box-column-name">
                 @Model.ProductName
-              
+                <div class="form-check-orders" style="margin: 16px;">
+                    <div>
 
-              
-                  
-              
+                        <p><strong>Raport:</strong> @Model?.RaportName</p>
+                        <p><strong>Sklep:</strong> @Model.MyStore</p>
+                    </div>
+                </div>
 
-
-                <div style="margin-top: 110px;">
+                <div style="margin-top: 70px;">
                     <select id="countryFilter" class="DropDown" style="width: 220px;" onchange="filterByCountry()">
                         <option value="All">
                            
@@ -62,8 +63,10 @@
                         <th>Sklep</th>
                         <th>Pozycja</th>
                         <th>Kraj</th>
+                        <th>Cena PLN</th>
+                        <th>Dostawa PLN</th>
                         <th>Cena</th>
-                        <th>Cena z dostawą</th>
+                        <th>Dostawa</th>
                         <th>URL Oferty</th>
                     </tr>
                 </thead>
@@ -90,7 +93,9 @@
                                
                             </td>
                             <td>@price.CalculatedPrice PLN</td>
-                            <td>@price.PriceWithDelivery PLN</td>
+                            <td>@price.CalculatedPriceWithDelivery PLN</td>
+                            <td>@price.Price @price.Currency</td>
+                            <td>@price.PriceWithDelivery @price.Currency</td>
                             <td>
                                 <button type="button" class="Button-Page-Small" onclick="window.open('@price.OfferUrl', '_blank')">
                                     Oferta
