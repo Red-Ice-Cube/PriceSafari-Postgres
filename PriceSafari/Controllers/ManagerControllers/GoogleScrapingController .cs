@@ -433,22 +433,22 @@ namespace PriceSafari.Controllers
             }
 
 
-            string countryCode = string.Empty;
-            string languageCode = string.Empty;
+            string countryCode = "pl";
+           
 
-            // Pobieramy region raz na początku, jeśli jest podany
-            if (selectedRegion.HasValue)
-            {
-                var region = await _context.Regions.FirstOrDefaultAsync(r => r.RegionId == selectedRegion.Value);
-                if (region == null)
-                {
-                    Console.WriteLine("Region not found.");
-                    return NotFound("Region not found.");
-                }
+          
+            //if (selectedRegion.HasValue)
+            //{
+            //    var region = await _context.Regions.FirstOrDefaultAsync(r => r.RegionId == selectedRegion.Value);
+            //    if (region == null)
+            //    {
+            //        Console.WriteLine("Region not found.");
+            //        return NotFound("Region not found.");
+            //    }
 
-                countryCode = region.CountryCode;
-                languageCode = region.LanguageCode;
-            }
+            //    countryCode = region.CountryCode;
+            //    languageCode = region.LanguageCode;
+            //}
 
             // Filtrujemy produkty na podstawie regionu
             var scrapingProductsQuery = _context.GoogleScrapingProducts
@@ -530,7 +530,7 @@ namespace PriceSafari.Controllers
                                 Console.WriteLine($"Rozpoczęcie scrapowania dla URL: {scrapingProduct.GoogleUrl}");
 
                                 // Przekazujemy region do scrapera
-                                var scrapedPrices = await scraper.ScrapePricesAsync(scrapingProduct,  countryCode, languageCode);
+                                var scrapedPrices = await scraper.ScrapePricesAsync(scrapingProduct,  countryCode);
 
                                 if (scrapedPrices.Any())
                                 {
