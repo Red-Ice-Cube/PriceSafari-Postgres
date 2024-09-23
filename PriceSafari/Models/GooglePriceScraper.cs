@@ -41,34 +41,36 @@ namespace PriceSafari.Services
             Console.WriteLine("Przeglądarka zainicjalizowana.");
         }
 
-        
 
-        public async Task<List<PriceData>> ScrapePricesAsync(GoogleScrapingProduct scrapingProduct)
+
+        public async Task<List<PriceData>> ScrapePricesAsync(GoogleScrapingProduct scrapingProduct, Region region)
         {
             var scrapedData = new List<PriceData>();
-            var storeBestOffers = new Dictionary<string, PriceData>(); 
+            var storeBestOffers = new Dictionary<string, PriceData>();
 
-          
+            // Wyciągamy productId z URL
             string productId = ExtractProductId(scrapingProduct.GoogleUrl);
 
-           
-            string productOffersUrl = $"{scrapingProduct.GoogleUrl}/offers?prds=cid:{productId},cond:1";
+            // Tworzymy URL na pierwszą stronę
+            string productOffersUrl = $"{scrapingProduct.GoogleUrl}/offers?prds=cid:{productId},cond:1&gl={region.CountryCode}&hl={region.LanguageCode}";
             bool hasNextPage = true;
             int totalOffersCount = 0;
             int currentPage = 0;
 
             try
             {
-                while (hasNextPage && currentPage < 3)
+                while (hasNextPage && currentPage < 3) // Zakładamy maksymalnie 3 strony do scrapowania
                 {
-                    
-                    string paginatedUrl = currentPage == 0 ? productOffersUrl : $"{productOffersUrl},start:{currentPage * 20}";
+                    // Generujemy URL: na pierwszej stronie bez parametru start
+                    string paginatedUrl = currentPage == 0
+                        ? productOffersUrl // Pierwsza strona bez parametru start
+                        : $"{scrapingProduct.GoogleUrl}/offers?prds=cid:{productId},cond:1,start:{currentPage * 20}&gl={region.CountryCode}&hl={region.LanguageCode}"; // Kolejne strony z parametrem start
 
                     Console.WriteLine($"Odwiedzanie URL: {paginatedUrl}");
                     await _page.GoToAsync(paginatedUrl, new NavigationOptions { WaitUntil = new[] { WaitUntilNavigation.Networkidle2 } });
-                    await Task.Delay(50);
+                    await Task.Delay(50); // Krótkie opóźnienie, aby dać czas na załadowanie strony
 
-                   
+                    // Obsługa rozwijania dodatkowych ofert
                     var moreOffersButtons = await _page.QuerySelectorAllAsync("div.cNMlI");
                     if (moreOffersButtons.Length > 0)
                     {
@@ -76,11 +78,11 @@ namespace PriceSafari.Services
                         {
                             Console.WriteLine("Znaleziono przycisk 'Jeszcze oferty'. Klikam, aby rozwinąć.");
                             await button.ClickAsync();
-                            await Task.Delay(320); 
+                            await Task.Delay(320); // Krótkie opóźnienie po kliknięciu
                         }
                     }
 
-                   
+
                     var offerRowsSelector = "#sh-osd__online-sellers-cont > tr";
                     var offerRows = await _page.QuerySelectorAllAsync(offerRowsSelector);
                     var offersCount = offerRows.Length;
@@ -278,8 +280,8 @@ namespace PriceSafari.Services
 
         private string ExtractProductId(string url)
         {
-         
-            var match = Regex.Match(url, @"product/(\d+)/offers");
+            // Dopasowanie do ciągu "/product/" a następnie numeru produktu
+            var match = Regex.Match(url, @"product/(\d+)");
             if (match.Success)
             {
                 return match.Groups[1].Value;
@@ -289,7 +291,7 @@ namespace PriceSafari.Services
 
 
 
-      
+
         private decimal ExtractPrice(string priceText)
         {
             try
