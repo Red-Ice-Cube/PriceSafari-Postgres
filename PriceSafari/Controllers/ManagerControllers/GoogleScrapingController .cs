@@ -252,7 +252,6 @@ namespace PriceSafari.Controllers
 
 
 
-
         [HttpPost]
         public async Task<IActionResult> StartScraping(int? selectedRegion)
         {
@@ -264,19 +263,23 @@ namespace PriceSafari.Controllers
                 return BadRequest("Settings not found.");
             }
 
-            // Pobieramy dane regionu, jeśli został wybrany
-            Region region = null;
+            string countryCode = string.Empty;
+            string languageCode = string.Empty;
+
+            // Pobieramy region raz na początku, jeśli jest podany
             if (selectedRegion.HasValue)
             {
-                region = await _context.Regions.FirstOrDefaultAsync(r => r.RegionId == selectedRegion.Value);
+                var region = await _context.Regions.FirstOrDefaultAsync(r => r.RegionId == selectedRegion.Value);
                 if (region == null)
                 {
                     Console.WriteLine("Region not found.");
                     return NotFound("Region not found.");
                 }
+
+                countryCode = region.CountryCode;
+                languageCode = region.LanguageCode;
             }
 
-            // Filtrujemy produkty na podstawie regionu
             var scrapingProductsQuery = _context.GoogleScrapingProducts
                 .Where(gsp => gsp.IsScraped == null);
 
@@ -303,7 +306,6 @@ namespace PriceSafari.Controllers
                 Console.WriteLine("Hub context is null.");
             }
 
-            // Pobieramy wartość semafora z ustawień
             int maxConcurrentScrapers = settings.Semophore;
             var semaphore = new SemaphoreSlim(maxConcurrentScrapers);
             var tasks = new List<Task>();
@@ -314,6 +316,9 @@ namespace PriceSafari.Controllers
             int totalScraped = 0;
             var stopwatch = new Stopwatch();
             stopwatch.Start();
+
+            // Lista do przechowywania zebranych cen
+            var batchedPriceData = new List<PriceData>();
 
             for (int i = 0; i < maxConcurrentScrapers; i++)
             {
@@ -354,25 +359,27 @@ namespace PriceSafari.Controllers
                                 var scopedContext = scope.ServiceProvider.GetRequiredService<PriceSafariContext>();
 
                                 Console.WriteLine($"Rozpoczęcie scrapowania dla URL: {scrapingProduct.GoogleUrl}");
-
-                                // Przekazujemy region do scrapera
-                                var scrapedPrices = await scraper.ScrapePricesAsync(scrapingProduct, region);
+                                var scrapedPrices = await scraper.ScrapePricesAsync(scrapingProduct, countryCode, languageCode);
 
                                 if (scrapedPrices.Any())
                                 {
-                                    // Zapisujemy wszystkie oferty naraz po przetworzeniu URL
-                                    scopedContext.PriceData.AddRange(scrapedPrices);
-                                    await scopedContext.SaveChangesAsync();
-                                    Console.WriteLine($"Zapisano {scrapedPrices.Count} ofert do bazy dla produktu {scrapingProduct.GoogleUrl}.");
+                                    // Dodajemy zebrane dane do batcha
+                                    batchedPriceData.AddRange(scrapedPrices);
+
+                                    scrapingProduct.IsScraped = true;
+                                    scrapingProduct.OffersCount = scrapedPrices.Count;
+
+                                    scopedContext.GoogleScrapingProducts.Update(scrapingProduct);
                                 }
 
-                                // Aktualizujemy status produktu po zapisaniu jego ofert
-                                scrapingProduct.IsScraped = true;
-                                scrapingProduct.OffersCount = scrapedPrices.Count;
-
-                                scopedContext.GoogleScrapingProducts.Update(scrapingProduct);
-                                await scopedContext.SaveChangesAsync();
-                                Console.WriteLine($"Zaktualizowano status i liczbę ofert dla produktu {scrapingProduct.ScrapingProductId}: {scrapingProduct.OffersCount}.");
+                             
+                                if (batchedPriceData.Count >= 400)
+                                {
+                                    scopedContext.PriceData.AddRange(batchedPriceData);
+                                    await scopedContext.SaveChangesAsync();  // Jednorazowy zapis batcha do bazy
+                                    batchedPriceData.Clear();  // Czyścimy batch po zapisie
+                                    Console.WriteLine("Zapisano partię 400 ofert do bazy.");
+                                }
 
                                 Interlocked.Increment(ref totalScraped);
                                 double elapsedSeconds = stopwatch.Elapsed.TotalSeconds;
@@ -391,11 +398,25 @@ namespace PriceSafari.Controllers
             }
 
             await Task.WhenAll(tasks);
+
+            // Zapisanie pozostałych danych, które nie zostały zapisane w batchu
+            if (batchedPriceData.Any())
+            {
+                using (var scope = serviceScopeFactory.CreateScope())
+                {
+                    var scopedContext = scope.ServiceProvider.GetRequiredService<PriceSafariContext>();
+                    scopedContext.PriceData.AddRange(batchedPriceData);
+                    await scopedContext.SaveChangesAsync();
+                    Console.WriteLine("Zapisano pozostałe dane po zakończeniu.");
+                }
+            }
+
             stopwatch.Stop();
             Console.WriteLine("Wszystkie taski zakończone.");
 
             return RedirectToAction("PreparedProducts");
         }
+
 
 
 

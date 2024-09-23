@@ -43,7 +43,7 @@ namespace PriceSafari.Services
 
 
 
-        public async Task<List<PriceData>> ScrapePricesAsync(GoogleScrapingProduct scrapingProduct, Region region)
+        public async Task<List<PriceData>> ScrapePricesAsync(GoogleScrapingProduct scrapingProduct, string countryCode, string languageCode)
         {
             var scrapedData = new List<PriceData>();
             var storeBestOffers = new Dictionary<string, PriceData>();
@@ -52,7 +52,7 @@ namespace PriceSafari.Services
             string productId = ExtractProductId(scrapingProduct.GoogleUrl);
 
             // Tworzymy URL na pierwszą stronę
-            string productOffersUrl = $"{scrapingProduct.GoogleUrl}/offers?prds=cid:{productId},cond:1&gl={region.CountryCode}&hl={region.LanguageCode}";
+            string productOffersUrl = $"{scrapingProduct.GoogleUrl}/offers?prds=cid:{productId},cond:1&gl={countryCode}&hl={languageCode}";
             bool hasNextPage = true;
             int totalOffersCount = 0;
             int currentPage = 0;
@@ -64,7 +64,7 @@ namespace PriceSafari.Services
                     // Generujemy URL: na pierwszej stronie bez parametru start
                     string paginatedUrl = currentPage == 0
                         ? productOffersUrl // Pierwsza strona bez parametru start
-                        : $"{scrapingProduct.GoogleUrl}/offers?prds=cid:{productId},cond:1,start:{currentPage * 20}&gl={region.CountryCode}&hl={region.LanguageCode}"; // Kolejne strony z parametrem start
+                        : $"{scrapingProduct.GoogleUrl}/offers?prds=cid:{productId},cond:1,start:{currentPage * 20}&gl={countryCode}&hl={languageCode}"; // Kolejne strony z parametrem start
 
                     Console.WriteLine($"Odwiedzanie URL: {paginatedUrl}");
                     await _page.GoToAsync(paginatedUrl, new NavigationOptions { WaitUntil = new[] { WaitUntilNavigation.Networkidle2 } });
