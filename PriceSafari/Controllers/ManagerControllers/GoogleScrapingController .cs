@@ -253,7 +253,6 @@ namespace PriceSafari.Controllers
 
 
 
-
         [HttpPost]
         public async Task<IActionResult> StartScraping(int? selectedRegion)
         {
@@ -359,10 +358,15 @@ namespace PriceSafari.Controllers
                                 // Przekazujemy region do scrapera
                                 var scrapedPrices = await scraper.ScrapePricesAsync(scrapingProduct, region);
 
-                                scopedContext.PriceData.AddRange(scrapedPrices);
-                                await scopedContext.SaveChangesAsync();
-                                Console.WriteLine($"Zapisano {scrapedPrices.Count} ofert do bazy.");
+                                if (scrapedPrices.Any())
+                                {
+                                    // Zapisujemy wszystkie oferty naraz po przetworzeniu URL
+                                    scopedContext.PriceData.AddRange(scrapedPrices);
+                                    await scopedContext.SaveChangesAsync();
+                                    Console.WriteLine($"Zapisano {scrapedPrices.Count} ofert do bazy dla produktu {scrapingProduct.GoogleUrl}.");
+                                }
 
+                                // Aktualizujemy status produktu po zapisaniu jego ofert
                                 scrapingProduct.IsScraped = true;
                                 scrapingProduct.OffersCount = scrapedPrices.Count;
 
@@ -392,6 +396,7 @@ namespace PriceSafari.Controllers
 
             return RedirectToAction("PreparedProducts");
         }
+
 
 
         //[HttpPost]
