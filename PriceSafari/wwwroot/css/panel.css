@@ -2929,19 +2929,24 @@ tr:last-child .sub-line {
     padding-right: 14px;
     border-radius: 4px;
 }
-
 .price-box-column-api {
     display: flex;
-    flex-direction: column;
-    gap: 4px;
-    width: 180px;
-    justify-content: space-between;
-    padding-left: 14px;
-    padding-right: 14px;
+    flex-direction: column; /* Ustawienie elementów pionowo */
+    gap: 4px; /* Przestrzeń między elementami */
+    width: 180px; /* Stała szerokość */
+    align-items: flex-start; /* Wyrównanie elementów do lewej */
+    padding-left: 8px;
+    padding-right: 8px;
+    padding-bottom: 2px;
+    padding-top: 2px;
     border-radius: 4px;
-    background: rgba(34, 34, 34, 0.5);
-    border: solid 2px rgba(34, 34, 34, 1);
+    background: rgba(34, 34, 34, 0.8); /* Kolor tła */
+    border: solid 2px rgba(34, 34, 34, 1); /* Ramka */
+    box-sizing: border-box; /* Uwzględnia padding i border w obliczeniach rozmiaru */
+    flex-shrink: 0; /* Zapobiega kurczeniu się elementu */
+    max-height: fit-content; /* Wysokość zależna od zawartości */
 }
+
 
 .price-box-column-line {
     width: 1px;
