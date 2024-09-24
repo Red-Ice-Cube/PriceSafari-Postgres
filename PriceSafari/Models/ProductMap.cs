@@ -12,5 +12,7 @@ namespace PriceSafari.Models
         public string CatalogNumber { get; set; }
         public string Ean { get; set; }
         public string? MainUrl { get; set; }
+
+        public string ExportedName { get; set; }
     }
 }

@@ -80,6 +80,29 @@ namespace PriceSafari.Controllers.ManagerControllers
             return RedirectToAction("Index");
         }
 
+
+
+
+        [HttpPost]
+        public async Task<IActionResult> TruncateProductMaps()
+        {
+            try
+            {
+                // Truncate Table jest szybki, ale nie działa z tabelami powiązanymi z kluczami obcymi
+                await _context.Database.ExecuteSqlRawAsync("TRUNCATE TABLE ProductMaps");
+
+                TempData["SuccessMessage"] = "Wszystkie wpisy w tabeli ProductMaps zostały pomyślnie usunięte.";
+                return RedirectToAction("Index");
+            }
+            catch (Exception ex)
+            {
+                // Zwraca wiadomość o błędzie
+                TempData["ErrorMessage"] = $"Wystąpił błąd podczas usuwania raportów: {ex.Message}";
+                return RedirectToAction("Index");
+            }
+        }
+
+
         public async Task<IActionResult> MappedProducts(int storeId)
         {
             var store = await _context.Stores.FindAsync(storeId);
