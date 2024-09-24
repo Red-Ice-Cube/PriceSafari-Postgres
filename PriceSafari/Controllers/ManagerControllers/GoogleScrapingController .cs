@@ -433,24 +433,17 @@ namespace PriceSafari.Controllers
             }
 
 
-            string countryCode = "ro";
-           
 
-          
-            //if (selectedRegion.HasValue)
-            //{
-            //    var region = await _context.Regions.FirstOrDefaultAsync(r => r.RegionId == selectedRegion.Value);
-            //    if (region == null)
-            //    {
-            //        Console.WriteLine("Region not found.");
-            //        return NotFound("Region not found.");
-            //    }
+            var region = await _context.Regions
+                .FirstOrDefaultAsync(r => r.RegionId == selectedRegion.Value);
 
-            //    countryCode = region.CountryCode;
-            //    languageCode = region.LanguageCode;
-            //}
+            if (region == null)
+            {
+                return BadRequest("Invalid region selected.");
+            }
 
-            // Filtrujemy produkty na podstawie regionu
+            string countryCode = region.CountryCode;
+
             var scrapingProductsQuery = _context.GoogleScrapingProducts
                 .Where(gsp => gsp.IsScraped == null);
 
