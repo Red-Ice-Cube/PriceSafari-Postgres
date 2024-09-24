@@ -21,6 +21,9 @@ namespace PriceSafari.Models
         public bool IsScrapable { get; set; } = false;
         public bool IsRejected { get; set; } = false;
 
+        //CeneoXML
+        public string? ExportedNameCeneo { get; set; }
+
         //GoogleShoping Block
 
         public bool OnGoogle { get; set; } = false;

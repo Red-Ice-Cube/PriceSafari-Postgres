@@ -19,6 +19,9 @@ namespace PriceSafari.Models
         public bool Styles { get; set; } = false;
 
 
+        public bool GetCeneoName { get; set; } = false;
+
+
 
         public Settings()
         {

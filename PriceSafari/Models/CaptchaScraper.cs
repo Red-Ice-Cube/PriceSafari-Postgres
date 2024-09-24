@@ -26,18 +26,15 @@ namespace PriceSafari.Models
                 Headless = settings.HeadLess,
                 Args = new[]
                 {
-            "--no-sandbox",
-            "--disable-setuid-sandbox",
-            "--disable-gpu",
-            "--disable-blink-features=AutomationControlled",
-            "--disable-software-rasterizer",
-            "--disable-extensions",
-            "--disable-dev-shm-usage",
-            "--disable-features=IsolateOrigins,site-per-process",
-            "--disable-infobars",
-            "--use-gl=swiftshader",  
-            "--enable-webgl",       
-            "--ignore-gpu-blocklist" 
+               "--no-sandbox",
+                    "--disable-setuid-sandbox",
+                    "--disable-gpu",
+                    "--disable-blink-features=AutomationControlled",
+                    "--disable-software-rasterizer",
+                    "--disable-extensions",
+                    "--disable-dev-shm-usage",
+                    "--disable-features=IsolateOrigins,site-per-process",
+                    "--disable-infobars"
         }
             });
 
@@ -58,42 +55,14 @@ namespace PriceSafari.Models
                     configurable: true
                 });
 
-                if (navigator.userAgent.includes('Macintosh')) {
-                    Object.defineProperty(navigator, 'languages', { get: () => ['en-US', 'en'], configurable: true });
-                } else if (navigator.userAgent.includes('Linux')) {
-                    Object.defineProperty(navigator, 'languages', { get: () => ['pl-PL', 'pl'], configurable: true });
-                } else {
-                    Object.defineProperty(navigator, 'languages', { get: () => ['pl-PL', 'pl'], configurable: true });
-                }
-
-                if (!window.chrome) {
-                    Object.defineProperty(window, 'chrome', { get: () => ({ runtime: {} }) });
-                }
-
-                Object.defineProperty(navigator, 'getBattery', { get: () => Promise.resolve(null) });
-
-                Object.defineProperty(navigator, 'hardwareConcurrency', { get: () => 4 });
-
-                Object.defineProperty(navigator, 'doNotTrack', { get: () => '1' });
-
-                const originalQuery = window.navigator.permissions.query;
-                window.navigator.permissions.query = (parameters) => (
-                    parameters.name === 'notifications' ?
-                    Promise.resolve({ state: 'denied' }) :
-                    originalQuery(parameters)
-                );
-
-                Object.defineProperty(navigator, 'userAgentData', { get: () => ({
-                    brands: [{ brand: 'Google Chrome', version: '91' }],
-                    mobile: false
-                })});
+              
             }");
 
             var commonResolutions = new List<(int width, int height)>
             {
-                (1280, 720),
-                (1366, 768),
-                (1600, 900),
+                //(1280, 720),
+                //(1366, 768),
+                //(1600, 900),
                 (1920, 1080)
             };
 
@@ -128,19 +97,19 @@ namespace PriceSafari.Models
                 { "Accept-Language", "pl-PL,pl;q=0.9,en-US;q=0.8,en;q=0.7" }
             });
 
-            var userAgentList = new List<string>
-            {
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.212 Safari/537.36",
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36",
-                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.1.2 Safari/605.1.15",
-                "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.96 Safari/537.36"
-            };
+            //var userAgentList = new List<string>
+            //{
+            //    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+            //    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.212 Safari/537.36",
+            //    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36",
+            //    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.1.2 Safari/605.1.15",
+            //    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.96 Safari/537.36"
+            //};
 
-            var randomUserAgent = userAgentList[random.Next(userAgentList.Count)];
-            await _page.SetUserAgentAsync(randomUserAgent);
+            //var randomUserAgent = userAgentList[random.Next(userAgentList.Count)];
+            //await _page.SetUserAgentAsync(randomUserAgent);
 
-            await _page.EmulateTimezoneAsync("Europe/Warsaw");
+            //await _page.EmulateTimezoneAsync("Europe/Warsaw");
 
             Console.WriteLine($"Bot gotowy, teraz rozgrzewka przez {settings.WarmUpTime} sekund...");
             await Task.Delay(settings.WarmUpTime * 1000);
@@ -153,9 +122,11 @@ namespace PriceSafari.Models
             await _browser.CloseAsync();
         }
 
-        public async Task<(List<(string storeName, decimal price, decimal? shippingCostNum, int? availabilityNum, string isBidding, string? position)> Prices, string Log, List<(string Reason, string Url)> RejectedProducts)> HandleCaptchaAndScrapePricesAsync(string url)
+
+
+        public async Task<(List<(string storeName, decimal price, decimal? shippingCostNum, int? availabilityNum, string isBidding, string? position, string? ceneoName)> Prices, string Log, List<(string Reason, string Url)> RejectedProducts)> HandleCaptchaAndScrapePricesAsync(string url, bool getCeneoName)
         {
-            var priceResults = new List<(string storeName, decimal price, decimal? shippingCostNum, int? availabilityNum, string isBidding, string? position)>();
+            var priceResults = new List<(string storeName, decimal price, decimal? shippingCostNum, int? availabilityNum, string isBidding, string? position, string? ceneoName)>();
             var rejectedProducts = new List<(string Reason, string Url)>();
             string log;
 
@@ -164,10 +135,10 @@ namespace PriceSafari.Models
                 await _page.GoToAsync(url);
                 var currentUrl = _page.Url;
 
+                // Sprawdzanie Captcha
                 while (currentUrl.Contains("/Captcha/Add"))
                 {
                     Console.WriteLine("Captcha detected. Please solve it manually in the browser.");
-
                     while (currentUrl.Contains("/Captcha/Add"))
                     {
                         await Task.Delay(15000);
@@ -175,20 +146,23 @@ namespace PriceSafari.Models
                     }
                 }
 
+                // Pobranie liczby ofert
                 var totalOffersCount = await GetTotalOffersCountAsync();
                 Console.WriteLine($"Total number of offers: {totalOffersCount}");
 
-                var (mainPrices, scrapeLog, scrapeRejectedProducts) = await ScrapePricesFromCurrentPage(url, true);
+                // Pobieranie cen z bieżącej strony i nazw produktów, jeśli jest to wymagane
+                var (mainPrices, scrapeLog, scrapeRejectedProducts) = await ScrapePricesFromCurrentPage(url, true, getCeneoName);
                 priceResults.AddRange(mainPrices);
                 log = scrapeLog;
                 rejectedProducts.AddRange(scrapeRejectedProducts);
 
+                // Pobieranie kolejnych stron ofert, jeśli jest ich więcej
                 if (totalOffersCount > 15)
                 {
                     var sortedUrl = $"{url};0281-1.htm";
                     await _page.GoToAsync(sortedUrl);
 
-                    var (sortedPrices, sortedLog, sortedRejectedProducts) = await ScrapePricesFromCurrentPage(sortedUrl, false);
+                    var (sortedPrices, sortedLog, sortedRejectedProducts) = await ScrapePricesFromCurrentPage(sortedUrl, false, getCeneoName);
                     log += sortedLog;
                     rejectedProducts.AddRange(sortedRejectedProducts);
 
@@ -205,7 +179,7 @@ namespace PriceSafari.Models
                         var nextSortedUrl = $"{url};0281-0.htm";
                         await _page.GoToAsync(nextSortedUrl);
 
-                        var (nextSortedPrices, nextSortedLog, nextSortedRejectedProducts) = await ScrapePricesFromCurrentPage(nextSortedUrl, false);
+                        var (nextSortedPrices, nextSortedLog, nextSortedRejectedProducts) = await ScrapePricesFromCurrentPage(nextSortedUrl, false, getCeneoName);
                         log += nextSortedLog;
                         rejectedProducts.AddRange(nextSortedRejectedProducts);
 
@@ -218,13 +192,12 @@ namespace PriceSafari.Models
                         }
                     }
 
-                    // zaufane opinie i najszybsza wysylka
                     if (priceResults.Count < totalOffersCount)
                     {
                         var fastestDeliveryUrl = $"{url};0282-1;02516.htm";
                         await _page.GoToAsync(fastestDeliveryUrl);
 
-                        var (fastestDeliveryPrices, fastestDeliveryLog, fastestDeliveryRejectedProducts) = await ScrapePricesFromCurrentPage(fastestDeliveryUrl, false);
+                        var (fastestDeliveryPrices, fastestDeliveryLog, fastestDeliveryRejectedProducts) = await ScrapePricesFromCurrentPage(fastestDeliveryUrl, false, getCeneoName);
                         log += fastestDeliveryLog;
                         rejectedProducts.AddRange(fastestDeliveryRejectedProducts);
 
@@ -250,6 +223,8 @@ namespace PriceSafari.Models
         }
 
 
+
+
         private async Task<int> GetTotalOffersCountAsync()
         {
             var totalOffersText = await _page.QuerySelectorAsync("span.page-tab__title.js_prevent-middle-button-click");
@@ -266,11 +241,11 @@ namespace PriceSafari.Models
             return totalOffersCount;
         }
 
-        private async Task<(List<(string storeName, decimal price, decimal? shippingCostNum, int? availabilityNum, string isBidding, string? position)> Prices, string Log, List<(string Reason, string Url)> RejectedProducts)> ScrapePricesFromCurrentPage(string url, bool includePosition)
+        private async Task<(List<(string storeName, decimal price, decimal? shippingCostNum, int? availabilityNum, string isBidding, string? position, string? ceneoName)> Prices, string Log, List<(string Reason, string Url)> RejectedProducts)> ScrapePricesFromCurrentPage(string url, bool includePosition, bool getCeneoName)
         {
-            var prices = new List<(string storeName, decimal price, decimal? shippingCostNum, int? availabilityNum, string isBidding, string? position)>();
+            var prices = new List<(string storeName, decimal price, decimal? shippingCostNum, int? availabilityNum, string isBidding, string? position, string? ceneoName)>();
             var rejectedProducts = new List<(string Reason, string Url)>();
-            var storeOffers = new Dictionary<string, (decimal price, decimal? shippingCostNum, int? availabilityNum, string isBidding, string? position)>();
+            var storeOffers = new Dictionary<string, (decimal price, decimal? shippingCostNum, int? availabilityNum, string isBidding, string? position, string? ceneoName)>();
             string log;
             int positionCounter = 1;
 
@@ -280,6 +255,7 @@ namespace PriceSafari.Models
             if (offerNodes.Length > 0)
             {
                 Console.WriteLine($"Found {offerNodes.Length} offer nodes.");
+
                 foreach (var offerNode in offerNodes)
                 {
                     var parentList = await offerNode.EvaluateFunctionAsync<string>("el => el.closest('ul')?.className");
@@ -300,29 +276,31 @@ namespace PriceSafari.Models
                     }
 
                     decimal? shippingCostNum = await GetShippingCostFromOfferNodeAsync((ElementHandle)offerNode);
-
                     int? availabilityNum = await GetAvailabilityFromOfferNodeAsync((ElementHandle)offerNode);
-
                     var isBidding = await GetBiddingInfoFromOfferNodeAsync((ElementHandle)offerNode);
 
                     string? position = includePosition ? positionCounter.ToString() : null;
                     positionCounter++;
 
+                    // Zbieranie nazwy produktu z każdej indywidualnej oferty
+                    string? ceneoProductName = getCeneoName ? await GetCeneoProductNameFromOfferNodeAsync((ElementHandle)offerNode) : null;
+
+                    // Dodanie do listy cen ofert dla każdego sklepu z nazwą produktu Ceneo
                     if (storeOffers.ContainsKey(storeName))
                     {
                         if (priceValue.Value < storeOffers[storeName].price)
                         {
-                            storeOffers[storeName] = (priceValue.Value, shippingCostNum, availabilityNum, isBidding, position);
+                            storeOffers[storeName] = (priceValue.Value, shippingCostNum, availabilityNum, isBidding, position, ceneoProductName);
                         }
                     }
                     else
                     {
-                        storeOffers[storeName] = (priceValue.Value, shippingCostNum, availabilityNum, isBidding, position);
+                        storeOffers[storeName] = (priceValue.Value, shippingCostNum, availabilityNum, isBidding, position, ceneoProductName);
                     }
                 }
 
-                prices = storeOffers.Select(x => (x.Key, x.Value.price, x.Value.shippingCostNum, x.Value.availabilityNum, x.Value.isBidding, x.Value.position)).ToList();
-                log = $"Successfully scraped prices from URL: {url}";
+                prices = storeOffers.Select(x => (x.Key, x.Value.price, x.Value.shippingCostNum, x.Value.availabilityNum, x.Value.isBidding, x.Value.position, x.Value.ceneoName)).ToList();
+                log = $"Successfully scraped prices and names from URL: {url}";
             }
             else
             {
@@ -332,6 +310,9 @@ namespace PriceSafari.Models
 
             return (prices, log, rejectedProducts);
         }
+
+
+
 
         private async Task<string> GetStoreNameFromOfferNodeAsync(ElementHandle offerNode)
         {
@@ -441,6 +422,27 @@ namespace PriceSafari.Models
             var offerType = await offerContainer?.EvaluateFunctionAsync<string>("el => el.getAttribute('data-offertype')");
             return offerType?.Contains("Bid") == true ? "1" : "0";
         }
+
+        private async Task<string?> GetCeneoProductNameFromOfferNodeAsync(ElementHandle offerNode)
+        {
+            try
+            {
+                var productNameElement = await offerNode.QuerySelectorAsync("span.short-name__txt");
+                if (productNameElement != null)
+                {
+                    var productName = await productNameElement.EvaluateFunctionAsync<string>("el => el.innerText");
+                    return productName.Trim();
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error scraping product name from offer node: {ex.Message}");
+            }
+
+            return null; // Zwraca null, jeśli nie znaleziono nazwy
+        }
+
+
     }
 }
 

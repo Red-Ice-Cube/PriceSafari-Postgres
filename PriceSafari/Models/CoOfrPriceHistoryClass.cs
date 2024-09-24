@@ -18,5 +18,7 @@ namespace PriceSafari.Models
         public string? Position { get; set; }
         public decimal? ShippingCostNum { get; set; }
         public int? AvailabilityNum { get; set; }
+
+        public string? ExportedName { get; set; }
     }
 }
