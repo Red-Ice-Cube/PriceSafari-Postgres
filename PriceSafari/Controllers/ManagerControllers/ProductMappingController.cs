@@ -133,5 +133,33 @@ namespace PriceSafari.Controllers.ManagerControllers
 
             return RedirectToAction("MappedProducts", new { storeId });
         }
+
+
+
+        [HttpPost]
+        public async Task<IActionResult> RemoveWordFromProductNamesCeneo(string wordToRemove)
+        {
+            if (string.IsNullOrEmpty(wordToRemove))
+            {
+                return BadRequest("Słowo do usunięcia jest wymagane.");
+            }
+
+            var products = await _context.Products
+                .Where(p => !string.IsNullOrEmpty(p.ExportedNameCeneo))
+                .ToListAsync();
+
+            foreach (var product in products)
+            {
+                if (product.ExportedNameCeneo.Contains(wordToRemove, StringComparison.OrdinalIgnoreCase))
+                {
+                    product.ExportedNameCeneo = product.ExportedNameCeneo.Replace(wordToRemove, "", StringComparison.OrdinalIgnoreCase).Trim();
+                    _context.Products.Update(product);
+                }
+            }
+
+            await _context.SaveChangesAsync();
+
+            return RedirectToAction("MappedProducts", new { storeId = products.FirstOrDefault()?.StoreId });
+        }
     }
 }
