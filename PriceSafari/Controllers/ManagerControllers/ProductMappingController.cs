@@ -7,6 +7,8 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.Xml.Linq;
 using System.Net.Http;
+using System.Text.RegularExpressions;
+using EFCore.BulkExtensions;
 
 namespace PriceSafari.Controllers.ManagerControllers
 {
@@ -26,6 +28,28 @@ namespace PriceSafari.Controllers.ManagerControllers
             return View("~/Views/ManagerPanel/ProductMapping/Index.cshtml", stores);
         }
 
+
+        public async Task<IActionResult> ProductXml(int storeId)
+        {
+            var store = await _context.Stores.FindAsync(storeId);
+            if (store == null)
+            {
+                return NotFound();
+            }
+
+            var mappedProducts = await _context.ProductMaps
+                .Where(p => p.StoreId == storeId)
+                .ToListAsync();
+
+            ViewBag.StoreName = store.StoreName;
+            ViewBag.StoreId = storeId;
+
+            return View("~/Views/ManagerPanel/ProductMapping/ProductXml.cshtml", mappedProducts);
+        }
+
+
+
+
         [HttpPost]
         public async Task<IActionResult> ImportProductsFromXml(int storeId)
         {
@@ -40,45 +64,54 @@ namespace PriceSafari.Controllers.ManagerControllers
                 var response = await client.GetStringAsync(store.ProductMapXmlUrl);
                 var xml = XDocument.Parse(response);
 
-                
                 var products = xml.Descendants("o")
                     .GroupBy(x => x.Descendants("a")
                         .FirstOrDefault(a => a.Attribute("name")?.Value == "EAN")?.Value)
                     .Select(g => g.OrderBy(x => decimal.TryParse(x.Attribute("price")?.Value, out var price) ? price : decimal.MaxValue).First())
-                    .Select(x => new ProductMap
+                    .Select(x =>
                     {
-                        StoreId = storeId,
-                        ExternalId = x.Attribute("id")?.Value,
-                        Url = x.Attribute("url")?.Value,
-                        CatalogNumber = x.Descendants("a")
-                                         .FirstOrDefault(a => a.Attribute("name")?.Value == "Kod_producenta")?.Value,
-                        Ean = x.Descendants("a")
-                               .FirstOrDefault(a => a.Attribute("name")?.Value == "EAN")?.Value,
-                        MainUrl = x.Descendants("main").FirstOrDefault()?.Attribute("url")?.Value
+                        var rawProductName = x.Element("name")?.Value ?? "Brak";
+                        var cleanedProductName = Regex.Replace(rawProductName, @"[^a-zA-Z0-9\s\p{L},.-]", "").Trim();
+
+                        return new ProductMap
+                        {
+                            StoreId = storeId,
+                            ExternalId = x.Attribute("id")?.Value,
+                            Url = x.Attribute("url")?.Value,
+                            CatalogNumber = x.Descendants("a")
+                                             .FirstOrDefault(a => a.Attribute("name")?.Value == "Kod_producenta")?.Value,
+                            Ean = x.Descendants("a")
+                                   .FirstOrDefault(a => a.Attribute("name")?.Value == "EAN")?.Value,
+                            MainUrl = x.Descendants("main").FirstOrDefault()?.Attribute("url")?.Value,
+                            ExportedName = cleanedProductName
+                        };
                     }).ToList();
 
-                foreach (var product in products)
+                // Logowanie liczby produktów
+                Console.WriteLine($"Znaleziono {products.Count} produktów do zaimportowania.");
+
+                // Użycie BulkConfig do aktualizacji lub dodania nowych produktów
+                var bulkConfig = new BulkConfig
                 {
-                    var existingProduct = await _context.ProductMaps
-                        .FirstOrDefaultAsync(p => p.Ean == product.Ean && p.StoreId == storeId);
+                    CustomDestinationTableName = "heatlead1_SQL_user.ProductMaps",  // Niestandardowa nazwa schematu i tabeli
+                    PreserveInsertOrder = true,  // Utrzymanie porządku wstawiania
+                    SetOutputIdentity = false,   // Wyłącz, jeśli nie potrzebujesz zwracania kluczy
+                    BatchSize = 100,             // Definiujemy batch size dla większej optymalizacji
+                    BulkCopyTimeout = 0,         
+                    UpdateByProperties = new List<string> { "Ean", "StoreId" } 
+                };
 
-                    if (existingProduct != null)
-                    {
-                        existingProduct.Url = product.Url;
-                        existingProduct.CatalogNumber = product.CatalogNumber;
-                        existingProduct.MainUrl = product.MainUrl;
-                    }
-                    else
-                    {
-                        await _context.ProductMaps.AddAsync(product);
-                    }
-                }
+                // Wstawienie lub aktualizacja danych za pomocą BulkInsertOrUpdate
+                await _context.BulkInsertOrUpdateAsync(products, bulkConfig);
 
-                await _context.SaveChangesAsync();
+                Console.WriteLine($"Zakończono importowanie produktów.");
             }
 
             return RedirectToAction("Index");
         }
+
+
+
 
 
 
@@ -126,24 +159,33 @@ namespace PriceSafari.Controllers.ManagerControllers
             return View("~/Views/ManagerPanel/ProductMapping/MappedProducts.cshtml", mappedProducts);
         }
 
+
+
         [HttpPost]
         public async Task<IActionResult> MapProducts(int storeId)
         {
+            // Pobieramy produkty ze sklepu
             var storeProducts = await _context.Products
-                .Where(p => p.StoreId == storeId)
+                .Where(p => p.StoreId == storeId && !string.IsNullOrEmpty(p.ExportedNameCeneo))
                 .ToListAsync();
 
+            // Pobieramy produkty zmapowane
             var mappedProducts = await _context.ProductMaps
-                .Where(p => p.StoreId == storeId)
+                .Where(p => p.StoreId == storeId && !string.IsNullOrEmpty(p.ExportedName))
                 .ToListAsync();
 
             foreach (var storeProduct in storeProducts)
             {
+                // Oczyszczamy nazwę produktu sklepowego
+                string cleanedStoreProductName = SimplifyName(storeProduct.ExportedNameCeneo);
+
+                // Próbujemy znaleźć odpowiedni produkt mapowany na podstawie oczyszczonej nazwy
                 var mappedProduct = mappedProducts
-                    .FirstOrDefault(mp => mp.CatalogNumber == storeProduct.ProductName.Split(' ').Last());
+                    .FirstOrDefault(mp => SimplifyName(mp.ExportedName).Equals(cleanedStoreProductName, StringComparison.OrdinalIgnoreCase));
 
                 if (mappedProduct != null)
                 {
+                    // Przypisujemy dane z zmapowanego produktu do produktu sklepowego
                     storeProduct.ExternalId = int.Parse(mappedProduct.ExternalId);
                     storeProduct.Url = mappedProduct.Url;
                     storeProduct.CatalogNumber = mappedProduct.CatalogNumber;
@@ -156,6 +198,20 @@ namespace PriceSafari.Controllers.ManagerControllers
 
             return RedirectToAction("MappedProducts", new { storeId });
         }
+
+        // Funkcja do usuwania spacji i standardyzacji wielkości liter, ale zachowujemy istotne znaki
+        private string SimplifyName(string name)
+        {
+            if (string.IsNullOrWhiteSpace(name))
+                return string.Empty;
+
+            // Usuwamy wszystkie spacje i standardyzujemy wielkość liter
+            var simplifiedName = Regex.Replace(name, @"\s+", "").ToUpperInvariant();
+
+            return simplifiedName;
+        }
+
+
 
 
 

@@ -32,6 +32,7 @@
                             <button type="submit" class="btn btn-primary">Importuj Produkty</button>
                         </form>
                         <a asp-action="MappedProducts" asp-route-storeId="@store.StoreId" class="btn btn-secondary">Pokaż Zmapowane Produkty</a>
+                        <a asp-action="ProductXml" asp-route-storeId="@store.StoreId" class="btn btn-info">Pokaż Produkty XML</a>
                     }
                     else
                     {

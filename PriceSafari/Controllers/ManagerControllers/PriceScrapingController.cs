@@ -853,14 +853,13 @@ public class PriceScrapingController : Controller
                             hasExportedName = true;
                             lock (product)
                             {
-                                if (string.IsNullOrEmpty(product.ExportedNameCeneo))
-                                {
-                                    product.ExportedNameCeneo = coOfrPrice.ExportedName;
-                                }
+                                // Usunięto warunek sprawdzający null, aby zawsze uaktualniać ExportedNameCeneo
+                                product.ExportedNameCeneo = coOfrPrice.ExportedName;
                             }
                         }
                     }
                 }
+
 
                 // Jeśli nie ma ceny dla naszego sklepu, oznaczamy produkt jako odrzucony
                 if (!hasStorePrice)

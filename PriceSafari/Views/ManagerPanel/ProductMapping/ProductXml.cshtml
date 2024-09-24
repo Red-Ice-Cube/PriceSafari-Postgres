@@ -1,0 +1,51 @@
+﻿@model IEnumerable<PriceSafari.Models.ProductMap>
+
+@{
+    ViewData["Title"] = "Produkty XML dla sklepu " + ViewBag.StoreName;
+    Layout = "~/Views/Shared/_PanelLayout.cshtml";
+    var storeId = ViewBag.StoreId;
+}
+
+<h2>Produkty XML dla sklepu @ViewBag.StoreName</h2>
+
+
+<a href="@Url.Action("ImportProductsFromXml", new { storeId = storeId })" class="btn btn-primary">Importuj produkty XML</a>
+<a href="@Url.Action("MapProducts", new { storeId = storeId })" class="btn btn-success">Mapuj produkty</a>
+
+
+<table class="table table-bordered table-striped">
+    <thead>
+        <tr>
+            <th>Zdjęcie</th>
+            <th>Nazwa Export</th>
+            <th>Katalogowy Numer</th>
+            <th>EAN</th>
+            <th>URL Produktu</th>
+            <th>External ID</th>
+            <th>Główne Zdjęcie</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var product in Model)
+        {
+            <tr>
+                <td><img src="@product.MainUrl" alt="Brak zdjęcia" style="max-width: 100px;" /></td>
+                <td>@product.ExportedName</td>
+                <td>@product.CatalogNumber</td>
+                <td>@product.Ean</td>
+                <td><a href="@product.Url" target="_blank">@product.Url</a></td>
+                <td>@product.ExternalId</td>
+                <td>
+                    @if (!string.IsNullOrEmpty(product.MainUrl))
+                    {
+                        <a href="@product.MainUrl" target="_blank">Zobacz zdjęcie</a>
+                    }
+                    else
+                    {
+                        <span>Brak</span>
+                    }
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
