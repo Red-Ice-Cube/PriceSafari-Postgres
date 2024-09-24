@@ -49,7 +49,6 @@ namespace PriceSafari.Controllers.ManagerControllers
 
 
 
-
         [HttpPost]
         public async Task<IActionResult> ImportProductsFromXml(int storeId)
         {
@@ -71,7 +70,10 @@ namespace PriceSafari.Controllers.ManagerControllers
                     .Select(x =>
                     {
                         var rawProductName = x.Element("name")?.Value ?? "Brak";
-                        var cleanedProductName = Regex.Replace(rawProductName, @"[^a-zA-Z0-9\s\p{L},.-]", "").Trim();
+
+                        // Usuwamy specyficzne znaki, takie jak ✔, ale zachowujemy inne znaki specjalne
+                        var cleanedProductName = Regex.Replace(rawProductName, @"✔", "")
+                                                      .Trim();
 
                         return new ProductMap
                         {
@@ -97,8 +99,8 @@ namespace PriceSafari.Controllers.ManagerControllers
                     PreserveInsertOrder = true,  // Utrzymanie porządku wstawiania
                     SetOutputIdentity = false,   // Wyłącz, jeśli nie potrzebujesz zwracania kluczy
                     BatchSize = 100,             // Definiujemy batch size dla większej optymalizacji
-                    BulkCopyTimeout = 0,         
-                    UpdateByProperties = new List<string> { "Ean", "StoreId" } 
+                    BulkCopyTimeout = 0,
+                    UpdateByProperties = new List<string> { "Ean", "StoreId" }
                 };
 
                 // Wstawienie lub aktualizacja danych za pomocą BulkInsertOrUpdate
@@ -159,8 +161,6 @@ namespace PriceSafari.Controllers.ManagerControllers
             return View("~/Views/ManagerPanel/ProductMapping/MappedProducts.cshtml", mappedProducts);
         }
 
-
-
         [HttpPost]
         public async Task<IActionResult> MapProducts(int storeId)
         {
@@ -179,9 +179,10 @@ namespace PriceSafari.Controllers.ManagerControllers
                 // Oczyszczamy nazwę produktu sklepowego
                 string cleanedStoreProductName = SimplifyName(storeProduct.ExportedNameCeneo);
 
-                // Próbujemy znaleźć odpowiedni produkt mapowany na podstawie oczyszczonej nazwy
+                // Próbujemy znaleźć odpowiedni produkt mapowany na podstawie zawierania się nazwy
                 var mappedProduct = mappedProducts
-                    .FirstOrDefault(mp => SimplifyName(mp.ExportedName).Equals(cleanedStoreProductName, StringComparison.OrdinalIgnoreCase));
+                    .FirstOrDefault(mp => SimplifyName(mp.ExportedName).Contains(cleanedStoreProductName) ||
+                                          cleanedStoreProductName.Contains(SimplifyName(mp.ExportedName)));
 
                 if (mappedProduct != null)
                 {
@@ -199,19 +200,17 @@ namespace PriceSafari.Controllers.ManagerControllers
             return RedirectToAction("MappedProducts", new { storeId });
         }
 
-        // Funkcja do usuwania spacji i standardyzacji wielkości liter, ale zachowujemy istotne znaki
+        // Funkcja do uproszczania nazw poprzez usunięcie zbędnych spacji i standaryzację znaków
         private string SimplifyName(string name)
         {
             if (string.IsNullOrWhiteSpace(name))
                 return string.Empty;
 
-            // Usuwamy wszystkie spacje i standardyzujemy wielkość liter
-            var simplifiedName = Regex.Replace(name, @"\s+", "").ToUpperInvariant();
+            // Zachowujemy ważne znaki specjalne i usuwamy jedynie niepożądane
+            var simplifiedName = Regex.Replace(name, @"[^\w\s\-+/*=°²,.()]", "").ToUpperInvariant().Replace(" ", "");
 
             return simplifiedName;
         }
-
-
 
 
 
