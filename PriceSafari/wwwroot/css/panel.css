@@ -2935,11 +2935,11 @@ tr:last-child .sub-line {
     flex-direction: column;
     gap: 4px;
     width: 180px;
-    align-content: flex-start;
-    padding-left: 8px;
-    padding-right: 8px;
+    justify-content: space-between;
+    padding-left: 14px;
+    padding-right: 14px;
     border-radius: 4px;
-    background: rgba(34, 34, 34, 0.8);
+    background: rgba(34, 34, 34, 0.5);
     border: solid 2px rgba(34, 34, 34, 1);
 }
 

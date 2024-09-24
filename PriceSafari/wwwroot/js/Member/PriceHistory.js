@@ -258,7 +258,6 @@
             box.className = 'price-box ' + item.colorClass;
             box.dataset.detailsUrl = '/PriceHistory/Details?scrapId=' + item.scrapId + '&productId=' + item.productId;
 
-            // Dodaj event listener dla całego boxu, aby był klikalny
             box.addEventListener('click', function () {
                 window.open(this.dataset.detailsUrl, '_blank');
             });
@@ -274,8 +273,7 @@
             assignFlagButton.dataset.productId = item.productId;
             assignFlagButton.innerHTML = '+ Przypisz flagi';
 
-            // Ustawienie pointer-events, aby button nie blokował kliknięcia na box
-            assignFlagButton.style.pointerEvents = 'auto';
+            assignFlagButton.style.pointerEvents = 'auto'; // Pozwala na kliknięcie tylko w przycisk
 
             priceBoxSpace.appendChild(priceBoxColumnName);
             priceBoxSpace.appendChild(assignFlagButton);
@@ -296,13 +294,17 @@
             const colorBar = document.createElement('div');
             colorBar.className = 'color-bar ' + item.colorClass;
 
-            const productImage = document.createElement('img');
-            productImage.src = item.imgUrl;
-            productImage.alt = item.productName;
-            productImage.style.width = '90px';
-            productImage.style.height = '90px';
-            productImage.style.marginRight = '12px';
-            productImage.style.marginLeft = '16px';
+            // Sprawdzamy, czy imgUrl istnieje i jest poprawny, zanim dodamy obrazek
+            if (item.imgUrl) {
+                const productImage = document.createElement('img');
+                productImage.src = item.imgUrl;
+                productImage.alt = item.productName;
+                productImage.style.width = '90px';
+                productImage.style.height = '90px';
+                productImage.style.marginRight = '12px';
+                productImage.style.marginLeft = '16px';
+                priceBoxData.appendChild(productImage);
+            }
 
             const priceBoxColumnLowestPrice = document.createElement('div');
             priceBoxColumnLowestPrice.className = 'price-box-column';
@@ -363,6 +365,7 @@
                 const externalPriceDifference = (item.externalPrice - item.myPrice).toFixed(2);
                 const externalPriceDifferenceText = (item.externalPrice > item.myPrice ? '+' : '') + externalPriceDifference;
                 priceBoxColumnExternalPrice.innerHTML =
+                    '<div class="price-box-column-text-api" style="font-weight: 500;">Zaktualizowana cena</div>' +
                     '<div class="price-box-column-text-api">Nowa cena: ' + item.externalPrice.toFixed(2) + ' zł</div>' +
                     '<div class="price-box-column-text-api">Zmiana: ' + externalPriceDifferenceText + ' zł</div>';
             }
@@ -383,7 +386,6 @@
             }
 
             priceBoxData.appendChild(colorBar);
-            priceBoxData.appendChild(productImage);
             priceBoxData.appendChild(priceBoxColumnLowestPrice);
             priceBoxData.appendChild(priceBoxColumnMyPrice);
             priceBoxData.appendChild(priceBoxColumnInfo);
@@ -399,7 +401,7 @@
             container.appendChild(box);
 
             assignFlagButton.addEventListener('click', function (event) {
-                event.stopPropagation(); // Zapobiegamy kliknięciu w całego boxa przy kliknięciu w przycisk
+                event.stopPropagation();
                 selectedProductId = this.dataset.productId;
                 modal.style.display = 'block';
                 fetch('/ProductFlags/GetFlagsForProduct?productId=' + selectedProductId)
@@ -412,6 +414,7 @@
                     .catch(error => console.error('Error fetching flags for product:', error));
             });
         });
+
 
         document.getElementById('displayedProductCount').textContent = data.length;
     }
