@@ -209,11 +209,11 @@ namespace PriceSafari.Controllers.MemberControllers
 
             var productsWithExternalInfo = await _context.Products
                 .Where(p => p.StoreId == storeId && p.ExternalId.HasValue)
-                .Select(p => new { p.ProductId, p.ExternalId, p.ExternalPrice })
+                .Select(p => new { p.ProductId, p.ExternalId, p.ExternalPrice, p.MainUrl })
                 .ToListAsync();
 
             var productExternalInfoDictionary = productsWithExternalInfo
-                .ToDictionary(p => p.ProductId, p => new { p.ExternalId, p.ExternalPrice });
+                .ToDictionary(p => p.ProductId, p => new { p.ExternalId, p.ExternalPrice, p.MainUrl });
 
             var allPrices = prices
                 .GroupBy(p => p.ProductId)
@@ -284,10 +284,11 @@ namespace PriceSafari.Controllers.MemberControllers
                         Delivery = bestPriceEntry.AvailabilityNum,
                         MyDelivery = myPriceEntry?.AvailabilityNum,
                         ExternalId = productExternalInfoDictionary.ContainsKey(g.Key) ? productExternalInfoDictionary[g.Key].ExternalId : null,
-                        ExternalPrice = productExternalInfoDictionary.ContainsKey(g.Key) ? productExternalInfoDictionary[g.Key].ExternalPrice : null
+                        ExternalPrice = productExternalInfoDictionary.ContainsKey(g.Key) ? productExternalInfoDictionary[g.Key].ExternalPrice : null,
+                        ImgUrl = productExternalInfoDictionary.ContainsKey(g.Key) ? productExternalInfoDictionary[g.Key].MainUrl : null,
                     };
                 })
-                .Where(p => p != null) // Filtracja odrzuconych produktów
+                .Where(p => p != null) 
                 .ToList();
 
             var missedProducts = await _context.Products
