@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Identity;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using PriceSafari.Data;
@@ -8,6 +9,7 @@ using System.Security.Claims;
 
 namespace PriceSafari.Controllers
 {
+    [Authorize(Roles = "Member")]
     public class SafariController : Controller
     {
         
@@ -209,8 +211,6 @@ namespace PriceSafari.Controllers
 
 
 
-
-
         [HttpGet]
         public async Task<IActionResult> Index(int storeId)
         {
@@ -232,9 +232,8 @@ namespace PriceSafari.Controllers
                 .ThenInclude(pf => pf.Flag)
                 .ToListAsync();
 
-            // Pobieranie raportów związanych z danym sklepem
             var reports = await _context.PriceSafariReports
-                .Where(r => r.StoreId == storeId)
+                .Where(r => r.StoreId == storeId && (r.Prepared == null || r.Prepared == false))
                 .ToListAsync();
 
             // Przekazanie danych do widoku
@@ -242,10 +241,8 @@ namespace PriceSafari.Controllers
             ViewBag.StoreName = store.StoreName;
             ViewBag.StoreId = storeId;
 
-
             return View("~/Views/Panel/Safari/Index.cshtml", products);
         }
-
 
 
 

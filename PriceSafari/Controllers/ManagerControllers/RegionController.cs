@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using PriceSafari.Data;
 using PriceSafari.Models;
@@ -7,6 +8,7 @@ using System.Threading.Tasks;
 
 namespace PriceSafari.Controllers
 {
+    [Authorize(Roles = "Admin")]
     public class RegionController : Controller
     {
         private readonly PriceSafariContext _context;

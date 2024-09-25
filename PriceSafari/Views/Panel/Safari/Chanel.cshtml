@@ -7,7 +7,7 @@
 <div class="Vert">
     <div class="Vert-full">
         <div class="Order-Container-Title">
-            Ceny
+            Safari
         </div>
         @if (Model != null && Model.Any())
         {
@@ -17,8 +17,7 @@
                         <tr>
                             <th></th>
                             <th>Kanał</th>
-                            <th>Ostatnie scrapowanie</th>
-                            <th>Czas od ostatniego scrapowania</th>
+                           
 
                         </tr>
                     </thead>
@@ -33,8 +32,7 @@
                                     @store.StoreName
 
                                 </td>
-                                <td>@store.LastScrapeDate?.ToString("g")</td>
-                                <td class="time-since-last-scrape"></td>
+                              
 
                             </tr>
                         }
@@ -60,17 +58,6 @@
                     }
                 });
 
-                var lastScrapeDate = row.getAttribute('data-last-scrape');
-                if (lastScrapeDate) {
-                    var lastScrape = new Date(lastScrapeDate);
-                    var now = new Date();
-                    var diff = Math.abs(now - lastScrape);
-                    var hours = Math.floor(diff / 36e5);
-                    var minutes = Math.floor((diff % 36e5) / 60000);
-                    row.querySelector('.time-since-last-scrape').textContent = `${hours} godzin ${minutes} minut`;
-                } else {
-                    row.querySelector('.time-since-last-scrape').textContent = 'Brak danych';
-                }
             });
         });
     </script>

@@ -1,4 +1,5 @@
 ﻿using EFCore.BulkExtensions;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
@@ -13,6 +14,7 @@ using System.Threading.Tasks;
 
 namespace PriceSafari.Controllers
 {
+    [Authorize(Roles = "Admin")]
     public class GoogleScrapingController : Controller
     {
         private readonly PriceSafariContext _context;
