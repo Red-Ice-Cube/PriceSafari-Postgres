@@ -11,13 +11,9 @@
     <div class="Vert-full">
         <div class="price-box-space">
             <div class="Order-Container-Title">
-                Raporty Safari @ViewBag.StoreName
-                <div class="bar-List">
-                    <div class="d-flex mb-3">
-                        <a href="@Url.Action("Index", "Safari", new { storeId = ViewBag.StoreId })" class="btn btn-primary" style="margin-bottom: 20px;">Dodaj raport</a>
-                    </div>
-                </div>
+                Raporty Safari dla sklepu @ViewBag.StoreName
             </div>
+            <a href="@Url.Action("Index", "Safari", new { storeId = ViewBag.StoreId })" class="Button-Action-Small">Dodaj raport</a>
         </div>
 
         @if (Model.Any())
@@ -30,16 +26,15 @@
                             <th>Zlecono</th>
                             <th>Przygotowano</th>
                             <th>Status</th>
-                            <th>Ilość produktów</th>
+                            <th>Produkty</th>
                             <th>Kraje</th>
-                            <th>Akcje</th>
                         </tr>
                     </thead>
                     <tbody>
                         @foreach (var report in Model)
                         {
-                            <tr>
-                                <td>@report.ReportName</td>
+                            <tr data-url="@Url.Action("SafariReportAnalysis", "Safari", new { reportId = report.ReportId })" style="cursor:pointer;">
+                                <td style="font-size:19px; font-weight:300;">@report.ReportName</td>
                                 <td>@report.CreatedDate.ToString("yyyy-MM-dd HH:mm")</td>
                                 <td>@(report.ReadyDate?.ToString("yyyy-MM-dd HH:mm") ?? "W przygotowaniu")</td>
                                 <td>
@@ -54,33 +49,38 @@
                                 </td>
                                 <td>@(report.ProductIds?.Count() ?? 0)</td>
                                 <td id="flags-@report.ReportId"></td> <!-- Miejsce, gdzie wstawimy flagi -->
-                                <td>
-                                    <a href="@Url.Action("SafariReportAnalysis", "Safari", new { reportId = report.ReportId })">Zobacz szczegóły raportu</a>
-                                </td>
                             </tr>
                         }
                     </tbody>
                 </table>
             </div>
         }
-        else
-        {
-            <p>Brak raportów do wyświetlenia.</p>
-        }
+        
     </div>
 </div>
 
-<!-- Dodanie skryptu JavaScript do rysowania flag -->
+<!-- Dodanie skryptu JavaScript do klikalnych wierszy -->
 <script>
     document.addEventListener("DOMContentLoaded", function () {
-        var reportCountries = @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(reportCountries));
+      
+        var rows = document.querySelectorAll("tr[data-url]");
+        rows.forEach(function (row) {
+            row.addEventListener("click", function () {
+                var url = row.getAttribute("data-url");
+                if (url) {
+                    window.location.href = url;  
+                }
+            });
+        });
 
+  
+        var reportCountries = @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(reportCountries));
         Object.keys(reportCountries).forEach(function (reportId) {
             var flagsContainer = document.getElementById('flags-' + reportId);
             if (flagsContainer) {
                 reportCountries[reportId].forEach(function (flag) {
                     var img = document.createElement('img');
-                    img.src = '/images/' + flag + '.png';  // Zakładamy, że nazwa flagi to nazwa pliku
+                    img.src = '/images/' + flag + '.png';  
                     img.alt = flag;
                     img.style.height = '16px';
                     img.style.width = '25px';

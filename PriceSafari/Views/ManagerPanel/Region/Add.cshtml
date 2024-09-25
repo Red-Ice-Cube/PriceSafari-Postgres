@@ -1,25 +1,32 @@
 ﻿@model PriceSafari.Models.Region
 
-<h1>Add New Region</h1>
+@{
+    Layout = "~/Views/Shared/_PanelLayout.cshtml";
+}
 
-<h1>Add New Region</h1>
+<h1>Nowy Region</h1>
 
 <form asp-action="Add" method="post">
     <div class="form-group">
-        <label for="Name">Name</label>
+        <label for="Name">Nazwa</label>
         <input type="text" class="form-control" asp-for="Name" />
         <span asp-validation-for="Name" class="text-danger"></span>
     </div>
     <div class="form-group">
-        <label for="Currency">Currency</label>
+        <label for="Currency">Waluta</label>
         <input type="text" class="form-control" asp-for="Currency" />
         <span asp-validation-for="Currency" class="text-danger"></span>
     </div>
     <div class="form-group">
-        <label for="CurrencyValue">Currency Value</label>
+        <label for="CurrencyValue">Wartosc waluty</label>
         <input type="number" class="form-control" asp-for="CurrencyValue" step="0.0001" />
         <span asp-validation-for="CurrencyValue" class="text-danger"></span>
     </div>
+    <div class="form-group">
+        <label for="CountryCode">Kod Kraju Google</label>
+        <input type="text" class="form-control" asp-for="CountryCode"/>
+        <span asp-validation-for="CountryCode" class="text-danger"></span>
+    </div>
 
-    <button type="submit" class="btn btn-primary">Save</button>
+    <button type="submit" class="Button-Page-Small-b">Zapisz</button>
 </form>

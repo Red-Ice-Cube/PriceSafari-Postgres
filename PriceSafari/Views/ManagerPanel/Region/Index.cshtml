@@ -1,30 +1,54 @@
 ﻿@model IEnumerable<PriceSafari.Models.Region>
 
-<h1>Regions</h1>
+@{
+    Layout = "~/Views/Shared/_PanelLayout.cshtml";
+}
 
-<table class="table">
-    <thead>
-        <tr>
-            <th>Name</th>
-            <th>Currency</th>
-            <th>Currency Value</th> <!-- Nowa kolumna dla CurrencyValue -->
-            <th></th>
-        </tr>
-    </thead>
-    <tbody>
-        @foreach (var region in Model)
-        {
-            <tr>
-                <td>@region.Name</td>
-                <td>@region.Currency</td>
-                <td>@region.CurrencyValue</td> <!-- Wyświetlanie CurrencyValue -->
-                <td>
-                    <a asp-action="Edit" asp-route-id="@region.RegionId">Edit</a> |
-                    <a asp-action="Delete" asp-route-id="@region.RegionId">Delete</a>
-                </td>
-            </tr>
-        }
-    </tbody>
-</table>
 
-<a asp-action="Add" class="btn btn-primary">Add New Region</a>
+
+<div class="Vert">
+    <div class="Vert-full">
+        <div class="price-box-space">
+            <div class="Order-Container-Title">
+                Rynki
+            </div>
+            <a asp-action="Add" class="Button-Action-Small">Dodaj Kraj</a>
+        </div>
+        <div class="Vert-table">
+
+        <table class="table-orders">
+            <thead>
+                <tr>
+                    <th>Kraj</th>
+                    <th>Waluta</th>
+                    <th>Kurs do PLN</th>
+                    <th>Kod</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var region in Model)
+                {
+                    <tr>
+                        <td>
+                            <div style="display:flex;">
+                                <img src="~/images/@(region.Name).png" alt="@region.Name" style="display:flex; align-self:center; width: 28px; height: 20px; margin-right:8px;" />
+                                @region.Name
+                            </div>
+                        </td>
+                        <td>@region.Currency</td>
+                        <td>@region.CurrencyValue</td>
+                        <td>@region.CountryCode</td>
+                        <td>
+                            <a asp-action="Edit" class="Button-Page-Small" asp-route-id="@region.RegionId">Edytuj</a> |
+                            <a asp-action="Delete" class="Button-Page-Small-r" asp-route-id="@region.RegionId">Usuń</a>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+
+        </div>
+
+    </div>
+</div>
