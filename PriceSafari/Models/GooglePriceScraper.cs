@@ -76,7 +76,7 @@ namespace PriceSafari.Services
                         {
                             Console.WriteLine("Znaleziono przycisk 'Jeszcze oferty'. Klikam, aby rozwinąć.");
                             await button.ClickAsync();
-                            await Task.Delay(250);
+                            await Task.Delay(300);
                         }
                     }
 
@@ -183,21 +183,26 @@ namespace PriceSafari.Services
                         var hiddenStoreNameSelector = "td:nth-child(1) > div._-ez > a";
                         var hiddenPriceSelector = "";
                         var hiddenPriceWithDeliverySelector = "";
+                        var hiddenOfferUrlSelector = "";
 
                         if (countryCode == "ua" || countryCode == "tr" || countryCode == "by")
                         {
                            
                             hiddenPriceSelector = "td:nth-child(3) > span";
                             hiddenPriceWithDeliverySelector = "td:nth-child(4) > div";
+                            hiddenOfferUrlSelector = "td:nth-child(5) > div > a";
+
                         }
                         else
                         {
                            
                             hiddenPriceSelector = "td:nth-child(4) > span";
                             hiddenPriceWithDeliverySelector = "td:nth-child(5) > div";
+                            hiddenOfferUrlSelector = "td:nth-child(6) > div > a";
+
                         }
 
-                        var hiddenOfferUrlSelector = "td:nth-child(6) > div > a";
+                       
 
                         var hiddenStoreNameElement = await hiddenRowElement.QuerySelectorAsync(hiddenStoreNameSelector);
                         if (hiddenStoreNameElement != null)

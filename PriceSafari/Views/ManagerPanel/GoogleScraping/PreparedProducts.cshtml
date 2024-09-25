@@ -18,11 +18,10 @@
             <div class="Order-Container-Title">
                 Scraper Google Shopping
             </div>
-            <form asp-action="StartScraping" method="post">
+            <form asp-action="StartScraping" method="post" onsubmit="return validateForm()">
                 <div class="form-group">
-                 
-                    <select name="selectedRegion" class="form-control" id="region" onchange="updateCountryCode()">
-                        
+                    <select name="selectedRegion" class="form-control" id="region" required onchange="updateCountryCode()">
+                        <option value="">-- Wybierz region --</option> <!-- Domyślna opcja -->
                         @foreach (var region in ViewBag.Regions)
                         {
                             <option value="@region.RegionId" data-country-code="@region.CountryCode">@region.Name</option>
@@ -32,6 +31,50 @@
                 <input type="hidden" id="countryCode" name="countryCode" />
                 <button type="submit" class="btn btn-primary">URUCHOM BOT</button>
             </form>
+
+            <script>
+                function updateCountryCode() {
+                    var selectedOption = document.getElementById("region").options[document.getElementById("region").selectedIndex];
+                    var countryCode = selectedOption.getAttribute("data-country-code");
+                    document.getElementById("countryCode").value = countryCode;
+                }
+
+                function validateForm() {
+                    var selectedRegion = document.getElementById("region").value;
+                    var countryCode = document.getElementById("countryCode").value;
+
+                    if (selectedRegion === "") {
+                        alert("Proszę wybrać region.");
+                        return false; // Zapobiega wysłaniu formularza
+                    }
+
+                    if (countryCode === "") {
+                        alert("Brak kodu kraju. Proszę wybrać poprawny region.");
+                        return false; // Zapobiega wysłaniu formularza, jeśli countryCode jest pusty
+                    }
+
+                    return true; // Formularz może zostać wysłany
+                }
+            </script>
+
+
+            <script>
+                function updateCountryCode() {
+                    var selectedOption = document.getElementById("region").options[document.getElementById("region").selectedIndex];
+                    var countryCode = selectedOption.getAttribute("data-country-code");
+                    document.getElementById("countryCode").value = countryCode;
+                }
+
+                function validateForm() {
+                    var selectedRegion = document.getElementById("region").value;
+                    if (selectedRegion === "") {
+                        alert("Proszę wybrać region.");
+                        return false; // Zapobiega wysłaniu formularza
+                    }
+                    return true;
+                }
+            </script>
+
             <form asp-action="ClearPreparedProducts" method="post" onsubmit="return confirm('Are you sure you want to clear all prepared products?');">
                 <button type="submit" class="btn btn-danger mt-3">Usun wszystkie</button>
             </form>
