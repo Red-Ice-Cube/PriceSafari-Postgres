@@ -7,82 +7,103 @@
 }
 
 
-<form asp-action="StartScraping" method="post">
-    <div class="form-group">
-        <label for="region">Wybierz Region:</label>
-        <select name="selectedRegion" class="form-control" id="region" onchange="updateCountryCode()">
-            <option value="">Wybierz...</option>
-            @foreach (var region in ViewBag.Regions)
-            {
-                <option value="@region.RegionId" data-country-code="@region.CountryCode">@region.Name</option>
-            }
-        </select>
-    </div>
-    <input type="hidden" id="countryCode" name="countryCode" />
-    <button type="submit" class="btn btn-primary">Start Scraping</button>
-</form>
-<form asp-action="ClearPreparedProducts" method="post" onsubmit="return confirm('Are you sure you want to clear all prepared products?');">
-    <button type="submit" class="btn btn-danger mt-3">Clear All Prepared Products</button>
-</form>
 
-<form asp-action="ResetAllScrapingStatuses" method="post">
-    <button type="submit" class="btn btn-danger">Resetuj Wszystkie Statusy</button>
-</form>
 
 <!-- Progres bar dla statusu scrapowania -->
-<div class="d-flex mb-3">
-    <p class="me-4">Liczba produktów do scrapowania: <span id="totalCount" class="badge bg-secondary">0</span></p>
-    <p>Liczba zescrapowanych produktów: <span id="scrapedCount" class="badge bg-success">0</span></p>
+
+
+<div class="Vert">
+    <div class="Vert-full">
+        <div class="price-box-space">
+            <div class="Order-Container-Title">
+                Scraper Google Shopping
+            </div>
+            <form asp-action="StartScraping" method="post">
+                <div class="form-group">
+                 
+                    <select name="selectedRegion" class="form-control" id="region" onchange="updateCountryCode()">
+                        
+                        @foreach (var region in ViewBag.Regions)
+                        {
+                            <option value="@region.RegionId" data-country-code="@region.CountryCode">@region.Name</option>
+                        }
+                    </select>
+                </div>
+                <input type="hidden" id="countryCode" name="countryCode" />
+                <button type="submit" class="btn btn-primary">URUCHOM BOT</button>
+            </form>
+            <form asp-action="ClearPreparedProducts" method="post" onsubmit="return confirm('Are you sure you want to clear all prepared products?');">
+                <button type="submit" class="btn btn-danger mt-3">Usun wszystkie</button>
+            </form>
+
+            <form asp-action="ResetAllScrapingStatuses" method="post">
+                <button type="submit" class="btn btn-secondary">Resetuj Statusy</button>
+            </form>
+        </div>
+      
+            
+            <div class="d-flex mb-3">
+                <p class="me-4">Liczba produktów do scrapowania: <span id="totalCount" class="badge bg-secondary">0</span></p>
+                <p>Liczba zescrapowanych produktów: <span id="scrapedCount" class="badge bg-success">0</span></p>
+            </div>
+       
+        
+
+        <div class="progress mb-3">
+            <div id="scrapingProgressBar" class="progress-bar" role="progressbar" style="width: 0%" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
+        </div>
+        <div class="Vert-table">
+
+            <table class="table-orders">
+                <thead>
+                    <tr>
+                        <th>Product ID</th>
+                        <th>Google URL</th>
+                        <th>Region ID</th>
+                        <th>Status Scrapowania</th>
+                        <th>Znalezione oferty</th>
+                        <th>Akcja</th>
+                    </tr>
+                </thead>
+                <tbody id="productTable">
+                    @foreach (var product in Model)
+                    {
+                        <tr id="productRow-@product.ScrapingProductId">
+                            <td>@product.ScrapingProductId</td>
+                            <td>@product.GoogleUrl</td>
+                            <td>@product.RegionId</td>
+                            <td>
+                                @if (product.IsScraped == true)
+                                {
+                                    <span style="color:green;">Zescrapowano</span>
+                                }
+                                else if (product.IsScraped == false)
+                                {
+                                    <span style="color:red;">Nieudane</span>
+                                }
+                                else
+                                {
+                                    <span style="color:gray;">Nie zescrapowano</span>
+                                }
+                            </td>
+                            <td>@product.OffersCount</td>
+                            <td>
+                                <form asp-action="ResetScrapingStatus" method="post">
+                                    <input type="hidden" name="productId" value="@product.ScrapingProductId" />
+                                    <button type="submit" class="btn btn-warning">Resetuj Status</button>
+                                </form>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+
+        </div>
+
+    </div>
 </div>
 
-<div class="progress mb-3">
-    <div id="scrapingProgressBar" class="progress-bar" role="progressbar" style="width: 0%" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
-</div>
 
-<!-- Tabela produktów -->
-<table class="table">
-    <thead>
-        <tr>
-            <th>Product ID</th>
-            <th>Google URL</th>
-            <th>Region ID</th>
-            <th>Status Scrapowania</th>
-            <th>Znalezione oferty</th>
-            <th>Akcja</th>
-        </tr>
-    </thead>
-    <tbody id="productTable">
-        @foreach (var product in Model)
-        {
-            <tr id="productRow-@product.ScrapingProductId">
-                <td>@product.ScrapingProductId</td>
-                <td>@product.GoogleUrl</td>
-                <td>@product.RegionId</td>
-                <td>
-                    @if (product.IsScraped == true)
-                    {
-                        <span style="color:green;">Zescrapowano</span>
-                    }
-                    else if (product.IsScraped == false)
-                    {
-                        <span style="color:red;">Nieudane</span>
-                    }
-                    else
-                    {
-                        <span style="color:gray;">Nie zescrapowano</span>
-                    }
-                </td>
-                <td>@product.OffersCount</td>
-                <td>
-                    <form asp-action="ResetScrapingStatus" method="post">
-                        <input type="hidden" name="productId" value="@product.ScrapingProductId" />
-                        <button type="submit" class="btn btn-warning">Resetuj Status</button>
-                    </form>
-                </td>
-            </tr>
-        }
-    </tbody>
-</table>
 @section Scripts {
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/5.0.11/signalr.min.js"></script> <!-- Użycie oficjalnej wersji SignalR -->
