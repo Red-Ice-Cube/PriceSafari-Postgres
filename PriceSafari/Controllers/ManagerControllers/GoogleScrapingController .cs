@@ -168,8 +168,6 @@ namespace PriceSafari.Controllers
 
 
 
-
-        // GET: Scraping/PreparedProducts
         public async Task<IActionResult> PreparedProducts(int? selectedRegion)
         {
             // Pobieranie produktów do scrapowania z filtrowaniem według regionu, jeśli wybrano
@@ -182,9 +180,14 @@ namespace PriceSafari.Controllers
 
             var scrapingProducts = await scrapingProductsQuery.ToListAsync();
 
-            // Pobieranie listy regionów do ViewBag
+            // Pobieranie listy regionów do ViewBag z pełnymi informacjami
             ViewBag.Regions = await _context.Regions
-                .Select(r => new { r.RegionId, r.Name })
+                .Select(r => new RegionViewModel
+                {
+                    RegionId = r.RegionId,
+                    Name = r.Name,
+                    CountryCode = r.CountryCode
+                })
                 .ToListAsync();
 
             // Przekazujemy również wybrany region do widoku, aby zachować wybór
@@ -193,6 +196,7 @@ namespace PriceSafari.Controllers
             // Renderowanie odpowiedniego widoku
             return View("~/Views/ManagerPanel/GoogleScraping/PreparedProducts.cshtml", scrapingProducts);
         }
+
 
 
         // POST: Scraping/ClearPreparedProducts
@@ -254,177 +258,11 @@ namespace PriceSafari.Controllers
 
 
 
-        //[HttpPost]
-        //public async Task<IActionResult> StartScraping(int? selectedRegion)
-        //{
-        //    // Zawsze pobieramy ustawienia z bazy danych
-        //    var settings = await _context.Settings.FirstOrDefaultAsync();
-        //    if (settings == null)
-        //    {
-        //        Console.WriteLine("Settings not found in the database.");
-        //        return BadRequest("Settings not found.");
-        //    }
-
-        //    string countryCode = string.Empty;
-        //    string languageCode = string.Empty;
-
-        //    // Pobieramy region raz na początku, jeśli jest podany
-        //    if (selectedRegion.HasValue)
-        //    {
-        //        var region = await _context.Regions.FirstOrDefaultAsync(r => r.RegionId == selectedRegion.Value);
-        //        if (region == null)
-        //        {
-        //            Console.WriteLine("Region not found.");
-        //            return NotFound("Region not found.");
-        //        }
-
-        //        countryCode = region.CountryCode;
-        //        languageCode = region.LanguageCode;
-        //    }
-
-        //    var scrapingProductsQuery = _context.GoogleScrapingProducts
-        //        .Where(gsp => gsp.IsScraped == null);
-
-        //    if (selectedRegion.HasValue)
-        //    {
-        //        scrapingProductsQuery = scrapingProductsQuery.Where(gsp => gsp.RegionId == selectedRegion.Value);
-        //    }
-
-        //    var scrapingProducts = await scrapingProductsQuery.ToListAsync();
-        //    if (!scrapingProducts.Any())
-        //    {
-        //        Console.WriteLine("No products found to scrape.");
-        //        return NotFound("No products found to scrape.");
-        //    }
-
-        //    Console.WriteLine($"Znaleziono {scrapingProducts.Count} produktów do scrapowania w regionie {selectedRegion}.");
-
-        //    if (_hubContext != null)
-        //    {
-        //        await _hubContext.Clients.All.SendAsync("ReceiveProgressUpdate", 0, scrapingProducts.Count, 0, 0);
-        //    }
-        //    else
-        //    {
-        //        Console.WriteLine("Hub context is null.");
-        //    }
-
-        //    int maxConcurrentScrapers = settings.Semophore;
-        //    var semaphore = new SemaphoreSlim(maxConcurrentScrapers);
-        //    var tasks = new List<Task>();
-
-        //    var productQueue = new Queue<GoogleScrapingProduct>(scrapingProducts);
-        //    var serviceScopeFactory = HttpContext.RequestServices.GetRequiredService<IServiceScopeFactory>();
-
-        //    int totalScraped = 0;
-        //    var stopwatch = new Stopwatch();
-        //    stopwatch.Start();
-
-        //    // Lista do przechowywania zebranych cen
-        //    var batchedPriceData = new List<PriceData>();
-
-        //    for (int i = 0; i < maxConcurrentScrapers; i++)
-        //    {
-        //        tasks.Add(Task.Run(async () =>
-        //        {
-        //            await semaphore.WaitAsync();
-
-        //            var scraper = new GooglePriceScraper();
-        //            if (scraper == null)
-        //            {
-        //                Console.WriteLine("Scraper object is null.");
-        //                return;
-        //            }
-
-        //            await scraper.InitializeAsync(settings);
-
-        //            while (true)
-        //            {
-        //                GoogleScrapingProduct scrapingProduct = null;
-
-        //                lock (productQueue)
-        //                {
-        //                    if (productQueue.Count > 0)
-        //                    {
-        //                        scrapingProduct = productQueue.Dequeue();
-        //                    }
-        //                }
-
-        //                if (scrapingProduct == null)
-        //                {
-        //                    break;
-        //                }
-
-        //                try
-        //                {
-        //                    using (var scope = serviceScopeFactory.CreateScope())
-        //                    {
-        //                        var scopedContext = scope.ServiceProvider.GetRequiredService<PriceSafariContext>();
-
-        //                        Console.WriteLine($"Rozpoczęcie scrapowania dla URL: {scrapingProduct.GoogleUrl}");
-        //                        var scrapedPrices = await scraper.ScrapePricesAsync(scrapingProduct, countryCode, languageCode);
-
-        //                        if (scrapedPrices.Any())
-        //                        {
-        //                            // Dodajemy zebrane dane do batcha
-        //                            batchedPriceData.AddRange(scrapedPrices);
-
-        //                            scrapingProduct.IsScraped = true;
-        //                            scrapingProduct.OffersCount = scrapedPrices.Count;
-
-        //                            scopedContext.GoogleScrapingProducts.Update(scrapingProduct);
-        //                        }
-
-                             
-        //                        if (batchedPriceData.Count >= 400)
-        //                        {
-        //                            scopedContext.PriceData.AddRange(batchedPriceData);
-        //                            await scopedContext.SaveChangesAsync();  // Jednorazowy zapis batcha do bazy
-        //                            batchedPriceData.Clear();  // Czyścimy batch po zapisie
-        //                            Console.WriteLine("Zapisano partię 400 ofert do bazy.");
-        //                        }
-
-        //                        Interlocked.Increment(ref totalScraped);
-        //                        double elapsedSeconds = stopwatch.Elapsed.TotalSeconds;
-        //                        await _hubContext.Clients.All.SendAsync("ReceiveProgressUpdate", totalScraped, scrapingProducts.Count, elapsedSeconds, 0);
-        //                    }
-        //                }
-        //                catch (Exception ex)
-        //                {
-        //                    Console.WriteLine($"Błąd podczas scrapowania produktu {scrapingProduct.ScrapingProductId}: {ex.Message}");
-        //                }
-        //            }
-
-        //            await scraper.CloseAsync();
-        //            semaphore.Release();
-        //        }));
-        //    }
-
-        //    await Task.WhenAll(tasks);
-
-        //    // Zapisanie pozostałych danych, które nie zostały zapisane w batchu
-        //    if (batchedPriceData.Any())
-        //    {
-        //        using (var scope = serviceScopeFactory.CreateScope())
-        //        {
-        //            var scopedContext = scope.ServiceProvider.GetRequiredService<PriceSafariContext>();
-        //            scopedContext.PriceData.AddRange(batchedPriceData);
-        //            await scopedContext.SaveChangesAsync();
-        //            Console.WriteLine("Zapisano pozostałe dane po zakończeniu.");
-        //        }
-        //    }
-
-        //    stopwatch.Stop();
-        //    Console.WriteLine("Wszystkie taski zakończone.");
-
-        //    return RedirectToAction("PreparedProducts");
-        //}
-
-
-
+     
 
 
         [HttpPost]
-        public async Task<IActionResult> StartScraping(int? selectedRegion)
+        public async Task<IActionResult> StartScraping(int? selectedRegion, string countryCode)
         {
             // Zawsze pobieramy ustawienia z bazy danych
             var settings = await _context.Settings.FirstOrDefaultAsync();
@@ -432,19 +270,8 @@ namespace PriceSafari.Controllers
             {
                 Console.WriteLine("Settings not found in the database.");
                 return BadRequest("Settings not found.");
-            }
+            }        
 
-
-
-            var region = await _context.Regions
-                .FirstOrDefaultAsync(r => r.RegionId == selectedRegion.Value);
-
-            if (region == null)
-            {
-                return BadRequest("Invalid region selected.");
-            }
-
-            string countryCode = region.CountryCode;
 
             var scrapingProductsQuery = _context.GoogleScrapingProducts
                 .Where(gsp => gsp.IsScraped == null);
@@ -569,133 +396,6 @@ namespace PriceSafari.Controllers
 
 
 
-        //[HttpPost]
-        //public async Task<IActionResult> StartScraping(int? selectedRegion)
-        //{
-        //    // Zawsze pobieramy ustawienia z bazy danych
-        //    var settings = await _context.Settings.FirstOrDefaultAsync();
-
-        //    if (settings == null)
-        //    {
-        //        Console.WriteLine("Settings not found in the database.");
-        //        return BadRequest("Settings not found.");
-        //    }
-
-        //    var scrapingProductsQuery = _context.GoogleScrapingProducts
-        //        .Where(gsp => gsp.IsScraped == null);
-
-        //    if (selectedRegion.HasValue)
-        //    {
-        //        scrapingProductsQuery = scrapingProductsQuery.Where(gsp => gsp.RegionId == selectedRegion.Value);
-        //    }
-
-        //    var scrapingProducts = await scrapingProductsQuery.ToListAsync();
-
-        //    if (!scrapingProducts.Any())
-        //    {
-        //        Console.WriteLine("No products found to scrape.");
-        //        return NotFound("No products found to scrape.");
-        //    }
-
-        //    Console.WriteLine($"Znaleziono {scrapingProducts.Count} produktów do scrapowania w regionie {selectedRegion}.");
-
-        //    if (_hubContext != null)
-        //    {
-        //        await _hubContext.Clients.All.SendAsync("ReceiveProgressUpdate", 0, scrapingProducts.Count, 0, 0);
-        //    }
-        //    else
-        //    {
-        //        Console.WriteLine("Hub context is null.");
-        //    }
-
-        //    // Pobieramy wartość semafora z ustawień
-        //    int maxConcurrentScrapers = settings.Semophore;
-        //    var semaphore = new SemaphoreSlim(maxConcurrentScrapers);
-        //    var tasks = new List<Task>();
-
-        //    var productQueue = new Queue<GoogleScrapingProduct>(scrapingProducts);
-        //    var serviceScopeFactory = HttpContext.RequestServices.GetRequiredService<IServiceScopeFactory>();
-
-        //    int totalScraped = 0;
-        //    var stopwatch = new Stopwatch();
-        //    stopwatch.Start();
-
-        //    for (int i = 0; i < maxConcurrentScrapers; i++)
-        //    {
-        //        tasks.Add(Task.Run(async () =>
-        //        {
-        //            await semaphore.WaitAsync();
-
-        //            var scraper = new GooglePriceScraper();
-        //            if (scraper == null)
-        //            {
-        //                Console.WriteLine("Scraper object is null.");
-        //                return;
-        //            }
-
-        //            await scraper.InitializeAsync(settings);
-
-        //            while (true)
-        //            {
-        //                GoogleScrapingProduct scrapingProduct = null;
-
-        //                lock (productQueue)
-        //                {
-        //                    if (productQueue.Count > 0)
-        //                    {
-        //                        scrapingProduct = productQueue.Dequeue();
-        //                    }
-        //                }
-
-        //                if (scrapingProduct == null)
-        //                {
-        //                    break;
-        //                }
-
-        //                try
-        //                {
-        //                    using (var scope = serviceScopeFactory.CreateScope())
-        //                    {
-        //                        var scopedContext = scope.ServiceProvider.GetRequiredService<PriceSafariContext>();
-
-        //                        Console.WriteLine($"Rozpoczęcie scrapowania dla URL: {scrapingProduct.GoogleUrl}");
-        //                        var scrapedPrices = await scraper.ScrapePricesAsync(scrapingProduct);
-
-        //                        scopedContext.PriceData.AddRange(scrapedPrices);
-        //                        await scopedContext.SaveChangesAsync();
-        //                        Console.WriteLine($"Zapisano {scrapedPrices.Count} ofert do bazy.");
-
-        //                        scrapingProduct.IsScraped = true;
-        //                        scrapingProduct.OffersCount = scrapedPrices.Count;
-
-        //                        scopedContext.GoogleScrapingProducts.Update(scrapingProduct);
-        //                        await scopedContext.SaveChangesAsync();
-        //                        Console.WriteLine($"Zaktualizowano status i liczbę ofert dla produktu {scrapingProduct.ScrapingProductId}: {scrapingProduct.OffersCount}.");
-
-        //                        Interlocked.Increment(ref totalScraped);
-        //                        double elapsedSeconds = stopwatch.Elapsed.TotalSeconds;
-        //                        await _hubContext.Clients.All.SendAsync("ReceiveProgressUpdate", totalScraped, scrapingProducts.Count, elapsedSeconds, 0);
-        //                    }
-        //                }
-        //                catch (Exception ex)
-        //                {
-        //                    Console.WriteLine($"Błąd podczas scrapowania produktu {scrapingProduct.ScrapingProductId}: {ex.Message}");
-        //                }
-        //            }
-
-        //            await scraper.CloseAsync();
-        //            semaphore.Release();
-        //        }));
-        //    }
-
-        //    await Task.WhenAll(tasks);
-        //    stopwatch.Stop();
-        //    Console.WriteLine("Wszystkie taski zakończone.");
-
-        //    return RedirectToAction("PreparedProducts");
-        //}
-
-
         [HttpGet]
         public async Task<IActionResult> ViewReportProducts(int reportId)
         {
@@ -745,99 +445,6 @@ namespace PriceSafari.Controllers
 
 
 
-
-
-        //[HttpPost]
-        //    public async Task<IActionResult> SaveReportProducts(int reportId)
-        //    {
-        //        using var transaction = await _context.Database.BeginTransactionAsync();
-        //        Stopwatch stopwatch = new Stopwatch();
-
-        //        try
-        //        {
-        //            Console.WriteLine("Rozpoczęto przetwarzanie raportu...");
-        //            stopwatch.Start();
-
-        //            // Pobieranie produktów z raportu, uwzględniając powiązania z PriceData i ProductClass
-        //            stopwatch.Restart();
-        //            var scrapingProducts = await _context.GoogleScrapingProducts
-        //                .Include(sp => sp.Products)  // Ładowanie powiązanych produktów
-        //                .Include(sp => sp.PriceData) // Ładowanie powiązanych danych cenowych
-        //                .Where(sp => sp.PriceSafariRaportId == reportId)
-        //                .ToListAsync();
-        //            stopwatch.Stop();
-        //            Console.WriteLine($"Pobranie produktów i powiązań zajęło: {stopwatch.ElapsedMilliseconds} ms");
-
-        //            if (!scrapingProducts.Any())
-        //            {
-        //                return NotFound("Brak produktów dla tego raportu.");
-        //            }
-
-        //            var globalPriceReports = new List<GlobalPriceReport>();
-
-        //            // Przetwarzanie produktów
-        //            stopwatch.Restart();
-        //            foreach (var scrapingProduct in scrapingProducts)
-        //            {
-        //                foreach (var price in scrapingProduct.PriceData)
-        //                {
-        //                    var product = scrapingProduct.Products.FirstOrDefault(); // Pobranie pierwszego produktu z powiązanej kolekcji
-
-        //                    var newReport = new GlobalPriceReport
-        //                    {
-        //                        ScrapingProductId = scrapingProduct.ScrapingProductId,
-        //                        ProductId = product?.ProductId ?? 0,  // Upewniamy się, że produkt istnieje
-        //                        Price = price.Price,
-        //                        PriceWithDelivery = price.PriceWithDelivery,
-        //                        StoreName = price.StoreName,
-        //                        OfferUrl = price.OfferUrl,
-        //                        RegionId = scrapingProduct.RegionId,
-        //                    };
-
-        //                    globalPriceReports.Add(newReport);
-        //                }
-        //            }
-        //            stopwatch.Stop();
-        //            Console.WriteLine($"Przetwarzanie produktów zajęło: {stopwatch.ElapsedMilliseconds} ms");
-
-        //            var bulkConfig = new BulkConfig
-        //            {
-        //                CustomDestinationTableName = "heatlead1_SQL_user.GlobalPriceReports",
-        //                BulkCopyTimeout = 0, // No timeout
-        //            };
-
-        //            // Podział na partie i zapis do bazy
-        //            stopwatch.Restart();
-        //            var batchSize = 1000; // Zależnie od możliwości serwera
-        //            var totalBatches = (int)Math.Ceiling((double)globalPriceReports.Count / batchSize);
-
-        //            for (int i = 0; i < globalPriceReports.Count; i += batchSize)
-        //            {
-        //                var batch = globalPriceReports.Skip(i).Take(batchSize).ToList();
-        //                stopwatch.Restart();
-        //                await _context.BulkInsertAsync(batch, bulkConfig);
-        //                stopwatch.Stop();
-
-        //                // Informacja o przetworzonych paczkach
-        //                Console.WriteLine($"Przetworzono partię {i / batchSize + 1} z {totalBatches}. Liczba rekordów: {batch.Count}, Czas zapisania paczki: {stopwatch.ElapsedMilliseconds} ms");
-        //            }
-
-        //            stopwatch.Stop();
-        //            Console.WriteLine($"Całkowity czas zapisu wszystkich paczek: {stopwatch.ElapsedMilliseconds} ms");
-
-        //            await transaction.CommitAsync();
-
-        //            Console.WriteLine("Zakończono przetwarzanie raportu.");
-
-        //            return RedirectToAction("PreparedProducts");
-        //        }
-        //        catch (Exception ex)
-        //        {
-        //            await transaction.RollbackAsync();
-        //            Console.WriteLine($"Błąd podczas zapisywania raportu: {ex.Message}");
-        //            throw;
-        //        }
-        //    }
 
         [HttpPost]
         public async Task<IActionResult> SaveReportProducts(int reportId)

@@ -3,17 +3,17 @@
 <form asp-action="StartScraping" method="post">
     <div class="form-group">
         <label for="region">Wybierz Region:</label>
-        <select name="selectedRegion" class="form-control" id="region">
+        <select name="selectedRegion" class="form-control" id="region" onchange="updateCountryCode()">
             <option value="">Wybierz...</option>
             @foreach (var region in ViewBag.Regions)
             {
-                <option value="@region.RegionId">@region.Name</option>
+                <option value="@region.RegionId" data-country-code="@region.CountryCode">@region.Name</option>
             }
         </select>
     </div>
+    <input type="hidden" id="countryCode" name="countryCode" />
     <button type="submit" class="btn btn-primary">Start Scraping</button>
 </form>
-
 <form asp-action="ClearPreparedProducts" method="post" onsubmit="return confirm('Are you sure you want to clear all prepared products?');">
     <button type="submit" class="btn btn-danger mt-3">Clear All Prepared Products</button>
 </form>
@@ -115,6 +115,14 @@
                 }
             }
         });
+    </script>
+    <script>
+        function updateCountryCode() {
+            var select = document.getElementById("region");
+            var selectedOption = select.options[select.selectedIndex];
+            var countryCode = selectedOption.getAttribute("data-country-code");
+            document.getElementById("countryCode").value = countryCode;
+        }
     </script>
 }
 
