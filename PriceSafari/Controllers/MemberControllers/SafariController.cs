@@ -55,7 +55,6 @@ namespace PriceSafari.Controllers
             return View("~/Views/Panel/Safari/Chanel.cshtml", storeDetails);
         }
 
-
         [HttpGet]
         [ServiceFilter(typeof(AuthorizeStoreAccessAttribute))]
         public async Task<IActionResult> StoreReports(int storeId)
@@ -73,16 +72,42 @@ namespace PriceSafari.Controllers
                 return NotFound("Store not found.");
             }
 
-            
+         
             var reports = await _context.PriceSafariReports
-                .Where(r => r.StoreId == storeId && r.Prepared != null) 
+                .Where(r => r.StoreId == storeId && r.Prepared != null)
+                .OrderByDescending(r => r.CreatedDate)
                 .ToListAsync();
+
+       
+            var allRegions = await _context.Regions.ToListAsync();
+
+         
+            var reportCountries = new Dictionary<int, List<string>>();
+
+         
+            foreach (var report in reports)
+            {
+           
+                var matchingRegions = allRegions
+                    .Where(region => report.RegionIds.Contains(region.RegionId))
+                    .ToList();
+
+             
+                var countryFlags = matchingRegions.Select(region => region.Name.ToLower()).ToList();
+                reportCountries[report.ReportId] = countryFlags;
+
+            }
 
             ViewBag.StoreName = store.StoreName;
             ViewBag.StoreId = storeId;
+            ViewBag.ReportCountries = reportCountries;
 
             return View("~/Views/Panel/Safari/PriceSafariReport.cshtml", reports);
         }
+
+
+
+
 
         [HttpGet]
         [ServiceFilter(typeof(AuthorizeStoreAccessAttribute))]

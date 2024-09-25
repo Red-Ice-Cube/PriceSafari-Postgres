@@ -1,73 +1,93 @@
 ﻿@model List<PriceSafari.Models.PriceSafariReport>
 
-
 @{
-    ViewData["Title"] = "Lista Produktów";
+    ViewData["Title"] = "Raporty Safari";
     Layout = "~/Views/Shared/_PanelLayout.cshtml";
     var storeId = ViewBag.StoreId;
+    var reportCountries = ViewBag.ReportCountries as Dictionary<int, List<string>>;
 }
-
-
-
-
 
 <div class="Vert">
     <div class="Vert-full">
         <div class="price-box-space">
             <div class="Order-Container-Title">
-                Lista produktów @ViewBag.StoreName
+                Raporty Safari @ViewBag.StoreName
                 <div class="bar-List">
                     <div class="d-flex mb-3">
                         <a href="@Url.Action("Index", "Safari", new { storeId = ViewBag.StoreId })" class="btn btn-primary" style="margin-bottom: 20px;">Dodaj raport</a>
-
-                       
-
                     </div>
                 </div>
             </div>
+        </div>
 
-            
-        </div>
         @if (Model.Any())
-    {
-        <div class="Vert-table">
-            <table class="table-orders">
-                <thead>
-                    <tr>
-                        <th>Nazwa raportu</th>
-                        <th>Data utworzenia</th>
-                        <th>Status</th>
-                        <th>Akcje</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var report in Model)
-                    {
+        {
+            <div class="Vert-table">
+                <table class="table-orders">
+                    <thead>
                         <tr>
-                            <td>@report.ReportName</td>
-                            <td>@report.CreatedDate.ToString("yyyy-MM-dd HH:mm")</td>
-                            <td>
-                                @if (report.Prepared == true)
-                                {
-                                    <span style="color: green;">Przygotowany</span>
-                                }
-                                else if (report.Prepared == false)
-                                {
-                                    <span style="color: red;">Nieprzygotowany</span>
-                                }
-                            </td>
-                            <td>
-                                    <a href="@Url.Action("SafariReportAnalysis", "Safari", new { reportId = report.ReportId })">Zobacz szczegóły raportu</a>
-                            </td>
+                            <th>Raport</th>
+                            <th>Zlecono</th>
+                            <th>Przygotowano</th>
+                            <th>Status</th>
+                            <th>Ilość produktów</th>
+                            <th>Kraje</th>
+                            <th>Akcje</th>
                         </tr>
-                    }
-                </tbody>
-            </table>
-        </div>
-    }
+                    </thead>
+                    <tbody>
+                        @foreach (var report in Model)
+                        {
+                            <tr>
+                                <td>@report.ReportName</td>
+                                <td>@report.CreatedDate.ToString("yyyy-MM-dd HH:mm")</td>
+                                <td>@(report.ReadyDate?.ToString("yyyy-MM-dd HH:mm") ?? "W przygotowaniu")</td>
+                                <td>
+                                    @if (report.Prepared == true)
+                                    {
+                                        <span style="color: green;">Gotowy</span>
+                                    }
+                                    else
+                                    {
+                                        <span style="color: red;">Nieprzygotowany</span>
+                                    }
+                                </td>
+                                <td>@(report.ProductIds?.Count() ?? 0)</td>
+                                <td id="flags-@report.ReportId"></td> <!-- Miejsce, gdzie wstawimy flagi -->
+                                <td>
+                                    <a href="@Url.Action("SafariReportAnalysis", "Safari", new { reportId = report.ReportId })">Zobacz szczegóły raportu</a>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
         else
         {
             <p>Brak raportów do wyświetlenia.</p>
         }
     </div>
 </div>
+
+<!-- Dodanie skryptu JavaScript do rysowania flag -->
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        var reportCountries = @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(reportCountries));
+
+        Object.keys(reportCountries).forEach(function (reportId) {
+            var flagsContainer = document.getElementById('flags-' + reportId);
+            if (flagsContainer) {
+                reportCountries[reportId].forEach(function (flag) {
+                    var img = document.createElement('img');
+                    img.src = '/images/' + flag + '.png';  // Zakładamy, że nazwa flagi to nazwa pliku
+                    img.alt = flag;
+                    img.style.height = '16px';
+                    img.style.width = '25px';
+                    img.style.marginRight = '5px';
+                    flagsContainer.appendChild(img);
+                });
+            }
+        });
+    });
+</script>

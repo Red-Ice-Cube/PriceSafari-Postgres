@@ -20,7 +20,7 @@ namespace PriceSafari.Models
 
         // Nowe pola dla lokalizacji i języka
         public string CountryCode { get; set; } // np. 'pl', 'de', 'sk'
-        public string LanguageCode { get; set; } // np. 'pl', 'de', 'sk'
+      
 
         // Nawigacja do PriceData
         public ICollection<PriceData> PriceData { get; set; } = new List<PriceData>();
