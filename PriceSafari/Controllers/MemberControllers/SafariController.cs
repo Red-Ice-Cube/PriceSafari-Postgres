@@ -26,6 +26,7 @@ namespace PriceSafari.Controllers
 
 
 
+
         [HttpGet]
         public async Task<IActionResult> Chanel()
         {
@@ -56,8 +57,11 @@ namespace PriceSafari.Controllers
 
 
         [HttpGet]
+        [ServiceFilter(typeof(AuthorizeStoreAccessAttribute))]
         public async Task<IActionResult> StoreReports(int storeId)
         {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
             if (storeId == 0)
             {
                 return NotFound("Store ID not provided.");
@@ -81,8 +85,12 @@ namespace PriceSafari.Controllers
         }
 
         [HttpGet]
+        [ServiceFilter(typeof(AuthorizeStoreAccessAttribute))]
         public async Task<IActionResult> SafariReportAnalysis(int reportId)
         {
+
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
             if (reportId == 0)
             {
                 return NotFound("Nieprawidłowy identyfikator raportu.");
@@ -152,8 +160,11 @@ namespace PriceSafari.Controllers
 
 
         [HttpGet]
+        [ServiceFilter(typeof(AuthorizeStoreAccessAttribute))]
         public async Task<IActionResult> ProductPriceDetails(int reportId, int productId)
         {
+          
+
             if (reportId == 0 || productId == 0)
             {
                 return NotFound("Nieprawidłowe identyfikatory raportu lub produktu.");
@@ -212,8 +223,10 @@ namespace PriceSafari.Controllers
 
 
         [HttpGet]
+        [ServiceFilter(typeof(AuthorizeStoreAccessAttribute))]
         public async Task<IActionResult> Index(int storeId)
         {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (storeId == 0)
             {
                 return NotFound("Store ID not provided.");
@@ -251,8 +264,11 @@ namespace PriceSafari.Controllers
 
 
         [HttpGet]
+        [ServiceFilter(typeof(AuthorizeStoreAccessAttribute))]
         public async Task<IActionResult> CreateReport(int storeId)
         {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
             // Pobieranie listy regionów
             var regions = await _context.Regions.ToListAsync();
             ViewBag.Regions = regions;
@@ -263,8 +279,11 @@ namespace PriceSafari.Controllers
 
 
         [HttpPost]
+        [ServiceFilter(typeof(AuthorizeStoreAccessAttribute))]
         public async Task<IActionResult> CreateReport(string reportName, List<int> regionIds, int storeId)
         {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
             if (string.IsNullOrEmpty(reportName) || regionIds == null || regionIds.Count == 0)
             {
                 return BadRequest("Nazwa raportu i regiony są wymagane.");
@@ -286,8 +305,11 @@ namespace PriceSafari.Controllers
         }
 
         [HttpPost]
+        [ServiceFilter(typeof(AuthorizeStoreAccessAttribute))]
         public async Task<IActionResult> StartReportPreparation(int reportId)
         {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
             var report = await _context.PriceSafariReports.FindAsync(reportId);
             if (report == null)
             {
@@ -314,6 +336,8 @@ namespace PriceSafari.Controllers
         [HttpPost]
         public async Task<IActionResult> ToggleProductAssignment(int reportId, int productId, bool isAssigned)
         {
+           
+
             if (reportId == 0 || productId == 0)
             {
                 return Json(new { success = false, message = "Niepoprawne dane." });
@@ -349,6 +373,8 @@ namespace PriceSafari.Controllers
         [HttpPost]
         public async Task<IActionResult> ToggleBatchProductAssignment([FromBody] BatchAssignmentRequest request)
         {
+
+
             // Log the incoming request data
             Console.WriteLine($"ToggleBatchProductAssignment called with ReportId: {request.ReportId}, IsAssigned: {request.IsAssigned}, ProductIds: {string.Join(",", request.ProductIds)}");
 

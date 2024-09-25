@@ -33,7 +33,7 @@ public class Program
         builder.Services.AddDefaultIdentity<PriceSafariUser>(options => options.SignIn.RequireConfirmedAccount = true)
             .AddRoles<IdentityRole>()
             .AddEntityFrameworkStores<PriceSafariContext>();
-
+        builder.Services.AddScoped<AuthorizeStoreAccessAttribute>();
         builder.Services.AddControllersWithViews();
         builder.Services.AddHttpClient();
 
