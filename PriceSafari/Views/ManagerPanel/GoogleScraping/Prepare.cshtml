@@ -1,5 +1,12 @@
 ﻿@model IEnumerable<dynamic>
 
+@{
+
+    Layout = "~/Views/Shared/_PanelLayout.cshtml";
+
+}
+
+
 <h1>Lista raportów, powiązanych produktów i regionów</h1>
 
 <form asp-action="UnpackReports" method="post">

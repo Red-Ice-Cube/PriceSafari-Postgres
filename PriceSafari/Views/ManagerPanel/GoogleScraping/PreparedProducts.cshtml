@@ -1,5 +1,12 @@
 ﻿@model List<GoogleScrapingProduct>
 
+@{
+
+    Layout = "~/Views/Shared/_PanelLayout.cshtml";
+
+}
+
+
 <form asp-action="StartScraping" method="post">
     <div class="form-group">
         <label for="region">Wybierz Region:</label>

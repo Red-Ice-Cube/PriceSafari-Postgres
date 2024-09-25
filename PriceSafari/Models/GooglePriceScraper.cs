@@ -59,18 +59,16 @@ namespace PriceSafari.Services
 
             try
             {
-                while (hasNextPage && currentPage < 3) // Zakładamy maksymalnie 3 strony do scrapowania
+                while (hasNextPage && currentPage < 3)
                 {
-                    // Generujemy URL: na pierwszej stronie bez parametru start
                     string paginatedUrl = currentPage == 0
-                        ? productOffersUrl // Pierwsza strona bez parametru start
-                        : $"{scrapingProduct.GoogleUrl}/offers?prds=cid:{productId},cond:1,start:{currentPage * 20}&gl={countryCode}&hl=pl"; // Kolejne strony z parametrem start
+                        ? productOffersUrl
+                        : $"{scrapingProduct.GoogleUrl}/offers?prds=cid:{productId},cond:1,start:{currentPage * 20}&gl={countryCode}&hl=pl";
 
                     Console.WriteLine($"Odwiedzanie URL: {paginatedUrl}");
                     await _page.GoToAsync(paginatedUrl, new NavigationOptions { WaitUntil = new[] { WaitUntilNavigation.Networkidle2 } });
-                    await Task.Delay(50); // Krótkie opóźnienie, aby dać czas na załadowanie strony
+                    await Task.Delay(50);
 
-                    // Obsługa rozwijania dodatkowych ofert
                     var moreOffersButtons = await _page.QuerySelectorAllAsync("div.cNMlI");
                     if (moreOffersButtons.Length > 0)
                     {
@@ -78,10 +76,9 @@ namespace PriceSafari.Services
                         {
                             Console.WriteLine("Znaleziono przycisk 'Jeszcze oferty'. Klikam, aby rozwinąć.");
                             await button.ClickAsync();
-                            await Task.Delay(320); // Krótkie opóźnienie po kliknięciu
+                            await Task.Delay(250);
                         }
                     }
-
 
                     var offerRowsSelector = "#sh-osd__online-sellers-cont > tr";
                     var offerRows = await _page.QuerySelectorAllAsync(offerRowsSelector);
@@ -96,12 +93,26 @@ namespace PriceSafari.Services
 
                     Console.WriteLine($"Znaleziono {offersCount} ofert. Rozpoczynam scrapowanie...");
 
-                    
                     for (int i = 1; i <= offersCount; i++)
                     {
                         var storeNameSelector = $"#sh-osd__online-sellers-cont > tr:nth-child({i}) > td:nth-child(1) > div.kPMwsc > a";
-                        var priceSelector = $"#sh-osd__online-sellers-cont > tr:nth-child({i}) > td:nth-child(4) > span";
-                        var priceWithDeliverySelector = $"#sh-osd__online-sellers-cont > tr:nth-child({i}) > td:nth-child(5) > div > div.drzWO";
+                        var priceSelector = "";
+                        var priceWithDeliverySelector = "";
+
+                        // Warunkowe sprawdzanie selektorów w zależności od kraju
+                        if (countryCode == "ua" || countryCode == "tr" || countryCode == "by")
+                        {
+                            // Dla Ukrainy i Turcji
+                            priceSelector = $"#sh-osd__online-sellers-cont > tr:nth-child({i}) > td:nth-child(3) > span";
+                            priceWithDeliverySelector = $"#sh-osd__online-sellers-cont > tr:nth-child({i}) > td:nth-child(4) > div > div.drzWO";
+                        }
+                        else
+                        {
+                            // Dla innych krajów
+                            priceSelector = $"#sh-osd__online-sellers-cont > tr:nth-child({i}) > td:nth-child(4) > span";
+                            priceWithDeliverySelector = $"#sh-osd__online-sellers-cont > tr:nth-child({i}) > td:nth-child(5) > div > div.drzWO";
+                        }
+
                         var offerUrlSelector = $"#sh-osd__online-sellers-cont > tr:nth-child({i}) > td:nth-child(1) > div.kPMwsc > a";
 
                         var storeNameElement = await _page.QuerySelectorAsync(storeNameSelector);
@@ -125,13 +136,11 @@ namespace PriceSafari.Services
                             var offerUrl = offerUrlElement != null ? await offerUrlElement.EvaluateFunctionAsync<string>("node => node.href") : "Brak URL";
                             Console.WriteLine($"URL oferty: {offerUrl}");
 
-                         
                             if (storeBestOffers.ContainsKey(storeName))
                             {
                                 var existingOffer = storeBestOffers[storeName];
                                 if (priceWithDeliveryDecimal < existingOffer.PriceWithDelivery)
                                 {
-                              
                                     storeBestOffers[storeName] = new PriceData
                                     {
                                         StoreName = storeName,
@@ -170,16 +179,29 @@ namespace PriceSafari.Services
                     {
                         var hiddenRowElement = hiddenOfferRows[j];
 
-                        // Selektor do pobierania nazwy sklepu
+                        
                         var hiddenStoreNameSelector = "td:nth-child(1) > div._-ez > a";
-                        var hiddenPriceSelector = "td:nth-child(4) > span";
-                        var hiddenPriceWithDeliverySelector = "td:nth-child(5) > div";
+                        var hiddenPriceSelector = "";
+                        var hiddenPriceWithDeliverySelector = "";
+
+                        if (countryCode == "ua" || countryCode == "tr" || countryCode == "by")
+                        {
+                           
+                            hiddenPriceSelector = "td:nth-child(3) > span";
+                            hiddenPriceWithDeliverySelector = "td:nth-child(4) > div";
+                        }
+                        else
+                        {
+                           
+                            hiddenPriceSelector = "td:nth-child(4) > span";
+                            hiddenPriceWithDeliverySelector = "td:nth-child(5) > div";
+                        }
+
                         var hiddenOfferUrlSelector = "td:nth-child(6) > div > a";
 
                         var hiddenStoreNameElement = await hiddenRowElement.QuerySelectorAsync(hiddenStoreNameSelector);
                         if (hiddenStoreNameElement != null)
                         {
-                            // Pobieranie tekstu sklepu, wyłączając <span> (przez `firstChild`)
                             var hiddenStoreName = await hiddenStoreNameElement.EvaluateFunctionAsync<string>("node => node.firstChild.textContent.trim()");
                             Console.WriteLine($"Znaleziono ukryty sklep: {hiddenStoreName}");
 
@@ -235,7 +257,6 @@ namespace PriceSafari.Services
                         }
                     }
 
-
                     // Sprawdzenie, czy istnieje kolejna strona
                     var paginationElement = await _page.QuerySelectorAsync("#sh-fp__pagination-button-wrapper");
                     if (paginationElement != null)
@@ -272,9 +293,9 @@ namespace PriceSafari.Services
             }
 
             scrapingProduct.OffersCount = totalOffersCount;
-
             return scrapedData;
         }
+
 
 
 
