@@ -12,9 +12,7 @@
     {
         public int RegionId { get; set; }
         public decimal Price { get; set; }
-        public string RawPrice { get; set; }
         public decimal PriceWithDelivery { get; set; }
-        public string RawPriceWithDelivery { get; set; }
         public string StoreName { get; set; }
         public string OfferUrl { get; set; }
     }

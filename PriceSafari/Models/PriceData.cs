@@ -19,7 +19,5 @@ namespace PriceSafari.Models
         public string OfferUrl { get; set; }
         public int RegionId { get; set; }
 
-        public string RawPriceText { get; set; }
-        public string RawPriceWithDeliveryText { get; set; }
     }
 }

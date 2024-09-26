@@ -28,8 +28,6 @@ namespace PriceSafari.Data
         public DbSet<ClientProfile> ClientProfiles { get; set; }
         public DbSet<Region> Regions { get; set; }
         public DbSet<PriceData> PriceData { get; set; }
-        public DbSet<ScrapeRun> ScrapeRuns { get; set; }
-
         public DbSet<GoogleScrapingProduct> GoogleScrapingProducts { get; set; }
         public DbSet<PriceSafariReport> PriceSafariReports { get; set; }
         public DbSet<GlobalPriceReport> GlobalPriceReports { get; set; }

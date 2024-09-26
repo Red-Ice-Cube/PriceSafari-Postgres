@@ -149,8 +149,7 @@ namespace PriceSafari.Services
         //                                OfferUrl = offerUrl,
         //                                ScrapingProductId = scrapingProduct.ScrapingProductId,
         //                                RegionId = scrapingProduct.RegionId,
-        //                                RawPriceText = priceText, // Dodajemy surowy tekst ceny
-        //                                RawPriceWithDeliveryText = priceWithDeliveryText // Dodajemy surowy tekst ceny z dostawą
+        //                  
         //                            };
 
         //                        }
@@ -166,8 +165,7 @@ namespace PriceSafari.Services
         //                            OfferUrl = offerUrl,
         //                            ScrapingProductId = scrapingProduct.ScrapingProductId,
         //                            RegionId = scrapingProduct.RegionId,
-        //                            RawPriceText = priceText, // Dodajemy surowy tekst ceny
-        //                            RawPriceWithDeliveryText = priceWithDeliveryText // Dodajemy surowy tekst ceny z dostawą
+        //                        
         //                        };
         //                    }
         //                }
@@ -248,8 +246,7 @@ namespace PriceSafari.Services
         //                                OfferUrl = hiddenOfferUrl,
         //                                ScrapingProductId = scrapingProduct.ScrapingProductId,
         //                                RegionId = scrapingProduct.RegionId,
-        //                                RawPriceText = hiddenPriceText, // Surowy tekst ukrytej ceny
-        //                                RawPriceWithDeliveryText = hiddenPriceWithDeliveryText // Surowy tekst ukrytej ceny z dostawą
+        //                              
         //                            };
         //                        }
         //                    }
@@ -263,8 +260,7 @@ namespace PriceSafari.Services
         //                            OfferUrl = hiddenOfferUrl,
         //                            ScrapingProductId = scrapingProduct.ScrapingProductId,
         //                            RegionId = scrapingProduct.RegionId,
-        //                            RawPriceText = hiddenPriceText, // Surowy tekst ukrytej ceny
-        //                            RawPriceWithDeliveryText = hiddenPriceWithDeliveryText // Surowy tekst ukrytej ceny z dostawą
+        //                         
         //                        };
 
         //                    }
@@ -336,7 +332,7 @@ namespace PriceSafari.Services
 
                     Console.WriteLine($"Odwiedzanie URL: {paginatedUrl}");
                     await _page.GoToAsync(paginatedUrl, new NavigationOptions { WaitUntil = new[] { WaitUntilNavigation.Networkidle2 } });
-                    await Task.Delay(700);
+                    await Task.Delay(50);
 
                     var moreOffersButtons = await _page.QuerySelectorAllAsync("div.cNMlI");
                     if (moreOffersButtons.Length > 0)
@@ -345,7 +341,7 @@ namespace PriceSafari.Services
                         {
                             Console.WriteLine("Znaleziono przycisk 'Jeszcze oferty'. Klikam, aby rozwinąć.");
                             await button.ClickAsync();
-                            await Task.Delay(800);
+                            await Task.Delay(300);
                         }
                     }
 
@@ -403,8 +399,7 @@ namespace PriceSafari.Services
                                         OfferUrl = offerUrl,
                                         ScrapingProductId = scrapingProduct.ScrapingProductId,
                                         RegionId = scrapingProduct.RegionId,
-                                        RawPriceText = priceText, // Dodajemy surowy tekst ceny
-                                        RawPriceWithDeliveryText = priceWithDeliveryText // Dodajemy surowy tekst ceny z dostawą
+                               
                                     };
 
                                 }
@@ -420,8 +415,7 @@ namespace PriceSafari.Services
                                     OfferUrl = offerUrl,
                                     ScrapingProductId = scrapingProduct.ScrapingProductId,
                                     RegionId = scrapingProduct.RegionId,
-                                    RawPriceText = priceText, // Dodajemy surowy tekst ceny
-                                    RawPriceWithDeliveryText = priceWithDeliveryText // Dodajemy surowy tekst ceny z dostawą
+                          
                                 };
                             }
                         }
@@ -486,8 +480,7 @@ namespace PriceSafari.Services
                                         OfferUrl = hiddenOfferUrl,
                                         ScrapingProductId = scrapingProduct.ScrapingProductId,
                                         RegionId = scrapingProduct.RegionId,
-                                        RawPriceText = hiddenPriceText, // Surowy tekst ukrytej ceny
-                                        RawPriceWithDeliveryText = hiddenPriceWithDeliveryText // Surowy tekst ukrytej ceny z dostawą
+                                     
                                     };
                                 }
                             }
@@ -501,8 +494,7 @@ namespace PriceSafari.Services
                                     OfferUrl = hiddenOfferUrl,
                                     ScrapingProductId = scrapingProduct.ScrapingProductId,
                                     RegionId = scrapingProduct.RegionId,
-                                    RawPriceText = hiddenPriceText, // Surowy tekst ukrytej ceny
-                                    RawPriceWithDeliveryText = hiddenPriceWithDeliveryText // Surowy tekst ukrytej ceny z dostawą
+                              
                                 };
 
                             }

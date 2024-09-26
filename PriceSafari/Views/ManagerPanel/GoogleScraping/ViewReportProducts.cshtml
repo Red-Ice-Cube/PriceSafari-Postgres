@@ -37,7 +37,7 @@
                             @foreach (var price in productGroup.RegionPrices)
                             {
                                 <li>
-                                    Region: @price.RegionId, Cena: @price.Price, Surowa cena: @price.RawPrice Cena z dostawą: @price.PriceWithDelivery Surowa cena z dostawa: @price.RawPriceWithDelivery ,  Sklep: @price.StoreName,
+                                    Region: @price.RegionId, Cena: @price.Price, Cena z dostawą: @price.PriceWithDelivery  ,  Sklep: @price.StoreName,
                                     <a href="@price.OfferUrl" target="_blank">Zobacz ofertę</a>
                                 </li>
                             }
