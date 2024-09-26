@@ -273,7 +273,7 @@
             assignFlagButton.dataset.productId = item.productId;
             assignFlagButton.innerHTML = '+ Przypisz flagi';
 
-            assignFlagButton.style.pointerEvents = 'auto'; // Pozwala na kliknięcie tylko w przycisk
+            assignFlagButton.style.pointerEvents = 'auto';
 
             priceBoxSpace.appendChild(priceBoxColumnName);
             priceBoxSpace.appendChild(assignFlagButton);
@@ -293,8 +293,6 @@
 
             const colorBar = document.createElement('div');
             colorBar.className = 'color-bar ' + item.colorClass;
-
-           
 
             const priceBoxColumnLowestPrice = document.createElement('div');
             priceBoxColumnLowestPrice.className = 'price-box-column';
@@ -355,7 +353,7 @@
                 const externalPriceDifference = (item.externalPrice - item.myPrice).toFixed(2);
                 const externalPriceDifferenceText = (item.externalPrice > item.myPrice ? '+' : '') + externalPriceDifference;
                 priceBoxColumnExternalPrice.innerHTML =
-                   
+
                     '<div class="price-box-column-text-api">Nowa cena: ' + item.externalPrice.toFixed(2) + ' zł</div>' +
                     '<div class="price-box-column-text-api">Zmiana: ' + externalPriceDifferenceText + ' zł</div>';
             }
@@ -376,18 +374,21 @@
             }
 
             priceBoxData.appendChild(colorBar);
-            // Sprawdzamy, czy imgUrl istnieje i jest poprawny, zanim dodamy obrazek
+
+            // Sprawdzamy, czy imgUrl istnieje i jest poprawny, dodajemy lazy loading
             if (item.imgUrl) {
                 const productImage = document.createElement('img');
-                productImage.src = item.imgUrl;
+                productImage.dataset.src = item.imgUrl; // Używamy data-src zamiast src
                 productImage.alt = item.productName;
                 productImage.style.width = '84px';
                 productImage.style.height = '84px';
                 productImage.style.marginRight = '14px';
                 productImage.style.marginLeft = '16px';
+                productImage.className = 'lazy-load'; // Dodajemy klasę lazy-load
 
                 priceBoxData.appendChild(productImage);
             }
+
             priceBoxData.appendChild(priceBoxColumnLowestPrice);
             priceBoxData.appendChild(priceBoxColumnMyPrice);
             priceBoxData.appendChild(priceBoxColumnInfo);
@@ -417,9 +418,27 @@
             });
         });
 
-
         document.getElementById('displayedProductCount').textContent = data.length;
+
+       
+        const lazyLoadImages = document.querySelectorAll('.lazy-load');
+        const observer = new IntersectionObserver((entries, observer) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const img = entry.target;
+                    img.src = img.dataset.src; 
+                    img.removeAttribute('data-src');
+                    observer.unobserve(img); 
+                }
+            });
+        });
+
+        lazyLoadImages.forEach(img => {
+            observer.observe(img);
+        });
     }
+
+
 
 
 
