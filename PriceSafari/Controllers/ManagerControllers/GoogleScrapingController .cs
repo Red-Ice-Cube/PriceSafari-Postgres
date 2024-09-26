@@ -433,7 +433,9 @@ namespace PriceSafari.Controllers
                                     {
                                         RegionId = scrapingProducts.First(sp => sp.ScrapingProductId == pd.ScrapingProductId).RegionId,
                                         Price = pd.Price,
+                                        RawPrice = pd.RawPriceText,
                                         PriceWithDelivery = pd.PriceWithDelivery,
+                                        RawPriceWithDelivery = pd.RawPriceWithDeliveryText,
                                         StoreName = pd.StoreName,
                                         OfferUrl = pd.OfferUrl
                                     }).ToList()
