@@ -11,12 +11,15 @@ namespace PriceSafari.Models
         public int ScrapingProductId { get; set; }
 
         [ForeignKey("ScrapingProductId")]
-        public GoogleScrapingProduct ScrapingProduct { get; set; }  // Relacja nawigacyjna do GoogleScrapingProduct
+        public GoogleScrapingProduct ScrapingProduct { get; set; }  
 
         public decimal Price { get; set; }
         public decimal PriceWithDelivery { get; set; }
         public string StoreName { get; set; }
         public string OfferUrl { get; set; }
         public int RegionId { get; set; }
+
+        public string RawPriceText { get; set; }
+        public string RawPriceWithDeliveryText { get; set; }
     }
 }
