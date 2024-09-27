@@ -26,10 +26,9 @@
                 : 0;
 
                 // Klasa kolorystyczna na podstawie różnicy cen
-                var colorClass = GetColorClass(priceDifference, percentageDifference);
+                var colorClass = item.OurCalculatedPrice == 0 ? "prGray" : GetColorClass(priceDifference, percentageDifference);
 
-
-                <div class="price-box @colorClass">
+                <div class="price-box @colorClass" onclick="window.location.href='@Url.Action("ProductPriceDetails", "Safari", new { reportId = ViewBag.ReportId, productId = item.ProductId })'">
                     <div class="price-box-space">
                         <div class="price-box-column-name">
                             @item.ProductName
@@ -60,28 +59,40 @@
                         </div>
 
                         <div class="price-box-column">
-                            <div class="price-box-column-text">
-                                <span style="font-weight: 500;">@item.OurCalculatedPrice.ToString("0.00") zł</span><br />
-                                @myStoreName
-                            </div>
-                        </div>
-
-                        <div class="price-box-column-action">
-                            @if (priceDifference < 0)
+                            @if (item.OurCalculatedPrice != 0)
                             {
-                                <p>Taniej o: @Math.Abs(priceDifference).ToString("0.00") zł</p>
-                                <p>Taniej o: @Math.Abs(percentageDifference).ToString("0.00") %</p>
-                            }
-                            else if (priceDifference > 0)
-                            {
-                                <p>Masz najtańszą cene o: @priceDifference.ToString("0.00") zł</p>
-                                <p>Masz najtańszą cene o: @percentageDifference.ToString("0.00") %</p>
+                                <div class="price-box-column-text">
+                                    <span style="font-weight: 500;">@item.OurCalculatedPrice.ToString("0.00") zł</span><br />
+                                    @myStoreName
+                                </div>
                             }
                             else
                             {
-                                <p>Brak działań</p>
+                                <div class="price-box-column-text">
+                                    <span>Nie reklamujesz tego produktu</span>
+                                </div>
                             }
                         </div>
+
+                        @if (item.OurCalculatedPrice != 0)
+                        {
+                            <div class="price-box-column-action">
+                                @if (priceDifference < 0)
+                                {
+                                    <p>Taniej o: @Math.Abs(priceDifference).ToString("0.00") zł</p>
+                                    <p>Taniej o: @Math.Abs(percentageDifference).ToString("0.00") %</p>
+                                }
+                                else if (priceDifference > 0)
+                                {
+                                    <p>Masz najtańszą cene o: @priceDifference.ToString("0.00") zł</p>
+                                    <p>Masz najtańszą cene o: @percentageDifference.ToString("0.00") %</p>
+                                }
+                                else
+                                {
+                                    <p>Brak działań</p>
+                                }
+                            </div>
+                        }
 
                         <div class="flags-container">
                             @if (item.FlagIds.Any())
@@ -102,6 +113,7 @@
         </div>
     </div>
 </div>
+
 
 
 @functions {
