@@ -6,13 +6,17 @@
     var myStoreName = Model.StoreName;
 }
 
-
-
 <div class="Vert">
     <div class="Vert-full">
         <div class="Order-Container-Title">
             Raport cenowy @Model.ReportName
         </div>
+
+        <!-- Dodanie dropdown do wyboru kategorii -->
+        <select id="categoryFilter" class="category-dropdown">
+            <option value="">Wszystkie kategorie</option>
+        </select>
+
         <input type="text" id="productSearch" placeholder="Szukaj produktu..." class="product-search-box" />
 
         <p>Data utworzenia: @Model.CreatedDate.ToString("yyyy-MM-dd HH:mm")</p>
@@ -23,19 +27,19 @@
                 {
                     var priceDifference = Math.Round(item.CalculatedPrice - item.OurCalculatedPrice, 2);
                     var percentageDifference = item.OurCalculatedPrice != 0
-                        ? Math.Round(((item.CalculatedPrice - item.OurCalculatedPrice) / item.OurCalculatedPrice) * 100, 2)
-                        : 0;
+                    ? Math.Round(((item.CalculatedPrice - item.OurCalculatedPrice) / item.OurCalculatedPrice) * 100, 2)
+                    : 0;
 
                     var colorClass = item.OurCalculatedPrice == 0 ? "prGray" : GetColorClass(priceDifference, percentageDifference);
 
-                    <div class="price-box @colorClass" onclick="window.location.href='@Url.Action("ProductPriceDetails", "Safari", new { reportId = ViewBag.ReportId, productId = item.ProductId })'">
+                    <div class="price-box @colorClass" data-category="@item.Category" onclick="window.location.href='@Url.Action("ProductPriceDetails", "Safari", new { reportId = ViewBag.ReportId, productId = item.ProductId })'">
                         <div class="price-box-space">
                             <div class="price-box-column-name">
                                 @item.ProductName
                             </div>
                             <button class="assign-flag-button" data-product-id="@item.ProductId">+ Przypisz flagi</button>
                         </div>
-                        <div class="price-box-column-category" style="margin-top:4px; margin-bottom:4px;" >
+                        <div class="price-box-column-category" style="margin-top:4px; margin-bottom:4px;">
                             @item.Category
                         </div>
                         <div class="price-box-data">
@@ -56,7 +60,7 @@
                                 </div>
                                 <div class="price-box-column-text">
                                     <div style="display:flex;">
-                                        <img src="~/images/@(item.RegionName).png" alt="@item.RegionName" style="display:flex; align-self:center; width: 26px; height: 18px; margin-right:8px;" />
+                                        <img src="~/images/@(item.RegionName).png" alt="@item.RegionName" style="display:flex; align-self:center; width: 32px; height: 22px; margin-right:8px;" />
                                         @item.RegionName
                                     </div>
                                 </div>
@@ -71,7 +75,7 @@
                                     </div>
                                     <div class="price-box-column-text">
                                         <div style="display:flex;">
-                                            <img src="~/images/@(item.OurRegionName).png" alt="@item.OurRegionName" style="display:flex; align-self:center; width: 24px; height: 18px; margin-right:8px;" />
+                                            <img src="~/images/@(item.OurRegionName).png" alt="@item.OurRegionName" style="display:flex; align-self:center; width: 32px; height: 22px; margin-right:8px;" />
                                             @item.OurRegionName
                                         </div>
                                     </div>
@@ -143,9 +147,24 @@
         lazyLoadImages.forEach(img => {
             observer.observe(img);
         });
-    });
 
-    document.addEventListener("DOMContentLoaded", function () {
+        // Zbieranie unikalnych kategorii i wypełnianie dropdownu
+        const categories = new Set();
+        document.querySelectorAll('.price-box-column-category').forEach(categoryElement => {
+            const category = categoryElement.textContent.trim();
+            if (category) {
+                categories.add(category);
+            }
+        });
+
+        const categoryDropdown = document.getElementById('categoryFilter');
+        categories.forEach(category => {
+            const option = document.createElement('option');
+            option.value = category;
+            option.textContent = category;
+            categoryDropdown.appendChild(option);
+        });
+
         let allProducts = Array.from(document.querySelectorAll('.price-box'));
         const searchInput = document.getElementById('productSearch');
 
@@ -163,26 +182,29 @@
             return productName.replace(regex, '<span style="color: #9400D3; font-weight: bold;">$1</span>');
         }
 
-        // Główna funkcja do filtrowania produktów
+        // Główna funkcja do filtrowania produktów po nazwie i kategorii
         function filterProducts() {
             const searchTerm = sanitizeString(searchInput.value.trim());
+            const selectedCategory = categoryDropdown.value;
 
-            // Tablica do przechowywania wyników filtrowania
             let filteredProducts = [];
 
             allProducts.forEach(productBox => {
                 const productNameElement = productBox.querySelector('.price-box-column-name');
                 const productName = productNameElement.textContent.trim();
+                const productCategory = productBox.getAttribute('data-category');
                 const sanitizedProductName = sanitizeString(productName);
 
-                // Sprawdzanie, czy nazwa produktu zawiera sanitizowane zapytanie
-                if (sanitizedProductName.includes(searchTerm)) {
-                    // Przechowywanie elementu do późniejszego posortowania
+                // Filtrujemy po nazwie produktu i wybranej kategorii
+                const matchesSearch = sanitizedProductName.includes(searchTerm);
+                const matchesCategory = selectedCategory === '' || productCategory === selectedCategory;
+
+                if (matchesSearch && matchesCategory) {
                     filteredProducts.push({
                         productBox: productBox,
                         productNameElement: productNameElement,
-                        exactMatch: sanitizedProductName === searchTerm, // Sprawdzanie ścisłego dopasowania
-                        matchIndex: sanitizedProductName.indexOf(searchTerm) // Indeks pierwszego dopasowania
+                        exactMatch: sanitizedProductName === searchTerm,
+                        matchIndex: sanitizedProductName.indexOf(searchTerm)
                     });
                 } else {
                     productBox.style.display = 'none'; // Ukrywanie elementów, które nie pasują
@@ -204,17 +226,13 @@
         }
 
         searchInput.addEventListener('input', filterProducts);
+        categoryDropdown.addEventListener('change', filterProducts);
     });
-
-
 </script>
-
-
 
 @functions {
     string GetColorClass(decimal priceDifference, decimal percentageDifference)
     {
-     
         if (priceDifference < 0)
         {
             if (Math.Abs(priceDifference) <= 2.00m)
