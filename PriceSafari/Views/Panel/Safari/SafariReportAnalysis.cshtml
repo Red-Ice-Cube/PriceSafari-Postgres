@@ -2,6 +2,8 @@
 
 @{
     Layout = "~/Views/Shared/_PanelLayout.cshtml";
+    var flagsList = (List<PriceSafari.Models.FlagsClass>)ViewBag.Flags;
+    var myStoreName = Model.StoreName;
 }
 
 <div class="Vert">
@@ -11,39 +13,132 @@
         </div>
         <p>Data utworzenia: @Model.CreatedDate.ToString("yyyy-MM-dd HH:mm")</p>
         <p>Sklep: @Model.StoreName</p>
-        <div class="Vert-table">
-            @if (Model.ProductPrices.Any())
+
+        <div id="priceContainer" class="price-container">
+            @foreach (var item in Model.ProductPrices)
             {
-                <table class="table-orders">
-                    <thead>
-                        <tr>
-                            <th>Nazwa produktu</th>
-                            <th>Najniższa cena</th>
-                            <th>Nasza cena</th>
-                     
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var product in Model.ProductPrices)
+                // Obliczenia różnicy nominalnej (najniższa cena - nasza cena)
+                var priceDifference = Math.Round(item.CalculatedPrice - item.OurCalculatedPrice, 2);
+
+                // Obliczenia różnicy procentowej (najniższa cena - nasza cena w procentach)
+                var percentageDifference = item.OurCalculatedPrice != 0
+                ? Math.Round(((item.CalculatedPrice - item.OurCalculatedPrice) / item.OurCalculatedPrice) * 100, 2)
+                : 0;
+
+                // Klasa kolorystyczna na podstawie różnicy cen
+                var colorClass = GetColorClass(priceDifference, percentageDifference);
+
+
+                <div class="price-box @colorClass">
+                    <div class="price-box-space">
+                        <div class="price-box-column-name">
+                            @item.ProductName
+                        </div>
+                        <button class="assign-flag-button" data-product-id="@item.ProductId">+ Przypisz flagi</button>
+                    </div>
+                    <div class="price-box-column-category">
+                        <!-- Możesz dodać kategorię produktu, jeśli jest dostępna -->
+                    </div>
+                    <div class="price-box-data">
+                        <div class="color-bar @colorClass"></div>
+
+                        @* Wyświetlanie obrazu produktu *@
+                        @if (!string.IsNullOrEmpty(item.Product.MainUrl))
                         {
-                            <tr>
-                                <td>
-                                    <a href="@Url.Action("ProductPriceDetails", "Safari", new { reportId = ViewBag.ReportId, productId = product.ProductId })">
-                                        @product.ProductName
-                                    </a>
-                                </td>
-                                <td>@product.CalculatedPrice</td>
-                                <td>@product.OurCalculatedPrice</td>
-                          
-                            </tr>
+                            <img src="@item.Product.MainUrl" alt="@item.ProductName" class="product-image" style="height:80px; width:80px;" />
                         }
-                    </tbody>
-                </table>
-            }
-            else
-            {
-                <p>Brak danych do wyświetlenia dla tego raportu.</p>
+                        else
+                        {
+                            <img src="/images/no-image.png" alt="Brak zdjęcia" class="product-image" />
+                        }
+
+                        <div class="price-box-column">
+                            <div class="price-box-column-text">
+                                <span style="font-weight: 500;">@item.CalculatedPrice.ToString("0.00") zł</span><br />
+                                @item.StoreName
+                            </div>
+                        </div>
+
+                        <div class="price-box-column">
+                            <div class="price-box-column-text">
+                                <span style="font-weight: 500;">@item.OurCalculatedPrice.ToString("0.00") zł</span><br />
+                                @myStoreName
+                            </div>
+                        </div>
+
+                        <div class="price-box-column-action">
+                            @if (priceDifference < 0)
+                            {
+                                <p>Taniej o: @Math.Abs(priceDifference).ToString("0.00") zł</p>
+                                <p>Taniej o: @Math.Abs(percentageDifference).ToString("0.00") %</p>
+                            }
+                            else if (priceDifference > 0)
+                            {
+                                <p>Masz najtańszą cene o: @priceDifference.ToString("0.00") zł</p>
+                                <p>Masz najtańszą cene o: @percentageDifference.ToString("0.00") %</p>
+                            }
+                            else
+                            {
+                                <p>Brak działań</p>
+                            }
+                        </div>
+
+                        <div class="flags-container">
+                            @if (item.FlagIds.Any())
+                            {
+                                foreach (var flagId in item.FlagIds)
+                                {
+                                    var flag = flagsList.FirstOrDefault(f => f.FlagId == flagId);
+                                    if (flag != null)
+                                    {
+                                        <span class="flag" style="color:@flag.FlagColor; border: 2px solid @flag.FlagColor; background-color:@HexToRgba(flag.FlagColor, 0.3);">@flag.FlagName</span>
+                                    }
+                                }
+                            }
+                        </div>
+                    </div>
+                </div>
             }
         </div>
     </div>
 </div>
+
+
+@functions {
+    string GetColorClass(decimal priceDifference, decimal percentageDifference)
+    {
+        // Implementacja funkcji określającej klasę koloru na podstawie różnicy cen
+        if (priceDifference < 0)
+        {
+            if (Math.Abs(priceDifference) <= 2.00m)
+                return "prGood";
+            else if (Math.Abs(priceDifference) <= 5.00m)
+                return "prMid";
+            else
+                return "prToHigh";
+        }
+        else if (priceDifference > 0)
+        {
+            if (priceDifference <= 2.00m)
+                return "prIdeal";
+            else
+                return "prToLow";
+        }
+        else
+        {
+            return "prGood";
+        }
+    }
+
+    string HexToRgba(string hex, double alpha)
+    {
+        int r = 0, g = 0, b = 0;
+        if (hex.Length == 7)
+        {
+            r = int.Parse(hex.Substring(1, 2), System.Globalization.NumberStyles.HexNumber);
+            g = int.Parse(hex.Substring(3, 2), System.Globalization.NumberStyles.HexNumber);
+            b = int.Parse(hex.Substring(5, 2), System.Globalization.NumberStyles.HexNumber);
+        }
+        return $"rgba({r}, {g}, {b}, {alpha})";
+    }
+}

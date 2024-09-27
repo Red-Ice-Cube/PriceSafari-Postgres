@@ -108,22 +108,17 @@ namespace PriceSafari.Controllers
 
 
 
-
         [HttpGet]
         [ServiceFilter(typeof(AuthorizeStoreAccessAttribute))]
         public async Task<IActionResult> SafariReportAnalysis(int reportId)
         {
-
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-
             if (reportId == 0)
             {
                 return NotFound("Nieprawidłowy identyfikator raportu.");
             }
 
-          
             var report = await _context.PriceSafariReports
-                .Include(r => r.Store)  
+                .Include(r => r.Store)
                 .FirstOrDefaultAsync(r => r.ReportId == reportId);
 
             if (report == null)
@@ -131,55 +126,70 @@ namespace PriceSafari.Controllers
                 return NotFound("Raport nie został znaleziony.");
             }
 
-            
             var globalPriceReports = await _context.GlobalPriceReports
                 .Where(gpr => gpr.PriceSafariReportId == reportId)
-                .Include(gpr => gpr.Product) 
-                .OrderBy(gpr => gpr.CalculatedPrice) 
+                .Include(gpr => gpr.Product)
+                .OrderBy(gpr => gpr.CalculatedPrice)
                 .ToListAsync();
 
-           
             var storeName = report.Store?.StoreName?.ToLower();
 
-            
+            var storeFlags = await _context.Flags
+                .Where(f => f.StoreId == report.StoreId)
+                .ToListAsync();
+
+            var productFlagsDictionary = storeFlags
+                .SelectMany(flag => _context.ProductFlags
+                    .Where(pf => pf.FlagId == flag.FlagId)
+                    .Select(pf => new { pf.ProductId, pf.FlagId }))
+                .GroupBy(pf => pf.ProductId)
+                .ToDictionary(g => g.Key, g => g.Select(pf => pf.FlagId).ToList());
+
             var productPrices = globalPriceReports
-                .GroupBy(gpr => gpr.ProductId)
-                .Select(group =>
-                {
-                    var lowestPrice = group.OrderBy(gpr => gpr.CalculatedPrice).FirstOrDefault(); 
-                    var ourPrice = group.FirstOrDefault(gpr => gpr.StoreName.ToLower() == storeName); 
+                 .GroupBy(gpr => gpr.ProductId)
+                 .Select(group =>
+                 {
+                     var lowestPrice = group.OrderBy(gpr => gpr.CalculatedPrice).FirstOrDefault();
+                     var ourPrice = group.FirstOrDefault(gpr => gpr.StoreName.ToLower() == storeName);
 
-                    return new ProductPriceViewModel
-                    {
-                        ProductId = lowestPrice.ProductId,
-                        ProductName = lowestPrice?.Product?.ProductName,
-                        GoogleUrl = lowestPrice?.Product?.GoogleUrl,
-                        Price = lowestPrice?.Price ?? 0,
-                        PriceWithDelivery = lowestPrice?.PriceWithDelivery ?? 0,
-                        CalculatedPrice = lowestPrice?.CalculatedPrice ?? 0,
-                        CalculatedPriceWithDelivery = lowestPrice?.CalculatedPriceWithDelivery ?? 0,
-                        StoreName = ourPrice?.StoreName,                    
-                        RegionId = lowestPrice?.RegionId ?? 0,
-                        OurCalculatedPrice = ourPrice?.CalculatedPrice ?? 0 
-                    };
-                })
-                .ToList();
+                     productFlagsDictionary.TryGetValue(lowestPrice.ProductId, out var flagIds);
 
-            // Tworzymy widok modelu na podstawie pobranych danych
+                     return new ProductPriceViewModel
+                         {
+                             ProductId = lowestPrice.ProductId,
+                             ProductName = lowestPrice?.Product?.ProductName,
+                             GoogleUrl = lowestPrice?.Product?.GoogleUrl,
+                             Price = lowestPrice?.Price ?? 0,
+                             StoreName = lowestPrice.StoreName,
+                             PriceWithDelivery = lowestPrice?.PriceWithDelivery ?? 0,
+                             CalculatedPrice = lowestPrice?.CalculatedPrice ?? 0,
+                             CalculatedPriceWithDelivery = lowestPrice?.CalculatedPriceWithDelivery ?? 0,
+                             MyStoreName = ourPrice?.StoreName,
+                             RegionId = lowestPrice?.RegionId ?? 0,
+                             OurCalculatedPrice = ourPrice?.CalculatedPrice ?? 0,
+                             FlagIds = flagIds ?? new List<int>(),
+                             MainUrl = lowestPrice.Product.MainUrl,
+                             Product = lowestPrice.Product // Przekazujemy obiekt Product
+                     };
+                 })
+                 .ToList();
+
             var viewModel = new SafariReportAnalysisViewModel
             {
                 ReportName = report.ReportName,
                 CreatedDate = report.CreatedDate,
-                StoreName = report.Store?.StoreName,  
-                ProductPrices = productPrices
+                StoreName = report.Store?.StoreName,
+                ProductPrices = productPrices,
+            
             };
 
-      
             ViewBag.ReportId = reportId;
+            ViewBag.Flags = storeFlags;
 
-        
             return View("~/Views/Panel/Safari/SafariReportAnalysis.cshtml", viewModel);
         }
+
+
 
 
 
