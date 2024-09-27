@@ -8,19 +8,40 @@
 
 <div class="Vert">
     <div class="Vert-full">
-        <div class="Order-Container-Title">
-            Raport cenowy @Model.ReportName
+
+        <div class="Horizontal">
+            <div class="order-upper-box">
+
+                <input type="text" id="productSearch" placeholder="Wyszukaj produkt" class="product-search-box" />
+
+                <select id="categoryFilter" class="DropDown">
+                    <option value="">Wszystkie kategorie</option>
+                </select>
+
+                <div class="SimpleSpace">
+                    <div class="SimpleHorizontal">
+                        <div class="form-check-orders">
+                            <div>
+
+                                <p><strong>Raport cenowy:</strong> @Model.ReportName</p>
+                                <p><strong>Data utworzenia:</strong> @Model.CreatedDate.ToString("yyyy-MM-dd HH:mm")</p>
+                            </div>
+                        </div>
+                        <div class="form-check-orders">
+
+                            <div>
+                                <p><strong>Sklep:</strong> @Model.StoreName</p>
+                                <p><strong>Odrzucone:</strong> <span id="missedProductsCount">0</span></p>
+                            </div>
+
+                        </div>
+                    </div>
+
+                </div>
+
+            </div>
         </div>
 
-        <!-- Dodanie dropdown do wyboru kategorii -->
-        <select id="categoryFilter" class="category-dropdown">
-            <option value="">Wszystkie kategorie</option>
-        </select>
-
-        <input type="text" id="productSearch" placeholder="Szukaj produktu..." class="product-search-box" />
-
-        <p>Data utworzenia: @Model.CreatedDate.ToString("yyyy-MM-dd HH:mm")</p>
-        <p>Sklep: @Model.StoreName</p>
         <div class="Vert-table">
             <div id="priceContainer" class="price-container">
                 @foreach (var item in Model.ProductPrices)
