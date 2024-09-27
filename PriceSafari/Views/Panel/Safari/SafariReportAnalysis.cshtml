@@ -6,25 +6,26 @@
     var myStoreName = Model.StoreName;
 }
 
+
+
 <div class="Vert">
     <div class="Vert-full">
         <div class="Order-Container-Title">
             Raport cenowy @Model.ReportName
         </div>
+        <input type="text" id="productSearch" placeholder="Szukaj produktu..." class="product-search-box" />
+
         <p>Data utworzenia: @Model.CreatedDate.ToString("yyyy-MM-dd HH:mm")</p>
         <p>Sklep: @Model.StoreName</p>
         <div class="Vert-table">
             <div id="priceContainer" class="price-container">
                 @foreach (var item in Model.ProductPrices)
                 {
-                    
                     var priceDifference = Math.Round(item.CalculatedPrice - item.OurCalculatedPrice, 2);
-
                     var percentageDifference = item.OurCalculatedPrice != 0
-                    ? Math.Round(((item.CalculatedPrice - item.OurCalculatedPrice) / item.OurCalculatedPrice) * 100, 2)
-                    : 0;
+                        ? Math.Round(((item.CalculatedPrice - item.OurCalculatedPrice) / item.OurCalculatedPrice) * 100, 2)
+                        : 0;
 
-                  
                     var colorClass = item.OurCalculatedPrice == 0 ? "prGray" : GetColorClass(priceDifference, percentageDifference);
 
                     <div class="price-box @colorClass" onclick="window.location.href='@Url.Action("ProductPriceDetails", "Safari", new { reportId = ViewBag.ReportId, productId = item.ProductId })'">
@@ -34,27 +35,25 @@
                             </div>
                             <button class="assign-flag-button" data-product-id="@item.ProductId">+ Przypisz flagi</button>
                         </div>
-                        <div class="price-box-column-category">
+                        <div class="price-box-column-category" style="margin-top:4px; margin-bottom:4px;" >
                             @item.Category
                         </div>
                         <div class="price-box-data">
-                            <div class="color-bar @colorClass" style="margin-right:16px;"></div>
+                            <div class="color-bar @colorClass" style="margin-right:16px; min-height:84px; max-height:84px;"></div>
 
-                          
                             @if (!string.IsNullOrEmpty(item.Product.MainUrl))
                             {
-                                <img src="@item.Product.MainUrl" alt="@item.ProductName" class="product-image" style="height:80px; width:80px;" />
+                                <img data-src="@item.Product.MainUrl" alt="@item.ProductName" class="product-image lazy-load" style="height:84px; width:84px;" />
                             }
                             else
                             {
-                                <img src="/images/no-image.png" alt="Brak zdjęcia" class="product-image" />
+                                <img data-src="/images/no-image.png" alt="Brak zdjęcia" class="product-image lazy-load" />
                             }
-
                             <div class="price-box-column" style="margin-left:8px;">
                                 <div class="price-box-column-text">
                                     <span style="font-weight: 500;">@item.CalculatedPrice.ToString("0.00") zł</span><br />
                                     @item.StoreName
-                                </div> 
+                                </div>
                                 <div class="price-box-column-text">
                                     <div style="display:flex;">
                                         <img src="~/images/@(item.RegionName).png" alt="@item.RegionName" style="display:flex; align-self:center; width: 26px; height: 18px; margin-right:8px;" />
@@ -126,6 +125,89 @@
         </div>
     </div>
 </div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const lazyLoadImages = document.querySelectorAll('.lazy-load');
+        const observer = new IntersectionObserver((entries, observer) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const img = entry.target;
+                    img.src = img.dataset.src;
+                    img.removeAttribute('data-src');
+                    observer.unobserve(img);
+                }
+            });
+        });
+
+        lazyLoadImages.forEach(img => {
+            observer.observe(img);
+        });
+    });
+
+    document.addEventListener("DOMContentLoaded", function () {
+        let allProducts = Array.from(document.querySelectorAll('.price-box'));
+        const searchInput = document.getElementById('productSearch');
+
+        // Funkcja, która sanitizuje string (usuwa spacje, znaki specjalne itp.)
+        function sanitizeString(str) {
+            return str.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+        }
+
+        // Funkcja, która podświetla pasujące fragmenty
+        function highlightMatches(productName, searchTerm) {
+            if (!searchTerm) return productName;
+
+            const sanitizedSearchTerm = searchTerm.replace(/[^a-zA-Z0-9\s/.-]/g, '').trim().toLowerCase();
+            const regex = new RegExp(`(${sanitizedSearchTerm.split('').join('\\s*')})`, 'gi'); // Dopuszcza przerwy
+            return productName.replace(regex, '<span style="color: #9400D3; font-weight: bold;">$1</span>');
+        }
+
+        // Główna funkcja do filtrowania produktów
+        function filterProducts() {
+            const searchTerm = sanitizeString(searchInput.value.trim());
+
+            // Tablica do przechowywania wyników filtrowania
+            let filteredProducts = [];
+
+            allProducts.forEach(productBox => {
+                const productNameElement = productBox.querySelector('.price-box-column-name');
+                const productName = productNameElement.textContent.trim();
+                const sanitizedProductName = sanitizeString(productName);
+
+                // Sprawdzanie, czy nazwa produktu zawiera sanitizowane zapytanie
+                if (sanitizedProductName.includes(searchTerm)) {
+                    // Przechowywanie elementu do późniejszego posortowania
+                    filteredProducts.push({
+                        productBox: productBox,
+                        productNameElement: productNameElement,
+                        exactMatch: sanitizedProductName === searchTerm, // Sprawdzanie ścisłego dopasowania
+                        matchIndex: sanitizedProductName.indexOf(searchTerm) // Indeks pierwszego dopasowania
+                    });
+                } else {
+                    productBox.style.display = 'none'; // Ukrywanie elementów, które nie pasują
+                }
+            });
+
+            // Sortowanie: dokładne dopasowania wcześniej, potem na podstawie indeksu dopasowania
+            filteredProducts.sort((a, b) => {
+                if (a.exactMatch && !b.exactMatch) return -1;
+                if (!a.exactMatch && b.exactMatch) return 1;
+                return a.matchIndex - b.matchIndex;
+            });
+
+            // Wyświetlanie i podświetlanie wyników
+            filteredProducts.forEach(item => {
+                item.productNameElement.innerHTML = highlightMatches(item.productNameElement.textContent, searchInput.value);
+                item.productBox.style.display = 'block';
+            });
+        }
+
+        searchInput.addEventListener('input', filterProducts);
+    });
+
+
+</script>
 
 
 
