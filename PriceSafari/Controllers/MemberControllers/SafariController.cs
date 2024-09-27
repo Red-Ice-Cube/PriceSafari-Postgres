@@ -107,7 +107,6 @@ namespace PriceSafari.Controllers
 
 
 
-
         [HttpGet]
         [ServiceFilter(typeof(AuthorizeStoreAccessAttribute))]
         public async Task<IActionResult> SafariReportAnalysis(int reportId)
@@ -145,34 +144,51 @@ namespace PriceSafari.Controllers
                 .GroupBy(pf => pf.ProductId)
                 .ToDictionary(g => g.Key, g => g.Select(pf => pf.FlagId).ToList());
 
+            // Pobranie wszystkich regionów jako słownik (RegionId -> RegionName)
+            var regions = await _context.Regions
+                .ToDictionaryAsync(r => r.RegionId, r => r.Name);
+
             var productPrices = globalPriceReports
-                 .GroupBy(gpr => gpr.ProductId)
-                 .Select(group =>
-                 {
-                     var lowestPrice = group.OrderBy(gpr => gpr.CalculatedPrice).FirstOrDefault();
-                     var ourPrice = group.FirstOrDefault(gpr => gpr.StoreName.ToLower() == storeName);
+                .GroupBy(gpr => gpr.ProductId)
+                .Select(group =>
+                {
+                    var lowestPrice = group.OrderBy(gpr => gpr.CalculatedPrice).FirstOrDefault();
+                    var ourPrice = group.FirstOrDefault(gpr => gpr.StoreName.ToLower() == storeName);
 
-                     productFlagsDictionary.TryGetValue(lowestPrice.ProductId, out var flagIds);
+                    productFlagsDictionary.TryGetValue(lowestPrice.ProductId, out var flagIds);
 
-                     return new ProductPriceViewModel
-                         {
-                             ProductId = lowestPrice.ProductId,
-                             ProductName = lowestPrice?.Product?.ProductName,
-                             GoogleUrl = lowestPrice?.Product?.GoogleUrl,
-                             Price = lowestPrice?.Price ?? 0,
-                             StoreName = lowestPrice.StoreName,
-                             PriceWithDelivery = lowestPrice?.PriceWithDelivery ?? 0,
-                             CalculatedPrice = lowestPrice?.CalculatedPrice ?? 0,
-                             CalculatedPriceWithDelivery = lowestPrice?.CalculatedPriceWithDelivery ?? 0,
-                             MyStoreName = ourPrice?.StoreName,
-                             RegionId = lowestPrice?.RegionId ?? 0,
-                             OurCalculatedPrice = ourPrice?.CalculatedPrice ?? 0,
-                             FlagIds = flagIds ?? new List<int>(),
-                             MainUrl = lowestPrice.Product.MainUrl,
-                             Product = lowestPrice.Product // Przekazujemy obiekt Product
-                     };
-                 })
-                 .ToList();
+                    // Pobranie RegionName dla produktu z wcześniej stworzonego słownika
+                    var regionName = lowestPrice?.RegionId != null && regions.ContainsKey(lowestPrice.RegionId)
+                        ? regions[lowestPrice.RegionId]
+                        : "Unknown";
+
+                    // Pobranie RegionName dla naszego sklepu (ourPrice) z wcześniej stworzonego słownika
+                    var ourRegionName = ourPrice?.RegionId != null && regions.ContainsKey(ourPrice.RegionId)
+                        ? regions[ourPrice.RegionId]
+                        : "Unknown";
+
+                    return new ProductPriceViewModel
+                    {
+                        ProductId = lowestPrice.ProductId,
+                        ProductName = lowestPrice?.Product?.ProductName,
+                        GoogleUrl = lowestPrice?.Product?.GoogleUrl,
+                        Category = lowestPrice?.Product?.Category,
+                        Price = lowestPrice?.Price ?? 0,
+                        StoreName = lowestPrice.StoreName,
+                        PriceWithDelivery = lowestPrice?.PriceWithDelivery ?? 0,
+                        CalculatedPrice = lowestPrice?.CalculatedPrice ?? 0,
+                        CalculatedPriceWithDelivery = lowestPrice?.CalculatedPriceWithDelivery ?? 0,
+                        MyStoreName = ourPrice?.StoreName,
+                        RegionId = lowestPrice?.RegionId ?? 0,
+                        RegionName = regionName, // Region dla produktu
+                        OurRegionName = ourRegionName, // Region dla naszego sklepu
+                        OurCalculatedPrice = ourPrice?.CalculatedPrice ?? 0,
+                        FlagIds = flagIds ?? new List<int>(),
+                        MainUrl = lowestPrice.Product.MainUrl,
+                        Product = lowestPrice.Product
+                    };
+                })
+                .ToList();
 
             var viewModel = new SafariReportAnalysisViewModel
             {
@@ -180,7 +196,6 @@ namespace PriceSafari.Controllers
                 CreatedDate = report.CreatedDate,
                 StoreName = report.Store?.StoreName,
                 ProductPrices = productPrices,
-            
             };
 
             ViewBag.ReportId = reportId;
