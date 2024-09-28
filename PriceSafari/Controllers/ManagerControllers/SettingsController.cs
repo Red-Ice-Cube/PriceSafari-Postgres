@@ -37,7 +37,8 @@ namespace PriceSafari.Controllers.ManagerControllers
                 WarmUp = settings.WarmUpTime,
                 Headless = settings.HeadLess,
                 JS = settings.JavaScript,
-                Style = settings.Styles
+                Style = settings.Styles,
+                GetCeneoName = settings.GetCeneoName,   
             };
 
             return View("~/Views/ManagerPanel/Settings/Index.cshtml", viewModel);
@@ -60,7 +61,8 @@ namespace PriceSafari.Controllers.ManagerControllers
                 WarmUp = settings.WarmUpTime,
                 Headless = settings.HeadLess,
                 JS = settings.JavaScript,
-                Style = settings.Styles
+                Style = settings.Styles,
+                GetCeneoName = settings.GetCeneoName
             };
 
             return View("~/Views/ManagerPanel/Settings/EditSpeedSettings.cshtml", viewModel);
@@ -84,6 +86,7 @@ namespace PriceSafari.Controllers.ManagerControllers
                 settings.HeadLess = viewModel.Headless;
                 settings.Styles = viewModel.Style;
                 settings.JavaScript = viewModel.JS;
+                settings.GetCeneoName = viewModel.GetCeneoName;
                 _context.Update(settings);
                 await _context.SaveChangesAsync();
 
