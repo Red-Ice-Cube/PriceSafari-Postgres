@@ -1,4 +1,4 @@
-﻿@model PriceSafari.Models.ViewModels.SafariReportAnalysisViewModel
+﻿@* @model PriceSafari.Models.ViewModels.SafariReportAnalysisViewModel
 
 @{
     Layout = "~/Views/Shared/_PanelLayout.cshtml";
@@ -167,11 +167,11 @@
     }
 
 </script>
+ *@
 
 
 
-
-@* @model PriceSafari.Models.ViewModels.SafariReportAnalysisViewModel
+@model PriceSafari.Models.ViewModels.SafariReportAnalysisViewModel
 
 @{
     Layout = "~/Views/Shared/_PanelLayout.cshtml";
@@ -226,7 +226,7 @@
 
                     var colorClass = item.OurCalculatedPrice == 0 ? "prGray" : GetColorClass(priceDifference, percentageDifference);
 
-                    <div class="price-box @colorClass" data-category="@item.Category" onclick="window.location.href='@Url.Action("ProductPriceDetails", "Safari", new { reportId = ViewBag.ReportId, productId = item.ProductId })'">
+                    <div class="price-box @colorClass" data-category="@item.Category" onclick="window.open('@Url.Action("ProductPriceDetails", "Safari", new { reportId = ViewBag.ReportId, productId = item.ProductId })', '_blank')">
                         <div class="price-box-space">
                             <div class="price-box-column-name">
                                 @item.ProductName
@@ -460,4 +460,4 @@
         }
         return $"rgba({r}, {g}, {b}, {alpha})";
     }
-} *@
+}
