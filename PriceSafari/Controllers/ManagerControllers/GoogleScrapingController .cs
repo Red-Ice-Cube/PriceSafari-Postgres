@@ -571,7 +571,6 @@ namespace PriceSafari.Controllers
         }
 
 
-
         [HttpGet]
         public async Task<IActionResult> ViewGlobalPriceReport(int reportId)
         {
@@ -608,8 +607,15 @@ namespace PriceSafari.Controllers
 
             ViewBag.ReportId = reportId; // Przekazanie reportId do widoku
 
+            // Obliczenie liczby ofert w raporcie
+            int totalOffers = globalPriceReports.Count;
+            ViewBag.TotalOffers = totalOffers; // Przekazanie liczby ofert do widoku
+
             return View("~/Views/ManagerPanel/GoogleScraping/ViewGlobalPriceReport.cshtml", groupedReports);
         }
+
+
+
 
         [HttpPost]
         public async Task<IActionResult> TruncateGlobalPriceReports(int reportId)

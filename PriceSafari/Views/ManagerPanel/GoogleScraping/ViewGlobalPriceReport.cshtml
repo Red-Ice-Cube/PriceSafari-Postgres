@@ -1,13 +1,12 @@
 ﻿@model List<PriceSafari.Models.ManagerViewModels.GroupedGlobalPriceReportViewModel>
 
 @{
-
     Layout = "~/Views/Shared/_PanelLayout.cshtml";
-
 }
 
-
 <h2 class="my-4">Raport globalnych cen produktów</h2>
+
+<p>Liczba ofert w raporcie: @ViewBag.TotalOffers</p>
 
 @if (Model.Any())
 {
@@ -32,14 +31,14 @@
                     <td><a href="@productGroup.GoogleUrl" target="_blank">@productGroup.GoogleUrl</a></td>
                     <td>
                         <ul>
-                            @foreach (var price in productGroup.Prices.OrderBy(p => p.CalculatedPrice)) 
+                            @foreach (var price in productGroup.Prices.OrderBy(p => p.CalculatedPrice))
                             {
                                 <li>
-                                    Region: @price.RegionId, 
-                                    Przeliczona cena: @price.CalculatedPrice zł, 
-                                    Przeliczona cena z dostawą: @price.CalculatedPriceWithDelivery zł, 
-                                    Oryginalna cena: @price.Price zł, 
-                                    Cena z dostawą: @price.PriceWithDelivery zł, 
+                                    Region: @price.RegionId,
+                                    Przeliczona cena: @price.CalculatedPrice zł,
+                                    Przeliczona cena z dostawą: @price.CalculatedPriceWithDelivery zł,
+                                    Oryginalna cena: @price.Price zł,
+                                    Cena z dostawą: @price.PriceWithDelivery zł,
                                     Sklep: @price.StoreName,
                                     <a href="@price.OfferUrl" target="_blank">Zobacz ofertę</a>
                                 </li>
