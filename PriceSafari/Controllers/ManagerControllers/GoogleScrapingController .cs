@@ -572,19 +572,18 @@ namespace PriceSafari.Controllers
 
 
 
-
         [HttpGet]
-        public async Task<IActionResult> ViewGlobalPriceReport()
+        public async Task<IActionResult> ViewGlobalPriceReport(int reportId)
         {
-            // Pobieramy raporty cen globalnych razem z powiązanymi produktami
             var globalPriceReports = await _context.GlobalPriceReports
-                .Include(gpr => gpr.Product) // Bezpośrednie pobranie produktów
-                .OrderBy(gpr => gpr.CalculatedPrice) // Sortowanie po CalculatedPrice
+                .Include(gpr => gpr.Product)
+                .Where(gpr => gpr.PriceSafariReportId == reportId) // Filtrowanie po PriceSafariReportId
+                .OrderBy(gpr => gpr.CalculatedPrice)
                 .ToListAsync();
 
             if (!globalPriceReports.Any())
             {
-                return NotFound("Brak raportów.");
+                return NotFound("Brak raportów dla podanego identyfikatora.");
             }
 
             // Grupowanie raportów na podstawie ProductId i mapowanie do widoku
@@ -596,10 +595,10 @@ namespace PriceSafari.Controllers
                     GoogleUrl = g.FirstOrDefault()?.Product?.GoogleUrl,
                     Prices = g.Select(r => new GlobalPriceReportViewModel
                     {
-                        CalculatedPrice = r.CalculatedPrice, // Przeliczona cena
-                        CalculatedPriceWithDelivery = r.CalculatedPriceWithDelivery, // Przeliczona cena z dostawą
-                        Price = r.Price, // Oryginalna cena
-                        PriceWithDelivery = r.PriceWithDelivery, // Oryginalna cena z dostawą
+                        CalculatedPrice = r.CalculatedPrice,
+                        CalculatedPriceWithDelivery = r.CalculatedPriceWithDelivery,
+                        Price = r.Price,
+                        PriceWithDelivery = r.PriceWithDelivery,
                         StoreName = r.StoreName,
                         OfferUrl = r.OfferUrl,
                         RegionId = r.RegionId
@@ -607,30 +606,49 @@ namespace PriceSafari.Controllers
                 })
                 .ToList();
 
-            // Przesyłamy wynik do widoku
+            ViewBag.ReportId = reportId; // Przekazanie reportId do widoku
+
             return View("~/Views/ManagerPanel/GoogleScraping/ViewGlobalPriceReport.cshtml", groupedReports);
         }
 
-
-
         [HttpPost]
-        public async Task<IActionResult> TruncateGlobalPriceReports()
+        public async Task<IActionResult> TruncateGlobalPriceReports(int reportId)
         {
             try
             {
-                // Truncate Table jest szybki, ale nie działa z tabelami powiązanymi z kluczami obcymi
-                await _context.Database.ExecuteSqlRawAsync("TRUNCATE TABLE GlobalPriceReports");
+                // Rozpoczęcie transakcji dla zapewnienia integralności danych
+                using (var transaction = await _context.Database.BeginTransactionAsync())
+                {
+                    // Usunięcie wpisów w GlobalPriceReports powiązanych z danym reportId
+                    var reportsToDelete = _context.GlobalPriceReports.Where(gpr => gpr.PriceSafariReportId == reportId);
+                    _context.GlobalPriceReports.RemoveRange(reportsToDelete);
+                    await _context.SaveChangesAsync();
 
-                TempData["SuccessMessage"] = "Wszystkie wpisy w tabeli GlobalPriceReport zostały pomyślnie usunięte.";
-                return RedirectToAction("ViewGlobalPriceReport");
+                    // Usunięcie obiektu PriceSafariReport o danym reportId
+                    var priceSafariReportToDelete = await _context.PriceSafariReports.FindAsync(reportId);
+                    if (priceSafariReportToDelete != null)
+                    {
+                        _context.PriceSafariReports.Remove(priceSafariReportToDelete);
+                        await _context.SaveChangesAsync();
+                    }
+
+                    // Zatwierdzenie transakcji
+                    await transaction.CommitAsync();
+                }
+
+                TempData["SuccessMessage"] = "Raport oraz powiązane wpisy zostały pomyślnie usunięte.";
+                return RedirectToAction("Index"); // Przekierowanie do odpowiedniej akcji, np. lista raportów
             }
             catch (Exception ex)
             {
-                // Zwraca wiadomość o błędzie
-                TempData["ErrorMessage"] = $"Wystąpił błąd podczas usuwania raportów: {ex.Message}";
-                return RedirectToAction("ViewGlobalPriceReport");
+                TempData["ErrorMessage"] = $"Wystąpił błąd podczas usuwania raportu: {ex.Message}";
+                return RedirectToAction("ViewGlobalPriceReport", new { reportId });
             }
         }
+
+
+
+
 
         [HttpGet]
         public async Task<IActionResult> LoadUnpreparedReports()

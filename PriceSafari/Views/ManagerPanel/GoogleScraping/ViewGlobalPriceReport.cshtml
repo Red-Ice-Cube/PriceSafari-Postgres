@@ -12,7 +12,8 @@
 @if (Model.Any())
 {
     <form asp-action="TruncateGlobalPriceReports" method="post">
-        <button type="submit" class="btn btn-danger">Usuń wszystkie raporty</button>
+        <input type="hidden" name="reportId" value="@ViewBag.ReportId" />
+        <button type="submit" class="btn btn-danger">Usuń raport</button>
     </form>
 
     <table>
