@@ -91,7 +91,8 @@
                         <th>Dostawa PLN</th>
                         <th>Cena</th>
                         <th>Dostawa</th>
-                        <th>Ofert</th>
+                        <th>Oferta</th>
+                        <th><img src="~/images/Bin-bone.svg" alt="Usuń" style="width:16px; height:16px;"/></th>
                     </tr>
                 </thead>
                 <tbody id="offersTableBody">
@@ -179,6 +180,15 @@
                                     Oferta
                                 </button>
                             </td>
+                            <td>
+                                @if (price.StoreName != Model.MyStore)
+                                {
+                                    <a href="javascript:void(0);" onclick="confirmAndDeletePrice('@price.PriceId')" style="display:inline-block;">
+                                        <img src="~/images/Bin.svg" alt="Usuń" style="width:16px; height:16px; cursor:pointer;">
+                                    </a>
+                                }
+                            </td>
+
                         </tr>
                         position++;
                     }
@@ -329,4 +339,29 @@
             alert('Nie znaleziono Twojego sklepu.');
         }
     });
+</script>
+
+<script>
+    function confirmAndDeletePrice(priceId) {
+        const confirmation = confirm('Czy na pewno chcesz usunąć tę cenę?');
+        if (confirmation) {
+            fetch('/Safari/DeletePrice', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ priceId: priceId })  // Przesyłamy jako liczba
+            })
+                .then(response => {
+                    if (response.ok) {
+                        alert('Cena została pomyślnie usunięta.');
+                        location.reload(); // Odśwież stronę, aby zaktualizować widok
+                    } else {
+                        response.text().then(text => alert('Błąd podczas usuwania ceny: ' + text));
+                    }
+                })
+                .catch(error => console.error('Błąd podczas usuwania:', error));
+        }
+    }
+
 </script>

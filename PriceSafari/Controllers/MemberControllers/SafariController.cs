@@ -352,6 +352,7 @@ namespace PriceSafari.Controllers
                 {
                     return new PriceDetailsViewModel
                     {
+                        PriceId = gpr.ReportId,
                         StoreName = gpr.StoreName,
                         RegionName = gpr.Region?.Name ?? "Brak regionu",
                         Price = gpr.Price,
@@ -368,6 +369,51 @@ namespace PriceSafari.Controllers
         }
 
 
+
+
+
+
+        [HttpPost]
+        public async Task<IActionResult> DeletePrice([FromBody] DeletePriceModel model)
+        {
+            // Sprawdzamy, czy ID jest poprawnie przesłane
+            if (model == null || model.PriceId <= 0)
+            {
+                return BadRequest("Nieprawidłowe ID ceny.");
+            }
+
+            // Pobieramy cenę z bazy danych na podstawie PriceId
+            var priceReport = await _context.GlobalPriceReports
+                .Include(p => p.PriceSafariReport) // Pobieramy także raport, by móc sprawdzić sklep
+                .FirstOrDefaultAsync(p => p.ReportId == model.PriceId);
+
+            if (priceReport == null)
+            {
+                return NotFound($"Cena o ID {model.PriceId} nie istnieje.");
+            }
+
+            // Sprawdzamy, czy użytkownik ma dostęp do sklepu powiązanego z ceną
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var hasAccess = await _context.UserStores
+                .AnyAsync(us => us.UserId == userId && us.StoreId == priceReport.PriceSafariReport.StoreId);
+
+            if (!hasAccess)
+            {
+                return Forbid("Brak dostępu do tego sklepu.");
+            }
+
+            // Jeśli użytkownik ma dostęp, usuwamy cenę
+            _context.GlobalPriceReports.Remove(priceReport);
+            await _context.SaveChangesAsync();
+
+            return Ok($"Cena z ID {model.PriceId} została usunięta.");
+        }
+
+
+        public class DeletePriceModel
+        {
+            public int PriceId { get; set; }
+        }
 
 
         [HttpGet]

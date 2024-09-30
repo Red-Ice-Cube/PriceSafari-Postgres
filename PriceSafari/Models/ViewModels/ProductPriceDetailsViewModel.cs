@@ -14,6 +14,7 @@
 
     public class PriceDetailsViewModel
     {
+        public int PriceId { get; set; }
         public string StoreName { get; set; }
         public string RegionName { get; set; }
         public decimal Price { get; set; }
