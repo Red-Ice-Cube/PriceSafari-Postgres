@@ -6,6 +6,14 @@
     var countryProductCounts = Model.Prices
         .GroupBy(p => p.RegionName)
         .ToDictionary(g => g.Key, g => g.Count());
+
+    // Get the base price from your own store
+    decimal basePrice = 0;
+    var myStorePrice = Model.Prices.FirstOrDefault(p => string.Equals(p.StoreName, Model.MyStore, StringComparison.OrdinalIgnoreCase));
+    if (myStorePrice != null)
+    {
+        basePrice = myStorePrice.CalculatedPrice;
+    }
 }
 
 <div class="Vert">
@@ -70,7 +78,7 @@
             }
         </div>
 
-        <!-- Tabela z ofertami -->
+        <!-- Table with offers -->
         <div class="Vert-table">
             <table class="table-orders">
                 <thead>
@@ -79,6 +87,7 @@
                         <th>Pozycja</th>
                         <th>Kraj</th>
                         <th>Cena PLN</th>
+                        <th>Różnica</th> <!-- New column for price difference -->                  
                         <th>Dostawa PLN</th>
                         <th>Cena</th>
                         <th>Dostawa</th>
@@ -88,6 +97,15 @@
                 <tbody id="offersTableBody">
                     @foreach (var price in Model.Prices)
                     {
+                        decimal priceDifference = 0;
+                        decimal percentageDifference = 0;
+
+                        if (basePrice > 0 && price.CalculatedPrice > 0 && price.StoreName != Model.MyStore)
+                        {
+                            priceDifference = price.CalculatedPrice - basePrice;
+                            percentageDifference = (priceDifference / basePrice) * 100;
+                        }
+
                         <tr data-country="@price.RegionName" data-store="@price.StoreName">
 
                             <td>
@@ -107,7 +125,34 @@
                                     @price.RegionName
                                 </div>
                             </td>
-                            <td>@price.CalculatedPrice PLN</td>
+                            <td>@price.CalculatedPrice.ToString("0.00") PLN</td>
+                            <td>
+                                @if (price.StoreName != Model.MyStore && basePrice > 0 && price.CalculatedPrice > 0)
+                                {
+                                    var priceDiffFormatted = priceDifference.ToString("+#,##0.00;-#,##0.00");
+                                    var percentageDiffFormatted = percentageDifference.ToString("+#,##0.00;-#,##0.00");
+
+                                    var diffText = $"{priceDiffFormatted} PLN ({percentageDiffFormatted}%)";
+
+                                    if (priceDifference < 0)
+                                    {
+                                        <div class="priceBox-diff-up">@diffText</div>
+                                    }
+                                    else if (priceDifference > 0)
+                                    {
+                                        <div class="priceBox-diff-down">@diffText</div>
+                                    }
+                                    else
+                                    {
+                                        <div class="priceBox-diff-neutral">@diffText</div>
+                                    }
+                                }
+                                else
+                                {
+                                    <span>-</span>
+                                }
+                            </td>
+
                             <td>
                                 @if ((price.CalculatedPriceWithDelivery - price.CalculatedPrice) == 0)
                                 {
@@ -115,10 +160,10 @@
                                 }
                                 else
                                 {
-                                    <div class="PaidShipping">@((price.CalculatedPriceWithDelivery - price.CalculatedPrice)) PLN</div>
+                                    <div class="PaidShipping">@((price.CalculatedPriceWithDelivery - price.CalculatedPrice).ToString("0.00")) PLN</div>
                                 }
                             </td>
-                            <td>@price.Price @price.Currency</td>
+                            <td>@price.Price.ToString("0.00") @price.Currency</td>
                             <td>
                                 @if ((price.PriceWithDelivery - price.Price) == 0)
                                 {
@@ -126,7 +171,7 @@
                                 }
                                 else
                                 {
-                                    <div class="PaidShipping">@((price.PriceWithDelivery - price.Price)) @price.Currency</div>
+                                    <div class="PaidShipping">@((price.PriceWithDelivery - price.Price).ToString("0.00")) @price.Currency</div>
                                 }
                             </td>
                             <td>
@@ -162,7 +207,7 @@
             var storeNameLower = storeName.toLowerCase();
             var priceCell = row.querySelector('td:nth-child(4)');
             var priceText = priceCell.textContent.trim().replace('PLN', '').trim();
-            var price = parseFloat(priceText);
+            var price = parseFloat(priceText.replace(',', '.'));
 
             var isMyStore = storeNameLower === myStore;
 
@@ -285,4 +330,3 @@
         }
     });
 </script>
-

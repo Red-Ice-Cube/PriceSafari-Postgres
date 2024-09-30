@@ -27,7 +27,7 @@
                     <!-- Classification Filters -->
                         <div class="form-check">
                             <input class="form-check-input colorFilter" type="checkbox" id="prGoodCheckbox" value="prGood">
-                            <label class="form-check-label" for="prGoodCheckbox" id="prGoodLabel">Tańsze o próg (<span id="prGoodCount">0</span>)</label>
+                        <label class="form-check-label" for="prGoodCheckbox" id="prGoodLabel">Taniej o (<span id="prGoodCount">0</span>)</label>
                         </div>
 
                         <div class="form-check">
@@ -37,19 +37,19 @@
 
                         <div class="form-check">
                             <input class="form-check-input colorFilter" type="checkbox" id="prToHighCheckbox" value="prToHigh">
-                            <label class="form-check-label" for="prToHighCheckbox" id="prToHighLabel">Droższe o próg (<span id="prToHighCount">0</span>)</label>
+                        <label class="form-check-label" for="prToHighCheckbox" id="prToHighLabel">Drożej o (<span id="prToHighCount">0</span>)</label>
                         </div>
 
                         <!-- Threshold Inputs -->
                         <div class="price-range-settings">
-                            <div class="color-circle prIdeal-circle"></div>
-                            <label for="threshold1">Tańsze</label>
+                        <div class="color-circle prLower-circle"></div>
+                            <label for="threshold1"></label>
                             <input type="number" id="threshold1" value="@Model.SetSafariPrice1.ToString(System.Globalization.CultureInfo.InvariantCulture)" step="0.01" min="0.00">
                             <span id="unitLabel1"></span>
                         </div>
                         <div class="price-range-settings">
-                            <div class="color-circle prMid-circle"></div>
-                            <label for="threshold2">Droższe</label>
+                        <div class="color-circle prHigher-circle"></div>
+                            <label for="threshold2"></label>
                             <input type="number" id="threshold2" value="@Model.SetSafariPrice2.ToString(System.Globalization.CultureInfo.InvariantCulture)" step="0.01" min="0.00">
                             <span id="unitLabel2"></span>
                         </div>
@@ -186,7 +186,7 @@
                                     }
                                     <div class="price-box-column" style="margin-left:8px;">
                                         <div class="price-box-column-text">
-                                            <span style="font-weight: 500;">@item.CalculatedPrice.ToString("0.00") zł</span><br />
+                                            <span style="font-weight: 500;">@item.CalculatedPrice.ToString("0.00") PLN</span><br />
                                             @item.StoreName
                                         </div>
                                         <div class="price-box-column-text">
@@ -201,7 +201,7 @@
                                         @if (item.OurCalculatedPrice != 0)
                                         {
                                             <div class="price-box-column-text">
-                                                <span style="font-weight: 500;">@item.OurCalculatedPrice.ToString("0.00") zł</span><br />
+                                                <span style="font-weight: 500;">@item.OurCalculatedPrice.ToString("0.00") PLN</span><br />
                                                 @myStoreName
                                             </div>
                                             <div class="price-box-column-text">
@@ -368,9 +368,9 @@
                     if (Math.abs(roundedPriceDifference) < epsilon) {
                         priceDiffText += 'Cena taka sama<br>';
                     } else if (roundedPriceDifference < 0) {
-                        priceDiffText += `Taniej o: ${Math.abs(roundedPriceDifference).toFixed(2)} zł<br>`;
+                        priceDiffText += `Taniej o: ${Math.abs(roundedPriceDifference).toFixed(2)} PLN<br>`;
                     } else {
-                        priceDiffText += `Drożej o: ${roundedPriceDifference.toFixed(2)} zł<br>`;
+                        priceDiffText += `Drożej o: ${roundedPriceDifference.toFixed(2)} PLN<br>`;
                     }
 
                     if (percentageDifference !== null) {
@@ -443,18 +443,22 @@
             classificationChart = new Chart(ctx, {
                 type: 'doughnut',
                 data: {
-                    labels: ['Tańsze o więcej niż próg', 'W podobnej cenie', 'Droższe o więcej niż próg'],
+                    labels: ['Droższe', 'Podobna cena', 'Tańsze'],
                     datasets: [{
-                        data: [prGoodCount, prGrayCount, prToHighCount],
+                        data: [prToHighCount,  prGrayCount, prGoodCount],
                         backgroundColor: [
-                            'rgba(40, 167, 69, 0.8)',   // Green with 0.8 opacity
-                            'rgba(108, 117, 125, 0.8)', // Gray with 0.8 opacity
-                            'rgba(220, 53, 69, 0.8)'    // Red with 0.8 opacity
+                            'rgba(171, 37, 32, 0.8)',
+                             
+                            'rgba(40, 40, 40, 0.8)',
+                             'rgba(117, 152, 112, 0.8)'
+                           
                         ],
                         borderColor: [
-                            'rgba(40, 167, 69, 1)',   // Green border
-                            'rgba(108, 117, 125, 1)', // Gray border
-                            'rgba(220, 53, 69, 1)'    // Red border
+                            'rgba(171, 37, 32, 1)',
+                             
+                            'rgba(40, 40, 40, 1)',
+                            'rgba(117, 152, 112, 1)'
+
                         ],
                         borderWidth: 1
                     }]
@@ -485,9 +489,9 @@
             const usePriceDifference = usePriceDifferenceCheckbox.checked;
             const unit = usePriceDifference ? 'PLN' : '%';
 
-            prGoodLabel.innerHTML = `Tańsze o ${thresholdCheaper} ${unit} (<span id="prGoodCount">${prGoodCountSpan.textContent}</span>)`;
+            prGoodLabel.innerHTML = `Taniej o ${thresholdCheaper} ${unit} (<span id="prGoodCount">${prGoodCountSpan.textContent}</span>)`;
             prGrayLabel.innerHTML = `Podobna cena (<span id="prGrayCount">${prGrayCountSpan.textContent}</span>)`;
-            prToHighLabel.innerHTML = `Droższe o ${thresholdMoreExpensive} ${unit} (<span id="prToHighCount">${prToHighCountSpan.textContent}</span>)`;
+            prToHighLabel.innerHTML = `Drożej o ${thresholdMoreExpensive} ${unit} (<span id="prToHighCount">${prToHighCountSpan.textContent}</span>)`;
 
             unitLabel1.textContent = unit;
             unitLabel2.textContent = unit;

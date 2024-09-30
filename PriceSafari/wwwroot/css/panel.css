@@ -2851,6 +2851,11 @@ tr:last-child .sub-line {
         border: 2px solid rgba(0, 145, 123, 1);
     }
 
+    .colorFilter:checked#prGrayCheckbox {
+        background-color: rgba(40, 40, 40, 0.7);
+        border: 2px solid rgba(40, 40, 40, 1);
+    }
+
 .status-filter {
     outline: none;
     background-color: white;
@@ -3024,9 +3029,51 @@ tr:last-child .sub-line {
 }
 
 .prGray .color-bar {
-    background-color: rgba(110,110, 110, 0.7);
+    background-color: rgba(40,40, 40, 0.7);
 }
 
+
+.priceBox-diff-up {
+    display: inline-flex;
+    align-self: center;
+    padding: 4px 12px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 400;
+    border: 1px solid #00917B;
+    background: rgba(0, 145, 123, 0.20);
+    color: #00917B;
+}
+
+.priceBox-diff-down {
+    display: inline-flex;
+    align-self: center;
+    padding: 4px 12px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 400;
+    border: 1px solid #AB2520;
+    background: rgba(171, 37, 32, 0.20);
+    color: #AB2520 !important;
+}
+
+.priceBox-diff-neutral {
+    display: inline-flex;
+    align-self: center;
+    padding: 4px 12px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 400;
+    border: 1px solid rgba(40, 40, 40, 0.80);
+    background: rgba(40, 40, 40, 0.20);
+    color: rgba(40, 40, 40, 1) !important;
+}
 
 
 .side-chart-box {
@@ -3283,6 +3330,15 @@ tr:last-child .sub-line {
     .price-range-settings .prMid-circle {
         background-color: rgba(224, 168, 66, 0.7);
     }
+
+    .price-range-settings .prLower-circle {
+        background-color: rgba(117, 152, 112, 0.7);
+    }
+
+    .price-range-settings .prHigher-circle {
+        background-color: rgba(171, 37, 32, 0.7);
+    }
+
 
 .store-section {
     display: flex;
