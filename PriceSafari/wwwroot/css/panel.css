@@ -3289,3 +3289,40 @@ tr:last-child .sub-line {
     width: 180px;
     flex-direction: column;
 }
+
+.diffCheckBox {
+    appearance: none;
+    width: 180px;
+    height: 33px;
+    background-color: #e3e3e3;
+    border-radius: 4px;
+    position: relative;
+    cursor: pointer;
+    font-size: 14px;
+    color: #4e4e4e;
+    text-align: center;
+    user-select: none;
+}
+
+    .diffCheckBox::before {
+        content: "Różnica %";
+        position: absolute;
+        width: 100%;
+        border-radius: 4px;
+        height: 100%;
+        top: 0;
+        left: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: background-color 0.3s, color 0.3s;
+    }
+
+    .diffCheckBox:checked::before {
+        content: "Różnica PLN";
+    }
+
+    .diffCheckBox:hover::before {
+        background-color: #323232;
+        color: #e3e3e3;
+    }

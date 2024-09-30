@@ -229,6 +229,7 @@ namespace PriceSafari.Controllers
                 ReportName = report.ReportName,
                 CreatedDate = report.CreatedDate,
                 StoreName = report.Store?.StoreName,
+                StoreLogo = report.Store?.StoreLogoUrl,
                 ProductPrices = productPrices,
             };
 
