@@ -11,7 +11,10 @@
 
         public decimal SetSafariPrice1 { get; set; }
         public decimal SetSafariPrice2 { get; set; }
-   
+
+        public bool UsePriceDiffSafari { get; set; }
+
+
     }
     public class ProductPriceViewModel
     {

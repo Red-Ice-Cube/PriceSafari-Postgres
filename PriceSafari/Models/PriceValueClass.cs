@@ -10,7 +10,7 @@
 
         public decimal SetSafariPrice1 { get; set; } = 2.00m;
         public decimal SetSafariPrice2 { get; set; } = 2.00m;
-        public bool UseProcentageSafari { get; set; } = true;
+        public bool UsePriceDiffSafari { get; set; } = true;
 
         public StoreClass Store { get; set; }
     }

@@ -5,5 +5,6 @@
         public int StoreId { get; set; }
         public decimal SetSafariPrice1 { get; set; } = 2.00m;
         public decimal SetSafariPrice2 { get; set; } = 2.00m;
+        public bool UsePriceDiffSafari { get; set; } = true;
     }
 }

@@ -138,12 +138,12 @@ namespace PriceSafari.Controllers
 
             var priceValues = await _context.PriceValues
                .Where(pv => pv.StoreId == report.StoreId)
-               .Select(pv => new { pv.SetSafariPrice1, pv.SetSafariPrice2 })
+               .Select(pv => new { pv.SetSafariPrice1, pv.SetSafariPrice2, pv.UsePriceDiffSafari })
                .FirstOrDefaultAsync();
 
             if (priceValues == null)
             {
-                priceValues = new { SetSafariPrice1 = 2.00m, SetSafariPrice2 = 2.00m };
+                priceValues = new { SetSafariPrice1 = 2.00m, SetSafariPrice2 = 2.00m, UsePriceDiffSafari = true };
             }
 
             var productFlagsDictionary = storeFlags
@@ -244,6 +244,7 @@ namespace PriceSafari.Controllers
                 ProductPrices = productPrices,
                 SetSafariPrice1 = priceValues.SetSafariPrice1,
                 SetSafariPrice2 = priceValues.SetSafariPrice2,
+                UsePriceDiffSafari = priceValues.UsePriceDiffSafari
 
             };
 
@@ -274,7 +275,9 @@ namespace PriceSafari.Controllers
                 {
                     StoreId = model.StoreId,
                     SetSafariPrice1 = model.SetSafariPrice1,
-                    SetSafariPrice2 = model.SetSafariPrice2
+                    SetSafariPrice2 = model.SetSafariPrice2,
+                    UsePriceDiffSafari = model.UsePriceDiffSafari
+
                 };
                 _context.PriceValues.Add(priceValues);
             }
@@ -282,6 +285,7 @@ namespace PriceSafari.Controllers
             {
                 priceValues.SetSafariPrice1 = model.SetSafariPrice1;
                 priceValues.SetSafariPrice2 = model.SetSafariPrice2;
+                priceValues.UsePriceDiffSafari = model.UsePriceDiffSafari;
                 _context.PriceValues.Update(priceValues);
             }
 

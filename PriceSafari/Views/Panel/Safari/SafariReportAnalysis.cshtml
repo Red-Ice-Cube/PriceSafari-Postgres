@@ -55,11 +55,13 @@
                         </div>
 
                         <!-- Use Price Difference Checkbox -->
-                        <div>
-                            <label>
-                                <input class="diffCheckBox" style="margin-top: 10px;" type="checkbox" id="usePriceDifference" />
-                            </label>
-                        </div>
+                    <div>
+                        <label>
+                            <input class="diffCheckBox" style="margin-top: 10px;" type="checkbox" id="usePriceDifference"
+                            @(Model.UsePriceDiffSafari ? "checked" : "") />
+                        </label>
+                    </div>
+
                        
                         <button id="savePriceValues" class="Button-Page-Small" style="margin-top: 2px;" data-store-id="@Model.StoreId">Zapisz</button>
 
@@ -303,7 +305,7 @@
             return productName.replace(regex, '<span style="color: #9400D3; font-weight: bold;">$1</span>');
         }
 
-        // Update Products Function
+        
         function updateProducts() {
             const searchTerm = sanitizeString(searchInput.value.trim());
             const selectedCategory = categoryDropdown.value;
@@ -315,7 +317,7 @@
             const thresholdMoreExpensive = parseFloat(threshold2Input.value) || 0;
             const usePriceDifference = usePriceDifferenceCheckbox.checked;
 
-            // Variables for counts
+           
             let prGoodCount = 0;
             let prGrayCount = 0;
             let prToHighCount = 0;
@@ -595,10 +597,14 @@
         const threshold2 = parseFloat(document.getElementById('threshold2').value);
         const storeId = parseInt(this.getAttribute('data-store-id'));
 
+        // Odczytaj wartość checkboxa
+        const usePriceDifference = document.getElementById('usePriceDifference').checked;
+
         const data = {
             StoreId: storeId,
             SetSafariPrice1: threshold1,
-            SetSafariPrice2: threshold2
+            SetSafariPrice2: threshold2,
+            UsePriceDiffSafari: usePriceDifference // Wysyłamy true lub false w zależności od zaznaczenia checkboxa
         };
 
         fetch('/Safari/SaveSafariPriceValues', {
@@ -612,7 +618,7 @@
             .then(response => {
                 if (response.success) {
                     alert('Wartości progów zostały zapisane pomyślnie.');
-                    // Optionally, you can perform additional actions here
+                    // Możesz dodać dodatkowe działania, jeśli to konieczne
                 } else {
                     alert('Błąd podczas zapisywania wartości progów: ' + response.message);
                 }
@@ -620,6 +626,7 @@
             .catch(error => console.error('Błąd w aktualizowaniu wartości:', error));
     });
 </script>
+
 
 @functions {
     string HexToRgba(string hex, double alpha)
