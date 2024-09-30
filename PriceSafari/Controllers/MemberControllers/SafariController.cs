@@ -135,6 +135,10 @@ namespace PriceSafari.Controllers
                 .Where(f => f.StoreId == report.StoreId)
                 .ToListAsync();
 
+            var storeSafariPrice = await _context.PriceValues
+                .Where(f => f.StoreId == report.StoreId)
+                .ToListAsync();
+
             var productFlagsDictionary = storeFlags
                 .SelectMany(flag => _context.ProductFlags
                     .Where(pf => pf.FlagId == flag.FlagId)
@@ -231,6 +235,7 @@ namespace PriceSafari.Controllers
                 StoreName = report.Store?.StoreName,
                 StoreLogo = report.Store?.StoreLogoUrl,
                 ProductPrices = productPrices,
+        
             };
 
             ViewBag.ReportId = reportId;
