@@ -10,6 +10,15 @@
     let lastSortFunction = null;
     let lastClickedButton = null;
 
+    function debounce(func, wait) {
+        let timeout;
+        return function (...args) {
+            const context = this;
+            clearTimeout(timeout);
+            timeout = setTimeout(() => func.apply(context, args), wait);
+        };
+    }
+
     function loadStores() {
         fetch(`/PriceHistory/GetStores?storeId=${storeId}`)
             .then(response => response.json())
@@ -30,6 +39,28 @@
             .catch(error => console.error('Error fetching stores:', error));
     }
 
+    const usePriceDifferenceCheckbox = document.getElementById('usePriceDifference');
+    const unitLabel1 = document.getElementById('unitLabel1');
+    const unitLabel2 = document.getElementById('unitLabel2');
+
+    // Funkcja aktualizująca etykiety
+    function updateUnits(usePriceDifference) {
+        if (usePriceDifference) {
+            unitLabel1.textContent = 'PLN';
+            unitLabel2.textContent = 'PLN';
+        } else {
+            unitLabel1.textContent = '%';
+            unitLabel2.textContent = '%';
+        }
+    }
+
+    // Reaguj na kliknięcie checkboxa
+    usePriceDifferenceCheckbox.addEventListener('change', function () {
+        const usePriceDifference = usePriceDifferenceCheckbox.checked;
+        updateUnits(usePriceDifference);
+    });
+
+    // Funkcja ładowania danych cen z serwera
     function loadPrices() {
         fetch(`/PriceHistory/GetPrices?storeId=${storeId}&competitorStore=${competitorStore}`)
             .then(response => response.json())
@@ -39,8 +70,16 @@
                 setPrice2 = response.setPrice2;
                 missedProductsCount = response.missedProductsCount;
 
-                const usePriceDifference = document.getElementById('usePriceDifference').checked;
+                // Pobierz wartość usePriceDiff z odpowiedzi serwera
+                const usePriceDifference = response.usePriceDiff;
 
+                // Ustaw checkbox na wartość z serwera
+                document.getElementById('usePriceDifference').checked = usePriceDifference;
+
+                // Zaktualizuj etykiety
+                updateUnits(usePriceDifference);
+
+                // Obsługa przetwarzania cen
                 allPrices = response.prices.map(price => {
                     let valueToUse;
 
@@ -722,9 +761,11 @@
         });
     });
 
-    document.getElementById('productSearch').addEventListener('input', function () {
+    const debouncedFilterPrices = debounce(function () {
         filterPricesAndUpdateUI(lastSortFunction);
-    });
+    }, 450);
+
+    document.getElementById('productSearch').addEventListener('input', debouncedFilterPrices);
 
     document.getElementById('category').addEventListener('change', function () {
         filterPricesAndUpdateUI(lastSortFunction);
@@ -829,14 +870,18 @@
         filterPricesAndUpdateUI();
     });
 
+
+
     document.getElementById('savePriceValues').addEventListener('click', function () {
         const price1 = parseFloat(document.getElementById('price1').value);
         const price2 = parseFloat(document.getElementById('price2').value);
+        const usePriceDiff = document.getElementById('usePriceDifference').checked;
 
         const data = {
             StoreId: storeId,
             SetPrice1: price1,
-            SetPrice2: price2
+            SetPrice2: price2,
+            UsePriceDiff: usePriceDiff
         };
 
         fetch('/PriceHistory/SavePriceValues', {
@@ -851,6 +896,7 @@
                 if (response.success) {
                     setPrice1 = price1;
                     setPrice2 = price2;
+                    usePriceDifferenceGlobal = usePriceDiff; // Zaktualizuj globalną zmienną, jeśli istnieje
 
                     loadPrices();
                 } else {
@@ -859,6 +905,7 @@
             })
             .catch(error => console.error('Błąd w aktualizowaniu wartości:', error));
     });
+
 
     const modal = document.getElementById('flagModal');
     const span = document.getElementsByClassName('close')[0];
@@ -918,3 +965,4 @@
     loadStores();
     loadPrices();
 });
+

@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using PriceSafari.Data;
 
@@ -11,9 +12,11 @@ using PriceSafari.Data;
 namespace PriceSafari.Migrations
 {
     [DbContext(typeof(PriceSafariContext))]
-    partial class PriceTrackerContextModelSnapshot : ModelSnapshot
+    [Migration("20240930181935_update-database")]
+    partial class updatedatabase
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -606,7 +609,7 @@ namespace PriceSafari.Migrations
                     b.Property<int>("StoreId")
                         .HasColumnType("int");
 
-                    b.Property<bool>("UsePriceDiff")
+                    b.Property<bool>("UseProcentage")
                         .HasColumnType("bit");
 
                     b.Property<bool>("UseProcentageSafari")

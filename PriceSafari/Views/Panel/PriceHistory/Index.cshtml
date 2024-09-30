@@ -122,7 +122,7 @@
                     </div>
 
                     <div>
-                        <input class="diffCheckBox" style="margin-top: 10px;" type="checkbox" id="usePriceDifference" checked />
+                        <input class="diffCheckBox" style="margin-top: 10px;" type="checkbox" id="usePriceDifference" />
 
                     </div>
                     <button class="Button-Page-Small" style="margin-top: 2px;" id="savePriceValues">Zapisz</button>
@@ -368,29 +368,7 @@
         });
     </script>
 
-    <script>
-        document.addEventListener("DOMContentLoaded", function () {
-            const usePriceDifferenceCheckbox = document.getElementById('usePriceDifference');
-            const unitLabel1 = document.getElementById('unitLabel1');
-            const unitLabel2 = document.getElementById('unitLabel2');
-
-            function updateUnits() {
-                if (usePriceDifferenceCheckbox.checked) {
-                    unitLabel1.textContent = 'PLN';
-                    unitLabel2.textContent = 'PLN';
-                } else {
-                    unitLabel1.textContent = '%';
-                    unitLabel2.textContent = '%';
-                }
-            }
-
-            usePriceDifferenceCheckbox.addEventListener('change', function () {
-                updateUnits();
-            });
-
-            updateUnits();
-        });
-    </script>
+ 
 }
 
 <div class="modal fade" id="updatePricesModal" tabindex="-1" role="dialog" aria-labelledby="updatePricesModalLabel" aria-hidden="true">

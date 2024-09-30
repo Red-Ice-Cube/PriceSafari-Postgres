@@ -163,12 +163,12 @@ namespace PriceSafari.Controllers.MemberControllers
 
             var priceValues = await _context.PriceValues
                 .Where(pv => pv.StoreId == storeId)
-                .Select(pv => new { pv.SetPrice1, pv.SetPrice2 })
+                .Select(pv => new { pv.SetPrice1, pv.SetPrice2, pv.UsePriceDiff })
                 .FirstOrDefaultAsync();
 
             if (priceValues == null)
             {
-                priceValues = new { SetPrice1 = 2.00m, SetPrice2 = 2.00m };
+                priceValues = new { SetPrice1 = 2.00m, SetPrice2 = 2.00m, UsePriceDiff = true };
             }
 
             var pricesQuery = _context.PriceHistories
@@ -305,7 +305,8 @@ namespace PriceSafari.Controllers.MemberControllers
                 missedProducts = missedProducts,
                 missedProductsCount = missedProducts.Count,
                 setPrice1 = priceValues.SetPrice1,
-                setPrice2 = priceValues.SetPrice2
+                setPrice2 = priceValues.SetPrice2,
+                usePriceDiff = priceValues.UsePriceDiff
             });
         }
 
@@ -492,7 +493,8 @@ namespace PriceSafari.Controllers.MemberControllers
                 {
                     StoreId = model.StoreId,
                     SetPrice1 = model.SetPrice1,
-                    SetPrice2 = model.SetPrice2
+                    SetPrice2 = model.SetPrice2,
+                    UsePriceDiff = model.usePriceDiff
                 };
                 _context.PriceValues.Add(priceValues);
             }
@@ -500,12 +502,14 @@ namespace PriceSafari.Controllers.MemberControllers
             {
                 priceValues.SetPrice1 = model.SetPrice1;
                 priceValues.SetPrice2 = model.SetPrice2;
+                priceValues.UsePriceDiff = model.usePriceDiff;
                 _context.PriceValues.Update(priceValues);
             }
 
             await _context.SaveChangesAsync();
             return Json(new { success = true, message = "Price values updated successfully." });
         }
+
 
         public async Task<IActionResult> Details(int scrapId, int productId)
         {
