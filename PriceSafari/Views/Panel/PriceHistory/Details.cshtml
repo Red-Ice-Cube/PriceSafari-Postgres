@@ -14,6 +14,13 @@
     var setPrice2 = ViewBag.SetPrice2;
     var externalUrl = ViewBag.ExternalUrl as string;
     var img = ViewBag.Img as string;
+
+    decimal basePrice = 0;
+    var myStorePrice = Model.FirstOrDefault(p => string.Equals(p.StoreName, storeName, StringComparison.OrdinalIgnoreCase));
+    if (myStorePrice != null)
+    {
+        basePrice = myStorePrice.Price;
+    }
 }
 
 <div class="Vert" data-store-name="@storeName">
@@ -69,6 +76,7 @@
                         <th></th>
                         <th>Sklep (@Model.Count())</th>
                         <th>Cena</th>
+                        <th>Różnica</th>
                         <th>Widoczność</th>
                         <th>Bid</th>
                         <th>Koszt wysyłki</th>
@@ -82,6 +90,10 @@
                         var isUniqueBestPrice = item.Price == Model.Min(m => m.Price) && Model.Count(m => m.Price == item.Price) == 1;
                         var isSharedBestPrice = item.Price == Model.Min(m => m.Price) && Model.Count(m => m.Price == item.Price) > 1;
                         var savings = isUniqueBestPrice ? Model.Where(m => m.Price > item.Price).OrderBy(m => m.Price).FirstOrDefault()?.Price - item.Price : (decimal?)null;
+
+
+                        decimal priceDifferencePLN = item.Price - basePrice;
+                        decimal percentageDifference = (basePrice > 0) ? ((item.Price - basePrice) / basePrice) * 100 : 0;
 
                         string getColorClass(decimal priceDifference, bool isUniqueBestPrice, bool isSharedBestPrice, decimal? savings)
                         {
@@ -112,7 +124,7 @@
                         }
 
                         var colorClass = getColorClass(priceDifference, isUniqueBestPrice, isSharedBestPrice, savings);
-                        var shippingCost = item.ShippingCostNum == 0 ? "Free" : $"{item.ShippingCostNum - item.Price} zł";
+                        var shippingCost = item.ShippingCostNum == 0 ? "Free" : $"{item.ShippingCostNum - item.Price} PLN";
 
                         string getAvailabilityClass(int? availabilityNum)
                         {
@@ -149,7 +161,34 @@
                             <td class="store-name">
                                 @item.StoreName
                             </td>
-                            <td class="store-price">@item.Price zł</td>
+                            <td class="store-price">@item.Price PLN</td>
+                            <td>
+                                @if (item.StoreName != storeName && priceDifferencePLN != 0)
+                                {
+                                    var priceDiffFormatted = priceDifferencePLN.ToString("+#,##0.00;-#,##0.00") + " PLN";
+                                    var percentageDiffFormatted = percentageDifference.ToString("+#,##0.00;-#,##0.00") + " %";
+
+                                    var diffText = $"{priceDiffFormatted} ({percentageDiffFormatted})";
+
+                                    if (priceDifferencePLN < 0)
+                                    {
+                                        <div class="priceBox-diff-up">@diffText</div>
+                                    }
+                                    else if (priceDifferencePLN > 0)
+                                    {
+                                        <div class="priceBox-diff-down">@diffText</div>
+                                    }
+                                    else
+                                    {
+                                        <div class="priceBox-diff-neutral">@diffText</div>
+                                    }
+                                }
+                                else
+                                {
+                                    <div class="priceBox-diff-neutral">0,00 PLN (0,00 %)</div>
+                                }
+                            </td>
+
                             <td>
                                 @if (item.Position != null)
                                 {

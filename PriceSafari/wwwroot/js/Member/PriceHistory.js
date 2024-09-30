@@ -353,7 +353,7 @@
             const priceBoxLowestText = document.createElement('div');
             priceBoxLowestText.className = 'price-box-column-text';
             priceBoxLowestText.innerHTML =
-                '<span style="font-weight: 500;">' + item.lowestPrice.toFixed(2) + ' zł</span>' + '<br>' + item.storeName;
+                '<span style="font-weight: 500;">' + item.lowestPrice.toFixed(2) + ' PLN</span>' + '<br>' + item.storeName;
 
             const priceBoxLowestDetails = document.createElement('div');
             priceBoxLowestDetails.className = 'price-box-column-text';
@@ -372,7 +372,7 @@
             const priceBoxMyText = document.createElement('div');
             priceBoxMyText.className = 'price-box-column-text';
             priceBoxMyText.innerHTML =
-                '<span style="font-weight: 500;">' + item.myPrice.toFixed(2) + ' zł</span>' + '<br>' + myStoreName;
+                '<span style="font-weight: 500;">' + item.myPrice.toFixed(2) + ' PLN</span>' + '<br>' + myStoreName;
 
             const priceBoxMyDetails = document.createElement('div');
             priceBoxMyDetails.className = 'price-box-column-text';
@@ -390,11 +390,11 @@
 
             if (item.colorClass === "prToLow" || item.colorClass === "prIdeal") {
                 priceBoxColumnInfo.innerHTML =
-                    '<p>Podnieś: ' + savings + ' zł</p>' +
+                    '<p>Podnieś: ' + savings + ' PLN</p>' +
                     '<p>Podnieś: ' + percentageDifference + ' %</p>';
             } else if (item.colorClass === "prMid" || item.colorClass === "prToHigh") {
                 priceBoxColumnInfo.innerHTML =
-                    '<p>Obniż: ' + priceDifference + ' zł</p>' +
+                    '<p>Obniż: ' + priceDifference + ' PLN</p>' +
                     '<p>Obniż: ' + percentageDifference + ' %</p>';
             } else if (item.colorClass === "prGood") {
                 priceBoxColumnInfo.innerHTML = '<p>Brak działań</p>';
@@ -407,8 +407,8 @@
                 const externalPriceDifferenceText = (item.externalPrice > item.myPrice ? '+' : '') + externalPriceDifference;
                 priceBoxColumnExternalPrice.innerHTML =
 
-                    '<div class="price-box-column-text-api">Nowa cena: ' + item.externalPrice.toFixed(2) + ' zł</div>' +
-                    '<div class="price-box-column-text-api">Zmiana: ' + externalPriceDifferenceText + ' zł</div>';
+                    '<div class="price-box-column-text-api">Nowa cena: ' + item.externalPrice.toFixed(2) + ' PLN</div>' +
+                '<div class="price-box-column-text-api">Zmiana: ' + externalPriceDifferenceText + ' PLN</div>';
             }
 
             const flagsContainer = document.createElement('div');
