@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using PriceSafari.Data;
 using PriceSafari.Models;
 using PriceSafari.Models.ViewModels;
+using PriceSafari.ViewModels;
 using System.Security.Claims;
 
 namespace PriceSafari.Controllers
@@ -135,9 +136,15 @@ namespace PriceSafari.Controllers
                 .Where(f => f.StoreId == report.StoreId)
                 .ToListAsync();
 
-            var storeSafariPrice = await _context.PriceValues
-                .Where(f => f.StoreId == report.StoreId)
-                .ToListAsync();
+            var priceValues = await _context.PriceValues
+               .Where(pv => pv.StoreId == report.StoreId)
+               .Select(pv => new { pv.SetSafariPrice1, pv.SetSafariPrice2 })
+               .FirstOrDefaultAsync();
+
+            if (priceValues == null)
+            {
+                priceValues = new { SetSafariPrice1 = 2.00m, SetSafariPrice2 = 2.00m };
+            }
 
             var productFlagsDictionary = storeFlags
                 .SelectMany(flag => _context.ProductFlags
@@ -146,11 +153,11 @@ namespace PriceSafari.Controllers
                 .GroupBy(pf => pf.ProductId)
                 .ToDictionary(g => g.Key, g => g.Select(pf => pf.FlagId).ToList());
 
-            // Fetch regions
+          
             var regions = await _context.Regions
                 .ToDictionaryAsync(r => r.RegionId, r => r.Name);
 
-            // Pass regions and selected regionId to the view
+           
             ViewBag.Regions = regions;
             ViewBag.RegionId = regionId;
 
@@ -160,36 +167,35 @@ namespace PriceSafari.Controllers
                 {
                     if (regionId.HasValue)
                     {
-                        // Only include products that have at least one competitor price in the specified region
                         return group.Any(gpr => gpr.RegionId == regionId.Value && gpr.StoreName.ToLower() != storeName);
                     }
                     else
                     {
-                        // Include all products
+                       
                         return true;
                     }
                 })
                 .Select(group =>
                 {
-                    // Fetch your own price from the entire group, regardless of regionId
+                    
                     var ourPrice = group.FirstOrDefault(gpr => gpr.StoreName.ToLower() == storeName);
 
                     IEnumerable<GlobalPriceReport> competitorPrices;
 
                     if (regionId.HasValue)
                     {
-                        // Filter competitor prices by regionId and exclude your store
+                       
                         competitorPrices = group.Where(gpr => gpr.RegionId == regionId.Value && gpr.StoreName.ToLower() != storeName);
                     }
                     else
                     {
-                        // Include all competitor prices excluding your store
+                       
                         competitorPrices = group.Where(gpr => gpr.StoreName.ToLower() != storeName);
                     }
 
                     var lowestCompetitorPrice = competitorPrices.OrderBy(gpr => gpr.CalculatedPrice).FirstOrDefault();
 
-                    // Get flags for your product or the competitor's product
+              
                     int productId = ourPrice?.ProductId ?? lowestCompetitorPrice?.ProductId ?? 0;
                     productFlagsDictionary.TryGetValue(productId, out var flagIds);
 
@@ -207,20 +213,20 @@ namespace PriceSafari.Controllers
                         ProductName = ourPrice?.Product?.ProductName ?? lowestCompetitorPrice?.Product?.ProductName,
                         GoogleUrl = ourPrice?.Product?.GoogleUrl ?? lowestCompetitorPrice?.Product?.GoogleUrl,
                         Category = ourPrice?.Product?.Category ?? lowestCompetitorPrice?.Product?.Category,
-                        // Competitor's lowest price information
+                      
                         Price = lowestCompetitorPrice?.Price ?? 0,
                         StoreName = lowestCompetitorPrice?.StoreName ?? "Brak konkurencyjnej ceny",
                         PriceWithDelivery = lowestCompetitorPrice?.PriceWithDelivery ?? 0,
                         CalculatedPrice = lowestCompetitorPrice?.CalculatedPrice ?? 0,
                         CalculatedPriceWithDelivery = lowestCompetitorPrice?.CalculatedPriceWithDelivery ?? 0,
-                        // Your own store information
+                        
                         MyStoreName = ourPrice?.StoreName,
                         OurCalculatedPrice = ourPrice?.CalculatedPrice ?? 0,
                         OurRegionName = ourRegionName,
-                        // Region info
+                      
                         RegionId = lowestCompetitorPrice?.RegionId ?? 0,
                         RegionName = regionName,
-                        // Flags and product details
+              
                         FlagIds = flagIds ?? new List<int>(),
                         MainUrl = ourPrice?.Product?.MainUrl ?? lowestCompetitorPrice?.Product?.MainUrl,
                         Product = ourPrice?.Product ?? lowestCompetitorPrice?.Product
@@ -233,9 +239,12 @@ namespace PriceSafari.Controllers
                 ReportName = report.ReportName,
                 CreatedDate = report.CreatedDate,
                 StoreName = report.Store?.StoreName,
+                StoreId = report.Store.StoreId,
                 StoreLogo = report.Store?.StoreLogoUrl,
                 ProductPrices = productPrices,
-        
+                SetSafariPrice1 = priceValues.SetSafariPrice1,
+                SetSafariPrice2 = priceValues.SetSafariPrice2,
+
             };
 
             ViewBag.ReportId = reportId;
@@ -243,6 +252,43 @@ namespace PriceSafari.Controllers
 
             return View("~/Views/Panel/Safari/SafariReportAnalysis.cshtml", viewModel);
         }
+
+
+        [HttpPost]
+        [ServiceFilter(typeof(AuthorizeStoreAccessAttribute))]
+        public async Task<IActionResult> SaveSafariPriceValues([FromBody] SafariPriceValuesViewModel model)
+        {
+            if (model == null || model.StoreId <= 0)
+            {
+                return BadRequest("Invalid store ID or price values.");
+            }
+
+          
+            var priceValues = await _context.PriceValues
+                .Where(pv => pv.StoreId == model.StoreId)
+                .FirstOrDefaultAsync();
+
+            if (priceValues == null)
+            {
+                priceValues = new PriceValueClass
+                {
+                    StoreId = model.StoreId,
+                    SetSafariPrice1 = model.SetSafariPrice1,
+                    SetSafariPrice2 = model.SetSafariPrice2
+                };
+                _context.PriceValues.Add(priceValues);
+            }
+            else
+            {
+                priceValues.SetSafariPrice1 = model.SetSafariPrice1;
+                priceValues.SetSafariPrice2 = model.SetSafariPrice2;
+                _context.PriceValues.Update(priceValues);
+            }
+
+            await _context.SaveChangesAsync();
+            return Json(new { success = true, message = "Price values updated successfully." });
+        }
+
 
 
         [HttpGet]

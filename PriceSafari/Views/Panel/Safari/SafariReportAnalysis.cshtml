@@ -1,650 +1,15 @@
-﻿@* @model PriceSafari.Models.ViewModels.SafariReportAnalysisViewModel
-
-@{
-    Layout = "~/Views/Shared/_PanelLayout.cshtml";
-    var flagsList = (List<PriceSafari.Models.FlagsClass>)ViewBag.Flags;
-    var myStoreName = Model.StoreName;
-}
-
-<!-- Include Chart.js Library -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-<div class="Vert">
-    <div class="Page-Box">
-        <div class="Page-Box-Container">
-            <div class="Page-Box-Category">
-                <div><img src="@Model.StoreLogo" class="img-container" /></div>
-                <div class="side-chart-box">
-                    <canvas id="classificationChart"></canvas>
-                </div>
-                <div class="store-section">
-                    <!-- Classification Filters -->
-                    <div class="form-check">
-                        <input class="form-check-input colorFilter" type="checkbox" id="prGoodCheckbox" value="prGood">
-                        <label class="form-check-label" for="prGoodCheckbox" id="prGoodLabel">Tańsze o próg (<span id="prGoodCount">0</span>)</label>
-                    </div>
-
-                    <div class="form-check">
-                        <input class="form-check-input colorFilter" type="checkbox" id="prGrayCheckbox" value="prGray">
-                        <label class="form-check-label" for="prGrayCheckbox" id="prGrayLabel">Podobna cena (<span id="prGrayCount">0</span>)</label>
-                    </div>
-
-                    <div class="form-check">
-                        <input class="form-check-input colorFilter" type="checkbox" id="prToHighCheckbox" value="prToHigh">
-                        <label class="form-check-label" for="prToHighCheckbox" id="prToHighLabel">Droższe o próg (<span id="prToHighCount">0</span>)</label>
-                    </div>
-
-                    <!-- Threshold Inputs -->
-                    <div class="price-range-settings">
-                        <div class="color-circle prIdeal-circle"></div>
-                        <label for="threshold1">Tańsze</label>
-                        <input type="number" id="threshold1" value="10.00" step="0.01" min="0.00">
-                        <span id="unitLabel1"></span>
-                    </div>
-                    <div class="price-range-settings">
-                        <div class="color-circle prMid-circle"></div>
-                        <label for="threshold2">Droższe</label>
-                        <input type="number" id="threshold2" value="5.00" step="0.01" min="0.00">
-                        <span id="unitLabel2"></span>
-                    </div>
-
-                    <!-- Use Price Difference Checkbox -->
-                    <div>
-                        <label>
-                            <input class="diffCheckBox" style="margin-top: 10px;" type="checkbox" id="usePriceDifference" />
-                        </label>
-                    </div>
-
-                </div>
-
-                <!-- Flags Filter -->
-                <div class="filterBox">
-                    <div class="Category-Container-Select" style="margin-top:-2px;">Flagi</div>
-                    <div class="store-section" id="flagContainer">
-                        @{
-                            // Collect flags used in products and count occurrences
-                            var flagUsage = new Dictionary<int, int>(); // FlagId, Count
-                            foreach (var item in Model.ProductPrices)
-                            {
-                                foreach (var flagId in item.FlagIds)
-                                {
-                                    if (flagUsage.ContainsKey(flagId))
-                                        flagUsage[flagId]++;
-                                    else
-                                        flagUsage[flagId] = 1;
-                                }
-                            }
-
-                            // Get only flags that are used in products
-                            var usedFlags = flagsList.Where(f => flagUsage.ContainsKey(f.FlagId)).ToList();
-                        }
-
-                        @foreach (var flag in usedFlags)
-                        {
-                            <div class="form-check">
-                                <input class="form-check-input flagFilter" type="checkbox" id="flagCheckbox_@flag.FlagId" value="@flag.FlagId">
-                                <label class="form-check-label" for="flagCheckbox_@flag.FlagId">
-                                    @flag.FlagName (@flagUsage[flag.FlagId])
-                                </label>
-                            </div>
-                        }
-                    </div>
-                </div>
-
-            </div>
-            <div class="Horizontal">
-                <div class="order-upper-box">
-                    <!-- Search Input -->
-                    <input type="text" id="productSearch" placeholder="Wyszukaj produkt" />
-                    <!-- Category Filter -->
-                    <select id="categoryFilter" class="DropDown">
-                        <option value="">Wszystkie kategorie</option>
-                    </select>
-                    <!-- Region Filter -->
-                    <select id="regionFilter" class="DropDown">
-                        <option value="">Wszystkie regiony</option>
-                        @foreach (var region in (Dictionary<int, string>)ViewBag.Regions)
-                        {
-                            if (region.Key == (int?)ViewBag.RegionId)
-                            {
-                                <option value="@region.Key" selected>@region.Value</option>
-                            }
-                            else
-                            {
-                                <option value="@region.Key">@region.Value</option>
-                            }
-                        }
-                    </select>
-
-                    <!-- Report Info -->
-                    <div class="form-check-orders">
-                        <div>
-                            <p><strong>Raport cenowy:</strong> @Model.ReportName</p>
-                            <p><strong>Data utworzenia:</strong> @Model.CreatedDate.ToString("yyyy-MM-dd HH:mm")</p>
-                        </div>
-                    </div>
-
-                </div>
-
-                <div id="sortingButtons">
-                    <div class="ProductCount" id="displayedProductCount"></div>
-                </div>
-
-                <div class="Vert-table">
-                    <div id="priceContainer" class="price-container">
-                        @foreach (var item in Model.ProductPrices)
-                        {
-                            var priceDifference = Math.Round(item.CalculatedPrice - item.OurCalculatedPrice, 2);
-
-                            decimal? percentageDifference = null;
-                            if (item.OurCalculatedPrice != 0)
-                            {
-                                percentageDifference = Math.Round(((item.CalculatedPrice - item.OurCalculatedPrice) / item.OurCalculatedPrice) * 100, 2);
-                            }
-
-                            var colorClass = "prGray"; // Default class
-
-                            // Combine Flag IDs into a comma-separated string for data attribute
-                            var flagIdsString = string.Join(",", item.FlagIds);
-
-                            <div class="price-box @colorClass"
-                                 data-category="@item.Category"
-                                 data-pricedifference="@priceDifference.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)"
-                                 data-percdifference="@(percentageDifference?.ToString("F2", System.Globalization.CultureInfo.InvariantCulture) ?? "null")"
-                                 data-colorclass="@colorClass"
-                                 data-flags="@flagIdsString"
-                                 onclick="window.open('@Url.Action("ProductPriceDetails", "Safari", new { reportId = ViewBag.ReportId, productId = item.ProductId, regionId = ViewBag.RegionId })', '_blank')">
-
-                                <div class="price-box-space">
-                                    <div class="price-box-column-name">
-                                        @item.ProductName
-                                    </div>
-                                    <button class="assign-flag-button" data-product-id="@item.ProductId">+ Przypisz flagi</button>
-                                </div>
-                                <div class="price-box-column-category" style="margin-top:4px; margin-bottom:4px;">
-                                    @item.Category
-                                </div>
-                                <div class="price-box-data">
-                                    <div class="color-bar @colorClass" style="margin-right:16px; min-height:84px; max-height:84px;"></div>
-
-                                    @if (!string.IsNullOrEmpty(item.Product.MainUrl))
-                                    {
-                                        <img data-src="@item.Product.MainUrl" alt="@item.ProductName" class="product-image lazy-load" style="height:84px; width:84px;" />
-                                    }
-                                    else
-                                    {
-                                        <img data-src="/images/no-image.png" alt="Brak zdjęcia" class="product-image lazy-load" />
-                                    }
-                                    <div class="price-box-column" style="margin-left:8px;">
-                                        <div class="price-box-column-text">
-                                            <span style="font-weight: 500;">@item.CalculatedPrice.ToString("0.00") zł</span><br />
-                                            @item.StoreName
-                                        </div>
-                                        <div class="price-box-column-text">
-                                            <div style="display:flex;">
-                                                <img src="~/images/@(item.RegionName).png" alt="@item.RegionName" style="display:flex; align-self:center; width: 32px; height: 22px; margin-right:8px;" />
-                                                @item.RegionName
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div class="price-box-column">
-                                        @if (item.OurCalculatedPrice != 0)
-                                        {
-                                            <div class="price-box-column-text">
-                                                <span style="font-weight: 500;">@item.OurCalculatedPrice.ToString("0.00") zł</span><br />
-                                                @myStoreName
-                                            </div>
-                                            <div class="price-box-column-text">
-                                                <div style="display:flex;">
-                                                    <img src="~/images/@(item.OurRegionName).png" alt="@item.OurRegionName" style="display:flex; align-self:center; width: 32px; height: 22px; margin-right:8px;" />
-                                                    @item.OurRegionName
-                                                </div>
-                                            </div>
-                                        }
-                                        else
-                                        {
-                                            <div class="price-box-column-text">
-                                                <span style="font-weight: 500;">Brak Ceny</span><br />
-                                                @myStoreName
-                                            </div>
-                                        }
-                                    </div>
-
-                                    @if (item.OurCalculatedPrice != 0)
-                                    {
-                                        <div class="price-box-column-action">
-                                            <p class="price-diff-display"></p>
-                                        </div>
-                                    }
-
-                                    <div class="flags-container">
-                                        @if (item.FlagIds.Any())
-                                        {
-                                            foreach (var flagId in item.FlagIds)
-                                            {
-                                                var flag = flagsList.FirstOrDefault(f => f.FlagId == flagId);
-                                                if (flag != null)
-                                                {
-                                                    <span class="flag" style="color:@flag.FlagColor; border: 2px solid @flag.FlagColor; background-color:@HexToRgba(flag.FlagColor, 0.3);">@flag.FlagName</span>
-                                                }
-                                            }
-                                        }
-                                    </div>
-                                </div>
-                            </div>
-                        }
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- JavaScript Section -->
-<script>
-    document.addEventListener("DOMContentLoaded", function () {
-        const lazyLoadImages = document.querySelectorAll('.lazy-load');
-        const observer = new IntersectionObserver((entries, observer) => {
-            entries.forEach(entry => {
-                if (entry.isIntersecting) {
-                    const img = entry.target;
-                    img.src = img.dataset.src;
-                    img.removeAttribute('data-src');
-                    observer.unobserve(img);
-                }
-            });
-        });
-
-        lazyLoadImages.forEach(img => {
-            observer.observe(img);
-        });
-
-        // Category Filter Initialization
-        const categories = new Set();
-        document.querySelectorAll('.price-box-column-category').forEach(categoryElement => {
-            const category = categoryElement.textContent.trim();
-            if (category) {
-                categories.add(category);
-            }
-        });
-
-        const categoryDropdown = document.getElementById('categoryFilter');
-        categories.forEach(category => {
-            const option = document.createElement('option');
-            option.value = category;
-            option.textContent = category;
-            categoryDropdown.appendChild(option);
-        });
-
-        let allProducts = Array.from(document.querySelectorAll('.price-box'));
-        const searchInput = document.getElementById('productSearch');
-
-        // Sanitize String Function
-        function sanitizeString(str) {
-            return str.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
-        }
-
-        // Highlight Matches Function
-        function highlightMatches(productName, searchTerm) {
-            if (!searchTerm) return productName;
-
-            const sanitizedSearchTerm = searchTerm.replace(/[^a-zA-Z0-9\s/.-]/g, '').trim().toLowerCase();
-            const regex = new RegExp(`(${sanitizedSearchTerm.split('').join('\\s*')})`, 'gi'); // Allows gaps
-            return productName.replace(regex, '<span style="color: #9400D3; font-weight: bold;">$1</span>');
-        }
-
-        // Filter Products Function
-        function filterProducts() {
-            const searchTerm = sanitizeString(searchInput.value.trim());
-            const selectedCategory = categoryDropdown.value;
-            const selectedFlags = Array.from(document.querySelectorAll('.flagFilter:checked')).map(cb => cb.value);
-
-            let filteredProducts = [];
-
-            allProducts.forEach(productBox => {
-                const productNameElement = productBox.querySelector('.price-box-column-name');
-                const productName = productNameElement.textContent.trim();
-                const productCategory = productBox.getAttribute('data-category');
-                const productFlags = productBox.getAttribute('data-flags').split(',');
-                const sanitizedProductName = sanitizeString(productName);
-
-                const matchesSearch = sanitizedProductName.includes(searchTerm);
-                const matchesCategory = selectedCategory === '' || productCategory === selectedCategory;
-                const matchesFlags = selectedFlags.length === 0 || selectedFlags.some(flagId => productFlags.includes(flagId));
-
-                if (matchesSearch && matchesCategory && matchesFlags) {
-                    filteredProducts.push({
-                        productBox: productBox,
-                        productNameElement: productNameElement,
-                        exactMatch: sanitizedProductName === searchTerm,
-                        matchIndex: sanitizedProductName.indexOf(searchTerm)
-                    });
-                    productBox.style.display = 'block'; // Show matching products
-                } else {
-                    productBox.style.display = 'none'; // Hide non-matching products
-                }
-            });
-
-            // Sort and Display Filtered Products
-            filteredProducts.sort((a, b) => {
-                if (a.exactMatch && !b.exactMatch) return -1;
-                if (!a.exactMatch && b.exactMatch) return 1;
-                return a.matchIndex - b.matchIndex;
-            });
-
-            filteredProducts.forEach(item => {
-                item.productNameElement.innerHTML = highlightMatches(item.productNameElement.textContent, searchInput.value);
-            });
-
-            // Update counts and chart after filtering
-            classifyProducts();
-            filterByClassification();
-        }
-
-        searchInput.addEventListener('input', filterProducts);
-        categoryDropdown.addEventListener('change', filterProducts);
-        document.querySelectorAll('.flagFilter').forEach(checkbox => checkbox.addEventListener('change', filterProducts));
-
-        // Classification Logic
-        const threshold1Input = document.getElementById('threshold1');
-        const threshold2Input = document.getElementById('threshold2');
-        const usePriceDifferenceCheckbox = document.getElementById('usePriceDifference');
-        const colorFilters = document.querySelectorAll('.colorFilter');
-
-        // Variables for counts and labels
-        const prGoodCountSpan = document.getElementById('prGoodCount');
-        const prGrayCountSpan = document.getElementById('prGrayCount');
-        const prToHighCountSpan = document.getElementById('prToHighCount');
-
-        const prGoodLabel = document.getElementById('prGoodLabel');
-        const prGrayLabel = document.getElementById('prGrayLabel');
-        const prToHighLabel = document.getElementById('prToHighLabel');
-
-        const unitLabel1 = document.getElementById('unitLabel1');
-        const unitLabel2 = document.getElementById('unitLabel2');
-
-        // Doughnut Chart Initialization
-        const ctx = document.getElementById('classificationChart').getContext('2d');
-        let classificationChart;
-
-        function initializeChart(prGoodCount, prGrayCount, prToHighCount) {
-            if (classificationChart) {
-                classificationChart.destroy();
-            }
-            classificationChart = new Chart(ctx, {
-                type: 'doughnut',
-                data: {
-                    labels: ['Tańsze o więcej niż próg', 'W podobnej cenie', 'Droższe o więcej niż próg'],
-                    datasets: [{
-                        data: [prGoodCount, prGrayCount, prToHighCount],
-                        backgroundColor: [
-                            'rgba(40, 167, 69, 0.8)',   // Green with 0.8 opacity
-                            'rgba(108, 117, 125, 0.8)', // Gray with 0.8 opacity
-                            'rgba(220, 53, 69, 0.8)'    // Red with 0.8 opacity
-                        ],
-                        borderColor: [
-                            'rgba(40, 167, 69, 1)',   // Green border
-                            'rgba(108, 117, 125, 1)', // Gray border
-                            'rgba(220, 53, 69, 1)'    // Red border
-                        ],
-                        borderWidth: 1
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            display: false, // Remove legend
-                        },
-                        tooltip: {
-                            callbacks: {
-                                label: function (context) {
-                                    var value = context.parsed;
-                                    return 'Produkty: ' + value;
-                                }
-                            }
-                        }
-                    }
-                }
-            });
-        }
-
-        function classifyProducts() {
-            let thresholdCheaper = parseFloat(threshold1Input.value);
-            let thresholdMoreExpensive = parseFloat(threshold2Input.value);
-            const usePriceDifference = usePriceDifferenceCheckbox.checked;
-
-            // Handle invalid inputs
-            if (isNaN(thresholdCheaper) || thresholdCheaper < 0) thresholdCheaper = 0;
-            if (isNaN(thresholdMoreExpensive) || thresholdMoreExpensive < 0) thresholdMoreExpensive = 0;
-
-            let prGoodCount = 0;
-            let prGrayCount = 0;
-            let prToHighCount = 0;
-
-            allProducts.forEach(productBox => {
-                if (productBox.style.display === 'none') return; // Skip hidden products
-
-                const priceDifference = parseFloat(productBox.getAttribute('data-pricedifference')) || 0;
-                const percentageDifferenceAttr = productBox.getAttribute('data-percdifference');
-                let percentageDifference = percentageDifferenceAttr !== 'null' ? parseFloat(percentageDifferenceAttr) : null;
-
-                let differenceValue = usePriceDifference ? priceDifference : (percentageDifference !== null ? percentageDifference : 0);
-
-                // Round differenceValue to 2 decimal places
-                differenceValue = parseFloat(differenceValue.toFixed(2));
-
-                let colorClass = 'prGray'; // Default class (grey)
-
-                if (differenceValue <= -thresholdCheaper) {
-                    // Competitor is cheaper by at least thresholdCheaper
-                    colorClass = 'prGood'; // Green
-                    prGoodCount++;
-                } else if (differenceValue >= thresholdMoreExpensive) {
-                    // Competitor is more expensive by at least thresholdMoreExpensive
-                    colorClass = 'prToHigh'; // Red
-                    prToHighCount++;
-                } else {
-                    // Price difference is within thresholds
-                    colorClass = 'prGray'; // Grey
-                    prGrayCount++;
-                }
-
-                // Update Class and Data Attribute
-                productBox.classList.remove('prToHigh', 'prGood', 'prGray');
-                productBox.classList.add(colorClass);
-                productBox.setAttribute('data-colorclass', colorClass);
-
-                // Update Price Difference Display
-                const priceDiffDisplay = productBox.querySelector('.price-diff-display');
-                if (priceDiffDisplay) {
-                    const epsilon = 0.005;
-
-                    const roundedPriceDifference = parseFloat(priceDifference.toFixed(2));
-                    let priceDiffText = '';
-
-                    if (Math.abs(roundedPriceDifference) < epsilon) {
-                        priceDiffText += 'Cena taka sama<br>';
-                    } else if (roundedPriceDifference < 0) {
-                        priceDiffText += `Taniej o: ${Math.abs(roundedPriceDifference).toFixed(2)} zł<br>`;
-                    } else {
-                        priceDiffText += `Drożej o: ${roundedPriceDifference.toFixed(2)} zł<br>`;
-                    }
-
-                    if (percentageDifference !== null) {
-                        const roundedPercentageDifference = parseFloat(percentageDifference.toFixed(2));
-                        if (Math.abs(roundedPercentageDifference) < epsilon) {
-                            priceDiffText += 'Cena taka sama';
-                        } else if (roundedPercentageDifference < 0) {
-                            priceDiffText += `Taniej o: ${Math.abs(roundedPercentageDifference).toFixed(2)} %`;
-                        } else {
-                            priceDiffText += `Drożej o: ${roundedPercentageDifference.toFixed(2)} %`;
-                        }
-                    } else {
-                        priceDiffText += 'Brak danych procentowych';
-                    }
-
-                    priceDiffDisplay.innerHTML = priceDiffText;
-                }
-            });
-
-            // Update counts next to checkboxes
-            prGoodCountSpan.textContent = prGoodCount;
-            prGrayCountSpan.textContent = prGrayCount;
-            prToHighCountSpan.textContent = prToHighCount;
-
-            // Update Chart
-            initializeChart(prGoodCount, prGrayCount, prToHighCount);
-
-            // Update classification labels
-            updateClassificationLabels();
-        }
-
-        function updateClassificationLabels() {
-            const thresholdCheaper = parseFloat(threshold1Input.value) || 0;
-            const thresholdMoreExpensive = parseFloat(threshold2Input.value) || 0;
-            const usePriceDifference = usePriceDifferenceCheckbox.checked;
-            const unit = usePriceDifference ? 'PLN' : '%';
-
-            prGoodLabel.innerHTML = `Tańsze o ${thresholdCheaper} ${unit} (<span id="prGoodCount">${prGoodCountSpan.textContent}</span>)`;
-            prGrayLabel.innerHTML = `Podobna cena (<span id="prGrayCount">${prGrayCountSpan.textContent}</span>)`;
-            prToHighLabel.innerHTML = `Droższe o ${thresholdMoreExpensive} ${unit} (<span id="prToHighCount">${prToHighCountSpan.textContent}</span>)`;
-
-            unitLabel1.textContent = unit;
-            unitLabel2.textContent = unit;
-        }
-
-        function filterByClassification() {
-            const selectedClasses = Array.from(colorFilters)
-                .filter(checkbox => checkbox.checked)
-                .map(checkbox => checkbox.value);
-
-            const noFilter = selectedClasses.length === 0;
-
-            allProducts.forEach(productBox => {
-                if (productBox.style.display === 'none') return; // Skip hidden products from previous filters
-
-                const colorClass = productBox.getAttribute('data-colorclass');
-                if (noFilter || selectedClasses.includes(colorClass)) {
-                    productBox.style.display = 'block';
-                } else {
-                    productBox.style.display = 'none';
-                }
-            });
-        }
-
-        function updateProducts() {
-            filterProducts();
-            classifyProducts();
-            filterByClassification();
-            updateFlagCounts();
-        }
-
-        // Update flag counts next to checkboxes
-        function updateFlagCounts() {
-            const flagCheckboxes = document.querySelectorAll('.flagFilter');
-            const flagCounts = {};
-
-            // Initialize counts
-            flagCheckboxes.forEach(checkbox => {
-                flagCounts[checkbox.value] = 0;
-            });
-
-            // Count flags in currently displayed products
-            allProducts.forEach(productBox => {
-                if (productBox.style.display === 'none') return; // Skip hidden products
-
-                const productFlags = productBox.getAttribute('data-flags').split(',');
-                productFlags.forEach(flagId => {
-                    if (flagCounts.hasOwnProperty(flagId)) {
-                        flagCounts[flagId]++;
-                    }
-                });
-            });
-
-            // Update labels
-            flagCheckboxes.forEach(checkbox => {
-                const label = document.querySelector(`label[for='${checkbox.id}']`);
-                if (label) {
-                    const flagName = label.textContent.split('(')[0].trim();
-                    label.textContent = `${flagName} (${flagCounts[checkbox.value]})`;
-                }
-            });
-        }
-
-        // Event listeners
-        threshold1Input.addEventListener('input', updateProducts);
-        threshold2Input.addEventListener('input', updateProducts);
-        usePriceDifferenceCheckbox.addEventListener('change', updateProducts);
-        colorFilters.forEach(checkbox => checkbox.addEventListener('change', filterByClassification));
-
-        // Initial Load
-        updateProducts();
-    });
-</script>
-<script>
-    document.addEventListener("DOMContentLoaded", function () {
-        const usePriceDifferenceCheckbox = document.getElementById('usePriceDifference');
-        const unitLabel1 = document.getElementById('unitLabel1');
-        const unitLabel2 = document.getElementById('unitLabel2');
-
-        function updateUnits() {
-            const unit = usePriceDifferenceCheckbox.checked ? 'PLN' : '%';
-            unitLabel1.textContent = unit;
-            unitLabel2.textContent = unit;
-        }
-
-        usePriceDifferenceCheckbox.addEventListener('change', function () {
-            updateUnits();
-        });
-
-        // Call updateUnits on page load
-        updateUnits();
-    });
-</script>
-<script>
-    document.getElementById('regionFilter').addEventListener('change', function () {
-        var selectedRegionId = this.value;
-        var url = new URL(window.location.href);
-
-        if (selectedRegionId) {
-            url.searchParams.set('regionId', selectedRegionId);
-        } else {
-            url.searchParams.delete('regionId');
-        }
-
-        window.location.href = url.toString();
-    });
-</script>
-
-@functions {
-    string HexToRgba(string hex, double alpha)
-    {
-        int r = 0, g = 0, b = 0;
-        if (hex.Length == 7)
-        {
-            r = int.Parse(hex.Substring(1, 2), System.Globalization.NumberStyles.HexNumber);
-            g = int.Parse(hex.Substring(3, 2), System.Globalization.NumberStyles.HexNumber);
-            b = int.Parse(hex.Substring(5, 2), System.Globalization.NumberStyles.HexNumber);
-        }
-        return $"rgba({r}, {g}, {b}, {alpha.ToString(System.Globalization.CultureInfo.InvariantCulture)})";
-    }
-}
- *@
-
-
+﻿
 
 
 @model PriceSafari.Models.ViewModels.SafariReportAnalysisViewModel
 
-        @model PriceSafari.Models.ViewModels.SafariReportAnalysisViewModel
+       
 
 @{
     Layout = "~/Views/Shared/_PanelLayout.cshtml";
     var flagsList = (List<PriceSafari.Models.FlagsClass>)ViewBag.Flags;
     var myStoreName = Model.StoreName;
+    var storeId = Model.StoreId;
 }
 
 <!-- Include Chart.js Library -->
@@ -660,41 +25,44 @@
                 </div>
                 <div class="store-section">
                     <!-- Classification Filters -->
-                    <div class="form-check">
-                        <input class="form-check-input colorFilter" type="checkbox" id="prGoodCheckbox" value="prGood">
-                        <label class="form-check-label" for="prGoodCheckbox" id="prGoodLabel">Tańsze o próg (<span id="prGoodCount">0</span>)</label>
-                    </div>
+                        <div class="form-check">
+                            <input class="form-check-input colorFilter" type="checkbox" id="prGoodCheckbox" value="prGood">
+                            <label class="form-check-label" for="prGoodCheckbox" id="prGoodLabel">Tańsze o próg (<span id="prGoodCount">0</span>)</label>
+                        </div>
 
-                    <div class="form-check">
-                        <input class="form-check-input colorFilter" type="checkbox" id="prGrayCheckbox" value="prGray">
-                        <label class="form-check-label" for="prGrayCheckbox" id="prGrayLabel">Podobna cena (<span id="prGrayCount">0</span>)</label>
-                    </div>
+                        <div class="form-check">
+                            <input class="form-check-input colorFilter" type="checkbox" id="prGrayCheckbox" value="prGray">
+                            <label class="form-check-label" for="prGrayCheckbox" id="prGrayLabel">Podobna cena (<span id="prGrayCount">0</span>)</label>
+                        </div>
 
-                    <div class="form-check">
-                        <input class="form-check-input colorFilter" type="checkbox" id="prToHighCheckbox" value="prToHigh">
-                        <label class="form-check-label" for="prToHighCheckbox" id="prToHighLabel">Droższe o próg (<span id="prToHighCount">0</span>)</label>
-                    </div>
+                        <div class="form-check">
+                            <input class="form-check-input colorFilter" type="checkbox" id="prToHighCheckbox" value="prToHigh">
+                            <label class="form-check-label" for="prToHighCheckbox" id="prToHighLabel">Droższe o próg (<span id="prToHighCount">0</span>)</label>
+                        </div>
 
-                    <!-- Threshold Inputs -->
-                    <div class="price-range-settings">
-                        <div class="color-circle prIdeal-circle"></div>
-                        <label for="threshold1">Tańsze</label>
-                        <input type="number" id="threshold1" value="10.00" step="0.01" min="0.00">
-                        <span id="unitLabel1"></span>
-                    </div>
-                    <div class="price-range-settings">
-                        <div class="color-circle prMid-circle"></div>
-                        <label for="threshold2">Droższe</label>
-                        <input type="number" id="threshold2" value="5.00" step="0.01" min="0.00">
-                        <span id="unitLabel2"></span>
-                    </div>
+                        <!-- Threshold Inputs -->
+                        <div class="price-range-settings">
+                            <div class="color-circle prIdeal-circle"></div>
+                            <label for="threshold1">Tańsze</label>
+                            <input type="number" id="threshold1" value="@Model.SetSafariPrice1.ToString(System.Globalization.CultureInfo.InvariantCulture)" step="0.01" min="0.00">
+                            <span id="unitLabel1"></span>
+                        </div>
+                        <div class="price-range-settings">
+                            <div class="color-circle prMid-circle"></div>
+                            <label for="threshold2">Droższe</label>
+                            <input type="number" id="threshold2" value="@Model.SetSafariPrice2.ToString(System.Globalization.CultureInfo.InvariantCulture)" step="0.01" min="0.00">
+                            <span id="unitLabel2"></span>
+                        </div>
 
-                    <!-- Use Price Difference Checkbox -->
-                    <div>
-                        <label>
-                            <input class="diffCheckBox" style="margin-top: 10px;" type="checkbox" id="usePriceDifference" />
-                        </label>
-                    </div>
+                        <!-- Use Price Difference Checkbox -->
+                        <div>
+                            <label>
+                                <input class="diffCheckBox" style="margin-top: 10px;" type="checkbox" id="usePriceDifference" />
+                            </label>
+                        </div>
+                       
+                        <button id="savePriceValues" class="Button-Page-Small" style="margin-top: 2px;" data-store-id="@Model.StoreId">Zapisz</button>
+
 
                 </div>
 
@@ -1064,7 +432,7 @@
             updateFlagCounts();
         }
 
-        // Classification Chart Initialization
+       
         const ctx = document.getElementById('classificationChart').getContext('2d');
         let classificationChart;
 
@@ -1096,7 +464,7 @@
                     maintainAspectRatio: false,
                     plugins: {
                         legend: {
-                            display: false, // Remove legend
+                            display: false,
                         },
                         tooltip: {
                             callbacks: {
@@ -1125,19 +493,19 @@
             unitLabel2.textContent = unit;
         }
 
-        // Update flag counts next to checkboxes
+        
         function updateFlagCounts() {
             const flagCheckboxes = document.querySelectorAll('.flagFilter');
             const flagCounts = {};
 
-            // Initialize counts
+          
             flagCheckboxes.forEach(checkbox => {
                 flagCounts[checkbox.value] = 0;
             });
 
-            // Count flags in currently displayed products
+           
             allProducts.forEach(productBox => {
-                if (productBox.style.display === 'none') return; // Skip hidden products
+                if (productBox.style.display === 'none') return; 
 
                 const productFlags = productBox.getAttribute('data-flags').split(',');
                 productFlags.forEach(flagId => {
@@ -1147,7 +515,7 @@
                 });
             });
 
-            // Update labels
+            
             flagCheckboxes.forEach(checkbox => {
                 const label = document.querySelector(`label[for='${checkbox.id}']`);
                 if (label) {
@@ -1157,7 +525,7 @@
             });
         }
 
-        // Event listeners
+       
         const threshold1Input = document.getElementById('threshold1');
         const threshold2Input = document.getElementById('threshold2');
         const usePriceDifferenceCheckbox = document.getElementById('usePriceDifference');
@@ -1179,7 +547,7 @@
         categoryDropdown.addEventListener('change', updateProducts);
         document.querySelectorAll('.flagFilter').forEach(checkbox => checkbox.addEventListener('change', updateProducts));
 
-        // Initial Load
+        
         updateProducts();
     });
 </script>
@@ -1199,7 +567,7 @@
             updateUnits();
         });
 
-        // Call updateUnits on page load
+       
         updateUnits();
     });
 </script>
@@ -1215,6 +583,37 @@
         }
 
         window.location.href = url.toString();
+    });
+</script>
+<script>
+    document.getElementById('savePriceValues').addEventListener('click', function () {
+        const threshold1 = parseFloat(document.getElementById('threshold1').value);
+        const threshold2 = parseFloat(document.getElementById('threshold2').value);
+        const storeId = parseInt(this.getAttribute('data-store-id'));
+
+        const data = {
+            StoreId: storeId,
+            SetSafariPrice1: threshold1,
+            SetSafariPrice2: threshold2
+        };
+
+        fetch('/Safari/SaveSafariPriceValues', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(data)
+        })
+            .then(response => response.json())
+            .then(response => {
+                if (response.success) {
+                    alert('Wartości progów zostały zapisane pomyślnie.');
+                    // Optionally, you can perform additional actions here
+                } else {
+                    alert('Błąd podczas zapisywania wartości progów: ' + response.message);
+                }
+            })
+            .catch(error => console.error('Błąd w aktualizowaniu wartości:', error));
     });
 </script>
 

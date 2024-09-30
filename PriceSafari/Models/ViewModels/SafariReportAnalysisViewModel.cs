@@ -4,6 +4,7 @@
     {
         public string ReportName { get; set; }
         public DateTime CreatedDate { get; set; }
+        public int StoreId { get; set; }
         public string StoreName { get; set; }  
         public string StoreLogo { get; set; }
         public List<ProductPriceViewModel> ProductPrices { get; set; }
