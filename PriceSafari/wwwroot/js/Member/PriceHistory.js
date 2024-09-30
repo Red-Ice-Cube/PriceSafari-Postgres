@@ -19,6 +19,20 @@
         };
     }
 
+    
+    const updatePricesDebounced = debounce(function () {
+        const usePriceDifference = document.getElementById('usePriceDifference').checked;
+
+        allPrices.forEach(price => {
+            price.valueToUse = usePriceDifference
+                ? (price.savings !== null ? price.savings : price.priceDifference)
+                : price.percentageDifference;
+            price.colorClass = getColorClass(price.valueToUse, price.isUniqueBestPrice, price.isSharedBestPrice);
+        });
+
+        filterPricesAndUpdateUI();
+    }, 300); 
+
     function loadStores() {
         fetch(`/PriceHistory/GetStores?storeId=${storeId}`)
             .then(response => response.json())
@@ -689,7 +703,7 @@
                 return matchLengthB - matchLengthA;
             }
 
-            // Jeśli nadal równe, sortujemy alfabetycznie
+           
             return a.productName.localeCompare(b.productName);
         });
 
@@ -842,32 +856,16 @@
         filterPricesAndUpdateUI();
     });
 
+    // Aktualizacja przy zmianie price1
     document.getElementById('price1').addEventListener('input', function () {
         setPrice1 = parseFloat(this.value);
-        const usePriceDifference = document.getElementById('usePriceDifference').checked;
-
-        allPrices.forEach(price => {
-            price.valueToUse = usePriceDifference
-                ? (price.savings !== null ? price.savings : price.priceDifference)
-                : price.percentageDifference;
-            price.colorClass = getColorClass(price.valueToUse, price.isUniqueBestPrice, price.isSharedBestPrice);
-        });
-
-        filterPricesAndUpdateUI();
+        updatePricesDebounced();
     });
 
+    // Aktualizacja przy zmianie price2
     document.getElementById('price2').addEventListener('input', function () {
         setPrice2 = parseFloat(this.value);
-        const usePriceDifference = document.getElementById('usePriceDifference').checked;
-
-        allPrices.forEach(price => {
-            price.valueToUse = usePriceDifference
-                ? (price.savings !== null ? price.savings : price.priceDifference)
-                : price.percentageDifference;
-            price.colorClass = getColorClass(price.valueToUse, price.isUniqueBestPrice, price.isSharedBestPrice);
-        });
-
-        filterPricesAndUpdateUI();
+        updatePricesDebounced();
     });
 
 
