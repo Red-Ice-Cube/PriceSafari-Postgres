@@ -3,8 +3,6 @@
 @{
     Layout = "~/Views/Shared/_PanelLayout.cshtml";
     int position = 1;
-}
-@{
     var countryProductCounts = Model.Prices
         .GroupBy(p => p.RegionName)
         .ToDictionary(g => g.Key, g => g.Count());
@@ -12,32 +10,47 @@
 
 <div class="Vert">
     <div class="Page-Box">
-
         <div class="price-box-space">
-            <div class="price-box-column-name" >
+            <div class="price-box-column-name">
                 @Model.ProductName
                 <div class="form-check-orders" style="margin: 16px;">
                     <div>
-
                         <p><strong>Raport:</strong> @Model?.RaportName</p>
                         <p><strong>Sklep:</strong> @Model.MyStore</p>
                     </div>
                 </div>
-
                 <div style="margin-top: 50px;">
                     <select id="countryFilter" class="DropDown" style="width: 220px;" onchange="filterByCountry()">
-                        <option value="All">
-                           
-                            Wszystkie kraje (@Model.Prices.Count())
-                        </option>
-                        @foreach (var country in countryProductCounts)
+                        @if (ViewBag.SelectedRegionName == null)
                         {
-                            <option value="@country.Key">
-
-                                @country.Key (@country.Value)
+                            <option value="All" selected>
+                                Wszystkie kraje (@Model.Prices.Count())
                             </option>
                         }
+                        else
+                        {
+                            <option value="All">
+                                Wszystkie kraje (@Model.Prices.Count())
+                            </option>
+                        }
+
+                        @foreach (var country in countryProductCounts)
+                        {
+                            if (country.Key == (string)ViewBag.SelectedRegionName)
+                            {
+                                <option value="@country.Key" selected>
+                                    @country.Key (@country.Value)
+                                </option>
+                            }
+                            else
+                            {
+                                <option value="@country.Key">
+                                    @country.Key (@country.Value)
+                                </option>
+                            }
+                        }
                     </select>
+
                     <button type="button" class="Button-Page-Small-bl" id="locateStoreButton">
                         Zlokalizuj mnie
                     </button>
@@ -49,7 +62,6 @@
             <div style="display:flex; width:50%; height:180px;">
                 <canvas id="priceChart" width="100%" height="100"></canvas>
             </div>
-
             @if (!string.IsNullOrEmpty(Model.ProductImg))
             {
                 <div>
@@ -76,7 +88,8 @@
                 <tbody id="offersTableBody">
                     @foreach (var price in Model.Prices)
                     {
-                        <tr data-country="@price.RegionName">
+                        <tr data-country="@price.RegionName" data-store="@price.StoreName">
+
                             <td>
                                 @if (string.Equals(price.StoreName, Model.MyStore, StringComparison.OrdinalIgnoreCase))
                                 {
@@ -96,8 +109,6 @@
                             </td>
                             <td>@price.CalculatedPrice PLN</td>
                             <td>
-                              
-
                                 @if ((price.CalculatedPriceWithDelivery - price.CalculatedPrice) == 0)
                                 {
                                     <div class="FreeShipping">Free</div>
@@ -118,8 +129,6 @@
                                     <div class="PaidShipping">@((price.PriceWithDelivery - price.Price)) @price.Currency</div>
                                 }
                             </td>
-                            
-                            
                             <td>
                                 <button type="button" class="Button-Page-Small" onclick="window.open('@price.OfferUrl', '_blank')">
                                     Oferta
@@ -129,29 +138,124 @@
                         position++;
                     }
                 </tbody>
-
-
             </table>
         </div>
     </div>
 </div>
 
-<!-- JavaScript do filtrowania ofert -->
+<!-- JavaScript for filtering offers and updating the chart -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
+    var chart; // Global variable to hold the chart instance
+
     function filterByCountry() {
         var selectedCountry = document.getElementById('countryFilter').value;
         var rows = document.querySelectorAll('#offersTableBody tr');
+        var myStore = '@Model.MyStore'.toLowerCase();
+
+        var pricesData = [];
+        var position = 1;
 
         rows.forEach(function (row) {
             var country = row.getAttribute('data-country');
-            if (selectedCountry === 'All' || country === selectedCountry) {
+            var storeName = row.getAttribute('data-store').trim();
+            var storeNameLower = storeName.toLowerCase();
+            var priceCell = row.querySelector('td:nth-child(4)');
+            var priceText = priceCell.textContent.trim().replace('PLN', '').trim();
+            var price = parseFloat(priceText);
+
+            var isMyStore = storeNameLower === myStore;
+
+            // Determine if the row should be displayed
+            if (selectedCountry === 'All' || country === selectedCountry || isMyStore) {
                 row.style.display = '';
+
+                // Update position number
+                var positionCell = row.querySelector('.Position');
+                positionCell.textContent = 'Msc ' + position;
+                position++;
+
+                // Collect data for the chart
+                pricesData.push({ price: price, store: storeName });
+
             } else {
                 row.style.display = 'none';
             }
         });
+
+        // Update the chart with the new data
+        createChart(pricesData, myStore);
     }
 
+    function createChart(pricesData, myStore) {
+        // Sort data from highest to lowest price
+        const sortedData = pricesData.sort((a, b) => b.price - a.price);
+
+        const sortedPrices = sortedData.map(item => item.price);
+        const sortedStores = sortedData.map(item => item.store);
+
+        const barColors = sortedStores.map(store => {
+            return store.toLowerCase() === myStore ? 'rgba(65, 199, 199, 0.4)' : 'rgba(34, 34, 34, 0.4)';
+        });
+
+        const borderColors = sortedStores.map(store => {
+            return store.toLowerCase() === myStore ? 'rgba(65, 199, 199, 1)' : 'rgba(34, 34, 34, 1)';
+        });
+
+        const ctx = document.getElementById('priceChart').getContext('2d');
+
+        // Destroy existing chart instance if it exists
+        if (chart) {
+            chart.destroy();
+        }
+
+        // Create new chart
+        chart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: sortedStores,
+                datasets: [{
+                    label: 'Cena PLN',
+                    data: sortedPrices,
+                    backgroundColor: barColors,
+                    borderColor: borderColors,
+                    borderWidth: 2,
+                    borderRadius: 2
+                }]
+            },
+            options: {
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function (value) {
+                                return value + ' PLN';
+                            }
+                        }
+                    },
+                    x: {
+                        display: false
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                }
+            }
+        });
+    }
+
+    // Apply the filter and update chart when the page loads
+    document.addEventListener("DOMContentLoaded", function () {
+        filterByCountry();
+    });
+
+    // Update chart when the country filter changes
+    document.getElementById('countryFilter').addEventListener('change', filterByCountry);
+
+    // "Locate Me" button functionality
     document.getElementById('locateStoreButton').addEventListener('click', function () {
         var tableContainer = document.querySelector('.Vert-table');
         var rows = document.querySelectorAll('table.table-orders tbody tr');
@@ -159,14 +263,12 @@
 
         rows.forEach(function (row) {
             var storeCell = row.querySelector('td strong');
-            if (storeCell) {
-
+            if (storeCell && row.style.display !== 'none') {
                 var rowOffset = row.offsetTop - tableContainer.offsetTop;
                 tableContainer.scrollTo({
-                    top: rowOffset - (tableContainer.clientHeight / 7) + (row.clientHeight / 1),
+                    top: rowOffset - (tableContainer.clientHeight / 2) + (row.clientHeight / 2),
                     behavior: 'smooth'
                 });
-
 
                 row.style.backgroundColor = 'lightgray';
                 setTimeout(function () {
@@ -183,70 +285,4 @@
         }
     });
 </script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script>
-    document.addEventListener("DOMContentLoaded", function () {
-     
-        const prices = @Html.Raw(Json.Serialize(Model.Prices.Select(p => p.CalculatedPrice)));
-        const stores = @Html.Raw(Json.Serialize(Model.Prices.Select(p => p.StoreName)));
-        const myStore = '@Model.MyStore'.toLowerCase(); 
 
-     
-        const sortedData = prices.map((price, index) => ({ price, store: stores[index] }))
-            .sort((a, b) => b.price - a.price);
-
-
-        const sortedPrices = sortedData.map(item => item.price);
-        const sortedStores = sortedData.map(item => item.store);
-
-       
-        const barColors = sortedStores.map(store => {
-            return store.toLowerCase() === myStore ? 'rgba(65, 199, 199, 0.4)' : 'rgba(34, 34, 34, 0.4)';
-        });
-
-
-        const borderColors = sortedStores.map(store => {
-            return store.toLowerCase() === myStore ? 'rgba(65, 199, 199, 1)' : 'rgba(34, 34, 34, 1)';
-        });
-
-        // Konfiguracja wykresu
-        const ctx = document.getElementById('priceChart').getContext('2d');
-        const chart = new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: sortedStores, 
-                datasets: [{
-                    label: 'Cena PLN',
-                    data: sortedPrices,
-                    backgroundColor: barColors,
-                    borderColor: borderColors,
-                    borderWidth: 2,
-                    borderRadius: 2
-                }]
-
-            },
-            options: {
-                maintainAspectRatio: false, 
-                scales: {
-                    y: {
-                        beginAtZero: true, 
-                        ticks: {
-                           
-                            callback: function (value) {
-                                return value + ' PLN';
-                            }
-                        }
-                    },
-                    x: {
-                        display: false 
-                    }
-                },
-                plugins: {
-                    legend: {
-                        display: false 
-                    }
-                }
-            }
-        });
-    });
-</script>

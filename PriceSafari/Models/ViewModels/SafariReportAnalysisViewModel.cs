@@ -5,7 +5,11 @@
         public string ReportName { get; set; }
         public DateTime CreatedDate { get; set; }
         public string StoreName { get; set; }  
+        public string StoreLogo { get; set; }
         public List<ProductPriceViewModel> ProductPrices { get; set; }
+
+        public decimal SetSafariPrice1 { get; set; }
+        public decimal SetSafariPrice2 { get; set; }
    
     }
     public class ProductPriceViewModel

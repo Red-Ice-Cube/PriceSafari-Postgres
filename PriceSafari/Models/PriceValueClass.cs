@@ -7,6 +7,9 @@
         public decimal SetPrice1 { get; set; } = 2.00m;
         public decimal SetPrice2 { get; set; } = 2.00m;
 
+        public decimal SetSafariPrice1 { get; set; } = 2.00m;
+        public decimal SetSafariPrice2 { get; set; } = 2.00m;
+
         public StoreClass Store { get; set; }
     }
 }

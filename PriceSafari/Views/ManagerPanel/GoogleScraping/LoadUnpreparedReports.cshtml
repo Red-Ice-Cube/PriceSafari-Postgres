@@ -45,7 +45,10 @@
                         </form>
                     </td>
                     <td>
-                        <a href="@Url.Action("ViewGlobalPriceReport", "GoogleScraping")">Zobacz raport cenowy</a>
+                        <a href="@Url.Action("ViewGlobalPriceReport", "GoogleScraping", new { reportId = report.ReportId })">Zobacz raport cenowy</a>
+
+
+
                     </td>
                 </tr>
             }

@@ -7,13 +7,14 @@
 
 <h2>Szczegóły Sklepu: @Model.StoreName</h2>
 
+<!-- Istniejąca tabela dla ScrapHistories -->
 <table class="table">
     <thead>
         <tr>
             <th>ID Scrapowania</th>
             <th>Ilość PriceHistories</th>
             <th>Użyta Przestrzeń (MB)</th>
-            <th>Akcje</th> 
+            <th>Akcje</th>
         </tr>
     </thead>
     <tbody>
@@ -27,7 +28,38 @@
                     <form method="post" asp-action="DeleteScrapHistory" asp-route-id="@item.ScrapHistoryId" onsubmit="return confirm('Czy na pewno chcesz usunąć to scrapowanie?');">
                         <button type="submit" class="btn btn-danger">Usuń</button>
                     </form>
-                </td> 
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+<!-- Nowa tabela dla PriceSafariReports -->
+<h3>Raporty PriceSafari dla tego sklepu</h3>
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>ID Raportu</th>
+            <th>Nazwa Raportu</th>
+            <th>Ilość GlobalPriceReports</th>
+            <th>Użyta Przestrzeń (MB)</th>
+            <th>Akcje</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var item in Model.PriceSafariReportSizes)
+        {
+            <tr>
+                <td>@item.ReportId</td>
+                <td>@item.ReportName</td>
+                <td>@item.TotalGlobalPriceReportsCount</td>
+                <td>@item.UsedSpaceMB</td>
+                <td>
+                    <form method="post" asp-action="DeletePriceSafariReport" asp-route-id="@item.ReportId" onsubmit="return confirm('Czy na pewno chcesz usunąć ten raport?');">
+                        <button type="submit" class="btn btn-danger">Usuń Raport</button>
+                    </form>
+                </td>
             </tr>
         }
     </tbody>

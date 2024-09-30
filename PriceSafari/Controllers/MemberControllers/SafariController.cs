@@ -106,10 +106,9 @@ namespace PriceSafari.Controllers
         }
 
 
-
         [HttpGet]
         [ServiceFilter(typeof(AuthorizeStoreAccessAttribute))]
-        public async Task<IActionResult> SafariReportAnalysis(int reportId)
+        public async Task<IActionResult> SafariReportAnalysis(int reportId, int? regionId = null)
         {
             if (reportId == 0)
             {
@@ -128,12 +127,15 @@ namespace PriceSafari.Controllers
             var globalPriceReports = await _context.GlobalPriceReports
                 .Where(gpr => gpr.PriceSafariReportId == reportId)
                 .Include(gpr => gpr.Product)
-                .OrderBy(gpr => gpr.CalculatedPrice)
                 .ToListAsync();
 
             var storeName = report.Store?.StoreName?.ToLower();
 
             var storeFlags = await _context.Flags
+                .Where(f => f.StoreId == report.StoreId)
+                .ToListAsync();
+
+            var storeSafariPrice = await _context.PriceValues
                 .Where(f => f.StoreId == report.StoreId)
                 .ToListAsync();
 
@@ -144,48 +146,84 @@ namespace PriceSafari.Controllers
                 .GroupBy(pf => pf.ProductId)
                 .ToDictionary(g => g.Key, g => g.Select(pf => pf.FlagId).ToList());
 
-            // Pobranie wszystkich regionów jako słownik (RegionId -> RegionName)
+            // Fetch regions
             var regions = await _context.Regions
                 .ToDictionaryAsync(r => r.RegionId, r => r.Name);
 
+            // Pass regions and selected regionId to the view
+            ViewBag.Regions = regions;
+            ViewBag.RegionId = regionId;
+
             var productPrices = globalPriceReports
                 .GroupBy(gpr => gpr.ProductId)
+                .Where(group =>
+                {
+                    if (regionId.HasValue)
+                    {
+                        // Only include products that have at least one competitor price in the specified region
+                        return group.Any(gpr => gpr.RegionId == regionId.Value && gpr.StoreName.ToLower() != storeName);
+                    }
+                    else
+                    {
+                        // Include all products
+                        return true;
+                    }
+                })
                 .Select(group =>
                 {
-                    var lowestPrice = group.OrderBy(gpr => gpr.CalculatedPrice).FirstOrDefault();
+                    // Fetch your own price from the entire group, regardless of regionId
                     var ourPrice = group.FirstOrDefault(gpr => gpr.StoreName.ToLower() == storeName);
 
-                    productFlagsDictionary.TryGetValue(lowestPrice.ProductId, out var flagIds);
+                    IEnumerable<GlobalPriceReport> competitorPrices;
 
-                    // Pobranie RegionName dla produktu z wcześniej stworzonego słownika
-                    var regionName = lowestPrice?.RegionId != null && regions.ContainsKey(lowestPrice.RegionId)
-                        ? regions[lowestPrice.RegionId]
+                    if (regionId.HasValue)
+                    {
+                        // Filter competitor prices by regionId and exclude your store
+                        competitorPrices = group.Where(gpr => gpr.RegionId == regionId.Value && gpr.StoreName.ToLower() != storeName);
+                    }
+                    else
+                    {
+                        // Include all competitor prices excluding your store
+                        competitorPrices = group.Where(gpr => gpr.StoreName.ToLower() != storeName);
+                    }
+
+                    var lowestCompetitorPrice = competitorPrices.OrderBy(gpr => gpr.CalculatedPrice).FirstOrDefault();
+
+                    // Get flags for your product or the competitor's product
+                    int productId = ourPrice?.ProductId ?? lowestCompetitorPrice?.ProductId ?? 0;
+                    productFlagsDictionary.TryGetValue(productId, out var flagIds);
+
+                    var regionName = lowestCompetitorPrice?.RegionId != null && regions.ContainsKey(lowestCompetitorPrice.RegionId)
+                        ? regions[lowestCompetitorPrice.RegionId]
                         : "Unknown";
 
-                    // Pobranie RegionName dla naszego sklepu (ourPrice) z wcześniej stworzonego słownika
                     var ourRegionName = ourPrice?.RegionId != null && regions.ContainsKey(ourPrice.RegionId)
                         ? regions[ourPrice.RegionId]
                         : "Unknown";
 
                     return new ProductPriceViewModel
                     {
-                        ProductId = lowestPrice.ProductId,
-                        ProductName = lowestPrice?.Product?.ProductName,
-                        GoogleUrl = lowestPrice?.Product?.GoogleUrl,
-                        Category = lowestPrice?.Product?.Category,
-                        Price = lowestPrice?.Price ?? 0,
-                        StoreName = lowestPrice.StoreName,
-                        PriceWithDelivery = lowestPrice?.PriceWithDelivery ?? 0,
-                        CalculatedPrice = lowestPrice?.CalculatedPrice ?? 0,
-                        CalculatedPriceWithDelivery = lowestPrice?.CalculatedPriceWithDelivery ?? 0,
+                        ProductId = productId,
+                        ProductName = ourPrice?.Product?.ProductName ?? lowestCompetitorPrice?.Product?.ProductName,
+                        GoogleUrl = ourPrice?.Product?.GoogleUrl ?? lowestCompetitorPrice?.Product?.GoogleUrl,
+                        Category = ourPrice?.Product?.Category ?? lowestCompetitorPrice?.Product?.Category,
+                        // Competitor's lowest price information
+                        Price = lowestCompetitorPrice?.Price ?? 0,
+                        StoreName = lowestCompetitorPrice?.StoreName ?? "Brak konkurencyjnej ceny",
+                        PriceWithDelivery = lowestCompetitorPrice?.PriceWithDelivery ?? 0,
+                        CalculatedPrice = lowestCompetitorPrice?.CalculatedPrice ?? 0,
+                        CalculatedPriceWithDelivery = lowestCompetitorPrice?.CalculatedPriceWithDelivery ?? 0,
+                        // Your own store information
                         MyStoreName = ourPrice?.StoreName,
-                        RegionId = lowestPrice?.RegionId ?? 0,
-                        RegionName = regionName, // Region dla produktu
-                        OurRegionName = ourRegionName, // Region dla naszego sklepu
                         OurCalculatedPrice = ourPrice?.CalculatedPrice ?? 0,
+                        OurRegionName = ourRegionName,
+                        // Region info
+                        RegionId = lowestCompetitorPrice?.RegionId ?? 0,
+                        RegionName = regionName,
+                        // Flags and product details
                         FlagIds = flagIds ?? new List<int>(),
-                        MainUrl = lowestPrice.Product.MainUrl,
-                        Product = lowestPrice.Product
+                        MainUrl = ourPrice?.Product?.MainUrl ?? lowestCompetitorPrice?.Product?.MainUrl,
+                        Product = ourPrice?.Product ?? lowestCompetitorPrice?.Product
                     };
                 })
                 .ToList();
@@ -195,7 +233,9 @@ namespace PriceSafari.Controllers
                 ReportName = report.ReportName,
                 CreatedDate = report.CreatedDate,
                 StoreName = report.Store?.StoreName,
+                StoreLogo = report.Store?.StoreLogoUrl,
                 ProductPrices = productPrices,
+        
             };
 
             ViewBag.ReportId = reportId;
@@ -205,161 +245,24 @@ namespace PriceSafari.Controllers
         }
 
 
-
-        //[HttpGet]
-        //[ServiceFilter(typeof(AuthorizeStoreAccessAttribute))]
-        //public async Task<IActionResult> SafariReportAnalysis(int reportId)
-        //{
-        //    if (reportId == 0)
-        //    {
-        //        return NotFound("Nieprawidłowy identyfikator raportu.");
-        //    }
-
-        //    var report = await _context.PriceSafariReports
-        //        .Include(r => r.Store)
-        //        .FirstOrDefaultAsync(r => r.ReportId == reportId);
-
-        //    if (report == null)
-        //    {
-        //        return NotFound("Raport nie został znaleziony.");
-        //    }
-
-        //    // Ładujemy tylko podstawowe dane, np. nazwy produktów, kategorie i podstawowe informacje o raporcie
-        //    var productBasics = await _context.GlobalPriceReports
-        //        .Where(gpr => gpr.PriceSafariReportId == reportId)
-        //        .Include(gpr => gpr.Product)
-        //        .Select(gpr => new ProductPriceViewModel
-        //        {
-        //            ProductId = gpr.ProductId,
-        //            ProductName = gpr.Product.ProductName,
-        //            Category = gpr.Product.Category,
-        //            GoogleUrl = gpr.Product.GoogleUrl
-        //        })
-        //        .ToListAsync();
-
-        //    var viewModel = new SafariReportAnalysisViewModel
-        //    {
-        //        ReportName = report.ReportName,
-        //        CreatedDate = report.CreatedDate,
-        //        StoreName = report.Store?.StoreName,
-        //        ProductPrices = productBasics // Podstawowe informacje o produktach
-        //    };
-
-        //    ViewBag.ReportId = reportId;
-
-        //    return View("~/Views/Panel/Safari/SafariReportAnalysis.cshtml", viewModel);
-        //}
-        //[HttpGet]
-        //[ServiceFilter(typeof(AuthorizeStoreAccessAttribute))]
-        //public async Task<IActionResult> GetDetailedProductPrices(int reportId)
-        //{
-        //    // Sprawdzenie, czy użytkownik ma dostęp do tego raportu
-        //    var report = await _context.PriceSafariReports
-        //        .Include(r => r.Store)
-        //        .FirstOrDefaultAsync(r => r.ReportId == reportId);
-
-        //    if (report == null)
-        //    {
-        //        return NotFound("Raport nie został znaleziony.");
-        //    }
-
-        //    // Pobranie szczegółowych danych produktów
-        //    var globalPriceReports = await _context.GlobalPriceReports
-        //        .Where(gpr => gpr.PriceSafariReportId == reportId)
-        //        .Include(gpr => gpr.Product)
-        //        .ToListAsync();
-
-        //    var storeName = report.Store?.StoreName?.ToLower();
-
-        //    // Pobranie regionów jako słownik (RegionId -> RegionName)
-        //    var regions = await _context.Regions.ToDictionaryAsync(r => r.RegionId, r => r.Name);
-
-        //    // Pobranie flag dla sklepu
-        //    var storeFlags = await _context.Flags
-        //        .Where(f => f.StoreId == report.StoreId)
-        //        .ToListAsync();
-
-        //    // Słownik flag produktów
-        //    var productFlagsDictionary = storeFlags
-        //        .SelectMany(flag => _context.ProductFlags
-        //            .Where(pf => pf.FlagId == flag.FlagId)
-        //            .Select(pf => new { pf.ProductId, pf.FlagId }))
-        //        .GroupBy(pf => pf.ProductId)
-        //        .ToDictionary(g => g.Key, g => g.Select(pf => pf.FlagId).ToList());
-
-        //    // Zgrupowanie danych
-        //    var detailedProductPrices = globalPriceReports
-        //        .GroupBy(gpr => gpr.ProductId)
-        //        .Select(group =>
-        //        {
-        //            var lowestPrice = group.OrderBy(gpr => gpr.CalculatedPrice).FirstOrDefault();
-        //            var ourPrice = group.FirstOrDefault(gpr => gpr.StoreName.ToLower() == storeName);
-
-        //            // Pobranie flag
-        //            productFlagsDictionary.TryGetValue(lowestPrice.ProductId, out var flagIds);
-
-        //            // Pobranie regionów dla produktu i naszego sklepu
-        //            var regionName = lowestPrice?.RegionId != null && regions.ContainsKey(lowestPrice.RegionId)
-        //                ? regions[lowestPrice.RegionId]
-        //                : "Unknown";
-
-        //            var ourRegionName = ourPrice?.RegionId != null && regions.ContainsKey(ourPrice.RegionId)
-        //                ? regions[ourPrice.RegionId]
-        //                : "Unknown";
-
-        //            return new ProductPriceViewModel
-        //            {
-        //                ProductId = lowestPrice.ProductId,
-        //                ProductName = lowestPrice?.Product?.ProductName,
-        //                GoogleUrl = lowestPrice?.Product?.GoogleUrl,
-        //                Category = lowestPrice?.Product?.Category,
-        //                Price = lowestPrice?.Price ?? 0,
-        //                PriceWithDelivery = lowestPrice?.PriceWithDelivery ?? 0,
-        //                CalculatedPrice = lowestPrice?.CalculatedPrice ?? 0,
-        //                CalculatedPriceWithDelivery = lowestPrice?.CalculatedPriceWithDelivery ?? 0,
-        //                StoreName = lowestPrice.StoreName,
-        //                MyStoreName = ourPrice?.StoreName,
-        //                RegionId = lowestPrice?.RegionId ?? 0,
-        //                RegionName = regionName,
-        //                OurRegionName = ourRegionName,
-        //                OurCalculatedPrice = ourPrice?.CalculatedPrice ?? 0,
-        //                FlagIds = flagIds ?? new List<int>(),
-        //                MainUrl = lowestPrice?.Product?.MainUrl
-        //            };
-        //        })
-        //        .ToList();
-
-        //    // Zwracamy dane w formacie JSON
-        //    return Json(detailedProductPrices);
-        //}
-
-
-
-
-
-
         [HttpGet]
         [ServiceFilter(typeof(AuthorizeStoreAccessAttribute))]
-        public async Task<IActionResult> ProductPriceDetails(int reportId, int productId)
+        public async Task<IActionResult> ProductPriceDetails(int reportId, int productId, int? regionId = null)
         {
-          
-
             if (reportId == 0 || productId == 0)
             {
                 return NotFound("Nieprawidłowe identyfikatory raportu lub produktu.");
             }
 
-            
             var productPrices = await _context.GlobalPriceReports
                 .Where(gpr => gpr.PriceSafariReportId == reportId && gpr.ProductId == productId)
-                .Include(gpr => gpr.Product)  
+                .Include(gpr => gpr.Product)
                 .Include(gpr => gpr.PriceSafariReport)
-                .ThenInclude(psr => psr.Store)  
-                .Include(gpr => gpr.Region)     
-                .OrderBy(gpr => gpr.CalculatedPrice)  
+                    .ThenInclude(psr => psr.Store)
+                .Include(gpr => gpr.Region)
+                .OrderBy(gpr => gpr.CalculatedPrice)
                 .ToListAsync();
 
-           
             var product = productPrices.FirstOrDefault()?.Product;
 
             var report = await _context.PriceSafariReports
@@ -371,11 +274,26 @@ namespace PriceSafari.Controllers
                 return NotFound("Brak informacji o produkcie.");
             }
 
-           
+            // Get the selected region name if regionId is provided
+            string selectedRegionName = null;
+            if (regionId.HasValue)
+            {
+                var selectedRegion = await _context.Regions.FirstOrDefaultAsync(r => r.RegionId == regionId.Value);
+                if (selectedRegion != null)
+                {
+                    selectedRegionName = selectedRegion.Name;
+                }
+            }
+
+            // Pass selectedRegionName to the view via ViewBag
+            ViewBag.SelectedRegionName = selectedRegionName;
+
+            var myStoreName = productPrices.FirstOrDefault()?.PriceSafariReport?.Store?.StoreName ?? "Unknown Store";
+
             var viewModel = new ProductPriceDetailsViewModel
             {
                 ProductName = product.ProductName ?? "Brak nazwy produktu",
-                MyStore = product.Store.StoreName,
+                MyStore = myStoreName,
                 ProductImg = product?.MainUrl,
                 ReportId = reportId,
                 RaportName = report.ReportName,
@@ -398,6 +316,7 @@ namespace PriceSafari.Controllers
 
             return View("~/Views/Panel/Safari/ProductPriceDetails.cshtml", viewModel);
         }
+
 
 
 

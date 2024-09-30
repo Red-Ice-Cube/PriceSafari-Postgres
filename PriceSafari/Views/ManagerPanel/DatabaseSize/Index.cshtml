@@ -5,17 +5,42 @@
     Layout = "~/Views/Shared/_PanelLayout.cshtml";
 }
 
-<h2>Rozmiar Tabel</h2>
 
-<h3>Łączna ilość PriceHistories: @Model.TotalPriceHistories</h3>
-<h3>Łączna użyta przestrzeń: @Model.TotalUsedSpaceMB MB</h3>
+    <table class="table table-bordered>
+        <thead class="thead-dark">
+            <tr>
+                <th colspan="2" class="text-center">Rozmiary bazy danych </th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>Łączna ilość <strong>PriceHistories</strong></td>
+                <td class="text-right">@Model.TotalPriceHistories.ToString("N0")</td>
+            </tr>
+            <tr>
+                <td>Łączna użyta przestrzeń dla <strong>PriceHistories</strong> </td>
+            <td class="text-right">@Model.TotalUsedSpaceMB.ToString("N2") (MB)</td>
+            </tr>
+            <tr>
+                <td>Łączna ilość <strong>GlobalPriceReports</strong></td>
+                <td class="text-right">@Model.TotalGlobalPriceReportsCount.ToString("N0")</td>
+            </tr>
+            <tr>
+                <td>Łączna użyta przestrzeń dla <strong>GlobalPriceReports</strong></td>
+            <td class="text-right">@Model.TotalGlobalPriceReportsUsedSpaceMB.ToString("N2") (MB)</td>
+            </tr>
+        </tbody>
+    </table>
+
 
 <table class="table">
     <thead>
         <tr>
             <th>Nazwa Sklepu</th>
-            <th>Łączna ilość PriceHistories</th>
-            <th>Łączna użyta przestrzeń (MB)</th>
+            <th>Ilość PriceHistories</th>
+            <th>Użyta przestrzeń PriceHistories (MB)</th>
+            <th>Ilość GlobalPriceReports</th>
+            <th>Użyta przestrzeń GlobalPriceReports (MB)</th>
         </tr>
     </thead>
     <tbody>
@@ -25,6 +50,8 @@
                 <td><a href="@Url.Action("StoreDetails", new { storeId = item.StoreId })">@item.StoreName</a></td>
                 <td>@item.TotalPriceHistoriesCount</td>
                 <td>@item.TotalUsedSpaceMB</td>
+                <td>@item.TotalGlobalPriceReportsCount</td>
+                <td>@item.TotalGlobalPriceReportsUsedSpaceMB</td>
             </tr>
         }
     </tbody>
