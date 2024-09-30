@@ -33,6 +33,8 @@
         filterPricesAndUpdateUI();
     }, 300); 
 
+   
+
     function loadStores() {
         fetch(`/PriceHistory/GetStores?storeId=${storeId}`)
             .then(response => response.json())
@@ -135,7 +137,7 @@
                 }
 
                 renderPrices(filteredPrices);
-                renderChart(filteredPrices);
+                debouncedRenderChart(filteredPrices);
                 updateColorCounts(filteredPrices);
             })
             .catch(error => console.error('Error fetching prices:', error));
@@ -428,16 +430,19 @@
 
             priceBoxData.appendChild(colorBar);
 
-            // Sprawdzamy, czy imgUrl istnieje i jest poprawny, dodajemy lazy loading
             if (item.imgUrl) {
                 const productImage = document.createElement('img');
                 productImage.dataset.src = item.imgUrl; // Używamy data-src zamiast src
                 productImage.alt = item.productName;
+                productImage.className = 'lazy-load'; // Dodajemy klasę lazy-load
+
+                // Ustawiamy placeholder (biały prostokąt)
                 productImage.style.width = '84px';
                 productImage.style.height = '84px';
                 productImage.style.marginRight = '14px';
                 productImage.style.marginLeft = '16px';
-                productImage.className = 'lazy-load'; // Dodajemy klasę lazy-load
+                productImage.style.backgroundColor = '#ffffff'; // Białe tło
+                productImage.style.display = 'block';
 
                 priceBoxData.appendChild(productImage);
             }
@@ -473,22 +478,62 @@
 
         document.getElementById('displayedProductCount').textContent = data.length;
 
-       
         const lazyLoadImages = document.querySelectorAll('.lazy-load');
+        const timers = new Map(); 
+
         const observer = new IntersectionObserver((entries, observer) => {
             entries.forEach(entry => {
+                const img = entry.target;
+                const index = [...lazyLoadImages].indexOf(img); 
+
                 if (entry.isIntersecting) {
-                    const img = entry.target;
-                    img.src = img.dataset.src; 
-                    img.removeAttribute('data-src');
-                    observer.unobserve(img); 
+                   
+                    const timer = setTimeout(() => {
+                        loadImageWithNeighbors(index); 
+                        observer.unobserve(img); 
+                        timers.delete(img); 
+                    }, 100);
+                    timers.set(img, timer); 
+                } else {
+                    
+                    if (timers.has(img)) {
+                        clearTimeout(timers.get(img));
+                        timers.delete(img); 
+                    }
                 }
             });
+        }, {
+            root: null,
+            rootMargin: '50px', 
+            threshold: 0.01
         });
+
+   
+        function loadImageWithNeighbors(index) {
+            const range = 6; 
+            const start = Math.max(0, index - range); 
+            const end = Math.min(lazyLoadImages.length - 1, index + range); 
+
+            for (let i = start; i <= end; i++) {
+                const img = lazyLoadImages[i];
+                if (!img.src) {
+                    img.src = img.dataset.src;
+                    img.onload = () => {
+                        img.classList.add('loaded'); 
+                    };
+                }
+            }
+        }
 
         lazyLoadImages.forEach(img => {
             observer.observe(img);
         });
+
+
+
+
+       
+        
     }
 
 
@@ -516,6 +561,8 @@
         return `rgba(${r}, ${g}, ${b}, ${alpha})`;
     }
 
+
+    // Funkcja renderująca wykres
     function renderChart(data) {
         const colorCounts = {
             prGood: 0,
@@ -525,70 +572,79 @@
             prToLow: 0
         };
 
+        // Zliczanie ilości produktów dla każdej kategorii
         data.forEach(item => {
             colorCounts[item.colorClass]++;
         });
 
-        const ctx = document.getElementById('colorChart').getContext('2d');
+        const chartData = [colorCounts.prToHigh, colorCounts.prMid, colorCounts.prGood, colorCounts.prIdeal, colorCounts.prToLow];
 
+        // Jeśli instancja wykresu już istnieje, aktualizuj ją
         if (chartInstance) {
-            chartInstance.destroy();
-        }
-
-        chartInstance = new Chart(ctx, {
-            type: 'doughnut',
-            data: {
-                labels: ['Zawyżona', 'Suboptymalna', 'Konkurencyjna', 'Strategiczna', 'Zaniżona'],
-                datasets: [{
-                    data: [colorCounts.prToHigh, colorCounts.prMid, colorCounts.prGood, colorCounts.prIdeal, colorCounts.prToLow],
-                    backgroundColor: [
-                        'rgba(171, 37, 32, 0.8)',
-                        'rgba(224, 168, 66, 0.8)',
-                        'rgba(117, 152, 112, 0.8)',
-                        'rgba(0, 145, 123, 0.8)',
-                        'rgba(6, 6, 6, 0.8)'
-                    ],
-                    borderColor: [
-                        'rgba(171, 37, 32, 1)',
-                        'rgba(224, 168, 66, 1)',
-                        'rgba(117, 152, 112, 1)',
-                        'rgba(0, 145, 123, 1)',
-                        'rgba(6, 6, 6, 1)'
-                    ],
-                    borderWidth: 1
-                }]
-            },
-            options: {
-                aspectRatio: 1,
-                plugins: {
-                    legend: {
-                        display: false,
-                        position: 'right',
-                        labels: {
-                            usePointStyle: true,
-                            padding: 16,
-                            generateLabels: function (chart) {
-                                const original = Chart.overrides.doughnut.plugins.legend.labels.generateLabels;
-                                const labels = original.call(this, chart);
-                                labels.forEach(label => {
-                                    label.text = '   ' + label.text;
-                                });
-                                return labels;
+            chartInstance.data.datasets[0].data = chartData; // Zaktualizuj dane
+            chartInstance.update(); // Odśwież wykres
+        } else {
+            // Tworzymy nowy wykres tylko raz
+            const ctx = document.getElementById('colorChart').getContext('2d');
+            chartInstance = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Zawyżona', 'Suboptymalna', 'Konkurencyjna', 'Strategiczna', 'Zaniżona'],
+                    datasets: [{
+                        data: chartData,
+                        backgroundColor: [
+                            'rgba(171, 37, 32, 0.8)',
+                            'rgba(224, 168, 66, 0.8)',
+                            'rgba(117, 152, 112, 0.8)',
+                            'rgba(0, 145, 123, 0.8)',
+                            'rgba(6, 6, 6, 0.8)'
+                        ],
+                        borderColor: [
+                            'rgba(171, 37, 32, 1)',
+                            'rgba(224, 168, 66, 1)',
+                            'rgba(117, 152, 112, 1)',
+                            'rgba(0, 145, 123, 1)',
+                            'rgba(6, 6, 6, 1)'
+                        ],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    aspectRatio: 1,
+                    plugins: {
+                        legend: {
+                            display: false,
+                            position: 'right',
+                            labels: {
+                                usePointStyle: true,
+                                padding: 16,
+                                generateLabels: function (chart) {
+                                    const original = Chart.overrides.doughnut.plugins.legend.labels.generateLabels;
+                                    const labels = original.call(this, chart);
+                                    labels.forEach(label => {
+                                        label.text = '   ' + label.text;
+                                    });
+                                    return labels;
+                                }
                             }
-                        }
-                    },
-                    tooltip: {
-                        callbacks: {
-                            label: function (context) {
-                                var value = context.parsed;
-                                return 'Produkty: ' + value;
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function (context) {
+                                    var value = context.parsed;
+                                    return 'Produkty: ' + value;
+                                }
                             }
                         }
                     }
                 }
-            }
-        });
+            });
+        }
     }
+
+    
+    const debouncedRenderChart = debounce(renderChart, 600);
+
 
     function updateColorCounts(data) {
         const colorCounts = {
@@ -677,33 +733,36 @@
     function filterPricesAndUpdateUI(sortFunction = null) {
         const currentSearchTerm = document.getElementById('productSearch').value.toLowerCase().replace(/\s+/g, '').trim();
 
+        // Przygotowujemy zsanityzowane dane produktów (raz, zamiast w pętli)
+        const sanitizedSearchTerm = currentSearchTerm.replace(/[^a-zA-Z0-9\s/.-]/g, '').toLowerCase().replace(/\s+/g, '');
+
         let filteredPrices = allPrices.filter(price => {
+            // Sanitizujemy nazwę produktu tylko raz na początku
             const sanitizedProductName = price.productName.toLowerCase().replace(/[^a-zA-Z0-9\s/.-]/g, '').replace(/\s+/g, '');
-            return sanitizedProductName.includes(currentSearchTerm);
+            return sanitizedProductName.includes(sanitizedSearchTerm);
         });
 
-        // Sortowanie wyników na podstawie dokładnego dopasowania ciągu znaków
+        // Sortowanie wyników na podstawie dopasowania ciągu znaków
         filteredPrices.sort((a, b) => {
             const sanitizedProductNameA = a.productName.toLowerCase().replace(/[^a-zA-Z0-9\s/.-]/g, '').replace(/\s+/g, '');
             const sanitizedProductNameB = b.productName.toLowerCase().replace(/[^a-zA-Z0-9\s/.-]/g, '').replace(/\s+/g, '');
 
-            const exactMatchIndexA = getExactMatchIndex(sanitizedProductNameA, currentSearchTerm);
-            const exactMatchIndexB = getExactMatchIndex(sanitizedProductNameB, currentSearchTerm);
+            const exactMatchIndexA = getExactMatchIndex(sanitizedProductNameA, sanitizedSearchTerm);
+            const exactMatchIndexB = getExactMatchIndex(sanitizedProductNameB, sanitizedSearchTerm);
 
-            // Najpierw sortujemy na podstawie pozycji pierwszego dokładnego dopasowania (im bliżej początku, tym lepiej)
+            // Najpierw sortujemy na podstawie dokładnego dopasowania (im bliżej początku, tym lepiej)
             if (exactMatchIndexA !== exactMatchIndexB) {
                 return exactMatchIndexA - exactMatchIndexB;
             }
 
             // Jeśli pozycja jest taka sama, sortujemy po długości dopasowania (im dłuższe, tym lepiej)
-            const matchLengthA = getLongestMatchLength(sanitizedProductNameA, currentSearchTerm);
-            const matchLengthB = getLongestMatchLength(sanitizedProductNameB, currentSearchTerm);
+            const matchLengthA = getLongestMatchLength(sanitizedProductNameA, sanitizedSearchTerm);
+            const matchLengthB = getLongestMatchLength(sanitizedProductNameB, sanitizedSearchTerm);
 
             if (matchLengthA !== matchLengthB) {
                 return matchLengthB - matchLengthA;
             }
 
-           
             return a.productName.localeCompare(b.productName);
         });
 
@@ -726,10 +785,11 @@
         }
 
         renderPrices(filteredPrices);
-        renderChart(filteredPrices);
+        debouncedRenderChart(filteredPrices);
         updateColorCounts(filteredPrices);
         updateFlagCounts(filteredPrices);
     }
+
 
     function getExactMatchIndex(text, searchTerm) {
   
@@ -777,7 +837,7 @@
 
     const debouncedFilterPrices = debounce(function () {
         filterPricesAndUpdateUI(lastSortFunction);
-    }, 450);
+    }, 300);
 
     document.getElementById('productSearch').addEventListener('input', debouncedFilterPrices);
 

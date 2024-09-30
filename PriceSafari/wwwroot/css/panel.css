@@ -680,6 +680,26 @@ p {
     cursor: pointer;
 }
 
+
+
+.lazy-load {
+    width: 84px;
+    height: 84px;
+    margin-right: 14px;
+    margin-left: 16px;
+    background-color: #ffffff; /* Białe tło */
+    display: block;
+}
+
+img.lazy-load {
+    visibility: hidden; /* Ukrywa obrazek przed załadowaniem */
+}
+
+    img.lazy-load.loaded {
+        visibility: visible; /* Pokazuje obrazek po załadowaniu */
+    }
+
+
 .agregationShortcut {
     display: flex;
     padding: 0px;
