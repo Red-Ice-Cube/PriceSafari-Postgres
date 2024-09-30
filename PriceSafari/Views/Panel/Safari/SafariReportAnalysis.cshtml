@@ -69,8 +69,8 @@
                     : 0;
 
                     var colorClass = item.OurCalculatedPrice == 0 ? "prGray" : GetColorClass(priceDifference, percentageDifference);
+                    <div class="price-box @colorClass" data-category="@item.Category" onclick="window.open('@Url.Action("ProductPriceDetails", "Safari", new { reportId = ViewBag.ReportId, productId = item.ProductId, regionId = ViewBag.RegionId })', '_blank')">
 
-                    <div class="price-box @colorClass" data-category="@item.Category" onclick="window.open('@Url.Action("ProductPriceDetails", "Safari", new { reportId = ViewBag.ReportId, productId = item.ProductId })', '_blank')">
                         <div class="price-box-space">
                             <div class="price-box-column-name">
                                 @item.ProductName
@@ -317,6 +317,7 @@
             g = int.Parse(hex.Substring(3, 2), System.Globalization.NumberStyles.HexNumber);
             b = int.Parse(hex.Substring(5, 2), System.Globalization.NumberStyles.HexNumber);
         }
-        return $"rgba({r}, {g}, {b}, {alpha})";
+        return $"rgba({r}, {g}, {b}, {alpha.ToString(System.Globalization.CultureInfo.InvariantCulture)})";
     }
+
 }
