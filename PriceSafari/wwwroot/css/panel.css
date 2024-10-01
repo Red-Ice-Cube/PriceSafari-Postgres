@@ -687,16 +687,16 @@ p {
     height: 84px;
     margin-right: 14px;
     margin-left: 16px;
-    background-color: #ffffff; /* Białe tło */
+    background-color: #ffffff; 
     display: block;
 }
 
 img.lazy-load {
-    visibility: hidden; /* Ukrywa obrazek przed załadowaniem */
+    visibility: hidden; 
 }
 
     img.lazy-load.loaded {
-        visibility: visible; /* Pokazuje obrazek po załadowaniu */
+        visibility: visible; 
     }
 
 

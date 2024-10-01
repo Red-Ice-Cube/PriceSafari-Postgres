@@ -256,12 +256,15 @@
 <script>
     document.addEventListener("DOMContentLoaded", function () {
         const lazyLoadImages = document.querySelectorAll('.lazy-load');
+
         const observer = new IntersectionObserver((entries, observer) => {
             entries.forEach(entry => {
                 if (entry.isIntersecting) {
                     const img = entry.target;
-                    img.src = img.dataset.src;
-                    img.removeAttribute('data-src');
+                    img.src = img.dataset.src; // Ustawienie src obrazu
+                    img.addEventListener('load', () => {
+                        img.classList.add('loaded'); // Dodanie klasy 'loaded' po załadowaniu
+                    });
                     observer.unobserve(img);
                 }
             });
@@ -270,6 +273,8 @@
         lazyLoadImages.forEach(img => {
             observer.observe(img);
         });
+ 
+
 
         
         const categories = new Set();
