@@ -66,17 +66,9 @@ namespace PriceSafari.Services
                         : $"{scrapingProduct.GoogleUrl}/offers?prds=cid:{productId},cond:1,start:{currentPage * 20}&gl={countryCode}&hl=pl";
 
                     Console.WriteLine($"Odwiedzanie URL: {paginatedUrl}");
-                    await _page.GoToAsync(paginatedUrl);
+                    await _page.GoToAsync(paginatedUrl, new NavigationOptions { WaitUntil = new[] { WaitUntilNavigation.Networkidle2 } });
+                    await Task.Delay(1111);
 
-                    // Czekamy na załadowanie się kontenera ofert
-                    await _page.WaitForSelectorAsync("#sh-osd__online-sellers-cont");
-
-                    // Selektor dla wierszy ofert
-                    var offerRowsSelector = "#sh-osd__online-sellers-cont > tr";
-                    var offerRows = await _page.QuerySelectorAllAsync(offerRowsSelector);
-                    int offersCountBeforeClick = offerRows.Length;
-
-                    // Klikamy przyciski "Jeszcze oferty" i czekamy na załadowanie dodatkowych ofert
                     var moreOffersButtons = await _page.QuerySelectorAllAsync("div.cNMlI");
                     if (moreOffersButtons.Length > 0)
                     {
@@ -84,17 +76,15 @@ namespace PriceSafari.Services
                         {
                             Console.WriteLine("Znaleziono przycisk 'Jeszcze oferty'. Klikam, aby rozwinąć.");
                             await button.ClickAsync();
-
-                            // Czekamy, aż liczba ofert wzrośnie
-                            await _page.WaitForFunctionAsync($"document.querySelectorAll('{offerRowsSelector}').length > {offersCountBeforeClick}");
-                            // Aktualizujemy liczbę ofert przed kolejnym kliknięciem
-                            offerRows = await _page.QuerySelectorAllAsync(offerRowsSelector);
-                            offersCountBeforeClick = offerRows.Length;
+                            await Task.Delay(557);
                         }
                     }
 
-                    // Pobieramy wszystkie wiersze ofert po rozwinięciu
-                    offerRows = await _page.QuerySelectorAllAsync(offerRowsSelector);
+                  
+
+
+                    var offerRowsSelector = "#sh-osd__online-sellers-cont > tr";
+                    var offerRows = await _page.QuerySelectorAllAsync(offerRowsSelector);
                     var offersCount = offerRows.Length;
                     totalOffersCount += offersCount;
 
@@ -115,11 +105,13 @@ namespace PriceSafari.Services
                         // Warunkowe sprawdzanie selektorów w zależności od kraju
                         if (countryCode == "ua" || countryCode == "tr" || countryCode == "by")
                         {
+                            // Dla Ukrainy i Turcji
                             priceSelector = $"#sh-osd__online-sellers-cont > tr:nth-child({i}) > td:nth-child(3) > span";
                             priceWithDeliverySelector = $"#sh-osd__online-sellers-cont > tr:nth-child({i}) > td:nth-child(4) > div > div.drzWO";
                         }
                         else
                         {
+                            // Dla innych krajów
                             priceSelector = $"#sh-osd__online-sellers-cont > tr:nth-child({i}) > td:nth-child(4) > span";
                             priceWithDeliverySelector = $"#sh-osd__online-sellers-cont > tr:nth-child({i}) > td:nth-child(5) > div > div.drzWO";
                         }
@@ -160,11 +152,14 @@ namespace PriceSafari.Services
                                         OfferUrl = offerUrl,
                                         ScrapingProductId = scrapingProduct.ScrapingProductId,
                                         RegionId = scrapingProduct.RegionId,
+
                                     };
+
                                 }
                             }
                             else
                             {
+                                // Dodajemy nową ofertę do słownika
                                 storeBestOffers[storeName] = new PriceData
                                 {
                                     StoreName = storeName,
@@ -173,6 +168,7 @@ namespace PriceSafari.Services
                                     OfferUrl = offerUrl,
                                     ScrapingProductId = scrapingProduct.ScrapingProductId,
                                     RegionId = scrapingProduct.RegionId,
+
                                 };
                             }
                         }
@@ -185,9 +181,11 @@ namespace PriceSafari.Services
                     // Zbieranie ofert ukrytych po rozwinięciu
                     var hiddenOfferRowsSelector = "tr.sh-osd__offer-row[data-hveid][data-is-grid-offer='true']";
                     var hiddenOfferRows = await _page.QuerySelectorAllAsync(hiddenOfferRowsSelector);
-
-                    foreach (var hiddenRowElement in hiddenOfferRows)
+                    for (int j = 0; j < hiddenOfferRows.Length; j++)
                     {
+                        var hiddenRowElement = hiddenOfferRows[j];
+
+
                         var hiddenStoreNameSelector = "td:nth-child(1) > div._-ez > a";
                         var hiddenPriceSelector = "";
                         var hiddenPriceWithDeliverySelector = "";
@@ -195,16 +193,22 @@ namespace PriceSafari.Services
 
                         if (countryCode == "ua" || countryCode == "tr" || countryCode == "by")
                         {
+
                             hiddenPriceSelector = "td:nth-child(3) > span";
                             hiddenPriceWithDeliverySelector = "td:nth-child(4) > div";
                             hiddenOfferUrlSelector = "td:nth-child(5) > div > a";
+
                         }
                         else
                         {
+
                             hiddenPriceSelector = "td:nth-child(4) > span";
                             hiddenPriceWithDeliverySelector = "td:nth-child(5) > div";
                             hiddenOfferUrlSelector = "td:nth-child(6) > div > a";
+
                         }
+
+
 
                         var hiddenStoreNameElement = await hiddenRowElement.QuerySelectorAsync(hiddenStoreNameSelector);
                         if (hiddenStoreNameElement != null)
@@ -227,12 +231,16 @@ namespace PriceSafari.Services
                             var hiddenOfferUrl = hiddenOfferUrlElement != null ? await hiddenOfferUrlElement.EvaluateFunctionAsync<string>("node => node.href") : "Brak URL";
                             Console.WriteLine($"Ukryty URL oferty: {hiddenOfferUrl}");
 
+                            // Dodanie do logu informacji o znalezionej ofercie ukrytej
+                            Console.WriteLine($"Oferta ukryta -> Sklep: {hiddenStoreName}, Cena: {hiddenPriceText}, URL: {hiddenOfferUrl}");
+
                             // Sprawdzenie, czy oferta ukryta dla tego sklepu jest lepsza
                             if (storeBestOffers.ContainsKey(hiddenStoreName))
                             {
                                 var existingOffer = storeBestOffers[hiddenStoreName];
                                 if (hiddenPriceWithDeliveryDecimal < existingOffer.PriceWithDelivery)
                                 {
+                                    // Zastępujemy ofertę, jeśli ukryta oferta ma niższą cenę z dostawą
                                     storeBestOffers[hiddenStoreName] = new PriceData
                                     {
                                         StoreName = hiddenStoreName,
@@ -241,6 +249,7 @@ namespace PriceSafari.Services
                                         OfferUrl = hiddenOfferUrl,
                                         ScrapingProductId = scrapingProduct.ScrapingProductId,
                                         RegionId = scrapingProduct.RegionId,
+
                                     };
                                 }
                             }
@@ -254,7 +263,9 @@ namespace PriceSafari.Services
                                     OfferUrl = hiddenOfferUrl,
                                     ScrapingProductId = scrapingProduct.ScrapingProductId,
                                     RegionId = scrapingProduct.RegionId,
+
                                 };
+
                             }
                         }
                     }
@@ -281,6 +292,8 @@ namespace PriceSafari.Services
                         Console.WriteLine("Nie znaleziono elementu paginacji.");
                         hasNextPage = false;
                     }
+
+                    await Task.Delay(125);
                 }
 
                 // Dodajemy wszystkie najlepsze oferty do listy scrapedData
@@ -303,10 +316,10 @@ namespace PriceSafari.Services
         //    var scrapedData = new List<PriceData>();
         //    var storeBestOffers = new Dictionary<string, PriceData>();
 
-        //    // Wyciągamy productId z URL
+        //    Wyciągamy productId z URL
         //    string productId = ExtractProductId(scrapingProduct.GoogleUrl);
 
-        //    // Tworzymy URL na pierwszą stronę
+        //    Tworzymy URL na pierwszą stronę
         //    string productOffersUrl = $"{scrapingProduct.GoogleUrl}/offers?prds=cid:{productId},cond:1&gl={countryCode}&hl=pl";
         //    bool hasNextPage = true;
         //    int totalOffersCount = 0;
@@ -396,17 +409,17 @@ namespace PriceSafari.Services
         //                    }
         //                    else
         //                    {
-        //                        // Dodajemy nową ofertę do słownika
-        //                        storeBestOffers[storeName] = new PriceData
-        //                        {
-        //                            StoreName = storeName,
-        //                            Price = priceDecimal,
-        //                            PriceWithDelivery = priceWithDeliveryDecimal,
-        //                            OfferUrl = offerUrl,
-        //                            ScrapingProductId = scrapingProduct.ScrapingProductId,
-        //                            RegionId = scrapingProduct.RegionId,
+        //                        Dodajemy nową ofertę do słownika
+        //                       storeBestOffers[storeName] = new PriceData
+        //                       {
+        //                           StoreName = storeName,
+        //                           Price = priceDecimal,
+        //                           PriceWithDelivery = priceWithDeliveryDecimal,
+        //                           OfferUrl = offerUrl,
+        //                           ScrapingProductId = scrapingProduct.ScrapingProductId,
+        //                           RegionId = scrapingProduct.RegionId,
 
-        //                        };
+        //                       };
         //                    }
         //                }
         //                else
@@ -415,8 +428,8 @@ namespace PriceSafari.Services
         //                }
         //            }
 
-        //            // Zbieranie ofert ukrytych po rozwinięciu
-        //            var hiddenOfferRowsSelector = "tr.sh-osd__offer-row[data-hveid][data-is-grid-offer='true']";
+        //            Zbieranie ofert ukrytych po rozwinięciu
+        //           var hiddenOfferRowsSelector = "tr.sh-osd__offer-row[data-hveid][data-is-grid-offer='true']";
         //            var hiddenOfferRows = await _page.QuerySelectorAllAsync(hiddenOfferRowsSelector);
         //            for (int j = 0; j < hiddenOfferRows.Length; j++)
         //            {
@@ -452,26 +465,26 @@ namespace PriceSafari.Services
         //                    var hiddenOfferUrl = hiddenOfferUrlElement != null ? await hiddenOfferUrlElement.EvaluateFunctionAsync<string>("node => node.href") : "Brak URL";
         //                    Console.WriteLine($"Ukryty URL oferty: {hiddenOfferUrl}");
 
-        //                    // Dodanie do logu informacji o znalezionej ofercie ukrytej
+        //                    Dodanie do logu informacji o znalezionej ofercie ukrytej
         //                    Console.WriteLine($"Oferta ukryta -> Sklep: {hiddenStoreName}, Cena: {hiddenPriceText}, URL: {hiddenOfferUrl}");
 
-        //                    // Sprawdzenie, czy oferta ukryta dla tego sklepu jest lepsza
+        //                    Sprawdzenie, czy oferta ukryta dla tego sklepu jest lepsza
         //                    if (storeBestOffers.ContainsKey(hiddenStoreName))
         //                    {
         //                        var existingOffer = storeBestOffers[hiddenStoreName];
         //                        if (hiddenPriceWithDeliveryDecimal < existingOffer.PriceWithDelivery)
         //                        {
-        //                            // Zastępujemy ofertę, jeśli ukryta oferta ma niższą cenę z dostawą
-        //                            storeBestOffers[hiddenStoreName] = new PriceData
-        //                            {
-        //                                StoreName = hiddenStoreName,
-        //                                Price = hiddenPriceDecimal,
-        //                                PriceWithDelivery = hiddenPriceWithDeliveryDecimal,
-        //                                OfferUrl = hiddenOfferUrl,
-        //                                ScrapingProductId = scrapingProduct.ScrapingProductId,
-        //                                RegionId = scrapingProduct.RegionId,
+        //                            Zastępujemy ofertę, jeśli ukryta oferta ma niższą cenę z dostawą
+        //                           storeBestOffers[hiddenStoreName] = new PriceData
+        //                           {
+        //                               StoreName = hiddenStoreName,
+        //                               Price = hiddenPriceDecimal,
+        //                               PriceWithDelivery = hiddenPriceWithDeliveryDecimal,
+        //                               OfferUrl = hiddenOfferUrl,
+        //                               ScrapingProductId = scrapingProduct.ScrapingProductId,
+        //                               RegionId = scrapingProduct.RegionId,
 
-        //                            };
+        //                           };
         //                        }
         //                    }
         //                    else
@@ -491,7 +504,7 @@ namespace PriceSafari.Services
         //                }
         //            }
 
-        //            // Sprawdzenie, czy istnieje kolejna strona
+        //            Sprawdzenie, czy istnieje kolejna strona
         //            var paginationElement = await _page.QuerySelectorAsync("#sh-fp__pagination-button-wrapper");
         //            if (paginationElement != null)
         //            {
@@ -517,8 +530,9 @@ namespace PriceSafari.Services
         //            await Task.Delay(10);
         //        }
 
-        //        // Dodajemy wszystkie najlepsze oferty do listy scrapedData
-        //        scrapedData.AddRange(storeBestOffers.Values);
+        //        Dodajemy wszystkie najlepsze oferty do listy scrapedData
+
+        //       scrapedData.AddRange(storeBestOffers.Values);
         //        Console.WriteLine($"Zakończono przetwarzanie {scrapedData.Count} ofert.");
         //    }
         //    catch (Exception ex)
