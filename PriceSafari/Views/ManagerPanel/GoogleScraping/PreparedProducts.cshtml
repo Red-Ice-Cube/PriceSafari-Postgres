@@ -31,7 +31,10 @@
                 <input type="hidden" id="countryCode" name="countryCode" />
                 <button type="submit" class="btn btn-primary">URUCHOM BOT</button>
             </form>
-
+            <!-- Nowy przycisk do uruchomienia scrapera dla wszystkich regionów -->
+            <form asp-action="StartScrapingAllRegions" method="post">
+                <button type="submit" class="btn btn-secondary" style="margin-top: 20px;">URUCHOM BOT DLA WSZYSTKICH REGIONÓW</button>
+            </form>
             <script>
                 function updateCountryCode() {
                     var selectedOption = document.getElementById("region").options[document.getElementById("region").selectedIndex];

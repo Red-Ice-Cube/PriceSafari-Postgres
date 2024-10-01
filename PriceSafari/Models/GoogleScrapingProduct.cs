@@ -18,6 +18,9 @@ namespace PriceSafari.Models
         [ForeignKey("RegionId")]
         public Region Region { get; set; }  // Nawigacja do Region
 
+ 
+        public string CountryCode { get; set; } // Nowe pole
+
         public bool? IsScraped { get; set; }
 
         public int OffersCount { get; set; }
@@ -29,4 +32,8 @@ namespace PriceSafari.Models
         // Nawigacja do PriceData
         public ICollection<PriceData> PriceData { get; set; } = new List<PriceData>();
     }
+
+
+
+
 }
