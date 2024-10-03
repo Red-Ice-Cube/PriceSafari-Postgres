@@ -67,6 +67,7 @@ namespace PriceSafari.Controllers
 
             return View("~/Views/Panel/Product/ProductList.cshtml");
         }
+
         [HttpGet]
         public async Task<IActionResult> GetProducts(int storeId)
         {
@@ -93,6 +94,7 @@ namespace PriceSafari.Controllers
                     p.Url,
                     p.CatalogNumber,
                     p.Ean,
+                    p.MarginPrice,
                     p.MainUrl,
                    
                 })

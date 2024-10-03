@@ -166,6 +166,7 @@
                         <th></th>                     
                         <th>Ean</th>
                         <th>Oznaczenie</th>
+                        <th>Cena zakupu</th>
                         <th>Ceno</th>
                         <th>@ViewBag.StoreName</th>
                         <th>Scrapować</th>                    
@@ -332,6 +333,7 @@
                     var urlButton = product.url ? `<a href="${product.url}" class="Button-Page-Small" target="_blank">Strona</a>` : '';
                     var catalogNumber = product.catalogNumber || '';
                     var ean = product.ean || '';
+                    var marginPrice = product.marginPrice || '';
                     var imageUrl = product.mainUrl || '';
                     var imageCell = imageUrl ? `<img src="${imageUrl}" style="width: 90px; height: 90px; object-fit: contain; background-color: white;" />` : `<div style="width: 90px; height: 90px;"></div>`;
 
@@ -357,6 +359,7 @@
                                 <td>${imageCell}</td>
                                 <td>${ean}</td>
                                 <td>${catalogNumber}</td>
+                                <td>${marginPrice} PLN</td>
                                 <td>${offerUrlButton}</td>
                                 <td>${urlButton}</td>
                                 <td>
