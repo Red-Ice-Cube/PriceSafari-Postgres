@@ -1,11 +1,18 @@
-﻿namespace PriceSafari.Models.ManagerViewModels
+﻿using Microsoft.AspNetCore.Mvc.ModelBinding;
+
+namespace PriceSafari.Models.ManagerViewModels
 {
     public class AssignStoresViewModel
     {
-        public List<PriceSafariUser> Users { get; set; }
-        public List<StoreClass> Stores { get; set; }
+        [BindNever]
+        public List<PriceSafariUser> Users { get; set; } = new List<PriceSafariUser>();
+
+        [BindNever]
+        public List<StoreClass> Stores { get; set; } = new List<StoreClass>();
+
         public string SelectedUserId { get; set; }
-        public List<int> SelectedStoreIds { get; set; }
+
+        public List<int> SelectedStoreIds { get; set; } = new List<int>();
 
         // New properties for user permissions
         public bool AccesToViewSafari { get; set; }

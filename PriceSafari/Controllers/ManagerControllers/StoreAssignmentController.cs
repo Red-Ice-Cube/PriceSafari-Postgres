@@ -98,6 +98,7 @@ namespace PriceSafari.Controllers
                 // Update user stores
                 var userStores = _context.UserStores.Where(us => us.UserId == model.SelectedUserId).ToList();
 
+                // Remove unselected stores
                 foreach (var userStore in userStores)
                 {
                     if (!model.SelectedStoreIds.Contains(userStore.StoreId))
@@ -106,6 +107,7 @@ namespace PriceSafari.Controllers
                     }
                 }
 
+                // Add new selected stores
                 foreach (var storeId in model.SelectedStoreIds)
                 {
                     if (!userStores.Any(us => us.StoreId == storeId))
@@ -131,6 +133,8 @@ namespace PriceSafari.Controllers
                         {
                             ModelState.AddModelError("", error.Description);
                         }
+                        // Repopulate Users and Stores before returning the view
+                        await PopulateUsersAndStoresAsync(model);
                         return View("~/Views/ManagerPanel/Affiliates/AssignStores.cshtml", model);
                     }
                 }
@@ -149,15 +153,19 @@ namespace PriceSafari.Controllers
                         _logger.LogError($"Key: {modelState.Key}, Error: {error.ErrorMessage}, Exception: {error.Exception}");
                     }
                 }
+                // Repopulate Users and Stores before returning the view
+                await PopulateUsersAndStoresAsync(model);
+                return View("~/Views/ManagerPanel/Affiliates/AssignStores.cshtml", model);
             }
+        }
 
-            // Re-populate users and stores for the view
+        private async Task PopulateUsersAndStoresAsync(AssignStoresViewModel model)
+        {
             var usersInMemberRole = await _userManager.GetUsersInRoleAsync("Member");
             model.Users = usersInMemberRole.ToList();
             model.Stores = await _context.Stores.ToListAsync();
-
-            return View("~/Views/ManagerPanel/Affiliates/AssignStores.cshtml", model);
         }
+
 
 
     }
