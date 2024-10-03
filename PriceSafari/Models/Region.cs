@@ -27,5 +27,9 @@ namespace PriceSafari.Models
 
         public ICollection<GoogleScrapingProduct> GoogleScrapingProducts { get; set; } = new List<GoogleScrapingProduct>();
         public ICollection<GlobalPriceReport> GlobalPriceReports { get; set; } = new List<GlobalPriceReport>();
+
+
+
+
     }
 }

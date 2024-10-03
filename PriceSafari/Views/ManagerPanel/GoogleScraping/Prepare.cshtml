@@ -1,16 +1,15 @@
-﻿@model IEnumerable<dynamic>
+﻿@using Newtonsoft.Json
+@model IEnumerable<dynamic>
 
 @{
-
     Layout = "~/Views/Shared/_PanelLayout.cshtml";
-
 }
-
 
 <h1>Lista raportów, powiązanych produktów i regionów</h1>
 
-<form asp-action="UnpackReports" method="post">
-    <button type="submit" class="btn btn-primary">Rozpakuj wybrane raporty</button>
+<form id="unpackReportsForm">
+    @Html.AntiForgeryToken()
+    <button type="button" class="btn btn-primary" id="unpackReportsButton">Rozpakuj wybrane raporty</button>
     <table class="table">
         <thead>
             <tr>
@@ -41,8 +40,6 @@
                                     {
                                         <span>Brak URL</span>
                                     }
-                                    <!-- Dodanie ukrytych pól dla ID produktów -->
-                                    <input type="hidden" name="ProductIds[@report.ReportId]" value="@product.ProductId" />
                                 </li>
                             }
                         </ul>
@@ -52,16 +49,81 @@
                             @foreach (var region in report.Regions)
                             {
                                 <li>@region.RegionName</li>
-                                <!-- Dodanie ukrytych pól dla ID regionów -->
-                                <input type="hidden" name="RegionIds[@report.ReportId]" value="@region.RegionId" />
                             }
                         </ul>
                     </td>
                     <td>
                         <input type="checkbox" name="selectedReportIds" value="@report.ReportId" />
+                        <!-- Przechowujemy ProductIds i RegionIds jako data attributes -->
+                        <input type="hidden" class="productIds" data-report-id="@report.ReportId" value='@Json.Serialize(((IEnumerable<dynamic>)report.Products).Select(p => p.ProductId).ToList())' />
+
+                        <input type="hidden" class="regionIds" data-report-id="@report.ReportId" value='@Json.Serialize(((IEnumerable<dynamic>)report.Regions).Select(r => r.RegionId).ToList())' />
+
                     </td>
                 </tr>
             }
         </tbody>
     </table>
 </form>
+
+<script>
+    document.getElementById('unpackReportsButton').addEventListener('click', function () {
+        // Pobierz wybrane raporty
+        var selectedReportCheckboxes = document.querySelectorAll('input[name="selectedReportIds"]:checked');
+        var selectedReportIds = Array.from(selectedReportCheckboxes).map(cb => parseInt(cb.value));
+
+        if (selectedReportIds.length === 0) {
+            alert('Nie wybrano żadnych raportów.');
+            return;
+        }
+
+        // Przygotuj ProductIds i RegionIds
+        var ProductIds = {};
+        var RegionIds = {};
+
+        selectedReportIds.forEach(reportId => {
+            // Pobierz wszystkie ProductIds dla danego reportId
+            var productInput = document.querySelector('input.productIds[data-report-id="' + reportId + '"]');
+            var productIdsForReport = productInput ? JSON.parse(productInput.value) : [];
+            ProductIds[reportId] = productIdsForReport;
+
+            // Pobierz wszystkie RegionIds dla danego reportId
+            var regionInput = document.querySelector('input.regionIds[data-report-id="' + reportId + '"]');
+            var regionIdsForReport = regionInput ? JSON.parse(regionInput.value) : [];
+            RegionIds[reportId] = regionIdsForReport;
+        });
+
+        // Przygotuj dane do wysłania
+        var data = {
+            SelectedReportIds: selectedReportIds,
+            ProductIds: ProductIds,
+            RegionIds: RegionIds
+        };
+
+        // Pobierz token antyfałszywy z ukrytego pola
+        var antiForgeryToken = document.querySelector('input[name="__RequestVerificationToken"]').value;
+
+        // Wyślij żądanie AJAX
+        fetch('@Url.Action("UnpackReports", "GoogleScraping")', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'RequestVerificationToken': antiForgeryToken
+            },
+            body: JSON.stringify(data)
+        })
+            .then(response => {
+                if (response.redirected) {
+                    window.location.href = response.url;
+                } else if (response.ok) {
+                    return response.text().then(text => { alert(text); });
+                } else {
+                    return response.text().then(text => { throw new Error(text); });
+                }
+            })
+            .catch(error => {
+                console.error('Błąd:', error);
+                alert('Wystąpił błąd podczas przetwarzania żądania.');
+            });
+    });
+</script>

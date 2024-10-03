@@ -373,7 +373,7 @@
                 if (priceDiffDisplay) {
                     const epsilon = 0.005;
 
-                    // Pobierz wartości z atrybutów danych
+                  
                     const priceDifference = parseFloat(productBox.getAttribute('data-pricedifference')) || 0;
                     const percentageDifferenceAttr = productBox.getAttribute('data-percdifference');
                     let percentageDifference = percentageDifferenceAttr !== 'null' ? parseFloat(percentageDifferenceAttr) : null;
@@ -384,7 +384,7 @@
                     const marginPriceAttr = productBox.getAttribute('data-marginprice');
                     const marginPrice = marginPriceAttr !== null && marginPriceAttr !== 'null' ? parseFloat(marginPriceAttr) : null;
 
-                    // Oblicz marżę
+                
                     let marginAmount = null;
                     let marginPercentage = null;
 
@@ -401,7 +401,7 @@
                     let priceDiffClass = '';
 
                     if (myPrice === null || myPrice === 0) {
-                        // Nasza cena nie jest dostępna
+                    
                         priceDiffText = 'Brak naszej ceny';
                         priceDiffClass = 'priceBox-diff-margin';
                     } else {
@@ -431,7 +431,7 @@
                         }
                     }
 
-                    // Tworzenie elementu na informacje o marży
+                   
                     let marginInfoHtml = '';
                     if (marginPrice != null) {
                         const formattedMarginPrice = marginPrice.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' PLN';
@@ -454,10 +454,8 @@
                         }
                     }
 
-                    // Nie dodawaj klasy priceDiffClass do priceDiffDisplay
-                    // priceDiffDisplay.classList.add(priceDiffClass);
 
-                    // Ustaw zawartość innerHTML, dodając informacje o marży i różnicy cen
+                    
                     priceDiffDisplay.innerHTML = marginInfoHtml + '<div class="' + priceDiffClass + '">' + priceDiffText + '</div>';
                 }
 

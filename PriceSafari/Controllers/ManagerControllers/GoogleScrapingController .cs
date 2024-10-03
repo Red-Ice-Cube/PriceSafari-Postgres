@@ -169,12 +169,16 @@ namespace PriceSafari.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> UnpackReports(List<int> selectedReportIds, Dictionary<int, List<int>> ProductIds, Dictionary<int, List<int>> RegionIds)
+        public async Task<IActionResult> UnpackReports([FromBody] UnpackReportsRequest request)
         {
-            if (selectedReportIds == null || !selectedReportIds.Any())
+            if (request == null || request.SelectedReportIds == null || !request.SelectedReportIds.Any())
             {
                 return BadRequest("Nie wybrano żadnych raportów.");
             }
+
+            var selectedReportIds = request.SelectedReportIds;
+            var ProductIds = request.ProductIds;
+            var RegionIds = request.RegionIds;
 
             // Pobieramy wszystkie regiony jednorazowo
             var allRegions = await _context.Regions.ToDictionaryAsync(r => r.RegionId, r => r.CountryCode);
@@ -240,10 +244,15 @@ namespace PriceSafari.Controllers
 
             await _context.SaveChangesAsync();
 
-            return RedirectToAction("PreparedProducts");
+            return Ok("Raporty zostały rozpakowane pomyślnie.");
         }
 
-
+        public class UnpackReportsRequest
+        {
+            public List<int> SelectedReportIds { get; set; }
+            public Dictionary<int, List<int>> ProductIds { get; set; }
+            public Dictionary<int, List<int>> RegionIds { get; set; }
+        }
 
 
         public async Task<IActionResult> PreparedProducts(int? selectedRegion)
