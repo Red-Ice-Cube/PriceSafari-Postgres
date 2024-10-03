@@ -4,6 +4,10 @@ using Microsoft.EntityFrameworkCore;
 using PriceSafari.Data;
 using System.Security.Claims;
 using PriceSafari.Models.ViewModels;
+using NPOI.HSSF.UserModel;
+using NPOI.SS.UserModel;
+using NPOI.XSSF.UserModel;
+using System.Globalization;
 
 namespace PriceSafari.Controllers
 {
@@ -159,6 +163,7 @@ namespace PriceSafari.Controllers
             }
         }
 
+
         [HttpPost]
         public async Task<IActionResult> UpdateMultipleScrapableProducts(int storeId, [FromBody] List<int> productIds)
         {
@@ -234,5 +239,201 @@ namespace PriceSafari.Controllers
 
             return Json(new { success = true });
         }
+
+
+
+        //Dodawnie wgrywania marzy
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> SetMargins(int storeId, IFormFile uploadedFile)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+            // Check if the user has access to the store
+            var userStore = await _context.UserStores
+                .FirstOrDefaultAsync(us => us.UserId == userId && us.StoreId == storeId);
+
+            if (userStore == null)
+            {
+                return Forbid();
+            }
+
+            var store = await _context.Stores.FindAsync(storeId);
+            if (store == null)
+            {
+                return NotFound();
+            }
+
+            if (uploadedFile == null || uploadedFile.Length == 0)
+            {
+                ModelState.AddModelError("", "Proszę wgrać poprawny plik XML lub Excel.");
+                ViewBag.StoreName = store.StoreName;
+                ViewBag.StoreId = storeId;
+                ViewBag.ShowUploadMarginsModal = true; // Flag to reopen the modal
+                return View("ProductList"); // Return to the ProductList view
+            }
+
+            try
+            {
+                // Determine file type and parse accordingly
+                var extension = Path.GetExtension(uploadedFile.FileName).ToLower();
+                Dictionary<string, decimal> marginData = null;
+
+                if (extension == ".xlsx" || extension == ".xls")
+                {
+                    marginData = await ParseExcelFile(uploadedFile);
+                }
+                else
+                {
+                    ModelState.AddModelError("", "Niewspierany format pliku. Proszę wgrać plik XML lub Excel.");
+                    ViewBag.StoreName = store.StoreName;
+                    ViewBag.StoreId = storeId;
+                    ViewBag.ShowUploadMarginsModal = true;
+                    return View("ProductList");
+                }
+
+                if (marginData == null || !marginData.Any())
+                {
+                    ModelState.AddModelError("", "Wgrany plik jest pusty lub nie zawiera poprawnych kolumn 'EAN' i 'CENA'.");
+                    ViewBag.StoreName = store.StoreName;
+                    ViewBag.StoreId = storeId;
+                    ViewBag.ShowUploadMarginsModal = true;
+                    return View("ProductList");
+                }
+
+                // Get products in the store with non-null EAN codes
+                var products = await _context.Products
+                    .Where(p => p.StoreId == storeId && !string.IsNullOrEmpty(p.Ean))
+                    .ToListAsync();
+
+                int updatedCount = 0;
+                foreach (var product in products)
+                {
+                    if (marginData.TryGetValue(product.Ean, out decimal margin))
+                    {
+                        product.MarginPrice = margin;
+                        updatedCount++;
+                    }
+                }
+
+                await _context.SaveChangesAsync();
+
+                TempData["SuccessMessage"] = $"Marże zostały zaktualizowane dla {updatedCount} produktów.";
+
+                return RedirectToAction("ProductList", new { storeId });
+            }
+            catch (Exception ex)
+            {
+                // Handle exceptions
+                ModelState.AddModelError("", $"Wystąpił błąd: {ex.Message}");
+                ViewBag.StoreName = store.StoreName;
+                ViewBag.StoreId = storeId;
+                ViewBag.ShowUploadMarginsModal = true;
+                return View("ProductList");
+            }
+        }
+
+        private async Task<Dictionary<string, decimal>> ParseExcelFile(IFormFile file)
+        {
+            var marginData = new Dictionary<string, decimal>();
+
+            using (var stream = new MemoryStream())
+            {
+                await file.CopyToAsync(stream);
+                stream.Position = 0;
+
+                IWorkbook workbook;
+                // Determine the file extension
+                var extension = Path.GetExtension(file.FileName).ToLower();
+
+                if (extension == ".xls")
+                {
+                    workbook = new HSSFWorkbook(stream); // For .xls files
+                }
+                else if (extension == ".xlsx")
+                {
+                    workbook = new XSSFWorkbook(stream); // For .xlsx files
+                }
+                else
+                {
+                    // Unsupported file type
+                    return marginData;
+                }
+
+                // Assume data is in the first worksheet
+                var sheet = workbook.GetSheetAt(0);
+                if (sheet == null)
+                    return marginData;
+
+                // Possible header names
+                var eanHeaders = new[] { "EAN", "EAN CODE", "EANCODE", "KOD EAN" };
+                var cenaHeaders = new[] { "CENA", "PRICE", "MARGIN", "CENA NETTO" };
+
+                // Find the columns with headers 'EAN' and 'CENA'
+                int eanColumnIndex = -1;
+                int cenaColumnIndex = -1;
+
+                // Assume headers are in the first row
+                var headerRow = sheet.GetRow(0);
+                if (headerRow == null)
+                    return marginData;
+
+                for (int i = headerRow.FirstCellNum; i < headerRow.LastCellNum; i++)
+                {
+                    var cell = headerRow.GetCell(i);
+                    if (cell != null)
+                    {
+                        var headerText = cell.ToString().Trim().ToUpperInvariant();
+                        if (eanHeaders.Contains(headerText))
+                        {
+                            eanColumnIndex = i;
+                        }
+                        else if (cenaHeaders.Contains(headerText))
+                        {
+                            cenaColumnIndex = i;
+                        }
+                    }
+                }
+
+                if (eanColumnIndex == -1 || cenaColumnIndex == -1)
+                {
+                    // Required columns not found
+                    return marginData;
+                }
+
+                // Read data starting from the second row
+                for (int rowIndex = 1; rowIndex <= sheet.LastRowNum; rowIndex++)
+                {
+                    var row = sheet.GetRow(rowIndex);
+                    if (row == null)
+                        continue;
+
+                    var eanCell = row.GetCell(eanColumnIndex);
+                    var cenaCell = row.GetCell(cenaColumnIndex);
+
+                    var ean = eanCell?.ToString().Trim();
+                    var cenaText = cenaCell?.ToString().Trim();
+
+                    if (string.IsNullOrEmpty(ean) || string.IsNullOrEmpty(cenaText))
+                        continue;
+
+                    // Handle decimal separator and culture
+                    cenaText = cenaText.Replace(',', '.');
+
+                    if (decimal.TryParse(cenaText, NumberStyles.Any, CultureInfo.InvariantCulture, out decimal margin))
+                    {
+                        if (!marginData.ContainsKey(ean))
+                        {
+                            marginData.Add(ean, margin);
+                        }
+                    }
+                }
+            }
+
+            return marginData;
+        }
+
+
     }
 }
