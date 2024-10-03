@@ -289,9 +289,6 @@
         return result;
     }
 
-
-
-
     function renderPrices(data) {
         const container = document.getElementById('priceContainer');
         const currentSearchTerm = document.getElementById('productSearch').value.trim();
@@ -308,6 +305,23 @@
 
             const deliveryClass = getDeliveryClass(item.delivery);
             const myDeliveryClass = getDeliveryClass(item.myDelivery);
+
+            // Ensure marginPrice and myPrice are numbers
+            const marginPrice = item.marginPrice != null && !isNaN(item.marginPrice) ? parseFloat(item.marginPrice) : null;
+            const myPrice = item.myPrice != null && !isNaN(item.myPrice) ? parseFloat(item.myPrice) : null;
+
+            // Calculate margin amount and percentage if both prices are available
+            let marginAmount = null;
+            let marginPercentage = null;
+
+            if (marginPrice != null && myPrice != null) {
+                marginAmount = myPrice - marginPrice;
+                if (marginPrice !== 0) { // Avoid division by zero
+                    marginPercentage = (marginAmount / marginPrice) * 100;
+                } else {
+                    marginPercentage = null;
+                }
+            }
 
             const box = document.createElement('div');
             box.className = 'price-box ' + item.colorClass;
@@ -390,16 +404,35 @@
             const priceBoxColumnInfo = document.createElement('div');
             priceBoxColumnInfo.className = 'price-box-column-action';
 
+            // Existing code for displaying price difference
             if (item.colorClass === "prToLow" || item.colorClass === "prIdeal") {
                 priceBoxColumnInfo.innerHTML =
-                    '<p>Podnieś: ' + savings + ' PLN</p>' +
-                    '<p>Podnieś: ' + percentageDifference + ' %</p>';
+                    '<div class="priceBox-diff-up">Podnieś: ' + savings + ' PLN  ' + percentageDifference +'%</div>';
+                  
             } else if (item.colorClass === "prMid" || item.colorClass === "prToHigh") {
                 priceBoxColumnInfo.innerHTML =
-                    '<p>Obniż: ' + priceDifference + ' PLN</p>' +
-                    '<p>Obniż: ' + percentageDifference + ' %</p>';
+
+
+                '<div class="priceBox-diff-down">Obniż: ' + priceDifference + ' PLN  ' + percentageDifference + '%</div>';
+
             } else if (item.colorClass === "prGood") {
                 priceBoxColumnInfo.innerHTML = '<p>Brak działań</p>';
+            }
+
+            // Add purchase price and margin info if available
+            if (marginPrice != null) {
+                const formattedMarginPrice = marginPrice.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' zł';
+                priceBoxColumnInfo.innerHTML += '<p>Cena zakupu: ' + formattedMarginPrice + '</p>';
+
+                if (myPrice != null) {
+                    const marginSign = marginAmount >= 0 ? '+' : '';
+                    const formattedMarginAmount = marginSign + Math.abs(marginAmount).toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' zł';
+                    const formattedMarginPercentage = marginSign + Math.abs(marginPercentage).toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' %';
+
+                    priceBoxColumnInfo.innerHTML +=
+                        '<p>Marża: ' + formattedMarginAmount + '</p>' +
+                        '<p>Marża: ' + formattedMarginPercentage + '</p>';
+                }
             }
 
             const priceBoxColumnExternalPrice = document.createElement('div');
@@ -408,9 +441,8 @@
                 const externalPriceDifference = (item.externalPrice - item.myPrice).toFixed(2);
                 const externalPriceDifferenceText = (item.externalPrice > item.myPrice ? '+' : '') + externalPriceDifference;
                 priceBoxColumnExternalPrice.innerHTML =
-
                     '<div class="price-box-column-text-api">Nowa cena: ' + item.externalPrice.toFixed(2) + ' PLN</div>' +
-                '<div class="price-box-column-text-api">Zmiana: ' + externalPriceDifferenceText + ' PLN</div>';
+                    '<div class="price-box-column-text-api">Zmiana: ' + externalPriceDifferenceText + ' PLN</div>';
             }
 
             const flagsContainer = document.createElement('div');
@@ -432,16 +464,16 @@
 
             if (item.imgUrl) {
                 const productImage = document.createElement('img');
-                productImage.dataset.src = item.imgUrl; // Używamy data-src zamiast src
+                productImage.dataset.src = item.imgUrl; // Use data-src for lazy loading
                 productImage.alt = item.productName;
-                productImage.className = 'lazy-load'; // Dodajemy klasę lazy-load
+                productImage.className = 'lazy-load';
 
-                // Ustawiamy placeholder (biały prostokąt)
+                // Placeholder styling
                 productImage.style.width = '84px';
                 productImage.style.height = '84px';
                 productImage.style.marginRight = '14px';
                 productImage.style.marginLeft = '16px';
-                productImage.style.backgroundColor = '#ffffff'; // Białe tło
+                productImage.style.backgroundColor = '#ffffff';
                 productImage.style.display = 'block';
 
                 priceBoxData.appendChild(productImage);
@@ -478,48 +510,48 @@
 
         document.getElementById('displayedProductCount').textContent = data.length;
 
+        // Lazy loading images
         const lazyLoadImages = document.querySelectorAll('.lazy-load');
-        const timers = new Map(); 
+        const timers = new Map();
 
         const observer = new IntersectionObserver((entries, observer) => {
             entries.forEach(entry => {
                 const img = entry.target;
-                const index = [...lazyLoadImages].indexOf(img); 
+                const index = [...lazyLoadImages].indexOf(img);
 
                 if (entry.isIntersecting) {
-                   
+
                     const timer = setTimeout(() => {
-                        loadImageWithNeighbors(index); 
-                        observer.unobserve(img); 
-                        timers.delete(img); 
+                        loadImageWithNeighbors(index);
+                        observer.unobserve(img);
+                        timers.delete(img);
                     }, 100);
-                    timers.set(img, timer); 
+                    timers.set(img, timer);
                 } else {
-                    
+
                     if (timers.has(img)) {
                         clearTimeout(timers.get(img));
-                        timers.delete(img); 
+                        timers.delete(img);
                     }
                 }
             });
         }, {
             root: null,
-            rootMargin: '50px', 
+            rootMargin: '50px',
             threshold: 0.01
         });
 
-   
         function loadImageWithNeighbors(index) {
-            const range = 6; 
-            const start = Math.max(0, index - range); 
-            const end = Math.min(lazyLoadImages.length - 1, index + range); 
+            const range = 6;
+            const start = Math.max(0, index - range);
+            const end = Math.min(lazyLoadImages.length - 1, index + range);
 
             for (let i = start; i <= end; i++) {
                 const img = lazyLoadImages[i];
                 if (!img.src) {
                     img.src = img.dataset.src;
                     img.onload = () => {
-                        img.classList.add('loaded'); 
+                        img.classList.add('loaded');
                     };
                 }
             }
@@ -528,13 +560,8 @@
         lazyLoadImages.forEach(img => {
             observer.observe(img);
         });
-
-
-
-
-       
-        
     }
+
 
 
 

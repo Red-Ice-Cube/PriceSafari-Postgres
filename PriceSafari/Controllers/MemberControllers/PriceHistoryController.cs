@@ -209,11 +209,11 @@ namespace PriceSafari.Controllers.MemberControllers
 
             var productsWithExternalInfo = await _context.Products
                 .Where(p => p.StoreId == storeId && p.ExternalId.HasValue)
-                .Select(p => new { p.ProductId, p.ExternalId, p.ExternalPrice, p.MainUrl })
+                .Select(p => new { p.ProductId, p.ExternalId, p.ExternalPrice, p.MainUrl, p.MarginPrice })
                 .ToListAsync();
 
             var productExternalInfoDictionary = productsWithExternalInfo
-                .ToDictionary(p => p.ProductId, p => new { p.ExternalId, p.ExternalPrice, p.MainUrl });
+                .ToDictionary(p => p.ProductId, p => new { p.ExternalId, p.ExternalPrice, p.MainUrl, p.MarginPrice });
 
             var allPrices = prices
                 .GroupBy(p => p.ProductId)
@@ -285,6 +285,7 @@ namespace PriceSafari.Controllers.MemberControllers
                         MyDelivery = myPriceEntry?.AvailabilityNum,
                         ExternalId = productExternalInfoDictionary.ContainsKey(g.Key) ? productExternalInfoDictionary[g.Key].ExternalId : null,
                         ExternalPrice = productExternalInfoDictionary.ContainsKey(g.Key) ? productExternalInfoDictionary[g.Key].ExternalPrice : null,
+                        MarginPrice = productExternalInfoDictionary.ContainsKey(g.Key) ? productExternalInfoDictionary[g.Key].MarginPrice : null,
                         ImgUrl = productExternalInfoDictionary.ContainsKey(g.Key) ? productExternalInfoDictionary[g.Key].MainUrl : null,
                     };
                 })
