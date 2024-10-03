@@ -1,10 +1,15 @@
 ﻿@model List<PriceSafari.Models.PriceSafariReport>
+@using Microsoft.AspNetCore.Identity
+@inject UserManager<PriceSafariUser> UserManager
 
 @{
     ViewData["Title"] = "Raporty Safari";
     Layout = "~/Views/Shared/_PanelLayout.cshtml";
     var storeId = ViewBag.StoreId;
     var reportCountries = ViewBag.ReportCountries as Dictionary<int, List<string>>;
+
+    var user = await UserManager.GetUserAsync(User);
+    bool hasCreateReportPermission = user?.AccesToCreateSafari ?? false;
 }
 
 <div class="Vert">
@@ -13,7 +18,15 @@
             <div class="Order-Container-Title">
                 Raporty Safari dla sklepu @ViewBag.StoreName
             </div>
-            <a href="@Url.Action("Index", "Safari", new { storeId = ViewBag.StoreId })" class="Button-Action-Small">Dodaj raport</a>
+            @if (hasCreateReportPermission)
+            {
+                <a href="@Url.Action("Index", "Safari", new { storeId = ViewBag.StoreId })" class="Button-Action-Small">Dodaj raport</a>
+            }
+            else
+            {
+                <button type="button" class="Button-Action-Small" onclick="alert('Twoje uprawnienia nie pozwalają na tworzenie nowych raportów.')">Dodaj raport</button>
+            }
+
         </div>
 
         @if (Model.Any())
