@@ -4,8 +4,6 @@
     Layout = "~/Views/Shared/_PanelLayout.cshtml";
 }
 
-
-
 <div class="Page-Box">
     <div class="Page-Box-Container">
         <div class="Page-Box-Category">
@@ -16,12 +14,12 @@
             <partial name="_ManageNavCol" />
         </div>
 
-
         <table class="table">
             <thead>
                 <tr>
                     <th>Name</th>
                     <th>Stores</th>
+                    <th>Permissions</th>
                     <th>Action</th>
                 </tr>
             </thead>
@@ -34,6 +32,31 @@
                             @foreach (var store in user.Stores)
                             {
                                 <span>@store.StoreName</span>
+                                <br />
+                            }
+                        </td>
+                        <td>
+                            @if (user.AccesToViewSafari)
+                            {
+                                <span>View Safari</span>
+
+                                <br />
+                            }
+                            @if (user.AccesToCreateSafari)
+                            {
+                                <span>Create Safari</span>
+
+                                <br />
+                            }
+                            @if (user.AccesToViewMargin)
+                            {
+                                <span>View Margin</span>
+
+                                <br />
+                            }
+                            @if (user.AccesToSetMargin)
+                            {
+                                <span>Set Margin</span>
 
                                 <br />
                             }
@@ -45,7 +68,5 @@
                 }
             </tbody>
         </table>
-
     </div>
 </div>
-

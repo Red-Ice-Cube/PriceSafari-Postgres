@@ -37,7 +37,11 @@ namespace PriceSafari.Controllers
                 Stores = _context.UserStores
                     .Where(us => us.UserId == user.Id)
                     .Select(us => us.StoreClass)
-                    .ToList()
+                    .ToList(),
+                AccesToViewSafari = user.AccesToViewSafari,
+                AccesToCreateSafari = user.AccesToCreateSafari,
+                AccesToViewMargin = user.AccesToViewMargin,
+                AccesToSetMargin = user.AccesToSetMargin
             }).ToList();
 
             return View("~/Views/ManagerPanel/Affiliates/UserStore.cshtml", model);
@@ -66,13 +70,24 @@ namespace PriceSafari.Controllers
                     .ToList();
 
                 model.SelectedStoreIds = selectedUserStores;
+
+                // Retrieve the user's current permission settings
+                var selectedUser = await _userManager.FindByIdAsync(userId);
+                if (selectedUser != null)
+                {
+                    model.AccesToViewSafari = selectedUser.AccesToViewSafari;
+                    model.AccesToCreateSafari = selectedUser.AccesToCreateSafari;
+                    model.AccesToViewMargin = selectedUser.AccesToViewMargin;
+                    model.AccesToSetMargin = selectedUser.AccesToSetMargin;
+                }
             }
 
             return View("~/Views/ManagerPanel/Affiliates/AssignStores.cshtml", model);
         }
 
+
         [HttpPost]
-        public async Task<IActionResult> AssignStores(string SelectedUserId, List<int> SelectedStoreIds)
+        public async Task<IActionResult> AssignStores(AssignStoresViewModel model)
         {
             _logger.LogInformation("POST AssignStores action triggered");
 
@@ -80,26 +95,48 @@ namespace PriceSafari.Controllers
             {
                 _logger.LogInformation("Model state is valid");
 
-                var userStores = _context.UserStores.Where(us => us.UserId == SelectedUserId).ToList();
+                // Update user stores
+                var userStores = _context.UserStores.Where(us => us.UserId == model.SelectedUserId).ToList();
 
                 foreach (var userStore in userStores)
                 {
-                    if (!SelectedStoreIds.Contains(userStore.StoreId))
+                    if (!model.SelectedStoreIds.Contains(userStore.StoreId))
                     {
                         _context.UserStores.Remove(userStore);
                     }
                 }
 
-                foreach (var storeId in SelectedStoreIds)
+                foreach (var storeId in model.SelectedStoreIds)
                 {
                     if (!userStores.Any(us => us.StoreId == storeId))
                     {
-                        _context.UserStores.Add(new PriceSafariUserStore { UserId = SelectedUserId, StoreId = storeId });
+                        _context.UserStores.Add(new PriceSafariUserStore { UserId = model.SelectedUserId, StoreId = storeId });
+                    }
+                }
+
+                // Update user permissions
+                var user = await _userManager.FindByIdAsync(model.SelectedUserId);
+                if (user != null)
+                {
+                    user.AccesToViewSafari = model.AccesToViewSafari;
+                    user.AccesToCreateSafari = model.AccesToCreateSafari;
+                    user.AccesToViewMargin = model.AccesToViewMargin;
+                    user.AccesToSetMargin = model.AccesToSetMargin;
+
+                    var result = await _userManager.UpdateAsync(user);
+                    if (!result.Succeeded)
+                    {
+                        _logger.LogError("Failed to update user properties");
+                        foreach (var error in result.Errors)
+                        {
+                            ModelState.AddModelError("", error.Description);
+                        }
+                        return View("~/Views/ManagerPanel/Affiliates/AssignStores.cshtml", model);
                     }
                 }
 
                 await _context.SaveChangesAsync();
-                _logger.LogInformation("Stores assigned to users successfully");
+                _logger.LogInformation("Stores and permissions assigned to user successfully");
                 return RedirectToAction("UserStore");
             }
             else
@@ -114,20 +151,14 @@ namespace PriceSafari.Controllers
                 }
             }
 
+            // Re-populate users and stores for the view
             var usersInMemberRole = await _userManager.GetUsersInRoleAsync("Member");
-            var users = usersInMemberRole.ToList();
-            var stores = await _context.Stores.ToListAsync();
+            model.Users = usersInMemberRole.ToList();
+            model.Stores = await _context.Stores.ToListAsync();
 
-            var viewModel = new AssignStoresViewModel
-            {
-                Users = users,
-                Stores = stores,
-                SelectedUserId = SelectedUserId,
-                SelectedStoreIds = SelectedStoreIds
-            };
-
-            return View("~/Views/ManagerPanel/Affiliates/AssignStores.cshtml", viewModel);
+            return View("~/Views/ManagerPanel/Affiliates/AssignStores.cshtml", model);
         }
+
 
     }
 }

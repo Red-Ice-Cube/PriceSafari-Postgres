@@ -14,6 +14,17 @@ public class PriceSafariUser : IdentityUser
 
     public ICollection<PriceSafariUserStore> UserStores { get; set; } = new List<PriceSafariUserStore>();  
 
+    //Nowe poziomy zabezpieczen
+
+
+    public bool AccesToViewSafari {  get; set; } = false;
+    public bool AccesToCreateSafari {  get; set; } = false;
+
+
+    public bool AccesToViewMargin { get; set; } = false;
+    public bool AccesToSetMargin { get; set; } = false;
+
+
     public PriceSafariUser()
     {
         CodePAR = GenerateUniqueCodePAR();

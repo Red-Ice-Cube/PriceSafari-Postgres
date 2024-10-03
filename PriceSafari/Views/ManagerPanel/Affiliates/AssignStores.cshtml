@@ -1,4 +1,7 @@
-﻿@model PriceSafari.Models.ManagerViewModels.AssignStoresViewModel
+﻿
+
+
+@model PriceSafari.Models.ManagerViewModels.AssignStoresViewModel
 
 @{
     Layout = "~/Views/Shared/_PanelLayout.cshtml";
@@ -8,7 +11,7 @@
     <div class="Page-Box-Container">
         <div class="Page-Box-Category">
             <div class="Category-Box-Title">
-            Kanały
+                Kanały
             </div>
 
             <partial name="_ManageNavCol" />
@@ -26,6 +29,8 @@
 
             <form asp-action="AssignStores" method="post">
                 @Html.AntiForgeryToken()
+
+                @Html.HiddenFor(m => m.SelectedUserId)
 
                 <input type="hidden" name="SelectedUserId" value="@Model.SelectedUserId" />
 
@@ -60,8 +65,24 @@
                     </div>
                     @Html.ValidationMessage("SelectedStoreIds")
                 </div>
+                <div class="form-group">
+                    <label>Permissions</label>
+                    <div>
+                        @Html.CheckBoxFor(m => m.AccesToViewSafari)
+                        @Html.LabelFor(m => m.AccesToViewSafari, "Access To View Safari")
+                        <br />
+                        @Html.CheckBoxFor(m => m.AccesToCreateSafari)
+                        @Html.LabelFor(m => m.AccesToCreateSafari, "Access To Create Safari")
+                        <br />
+                        @Html.CheckBoxFor(m => m.AccesToViewMargin)
+                        @Html.LabelFor(m => m.AccesToViewMargin, "Access To View Margin")
+                        <br />
+                        @Html.CheckBoxFor(m => m.AccesToSetMargin)
+                        @Html.LabelFor(m => m.AccesToSetMargin, "Access To Set Margin")
+                    </div>
+                </div>
 
-                <button type="submit" class="btn btn-primary mt-3">Assign Stores</button>
+                <button type="submit" class="btn btn-primary mt-3">Assign Stores and Permissions</button>
             </form>
         </div>
     </div>
