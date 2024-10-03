@@ -216,7 +216,8 @@ namespace PriceSafari.Controllers
                         ProductName = ourPrice?.Product?.ProductName ?? lowestCompetitorPrice?.Product?.ProductName,
                         GoogleUrl = ourPrice?.Product?.GoogleUrl ?? lowestCompetitorPrice?.Product?.GoogleUrl,
                         Category = ourPrice?.Product?.Category ?? lowestCompetitorPrice?.Product?.Category,
-                      
+                        MarginPrice = ourPrice?.Product.MarginPrice ?? null,
+
                         Price = lowestCompetitorPrice?.Price ?? 0,
                         StoreName = lowestCompetitorPrice?.StoreName ?? "Brak konkurencyjnej ceny",
                         PriceWithDelivery = lowestCompetitorPrice?.PriceWithDelivery ?? 0,

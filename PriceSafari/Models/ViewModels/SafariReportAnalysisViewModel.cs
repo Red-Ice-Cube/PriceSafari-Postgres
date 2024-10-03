@@ -26,6 +26,7 @@
         public decimal CalculatedPrice { get; set; }
         public decimal CalculatedPriceWithDelivery { get; set; }
         public string StoreName { get; set; }
+        public decimal? MarginPrice { get; set; }
         public string MyStoreName { get; set; }
         public int RegionId { get; set; }
         public string Category {  get; set; }

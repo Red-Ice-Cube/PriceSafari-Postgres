@@ -370,7 +370,7 @@ namespace PriceSafari.Controllers
 
                 // Possible header names
                 var eanHeaders = new[] { "EAN", "EAN CODE", "EANCODE", "KOD EAN" };
-                var cenaHeaders = new[] { "CENA", "PRICE", "MARGIN", "CENA NETTO" };
+                var cenaHeaders = new[] { "CENA", "PRICE", "MARGIN", "CENA BRUTTO" };
 
                 // Find the columns with headers 'EAN' and 'CENA'
                 int eanColumnIndex = -1;
