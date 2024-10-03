@@ -2,7 +2,9 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using PriceSafari.Attributes;
 using PriceSafari.Data;
+using PriceSafari.Enums;
 using PriceSafari.Models;
 using PriceSafari.Models.ViewModels;
 using PriceSafari.ViewModels;
@@ -11,6 +13,7 @@ using System.Security.Claims;
 namespace PriceSafari.Controllers
 {
     [Authorize(Roles = "Member")]
+    [RequireUserAccess(UserAccessRequirement.ViewSafari)]
     public class SafariController : Controller
     {
         
@@ -418,6 +421,7 @@ namespace PriceSafari.Controllers
 
         [HttpGet]
         [ServiceFilter(typeof(AuthorizeStoreAccessAttribute))]
+        [RequireUserAccess(UserAccessRequirement.CreateSafari)]
         public async Task<IActionResult> Index(int storeId)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -459,6 +463,7 @@ namespace PriceSafari.Controllers
 
         [HttpGet]
         [ServiceFilter(typeof(AuthorizeStoreAccessAttribute))]
+        [RequireUserAccess(UserAccessRequirement.CreateSafari)]
         public async Task<IActionResult> CreateReport(int storeId)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -474,6 +479,7 @@ namespace PriceSafari.Controllers
 
         [HttpPost]
         [ServiceFilter(typeof(AuthorizeStoreAccessAttribute))]
+        [RequireUserAccess(UserAccessRequirement.CreateSafari)]
         public async Task<IActionResult> CreateReport(string reportName, List<int> regionIds, int storeId)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -500,6 +506,7 @@ namespace PriceSafari.Controllers
 
         [HttpPost]
         [ServiceFilter(typeof(AuthorizeStoreAccessAttribute))]
+        [RequireUserAccess(UserAccessRequirement.CreateSafari)]
         public async Task<IActionResult> StartReportPreparation(int reportId)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -619,6 +626,7 @@ namespace PriceSafari.Controllers
 
 
         [HttpGet]
+        [RequireUserAccess(UserAccessRequirement.CreateSafari)]
         public async Task<IActionResult> GetReportProducts(int reportId)
         {
             if (reportId == 0)
