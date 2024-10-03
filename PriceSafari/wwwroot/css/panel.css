@@ -2943,37 +2943,31 @@ tr:last-child .sub-line {
     flex-direction: column;
     justify-content: space-between; /* Elementy będą rozłożone maksymalnie */
     gap: 4px;
-    min-width: 160px;
-    padding-left: 14px;
-    padding-right: 14px;
+    padding-left: 10px;
+    padding-right: 10px;
     border-right: 1px solid #808080;
 }
 
 .price-box-column-action {
     display: flex;
     flex-direction: column;
+    align-items: flex-start;
     gap: 4px;
-    min-width: 160px;
-    padding-left: 14px;
-    padding-right: 14px;
-    border-radius: 4px;
+    min-width: 240px;
+    padding-left: 10px;
+    padding-right: 10px;
 }
 .price-box-column-api {
     display: flex;
     flex-direction: column; /* Ustawienie elementów pionowo */
     gap: 4px; /* Przestrzeń między elementami */
-    width: 180px; /* Stała szerokość */
     align-items: flex-start; /* Wyrównanie elementów do lewej */
-    padding-left: 8px;
-    padding-right: 8px;
-    padding-bottom: 2px;
-    padding-top: 2px;
+    padding: 4px 12px;
+    height: 56px;
     border-radius: 4px;
-    background: rgba(34, 34, 34, 0.8); /* Kolor tła */
-    border: solid 2px rgba(34, 34, 34, 1); /* Ramka */
-    box-sizing: border-box; /* Uwzględnia padding i border w obliczeniach rozmiaru */
-    flex-shrink: 0; /* Zapobiega kurczeniu się elementu */
-    max-height: fit-content; /* Wysokość zależna od zawartości */
+    background: rgba(34, 34, 34, 0.75); 
+    border: solid 1px rgba(16, 16, 16, 1); 
+    box-sizing: border-box; 
 }
 
 
@@ -3059,7 +3053,7 @@ tr:last-child .sub-line {
     padding: 4px 12px;
     align-items: center;
     justify-content: center;
-    border-radius: 8px;
+    border-radius: 4px;
     font-size: 14px;
     font-weight: 400;
     border: 1px solid #00917B;
@@ -3073,7 +3067,33 @@ tr:last-child .sub-line {
     padding: 4px 12px;
     align-items: center;
     justify-content: center;
-    border-radius: 8px;
+    border-radius: 4px;
+    font-size: 14px;
+    font-weight: 400;
+    border: 1px solid #AB2520;
+    background: rgba(171, 37, 32, 0.20);
+    color: #AB2520 !important;
+}
+
+
+
+.priceBox-diff-up-margin {
+    display: flex;
+    padding: 4px 12px;
+    width:100%;
+    border-radius: 4px;
+    font-size: 14px;
+    font-weight: 400;
+    border: 1px solid #00917B;
+    background: rgba(0, 145, 123, 0.20);
+    color: #00917B;
+}
+
+.priceBox-diff-down-margin {
+    display: flex;
+    padding: 4px 12px;
+    border-radius: 4px;
+    width: 100%;
     font-size: 14px;
     font-weight: 400;
     border: 1px solid #AB2520;
@@ -3087,12 +3107,38 @@ tr:last-child .sub-line {
     padding: 4px 12px;
     align-items: center;
     justify-content: center;
-    border-radius: 8px;
+    border-radius: 4px;
     font-size: 14px;
     font-weight: 400;
     border: 1px solid rgba(40, 40, 40, 0.80);
     background: rgba(40, 40, 40, 0.20);
     color: rgba(40, 40, 40, 1) !important;
+}
+
+.priceBox-diff-margin {
+    display: flex;
+    padding: 4px 12px;
+    flex-direction: column;
+    border-radius: 4px;
+    width: 100%;
+    gap: 4px;
+    font-size: 14px;
+    font-weight: 400;
+    border: 1px solid rgba(40, 40, 40, 0.80);
+    background: rgba(40, 40, 40, 0.20);
+    color: rgba(40, 40, 40, 1) !important;
+}
+
+.priceBox-diff-top {
+    display: flex;
+    padding: 4px 12px;
+    border-radius: 4px;
+    width: 100%;
+    font-size: 14px;
+    font-weight: 400;
+    border: 1px solid rgba(117, 152, 112, 0.8);
+    background: rgba(117, 152, 112, 0.2);
+    color: rgba(117, 152, 112, 1) !important;
 }
 
 
@@ -3131,10 +3177,10 @@ tr:last-child .sub-line {
 
 .flags-container {
     display: flex;
+    flex-wrap: wrap; /* Pozwala na zawijanie elementów do następnego wiersza */
     justify-content: flex-end;
     align-items: flex-end;
     flex-grow: 1;
-    gap: 4px;
 }
 
 .close {
@@ -3228,8 +3274,8 @@ tr:last-child .sub-line {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    background: rgba(34, 34, 34, 0.8);
-    border: solid 2px rgba(34, 34, 34, 1);
+    background: rgba(34, 34, 34, 0.75);
+    border: solid 1px rgba(16, 16, 16, 1);
     font-size: 11px;
     font-weight: 500;
     color: white;

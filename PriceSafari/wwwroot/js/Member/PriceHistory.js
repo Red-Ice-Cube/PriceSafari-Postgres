@@ -401,39 +401,60 @@
             priceBoxColumnMyPrice.appendChild(priceBoxMyText);
             priceBoxColumnMyPrice.appendChild(priceBoxMyDetails);
 
+
             const priceBoxColumnInfo = document.createElement('div');
             priceBoxColumnInfo.className = 'price-box-column-action';
 
-            // Existing code for displaying price difference
-            if (item.colorClass === "prToLow" || item.colorClass === "prIdeal") {
-                priceBoxColumnInfo.innerHTML =
-                    '<div class="priceBox-diff-up">Podnieś: ' + savings + ' PLN  ' + percentageDifference +'%</div>';
-                  
-            } else if (item.colorClass === "prMid" || item.colorClass === "prToHigh") {
-                priceBoxColumnInfo.innerHTML =
+            // Zainicjuj innerHTML jako pusty string
+            priceBoxColumnInfo.innerHTML = '';
 
-
-                '<div class="priceBox-diff-down">Obniż: ' + priceDifference + ' PLN  ' + percentageDifference + '%</div>';
-
-            } else if (item.colorClass === "prGood") {
-                priceBoxColumnInfo.innerHTML = '<p>Brak działań</p>';
-            }
-
-            // Add purchase price and margin info if available
+            // Dodaj informacje o cenie zakupu i marży
             if (marginPrice != null) {
-                const formattedMarginPrice = marginPrice.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' zł';
-                priceBoxColumnInfo.innerHTML += '<p>Cena zakupu: ' + formattedMarginPrice + '</p>';
+                const formattedMarginPrice = marginPrice.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' PLN';
 
                 if (myPrice != null) {
                     const marginSign = marginAmount >= 0 ? '+' : '';
-                    const formattedMarginAmount = marginSign + Math.abs(marginAmount).toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' zł';
-                    const formattedMarginPercentage = marginSign + Math.abs(marginPercentage).toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' %';
+                    const formattedMarginAmount = marginSign + Math.abs(marginAmount).toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' PLN';
+                    const formattedMarginPercentage = '(' + marginSign + Math.abs(marginPercentage).toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%)';
 
                     priceBoxColumnInfo.innerHTML +=
-                        '<p>Marża: ' + formattedMarginAmount + '</p>' +
-                        '<p>Marża: ' + formattedMarginPercentage + '</p>';
+                        '<div class="priceBox-diff-margin">' +
+                        '<p>Cena zakupu: ' + formattedMarginPrice + '</p>' +
+                        '<p>Marża: ' + formattedMarginAmount + ' ' + formattedMarginPercentage + '</p>' +
+                        '</div>';
+                } else {
+                    priceBoxColumnInfo.innerHTML +=
+                        '<div class="priceBox-diff-margin">' +
+                        '<p>Cena zakupu: ' + formattedMarginPrice + '</p>' +
+                        '</div>';
                 }
             }
+
+            // Dodaj informacje o "Podnieś"/"Obniż"
+            if (item.colorClass === "prToLow" || item.colorClass === "prIdeal") {
+                if (savings != null && percentageDifference != null) {
+                    const savingsFormatted = (savings >= 0 ? '+' : '') + savings.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' PLN';
+                    const percentageFormatted = '(' + (percentageDifference >= 0 ? '+' : '') + percentageDifference.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%)';
+                    priceBoxColumnInfo.innerHTML +=
+                        '<div class="priceBox-diff-up-margin">Podnieś: ' + savingsFormatted + ' ' + percentageFormatted + '</div>';
+                } else {
+                    priceBoxColumnInfo.innerHTML += '<div class="priceBox-diff-up-margin">Podnieś: N/A</div>';
+                }
+            } else if (item.colorClass === "prMid" || item.colorClass === "prToHigh") {
+                if (priceDifference != null && percentageDifference != null) {
+                    const priceDiffFormatted = (priceDifference >= 0 ? '-' : '') + Math.abs(priceDifference).toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' PLN';
+                    const percentageFormatted = '(' + (percentageDifference >= 0 ? '-' : '') + Math.abs(percentageDifference).toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%)';
+                    priceBoxColumnInfo.innerHTML +=
+                        '<div class="priceBox-diff-down-margin">Obniż: ' + priceDiffFormatted + ' ' + percentageFormatted + '</div>';
+                } else {
+                    priceBoxColumnInfo.innerHTML += '<div class="priceBox-diff-down-margin">Obniż: N/A</div>';
+                }
+            } else if (item.colorClass === "prGood") {
+                priceBoxColumnInfo.innerHTML += '<div class="priceBox-diff-top">Jesteś w najlepszych cenach</div>';
+            }
+
+
+
 
             const priceBoxColumnExternalPrice = document.createElement('div');
             priceBoxColumnExternalPrice.className = 'price-box-column-api';
