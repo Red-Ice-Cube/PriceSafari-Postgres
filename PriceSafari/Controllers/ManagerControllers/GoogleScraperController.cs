@@ -213,20 +213,34 @@ public class GoogleScraperController : Controller
     [HttpPost]
     public async Task<IActionResult> SetOnGoogleForAll()
     {
+        // Pobieramy produkty, które mają wypełnione pole ProductNameInStoreForGoogle
         var products = await _context.Products
             .Where(p => !string.IsNullOrEmpty(p.ProductNameInStoreForGoogle))
             .ToListAsync();
 
         foreach (var product in products)
         {
-            product.OnGoogle = true;
+            // Jeśli pole Url nie jest puste, ustawiamy OnGoogle na true
+            if (!string.IsNullOrEmpty(product.Url))
+            {
+                product.OnGoogle = true;
+            }
+            // Jeśli pole Url jest puste, ustawiamy OnGoogle na false
+            else
+            {
+                product.OnGoogle = false;
+            }
+
+            // Aktualizujemy produkt w bazie danych
             _context.Products.Update(product);
         }
 
+        // Zapisujemy zmiany
         await _context.SaveChangesAsync();
 
         return RedirectToAction("ProductList", new { storeId = products.FirstOrDefault()?.StoreId });
     }
+
 
     [HttpPost]
     public async Task<IActionResult> RemoveWordFromProductNames(string wordToRemove)
@@ -362,4 +376,29 @@ public class GoogleScraperController : Controller
 
         return RedirectToAction("ProductList", new { storeId = product.StoreId });
     }
+
+
+    [HttpPost]
+    public async Task<IActionResult> ResetIncorrectGoogleStatuses(int storeId)
+    {
+        // Znajdź produkty, które mają FoundOnGoogle = true, mają GoogleUrl, ale ProductUrl jest null
+        var productsToReset = await _context.Products
+            .Where(p => p.StoreId == storeId && p.FoundOnGoogle == true && !string.IsNullOrEmpty(p.GoogleUrl) && string.IsNullOrEmpty(p.Url))
+            .ToListAsync();
+
+        foreach (var product in productsToReset)
+        {
+            // Ustawiamy FoundOnGoogle na null i usuwamy GoogleUrl
+            product.FoundOnGoogle = null;
+            product.GoogleUrl = null;
+            _context.Products.Update(product);
+        }
+
+        // Zapisanie zmian
+        await _context.SaveChangesAsync();
+
+        return Ok(); // Możesz zwrócić inne odpowiedzi w zależności od tego, co chcesz
+    }
+
+
 }

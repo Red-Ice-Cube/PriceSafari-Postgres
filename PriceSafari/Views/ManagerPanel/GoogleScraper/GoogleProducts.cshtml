@@ -12,6 +12,8 @@
     <button id="startScraping" class="btn btn-primary me-2">Uruchom BOT</button>
     <button id="updatePendingStatuses" class="btn btn-secondary me-2">Przelicz korekty</button>
     <button id="resetNotFoundStatuses" class="btn btn-warning">Resetuj nieznalezione</button> <!-- Nowy przycisk -->
+    <button id="resetIncorrectGoogleStatuses" class="btn btn-danger">Resetuj Niepoprawnie znalezione produkty Google</button>
+
 </div>
 
 
@@ -132,6 +134,30 @@
                     }
                 });
             }
+
+            $('#resetIncorrectGoogleStatuses').click(function () {
+                console.log("Reset Incorrect Google Statuses button clicked.");
+                resetIncorrectGoogleStatuses();
+            });
+
+            function resetIncorrectGoogleStatuses() {
+                console.log("Sending POST request to reset incorrect Google statuses...");
+                $.ajax({
+                    type: "POST",
+                    url: '@Url.Action("ResetIncorrectGoogleStatuses", "GoogleScraper")',
+                    data: { storeId: '@storeId' },
+                    success: function (response) {
+                        console.log("Incorrect Google statuses reset successfully.");
+                        loadProducts(); // Po zresetowaniu odśwież produkty
+                    },
+                    error: function (xhr, status, error) {
+                        console.error("Error resetting incorrect Google statuses: ", error);
+                        console.error("Response status: ", status);
+                        console.error("Response details: ", xhr.responseText);
+                    }
+                });
+            }
+
 
             function updateTable(products) {
                 console.log("Updating product table...");

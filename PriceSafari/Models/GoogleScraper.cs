@@ -44,7 +44,7 @@ public class GoogleScraper
         Console.WriteLine("Navigating to Google Shopping...");
         try
         {
-            await _page.GoToAsync("https://shopping.google.com/", new NavigationOptions { Timeout = 20000, WaitUntil = new[] { WaitUntilNavigation.Load } }); // Zwiększono Timeout do 60 sekund
+            await _page.GoToAsync("https://shopping.google.com/", new NavigationOptions { Timeout = 25000, WaitUntil = new[] { WaitUntilNavigation.Load } }); 
 
             var rejectButton = await _page.QuerySelectorAsync("button[aria-label='Odrzuć wszystko']");
             if (rejectButton != null)
@@ -76,7 +76,7 @@ public class GoogleScraper
     public async Task SearchAndNavigateToStoreAsync(string storeName, List<string> searchUrls)
     {
         Console.WriteLine($"Searching for store: {storeName}");
-        await Task.Delay(5000);
+        await Task.Delay(500);
 
         try
         {
@@ -104,7 +104,7 @@ public class GoogleScraper
                            
                             await _page.GoToAsync(fullUrl, new NavigationOptions { Timeout = 30000, WaitUntil = new[] { WaitUntilNavigation.Load } });
                             Console.WriteLine("Navigated to the store. Waiting for 1 seconds...");
-                            await Task.Delay(1000);
+                            await Task.Delay(500);
 
                             
                             return;
