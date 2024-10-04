@@ -71,36 +71,98 @@
         
     </div>
 </div>
+<div id="loadingOverlay" style="display:none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.5); z-index: 999;">
+    <div id="loadingMessage" style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background-color: white; padding: 24px; border-radius: 8px; color: black; font-size: 18px; z-index: 1000;">
+        <p>Raport <span id="reportName"></span></p>
+        <div id="progressBarContainer" style="width: 100%; background-color: #ddd;">
+            <div id="progressBar" style="width: 0%; height: 16px; background-color: green; margin-top:12px; margin-bottom:12px; border-radius:4px;"></div>
+        </div>
+        <p id="progressText">0%</p>
+    </div>
+</div>
 
-<!-- Dodanie skryptu JavaScript do klikalnych wierszy -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/5.0.9/signalr.min.js"></script>
 <script>
-    document.addEventListener("DOMContentLoaded", function () {
-      
-        var rows = document.querySelectorAll("tr[data-url]");
-        rows.forEach(function (row) {
-            row.addEventListener("click", function () {
-                var url = row.getAttribute("data-url");
-                if (url) {
-                    window.location.href = url;  
-                }
-            });
-        });
+    var connection = new signalR.HubConnectionBuilder().withUrl("/reportProgressHub").build();
+    var isProcessing = false; // Flaga, aby zapobiegać wielokrotnym kliknięciom
 
-  
-        var reportCountries = @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(reportCountries));
-        Object.keys(reportCountries).forEach(function (reportId) {
-            var flagsContainer = document.getElementById('flags-' + reportId);
-            if (flagsContainer) {
-                reportCountries[reportId].forEach(function (flag) {
-                    var img = document.createElement('img');
-                    img.src = '/images/' + flag + '.png';  
-                    img.alt = flag;
-                    img.style.height = '22px';
-                    img.style.width = '32px';
-                    img.style.marginRight = '5px';
-                    flagsContainer.appendChild(img);
-                });
+    connection.start().then(function () {
+        console.log("SignalR connected.");
+    }).catch(function (err) {
+        return console.error(err.toString());
+    });
+
+    connection.on("ReceiveProgress", function (message, percentage) {
+        console.log("Message received:", message, percentage); // Dodaj to do debugowania
+        document.getElementById("progressText").innerText = message + " " + percentage + "%";
+        document.getElementById("progressBar").style.width = percentage + "%";
+
+        if (percentage === 100) {
+            document.getElementById("progressText").innerText = "Wczytywanie zakończone.";
+            isProcessing = false;
+            setTimeout(hideLoadingOverlay, 1500); // Ukryj nakładkę po zakończeniu
+        }
+    });
+
+
+    // Obsługa kliknięcia w wiersz tabeli (ładowanie raportu)
+    document.querySelectorAll("tr[data-url]").forEach(function (row) {
+        row.addEventListener("click", function () {
+            if (!isProcessing) {
+                isProcessing = true; // Zapobiega wielokrotnym kliknięciom
+                var url = row.getAttribute("data-url");
+                var reportName = row.querySelector('td').innerText;
+
+                if (url) {
+                    showLoadingOverlay(reportName); // Pokaż nakładkę
+                    startProgress(); // Uruchom pasek postępu
+
+                    // Przekierowanie do SafariReportAnalysis
+                    window.location.href = url;
+                }
             }
         });
     });
+
+    function startProgress() {
+        var progressBarContainer = document.getElementById("progressBarContainer");
+        var progressText = document.getElementById("progressText");
+
+        if (progressBarContainer && progressText) {
+            progressBarContainer.style.display = "block";
+            progressText.style.display = "block";
+            document.getElementById("progressBar").style.width = "0%";
+        }
+    }
+
+    // Wyświetlanie nakładki z okienkiem ładowania i paskiem postępu
+    function showLoadingOverlay(reportName) {
+        document.getElementById("reportName").innerText = reportName; // Ustaw nazwę raportu
+        document.getElementById("loadingOverlay").style.display = "block";
+    }
+
+    // Ukrywanie nakładki po zakończeniu ładowania
+    function hideLoadingOverlay() {
+        document.getElementById("loadingOverlay").style.display = "none";
+    }
+
+    // Załadowanie flag dla raportów
+    var reportCountries = @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(reportCountries));
+    Object.keys(reportCountries).forEach(function (reportId) {
+        var flagsContainer = document.getElementById('flags-' + reportId);
+        if (flagsContainer) {
+            reportCountries[reportId].forEach(function (flag) {
+                var img = document.createElement('img');
+                img.src = '/images/' + flag + '.png';
+                img.alt = flag;
+                img.style.height = '22px';
+                img.style.width = '32px';
+                img.style.marginRight = '5px';
+                flagsContainer.appendChild(img);
+            });
+        }
+    });
 </script>
+
+
+

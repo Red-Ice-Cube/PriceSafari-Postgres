@@ -109,7 +109,10 @@ public class Program
             }
         }
 
+
+    
         app.MapHub<ScrapingHub>("/scrapingHub");
+        app.MapHub<ReportProgressHub>("/reportProgressHub");
 
         await app.RunAsync();
     }

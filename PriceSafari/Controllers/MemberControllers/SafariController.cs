@@ -1,14 +1,17 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using PriceSafari.Attributes;
 using PriceSafari.Data;
 using PriceSafari.Enums;
+using PriceSafari.Hubs;
 using PriceSafari.Models;
 using PriceSafari.Models.ViewModels;
 using PriceSafari.ViewModels;
 using System.Security.Claims;
+using System.Threading;
 
 namespace PriceSafari.Controllers
 {
@@ -20,11 +23,13 @@ namespace PriceSafari.Controllers
 
         private readonly PriceSafariContext _context;
         private readonly UserManager<PriceSafariUser> _userManager;
+        private readonly IHubContext<ReportProgressHub> _hubContext;
 
-        public SafariController(PriceSafariContext context, UserManager<PriceSafariUser> userManager)
+        public SafariController(PriceSafariContext context, UserManager<PriceSafariUser> userManager, IHubContext<ReportProgressHub> hubContext)
         {
             _context = context;
             _userManager = userManager;
+            _hubContext = hubContext;
         }
 
 
@@ -114,6 +119,32 @@ namespace PriceSafari.Controllers
         [ServiceFilter(typeof(AuthorizeStoreAccessAttribute))]
         public async Task<IActionResult> SafariReportAnalysis(int reportId, int? regionId = null)
         {
+            // Sprawdzenie czasu ostatniej akcji
+            var lastActionTime = HttpContext.Session.GetString("LastActionTime");
+            if (!string.IsNullOrEmpty(lastActionTime))
+            {
+                var lastActionDateTime = DateTime.Parse(lastActionTime);
+                if ((DateTime.Now - lastActionDateTime).TotalSeconds < 10)
+                {
+                    return BadRequest("Please wait before clicking again.");
+                }
+            }
+
+            // Ustawienie aktualnego czasu akcji w sesji
+            HttpContext.Session.SetString("LastActionTime", DateTime.Now.ToString());
+
+            int totalSteps = 7;  // Liczba kroków uwzględnia większe operacje
+            int currentStep = 0;
+
+            async Task UpdateProgress(string message, int additionalProgressSteps = 1)
+            {
+                currentStep += additionalProgressSteps;
+                int progress = (currentStep * 100) / totalSteps;
+                Console.WriteLine($"Sending progress: {progress}% - {message}");
+                await _hubContext.Clients.All.SendAsync("ReceiveProgress", message, progress);
+            }
+
+            // Krok 1: Pobieranie raportu
             if (reportId == 0)
             {
                 return NotFound("Nieprawidłowy identyfikator raportu.");
@@ -128,17 +159,22 @@ namespace PriceSafari.Controllers
                 return NotFound("Raport nie został znaleziony.");
             }
 
+            await UpdateProgress("Wczytywanie raportu...");
+
+            // Krok 2: Pobieranie danych produktowych
             var globalPriceReports = await _context.GlobalPriceReports
                 .Where(gpr => gpr.PriceSafariReportId == reportId)
                 .Include(gpr => gpr.Product)
                 .ToListAsync();
+            await UpdateProgress("Ładowanie produktów ...");
 
-            var storeName = report.Store?.StoreName?.ToLower();
-
+            // Krok 3: Pobieranie flag sklepu
             var storeFlags = await _context.Flags
                 .Where(f => f.StoreId == report.StoreId)
                 .ToListAsync();
+            await UpdateProgress("Ładowanie krajów...");
 
+            // Krok 4: Pobieranie cen
             var priceValues = await _context.PriceValues
                .Where(pv => pv.StoreId == report.StoreId)
                .Select(pv => new { pv.SetSafariPrice1, pv.SetSafariPrice2, pv.UsePriceDiffSafari })
@@ -148,7 +184,9 @@ namespace PriceSafari.Controllers
             {
                 priceValues = new { SetSafariPrice1 = 2.00m, SetSafariPrice2 = 2.00m, UsePriceDiffSafari = true };
             }
+            await UpdateProgress("Ładowanie cen...");
 
+            // Krok 5: Przetwarzanie danych o produktach i przygotowanie widoku
             var productFlagsDictionary = storeFlags
                 .SelectMany(flag => _context.ProductFlags
                     .Where(pf => pf.FlagId == flag.FlagId)
@@ -156,49 +194,43 @@ namespace PriceSafari.Controllers
                 .GroupBy(pf => pf.ProductId)
                 .ToDictionary(g => g.Key, g => g.Select(pf => pf.FlagId).ToList());
 
-          
             var regions = await _context.Regions
                 .ToDictionaryAsync(r => r.RegionId, r => r.Name);
 
-           
             ViewBag.Regions = regions;
             ViewBag.RegionId = regionId;
 
+            // Krok 6: Przetwarzanie cen produktów (bardziej dynamiczny postęp)
             var productPrices = globalPriceReports
                 .GroupBy(gpr => gpr.ProductId)
                 .Where(group =>
                 {
                     if (regionId.HasValue)
                     {
-                        return group.Any(gpr => gpr.RegionId == regionId.Value && gpr.StoreName.ToLower() != storeName);
+                        return group.Any(gpr => gpr.RegionId == regionId.Value && gpr.StoreName.ToLower() != report.Store.StoreName.ToLower());
                     }
                     else
                     {
-                       
                         return true;
                     }
                 })
                 .Select(group =>
                 {
-                    
-                    var ourPrice = group.FirstOrDefault(gpr => gpr.StoreName.ToLower() == storeName);
+                    var ourPrice = group.FirstOrDefault(gpr => gpr.StoreName.ToLower() == report.Store.StoreName.ToLower());
 
                     IEnumerable<GlobalPriceReport> competitorPrices;
 
                     if (regionId.HasValue)
                     {
-                       
-                        competitorPrices = group.Where(gpr => gpr.RegionId == regionId.Value && gpr.StoreName.ToLower() != storeName);
+                        competitorPrices = group.Where(gpr => gpr.RegionId == regionId.Value && gpr.StoreName.ToLower() != report.Store.StoreName.ToLower());
                     }
                     else
                     {
-                       
-                        competitorPrices = group.Where(gpr => gpr.StoreName.ToLower() != storeName);
+                        competitorPrices = group.Where(gpr => gpr.StoreName.ToLower() != report.Store.StoreName.ToLower());
                     }
 
                     var lowestCompetitorPrice = competitorPrices.OrderBy(gpr => gpr.CalculatedPrice).FirstOrDefault();
 
-              
                     int productId = ourPrice?.ProductId ?? lowestCompetitorPrice?.ProductId ?? 0;
                     productFlagsDictionary.TryGetValue(productId, out var flagIds);
 
@@ -217,26 +249,25 @@ namespace PriceSafari.Controllers
                         GoogleUrl = ourPrice?.Product?.GoogleUrl ?? lowestCompetitorPrice?.Product?.GoogleUrl,
                         Category = ourPrice?.Product?.Category ?? lowestCompetitorPrice?.Product?.Category,
                         MarginPrice = ourPrice?.Product.MarginPrice ?? null,
-
                         Price = lowestCompetitorPrice?.Price ?? 0,
                         StoreName = lowestCompetitorPrice?.StoreName ?? "Brak konkurencyjnej ceny",
                         PriceWithDelivery = lowestCompetitorPrice?.PriceWithDelivery ?? 0,
                         CalculatedPrice = lowestCompetitorPrice?.CalculatedPrice ?? 0,
                         CalculatedPriceWithDelivery = lowestCompetitorPrice?.CalculatedPriceWithDelivery ?? 0,
-                        
                         MyStoreName = ourPrice?.StoreName,
                         OurCalculatedPrice = ourPrice?.CalculatedPrice ?? 0,
                         OurRegionName = ourRegionName,
-                      
                         RegionId = lowestCompetitorPrice?.RegionId ?? 0,
                         RegionName = regionName,
-              
                         FlagIds = flagIds ?? new List<int>(),
                         MainUrl = ourPrice?.Product?.MainUrl ?? lowestCompetitorPrice?.Product?.MainUrl,
                         Product = ourPrice?.Product ?? lowestCompetitorPrice?.Product
                     };
                 })
                 .ToList();
+
+            // Każdy krok przetwarzania dużych grup danych może być aktualizowany
+            await UpdateProgress("Przetwarzanie...", additionalProgressSteps: 1);
 
             var viewModel = new SafariReportAnalysisViewModel
             {
@@ -249,14 +280,19 @@ namespace PriceSafari.Controllers
                 SetSafariPrice1 = priceValues.SetSafariPrice1,
                 SetSafariPrice2 = priceValues.SetSafariPrice2,
                 UsePriceDiffSafari = priceValues.UsePriceDiffSafari
-
             };
 
             ViewBag.ReportId = reportId;
             ViewBag.Flags = storeFlags;
 
+            // Ostateczny krok: Załadowano wszystkie dane, ale nie pokazuj zakończenia aż do końca
+            await UpdateProgress("Finalizacja...");
+
             return View("~/Views/Panel/Safari/SafariReportAnalysis.cshtml", viewModel);
         }
+
+
+
 
 
         [HttpPost]
