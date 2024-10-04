@@ -265,9 +265,9 @@
             entries.forEach(entry => {
                 if (entry.isIntersecting) {
                     const img = entry.target;
-                    img.src = img.dataset.src; // Ustawienie src obrazu
+                    img.src = img.dataset.src;
                     img.addEventListener('load', () => {
-                        img.classList.add('loaded'); // Dodanie klasy 'loaded' po załadowaniu
+                        img.classList.add('loaded'); 
                     });
                     observer.unobserve(img);
                 }
@@ -353,7 +353,7 @@
                 let colorClass = 'prGray';
 
                 if (differenceValue <= -thresholdCheaper) {
-                    colorClass = 'prGood';
+                    colorClass = 'prIdeal';
                     prGoodCount++;
                 } else if (differenceValue >= thresholdMoreExpensive) {
                     colorClass = 'prToHigh';
@@ -522,14 +522,14 @@
                             'rgba(171, 37, 32, 0.8)',
                              
                             'rgba(40, 40, 40, 0.8)',
-                             'rgba(117, 152, 112, 0.8)'
+                            'rgba(0, 145, 123, 0.8)'
                            
                         ],
                         borderColor: [
                             'rgba(171, 37, 32, 1)',
                              
                             'rgba(40, 40, 40, 1)',
-                            'rgba(117, 152, 112, 1)'
+                            'rgba(0, 145, 123, 1)'
 
                         ],
                         borderWidth: 1

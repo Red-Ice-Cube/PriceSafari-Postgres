@@ -9,6 +9,8 @@ using System.Xml.Linq;
 using System.Net.Http;
 using System.Text.RegularExpressions;
 using EFCore.BulkExtensions;
+using AngleSharp.Dom;
+using NPOI.SS.Formula.Functions;
 
 namespace PriceSafari.Controllers.ManagerControllers
 {
@@ -171,27 +173,65 @@ namespace PriceSafari.Controllers.ManagerControllers
 
             // Pobieramy produkty zmapowane
             var mappedProducts = await _context.ProductMaps
-                .Where(p => p.StoreId == storeId && !string.IsNullOrEmpty(p.ExportedName))
+                .Where(p => p.StoreId == storeId && !string.IsNullOrEmpty(p.CatalogNumber))
                 .ToListAsync();
 
+            var unmappedProducts = new List<ProductClass>(); // Lista produktów, których nie udało się zmapować po nazwie
+
+            // Etap 1: Mapowanie po nazwie
             foreach (var storeProduct in storeProducts)
             {
                 // Oczyszczamy nazwę produktu sklepowego
                 string cleanedStoreProductName = SimplifyName(storeProduct.ExportedNameCeneo);
 
-                // Próbujemy znaleźć odpowiedni produkt mapowany na podstawie zawierania się nazwy
-                var mappedProduct = mappedProducts
-                    .FirstOrDefault(mp => SimplifyName(mp.ExportedName).Contains(cleanedStoreProductName) ||
-                                          cleanedStoreProductName.Contains(SimplifyName(mp.ExportedName)));
+                // Próbujemy znaleźć odpowiedni produkt mapowany na podstawie nazwy
+                var possibleMappedProducts = mappedProducts
+                    .Where(mp => SimplifyName(mp.ExportedName).Contains(cleanedStoreProductName) ||
+                                 cleanedStoreProductName.Contains(SimplifyName(mp.ExportedName)))
+                    .ToList();
 
-                if (mappedProduct != null)
+                if (possibleMappedProducts.Count == 1)
                 {
-                    // Przypisujemy dane z zmapowanego produktu do produktu sklepowego
+                    // Jeśli znaleźliśmy jedno dokładne dopasowanie, mapujemy produkt
+                    var mappedProduct = possibleMappedProducts.First();
                     storeProduct.ExternalId = int.Parse(mappedProduct.ExternalId);
                     storeProduct.Url = mappedProduct.Url;
                     storeProduct.CatalogNumber = mappedProduct.CatalogNumber;
                     storeProduct.Ean = mappedProduct.Ean;
                     storeProduct.MainUrl = mappedProduct.MainUrl;
+                }
+                else
+                {
+                    // Jeśli nie udało się jednoznacznie przypisać, dodajemy do listy produktów do dalszego przetwarzania
+                    unmappedProducts.Add(storeProduct);
+                }
+            }
+
+            // Etap 2: Mapowanie po kodzie producenta (CatalogNumber)
+            foreach (var storeProduct in unmappedProducts)
+            {
+                foreach (var mappedProduct in mappedProducts)
+                {
+                    // Sprawdzamy, czy CatalogNumber z mapowanego produktu znajduje się w nazwie produktu sklepowego
+                    if (storeProduct.ProductName.Contains(mappedProduct.CatalogNumber))
+                    {
+                        // Mapujemy produkt na podstawie kodu producenta
+                        storeProduct.ExternalId = int.Parse(mappedProduct.ExternalId);
+                        storeProduct.Url = mappedProduct.Url;
+                        storeProduct.CatalogNumber = mappedProduct.CatalogNumber;
+                        storeProduct.Ean = mappedProduct.Ean;
+                        storeProduct.MainUrl = mappedProduct.MainUrl;
+
+                        // Przerwij pętlę, jeśli znajdziemy dopasowanie
+                        break;
+                    }
+                }
+
+                // Jeśli nie udało się zmapować, dodajemy log
+                if (string.IsNullOrEmpty(storeProduct.ExternalId.ToString()))
+                {
+                    Console.WriteLine($"Nie udało się zmapować produktu:");
+                    Console.WriteLine($"Nazwa produktu: {storeProduct.ProductName}, Kod producenta: {storeProduct.CatalogNumber}");
                 }
             }
 
@@ -208,9 +248,10 @@ namespace PriceSafari.Controllers.ManagerControllers
 
             // Zachowujemy ważne znaki specjalne i usuwamy jedynie niepożądane
             var simplifiedName = Regex.Replace(name, @"[^\w\s\-+/*=°²,.()]", "").ToUpperInvariant().Replace(" ", "");
-
             return simplifiedName;
         }
+
+
 
 
 
