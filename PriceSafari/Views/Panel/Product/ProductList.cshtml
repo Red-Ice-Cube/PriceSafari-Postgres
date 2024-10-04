@@ -1,10 +1,8 @@
 ﻿@{
     ViewData["Title"] = "Lista Produktów";
     Layout = "~/Views/Shared/_PanelLayout.cshtml";
-   
+
 }
-
-
 
 <style>
     .StatusBoxProduct-1 {
@@ -18,7 +16,6 @@
         font-size: 14px;
         font-weight: 500;
         color: rgba(128, 0, 128, 1);
-        
 
     }
 
@@ -61,10 +58,8 @@
         color: rgba(128, 128, 128, 1);
     }
 
-
-
     .scrapable-checkbox {
-        appearance: none; 
+        appearance: none;
         width: 44px;
         height: 44px;
         background-color: red;
@@ -90,7 +85,6 @@
                 border-radius: 24px;
             }
 
-
 </style>
 
 <div class="Vert">
@@ -105,35 +99,41 @@
                     <div>
                         <strong>Przypisano: </strong><span id="scrapable-count"></span>
                     </div>
-                  
-                  
+
                 </div>
             </div>
-            <button type="button" class="Button-Page-Small-b" id="uploadMarginsButton">
-                Wgraj Marże
-            </button>
-
-            @if (TempData["SuccessMessage"] != null)
-            {
-                <div class="alert alert-success">
-                    @TempData["SuccessMessage"]
-                </div>
-            }
-
 
             <div>
+
+                <button type="button" class="Button-Page-Small-bl" id="uploadMarginsButton">
+                    Wgraj Marże
+                </button>
                 <button id="select-all" class="Button-Page-Small-b">Zaznacz wszystkie</button>
-                <button id="deselect-all" class="Button-Page-Small-r">Odznacz wszystkie</button>               
+                <button id="deselect-all" class="Button-Page-Small-r">Odznacz wszystkie</button>
                 <select id="categoryDropdown" class="DropDown">
                     <option value="all">Wszystkie</option>
                 </select>
                 <input type="text" id="productSearch" placeholder="Wyszukaj produkt" />
+                <div>
+                    @if (TempData["SuccessMessage"] != null)
+                    {
+                        <div class="alert alert-success" style="margin-top:8px;">
+                            @TempData["SuccessMessage"]
+                        </div>
+                    }
+                    @if (TempData["ErrorMessage"] != null)
+                    {
+                        <div class="alert alert-danger" style="margin-top:8px;">
+                            @TempData["ErrorMessage"]
+                        </div>
+                    }
+                </div>
+
             </div>
         </div>
 
         <div class="price-box-space">
-          
-            
+
                 <div class="store-section">
 
                     <div class="form-check">
@@ -144,7 +144,7 @@
                         <input class="form-check-input status-filter" type="checkbox" id="inactive" value="inactive" data-status="inactive" >
                         <label class="form-check-label" for="inactive">Nieaktywny (<span id="count-inactive">0</span>) </label>
                     </div>
-             
+
                     <div class="form-check">
                         <input class="form-check-input status-filter" type="checkbox" id="active-rejected" value="active-rejected" data-status="active-rejected" >
                         <label class="form-check-label" for="active-rejected">Odrzucony (<span id="count-active-rejected">0</span>) </label>
@@ -154,8 +154,7 @@
                         <label class="form-check-label" for="inactive-rejected">Wyłączony (<span id="count-inactive-rejected">0</span>) </label>
                     </div>
                 </div>
-            
-          
+
         </div>
 
         <div class="Vert-table">
@@ -163,14 +162,14 @@
                 <thead>
                     <tr>
                         <th>Produkt (<span id="displayed-count"></span>)</th>
-                        <th></th>                     
+                        <th></th>
                         <th>Ean</th>
                         <th>Oznaczenie</th>
                         <th>Cena zakupu</th>
                         <th>Ceno</th>
                         <th>@ViewBag.StoreName</th>
-                        <th>Scrapować</th>                    
-                        <th>Status</th> 
+                        <th>Scrapować</th>
+                        <th>Status</th>
                     </tr>
                 </thead>
 
@@ -180,7 +179,6 @@
         </div>
     </div>
 </div>
-
 
 <!-- Modal -->
 <!-- Modal -->
@@ -221,9 +219,6 @@
         </div>
     </div>
 </div>
-
-
-
 
 @section Scripts {
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>

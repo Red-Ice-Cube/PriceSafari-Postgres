@@ -9,6 +9,7 @@ using NPOI.SS.UserModel;
 using NPOI.XSSF.UserModel;
 using System.Globalization;
 
+
 namespace PriceSafari.Controllers
 {
     [Authorize(Roles = "Admin, Manager, Member")]
@@ -245,14 +246,13 @@ namespace PriceSafari.Controllers
 
 
         //Dodawnie wgrywania marzy
-
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> SetMargins(int storeId, IFormFile uploadedFile)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
-            // Check if the user has access to the store
+            // Sprawdzenie dostępu użytkownika do sklepu
             var userStore = await _context.UserStores
                 .FirstOrDefaultAsync(us => us.UserId == userId && us.StoreId == storeId);
 
@@ -267,44 +267,48 @@ namespace PriceSafari.Controllers
                 return NotFound();
             }
 
+            // Sprawdzanie, czy plik został przesłany
             if (uploadedFile == null || uploadedFile.Length == 0)
             {
-                ModelState.AddModelError("", "Proszę wgrać poprawny plik XML lub Excel.");
-                ViewBag.StoreName = store.StoreName;
-                ViewBag.StoreId = storeId;
-                ViewBag.ShowUploadMarginsModal = true; // Flag to reopen the modal
-                return View("ProductList"); // Return to the ProductList view
+                TempData["ErrorMessage"] = "Proszę wgrać poprawny plik Excel.";
+                return RedirectToAction("ProductList", new { storeId });
+            }
+
+            // Sprawdzanie rozmiaru pliku (limit do 10MB)
+            if (uploadedFile.Length > 10 * 1024 * 1024)
+            {
+                TempData["ErrorMessage"] = "Wielkość pliku nie może przekraczać 10 MB.";
+                return RedirectToAction("ProductList", new { storeId });
+            }
+
+            // Sprawdzanie rozszerzenia pliku
+            var allowedExtensions = new[] { ".xls", ".xlsx" };
+            var extension = Path.GetExtension(uploadedFile.FileName).ToLower();
+            if (!allowedExtensions.Contains(extension))
+            {
+                TempData["ErrorMessage"] = "Niewspierany format pliku. Proszę wgrać plik Excel (.xls lub .xlsx).";
+                return RedirectToAction("ProductList", new { storeId });
+            }
+
+            // Sprawdzanie typu MIME
+            var allowedMimeTypes = new[] { "application/vnd.ms-excel", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" };
+            if (!allowedMimeTypes.Contains(uploadedFile.ContentType))
+            {
+                TempData["ErrorMessage"] = "Niewspierany typ pliku. Proszę wgrać plik Excel.";
+                return RedirectToAction("ProductList", new { storeId });
             }
 
             try
             {
-                // Determine file type and parse accordingly
-                var extension = Path.GetExtension(uploadedFile.FileName).ToLower();
-                Dictionary<string, decimal> marginData = null;
-
-                if (extension == ".xlsx" || extension == ".xls")
-                {
-                    marginData = await ParseExcelFile(uploadedFile);
-                }
-                else
-                {
-                    ModelState.AddModelError("", "Niewspierany format pliku. Proszę wgrać plik XML lub Excel.");
-                    ViewBag.StoreName = store.StoreName;
-                    ViewBag.StoreId = storeId;
-                    ViewBag.ShowUploadMarginsModal = true;
-                    return View("ProductList");
-                }
-
+                // Parsowanie i przetwarzanie pliku Excel
+                var marginData = await ParseExcelFile(uploadedFile);
                 if (marginData == null || !marginData.Any())
                 {
-                    ModelState.AddModelError("", "Wgrany plik jest pusty lub nie zawiera poprawnych kolumn 'EAN' i 'CENA'.");
-                    ViewBag.StoreName = store.StoreName;
-                    ViewBag.StoreId = storeId;
-                    ViewBag.ShowUploadMarginsModal = true;
-                    return View("ProductList");
+                    TempData["ErrorMessage"] = "Plik nie zawiera poprawnych danych.";
+                    return RedirectToAction("ProductList", new { storeId });
                 }
 
-                // Get products in the store with non-null EAN codes
+                // Aktualizacja marży produktów
                 var products = await _context.Products
                     .Where(p => p.StoreId == storeId && !string.IsNullOrEmpty(p.Ean))
                     .ToListAsync();
@@ -322,20 +326,17 @@ namespace PriceSafari.Controllers
                 await _context.SaveChangesAsync();
 
                 TempData["SuccessMessage"] = $"Marże zostały zaktualizowane dla {updatedCount} produktów.";
-
                 return RedirectToAction("ProductList", new { storeId });
             }
             catch (Exception ex)
             {
-                // Handle exceptions
-                ModelState.AddModelError("", $"Wystąpił błąd: {ex.Message}");
-                ViewBag.StoreName = store.StoreName;
-                ViewBag.StoreId = storeId;
-                ViewBag.ShowUploadMarginsModal = true;
-                return View("ProductList");
+                // Obsługa wyjątków
+                TempData["ErrorMessage"] = $"Wystąpił błąd: {ex.Message}";
+                return RedirectToAction("ProductList", new { storeId });
             }
         }
 
+        // Funkcja parsująca plik Excel
         private async Task<Dictionary<string, decimal>> ParseExcelFile(IFormFile file)
         {
             var marginData = new Dictionary<string, decimal>();
@@ -346,40 +347,34 @@ namespace PriceSafari.Controllers
                 stream.Position = 0;
 
                 IWorkbook workbook;
-                // Determine the file extension
                 var extension = Path.GetExtension(file.FileName).ToLower();
 
                 if (extension == ".xls")
                 {
-                    workbook = new HSSFWorkbook(stream); // For .xls files
+                    workbook = new HSSFWorkbook(stream); // Obsługa plików .xls
                 }
                 else if (extension == ".xlsx")
                 {
-                    workbook = new XSSFWorkbook(stream); // For .xlsx files
+                    workbook = new XSSFWorkbook(stream); // Obsługa plików .xlsx
                 }
                 else
                 {
-                    // Unsupported file type
-                    return marginData;
+                    return null; // Niewspierany format
                 }
 
-                // Assume data is in the first worksheet
                 var sheet = workbook.GetSheetAt(0);
                 if (sheet == null)
-                    return marginData;
+                    return null;
 
-                // Possible header names
-                var eanHeaders = new[] { "EAN", "EAN CODE", "EANCODE", "KOD EAN" };
-                var cenaHeaders = new[] { "CENA", "PRICE", "MARGIN", "CENA BRUTTO" };
+                var eanHeaders = new[] { "EAN", "KOD EAN" };
+                var cenaHeaders = new[] { "CENA", "PRICE" };
 
-                // Find the columns with headers 'EAN' and 'CENA'
                 int eanColumnIndex = -1;
                 int cenaColumnIndex = -1;
 
-                // Assume headers are in the first row
                 var headerRow = sheet.GetRow(0);
                 if (headerRow == null)
-                    return marginData;
+                    return null;
 
                 for (int i = headerRow.FirstCellNum; i < headerRow.LastCellNum; i++)
                 {
@@ -400,11 +395,9 @@ namespace PriceSafari.Controllers
 
                 if (eanColumnIndex == -1 || cenaColumnIndex == -1)
                 {
-                    // Required columns not found
-                    return marginData;
+                    return null;
                 }
 
-                // Read data starting from the second row
                 for (int rowIndex = 1; rowIndex <= sheet.LastRowNum; rowIndex++)
                 {
                     var row = sheet.GetRow(rowIndex);
@@ -420,9 +413,8 @@ namespace PriceSafari.Controllers
                     if (string.IsNullOrEmpty(ean) || string.IsNullOrEmpty(cenaText))
                         continue;
 
-                    // Handle decimal separator and culture
+                    // Weryfikacja, czy dane są poprawne liczbowo
                     cenaText = cenaText.Replace(',', '.');
-
                     if (decimal.TryParse(cenaText, NumberStyles.Any, CultureInfo.InvariantCulture, out decimal margin))
                     {
                         if (!marginData.ContainsKey(ean))
@@ -435,6 +427,9 @@ namespace PriceSafari.Controllers
 
             return marginData;
         }
+
+
+
 
 
     }
