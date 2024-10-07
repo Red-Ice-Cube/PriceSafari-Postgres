@@ -26,8 +26,8 @@
                 <div class="store-section">
                     <!-- Classification Filters -->
                         <div class="form-check">
-                            <input class="form-check-input colorFilter" type="checkbox" id="prGoodCheckbox" value="prGood">
-                        <label class="form-check-label" for="prGoodCheckbox" id="prGoodLabel">Taniej o (<span id="prGoodCount">0</span>)</label>
+                            <input class="form-check-input colorFilter" type="checkbox" id="prIdealCheckbox" value="prIdeal">
+                        <label class="form-check-label" for="prIdealCheckbox" id="prIdealLabel">Taniej o (<span id="prIdealCount">0</span>)</label>
                         </div>
 
                         <div class="form-check">
@@ -327,7 +327,7 @@
             const usePriceDifference = usePriceDifferenceCheckbox.checked;
 
            
-            let prGoodCount = 0;
+            let prIdealCount = 0;
             let prGrayCount = 0;
             let prToHighCount = 0;
 
@@ -354,7 +354,7 @@
 
                 if (differenceValue <= -thresholdCheaper) {
                     colorClass = 'prIdeal';
-                    prGoodCount++;
+                    prIdealCount++;
                 } else if (differenceValue >= thresholdMoreExpensive) {
                     colorClass = 'prToHigh';
                     prToHighCount++;
@@ -364,7 +364,7 @@
                 }
 
                 
-                productBox.classList.remove('prToHigh', 'prGood', 'prGray');
+                productBox.classList.remove('prToHigh', 'prIdeal', 'prGray');
                 productBox.classList.add(colorClass);
                 productBox.setAttribute('data-colorclass', colorClass);
 
@@ -490,12 +490,12 @@
             });
 
             
-            prGoodCountSpan.textContent = prGoodCount;
+            prIdealCountSpan.textContent = prIdealCount;
             prGrayCountSpan.textContent = prGrayCount;
             prToHighCountSpan.textContent = prToHighCount;
 
             
-            initializeChart(prGoodCount, prGrayCount, prToHighCount);
+            initializeChart(prIdealCount, prGrayCount, prToHighCount);
 
            
             updateClassificationLabels();
@@ -508,7 +508,7 @@
         const ctx = document.getElementById('classificationChart').getContext('2d');
         let classificationChart;
 
-        function initializeChart(prGoodCount, prGrayCount, prToHighCount) {
+        function initializeChart(prIdealCount, prGrayCount, prToHighCount) {
             if (classificationChart) {
                 classificationChart.destroy();
             }
@@ -517,7 +517,7 @@
                 data: {
                     labels: ['Droższe', 'Podobna cena', 'Tańsze'],
                     datasets: [{
-                        data: [prToHighCount,  prGrayCount, prGoodCount],
+                        data: [prToHighCount,  prGrayCount, prIdealCount],
                         backgroundColor: [
                             'rgba(171, 37, 32, 0.8)',
                              
@@ -561,7 +561,7 @@
             const usePriceDifference = usePriceDifferenceCheckbox.checked;
             const unit = usePriceDifference ? 'PLN' : '%';
 
-            prGoodLabel.innerHTML = `Taniej o ${thresholdCheaper} ${unit} (<span id="prGoodCount">${prGoodCountSpan.textContent}</span>)`;
+            prIdealLabel.innerHTML = `Taniej o ${thresholdCheaper} ${unit} (<span id="prIdealCount">${prIdealCountSpan.textContent}</span>)`;
             prGrayLabel.innerHTML = `Podobna cena (<span id="prGrayCount">${prGrayCountSpan.textContent}</span>)`;
             prToHighLabel.innerHTML = `Drożej o ${thresholdMoreExpensive} ${unit} (<span id="prToHighCount">${prToHighCountSpan.textContent}</span>)`;
 
@@ -607,11 +607,11 @@
         const usePriceDifferenceCheckbox = document.getElementById('usePriceDifference');
         const colorFilters = document.querySelectorAll('.colorFilter');
 
-        const prGoodCountSpan = document.getElementById('prGoodCount');
+        const prIdealCountSpan = document.getElementById('prIdealCount');
         const prGrayCountSpan = document.getElementById('prGrayCount');
         const prToHighCountSpan = document.getElementById('prToHighCount');
 
-        const prGoodLabel = document.getElementById('prGoodLabel');
+        const prIdealLabel = document.getElementById('prIdealLabel');
         const prGrayLabel = document.getElementById('prGrayLabel');
         const prToHighLabel = document.getElementById('prToHighLabel');
 
