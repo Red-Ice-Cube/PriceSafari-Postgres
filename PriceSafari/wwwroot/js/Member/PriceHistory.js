@@ -7,8 +7,14 @@
     let selectedProductId = null;
     let competitorStore = "";
     let selectedFlags = new Set();
-    let lastSortFunction = null;
-    let lastClickedButton = null;
+    let sortingState = {
+        sortName: null,
+        sortPrice: null,
+        sortRaiseAmount: null,
+        sortRaisePercentage: null,
+        sortLowerAmount: null,
+        sortLowerPercentage: null
+    };
 
     function debounce(func, wait) {
         let timeout;
@@ -132,9 +138,6 @@
 
                 filteredPrices = filterPricesByCategoryAndColorAndFlag(filteredPrices);
 
-                if (lastSortFunction && lastClickedButton) {
-                    filteredPrices = lastSortFunction(filteredPrices);
-                }
 
                 renderPrices(filteredPrices);
                 debouncedRenderChart(filteredPrices);
@@ -718,71 +721,9 @@
         document.querySelector('label[for="prToLowCheckbox"]').textContent = `Zaniżona (${colorCounts.prToLow})`;
     }
 
-    function sortByNameAZ(data) {
-        return data.sort((a, b) => a.productName.localeCompare(b.productName));
-    }
+   
 
-    function sortByNameZA(data) {
-        return data.sort((a, b) => b.productName.localeCompare(a.productName));
-    }
-
-    function sortByPriceAsc(data) {
-        return data.sort((a, b) => a.lowestPrice - b.lowestPrice);
-    }
-
-    function sortByPriceDesc(data) {
-        return data.sort((a, b) => b.lowestPrice - a.lowestPrice);
-    }
-
-    function sortByRaiseAmountAsc(data) {
-        return data
-            .filter(item => item.savings !== null)
-            .sort((a, b) => a.savings - b.savings);
-    }
-
-    function sortByRaiseAmountDesc(data) {
-        return data
-            .filter(item => item.savings !== null)
-            .sort((a, b) => b.savings - a.savings);
-    }
-
-    function sortByRaisePercentageAsc(data) {
-        return data
-            .filter(item => item.savings !== null)
-            .sort((a, b) => a.percentageDifference - b.percentageDifference);
-    }
-
-    function sortByRaisePercentageDesc(data) {
-        return data
-            .filter(item => item.savings !== null)
-            .sort((a, b) => b.percentageDifference - a.percentageDifference);
-    }
-
-    function sortByLowerAmountAsc(data) {
-        return data
-            .filter(item => item.savings === null && item.priceDifference !== 0)
-            .sort((a, b) => a.priceDifference - b.priceDifference);
-    }
-
-    function sortByLowerAmountDesc(data) {
-        return data
-            .filter(item => item.savings === null && item.priceDifference !== 0)
-            .sort((a, b) => b.priceDifference - a.priceDifference);
-    }
-
-    function sortByLowerPercentageAsc(data) {
-        return data
-            .filter(item => item.savings === null && item.priceDifference !== 0)
-            .sort((a, b) => a.percentageDifference - b.percentageDifference);
-    }
-
-    function sortByLowerPercentageDesc(data) {
-        return data
-            .filter(item => item.savings === null && item.priceDifference !== 0)
-            .sort((a, b) => b.percentageDifference - a.percentageDifference);
-    }
-
-    function filterPricesAndUpdateUI(sortFunction = null) {
+    function filterPricesAndUpdateUI() {
         const currentSearchTerm = document.getElementById('productSearch').value.toLowerCase().replace(/\s+/g, '').trim();
 
         // Przygotowujemy zsanityzowane dane produktów (raz, zamiast w pętli)
@@ -820,26 +761,85 @@
 
         filteredPrices = filterPricesByCategoryAndColorAndFlag(filteredPrices);
 
-        if (sortFunction) {
-            if (lastSortFunction === sortFunction) {
-                sortFunction = null;
-                lastSortFunction = null;
-                resetButtonStyles();
+        if (sortingState.sortName !== null) {
+            if (sortingState.sortName === 'asc') {
+                filteredPrices.sort((a, b) => a.productName.localeCompare(b.productName));
             } else {
-                lastSortFunction = sortFunction;
-                highlightActiveButton(this);
-                lastClickedButton = this;
+                filteredPrices.sort((a, b) => b.productName.localeCompare(a.productName));
             }
-        }
-
-        if (lastSortFunction) {
-            filteredPrices = lastSortFunction(filteredPrices);
+        } else if (sortingState.sortPrice !== null) {
+            if (sortingState.sortPrice === 'asc') {
+                filteredPrices.sort((a, b) => a.lowestPrice - b.lowestPrice);
+            } else {
+                filteredPrices.sort((a, b) => b.lowestPrice - a.lowestPrice);
+            }
+        } else if (sortingState.sortRaiseAmount !== null) {
+            filteredPrices = filteredPrices.filter(item => item.savings !== null);
+            if (sortingState.sortRaiseAmount === 'asc') {
+                filteredPrices.sort((a, b) => a.savings - b.savings);
+            } else {
+                filteredPrices.sort((a, b) => b.savings - a.savings);
+            }
+        } else if (sortingState.sortRaisePercentage !== null) {
+            filteredPrices = filteredPrices.filter(item => item.savings !== null);
+            if (sortingState.sortRaisePercentage === 'asc') {
+                filteredPrices.sort((a, b) => a.percentageDifference - b.percentageDifference);
+            } else {
+                filteredPrices.sort((a, b) => b.percentageDifference - a.percentageDifference);
+            }
+        } else if (sortingState.sortLowerAmount !== null) {
+            filteredPrices = filteredPrices.filter(item => item.savings === null && item.priceDifference !== 0);
+            if (sortingState.sortLowerAmount === 'asc') {
+                filteredPrices.sort((a, b) => a.priceDifference - b.priceDifference);
+            } else {
+                filteredPrices.sort((a, b) => b.priceDifference - a.priceDifference);
+            }
+        } else if (sortingState.sortLowerPercentage !== null) {
+            filteredPrices = filteredPrices.filter(item => item.savings === null && item.priceDifference !== 0);
+            if (sortingState.sortLowerPercentage === 'asc') {
+                filteredPrices.sort((a, b) => a.percentageDifference - b.percentageDifference);
+            } else {
+                filteredPrices.sort((a, b) => b.percentageDifference - a.percentageDifference);
+            }
         }
 
         renderPrices(filteredPrices);
         debouncedRenderChart(filteredPrices);
         updateColorCounts(filteredPrices);
         updateFlagCounts(filteredPrices);
+    }
+
+
+    function resetSortingStates(except) {
+        for (let key in sortingState) {
+            if (key !== except) {
+                sortingState[key] = null;
+                let button = document.getElementById(key);
+                if (button) {
+                    button.innerHTML = getDefaultButtonLabel(key);
+                    button.classList.remove('active');
+                }
+            }
+        }
+    }
+
+    function getDefaultButtonLabel(key) {
+        switch (key) {
+            case 'sortName':
+                return 'A-Z';
+            case 'sortPrice':
+                return 'Cena';
+            case 'sortRaiseAmount':
+                return 'Podnieś PLN';
+            case 'sortRaisePercentage':
+                return 'Podnieś %';
+            case 'sortLowerAmount':
+                return 'Obniż PLN';
+            case 'sortLowerPercentage':
+                return 'Obniż %';
+            default:
+                return '';
+        }
     }
 
 
@@ -864,95 +864,132 @@
     }
 
 
-
-
-    function resetButtonStyles() {
-        if (lastClickedButton) {
-            lastClickedButton.classList.remove("active");
-        }
-    }
-
-    function highlightActiveButton(button) {
-        resetButtonStyles();
-        button.classList.add("active");
-        lastClickedButton = button;
-    }
-
-    document.querySelectorAll("#sortingButtons button").forEach(button => {
-        button.addEventListener("click", function () {
-            const sortFunctionName = this.getAttribute('id');
-            const sortFunction = window[sortFunctionName].bind(null);
-
-            filterPricesAndUpdateUI.call(this, sortFunction);
-        });
-    });
-
     const debouncedFilterPrices = debounce(function () {
-        filterPricesAndUpdateUI(lastSortFunction);
+        filterPricesAndUpdateUI();
     }, 300);
 
     document.getElementById('productSearch').addEventListener('input', debouncedFilterPrices);
 
     document.getElementById('category').addEventListener('change', function () {
-        filterPricesAndUpdateUI(lastSortFunction);
+        filterPricesAndUpdateUI();
     });
 
     document.querySelectorAll('.colorFilter, .flagFilter, .positionFilter, .deliveryFilterMyStore, .deliveryFilterCompetitor, .externalPriceFilter').forEach(function (checkbox) {
         checkbox.addEventListener('change', function () {
-            filterPricesAndUpdateUI(lastSortFunction);
+            filterPricesAndUpdateUI();
         });
     });
 
     document.getElementById('bidFilter').addEventListener('change', function () {
-        filterPricesAndUpdateUI(lastSortFunction);
+        filterPricesAndUpdateUI();
     });
 
-    document.getElementById('sortNameAZ').addEventListener('click', function () {
-        filterPricesAndUpdateUI.call(this, sortByNameAZ);
+    document.getElementById('sortName').addEventListener('click', function () {
+        if (sortingState.sortName === null) {
+            sortingState.sortName = 'asc';
+            this.innerHTML = 'A-Z ↑';
+            this.classList.add('active');
+        } else if (sortingState.sortName === 'asc') {
+            sortingState.sortName = 'desc';
+            this.innerHTML = 'A-Z ↓';
+            this.classList.add('active');
+        } else {
+            sortingState.sortName = null;
+            this.innerHTML = 'A-Z';
+            this.classList.remove('active');
+        }
+        resetSortingStates('sortName');
+        filterPricesAndUpdateUI();
     });
 
-    document.getElementById('sortNameZA').addEventListener('click', function () {
-        filterPricesAndUpdateUI.call(this, sortByNameZA);
+    document.getElementById('sortPrice').addEventListener('click', function () {
+        if (sortingState.sortPrice === null) {
+            sortingState.sortPrice = 'asc';
+            this.innerHTML = 'Cena ↑';
+            this.classList.add('active');
+        } else if (sortingState.sortPrice === 'asc') {
+            sortingState.sortPrice = 'desc';
+            this.innerHTML = 'Cena ↓';
+            this.classList.add('active');
+        } else {
+            sortingState.sortPrice = null;
+            this.innerHTML = 'Cena';
+            this.classList.remove('active');
+        }
+        resetSortingStates('sortPrice');
+        filterPricesAndUpdateUI();
     });
 
-    document.getElementById('sortPriceAsc').addEventListener('click', function () {
-        filterPricesAndUpdateUI.call(this, sortByPriceAsc);
+    document.getElementById('sortRaiseAmount').addEventListener('click', function () {
+        if (sortingState.sortRaiseAmount === null) {
+            sortingState.sortRaiseAmount = 'asc';
+            this.innerHTML = 'Podnieś PLN ↑';
+            this.classList.add('active');
+        } else if (sortingState.sortRaiseAmount === 'asc') {
+            sortingState.sortRaiseAmount = 'desc';
+            this.innerHTML = 'Podnieś PLN ↓';
+            this.classList.add('active');
+        } else {
+            sortingState.sortRaiseAmount = null;
+            this.innerHTML = 'Podnieś PLN';
+            this.classList.remove('active');
+        }
+        resetSortingStates('sortRaiseAmount');
+        filterPricesAndUpdateUI();
     });
 
-    document.getElementById('sortPriceDesc').addEventListener('click', function () {
-        filterPricesAndUpdateUI.call(this, sortByPriceDesc);
+    document.getElementById('sortRaisePercentage').addEventListener('click', function () {
+        if (sortingState.sortRaisePercentage === null) {
+            sortingState.sortRaisePercentage = 'asc';
+            this.innerHTML = 'Podnieś % ↑';
+            this.classList.add('active');
+        } else if (sortingState.sortRaisePercentage === 'asc') {
+            sortingState.sortRaisePercentage = 'desc';
+            this.innerHTML = 'Podnieś % ↓';
+            this.classList.add('active');
+        } else {
+            sortingState.sortRaisePercentage = null;
+            this.innerHTML = 'Podnieś %';
+            this.classList.remove('active');
+        }
+        resetSortingStates('sortRaisePercentage');
+        filterPricesAndUpdateUI();
     });
 
-    document.getElementById('sortRaiseAmountAsc').addEventListener('click', function () {
-        filterPricesAndUpdateUI.call(this, sortByRaiseAmountAsc);
+    document.getElementById('sortLowerAmount').addEventListener('click', function () {
+        if (sortingState.sortLowerAmount === null) {
+            sortingState.sortLowerAmount = 'asc';
+            this.innerHTML = 'Obniż PLN ↑';
+            this.classList.add('active');
+        } else if (sortingState.sortLowerAmount === 'asc') {
+            sortingState.sortLowerAmount = 'desc';
+            this.innerHTML = 'Obniż PLN ↓';
+            this.classList.add('active');
+        } else {
+            sortingState.sortLowerAmount = null;
+            this.innerHTML = 'Obniż PLN';
+            this.classList.remove('active');
+        }
+        resetSortingStates('sortLowerAmount');
+        filterPricesAndUpdateUI();
     });
 
-    document.getElementById('sortRaiseAmountDesc').addEventListener('click', function () {
-        filterPricesAndUpdateUI.call(this, sortByRaiseAmountDesc);
-    });
-
-    document.getElementById('sortRaisePercentageAsc').addEventListener('click', function () {
-        filterPricesAndUpdateUI.call(this, sortByRaisePercentageAsc);
-    });
-
-    document.getElementById('sortRaisePercentageDesc').addEventListener('click', function () {
-        filterPricesAndUpdateUI.call(this, sortByRaisePercentageDesc);
-    });
-
-    document.getElementById('sortLowerAmountAsc').addEventListener('click', function () {
-        filterPricesAndUpdateUI.call(this, sortByLowerAmountAsc);
-    });
-
-    document.getElementById('sortLowerAmountDesc').addEventListener('click', function () {
-        filterPricesAndUpdateUI.call(this, sortByLowerAmountDesc);
-    });
-
-    document.getElementById('sortLowerPercentageAsc').addEventListener('click', function () {
-        filterPricesAndUpdateUI.call(this, sortByLowerPercentageAsc);
-    });
-
-    document.getElementById('sortLowerPercentageDesc').addEventListener('click', function () {
-        filterPricesAndUpdateUI.call(this, sortByLowerPercentageDesc);
+    document.getElementById('sortLowerPercentage').addEventListener('click', function () {
+        if (sortingState.sortLowerPercentage === null) {
+            sortingState.sortLowerPercentage = 'asc';
+            this.innerHTML = 'Obniż % ↑';
+            this.classList.add('active');
+        } else if (sortingState.sortLowerPercentage === 'asc') {
+            sortingState.sortLowerPercentage = 'desc';
+            this.innerHTML = 'Obniż % ↓';
+            this.classList.add('active');
+        } else {
+            sortingState.sortLowerPercentage = null;
+            this.innerHTML = 'Obniż %';
+            this.classList.remove('active');
+        }
+        resetSortingStates('sortLowerPercentage');
+        filterPricesAndUpdateUI();
     });
 
     document.getElementById('usePriceDifference').addEventListener('change', function () {
