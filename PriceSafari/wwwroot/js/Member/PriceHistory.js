@@ -306,21 +306,28 @@
             const deliveryClass = getDeliveryClass(item.delivery);
             const myDeliveryClass = getDeliveryClass(item.myDelivery);
 
-            // Ensure marginPrice and myPrice are numbers
+            // Upewnij się, że marginPrice i myPrice są liczbami
             const marginPrice = item.marginPrice != null && !isNaN(item.marginPrice) ? parseFloat(item.marginPrice) : null;
             const myPrice = item.myPrice != null && !isNaN(item.myPrice) ? parseFloat(item.myPrice) : null;
 
-            // Calculate margin amount and percentage if both prices are available
+            // Inicjalizuj zmienne marży
             let marginAmount = null;
             let marginPercentage = null;
+            let marginSign = '';
+            let marginClass = 'priceBox-diff-margin';
 
+            // Oblicz marżę, jeśli dostępne są obie ceny
             if (marginPrice != null && myPrice != null) {
                 marginAmount = myPrice - marginPrice;
-                if (marginPrice !== 0) { // Avoid division by zero
+                if (marginPrice !== 0) { // Unikaj dzielenia przez zero
                     marginPercentage = (marginAmount / marginPrice) * 100;
                 } else {
                     marginPercentage = null;
                 }
+
+                // Ustal znak marży i odpowiednią klasę CSS
+                marginSign = marginAmount >= 0 ? '+' : '-';
+                marginClass = marginAmount >= 0 ? 'priceBox-diff-margin' : 'priceBox-diff-margin-minus';
             }
 
             const box = document.createElement('div');
@@ -337,15 +344,6 @@
             priceBoxColumnName.className = 'price-box-column-name';
             priceBoxColumnName.innerHTML = highlightedProductName;
 
-            const assignFlagButton = document.createElement('button');
-            assignFlagButton.className = 'assign-flag-button';
-            assignFlagButton.dataset.productId = item.productId;
-            assignFlagButton.innerHTML = '+ Przypisz flagi';
-
-            assignFlagButton.style.pointerEvents = 'auto';
-
-            priceBoxSpace.appendChild(priceBoxColumnName);
-            priceBoxSpace.appendChild(assignFlagButton);
 
             const priceBoxColumnCategory = document.createElement('div');
             priceBoxColumnCategory.className = 'price-box-column-category';
@@ -356,6 +354,19 @@
                 apiBox.innerHTML = 'API ID ' + item.externalId;
                 priceBoxColumnCategory.appendChild(apiBox);
             }
+
+
+            const assignFlagButton = document.createElement('button');
+            assignFlagButton.className = 'assign-flag-button';
+            assignFlagButton.dataset.productId = item.productId;
+            assignFlagButton.innerHTML = '+ Przypisz flagi';
+
+            assignFlagButton.style.pointerEvents = 'auto';
+
+            priceBoxSpace.appendChild(priceBoxColumnName);
+            priceBoxSpace.appendChild(assignFlagButton);
+
+           
 
             const priceBoxData = document.createElement('div');
             priceBoxData.className = 'price-box-data';
@@ -401,7 +412,6 @@
             priceBoxColumnMyPrice.appendChild(priceBoxMyText);
             priceBoxColumnMyPrice.appendChild(priceBoxMyDetails);
 
-
             const priceBoxColumnInfo = document.createElement('div');
             priceBoxColumnInfo.className = 'price-box-column-action';
 
@@ -413,48 +423,47 @@
                 const formattedMarginPrice = marginPrice.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' PLN';
 
                 if (myPrice != null) {
-                    const marginSign = marginAmount >= 0 ? '+' : '';
                     const formattedMarginAmount = marginSign + Math.abs(marginAmount).toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' PLN';
                     const formattedMarginPercentage = '(' + marginSign + Math.abs(marginPercentage).toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%)';
 
                     priceBoxColumnInfo.innerHTML +=
-                        '<div class="priceBox-diff-margin">' +
+                        '<div class="' + marginClass + '">' +
                         '<p>Cena zakupu: ' + formattedMarginPrice + '</p>' +
                         '<p>Marża: ' + formattedMarginAmount + ' ' + formattedMarginPercentage + '</p>' +
                         '</div>';
                 } else {
                     priceBoxColumnInfo.innerHTML +=
-                        '<div class="priceBox-diff-margin">' +
+                        '<div class="' + marginClass + '">' +
                         '<p>Cena zakupu: ' + formattedMarginPrice + '</p>' +
                         '</div>';
                 }
             }
 
-            // Dodaj informacje o "Podnieś"/"Obniż"
+            // Dodaj informacje o "Podnieś"/"Obniż" z klasą kolorową
             if (item.colorClass === "prToLow" || item.colorClass === "prIdeal") {
+                const diffClass = item.colorClass + ' ' + 'priceBox-diff';
                 if (savings != null && percentageDifference != null) {
                     const savingsFormatted = (savings >= 0 ? '+' : '') + savings.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' PLN';
                     const percentageFormatted = '(' + (percentageDifference >= 0 ? '+' : '') + percentageDifference.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%)';
                     priceBoxColumnInfo.innerHTML +=
-                        '<div class="priceBox-diff-up-margin">Podnieś: ' + savingsFormatted + ' ' + percentageFormatted + '</div>';
+                        '<div class="' + diffClass + '">Podnieś: ' + savingsFormatted + ' ' + percentageFormatted + '</div>';
                 } else {
-                    priceBoxColumnInfo.innerHTML += '<div class="priceBox-diff-up-margin">Podnieś: N/A</div>';
+                    priceBoxColumnInfo.innerHTML += '<div class="' + diffClass + '">Podnieś: N/A</div>';
                 }
             } else if (item.colorClass === "prMid" || item.colorClass === "prToHigh") {
+                const diffClass = item.colorClass + ' ' + 'priceBox-diff';
                 if (priceDifference != null && percentageDifference != null) {
                     const priceDiffFormatted = (priceDifference >= 0 ? '-' : '') + Math.abs(priceDifference).toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' PLN';
                     const percentageFormatted = '(' + (percentageDifference >= 0 ? '-' : '') + Math.abs(percentageDifference).toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%)';
                     priceBoxColumnInfo.innerHTML +=
-                        '<div class="priceBox-diff-down-margin">Obniż: ' + priceDiffFormatted + ' ' + percentageFormatted + '</div>';
+                        '<div class="' + diffClass + '">Obniż: ' + priceDiffFormatted + ' ' + percentageFormatted + '</div>';
                 } else {
-                    priceBoxColumnInfo.innerHTML += '<div class="priceBox-diff-down-margin">Obniż: N/A</div>';
+                    priceBoxColumnInfo.innerHTML += '<div class="' + diffClass + '">Obniż: N/A</div>';
                 }
             } else if (item.colorClass === "prGood") {
-                priceBoxColumnInfo.innerHTML += '<div class="priceBox-diff-top">Jesteś w najlepszych cenach</div>';
+                const diffClass = item.colorClass + ' ' + 'priceBox-diff-top';
+                priceBoxColumnInfo.innerHTML += '<div class="' + diffClass + '">Jesteś w najlepszych cenach</div>';
             }
-
-
-
 
             const priceBoxColumnExternalPrice = document.createElement('div');
             priceBoxColumnExternalPrice.className = 'price-box-column-api';
@@ -485,11 +494,11 @@
 
             if (item.imgUrl) {
                 const productImage = document.createElement('img');
-                productImage.dataset.src = item.imgUrl; // Use data-src for lazy loading
+                productImage.dataset.src = item.imgUrl; // Lazy loading
                 productImage.alt = item.productName;
                 productImage.className = 'lazy-load';
 
-                // Placeholder styling
+                // Stylowanie placeholdera
                 productImage.style.width = '84px';
                 productImage.style.height = '84px';
                 productImage.style.marginRight = '14px';
@@ -531,7 +540,7 @@
 
         document.getElementById('displayedProductCount').textContent = data.length;
 
-        // Lazy loading images
+        // Lazy loading obrazków
         const lazyLoadImages = document.querySelectorAll('.lazy-load');
         const timers = new Map();
 
@@ -541,7 +550,6 @@
                 const index = [...lazyLoadImages].indexOf(img);
 
                 if (entry.isIntersecting) {
-
                     const timer = setTimeout(() => {
                         loadImageWithNeighbors(index);
                         observer.unobserve(img);
@@ -549,7 +557,6 @@
                     }, 100);
                     timers.set(img, timer);
                 } else {
-
                     if (timers.has(img)) {
                         clearTimeout(timers.get(img));
                         timers.delete(img);
@@ -582,9 +589,6 @@
             observer.observe(img);
         });
     }
-
-
-
 
 
 

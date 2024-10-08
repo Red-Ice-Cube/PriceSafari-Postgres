@@ -3124,9 +3124,65 @@ tr:last-child .sub-line {
     gap: 4px;
     font-size: 14px;
     font-weight: 400;
+    border: 1px solid rgba(0, 145, 123, 0.80);
+    background: rgba(0, 145, 123, 0.20);
+    color: rgba(0, 145, 123, 1) !important;
+}
+
+
+
+
+.priceBox-diff {
+    display: flex;
+    padding: 4px 12px;
+    flex-direction: column;
+    border-radius: 4px;
+    width: 100%;
+    gap: 4px;
+    font-size: 14px;
+    font-weight: 400;
+  
+}
+
+
+.prMid .priceBox-diff {
+    border: 1px solid rgba(224, 168, 66, 0.80);
+    background: rgba(224, 168, 66, 0.20);
+    color: rgba(224, 168, 66, 1) !important;
+}
+
+
+.prIdeal .priceBox-diff {
+    border: 1px solid rgba(0, 145, 123, 0.80);
+    background: rgba(0, 145, 123, 0.20);
+    color: rgba(0, 145, 123, 1) !important;
+}
+
+
+.prToHigh .priceBox-diff {
+    border: 1px solid rgba(171, 37, 32, 0.80);
+    background: rgba(171, 37, 32, 0.20);
+    color: rgba(171, 37, 32, 1) !important;
+}
+
+.prToLow .priceBox-diff {
     border: 1px solid rgba(40, 40, 40, 0.80);
     background: rgba(40, 40, 40, 0.20);
     color: rgba(40, 40, 40, 1) !important;
+}
+
+.priceBox-diff-margin-minus {
+    display: flex;
+    padding: 4px 12px;
+    flex-direction: column;
+    border-radius: 4px;
+    width: 100%;
+    gap: 4px;
+    font-size: 14px;
+    font-weight: 400;
+    border: 1px solid rgba(171, 37, 32, 0.80);
+    background: rgba(171, 37, 32, 0.20);
+    color: rgba(171, 37, 32, 1) !important;
 }
 
 .priceBox-diff-top {
