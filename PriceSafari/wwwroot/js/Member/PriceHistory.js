@@ -336,6 +336,8 @@
             const box = document.createElement('div');
             box.className = 'price-box ' + item.colorClass;
             box.dataset.detailsUrl = '/PriceHistory/Details?scrapId=' + item.scrapId + '&productId=' + item.productId;
+            box.dataset.productId = item.productId; // Add this line
+
 
             box.addEventListener('click', function () {
                 window.open(this.dataset.detailsUrl, '_blank');
@@ -363,8 +365,25 @@
             assignFlagButton.className = 'assign-flag-button';
             assignFlagButton.dataset.productId = item.productId;
             assignFlagButton.innerHTML = '+ Przypisz flagi';
-
             assignFlagButton.style.pointerEvents = 'auto';
+
+
+            assignFlagButton.addEventListener('click', function (event) {
+                event.stopPropagation();
+                selectedProductId = this.dataset.productId;
+                modal.style.display = 'block';
+
+                fetch(`/ProductFlags/GetFlagsForProduct?productId=${selectedProductId}`)
+                    .then(response => response.json())
+                    .then(flags => {
+                        document.querySelectorAll('.flagCheckbox').forEach(checkbox => {
+                            checkbox.checked = flags.includes(parseInt(checkbox.value));
+                        });
+                    })
+                    .catch(error => console.error('Błąd pobierania flag dla produktu:', error));
+            });
+
+
 
             priceBoxSpace.appendChild(priceBoxColumnName);
             priceBoxSpace.appendChild(assignFlagButton);
@@ -478,20 +497,9 @@
                     '<div class="price-box-column-text-api">Zmiana: ' + externalPriceDifferenceText + ' PLN</div>';
             }
 
-            const flagsContainer = document.createElement('div');
-            flagsContainer.className = 'flags-container';
-            if (item.flagIds.length > 0) {
-                item.flagIds.forEach(function (flagId) {
-                    const flag = flags.find(function (f) { return f.FlagId === flagId; });
-                    const flagSpan = document.createElement('span');
-                    flagSpan.className = 'flag';
-                    flagSpan.style.color = flag.FlagColor;
-                    flagSpan.style.border = '2px solid ' + flag.FlagColor;
-                    flagSpan.style.backgroundColor = hexToRgba(flag.FlagColor, 0.3);
-                    flagSpan.innerHTML = flag.FlagName;
-                    flagsContainer.appendChild(flagSpan);
-                });
-            }
+            const flagsContainer = createFlagsContainer(item);
+
+
 
             priceBoxData.appendChild(colorBar);
 
@@ -1067,22 +1075,6 @@
         }
     };
 
-    document.querySelectorAll('.assign-flag-button').forEach(button => {
-        button.addEventListener('click', function () {
-            selectedProductId = this.dataset.productId;
-            modal.style.display = 'block';
-
-            fetch(`/ProductFlags/GetFlagsForProduct?productId=${selectedProductId}`)
-                .then(response => response.json())
-                .then(flags => {
-                    document.querySelectorAll('.flagCheckbox').forEach(checkbox => {
-                        checkbox.checked = flags.includes(parseInt(checkbox.value));
-                    });
-                })
-                .catch(error => console.error('Błąd dodawania flagi:', error));
-        });
-    });
-
     document.getElementById('saveFlagsButton').addEventListener('click', function () {
         const selectedFlags = Array.from(document.querySelectorAll('.flagCheckbox:checked')).map(checkbox => parseInt(checkbox.value));
         const data = {
@@ -1101,13 +1093,88 @@
             .then(response => {
                 if (response.success) {
                     modal.style.display = 'none';
-                    loadPrices();
+
+                    // Fetch the updated flags for the product from the server
+                    fetch(`/ProductFlags/GetFlagsForProduct?productId=${selectedProductId}`)
+                        .then(res => res.json())
+                        .then(updatedFlagIds => {
+                            // Update the flagIds for the product in allPrices
+                            const numericProductId = parseInt(selectedProductId);
+                            const priceItem = allPrices.find(item => item.productId === numericProductId);
+                            if (priceItem) {
+                                priceItem.flagIds = updatedFlagIds;
+                            } else {
+                                console.error('Product not found in allPrices:', selectedProductId);
+                            }
+
+                            // Update the flags in the UI
+                            updateProductFlagsInUI(selectedProductId);
+
+                            // Optionally, update flag counts and filters
+                            updateFlagCounts(allPrices);
+                        })
+                        .catch(error => console.error('Error fetching updated flags for product:', error));
                 } else {
-                    alert('Błąd przypisywania flagi: ' + response.message);
+                    alert('Error assigning flags: ' + response.message);
                 }
             })
-            .catch(error => console.error('Błąd przypisywania flagi:', error));
+            .catch(error => console.error('Error assigning flags:', error));
     });
+
+
+
+    function updateProductFlagsInUI(productId) {
+        // Convert productId to number
+        const numericProductId = parseInt(productId);
+        // Find the product's DOM element
+        const productElement = document.querySelector(`.price-box[data-product-id='${productId}']`);
+
+        if (productElement) {
+            // Find the existing flags-container element
+            const existingFlagsContainer = productElement.querySelector('.flags-container');
+
+            // Create a new flags container
+            const priceItem = allPrices.find(item => item.productId === numericProductId);
+
+            if (priceItem) {
+                const newFlagsContainer = createFlagsContainer(priceItem);
+
+                // Replace the old flags container with the new one
+                if (existingFlagsContainer) {
+                    existingFlagsContainer.parentNode.replaceChild(newFlagsContainer, existingFlagsContainer);
+                } else {
+                    // If there was no existing flags container, append the new one
+                    productElement.appendChild(newFlagsContainer);
+                }
+            } else {
+                console.error('Product not found in allPrices:', productId);
+            }
+        }
+    }
+
+
+
+    function createFlagsContainer(item) {
+        const flagsContainer = document.createElement('div');
+        flagsContainer.className = 'flags-container';
+        if (item.flagIds && item.flagIds.length > 0) {
+            item.flagIds.forEach(function (flagId) {
+                const flag = flags.find(function (f) { return f.FlagId === flagId; });
+                if (flag) {
+                    const flagSpan = document.createElement('span');
+                    flagSpan.className = 'flag';
+                    flagSpan.style.color = flag.FlagColor;
+                    flagSpan.style.border = '2px solid ' + flag.FlagColor;
+                    flagSpan.style.backgroundColor = hexToRgba(flag.FlagColor, 0.3);
+                    flagSpan.innerHTML = flag.FlagName;
+                    flagsContainer.appendChild(flagSpan);
+                }
+            });
+        }
+        return flagsContainer;
+    }
+
+
 
     loadStores();
     loadPrices();
