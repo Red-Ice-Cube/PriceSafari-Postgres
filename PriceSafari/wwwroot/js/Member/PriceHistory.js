@@ -13,7 +13,9 @@
         sortRaiseAmount: null,
         sortRaisePercentage: null,
         sortLowerAmount: null,
-        sortLowerPercentage: null
+        sortLowerPercentage: null,
+        sortMarginAmount: null,
+        sortMarginPercentage: null
     };
 
     function debounce(func, wait) {
@@ -25,7 +27,6 @@
         };
     }
 
-    
     const updatePricesDebounced = debounce(function () {
         const usePriceDifference = document.getElementById('usePriceDifference').checked;
 
@@ -37,9 +38,7 @@
         });
 
         filterPricesAndUpdateUI();
-    }, 300); 
-
-   
+    }, 300);
 
     function loadStores() {
         fetch(`/PriceHistory/GetStores?storeId=${storeId}`)
@@ -111,10 +110,40 @@
                         valueToUse = price.percentageDifference;
                     }
 
+                    // Ensure that marginPrice and myPrice are numbers
+                    const marginPrice = price.marginPrice != null && !isNaN(price.marginPrice) ? parseFloat(price.marginPrice) : null;
+                    const myPrice = price.myPrice != null && !isNaN(price.myPrice) ? parseFloat(price.myPrice) : null;
+
+                    // Initialize margin variables
+                    let marginAmount = null;
+                    let marginPercentage = null;
+                    let marginSign = '';
+                    let marginClass = 'priceBox-diff-margin';
+
+                    // Calculate margin if both prices are available
+                    if (marginPrice != null && myPrice != null) {
+                        marginAmount = myPrice - marginPrice;
+                        if (marginPrice !== 0) {
+                            marginPercentage = (marginAmount / marginPrice) * 100;
+                        } else {
+                            marginPercentage = null;
+                        }
+
+                        // Determine sign and class
+                        marginSign = marginAmount >= 0 ? '+' : '-';
+                        marginClass = marginAmount >= 0 ? 'priceBox-diff-margin' : 'priceBox-diff-margin-minus';
+                    }
+
                     return {
                         ...price,
                         valueToUse: valueToUse,
-                        colorClass: getColorClass(valueToUse, price.isUniqueBestPrice, price.isSharedBestPrice)
+                        colorClass: getColorClass(valueToUse, price.isUniqueBestPrice, price.isSharedBestPrice),
+                        marginPrice: marginPrice,
+                        myPrice: myPrice,
+                        marginAmount: marginAmount,
+                        marginPercentage: marginPercentage,
+                        marginSign: marginSign,
+                        marginClass: marginClass
                     };
                 });
 
@@ -138,10 +167,13 @@
 
                 filteredPrices = filterPricesByCategoryAndColorAndFlag(filteredPrices);
 
-
                 renderPrices(filteredPrices);
                 debouncedRenderChart(filteredPrices);
                 updateColorCounts(filteredPrices);
+                updateMarginSortButtonsVisibility();
+
+                // Update visibility of margin sort buttons
+                updateMarginSortButtonsVisibility();
             })
             .catch(error => console.error('Error fetching prices:', error));
     }
@@ -309,35 +341,17 @@
             const deliveryClass = getDeliveryClass(item.delivery);
             const myDeliveryClass = getDeliveryClass(item.myDelivery);
 
-            // Upewnij się, że marginPrice i myPrice są liczbami
-            const marginPrice = item.marginPrice != null && !isNaN(item.marginPrice) ? parseFloat(item.marginPrice) : null;
-            const myPrice = item.myPrice != null && !isNaN(item.myPrice) ? parseFloat(item.myPrice) : null;
-
-            // Inicjalizuj zmienne marży
-            let marginAmount = null;
-            let marginPercentage = null;
-            let marginSign = '';
-            let marginClass = 'priceBox-diff-margin';
-
-            // Oblicz marżę, jeśli dostępne są obie ceny
-            if (marginPrice != null && myPrice != null) {
-                marginAmount = myPrice - marginPrice;
-                if (marginPrice !== 0) { // Unikaj dzielenia przez zero
-                    marginPercentage = (marginAmount / marginPrice) * 100;
-                } else {
-                    marginPercentage = null;
-                }
-
-                // Ustal znak marży i odpowiednią klasę CSS
-                marginSign = marginAmount >= 0 ? '+' : '-';
-                marginClass = marginAmount >= 0 ? 'priceBox-diff-margin' : 'priceBox-diff-margin-minus';
-            }
+            const marginAmount = item.marginAmount;
+            const marginPercentage = item.marginPercentage;
+            const marginSign = item.marginSign;
+            const marginClass = item.marginClass;
+            const marginPrice = item.marginPrice;
+            const myPrice = item.myPrice;
 
             const box = document.createElement('div');
             box.className = 'price-box ' + item.colorClass;
             box.dataset.detailsUrl = '/PriceHistory/Details?scrapId=' + item.scrapId + '&productId=' + item.productId;
-            box.dataset.productId = item.productId; // Add this line
-
+            box.dataset.productId = item.productId;
 
             box.addEventListener('click', function () {
                 window.open(this.dataset.detailsUrl, '_blank');
@@ -349,7 +363,6 @@
             priceBoxColumnName.className = 'price-box-column-name';
             priceBoxColumnName.innerHTML = highlightedProductName;
 
-
             const priceBoxColumnCategory = document.createElement('div');
             priceBoxColumnCategory.className = 'price-box-column-category';
             priceBoxColumnCategory.innerHTML = item.category;
@@ -360,13 +373,11 @@
                 priceBoxColumnCategory.appendChild(apiBox);
             }
 
-
             const assignFlagButton = document.createElement('button');
             assignFlagButton.className = 'assign-flag-button';
             assignFlagButton.dataset.productId = item.productId;
             assignFlagButton.innerHTML = '+ Przypisz flagi';
             assignFlagButton.style.pointerEvents = 'auto';
-
 
             assignFlagButton.addEventListener('click', function (event) {
                 event.stopPropagation();
@@ -383,12 +394,8 @@
                     .catch(error => console.error('Błąd pobierania flag dla produktu:', error));
             });
 
-
-
             priceBoxSpace.appendChild(priceBoxColumnName);
             priceBoxSpace.appendChild(assignFlagButton);
-
-           
 
             const priceBoxData = document.createElement('div');
             priceBoxData.className = 'price-box-data';
@@ -434,19 +441,29 @@
             priceBoxColumnMyPrice.appendChild(priceBoxMyText);
             priceBoxColumnMyPrice.appendChild(priceBoxMyDetails);
 
+            // Create priceBoxColumnInfo once
             const priceBoxColumnInfo = document.createElement('div');
             priceBoxColumnInfo.className = 'price-box-column-action';
 
-            // Zainicjuj innerHTML jako pusty string
+            // Initialize innerHTML
             priceBoxColumnInfo.innerHTML = '';
 
-            // Dodaj informacje o cenie zakupu i marży
+            // Add purchase price and margin information
             if (marginPrice != null) {
-                const formattedMarginPrice = marginPrice.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' PLN';
+                const formattedMarginPrice = marginPrice.toLocaleString('pl-PL', {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                }) + ' PLN';
 
                 if (myPrice != null) {
-                    const formattedMarginAmount = marginSign + Math.abs(marginAmount).toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' PLN';
-                    const formattedMarginPercentage = '(' + marginSign + Math.abs(marginPercentage).toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%)';
+                    const formattedMarginAmount = marginSign + Math.abs(marginAmount).toLocaleString('pl-PL', {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2
+                    }) + ' PLN';
+                    const formattedMarginPercentage = '(' + marginSign + Math.abs(marginPercentage).toLocaleString('pl-PL', {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2
+                    }) + '%)';
 
                     priceBoxColumnInfo.innerHTML +=
                         '<div class="' + marginClass + '">' +
@@ -461,7 +478,6 @@
                 }
             }
 
-            // Dodaj informacje o "Podnieś"/"Obniż" z klasą kolorową
             if (item.colorClass === "prToLow" || item.colorClass === "prIdeal") {
                 const diffClass = item.colorClass + ' ' + 'priceBox-diff';
                 if (savings != null && percentageDifference != null) {
@@ -499,8 +515,6 @@
 
             const flagsContainer = createFlagsContainer(item);
 
-
-
             priceBoxData.appendChild(colorBar);
 
             if (item.imgUrl) {
@@ -509,7 +523,7 @@
                 productImage.alt = item.productName;
                 productImage.className = 'lazy-load';
 
-                // Stylowanie placeholdera
+                // Styling placeholder
                 productImage.style.width = '84px';
                 productImage.style.height = '84px';
                 productImage.style.marginRight = '14px';
@@ -533,20 +547,6 @@
             box.appendChild(priceBoxData);
 
             container.appendChild(box);
-
-            assignFlagButton.addEventListener('click', function (event) {
-                event.stopPropagation();
-                selectedProductId = this.dataset.productId;
-                modal.style.display = 'block';
-                fetch('/ProductFlags/GetFlagsForProduct?productId=' + selectedProductId)
-                    .then(response => response.json())
-                    .then(flags => {
-                        document.querySelectorAll('.flagCheckbox').forEach(function (checkbox) {
-                            checkbox.checked = flags.includes(parseInt(checkbox.value));
-                        });
-                    })
-                    .catch(error => console.error('Error fetching flags for product:', error));
-            });
         });
 
         document.getElementById('displayedProductCount').textContent = data.length;
@@ -601,8 +601,6 @@
         });
     }
 
-
-
     function getDeliveryClass(days) {
         if (days <= 1) return 'Availability1Day';
         if (days <= 3) return 'Availability3Days';
@@ -623,7 +621,6 @@
         }
         return `rgba(${r}, ${g}, ${b}, ${alpha})`;
     }
-
 
     // Funkcja renderująca wykres
     function renderChart(data) {
@@ -705,9 +702,7 @@
         }
     }
 
-    
     const debouncedRenderChart = debounce(renderChart, 600);
-
 
     function updateColorCounts(data) {
         const colorCounts = {
@@ -728,8 +723,6 @@
         document.querySelector('label[for="prIdealCheckbox"]').textContent = `Strategiczna (${colorCounts.prIdeal})`;
         document.querySelector('label[for="prToLowCheckbox"]').textContent = `Zaniżona (${colorCounts.prToLow})`;
     }
-
-   
 
     function filterPricesAndUpdateUI() {
         const currentSearchTerm = document.getElementById('productSearch').value.toLowerCase().replace(/\s+/g, '').trim();
@@ -809,6 +802,20 @@
             } else {
                 filteredPrices.sort((a, b) => b.percentageDifference - a.percentageDifference);
             }
+        } else if (sortingState.sortMarginAmount !== null) {
+            filteredPrices = filteredPrices.filter(item => item.marginAmount !== null);
+            if (sortingState.sortMarginAmount === 'asc') {
+                filteredPrices.sort((a, b) => a.marginAmount - b.marginAmount);
+            } else {
+                filteredPrices.sort((a, b) => b.marginAmount - a.marginAmount);
+            }
+        } else if (sortingState.sortMarginPercentage !== null) {
+            filteredPrices = filteredPrices.filter(item => item.marginPercentage !== null);
+            if (sortingState.sortMarginPercentage === 'asc') {
+                filteredPrices.sort((a, b) => a.marginPercentage - b.marginPercentage);
+            } else {
+                filteredPrices.sort((a, b) => b.marginPercentage - a.marginPercentage);
+            }
         }
 
         renderPrices(filteredPrices);
@@ -816,7 +823,6 @@
         updateColorCounts(filteredPrices);
         updateFlagCounts(filteredPrices);
     }
-
 
     function resetSortingStates(except) {
         for (let key in sortingState) {
@@ -828,6 +834,19 @@
                     button.classList.remove('active');
                 }
             }
+        }
+    }
+
+    function updateMarginSortButtonsVisibility() {
+        const hasMarginData = allPrices.some(item => item.marginAmount !== null && item.marginPercentage !== null);
+        const sortMarginAmountButton = document.getElementById('sortMarginAmount');
+        const sortMarginPercentageButton = document.getElementById('sortMarginPercentage');
+        if (hasMarginData) {
+            sortMarginAmountButton.style.display = '';
+            sortMarginPercentageButton.style.display = '';
+        } else {
+            sortMarginAmountButton.style.display = 'none';
+            sortMarginPercentageButton.style.display = 'none';
         }
     }
 
@@ -845,14 +864,16 @@
                 return 'Obniż PLN';
             case 'sortLowerPercentage':
                 return 'Obniż %';
+            case 'sortMarginAmount':
+                return 'Marża PLN';
+            case 'sortMarginPercentage':
+                return 'Marża %';
             default:
                 return '';
         }
     }
 
-
     function getExactMatchIndex(text, searchTerm) {
-  
         return text.indexOf(searchTerm);
     }
 
@@ -870,7 +891,6 @@
 
         return maxLength;
     }
-
 
     const debouncedFilterPrices = debounce(function () {
         filterPricesAndUpdateUI();
@@ -1000,6 +1020,42 @@
         filterPricesAndUpdateUI();
     });
 
+    document.getElementById('sortMarginAmount').addEventListener('click', function () {
+        if (sortingState.sortMarginAmount === null) {
+            sortingState.sortMarginAmount = 'asc';
+            this.innerHTML = 'Marża PLN ↑';
+            this.classList.add('active');
+        } else if (sortingState.sortMarginAmount === 'asc') {
+            sortingState.sortMarginAmount = 'desc';
+            this.innerHTML = 'Marża PLN ↓';
+            this.classList.add('active');
+        } else {
+            sortingState.sortMarginAmount = null;
+            this.innerHTML = 'Marża PLN';
+            this.classList.remove('active');
+        }
+        resetSortingStates('sortMarginAmount');
+        filterPricesAndUpdateUI();
+    });
+
+    document.getElementById('sortMarginPercentage').addEventListener('click', function () {
+        if (sortingState.sortMarginPercentage === null) {
+            sortingState.sortMarginPercentage = 'asc';
+            this.innerHTML = 'Marża % ↑';
+            this.classList.add('active');
+        } else if (sortingState.sortMarginPercentage === 'asc') {
+            sortingState.sortMarginPercentage = 'desc';
+            this.innerHTML = 'Marża % ↓';
+            this.classList.add('active');
+        } else {
+            sortingState.sortMarginPercentage = null;
+            this.innerHTML = 'Marża %';
+            this.classList.remove('active');
+        }
+        resetSortingStates('sortMarginPercentage');
+        filterPricesAndUpdateUI();
+    });
+
     document.getElementById('usePriceDifference').addEventListener('change', function () {
         const usePriceDifference = this.checked;
 
@@ -1024,8 +1080,6 @@
         setPrice2 = parseFloat(this.value);
         updatePricesDebounced();
     });
-
-
 
     document.getElementById('savePriceValues').addEventListener('click', function () {
         const price1 = parseFloat(document.getElementById('price1').value);
@@ -1060,7 +1114,6 @@
             })
             .catch(error => console.error('Błąd w aktualizowaniu wartości:', error));
     });
-
 
     const modal = document.getElementById('flagModal');
     const span = document.getElementsByClassName('close')[0];
@@ -1121,8 +1174,6 @@
             .catch(error => console.error('Error assigning flags:', error));
     });
 
-
-
     function updateProductFlagsInUI(productId) {
         // Convert productId to number
         const numericProductId = parseInt(productId);
@@ -1152,8 +1203,6 @@
         }
     }
 
-
-
     function createFlagsContainer(item) {
         const flagsContainer = document.createElement('div');
         flagsContainer.className = 'flags-container';
@@ -1174,9 +1223,6 @@
         return flagsContainer;
     }
 
-
-
     loadStores();
     loadPrices();
 });
-
