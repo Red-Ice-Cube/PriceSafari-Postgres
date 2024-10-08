@@ -1,5 +1,4 @@
-﻿
-@using Microsoft.AspNetCore.Identity
+﻿@using Microsoft.AspNetCore.Identity
 @inject UserManager<PriceSafariUser> UserManager
 
 @{
@@ -30,9 +29,7 @@
 
     <link rel="icon" type="image/png" sizes="16x16" href="~/icon/icon.png">
 
-    @* STYLE CSS *@
-
-    <link href="~/css/panel.css" rel="stylesheet" />
+    <link href="~/css/panel.min.css" rel="stylesheet" />
 
     @RenderSection("Scripts", required: false)
 
@@ -78,7 +75,6 @@
                 var controllerName = ViewContext.RouteData.Values["controller"]?.ToString();
                 var actionName = ViewContext.RouteData.Values["action"]?.ToString();
 
-
                 <div class="@(controllerName == "Chanel" || controllerName == "PriceHistory" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "Chanel")'">
                     <img src="~/images/MoneyIn-bone.svg" alt="Panel Icon" class="menu-icon" />Ceny
                 </div>
@@ -98,7 +94,6 @@
                     </div>
                 }
 
-                
             }
 
             @if (isAdmin)
@@ -113,7 +108,6 @@
                 <div class="@(controllerName == "CategoryScraper" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "CategoryScraper")'">
                     <img src="~/images/Link-bone.svg" alt="Panel Icon" class="menu-icon" />Kategorie
                 </div>
-       
 
                 <div class="@(controllerName == "DatabaseSize" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "DatabaseSize")'">
                     <img src="~/images/Link-bone.svg" alt="Panel Icon" class="menu-icon" />Baza danych
@@ -123,7 +117,6 @@
                     menu-link" onclick="location.href='@Url.Action("Accounts", "ManagerAffiliate")'">
                     <img src="~/images/Settings-bone.svg" alt="Assign Icon" class="menu-icon" />Konta
                 </div>
-
 
                 <div class="@(controllerName == "ProductMapping" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "ProductMapping")'">
                     <img src="~/images/Link-bone.svg" alt="Panel Icon" class="menu-icon" />Mapowanie
@@ -153,7 +146,6 @@
 
                 var controllerName = ViewContext.RouteData.Values["controller"]?.ToString();
                 var actionName = ViewContext.RouteData.Values["action"]?.ToString();
-
 
                 <div class="@(controllerName == "ClientProfile" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "ClientProfile")'">
                     <img src="~/images/Affiliate-bone.svg" alt="Panel Icon" class="menu-icon" />Klienci
@@ -213,7 +205,6 @@
                 <div class="@(controllerName == "CategoryScraper" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "CategoryScraper")'">
                     <img src="~/images/Link-bone.svg" alt="Panel Icon" class="menu-icon" />
                 </div>
-            
 
                 <div class="@(controllerName == "DatabaseSize" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "DatabaseSize")'">
                     <img src="~/images/Link-bone.svg" alt="Panel Icon" class="menu-icon" />
@@ -224,14 +215,10 @@
                     <img src="~/images/Settings-bone.svg" alt="Assign Icon" class="menu-icon" />
                 </div>
 
-
-
                 <div class="@(controllerName == "ProductMapping" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "ProductMapping")'">
                     <img src="~/images/Affiliate-bone.svg" alt="Panel Icon" class="menu-icon" />
                 </div>
             }
-
-
 
             @if (isManager)
             {
@@ -239,12 +226,10 @@
                 var controllerName = ViewContext.RouteData.Values["controller"]?.ToString();
                 var actionName = ViewContext.RouteData.Values["action"]?.ToString();
 
-
                 <div class="@(controllerName == "ClientProfile" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "ClientProfile")'">
                     <img src="~/images/Affiliate-bone.svg" alt="Panel Icon" class="menu-icon" />
                 </div>
             }
-
 
         </div>
         <div class="Sidebar-box">
