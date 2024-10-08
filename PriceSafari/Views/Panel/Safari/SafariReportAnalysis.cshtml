@@ -255,7 +255,6 @@
         </div>
     </div>
 </div>
-
 <!-- JavaScript Section -->
 <script>
     document.addEventListener("DOMContentLoaded", function () {
@@ -267,7 +266,7 @@
                     const img = entry.target;
                     img.src = img.dataset.src;
                     img.addEventListener('load', () => {
-                        img.classList.add('loaded'); 
+                        img.classList.add('loaded');
                     });
                     observer.unobserve(img);
                 }
@@ -277,10 +276,7 @@
         lazyLoadImages.forEach(img => {
             observer.observe(img);
         });
- 
 
-
-        
         const categories = new Set();
         document.querySelectorAll('.price-box-column-category').forEach(categoryElement => {
             const category = categoryElement.textContent.trim();
@@ -300,12 +296,10 @@
         let allProducts = Array.from(document.querySelectorAll('.price-box'));
         const searchInput = document.getElementById('productSearch');
 
-    
         function sanitizeString(str) {
             return str.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
         }
 
-    
         function highlightMatches(productName, searchTerm) {
             if (!searchTerm) return productName;
 
@@ -314,7 +308,6 @@
             return productName.replace(regex, '<span style="color: #9400D3; font-weight: bold;">$1</span>');
         }
 
-        
         function updateProducts() {
             const searchTerm = sanitizeString(searchInput.value.trim());
             const selectedCategory = categoryDropdown.value;
@@ -326,7 +319,6 @@
             const thresholdMoreExpensive = parseFloat(threshold2Input.value) || 0;
             const usePriceDifference = usePriceDifferenceCheckbox.checked;
 
-           
             let prIdealCount = 0;
             let prGrayCount = 0;
             let prToHighCount = 0;
@@ -344,7 +336,6 @@
                 const matchesCategory = selectedCategory === '' || productCategory === selectedCategory;
                 const matchesFlags = selectedFlags.length === 0 || selectedFlags.some(flagId => productFlags.includes(flagId));
 
-      
                 const priceDifference = parseFloat(productBox.getAttribute('data-pricedifference')) || 0;
                 const percentageDifferenceAttr = productBox.getAttribute('data-percdifference');
                 let percentageDifference = percentageDifferenceAttr !== 'null' ? parseFloat(percentageDifferenceAttr) : null;
@@ -363,17 +354,15 @@
                     prGrayCount++;
                 }
 
-                
+                // Assign the colorClass to the productBox and remove previous classes
                 productBox.classList.remove('prToHigh', 'prIdeal', 'prGray');
                 productBox.classList.add(colorClass);
                 productBox.setAttribute('data-colorclass', colorClass);
-
 
                 const priceDiffDisplay = productBox.querySelector('.price-box-column-action');
                 if (priceDiffDisplay) {
                     const epsilon = 0.005;
 
-                  
                     const priceDifference = parseFloat(productBox.getAttribute('data-pricedifference')) || 0;
                     const percentageDifferenceAttr = productBox.getAttribute('data-percdifference');
                     let percentageDifference = percentageDifferenceAttr !== 'null' ? parseFloat(percentageDifferenceAttr) : null;
@@ -384,7 +373,7 @@
                     const marginPriceAttr = productBox.getAttribute('data-marginprice');
                     const marginPrice = marginPriceAttr !== null && marginPriceAttr !== 'null' ? parseFloat(marginPriceAttr) : null;
 
-                
+                    // Margin calculations
                     let marginAmount = null;
                     let marginPercentage = null;
 
@@ -397,74 +386,73 @@
                         }
                     }
 
-                    let priceDiffText = '';
-                    let priceDiffClass = '';
+                    // Determine sign and CSS class for margin
+                    let marginSign = '';
+                    let marginClass = 'priceBox-diff-margin'; // Default class
 
-                    if (myPrice === null || myPrice === 0) {
-                    
-                        priceDiffText = 'Brak naszej ceny';
-                        priceDiffClass = 'priceBox-diff-margin';
-                    } else {
-                        const roundedPriceDifference = parseFloat(priceDifference.toFixed(2));
-                        const roundedPercentageDifference = percentageDifference !== null ? parseFloat(percentageDifference.toFixed(2)) : null;
-
-                        if (Math.abs(roundedPriceDifference) < epsilon) {
-                            // Ceny są takie same
-                            priceDiffText = 'Cena taka sama';
-                            priceDiffClass = 'priceBox-diff-top';
-                        } else if (roundedPriceDifference < 0) {
-                            // Jesteśmy tańsi
-                            const priceDiffFormatted = Math.abs(roundedPriceDifference).toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' PLN';
-                            const percentageDiffFormatted = roundedPercentageDifference !== null ? Math.abs(roundedPercentageDifference).toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%' : '';
-                            priceDiffText = `Taniej o: ${priceDiffFormatted} (${percentageDiffFormatted})`;
-                            priceDiffClass = 'priceBox-diff-up-margin';
-                        } else if (roundedPriceDifference > 0) {
-                            // Jesteśmy drożsi
-                            const priceDiffFormatted = roundedPriceDifference.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' PLN';
-                            const percentageDiffFormatted = roundedPercentageDifference !== null ? roundedPercentageDifference.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%' : '';
-                            priceDiffText = `Drożej o: ${priceDiffFormatted} (${percentageDiffFormatted})`;
-                            priceDiffClass = 'priceBox-diff-down-margin';
+                    if (marginAmount != null) {
+                        if (marginAmount >= 0) {
+                            marginSign = '+';
+                            marginClass = 'priceBox-diff-margin'; // Positive margin class
                         } else {
-                            // Nie powinno się tu dostać
-                            priceDiffText = 'Brak danych';
-                            priceDiffClass = 'priceBox-diff-margin';
+                            marginSign = '-';
+                            marginClass = 'priceBox-diff-margin-minus'; // Negative margin class
                         }
                     }
 
-                   
+                    // Build marginInfoHtml
                     let marginInfoHtml = '';
                     if (marginPrice != null) {
                         const formattedMarginPrice = marginPrice.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' PLN';
 
                         if (myPrice != null) {
-                            const marginSign = marginAmount >= 0 ? '+' : '';
                             const formattedMarginAmount = marginSign + Math.abs(marginAmount).toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' PLN';
                             const formattedMarginPercentage = '(' + marginSign + Math.abs(marginPercentage).toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%)';
 
                             marginInfoHtml =
-                                '<div class="priceBox-diff-margin">' +
+                                '<div class="' + marginClass + '">' +
                                 '<p>Cena zakupu: ' + formattedMarginPrice + '</p>' +
                                 '<p>Marża: ' + formattedMarginAmount + ' ' + formattedMarginPercentage + '</p>' +
                                 '</div>';
                         } else {
                             marginInfoHtml =
-                                '<div class="priceBox-diff-margin">' +
+                                '<div class="' + marginClass + '">' +
                                 '<p>Cena zakupu: ' + formattedMarginPrice + '</p>' +
                                 '</div>';
                         }
                     }
 
+                    // Existing price difference calculations
+                    let priceDiffText = '';
 
-                    
-                    priceDiffDisplay.innerHTML = marginInfoHtml + '<div class="' + priceDiffClass + '">' + priceDiffText + '</div>';
+                    if (myPrice === null || myPrice === 0) {
+                        priceDiffText = 'Brak naszej ceny';
+                    } else {
+                        const roundedPriceDifference = parseFloat(priceDifference.toFixed(2));
+                        const roundedPercentageDifference = percentageDifference !== null ? parseFloat(percentageDifference.toFixed(2)) : null;
+
+                        if (Math.abs(roundedPriceDifference) < epsilon) {
+                            priceDiffText = 'Cena taka sama';
+                        } else if (roundedPriceDifference < 0) {
+                            const priceDiffFormatted = Math.abs(roundedPriceDifference).toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' PLN';
+                            const percentageDiffFormatted = roundedPercentageDifference !== null ? Math.abs(roundedPercentageDifference).toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%' : '';
+                            priceDiffText = `Taniej o: ${priceDiffFormatted} (${percentageDiffFormatted})`;
+                        } else if (roundedPriceDifference > 0) {
+                            const priceDiffFormatted = roundedPriceDifference.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' PLN';
+                            const percentageDiffFormatted = roundedPercentageDifference !== null ? roundedPercentageDifference.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%' : '';
+                            priceDiffText = `Drożej o: ${priceDiffFormatted} (${percentageDiffFormatted})`;
+                        } else {
+                            priceDiffText = 'Brak danych';
+                        }
+                    }
+
+                    // Update the price difference display with colorClass
+                    priceDiffDisplay.innerHTML = marginInfoHtml + '<div class="priceBox-diff ' + colorClass + '">' + priceDiffText + '</div>';
                 }
 
-
-
-                
+                // Filter products based on criteria
                 const matchesClassification = noClassificationFilter || selectedClasses.includes(colorClass);
 
-              
                 if (matchesSearch && matchesCategory && matchesFlags && matchesClassification) {
                     productBox.style.display = 'block';
                     filteredProducts.push({
@@ -478,7 +466,7 @@
                 }
             });
 
-           
+            // Sort and highlight matches
             filteredProducts.sort((a, b) => {
                 if (a.exactMatch && !b.exactMatch) return -1;
                 if (!a.exactMatch && b.exactMatch) return 1;
@@ -489,22 +477,18 @@
                 item.productNameElement.innerHTML = highlightMatches(item.productNameElement.textContent, searchInput.value);
             });
 
-            
+            // Update counts and charts
             prIdealCountSpan.textContent = prIdealCount;
             prGrayCountSpan.textContent = prGrayCount;
             prToHighCountSpan.textContent = prToHighCount;
 
-            
             initializeChart(prIdealCount, prGrayCount, prToHighCount);
 
-           
             updateClassificationLabels();
 
-            
             updateFlagCounts();
         }
 
-       
         const ctx = document.getElementById('classificationChart').getContext('2d');
         let classificationChart;
 
@@ -517,20 +501,16 @@
                 data: {
                     labels: ['Droższe', 'Podobna cena', 'Tańsze'],
                     datasets: [{
-                        data: [prToHighCount,  prGrayCount, prIdealCount],
+                        data: [prToHighCount, prGrayCount, prIdealCount],
                         backgroundColor: [
                             'rgba(171, 37, 32, 0.8)',
-                             
                             'rgba(40, 40, 40, 0.8)',
                             'rgba(0, 145, 123, 0.8)'
-                           
                         ],
                         borderColor: [
                             'rgba(171, 37, 32, 1)',
-                             
                             'rgba(40, 40, 40, 1)',
                             'rgba(0, 145, 123, 1)'
-
                         ],
                         borderWidth: 1
                     }]
@@ -569,19 +549,16 @@
             unitLabel2.textContent = unit;
         }
 
-        
         function updateFlagCounts() {
             const flagCheckboxes = document.querySelectorAll('.flagFilter');
             const flagCounts = {};
 
-          
             flagCheckboxes.forEach(checkbox => {
                 flagCounts[checkbox.value] = 0;
             });
 
-           
             allProducts.forEach(productBox => {
-                if (productBox.style.display === 'none') return; 
+                if (productBox.style.display === 'none') return;
 
                 const productFlags = productBox.getAttribute('data-flags').split(',');
                 productFlags.forEach(flagId => {
@@ -591,7 +568,6 @@
                 });
             });
 
-            
             flagCheckboxes.forEach(checkbox => {
                 const label = document.querySelector(`label[for='${checkbox.id}']`);
                 if (label) {
@@ -601,7 +577,6 @@
             });
         }
 
-       
         const threshold1Input = document.getElementById('threshold1');
         const threshold2Input = document.getElementById('threshold2');
         const usePriceDifferenceCheckbox = document.getElementById('usePriceDifference');
@@ -615,6 +590,9 @@
         const prGrayLabel = document.getElementById('prGrayLabel');
         const prToHighLabel = document.getElementById('prToHighLabel');
 
+        const unitLabel1 = document.getElementById('unitLabel1');
+        const unitLabel2 = document.getElementById('unitLabel2');
+
         threshold1Input.addEventListener('input', updateProducts);
         threshold2Input.addEventListener('input', updateProducts);
         usePriceDifferenceCheckbox.addEventListener('change', updateProducts);
@@ -623,10 +601,13 @@
         categoryDropdown.addEventListener('change', updateProducts);
         document.querySelectorAll('.flagFilter').forEach(checkbox => checkbox.addEventListener('change', updateProducts));
 
-        
         updateProducts();
     });
 </script>
+
+
+
+
 <script>
     document.addEventListener("DOMContentLoaded", function () {
         const usePriceDifferenceCheckbox = document.getElementById('usePriceDifference');

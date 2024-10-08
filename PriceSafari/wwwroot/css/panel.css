@@ -3171,6 +3171,12 @@ tr:last-child .sub-line {
     color: rgba(40, 40, 40, 1) !important;
 }
 
+.prGray .priceBox-diff {
+    border: 1px solid rgba(40, 40, 40, 0.80);
+    background: rgba(40, 40, 40, 0.20);
+    color: rgba(40, 40, 40, 1) !important;
+}
+
 .priceBox-diff-margin-minus {
     display: flex;
     padding: 4px 12px;
