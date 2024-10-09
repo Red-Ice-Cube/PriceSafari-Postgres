@@ -31,6 +31,8 @@ namespace PriceSafari.Data
         public DbSet<GoogleScrapingProduct> GoogleScrapingProducts { get; set; }
         public DbSet<PriceSafariReport> PriceSafariReports { get; set; }
         public DbSet<GlobalPriceReport> GlobalPriceReports { get; set; }
+        public DbSet<ScheduledTask> ScheduledTasks { get; set; }
+
 
 
 

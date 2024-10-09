@@ -1,0 +1,32 @@
+﻿@model ScheduledTask
+
+@{
+    Layout = "~/Views/Shared/_PanelLayout.cshtml";
+}
+
+<div class="Page-Box">
+    <div class="Page-Box-Container">
+        <div class="Page-Box-Category">
+            <div class="Category-Box-Title">
+                Ustawienia zaplanowanego mapowania
+            </div>
+            <partial name="_ManageNavCol" />
+        </div>
+
+        <div class="Column-30">
+
+            <form asp-action="SetSchedule" method="post">
+                <div>
+                    <label>Scheduled Time (HH:mm)</label>
+                    <input asp-for="ScheduledTime" type="time" required />
+                </div>
+                <div>
+                    <label>
+                        <input asp-for="IsEnabled" type="checkbox" /> Enable Scheduling
+                    </label>
+                </div>
+                <button type="submit">Save</button>
+            </form>
+        </div>
+    </div>
+</div>
