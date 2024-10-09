@@ -15,6 +15,8 @@ namespace PriceSafari.Models
         public string? ProductMapXmlUrl { get; set; }
         public int? ProductsToScrap { get; set; }
 
+        public bool AutoMatching { get; set; } = true;
+
         public ICollection<ScrapHistoryClass> ScrapHistories { get; set; } = new List<ScrapHistoryClass>();
         public ICollection<ProductClass> Products { get; set; } = new List<ProductClass>();
         public ICollection<CategoryClass> Categories { get; set; } = new List<CategoryClass>();
