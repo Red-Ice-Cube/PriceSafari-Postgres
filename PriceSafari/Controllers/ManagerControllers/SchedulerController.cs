@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Mvc;
 using PriceSafari.Data;
 using PriceSafari.Models;
+using PriceSafari.Models.ManagerViewModels;
 
 [Authorize(Roles = "Admin")]
 public class SchedulerController : Controller
@@ -17,29 +18,69 @@ public class SchedulerController : Controller
     public IActionResult SetSchedule()
     {
         var task = _context.ScheduledTasks.FirstOrDefault() ?? new ScheduledTask();
-       
-        return View("~/Views/ManagerPanel/Settings/SetSchedule.cshtml", task);
+
+        // Fetch the stores with AutoMatching == true
+        var autoMatchingStores = _context.Stores.Where(s => s.AutoMatching).ToList();
+
+        // Create a view model to pass both the task and the list of stores
+        var viewModel = new SchedulerViewModel
+        {
+            ScheduledTask = task,
+            AutoMatchingStores = autoMatchingStores
+        };
+
+        return View("~/Views/ManagerPanel/Settings/SetSchedule.cshtml", viewModel);
     }
 
+
     [HttpPost]
-    public async Task<IActionResult> SetSchedule(ScheduledTask model)
+    public async Task<IActionResult> SetSchedule(ScheduledTaskInputModel model)
     {
         if (ModelState.IsValid)
         {
-            var task = _context.ScheduledTasks.FirstOrDefault();
-            if (task == null)
+            TimeSpan scheduledTime;
+            if (TimeSpan.TryParse(model.ScheduledTime, out scheduledTime))
             {
-                _context.ScheduledTasks.Add(model);
+                var task = _context.ScheduledTasks.FirstOrDefault();
+                if (task == null)
+                {
+                    task = new ScheduledTask
+                    {
+                        ScheduledTime = scheduledTime,
+                        IsEnabled = model.IsEnabled
+                    };
+                    _context.ScheduledTasks.Add(task);
+                }
+                else
+                {
+                    task.ScheduledTime = scheduledTime;
+                    task.IsEnabled = model.IsEnabled;
+                    _context.ScheduledTasks.Update(task);
+                }
+                await _context.SaveChangesAsync();
+                return RedirectToAction("SetSchedule");
             }
             else
             {
-                task.ScheduledTime = model.ScheduledTime;
-                task.IsEnabled = model.IsEnabled;
-                _context.ScheduledTasks.Update(task);
+                ModelState.AddModelError("ScheduledTime", "Invalid time format.");
             }
-            await _context.SaveChangesAsync();
-            return RedirectToAction("SetSchedule");
         }
-        return View(model);
+
+        // If ModelState is invalid, re-create the SchedulerViewModel for the view
+        var autoMatchingStores = _context.Stores.Where(s => s.AutoMatching).ToList();
+
+        var viewModel = new SchedulerViewModel
+        {
+            ScheduledTask = new ScheduledTask
+            {
+                ScheduledTime = TimeSpan.Zero, // Default value if parsing fails
+                IsEnabled = model.IsEnabled
+            },
+            AutoMatchingStores = autoMatchingStores
+        };
+
+        return View("~/Views/ManagerPanel/Settings/SetSchedule.cshtml", viewModel);
     }
+
+
 }

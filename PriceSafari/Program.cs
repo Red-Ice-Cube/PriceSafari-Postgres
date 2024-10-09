@@ -42,6 +42,8 @@ public class Program
 
         builder.Services.AddHttpClient<Scraper>();
         builder.Services.AddScoped<Scraper>();
+        builder.Services.AddScoped<StoreProcessingService>();
+        builder.Services.AddHostedService<ScheduledTaskService>();
 
         builder.Services.AddHttpClient<CaptchaScraper>();
         builder.Services.AddScoped<CaptchaScraper>();

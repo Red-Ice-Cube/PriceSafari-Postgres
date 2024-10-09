@@ -18,14 +18,16 @@ public class PriceScrapingController : Controller
     private readonly HttpClient _httpClient;
     private readonly IHttpClientFactory _httpClientFactory;
     private static CancellationTokenSource _cancellationTokenSource = new CancellationTokenSource();
+    private readonly StoreProcessingService _storeProcessingService;
 
-    public PriceScrapingController(PriceSafariContext context, IHubContext<ScrapingHub> hubContext, IServiceProvider serviceProvider, HttpClient httpClient, IHttpClientFactory httpClientFactory)
+    public PriceScrapingController(PriceSafariContext context, IHubContext<ScrapingHub> hubContext, IServiceProvider serviceProvider, HttpClient httpClient, IHttpClientFactory httpClientFactory, StoreProcessingService storeProcessingService)
     {
         _context = context;
         _hubContext = hubContext;
         _serviceProvider = serviceProvider;
         _httpClient = httpClient;
         _httpClientFactory = httpClientFactory;
+        _storeProcessingService = storeProcessingService;
     }
 
   
@@ -382,125 +384,133 @@ public class PriceScrapingController : Controller
         return View("~/Views/ManagerPanel/Store/GetStoreProductsWithCoOfrIds.cshtml", viewModel);
     }
 
-  
+
+
+    //[HttpPost]
+    //public async Task<IActionResult> MapCoOfrToPriceHistory(int storeId)
+    //{
+    //    var store = await _context.Stores.FindAsync(storeId);
+    //    if (store == null)
+    //    {
+    //        return NotFound();
+    //    }
+
+    //    var products = await _context.Products
+    //        .Where(p => p.StoreId == storeId)
+    //        .ToListAsync();
+
+    //    var coOfrClasses = await _context.CoOfrs.ToListAsync();
+    //    var coOfrPriceHistories = await _context.CoOfrPriceHistories.ToListAsync();
+
+    //    var scrapHistory = new ScrapHistoryClass
+    //    {
+    //        Date = DateTime.Now,
+    //        StoreId = storeId,
+    //        ProductCount = products.Count,
+    //        PriceCount = 0,
+    //        Store = store
+    //    };
+
+    //    var priceHistories = new List<PriceHistoryClass>();
+    //    var rejectedProducts = new List<ProductClass>(); // Lista do przechowywania odrzuconych produktów
+
+    //    // Użycie równoległego przetwarzania
+    //    await Task.Run(() => Parallel.ForEach(products, product =>
+    //    {
+    //        var coOfrId = coOfrClasses.FirstOrDefault(co => co.ProductIds.Contains(product.ProductId))?.Id;
+    //        if (coOfrId != null)
+    //        {
+    //            var coOfrPriceHistory = coOfrPriceHistories.Where(ph => ph.CoOfrClassId == coOfrId).ToList();
+
+    //            bool hasStorePrice = false;
+    //            bool hasExportedName = false;
+
+    //            foreach (var coOfrPrice in coOfrPriceHistory)
+    //            {
+    //                var priceHistory = new PriceHistoryClass
+    //                {
+    //                    ProductId = product.ProductId,
+    //                    StoreName = coOfrPrice.StoreName,
+    //                    Price = coOfrPrice.Price,
+    //                    IsBidding = coOfrPrice.IsBidding,
+    //                    Position = coOfrPrice.Position,
+    //                    ShippingCostNum = coOfrPrice.ShippingCostNum,
+    //                    AvailabilityNum = coOfrPrice.AvailabilityNum,
+    //                    ScrapHistory = scrapHistory
+    //                };
+
+    //                lock (priceHistories)
+    //                {
+    //                    priceHistories.Add(priceHistory);
+    //                }
+
+    //                // Sprawdzamy, czy cena jest przypisana do naszego sklepu
+    //                if (string.Equals(coOfrPrice.StoreName, store.StoreName, StringComparison.OrdinalIgnoreCase))
+    //                {
+    //                    hasStorePrice = true;
+
+    //                    // Przypisujemy wartość ExportedNameCeneo, jeśli istnieje i nie jest nullem
+    //                    if (!string.IsNullOrEmpty(coOfrPrice.ExportedName))
+    //                    {
+    //                        hasExportedName = true;
+    //                        lock (product)
+    //                        {
+    //                            // Usunięto warunek sprawdzający null, aby zawsze uaktualniać ExportedNameCeneo
+    //                            product.ExportedNameCeneo = coOfrPrice.ExportedName;
+    //                        }
+    //                    }
+    //                }
+    //            }
+
+
+    //            // Jeśli nie ma ceny dla naszego sklepu, oznaczamy produkt jako odrzucony
+    //            if (!hasStorePrice)
+    //            {
+    //                lock (_context)
+    //                {
+    //                    product.IsRejected = true;
+    //                    _context.SaveChanges();
+    //                }
+
+    //                lock (rejectedProducts)
+    //                {
+    //                    rejectedProducts.Add(product);
+    //                }
+    //            }
+    //        }
+    //    }));
+
+    //    scrapHistory.PriceCount = priceHistories.Count;
+    //    _context.ScrapHistories.Add(scrapHistory);
+    //    _context.PriceHistories.AddRange(priceHistories);
+
+    //    await _context.SaveChangesAsync();
+
+    //    // Logowanie odrzuconych produktów
+    //    foreach (var rejectedProduct in rejectedProducts)
+    //    {
+    //        var relatedPrices = coOfrPriceHistories
+    //            .Where(ph => ph.CoOfrClassId == coOfrClasses.FirstOrDefault(co => co.ProductIds.Contains(rejectedProduct.ProductId))?.Id)
+    //            .Select(ph => new { ph.StoreName, ph.Price })
+    //            .ToList();
+
+    //        Console.WriteLine($"Produkt odrzucony: {rejectedProduct.ProductName}");
+    //        Console.WriteLine($"Sklep użyty do porównania: {store.StoreName}");
+    //        Console.WriteLine("Ceny z innych sklepów:");
+
+    //        foreach (var price in relatedPrices)
+    //        {
+    //            Console.WriteLine($"- Sklep: {price.StoreName}, Cena: {price.Price}");
+    //        }
+    //    }
+
+    //    return RedirectToAction("GetStoreProductsWithCoOfrIds", new { storeId });
+    //}
 
     [HttpPost]
     public async Task<IActionResult> MapCoOfrToPriceHistory(int storeId)
     {
-        var store = await _context.Stores.FindAsync(storeId);
-        if (store == null)
-        {
-            return NotFound();
-        }
-
-        var products = await _context.Products
-            .Where(p => p.StoreId == storeId)
-            .ToListAsync();
-
-        var coOfrClasses = await _context.CoOfrs.ToListAsync();
-        var coOfrPriceHistories = await _context.CoOfrPriceHistories.ToListAsync();
-
-        var scrapHistory = new ScrapHistoryClass
-        {
-            Date = DateTime.Now,
-            StoreId = storeId,
-            ProductCount = products.Count,
-            PriceCount = 0,
-            Store = store
-        };
-
-        var priceHistories = new List<PriceHistoryClass>();
-        var rejectedProducts = new List<ProductClass>(); // Lista do przechowywania odrzuconych produktów
-
-        // Użycie równoległego przetwarzania
-        await Task.Run(() => Parallel.ForEach(products, product =>
-        {
-            var coOfrId = coOfrClasses.FirstOrDefault(co => co.ProductIds.Contains(product.ProductId))?.Id;
-            if (coOfrId != null)
-            {
-                var coOfrPriceHistory = coOfrPriceHistories.Where(ph => ph.CoOfrClassId == coOfrId).ToList();
-
-                bool hasStorePrice = false;
-                bool hasExportedName = false;
-
-                foreach (var coOfrPrice in coOfrPriceHistory)
-                {
-                    var priceHistory = new PriceHistoryClass
-                    {
-                        ProductId = product.ProductId,
-                        StoreName = coOfrPrice.StoreName,
-                        Price = coOfrPrice.Price,
-                        IsBidding = coOfrPrice.IsBidding,
-                        Position = coOfrPrice.Position,
-                        ShippingCostNum = coOfrPrice.ShippingCostNum,
-                        AvailabilityNum = coOfrPrice.AvailabilityNum,
-                        ScrapHistory = scrapHistory
-                    };
-
-                    lock (priceHistories)
-                    {
-                        priceHistories.Add(priceHistory);
-                    }
-
-                    // Sprawdzamy, czy cena jest przypisana do naszego sklepu
-                    if (string.Equals(coOfrPrice.StoreName, store.StoreName, StringComparison.OrdinalIgnoreCase))
-                    {
-                        hasStorePrice = true;
-
-                        // Przypisujemy wartość ExportedNameCeneo, jeśli istnieje i nie jest nullem
-                        if (!string.IsNullOrEmpty(coOfrPrice.ExportedName))
-                        {
-                            hasExportedName = true;
-                            lock (product)
-                            {
-                                // Usunięto warunek sprawdzający null, aby zawsze uaktualniać ExportedNameCeneo
-                                product.ExportedNameCeneo = coOfrPrice.ExportedName;
-                            }
-                        }
-                    }
-                }
-
-
-                // Jeśli nie ma ceny dla naszego sklepu, oznaczamy produkt jako odrzucony
-                if (!hasStorePrice)
-                {
-                    lock (_context)
-                    {
-                        product.IsRejected = true;
-                        _context.SaveChanges();
-                    }
-
-                    lock (rejectedProducts)
-                    {
-                        rejectedProducts.Add(product);
-                    }
-                }
-            }
-        }));
-
-        scrapHistory.PriceCount = priceHistories.Count;
-        _context.ScrapHistories.Add(scrapHistory);
-        _context.PriceHistories.AddRange(priceHistories);
-
-        await _context.SaveChangesAsync();
-
-        // Logowanie odrzuconych produktów
-        foreach (var rejectedProduct in rejectedProducts)
-        {
-            var relatedPrices = coOfrPriceHistories
-                .Where(ph => ph.CoOfrClassId == coOfrClasses.FirstOrDefault(co => co.ProductIds.Contains(rejectedProduct.ProductId))?.Id)
-                .Select(ph => new { ph.StoreName, ph.Price })
-                .ToList();
-
-            Console.WriteLine($"Produkt odrzucony: {rejectedProduct.ProductName}");
-            Console.WriteLine($"Sklep użyty do porównania: {store.StoreName}");
-            Console.WriteLine("Ceny z innych sklepów:");
-
-            foreach (var price in relatedPrices)
-            {
-                Console.WriteLine($"- Sklep: {price.StoreName}, Cena: {price.Price}");
-            }
-        }
+        await _storeProcessingService.ProcessStoreAsync(storeId);
 
         return RedirectToAction("GetStoreProductsWithCoOfrIds", new { storeId });
     }
