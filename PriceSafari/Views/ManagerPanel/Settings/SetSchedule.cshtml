@@ -4,39 +4,60 @@
     Layout = "~/Views/Shared/_PanelLayout.cshtml";
 }
 
+
+<style> 
+    .ScheduledTask {
+        width:200px;
+        padding: 2px 12px;
+        border-radius: 4px;
+       
+    }
+
+    .simpleColumnBox {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        width: 100%;
+
+    }
+
+</style>
+
 <div class="Page-Box">
     <div class="Page-Box-Container">
         <div class="Page-Box-Category">
             <div class="Category-Box-Title">
-                Ustawienia zaplanowanego mapowania
+                Planowanie mapowania
             </div>
             <partial name="_ManageNavCol" />
         </div>
 
-        <div class="Column-30">
+        <div class="simpleColumnBox">
 
             <div asp-validation-summary="All"></div>
 
-            <form asp-action="SetSchedule" method="post">
-                <div>
-                    <label>Scheduled Time (HH:mm)</label>
-                    <input asp-for="ScheduledTask.ScheduledTime" name="ScheduledTime" type="time" required />
-                    <span asp-validation-for="ScheduledTime"></span>
-                </div>
-                <div>
+                <form asp-action="SetSchedule" method="post" class="product-upper-box">
+                    <div>
+                  
+                        <input asp-for="ScheduledTask.ScheduledTime" class="ScheduledTask" type="time" required />
+                        <span asp-validation-for="ScheduledTime"></span>
                     <label>
-                        <input asp-for="ScheduledTask.IsEnabled" name="IsEnabled" type="checkbox" /> Enable Scheduling
+                        <input asp-for="ScheduledTask.IsEnabled" name="IsEnabled" type="checkbox" />Włącz mapowanie
                     </label>
                     <span asp-validation-for="IsEnabled"></span>
-                </div>
-                <button type="submit">Save</button>
-            </form>
+                    </div>
+                    
+                      
+                  
+                    <button type="submit" class="Button-Add-Small">Zapisz zmiany</button>
+                </form>
+            
 
-            <h2>Stores Scheduled for Automatic Execution</h2>
-            <table>
+
+            <table class="table-orders">
                 <thead>
                     <tr>
-                        <th>Store Name</th>
+                        <th>Nazwa sklepu</th>
                     </tr>
                 </thead>
                 <tbody>
