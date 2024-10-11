@@ -132,11 +132,19 @@
         </div>
     </div>
     <div class="Vert-Home">
-        <div class="Vert-50">
-            <img id="homeBanner" src="~/images homepage/Home-Banner-L.gif" alt="Price Safari">
+    
 
-            <img id="preloadedImage" src="~/images homepage/Home-Banner-L.png" alt="Preloaded Frame" style="display: none;">
+        <div class="Vert-50" id="banner-change-target">
+            <img src="~/images homepage/PanelCeny.png" class="banner-img" style="display:block;" alt="Produkty">
+            <img src="~/images homepage/Ceny.png" class="banner-img" style="display:none;" alt="Ceny">
+  
+            <div class="button-container">
+                <button class="change-banner" data-index="0">Produkty</button>
+                <button class="change-banner" data-index="1">Ceny</button>
+            </div>
         </div>
+
+
         <div class="Vert-50">
             <div class="Text-Box">
                 <h1 class="Text-Box-Title">Dlaczego PriceSafari?</h1>
@@ -148,13 +156,7 @@
                         Każdego dnia śledzimy ceny, dostępność towarów i działania konkurencji, dostarczając Ci zawsze najświeższe informacje. Analizujemy rynek nie tylko w Polsce, ale i na 15 innych rynkach międzynarodowych, co pozwala na lepsze zrozumienie trendów i dostosowanie strategii w czasie rzeczywistym.
 
                     </p>
-               @*      <strong>Precyzyjna analiza konkurencji</strong>
-                    <p>
-                        
-                        Dzięki PriceSafari możesz na bieżąco monitorować, jak Twoje oferty wypadają na tle konkurencji. Dowiedz się, jakie oferty zdobywają najwyższe pozycje, czy produkty są promowane oraz jakie strategie cenowe stosują Twoi rywale.
-
-                    </p> *@
-
+        
                     
                     <strong>Szybkie wdrożenie</strong>
                     <p>
@@ -212,4 +214,42 @@
 
     setTimeout(freezeGif, 5000);
 
+</script>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const buttons = document.querySelectorAll('.change-banner');
+        const images = document.querySelectorAll('#banner-change-target .banner-img');
+
+        buttons[0].classList.add('change-banner-active');
+
+        buttons.forEach((button, index) => {
+            button.addEventListener('click', function () {
+                buttons.forEach(btn => btn.classList.remove('change-banner-active'));
+
+                this.classList.add('change-banner-active');
+
+                images.forEach(img => {
+                    img.style.display = 'none';
+                });
+
+                images[this.getAttribute('data-index')].style.display = 'block';
+            });
+        });
+    });
+
+    function toggleAnswer(element) {
+        const currentIsActive = element.querySelector('.List-Box-Text-Text-Q').classList.contains('active');
+
+        document.querySelectorAll('.List-Box-Text-Text-Q').forEach((el) => {
+            el.style.display = "none";
+            el.classList.remove('active');
+        });
+
+        if (!currentIsActive) {
+            const answer = element.querySelector('.List-Box-Text-Text-Q');
+            answer.classList.add('active');
+            answer.style.display = "block";
+        }
+    }
 </script>
