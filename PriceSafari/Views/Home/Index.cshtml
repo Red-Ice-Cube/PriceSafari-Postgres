@@ -2,6 +2,48 @@
     ViewData["Title"] = "Price Safari";
 }
 
+
+<style>
+    /* Styl dla modala */
+    .modal {
+        display: none;
+        position: fixed;
+        z-index: 9999;
+        padding-top: 0;
+        left: 0;
+        top: 0;
+        width: 100vw;
+        height: 100vh;
+        overflow: auto;
+        background-color: rgba(0,0,0,0.8);
+    }
+
+    /* Styl dla zawartości modala (obrazka) */
+    .modal-content {
+        margin: auto;
+        display: block;
+        width: auto;
+        max-width: 90vw;
+        max-height: 90vh;
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+
+    }
+
+    /* Styl dla przycisku zamknięcia */
+    .close {
+        position: absolute;
+        top: 16px;
+        right: 32px;
+        color: red;
+        font-size: 40px;
+        font-weight: bold;
+        cursor: pointer;
+    }
+</style>
+
 <div class="Main-home">
     <div class="Nav-Bar">
         <div class="Nav-Bar-Scal">
@@ -137,7 +179,7 @@
         <div class="Vert-50" id="banner-change-target">
             <img src="~/images homepage/PanelCeny.png" class="banner-img" style="display:block;" alt="Produkty">
             <img src="~/images homepage/Ceny.png" class="banner-img" style="display:none;" alt="Ceny">
-  
+
             <div class="button-container">
                 <button class="change-banner" data-index="0">Produkty</button>
                 <button class="change-banner" data-index="1">Ceny</button>
@@ -190,6 +232,14 @@
         </div>
     </div>
 </div>
+
+
+<!-- Struktura modala -->
+<div id="image-modal" class="modal">
+    <span class="close">&times;</span>
+    <img class="modal-content" id="modal-image">
+</div>
+
 <script src="/js/Home/index.min.js"></script>
 
 
@@ -218,6 +268,7 @@
 
 <script>
     document.addEventListener("DOMContentLoaded", function () {
+        // Funkcjonalność zmiany bannerów
         const buttons = document.querySelectorAll('.change-banner');
         const images = document.querySelectorAll('#banner-change-target .banner-img');
 
@@ -236,20 +287,27 @@
                 images[this.getAttribute('data-index')].style.display = 'block';
             });
         });
-    });
 
-    function toggleAnswer(element) {
-        const currentIsActive = element.querySelector('.List-Box-Text-Text-Q').classList.contains('active');
+        // Funkcjonalność modala
+        var modal = document.getElementById("image-modal");
+        var modalImg = document.getElementById("modal-image");
+        var closeBtn = document.querySelector("#image-modal .close");
 
-        document.querySelectorAll('.List-Box-Text-Text-Q').forEach((el) => {
-            el.style.display = "none";
-            el.classList.remove('active');
+        images.forEach(function (image) {
+            image.addEventListener('click', function () {
+                modal.style.display = "block";
+                modalImg.src = this.src;
+            });
         });
 
-        if (!currentIsActive) {
-            const answer = element.querySelector('.List-Box-Text-Text-Q');
-            answer.classList.add('active');
-            answer.style.display = "block";
-        }
-    }
+        closeBtn.addEventListener('click', function () {
+            modal.style.display = "none";
+        });
+
+        modal.addEventListener('click', function (event) {
+            if (event.target == modal) {
+                modal.style.display = "none";
+            }
+        });
+    });
 </script>
