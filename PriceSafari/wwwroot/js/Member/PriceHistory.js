@@ -46,14 +46,19 @@
     });
 
 
+    // Aktualizacja wyświetlanego zakresu przy zmianie wartości suwaka
     positionSlider.noUiSlider.on('update', function (values, handle) {
         const displayValues = values.map(value => {
-            return parseInt(value) === 16 ? 'Schowany' : value;
+            return parseInt(value) === 16 ? 'Schowany' : 'Msc ' + value;
         });
         positionRangeInput.textContent = displayValues.join(' - ');
-
     });
 
+    // Przefiltrowanie danych przy zmianie wartości suwaka
+    positionSlider.noUiSlider.on('change', function () {
+        // Wywołaj swoją funkcję filtrowania
+        filterPricesAndUpdateUI();
+    });
 
     // Przefiltruj dane, gdy wartość suwaka się zmienia
     positionSlider.noUiSlider.on('change', function () {

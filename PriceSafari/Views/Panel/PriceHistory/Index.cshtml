@@ -92,17 +92,19 @@
     #positionRangeSlider {
         width: 85%; /* Dostosuj wartość procentową według potrzeb */
         margin-left:6px;
+        
     
     }
 
     /* Zmniejszenie wysokości suwaka */
     .noUi-target {
         height: 6px;
+        border-radius: 2px !important;
     }
 
     /* Dostosowanie kolorów suwaka */
     .noUi-connect {
-        background: #3f51b5; 
+        background: rgba(34, 34, 34, .75) !important;
         max-height:8px;
     }
 
@@ -222,7 +224,7 @@
 
                     <div class="store-section">
                         <div class="position-slider-container">
-                            <div id="positionRange" class="position-range-display"></div>
+                            <div id="positionRange" class="position-range-display" style="font-size:14px; font-weight:400;"></div>
                         </div>
 
                         <div id="positionRangeSlider"></div>
