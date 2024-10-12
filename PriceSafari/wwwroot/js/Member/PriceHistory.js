@@ -18,6 +18,8 @@
         sortMarginPercentage: null
     };
 
+    let positionSlider; 
+
     function debounce(func, wait) {
         let timeout;
         return function (...args) {
@@ -26,6 +28,39 @@
             timeout = setTimeout(() => func.apply(context, args), wait);
         };
     }
+
+    positionSlider = document.getElementById('positionRangeSlider');
+    var positionRangeInput = document.getElementById('positionRange');
+
+    noUiSlider.create(positionSlider, {
+        start: [1, 16], // Początkowy zakres (od 1 do 16)
+        connect: true,
+        range: {
+            'min': 1,
+            'max': 16
+        },
+        step: 1,
+        format: wNumb({
+            decimals: 0 // Bez miejsc po przecinku
+        })  
+    });
+
+
+    positionSlider.noUiSlider.on('update', function (values, handle) {
+        const displayValues = values.map(value => {
+            return parseInt(value) === 16 ? 'Schowany' : value;
+        });
+        positionRangeInput.textContent = displayValues.join(' - ');
+
+    });
+
+
+    // Przefiltruj dane, gdy wartość suwaka się zmienia
+    positionSlider.noUiSlider.on('change', function () {
+        filterPricesAndUpdateUI();
+    });
+
+ 
 
     const updatePricesDebounced = debounce(function () {
         const usePriceDifference = document.getElementById('usePriceDifference').checked;
@@ -233,12 +268,26 @@
         const selectedCategory = document.getElementById('category').value;
         const selectedColors = Array.from(document.querySelectorAll('.colorFilter:checked')).map(checkbox => checkbox.value);
         const selectedBid = document.getElementById('bidFilter').checked;
-        const selectedPositions = Array.from(document.querySelectorAll('.positionFilter:checked')).map(checkbox => parseInt(checkbox.value));
+       /* const selectedPositions = Array.from(document.querySelectorAll('.positionFilter:checked')).map(checkbox => parseInt(checkbox.value));*/
         const selectedDeliveryMyStore = Array.from(document.querySelectorAll('.deliveryFilterMyStore:checked')).map(checkbox => parseInt(checkbox.value));
         const selectedDeliveryCompetitor = Array.from(document.querySelectorAll('.deliveryFilterCompetitor:checked')).map(checkbox => parseInt(checkbox.value));
         const selectedExternalPrice = Array.from(document.querySelectorAll('.externalPriceFilter:checked')).map(checkbox => checkbox.value);
 
+
+        // Pobierz wartości z suwaka pozycji
+        const positionSliderValues = positionSlider.noUiSlider.get();
+        const positionMin = parseInt(positionSliderValues[0]);
+        const positionMax = parseInt(positionSliderValues[1]);
+
+  
+
+
         let filteredPrices = selectedCategory ? data.filter(item => item.category === selectedCategory) : data;
+
+        filteredPrices = filteredPrices.filter(item => {
+            const position = item.myPosition === null ? 16 : parseInt(item.myPosition);
+            return position >= positionMin && position <= positionMax;
+        });
 
         if (selectedColors.length) {
             filteredPrices = filteredPrices.filter(item => selectedColors.includes(item.colorClass));
@@ -254,9 +303,7 @@
             filteredPrices = filteredPrices.filter(item => item.myIsBidding === "1");
         }
 
-        if (selectedPositions.length) {
-            filteredPrices = filteredPrices.filter(item => selectedPositions.includes(parseInt(item.myPosition)));
-        }
+       
 
         if (selectedDeliveryMyStore.length) {
             filteredPrices = filteredPrices.filter(item => selectedDeliveryMyStore.includes(item.myDelivery));

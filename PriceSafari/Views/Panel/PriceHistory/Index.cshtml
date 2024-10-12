@@ -74,6 +74,80 @@
         gap: 8px;
     }
 
+
+    .position-slider-container {
+        margin-bottom: 10px;
+    }
+
+        .position-slider-container input {
+            border: 0;
+            color: #888;
+            font-weight: 300;
+            text-align: center;
+            font-size: 16px;
+            width: 100%;
+        }
+
+    /* Dostosowanie rozmiaru suwaka */
+    #positionRangeSlider {
+        width: 85%; /* Dostosuj wartość procentową według potrzeb */
+        margin-left:6px;
+    
+    }
+
+    /* Zmniejszenie wysokości suwaka */
+    .noUi-target {
+        height: 6px;
+    }
+
+    /* Dostosowanie kolorów suwaka */
+    .noUi-connect {
+        background: #3f51b5; 
+        max-height:8px;
+    }
+
+    .noUi-horizontal {
+       max-height: 8px;
+    }
+
+    .noUi-touch-area {
+        height: 100%;
+        width: 100%;
+ 
+    }
+
+
+    .noUi-handle {
+        border: 1px solid #D9D9D9;
+        border-radius: 3px;
+        background: #FFF;
+        cursor: default;
+        box-shadow: inset 0 0 1px #FFF, inset 0 1px 7px #EBEBEB, 0 3px 6px -3px #BBB;
+    }
+
+
+    .noUi-horizontal .noUi-handle {
+        max-width: 14px;
+        MAX-height: 16px;
+        right: -10px !important;
+        top: -5px !important;
+    }
+
+    .noUi-handle:after, .noUi-handle:before {
+        content: none !important;
+        display: none !important;
+    
+
+    }
+
+    .noUi-base {
+        background: #ccc; /* Kolor tła suwaka */
+        max-height: 8px;
+    }
+
+
+
+
 </style>
 
 <div class="Vert">
@@ -144,32 +218,14 @@
 
                     </div>
                     <div class="Category-Container-Select">Pozycja</div>
-                    <div class="store-section">
+                    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.6.1/nouislider.min.css">
 
-                        <div class="form-check">
-                            <input class="form-check-input positionFilter" type="checkbox" id="position1" value="1">
-                            <label class="form-check-label" for="position1">1 miejsce</label>
+                    <div class="store-section">
+                        <div class="position-slider-container">
+                            <div id="positionRange" class="position-range-display"></div>
                         </div>
-                        <div class="form-check">
-                            <input class="form-check-input positionFilter" type="checkbox" id="position2" value="2">
-                            <label class="form-check-label" for="position2">2 miejsce</label>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input positionFilter" type="checkbox" id="position3" value="3">
-                            <label class="form-check-label" for="position3">3 miejsce</label>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input positionFilter" type="checkbox" id="position4" value="4">
-                            <label class="form-check-label" for="position4">4 miejsce</label>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input positionFilter" type="checkbox" id="position5" value="5">
-                            <label class="form-check-label" for="position5">5 miejsce</label>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input positionFilter" type="checkbox" id="positionNull" value="Null">
-                            <label class="form-check-label" for="positionNull">Schowany</label>
-                        </div>
+
+                        <div id="positionRangeSlider"></div>
                     </div>
                     <div class="Category-Container-Select">Wysyłka (ty)</div>
                     <div class="store-section">
@@ -301,13 +357,16 @@
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/5.0.9/signalr.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.6.1/nouislider.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/wnumb/1.2.0/wNumb.min.js"></script>
+
     <script>
         var storeId = '@storeId';
     </script>
     <script>
         var flags = @Html.Raw(JsonConvert.SerializeObject(ViewBag.Flags));
     </script>
-    <script src="~/js/member/pricehistory.min.js"></script>
+    <script src="~/js/member/PriceHistory.js"></script>
     <script>
         $(document).ready(function () {
             var connection = new signalR.HubConnectionBuilder().withUrl("/scrapingHub").build();
