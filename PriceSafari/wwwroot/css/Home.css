@@ -360,8 +360,7 @@
     display: flex;
     gap: 32px;
 }
-
-.change-banner {
+.change-banner-1, .change-banner-2 {
     display: flex;
     justify-content: center;
     align-items: center;
@@ -374,17 +373,23 @@
     border: 2px solid #fff;
 }
 
-    .change-banner:hover {
+    .change-banner-1:hover, .change-banner-2:hover {
         text-decoration: none;
         color: #41C7C7;
         font-weight: 400;
         border: 2px solid #41C7C7;
     }
 
-.change-banner-active {
+.change-banner-1-active {
     color: #41C7C7;
     border: 2px solid #41C7C7;
 }
+
+.change-banner-2-active {
+    color: #41C7C7;
+    border: 2px solid #41C7C7;
+}
+
 
 
 .mobile-bottom-button {

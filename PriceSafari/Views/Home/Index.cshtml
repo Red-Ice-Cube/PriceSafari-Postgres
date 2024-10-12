@@ -18,7 +18,7 @@
         background-color: rgba(0,0,0,0.8);
     }
 
-    /* Styl dla zawartości modala (obrazka) */
+    
     .modal-content {
         margin: auto;
         display: block;
@@ -174,15 +174,14 @@
         </div>
     </div>
     <div class="Vert-Home">
-    
 
-        <div class="Vert-50" id="banner-change-target">
+        <div class="Vert-50" id="banner-change-target-1">
             <img src="~/images homepage/PanelCeny.png" class="banner-img" style="display:block; cursor:pointer;" alt="Produkty">
             <img src="~/images homepage/Ceny.png" class="banner-img" style="display:none; cursor:pointer;" alt="Ceny">
 
             <div class="button-container">
-                <button class="change-banner" data-index="0">Produkty</button>
-                <button class="change-banner" data-index="1">Ceny</button>
+                <button class="change-banner-1" data-target="banner-change-target-1" data-index="0">Produkty</button>
+                <button class="change-banner-1" data-target="banner-change-target-1" data-index="1">Ceny</button>
             </div>
         </div>
 
@@ -251,16 +250,16 @@
 
         </div>
 
-        <div class="Vert-50" id="banner-change-target">
-            <img src="~/images homepage/PanelCeny.png" class="banner-img" style="display:block; cursor:pointer;" alt="Produkty w Europie">
-            <img src="~/images homepage/Ceny.png" class="banner-img" style="display:none; cursor:pointer;" alt="Ceny w Europie">
+
+        <div class="Vert-50" id="banner-change-target-2">
+            <img src="~/images homepage/RaportCeny.png" class="banner-img" style="display:block; cursor:pointer;" alt="Produkty w Europie">
+            <img src="~/images homepage/SafariCeny.png" class="banner-img" style="display:none; cursor:pointer;" alt="Ceny w Europie">
 
             <div class="button-container">
-                <button class="change-banner" data-index="0">Produkty w Europie</button>
-                <button class="change-banner" data-index="1">Ceny w Europie</button>
+                <button class="change-banner-2" data-target="banner-change-target-2" data-index="0">Produkty w Europie</button>
+                <button class="change-banner-2" data-target="banner-change-target-2" data-index="1">Ceny w Europie</button>
             </div>
         </div>
-
 
 
     </div>
@@ -312,32 +311,45 @@
 
 <script>
     document.addEventListener("DOMContentLoaded", function () {
-        // Funkcjonalność zmiany bannerów
-        const buttons = document.querySelectorAll('.change-banner');
-        const images = document.querySelectorAll('#banner-change-target .banner-img');
+        // Obsługa pierwszego zestawu bannerów
+        const buttons1 = document.querySelectorAll('.change-banner-1');
+        const images1 = document.querySelectorAll('#banner-change-target-1 .banner-img');
 
-        buttons[0].classList.add('change-banner-active');
+        buttons1[0].classList.add('change-banner-1-active'); // Domyślnie aktywuj pierwszy przycisk
 
-        buttons.forEach((button, index) => {
+        buttons1.forEach((button, index) => {
             button.addEventListener('click', function () {
-                buttons.forEach(btn => btn.classList.remove('change-banner-active'));
-
-                this.classList.add('change-banner-active');
-
-                images.forEach(img => {
-                    img.style.display = 'none';
-                });
-
-                images[this.getAttribute('data-index')].style.display = 'block';
+                buttons1.forEach(btn => btn.classList.remove('change-banner-1-active')); // Usuń aktywność z innych przycisków
+                this.classList.add('change-banner-1-active'); // Dodaj aktywność do klikniętego przycisku
+                images1.forEach(img => img.style.display = 'none'); // Ukryj inne obrazki
+                images1[index].style.display = 'block'; // Pokaż wybrany obrazek
             });
         });
+
+        // Obsługa drugiego zestawu bannerów
+        const buttons2 = document.querySelectorAll('.change-banner-2');
+        const images2 = document.querySelectorAll('#banner-change-target-2 .banner-img');
+
+        buttons2[0].classList.add('change-banner-2-active'); // Domyślnie aktywuj pierwszy przycisk
+
+        buttons2.forEach((button, index) => {
+            button.addEventListener('click', function () {
+                buttons2.forEach(btn => btn.classList.remove('change-banner-2-active')); // Usuń aktywność z innych przycisków
+                this.classList.add('change-banner-2-active'); // Dodaj aktywność do klikniętego przycisku
+                images2.forEach(img => img.style.display = 'none'); // Ukryj inne obrazki
+                images2[index].style.display = 'block'; // Pokaż wybrany obrazek
+            });
+        });
+    
+
 
         // Funkcjonalność modala
         var modal = document.getElementById("image-modal");
         var modalImg = document.getElementById("modal-image");
         var closeBtn = document.querySelector("#image-modal .close");
 
-        images.forEach(function (image) {
+        const bannerImages = document.querySelectorAll('.banner-img');
+        bannerImages.forEach(function (image) {
             image.addEventListener('click', function () {
                 modal.style.display = "block";
                 modalImg.src = this.src;
@@ -354,4 +366,5 @@
             }
         });
     });
+
 </script>
