@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using PriceSafari.Hubs;
 using PriceSafari.Services;
 
+
 public class Program
 {
     public static async Task Main(string[] args)
@@ -39,6 +40,7 @@ public class Program
 
         builder.Services.AddTransient<IEmailSender, EmailService>();
         builder.Services.AddSignalR();
+        builder.Services.AddHostedService<KeepAliveService>();
 
         builder.Services.AddHttpClient<Scraper>();
         builder.Services.AddScoped<Scraper>();

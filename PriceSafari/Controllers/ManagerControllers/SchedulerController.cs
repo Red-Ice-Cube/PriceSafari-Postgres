@@ -19,18 +19,19 @@ public class SchedulerController : Controller
     {
         var task = _context.ScheduledTasks.FirstOrDefault() ?? new ScheduledTask();
 
-        // Fetch the stores with AutoMatching == true
         var autoMatchingStores = _context.Stores.Where(s => s.AutoMatching).ToList();
 
-        // Create a view model to pass both the task and the list of stores
         var viewModel = new SchedulerViewModel
         {
             ScheduledTask = task,
+            ScheduledTime = task.ScheduledTime.ToString(@"hh\:mm"),
+            IsEnabled = task.IsEnabled,
             AutoMatchingStores = autoMatchingStores
         };
 
         return View("~/Views/ManagerPanel/Settings/SetSchedule.cshtml", viewModel);
     }
+
 
 
     [HttpPost]

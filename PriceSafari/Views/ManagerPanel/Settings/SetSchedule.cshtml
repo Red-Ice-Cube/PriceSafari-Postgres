@@ -35,22 +35,18 @@
         <div class="simpleColumnBox">
 
             <div asp-validation-summary="All"></div>
-
-                <form asp-action="SetSchedule" method="post" class="product-upper-box">
-                    <div>
-                  
-                        <input asp-for="ScheduledTask.ScheduledTime" class="ScheduledTask" type="time" required />
-                        <span asp-validation-for="ScheduledTime"></span>
+            <form asp-action="SetSchedule" method="post" class="product-upper-box">
+                <div>
+                    <input asp-for="ScheduledTime" class="ScheduledTask" type="time" required />
+                    <span asp-validation-for="ScheduledTime"></span>
                     <label>
-                        <input asp-for="ScheduledTask.IsEnabled" name="IsEnabled" type="checkbox" />Włącz mapowanie
+                        <input asp-for="IsEnabled" type="checkbox" />Włącz mapowanie
                     </label>
                     <span asp-validation-for="IsEnabled"></span>
-                    </div>
-                    
-                      
-                  
-                    <button type="submit" class="Button-Add-Small">Zapisz zmiany</button>
-                </form>
+                </div>
+                <button type="submit" class="Button-Add-Small">Zapisz zmiany</button>
+            </form>
+
             
 
 
