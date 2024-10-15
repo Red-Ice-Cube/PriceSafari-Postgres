@@ -166,11 +166,8 @@
 
 .Text-Box-Title {
     display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: flex-start;
+    align-items: center;
     gap: 10px;
-    align-self: stretch;
     color: #353535;
     font-size: 36px;
     font-weight: 300;
@@ -365,6 +362,7 @@
     justify-content: center;
     align-items: center;
     border-radius: 8px;
+    padding: 0px 10px;
     color: #353535;
     font-size: 18px;
     font-weight: 400;
@@ -459,9 +457,6 @@
         padding: 32px 16px;
     }
 
-    .Text-Box-Title {
-        font-size: 28px;
-    }
 
     .Text-Box-Text, .Icon-Box-Text-Text, .Icon-Box-Text-Title, .List-Box-Text-Text, .List-Box-Text-Title {
         font-size: 16px;
