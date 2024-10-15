@@ -2,8 +2,80 @@
 
 @{
     ViewData["Title"] = "Formularz kontaktowy";
+    Layout = "~/Views/Shared/_Layout.cshtml";
 }
 
+<style>
+    .VertDark {
+        display: flex;
+        background: #222222;
+        padding:16px;
+        box-shadow: 20px 0px 30.8px -23px rgba(0, 0, 0, 0.25) inset;
+      
+    }
+
+    .form-step {
+        display: flex;
+        width:100%;
+        gap: 24px;
+     
+    }
+
+
+    .form-control {
+        border-radius: 16px;
+        padding: 8px;
+        align-self: stretch;
+        background-color: #FFFFFF;
+        justify-content: center;
+        border: none;
+    }
+
+
+        .form-control:focus {
+            outline: none;
+            border: 2px solid #41C7C7;
+            background-color: #FFFFFF;
+            box-shadow: none;
+            transition: none;
+        }
+
+    .form-check-input {
+        background-color: #FFFFFF;
+        outline: none;
+        box-shadow: none;
+        border: 1px solid #FFFFFF;
+    }
+
+        .form-check-input:focus {
+            outline: none;
+            box-shadow: none;
+        }
+
+        .form-check-input:checked {
+            outline: none;
+            border: 1px solid #41C7C7;
+            background-color: #41C7C7;
+            box-shadow: none;
+        }
+
+    .checkbox {
+        color: #fff;
+    }
+
+        .checkbox:hover {
+            color: #41C7C7;
+        }
+
+    .checkbox-blank {
+        color: #fff;
+    }
+
+    .form-label {
+        margin: 0px;
+    }
+
+</style>
 
 
 <div class="Main-home">
@@ -11,88 +83,87 @@
         <div class="Nav-Bar-Scal">
             <div class="Nav-Bar-Scal-Box">
                 <div class="Nav-Bar-Logo">
-                    <img src="~/images homepage/PriceSafari.png" alt="PriceSafari">
+                    <a href="@Url.Action("Index", "Home")">
+                        <img src="~/images homepage/PriceSafari.png" alt="PriceSafari" style="cursor: pointer; height:24px;">
+                    </a>
                 </div>
             </div>
             <div class="Nav-Bar-Scal-Box nav-buttons">
                 <a href="/Identity/Account/Login" class="Nav-Bar-Button">Panel</a>
                 <a href="/Home/Contact" class="Nav-Bar-Button">Kontakt</a>
-
             </div>
         </div>
     </div>
 
-
     <div class="Vert-Home">
+   
+        <div class="VertDark">
+            <form asp-action="Contact" style="width:100%;" method="post" id="contactForm">
+                @Html.AntiForgeryToken()
+
+          
 
 
-        <form asp-action="Contact" method="post" id="contactForm">
-            @Html.AntiForgeryToken()
-
-            <!-- Krok 1 -->
-            <div id="step1" class="form-step">
-                <div class="form-group">
-                    <label asp-for="Email"></label>
-                    <input asp-for="Email" class="form-control" />
+                <div id="step1" class="form-step">
+                    <input asp-for="Email" class="form-control" placeholder="name@example.com" />
+                    <label asp-for="Email" class="form-label">Email</label>
                     <span asp-validation-for="Email" class="text-danger"></span>
-                </div>
-                <button type="button" class="btn btn-primary" onclick="nextStep()">Dalej</button>
-            </div>
 
-            <!-- Krok 2 -->
-            <div id="step2" class="form-step" style="display:none;">
-                <div class="form-group">
-                    <label asp-for="CompanyName"></label>
-                    <input asp-for="CompanyName" class="form-control" />
-                    <span asp-validation-for="CompanyName" class="text-danger"></span>
+                    <button type="button" class="btn btn-primary" onclick="nextStep()">Dalej</button>
                 </div>
-                <button type="button" class="btn btn-secondary" onclick="prevStep()">Wstecz</button>
-                <button type="button" class="btn btn-primary" onclick="nextStep()">Dalej</button>
-            </div>
 
-            <!-- Krok 3 -->
-            <div id="step3" class="form-step" style="display:none;">
-                <div class="form-group">
-                    <label asp-for="FirstName"></label>
-                    <input asp-for="FirstName" class="form-control" />
-                    <span asp-validation-for="FirstName" class="text-danger"></span>
+                <!-- Krok 2 -->
+                <div id="step2" class="form-step" style="display:none;">
+                    <div class="form-group">
+                        <label asp-for="CompanyName"></label>
+                        <input asp-for="CompanyName" class="form-control" />
+                        <span asp-validation-for="CompanyName" class="text-danger"></span>
+                    </div>
+                    <button type="button" class="btn btn-secondary" onclick="prevStep()">Wstecz</button>
+                    <button type="button" class="btn btn-primary" onclick="nextStep()">Dalej</button>
                 </div>
-                <div class="form-group">
-                    <label asp-for="LastName"></label>
-                    <input asp-for="LastName" class="form-control" />
-                    <span asp-validation-for="LastName" class="text-danger"></span>
-                </div>
-                <div class="form-group form-check">
-                    <input asp-for="ConsentToDataProcessing" class="form-check-input" />
-                    <label class="form-check-label" asp-for="ConsentToDataProcessing">
-                        Wyrażam zgodę na przetwarzanie moich danych osobowych zgodnie z
-                        <a href="/PrivacyPolicy">Polityką Prywatności</a>.
-                    </label>
-                    <span asp-validation-for="ConsentToDataProcessing" class="text-danger"></span>
-                </div>
-                <button type="button" class="btn btn-secondary" onclick="prevStep()">Wstecz</button>
-                <button type="button" class="btn btn-primary" onclick="nextStep()">Dalej</button>
-            </div>
 
-            <!-- Krok 4 -->
-            <div id="step4" class="form-step" style="display:none;">
-                <div class="form-group">
-                    <label asp-for="PhoneNumber"></label>
-                    <input asp-for="PhoneNumber" class="form-control" />
-                    <span asp-validation-for="PhoneNumber" class="text-danger"></span>
+                <!-- Krok 3 -->
+                <div id="step3" class="form-step" style="display:none;">
+                    <div class="form-group">
+                        <label asp-for="FirstName"></label>
+                        <input asp-for="FirstName" class="form-control" />
+                        <span asp-validation-for="FirstName" class="text-danger"></span>
+                    </div>
+                    <div class="form-group">
+                        <label asp-for="LastName"></label>
+                        <input asp-for="LastName" class="form-control" />
+                        <span asp-validation-for="LastName" class="text-danger"></span>
+                    </div>
+                    <div class="form-group form-check">
+                        <input asp-for="ConsentToDataProcessing" class="form-check-input" required />
+                        <label class="form-check-label" asp-for="ConsentToDataProcessing">
+                            Wyrażam zgodę na przetwarzanie moich danych osobowych zgodnie z
+                            <a href="/PrivacyPolicy">Polityką Prywatności</a>.
+                        </label>
+                        <span asp-validation-for="ConsentToDataProcessing" class="text-danger"></span>
+                    </div>
+                    <button type="button" class="btn btn-secondary" onclick="prevStep()">Wstecz</button>
+                    <button type="button" class="btn btn-primary" onclick="nextStep()">Dalej</button>
                 </div>
-                <button type="button" class="btn btn-secondary" onclick="prevStep()">Wstecz</button>
-                <button type="submit" class="btn btn-success">Wyślij</button>
-            </div>
-        </form>
 
-
+                <!-- Krok 4 -->
+                <div id="step4" class="form-step" style="display:none;">
+                    <div class="form-group">
+                        <label asp-for="PhoneNumber"></label>
+                        <input asp-for="PhoneNumber" class="form-control" />
+                        <span asp-validation-for="PhoneNumber" class="text-danger"></span>
+                    </div>
+                    <button type="button" class="btn btn-secondary" onclick="prevStep()">Wstecz</button>
+                    <button type="submit" class="btn btn-success">Wyślij</button>
+                </div>
+            </form>
+        </div>
+       
     </div>
-    
 
     <div class="Nav-Bar-Fotter">
         <div class="Nav-Bar-Scal">
-
             <div class="Nav-Bar-Scal-Box">
                 <div class="Nav-Bar-Logo">
                     <img src="~/images homepage/PriceSafari.png" alt="Price Safari">
@@ -102,8 +173,8 @@
     </div>
 </div>
 
-
 @section Scripts {
+    @await Html.PartialAsync("_ValidationScriptsPartial")
     <script>
         var currentStep = 1;
         var totalSteps = 4;
@@ -114,7 +185,14 @@
         }
 
         function nextStep() {
-            if (validateStep(currentStep)) {
+            var $inputs = $('#step' + currentStep + ' :input');
+            var isValid = true;
+            $inputs.each(function () {
+                if (!$(this).valid()) {
+                    isValid = false;
+                }
+            });
+            if (isValid) {
                 currentStep++;
                 if (currentStep <= totalSteps) {
                     showStep(currentStep);
@@ -129,24 +207,25 @@
             }
         }
 
-        function validateStep(step) {
-            var isValid = true;
-            var $inputs = $('#step' + step + ' input');
-            $inputs.each(function () {
-                if (!this.checkValidity()) {
-                    isValid = false;
-                    $(this).addClass('is-invalid');
-                } else {
-                    $(this).removeClass('is-invalid');
-                }
-            });
-            return isValid;
-        }
-
         $(document).ready(function () {
             showStep(currentStep);
+
+            // Inicjalizacja walidacji
+            $('#contactForm').validate({
+                // Ustawienia walidacji
+                ignore: ':hidden', // Domyślnie ignoruje ukryte pola
+                errorClass: 'is-invalid',
+                validClass: 'is-valid',
+                errorElement: 'span',
+                errorPlacement: function (error, element) {
+                    error.addClass('text-danger');
+                    if (element.parent('.input-group').length || element.prop('type') === 'checkbox') {
+                        error.insertAfter(element.parent());
+                    } else {
+                        error.insertAfter(element);
+                    }
+                }
+            });
         });
     </script>
-
-    @await Html.PartialAsync("_ValidationScriptsPartial")
 }
