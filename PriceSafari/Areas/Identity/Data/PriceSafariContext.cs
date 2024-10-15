@@ -1,6 +1,7 @@
 ﻿using PriceSafari.Models;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
+using PriceSafari.Models.HomeModels;
 
 namespace PriceSafari.Data
 {
@@ -32,16 +33,11 @@ namespace PriceSafari.Data
         public DbSet<PriceSafariReport> PriceSafariReports { get; set; }
         public DbSet<GlobalPriceReport> GlobalPriceReports { get; set; }
         public DbSet<ScheduledTask> ScheduledTasks { get; set; }
-
-
-
+        public DbSet<ContactFormSubmission> ContactFormSubmissions { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
-
-          
-
 
             // Dodatkowe relacje z istniejącymi encjami, jak w oryginalnym przykładzie:
             modelBuilder.Entity<PriceSafariUser>()
@@ -107,7 +103,7 @@ namespace PriceSafari.Data
                  .HasOne(gsp => gsp.Region)
                  .WithMany(r => r.GoogleScrapingProducts)
                  .HasForeignKey(gsp => gsp.RegionId)
-                 .OnDelete(DeleteBehavior.Restrict);  
+                 .OnDelete(DeleteBehavior.Restrict);
 
             modelBuilder.Entity<GlobalPriceReport>()
                 .HasOne(gpr => gpr.Region)
@@ -116,17 +112,10 @@ namespace PriceSafari.Data
                 .OnDelete(DeleteBehavior.Cascade);
 
             modelBuilder.Entity<PriceSafariReport>()
-                  .HasOne(psr => psr.Store)  
-                  .WithMany(s => s.PriceSafariReports) 
-                  .HasForeignKey(psr => psr.StoreId)  
-                  .OnDelete(DeleteBehavior.Restrict); 
-
-
-
-
-
-
+                  .HasOne(psr => psr.Store)
+                  .WithMany(s => s.PriceSafariReports)
+                  .HasForeignKey(psr => psr.StoreId)
+                  .OnDelete(DeleteBehavior.Restrict);
         }
-
     }
 }

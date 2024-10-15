@@ -1,0 +1,152 @@
+﻿@model PriceSafari.Models.ViewModels.ContactFormViewModel
+
+@{
+    ViewData["Title"] = "Formularz kontaktowy";
+}
+
+
+
+<div class="Main-home">
+    <div class="Nav-Bar">
+        <div class="Nav-Bar-Scal">
+            <div class="Nav-Bar-Scal-Box">
+                <div class="Nav-Bar-Logo">
+                    <img src="~/images homepage/PriceSafari.png" alt="PriceSafari">
+                </div>
+            </div>
+            <div class="Nav-Bar-Scal-Box nav-buttons">
+                <a href="/Identity/Account/Login" class="Nav-Bar-Button">Panel</a>
+                <a href="/Home/Contact" class="Nav-Bar-Button">Kontakt</a>
+
+            </div>
+        </div>
+    </div>
+
+
+    <div class="Vert-Home">
+
+
+        <form asp-action="Contact" method="post" id="contactForm">
+            @Html.AntiForgeryToken()
+
+            <!-- Krok 1 -->
+            <div id="step1" class="form-step">
+                <div class="form-group">
+                    <label asp-for="Email"></label>
+                    <input asp-for="Email" class="form-control" />
+                    <span asp-validation-for="Email" class="text-danger"></span>
+                </div>
+                <button type="button" class="btn btn-primary" onclick="nextStep()">Dalej</button>
+            </div>
+
+            <!-- Krok 2 -->
+            <div id="step2" class="form-step" style="display:none;">
+                <div class="form-group">
+                    <label asp-for="CompanyName"></label>
+                    <input asp-for="CompanyName" class="form-control" />
+                    <span asp-validation-for="CompanyName" class="text-danger"></span>
+                </div>
+                <button type="button" class="btn btn-secondary" onclick="prevStep()">Wstecz</button>
+                <button type="button" class="btn btn-primary" onclick="nextStep()">Dalej</button>
+            </div>
+
+            <!-- Krok 3 -->
+            <div id="step3" class="form-step" style="display:none;">
+                <div class="form-group">
+                    <label asp-for="FirstName"></label>
+                    <input asp-for="FirstName" class="form-control" />
+                    <span asp-validation-for="FirstName" class="text-danger"></span>
+                </div>
+                <div class="form-group">
+                    <label asp-for="LastName"></label>
+                    <input asp-for="LastName" class="form-control" />
+                    <span asp-validation-for="LastName" class="text-danger"></span>
+                </div>
+                <div class="form-group form-check">
+                    <input asp-for="ConsentToDataProcessing" class="form-check-input" />
+                    <label class="form-check-label" asp-for="ConsentToDataProcessing">
+                        Wyrażam zgodę na przetwarzanie moich danych osobowych zgodnie z
+                        <a href="/PrivacyPolicy">Polityką Prywatności</a>.
+                    </label>
+                    <span asp-validation-for="ConsentToDataProcessing" class="text-danger"></span>
+                </div>
+                <button type="button" class="btn btn-secondary" onclick="prevStep()">Wstecz</button>
+                <button type="button" class="btn btn-primary" onclick="nextStep()">Dalej</button>
+            </div>
+
+            <!-- Krok 4 -->
+            <div id="step4" class="form-step" style="display:none;">
+                <div class="form-group">
+                    <label asp-for="PhoneNumber"></label>
+                    <input asp-for="PhoneNumber" class="form-control" />
+                    <span asp-validation-for="PhoneNumber" class="text-danger"></span>
+                </div>
+                <button type="button" class="btn btn-secondary" onclick="prevStep()">Wstecz</button>
+                <button type="submit" class="btn btn-success">Wyślij</button>
+            </div>
+        </form>
+
+
+    </div>
+    
+
+    <div class="Nav-Bar-Fotter">
+        <div class="Nav-Bar-Scal">
+
+            <div class="Nav-Bar-Scal-Box">
+                <div class="Nav-Bar-Logo">
+                    <img src="~/images homepage/PriceSafari.png" alt="Price Safari">
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+@section Scripts {
+    <script>
+        var currentStep = 1;
+        var totalSteps = 4;
+
+        function showStep(step) {
+            $('.form-step').hide();
+            $('#step' + step).show();
+        }
+
+        function nextStep() {
+            if (validateStep(currentStep)) {
+                currentStep++;
+                if (currentStep <= totalSteps) {
+                    showStep(currentStep);
+                }
+            }
+        }
+
+        function prevStep() {
+            currentStep--;
+            if (currentStep >= 1) {
+                showStep(currentStep);
+            }
+        }
+
+        function validateStep(step) {
+            var isValid = true;
+            var $inputs = $('#step' + step + ' input');
+            $inputs.each(function () {
+                if (!this.checkValidity()) {
+                    isValid = false;
+                    $(this).addClass('is-invalid');
+                } else {
+                    $(this).removeClass('is-invalid');
+                }
+            });
+            return isValid;
+        }
+
+        $(document).ready(function () {
+            showStep(currentStep);
+        });
+    </script>
+
+    @await Html.PartialAsync("_ValidationScriptsPartial")
+}
