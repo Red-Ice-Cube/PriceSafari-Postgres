@@ -57,6 +57,7 @@ namespace PriceSafari.Controllers.HomeControllers
                     LastName = model.LastName,
                     ConsentToDataProcessing = model.ConsentToDataProcessing,
                     PhoneNumber = model.PhoneNumber,
+                    PrefersPhone = model.PrefersPhone, // Nowe pole
                     SubmissionDate = DateTime.Now
                 };
 
@@ -73,9 +74,7 @@ namespace PriceSafari.Controllers.HomeControllers
             return View(model);
         }
 
-        public IActionResult ContactThankYou()
-        {
-            return View();
-        }
+
+
     }
 }

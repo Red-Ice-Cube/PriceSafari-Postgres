@@ -18,11 +18,15 @@ namespace PriceSafari.Models.ViewModels
         [Required(ErrorMessage = "Nazwisko jest wymagane.")]
         public string LastName { get; set; }
 
-        [Required(ErrorMessage = "Musisz wyrazić zgodę na przetwarzanie danych.")]
+        // Usunięto atrybuty walidacyjne
         public bool ConsentToDataProcessing { get; set; }
 
         [Required(ErrorMessage = "Numer telefonu jest wymagany.")]
         [Phone(ErrorMessage = "Nieprawidłowy format numeru telefonu.")]
         public string PhoneNumber { get; set; }
+
+        [Display(Name = "Preferowana forma kontaktu")]
+        public bool PrefersPhone { get; set; } = false;
     }
+
 }

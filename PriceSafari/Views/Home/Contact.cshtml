@@ -6,52 +6,82 @@
 }
 
 <style>
+    /* Poniżej znajdziesz zaktualizowane style CSS */
     .VertDark {
-       
         background: #222222;
-        padding:64px;
+        padding: 64px;
         border-radius: 16px;
         box-shadow: 20px 0px 30.8px -23px rgba(0, 0, 0, 0.25) inset;
         display: flex;
+        flex-direction: column;
+        align-items: center;
         width: 100%;
         max-width: 724px;
-        flex-direction: column;
-        justify-content: center;
-        align-items: center;
-        gap: 32px;
-      
+        height: 600px; /* Ustaw wysokość według potrzeb */
     }
 
     .form-step {
         display: flex;
-        align-self: stretch;
-        flex: 1;
-        border: none;
         flex-direction: column;
-        justify-content: center;
+        flex: 1;
+        align-self: stretch;
+    }
+
+    .form-content {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
         align-items: center;
         gap: 16px;
-     
     }
 
-
-
-    .checkbox {
-        color: #fff;
+    .form-buttons {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 36px;
     }
 
-        .checkbox:hover {
-            color: #41C7C7;
+    .TwinButton {
+        display: flex;
+        justify-content: space-between;
+        width: 100%;
+        gap: 36px;
+    }
+
+    .form-field {
+        width: 100%;
+    }
+
+    .form-floating {
+        position: relative;
+        width: 100%;
+    }
+
+        .form-floating .form-control {
+            width: 100%;
         }
 
-    .checkbox-blank {
-        color: #fff;
+    .validation-message {
+        height: 24px; /* Stała wysokość dla komunikatu walidacyjnego */
+        overflow: hidden;
     }
 
-    .form-label {
-        margin: 0px;
+    .contact-box-info {
+        width: 100%;
+        margin-bottom: 8px;
+        margin-top: 16px;
+        color: rgba(255, 255, 255, 1);
+        font-size: 20px;
+        font-weight: 300;
     }
 
+    .form-check-label,
+    .form-group-radio label {
+        color: rgba(255, 255, 255, 0.8);
+        font-size: 15px;
+        font-weight: 200;
+    }
 
     .DarkButton {
         display: flex;
@@ -67,24 +97,7 @@
         width: 50%;
         transition: box-shadow 0.3s ease;
     }
-
-    .contact-box-info {
-        display:flex;
-        width:100%;
-        margin-bottom:8px;
-        margin-top:16px;
-        color: rgba(255, 255, 255, 1);
-        font-size: 20px;      
-        font-weight: 300;
-      
-    }
-
-    .form-check-label {
-        color:white;
-    }
-
 </style>
-
 
 <div class="Main-home">
     <div class="Nav-Bar">
@@ -104,98 +117,158 @@
     </div>
 
     <div class="Vert-Home" style="margin-top:128px; margin-bottom:128px;">
-       
         <div class="VertDark">
             <form asp-action="Contact" style="width:100%;" method="post" id="contactForm">
                 @Html.AntiForgeryToken()
 
-          
-
-
+                <!-- Krok 1 -->
                 <div id="step1" class="form-step">
-                    <div class="login-box-head">
-                        <div class="login-box-title">Formularz kontaktowy</div>
-                    </div>
+                    <div class="form-content">
+                        <!-- Treść kroku 1 -->
+                        <div class="login-box-head">
+                            <div class="login-box-title">Formularz kontaktowy</div>
+                        </div>
 
-                    <div class="contact-box-info">
-                        Pod jakim adresem e-mail możemy się z Tobą skontaktować?
-                    </div>
-                    <div class="form-floating">
-                        <input asp-for="Email" class="form-control" placeholder="name@example.com" />
-                        <label asp-for="Email" class="form-label">Email</label>
-                        <span asp-validation-for="Email" class="text-danger"></span>
-                    </div>
-                    <div class="form-group form-check">
-                        <input asp-for="ConsentToDataProcessing" class="form-check-input" required />
-                        <label class="form-check-label" asp-for="ConsentToDataProcessing">
-                            Wyrażam zgodę na przetwarzanie moich danych osobowych przez Heated Box sp. z o.o. z siedzibą w Częstochowie (42-200), ul. Wojciecha Korfantego 16 (dalej "PriceSafari"), w celach marketingowych produktów i usług PriceSafari. 
-                            Dane osobowe nie będą udostępniane innym odbiorcom. Przysługuje mi prawo dostępu do treści moich danych oraz ich poprawiania poprzez bezpośredni kontakt z PriceSafari. Podanie danych osobowych jest dobrowolne.
-                        </label>
-                        <span asp-validation-for="ConsentToDataProcessing" class="text-danger"></span>
-                    </div>
+                        <div class="contact-box-info">
+                            Pod jakim adresem e-mail możemy się z Tobą skontaktować?
+                        </div>
 
-                    <button type="button" class="DarkButton" onclick="nextStep()">Dalej</button>
+                        <div class="form-field">
+                            <div class="form-floating">
+                                <input asp-for="Email" class="form-control" />
+                                <label asp-for="Email" class="form-label">Email</label>
+                            </div>
+                            <div class="validation-message">
+                                <span asp-validation-for="Email" class="text-danger"></span>
+                            </div>
+                        </div>
+
+                        <div class="form-field">
+                            <div class="form-group form-check">
+                                <input asp-for="ConsentToDataProcessing" class="form-check-input" />
+                                <label class="form-check-label" asp-for="ConsentToDataProcessing">
+                                    Wyrażam zgodę na przetwarzanie moich danych osobowych przez Heated Box sp. z o.o. z siedzibą w Częstochowie (42-200), ul. Wojciecha Korfantego 16 (dalej "PriceSafari"), w celach marketingowych produktów i usług PriceSafari.
+                                    Dane osobowe nie będą udostępniane innym odbiorcom. Przysługuje mi prawo dostępu do treści moich danych oraz ich poprawiania poprzez bezpośredni kontakt z PriceSafari. Podanie danych osobowych jest dobrowolne.
+                                </label>
+                            </div>
+                            <div class="validation-message">
+                                <span id="consentError" class="text-danger"></span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-buttons">
+                        <button type="button" class="DarkButton" onclick="nextStep()">Dalej</button>
+                    </div>
                 </div>
 
                 <!-- Krok 2 -->
                 <div id="step2" class="form-step" style="display:none;">
+                    <div class="form-content">
+                        <!-- Treść kroku 2 -->
+                        <div class="login-box-head">
+                            <div class="login-box-title">Formularz kontaktowy</div>
+                        </div>
 
-                    <div class="login-box-head">
-                        <div class="login-box-title">Formularz kontaktowy</div>
-                    </div>
+                        <div class="contact-box-info">
+                            Jak nazywa się firma, którą reprezentujesz?
+                        </div>
 
-                    <div class="contact-box-info">
-                        Jaka firme reprezentujesz?
+                        <div class="form-field">
+                            <div class="form-floating">
+                                <input asp-for="CompanyName" class="form-control" />
+                                <label asp-for="CompanyName" class="form-label">Nazwa firmy</label>
+                            </div>
+                            <div class="validation-message">
+                                <span asp-validation-for="CompanyName" class="text-danger"></span>
+                            </div>
+                        </div>
                     </div>
-                    <div class="form-floating">
-                       
-
-                        <input asp-for="CompanyName" class="form-control" placeholder="Firma sp. z o. o." />
-                        <label asp-for="CompanyName" class="form-label">Nazwa firmy</label>
-                        <span asp-validation-for="CompanyName" class="text-danger"></span>
+                    <div class="form-buttons TwinButton">
+                        <button type="button" class="DarkButton" onclick="prevStep()">Wstecz</button>
+                        <button type="button" class="DarkButton" onclick="nextStep()">Dalej</button>
                     </div>
-                  
-                    <button type="button" class="DarkButton" onclick="nextStep()">Dalej</button>
                 </div>
 
                 <!-- Krok 3 -->
                 <div id="step3" class="form-step" style="display:none;">
+                    <div class="form-content">
+                        <!-- Treść kroku 3 -->
+                        <div class="login-box-head">
+                            <div class="login-box-title">Formularz kontaktowy</div>
+                        </div>
 
-                    <div class="login-box-head">
-                        <div class="login-box-title">Formularz kontaktowy</div>
+                        <div class="contact-box-info">
+                            Jak mamy się do Ciebie zwracać?
+                        </div>
+
+                        <div class="form-field">
+                            <div class="form-floating">
+                                <input asp-for="FirstName" class="form-control" />
+                                <label asp-for="FirstName" class="form-label">Imię</label>
+                            </div>
+                            <div class="validation-message">
+                                <span asp-validation-for="FirstName" class="text-danger"></span>
+                            </div>
+                        </div>
+
+                        <div class="form-field">
+                            <div class="form-floating">
+                                <input asp-for="LastName" class="form-control" />
+                                <label asp-for="LastName" class="form-label">Nazwisko</label>
+                            </div>
+                            <div class="validation-message">
+                                <span asp-validation-for="LastName" class="text-danger"></span>
+                            </div>
+                        </div>
                     </div>
-
-                    <div class="contact-box-info">
-                        Jaka firme reprezentujesz?
+                    <div class="form-buttons TwinButton">
+                        <button type="button" class="DarkButton" onclick="prevStep()">Wstecz</button>
+                        <button type="button" class="DarkButton" onclick="nextStep()">Dalej</button>
                     </div>
-                    <div class="form-floating">
-
-                        <input asp-for="FirstName" class="form-control" placeholder="Jan" />
-                        <label asp-for="FirstName" class="form-label">Imie</label>
-                        <span asp-validation-for="FirstName" class="text-danger"></span>
-
-                    </div>
-                    <div class="form-floating">
-
-                        <input asp-for="LastName" class="form-control" placeholder="Kowalski" />
-                        <label asp-for="LastName" class="form-label">Nazwisko</label>
-                        <span asp-validation-for="LastName" class="text-danger"></span>
-
-                    </div>
-                    
-                    <button type="button" class="btn btn-secondary" onclick="prevStep()">Wstecz</button>
-                    <button type="button" class="DarkButton" onclick="nextStep()">Dalej</button>
                 </div>
 
                 <!-- Krok 4 -->
                 <div id="step4" class="form-step" style="display:none;">
-                    <div class="form-group">
-                        <label asp-for="PhoneNumber"></label>
-                        <input asp-for="PhoneNumber" class="form-control" />
-                        <span asp-validation-for="PhoneNumber" class="text-danger"></span>
+                    <div class="form-content">
+                        <!-- Treść kroku 4 -->
+                        <div class="login-box-head">
+                            <div class="login-box-title">Formularz kontaktowy</div>
+                        </div>
+
+                        <div class="contact-box-info">
+                            Pod jakim numerem możemy się z Tobą skontaktować?
+                        </div>
+
+                        <div class="form-field">
+                            <div class="form-floating">
+                                <input asp-for="PhoneNumber" class="form-control" />
+                                <label asp-for="PhoneNumber" class="form-label">Telefon</label>
+                            </div>
+                            <div class="validation-message">
+                                <span asp-validation-for="PhoneNumber" class="text-danger"></span>
+                            </div>
+                        </div>
+
+                        <!-- Pole wyboru preferowanej formy kontaktu -->
+                        <div class="form-field form-group-radio">
+                            <label>Preferowana forma kontaktu:</label>
+                            <div>
+                                <input type="radio" asp-for="PrefersPhone" value="true" id="prefersPhone" />
+                                <label for="prefersPhone">Preferuję kontakt telefoniczny</label>
+                            </div>
+                            <div>
+                                <input type="radio" asp-for="PrefersPhone" value="false" id="prefersEmail" />
+                                <label for="prefersEmail">Preferuję kontakt mailowy</label>
+                            </div>
+                            <div class="validation-message">
+                                <span asp-validation-for="PrefersPhone" class="text-danger"></span>
+                            </div>
+                        </div>
                     </div>
-                    <button type="button" class="btn btn-secondary" onclick="prevStep()">Wstecz</button>
-                    <button type="submit" class="btn btn-success">Wyślij</button>
+                    <div class="form-buttons TwinButton">
+                        <button type="button" class="DarkButton" onclick="prevStep()">Wstecz</button>
+                        <button type="submit" class="DarkButton">Wyślij</button>
+                    </div>
                 </div>
             </form>
         </div>
@@ -246,7 +319,7 @@
                 </div>
             </div>
         </div>
-       
+
     </div>
 
     <div class="Nav-Bar-Fotter">
@@ -258,61 +331,68 @@
             </div>
         </div>
     </div>
-</div>
+    </div>
 
-@section Scripts {
-    @await Html.PartialAsync("_ValidationScriptsPartial")
-    <script>
-        var currentStep = 1;
-        var totalSteps = 4;
+    <!-- Skrypty i inne sekcje -->
+    @section Scripts {
+        @await Html.PartialAsync("_ValidationScriptsPartial")
+        <script src="~/lib/jquery-validation/dist/jquery.validate.min.js"></script>
+        <script src="~/lib/jquery-validation-unobtrusive/jquery.validate.unobtrusive.min.js"></script>
 
-        function showStep(step) {
-            $('.form-step').hide();
-            $('#step' + step).show();
-        }
+        <script>
+            var currentStep = 1;
+            var totalSteps = 4;
 
-        function nextStep() {
-            var $inputs = $('#step' + currentStep + ' :input');
-            var isValid = true;
-            $inputs.each(function () {
-                if (!$(this).valid()) {
-                    isValid = false;
-                }
-            });
-            if (isValid) {
-                currentStep++;
-                if (currentStep <= totalSteps) {
+            function showStep(step) {
+                $('.form-step').hide();
+                $('#step' + step).show();
+                // Re-parse the form for unobtrusive validation after showing a new step
+                $.validator.unobtrusive.parse('#contactForm');
+            }
+
+            function prevStep() {
+                currentStep--;
+                if (currentStep >= 1) {
                     showStep(currentStep);
                 }
             }
-        }
 
-        function prevStep() {
-            currentStep--;
-            if (currentStep >= 1) {
-                showStep(currentStep);
-            }
-        }
+            function nextStep() {
+                var isValid = true;
 
-        $(document).ready(function () {
-            showStep(currentStep);
+                // Walidacja wszystkich widocznych pól w bieżącym kroku
+                $('#step' + currentStep + ' :input').each(function () {
+                    if (!$(this).valid()) {
+                        isValid = false;
+                    }
+                });
 
-            // Inicjalizacja walidacji
-            $('#contactForm').validate({
-                // Ustawienia walidacji
-                ignore: ':hidden', // Domyślnie ignoruje ukryte pola
-                errorClass: 'is-invalid',
-                validClass: 'is-valid',
-                errorElement: 'span',
-                errorPlacement: function (error, element) {
-                    error.addClass('text-danger');
-                    if (element.parent('.input-group').length || element.prop('type') === 'checkbox') {
-                        error.insertAfter(element.parent());
+                // Dodatkowa walidacja dla checkboxa w kroku 1
+                if (currentStep === 1) {
+                    var consentChecked = $('#ConsentToDataProcessing').is(':checked');
+                    if (!consentChecked) {
+                        isValid = false;
+                        // Wyświetlenie komunikatu błędu
+                        $('#consentError').text('Musisz wyrazić zgodę na przetwarzanie danych.');
                     } else {
-                        error.insertAfter(element);
+                        // Usunięcie komunikatu błędu, jeśli istnieje
+                        $('#consentError').text('');
                     }
                 }
+
+                if (isValid) {
+                    currentStep++;
+                    if (currentStep <= totalSteps) {
+                        showStep(currentStep);
+                    }
+                }
+            }
+
+            $(document).ready(function () {
+                showStep(currentStep);
+                // Inicjalizacja walidacji unobtrusive
+                $.validator.unobtrusive.parse('#contactForm');
             });
-        });
-    </script>
-}
+        </script>
+    }
+</div>
