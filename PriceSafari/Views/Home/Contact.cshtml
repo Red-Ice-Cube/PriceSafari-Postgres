@@ -7,57 +7,34 @@
 
 <style>
     .VertDark {
-        display: flex;
+       
         background: #222222;
-        padding:16px;
+        padding:64px;
+        border-radius: 16px;
         box-shadow: 20px 0px 30.8px -23px rgba(0, 0, 0, 0.25) inset;
+        display: flex;
+        width: 100%;
+        max-width: 724px;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        gap: 32px;
       
     }
 
     .form-step {
         display: flex;
-        width:100%;
-        gap: 24px;
+        align-self: stretch;
+        flex: 1;
+        border: none;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        gap: 16px;
      
     }
 
 
-    .form-control {
-        border-radius: 16px;
-        padding: 8px;
-        align-self: stretch;
-        background-color: #FFFFFF;
-        justify-content: center;
-        border: none;
-    }
-
-
-        .form-control:focus {
-            outline: none;
-            border: 2px solid #41C7C7;
-            background-color: #FFFFFF;
-            box-shadow: none;
-            transition: none;
-        }
-
-    .form-check-input {
-        background-color: #FFFFFF;
-        outline: none;
-        box-shadow: none;
-        border: 1px solid #FFFFFF;
-    }
-
-        .form-check-input:focus {
-            outline: none;
-            box-shadow: none;
-        }
-
-        .form-check-input:checked {
-            outline: none;
-            border: 1px solid #41C7C7;
-            background-color: #41C7C7;
-            box-shadow: none;
-        }
 
     .checkbox {
         color: #fff;
@@ -73,6 +50,37 @@
 
     .form-label {
         margin: 0px;
+    }
+
+
+    .DarkButton {
+        display: flex;
+        padding: 4px 8px;
+        justify-content: center;
+        align-items: center;
+        border-radius: 16px;
+        border: 2px solid rgba(6, 6, 6, 0.92);
+        background: rgba(6, 6, 6, 0.3);
+        color: #fff;
+        font-size: 22px;
+        font-weight: 300;
+        width: 50%;
+        transition: box-shadow 0.3s ease;
+    }
+
+    .contact-box-info {
+        display:flex;
+        width:100%;
+        margin-bottom:8px;
+        margin-top:16px;
+        color: rgba(255, 255, 255, 1);
+        font-size: 20px;      
+        font-weight: 300;
+      
+    }
+
+    .form-check-label {
+        color:white;
     }
 
 </style>
@@ -95,8 +103,8 @@
         </div>
     </div>
 
-    <div class="Vert-Home">
-   
+    <div class="Vert-Home" style="margin-top:128px; margin-bottom:128px;">
+       
         <div class="VertDark">
             <form asp-action="Contact" style="width:100%;" method="post" id="contactForm">
                 @Html.AntiForgeryToken()
@@ -105,46 +113,78 @@
 
 
                 <div id="step1" class="form-step">
-                    <input asp-for="Email" class="form-control" placeholder="name@example.com" />
-                    <label asp-for="Email" class="form-label">Email</label>
-                    <span asp-validation-for="Email" class="text-danger"></span>
-
-                    <button type="button" class="btn btn-primary" onclick="nextStep()">Dalej</button>
-                </div>
-
-                <!-- Krok 2 -->
-                <div id="step2" class="form-step" style="display:none;">
-                    <div class="form-group">
-                        <label asp-for="CompanyName"></label>
-                        <input asp-for="CompanyName" class="form-control" />
-                        <span asp-validation-for="CompanyName" class="text-danger"></span>
+                    <div class="login-box-head">
+                        <div class="login-box-title">Formularz kontaktowy</div>
                     </div>
-                    <button type="button" class="btn btn-secondary" onclick="prevStep()">Wstecz</button>
-                    <button type="button" class="btn btn-primary" onclick="nextStep()">Dalej</button>
-                </div>
 
-                <!-- Krok 3 -->
-                <div id="step3" class="form-step" style="display:none;">
-                    <div class="form-group">
-                        <label asp-for="FirstName"></label>
-                        <input asp-for="FirstName" class="form-control" />
-                        <span asp-validation-for="FirstName" class="text-danger"></span>
+                    <div class="contact-box-info">
+                        Pod jakim adresem e-mail możemy się z Tobą skontaktować?
                     </div>
-                    <div class="form-group">
-                        <label asp-for="LastName"></label>
-                        <input asp-for="LastName" class="form-control" />
-                        <span asp-validation-for="LastName" class="text-danger"></span>
+                    <div class="form-floating">
+                        <input asp-for="Email" class="form-control" placeholder="name@example.com" />
+                        <label asp-for="Email" class="form-label">Email</label>
+                        <span asp-validation-for="Email" class="text-danger"></span>
                     </div>
                     <div class="form-group form-check">
                         <input asp-for="ConsentToDataProcessing" class="form-check-input" required />
                         <label class="form-check-label" asp-for="ConsentToDataProcessing">
-                            Wyrażam zgodę na przetwarzanie moich danych osobowych zgodnie z
-                            <a href="/PrivacyPolicy">Polityką Prywatności</a>.
+                            Wyrażam zgodę na przetwarzanie moich danych osobowych przez Heated Box sp. z o.o. z siedzibą w Częstochowie (42-200), ul. Wojciecha Korfantego 16 (dalej "PriceSafari"), w celach marketingowych produktów i usług PriceSafari. 
+                            Dane osobowe nie będą udostępniane innym odbiorcom. Przysługuje mi prawo dostępu do treści moich danych oraz ich poprawiania poprzez bezpośredni kontakt z PriceSafari. Podanie danych osobowych jest dobrowolne.
                         </label>
                         <span asp-validation-for="ConsentToDataProcessing" class="text-danger"></span>
                     </div>
+
+                    <button type="button" class="DarkButton" onclick="nextStep()">Dalej</button>
+                </div>
+
+                <!-- Krok 2 -->
+                <div id="step2" class="form-step" style="display:none;">
+
+                    <div class="login-box-head">
+                        <div class="login-box-title">Formularz kontaktowy</div>
+                    </div>
+
+                    <div class="contact-box-info">
+                        Jaka firme reprezentujesz?
+                    </div>
+                    <div class="form-floating">
+                       
+
+                        <input asp-for="CompanyName" class="form-control" placeholder="Firma sp. z o. o." />
+                        <label asp-for="CompanyName" class="form-label">Nazwa firmy</label>
+                        <span asp-validation-for="CompanyName" class="text-danger"></span>
+                    </div>
+                  
+                    <button type="button" class="DarkButton" onclick="nextStep()">Dalej</button>
+                </div>
+
+                <!-- Krok 3 -->
+                <div id="step3" class="form-step" style="display:none;">
+
+                    <div class="login-box-head">
+                        <div class="login-box-title">Formularz kontaktowy</div>
+                    </div>
+
+                    <div class="contact-box-info">
+                        Jaka firme reprezentujesz?
+                    </div>
+                    <div class="form-floating">
+
+                        <input asp-for="FirstName" class="form-control" placeholder="Jan" />
+                        <label asp-for="FirstName" class="form-label">Imie</label>
+                        <span asp-validation-for="FirstName" class="text-danger"></span>
+
+                    </div>
+                    <div class="form-floating">
+
+                        <input asp-for="LastName" class="form-control" placeholder="Kowalski" />
+                        <label asp-for="LastName" class="form-label">Nazwisko</label>
+                        <span asp-validation-for="LastName" class="text-danger"></span>
+
+                    </div>
+                    
                     <button type="button" class="btn btn-secondary" onclick="prevStep()">Wstecz</button>
-                    <button type="button" class="btn btn-primary" onclick="nextStep()">Dalej</button>
+                    <button type="button" class="DarkButton" onclick="nextStep()">Dalej</button>
                 </div>
 
                 <!-- Krok 4 -->
@@ -158,6 +198,53 @@
                     <button type="submit" class="btn btn-success">Wyślij</button>
                 </div>
             </form>
+        </div>
+        <div class="Vert-50">
+            <div class="Text-Box">
+                <h1 class="Text-Box-Title">Monitoring cen</h1>
+
+                <div class="Text-Box-Text">
+                    <p>
+                        Maksymalizuj zyski, precyzyjnie zarządzaj strategią cenową i zawsze wyprzedzaj konkurencję.
+                        PriceSafari to zaawansowane narzędzie do monitorowania cen, które codziennie dostarcza aktualne dane o cenach rynkowych produktów znajdujących się w Twojej ofercie.
+                        Dzięki naszym szczegółowym analizom możesz szybko reagować na zmiany, poprawiać rentowność oraz zwiększyć zwrot z inwestycji w kampanie reklamowe.
+
+                    </p>
+
+
+                </div>
+
+            </div>
+            <div class="Horizontal-Box">
+                <div class="Icon-Box">
+                    <div class="Icon-Box-Icon">
+                        <img src="~/images/MoneyOut.svg" alt="Analiza Cen">
+                    </div>
+                    <div class="Icon-Box-Text">
+                        <h2 class="Icon-Box-Text-Title">Analiza Cen</h2>
+                        <p class="Icon-Box-Text-Text">Reaguj natychmiast na zmiany rynkowe, aby maksymalizować zyski.</p>
+                    </div>
+                </div>
+                <div class="Icon-Box">
+                    <div class="Icon-Box-Icon">
+                        <img src="~/images/Chart.svg" alt="Śledzenie Konkurencji">
+                    </div>
+                    <div class="Icon-Box-Text">
+                        <h2 class="Icon-Box-Text-Title">Śledzenie Konkurencji</h2>
+                        <p class="Icon-Box-Text-Text">Monitoruj ceny konkurencji na bieżąco, by zawsze być o krok przed nimi.</p>
+                    </div>
+                </div>
+
+                <div class="Icon-Box">
+                    <div class="Icon-Box-Icon">
+                        <img src="~/images/Click.svg" alt="Szybkie Wdrożenie">
+                    </div>
+                    <div class="Icon-Box-Text">
+                        <h2 class="Icon-Box-Text-Title">Szybkie Wdrożenie</h2>
+                        <p class="Icon-Box-Text-Text">Wystarczy nazwa Twojej domeny, aby namierzyć konkurencję i ich ceny.</p>
+                    </div>
+                </div>
+            </div>
         </div>
        
     </div>

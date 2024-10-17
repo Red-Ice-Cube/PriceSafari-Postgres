@@ -113,6 +113,9 @@
     flex: 1;
     border: none;
     flex-direction: column;
+    justify-content: center;
+    align-items:center;
+    gap: 16px;
 }
 
 .form-control {
