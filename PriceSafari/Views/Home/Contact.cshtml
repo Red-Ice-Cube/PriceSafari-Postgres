@@ -9,7 +9,7 @@
     /* Poniżej znajdziesz zaktualizowane style CSS */
     .VertDark {
         background: #222222;
-        padding: 64px;
+        padding: 48px 72px;
         border-radius: 16px;
         box-shadow: 20px 0px 30.8px -23px rgba(0, 0, 0, 0.25) inset;
         display: flex;
@@ -17,7 +17,7 @@
         align-items: center;
         width: 100%;
         max-width: 724px;
-        height: 600px; /* Ustaw wysokość według potrzeb */
+        height: 550px; /* Ustaw wysokość według potrzeb */
     }
 
     .form-step {
@@ -32,7 +32,7 @@
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 16px;
+        gap: 10px;
     }
 
     .form-buttons {
@@ -63,24 +63,32 @@
         }
 
     .validation-message {
-        height: 24px; /* Stała wysokość dla komunikatu walidacyjnego */
+        display:flex;
+        height: 24px; 
+        margin-top: 8px;
+        margin-bottom: 8px;
         overflow: hidden;
     }
 
     .contact-box-info {
         width: 100%;
-        margin-bottom: 8px;
-        margin-top: 16px;
+        margin-bottom: 6px;
+        margin-top: 10px;
         color: rgba(255, 255, 255, 1);
         font-size: 20px;
         font-weight: 300;
     }
 
-    .form-check-label,
+    .form-check-label{
+        color: rgba(255, 255, 255, 0.8);
+        font-size: 14px;
+        font-weight: 200;
+    }
+
     .form-group-radio label {
         color: rgba(255, 255, 255, 0.8);
-        font-size: 15px;
-        font-weight: 200;
+        font-size: 20px;
+        font-weight: 300;
     }
 
     .DarkButton {
@@ -95,8 +103,36 @@
         font-size: 22px;
         font-weight: 300;
         width: 50%;
-        transition: box-shadow 0.3s ease;
+        transition:0.3s ease;
     }
+
+    .DarkButton:hover {
+        box-shadow: 0px 4px 4px 0px rgba(0, 0, 0, 0.25);
+            background: rgba(6, 6, 6, 0.7);
+    }
+
+    .ActionButton {
+        display: flex;
+        padding: 4px 8px;
+        justify-content: center;
+        align-items: center;
+        border: 2px solid #00A1A1;
+        background: #41C7C7;
+        color: #fff;
+        font-size: 22px;
+        border-radius: 16px;
+        font-weight: 300;
+        width: 50%;
+        transition:  0.3s ease;
+    }
+
+        .ActionButton:hover {
+            box-shadow: 0px 4px 4px 0px rgba(0, 0, 0, 0.25);
+            background: #007575;
+            text-decoration: none;
+            color: #fff;
+        }
+
 </style>
 
 <div class="Main-home">
@@ -110,15 +146,16 @@
                 </div>
             </div>
             <div class="Nav-Bar-Scal-Box nav-buttons">
+                <a href="/Home/Contact" class="Nav-Bar-Button-Contact">Kontakt</a>
                 <a href="/Identity/Account/Login" class="Nav-Bar-Button">Panel</a>
-                <a href="/Home/Contact" class="Nav-Bar-Button">Kontakt</a>
+             
             </div>
         </div>
     </div>
 
-    <div class="Vert-Home" style="margin-top:128px; margin-bottom:128px;">
+    <div class="Vert-Home" style="margin-top:64px; margin-bottom:64px;">
         <div class="VertDark">
-            <form asp-action="Contact" style="width:100%;" method="post" id="contactForm">
+            <form asp-action="Contact" style="width:100%; display:flex; height:100% " method="post" id="contactForm">
                 @Html.AntiForgeryToken()
 
                 <!-- Krok 1 -->
@@ -135,7 +172,7 @@
 
                         <div class="form-field">
                             <div class="form-floating">
-                                <input asp-for="Email" class="form-control" />
+                                <input asp-for="Email" class="form-control" placeholder="name@example.com" />
                                 <label asp-for="Email" class="form-label">Email</label>
                             </div>
                             <div class="validation-message">
@@ -157,7 +194,7 @@
                         </div>
                     </div>
                     <div class="form-buttons">
-                        <button type="button" class="DarkButton" onclick="nextStep()">Dalej</button>
+                        <button type="button" class="ActionButton" onclick="nextStep()">Dalej</button>
                     </div>
                 </div>
 
@@ -175,7 +212,7 @@
 
                         <div class="form-field">
                             <div class="form-floating">
-                                <input asp-for="CompanyName" class="form-control" />
+                                <input asp-for="CompanyName" class="form-control" placeholder="Firma" />
                                 <label asp-for="CompanyName" class="form-label">Nazwa firmy</label>
                             </div>
                             <div class="validation-message">
@@ -185,7 +222,7 @@
                     </div>
                     <div class="form-buttons TwinButton">
                         <button type="button" class="DarkButton" onclick="prevStep()">Wstecz</button>
-                        <button type="button" class="DarkButton" onclick="nextStep()">Dalej</button>
+                        <button type="button" class="ActionButton" onclick="nextStep()">Dalej</button>
                     </div>
                 </div>
 
@@ -203,7 +240,7 @@
 
                         <div class="form-field">
                             <div class="form-floating">
-                                <input asp-for="FirstName" class="form-control" />
+                                <input asp-for="FirstName" class="form-control" placeholder="Jan" />
                                 <label asp-for="FirstName" class="form-label">Imię</label>
                             </div>
                             <div class="validation-message">
@@ -213,7 +250,7 @@
 
                         <div class="form-field">
                             <div class="form-floating">
-                                <input asp-for="LastName" class="form-control" />
+                                <input asp-for="LastName" class="form-control" placeholder="Kowalski" />
                                 <label asp-for="LastName" class="form-label">Nazwisko</label>
                             </div>
                             <div class="validation-message">
@@ -223,7 +260,7 @@
                     </div>
                     <div class="form-buttons TwinButton">
                         <button type="button" class="DarkButton" onclick="prevStep()">Wstecz</button>
-                        <button type="button" class="DarkButton" onclick="nextStep()">Dalej</button>
+                        <button type="button" class="ActionButton" onclick="nextStep()">Dalej</button>
                     </div>
                 </div>
 
@@ -241,7 +278,7 @@
 
                         <div class="form-field">
                             <div class="form-floating">
-                                <input asp-for="PhoneNumber" class="form-control" />
+                                <input asp-for="PhoneNumber" class="form-control" placeholder="123 456 789" />
                                 <label asp-for="PhoneNumber" class="form-label">Telefon</label>
                             </div>
                             <div class="validation-message">
@@ -251,77 +288,28 @@
 
                         <!-- Pole wyboru preferowanej formy kontaktu -->
                         <div class="form-field form-group-radio">
-                            <label>Preferowana forma kontaktu:</label>
+                        
                             <div>
                                 <input type="radio" asp-for="PrefersPhone" value="true" id="prefersPhone" />
                                 <label for="prefersPhone">Preferuję kontakt telefoniczny</label>
                             </div>
                             <div>
-                                <input type="radio" asp-for="PrefersPhone" value="false" id="prefersEmail" />
+                                <input type="radio" asp-for="PrefersPhone" value="false" checked id="prefersEmail" />
                                 <label for="prefersEmail">Preferuję kontakt mailowy</label>
                             </div>
-                            <div class="validation-message">
-                                <span asp-validation-for="PrefersPhone" class="text-danger"></span>
-                            </div>
+                      
                         </div>
                     </div>
                     <div class="form-buttons TwinButton">
                         <button type="button" class="DarkButton" onclick="prevStep()">Wstecz</button>
-                        <button type="submit" class="DarkButton">Wyślij</button>
+                        <button type="submit" class="ActionButton">Wyślij</button>
                     </div>
                 </div>
             </form>
         </div>
-        <div class="Vert-50">
-            <div class="Text-Box">
-                <h1 class="Text-Box-Title">Monitoring cen</h1>
-
-                <div class="Text-Box-Text">
-                    <p>
-                        Maksymalizuj zyski, precyzyjnie zarządzaj strategią cenową i zawsze wyprzedzaj konkurencję.
-                        PriceSafari to zaawansowane narzędzie do monitorowania cen, które codziennie dostarcza aktualne dane o cenach rynkowych produktów znajdujących się w Twojej ofercie.
-                        Dzięki naszym szczegółowym analizom możesz szybko reagować na zmiany, poprawiać rentowność oraz zwiększyć zwrot z inwestycji w kampanie reklamowe.
-
-                    </p>
-
-
-                </div>
-
-            </div>
-            <div class="Horizontal-Box">
-                <div class="Icon-Box">
-                    <div class="Icon-Box-Icon">
-                        <img src="~/images/MoneyOut.svg" alt="Analiza Cen">
-                    </div>
-                    <div class="Icon-Box-Text">
-                        <h2 class="Icon-Box-Text-Title">Analiza Cen</h2>
-                        <p class="Icon-Box-Text-Text">Reaguj natychmiast na zmiany rynkowe, aby maksymalizować zyski.</p>
-                    </div>
-                </div>
-                <div class="Icon-Box">
-                    <div class="Icon-Box-Icon">
-                        <img src="~/images/Chart.svg" alt="Śledzenie Konkurencji">
-                    </div>
-                    <div class="Icon-Box-Text">
-                        <h2 class="Icon-Box-Text-Title">Śledzenie Konkurencji</h2>
-                        <p class="Icon-Box-Text-Text">Monitoruj ceny konkurencji na bieżąco, by zawsze być o krok przed nimi.</p>
-                    </div>
-                </div>
-
-                <div class="Icon-Box">
-                    <div class="Icon-Box-Icon">
-                        <img src="~/images/Click.svg" alt="Szybkie Wdrożenie">
-                    </div>
-                    <div class="Icon-Box-Text">
-                        <h2 class="Icon-Box-Text-Title">Szybkie Wdrożenie</h2>
-                        <p class="Icon-Box-Text-Text">Wystarczy nazwa Twojej domeny, aby namierzyć konkurencję i ich ceny.</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-
+       
+        
     </div>
-
     <div class="Nav-Bar-Fotter">
         <div class="Nav-Bar-Scal">
             <div class="Nav-Bar-Scal-Box">
@@ -331,7 +319,7 @@
             </div>
         </div>
     </div>
-    </div>
+</div>
 
     <!-- Skrypty i inne sekcje -->
     @section Scripts {
@@ -395,4 +383,4 @@
             });
         </script>
     }
-</div>
+
