@@ -50,11 +50,4 @@
 		</Content>
 	</ItemGroup>
 
-	<ItemGroup>
-		<Content Update="Areas\Identity\Pages\Account\AffiliateVerificationConfirmation.cshtml">
-			<ExcludeFromSingleFile>true</ExcludeFromSingleFile>
-			<CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
-		</Content>
-	</ItemGroup>
-
 </Project>

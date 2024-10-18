@@ -386,6 +386,7 @@
     display: flex;
     width:100%;
     align-items: center;
+    max-width:1576px;
     justify-content:space-between;
     gap: 32px;
     align-self: stretch;
