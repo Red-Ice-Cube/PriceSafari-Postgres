@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.EntityFrameworkCore;
 using PriceSafari.Hubs;
 using PriceSafari.Services;
+using PriceSafari.Services.ViewRenderService;
 
 
 public class Program
@@ -41,7 +42,7 @@ public class Program
         builder.Services.AddTransient<IEmailSender, EmailService>();
         builder.Services.AddSignalR();
         builder.Services.AddHostedService<KeepAliveService>();
-
+        builder.Services.AddTransient<IViewRenderService, ViewRenderService>();
         builder.Services.AddHttpClient<Scraper>();
         builder.Services.AddScoped<Scraper>();
         builder.Services.AddScoped<StoreProcessingService>();
