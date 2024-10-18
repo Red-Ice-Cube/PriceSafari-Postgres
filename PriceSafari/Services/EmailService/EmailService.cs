@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Identity.UI.Services;
 using System.Net;
 using System.Net.Mail;
+using System.Net.Mime;
 using System.Threading.Tasks;
 
 public class EmailService : IEmailSender
@@ -37,7 +38,28 @@ public class EmailService : IEmailSender
             };
             mailMessage.To.Add(email);
 
+            // Ścieżka do obrazka
+            var imagePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "cid", "signature.png");
+
+            // Sprawdzenie, czy plik istnieje
+            if (File.Exists(imagePath))
+            {
+                // Utworzenie załącznika
+                Attachment inline = new Attachment(imagePath);
+                inline.ContentId = "signatureImage";
+                inline.ContentDisposition.Inline = true;
+                inline.ContentDisposition.DispositionType = DispositionTypeNames.Inline;
+
+                // Dodanie załącznika do wiadomości
+                mailMessage.Attachments.Add(inline);
+            }
+            else
+            {
+               
+            }
+
             await client.SendMailAsync(mailMessage);
         }
     }
+
 }
