@@ -70,19 +70,19 @@ namespace PriceSafari.Controllers.HomeControllers
 
                 // Wysłanie emaila z podziękowaniem do użytkownika
                 var userSubject = "Dziękujemy za kontakt z nami!";
-                // Renderowanie szablonu wiadomości e-mail
                 string userMessage = await _viewRenderService.RenderToStringAsync("EmailTemplates/ThankYouEmail", submission);
+                await _emailSender.SendEmailAsync(submission.Email, userSubject, userMessage);
 
-                // Wysłanie e-maila
-                await _emailSender.SendEmailAsync(
-                    submission.Email,
-                    userSubject,
-                    userMessage);
+                // Ustawienie flagi informującej o sukcesie
+                ViewBag.FormSubmitted = true;
 
-                return RedirectToAction("ContactThankYou");
+                // Opcjonalnie: Możesz wyczyścić model, aby nie wyświetlał danych w polach formularza
+                ModelState.Clear();
+                return View();
             }
             return View(model);
         }
+
 
 
 

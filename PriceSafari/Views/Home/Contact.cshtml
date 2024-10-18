@@ -115,6 +115,28 @@
 
     <div class="Vert-Home" style="margin-top:64px; margin-bottom:64px;">
         <div class="VertDark">
+                 @if (ViewBag.FormSubmitted == true)
+            {
+               
+                    <div class="form-content">
+                        <div class="login-box-head">
+                            <div class="login-box-title">Dziękujemy za wiadomość!</div>
+                        </div>
+                    <div class="contact-box-info">
+                      
+                        <p>Skontaktujemy się z Państwem w ciągu 24 godzin, aby umówić spotkanie online i omówić Państwa potrzeby w zakresie monitorowania cen online.</p>
+                        <p>Następnie przygotujemy dla Państwa darmowe konto demo, w którym przez 72 godziny będziecie mogli analizować ceny 300 wybranych przez Państwa produktów.</p>
+                    </div>
+
+                   
+                        
+                 
+                    </div>
+                    <a href="@Url.Action("Index", "Home")" class="DarkButton">Powrót na stronę główną</a>
+               
+            }
+            else
+            {
             <form asp-action="Contact" style="width:100%; display:flex; height:100% " method="post" id="contactForm">
                 @Html.AntiForgeryToken()
 
@@ -167,13 +189,13 @@
                         </div>
 
                         <div class="contact-box-info">
-                            Jak nazywa się firma, którą reprezentujesz?
+                            Pod jakim adresem znajdziemy Państwa stronę internetową?
                         </div>
 
                         <div class="form-field">
                             <div class="form-floating">
-                                <input asp-for="CompanyName" class="form-control" placeholder="Firma" />
-                                <label asp-for="CompanyName" class="form-label">Nazwa firmy</label>
+                                    <input asp-for="CompanyName" class="form-control" placeholder="Strona internetowa" />
+                                <label asp-for="CompanyName" class="form-label">Strona internetowa</label>
                             </div>
                             <div class="validation-message">
                                 <span asp-validation-for="CompanyName" class="text-danger"></span>
@@ -266,6 +288,8 @@
                     </div>
                 </div>
             </form>
+           
+            }
         </div>
        
         
