@@ -7,17 +7,27 @@
     <meta name="description" content="Price Safari">
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;700&display=swap" rel="stylesheet"> 
+    <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;700&display=swap" rel="stylesheet">
     <link href="~/css/Login.css" rel="stylesheet" />
     <link href="~/css/Home.css" rel="stylesheet">
     <link rel="icon" type="image/png" sizes="16x16" href="~/icon/icon.png">
+    @RenderSection("Styles", required: false)
 </head>
 <body>
+    @{
+        var hideHeaderFooter = ViewBag.HideHeaderFooter as bool? ?? false;
+    }
+    @if (!hideHeaderFooter)
+    {
+        @Html.Partial("_Header")
+    }
     <div>
         @RenderBody()
     </div>
-    <script src="~/lib/jquery/dist/jquery.min.js"></script>
-    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
-    @await RenderSectionAsync("Scripts", required: false)
+    @if (!hideHeaderFooter)
+    {
+        @Html.Partial("_Footer")
+    }
+    @RenderSection("Scripts", required: false)
 </body>
 </html>
