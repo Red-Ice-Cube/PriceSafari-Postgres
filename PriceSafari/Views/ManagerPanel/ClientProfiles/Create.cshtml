@@ -55,8 +55,32 @@
 <script>
     $(document).ready(function () {
         $('#CeneoProfileUrl').on('blur', function () {
-            var originalUrl = $(this).val();
-            var trimmedUrl = originalUrl.split(';')[0];
+            var originalUrl = $(this).val().trim();
+            var trimmedUrl = originalUrl;
+
+            try {
+              
+                if (!/^https?:\/\//i.test(originalUrl)) {
+                    originalUrl = originalUrl;
+                }
+
+                var url = new URL(originalUrl);
+
+                url.hash = '';
+                url.search = '';
+
+               
+                var pathname = url.pathname.split(';')[0];
+                url.pathname = pathname;
+
+              
+                trimmedUrl = url.toString();
+            } catch (e) {
+               
+                trimmedUrl = originalUrl;
+            }
+
+        
             $(this).val(trimmedUrl);
 
             
@@ -75,6 +99,27 @@
                 }
             });
         });
+
+     
+        var inputFields = ['#CeneoProfileName', '#CeneoProfileEmail', '#CeneoProfileTelephone', '#CeneoProfileProductCount'];
+
+        
+        inputFields.forEach(function (selector) {
+            $(selector).on('blur', function () {
+                var trimmedValue = $(this).val().trim();
+                $(this).val(trimmedValue);
+            });
+        });
+
+       
+        $('#clientProfileForm').on('submit', function (e) {
+            $(this).find('input').each(function () {
+                var trimmedValue = $(this).val().trim();
+                $(this).val(trimmedValue);
+            });
+        });
     });
+
+
 </script>
 

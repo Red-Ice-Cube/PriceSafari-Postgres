@@ -87,7 +87,7 @@
     align-items: flex-start;
     width: 85%;
     max-width:500px;
-    gap: 24px;
+    gap: 18px;
     align-self: center;
 }
 
@@ -117,9 +117,8 @@
 }
 
 .form-control {
-    border-radius: 16px;
-    padding: 8px;
-    align-self: stretch;
+    border-radius: 10px;
+    height: 56px !important;
     background-color: #FFFFFF;
     justify-content: center;
     border: none;
@@ -181,7 +180,7 @@
     padding: 8px 16px;
     justify-content: center;
     align-items: center;
-    border-radius: 16px;
+    border-radius: 10px;
     border: 2px solid rgba(6, 6, 6, 0.92);
     background: rgba(6, 6, 6, 0.3);
     color: #fff;

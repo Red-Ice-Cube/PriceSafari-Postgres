@@ -5,95 +5,6 @@
     Layout = "~/Views/Shared/_Layout.cshtml";
 }
 
-<style>
-    /* Poniżej znajdziesz zaktualizowane style CSS */
-    .VertDark {
-        background: #222222;
-        padding: 48px 72px;
-        border-radius: 16px;
-        box-shadow: 20px 0px 30.8px -23px rgba(0, 0, 0, 0.25) inset;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        width: 100%;
-        max-width: 724px;
-        height: 550px; /* Ustaw wysokość według potrzeb */
-    }
-
-    .form-step {
-        display: flex;
-        flex-direction: column;
-        flex: 1;
-        align-self: stretch;
-    }
-
-    .form-content {
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 10px;
-    }
-
-    .form-buttons {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        gap: 36px;
-    }
-
-    .TwinButton {
-        display: flex;
-        justify-content: space-between;
-        width: 100%;
-        gap: 36px;
-    }
-
-    .form-field {
-        width: 100%;
-    }
-
-    .form-floating {
-        position: relative;
-        width: 100%;
-    }
-
-        .form-floating .form-control {
-            width: 100%;
-        }
-
-    .validation-message {
-        display:flex;
-        height: 24px; 
-        margin-top: 8px;
-        margin-bottom: 8px;
-        overflow: hidden;
-    }
-
-    .contact-box-info {
-        width: 100%;
-        margin-bottom: 6px;
-        margin-top: 10px;
-        color: rgba(255, 255, 255, 1);
-        font-size: 20px;
-        font-weight: 300;
-    }
-
-    .form-check-label{
-        color: rgba(255, 255, 255, 0.8);
-        font-size: 14px;
-        font-weight: 200;
-    }
-
-    .form-group-radio label {
-        color: rgba(255, 255, 255, 0.8);
-        font-size: 20px;
-        font-weight: 300;
-    }
-
-
-
-</style>
 
 <div class="Main-home">
    
@@ -282,9 +193,9 @@
    
 </div>
 
-    <!-- Skrypty i inne sekcje -->
     @section Scripts {
         @await Html.PartialAsync("_ValidationScriptsPartial")
+        <script src="~/lib/jquery/dist/jquery.min.js"></script>
         <script src="~/lib/jquery-validation/dist/jquery.validate.min.js"></script>
         <script src="~/lib/jquery-validation-unobtrusive/jquery.validate.unobtrusive.min.js"></script>
 
@@ -295,7 +206,7 @@
             function showStep(step) {
                 $('.form-step').hide();
                 $('#step' + step).show();
-                // Re-parse the form for unobtrusive validation after showing a new step
+                
                 $.validator.unobtrusive.parse('#contactForm');
             }
 
@@ -309,22 +220,22 @@
             function nextStep() {
                 var isValid = true;
 
-                // Walidacja wszystkich widocznych pól w bieżącym kroku
+               
                 $('#step' + currentStep + ' :input').each(function () {
                     if (!$(this).valid()) {
                         isValid = false;
                     }
                 });
 
-                // Dodatkowa walidacja dla checkboxa w kroku 1
+               
                 if (currentStep === 1) {
                     var consentChecked = $('#ConsentToDataProcessing').is(':checked');
                     if (!consentChecked) {
                         isValid = false;
-                        // Wyświetlenie komunikatu błędu
+                        
                         $('#consentError').text('Musisz wyrazić zgodę na przetwarzanie danych.');
                     } else {
-                        // Usunięcie komunikatu błędu, jeśli istnieje
+                      
                         $('#consentError').text('');
                     }
                 }
@@ -339,7 +250,7 @@
 
             $(document).ready(function () {
                 showStep(currentStep);
-                // Inicjalizacja walidacji unobtrusive
+                
                 $.validator.unobtrusive.parse('#contactForm');
             });
         </script>
