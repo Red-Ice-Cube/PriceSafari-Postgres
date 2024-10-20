@@ -34,48 +34,51 @@ public class ClientProfileController : Controller
     }
 
 
-
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Create(ClientProfile model)
     {
-    
-
         var user = await _userManager.GetUserAsync(User);
-      
 
-       
         model.CreatedByUserId = user.Id;
         model.CreationDate = DateTime.Now;
 
-
+        // Remove these from ModelState to avoid validation errors
         ModelState.Remove("CreatedByUserId");
         ModelState.Remove("CreatedByUser");
 
         if (ModelState.IsValid)
         {
+            // Check if URL already exists
+            bool urlExists = await _context.ClientProfiles
+                .AnyAsync(cp => cp.CeneoProfileUrl == model.CeneoProfileUrl);
+
+            if (urlExists)
+            {
+                ModelState.AddModelError("CeneoProfileUrl", "Klient z tym URL już istnieje."); // "A client with this URL already exists."
+                return View("~/Views/ManagerPanel/ClientProfiles/Create.cshtml", model);
+            }
+
             try
             {
                 _context.ClientProfiles.Add(model);
                 await _context.SaveChangesAsync();
-
-              
                 return RedirectToAction("Index");
             }
             catch (Exception ex)
             {
-               
                 ModelState.AddModelError("", "Wystąpił błąd podczas zapisywania danych. Skontaktuj się z administratorem.");
             }
         }
         else
         {
-            _logger.LogWarning("ModelState jest nieprawidłowy: {ModelStateErrors}",
+            _logger.LogWarning("ModelState is invalid: {ModelStateErrors}",
                 string.Join(", ", ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage)));
         }
 
         return View("~/Views/ManagerPanel/ClientProfiles/Create.cshtml", model);
     }
+
 
 
     [HttpGet]
@@ -111,15 +114,25 @@ public class ClientProfileController : Controller
             return NotFound();
         }
 
-        // Usuwamy błędy walidacji dla CreatedByUserId i CreatedByUser, ponieważ są one ustawiane automatycznie.
+        // Remove these from ModelState to avoid validation errors
         ModelState.Remove("CreatedByUserId");
         ModelState.Remove("CreatedByUser");
 
         if (ModelState.IsValid)
         {
+            // Check if URL already exists in another record
+            bool urlExists = await _context.ClientProfiles
+                .AnyAsync(cp => cp.CeneoProfileUrl == model.CeneoProfileUrl && cp.ClientProfileId != id);
+
+            if (urlExists)
+            {
+                ModelState.AddModelError("CeneoProfileUrl", "Klient z tym URL już istnieje.");
+                return View("~/Views/ManagerPanel/ClientProfiles/Edit.cshtml", model);
+            }
+
             try
             {
-                // Aktualizujemy wartości z modelu
+                // Update the existing profile with new values
                 existingProfile.CeneoProfileName = model.CeneoProfileName;
                 existingProfile.CeneoProfileEmail = model.CeneoProfileEmail;
                 existingProfile.CeneoProfileTelephone = model.CeneoProfileTelephone;
@@ -129,7 +142,6 @@ public class ClientProfileController : Controller
                 existingProfile.ScheduledMeetingDate = model.ScheduledMeetingDate;
 
                 await _context.SaveChangesAsync();
-
                 return RedirectToAction("Index");
             }
             catch (Exception ex)
@@ -139,11 +151,12 @@ public class ClientProfileController : Controller
         }
         else
         {
-            _logger.LogWarning("ModelState jest nieprawidłowy: {ModelStateErrors}",
+            _logger.LogWarning("ModelState is invalid: {ModelStateErrors}",
                 string.Join(", ", ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage)));
         }
 
         return View("~/Views/ManagerPanel/ClientProfiles/Edit.cshtml", model);
     }
+
 
 }
