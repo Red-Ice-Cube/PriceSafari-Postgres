@@ -2,6 +2,11 @@
 
 @{
     Layout = "~/Views/Shared/_PanelLayout.cshtml";
+
+    // Get distinct users who have created profiles
+    var users = Model.Where(m => m.CreatedByUser != null)
+                     .GroupBy(m => m.CreatedByUser.Id)
+                     .Select(g => g.First().CreatedByUser);
 }
 
 <div class="Page-Box">
@@ -18,13 +23,31 @@
                     <a class="Button-Page-Small" asp-action="Create">Dodaj nowy profil</a>
                 </div>
                 <div class="order-search-box">
-                    <input type="text" id="accountSearch" placeholder="Wyszukaj firme">
+                    <input type="text" id="accountSearch" placeholder="Wyszukaj firmę">
+                    <select id="createdByFilter" class="DropDown">
+                        <option value="">Wszystkie osoby</option>
+                        @foreach (var user in users)
+                        {
+                            <option value="@user.Id.ToString()">@user.PartnerName @user.PartnerSurname</option>
+                        }
+                    </select>
+
+                    <select id="statusFilter" class="DropDown">
+                        <option value="">Wszystkie statusy</option>
+                        @foreach (var status in Enum.GetValues(typeof(PriceSafari.Models.ClientStatus)).Cast<PriceSafari.Models.ClientStatus>())
+                        {
+                            <option value="@((int)status)">@GetStatusDisplayName(status)</option>
+                        }
+                    </select>
                 </div>
+               
             </div>
             <div class="Vert-table">
                 <table class="table-orders">
                     <thead>
                         <tr>
+                            <th>ID</th>
+                            <th>Data Dodania</th>
                             <th>Firma (<span id="accountsCount">0</span>)</th>
                             <th>Email</th>
                             <th>Telefon</th>
@@ -37,7 +60,9 @@
                     <tbody>
                         @foreach (var item in Model)
                         {
-                            <tr data-contact="@item.ClientProfileId" style="cursor:pointer;">
+                            <tr data-contact="@item.ClientProfileId" data-createdby="@item.CreatedByUser?.Id.ToString()" data-status="@((int)item.Status)" style="cursor:pointer;">
+                                <td>@item.ClientProfileId</td>
+                                <td>@item.CreationDate.ToString("dd-MM-yyyy")</td>
                                 <td>@item.CeneoProfileName</td>
                                 <td>@item.CeneoProfileEmail</td>
                                 <td>@item.CeneoProfileTelephone</td>
@@ -49,50 +74,61 @@
                                     </span>
                                 </td>
                                 <td>@item.CreatedByUser?.PartnerName @item.CreatedByUser?.PartnerSurname</td>
-
                             </tr>
                         }
                     </tbody>
+                </table>
             </div>
         </div>
     </div>
 </div>
+
 <script>
     document.addEventListener('DOMContentLoaded', function () {
+        // Enable row click to navigate to Edit page
         document.querySelectorAll('.table-orders tr[data-contact]').forEach(row => {
             row.addEventListener('click', function () {
                 var clientId = this.getAttribute('data-contact');
                 window.location.href = '/ClientProfile/Edit/' + clientId;
             });
         });
+
+        // Initial calculation of accounts
+        calculateAccounts();
     });
 
-</script>
-<script>
     function calculateAccounts() {
-
-        let accountsCount = 0;
-
-        document.querySelectorAll('.table-orders tbody tr').forEach(row => {
-            accountsCount++;
-
-        });
+        let accountsCount = $('.table-orders tbody tr:visible').length;
         document.getElementById('accountsCount').innerText = accountsCount;
     }
-    window.onload = calculateAccounts;
-</script>
-<script>
+
     $(document).ready(function () {
-        $('#accountSearch').on('keyup', function () {
-            var searchText = $(this).val().toLowerCase();
+        function filterTable() {
+            var searchText = $('#accountSearch').val().toLowerCase();
+            var selectedUserId = $('#createdByFilter').val();
+            var selectedStatus = $('#statusFilter').val();
 
             $('.table-orders tbody tr').each(function () {
-                var contactName = $(this).find('td:nth-child(1)').text().toLowerCase();
-                $(this).toggle(contactName.indexOf(searchText) > -1);
-            });
-        });
-    });
+                var contactName = $(this).find('td:nth-child(3)').text().toLowerCase(); // 'Firma' column
+                var createdByUserId = $(this).data('createdby') ? $(this).data('createdby').toString() : '';
+                var status = $(this).data('status') !== undefined ? $(this).data('status').toString() : '';
 
+                var matchesSearch = contactName.indexOf(searchText) > -1;
+                var matchesUser = selectedUserId === '' || createdByUserId == selectedUserId;
+                var matchesStatus = selectedStatus === '' || status == selectedStatus;
+
+                $(this).toggle(matchesSearch && matchesUser && matchesStatus);
+            });
+
+            // Recalculate accounts count
+            calculateAccounts();
+        }
+
+        // Attach event handlers
+        $('#accountSearch').on('keyup', filterTable);
+        $('#createdByFilter').on('change', filterTable);
+        $('#statusFilter').on('change', filterTable);
+    });
 </script>
 
 @functions {
@@ -104,9 +140,9 @@
             PriceSafari.Models.ClientStatus.Mail => "#ffc107",
             PriceSafari.Models.ClientStatus.Urabiany => "#28a745",
             PriceSafari.Models.ClientStatus.Spotkanie => "#007bff",
-            PriceSafari.Models.ClientStatus.Testuje => "#6f42c1", 
-            PriceSafari.Models.ClientStatus.Frajer => "#000", 
-            PriceSafari.Models.ClientStatus.Ojebane => "#dc3545", 
+            PriceSafari.Models.ClientStatus.Testuje => "#6f42c1",
+            PriceSafari.Models.ClientStatus.Frajer => "#000",
+            PriceSafari.Models.ClientStatus.Ojebane => "#dc3545",
             _ => "#6c757d"
         };
     }
