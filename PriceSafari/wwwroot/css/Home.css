@@ -1,7 +1,7 @@
 ﻿
-* {
-    box-sizing: border-box; /* Upewnijmy się, że padding i border są uwzględniane w wymiarach elementów */
-}
+/** {
+    box-sizing: border-box;*/ /* Upewnijmy się, że padding i border są uwzględniane w wymiarach elementów */
+/*}*/
 
 .Main-home {
     background: #fff;
