@@ -34,6 +34,8 @@ namespace PriceSafari.Data
         public DbSet<GlobalPriceReport> GlobalPriceReports { get; set; }
         public DbSet<ScheduledTask> ScheduledTasks { get; set; }
         public DbSet<ContactFormSubmission> ContactFormSubmissions { get; set; }
+        public DbSet<PlanClass> Plans { get; set; }
+
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

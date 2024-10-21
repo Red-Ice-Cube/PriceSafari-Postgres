@@ -1,0 +1,37 @@
+﻿@model IEnumerable<PriceSafari.Models.PlanClass>
+
+@{
+    ViewData["Title"] = "Plans";
+    Layout = "~/Views/Shared/_PanelLayout.cshtml";
+}
+
+<h2>Plans</h2>
+
+<a asp-action="Create" class="btn btn-success">Add New Plan</a>
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>Plan Name</th>
+            <th>Net Price</th>
+            <th>Duration (Days)</th>
+            <th>Is Test Plan</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var plan in Model)
+        {
+            <tr>
+                <td>@plan.PlanName</td>
+                <td>@plan.NetPrice</td>
+                <td>@plan.DurationDays</td>
+                <td>@plan.IsTestPlan</td>
+                <td>
+                    <a asp-action="Edit" asp-route-id="@plan.PlanId" class="btn btn-primary">Edit</a>
+                    <a asp-action="Delete" asp-route-id="@plan.PlanId" class="btn btn-danger">Delete</a>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>

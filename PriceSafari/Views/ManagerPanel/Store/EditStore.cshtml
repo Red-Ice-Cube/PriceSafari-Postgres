@@ -1,0 +1,46 @@
+﻿@model PriceSafari.Models.StoreClass
+
+@{
+    ViewData["Title"] = "Edit Store";
+    Layout = "~/Views/Shared/_PanelLayout.cshtml";
+}
+
+<h2>Edit Store</h2>
+
+<form asp-action="EditStore" method="post">
+    <input type="hidden" asp-for="StoreId" />
+    <div class="form-group">
+        <label asp-for="StoreName"></label>
+        <input asp-for="StoreName" class="form-control" />
+    </div>
+    <!-- Add other store fields as needed -->
+
+    <div class="form-group">
+        <label asp-for="PlanId">Plan</label>
+        <select asp-for="PlanId" class="form-control" asp-items="ViewBag.Plans">
+            <option value="">-- Select Plan --</option>
+        </select>
+    </div>
+
+    <div class="form-group">
+        <label asp-for="DiscountPercentage"></label>
+        <input asp-for="DiscountPercentage" class="form-control" />
+    </div>
+
+    <div class="form-group">
+        <label asp-for="IsInvoicePaid">Invoice Paid</label>
+        <input asp-for="IsInvoicePaid" class="form-control" type="checkbox" />
+    </div>
+
+    <div class="form-group">
+        <label asp-for="PlanStartDate"></label>
+        <input asp-for="PlanStartDate" class="form-control" type="date" />
+    </div>
+
+    <div class="form-group">
+        <label asp-for="PlanEndDate"></label>
+        <input asp-for="PlanEndDate" class="form-control" type="date" />
+    </div>
+
+    <button type="submit" class="btn btn-primary">Save</button>
+</form>
