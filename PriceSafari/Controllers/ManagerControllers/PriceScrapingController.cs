@@ -31,14 +31,13 @@ public class PriceScrapingController : Controller
         _storeProcessingService = storeProcessingService;
     }
 
-  
-
 
     [HttpPost]
     public async Task<IActionResult> GroupAndSaveUniqueUrls()
     {
         var uniqueUrls = await _context.Products
-            .Where(p => p.IsScrapable)
+            .Include(p => p.Store)
+            .Where(p => p.IsScrapable && p.Store.RemainingScrapes > 0)
             .GroupBy(p => p.OfferUrl)
             .Select(g => new CoOfrClass
             {
@@ -54,6 +53,7 @@ public class PriceScrapingController : Controller
 
         return RedirectToAction("GetUniqueScrapingUrls");
     }
+
 
     [HttpGet]
     public async Task<IActionResult> GetUniqueScrapingUrls()

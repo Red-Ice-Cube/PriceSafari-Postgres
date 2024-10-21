@@ -1,4 +1,6 @@
-﻿@model IEnumerable<PriceSafari.Models.StoreClass>
+﻿
+
+@model IEnumerable<PriceSafari.Models.StoreClass>
 
 @{
     ViewData["Title"] = "Lista Sklepów";
@@ -8,18 +10,21 @@
 
 <h2>Lista Sklepów</h2>
 
-<a asp-controller="PriceScraping" asp-action="GetUniqueScrapingUrls" class="btn btn-info">Unikalne URL do Scrapowania</a> 
+<a asp-controller="PriceScraping" asp-action="GetUniqueScrapingUrls" class="btn btn-info">Unikalne URL do Scrapowania</a>
 <table class="table">
     <thead>
         <tr>
             <th>Nazwa Sklepu</th>
+            <th>Plan</th>
+            <th>Produkty w Planie</th>
+            <th>Aktywny</th>
+            <th>Pozostałe Zeskrobania</th>
             <th>Profil Sklepu</th>
             <th>Głębokość Kategorii</th>
             <th>Akcje</th>
             <th>Przydzielenie tablic</th>
             <th>Postęp</th>
             <th>Status</th>
-            <th>Produkty do Scrapowania</th>
             <th>Usuń</th>
         </tr>
     </thead>
@@ -28,6 +33,19 @@
         {
             <tr>
                 <td>@store.StoreName</td>
+                <td>@store.Plan?.PlanName ?? "Brak Planu"</td>
+                <td>@store.Plan?.ProductsToScrap ?? 0</td>
+                <td>
+                    @if (store.IsActive)
+                    {
+                        <span class="badge badge-success">Tak</span>
+                    }
+                    else
+                    {
+                        <span class="badge badge-secondary">Nie</span>
+                    }
+                </td>
+                <td>@store.RemainingScrapes</td>
                 <td>@store.StoreProfile</td>
                 <td>
                     <select class="category-depth-select" data-store-id="@store.StoreId">
@@ -62,13 +80,6 @@
                 </td>
                 <td id="status-@store.StoreId">Oczekiwanie</td>
                 <td>
-                    <form asp-controller="Store" asp-action="UpdateProductsToScrap" method="post" class="form-inline">
-                        <input type="hidden" name="storeId" value="@store.StoreId" />
-                        <input type="number" name="productsToScrap" value="@store.ProductsToScrap" class="form-control" />
-                        <button type="submit" class="btn btn-primary">Zapisz</button>
-                    </form>
-                </td>
-                <td>
                     <form asp-controller="Store" asp-action="DeleteStore" method="post" onsubmit="return confirm('Czy na pewno chcesz usunąć ten sklep?');">
                         <input type="hidden" name="storeId" value="@store.StoreId" />
                         <button type="submit" class="btn btn-danger">Usuń</button>
@@ -78,6 +89,7 @@
         }
     </tbody>
 </table>
+
 
 <a asp-controller="Store" asp-action="CreateStore" class="btn btn-success">Dodaj Nowy Sklep</a>
 
@@ -114,3 +126,4 @@
         });
     </script>
 }
+

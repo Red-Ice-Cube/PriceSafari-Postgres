@@ -1,0 +1,30 @@
+﻿@model IEnumerable<PriceSafari.Models.ViewModels.PaymentViewModel>
+
+@{
+    Layout = "~/Views/Shared/_PanelLayout.cshtml";
+}
+
+<h2>Twoje Sklepy</h2>
+
+@foreach (var store in Model)
+{
+    <div class="store-card">
+        <img src="@store.LogoUrl" alt="@store.StoreName" class="store-logo" />
+        <h3>@store.StoreName</h3>
+        <p>Plan: @store.PlanName</p>
+        <p>Cena Plan: @store.PlanPrice.ToString("C")</p>
+        <p>Produkty do Zeskrobania: @store.ProductsToScrap</p>
+        <p>Ilość Zeskrobań: @store.ScrapesPerInvoice</p>
+        @if (store.HasUnpaidInvoice)
+        {
+            <p><strong>Proforma została już wygenerowana.</strong></p>
+        }
+        else
+        {
+            <form asp-action="GenerateProforma" method="post">
+                <input type="hidden" name="storeId" value="@store.StoreId" />
+                <button type="submit" class="btn btn-primary">Wygeneruj Proformę</button>
+            </form>
+        }
+    </div>
+}

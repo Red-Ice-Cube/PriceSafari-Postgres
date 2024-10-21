@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Authorization;
 using System.Threading.Tasks;
 using System.Linq;
 using System;
+using Microsoft.AspNetCore.Mvc.Rendering;
 
 namespace PriceSafari.Controllers.ManagerControllers
 {
@@ -30,24 +31,15 @@ namespace PriceSafari.Controllers.ManagerControllers
         }
 
         // GET: Invoice/Create
-        public async Task<IActionResult> Create(int storeId)
+        public async Task<IActionResult> Create()
         {
-            var store = await _context.Stores.Include(s => s.Plan).FirstOrDefaultAsync(s => s.StoreId == storeId);
-            if (store == null)
-            {
-                return NotFound();
-            }
+            var stores = await _context.Stores.Include(s => s.Plan).ToListAsync();
+            ViewBag.Stores = new SelectList(stores, "StoreId", "StoreName");
 
-            var invoice = new InvoiceClass
-            {
-                StoreId = storeId,
-                PlanId = store.PlanId.Value,
-                IssueDate = DateTime.Now,
-                NetAmount = store.Plan.NetPrice,
-                ScrapesIncluded = store.Plan.ScrapesPerInvoice
-            };
+            var plans = await _context.Plans.ToListAsync();
+            ViewBag.Plans = new SelectList(plans, "PlanId", "PlanName");
 
-            return View("~/Views/ManagerPanel/Invoices/Create.cshtml", invoice);
+            return View("~/Views/ManagerPanel/Invoices/Create.cshtml");
         }
 
         // POST: Invoice/Create
@@ -61,6 +53,12 @@ namespace PriceSafari.Controllers.ManagerControllers
                 await _context.SaveChangesAsync();
                 return RedirectToAction(nameof(Index));
             }
+
+            var stores = await _context.Stores.Include(s => s.Plan).ToListAsync();
+            ViewBag.Stores = new SelectList(stores, "StoreId", "StoreName");
+            var plans = await _context.Plans.ToListAsync();
+            ViewBag.Plans = new SelectList(plans, "PlanId", "PlanName");
+
             return View("~/Views/ManagerPanel/Invoices/Create.cshtml", invoice);
         }
 
@@ -69,12 +67,16 @@ namespace PriceSafari.Controllers.ManagerControllers
         {
             if (id == null) return NotFound();
 
-            var invoice = await _context.Invoices.FindAsync(id);
+            var invoice = await _context.Invoices
+                .Include(i => i.Store)
+                .Include(i => i.Plan)
+                .FirstOrDefaultAsync(i => i.InvoiceId == id);
             if (invoice == null) return NotFound();
 
             return View("~/Views/ManagerPanel/Invoices/Edit.cshtml", invoice);
         }
 
+        // POST: Invoice/Edit/5
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Edit(int id, InvoiceClass invoice)
@@ -87,6 +89,18 @@ namespace PriceSafari.Controllers.ManagerControllers
                 {
                     _context.Update(invoice);
                     await _context.SaveChangesAsync();
+
+                    // If invoice is marked as paid, update the store's remaining scrapes
+                    if (invoice.IsPaid)
+                    {
+                        var store = await _context.Stores.Include(s => s.Plan).FirstOrDefaultAsync(s => s.StoreId == invoice.StoreId);
+                        if (store != null)
+                        {
+                            store.RemainingScrapes += invoice.ScrapesIncluded;
+                            store.ProductsToScrap = store.Plan.ProductsToScrap;
+                            await _context.SaveChangesAsync();
+                        }
+                    }
                 }
                 catch (DbUpdateConcurrencyException)
                 {
@@ -100,22 +114,53 @@ namespace PriceSafari.Controllers.ManagerControllers
                     }
                 }
 
-                // If invoice is marked as paid, update the store's remaining scrapes
-                if (invoice.IsPaid)
-                {
-                    var store = await _context.Stores.Include(s => s.Plan).FirstOrDefaultAsync(s => s.StoreId == invoice.StoreId);
-                    if (store != null)
-                    {
-                        store.RemainingScrapes += invoice.ScrapesIncluded;
-                        store.ProductsToScrap = store.Plan.ProductsToScrap;
-                        await _context.SaveChangesAsync();
-                    }
-                }
-
                 return RedirectToAction(nameof(Index));
             }
+
+            // Reload related data if ModelState is invalid
+            invoice.Store = await _context.Stores.FindAsync(invoice.StoreId);
+            invoice.Plan = await _context.Plans.FindAsync(invoice.PlanId);
+
             return View("~/Views/ManagerPanel/Invoices/Edit.cshtml", invoice);
         }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> MarkAsPaid(int id)
+        {
+            var invoice = await _context.Invoices
+                .Include(i => i.Store)
+                .Include(i => i.Plan)
+                .FirstOrDefaultAsync(i => i.InvoiceId == id);
+            if (invoice == null)
+            {
+                return NotFound();
+            }
+
+            if (!invoice.IsPaid)
+            {
+                invoice.IsPaid = true;
+                invoice.PaymentDate = DateTime.Now;
+
+                var store = invoice.Store;
+                if (store != null)
+                {
+                    // Update the store's PlanId to match the invoice's PlanId
+                    store.PlanId = invoice.PlanId;
+
+                    // Update RemainingScrapes by adding ScrapesIncluded from the invoice
+                    store.RemainingScrapes += invoice.ScrapesIncluded;
+
+                    // Update ProductsToScrap to match the plan's ProductsToScrap
+                    store.ProductsToScrap = invoice.Plan.ProductsToScrap;
+
+                    await _context.SaveChangesAsync();
+                }
+            }
+
+            return RedirectToAction(nameof(Index));
+        }
+
 
 
         private bool InvoiceExists(int id)

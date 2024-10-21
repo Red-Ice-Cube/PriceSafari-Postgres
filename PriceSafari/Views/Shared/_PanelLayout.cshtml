@@ -145,6 +145,11 @@
                 <div class="@(controllerName == "Plan" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "Plan")'">
                     <img src="~/images/MoneyIn-bone.svg" alt="Panel Icon" class="menu-icon" />Plany
                 </div>
+
+
+                <div class="@(controllerName == "Invoice" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "Invoice")'">
+                    <img src="~/images/MoneyIn-bone.svg" alt="Panel Icon" class="menu-icon" />Faktury
+                </div>
             }
 
             @if (isManager){

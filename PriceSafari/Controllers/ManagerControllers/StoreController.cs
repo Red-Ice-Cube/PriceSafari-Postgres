@@ -115,22 +115,28 @@ namespace PriceSafari.Controllers.ManagerControllers
             return View("~/Views/ManagerPanel/Store/EditStore.cshtml", store);
         }
 
-
-
         [HttpGet]
         public async Task<IActionResult> Index()
         {
-            var stores = await _context.Stores.ToListAsync();
+            var stores = await _context.Stores
+                .Include(s => s.Plan)
+                .Include(s => s.Invoices)
+                .Include(s => s.ScrapHistories)
+                .ToListAsync();
 
-            var lastScrapDates = await _context.ScrapHistories
-                .GroupBy(sh => sh.StoreId)
-                .Select(g => new { StoreId = g.Key, LastScrapDate = g.Max(sh => sh.Date) })
-                .ToDictionaryAsync(x => x.StoreId, x => (DateTime?)x.LastScrapDate);
+            var lastScrapDates = stores
+                .Select(s => new
+                {
+                    StoreId = s.StoreId,
+                    LastScrapDate = s.ScrapHistories.OrderByDescending(sh => sh.Date).FirstOrDefault()?.Date
+                })
+                .ToDictionary(x => x.StoreId, x => (DateTime?)x.LastScrapDate);
 
             ViewBag.LastScrapDates = lastScrapDates;
 
             return View("~/Views/ManagerPanel/Store/Index.cshtml", stores);
         }
+
 
 
 
@@ -225,20 +231,7 @@ namespace PriceSafari.Controllers.ManagerControllers
             return View("~/Views/ManagerPanel/Store/ProductList.cshtml", products);
         }
 
-        [HttpPost]
-        public async Task<IActionResult> UpdateProductsToScrap(int storeId, int productsToScrap)
-        {
-            var store = await _context.Stores.FindAsync(storeId);
-            if (store == null)
-            {
-                return NotFound();
-            }
-
-            store.ProductsToScrap = productsToScrap;
-            await _context.SaveChangesAsync();
-
-            return RedirectToAction("Index");
-        }
+       
 
         [HttpPost]
         public async Task<IActionResult> ClearRejectedProducts(int storeId)

@@ -1,0 +1,67 @@
+﻿@model IEnumerable<PriceSafari.Models.InvoiceClass>
+
+@{
+    ViewData["Title"] = "Faktury";
+    Layout = "~/Views/Shared/_PanelLayout.cshtml";
+}
+
+<h2>Faktury</h2>
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>Numer Faktury</th>
+            <th>Sklep</th>
+            <th>Plan</th>
+            <th>Data Wystawienia</th>
+            <th>Data Płatności</th>
+            <th>Czy Opłacona</th>
+            <th>Kwota Netto</th>
+            <th>Ilość Zeskrobań</th>
+            <th>Akcje</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var invoice in Model)
+        {
+            <tr>
+                <td>@invoice.InvoiceId</td>
+                <td>@invoice.Store.StoreName</td>
+                <td>@invoice.Plan.PlanName</td>
+                <td>@invoice.IssueDate.ToString("yyyy-MM-dd")</td>
+                <td>@(invoice.PaymentDate?.ToString("yyyy-MM-dd") ?? "N/A")</td>
+                <td>
+                    @if (invoice.IsPaid)
+                    {
+                        <span class="badge badge-success">Tak</span>
+                    }
+                    else
+                    {
+                        <span class="badge badge-secondary">Nie</span>
+                    }
+                </td>
+                <td>@invoice.NetAmount.ToString("C")</td>
+                <td>@invoice.ScrapesIncluded</td>
+                <td>
+                    @if (!invoice.IsPaid)
+                    {
+                        <form asp-action="MarkAsPaid" method="post" style="display:inline;">
+                            <input type="hidden" name="id" value="@invoice.InvoiceId" />
+                            <button type="submit" class="btn btn-success">Oznacz jako Opłaconą</button>
+                        </form>
+                        <a asp-action="Edit" asp-route-id="@invoice.InvoiceId" class="btn btn-primary">Edytuj</a>
+                        <form asp-action="Delete" asp-route-id="@invoice.InvoiceId" method="post" style="display:inline;" onsubmit="return confirm('Czy na pewno chcesz usunąć tę fakturę?');">
+                            <button type="submit" class="btn btn-danger">Usuń</button>
+                        </form>
+                    }
+                    else
+                    {
+                        <span class="badge badge-success">Opłacona</span>
+                    }
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+<a asp-action="Create" class="btn btn-success">Wystaw Nową Fakturę</a>

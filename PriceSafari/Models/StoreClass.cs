@@ -1,5 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.Collections.Generic;
+using Microsoft.AspNetCore.Mvc.ModelBinding.Validation;
 
 namespace PriceSafari.Models
 {
@@ -20,9 +21,10 @@ namespace PriceSafari.Models
 
         public bool AutoMatching { get; set; } = true;
 
-        // Plan and Subscription Properties
         [Display(Name = "Plan")]
         public int? PlanId { get; set; }
+
+        [ValidateNever]
         public PlanClass Plan { get; set; }
 
         [Display(Name = "Procent Rabatu")]
