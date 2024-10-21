@@ -7,7 +7,7 @@ using PriceSafari.Data;
 using PriceSafari.Hubs;
 using PriceSafari.Models;
 using PriceSafari.Models.ManagerViewModels;
-using PriceSafari.Services;
+using PriceSafari.Scrapers;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;

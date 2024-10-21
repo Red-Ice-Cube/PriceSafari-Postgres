@@ -1,9 +1,10 @@
-﻿using PuppeteerSharp;
+﻿using PriceSafari.Models;
+using PuppeteerSharp;
 using System;
 using System.Globalization;
 using System.Text.RegularExpressions;
 
-namespace PriceSafari.Models
+namespace PriceSafari.Scrapers
 {
     public class CaptchaScraper
     {
@@ -40,7 +41,7 @@ namespace PriceSafari.Models
 
             _page = (Page)await _browser.NewPageAsync();
 
-           
+
             await _page.SetJavaScriptEnabledAsync(settings.JavaScript);
 
             await _page.EvaluateFunctionAsync(@"() => {
@@ -60,7 +61,7 @@ namespace PriceSafari.Models
 
             var commonResolutions = new List<(int width, int height)>
             {
-             
+
                 (1920, 1080)
             };
 
@@ -95,7 +96,7 @@ namespace PriceSafari.Models
                 { "Accept-Language", "pl-PL,pl;q=0.9,en-US;q=0.8,en;q=0.7" }
             });
 
-            
+
 
             Console.WriteLine($"Bot gotowy, teraz rozgrzewka przez {settings.WarmUpTime} sekund...");
             await Task.Delay(settings.WarmUpTime * 1000);

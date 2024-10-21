@@ -4,7 +4,7 @@ using System.Globalization;
 using System.Text.RegularExpressions;
 
 
-namespace PriceSafari.Services
+namespace PriceSafari.Scrapers
 {
     public class GooglePriceScraper
     {
@@ -78,7 +78,7 @@ namespace PriceSafari.Services
                         }
                     }
 
-                  
+
 
 
                     var offerRowsSelector = "#sh-osd__online-sellers-cont > tr";
@@ -326,11 +326,11 @@ namespace PriceSafari.Services
         {
             try
             {
-            
+
                 var priceMatch = Regex.Match(priceText, @"[\d\s,]+");
                 if (priceMatch.Success)
                 {
-                 
+
                     var priceString = priceMatch.Value.Replace(" ", "").Replace(",", ".");
                     if (decimal.TryParse(priceString, NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out decimal priceDecimal))
                     {
@@ -349,7 +349,7 @@ namespace PriceSafari.Services
 
 
 
-        
+
         public async Task CloseAsync()
         {
             await _page.CloseAsync();

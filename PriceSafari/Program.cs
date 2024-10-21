@@ -45,8 +45,7 @@ public class Program
         builder.Services.AddSignalR();
         builder.Services.AddHostedService<KeepAliveService>();
         builder.Services.AddTransient<IViewRenderService, ViewRenderService>();
-        builder.Services.AddHttpClient<Scraper>();
-        builder.Services.AddScoped<Scraper>();
+
         builder.Services.AddScoped<StoreProcessingService>();
         builder.Services.AddHostedService<ScheduledTaskService>();
 
