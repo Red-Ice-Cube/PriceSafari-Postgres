@@ -31,8 +31,7 @@ namespace PriceSafari.Controllers.ManagerControllers
             var viewModel = new SettingsViewModel
             {
                 VerificationRequired = settings.VerificationRequired,
-                SupervisorEmail = settings.ContactEmail,
-                SupervisorNumber = settings.ContactNumber,
+       
                 Semophore = settings.Semophore,
                 WarmUp = settings.WarmUpTime,
                 Headless = settings.HeadLess,
@@ -136,48 +135,7 @@ namespace PriceSafari.Controllers.ManagerControllers
             return View("~/Views/ManagerPanel/Settings/EditVerificationRequired.cshtml", viewModel);
         }
 
-       
-        public async Task<IActionResult> EditSupervisor()
-        {
-            var settings = await _context.Settings.FirstOrDefaultAsync();
-            if (settings == null)
-            {
-                return NotFound();
-            }
-
-            var viewModel = new EditSupervisorViewModel
-            {
-                SupervisorEmail = settings.ContactEmail,
-                SupervisorNumber = settings.ContactNumber
-            };
-
-            return View("~/Views/ManagerPanel/Settings/EditSupervisor.cshtml", viewModel);
-        }
-
       
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> EditSupervisor(EditSupervisorViewModel viewModel)
-        {
-            if (ModelState.IsValid)
-            {
-                var settings = await _context.Settings.FirstOrDefaultAsync();
-                if (settings == null)
-                {
-                    return NotFound();
-                }
-
-                settings.ContactEmail = viewModel.SupervisorEmail;
-                settings.ContactNumber = viewModel.SupervisorNumber;
-                _context.Update(settings);
-                await _context.SaveChangesAsync();
-
-                return RedirectToAction(nameof(Index));
-            }
-
-            return View("~/Views/ManagerPanel/Settings/EditSupervisor.cshtml", viewModel);
-        }
-
        
     }
 }

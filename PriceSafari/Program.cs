@@ -7,6 +7,8 @@ using Microsoft.EntityFrameworkCore;
 using PriceSafari.Hubs;
 using PriceSafari.Services;
 using PriceSafari.Services.ViewRenderService;
+using PriceSafari.Scrapers;
+
 
 
 public class Program

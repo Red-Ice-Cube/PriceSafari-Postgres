@@ -6,13 +6,15 @@ using PriceSafari.Models;
 using Microsoft.EntityFrameworkCore;
 using PriceSafari.Data;
 using Microsoft.AspNetCore.Authorization;
-using System.Net;
+using PriceSafari.Scrapers;
+
 
 namespace PriceSafari.Controllers.ManagerControllers
 {
     [Authorize(Roles = "Admin")]
     public class StoreController : Controller
     {
+
         private readonly PriceSafariContext _context;
         private readonly IHubContext<ScrapingHub> _hubContext;
 
@@ -67,114 +69,44 @@ namespace PriceSafari.Controllers.ManagerControllers
             return View("~/Views/ManagerPanel/Store/Index.cshtml", stores);
         }
 
+
         [HttpGet]
         public async Task<IActionResult> ScrapeProducts(int storeId, int depth)
         {
             var store = await _context.Stores.FindAsync(storeId);
             if (store == null) return NotFound();
 
-            var categories = await _context.Categories.Where(c => c.StoreId == storeId && c.Depth == depth).ToListAsync();
+            var categories = await _context.Categories
+                .Where(c => c.StoreId == storeId && c.Depth == depth)
+                .ToListAsync();
 
-            foreach (var category in categories)
+            var settings = await _context.Settings.FirstOrDefaultAsync();
+            if (settings == null)
             {
-                var baseUrlTemplate = $"https://www.ceneo.pl/{category.CategoryUrl};0192;{store.StoreProfile}-0v;0020-15-0-0-{{0}}.htm";
-                await ScrapeCategoryProducts(storeId, category.CategoryName, baseUrlTemplate);
+                // Handle the case where settings are not found
+                // For example, you can create default settings
+                settings = new Settings
+                {
+                    HeadLess = true,
+                    JavaScript = true,
+                    Styles = false,
+                    WarmUpTime = 5 // In seconds
+                };
             }
+
+            // Instantiate ProductScraper with settings
+            using (var productScraper = new ProductScraper(_context, _hubContext, settings))
+            {
+                foreach (var category in categories)
+                {
+                    var baseUrlTemplate = $"https://www.ceneo.pl/{category.CategoryUrl};0192;{store.StoreProfile}-0v;0020-15-0-0-{{0}}.htm";
+                    await productScraper.ScrapeCategoryProducts(storeId, category.CategoryName, baseUrlTemplate);
+                }
+            } // Dispose is called automatically here
 
             return RedirectToAction("ProductList", new { storeId });
         }
 
-        private async Task ScrapeCategoryProducts(int storeId, string categoryName, string baseUrlTemplate)
-        {
-            var web = new HtmlWeb();
-            HtmlDocument doc;
-            int page = 0;
-            int pageCount = 1;
-            bool hasMorePages = true;
-            HashSet<string> existingProductUrls = _context.Products.Where(p => p.StoreId == storeId).Select(p => p.OfferUrl).ToHashSet();
-            HashSet<string> newProductUrls = new HashSet<string>();
-
-            while (hasMorePages)
-            {
-                var url = string.Format(baseUrlTemplate, page);
-                Console.WriteLine($"Processing page: {url}");
-
-                try
-                {
-                    doc = web.Load(url);
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"Error loading page {page}: {ex.Message}");
-                    break;
-                }
-
-                var pageCountNode = doc.DocumentNode.SelectSingleNode("//input[@id='page-counter']");
-                if (page == 0 && pageCountNode != null)
-                {
-                    int.TryParse(pageCountNode.GetAttributeValue("data-pagecount", "1"), out pageCount);
-                }
-
-                var products = doc.DocumentNode.SelectNodes("//div[contains(@class, 'cat-prod-box')]");
-                if (products != null && products.Count > 0)
-                {
-                    foreach (var product in products)
-                    {
-                        try
-                        {
-                            var nameNode = product.SelectSingleNode(".//strong[contains(@class, 'cat-prod-box__name')]//a");
-                            var pid = product.GetAttributeValue("data-pid", "");
-                            var gaCategoryName = product.GetAttributeValue("data-gacategoryname", "");
-
-                            if (nameNode != null && !string.IsNullOrEmpty(pid) && !string.IsNullOrEmpty(gaCategoryName))
-                            {
-                                var name = WebUtility.HtmlDecode(nameNode.InnerText.Trim());
-                                var offerUrl = "https://www.ceneo.pl/" + pid;
-
-                                if (existingProductUrls.Contains(offerUrl) || newProductUrls.Contains(offerUrl))
-                                {
-                                    continue;
-                                }
-
-                                var trimmedCategoryName = gaCategoryName.Split('/').LastOrDefault()?.Trim() ?? categoryName;
-
-                                var productEntity = new ProductClass
-                                {
-                                    StoreId = storeId,
-                                    ProductName = name,
-                                    Category = trimmedCategoryName,
-                                    OfferUrl = offerUrl
-                                };
-
-                                _context.Products.Add(productEntity);
-                                newProductUrls.Add(offerUrl);
-
-                                Console.WriteLine($"Scraped Product - Name: {name}, Category: {trimmedCategoryName}, URL: {offerUrl}");
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            Console.WriteLine($"Error processing product on page {page}: {ex.Message}");
-                            continue;
-                        }
-                    }
-
-                    await _context.SaveChangesAsync();
-                }
-                else
-                {
-                    hasMorePages = false;
-                }
-
-                await _hubContext.Clients.All.SendAsync("ReceiveProgressUpdate", newProductUrls.Count, existingProductUrls.Count + newProductUrls.Count, page + 1, pageCount, storeId);
-
-                page++;
-                if (page >= pageCount)
-                {
-                    hasMorePages = false;
-                }
-            }
-        }
 
         [HttpPost]
         public async Task<IActionResult> DeleteStore(int storeId)
@@ -263,5 +195,7 @@ namespace PriceSafari.Controllers.ManagerControllers
             // Przekierowanie do listy produktów po zakończeniu operacji
             return RedirectToAction("ProductList", new { storeId });
         }
+
+
     }
 }

@@ -60,9 +60,7 @@ namespace PriceSafari.Models
 
             var commonResolutions = new List<(int width, int height)>
             {
-                //(1280, 720),
-                //(1366, 768),
-                //(1600, 900),
+             
                 (1920, 1080)
             };
 
@@ -97,19 +95,7 @@ namespace PriceSafari.Models
                 { "Accept-Language", "pl-PL,pl;q=0.9,en-US;q=0.8,en;q=0.7" }
             });
 
-            //var userAgentList = new List<string>
-            //{
-            //    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
-            //    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.212 Safari/537.36",
-            //    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36",
-            //    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.1.2 Safari/605.1.15",
-            //    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.96 Safari/537.36"
-            //};
-
-            //var randomUserAgent = userAgentList[random.Next(userAgentList.Count)];
-            //await _page.SetUserAgentAsync(randomUserAgent);
-
-            //await _page.EmulateTimezoneAsync("Europe/Warsaw");
+            
 
             Console.WriteLine($"Bot gotowy, teraz rozgrzewka przez {settings.WarmUpTime} sekund...");
             await Task.Delay(settings.WarmUpTime * 1000);

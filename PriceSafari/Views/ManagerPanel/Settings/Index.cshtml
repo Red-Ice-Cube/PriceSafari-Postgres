@@ -22,14 +22,7 @@
                 <div class="value-box">@(Model.VerificationRequired ? "Tak" : "Nie")</div>
             </div>
            
-            <div class="Column-Box">
-                <div class="Horizontal-1">
-                    Opiekun programu
-                    <a asp-action="EditSupervisor" class="Button-Add-Small">Edytuj</a>
-                </div>
-                <div>@Model.SupervisorEmail</div>
-                <div>@Model.SupervisorNumber</div>
-            </div>
+            
             <div class="Column-Box">
                 <div class="Horizontal-1">
                     Ustawienia Bota

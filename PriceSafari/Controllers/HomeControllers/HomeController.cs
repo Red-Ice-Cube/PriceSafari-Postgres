@@ -26,15 +26,9 @@ namespace PriceSafari.Controllers.HomeControllers
 
         public async Task<IActionResult> Index()
         {
-            var settings = await _context.Settings.FirstOrDefaultAsync();
+            
 
-            var viewModel = new HomeViewModel
-            {
-                Email = settings.ContactEmail,
-                PhoneNumber = settings.ContactNumber
-            };
-
-            return View(viewModel);
+            return View();
         }
 
         public IActionResult Contact()

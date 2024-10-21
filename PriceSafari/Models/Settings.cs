@@ -7,9 +7,7 @@ namespace PriceSafari.Models
         [Key]
         public int SettingsId { get; set; }
 
-        public string? ContactEmail { get; set; }
-        public string? ContactNumber { get; set; }
-
+ 
         public bool VerificationRequired { get; set; } = true;
 
         public int Semophore { get; set; } = 1;
