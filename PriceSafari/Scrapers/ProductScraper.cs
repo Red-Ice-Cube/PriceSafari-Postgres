@@ -1,6 +1,4 @@
-﻿
-
-using Microsoft.AspNetCore.SignalR;
+﻿using Microsoft.AspNetCore.SignalR;
 using PriceSafari.Data;
 using PriceSafari.Hubs;
 using PriceSafari.Models;
@@ -130,8 +128,33 @@ namespace PriceSafari.Scrapers
                     // Navigate to the URL on the existing page
                     await _page.GoToAsync(url, WaitUntilNavigation.Networkidle0);
 
-                    // Wait for the content to load
-                    await _page.WaitForSelectorAsync("div.cat-prod-box", new WaitForSelectorOptions { Timeout = 2000 });
+                    // Check if the current URL indicates a CAPTCHA
+                    if (_page.Url.Contains("Captcha"))
+                    {
+                        Console.WriteLine("Encountered CAPTCHA page. Waiting for user to solve it.");
+
+                        // Wait for user to solve the CAPTCHA
+                        bool captchaSolved = await WaitForCaptchaToBeSolvedAsync();
+
+                        if (!captchaSolved)
+                        {
+                            Console.WriteLine("CAPTCHA was not solved in time.");
+                            break; // or handle accordingly
+                        }
+
+                        // After CAPTCHA is solved, reload the page
+                        await _page.GoToAsync(url, WaitUntilNavigation.Networkidle0);
+                    }
+
+                    // Wait for the content to load with a reasonable timeout
+                    var contentLoaded = await _page.WaitForSelectorAsync("div.cat-prod-box", new WaitForSelectorOptions { Timeout = 500 });
+
+                    if (contentLoaded == null)
+                    {
+                        Console.WriteLine($"No products found on page {pageIndex}.");
+                        hasMorePages = false;
+                        continue;
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -219,6 +242,23 @@ namespace PriceSafari.Scrapers
                     hasMorePages = false;
                 }
             }
+        }
+
+        private async Task<bool> WaitForCaptchaToBeSolvedAsync(int maxWaitTimeSeconds = 300, int checkIntervalSeconds = 5)
+        {
+            int elapsedWaitTime = 0;
+            while (elapsedWaitTime < maxWaitTimeSeconds)
+            {
+                if (!_page.Url.Contains("Captcha"))
+                {
+                    // CAPTCHA solved
+                    return true;
+                }
+                Console.WriteLine("Waiting for CAPTCHA to be solved...");
+                await Task.Delay(checkIntervalSeconds * 1000);
+                elapsedWaitTime += checkIntervalSeconds;
+            }
+            return false; // CAPTCHA not solved within max wait time
         }
 
         public async Task CloseBrowserAsync()
