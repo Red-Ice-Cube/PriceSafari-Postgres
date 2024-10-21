@@ -171,16 +171,16 @@ public class CompetitorsController : Controller
             .Select(s => s.StoreName)
             .FirstOrDefaultAsync();
 
-        // Pobierz nasze ceny
+        
         var ourPrices = await _context.PriceHistories
             .Where(ph => ph.Product.StoreId == request.StoreId && ph.StoreName == storeName && ph.ScrapHistoryId == request.ScrapHistoryId)
             .Select(ph => new
             {
                 ph.ProductId,
                 ph.Price,
-                StoreName = ph.StoreName,
-                ProductName = ph.Product.ProductName,
-                OfferUrl = ph.Product.OfferUrl
+                ph.StoreName,
+                ph.Product.ProductName,
+                ph.Product.OfferUrl
             })
             .ToListAsync();
 
@@ -206,10 +206,10 @@ public class CompetitorsController : Controller
                     return new
                     {
                         op.ProductId,
-                        ProductName = competitorPrice.ProductName,
-                        OfferUrl = competitorPrice.OfferUrl,
-                        Price = competitorPrice.Price,
-                        ScrapHistoryId = request.ScrapHistoryId,
+                        competitorPrice.ProductName,
+                        competitorPrice.OfferUrl,
+                        competitorPrice.Price,
+                        request.ScrapHistoryId,
                         OurPrice = op.Price,
                         PriceData = 3  // Oznaczenie, że mamy kompletne dane
                     };

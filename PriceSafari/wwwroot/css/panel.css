@@ -683,10 +683,8 @@ p {
 
 
 .lazy-load {
-    width: 84px;
+    width:1px;
     height: 84px;
-    margin-right: 14px;
-    margin-left: 16px;
     background-color: #ffffff; 
     display: block;
 }
