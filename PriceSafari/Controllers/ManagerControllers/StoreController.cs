@@ -76,7 +76,7 @@ namespace PriceSafari.Controllers.ManagerControllers
         {
             if (ModelState.IsValid)
             {
-                var existingStore = await _context.Stores.FindAsync(store.StoreId);
+                var existingStore = await _context.Stores.Include(s => s.Plan).FirstOrDefaultAsync(s => s.StoreId == store.StoreId);
                 if (existingStore == null)
                 {
                     return NotFound();
@@ -87,12 +87,24 @@ namespace PriceSafari.Controllers.ManagerControllers
                 existingStore.StoreApiUrl = store.StoreApiUrl;
                 existingStore.StoreApiKey = store.StoreApiKey;
                 existingStore.StoreLogoUrl = store.StoreLogoUrl;
-                existingStore.ProductsToScrap = store.ProductsToScrap;
-                existingStore.PlanId = store.PlanId;
+                existingStore.ProductMapXmlUrl = store.ProductMapXmlUrl;
+                existingStore.AutoMatching = store.AutoMatching;
                 existingStore.DiscountPercentage = store.DiscountPercentage;
-                existingStore.IsInvoicePaid = store.IsInvoicePaid;
-                existingStore.PlanStartDate = store.PlanStartDate;
-                existingStore.PlanEndDate = store.PlanEndDate;
+
+                // Check if the plan has changed
+                if (existingStore.PlanId != store.PlanId)
+                {
+                    existingStore.PlanId = store.PlanId;
+                    var newPlan = await _context.Plans.FindAsync(store.PlanId);
+                    if (newPlan != null)
+                    {
+                        existingStore.ProductsToScrap = newPlan.ProductsToScrap;
+                    }
+                    else
+                    {
+                        existingStore.ProductsToScrap = null;
+                    }
+                }
 
                 await _context.SaveChangesAsync();
                 return RedirectToAction("Index");
@@ -102,6 +114,8 @@ namespace PriceSafari.Controllers.ManagerControllers
             ViewBag.Plans = new SelectList(plans, "PlanId", "PlanName", store.PlanId);
             return View("~/Views/ManagerPanel/Store/EditStore.cshtml", store);
         }
+
+
 
         [HttpGet]
         public async Task<IActionResult> Index()
@@ -118,23 +132,6 @@ namespace PriceSafari.Controllers.ManagerControllers
             return View("~/Views/ManagerPanel/Store/Index.cshtml", stores);
         }
 
-
-        [HttpPost]
-        public async Task<IActionResult> MarkInvoiceAsPaid(int storeId)
-        {
-            var store = await _context.Stores.Include(s => s.Plan).FirstOrDefaultAsync(s => s.StoreId == storeId);
-            if (store == null)
-            {
-                return NotFound();
-            }
-
-            store.IsInvoicePaid = true;
-            store.PlanStartDate = DateTime.Now.Date;
-            store.PlanEndDate = store.PlanStartDate.Value.AddDays(store.Plan.DurationDays);
-
-            await _context.SaveChangesAsync();
-            return RedirectToAction("Index");
-        }
 
 
 

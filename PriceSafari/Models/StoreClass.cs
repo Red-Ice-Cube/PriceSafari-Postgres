@@ -1,5 +1,4 @@
 ﻿using System.ComponentModel.DataAnnotations;
-using System;
 using System.Collections.Generic;
 
 namespace PriceSafari.Models
@@ -15,27 +14,30 @@ namespace PriceSafari.Models
         public string? StoreLogoUrl { get; set; }
 
         public string? ProductMapXmlUrl { get; set; }
+
+        [Display(Name = "Produkty do Zeskrobania")]
         public int? ProductsToScrap { get; set; }
 
         public bool AutoMatching { get; set; } = true;
 
-        // Billing and Plan Properties
+        // Plan and Subscription Properties
+        [Display(Name = "Plan")]
         public int? PlanId { get; set; }
         public PlanClass Plan { get; set; }
 
-        public decimal? DiscountPercentage { get; set; } = 0; // Discount percentage
-        public DateTime? PlanStartDate { get; set; }
-        public DateTime? PlanEndDate { get; set; }
-        public bool IsInvoicePaid { get; set; } = false;
+        [Display(Name = "Procent Rabatu")]
+        public decimal? DiscountPercentage { get; set; } = 0;
+
+        [Display(Name = "Pozostała Ilość Zeskrobań")]
+        public int RemainingScrapes { get; set; } = 0;
 
         public bool IsActive
         {
             get
             {
-                return IsInvoicePaid && PlanEndDate >= DateTime.Now.Date;
+                return RemainingScrapes > 0;
             }
         }
-
 
         // Navigation properties
         public ICollection<ScrapHistoryClass> ScrapHistories { get; set; } = new List<ScrapHistoryClass>();
@@ -45,5 +47,7 @@ namespace PriceSafari.Models
         public ICollection<FlagsClass> Flags { get; set; } = new List<FlagsClass>();
         public ICollection<PriceSafariUserStore> UserStores { get; set; } = new List<PriceSafariUserStore>();
         public ICollection<PriceSafariReport> PriceSafariReports { get; set; } = new List<PriceSafariReport>();
+
+        public ICollection<InvoiceClass> Invoices { get; set; } = new List<InvoiceClass>();
     }
 }

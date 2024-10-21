@@ -36,6 +36,9 @@ namespace PriceSafari.Data
         public DbSet<ContactFormSubmission> ContactFormSubmissions { get; set; }
         public DbSet<PlanClass> Plans { get; set; }
 
+        public DbSet<InvoiceClass> Invoices { get; set; }
+
+
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

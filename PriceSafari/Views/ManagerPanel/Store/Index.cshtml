@@ -43,6 +43,7 @@
                     <a asp-controller="GoogleScraper" asp-action="ProductList" asp-route-storeId="@store.StoreId" class="btn btn-secondary">Lista Produktów Google</a>
                     <a asp-controller="Flags" asp-action="List" asp-route-storeId="@store.StoreId" class="btn btn-warning">Flagi</a>
                     <a asp-controller="PriceScraping" asp-action="GetStoreProductsWithCoOfrIds" asp-route-storeId="@store.StoreId" class="btn btn-info">Produkty z CoOfr IDs</a>
+                    <a asp-controller="Store" asp-action="EditStore" asp-route-storeId="@store.StoreId" class="btn btn-info">Edytuj</a>
                 </td>
                 <td>
                     @if (lastScrapDates != null && lastScrapDates.ContainsKey(store.StoreId))

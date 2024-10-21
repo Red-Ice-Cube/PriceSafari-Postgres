@@ -22,13 +22,13 @@ namespace PriceSafari.Controllers.ManagerControllers
         public async Task<IActionResult> Index()
         {
             var plans = await _context.Plans.ToListAsync();
-            return View("~/Views/ManagerPanel/Plan/Index.cshtml", plans);
+            return View("~/Views/ManagerPanel/Plans/Index.cshtml", plans);
         }
 
         // GET: Plan/Create
         public IActionResult Create()
         {
-            return View("~/Views/ManagerPanel/Plan/Create.cshtml");
+            return View("~/Views/ManagerPanel/Plans/Create.cshtml");
         }
 
         // POST: Plan/Create
@@ -42,7 +42,7 @@ namespace PriceSafari.Controllers.ManagerControllers
                 await _context.SaveChangesAsync();
                 return RedirectToAction(nameof(Index));
             }
-            return View("~/Views/ManagerPanel/Plan/Create.cshtml", plan);
+            return View("~/Views/ManagerPanel/Plans/Create.cshtml", plan);
         }
 
         // GET: Plan/Edit/5
@@ -53,7 +53,7 @@ namespace PriceSafari.Controllers.ManagerControllers
             var plan = await _context.Plans.FindAsync(id);
             if (plan == null) return NotFound();
 
-            return View("~/Views/ManagerPanel/Plan/Edit.cshtml", plan);
+            return View("~/Views/ManagerPanel/Plans/Edit.cshtml", plan);
         }
 
         // POST: Plan/Edit/5
@@ -83,7 +83,7 @@ namespace PriceSafari.Controllers.ManagerControllers
                 }
                 return RedirectToAction(nameof(Index));
             }
-            return View("~/Views/ManagerPanel/Plan/Edit.cshtml", plan);
+            return View("~/Views/ManagerPanel/Plans/Edit.cshtml", plan);
         }
 
         // GET: Plan/Delete/5
@@ -95,7 +95,7 @@ namespace PriceSafari.Controllers.ManagerControllers
                 .FirstOrDefaultAsync(m => m.PlanId == id);
             if (plan == null) return NotFound();
 
-            return View("~/Views/ManagerPanel/Plan/Delete.cshtml", plan);
+            return View("~/Views/ManagerPanel/Plans/Delete.cshtml", plan);
         }
 
         // POST: Plan/Delete/5
