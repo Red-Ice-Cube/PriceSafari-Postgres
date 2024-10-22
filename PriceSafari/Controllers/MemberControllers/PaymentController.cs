@@ -1,7 +1,4 @@
-﻿
-
-
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -27,7 +24,8 @@ namespace PriceSafari.Controllers.MemberControllers
             _userManager = userManager;
         }
 
-        
+      
+        // GET: Payment/StorePlans
         [HttpGet]
         public async Task<IActionResult> StorePlans()
         {
@@ -59,15 +57,56 @@ namespace PriceSafari.Controllers.MemberControllers
                     PlanPrice = store.Plan?.NetPrice ?? 0,
                     ProductsToScrap = store.Plan?.ProductsToScrap ?? 0,
                     ScrapesPerInvoice = store.Plan?.ScrapesPerInvoice ?? 0,
-                    LastScrapeDate = lastScrapeDate,
-                    HasUnpaidInvoice = unpaidInvoiceExists
+
                 };
             }).ToList();
 
             return View("~/Views/Panel/Plans/StorePlans.cshtml", storeViewModels);
         }
 
-        // POST: UserStore/GenerateProforma/5
+        // GET: Payment/StorePayments/5
+        [HttpGet]
+        public async Task<IActionResult> StorePayments(int storeId)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+            // Verify that the store belongs to the user
+            var userStore = await _context.UserStores
+                .FirstOrDefaultAsync(us => us.UserId == userId && us.StoreId == storeId);
+
+            if (userStore == null)
+            {
+                return Unauthorized();
+            }
+
+            var store = await _context.Stores
+                .Include(s => s.Plan)
+                .Include(s => s.Invoices)
+                .FirstOrDefaultAsync(s => s.StoreId == storeId);
+
+            if (store == null)
+            {
+                return NotFound("Sklep nie został znaleziony.");
+            }
+
+            // Prepare the view model
+            var viewModel = new StorePaymentsViewModel
+            {
+                StoreId = store.StoreId,
+                StoreName = store.StoreName,
+                LogoUrl = store.StoreLogoUrl,
+                PlanName = store.Plan?.PlanName ?? "Brak Planu",
+                PlanPrice = store.Plan?.NetPrice ?? 0,
+                ProductsToScrap = store.Plan?.ProductsToScrap ?? 0,
+                ScrapesPerInvoice = store.Plan?.ScrapesPerInvoice ?? 0,
+                HasUnpaidInvoice = store.Invoices.Any(i => !i.IsPaid),
+                Invoices = store.Invoices.OrderByDescending(i => i.IssueDate).ToList()
+            };
+
+            return View("~/Views/Panel/Plans/StorePayments.cshtml", viewModel);
+        }
+
+        // POST: Payment/GenerateProforma
         [HttpPost]
         public async Task<IActionResult> GenerateProforma(int storeId)
         {
@@ -96,7 +135,7 @@ namespace PriceSafari.Controllers.MemberControllers
             if (store.Invoices.Any(i => !i.IsPaid))
             {
                 TempData["Error"] = "Istnieje już wygenerowana proforma dla tego sklepu.";
-                return RedirectToAction("Index");
+                return RedirectToAction("StorePayments", new { storeId = storeId });
             }
 
             // Create the invoice
@@ -114,7 +153,7 @@ namespace PriceSafari.Controllers.MemberControllers
             await _context.SaveChangesAsync();
 
             TempData["Success"] = "Proforma została wygenerowana.";
-            return RedirectToAction("StorePlans");
+            return RedirectToAction("StorePayments", new { storeId = storeId });
         }
     }
 }

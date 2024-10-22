@@ -1,0 +1,78 @@
+﻿@model PriceSafari.Models.ViewModels.StorePaymentsViewModel
+
+@{
+    Layout = "~/Views/Shared/_PanelLayout.cshtml";
+}
+
+
+<div class="Vert">
+    <div class="Vert-full">
+        <div class="Order-Container-Title">
+            Płatności @Model.StoreName 
+        </div>
+      @*   <img src="@Model.LogoUrl" alt="@Model.StoreName" class="img-box-left" /> *@
+        <div class="store-details">
+           
+            <p>Plan: @Model.PlanName</p>
+            <p>Cena Plan: @Model.PlanPrice.ToString("C")</p>
+            <p>Produkty do Zeskrobania: @Model.ProductsToScrap</p>
+            <p>Ilość Zeskrobań w Planie: @Model.ScrapesPerInvoice</p>
+        </div>
+
+        @if (Model.HasUnpaidInvoice)
+        {
+            <p><strong>Proforma została już wygenerowana.</strong></p>
+        }
+        else
+        {
+            <form asp-action="GenerateProforma" method="post">
+                <input type="hidden" name="storeId" value="@Model.StoreId" />
+                <button type="submit" class="btn btn-primary">Wygeneruj Proformę</button>
+            </form>
+        }
+        @if (Model.Invoices != null && Model.Invoices.Any())
+        {
+            <div class="Vert-table">
+                <table class="table-orders">
+                    <thead>
+                        <tr>
+                            <th>Numer</th>
+                            <th>Wystawiono</th>
+                            <th>Opłacono</th>
+                            <th>Kwota Netto</th>
+                            <th>Status</th>
+                            
+
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var invoice in Model.Invoices)
+                        {
+                            <tr class="store-row">
+                                <td>@invoice.InvoiceId</td>
+                                <td>@invoice.IssueDate.ToString("yyyy-MM-dd")</td>
+                                <td>@(invoice.PaymentDate?.ToString("yyyy-MM-dd") ?? "N/A")</td>
+                                <td>@invoice.NetAmount.ToString("C")</td>
+                                <td>
+                                    @if (invoice.IsPaid)
+                                    {
+                                        <span class="Validation Validation-accepted">Opłacona</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="Validation Validation-cancelled">Nieopłacona</span>
+                                    }
+                                </td>
+
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+        else
+        {
+            <p>Brak historii faktur dla tego sklepu.</p>
+        }
+    </div>
+</div>

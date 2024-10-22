@@ -4,27 +4,72 @@
     Layout = "~/Views/Shared/_PanelLayout.cshtml";
 }
 
-<h2>Twoje Sklepy</h2>
-
-@foreach (var store in Model)
-{
-    <div class="store-card">
-        <img src="@store.LogoUrl" alt="@store.StoreName" class="store-logo" />
-        <h3>@store.StoreName</h3>
-        <p>Plan: @store.PlanName</p>
-        <p>Cena Plan: @store.PlanPrice.ToString("C")</p>
-        <p>Produkty do Zeskrobania: @store.ProductsToScrap</p>
-        <p>Ilość Zeskrobań: @store.ScrapesPerInvoice</p>
-        @if (store.HasUnpaidInvoice)
+<div class="Vert">
+    <div class="Vert-full">
+        <div class="Order-Container-Title">
+            Twoje Plany
+        </div>
+        @if (Model != null && Model.Any())
         {
-            <p><strong>Proforma została już wygenerowana.</strong></p>
+            <div class="Vert-table">
+                <table class="table-orders">
+                    <thead>
+                        <tr>
+                            <th></th>
+                            <th>Kanał</th>
+                            <th>Plan</th>
+                            <th>Ilość produktów w planie</th>
+                            <th>Pozostałe pakiety</th>
+                            <th>Kwota Netto</th>
+                           
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var store in Model)
+                        {
+                            <tr class="store-row" style="cursor:pointer;" data-url="@Url.Action("StorePayments", "Payment", new { storeId = store.StoreId })">
+                                <td>
+                                    <img src="@store.LogoUrl" class="img-container" alt="@store.StoreName" />
+                                </td>
+                                <td>
+                                    @store.StoreName
+                                </td>
+                                <td>
+                                    @store.PlanName
+                                </td>
+                                <td>
+                                    @store.ProductsToScrap
+                                </td>
+                                <td>
+                                    @store.ScrapesPerInvoice
+                                </td>
+                                <td>
+                                    @store.PlanPrice PLN
+                                </td>
+                               
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
         }
         else
         {
-            <form asp-action="GenerateProforma" method="post">
-                <input type="hidden" name="storeId" value="@store.StoreId" />
-                <button type="submit" class="btn btn-primary">Wygeneruj Proformę</button>
-            </form>
+            <p>Konto nadal jest konfigurowane.</p>
         }
     </div>
+</div>
+
+@section Scripts {
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const rows = document.querySelectorAll(".store-row");
+            rows.forEach(row => {
+                row.addEventListener("click", function () {
+                    const url = this.getAttribute("data-url");
+                    window.location.href = url;
+                });
+            });
+        });
+    </script>
 }

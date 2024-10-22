@@ -1,6 +1,9 @@
-﻿namespace PriceSafari.Models.ViewModels
+﻿using System.Collections.Generic;
+using PriceSafari.Models;
+
+namespace PriceSafari.Models.ViewModels
 {
-    public class PaymentViewModel
+    public class StorePaymentsViewModel
     {
         public int StoreId { get; set; }
         public string StoreName { get; set; }
@@ -9,6 +12,7 @@
         public decimal PlanPrice { get; set; }
         public int ProductsToScrap { get; set; }
         public int ScrapesPerInvoice { get; set; }
-
+        public bool HasUnpaidInvoice { get; set; }
+        public List<InvoiceClass> Invoices { get; set; }
     }
 }
