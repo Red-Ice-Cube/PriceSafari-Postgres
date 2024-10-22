@@ -4,10 +4,12 @@
     Layout = "~/Views/Shared/_PanelLayout.cshtml";
 }
 
+
+
 <div class="Vert">
     <div class="Vert-full">
         <div class="Order-Container-Title">
-            Twoje Plany
+            Twoje Sklepy
         </div>
         @if (Model != null && Model.Any())
         {
@@ -15,18 +17,34 @@
                 <table class="table-orders">
                     <thead>
                         <tr>
+                            <th>Sklep</th>
                             <th></th>
-                            <th>Kanał</th>
                             <th>Plan</th>
                             <th>Ilość produktów w planie</th>
                             <th>Pozostałe pakiety</th>
-                            <th>Kwota Netto</th>
+                            
                            
                         </tr>
                     </thead>
                     <tbody>
-                        @foreach (var store in Model)
+                      @foreach (var store in Model)
                         {
+                            
+                                string validationClass = "Validation";
+                                if (store.LeftScrapes > 10)
+                                {
+                                    validationClass += " Validation-accepted";
+                                }
+                                else if (store.LeftScrapes >= 5 && store.LeftScrapes <= 9)
+                                {
+                                    validationClass += " Validation-company";
+                                }
+                                else if (store.LeftScrapes >= 1 && store.LeftScrapes <= 4)
+                                {
+                                    validationClass += " Validation-cancelled";
+                                }
+                                
+                            
                             <tr class="store-row" style="cursor:pointer;" data-url="@Url.Action("StorePayments", "Payment", new { storeId = store.StoreId })">
                                 <td>
                                     <img src="@store.LogoUrl" class="img-container" alt="@store.StoreName" />
@@ -35,18 +53,14 @@
                                     @store.StoreName
                                 </td>
                                 <td>
-                                    @store.PlanName
+                                    <img src="~/images/@($"{store.PlanName}.png")" alt="@store.PlanName" style="height:22px;" />
                                 </td>
                                 <td>
-                                    @store.ProductsToScrap
+                                    @store.ProductsToScrap Produktów
                                 </td>
                                 <td>
-                                    @store.ScrapesPerInvoice
+                                    <div class="@validationClass">@store.LeftScrapes Dni</div>
                                 </td>
-                                <td>
-                                    @store.PlanPrice PLN
-                                </td>
-                               
                             </tr>
                         }
                     </tbody>

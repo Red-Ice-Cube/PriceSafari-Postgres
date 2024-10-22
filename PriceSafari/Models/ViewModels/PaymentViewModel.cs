@@ -8,7 +8,7 @@
         public string PlanName { get; set; }
         public decimal PlanPrice { get; set; }
         public int ProductsToScrap { get; set; }
-        public int ScrapesPerInvoice { get; set; }
+        public int LeftScrapes { get; set; }
 
     }
 }

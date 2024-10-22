@@ -55,8 +55,8 @@ namespace PriceSafari.Controllers.MemberControllers
                     LogoUrl = store.StoreLogoUrl,
                     PlanName = store.Plan?.PlanName ?? "Brak Planu",
                     PlanPrice = store.Plan?.NetPrice ?? 0,
-                    ProductsToScrap = store.Plan?.ProductsToScrap ?? 0,
-                    ScrapesPerInvoice = store.Plan?.ScrapesPerInvoice ?? 0,
+                    ProductsToScrap = store.Plan?.ProductsToScrap ?? 0,               
+                    LeftScrapes = store.RemainingScrapes 
 
                 };
             }).ToList();
