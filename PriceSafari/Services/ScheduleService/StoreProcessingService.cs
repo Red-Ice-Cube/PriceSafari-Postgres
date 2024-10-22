@@ -1,6 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using PriceSafari.Data;
 using PriceSafari.Models;
+using System.Collections.Concurrent;
 
 public class StoreProcessingService
 {
@@ -13,14 +14,20 @@ public class StoreProcessingService
 
     public async Task ProcessStoreAsync(int storeId)
     {
-        var store = await _context.Stores.FindAsync(storeId);
+        var store = await _context.Stores
+            .Include(s => s.Plan)
+            .FirstOrDefaultAsync(s => s.StoreId == storeId);
+
         if (store == null)
         {
-            
             return;
         }
 
-   
+        if (store.RemainingScrapes <= 0)
+        {
+           
+            return;
+        }
 
         var products = await _context.Products
             .Where(p => p.StoreId == storeId)
@@ -38,10 +45,10 @@ public class StoreProcessingService
             Store = store
         };
 
-        var priceHistories = new List<PriceHistoryClass>();
-        var rejectedProducts = new List<ProductClass>();
+        var priceHistories = new ConcurrentBag<PriceHistoryClass>();
+        var rejectedProducts = new ConcurrentBag<ProductClass>();
 
-        // Parallel processing logic
+      
         await Task.Run(() => Parallel.ForEach(products, product =>
         {
             var coOfrId = coOfrClasses.FirstOrDefault(co => co.ProductIds.Contains(product.ProductId))?.Id;
@@ -65,10 +72,7 @@ public class StoreProcessingService
                         ScrapHistory = scrapHistory
                     };
 
-                    lock (priceHistories)
-                    {
-                        priceHistories.Add(priceHistory);
-                    }
+                    priceHistories.Add(priceHistory);
 
                     if (string.Equals(coOfrPrice.StoreName, store.StoreName, StringComparison.OrdinalIgnoreCase))
                     {
@@ -86,16 +90,12 @@ public class StoreProcessingService
 
                 if (!hasStorePrice)
                 {
-                    lock (_context)
+                    lock (product)
                     {
                         product.IsRejected = true;
-                        _context.SaveChanges();
                     }
 
-                    lock (rejectedProducts)
-                    {
-                        rejectedProducts.Add(product);
-                    }
+                    rejectedProducts.Add(product);
                 }
             }
         }));
@@ -104,13 +104,23 @@ public class StoreProcessingService
         _context.ScrapHistories.Add(scrapHistory);
         _context.PriceHistories.AddRange(priceHistories);
 
-        await _context.SaveChangesAsync();
-
-        // Log rejected products
+       
         foreach (var rejectedProduct in rejectedProducts)
         {
+            _context.Products.Update(rejectedProduct);
+        }
+
+        
+        store.RemainingScrapes--;
+
+        await _context.SaveChangesAsync();
+
+       
+        foreach (var rejectedProduct in rejectedProducts)
+        {
+            var coOfrId = coOfrClasses.FirstOrDefault(co => co.ProductIds.Contains(rejectedProduct.ProductId))?.Id;
             var relatedPrices = coOfrPriceHistories
-                .Where(ph => ph.CoOfrClassId == coOfrClasses.FirstOrDefault(co => co.ProductIds.Contains(rejectedProduct.ProductId))?.Id)
+                .Where(ph => ph.CoOfrClassId == coOfrId)
                 .Select(ph => new { ph.StoreName, ph.Price })
                 .ToList();
 
