@@ -5,10 +5,9 @@ using Microsoft.EntityFrameworkCore;
 using PriceSafari.Data;
 using PriceSafari.Models;
 using PriceSafari.Models.ViewModels;
-using System;
-using System.Linq;
+using System.Collections.Generic;
+using Newtonsoft.Json; 
 using System.Security.Claims;
-using System.Threading.Tasks;
 
 namespace PriceSafari.Controllers.MemberControllers
 {
@@ -65,12 +64,13 @@ namespace PriceSafari.Controllers.MemberControllers
         }
 
         // GET: Payment/StorePayments/5
+        // GET: Payment/StorePayments/5
         [HttpGet]
         public async Task<IActionResult> StorePayments(int storeId)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
-            // Verify that the store belongs to the user
+            // Sprawdzenie, czy sklep należy do użytkownika
             var userStore = await _context.UserStores
                 .FirstOrDefaultAsync(us => us.UserId == userId && us.StoreId == storeId);
 
@@ -89,7 +89,12 @@ namespace PriceSafari.Controllers.MemberControllers
                 return NotFound("Sklep nie został znaleziony.");
             }
 
-            // Prepare the view model
+            // Pobierz zapisane dane rozliczeniowe użytkownika
+            var paymentDataList = await _context.UserPaymentDatas
+                .Where(p => p.UserId == userId)
+                .ToListAsync();
+
+            // Przygotowanie modelu widoku
             var viewModel = new StorePaymentsViewModel
             {
                 StoreId = store.StoreId,
@@ -100,19 +105,105 @@ namespace PriceSafari.Controllers.MemberControllers
                 ProductsToScrap = store.Plan?.ProductsToScrap ?? 0,
                 ScrapesPerInvoice = store.Plan?.ScrapesPerInvoice ?? 0,
                 HasUnpaidInvoice = store.Invoices.Any(i => !i.IsPaid),
-                Invoices = store.Invoices.OrderByDescending(i => i.IssueDate).ToList()
+                Invoices = store.Invoices.OrderByDescending(i => i.IssueDate).ToList(),
+                PaymentDataList = paymentDataList
             };
 
             return View("~/Views/Panel/Plans/StorePayments.cshtml", viewModel);
         }
 
-        // POST: Payment/GenerateProforma
         [HttpPost]
-        public async Task<IActionResult> GenerateProforma(int storeId)
+        public async Task<IActionResult> SaveOrUpdatePaymentData(UserPaymentDataViewModel model)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
-            // Verify that the store belongs to the user
+            if (!ModelState.IsValid)
+            {
+                // Return validation errors
+                return BadRequest(ModelState);
+            }
+
+            if (model.PaymentDataId.HasValue && model.PaymentDataId > 0)
+            {
+                // Update existing data
+                var existingData = await _context.UserPaymentDatas
+                    .FirstOrDefaultAsync(pd => pd.UserId == userId && pd.PaymentDataId == model.PaymentDataId.Value);
+
+                if (existingData == null)
+                {
+                    return NotFound();
+                }
+
+                existingData.CompanyName = model.CompanyName;
+                existingData.Address = model.Address;
+                existingData.PostalCode = model.PostalCode;
+                existingData.City = model.City;
+                existingData.NIP = model.NIP;
+
+                _context.UserPaymentDatas.Update(existingData);
+            }
+            else
+            {
+                // Add new data
+                var paymentData = new UserPaymentData
+                {
+                    UserId = userId,
+                    CompanyName = model.CompanyName,
+                    Address = model.Address,
+                    PostalCode = model.PostalCode,
+                    City = model.City,
+                    NIP = model.NIP
+                };
+                _context.UserPaymentDatas.Add(paymentData);
+            }
+
+            await _context.SaveChangesAsync();
+
+            // Return success
+            return Ok(new
+            {
+                success = true,
+                paymentData = new
+                {
+                    paymentDataId = model.PaymentDataId,
+                    companyName = model.CompanyName,
+                    address = model.Address,
+                    postalCode = model.PostalCode,
+                    city = model.City,
+                    nip = model.NIP
+                }
+            });
+        }
+
+
+
+        // POST: Payment/DeletePaymentData
+        [HttpPost]
+        public async Task<IActionResult> DeletePaymentData(int paymentDataId)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+            var paymentData = await _context.UserPaymentDatas
+                .FirstOrDefaultAsync(pd => pd.UserId == userId && pd.PaymentDataId == paymentDataId);
+
+            if (paymentData == null)
+            {
+                return NotFound();
+            }
+
+            _context.UserPaymentDatas.Remove(paymentData);
+            await _context.SaveChangesAsync();
+
+            return Ok(new { success = true });
+        }
+
+        // POST: Payment/GenerateProforma
+        [HttpPost]
+        public async Task<IActionResult> GenerateProforma(int storeId, int paymentDataId)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+            // Sprawdzenie, czy sklep należy do użytkownika
             var userStore = await _context.UserStores
                 .FirstOrDefaultAsync(us => us.UserId == userId && us.StoreId == storeId);
 
@@ -131,14 +222,24 @@ namespace PriceSafari.Controllers.MemberControllers
                 return NotFound("Sklep lub plan nie został znaleziony.");
             }
 
-            // Check if there's an existing unpaid invoice
+            // Sprawdź, czy istnieje już nieopłacona faktura
             if (store.Invoices.Any(i => !i.IsPaid))
             {
                 TempData["Error"] = "Istnieje już wygenerowana proforma dla tego sklepu.";
                 return RedirectToAction("StorePayments", new { storeId = storeId });
             }
 
-            // Create the invoice
+            // Pobierz wybrane dane rozliczeniowe użytkownika
+            var paymentData = await _context.UserPaymentDatas
+                .FirstOrDefaultAsync(pd => pd.UserId == userId && pd.PaymentDataId == paymentDataId);
+
+            if (paymentData == null)
+            {
+                TempData["Error"] = "Nieprawidłowe dane rozliczeniowe.";
+                return RedirectToAction("StorePayments", new { storeId = storeId });
+            }
+
+            // Utwórz fakturę
             var invoice = new InvoiceClass
             {
                 StoreId = storeId,
@@ -146,7 +247,13 @@ namespace PriceSafari.Controllers.MemberControllers
                 IssueDate = DateTime.Now,
                 NetAmount = store.Plan.NetPrice,
                 ScrapesIncluded = store.Plan.ScrapesPerInvoice,
-                IsPaid = false
+                IsPaid = false,
+                // Dodaj dane rozliczeniowe
+                CompanyName = paymentData.CompanyName,
+                Address = paymentData.Address,
+                PostalCode = paymentData.PostalCode,
+                City = paymentData.City,
+                NIP = paymentData.NIP
             };
 
             _context.Invoices.Add(invoice);
@@ -155,5 +262,6 @@ namespace PriceSafari.Controllers.MemberControllers
             TempData["Success"] = "Proforma została wygenerowana.";
             return RedirectToAction("StorePayments", new { storeId = storeId });
         }
+
     }
 }

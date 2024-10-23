@@ -12,7 +12,8 @@ public class PriceSafariUser : IdentityUser
     public bool IsActive { get; set; } = true;
     public AffiliateVerification AffiliateVerification { get; set; }
 
-    public ICollection<PriceSafariUserStore> UserStores { get; set; } = new List<PriceSafariUserStore>();  
+    public ICollection<PriceSafariUserStore> UserStores { get; set; } = new List<PriceSafariUserStore>();
+    public ICollection<UserPaymentData> UserPaymentDatas { get; set; } = new List<UserPaymentData>();
 
     //Nowe poziomy zabezpieczen
 

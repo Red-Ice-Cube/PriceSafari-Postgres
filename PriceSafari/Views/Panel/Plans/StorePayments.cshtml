@@ -1,35 +1,189 @@
-﻿@model PriceSafari.Models.ViewModels.StorePaymentsViewModel
+﻿@using Newtonsoft.Json
+@using Newtonsoft.Json.Serialization
+@model PriceSafari.Models.ViewModels.StorePaymentsViewModel
 
 @{
     Layout = "~/Views/Shared/_PanelLayout.cshtml";
+    var jsonSettings = new JsonSerializerSettings
+            {
+                ContractResolver = new CamelCasePropertyNamesContractResolver()
+            };
+    var paymentDataListJson = JsonConvert.SerializeObject(Model.PaymentDataList, jsonSettings);
 }
 
+<style>
+    .modal-split {
+        display:flex;
+        gap:32px;
+        width:100%;
+    }
+
+    .modal-dialog {
+        max-width:900px;
+    }
+
+    .modal-content{
+        width:100%;
+    }
+
+    .store-details-title {
+        font-size:22px;
+        font-weight:300;
+        margin-bottom:16px;
+    }
+
+    .space-100 {
+        display: flex;
+        justify-content: space-between;
+        width:100%;
+        margin-top: 16px;
+        margin-bottom: 24px;
+    }
+
+
+</style>
 
 <div class="Vert">
     <div class="Vert-full">
-        <div class="Order-Container-Title">
-            Płatności @Model.StoreName 
-        </div>
-      @*   <img src="@Model.LogoUrl" alt="@Model.StoreName" class="img-box-left" /> *@
+
         <div class="store-details">
-           
-            <p>Plan: @Model.PlanName</p>
-            <p>Cena Plan: @Model.PlanPrice.ToString("C")</p>
-            <p>Produkty do Zeskrobania: @Model.ProductsToScrap</p>
-            <p>Ilość Zeskrobań w Planie: @Model.ScrapesPerInvoice</p>
+            <img src="~/images/@($"{Model.PlanName}.png")" alt="@Model.PlanName" style="height:36px; margin-bottom:24px;" />
+            <div class="store-details-title">Plan @Model.PlanName dla @Model.StoreName</div>
+            <p>Kwota: @Model.PlanPrice.ToString("C") Netto</p>
+            <p>Maksymalna ilość produktów: @Model.ProductsToScrap</p>
+            <p>Pakiet analiz: @Model.ScrapesPerInvoice</p>
+            <p>Częstotliwość wykonywania analizy: 24h</p>
+            <p>Źródło danych: Ceneo</p>
+
         </div>
 
-        @if (Model.HasUnpaidInvoice)
-        {
-            <p><strong>Proforma została już wygenerowana.</strong></p>
-        }
-        else
-        {
-            <form asp-action="GenerateProforma" method="post">
-                <input type="hidden" name="storeId" value="@Model.StoreId" />
-                <button type="submit" class="btn btn-primary">Wygeneruj Proformę</button>
-            </form>
-        }
+        <!-- Button to open modal -->
+        <div>
+            @if (Model.HasUnpaidInvoice)
+            {
+                <p><strong>Proforma została już wygenerowana.</strong></p>
+            }
+            else
+            {
+                <button type="button" class="Button-Page-Small-bl" data-toggle="modal" data-target="#generateProformaModal">
+                    Wygeneruj Proformę
+                </button>
+            }
+        </div>
+    
+
+        <!-- Modal for Generating Proforma -->
+        <div class="modal fade" id="generateProformaModal" tabindex="-1" role="dialog" aria-labelledby="generateProformaModalLabel" aria-hidden="true">
+            <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                    <!-- Modal Header -->
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="generateProformaModalLabel">Generowanie Proformy</h5>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Zamknij">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <!-- Modal Body -->
+                    <div class="modal-split">
+                        <div class="modal-body" >
+                            <!-- Managing Billing Data -->
+                            <div class="form-group">
+                        
+                                <select id="paymentDataSelect" class="form-control" style="margin-top:0px;">
+                                    <option value="">Wybierz adres rozliczeniowy</option>
+                                    @foreach (var data in Model.PaymentDataList)
+                                    {
+                                        <option value="@data.PaymentDataId">@data.CompanyName</option>
+                                    }
+                                </select>
+                                <div class="space-100">
+                                    <div>
+                                        <button type="button" class="Button-Page-Small-bl" id="addPaymentDataButton">+ Adres rozliczeniowy</button>
+                                    </div>
+
+                                    <div>
+                                        <button type="button" class="Button-Page-Small" id="editPaymentDataButton" style="display:none;">Edytuj</button>
+                                        <button type="button" class="Button-Page-Small-r" id="deletePaymentDataButton" style="display:none;">Usuń</button>
+                                    </div>
+                             
+                                   
+                                </div>
+                            </div>
+
+                            <!-- Display Billing Data Details -->
+                            <div id="paymentDataDetails" style="display:none;">
+                                <p><strong>Nazwa firmy:</strong> <span id="companyName"></span></p>
+                                <p><strong>Adres:</strong> <span id="address"></span></p>
+                                <p><strong>Kod pocztowy:</strong> <span id="postalCode"></span></p>
+                                <p><strong>Miasto:</strong> <span id="city"></span></p>
+                                <p><strong>NIP:</strong> <span id="nip"></span></p>
+                            </div>
+
+                            <!-- Form for Adding/Editing Billing Data -->
+                            <div id="paymentDataFormContainer" style="display:none;">
+                                <form id="paymentDataForm">
+                                    <input type="hidden" id="PaymentDataId" name="PaymentDataId" value="" />
+                                    <div class="form-group">
+                                        <label for="CompanyName">Nazwa firmy</label>
+                                        <input type="text" class="form-control" id="CompanyName" name="CompanyName" required />
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="Address">Adres</label>
+                                        <input type="text" class="form-control" id="Address" name="Address" required />
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="PostalCode">Kod pocztowy</label>
+                                        <input type="text" class="form-control" id="PostalCode" name="PostalCode" required />
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="City">Miasto</label>
+                                        <input type="text" class="form-control" id="City" name="City" required />
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="NIP">NIP</label>
+                                        <input type="text" class="form-control" id="NIP" name="NIP" required />
+                                    </div>
+                                    <div style="margin-top:16px;">
+                                        <button type="button" class="Button-Page-Small-bl" id="savePaymentDataButton">Zapisz dane</button>
+                                        <button type="button" class="Button-Page-Small" id="cancelPaymentDataButton">Anuluj</button>
+                                    </div>
+                                 
+                                </form>
+                            </div>
+
+                        </div>
+                        <div class="modal-body">
+                            
+                            <div class="store-details">
+                                <img src="~/images/@($"{Model.PlanName}.png")" alt="@Model.PlanName" style="height:36px; margin-bottom:24px;" />
+                                <div class="store-details-title">Plan @Model.PlanName dla @Model.StoreName</div>
+                                <p>Kwota: @Model.PlanPrice.ToString("C") Netto</p>
+                                <p>Maksymalna ilość produktów: @Model.ProductsToScrap</p>
+                                <p>Pakiet analiz: @Model.ScrapesPerInvoice</p>
+                                <p>Częstotliwość wykonywania analizy: 24h</p>
+                                <p>Źródło danych: Ceneo</p>
+
+                            </div>
+
+
+                        </div>
+                    </div>
+                    
+                    <!-- Modal Footer -->
+                    <div class="modal-footer">
+                        <!-- Form for Generating Proforma -->
+                        <form id="generateProformaForm" method="post" asp-action="GenerateProforma">
+                            <input type="hidden" name="storeId" value="@Model.StoreId" />
+                            <input type="hidden" id="paymentDataId" name="paymentDataId" value="" />
+                            <button type="submit" class="btn btn-success" id="generateProformaButton" disabled>Generuj Proformę</button>
+                        </form>
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Anuluj</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Invoice History -->
         @if (Model.Invoices != null && Model.Invoices.Any())
         {
             <div class="Vert-table">
@@ -41,8 +195,6 @@
                             <th>Opłacono</th>
                             <th>Kwota Netto</th>
                             <th>Status</th>
-                            
-
                         </tr>
                     </thead>
                     <tbody>
@@ -63,7 +215,6 @@
                                         <span class="Validation Validation-cancelled">Nieopłacona</span>
                                     }
                                 </td>
-
                             </tr>
                         }
                     </tbody>
@@ -76,3 +227,184 @@
         }
     </div>
 </div>
+
+@section Scripts {
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <!-- Include Bootstrap JS -->
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        $(document).ready(function () {
+            var paymentDataList = @Html.Raw(paymentDataListJson);
+
+            // Function to populate billing data details
+            function populatePaymentData(paymentDataId) {
+                var data = paymentDataList.find(x => x.paymentDataId == paymentDataId);
+                if (data) {
+                    $("#companyName").text(data.companyName);
+                    $("#address").text(data.address);
+                    $("#postalCode").text(data.postalCode);
+                    $("#city").text(data.city);
+                    $("#nip").text(data.nip);
+                    $("#paymentDataDetails").show();
+                    $("#paymentDataFormContainer").hide();
+                    $("#generateProformaButton").prop('disabled', false);
+                    $("#paymentDataId").val(data.paymentDataId);
+                    $("#editPaymentDataButton").show();
+                    $("#deletePaymentDataButton").show();
+                } else {
+                    $("#paymentDataDetails").hide();
+                    $("#companyName").text('');
+                    $("#address").text('');
+                    $("#postalCode").text('');
+                    $("#city").text('');
+                    $("#nip").text('');
+                    $("#paymentDataId").val('');
+                    $("#generateProformaButton").prop('disabled', true);
+                    $("#editPaymentDataButton").hide();
+                    $("#deletePaymentDataButton").hide();
+                }
+            }
+
+            // When the billing address selection changes
+            $("#paymentDataSelect").change(function () {
+                var selectedValue = $(this).val();
+                if (selectedValue) {
+                    populatePaymentData(selectedValue);
+                } else {
+                    $("#paymentDataDetails").hide();
+                    $("#generateProformaButton").prop('disabled', true);
+                    $("#paymentDataId").val('');
+                    $("#editPaymentDataButton").hide();
+                    $("#deletePaymentDataButton").hide();
+                }
+            });
+
+            // Adding a new billing address
+            $("#addPaymentDataButton").click(function () {
+                $("#paymentDataFormContainer").show();
+                $("#paymentDataDetails").hide();
+                $("#generateProformaButton").prop('disabled', true);
+                $("#paymentDataId").val('');
+                $("#paymentDataForm")[0].reset();
+                $("#PaymentDataId").val('');
+            });
+
+            // Editing an existing billing address
+            $("#editPaymentDataButton").click(function () {
+                var paymentDataId = $("#paymentDataId").val();
+                var data = paymentDataList.find(x => x.paymentDataId == paymentDataId);
+                if (data) {
+                    $("#paymentDataFormContainer").show();
+                    $("#paymentDataDetails").hide();
+                    $("#generateProformaButton").prop('disabled', true);
+                    $("#PaymentDataId").val(data.paymentDataId);
+                    $("#CompanyName").val(data.companyName);
+                    $("#Address").val(data.address);
+                    $("#PostalCode").val(data.postalCode);
+                    $("#City").val(data.city);
+                    $("#NIP").val(data.nip);
+                }
+            });
+
+            // Cancel adding/editing billing address
+            $("#cancelPaymentDataButton").click(function () {
+                $("#paymentDataFormContainer").hide();
+                var paymentDataId = $("#paymentDataId").val();
+                if (paymentDataId) {
+                    populatePaymentData(paymentDataId);
+                } else {
+                    $("#generateProformaButton").prop('disabled', true);
+                }
+            });
+
+            // Save billing address (add or edit)
+            $("#savePaymentDataButton").click(function () {
+                var formData = $("#paymentDataForm").serialize();
+                $.ajax({
+                    type: "POST",
+                    url: "@Url.Action("SaveOrUpdatePaymentData", "Payment")",
+                    data: formData,
+                    success: function (response) {
+                        if (response.success) {
+                            var newPaymentData = {
+                                paymentDataId: response.paymentData.paymentDataId,
+                                companyName: response.paymentData.companyName,
+                                address: response.paymentData.address,
+                                postalCode: response.paymentData.postalCode,
+                                city: response.paymentData.city,
+                                nip: response.paymentData.nip
+                            };
+
+                            // If it's an edit, update the existing item
+                            var existingData = paymentDataList.find(x => x.paymentDataId == newPaymentData.paymentDataId);
+                            if (existingData) {
+                                Object.assign(existingData, newPaymentData);
+                                $("#paymentDataSelect option[value='" + newPaymentData.paymentDataId + "']").text(newPaymentData.companyName);
+                            } else {
+                                // Add new data to the list
+                                paymentDataList.push(newPaymentData);
+                                // Add new option to the select
+                                $("#paymentDataSelect").append($('<option>', {
+                                    value: newPaymentData.paymentDataId,
+                                    text: newPaymentData.companyName
+                                }));
+                            }
+
+                            // Select the new or updated data
+                            $("#paymentDataSelect").val(newPaymentData.paymentDataId);
+                            $("#paymentDataFormContainer").hide();
+                            populatePaymentData(newPaymentData.paymentDataId);
+                        } else {
+                            // Handle validation errors
+                            alert("Błąd podczas zapisywania danych.");
+                        }
+                    },
+                    error: function (xhr) {
+                        if (xhr.responseJSON && xhr.responseJSON.errors) {
+                            var errors = xhr.responseJSON.errors;
+                            var errorMessage = "Błędy walidacji:\n";
+                            for (var key in errors) {
+                                errorMessage += errors[key].join(", ") + "\n";
+                            }
+                            alert(errorMessage);
+                        } else {
+                            alert("Błąd podczas zapisywania danych.");
+                        }
+                    }
+                });
+            });
+
+            // Deleting a billing address
+            $("#deletePaymentDataButton").click(function () {
+                if (confirm("Czy na pewno chcesz usunąć te dane?")) {
+                    var paymentDataId = $("#paymentDataId").val();
+                    $.ajax({
+                        type: "POST",
+                        url: "@Url.Action("DeletePaymentData", "Payment")",
+                        data: { paymentDataId: paymentDataId },
+                        success: function (response) {
+                            if (response.success) {
+                                // Remove from paymentDataList
+                                paymentDataList = paymentDataList.filter(x => x.paymentDataId != paymentDataId);
+                                // Remove from dropdown
+                                $("#paymentDataSelect option[value='" + paymentDataId + "']").remove();
+                                // Reset selection
+                                $("#paymentDataSelect").val('');
+                                $("#paymentDataDetails").hide();
+                                $("#generateProformaButton").prop('disabled', true);
+                                $("#editPaymentDataButton").hide();
+                                $("#deletePaymentDataButton").hide();
+                            } else {
+                                alert("Błąd podczas usuwania danych.");
+                            }
+                        },
+                        error: function () {
+                            alert("Błąd podczas usuwania danych.");
+                        }
+                    });
+                }
+            });
+        });
+    </script>
+}

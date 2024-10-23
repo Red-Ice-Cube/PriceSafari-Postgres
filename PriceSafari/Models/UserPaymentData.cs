@@ -1,4 +1,7 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
+using Microsoft.AspNetCore.Mvc.ModelBinding.Validation;
 
 namespace PriceSafari.Models
 {
@@ -7,8 +10,9 @@ namespace PriceSafari.Models
         [Key]
         public int PaymentDataId { get; set; }
 
-        [Required]
+        [ForeignKey(nameof(PriceSafariUser))]
         public string UserId { get; set; }
+
         public PriceSafariUser User { get; set; }
 
         [Required]

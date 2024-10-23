@@ -122,6 +122,12 @@ namespace PriceSafari.Data
                   .WithMany(s => s.PriceSafariReports)
                   .HasForeignKey(psr => psr.StoreId)
                   .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<PriceSafariUser>()
+                   .HasMany(u => u.UserPaymentDatas)
+                   .WithOne(pd => pd.User)
+                   .HasForeignKey(pd => pd.UserId)
+                   .OnDelete(DeleteBehavior.Cascade);
         }
     }
 }
