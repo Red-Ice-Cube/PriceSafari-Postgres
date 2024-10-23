@@ -37,6 +37,7 @@ namespace PriceSafari.Data
         public DbSet<PlanClass> Plans { get; set; }
 
         public DbSet<InvoiceClass> Invoices { get; set; }
+        public DbSet<UserPaymentData> UserPaymentDatas { get; set; }
 
 
 

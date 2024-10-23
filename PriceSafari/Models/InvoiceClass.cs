@@ -35,7 +35,17 @@ namespace PriceSafari.Models
         [Display(Name = "Kwota Netto")]
         public decimal NetAmount { get; set; }
 
-        [Display(Name = "Ilość Zeskrobań")]
+        [Display(Name = "Ilość Pakietów")]
         public int ScrapesIncluded { get; set; }
+
+
+
+
+
+        public string CompanyName { get; set; }
+        public string Address { get; set; }
+        public string PostalCode { get; set; }
+        public string City { get; set; }
+        public string NIP { get; set; }
     }
 }
