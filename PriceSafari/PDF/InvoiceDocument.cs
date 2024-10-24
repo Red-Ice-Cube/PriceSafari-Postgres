@@ -15,23 +15,20 @@ public class InvoiceDocument
 
     public byte[] GeneratePdf()
     {
-        // Create a new MigraDoc document
         var document = new Document();
         var headerTitle = _invoice.IsPaid ? "Faktura VAT" : "ProForma";
-        document.Info.Title = $"{headerTitle} nr {_invoice.InvoiceId}";
-        document.Info.Author = "Twoja Firma Sp. z o.o.";
+        document.Info.Title = $"{headerTitle} nr {_invoice.InvoiceNumber}";
+        document.Info.Author = "Heated Box Sp. z o.o.";
 
         DefineStyles(document);
         CreatePage(document);
 
-        // Render the PDF
         var pdfRenderer = new PdfDocumentRenderer(unicode: true)
         {
             Document = document
         };
         pdfRenderer.RenderDocument();
 
-        // Save the document into a byte array
         using (var stream = new MemoryStream())
         {
             pdfRenderer.PdfDocument.Save(stream, closeStream: false);
@@ -63,7 +60,7 @@ public class InvoiceDocument
 
         // Header
         var headerTitle = _invoice.IsPaid ? "Faktura VAT" : "ProForma";
-        var header = section.AddParagraph($"{headerTitle} nr {_invoice.InvoiceId}");
+        var header = section.AddParagraph($"{headerTitle} nr {_invoice.InvoiceNumber}");
         header.Style = "Header";
         header.Format.SpaceAfter = "1cm";
 
@@ -81,7 +78,7 @@ public class InvoiceDocument
         cell.AddParagraph($"Data płatności: {_invoice.PaymentDate?.ToString("yyyy-MM-dd") ?? "N/A"}");
         cell.AddParagraph($"Status: {(_invoice.IsPaid ? "Opłacona" : "Nieopłacona")}");
 
-        // Right cell: Empty (or you can add additional info)
+        // Right cell: Empty or additional info
         dateRow.Cells[1].AddParagraph("");
 
         section.AddParagraph().AddLineBreak();
@@ -129,7 +126,7 @@ public class InvoiceDocument
         var headerRow = table.AddRow();
         headerRow.Shading.Color = Colors.LightGray;
         headerRow.Cells[0].AddParagraph("L.p.").Format.Font.Bold = true;
-        headerRow.Cells[1].AddParagraph("Nazwa usługi").Format.Font.Bold = true;
+        headerRow.Cells[1].AddParagraph("Usługa").Format.Font.Bold = true;
         headerRow.Cells[2].AddParagraph("Cena netto").Format.Font.Bold = true;
         headerRow.Cells[2].Format.Alignment = ParagraphAlignment.Right;
         headerRow.Cells[3].AddParagraph("Cena brutto").Format.Font.Bold = true;
@@ -138,7 +135,13 @@ public class InvoiceDocument
         // Data Row
         var dataRow = table.AddRow();
         dataRow.Cells[0].AddParagraph("1");
-        dataRow.Cells[1].AddParagraph("PriceSafari " + _invoice.Plan.PlanName);
+
+        // Include plan name and additional info
+        var serviceDescription = $"PriceSafari {_invoice.Plan.PlanName}\n" +
+                                 $"Ilość analiz: {_invoice.ScrapesIncluded}\n" +
+                                 $"Maksymalna ilość produktów: {_invoice.UrlsIncluded}";
+        dataRow.Cells[1].AddParagraph(serviceDescription);
+
         dataRow.Cells[2].AddParagraph($"{_invoice.NetAmount:C}");
         dataRow.Cells[2].Format.Alignment = ParagraphAlignment.Right;
         dataRow.Cells[3].AddParagraph($"{grossAmount:C}");

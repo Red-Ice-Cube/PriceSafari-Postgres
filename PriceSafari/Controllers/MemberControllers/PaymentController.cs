@@ -238,7 +238,10 @@ namespace PriceSafari.Controllers.MemberControllers
                 return RedirectToAction("StorePayments", new { storeId = storeId });
             }
 
-            // Utwórz fakturę
+            // Generate a temporary unique InvoiceNumber
+            var tempInvoiceNumber = $"TEMP-{Guid.NewGuid()}";
+
+            // Create the invoice with the temporary InvoiceNumber
             var invoice = new InvoiceClass
             {
                 StoreId = storeId,
@@ -248,20 +251,28 @@ namespace PriceSafari.Controllers.MemberControllers
                 ScrapesIncluded = store.Plan.ScrapesPerInvoice,
                 UrlsIncluded = store.Plan.ProductsToScrap,
                 IsPaid = false,
-                // Dodaj dane rozliczeniowe
                 CompanyName = paymentData.CompanyName,
                 Address = paymentData.Address,
                 PostalCode = paymentData.PostalCode,
                 City = paymentData.City,
-                NIP = paymentData.NIP
+                NIP = paymentData.NIP,
+                InvoiceNumber = tempInvoiceNumber
             };
 
             _context.Invoices.Add(invoice);
+            await _context.SaveChangesAsync(); // Save to get the InvoiceId
+
+            // Generate the final custom invoice number
+            invoice.InvoiceNumber = $"PS{invoice.InvoiceId.ToString("D6")}";
+
+            // Update the invoice with the new InvoiceNumber
+            _context.Invoices.Update(invoice);
             await _context.SaveChangesAsync();
 
             TempData["Success"] = "Proforma została wygenerowana.";
             return RedirectToAction("StorePayments", new { storeId = storeId });
         }
+    
 
 
         [HttpGet]

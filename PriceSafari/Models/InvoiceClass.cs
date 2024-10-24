@@ -8,6 +8,11 @@ namespace PriceSafari.Models
         [Key]
         public int InvoiceId { get; set; }
 
+        // New property to store the custom invoice number
+        [Required]
+        [Display(Name = "Numer Faktury")]
+        public string InvoiceNumber { get; set; }
+
         [Required]
         [Display(Name = "Sklep")]
         public int StoreId { get; set; }
