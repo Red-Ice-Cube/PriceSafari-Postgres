@@ -5,7 +5,6 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.EntityFrameworkCore;
 using PriceSafari.Hubs;
-using PriceSafari.Services;
 using PriceSafari.Services.ViewRenderService;
 using PriceSafari.Scrapers;
 
@@ -15,6 +14,8 @@ public class Program
 {
     public static async Task Main(string[] args)
     {
+
+
         var root = Directory.GetCurrentDirectory();
         var dotenv = Path.Combine(root, ".env");
         DotEnv.Load(dotenv);

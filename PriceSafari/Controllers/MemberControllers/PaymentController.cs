@@ -5,9 +5,8 @@ using Microsoft.EntityFrameworkCore;
 using PriceSafari.Data;
 using PriceSafari.Models;
 using PriceSafari.Models.ViewModels;
-using System.Collections.Generic;
-using Newtonsoft.Json; 
 using System.Security.Claims;
+
 
 namespace PriceSafari.Controllers.MemberControllers
 {
@@ -247,6 +246,7 @@ namespace PriceSafari.Controllers.MemberControllers
                 IssueDate = DateTime.Now,
                 NetAmount = store.Plan.NetPrice,
                 ScrapesIncluded = store.Plan.ScrapesPerInvoice,
+                UrlsIncluded = store.Plan.ProductsToScrap,
                 IsPaid = false,
                 // Dodaj dane rozliczeniowe
                 CompanyName = paymentData.CompanyName,
@@ -262,6 +262,38 @@ namespace PriceSafari.Controllers.MemberControllers
             TempData["Success"] = "Proforma została wygenerowana.";
             return RedirectToAction("StorePayments", new { storeId = storeId });
         }
+
+
+        [HttpGet]
+        public async Task<IActionResult> InvoicePdf(int invoiceId)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+            // Pobierz fakturę i sprawdź, czy należy do użytkownika
+            var invoice = await _context.Invoices
+                .Include(i => i.Store)
+                    .ThenInclude(s => s.UserStores)
+                .Include(i => i.Plan)
+                .FirstOrDefaultAsync(i => i.InvoiceId == invoiceId && i.Store.UserStores.Any(us => us.UserId == userId));
+
+            if (invoice == null)
+            {
+                return NotFound("Faktura nie została znaleziona.");
+            }
+
+            // Wygeneruj PDF
+            var pdfBytes = GenerateInvoicePdf(invoice);
+
+            return File(pdfBytes, "application/pdf", $"Faktura_{invoice.InvoiceId}.pdf");
+        }
+
+        private byte[] GenerateInvoicePdf(InvoiceClass invoice)
+        {
+            var document = new InvoiceDocument(invoice);
+            return document.GeneratePdf();
+        }
+
+
 
     }
 }

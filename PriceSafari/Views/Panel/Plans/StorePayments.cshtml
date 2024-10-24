@@ -204,7 +204,11 @@
                         @foreach (var invoice in Model.Invoices)
                         {
                             <tr class="store-row">
-                                <td>@invoice.InvoiceId</td>
+                                <td>
+                                    <a href="@Url.Action("InvoicePdf", "Payment", new { invoiceId = invoice.InvoiceId })" target="_blank">
+                                        @invoice.InvoiceId
+                                    </a>
+                                </td>
                                 <td>@invoice.IssueDate.ToString("yyyy-MM-dd")</td>
                                 <td>@(invoice.PaymentDate?.ToString("yyyy-MM-dd") ?? "N/A")</td>
                                 <td>@invoice.NetAmount.ToString("C")</td>
@@ -221,6 +225,7 @@
                             </tr>
                         }
                     </tbody>
+
                 </table>
             </div>
         }

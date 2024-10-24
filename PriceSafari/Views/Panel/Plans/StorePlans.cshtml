@@ -9,7 +9,7 @@
 <div class="Vert">
     <div class="Vert-full">
         <div class="Order-Container-Title">
-            Twoje Sklepy
+            Plany
         </div>
         @if (Model != null && Model.Any())
         {
@@ -17,9 +17,10 @@
                 <table class="table-orders">
                     <thead>
                         <tr>
+                            <th>Plan</th>
                             <th>Sklep</th>
                             <th></th>
-                            <th>Plan</th>
+                           
                             <th>Ilość produktów w planie</th>
                             <th>Pozostałe pakiety</th>
                             
@@ -46,15 +47,17 @@
                                 
                             
                             <tr class="store-row" style="cursor:pointer;" data-url="@Url.Action("StorePayments", "Payment", new { storeId = store.StoreId })">
+
+                                <td>
+                                    <img src="~/images/@($"{store.PlanName}.png")" alt="@store.PlanName" style="height:22px;" />
+                                </td>
                                 <td>
                                     <img src="@store.LogoUrl" class="img-container" alt="@store.StoreName" />
                                 </td>
                                 <td>
                                     @store.StoreName
                                 </td>
-                                <td>
-                                    <img src="~/images/@($"{store.PlanName}.png")" alt="@store.PlanName" style="height:22px;" />
-                                </td>
+                               
                                 <td>
                                     @store.ProductsToScrap Produktów
                                 </td>
