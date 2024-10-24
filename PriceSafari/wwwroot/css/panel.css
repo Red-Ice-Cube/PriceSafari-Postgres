@@ -9,8 +9,14 @@
 }
 
 .btn:focus, .btn:active:focus, .btn-link.nav-link:focus, .form-control:focus, .form-check-input:focus {
-    box-shadow: 0 0 0 0.1rem white, 0 0 0 0.25rem #258cfb;
+    box-shadow: 0 0 0 0.1rem white, 0 0 0 0.25rem #41C7C7;
+    color: inherit !important; 
 }
+.nav-link, .nav-link:focus, .nav-link:active {
+    color: #fff !important; 
+    text-decoration: none; 
+}
+
 
 html {
     position: relative;
@@ -20,6 +26,28 @@ html {
 body {
     margin-bottom: 60px;
 }
+
+.nav-link {
+    display: flex;
+    padding: 2px;
+    margin-top: 6px;
+    justify-content: center;
+    border-radius: 4px;
+    align-items: center;
+    border: 2px solid rgba(6, 6, 6, 0.92);
+    background: rgba(6, 6, 6, 0.3);
+    width: 92px !important;
+    font-size: 15px;
+    font-weight: 300;
+    text-decoration: none;
+    transition: 0.3s ease;
+}
+
+    .nav-link:hover {
+        text-decoration: none;
+        color: #41C7C7 !important;
+    }
+
 
 body {
     display: flex;
@@ -201,6 +229,18 @@ p {
     height: 92vh;
 }
 
+.Page-Box-Category-Account {
+    display: flex;
+    min-width: 204px;
+    flex-direction: column;
+    border-right: 1px solid #EDEDED;
+    padding: 0px 20px 0px 0px;
+    align-items: center;
+    gap: 10px;
+    align-self: stretch;
+
+}
+
 .Category-Box-Title {
     display: flex;
     align-items: flex-start;
@@ -356,7 +396,7 @@ p {
 
 .Sidebar-hide {
     display: none;
-    padding: 12px 0px;
+    padding: 6px 0px;
     width: 75px;
     overflow: hidden;
     flex-direction: column;
@@ -1835,7 +1875,7 @@ img.lazy-load {
     display: flex;
     align-content: center;
     align-self: stretch;
-    padding-bottom: 6px;
+    padding-bottom: 2px;
     border-bottom: 1px solid #fff;
 }
 

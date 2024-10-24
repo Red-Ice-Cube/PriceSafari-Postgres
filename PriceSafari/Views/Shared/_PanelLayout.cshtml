@@ -3,7 +3,7 @@
 
 @{
     var user = await UserManager.GetUserAsync(User);
-    var fullName = $"{user?.PartnerName} {user?.PartnerSurname}";
+    var fullName = $"{user?.PartnerName}";
 }
 
 @{
@@ -29,7 +29,7 @@
 
     <link rel="icon" type="image/png" sizes="16x16" href="~/icon/icon.png">
 
-    <link href="~/css/panel.min.css" rel="stylesheet" />
+    <link href="~/css/panel.css" rel="stylesheet" />
 
     @RenderSection("Scripts", required: false)
 
@@ -51,21 +51,25 @@
 
 <body>
     <div class="Sidebar">
-        <div class="Sidebar-box">
+        <div class="Sidebar-box" style="justify-content:flex-start;">
             <div class="Sidebar-box-name">
                 <div class="BigB">@fullName</div>
-            </div>
-            <div class="Sidebar-box-container">
-                <div class="Sidebar-box-item-left">
-                    <div class="upper-menu-link">
-                        <img src="~/images/Affiliate-bone.svg" alt="Menu" style="width: 24px; height: 24px;" /> <partial name="_LoginPartial" />
-                    </div>
-                </div>
+
                 <div class="Sidebar-box-item-right">
                     <button id="toggleSidebar1" class="upper-menu-link">
                         <img src="~/images/Menu-hide-bone.svg" alt="Menu" style="width: 24px; height: 24px;" />
                     </button>
                 </div>
+            
+            </div>
+            <div class="Sidebar-box-container">
+                <div class="Sidebar-box-item-left">
+                    <div class="upper-menu-link">
+                        <partial name="_LoginPartial" />
+                        <a class="nav-link" asp-controller="Payment" asp-action="StorePlans">Plan</a>
+                    </div>
+                </div>
+              
             </div>
         </div>
         <div class="Menu">
@@ -163,7 +167,7 @@
             }
 
         </div>
-        <div class="Sidebar-box">
+        <div class="Sidebar-box" style="justify-content:flex-end;">
             <div class="PriceSafari">
                     <img src="~/images/PriceSafari.png" alt="Menu" width="135" height="38" />
             </div>
@@ -171,7 +175,7 @@
     </div>
 
     <div class="Sidebar-hide">
-        <div class="Sidebar-box">
+        <div class="Sidebar-box" style="justify-content:flex-start;">
 
             <button id="toggleSidebar2" class="upper-menu-link">
                 <img src="~/images/Menu-expand-bone.svg" alt="Menu" style="width: 24px; height: 24px;" />
