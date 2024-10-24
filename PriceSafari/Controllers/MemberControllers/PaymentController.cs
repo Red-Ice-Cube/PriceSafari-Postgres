@@ -272,7 +272,6 @@ namespace PriceSafari.Controllers.MemberControllers
             TempData["Success"] = "Proforma została wygenerowana.";
             return RedirectToAction("StorePayments", new { storeId = storeId });
         }
-    
 
 
         [HttpGet]
@@ -295,12 +294,14 @@ namespace PriceSafari.Controllers.MemberControllers
             // Wygeneruj PDF
             var pdfBytes = GenerateInvoicePdf(invoice);
 
-            return File(pdfBytes, "application/pdf", $"Faktura_{invoice.InvoiceId}.pdf");
+            return File(pdfBytes, "application/pdf", $"{invoice.InvoiceNumber}.pdf");
         }
 
         private byte[] GenerateInvoicePdf(InvoiceClass invoice)
         {
-            var document = new InvoiceDocument(invoice);
+            // Get the absolute path to the logo image
+            var logoImagePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "cid", "signature.png");
+            var document = new InvoiceDocument(invoice, logoImagePath);
             return document.GeneratePdf();
         }
 

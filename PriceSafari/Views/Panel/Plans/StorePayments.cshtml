@@ -198,6 +198,7 @@
                             <th>Opłacono</th>
                             <th>Kwota Netto</th>
                             <th>Status</th>
+                            <th>Pobierz</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -205,9 +206,7 @@
                         {
                             <tr class="store-row">
                                 <td>
-                                    <a href="@Url.Action("InvoicePdf", "Payment", new { invoiceId = invoice.InvoiceId })" target="_blank">
-                                        @invoice.InvoiceId
-                                    </a>
+                                    @invoice.InvoiceNumber
                                 </td>
                                 <td>@invoice.IssueDate.ToString("yyyy-MM-dd")</td>
                                 <td>@(invoice.PaymentDate?.ToString("yyyy-MM-dd") ?? "N/A")</td>
@@ -221,6 +220,11 @@
                                     {
                                         <span class="Validation Validation-cancelled">Nieopłacona</span>
                                     }
+                                </td>
+                                <td>
+                                    <a href="@Url.Action("InvoicePdf", "Payment", new { invoiceId = invoice.InvoiceId })" class="Button-Action-Small"  target="_blank">
+                                        Pobierz
+                                    </a>
                                 </td>
                             </tr>
                         }

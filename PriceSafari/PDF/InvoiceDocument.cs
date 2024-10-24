@@ -3,14 +3,17 @@ using MigraDoc.DocumentObjectModel;
 using MigraDoc.DocumentObjectModel.Tables;
 using MigraDoc.Rendering;
 using System.IO;
+using MigraDoc.DocumentObjectModel.Shapes;
 
 public class InvoiceDocument
 {
     private readonly InvoiceClass _invoice;
+    private readonly string _logoImagePath;
 
-    public InvoiceDocument(InvoiceClass invoice)
+    public InvoiceDocument(InvoiceClass invoice, string logoImagePath)
     {
         _invoice = invoice;
+        _logoImagePath = logoImagePath;
     }
 
     public byte[] GeneratePdf()
@@ -57,6 +60,9 @@ public class InvoiceDocument
 
         // Each MigraDoc document needs at least one section
         var section = document.AddSection();
+
+        // Add the logo and horizontal line at the top
+        AddLogoAndLine(section);
 
         // Header
         var headerTitle = _invoice.IsPaid ? "Faktura VAT" : "ProForma";
@@ -162,8 +168,8 @@ public class InvoiceDocument
             paymentInfo.Style = "Bold";
             paymentInfo.Format.SpaceBefore = "1cm";
 
-            section.AddParagraph("Bank XYZ");
-            section.AddParagraph("Nr konta: 00 0000 0000 0000 0000 0000 0000");
+            section.AddParagraph("PKO Bank Polski");
+            section.AddParagraph("Nr konta: PL88 1020 1664 0000 3302 0645 9798");
         }
 
         // Footer
@@ -173,5 +179,39 @@ public class InvoiceDocument
         footer.AddPageField();
         footer.AddText(" z ");
         footer.AddNumPagesField();
+    }
+
+    private void AddLogoAndLine(Section section)
+    {
+        // Create a table for layout
+        var headerTable = section.AddTable();
+        headerTable.Borders.Visible = false;
+        headerTable.AddColumn("1cm"); // Column for logo
+        headerTable.AddColumn("8cm"); // Remaining space
+
+        var headerRow = headerTable.AddRow();
+
+        // Logo cell
+        var logoCell = headerRow.Cells[0];
+        var image = logoCell.AddImage(_logoImagePath);
+        image.LockAspectRatio = true;
+        image.Height = "0.6cm";
+        image.RelativeVertical = RelativeVertical.Line;
+        image.RelativeHorizontal = RelativeHorizontal.Margin;
+        image.Top = ShapePosition.Top;
+        image.Left = ShapePosition.Left;
+        logoCell.VerticalAlignment = VerticalAlignment.Top;
+
+        // Empty cell (you can add content here if needed)
+        var emptyCell = headerRow.Cells[1];
+        emptyCell.AddParagraph(""); // Placeholder
+
+        // Add horizontal line
+        var lineParagraph = section.AddParagraph();
+        lineParagraph.Format.SpaceBefore = "0.5cm";
+        lineParagraph.Format.Borders.Bottom.Width = 1;
+        lineParagraph.Format.Borders.Bottom.Color = Colors.Black;
+        lineParagraph.Format.Borders.Bottom.Style = BorderStyle.Single;
+        lineParagraph.Format.SpaceAfter = "1cm";
     }
 }
