@@ -333,6 +333,32 @@
     gap: 32px;
 }
 
+
+.Vert-100 {
+    display: flex;
+    width: 100%;
+    max-width: 1576px;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 32px;
+}
+
+
+.Vert-Space-Gray {
+    display: flex;
+    padding: 64px 0px 0px 0px;
+    justify-content: center;
+    flex-direction: column;
+    align-items: center;
+    gap: 64px;
+    flex-shrink: 0;
+    align-self: stretch;
+    background: #F4F4F4;
+    box-shadow: -6px 6px 15.2px 0px rgba(0, 0, 0, 0.08) inset;
+}
+
+
 .Vert-List {
     display: flex;
     flex-direction: column;
@@ -587,7 +613,7 @@
 
 .button-container {
     display: flex;
-    gap: 32px;
+    gap: 16px;
 }
 .change-banner-1, .change-banner-2 {
     display: flex;
@@ -600,7 +626,12 @@
     font-weight: 400;
     text-decoration: none;
     background: none;
-    border: 2px solid #fff;
+    border: 2px solid rgba(255,255,255, 0.0);
+}
+
+.banner-img{
+    display:flex;
+    width:100%;
 }
 
 
@@ -792,7 +823,6 @@
     }
 
     .Nav-Bar-Scal {
-        
         gap: 16px;
     }
 
@@ -840,7 +870,6 @@
     .Horizontal-Box,
     .List-Box,
     .button-container {
-        
         align-items: center;
         gap: 16px;
     }
@@ -852,9 +881,7 @@
     }
 
     .Text-Box-Title {
-       
         font-size: 26px;
-
     }
 
     .login-box-title {
@@ -867,7 +894,7 @@
 
     .contact-box-info {
         font-size: 15px;
-        margin-top:0px;
+        margin-top: 0px;
     }
 
     .form-check-label {
@@ -880,6 +907,11 @@
 
     .Vert-Space-Dark {
         padding: 32px 16px;
+    }
+
+    .Vert-Space-Gray {
+        padding: 32px 0px 0px 0px;
+        box-shadow: none;
     }
 
     /* Stopka */
@@ -898,5 +930,15 @@
 
     .Footer-Section {
         width: 100%;
+    }
+
+
+    .change-banner-1, .change-banner-2 {
+       
+   
+        padding: 2px 6px;
+    
+        font-size: 15px;
+        font-weight: 400;
     }
 }
