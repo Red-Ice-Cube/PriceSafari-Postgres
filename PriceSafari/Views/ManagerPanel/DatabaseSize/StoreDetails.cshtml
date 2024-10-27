@@ -7,60 +7,74 @@
 
 <h2>Szczegóły Sklepu: @Model.StoreName</h2>
 
-<!-- Istniejąca tabela dla ScrapHistories -->
-<table class="table">
-    <thead>
-        <tr>
-            <th>ID Scrapowania</th>
-            <th>Ilość PriceHistories</th>
-            <th>Użyta Przestrzeń (MB)</th>
-            <th>Akcje</th>
-        </tr>
-    </thead>
-    <tbody>
-        @foreach (var item in Model.TableSizes)
-        {
+<!-- Formularz dla ScrapHistories -->
+@{
+    int rowNumber1 = 1;
+}
+<form method="post" asp-action="DeleteSelectedScrapHistories" asp-route-storeId="@Model.StoreId" onsubmit="return confirm('Czy na pewno chcesz usunąć zaznaczone scrapowania?');">
+    <table class="table">
+        <thead>
             <tr>
-                <td>@item.ScrapHistoryId</td>
-                <td>@item.PriceHistoriesCount</td>
-                <td>@item.UsedSpaceMB</td>
-                <td>
-                    <form method="post" asp-action="DeleteScrapHistory" asp-route-id="@item.ScrapHistoryId" onsubmit="return confirm('Czy na pewno chcesz usunąć to scrapowanie?');">
-                        <button type="submit" class="btn btn-danger">Usuń</button>
-                    </form>
-                </td>
+                <th></th> <!-- Checkbox -->
+                <th>Lp.</th>
+                <th>ID Scrapowania</th>
+                <th>Data Scrapowania</th>
+                <th>Ilość PriceHistories</th>
+                <th>Użyta Przestrzeń (MB)</th>
             </tr>
-        }
-    </tbody>
-</table>
+        </thead>
+        <tbody>
+            @foreach (var item in Model.TableSizes)
+            {
+                <tr>
+                    <td><input type="checkbox" name="selectedScrapHistoryIds" value="@item.ScrapHistoryId" /></td>
+                    <td>@rowNumber1</td>
+                    <td>@item.ScrapHistoryId</td>
+                    <td>@item.ScrapDate.ToString("yyyy-MM-dd HH:mm:ss")</td>
+                    <td>@item.PriceHistoriesCount</td>
+                    <td>@item.UsedSpaceMB</td>
+                </tr>
+                rowNumber1++;
+            }
+        </tbody>
+    </table>
+    <button type="submit" class="btn btn-danger">Usuń Zaznaczone</button>
+</form>
 
-<!-- Nowa tabela dla PriceSafariReports -->
+<!-- Formularz dla PriceSafariReports -->
 <h3>Raporty PriceSafari dla tego sklepu</h3>
 
-<table class="table">
-    <thead>
-        <tr>
-            <th>ID Raportu</th>
-            <th>Nazwa Raportu</th>
-            <th>Ilość GlobalPriceReports</th>
-            <th>Użyta Przestrzeń (MB)</th>
-            <th>Akcje</th>
-        </tr>
-    </thead>
-    <tbody>
-        @foreach (var item in Model.PriceSafariReportSizes)
-        {
+@{
+    int rowNumber2 = 1;
+}
+<form method="post" asp-action="DeleteSelectedPriceSafariReports" asp-route-storeId="@Model.StoreId" onsubmit="return confirm('Czy na pewno chcesz usunąć zaznaczone raporty?');">
+    <table class="table">
+        <thead>
             <tr>
-                <td>@item.ReportId</td>
-                <td>@item.ReportName</td>
-                <td>@item.TotalGlobalPriceReportsCount</td>
-                <td>@item.UsedSpaceMB</td>
-                <td>
-                    <form method="post" asp-action="DeletePriceSafariReport" asp-route-id="@item.ReportId" onsubmit="return confirm('Czy na pewno chcesz usunąć ten raport?');">
-                        <button type="submit" class="btn btn-danger">Usuń Raport</button>
-                    </form>
-                </td>
+                <th></th> <!-- Checkbox -->
+                <th>Lp.</th>
+                <th>ID Raportu</th>
+                <th>Nazwa Raportu</th>
+                <th>Data Raportu</th>
+                <th>Ilość GlobalPriceReports</th>
+                <th>Użyta Przestrzeń (MB)</th>
             </tr>
-        }
-    </tbody>
-</table>
+        </thead>
+        <tbody>
+            @foreach (var item in Model.PriceSafariReportSizes)
+            {
+                <tr>
+                    <td><input type="checkbox" name="selectedPriceSafariReportIds" value="@item.ReportId" /></td>
+                    <td>@rowNumber2</td>
+                    <td>@item.ReportId</td>
+                    <td>@item.ReportName</td>
+                    <td>@item.ReportDate.ToString("yyyy-MM-dd HH:mm:ss")</td>
+                    <td>@item.TotalGlobalPriceReportsCount</td>
+                    <td>@item.UsedSpaceMB</td>
+                </tr>
+                rowNumber2++;
+            }
+        </tbody>
+    </table>
+    <button type="submit" class="btn btn-danger">Usuń Zaznaczone Raporty</button>
+</form>
