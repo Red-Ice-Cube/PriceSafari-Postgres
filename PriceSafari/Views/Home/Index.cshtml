@@ -11,64 +11,6 @@
 
 
 
-<style>
-    /* Styl dla modala */
-    .modal {
-        display: none;
-        position: fixed;
-        z-index: 9999;
-        padding-top: 0;
-        left: 0;
-        top: 0;
-        width: 100vw;
-        height: 100vh;
-        overflow: auto;
-        background-color: rgba(0,0,0,0.8);
-    }
-
-    .modal-content {
-        margin: auto;
-        display: block;
-        width: auto;
-        max-width: 90vw;
-        max-height: 90vh;
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-
-    }
-
-    /* Styl dla przycisku zamknięcia */
-    .close {
-        position: absolute;
-        top: 16px;
-        right: 32px;
-        color: red;
-        font-size: 40px;
-        font-weight: bold;
-        cursor: pointer;
-    }
-
-    .text-icon-flex {
-        display: flex;
-
-        margin-bottom: 1em;
-    }
-
-        .text-icon-flex img {
-            width: 38px;
-            height: 38px;
-            margin-right: 1em;
-            opacity: 1; /* Ustawienie przezroczystości obrazka */
-        }
-
-        .text-icon-flex .text {
-            flex: 1;
-        }
-
-</style>
-
 
 
 
@@ -108,33 +50,7 @@
 
 
     <div class="Main-home">
-        @*  <div class="Nav-Bar">
-        <div class="Nav-Bar-Scal">
-        <div class="Nav-Bar-Scal-Box">
-        <div class="Nav-Bar-Logo">
-        <a href="@Url.Action("Index", "Home")">
-        <img src="~/images homepage/PriceSafari.png" alt="PriceSafari" style="cursor: pointer; height:24px;">
-        </a>
-        </div>
-        </div>
-        <div class="Nav-Bar-Scal-Box nav-buttons">
-        <a href="/Home/Contact" class="Nav-Bar-Button-Contact">Kontakt</a>
-        <a href="/Identity/Account/Login" class="Nav-Bar-Button">Panel</a>
-        </div>
-        <!-- Ikona Hamburger Menu -->
-        <div class="hamburger-menu" onclick="toggleMenu()">
-        <div class="bar"></div>
-        <div class="bar"></div>
-        <div class="bar"></div>
-        </div>
-        </div>
-        <!-- Menu mobilne -->
-        <div class="mobile-menu" id="mobileMenu">
-        <a href="/Home/Contact" class="Nav-Bar-Button-Contact">Kontakt</a>
-        <a href="/Identity/Account/Login" class="Nav-Bar-Button">Panel</a>
-        </div>
-        </div> *@
-
+       
         <div class="Vert-Home">
             <div class="Vert-50">
                 <div class="Text-Box">
@@ -493,7 +409,7 @@
         <div class="Vert-Home">
             <div class="Vert-50-List">
                 <h2 class="Text-Box-Title" style="margin-bottom:32px;">Najczęściej zadawane pytania</h2>
-
+               
                 @foreach (var item in faqItems)
                 {
                     <div class="List-Box-Q" onclick="toggleAnswer(this)">
@@ -505,6 +421,7 @@
                         </div>
                     </div>
                 }
+                <a href="/Home/FAQ" class="Nav-Bar-Button">Więcej pytań i odpowiedzi</a>
             </div>
 
 

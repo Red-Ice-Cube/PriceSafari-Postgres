@@ -113,6 +113,28 @@ namespace PriceSafari.Controllers.HomeControllers
             return View();
         }
 
+
+
+        public IActionResult PriceMonitoring()
+        {
+            return View();
+        }  
+        
+        public IActionResult PriceRaports()
+        {
+            return View();
+        }  
+        
+        public IActionResult CompetitionTracking()
+        {
+            return View();
+        }
+        
+        public IActionResult Pricing()
+        {
+            return View();
+        }
+
         public IActionResult Contact()
         {
             return View();
