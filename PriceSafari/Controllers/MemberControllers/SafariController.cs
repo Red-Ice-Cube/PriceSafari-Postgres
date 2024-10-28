@@ -699,8 +699,6 @@ namespace PriceSafari.Controllers
         }
 
 
-
-
         [HttpGet]
         [RequireUserAccess(UserAccessRequirement.CreateSafari)]
         public async Task<IActionResult> GetReportProducts(int reportId)
@@ -716,7 +714,32 @@ namespace PriceSafari.Controllers
                 return Json(new { success = false, message = "Raport nie istnieje." });
             }
 
-            return Json(new { success = true, productIds = report.ProductIds });
+            // Pobierz wszystkie regiony
+            var allRegions = await _context.Regions.ToListAsync();
+
+            // Upewnij się, że RegionIds nie jest null
+            var reportRegionIds = report.RegionIds ?? new List<int>();
+
+            // Przefiltruj regiony w pamięci
+            var regions = allRegions
+                .Where(r => reportRegionIds.Contains(r.RegionId))
+                .Select(r => new
+                {
+                    regionId = r.RegionId,
+                    name = r.Name,
+                    countryCode = r.CountryCode
+                })
+                .ToList();
+
+            // Upewnij się, że ProductIds nie jest null
+            var productIds = report.ProductIds ?? new List<int>();
+
+            return Json(new
+            {
+                success = true,
+                productIds = productIds,
+                regions = regions
+            });
         }
 
 

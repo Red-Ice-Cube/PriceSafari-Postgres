@@ -18,11 +18,11 @@ namespace PriceSafari.Models
         [Column(TypeName = "decimal(18, 4)")]
         public decimal CurrencyValue { get; set; }
 
-        // Nowe pola dla lokalizacji i języka
-        public string CountryCode { get; set; } // np. 'pl', 'de', 'sk'
+        
+        public string CountryCode { get; set; } 
       
 
-        // Nawigacja do PriceData
+
         public ICollection<PriceData> PriceData { get; set; } = new List<PriceData>();
 
         public ICollection<GoogleScrapingProduct> GoogleScrapingProducts { get; set; } = new List<GoogleScrapingProduct>();

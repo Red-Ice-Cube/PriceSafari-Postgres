@@ -7,6 +7,30 @@
     var storeLogo = ViewBag.StoreLogo;
 }
 
+<style>
+    .report-regions {
+        display:flex;
+        margin-top:16px;
+        margin-bottom:16px;
+        flex-direction:column;
+
+    }
+
+    .reportStats {
+        display: flex;
+        gap:8px;
+
+    }
+
+    .reportStats-Text {
+        display: flex;
+        font-size:16px;
+        font-weight:400;
+        gap: 8px;
+    }
+</style>
+
+
 <div class="Vert">
     <div class="Page-Box">
         <div class="Page-Box-Container">
@@ -15,11 +39,11 @@
                 <div><img src="@storeLogo" class="img-container" /></div>
                 <div class="store-section">
 
-                    <a href="@Url.Action("CreateReport", "Safari", new { storeId = ViewBag.StoreId })" class="btn btn-secondary">Stwórz nowy raport</a>
+                    <a href="@Url.Action("CreateReport", "Safari", new { storeId = ViewBag.StoreId })" class="Button-Page-Small">Wybierz Kraje</a>
+                   
                     <form id="assignToReportForm">
                         <div>
-
-                            <select id="reportSelection" name="reportId" class="DropDown" style="width:100%;" required>
+                            <select id="reportSelection" name="reportId" class="DropDown" style="width:100%; margin-top:10px;" required>
                                 <option value="">Wybierz raport</option>
                                 @foreach (var report in ViewBag.Reports)
                                 {
@@ -27,8 +51,16 @@
                                 }
                             </select>
                         </div>
-                        <button id="startReportPreparation" class="btn btn-primary mt-2">Zleć raport</button>
+
+                        <div id="reportRegions" class="report-regions">
+                        </div>
+
+                        <button id="startReportPreparation" class="Button-Page-Small-bl" style="width:100%;">Zleć raport</button>
                     </form>
+
+                   
+               
+
                 </div>
 
                 <!-- Flags Filter -->
@@ -45,39 +77,49 @@
 
             </div>
             <div class="Horizontal">
-                <div class="order-upper-box">
-                    <!-- Search Input -->
+                <div class="price-box-space">
+
+                    <div>
+                        <button id="selectAllVisible" class="Button-Page-Small">Zaznacz wszystkie widoczne</button>
+                        <button id="deselectAllVisible" class="Button-Page-Small-r">Odznacz wszystkie widoczne</button>
+                    </div>
+
                     <input type="text" id="productSearch" placeholder="Wyszukaj produkt" />
 
-                    <select id="categoryFilter" class="DropDown">
-                        <option value="">Wszystkie kategorie</option>
-                    </select>
-              
-                    <div class="mt-3">
-                        <button id="selectAllVisible" class="btn btn-primary">Zaznacz wszystkie widoczne</button>
-                        <button id="deselectAllVisible" class="btn btn-secondary">Odznacz wszystkie widoczne</button>
-                    </div>
-                    <!-- Report Info -->
+                   
+    
+                    
+
+                </div>
+
+
+                <div class="order-upper-box">
+               
                     <div class="form-check-orders">
-                        <div>
-                            <p><strong>Liczba produktów znalezionych</strong> <span id="foundCount" class="badge bg-success">0</span></p>
-                            <p><strong>Przypisane produkty do raportu <span id="reportNameDisplay"></span></strong> <span id="assignedCount" class="badge bg-info">0</span></p>
-                        </div>
+                        
+                          
+
+                            <div class="reportStats">
+                                <span id="foundCount" class="ProductCount-g">0</span> <div class="reportStats-Text">Produkty znalezione</div>
+                            </div>
+
+                            <div class="reportStats">
+                                <span id="assignedCount" class="ProductCount-b">0</span> <div class="reportStats-Text">Przypisane produkty do raportu  <div style="font-weight:500;" id="reportNameDisplay"></div></div>
+                            </div>
+                     
                     </div>
 
                 </div>
 
-                <div id="sortingButtons">
-                    <div class="ProductCount" id="displayedProductCount"></div>
-                </div>
 
                 <div class="Vert-table">
                     <table class="table-orders">
                         <thead>
                             <tr>
-                                <th>Zaznacz</th>
-                                <th>Obraz</th> <!-- Dodano kolumnę na obrazek -->
-                                <th>Nazwa (<span id="productCount">0</span>)</th>
+                                <th>Produkt (<span id="productCount">0</span>)</th>
+                                <th></th>
+                                <th></th> 
+                               
                                 <th>Ean</th>
                                
                                 <th>Status</th>
@@ -98,7 +140,6 @@
 
 @section Scripts {
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <!-- Include Chart.js Library -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
         $(document).ready(function () {
@@ -130,7 +171,7 @@
                 });
             }
 
-            // Funkcja do generowania checkboxów flag
+
             function generateFlagFilters(products) {
                 var flags = [];
                 products.forEach(function (product) {
@@ -147,26 +188,25 @@
                 flagFilterList.empty();
                 flags.forEach(function (flag) {
                     flagFilterList.append(`
-                                <div>
-                                    <input type="checkbox" class="flag-checkbox" value="${flag.name}" /> ${flag.name}
-                                </div>
-                            `);
+                                        <div>
+                                            <input type="checkbox" class="flag-checkbox" value="${flag.name}" /> ${flag.name}
+                                        </div>
+                                    `);
                 });
 
-                // Przypisz zdarzenie do nowo wygenerowanych checkboxów
+
                 $('.flag-checkbox').on('change', function () {
                     filterAndUpdateTable();
                 });
             }
 
-            // Funkcja do podświetlania wyszukiwanego tekstu
             function highlightMatches(text, searchTerm) {
                 if (!searchTerm) return text;
                 var regex = new RegExp('(' + searchTerm + ')', 'gi');
                 return text.replace(regex, '<span style="color: #9400D3; font-weight: 600;">$1</span>');
             }
 
-            // Funkcja do filtrowania i aktualizacji tabeli produktów
+
             function filterAndUpdateTable() {
                 var searchTerm = $('#productSearch').val().toLowerCase();
                 var selectedFlags = $('.flag-checkbox:checked').map(function () {
@@ -191,8 +231,8 @@
                 var flagsHtml = '';
                 flags.forEach(function (flag) {
                     flagsHtml += `<span class="flag" style="color:${flag.color}; border: 2px solid ${flag.color}; background-color:${hexToRgba(flag.color, 0.3)}; padding: 4px 8px; margin: 2px; border-radius: 4px; font-size: 0.9em; white-space: nowrap;">
-                                ${flag.name}
-                            </span> `;
+                                        ${flag.name}
+                                    </span> `;
                 });
                 return flagsHtml;
             }
@@ -218,7 +258,6 @@
             }
 
 
-            // Zaktualizowana funkcja updateTable
             function updateTable(products, searchTerm = '') {
                 $('#productTable').empty();
                 products.forEach(function (product) {
@@ -230,21 +269,21 @@
                     var imageCell = product.productImg ? `<img data-src="${product.productImg}" alt="${product.productNameInStoreForGoogle}" class="lazy-load-flex"/>` : 'Brak obrazu';
 
                     var row = `<tr class="product-row" data-product-id="${product.productId}">
-                        <td><input type="checkbox" class="product-checkbox" data-product-id="${product.productId}" ${isChecked} ${isDisabled} /></td>
-                        <td>${imageCell}</td>
-                        <td>${productNameHighlighted}</td>
-                        <td>${eanNumberHighlighted}</td>
-                       
-                        <td>${product.foundOnGoogle ? '<span class="badge bg-success">Znaleziono na Google</span>' : '<span class="badge bg-secondary">Pending</span>'}</td>
-                                 <td>
-                                         <div class="store-section">
-                                                   <button class="Button-Page-Small no-row-click" onclick="window.open('${product.url}', '_blank')">Twoja strona</button>
-                                                            <button class="Button-Page-Small no-row-click" style="margin-top: 4px;" onclick="window.open('${product.googleUrl}', '_blank')">Google Product</button>
-                                         </div>
-                                          
-                                </td>
-                        <td>${generateFlagsHtml(product.flags)}</td>
-                    </tr>`;
+                                <td><input type="checkbox" class="product-checkbox" data-product-id="${product.productId}" ${isChecked} ${isDisabled} /></td>
+                                <td>${imageCell}</td>
+                                <td>${productNameHighlighted}</td>
+                                <td>${eanNumberHighlighted}</td>
+
+                                <td>${product.foundOnGoogle ? '<span class="badge bg-success">Znaleziono na Google</span>' : '<span class="badge bg-secondary">Pending</span>'}</td>
+                                         <td>
+                                                 <div class="store-section">
+                                                           <button class="Button-Page-Small no-row-click" onclick="window.open('${product.url}', '_blank')">Twoja strona</button>
+                                                           <button class="Button-Page-Small no-row-click" style="margin-top: 4px;" onclick="window.open('${product.googleUrl}', '_blank')">Google Product</button>
+                                                 </div>
+
+                                        </td>
+                                <td>${generateFlagsHtml(product.flags)}</td>
+                            </tr>`;
                     $('#productTable').append(row);
                 });
                 enableCheckboxes();
@@ -258,12 +297,12 @@
             }
 
 
-            // Funkcja do aktualizacji liczby wyświetlanych produktów
+
             function updateProductCount(count) {
                 $('#productCount').text(count);
             }
 
-            // Nowa funkcja enableRowClick
+
             function enableRowClick() {
                 $('#productTable').off('click', '.product-row').on('click', '.product-row', function (e) {
                     // Ignoruj kliknięcia na przyciski z klasą .no-row-click
@@ -286,15 +325,15 @@
                         return;
                     }
 
-                    // Przełącz stan checkboxa
+
                     checkbox.prop('checked', !checkbox.prop('checked'));
 
-                    // Wywołaj zdarzenie 'change' na checkboxie, aby obsłużyć przypisanie
+
                     checkbox.trigger('change');
                 });
             }
 
-            // Funkcja inicjalizująca lazy loading
+
             function initLazyLoad() {
                 const lazyLoadImages = document.querySelectorAll('.lazy-load-flex');
                 const timers = new Map();
@@ -345,17 +384,17 @@
                 });
             }
 
-            // Funkcja do obsługi checkboxów produktów
+
             function enableCheckboxes() {
                 $('.product-checkbox').off('change').on('change', function () {
                     if (!selectedReportId) {
                         alert("Proszę wybrać raport do którego mają być przypisane produkty.");
-                        $(this).prop('checked', !$(this).prop('checked')); // Cofnij zmianę
+                        $(this).prop('checked', !$(this).prop('checked'));
                         return;
                     }
                     if (selectedReportPreparedStatus === false) {
                         alert("Ten raport jest w trakcie przygotowania, nie można już zmienić przypisanych do niego produktów.");
-                        $(this).prop('checked', !$(this).prop('checked')); // Cofnij zmianę
+                        $(this).prop('checked', !$(this).prop('checked'));
                         return;
                     }
                     var productId = parseInt($(this).data('product-id'));
@@ -364,7 +403,7 @@
                 });
             }
 
-            // Masowe zaznaczanie/odznaczanie produktów
+
             $('#selectAllVisible').click(function () {
                 if (!selectedReportId) {
                     alert("Proszę wybrać raport do którego mają być przypisane produkty.");
@@ -401,7 +440,7 @@
                 triggerBatchProductAssignment(productIds, false);
             });
 
-            // Funkcja do masowego przypisywania produktów do raportu
+
             function triggerBatchProductAssignment(productIds, isAssigned) {
                 if (!selectedReportId) {
                     alert("Proszę wybrać raport do którego mają być przypisane produkty.");
@@ -441,18 +480,18 @@
                 }
             }
 
-            // Aktualizacja liczby przypisanych produktów
+
             function updateAssignedCount() {
                 var assignedCount = currentAssignedProductIds.size;
                 $('#assignedCount').text(assignedCount);
             }
 
-            // Obsługa wyszukiwania
+
             $('#productSearch').on('input', function () {
                 filterAndUpdateTable();
             });
 
-            // Obsługa wyboru raportu
+
             $('#reportSelection').on('change', function () {
                 selectedReportId = $(this).val();
                 selectedReportPreparedStatus = $(this).find('option:selected').data('prepared');
@@ -474,6 +513,9 @@
                                 currentAssignedProductIds = new Set(response.productIds.map(Number));
                                 filterAndUpdateTable();
                                 updateAssignedCount();
+
+                                // Wyświetlanie regionów
+                                displayReportRegions(response.regions);
                             }
                         }
                     });
@@ -481,9 +523,12 @@
                     currentAssignedProductIds = new Set();
                     filterAndUpdateTable();
                     updateAssignedCount();
+
+
+                    $('#reportRegions').empty();
                 }
 
-                // Ustawienie stanu przycisku "Zleć raport"
+
                 if (selectedReportPreparedStatus === false) {
                     alert("Ten raport jest już w trakcie przygotowania.");
                     $('#startReportPreparation').prop('disabled', true);
@@ -495,10 +540,40 @@
                 }
             });
 
-            // Ładowanie danych przy starcie
+
+            function displayReportRegions(regions) {
+                var regionsContainer = $('#reportRegions');
+                regionsContainer.empty();
+
+                if (regions && regions.length > 0) {
+                    var regionsList = $('<div></div>');
+                    regions.forEach(function (region) {
+
+                        var flagImg = $('<img>')
+                            .attr('src', '/images/' + region.name + '.png')
+                            .attr('alt', region.name + ' flag')
+                            .css('height', '16px')
+                            .css('margin-right', '5px');
+
+                        // Tworzymy element listy z flagą i nazwą kraju
+                        var listItem = $('<div></div>')
+                            .append(flagImg)
+                            .append(region.name + ' (' + region.countryCode + ')');
+
+                        regionsList.append(listItem);
+                    });
+                    regionsContainer.append('<div style="font-weight:400; font-size:18px;">Wybrane kraje</div>');
+                    regionsContainer.append(regionsList);
+                } else {
+                    regionsContainer.append('<p>Brak powiązanych krajów z tym raportem.</p>');
+                }
+            }
+
+
+
             loadProducts();
 
-            // Obsługa kliknięcia przycisku "Zleć raport"
+
             $('#startReportPreparation').click(function (e) {
                 e.preventDefault();
 
