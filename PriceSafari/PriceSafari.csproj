@@ -34,6 +34,7 @@
 		<PackageReference Include="PdfSharp-MigraDoc" Version="6.1.1" />
 		<PackageReference Include="Plotly.NET" Version="5.1.0" />
 		<PackageReference Include="PuppeteerSharp" Version="20.0.3" />
+		<PackageReference Include="Schema.NET" Version="13.0.0" />
 		<PackageReference Include="System.ComponentModel.Annotations" Version="5.0.0" />
 	</ItemGroup>
 

@@ -407,7 +407,7 @@
                     },
                     success: function (data) {
                         $('#updateProgress').hide();
-                        $('#updateStatusMessage').show().text('Aktualizacja zakończona. Zaktualizowano ceny dla ' + data.updatedCount + ' produktów. Pominęto ' + data.skippedCount + ' produktów.');
+                        $('#updateStatusMessage').show().text('Aktualizacja zakończona. Zaktualizowano ceny dla ' + data.updatedCount + ' produktów. Sprawdzono ' + data.skippedCount + ' produktów.');
                         $('#cancelUpdatePrices').show();
                         $('#confirmUpdatePrices').prop('disabled', false);
                     },
@@ -425,8 +425,6 @@
             });
         });
     </script>
-
- 
 }
 
 <div class="modal fade" id="updatePricesModal" tabindex="-1" role="dialog" aria-labelledby="updatePricesModalLabel" aria-hidden="true">

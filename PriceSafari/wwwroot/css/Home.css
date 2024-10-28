@@ -571,40 +571,63 @@
     font-size: 17px;
     font-weight: 300;
 }
-
+/* Container for each FAQ item */
 .List-Box-Q {
-    display: flex;
-    align-items: center;
-    gap: 32px;
-    align-self: stretch;
     background: #EEEEEE;
-    padding: 12px 16px;
-    border-radius: 8px;
+    padding: 16px 20px;
+    border-radius: 4px;
     transition: background-color 0.3s ease;
     cursor: pointer;
 }
 
-    .List-Box-Q:hover {
-        background: #DADADA;
-    }
 
-.List-Box-Text-Text-Q {
-    display: flex;
-    flex-direction: column;
-    align-self: stretch;
-    color: #353535;
-    padding: 12px 0px;
-    font-size: 17px;
-    font-weight: 300;
-    max-height: 0;
-    overflow: hidden;
-    transition: max-height 0.9s ease-out;
+
+/* Title styling with arrow icon */
+.List-Box-Text-Title {
+    position: relative;
+    font-size: 20px;
+    font-weight: 400;
+    margin: 0;
+    padding-right: 24px; /* Space for the arrow */
 }
 
-    .List-Box-Text-Text-Q.active {
-        max-height: 1000px;
-        transition: max-height 0.5s ease-in;
+    .List-Box-Text-Title::after {
+        content: '\25BC'; /* Unicode character for down arrow */
+        position: absolute;
+        right: 0;
+        top: 50%;
+        transform: translateY(-50%);
+        transition: transform 0.3s ease;
     }
+
+/* Stylowanie treści odpowiedzi */
+.List-Box-Text-Text-Q {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.5s ease, margin-top 0.5s ease;
+    font-size: 17px;
+    font-weight: 300;
+    color: #353535;
+    margin-top: 0;
+}
+
+/* Stylowanie w stanie aktywnym */
+.List-Box-Q.active .List-Box-Text-Text-Q {
+    max-height: 1000px; /* Wysoka wartość, aby pomieścić treść */
+    margin-top: 20px;
+}
+
+
+.List-Box-Q.active .List-Box-Text-Title::after {
+    transform: translateY(-50%) rotate(180deg);
+}
+
+
+.List-Box-Text-Title-Prog {
+    position: relative;
+    font-size: 18px;
+    font-weight: 400;
+}
 
 .List-Box-Line {
     width: 3px;

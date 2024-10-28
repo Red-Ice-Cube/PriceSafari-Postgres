@@ -1,7 +1,15 @@
-﻿@{
+﻿@model dynamic
+@using Schema.NET
+@using Newtonsoft.Json
+
+@{
     ViewData["Title"] = "Price Safari";
     Layout = "~/Views/Shared/_Layout.cshtml";
+    var faqItems = ViewBag.FAQItems as List<PriceSafari.Models.HomeModels.FAQItem>;
 }
+
+
+
 
 <style>
     /* Styl dla modala */
@@ -61,407 +69,330 @@
 
 </style>
 
-<div class="Main-home">
-   @*  <div class="Nav-Bar">
-        <div class="Nav-Bar-Scal">
-            <div class="Nav-Bar-Scal-Box">
-                <div class="Nav-Bar-Logo">
-                    <a href="@Url.Action("Index", "Home")">
-                        <img src="~/images homepage/PriceSafari.png" alt="PriceSafari" style="cursor: pointer; height:24px;">
-                    </a>
-                </div>
-            </div>
-            <div class="Nav-Bar-Scal-Box nav-buttons">
-                <a href="/Home/Contact" class="Nav-Bar-Button-Contact">Kontakt</a>
-                <a href="/Identity/Account/Login" class="Nav-Bar-Button">Panel</a>
-            </div>
-            <!-- Ikona Hamburger Menu -->
-            <div class="hamburger-menu" onclick="toggleMenu()">
-                <div class="bar"></div>
-                <div class="bar"></div>
-                <div class="bar"></div>
-            </div>
-        </div>
-        <!-- Menu mobilne -->
-        <div class="mobile-menu" id="mobileMenu">
-            <a href="/Home/Contact" class="Nav-Bar-Button-Contact">Kontakt</a>
-            <a href="/Identity/Account/Login" class="Nav-Bar-Button">Panel</a>
-        </div>
-    </div> *@
 
-    <div class="Vert-Home">
-        <div class="Vert-50">
-            <div class="Text-Box">
-                <h1 class="Text-Box-Title">Monitoring cen <a href="/Home/Contact" class="CleanCTA">Darmowe Demo</a>
-                </h1>
 
-                <div class="Text-Box-Text">
-                    <p>
-                        Maksymalizuj zyski, precyzyjnie zarządzaj strategią cenową i zawsze wyprzedzaj konkurencję.
 
-                        PriceSafari to zaawansowane narzędzie do monitorowania cen, które codziennie dostarcza aktualne dane o cenach rynkowych produktów znajdujących się w Twojej ofercie.
-                        Dzięki naszym szczegółowym analizom możesz szybko reagować na zmiany, poprawiać rentowność oraz zwiększyć zwrot z inwestycji w kampanie reklamowe.
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <title>@ViewData["Title"] - Price Safari</title>
+    @if (faqItems != null && faqItems.Any())
+    {
+       
+        IThing[] questions = faqItems.Select(item => (IThing)new Question()
+                {
+                    Name = item.Question,
+                    AcceptedAnswer = new Answer()
+                    {
+                        Text = item.Answer
+                    }
+                }).ToArray();
 
-                    </p>
+        var faqPage = new FAQPage()
+                {
+                    MainEntity = questions 
+                };
 
-                    <div class="Vert-50-Horizontal">
+        var jsonLd = faqPage.ToString();
 
-                       @*  <a href="/Home/Contact" class="DarkCTA">
-                            <img src="~/images homepage/PL.png"  alt="PL" /> Monitoring cen w Polsce
-                        </a>
-                        <a href="/Home/Contact" class="DarkCTA">
-                            <img src="~/images homepage/EU.png" alt="EU" /> Ceny w Europie
-                        </a> *@
+        @Html.Raw($"<script type=\"application/ld+json\">\n{jsonLd}\n</script>")
+    }
 
-                    </div>
-
-                </div>
-
-            </div>
-
-        </div>
-        <div class="Vert-50">
-            <img id="homeBanner" src="~/images homepage/Home-Banner-L.gif" alt="Price Safari">
-
-            <img id="preloadedImage" src="~/images homepage/Home-Banner-L.png" alt="Preloaded Frame" style="display: none;">
-
-        </div>
-
-    </div>
-    <div class="Vert-Space-Dark">
-        <div class="Vert-List">
-
-            <div class="List-Box">
-                <div class="Icon-Box-Icon">
-                    <img src="~/images homepage/1-b.svg" alt="Rejestracja">
-                </div>
-                <div class="List-Box-Text">
-                    <h3 class="List-Box-Text-Title" style="color: rgba(255, 255, 255, 0.8)">Zakładamy bezpłatne konto testowe</h3>
-                    <div class="List-Box-Text-Text" style="color: rgba(255, 255, 255, 0.6);">Spotkanie online i rozmowa o Twoich potrzebach.</div>
-                </div>
-            </div>
-            <div class="List-Box">
-                <div class="Icon-Box-Icon">
-                    <div class="List-Box-Line"></div>
-                </div>
-            </div>
-            <div class="List-Box">
-                <div class="Icon-Box-Icon">
-                    <img src="~/images homepage/2-b.svg" alt="Znajdziemy produkty">
-                </div>
-                <div class="List-Box-Text">
-                    <h3 class="List-Box-Text-Title" style="color: rgba(255, 255, 255, 0.8);">Znajdziemy produkty</h3>
-                    <div class="List-Box-Text-Text" style="color: rgba(255, 255, 255, 0.6);">Znajdziemy Twoje produkty, jedynie po nazwie sklepu.</div>
-                </div>
-            </div>
-            <div class="List-Box">
-                <div class="Icon-Box-Icon">
-                    <div class="List-Box-Line"></div>
-                </div>
-            </div>
-            <div class="List-Box">
-                <div class="Icon-Box-Icon">
-                    <img src="~/images homepage/3-b.svg" alt="Zaczynamy zbierać ceny">
-                </div>
-                <div class="List-Box-Text">
-                    <h3 class="List-Box-Text-Title" style="color: rgba(255, 255, 255, 0.8);">Zaczynamy zbierać ceny</h3>
-                    <div class="List-Box-Text-Text" style="color: rgba(255, 255, 255, 0.6);">Poznasz całą oferte wybranych produktów, ceny i wiele więcej.</div>
-                </div>
-            </div>
-            <div class="List-Box">
-                <div class="Icon-Box-Icon">
-                    <div class="List-Box-Line"></div>
-                </div>
-            </div>
-            <div class="List-Box">
-                <div class="Icon-Box-Icon">
-                    <img id="homeBanner" src="~/images homepage/4-b.svg" alt="Poprawiasz ROAS">
-                </div>
-                <div class="List-Box-Text">
-                    <h3 class="List-Box-Text-Title" style="color: rgba(255, 255, 255, 0.8);">Poprawiasz ROAS</h3>
-                    <div class="List-Box-Text-Text" style="color: rgba(255, 255, 255, 0.6);">Analizuj codziennie aktualne ceny, zwiększaj sprzedaż.</div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="Vert-Home">
-
-        <div class="Vert-50">
-            <img src="~/images homepage/Price-ecom.png" class="banner-img" alt="Korzyści dla e-sklepów">
-
-        </div>
-        <div class="Vert-50">
-            <div class="Text-Box">
-                <div class="Text-Box-Title">Korzyści dla e-sklepów</div>
-                <a href="/Home/Contact" class="Nav-Bar-Button">Darmowe Demo</a>
-                <div class="Text-Box-Text">
-                    <p>
-                        PriceSafari pozwala Ci działać efektywnie i precyzyjnie, eliminując czasochłonne, manualne analizy konkurencji. Dzięki naszej aplikacji uzyskasz dostęp do bieżących danych cenowych z popularnych serwisów takich jak Ceneo, Allegro, Empik czy Idealo oraz wskazanych e-sklepów, co pozwala Ci reagować szybciej niż kiedykolwiek.
-                    </p>
-
-                    <div class="text-icon-flex">
-                        <img src="~/images/Product-search-b.svg" alt="Monitoring konkurencji" />
-                        <div class="text">
-                            <strong>Monitoring konkurencji w czasie rzeczywistym</strong> – stale analizujemy oferty rynkowe, byś mógł z wyprzedzeniem reagować na zmiany.
-                        </div>
-                    </div>
-
-                    <div class="text-icon-flex">
-                        <img src="~/images/MoneyLock-b.svg" alt="Ochrona marży" />
-                        <div class="text">
-                            <strong>Ochrona marży</strong> – PriceSafari pomaga w tworzeniu strategii cenowych, które chronią Twoją marżę i maksymalizują zyskowność.
-                        </div>
-                    </div>
-
-                    <div class="text-icon-flex">
-                        <img src="~/images/Basket-b.svg" alt="Optymalizacja sprzedaży" />
-                        <div class="text">
-                            <strong>Optymalizacja sprzedaży</strong> – dzięki dostępowi do dokładnych danych możesz kształtować ceny tak, by przyciągać klientów bez obniżania rentowności.
-                        </div>
-                    </div>
-
-                    <div class="text-icon-flex">
-                        <img src="~/images/Campaigns-b.svg" alt="Informacje o trendach w branży" />
-                        <div class="text">
-                            <strong>Informacje o trendach w branży</strong> – pozyskuj dane o trendach cenowych, które wspierają Twoje decyzje strategiczne.
-                        </div>
-                    </div>
-
-                </div>
-            </div>
-        </div>
-
-    </div>
-
-    <div class="Vert-Home">
-
-        <div class="Vert-50">
-
-            <div class="Text-Box">
-                <div class="Text-Box-Title">Korzyści dla producentów</div>
-                <a href="/Home/Contact" class="Nav-Bar-Button">Darmowe Demo</a>
-                <div class="Text-Box-Text">
-                    <p>
-                        PriceSafari zapewnia przejrzystość i kontrolę nad cenami Twoich produktów w różnych kanałach sprzedaży. Nasza aplikacja pomaga chronić Twoją strategię cenową, reagować na zmiany rynku i utrzymywać prestiż marki.
-                    </p>
-
-                    <div class="text-icon-flex">
-                        <img src="~/images/Market-Monitoring.svg" alt="Kompleksowy monitoring rynku" />
-                        <div class="text">
-                            <strong>Kompleksowy monitoring rynku</strong> – PriceSafari analizuje ceny i dostępność produktów u wybranych sprzedawców oraz wykrywa odchylenia od cen katalogowych, abyś mógł szybko reagować na działania konkurencji.
-                        </div>
-                    </div>
-
-                    <div class="text-icon-flex">
-                        <img src="~/images/Profit-Protection.svg" alt="Ochrona marży i marki" />
-                        <div class="text">
-                            <strong>Ochrona marży i marki</strong> – Nasze narzędzie wspiera Cię w tworzeniu strategii, która zapobiega wojnom cenowym i minimalizuje ryzyko, że Twoja marka straci na wartości.
-                        </div>
-                    </div>
-
-                    <div class="text-icon-flex">
-                        <img src="~/images/Trend-Insights.svg" alt="Raporty i dane historyczne" />
-                        <div class="text">
-                            <strong>Raporty i dane historyczne</strong> – Bieżące raporty i wgląd w dane historyczne dostarczają informacji o trendach rynkowych i efektywności promocji, wspierając trafne decyzje strategiczne.
-                        </div>
-                    </div>
-
-                    <div class="text-icon-flex">
-                        <img src="~/images/Alerts-Notifications.svg" alt="Szybkie powiadomienia o zmianach" />
-                        <div class="text">
-                            <strong>Szybkie powiadomienia o zmianach</strong> – PriceSafari natychmiast informuje o kluczowych zmianach w cenach, stanach magazynowych i dostępności produktów, co umożliwia szybką reakcję.
-                        </div>
-                    </div>
-
-                </div>
-            </div>
-        </div>
-
-        <div class="Vert-50">
-            <img src="~/images homepage/Price-producent.png" class="banner-img" alt="Korzyści dla producentów i dystrybutorów">
-        </div>
-
-    </div>
-
-    <div class="Vert-Space-Dark">
-        <div class="Horizontal-100">
-            <div class="Icon-Box">
-                <div class="Icon-Box-Text">
-                    <div class="Icon-Box-Text-Title">
-                        <img src="~/images/MoneyOut-bone.svg" style="height:24px; width:24px; opacity: 0.4;" alt="Analiza Cen" />
-                        Analiza Cen
-                    </div>
-                    <p class="Icon-Box-Text-Text">
-                        Reaguj natychmiast na zmiany rynkowe, aby maksymalizować zyski.
-                    </p>
-                </div>
-            </div>
-            <div class="Icon-Box">
-                <div class="Icon-Box-Text">
-                    <div class="Icon-Box-Text-Title">
-                        <img src="~/images/Chart-bone.svg" style="height:24px; width:24px; opacity: 0.4;" alt="Śledzenie Konkurencji" />
-                        Śledzenie Konkurencji
-                    </div>
-                    <p class="Icon-Box-Text-Text">
-                        Monitoruj ceny konkurencji na bieżąco, by zawsze być o krok przed nimi.
-                    </p>
-                </div>
-            </div>
-            <div class="Icon-Box">
-                <div class="Icon-Box-Text">
-                    <div class="Icon-Box-Text-Title">
-                        <img src="~/images/Click-bone.svg" style="height:24px; width:24px; opacity: 0.4;" alt="Szybkie Wdrożenie" />
-                        Szybkie Wdrożenie
-                    </div>
-                    <p class="Icon-Box-Text-Text">
-                        Wystarczy nazwa Twojej domeny, aby namierzyć konkurencję i ich ceny.
-                    </p>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="Vert-Home">
-
-        <div class="Horizontal-100" style="justify-content:flex-start;">
-            <div class="Text-Box">
-                <div class="Text-Box-Title">
-                    Monitoring cen w Polsce <img src="~/images homepage/PL.png" class="img-box-left" alt="PL" />
-                    </div>
-                <div class="Text-Box-Text">
-
-                    <div class="text-icon-flex">
-                        <img src="~/images/Product-search.svg" alt="Monitoring konkurencji" />
-                        <div class="text">
-                            <strong>Codzienna aktualizacja cen i dostępności produktów</strong> <p>Każdego dnia śledzimy ceny, dostępność towarów i działania konkurencji, dostarczając Ci zawsze najświeższe informacje. Analizujemy rynek nie tylko w Polsce, ale i na 15 innych rynkach międzynarodowych, co pozwala na lepsze zrozumienie trendów i dostosowanie strategii w czasie rzeczywistym.</p>
-                        </div>
-                    </div>
-
-                    <div class="text-icon-flex">
-                        <img src="~/images/MoneyLock.svg" alt="Szybkie wdrożenie" />
-                        <div class="text">
-                            <strong>Szybkie wdrożenie</strong> <p> Dodanie twoich produktów działa w sposób zautomatyzowany, jedyne czego potrzebujemy to nazwa Twojej domeny. Następnie wybierasz te grupy produktów które chcesz analizować i zaczynamy działanie.</p>
-                        </div>
-                    </div>
-
-                    <div class="text-icon-flex">
-                        <img src="~/images/Basket.svg" alt="Koncentracja działań" />
-                        <div class="text">
-                            <strong>Koncentracja działań</strong>          <p>
-                                Panel aplikacji został zaprojektowany z myślą o maksymalnym skupieniu na kluczowych wskaźnikach biznesowych.
-                                Intuicyjny interfejs ułatwia obsługę i zapewnia szybki dostęp do najważniejszych danych, dzięki czemu możesz podejmować trafne decyzje w krótszym czasie.
-                            </p>
-                        </div>
-                    </div>
-
-                </div>
-
-            </div>
-
-        </div>
-
-    </div>
-
-    <div class="Vert-Space-Gray">
-        <div class="Vert-100" id="banner-change-target-1">
-            <div class="button-container">
-                <button class="change-banner-1" data-target="banner-change-target-1" data-index="0">Produkty</button>
-                <button class="change-banner-1" data-target="banner-change-target-1" data-index="1">Ceny</button>
-                <button class="change-banner-1" data-target="banner-change-target-1" data-index="2">Konkurencja</button>
-                <button class="change-banner-1" data-target="banner-change-target-1" data-index="3">Historia</button>
-            </div>
-
-            <img src="~/images homepage/PanelCeny.png" class="banner-img" style="display:block; cursor:pointer;" alt="Produkty">
-            <img src="~/images homepage/Ceny.png" class="banner-img" style="display:none; cursor:pointer;" alt="Ceny">
-            <img src="~/images homepage/Konkurencja.png" class="banner-img" style="display:none; cursor:pointer;" alt="Konkurencja">
-            <img src="~/images homepage/ZmianyCeny.png" class="banner-img" style="display:none; cursor:pointer;" alt="Historia">
-
-        </div>
-
-    </div>
-
-@*     <div class="Vert-Space-Dark">
-        <div class="Horizontal-100">
-            <div class="Icon-Box">
-                <div class="Icon-Box-Text">
-                    <div class="Icon-Box-Text-Title">
-                        <img src="~/images/Globe-bone.svg" style="height:24px; width:24px; opacity: 0.4;" alt="Cenowe Safari" />
-                        Cenowe Safari
-                    </div>
-                    <p class="Icon-Box-Text-Text">
-                        Analizuj ceny swoich produktów w 16 różnych krajach Europy, aby zwiększyć konkurencyjność.
-                    </p>
-                </div>
-            </div>
-            <div class="Icon-Box">
-                <div class="Icon-Box-Text">
-                    <div class="Icon-Box-Text-Title">
-                        <img src="~/images/Product-search-bone.svg" style="height:24px; width:24px; opacity: 0.4;" alt="Gdzie zamawiać" />
-                        Gdzie zamawiać
-                    </div>
-                    <p class="Icon-Box-Text-Text">
-                        Zyskaj przewagę negocjacyjną i podejmuj świadome decyzje o zamówieniach międzynarodowych.
-                    </p>
-                </div>
-            </div>
-            <div class="Icon-Box">
-                <div class="Icon-Box-Text">
-                    <div class="Icon-Box-Text-Title">
-                        <img src="~/images/OrderValue-bone.svg" style="height:24px; width:24px; opacity: 0.4;" alt="Gdzie sprzedawać" />
-                        Gdzie sprzedawać
-                    </div>
-                    <p class="Icon-Box-Text-Text">
-                        Odkryj kraje o korzystnych różnicach cenowych i zoptymalizuj swoją strategię sprzedaży.
-                    </p>
-                </div>
-            </div>
-        </div>
-    </div> *@
-
+</head>
+<body>
    
 
 
-    <div class="Vert-Home">
 
-        <div class="Horizontal-100" style="justify-content:flex-start;">
-            <div class="Text-Box">
-                <div class="Text-Box-Title">
-                    Raporty cenowe w Europie<img src="~/images homepage/EU.png" class="img-box-left"/>
+
+
+    <div class="Main-home">
+        @*  <div class="Nav-Bar">
+        <div class="Nav-Bar-Scal">
+        <div class="Nav-Bar-Scal-Box">
+        <div class="Nav-Bar-Logo">
+        <a href="@Url.Action("Index", "Home")">
+        <img src="~/images homepage/PriceSafari.png" alt="PriceSafari" style="cursor: pointer; height:24px;">
+        </a>
+        </div>
+        </div>
+        <div class="Nav-Bar-Scal-Box nav-buttons">
+        <a href="/Home/Contact" class="Nav-Bar-Button-Contact">Kontakt</a>
+        <a href="/Identity/Account/Login" class="Nav-Bar-Button">Panel</a>
+        </div>
+        <!-- Ikona Hamburger Menu -->
+        <div class="hamburger-menu" onclick="toggleMenu()">
+        <div class="bar"></div>
+        <div class="bar"></div>
+        <div class="bar"></div>
+        </div>
+        </div>
+        <!-- Menu mobilne -->
+        <div class="mobile-menu" id="mobileMenu">
+        <a href="/Home/Contact" class="Nav-Bar-Button-Contact">Kontakt</a>
+        <a href="/Identity/Account/Login" class="Nav-Bar-Button">Panel</a>
+        </div>
+        </div> *@
+
+        <div class="Vert-Home">
+            <div class="Vert-50">
+                <div class="Text-Box">
+                    <h1 class="Text-Box-Title">
+                        Monitoring cen <a href="/Home/Contact" class="CleanCTA">Darmowe Demo</a>
+                    </h1>
+
+                    <div class="Text-Box-Text">
+                        <p>
+                            Maksymalizuj zyski, precyzyjnie zarządzaj strategią cenową i zawsze wyprzedzaj konkurencję.
+
+                            PriceSafari to zaawansowane narzędzie do monitorowania cen, które codziennie dostarcza aktualne dane o cenach rynkowych produktów znajdujących się w Twojej ofercie.
+                            Dzięki naszym szczegółowym analizom możesz szybko reagować na zmiany, poprawiać rentowność oraz zwiększyć zwrot z inwestycji w kampanie reklamowe.
+
+                        </p>
+
+                    </div>
+
                 </div>
-                <div class="Text-Box-Text">
 
-                    <div class="text-icon-flex">
-                        <img src="~/images/Product-search.svg" />
-                        <div class="text">
-                            <strong>Gdzie są najlepsze ceny</strong> 
-                            <p>
-                                Wyrusz na cenowe safari i odkryj, gdzie w Europie można znaleźć produkty z Twojej oferty w najkorzystniejszych cenach. 
-                                Nasze narzędzie analizuje rynki w 16 krajach Europy, przeliczając ceny na złotówki według aktualnych kursów.
-                            </p>
-                        </div>
+            </div>
+            <div class="Vert-50">
+                <img id="homeBanner" src="~/images homepage/Home-Banner-L.gif" alt="Price Safari">
+
+                <img id="preloadedImage" src="~/images homepage/Home-Banner-L.png" alt="Preloaded Frame" style="display: none;">
+
+            </div>
+
+        </div>
+        <div class="Vert-Space-Dark">
+            <div class="Vert-List">
+
+                <div class="List-Box">
+                    <div class="Icon-Box-Icon">
+                        <img src="~/images homepage/1-b.svg" alt="Rejestracja">
                     </div>
-
-                    <div class="text-icon-flex">
-                        <img src="~/images/MoneyLock.svg"/>
-                        <div class="text">
-                            <strong>Gdzie zamawiać</strong> 
-                            <p>
-                                Nasze narzędzie pomoże Ci znaleźć najtańsze oferty na interesujące Cię produkty. Dzięki temu zyskasz przewagę podczas negocjacji 
-                                cenowych z dostawcami lub podejmiesz świadome decyzje o zamówieniach zza granicy, maksymalizując swoje zyski.
-                            </p>
-                        </div>
+                    <div class="List-Box-Text">
+                        <h3 class="List-Box-Text-Title-Prog" style="color: rgba(255, 255, 255, 0.8)">Zakładamy bezpłatne konto testowe</h3>
+                        <div class="List-Box-Text-Text" style="color: rgba(255, 255, 255, 0.6);">Spotkanie online i rozmowa o Twoich potrzebach.</div>
                     </div>
+                </div>
+                <div class="List-Box">
+                    <div class="Icon-Box-Icon">
+                        <div class="List-Box-Line"></div>
+                    </div>
+                </div>
+                <div class="List-Box">
+                    <div class="Icon-Box-Icon">
+                        <img src="~/images homepage/2-b.svg" alt="Znajdziemy produkty">
+                    </div>
+                    <div class="List-Box-Text">
+                        <h3 class="List-Box-Text-Title-Prog" style="color: rgba(255, 255, 255, 0.8);">Znajdziemy produkty</h3>
+                        <div class="List-Box-Text-Text" style="color: rgba(255, 255, 255, 0.6);">Znajdziemy Twoje produkty, jedynie po nazwie sklepu.</div>
+                    </div>
+                </div>
+                <div class="List-Box">
+                    <div class="Icon-Box-Icon">
+                        <div class="List-Box-Line"></div>
+                    </div>
+                </div>
+                <div class="List-Box">
+                    <div class="Icon-Box-Icon">
+                        <img src="~/images homepage/3-b.svg" alt="Zaczynamy zbierać ceny">
+                    </div>
+                    <div class="List-Box-Text">
+                        <h3 class="List-Box-Text-Title-Prog" style="color: rgba(255, 255, 255, 0.8);">Zaczynamy zbierać ceny</h3>
+                        <div class="List-Box-Text-Text" style="color: rgba(255, 255, 255, 0.6);">Poznasz całą oferte wybranych produktów, ceny i wiele więcej.</div>
+                    </div>
+                </div>
+                <div class="List-Box">
+                    <div class="Icon-Box-Icon">
+                        <div class="List-Box-Line"></div>
+                    </div>
+                </div>
+                <div class="List-Box">
+                    <div class="Icon-Box-Icon">
+                        <img id="homeBanner" src="~/images homepage/4-b.svg" alt="Poprawiasz ROAS">
+                    </div>
+                    <div class="List-Box-Text">
+                        <h3 class="List-Box-Text-Title-Prog" style="color: rgba(255, 255, 255, 0.8);">Poprawiasz ROAS</h3>
+                        <div class="List-Box-Text-Text" style="color: rgba(255, 255, 255, 0.6);">Analizuj codziennie aktualne ceny, zwiększaj sprzedaż.</div>
+                    </div>
+                </div>
+            </div>
+        </div>
 
-                    <div class="text-icon-flex">
-                        <img src="~/images/Basket.svg"/>
-                        <div class="text">
-                            <strong>Gdzie sprzedawać</strong>
-                            <p>
-                                Jeżeli planujesz rozwijać swoją sprzedaż na rynkach takich jak Allegro.cz czy Allegro.sk, nasze narzędzie umożliwi Ci porównanie swoich cen z ofertami dostępnymi w wybranym kraju. Możesz błyskawicznie sprawdzić, które produkty z 
-                                Twojego asortymentu są o na przykład o 30% tańsze od najtańszych konkurencyjnych ofert na danym rynku.
-                            </p>
+        <div class="Vert-Home">
+
+            <div class="Vert-50">
+                <img src="~/images homepage/Price-ecom.png" class="banner-img" alt="Korzyści dla e-sklepów">
+
+            </div>
+            <div class="Vert-50">
+                <div class="Text-Box">
+                    <div class="Text-Box-Title">Korzyści dla e-sklepów</div>
+                    <a href="/Home/Contact" class="Nav-Bar-Button">Darmowe Demo</a>
+                    <div class="Text-Box-Text">
+                        <p>
+                            PriceSafari pozwala Ci działać efektywnie i precyzyjnie, eliminując czasochłonne, manualne analizy konkurencji. Dzięki naszej aplikacji uzyskasz dostęp do bieżących danych cenowych z popularnych serwisów takich jak Ceneo czy Google Shopping, co pozwala Ci reagować szybciej niż kiedykolwiek.
+                            Dzięki naszym licznym funkcjom gwarantujemy, że nie tylko zaoszczędzisz czas, ale także zwiększysz sprzedaż i zyski.
+                        </p>
+
+                        <div class="text-icon-flex">
+                            <img src="~/images/Product-search-b.svg" alt="Monitoring konkurencji" />
+                            <div class="text">
+                                <strong>Monitoring konkurencji w czasie rzeczywistym</strong> – stale analizujemy oferty rynkowe, byś mógł z wyprzedzeniem reagować na zmiany.
+                            </div>
                         </div>
+
+                        <div class="text-icon-flex">
+                            <img src="~/images/MoneyLock-b.svg" alt="Ochrona marży" />
+                            <div class="text">
+                                <strong>Ochrona marży</strong> – PriceSafari pomaga w tworzeniu strategii cenowych, które chronią Twoją marżę i maksymalizują zyskowność.
+                            </div>
+                        </div>
+
+                        <div class="text-icon-flex">
+                            <img src="~/images/Basket-b.svg" alt="Optymalizacja sprzedaży" />
+                            <div class="text">
+                                <strong>Optymalizacja sprzedaży</strong> – dzięki dostępowi do dokładnych danych możesz kształtować ceny tak, by przyciągać klientów bez obniżania rentowności.
+                            </div>
+                        </div>
+
+                        <div class="text-icon-flex">
+                            <img src="~/images/Campaigns-b.svg" alt="Informacje o trendach w branży" />
+                            <div class="text">
+                                <strong>Informacje o trendach w branży</strong> – pozyskuj dane o trendach cenowych, które wspierają Twoje decyzje strategiczne.
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <div class="Vert-Home">
+
+            <div class="Vert-50">
+
+                <div class="Text-Box">
+                    <div class="Text-Box-Title">Korzyści dla producentów</div>
+                    <a href="/Home/Contact" class="Nav-Bar-Button">Darmowe Demo</a>
+                    <div class="Text-Box-Text">
+                        <p>
+                            PriceSafari zapewnia przejrzystość i kontrolę nad cenami Twoich produktów w różnych kanałach sprzedaży. Nasza aplikacja pomaga chronić Twoją strategię cenową, reagować na zmiany rynku i utrzymywać prestiż marki.
+                            Otrzymasz dostęp do kluczowych informacji na temat swoich dostawców, takich jak dostępności ich stanów, przegląd oferty oraz jak wycenili oni Twoje produkty.
+                        </p>
+
+                        <div class="text-icon-flex">
+                            <img src="~/images/Market-Monitoring.svg" alt="Kompleksowy monitoring rynku" />
+                            <div class="text">
+                                <strong>Kompleksowy monitoring rynku</strong> – PriceSafari analizuje ceny i dostępność produktów u wybranych sprzedawców oraz wykrywa odchylenia od cen katalogowych, abyś mógł szybko reagować na działania konkurencji.
+                            </div>
+                        </div>
+
+                        <div class="text-icon-flex">
+                            <img src="~/images/Profit-Protection.svg" alt="Ochrona marży i marki" />
+                            <div class="text">
+                                <strong>Ochrona marży i marki</strong> – Nasze narzędzie wspiera Cię w tworzeniu strategii, która zapobiega wojnom cenowym i minimalizuje ryzyko, że Twoja marka straci na wartości.
+                            </div>
+                        </div>
+
+                        <div class="text-icon-flex">
+                            <img src="~/images/Trend-Insights.svg" alt="Raporty i dane historyczne" />
+                            <div class="text">
+                                <strong>Raporty i dane historyczne</strong> – Bieżące raporty i wgląd w dane historyczne dostarczają informacji o trendach rynkowych i efektywności promocji, wspierając trafne decyzje strategiczne.
+                            </div>
+                        </div>
+
+                        <div class="text-icon-flex">
+                            <img src="~/images/Alerts-Notifications.svg" alt="Szybkie powiadomienia o zmianach" />
+                            <div class="text">
+                                <strong>Szybkie powiadomienia o zmianach</strong> – PriceSafari natychmiast informuje o kluczowych zmianach w cenach, stanach magazynowych i dostępności produktów, co umożliwia szybką reakcję.
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+
+            <div class="Vert-50">
+                <img src="~/images homepage/Price-producent.png" class="banner-img" alt="Korzyści dla producentów i dystrybutorów">
+            </div>
+
+        </div>
+
+        <div class="Vert-Space-Dark">
+            <div class="Horizontal-100">
+                <div class="Icon-Box">
+                    <div class="Icon-Box-Text">
+                        <div class="Icon-Box-Text-Title">
+                            <img src="~/images/MoneyOut-bone.svg" style="height:24px; width:24px; opacity: 0.4;" alt="Analiza Cen" />
+                            Analiza Cen
+                        </div>
+                        <p class="Icon-Box-Text-Text">
+                            Reaguj natychmiast na zmiany rynkowe, aby maksymalizować zyski.
+                        </p>
+                    </div>
+                </div>
+                <div class="Icon-Box">
+                    <div class="Icon-Box-Text">
+                        <div class="Icon-Box-Text-Title">
+                            <img src="~/images/Chart-bone.svg" style="height:24px; width:24px; opacity: 0.4;" alt="Śledzenie Konkurencji" />
+                            Śledzenie Konkurencji
+                        </div>
+                        <p class="Icon-Box-Text-Text">
+                            Monitoruj ceny konkurencji na bieżąco, by zawsze być o krok przed nimi.
+                        </p>
+                    </div>
+                </div>
+                <div class="Icon-Box">
+                    <div class="Icon-Box-Text">
+                        <div class="Icon-Box-Text-Title">
+                            <img src="~/images/Click-bone.svg" style="height:24px; width:24px; opacity: 0.4;" alt="Szybkie Wdrożenie" />
+                            Szybkie Wdrożenie
+                        </div>
+                        <p class="Icon-Box-Text-Text">
+                            Wystarczy nazwa Twojej domeny, aby namierzyć konkurencję i ich ceny.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="Vert-Home">
+
+            <div class="Horizontal-100" style="justify-content:flex-start;">
+                <div class="Text-Box">
+                    <div class="Text-Box-Title">
+                        Monitoring cen w Polsce <img src="~/images homepage/PL.png" class="img-box-left" alt="PL" />
+                    </div>
+                    <div class="Text-Box-Text">
+
+                        <div class="text-icon-flex">
+                            <img src="~/images/Product-search.svg" alt="Monitoring konkurencji" />
+                            <div class="text">
+                                <strong>Codzienna aktualizacja cen i dostępności produktów</strong> <p>Każdego dnia śledzimy ceny, dostępność towarów i działania konkurencji, dostarczając Ci zawsze najświeższe informacje. Analizujemy rynek nie tylko w Polsce, ale i na 15 innych rynkach międzynarodowych, co pozwala na lepsze zrozumienie trendów i dostosowanie strategii w czasie rzeczywistym.</p>
+                            </div>
+                        </div>
+
+                        <div class="text-icon-flex">
+                            <img src="~/images/MoneyLock.svg" alt="Szybkie wdrożenie" />
+                            <div class="text">
+                                <strong>Szybkie wdrożenie</strong> <p> Dodanie twoich produktów działa w sposób zautomatyzowany, jedyne czego potrzebujemy to nazwa Twojej domeny. Następnie wybierasz te grupy produktów które chcesz analizować i zaczynamy działanie.</p>
+                            </div>
+                        </div>
+
+                        <div class="text-icon-flex">
+                            <img src="~/images/Basket.svg" alt="Koncentracja działań" />
+                            <div class="text">
+                                <strong>Koncentracja działań</strong>          <p>
+                                    Panel aplikacji został zaprojektowany z myślą o maksymalnym skupieniu na kluczowych wskaźnikach biznesowych.
+                                    Intuicyjny interfejs ułatwia obsługę i zapewnia szybki dostęp do najważniejszych danych, dzięki czemu możesz podejmować trafne decyzje w krótszym czasie.
+                                </p>
+                            </div>
+                        </div>
+
                     </div>
 
                 </div>
@@ -470,7 +401,74 @@
 
         </div>
 
-    </div>
+        <div class="Vert-Space-Gray">
+            <div class="Vert-100" id="banner-change-target-1">
+                <div class="button-container">
+                    <button class="change-banner-1" data-target="banner-change-target-1" data-index="0">Produkty</button>
+                    <button class="change-banner-1" data-target="banner-change-target-1" data-index="1">Ceny</button>
+                    <button class="change-banner-1" data-target="banner-change-target-1" data-index="2">Konkurencja</button>
+                    <button class="change-banner-1" data-target="banner-change-target-1" data-index="3">Historia</button>
+                </div>
+
+                <img src="~/images homepage/PanelCeny.png" class="banner-img" style="display:block; cursor:pointer;" alt="Produkty">
+                <img src="~/images homepage/Ceny.png" class="banner-img" style="display:none; cursor:pointer;" alt="Ceny">
+                <img src="~/images homepage/Konkurencja.png" class="banner-img" style="display:none; cursor:pointer;" alt="Konkurencja">
+                <img src="~/images homepage/ZmianyCeny.png" class="banner-img" style="display:none; cursor:pointer;" alt="Historia">
+
+            </div>
+
+        </div>
+
+
+        <div class="Vert-Home">
+
+            <div class="Horizontal-100" style="justify-content:flex-start;">
+                <div class="Text-Box">
+                    <div class="Text-Box-Title">
+                        Raporty cenowe w Europie<img src="~/images homepage/EU.png" class="img-box-left" />
+                    </div>
+                    <div class="Text-Box-Text">
+
+                        <div class="text-icon-flex">
+                            <img src="~/images/Product-search.svg" />
+                            <div class="text">
+                                <strong>Gdzie są najlepsze ceny</strong>
+                                <p>
+                                    Wyrusz na cenowe safari i odkryj, gdzie w Europie można znaleźć produkty z Twojej oferty w najkorzystniejszych cenach.
+                                    Nasze narzędzie analizuje rynki w 16 krajach Europy, przeliczając ceny na złotówki według aktualnych kursów.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="text-icon-flex">
+                            <img src="~/images/MoneyLock.svg" />
+                            <div class="text">
+                                <strong>Gdzie zamawiać</strong>
+                                <p>
+                                    Nasze narzędzie pomoże Ci znaleźć najtańsze oferty na interesujące Cię produkty. Dzięki temu zyskasz przewagę podczas negocjacji
+                                    cenowych z dostawcami lub podejmiesz świadome decyzje o zamówieniach zza granicy, maksymalizując swoje zyski.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="text-icon-flex">
+                            <img src="~/images/Basket.svg" />
+                            <div class="text">
+                                <strong>Gdzie sprzedawać</strong>
+                                <p>
+                                    Jeżeli planujesz rozwijać swoją sprzedaż na rynkach takich jak Allegro.cz czy Allegro.sk, nasze narzędzie umożliwi Ci porównanie swoich cen z ofertami dostępnymi w wybranym kraju. Możesz błyskawicznie sprawdzić, które produkty z
+                                    Twojego asortymentu są o na przykład o 30% tańsze od najtańszych konkurencyjnych ofert na danym rynku.
+                                </p>
+                            </div>
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
 
 
 
@@ -492,198 +490,147 @@
 
 
 
-    <div class="Vert-Home">
-        <div class="Vert-50-List">
-            <h2 class="Text-Box-Title" style="margin-bottom:32px;">Najczęściej zadawane pytania</h2>
-            <div class="List-Box-Q" onclick="toggleAnswer(this)">
-                <div class="List-Box-Text">
-                    <h3 class="List-Box-Text-Title">Kto może do</h3>
-                    <div class="List-Box-Text-Text-Q" style="display: none;">
-                        <p>
-                            Nasz program partne
-                        </p>
-                        <p>
-                            Program jes
-                        </p>
+        <div class="Vert-Home">
+            <div class="Vert-50-List">
+                <h2 class="Text-Box-Title" style="margin-bottom:32px;">Najczęściej zadawane pytania</h2>
+
+                @foreach (var item in faqItems)
+                {
+                    <div class="List-Box-Q" onclick="toggleAnswer(this)">
+                        <div class="List-Box-Text">
+                            <h3 class="List-Box-Text-Title">@item.Question</h3>
+                            <div class="List-Box-Text-Text-Q">
+                                @Html.Raw(item.Answer)
+                            </div>
+                        </div>
                     </div>
-                </div>
+                }
             </div>
-            <div class="List-Box-Q" onclick="toggleAnswer(this)">
+
+
+            <div class="Vert-50-List">
                 <div class="List-Box-Text">
-                    <h3 class="List-Box-Text-Title">Czy re</h3>
-                    <div class="List-Box-Text-Text-Q" style="display: none;">
-                        <p>Tak. Rejes</p>
-                    </div>
+                    <h2 class="Text-Box-Title">Przetestuj PriceSafari</h2>
+                    <p class="List-Box-Text-Text">Spotkajmy się i porozmawiajmy o Twoich potrzebach w zakresie monitoringu cen. Obiecujemy, że wdrożenie naszego programu będzie przełomową zmiana w Twojej firmie.</p>
+                    <p class="List-Box-Text-Text">Wszyscy nasi klienci są wspierani przez dedykowanego Managera ds. sukcesu klienta, który jest do Twojej dyspozycji, abyś mógł odnieść jak największy sukces pracując z naszą platformą.</p>
                 </div>
-            </div>
-            <div class="List-Box-Q" onclick="toggleAnswer(this)">
+                <a href="/Home/Contact" class="Nav-Bar-Button">Testuj za darmo</a>
                 <div class="List-Box-Text">
-                    <h3 class="List-Box-Text-Title">Jak d</h3>
-                    <div class="List-Box-Text-Text-Q" style="display: none;">
-                        <p>
-                            gg
-                        </p>
-                    </div>
+                    <h2 class="Text-Box-Title">Kontakt</h2>
+                    <p class="List-Box-Text-Text">Jeżeli masz dodatkowe pytania, nie wahaj się skontaktować z nami. Jesteśmy tutaj, aby Ci pomóc i dostarczyć wszelkich potrzebnych informacji.</p>
                 </div>
-            </div>
-            <div class="List-Box-Q" onclick="toggleAnswer(this)">
-                <div class="List-Box-Text">
-                    <h3 class="List-Box-Text-Title">Co jeże</h3>
-                    <div class="List-Box-Text-Text-Q" style="display: none;">
-                        <p>Jeśli polecasz produkt A, a ktoś kupi produk</p>
-                    </div>
-                </div>
-            </div>
-            <div class="List-Box-Q" onclick="toggleAnswer(this)">
-                <div class="List-Box-Text">
-                    <h3 class="List-Box-Text-Title">Gdzie i ja</h3>
-                    <div class="List-Box-Text-Text-Q" style="display: none;">
-                        <p>Przyk</p>
-                        <p>
-                            Jesteś autorem bloga związanego z naszą branżą? Wykorzystaj swoją platformę do tworzenia angażujących treści, takich jak "TOP 5 myjek ciśnieniowych do 1000 zł".
-                            Takie poradniki nie tylko wzbogacą twój blog o wartościowy content, ale dzięki umieszczonym
-                            linkom afiliacyjnym, każdy zakup dokonany przez twoich czytelników przyniesie ci prowizję. Jest to efektywny sposób na połączenie pasji do
-                            tworzenia treści z możliwością dodatkowego zarobku.
-                        </p>
-                        <p>Przy</p>
-                        <p>
-                            Czy zajmuje
-                        </p>
-                        <p>Przykład 3 - Re</p>
-                        <p>
-                            Cenisz sobie dzie
-                        </p>
-                    </div>
-                </div>
-            </div>
-            <div class="List-Box-Q" onclick="toggleAnswer(this)">
-                <div class="List-Box-Text">
-                    <h3 class="List-Box-Text-Title">Jak wypłacić zgromadzoną prowizję? Czy są jakieś limity?</h3>
-                    <div class="List-Box-Text-Text-Q" style="display: none;">
-                        <p>
-                            Aby wypłacić prow
-                        </p>
-                        <p>
-                            Nasza 
-                        </p>
-                    </div>
+                <div class="List-Box-Text-Text">
+                    <div class="Mini-Icon"><img src="~/images/Mail-b.svg" alt="E-mail">biuro@pricesafari.pl</div>
+                    <div class="Mini-Icon"><img src="~/images/Phone-b.svg" alt="Telefon">514 188 340</div>
                 </div>
             </div>
         </div>
-        <div class="Vert-50-List">
-            <div class="List-Box-Text">
-                <h2 class="Text-Box-Title">Przetestuj PriceSafari</h2>
-                <p class="List-Box-Text-Text">Spotkajmy się i porozmawiajmy o Twoich potrzebach w zakresie monitoringu cen. Obiecujemy, że wdrożenie naszego programu będzie przełomową zmiana w Twojej firmie.</p>
-                <p class="List-Box-Text-Text">Wszyscy nasi klienci są wspierani przez dedykowanego Managera ds. sukcesu klienta, który jest do Twojej dyspozycji, abyś mógł odnieść jak największy sukces pracując z naszą platformą.</p>
-            </div>
-            <a href="/Home/Contact" class="Nav-Bar-Button">Testuj za darmo</a>
-            <div class="List-Box-Text">
-                <h2 class="Text-Box-Title">Kontakt</h2>
-                <p class="List-Box-Text-Text">Jeżeli masz dodatkowe pytania, nie wahaj się skontaktować z nami. Jesteśmy tutaj, aby Ci pomóc i dostarczyć wszelkich potrzebnych informacji.</p>
-            </div>
-            <div class="List-Box-Text-Text">
-                <div class="Mini-Icon"><img src="~/images/Mail-b.svg" alt="E-mail">biuro@pricesafari.pl</div>
-                <div class="Mini-Icon"><img src="~/images/Phone-b.svg" alt="Telefon">514 188 340</div>
-            </div>
-        </div>
+
     </div>
 
-</div>
+    <!-- Struktura modala -->
+    <div id="image-modal" class="modal">
+        <span class="close">&times;</span>
+        <img class="modal-content" id="modal-image">
+    </div>
 
-<!-- Struktura modala -->
-<div id="image-modal" class="modal">
-    <span class="close">&times;</span>
-    <img class="modal-content" id="modal-image">
-</div>
 
-<script src="/js/Home/index.min.js"></script>
 
-<script>
-    function freezeGif() {
-        var banner = document.getElementById("homeBanner");
-        var frozenFrameSrc = banner.src.replace('.gif', '.png');
 
-        var preloadedImage = document.getElementById("preloadedImage");
+    <script src="/js/Home/index.min.js"></script>
 
-        if (preloadedImage.complete) {
+    <script>
+        function freezeGif() {
+            var banner = document.getElementById("homeBanner");
+            var frozenFrameSrc = banner.src.replace('.gif', '.png');
 
-            banner.src = frozenFrameSrc;
-        } else {
+            var preloadedImage = document.getElementById("preloadedImage");
 
-            preloadedImage.onload = function () {
+            if (preloadedImage.complete) {
+
                 banner.src = frozenFrameSrc;
-            };
-        }
-    }
+            } else {
 
-    setTimeout(freezeGif, 5000);
-
-</script>
-<script>
-    function toggleMenu() {
-        var menu = document.getElementById('mobileMenu');
-        if (menu.style.display === 'flex') {
-            menu.style.display = 'none';
-        } else {
-            menu.style.display = 'flex';
-        }
-    }
-
-</script>
-<script>
-    document.addEventListener("DOMContentLoaded", function () {
-        // Obsługa pierwszego zestawu bannerów
-        const buttons1 = document.querySelectorAll('.change-banner-1');
-        const images1 = document.querySelectorAll('#banner-change-target-1 .banner-img');
-
-        buttons1[0].classList.add('change-banner-1-active'); // Domyślnie aktywuj pierwszy przycisk
-
-        buttons1.forEach((button, index) => {
-            button.addEventListener('click', function () {
-                buttons1.forEach(btn => btn.classList.remove('change-banner-1-active')); // Usuń aktywność z innych przycisków
-                this.classList.add('change-banner-1-active'); // Dodaj aktywność do klikniętego przycisku
-                images1.forEach(img => img.style.display = 'none'); // Ukryj inne obrazki
-                images1[index].style.display = 'block'; // Pokaż wybrany obrazek
-            });
-        });
-
-        // Obsługa drugiego zestawu bannerów
-        const buttons2 = document.querySelectorAll('.change-banner-2');
-        const images2 = document.querySelectorAll('#banner-change-target-2 .banner-img');
-
-        buttons2[0].classList.add('change-banner-2-active'); // Domyślnie aktywuj pierwszy przycisk
-
-        buttons2.forEach((button, index) => {
-            button.addEventListener('click', function () {
-                buttons2.forEach(btn => btn.classList.remove('change-banner-2-active')); // Usuń aktywność z innych przycisków
-                this.classList.add('change-banner-2-active'); // Dodaj aktywność do klikniętego przycisku
-                images2.forEach(img => img.style.display = 'none'); // Ukryj inne obrazki
-                images2[index].style.display = 'block'; // Pokaż wybrany obrazek
-            });
-        });
-
-        // Funkcjonalność modala
-        var modal = document.getElementById("image-modal");
-        var modalImg = document.getElementById("modal-image");
-        var closeBtn = document.querySelector("#image-modal .close");
-
-        const bannerImages = document.querySelectorAll('.banner-img');
-        bannerImages.forEach(function (image) {
-            image.addEventListener('click', function () {
-                modal.style.display = "block";
-                modalImg.src = this.src;
-            });
-        });
-
-        closeBtn.addEventListener('click', function () {
-            modal.style.display = "none";
-        });
-
-        modal.addEventListener('click', function (event) {
-            if (event.target == modal) {
-                modal.style.display = "none";
+                preloadedImage.onload = function () {
+                    banner.src = frozenFrameSrc;
+                };
             }
-        });
-    });
+        }
 
-</script>
+        setTimeout(freezeGif, 5000);
+
+    </script>
+    <script>
+        function toggleMenu() {
+            var menu = document.getElementById('mobileMenu');
+            if (menu.style.display === 'flex') {
+                menu.style.display = 'none';
+            } else {
+                menu.style.display = 'flex';
+            }
+        }
+
+    </script>
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            // Obsługa pierwszego zestawu bannerów
+            const buttons1 = document.querySelectorAll('.change-banner-1');
+            const images1 = document.querySelectorAll('#banner-change-target-1 .banner-img');
+
+            buttons1[0].classList.add('change-banner-1-active'); // Domyślnie aktywuj pierwszy przycisk
+
+            buttons1.forEach((button, index) => {
+                button.addEventListener('click', function () {
+                    buttons1.forEach(btn => btn.classList.remove('change-banner-1-active')); // Usuń aktywność z innych przycisków
+                    this.classList.add('change-banner-1-active'); // Dodaj aktywność do klikniętego przycisku
+                    images1.forEach(img => img.style.display = 'none'); // Ukryj inne obrazki
+                    images1[index].style.display = 'block'; // Pokaż wybrany obrazek
+                });
+            });
+
+            // Obsługa drugiego zestawu bannerów
+            const buttons2 = document.querySelectorAll('.change-banner-2');
+            const images2 = document.querySelectorAll('#banner-change-target-2 .banner-img');
+
+            buttons2[0].classList.add('change-banner-2-active'); // Domyślnie aktywuj pierwszy przycisk
+
+            buttons2.forEach((button, index) => {
+                button.addEventListener('click', function () {
+                    buttons2.forEach(btn => btn.classList.remove('change-banner-2-active')); // Usuń aktywność z innych przycisków
+                    this.classList.add('change-banner-2-active'); // Dodaj aktywność do klikniętego przycisku
+                    images2.forEach(img => img.style.display = 'none'); // Ukryj inne obrazki
+                    images2[index].style.display = 'block'; // Pokaż wybrany obrazek
+                });
+            });
+
+            // Funkcjonalność modala
+            var modal = document.getElementById("image-modal");
+            var modalImg = document.getElementById("modal-image");
+            var closeBtn = document.querySelector("#image-modal .close");
+
+            const bannerImages = document.querySelectorAll('.banner-img');
+            bannerImages.forEach(function (image) {
+                image.addEventListener('click', function () {
+                    modal.style.display = "block";
+                    modalImg.src = this.src;
+                });
+            });
+
+            closeBtn.addEventListener('click', function () {
+                modal.style.display = "none";
+            });
+
+            modal.addEventListener('click', function (event) {
+                if (event.target == modal) {
+                    modal.style.display = "none";
+                }
+            });
+        });
+
+    </script>
+</body>
+</html>
+
+
+
+

@@ -18,18 +18,16 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     });
 });
-
 function toggleAnswer(element) {
-    const currentIsActive = element.querySelector('.List-Box-Text-Text-Q').classList.contains('active');
+    const isActive = element.classList.contains('active');
 
-    document.querySelectorAll('.List-Box-Text-Text-Q').forEach((el) => {
-        el.style.display = "none";
+    // Collapse any open items
+    document.querySelectorAll('.List-Box-Q.active').forEach((el) => {
         el.classList.remove('active');
     });
 
-    if (!currentIsActive) {
-        const answer = element.querySelector('.List-Box-Text-Text-Q');
-        answer.classList.add('active');
-        answer.style.display = "block";
+    // If the clicked item was not active, activate it
+    if (!isActive) {
+        element.classList.add('active');
     }
 }
