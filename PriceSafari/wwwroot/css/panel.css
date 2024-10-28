@@ -738,6 +738,24 @@ img.lazy-load {
     }
 
 
+
+.lazy-load-flex {
+    width: 84px;
+    height: 84px;
+    background-color: #ffffff;
+    display: block;
+}
+
+img.lazy-load-flex {
+    visibility: hidden;
+}
+
+    img.lazy-load-flex.loaded {
+        visibility: visible;
+    }
+
+
+
 .agregationShortcut {
     display: flex;
     padding: 0px;

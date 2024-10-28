@@ -456,6 +456,9 @@ namespace PriceSafari.Controllers
         }
 
 
+
+
+
         [HttpGet]
         [ServiceFilter(typeof(AuthorizeStoreAccessAttribute))]
         [RequireUserAccess(UserAccessRequirement.CreateSafari)]
@@ -473,13 +476,6 @@ namespace PriceSafari.Controllers
                 return NotFound("Store not found.");
             }
 
-            // Pobieranie produktów związanych ze sklepem
-            var products = await _context.Products
-                .Where(p => p.StoreId == storeId && p.OnGoogle == true && p.FoundOnGoogle == true)
-                .Include(p => p.ProductFlags)
-                .ThenInclude(pf => pf.Flag)
-                .ToListAsync();
-
             var reports = await _context.PriceSafariReports
                 .Where(r => r.StoreId == storeId && (r.Prepared == null || r.Prepared == false))
                 .ToListAsync();
@@ -487,12 +483,55 @@ namespace PriceSafari.Controllers
             // Przekazanie danych do widoku
             ViewBag.Reports = reports;
             ViewBag.StoreName = store.StoreName;
+            ViewBag.StoreLogo = store.StoreLogoUrl;
             ViewBag.StoreId = storeId;
 
-            return View("~/Views/Panel/Safari/Index.cshtml", products);
+            return View("~/Views/Panel/Safari/Index.cshtml");
         }
 
 
+        [HttpGet]
+        [ServiceFilter(typeof(AuthorizeStoreAccessAttribute))]
+        [RequireUserAccess(UserAccessRequirement.CreateSafari)]
+        public async Task<IActionResult> GetProducts(int storeId)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (storeId == 0)
+            {
+                return Json(new { success = false, message = "Store ID not provided." });
+            }
+
+            var store = await _context.Stores.FindAsync(storeId);
+            if (store == null)
+            {
+                return Json(new { success = false, message = "Store not found." });
+            }
+
+            // Pobieranie produktów związanych ze sklepem
+            var products = await _context.Products
+                .Where(p => p.StoreId == storeId && p.OnGoogle == true && p.FoundOnGoogle == true)
+                .Include(p => p.ProductFlags)
+                    .ThenInclude(pf => pf.Flag)
+                .ToListAsync();
+
+            var productsData = products.Select(p => new
+            {
+                productId = p.ProductId,
+                productImg = p.MainUrl,
+                productNameInStoreForGoogle = p.ProductName,
+                ean = p.Ean,
+                url = p.Url,
+                googleUrl = p.GoogleUrl,
+                foundOnGoogle = p.FoundOnGoogle,
+                flags = (p.ProductFlags ?? Enumerable.Empty<ProductFlag>()).Select(pf => new
+                {
+                    Name = pf.Flag.FlagName,
+                    Color = pf.Flag.FlagColor
+                }).ToList()
+            }).ToList();
+
+            return Json(new { success = true, products = productsData });
+        }
 
 
 

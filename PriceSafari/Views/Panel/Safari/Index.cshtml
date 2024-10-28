@@ -4,141 +4,169 @@
     ViewData["Title"] = "Lista Produktów";
     Layout = "~/Views/Shared/_PanelLayout.cshtml";
     var storeId = ViewBag.StoreId;
+    var storeLogo = ViewBag.StoreLogo;
 }
 
 <div class="Vert">
-    <div class="Vert-full">
-        <div class="price-box-space">
-            <div class="Order-Container-Title">
-                Lista produktów @ViewBag.StoreName
-                <div class="bar-List">
-                    <div class="d-flex mb-3">
-                        <p class="me-4">Liczba produktów znalezionych: <span id="foundCount" class="badge bg-success">@Model.Count()</span></p>
-                        <p class="me-4">Liczba przypisanych produktów: <span id="assignedCount" class="badge bg-info">0</span></p>
-                       
-                        <form id="assignToReportForm">
-                            <div>
-                                <label for="reportSelection">Wybierz raport:</label>
-                                <select id="reportSelection" name="reportId" required>
-                                    <option value="">Wybierz raport</option>
-                                    @foreach (var report in ViewBag.Reports)
-                                    {
-                                        <option value="@report.ReportId" data-prepared="@report.Prepared">@report.ReportName</option>
-                                    }
-                                </select>
+    <div class="Page-Box">
+        <div class="Page-Box-Container">
+            <div class="Page-Box-Category">
+            
+                <div><img src="@storeLogo" class="img-container" /></div>
+                <div class="store-section">
+
+                    <a href="@Url.Action("CreateReport", "Safari", new { storeId = ViewBag.StoreId })" class="btn btn-secondary">Stwórz nowy raport</a>
+                    <form id="assignToReportForm">
+                        <div>
+
+                            <select id="reportSelection" name="reportId" class="DropDown" style="width:100%;" required>
+                                <option value="">Wybierz raport</option>
+                                @foreach (var report in ViewBag.Reports)
+                                {
+                                    <option value="@report.ReportId" data-prepared="@report.Prepared">@report.ReportName</option>
+                                }
+                            </select>
+                        </div>
+                        <button id="startReportPreparation" class="btn btn-primary mt-2">Zleć raport</button>
+                    </form>
+                </div>
+
+                <!-- Flags Filter -->
+                <div class="filterBox">
+                    <div class="Category-Container-Select" style="margin-top:-2px;">Flagi</div>
+                    <div class="store-section" id="flagContainer">
+                        <div class="flag-filters">
+                            <div id="flagFilterList">
+                                <!-- Checkboxy flag zostaną wygenerowane przez JavaScript -->
                             </div>
-                            <button id="startReportPreparation" class="btn btn-primary mt-2">Zleć raport</button>
-                        </form>
-
-
-                        <div class="mt-3">
-                            <a href="@Url.Action("CreateReport", "Safari", new { storeId = ViewBag.StoreId })" class="btn btn-secondary">Stwórz nowy raport</a>
                         </div>
-                        <div class="mt-3">
-                            <button id="selectAllVisible" class="btn btn-primary">Zaznacz wszystkie widoczne</button>
-                            <button id="deselectAllVisible" class="btn btn-secondary">Odznacz wszystkie widoczne</button>
-                        </div>
-
                     </div>
                 </div>
-            </div>
 
-            <!-- Flag Filters Section -->
-            <div class="flag-filters">
-                <h5>Filtruj według flag:</h5>
-                <ul id="flagFilterList">
-                    @foreach (var flag in Model.SelectMany(p => p.ProductFlags).Select(pf => pf.Flag.FlagName).Distinct())
-                    {
-                        <li>
-                            <input type="checkbox" class="flag-checkbox" value="@flag" /> @flag
-                        </li>
-                    }
-                </ul>
             </div>
+            <div class="Horizontal">
+                <div class="order-upper-box">
+                    <!-- Search Input -->
+                    <input type="text" id="productSearch" placeholder="Wyszukaj produkt" />
 
-            <div>
-                <input type="text" id="productSearch" placeholder="Wyszukaj produkt" />
+                    <select id="categoryFilter" class="DropDown">
+                        <option value="">Wszystkie kategorie</option>
+                    </select>
+              
+                    <div class="mt-3">
+                        <button id="selectAllVisible" class="btn btn-primary">Zaznacz wszystkie widoczne</button>
+                        <button id="deselectAllVisible" class="btn btn-secondary">Odznacz wszystkie widoczne</button>
+                    </div>
+                    <!-- Report Info -->
+                    <div class="form-check-orders">
+                        <div>
+                            <p><strong>Liczba produktów znalezionych</strong> <span id="foundCount" class="badge bg-success">0</span></p>
+                            <p><strong>Przypisane produkty do raportu <span id="reportNameDisplay"></span></strong> <span id="assignedCount" class="badge bg-info">0</span></p>
+                        </div>
+                    </div>
+
+                </div>
+
+                <div id="sortingButtons">
+                    <div class="ProductCount" id="displayedProductCount"></div>
+                </div>
+
+                <div class="Vert-table">
+                    <table class="table-orders">
+                        <thead>
+                            <tr>
+                                <th>Zaznacz</th>
+                                <th>Obraz</th> <!-- Dodano kolumnę na obrazek -->
+                                <th>Nazwa (<span id="productCount">0</span>)</th>
+                                <th>Ean</th>
+                               
+                                <th>Status</th>
+                                <th>Url</th>
+                                <th>Flagi</th>
+                            </tr>
+                        </thead>
+
+                        <tbody id="productTable">
+                            <!-- Tabela produktów zostanie wygenerowana przez JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
             </div>
-        </div>
-
-        <div class="Vert-table">
-            <table class="table-orders">
-                <thead>
-                    <tr>
-                        <th>Zaznacz</th>
-                        <th>Nazwa (<span id="productCount">@Model.Count()</span>)</th>
-                        <th>Indeks</th>
-                        <th>Url</th>
-                        <th>Google Url</th>
-                        <th>Status</th>
-                        <th>Flagi</th>
-                    </tr>
-                </thead>
-                <tbody id="productTable">
-                    @foreach (var product in Model)
-                    {
-                        <tr>
-                            <td>
-                                <input type="checkbox" class="product-checkbox" data-product-id="@product.ProductId" disabled />
-                            </td>
-                            <td>@product.ProductNameInStoreForGoogle</td>
-                            <td>@product.CatalogNumber</td>
-                            <td><a href="@product.Url" target="_blank">@product.Url</a></td>
-                            <td><a href="@product.GoogleUrl" target="_blank">@product.GoogleUrl</a></td>
-                            <td>
-                                @if (product.FoundOnGoogle ?? false)
-                                {
-                                    <span class="badge bg-success">Found</span>
-                                }
-                                else
-                                {
-                                    <span class="badge bg-secondary">Pending</span>
-                                }
-                            </td>
-                            <td>
-                                @if (product.ProductFlags != null && product.ProductFlags.Any())
-                                {
-                                    @string.Join(", ", product.ProductFlags.Select(pf => pf.Flag.FlagName))
-                                }
-                                else
-                                {
-                                    <span>Brak flag</span>
-                                }
-                            </td>
-                        </tr>
-                    }
-                </tbody>
-            </table>
         </div>
     </div>
 </div>
 
 @section Scripts {
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <!-- Include Chart.js Library -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
         $(document).ready(function () {
-            var allProducts = @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(Model.Select(p => new
-            {
-                productId = p.ProductId,
-                productNameInStoreForGoogle = p.ProductNameInStoreForGoogle,
-                catalogNumber = p.CatalogNumber,
-                url = p.Url,
-                googleUrl = p.GoogleUrl,
-                foundOnGoogle = p.FoundOnGoogle,
-                flags = p.ProductFlags != null ? p.ProductFlags.Select(pf => pf.Flag.FlagName).ToList() : new List<string>()
-            }).ToList()));
-
-            var currentAssignedProductIds = [];
+            var allProducts = [];
+            var currentAssignedProductIds = new Set();
             var selectedReportId = null;
+            var selectedReportPreparedStatus = null;
+            var totalProductsCount = 0;
 
-            // Function to highlight matches in product names and catalog numbers
+            function loadProducts() {
+                $.ajax({
+                    type: "GET",
+                    url: '@Url.Action("GetProducts", "Safari")',
+                    data: { storeId: @storeId },
+                    success: function (response) {
+                        if (response.success) {
+                            allProducts = response.products;
+                            totalProductsCount = allProducts.length;
+                            $('#foundCount').text(totalProductsCount);
+                            generateFlagFilters(allProducts);
+                            filterAndUpdateTable();
+                        } else {
+                            alert("Wystąpił błąd podczas ładowania produktów.");
+                        }
+                    },
+                    error: function () {
+                        alert("Wystąpił błąd podczas komunikacji z serwerem.");
+                    }
+                });
+            }
+
+            // Funkcja do generowania checkboxów flag
+            function generateFlagFilters(products) {
+                var flags = [];
+                products.forEach(function (product) {
+                    if (product.flags && product.flags.length > 0) {
+                        product.flags.forEach(function (flag) {
+                            if (!flags.some(f => f.name === flag.name)) {
+                                flags.push(flag);
+                            }
+                        });
+                    }
+                });
+
+                var flagFilterList = $('#flagFilterList');
+                flagFilterList.empty();
+                flags.forEach(function (flag) {
+                    flagFilterList.append(`
+                                <div>
+                                    <input type="checkbox" class="flag-checkbox" value="${flag.name}" /> ${flag.name}
+                                </div>
+                            `);
+                });
+
+                // Przypisz zdarzenie do nowo wygenerowanych checkboxów
+                $('.flag-checkbox').on('change', function () {
+                    filterAndUpdateTable();
+                });
+            }
+
+            // Funkcja do podświetlania wyszukiwanego tekstu
             function highlightMatches(text, searchTerm) {
                 if (!searchTerm) return text;
                 var regex = new RegExp('(' + searchTerm + ')', 'gi');
                 return text.replace(regex, '<span style="color: #9400D3; font-weight: 600;">$1</span>');
             }
 
-            // Function to filter and update the product table
+            // Funkcja do filtrowania i aktualizacji tabeli produktów
             function filterAndUpdateTable() {
                 var searchTerm = $('#productSearch').val().toLowerCase();
                 var selectedFlags = $('.flag-checkbox:checked').map(function () {
@@ -147,79 +175,240 @@
 
                 var filteredProducts = allProducts.filter(function (product) {
                     var matchesSearch = product.productNameInStoreForGoogle.toLowerCase().includes(searchTerm) ||
-                        product.catalogNumber.toLowerCase().includes(searchTerm);
-                    var matchesFlags = selectedFlags.length === 0 || selectedFlags.some(flag => product.flags.includes(flag));
+                        product.ean.toLowerCase().includes(searchTerm);
+                    var matchesFlags = selectedFlags.length === 0 || selectedFlags.some(flagName => product.flags.some(f => f.name === flagName));
                     return matchesSearch && matchesFlags;
                 });
 
                 updateTable(filteredProducts, searchTerm);
             }
 
-            // Function to update the product table
+            function generateFlagsHtml(flags) {
+                if (flags.length === 0) {
+                    return 'Brak flag';
+                }
+
+                var flagsHtml = '';
+                flags.forEach(function (flag) {
+                    flagsHtml += `<span class="flag" style="color:${flag.color}; border: 2px solid ${flag.color}; background-color:${hexToRgba(flag.color, 0.3)}; padding: 4px 8px; margin: 2px; border-radius: 4px; font-size: 0.9em; white-space: nowrap;">
+                                ${flag.name}
+                            </span> `;
+                });
+                return flagsHtml;
+            }
+
+            function hexToRgba(hex, alpha) {
+                if (!hex) {
+                    return 'rgba(0, 0, 0, ' + alpha + ')';
+                }
+                hex = hex.replace('#', '');
+                if (hex.length === 3) {
+                    hex = hex.split('').map(function (h) {
+                        return h + h;
+                    }).join('');
+                }
+                var bigint = parseInt(hex, 16);
+                if (isNaN(bigint)) {
+                    return 'rgba(0, 0, 0, ' + alpha + ')';
+                }
+                var r = (bigint >> 16) & 255;
+                var g = (bigint >> 8) & 255;
+                var b = bigint & 255;
+                return 'rgba(' + r + ',' + g + ',' + b + ',' + alpha + ')';
+            }
+
+
+            // Zaktualizowana funkcja updateTable
             function updateTable(products, searchTerm = '') {
                 $('#productTable').empty();
                 products.forEach(function (product) {
                     var productNameHighlighted = highlightMatches(product.productNameInStoreForGoogle, searchTerm);
-                    var catalogNumberHighlighted = highlightMatches(product.catalogNumber, searchTerm);
-                    var isChecked = currentAssignedProductIds.includes(product.productId) ? 'checked' : '';
-                    var isDisabled = selectedReportId ? '' : 'disabled'; // Disable checkboxes if no report selected
+                    var eanNumberHighlighted = highlightMatches(product.ean, searchTerm);
+                    var isChecked = currentAssignedProductIds.has(product.productId) ? 'checked' : '';
+                    var isDisabled = (!selectedReportId || selectedReportPreparedStatus === false) ? 'disabled' : '';
 
-                    var row = `<tr>
-                                                <td><input type="checkbox" class="product-checkbox" data-product-id="${product.productId}" ${isChecked} ${isDisabled} /></td>
-                                                <td>${productNameHighlighted}</td>
-                                                <td>${catalogNumberHighlighted}</td>
-                                                <td><a href="${product.url}" target="_blank">${product.url}</a></td>
-                                                <td><a href="${product.googleUrl}" target="_blank">${product.googleUrl}</a></td>
-                                                <td>${product.foundOnGoogle ? '<span class="badge bg-success">Found</span>' : '<span class="badge bg-secondary">Pending</span>'}</td>
-                                                <td>${product.flags.length ? product.flags.join(", ") : 'Brak flag'}</td>
-                                            </tr>`;
+                    var imageCell = product.productImg ? `<img data-src="${product.productImg}" alt="${product.productNameInStoreForGoogle}" class="lazy-load-flex"/>` : 'Brak obrazu';
+
+                    var row = `<tr class="product-row" data-product-id="${product.productId}">
+                        <td><input type="checkbox" class="product-checkbox" data-product-id="${product.productId}" ${isChecked} ${isDisabled} /></td>
+                        <td>${imageCell}</td>
+                        <td>${productNameHighlighted}</td>
+                        <td>${eanNumberHighlighted}</td>
+                       
+                        <td>${product.foundOnGoogle ? '<span class="badge bg-success">Znaleziono na Google</span>' : '<span class="badge bg-secondary">Pending</span>'}</td>
+                                 <td>
+                                         <div class="store-section">
+                                                   <button class="Button-Page-Small no-row-click" onclick="window.open('${product.url}', '_blank')">Twoja strona</button>
+                                                            <button class="Button-Page-Small no-row-click" style="margin-top: 4px;" onclick="window.open('${product.googleUrl}', '_blank')">Google Product</button>
+                                         </div>
+                                          
+                                </td>
+                        <td>${generateFlagsHtml(product.flags)}</td>
+                    </tr>`;
                     $('#productTable').append(row);
                 });
                 enableCheckboxes();
-                updateProductCount(products.length); // Update the displayed product count
-                updateAssignedCount(); // Update the count of assigned products
+                updateProductCount(products.length);
+
+                $('#productCount').text(products.length);
+
+                initLazyLoad();
+
+                enableRowClick();
             }
 
-            // Update displayed product count
+
+            // Funkcja do aktualizacji liczby wyświetlanych produktów
             function updateProductCount(count) {
                 $('#productCount').text(count);
             }
 
-            // Attach event handlers to checkboxes
-            function enableCheckboxes() {
-                $('.product-checkbox').on('change', function () {
-                    var productId = $(this).data('product-id');
-                    var isChecked = $(this).is(':checked');
-                    triggerBatchProductAssignment([productId], isChecked);
-                    updateAssignedCount(); // Call to update the assigned count on checkbox change
+            // Nowa funkcja enableRowClick
+            function enableRowClick() {
+                $('#productTable').off('click', '.product-row').on('click', '.product-row', function (e) {
+                    // Ignoruj kliknięcia na przyciski z klasą .no-row-click
+                    if ($(e.target).is('.no-row-click, a, input[type="checkbox"]')) {
+                        return;
+                    }
+
+                    var checkbox = $(this).find('.product-checkbox');
+                    var productId = parseInt($(this).data('product-id'));
+
+                    if (!selectedReportId) {
+                        alert("Proszę wybrać raport do którego mają być przypisane produkty.");
+                        return;
+                    }
+                    if (selectedReportPreparedStatus === false) {
+                        alert("Ten raport jest w trakcie przygotowania, nie można już zmienić przypisanych do niego produktów.");
+                        return;
+                    }
+                    if (checkbox.is(':disabled')) {
+                        return;
+                    }
+
+                    // Przełącz stan checkboxa
+                    checkbox.prop('checked', !checkbox.prop('checked'));
+
+                    // Wywołaj zdarzenie 'change' na checkboxie, aby obsłużyć przypisanie
+                    checkbox.trigger('change');
                 });
             }
 
-            // Handle mass assignment (select/deselect all)
+            // Funkcja inicjalizująca lazy loading
+            function initLazyLoad() {
+                const lazyLoadImages = document.querySelectorAll('.lazy-load-flex');
+                const timers = new Map();
+
+                const observer = new IntersectionObserver((entries, observer) => {
+                    entries.forEach(entry => {
+                        const img = entry.target;
+                        const index = [...lazyLoadImages].indexOf(img);
+
+                        if (entry.isIntersecting) {
+                            const timer = setTimeout(() => {
+                                loadImageWithNeighbors(index);
+                                observer.unobserve(img);
+                                timers.delete(img);
+                            }, 100);
+                            timers.set(img, timer);
+                        } else {
+                            if (timers.has(img)) {
+                                clearTimeout(timers.get(img));
+                                timers.delete(img);
+                            }
+                        }
+                    });
+                }, {
+                    root: null,
+                    rootMargin: '50px',
+                    threshold: 0.01
+                });
+
+                function loadImageWithNeighbors(index) {
+                    const range = 6;
+                    const start = Math.max(0, index - range);
+                    const end = Math.min(lazyLoadImages.length - 1, index + range);
+
+                    for (let i = start; i <= end; i++) {
+                        const img = lazyLoadImages[i];
+                        if (!img.src) {
+                            img.src = img.dataset.src;
+                            img.onload = () => {
+                                img.classList.add('loaded');
+                            };
+                        }
+                    }
+                }
+
+                lazyLoadImages.forEach(img => {
+                    observer.observe(img);
+                });
+            }
+
+            // Funkcja do obsługi checkboxów produktów
+            function enableCheckboxes() {
+                $('.product-checkbox').off('change').on('change', function () {
+                    if (!selectedReportId) {
+                        alert("Proszę wybrać raport do którego mają być przypisane produkty.");
+                        $(this).prop('checked', !$(this).prop('checked')); // Cofnij zmianę
+                        return;
+                    }
+                    if (selectedReportPreparedStatus === false) {
+                        alert("Ten raport jest w trakcie przygotowania, nie można już zmienić przypisanych do niego produktów.");
+                        $(this).prop('checked', !$(this).prop('checked')); // Cofnij zmianę
+                        return;
+                    }
+                    var productId = parseInt($(this).data('product-id'));
+                    var isChecked = $(this).is(':checked');
+                    triggerBatchProductAssignment([productId], isChecked);
+                });
+            }
+
+            // Masowe zaznaczanie/odznaczanie produktów
             $('#selectAllVisible').click(function () {
+                if (!selectedReportId) {
+                    alert("Proszę wybrać raport do którego mają być przypisane produkty.");
+                    return;
+                }
+                if (selectedReportPreparedStatus === false) {
+                    alert("Ten raport jest w trakcie przygotowania, nie można już zmienić przypisanych do niego produktów.");
+                    return;
+                }
                 var productIds = $('input.product-checkbox:visible').map(function () {
                     if (!$(this).prop('checked')) {
                         $(this).prop('checked', true);
-                        return $(this).data('product-id');
+                        return parseInt($(this).data('product-id'));
                     }
                 }).get();
                 triggerBatchProductAssignment(productIds, true);
             });
 
             $('#deselectAllVisible').click(function () {
+                if (!selectedReportId) {
+                    alert("Proszę wybrać raport do którego mają być przypisane produkty.");
+                    return;
+                }
+                if (selectedReportPreparedStatus === false) {
+                    alert("Ten raport jest w trakcie przygotowania, nie można już zmienić przypisanych do niego produktów.");
+                    return;
+                }
                 var productIds = $('input.product-checkbox:visible').map(function () {
                     if ($(this).prop('checked')) {
                         $(this).prop('checked', false);
-                        return $(this).data('product-id');
+                        return parseInt($(this).data('product-id'));
                     }
                 }).get();
                 triggerBatchProductAssignment(productIds, false);
             });
 
-            // Function to handle batch product assignment
+            // Funkcja do masowego przypisywania produktów do raportu
             function triggerBatchProductAssignment(productIds, isAssigned) {
                 if (!selectedReportId) {
-                    alert("Wybierz raport przed zaznaczeniem produktu.");
+                    alert("Proszę wybrać raport do którego mają być przypisane produkty.");
+                    return;
+                }
+                if (selectedReportPreparedStatus === false) {
+                    alert("Ten raport jest w trakcie przygotowania, nie można już zmienić przypisanych do niego produktów.");
                     return;
                 }
 
@@ -236,11 +425,11 @@
                         success: function (response) {
                             if (response.success) {
                                 if (isAssigned) {
-                                    currentAssignedProductIds = currentAssignedProductIds.concat(productIds);
+                                    productIds.forEach(id => currentAssignedProductIds.add(id));
                                 } else {
-                                    currentAssignedProductIds = currentAssignedProductIds.filter(id => !productIds.includes(id));
+                                    productIds.forEach(id => currentAssignedProductIds.delete(id));
                                 }
-                                updateAssignedCount(); // Update the count of assigned products
+                                updateAssignedCount();
                             } else {
                                 alert("Wystąpił błąd podczas aktualizacji raportu.");
                             }
@@ -252,25 +441,29 @@
                 }
             }
 
-            // Update assigned product count dynamically
+            // Aktualizacja liczby przypisanych produktów
             function updateAssignedCount() {
-                var assignedCount = $('input.product-checkbox:checked').length; // Count checked checkboxes
+                var assignedCount = currentAssignedProductIds.size;
                 $('#assignedCount').text(assignedCount);
             }
 
-            // Handle flag filtering (OR condition)
-            $('.flag-checkbox').on('change', function () {
-                filterAndUpdateTable();
-            });
-
-            // Handle search with highlighting
+            // Obsługa wyszukiwania
             $('#productSearch').on('input', function () {
                 filterAndUpdateTable();
             });
 
-            // Handle report selection and disable/enable checkboxes
+            // Obsługa wyboru raportu
             $('#reportSelection').on('change', function () {
                 selectedReportId = $(this).val();
+                selectedReportPreparedStatus = $(this).find('option:selected').data('prepared');
+
+                var reportName = $(this).find('option:selected').text();
+                if (selectedReportId) {
+                    $('#reportNameDisplay').text(reportName);
+                } else {
+                    $('#reportNameDisplay').text('');
+                }
+
                 if (selectedReportId) {
                     $.ajax({
                         type: "GET",
@@ -278,42 +471,32 @@
                         data: { reportId: selectedReportId },
                         success: function (response) {
                             if (response.success) {
-                                currentAssignedProductIds = response.productIds;
-                                filterAndUpdateTable(); // Reapply the current filters
+                                currentAssignedProductIds = new Set(response.productIds.map(Number));
+                                filterAndUpdateTable();
+                                updateAssignedCount();
                             }
                         }
                     });
                 } else {
-                    currentAssignedProductIds = [];
+                    currentAssignedProductIds = new Set();
                     filterAndUpdateTable();
+                    updateAssignedCount();
                 }
-            });
 
-            // Load initial data
-            filterAndUpdateTable();
-        });
-    </script>
-
-    <!-- Logika dla zlecenia raportu -->
-    <script>
-        $(document).ready(function () {
-            var selectedReportId = null;
-
-            // Gdy użytkownik wybierze raport, sprawdź, czy jest już w trakcie przygotowania
-            $('#reportSelection').on('change', function () {
-                selectedReportId = $(this).val();
-                var preparedStatus = $(this).find('option:selected').data('prepared');
-
-                if (preparedStatus === false) {
+                // Ustawienie stanu przycisku "Zleć raport"
+                if (selectedReportPreparedStatus === false) {
                     alert("Ten raport jest już w trakcie przygotowania.");
-                    $('#startReportPreparation').prop('disabled', true); // Wyłącz przycisk, jeśli raport jest w trakcie przygotowania
-                } else if (preparedStatus === true) {
+                    $('#startReportPreparation').prop('disabled', true);
+                } else if (selectedReportPreparedStatus === true) {
                     alert("Ten raport został już przygotowany.");
-                    $('#startReportPreparation').prop('disabled', true); // Wyłącz przycisk, jeśli raport jest już przygotowany
+                    $('#startReportPreparation').prop('disabled', true);
                 } else {
-                    $('#startReportPreparation').prop('disabled', false); // Aktywuj przycisk, jeśli raport nie został zlecony
+                    $('#startReportPreparation').prop('disabled', false);
                 }
             });
+
+            // Ładowanie danych przy starcie
+            loadProducts();
 
             // Obsługa kliknięcia przycisku "Zleć raport"
             $('#startReportPreparation').click(function (e) {
@@ -326,14 +509,15 @@
 
                 $.ajax({
                     type: "POST",
-                    url: '@Url.Action("StartReportPreparation", "Safari")', // Endpoint do zlecenia przygotowania raportu
+                    url: '@Url.Action("StartReportPreparation", "Safari")',
                     data: { reportId: selectedReportId },
                     success: function (response) {
                         if (response.success) {
                             alert(response.message);
-                            // Zaktualizuj status raportu na froncie (np. odśwież stronę lub zaktualizuj dane dynamicznie)
-                            $('#reportSelection').find('option:selected').data('prepared', false); // Ustaw status na false
-                            $('#startReportPreparation').prop('disabled', true); // Wyłącz przycisk, bo raport jest w trakcie przygotowania
+                            $('#reportSelection').find('option:selected').data('prepared', false);
+                            $('#startReportPreparation').prop('disabled', true);
+                            selectedReportPreparedStatus = false;
+                            filterAndUpdateTable();
                         } else {
                             alert(response.message);
                         }
@@ -343,6 +527,7 @@
                     }
                 });
             });
+
         });
     </script>
 
