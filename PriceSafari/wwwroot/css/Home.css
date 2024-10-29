@@ -662,9 +662,10 @@
     
 }
 
-.banner-img{
-    display:flex;
-    width:100%;
+.banner-img {
+    display: flex;
+    width: 100%;
+    pointer-events: auto;
 }
 
 /* Styl dla modala */

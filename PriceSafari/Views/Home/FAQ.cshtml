@@ -13,6 +13,7 @@
 <head>
     <meta charset="UTF-8">
     <title>@ViewData["Title"] - FAQ</title>
+    <script src="/js/Home/index.min.js"></script>
     @if (faqItems != null && faqItems.Any())
     {
         // Tworzymy tablicę IThing[]
@@ -63,19 +64,8 @@
     </div>
 
    
-    <script>
-        function toggleAnswer(element) {
-            const isActive = element.classList.contains('active');
-     
-            document.querySelectorAll('.List-Box-Q.active').forEach((el) => {
-                el.classList.remove('active');
-            });
-            
-            if (!isActive) {
-                element.classList.add('active');
-            }
-        }
-    </script>
 
 </body>
 </html>
+
+

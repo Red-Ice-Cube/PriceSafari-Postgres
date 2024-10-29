@@ -8,12 +8,6 @@
     var faqItems = ViewBag.FAQItems as List<PriceSafari.Models.HomeModels.FAQItem>;
 }
 
-
-
-
-
-
-
 <!DOCTYPE html>
 <html lang="pl">
 <head>
@@ -21,7 +15,7 @@
     <title>@ViewData["Title"] - Price Safari</title>
     @if (faqItems != null && faqItems.Any())
     {
-       
+
         IThing[] questions = faqItems.Select(item => (IThing)new Question()
                 {
                     Name = item.Question,
@@ -33,7 +27,7 @@
 
         var faqPage = new FAQPage()
                 {
-                    MainEntity = questions 
+                    MainEntity = questions
                 };
 
         var jsonLd = faqPage.ToString();
@@ -43,14 +37,9 @@
 
 </head>
 <body>
-   
-
-
-
-
 
     <div class="Main-home">
-       
+
         <div class="Vert-Home">
             <div class="Vert-50">
                 <div class="Text-Box">
@@ -335,7 +324,6 @@
 
         </div>
 
-
         <div class="Vert-Home">
 
             <div class="Horizontal-100" style="justify-content:flex-start;">
@@ -386,10 +374,6 @@
 
         </div>
 
-
-
-
-
         <div class="Vert-Space-Gray">
             <div class="Vert-100" id="banner-change-target-2">
                 <div class="button-container">
@@ -403,13 +387,10 @@
 
         </div>
 
-
-
-
         <div class="Vert-Home">
             <div class="Vert-50-List">
                 <h2 class="Text-Box-Title" style="margin-bottom:32px;">Najczęściej zadawane pytania</h2>
-               
+
                 @foreach (var item in faqItems)
                 {
                     <div class="List-Box-Q" onclick="toggleAnswer(this)">
@@ -423,7 +404,6 @@
                 }
                 <a href="/Home/FAQ" class="Nav-Bar-Button">Więcej pytań i odpowiedzi</a>
             </div>
-
 
             <div class="Vert-50-List">
                 <div class="List-Box-Text">
@@ -445,109 +425,15 @@
 
     </div>
 
+
+
     <!-- Struktura modala -->
     <div id="image-modal" class="modal">
         <span class="close">&times;</span>
         <img class="modal-content" id="modal-image">
     </div>
 
-
-
-
     <script src="/js/Home/index.min.js"></script>
 
-    <script>
-        function freezeGif() {
-            var banner = document.getElementById("homeBanner");
-            var frozenFrameSrc = banner.src.replace('.gif', '.png');
-
-            var preloadedImage = document.getElementById("preloadedImage");
-
-            if (preloadedImage.complete) {
-
-                banner.src = frozenFrameSrc;
-            } else {
-
-                preloadedImage.onload = function () {
-                    banner.src = frozenFrameSrc;
-                };
-            }
-        }
-
-        setTimeout(freezeGif, 5000);
-
-    </script>
-    <script>
-        function toggleMenu() {
-            var menu = document.getElementById('mobileMenu');
-            if (menu.style.display === 'flex') {
-                menu.style.display = 'none';
-            } else {
-                menu.style.display = 'flex';
-            }
-        }
-
-    </script>
-    <script>
-        document.addEventListener("DOMContentLoaded", function () {
-            // Obsługa pierwszego zestawu bannerów
-            const buttons1 = document.querySelectorAll('.change-banner-1');
-            const images1 = document.querySelectorAll('#banner-change-target-1 .banner-img');
-
-            buttons1[0].classList.add('change-banner-1-active'); // Domyślnie aktywuj pierwszy przycisk
-
-            buttons1.forEach((button, index) => {
-                button.addEventListener('click', function () {
-                    buttons1.forEach(btn => btn.classList.remove('change-banner-1-active')); // Usuń aktywność z innych przycisków
-                    this.classList.add('change-banner-1-active'); // Dodaj aktywność do klikniętego przycisku
-                    images1.forEach(img => img.style.display = 'none'); // Ukryj inne obrazki
-                    images1[index].style.display = 'block'; // Pokaż wybrany obrazek
-                });
-            });
-
-            // Obsługa drugiego zestawu bannerów
-            const buttons2 = document.querySelectorAll('.change-banner-2');
-            const images2 = document.querySelectorAll('#banner-change-target-2 .banner-img');
-
-            buttons2[0].classList.add('change-banner-2-active'); // Domyślnie aktywuj pierwszy przycisk
-
-            buttons2.forEach((button, index) => {
-                button.addEventListener('click', function () {
-                    buttons2.forEach(btn => btn.classList.remove('change-banner-2-active')); // Usuń aktywność z innych przycisków
-                    this.classList.add('change-banner-2-active'); // Dodaj aktywność do klikniętego przycisku
-                    images2.forEach(img => img.style.display = 'none'); // Ukryj inne obrazki
-                    images2[index].style.display = 'block'; // Pokaż wybrany obrazek
-                });
-            });
-
-            // Funkcjonalność modala
-            var modal = document.getElementById("image-modal");
-            var modalImg = document.getElementById("modal-image");
-            var closeBtn = document.querySelector("#image-modal .close");
-
-            const bannerImages = document.querySelectorAll('.banner-img');
-            bannerImages.forEach(function (image) {
-                image.addEventListener('click', function () {
-                    modal.style.display = "block";
-                    modalImg.src = this.src;
-                });
-            });
-
-            closeBtn.addEventListener('click', function () {
-                modal.style.display = "none";
-            });
-
-            modal.addEventListener('click', function (event) {
-                if (event.target == modal) {
-                    modal.style.display = "none";
-                }
-            });
-        });
-
-    </script>
 </body>
 </html>
-
-
-
-
