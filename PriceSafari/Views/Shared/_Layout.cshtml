@@ -15,9 +15,6 @@
     <link href="~/css/Home.css" rel="stylesheet">
     <link rel="icon" type="image/png" sizes="16x16" href="~/icon/icon.png">
 
-
-
-
     @RenderSection("Styles", required: false)
 </head>
 <body>
@@ -28,6 +25,10 @@
     {
         @Html.Partial("_Header")
     }
+
+    <!-- Overlay do przyciemnienia i rozmycia strony -->
+    <div class="overlay"></div>
+
     <div>
         @RenderBody()
     </div>
@@ -35,6 +36,28 @@
     {
         @Html.Partial("_Footer")
     }
+
+    <!-- Sekcja skryptów -->
     @RenderSection("Scripts", required: false)
+
+    <!-- Dodaj kod JavaScript przed zamknięciem tagu body -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const menuItems = document.querySelectorAll('.Nav-Bar-Menu-Item');
+
+            menuItems.forEach(function (item) {
+                const submenu = item.querySelector('.Nav-Bar-Submenu');
+                if (submenu) {
+                    item.addEventListener('mouseenter', function () {
+                        document.body.classList.add('menu-hovered');
+                    });
+
+                    item.addEventListener('mouseleave', function () {
+                        document.body.classList.remove('menu-hovered');
+                    });
+                }
+            });
+        });
+    </script>
 </body>
 </html>

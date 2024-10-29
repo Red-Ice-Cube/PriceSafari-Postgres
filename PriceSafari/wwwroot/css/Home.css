@@ -11,8 +11,28 @@
     gap: 36px;
     padding-top: 64px;
     width: 100%;
+    position: relative;
+    z-index: 1;
 }
 
+h1 {
+    font-size: 36px;
+    font-weight: 300;
+    color: #353535
+}
+
+h2 {
+    font-size: 30px;
+    font-weight: 300;
+    color: #353535
+}
+
+h3 {
+    font-size: 24px;
+    font-weight: 300;
+    color: #353535
+}
+/* Stylizacja Nav-Bar */
 .Nav-Bar {
     display: flex;
     height: 72px;
@@ -26,7 +46,7 @@
     top: 0;
     left: 0;
     width: 100%;
-    z-index: 1000;
+    z-index: 2000;
 }
 
 .Nav-Bar-Scal {
@@ -57,6 +77,120 @@
 
 
 
+
+/* Stylizacja menu */
+.Nav-Bar-Menu {
+    display: flex;
+    align-items: center;
+}
+
+.Nav-Bar-Menu-List {
+    display: flex;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.Nav-Bar-Menu-Item {
+    position: relative;
+    margin-left: 20px;
+}
+
+.Nav-Bar-Menu-Link {
+    color: #fff;
+    text-decoration: none;
+    padding: 10px;
+    display: block;
+}
+
+.Nav-Bar-Menu-Item:not(:first-child)::before {
+    content: '';
+    display: inline-block;
+    height: 24px;
+    width: 1px;
+    background-color: #fff;
+    position: absolute;
+    left: -10px;
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+/* Stylizacja podmenu */
+.Nav-Bar-Submenu {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    background-color: #fff;
+    padding: 10px;
+    list-style: none;
+    margin: 0;
+    box-shadow: 0px 2px 5px rgba(0,0,0,0.3);
+    z-index: 3000;
+    min-width: 220px;
+    border-radius: 4px;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(10px);
+    transition: opacity 0.2s ease, transform 0.2s ease, visibility 0s;
+    transition-delay: 0s;
+}
+
+    .Nav-Bar-Submenu li {
+        margin: 5px 0;
+    }
+
+    .Nav-Bar-Submenu a {
+        color: #000;
+        text-decoration: none;
+    }
+
+/* Debouncer 400ms i płynne pojawianie się podmenu */
+.Nav-Bar-Menu-Item:hover > .Nav-Bar-Submenu {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+    transition-delay: 0.2s; /* Opóźnienie 400 ms */
+}
+
+/* Overlay */
+.overlay {
+    position: fixed;
+    top: 72px; /* Wysokość nawigacji */
+    left: 0;
+    width: 100%;
+    height: calc(100% - 72px);
+    background: rgba(0, 0, 0, 0);
+    backdrop-filter: none;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.2s ease, backdrop-filter 0.2s ease, visibility 0s;
+    transition-delay: 0s;
+    z-index: 1500; /* Niższy niż nawigacja i podmenu */
+    pointer-events: none;
+}
+
+/* Kiedy menu jest najechane, overlay jest widoczny */
+.menu-hovered .overlay {
+    opacity: 1;
+    visibility: visible;
+    background: rgba(0, 0, 0, 0.2);
+    backdrop-filter: blur(2px);
+    transition-delay: 0.2s; /* Opóźnienie 400 ms */
+}
+
+/* Efekt rozmycia i desaturacji reszty strony */
+.menu-hovered .Main-home {
+    filter: blur(2px) grayscale(100%);
+    transition: filter 0.3s ease;
+    transition-delay: 0.2s;
+}
+
+/* Stylizacja przycisków Kontakt i Panel */
+.nav-buttons a {
+    margin-left: 20px;
+    color: #fff;
+    text-decoration: none;
+}
 
 
 /*footer */
@@ -400,7 +534,7 @@
     flex-direction: column;
     justify-content: center;
     align-items: flex-start;
-    gap: 32px;
+    gap: 30px;
     align-self: stretch;
 }
 
@@ -680,6 +814,14 @@
     height: 100vh;
     overflow: auto;
     background-color: rgba(0,0,0,0.8);
+}
+
+.sub-title {
+    display: flex;
+    border-top: 1px solid #353535;
+    text-decoration: none;
+    padding-top: 16px;
+    padding-bottom: 16px;
 }
 
 .modal-content {
