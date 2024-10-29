@@ -191,7 +191,7 @@
     border-radius: 24px;
     align-items: center;
     border: 2px solid rgba(6, 6, 6, 0.92);
-    background: rgba(6, 6, 6, 0.3);
+    background: rgba(6, 6, 6, 0.7);
     color: #fff;
     font-size: 18px;
     font-weight: 400;
@@ -201,7 +201,7 @@
 
     .Nav-Bar-Button:hover, .Contrast-Button:hover {
         box-shadow: 0px 4px 4px 0px rgba(0, 0, 0, 0.25);
-        background: rgba(6, 6, 6, 0.7);
+        background: rgba(6, 6, 6, 0.9);
         text-decoration: none;
         color: #fff;
     }
@@ -331,6 +331,7 @@
     justify-content: center;
     align-items: center;
     gap: 32px;
+    align-self:stretch;
 }
 
 
@@ -623,6 +624,13 @@
 }
 
 
+.button-space {
+    display: flex;
+    margin-top: 24px;
+    margin-bottom: 36px;
+    width: 100%;
+}
+
 .List-Box-Text-Title-Prog {
     position: relative;
     font-size: 18px;
@@ -702,8 +710,8 @@
 }
 
     .text-icon-flex img {
-        width: 38px;
-        height: 38px;
+        width: 32px;
+        height: 32px;
         margin-right: 1em;
         opacity: 1; /* Ustawienie przezroczystości obrazka */
     }
@@ -1021,5 +1029,10 @@
     
         font-size: 15px;
         font-weight: 400;
+    }
+
+    .button-space {
+       
+        justify-content: center;
     }
 }
