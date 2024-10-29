@@ -26,7 +26,7 @@
         @Html.Partial("_Header")
     }
 
-    <!-- Overlay do przyciemnienia i rozmycia strony -->
+
     <div class="overlay"></div>
 
     <div>
@@ -37,10 +37,9 @@
         @Html.Partial("_Footer")
     }
 
-    <!-- Sekcja skryptów -->
+
     @RenderSection("Scripts", required: false)
 
-    <!-- Dodaj kod JavaScript przed zamknięciem tagu body -->
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             const menuItems = document.querySelectorAll('.Nav-Bar-Menu-Item');
