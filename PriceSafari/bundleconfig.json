@@ -19,9 +19,18 @@
     }
   },
   {
-    "outputFileName": "wwwroot/css/home.min.css",
+    "outputFileName": "wwwroot/css/Home/home.min.css",
     "inputFiles": [
-      "wwwroot/css/Home.css"
+      "wwwroot/css/Home/Home.css"
+    ],
+    "minify": {
+      "enabled": true
+    }
+  },
+  {
+    "outputFileName": "wwwroot/css/Home/header.min.css",
+    "inputFiles": [
+      "wwwroot/css/Home/Header.css"
     ],
     "minify": {
       "enabled": true

@@ -1,161 +1,316 @@
-﻿@{
-    ViewData["Title"] = "Price Safari";
-    Layout = "~/Views/Shared/_Layout.cshtml";
-    var faqItems = ViewBag.FAQItems as List<PriceSafari.Models.HomeModels.FAQItem>;
-}
-
-
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="pl">
 <head>
     <meta charset="UTF-8">
-    <title>@ViewData["Title"] - Monitoring Cen</title>
-
+    <title>Cennik - Price Safari</title>
+    <link rel="stylesheet" href="styles.css"> <!-- Link do pliku CSS -->
 </head>
 <body>
-
-
     <div class="Main-home">
 
 
         <div class="Vert-Home">
-
-            <div class="Horizontal-100" style="justify-content:flex-start;">
-                <div class="Text-Box">
+            <div class="Vert-100">
+                <div class="Horizontal-100">
                     <div class="Text-Box-Title">
-                        Raporty cenowe w Europie<img src="~/images homepage/EU.png" class="img-box-left" />
+                        Monitoring cen w Polsce <img src="~/images homepage/PL.png" class="img-box-left" alt="PL" />
                     </div>
-                    <div class="Text-Box-Text">
+                </div>
+                <div class="Horizontal-100">
+                    <div class="Vert-50" style="justify-content:flex-start;">
+                        <div class="Text-Box">
 
-                        <div class="text-icon-flex">
-                            <img src="~/images/Product-search.svg" />
-                            <div class="text">
-                                <strong>Gdzie są najlepsze ceny</strong>
-                                <p>
-                                    Wyrusz na cenowe safari i odkryj, gdzie w Europie można znaleźć produkty z Twojej oferty w najkorzystniejszych cenach.
-                                    Nasze narzędzie analizuje rynki w 16 krajach Europy, przeliczając ceny na złotówki według aktualnych kursów.
-                                </p>
-                            </div>
-                        </div>
+                            <div class="Text-Box-Text">
 
-                        <div class="text-icon-flex">
-                            <img src="~/images/MoneyLock.svg" />
-                            <div class="text">
-                                <strong>Gdzie zamawiać</strong>
-                                <p>
-                                    Nasze narzędzie pomoże Ci znaleźć najtańsze oferty na interesujące Cię produkty. Dzięki temu zyskasz przewagę podczas negocjacji
-                                    cenowych z dostawcami lub podejmiesz świadome decyzje o zamówieniach zza granicy, maksymalizując swoje zyski.
-                                </p>
-                            </div>
-                        </div>
 
-                        <div class="text-icon-flex">
-                            <img src="~/images/Basket.svg" />
-                            <div class="text">
-                                <strong>Gdzie sprzedawać</strong>
+
+                                <h3>Prawie 88% kupujących sprawdza i porównuje ceny, zanim zdecyduje się na zakupy online.</h3>
+
                                 <p>
-                                    Jeżeli planujesz rozwijać swoją sprzedaż na rynkach takich jak Allegro.cz czy Allegro.sk, nasze narzędzie umożliwi Ci porównanie swoich cen z ofertami dostępnymi w wybranym kraju. Możesz błyskawicznie sprawdzić, które produkty z
-                                    Twojego asortymentu są o na przykład o 30% tańsze od najtańszych konkurencyjnych ofert na danym rynku.
+                                    Platformy takie jak Ceneo, Allegro i Google oferują
+                                    konsumentom łatwy dostęp do informacji o produktach i ich cenach, zwiększając tym samym przejrzystość rynku. PriceSafari to narzędzie, które zapewnia podobny poziom przejrzystości dla Ciebie, właściciela e-commerce.
                                 </p>
+
+
+                                <div class="button-space">
+                                    <a href="/Home/Contact" class="CleanCTA">Testuj PriceSafari za darmo</a>
+                                </div>
+
+
+
                             </div>
+
                         </div>
 
                     </div>
+                    <div class="Vert-50">
 
+                        <div class="Text-Box">
+
+
+
+                            <div class="Text-Box-Text">
+
+                                <div class="text-icon-flex">
+                                    <img src="~/images/Dot.svg" />
+                                    <div class="text">
+                                        <strong>Śledzenie konkurencji</strong> – bieżąca analiza cen, dostępności oraz działań promocyjnych konkurentów, umożliwiająca natychmiastowe reakcje rynkowe.
+                                    </div>
+                                </div>
+
+                                <div class="text-icon-flex">
+                                    <img src="~/images/Dot.svg" />
+                                    <div class="text">
+                                        <strong>Pozycja w rankingu cenowym </strong> –  precyzyjne określenie pozycji Twoich produktów na tle konkurencyjnym, dostosowane do specyfiki wybranych rynków.
+                                    </div>
+                                </div>
+
+
+
+                                <div class="text-icon-flex">
+                                    <img src="~/images/Dot.svg" />
+                                    <div class="text">
+                                        <strong>Śledzenie zmian cen</strong> – Dane historyczne które wspierają podejmowanie trafnych decyzji cenowych.
+                                    </div>
+                                </div>
+
+                                <div class="text-icon-flex">
+                                    <img src="~/images/Dot.svg" />
+                                    <div class="text">
+                                        <strong>Rekomendacje dotyczące strategii cenowej </strong> – na podstawie danych rynkowych PriceSafari wskazuje produkty, w których warto rozważyć dostosowanie cen, aby maksymalizować marżę i zwiększać konkurencyjność.
+                                    </div>
+                                </div>
+
+                            </div>
+
+                        </div>
+                    </div>
                 </div>
 
             </div>
 
         </div>
+        <div class="Vert-Home">
+          
+            <div class="Horizontal-100">
 
+             
 
+                <!-- Sekcja planów -->
+                <div class="plans-section">
 
+                    <!-- Karta planu Free -->
+                    <div class="plan-card">
+                        <img src="~/images/Free.png" alt="Plan Free" class="plan-image">
+                        <h2 class="plan-name">Monitoring 300 produktów</h2>
+                        <p class="plan-price">Darmowy plan testowy</p>
+                        <p class="plan-description">
+                            Idealny dla początkujących użytkowników, którzy chcą przetestować nasze usługi.
+                        </p>
+                        <!-- Tabela funkcji planu -->
+                        <table class="plan-features">
+                            <tr>
+                                <td>Pakiet aktualizacji:</td>
+                                <td>3</td>
+                            </tr>
+                            <tr>
+                                <td>Aktualizacja cen:</td>
+                                <td>Co 24h</td>
+                            </tr>
+                            <tr>
+                                <td>Źródło danych:</td>
+                                <td>Ceneo</td>
+                            </tr>
+                            <tr>
+                                <td>Dane historyczne:</td>
+                                <td>7 analiz</td>
+                            </tr>
+                            <tr>
+                                <td>Dostęp do API:</td>
+                                <td>Nie</td>
+                            </tr>
+                        </table>
+                        <a href="/Home/Contact" class="plan-button">Wybierz plan</a>
+                    </div>
 
+                    <!-- Karta planu Lite -->
+                    <div class="plan-card">
+                        <img src="~/images/Lite.png" alt="Plan Lite" class="plan-image">
+                        <h2 class="plan-name">Monitoring 500 produktów</h2>
+                        <p class="plan-price">499,00 zł Netto</p>
+                        <p class="plan-description">
+                            Dla małych firm potrzebujących podstawowych funkcji monitoringu.
+                        </p>
+                        <!-- Tabela funkcji planu -->
+                        <table class="plan-features">
+                            <tr>
+                                <td>Pakiet aktualizacji:</td>
+                                <td>30</td>
+                            </tr>
+                            <tr>
+                                <td>Aktualizacja cen:</td>
+                                <td>Co 24h</td>
+                            </tr>
+                            <tr>
+                                <td>Źródło danych:</td>
+                                <td>Ceneo</td>
+                            </tr>
+                            <tr>
+                                <td>Dane historyczne:</td>
+                                <td>7 analiz</td>
+                            </tr>
+                            <tr>
+                                <td>Dostęp do API:</td>
+                                <td>Tak</td>
+                            </tr>
+                        </table>
+                        <a href="/Home/Contact" class="plan-button">Wybierz plan</a>
+                    </div>
 
-        <div class="Vert-Space-Gray">
-            <div class="Vert-100" id="banner-change-target-2">
-                <div class="button-container">
-                    <button class="change-banner-2" data-target="banner-change-target-2" data-index="0">Produkty</button>
-                    <button class="change-banner-2" data-target="banner-change-target-2" data-index="1">Ceny</button>
+                    <!-- Karta planu Basic -->
+                    <div class="plan-card">
+                        <img src="~/images/Basic.png" alt="Plan Basic" class="plan-image">
+                        <h2 class="plan-name">Monitoring 1 000 produktów</h2>
+                        <p class="plan-price">699,00 zł Netto</p>
+                        <p class="plan-description">
+                            Dla firm potrzebujących bardziej zaawansowanych funkcji monitoringu.
+                        </p>
+                        <!-- Tabela funkcji planu -->
+                        <table class="plan-features">
+                            <tr>
+                                <td>Pakiet aktualizacji:</td>
+                                <td>30</td>
+                            </tr>
+                            <tr>
+                                <td>Aktualizacja cen:</td>
+                                <td>Co 24h</td>
+                            </tr>
+                            <tr>
+                                <td>Źródło danych:</td>
+                                <td>Ceneo</td>
+                            </tr>
+                            <tr>
+                                <td>Dane historyczne:</td>
+                                <td>7 analiz</td>
+                            </tr>
+                            <tr>
+                                <td>Dostęp do API:</td>
+                                <td>Tak</td>
+                            </tr>
+                        </table>
+                        <a href="/Home/Contact" class="plan-button">Wybierz plan</a>
+                    </div>
+
+                    <!-- Karta planu Pro -->
+                    <div class="plan-card">
+                        <img src="~/images/Pro.png" alt="Plan Pro" class="plan-image">
+                        <h2 class="plan-name">Monitoring 2 000 produktów</h2>
+                        <p class="plan-price">999,00 zł Netto</p>
+                        <p class="plan-description">
+                            Dla średnich firm wymagających profesjonalnych narzędzi analitycznych.
+                        </p>
+                        <!-- Tabela funkcji planu -->
+                        <table class="plan-features">
+                            <tr>
+                                <td>Pakiet aktualizacji:</td>
+                                <td>30</td>
+                            </tr>
+                            <tr>
+                                <td>Aktualizacja cen:</td>
+                                <td>Co 24h</td>
+                            </tr>
+                            <tr>
+                                <td>Źródło danych:</td>
+                                <td>Ceneo</td>
+                            </tr>
+                            <tr>
+                                <td>Dane historyczne:</td>
+                                <td>7 analiz</td>
+                            </tr>
+                            <tr>
+                                <td>Dostęp do API:</td>
+                                <td>Tak</td>
+                            </tr>
+                        </table>
+                        <a href="/Home/Contact" class="plan-button">Wybierz plan</a>
+                    </div>
+
+                    <!-- Karta planu Ultimate -->
+                    <div class="plan-card">
+                        <img src="~/images/Ultimate.png" alt="Plan Ultimate" class="plan-image">
+                        <h2 class="plan-name">Monitoring 4 000 produktów</h2>
+                        <p class="plan-price">1 699,00 zł Netto</p>
+                        <p class="plan-description">
+                            Dla dużych firm potrzebujących pełnego zakresu naszych usług.
+                        </p>
+                        <!-- Tabela funkcji planu -->
+                        <table class="plan-features">
+                            <tr>
+                                <td>Pakiet aktualizacji:</td>
+                                <td>30</td>
+                            </tr>
+                            <tr>
+                                <td>Aktualizacja cen:</td>
+                                <td>Co 24h</td>
+                            </tr>
+                            <tr>
+                                <td>Źródło danych:</td>
+                                <td>Ceneo</td>
+                            </tr>
+                            <tr>
+                                <td>Dane historyczne:</td>
+                                <td>7 analiz</td>
+                            </tr>
+                            <tr>
+                                <td>Dostęp do API:</td>
+                                <td>Tak</td>
+                            </tr>
+                        </table>
+                        <a href="/Home/Contact" class="plan-button">Wybierz plan</a>
+                    </div>
+
+                    <!-- Karta planu Enterprise -->
+                    <div class="plan-card">
+                        <img src="~/images/Enterprise.png" alt="Plan Enterprise" class="plan-image">
+                        <h2 class="plan-name">Indywidualna ilość produktów</h2>
+                        <p class="plan-price">Indywidualna wycena</p>
+                        <p class="plan-description">
+                            Dla przedsiębiorstw wymagających spersonalizowanych rozwiązań.
+                        </p>
+                        <!-- Tabela funkcji planu -->
+                        <table class="plan-features">
+                            <tr>
+                                <td>Pakiet aktualizacji:</td>
+                                <td>Indywidualne</td>
+                            </tr>
+                            <tr>
+                                <td>Aktualizacja cen:</td>
+                                <td>Indywidualne</td>
+                            </tr>
+                            <tr>
+                                <td>Źródło danych:</td>
+                                <td>Indywidualne</td>
+                            </tr>
+                            <tr>
+                                <td>Dane historyczne:</td>
+                                <td>Indywidualne</td>
+                            </tr>
+                            <tr>
+                                <td>Dostęp do API:</td>
+                                <td>Tak</td>
+                            </tr>
+                        </table>
+                        <a href="/Home/Contact" class="plan-button">Skontaktuj się</a>
+                    </div>
+
                 </div>
-                <img src="~/images homepage/RaportCeny.png" class="banner-img" style="display:block; cursor:pointer;" alt="Produkty w Europie">
-                <img src="~/images homepage/SafariCeny.png" class="banner-img" style="display:none; cursor:pointer;" alt="Ceny w Europie">
 
             </div>
-
         </div>
 
 
-
     </div>
+    
 
-    <!-- Struktura modala -->
-    <div id="image-modal" class="modal">
-        <span class="close">&times;</span>
-        <img class="modal-content" id="modal-image">
-    </div>
-
-
-    <script>
-        document.addEventListener("DOMContentLoaded", function () {
-            // Obsługa pierwszego zestawu bannerów
-            const buttons1 = document.querySelectorAll('.change-banner-1');
-            const images1 = document.querySelectorAll('#banner-change-target-1 .banner-img');
-
-            buttons1[0].classList.add('change-banner-1-active'); // Domyślnie aktywuj pierwszy przycisk
-
-            buttons1.forEach((button, index) => {
-                button.addEventListener('click', function () {
-                    buttons1.forEach(btn => btn.classList.remove('change-banner-1-active')); // Usuń aktywność z innych przycisków
-                    this.classList.add('change-banner-1-active'); // Dodaj aktywność do klikniętego przycisku
-                    images1.forEach(img => img.style.display = 'none'); // Ukryj inne obrazki
-                    images1[index].style.display = 'block'; // Pokaż wybrany obrazek
-                });
-            });
-
-            // Obsługa drugiego zestawu bannerów
-            const buttons2 = document.querySelectorAll('.change-banner-2');
-            const images2 = document.querySelectorAll('#banner-change-target-2 .banner-img');
-
-            buttons2[0].classList.add('change-banner-2-active'); // Domyślnie aktywuj pierwszy przycisk
-
-            buttons2.forEach((button, index) => {
-                button.addEventListener('click', function () {
-                    buttons2.forEach(btn => btn.classList.remove('change-banner-2-active')); // Usuń aktywność z innych przycisków
-                    this.classList.add('change-banner-2-active'); // Dodaj aktywność do klikniętego przycisku
-                    images2.forEach(img => img.style.display = 'none'); // Ukryj inne obrazki
-                    images2[index].style.display = 'block'; // Pokaż wybrany obrazek
-                });
-            });
-
-            // Funkcjonalność modala
-            var modal = document.getElementById("image-modal");
-            var modalImg = document.getElementById("modal-image");
-            var closeBtn = document.querySelector("#image-modal .close");
-
-            const bannerImages = document.querySelectorAll('.banner-img');
-            bannerImages.forEach(function (image) {
-                image.addEventListener('click', function () {
-                    modal.style.display = "block";
-                    modalImg.src = this.src;
-                });
-            });
-
-            closeBtn.addEventListener('click', function () {
-                modal.style.display = "none";
-            });
-
-            modal.addEventListener('click', function (event) {
-                if (event.target == modal) {
-                    modal.style.display = "none";
-                }
-            });
-        });
-
-    </script>
 </body>
 </html>
-
-
-
-

@@ -1,7 +1,6 @@
-﻿<!-- Górne menu nawigacyjne -->
-<div class="Nav-Bar">
+﻿<div class="Nav-Bar">
     <div class="Nav-Bar-Scal">
-        <!-- Logo -->
+
         <div class="Nav-Bar-Scal-Box">
             <div class="Nav-Bar-Logo">
                 <a href="@Url.Action("Index", "Home")">
@@ -9,23 +8,29 @@
                 </a>
             </div>
         </div>
-        <!-- Elementy menu -->
+
+        <div class="Nav-Bar-Hamburger" onclick="toggleMobileMenu()">
+            <span></span>
+            <span></span>
+            <span></span>
+        </div>
+
         <div class="Nav-Bar-Menu">
             <ul class="Nav-Bar-Menu-List">
-                <!-- Narzędzie -->
+
                 <li class="Nav-Bar-Menu-Item">
                     <a href="#" class="Nav-Bar-Menu-Link">Narzędzie</a>
                     <ul class="Nav-Bar-Submenu">
 
                         <div class="Submenu-text">
-                            <a href="/Home/PriceMonitoring">Monitoring cen w Polsce
+                            <a href="/Home/PriceMonitoring">
+                                Monitoring cen w Polsce
                                 <div class="Submenu-desc">
                                     Monitoruj ceny konkurentów, zwiększaj sprzedaż i maksymalizuj zyski.
                                 </div>
                             </a>
-                           
-                        </div>
 
+                        </div>
 
                         <div class="Submenu-text">
                             <a href="/Home/PriceRaports">
@@ -39,7 +44,7 @@
 
                     </ul>
                 </li>
-                <!-- Dlaczego PriceSafari -->
+
                 <li class="Nav-Bar-Menu-Item">
                     <a href="#" class="Nav-Bar-Menu-Link">Dlaczego PriceSafari</a>
                     <ul class="Nav-Bar-Submenu">
@@ -47,17 +52,17 @@
                         <li><a href="/Home/WhyPriceSafari">Dlaczego PriceSafari</a></li>
                     </ul>
                 </li>
-                <!-- Cennik -->
+
                 <li class="Nav-Bar-Menu-Item">
                     <a href="/Home/Pricing" class="Nav-Bar-Menu-Link">Cennik</a>
                 </li>
-                <!-- FAQ -->
+
                 <li class="Nav-Bar-Menu-Item">
                     <a href="/Home/FAQ" class="Nav-Bar-Menu-Link">FAQ</a>
                 </li>
             </ul>
         </div>
-        <!-- Przyciski Kontakt i Panel -->
+
         <div class="Nav-Bar-Scal-Box nav-buttons">
             <a href="/Home/Contact" class="Nav-Bar-Button-Contact">Kontakt</a>
             <a href="/Identity/Account/Login" class="Nav-Bar-Button">Panel</a>
@@ -65,10 +70,121 @@
     </div>
 </div>
 
-<!-- Reszta strony -->
+<div class="overlay-desktop"></div>
+
 <div class="Main-home">
-    <!-- Twoja zawartość strony -->
+
 </div>
 
-<!-- Overlay do przyciemnienia i rozmycia strony -->
-<div class="overlay"></div>
+<div class="overlay-mobile"></div>
+
+<div id="mobile-menu" class="Mobile-Menu">
+    <ul class="Mobile-Menu-List">
+        <!-- Narzędzie -->
+        <li class="Mobile-Menu-Item">
+            <a href="#" class="Mobile-Menu-Link" onclick="toggleSubmenu(event, 'submenu-narzedzie')">Narzędzie</a>
+            <ul id="submenu-narzedzie" class="Mobile-Submenu">
+                <li>
+                    <a href="/Home/PriceMonitoring">
+                        Monitoring cen w Polsce
+                        <div class="Mobile-Submenu-Desc">
+                            Monitoruj ceny konkurentów, zwiększaj sprzedaż i maksymalizuj zyski.
+                        </div>
+                    </a>
+                </li>
+                <li>
+                    <a href="/Home/PriceRaports">
+                        Raporty cenowe w Europie
+                        <div class="Mobile-Submenu-Desc">
+                            Znajdź najniższe ceny produktów z Twojej oferty w całej Europie.
+                        </div>
+                    </a>
+                </li>
+            </ul>
+        </li>
+        <!-- Dlaczego PriceSafari -->
+        <li class="Mobile-Menu-Item">
+            <a href="#" class="Mobile-Menu-Link" onclick="toggleSubmenu(event, 'submenu-dlaczego')">Dlaczego PriceSafari</a>
+            <ul id="submenu-dlaczego" class="Mobile-Submenu">
+                <li><a href="/Home/AboutUs">O nas</a></li>
+                <li><a href="/Home/WhyPriceSafari">Dlaczego PriceSafari</a></li>
+            </ul>
+        </li>
+        <!-- Cennik -->
+        <li class="Mobile-Menu-Item">
+            <a href="/Home/Pricing" class="Mobile-Menu-Link">Cennik</a>
+        </li>
+        <!-- FAQ -->
+        <li class="Mobile-Menu-Item">
+            <a href="/Home/FAQ" class="Mobile-Menu-Link">FAQ</a>
+        </li>
+        <!-- Pozostałe elementy menu -->
+    </ul>
+    <div class="Mobile-bottom">
+        <a href="/Home/Contact" class="Mobile-contact">Kontakt</a>
+        <a href="/Identity/Account/Login" class="Mobile-login">Panel</a>
+    </div>
+</div>
+
+
+
+<script>
+    function toggleMobileMenu() {
+        var mobileMenu = document.getElementById('mobile-menu');
+        var overlayMobile = document.querySelector('.overlay-mobile');
+        var hamburgerIcon = document.querySelector('.Nav-Bar-Hamburger');
+
+        mobileMenu.classList.toggle('open');
+        overlayMobile.classList.toggle('visible');
+        hamburgerIcon.classList.toggle('open');
+    }
+
+    document.querySelector('.overlay-mobile').addEventListener('click', function () {
+        toggleMobileMenu();
+    });
+
+    function toggleSubmenu(event, submenuId) {
+        event.preventDefault();
+        var submenu = document.getElementById(submenuId);
+        var link = event.currentTarget;
+        var parentItem = link.parentElement;
+
+        // Check if the submenu is currently open
+        var isSubmenuOpen = submenu.classList.contains('open');
+
+        // Close all submenus and remove 'active' class from all items
+        var allSubmenus = document.querySelectorAll('.Mobile-Submenu');
+        var allLinks = document.querySelectorAll('.Mobile-Menu-Link');
+        var allItems = document.querySelectorAll('.Mobile-Menu-Item');
+
+        allSubmenus.forEach(function (item) {
+            item.classList.remove('open');
+        });
+
+        allLinks.forEach(function (item) {
+            item.classList.remove('open');
+        });
+
+        allItems.forEach(function (item) {
+            item.classList.remove('active');
+        });
+
+        if (!isSubmenuOpen) {
+            // If the submenu was not open, open it and mark the item as active
+            submenu.classList.add('open');
+            link.classList.add('open');
+            parentItem.classList.add('active');
+        }
+        // If the submenu was open, we've already closed it and removed 'active'
+    }
+
+
+    // Zamknij menu po kliknięciu w link w podmenu
+    var mobileSubmenuLinks = document.querySelectorAll('.Mobile-Submenu a');
+    mobileSubmenuLinks.forEach(function (link) {
+        link.addEventListener('click', function () {
+            toggleMobileMenu();
+        });
+    });
+
+</script>
