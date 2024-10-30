@@ -710,6 +710,7 @@ h3 {
     border: 1px solid #000;
     background: #222222;
     box-shadow: -6px 6px 15.2px 0px rgba(0, 0, 0, 0.25) inset;
+   
 }
 
 .List-Box {
@@ -728,7 +729,7 @@ h3 {
     justify-content:space-between;
     gap: 32px;
     align-self: stretch;
-
+   
 }
 
 .List-Box-Text {
@@ -1080,150 +1081,171 @@ h3 {
 }
 
 
+@media (max-width: 1846px) {
 
-
-
-
-/* Responsywne style dla urządzeń mobilnych */
-
-@media (max-width: 900px) {
-
-    .hamburger-menu {
-        display: flex;
+    .Vert-Home.reverse-on-mobile .Vert-50:first-child {
+        order: 2;
     }
 
-    .Nav-Bar-Scal-Box.nav-buttons {
-        display: none;
-    }
-
-
-    /* Nawigacja */
-    .Nav-Bar {
-        padding: 4px 16px;
-    }
-
-    .Nav-Bar-Scal {
-        gap: 16px;
-    }
-
-    .Nav-Bar-Scal-Box {
-        width: 100%;
-        justify-content: flex-start;
-    }
-
-        .Nav-Bar-Scal-Box.nav-buttons {
-            flex-direction: column;
-            gap: 8px;
-        }
-
-            /* Przyciski nawigacji */
-            .Nav-Bar-Scal-Box.nav-buttons .Nav-Bar-Button {
-                width: 100%;
-                justify-content: center;
-            }
-
-    /* Główna zawartość */
-    .Vert-Home {
-        padding: 32px 16px;
-        gap: 32px;
-    }
-
-    .Vert-50 {
-        max-width: none;
-    }
-
-    /* Teksty */
-    .Text-Box-Text,
-    .Icon-Box-Text-Text,
-    .Icon-Box-Text-Title,
-    .List-Box-Text-Text,
-    .List-Box-Text-Title {
-        font-size: 16px;
-    }
-
-    /* Ikony */
-    .Icon-Box-Text {
-        width: 100%;
-    }
-
-    /* Layouty */
-    .Horizontal-Box,
-    .List-Box,
-    .button-container {
-        align-items: center;
-        gap: 16px;
-    }
-
-    /* Przyciski zmiany bannera */
-    .change-banner-1,
-    .change-banner-2 {
-        width: 100%;
-    }
-
-    .Text-Box-Title {
-        font-size: 26px;
-    }
-
-    .login-box-title {
-        font-size: 26px;
-    }
-
-    .VertDark {
-        padding: 32px 24px;
-    }
-
-    .contact-box-info {
-        font-size: 15px;
-        margin-top: 0px;
-    }
-
-    .form-check-label {
-        font-size: 13px;
-    }
-
-    .CleanCTA {
-        font-size: 26px;
-    }
-
-    .Vert-Space-Dark {
-        padding: 32px 16px;
-    }
-
-    .Vert-Space-Gray {
-        padding: 32px 16px;
-        box-shadow: none;
-    }
-
-    /* Stopka */
-    .Fotter {
-        padding: 32px 16px;
-    }
-
-    .Fotter-Box {
-        gap: 24px;
+    .Vert-Home.reverse-on-mobile .Vert-50:last-child {
+        order: 1;
     }
 
     .Horizontal-100 {
         flex-direction: column;
-        gap: 32px;
-    }
-
-    .Footer-Section {
-        width: 100%;
-    }
-
-
-    .change-banner-1, .change-banner-2 {
        
-   
-        padding: 2px 6px;
-    
-        font-size: 15px;
-        font-weight: 400;
-    }
-
-    .button-space {
-       
-        justify-content: center;
     }
 }
+
+
+
+    /* Responsywne style dla urządzeń mobilnych */
+
+    @media (max-width: 900px) {
+
+        .hamburger-menu {
+            display: flex;
+        }
+
+        .Nav-Bar-Scal-Box.nav-buttons {
+            display: none;
+        }
+
+
+        /* Nawigacja */
+        .Nav-Bar {
+            padding: 4px 16px;
+        }
+
+        .Nav-Bar-Scal {
+            gap: 16px;
+        }
+
+        .Nav-Bar-Scal-Box {
+            width: 100%;
+            justify-content: flex-start;
+        }
+
+            .Nav-Bar-Scal-Box.nav-buttons {
+                flex-direction: column;
+                gap: 8px;
+            }
+
+                /* Przyciski nawigacji */
+                .Nav-Bar-Scal-Box.nav-buttons .Nav-Bar-Button {
+                    width: 100%;
+                    justify-content: center;
+                }
+
+        /* Główna zawartość */
+        .Vert-Home {
+            padding: 32px 16px;
+            gap: 32px;
+        }
+
+
+            .Vert-Home.reverse-on-mobile .Vert-50:first-child {
+                order: 2;
+            }
+
+            .Vert-Home.reverse-on-mobile .Vert-50:last-child {
+                order: 1;
+            }
+
+        .Vert-50 {
+            max-width: none;
+        }
+
+        /* Teksty */
+        .Text-Box-Text,
+        .Icon-Box-Text-Text,
+        .Icon-Box-Text-Title,
+        .List-Box-Text-Text,
+        .List-Box-Text-Title {
+            font-size: 16px;
+        }
+
+        /* Ikony */
+        .Icon-Box-Text {
+            width: 100%;
+        }
+
+        /* Layouty */
+        .Horizontal-Box,
+        .List-Box,
+        .button-container {
+            align-items: center;
+            gap: 16px;
+        }
+
+        /* Przyciski zmiany bannera */
+        .change-banner-1,
+        .change-banner-2 {
+            width: 100%;
+        }
+
+        .Text-Box-Title {
+            font-size: 26px;
+        }
+
+        .login-box-title {
+            font-size: 26px;
+        }
+
+        .VertDark {
+            padding: 32px 24px;
+        }
+
+        .contact-box-info {
+            font-size: 15px;
+            margin-top: 0px;
+        }
+
+        .form-check-label {
+            font-size: 13px;
+        }
+
+        .CleanCTA {
+            font-size: 26px;
+        }
+
+        .Vert-Space-Dark {
+            padding: 32px 16px;
+        }
+
+        .Vert-Space-Gray {
+            padding: 32px 16px;
+            box-shadow: none;
+        }
+
+        /* Stopka */
+        .Fotter {
+            padding: 32px 16px;
+        }
+
+        .Fotter-Box {
+            gap: 24px;
+        }
+
+        .Horizontal-100 {
+            flex-direction: column;
+            gap: 32px;
+          
+           
+        }
+
+        .Footer-Section {
+            width: 100%;
+        }
+
+
+        .change-banner-1, .change-banner-2 {
+            padding: 2px 6px;
+            font-size: 15px;
+            font-weight: 400;
+        }
+
+        .button-space {
+            justify-content: center;
+        }
+    }
