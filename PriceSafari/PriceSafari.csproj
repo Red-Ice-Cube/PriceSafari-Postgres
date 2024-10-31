@@ -8,6 +8,10 @@
 	</PropertyGroup>
 
 	<ItemGroup>
+	  <Content Remove="Views\Home\WhyPriceSafari.cshtml" />
+	</ItemGroup>
+
+	<ItemGroup>
 		<PackageReference Include="BuildBundlerMinifier" Version="3.2.449" />
 		<PackageReference Include="ChartJS" Version="23.1.12" />
 		<PackageReference Include="ChartJs.Blazor" Version="1.1.0" />
@@ -50,6 +54,18 @@
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 			<CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
 		</Content>
+	</ItemGroup>
+
+	<ItemGroup>
+	  <UpToDateCheckInput Remove="Views\Home\WhyPriceSafari.cshtml" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <_ContentIncludedByDefault Remove="Views\Home\WhyPriceSafari.cshtml" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <None Include="Views\Home\WhyPriceSafari.cshtml" />
 	</ItemGroup>
 
 </Project>

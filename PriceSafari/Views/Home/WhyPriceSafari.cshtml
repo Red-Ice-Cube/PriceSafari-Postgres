@@ -1,0 +1,273 @@
+﻿@{
+    ViewData["Title"] = "Price Safari";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    var faqItems = ViewBag.FAQItems as List<PriceSafari.Models.HomeModels.FAQItem>;
+}
+
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <title>@ViewData["Title"] - Monitoring Cen</title>
+
+</head>
+<body>
+
+    <div class="Main-home">
+
+        <div class="Vert-Home">
+            <div class="Vert-100">
+                <div class="Horizontal-100">
+                    <div class="Text-Box-Title">
+                        Monitoring cen w Polsce <img src="~/images homepage/PL.png" class="img-box-left" alt="PL" />
+                    </div>
+                </div>
+                <div class="Horizontal-100">
+                    <div class="Vert-50" style="justify-content:flex-start;">
+                        <div class="Text-Box">
+
+                            <div class="Text-Box-Text">
+
+
+
+                                <h3>Prawie 88% kupujących sprawdza i porównuje ceny, zanim zdecyduje się na zakupy online.</h3>
+
+                                <p>
+                                    Platformy takie jak Ceneo, Allegro i Google oferują
+                                    konsumentom łatwy dostęp do informacji o produktach i ich cenach, zwiększając tym samym przejrzystość rynku. PriceSafari to narzędzie, które zapewnia podobny poziom przejrzystości dla Ciebie, właściciela e-commerce.
+                                </p>
+
+
+                                <div class="button-space">
+                                    <a href="/Home/Contact" class="CleanCTA">Testuj PriceSafari za darmo</a>
+                                </div>
+
+
+
+                            </div>
+
+                        </div>
+
+                    </div>
+                    <div class="Vert-50">
+
+                        <div class="Text-Box">
+
+
+
+                            <div class="Text-Box-Text">
+
+                                <div class="text-icon-flex">
+                                    <img src="~/images/Dot.svg" />
+                                    <div class="text">
+                                        <strong>Śledzenie konkurencji</strong> – bieżąca analiza cen, dostępności oraz działań promocyjnych konkurentów, umożliwiająca natychmiastowe reakcje rynkowe.
+                                    </div>
+                                </div>
+
+                                <div class="text-icon-flex">
+                                    <img src="~/images/Dot.svg" />
+                                    <div class="text">
+                                        <strong>Pozycja w rankingu cenowym </strong> –  precyzyjne określenie pozycji Twoich produktów na tle konkurencyjnym, dostosowane do specyfiki wybranych rynków.
+                                    </div>
+                                </div>
+
+
+
+                                <div class="text-icon-flex">
+                                    <img src="~/images/Dot.svg" />
+                                    <div class="text">
+                                        <strong>Śledzenie zmian cen</strong> – Dane historyczne które wspierają podejmowanie trafnych decyzji cenowych.
+                                    </div>
+                                </div>
+
+                                <div class="text-icon-flex">
+                                    <img src="~/images/Dot.svg" />
+                                    <div class="text">
+                                        <strong>Rekomendacje dotyczące strategii cenowej </strong> – na podstawie danych rynkowych PriceSafari wskazuje produkty, w których warto rozważyć dostosowanie cen, aby maksymalizować marżę i zwiększać konkurencyjność.
+                                    </div>
+                                </div>
+
+                            </div>
+
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="Vert-Space-Gray">
+            <div class="Vert-100">
+                <div class="Text-Box">
+
+                    <div class="Text-Box-Text">
+
+                        <div class="text-icon-flex">
+                            <img src="~/images homepage/1-b.svg" />
+                            <div class="text">
+                                <strong>Asortyment</strong>
+                                <p>
+                                    Aby rozpocząć analizę, potrzebujemy jedynie nazwy Twojego sklepu – nie wymagamy nawet feedu produktowego. Nasz system samodzielnie identyfikuje produkty, monitoruje ceny konkurentów,
+                                    dostępność asortymentu oraz kluczowe zmiany rynkowe.
+                                </p>
+                            </div>
+                        </div>
+
+                    </div>
+
+                </div>
+                <img src="~/images homepage/ProductList.png" class="banner-img" style=" cursor:pointer;" alt="ProductList">
+
+                <div class="Text-Box">
+
+                    <div class="Text-Box-Text">
+
+                        <div class="text-icon-flex">
+                            <img src="~/images homepage/2-b.svg" />
+                            <div class="text">
+                                <strong>Panel monitoringu</strong>
+                                <p>
+                                    W panelu prezentowane są kluczowe informacje dotyczące cen Twoich produktów oraz ich pozycji względem konkurencji.
+                                    Wykres po lewej stronie przedstawia rozkład cen w pięciu kategoriach, umożliwiając szybki przegląd statusu cenowego produktów. Możliwość dostosowania marginesów cenowych pozwala na precyzyjne zarządzanie
+                                    różnicami cenowymi zgodnie z Twoimi preferencjami.
+                                </p>
+
+                                <p>
+                                    W szczegółowym widoku produktów po lewej stronie wyświetlana jest najniższa oferta dostępna na rynku, natomiast po prawej – Twoja aktualna cena. Dodatkowo, panel zawiera informacje o marży,
+                                    cenie zakupu oraz szczegółowe zalecenia dotyczące zmiany cen, np. obniżenie lub podwyższenie ceny w celu zwiększenia konkurencyjności.
+                                </p>
+
+                            </div>
+                        </div>
+
+                    </div>
+
+                </div>
+                <img src="~/images homepage/PanelCeny.png" class="banner-img" style=" cursor:pointer;" alt="Przygotowanie raportu">
+
+                <div class="Text-Box">
+
+                    <div class="Text-Box-Text">
+
+                        <div class="text-icon-flex">
+                            <img src="~/images homepage/3-b.svg" />
+                            <div class="text">
+                                <strong>Ranking cenowy produktu</strong>
+                                <p>
+
+                                    Po kliknięciu na wybrany produkt w panelu, otrzymujesz szczegółowy widok rozkładu cen oraz dostępnych ofert tego produktu na rynku.
+                                    Widok ten prezentuje zestawienie cenowe z różnych sklepów, umożliwiając szybkie porównanie Twojej ceny z ofertami konkurencji.
+                                    Każdy wiersz przedstawia informacje o cenie produktu,
+                                    różnicy cenowej względem Twojej oferty, a także widoczność oferty w wynikach wyszukiwania, status bidowania oraz koszty i czas dostawy.
+                                </p>
+                            </div>
+                        </div>
+
+                    </div>
+
+                </div>
+                <img src="~/images homepage/Ceny.png" class="banner-img" style=" cursor:pointer;" alt="Ceny">
+
+                <div class="Text-Box">
+
+                    <div class="Text-Box-Text">
+
+                        <div class="text-icon-flex">
+                            <img src="~/images homepage/4-b.svg" />
+                            <div class="text">
+                                <strong>Konkurencja</strong>
+                                <p>
+                                    Panel konkurencji w PriceSafari umożliwia szczegółowy podgląd na wspólny asortyment z innymi sprzedawcami,
+                                    co pozwala na monitorowanie tego, które sklepy również oferują Twoje produkty oraz porównanie ich cen z Twoją ofertą.
+                                    W kolumnie „Wspólne Produkty” znajdziesz liczbę pozycji, które pokrywają się z asortymentem konkurentów, natomiast kolumna
+                                    „Porównanie Cen” przedstawia wizualne zestawienie – dzięki kolorowym oznaczeniom możesz łatwo ocenić, czy jesteś cenowo bardziej konkurencyjny, czy droższy od innych.
+                                </p>
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </div>
+                <img src="~/images homepage/Konkurencja.png" class="banner-img" style=" cursor:pointer;" alt="Konkurencja">
+
+                <div class="Text-Box">
+
+                    <div class="Text-Box-Text">
+
+                        <div class="text-icon-flex">
+                            <img src="~/images homepage/4-b.svg" />
+                            <div class="text">
+                                <strong>Dane historyczne</strong>
+                                <p>
+                                    Po wybraniu konkretnego konkurenta oraz odpowiednich dat, panel PriceSafari umożliwia szczegółowy podgląd na zmiany cen, które konkurent wprowadził dla poszczególnych produktów.
+                                    Widzisz tutaj pełną historię modyfikacji cen, w tym daty podwyżek,
+                                    obniżek oraz inne zmiany cenowe. Dzięki temu możesz śledzić strategię cenową wybranego konkurenta w czasie, zyskując cenny wgląd w jego działania marketingowe.
+                                </p>
+
+                                <p>
+                                    Funkcjonalność ta pozwala na analizę zachowań konkurencji i ich podejścia do ustalania cen, co może być szczególnie wartościowe przy planowaniu własnej strategii, np. na
+                                    nadchodzący Black Week, długie weekendy czy inne okresy promocyjne. Możliwość obserwacji zmian cen konkurencji w
+                                    wybranych dniach tygodnia lub okresach sezonowych umożliwia lepsze zrozumienie ich podejścia i pozwala dostosować Twoją ofertę, aby utrzymać konkurencyjność na rynku.
+                                </p>
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </div>
+                <img src="~/images homepage/ZmianyCeny.png" class="banner-img" style=" cursor:pointer;" alt="ZmianyCeny">
+            </div>
+
+        </div>
+
+        <div class="Vert-Home">
+            <div class="Vert-50-List">
+                <h2 class="Text-Box-Title" style="margin-bottom:32px;">Najczęściej zadawane pytania</h2>
+
+                @foreach (var item in faqItems)
+                {
+                    <div class="List-Box-Q" onclick="toggleAnswer(this)">
+                        <div class="List-Box-Text">
+                            <h3 class="List-Box-Text-Title">@item.Question</h3>
+                            <div class="List-Box-Text-Text-Q">
+                                @Html.Raw(item.Answer)
+                            </div>
+                        </div>
+                    </div>
+                }
+                <a href="/Home/FAQ" class="CleanButton">Więcej pytań i odpowiedzi</a>
+            </div>
+
+            <div class="Vert-50-List">
+                <div class="List-Box-Text">
+                    <h2 class="Text-Box-Title">Przetestuj PriceSafari</h2>
+                    <p class="List-Box-Text-Text">Spotkajmy się i porozmawiajmy o Twoich potrzebach w zakresie monitoringu cen. Obiecujemy, że wdrożenie naszego programu będzie przełomową zmiana w Twojej firmie.</p>
+                    <p class="List-Box-Text-Text">Wszyscy nasi klienci są wspierani przez dedykowanego Managera ds. sukcesu klienta, który jest do Twojej dyspozycji, abyś mógł odnieść jak największy sukces pracując z naszą platformą.</p>
+                </div>
+                <a href="/Home/Contact" class="CleanCTA">Testuj za darmo</a>
+                <div class="List-Box-Text">
+                    <h2 class="Text-Box-Title">Kontakt</h2>
+                    <p class="List-Box-Text-Text">Jeżeli masz dodatkowe pytania, nie wahaj się skontaktować z nami. Jesteśmy tutaj, aby Ci pomóc i dostarczyć wszelkich potrzebnych informacji.</p>
+                </div>
+                <div class="List-Box-Text-Text">
+                    <div class="Mini-Icon"><img src="~/images/Mail-b.svg" alt="E-mail">biuro@pricesafari.pl</div>
+                    <div class="Mini-Icon"><img src="~/images/Phone-b.svg" alt="Telefon">514 188 340</div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Struktura modala -->
+    <div id="image-modal" class="modal">
+        <span class="close">&times;</span>
+        <img class="modal-content" id="modal-image">
+    </div>
+
+</body>
+</html>
+
+<script src="/js/Home/index.min.js"></script>

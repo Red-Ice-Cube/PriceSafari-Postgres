@@ -1,9 +1,7 @@
 ﻿@model IEnumerable<PriceSafari.Models.ClientProfile>
 
 @{
-    Layout = "~/Views/Shared/_PanelLayout.cshtml";
-
-    // Get distinct users who have created profiles
+    Layout = "~/Views/Shared/_PanelLayout.cshtml";  
     var users = Model.Where(m => m.CreatedByUser != null)
                      .GroupBy(m => m.CreatedByUser.Id)
                      .Select(g => g.First().CreatedByUser);
@@ -17,30 +15,31 @@
             </div>
             <partial name="_ContactNavCol" />
         </div>
-        <div class="Horizontal" ">
+        <div class="Horizontal">
+
             <div class="product-upper-box">
-                <div>
-                    <a class="Button-Page-Small" asp-action="Create">Dodaj nowy profil</a>
-                </div>
+               
+                <a asp-action="Create" class="Button-Page-Small">Dodaj profil</a>
+
                 <div class="order-search-box">
                     <input type="text" id="accountSearch" placeholder="Wyszukaj firmę">
                     <select id="createdByFilter" class="DropDown">
                         <option value="">Wszystkie osoby</option>
-                        @foreach (var user in users)
-                        {
+        @foreach (var user in users)
+        {
                             <option value="@user.Id.ToString()">@user.PartnerName @user.PartnerSurname</option>
-                        }
+        }
                     </select>
 
                     <select id="statusFilter" class="DropDown">
                         <option value="">Wszystkie statusy</option>
-                        @foreach (var status in Enum.GetValues(typeof(PriceSafari.Models.ClientStatus)).Cast<PriceSafari.Models.ClientStatus>())
-                        {
+        @foreach (var status in Enum.GetValues(typeof(PriceSafari.Models.ClientStatus)).Cast<PriceSafari.Models.ClientStatus>())
+        {
                             <option value="@((int)status)">@GetStatusDisplayName(status)</option>
-                        }
+        }
                     </select>
                 </div>
-               
+
             </div>
             <div class="Vert-table">
                 <table class="table-orders">
@@ -58,8 +57,8 @@
                         </tr>
                     </thead>
                     <tbody>
-                        @foreach (var item in Model)
-                        {
+        @foreach (var item in Model)
+        {
                             <tr data-contact="@item.ClientProfileId" data-createdby="@item.CreatedByUser?.Id.ToString()" data-status="@((int)item.Status)" style="cursor:pointer;">
                                 <td>@item.ClientProfileId</td>
                                 <td>@item.CreationDate.ToString("dd-MM-yyyy")</td>
@@ -70,18 +69,20 @@
                                 <td>@item.CeneoProfileProductCount</td>
                                 <td>
                                     <span class="badge" style="background-color:@GetStatusColor(item.Status)">
-                                        @GetStatusDisplayName(item.Status)
+                        @GetStatusDisplayName(item.Status)
                                     </span>
                                 </td>
                                 <td>@item.CreatedByUser?.PartnerName @item.CreatedByUser?.PartnerSurname</td>
                             </tr>
-                        }
+        }
                     </tbody>
                 </table>
             </div>
         </div>
     </div>
 </div>
+
+
 
 <script>
     document.addEventListener('DOMContentLoaded', function () {
@@ -131,34 +132,34 @@
     });
 </script>
 
-@functions {
-    public string GetStatusColor(PriceSafari.Models.ClientStatus status)
-    {
-        return status switch
-        {
-            PriceSafari.Models.ClientStatus.Nowy => "#17a2b8",
-            PriceSafari.Models.ClientStatus.Mail => "#ffc107",
-            PriceSafari.Models.ClientStatus.Urabiany => "#28a745",
-            PriceSafari.Models.ClientStatus.Spotkanie => "#007bff",
-            PriceSafari.Models.ClientStatus.Testuje => "#6f42c1",
-            PriceSafari.Models.ClientStatus.Frajer => "#000",
-            PriceSafari.Models.ClientStatus.Ojebane => "#dc3545",
-            _ => "#6c757d"
-        };
-    }
+        @functions {
+            public string GetStatusColor(PriceSafari.Models.ClientStatus status)
+            {
+                return status switch
+                {
+                    PriceSafari.Models.ClientStatus.Nowy => "#17a2b8",
+                    PriceSafari.Models.ClientStatus.Mail => "#ffc107",
+                    PriceSafari.Models.ClientStatus.Urabiany => "#28a745",
+                    PriceSafari.Models.ClientStatus.Spotkanie => "#007bff",
+                    PriceSafari.Models.ClientStatus.Testuje => "#6f42c1",
+                    PriceSafari.Models.ClientStatus.Frajer => "#000",
+                    PriceSafari.Models.ClientStatus.Ojebane => "#dc3545",
+                    _ => "#6c757d"
+                };
+            }
 
-    public string GetStatusDisplayName(PriceSafari.Models.ClientStatus status)
-    {
-        return status switch
-        {
-            PriceSafari.Models.ClientStatus.Nowy => "Nowy Kontakt",
-            PriceSafari.Models.ClientStatus.Mail => "Wysłano Maila",
-            PriceSafari.Models.ClientStatus.Urabiany => "Rozmowy w toku",
-            PriceSafari.Models.ClientStatus.Spotkanie => "Umówiono Spotkanie",
-            PriceSafari.Models.ClientStatus.Testuje => "Testuje oprogramowanie",
-            PriceSafari.Models.ClientStatus.Frajer => "Klient frajer",
-            PriceSafari.Models.ClientStatus.Ojebane => "Oprogramowanie ojebane",
-            _ => "Nieznany"
-        };
-    }
+            public string GetStatusDisplayName(PriceSafari.Models.ClientStatus status)
+            {
+                return status switch
+                {
+                    PriceSafari.Models.ClientStatus.Nowy => "Nowy Kontakt",
+                    PriceSafari.Models.ClientStatus.Mail => "Wysłano Maila",
+                    PriceSafari.Models.ClientStatus.Urabiany => "Rozmowy w toku",
+                    PriceSafari.Models.ClientStatus.Spotkanie => "Umówiono Spotkanie",
+                    PriceSafari.Models.ClientStatus.Testuje => "Testuje oprogramowanie",
+                    PriceSafari.Models.ClientStatus.Frajer => "Klient frajer",
+                    PriceSafari.Models.ClientStatus.Ojebane => "Oprogramowanie ojebane",
+                    _ => "Nieznany"
+                };
+            }
 }

@@ -213,6 +213,20 @@ namespace PriceSafari.Controllers.HomeControllers
             return View();
         }
 
+
+
+
+        public IActionResult WhyPriceSafari()
+        {
+            return View();
+        }
+
+
+        public IActionResult AboutUs()
+        {
+            return View();
+        }
+
         public IActionResult Contact()
         {
             return View();
@@ -239,20 +253,20 @@ namespace PriceSafari.Controllers.HomeControllers
                 _context.ContactFormSubmissions.Add(submission);
                 await _context.SaveChangesAsync();
 
-                // Wysłanie powiadomienia email do administratora
+               
                 var adminSubject = "Nowe zgłoszenie z formularza kontaktowego";
                 var adminMessage = $"Nowe zgłoszenie od {submission.FirstName} {submission.LastName}";
                 await _emailSender.SendEmailAsync("twoj_email@przyklad.pl", adminSubject, adminMessage);
 
-                // Wysłanie emaila z podziękowaniem do użytkownika
+            
                 var userSubject = "Dziękujemy za kontakt z nami!";
                 string userMessage = await _viewRenderService.RenderToStringAsync("EmailTemplates/ThankYouEmail", submission);
                 await _emailSender.SendEmailAsync(submission.Email, userSubject, userMessage);
 
-                // Ustawienie flagi informującej o sukcesie
+                
                 ViewBag.FormSubmitted = true;
 
-                // Opcjonalnie: Możesz wyczyścić model, aby nie wyświetlał danych w polach formularza
+             
                 ModelState.Clear();
                 return View();
             }
