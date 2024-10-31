@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.EntityFrameworkCore;
 using PriceSafari.Models.HomeModels;
 using PriceSafari.Services.ViewRenderService;
+using Plotly.NET.LayoutObjects;
 
 namespace PriceSafari.Controllers.HomeControllers
 {
@@ -31,11 +32,11 @@ namespace PriceSafari.Controllers.HomeControllers
                 new FAQItem
                 {
                     Question = "Co jest potrzebne, aby zacząć?",
-                    Answer = @"<p>Aby rozpocząć monitoring cen na platformie Ceneo, potrzebujemy jedynie adresu URL Twojego sklepu internetowego. Nie musisz dostarczać nam feedu produktowego – znajdziemy wszystkie produkty oferowane na Twojej witrynie, a następnie, w zależności od wybranego pakietu, sam zdecydujesz, które ceny chcesz monitorować.</p>
-                    <p>Informacje o naszych podstawowych pakietach znajdziesz <a href=""URL_TUTAJ"">tutaj</a>.</p>
+                    Answer = @$"<p>Aby rozpocząć monitoring cen na platformie Ceneo, potrzebujemy jedynie adresu URL Twojego sklepu internetowego. Nie musisz dostarczać nam feedu produktowego – znajdziemy wszystkie produkty oferowane na Twojej witrynie, a następnie, w zależności od wybranego pakietu, sam zdecydujesz, które ceny chcesz monitorować.</p>
+                    <p>Informacje o naszych podstawowych pakietach znajdziesz <a href='{Url.Action("Pricing", "Home")}' class='CleanButton'>tutaj</a>.</p>
                     <p>Jeśli chcesz skorzystać z dodatkowych funkcji, takich jak dodanie zdjęć produktów, integracja z Twoim sklepem przez API czy możliwość aktualizacji cen jednym kliknięciem z poziomu panelu, będziemy potrzebowali Twojego feedu produktowego z platformy Ceneo. Umożliwi nam to połączenie Twoich ofert z Twoim sklepem, dzięki czemu, na przykład, gdy zaktualizujesz ceny, będziesz mógł natychmiast zobaczyć, które produkty zostały zmienione.</p>
                     <p>Do monitorowania cen w Europie potrzebujemy od Ciebie feedu produktowego z Google Merchant Center. Po jego otrzymaniu proces jest automatyczny – wyszukamy Twoje produkty, a Ty wybierzesz, które z nich oraz w jakich krajach chcesz śledzić.</p>
-                    <p>Więcej o raportach Safari dowiesz się <a href=""URL_TUTAJ"">tutaj</a>.</p>"
+                    <p>Więcej o raportach Safari dowiesz się <a href='{Url.Action("PriceRaports", "Home")}' class='CleanButton'>tutaj</a>.</p>"
                 },
                 new FAQItem
                 {
@@ -46,7 +47,8 @@ namespace PriceSafari.Controllers.HomeControllers
                 new FAQItem
                 {
                     Question = "Ile kosztuje monitoring cen?",
-                    Answer = @"<p>Koszt monitoringu cen zależy od kilku czynników, takich jak zakres usług oraz częstotliwość aktualizacji danych. Nasze podstawowe pakiety obejmują monitoring danych z platformy Ceneo, z aktualizacją co 24 godziny. Szczegółowe informacje o cenach znajdziesz <a href=""URL_TUTAJ"">tutaj</a>.</p>"
+                    Answer = @$"<p>Koszt monitoringu cen zależy od kilku czynników, takich jak zakres usług oraz częstotliwość aktualizacji danych. Nasze podstawowe pakiety obejmują monitoring danych z platformy Ceneo, z aktualizacją co 24 godziny. Szczegółowe informacje o cenach znajdziesz <a href='{Url.Action("Pricing", "Home")}' class='CleanButton'>tutaj</a></p>"
+
                 },
                 new FAQItem
                 {
@@ -76,11 +78,11 @@ namespace PriceSafari.Controllers.HomeControllers
                 new FAQItem
                 {
                     Question = "Co jest potrzebne, aby zacząć?",
-                    Answer = @"<p>Aby rozpocząć monitoring cen na platformie Ceneo, potrzebujemy jedynie adresu URL Twojego sklepu internetowego. Nie musisz dostarczać nam feedu produktowego – znajdziemy wszystkie produkty oferowane na Twojej witrynie, a następnie, w zależności od wybranego pakietu, sam zdecydujesz, które ceny chcesz monitorować.</p>
-                    <p>Informacje o naszych podstawowych pakietach znajdziesz <a href=""URL_TUTAJ"">tutaj</a>.</p>
+                    Answer = @$"<p>Aby rozpocząć monitoring cen na platformie Ceneo, potrzebujemy jedynie adresu URL Twojego sklepu internetowego. Nie musisz dostarczać nam feedu produktowego – znajdziemy wszystkie produkty oferowane na Twojej witrynie, a następnie, w zależności od wybranego pakietu, sam zdecydujesz, które ceny chcesz monitorować.</p>
+                    <p>Informacje o naszych podstawowych pakietach znajdziesz <a href='{Url.Action("Pricing", "Home")}' class='CleanButton'>tutaj</a>.</p>
                     <p>Jeśli chcesz skorzystać z dodatkowych funkcji, takich jak dodanie zdjęć produktów, integracja z Twoim sklepem przez API czy możliwość aktualizacji cen jednym kliknięciem z poziomu panelu, będziemy potrzebowali Twojego feedu produktowego z platformy Ceneo. Umożliwi nam to połączenie Twoich ofert z Twoim sklepem, dzięki czemu, na przykład, gdy zaktualizujesz ceny, będziesz mógł natychmiast zobaczyć, które produkty zostały zmienione.</p>
                     <p>Do monitorowania cen w Europie potrzebujemy od Ciebie feedu produktowego z Google Merchant Center. Po jego otrzymaniu proces jest automatyczny – wyszukamy Twoje produkty, a Ty wybierzesz, które z nich oraz w jakich krajach chcesz śledzić.</p>
-                    <p>Więcej o raportach Safari dowiesz się <a href=""URL_TUTAJ"">tutaj</a>.</p>"
+                    <p>Więcej o raportach Safari dowiesz się <a href='{Url.Action("PriceRaports", "Home")}' class='CleanButton'>tutaj</a>.</p>"
                 },
                 new FAQItem
                 {
@@ -91,7 +93,8 @@ namespace PriceSafari.Controllers.HomeControllers
                 new FAQItem
                 {
                     Question = "Ile kosztuje monitoring cen?",
-                    Answer = @"<p>Koszt monitoringu cen zależy od kilku czynników, takich jak zakres usług oraz częstotliwość aktualizacji danych. Nasze podstawowe pakiety obejmują monitoring danych z platformy Ceneo, z aktualizacją co 24 godziny. Szczegółowe informacje o cenach znajdziesz <a href=""URL_TUTAJ"">tutaj</a>.</p>"
+                    Answer = @$"<p>Koszt monitoringu cen zależy od kilku czynników, takich jak zakres usług oraz częstotliwość aktualizacji danych. Nasze podstawowe pakiety obejmują monitoring danych z platformy Ceneo, z aktualizacją co 24 godziny. Szczegółowe informacje o cenach znajdziesz <a href='{Url.Action("Pricing", "Home")}' class='CleanButton'>tutaj</a></p>"
+
                 },
                 new FAQItem
                 {
@@ -122,11 +125,11 @@ namespace PriceSafari.Controllers.HomeControllers
                 new FAQItem
                 {
                     Question = "Co jest potrzebne, aby zacząć?",
-                    Answer = @"<p>Aby rozpocząć monitoring cen na platformie Ceneo, potrzebujemy jedynie adresu URL Twojego sklepu internetowego. Nie musisz dostarczać nam feedu produktowego – znajdziemy wszystkie produkty oferowane na Twojej witrynie, a następnie, w zależności od wybranego pakietu, sam zdecydujesz, które ceny chcesz monitorować.</p>
-                    <p>Informacje o naszych podstawowych pakietach znajdziesz <a href=""URL_TUTAJ"">tutaj</a>.</p>
+                    Answer = @$"<p>Aby rozpocząć monitoring cen na platformie Ceneo, potrzebujemy jedynie adresu URL Twojego sklepu internetowego. Nie musisz dostarczać nam feedu produktowego – znajdziemy wszystkie produkty oferowane na Twojej witrynie, a następnie, w zależności od wybranego pakietu, sam zdecydujesz, które ceny chcesz monitorować.</p>
+                    <p>Informacje o naszych podstawowych pakietach znajdziesz <a href='{Url.Action("Pricing", "Home")}' class='CleanButton'>tutaj</a>.</p>
                     <p>Jeśli chcesz skorzystać z dodatkowych funkcji, takich jak dodanie zdjęć produktów, integracja z Twoim sklepem przez API czy możliwość aktualizacji cen jednym kliknięciem z poziomu panelu, będziemy potrzebowali Twojego feedu produktowego z platformy Ceneo. Umożliwi nam to połączenie Twoich ofert z Twoim sklepem, dzięki czemu, na przykład, gdy zaktualizujesz ceny, będziesz mógł natychmiast zobaczyć, które produkty zostały zmienione.</p>
                     <p>Do monitorowania cen w Europie potrzebujemy od Ciebie feedu produktowego z Google Merchant Center. Po jego otrzymaniu proces jest automatyczny – wyszukamy Twoje produkty, a Ty wybierzesz, które z nich oraz w jakich krajach chcesz śledzić.</p>
-                    <p>Więcej o raportach Safari dowiesz się <a href=""URL_TUTAJ"">tutaj</a>.</p>"
+                    <p>Więcej o raportach Safari dowiesz się <a href='{Url.Action("PriceRaports", "Home")}' class='CleanButton'>tutaj</a>.</p>"
                 },
                 new FAQItem
                 {
@@ -137,7 +140,8 @@ namespace PriceSafari.Controllers.HomeControllers
                 new FAQItem
                 {
                     Question = "Ile kosztuje monitoring cen?",
-                    Answer = @"<p>Koszt monitoringu cen zależy od kilku czynników, takich jak zakres usług oraz częstotliwość aktualizacji danych. Nasze podstawowe pakiety obejmują monitoring danych z platformy Ceneo, z aktualizacją co 24 godziny. Szczegółowe informacje o cenach znajdziesz <a href=""URL_TUTAJ"">tutaj</a>.</p>"
+                    Answer = @$"<p>Koszt monitoringu cen zależy od kilku czynników, takich jak zakres usług oraz częstotliwość aktualizacji danych. Nasze podstawowe pakiety obejmują monitoring danych z platformy Ceneo, z aktualizacją co 24 godziny. Szczegółowe informacje o cenach znajdziesz <a href='{Url.Action("Pricing", "Home")}' class='CleanButton'>tutaj</a></p>"
+
                 },
                 new FAQItem
                 {
@@ -166,11 +170,11 @@ namespace PriceSafari.Controllers.HomeControllers
                 new FAQItem
                 {
                     Question = "Co jest potrzebne, aby zacząć?",
-                    Answer = @"<p>Aby rozpocząć monitoring cen na platformie Ceneo, potrzebujemy jedynie adresu URL Twojego sklepu internetowego. Nie musisz dostarczać nam feedu produktowego – znajdziemy wszystkie produkty oferowane na Twojej witrynie, a następnie, w zależności od wybranego pakietu, sam zdecydujesz, które ceny chcesz monitorować.</p>
-                    <p>Informacje o naszych podstawowych pakietach znajdziesz <a href=""URL_TUTAJ"">tutaj</a>.</p>
+                    Answer = @$"<p>Aby rozpocząć monitoring cen na platformie Ceneo, potrzebujemy jedynie adresu URL Twojego sklepu internetowego. Nie musisz dostarczać nam feedu produktowego – znajdziemy wszystkie produkty oferowane na Twojej witrynie, a następnie, w zależności od wybranego pakietu, sam zdecydujesz, które ceny chcesz monitorować.</p>
+                    <p>Informacje o naszych podstawowych pakietach znajdziesz <a href='{Url.Action("Pricing", "Home")}' class='CleanButton'>tutaj</a>.</p>
                     <p>Jeśli chcesz skorzystać z dodatkowych funkcji, takich jak dodanie zdjęć produktów, integracja z Twoim sklepem przez API czy możliwość aktualizacji cen jednym kliknięciem z poziomu panelu, będziemy potrzebowali Twojego feedu produktowego z platformy Ceneo. Umożliwi nam to połączenie Twoich ofert z Twoim sklepem, dzięki czemu, na przykład, gdy zaktualizujesz ceny, będziesz mógł natychmiast zobaczyć, które produkty zostały zmienione.</p>
                     <p>Do monitorowania cen w Europie potrzebujemy od Ciebie feedu produktowego z Google Merchant Center. Po jego otrzymaniu proces jest automatyczny – wyszukamy Twoje produkty, a Ty wybierzesz, które z nich oraz w jakich krajach chcesz śledzić.</p>
-                    <p>Więcej o raportach Safari dowiesz się <a href=""URL_TUTAJ"">tutaj</a>.</p>"
+                    <p>Więcej o raportach Safari dowiesz się <a href='{Url.Action("PriceRaports", "Home")}' class='CleanButton'>tutaj</a>.</p>"
                 },
                 new FAQItem
                 {
@@ -181,7 +185,8 @@ namespace PriceSafari.Controllers.HomeControllers
                 new FAQItem
                 {
                     Question = "Ile kosztuje monitoring cen?",
-                    Answer = @"<p>Koszt monitoringu cen zależy od kilku czynników, takich jak zakres usług oraz częstotliwość aktualizacji danych. Nasze podstawowe pakiety obejmują monitoring danych z platformy Ceneo, z aktualizacją co 24 godziny. Szczegółowe informacje o cenach znajdziesz <a href=""URL_TUTAJ"">tutaj</a>.</p>"
+                    Answer = @$"<p>Koszt monitoringu cen zależy od kilku czynników, takich jak zakres usług oraz częstotliwość aktualizacji danych. Nasze podstawowe pakiety obejmują monitoring danych z platformy Ceneo, z aktualizacją co 24 godziny. Szczegółowe informacje o cenach znajdziesz <a href='{Url.Action("Pricing", "Home")}' class='CleanButton'>tutaj</a></p>"
+
                 },
                 new FAQItem
                 {
