@@ -34,8 +34,13 @@
                 </div>
                 <div class="form-group">
                     <label for="CeneoProfileEmail" class="control-label">Email</label>
-                    <input type="email" class="form-control" id="CeneoProfileEmail" name="CeneoProfileEmail" value="@Model.CeneoProfileEmail" required />
+                    <input type="text" class="form-control" id="CeneoProfileEmail" name="CeneoProfileEmail" value="@Model.CeneoProfileEmail" required />
+                    <small class="form-text text-muted">
+                        Jeśli chcesz dodać więcej niż jeden adres email, oddziel je średnikami (pierwszy@mail.com; drugi@mail.com).
+                    </small>
                 </div>
+
+
                 <div class="form-group">
                     <label for="CeneoProfileTelephone" class="control-label">Telefon</label>
                     <input type="tel" class="form-control" id="CeneoProfileTelephone" name="CeneoProfileTelephone" value="@Model.CeneoProfileTelephone" required />

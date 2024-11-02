@@ -9,6 +9,13 @@
                      .Select(g => g.First().CreatedByUser);
 }
 
+<style>
+    .checkbox-cell {
+        cursor: pointer;
+    }
+</style>
+
+
 <div class="Page-Box" style="min-width:1440px;">
     <div class="Page-Box-Container">
         <div class="Page-Box-Category" style="min-width:128px;">
@@ -75,14 +82,34 @@
                     <tbody>
                         @foreach (var item in Model)
                         {
-                            <tr data-contact="@item.ClientProfileId" data-createdby="@item.CreatedByUser?.Id.ToString()" data-status="@((int)item.Status)">
-                                <td>
+                            <tr data-contact-id="@item.ClientProfileId" data-contact="@item.ClientProfileId" data-createdby="@item.CreatedByUser?.Id.ToString()" data-status="@((int)item.Status)">
+
+                                <td class="checkbox-cell">
                                     <input type="checkbox" name="selectedClientIds" value="@item.ClientProfileId" class="select-client" />
                                 </td>
+
                                 <td>@item.ClientProfileId</td>
                                 <td>@item.CreationDate.ToString("dd-MM-yyyy")</td>
                                 <td>@item.CeneoProfileName</td>
-                                <td>@item.CeneoProfileEmail</td>
+                                <td>
+                                    @{
+                                        var emailAddresses = item.CeneoProfileEmail
+                                        ?.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries)
+                                        .Select(e => e.Trim());
+                                    }
+                                    @if (emailAddresses != null && emailAddresses.Any())
+                                    {
+                                        foreach (var email in emailAddresses)
+                                        {
+                                            <div>@email</div>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <span>Brak adresu email</span>
+                                    }
+                                </td>
+
 
                                 <td>
                                     <a href="@item.CeneoProfileUrl" target="_blank" class="Button-Page-Small" onclick="event.stopPropagation()">Ceneo</a>
@@ -107,27 +134,39 @@
 </div>
 
 <script>
-    // JavaScript functions
+    document.querySelectorAll('.table-orders tr[data-contact]').forEach(row => {
+        row.addEventListener('click', function (event) {
+            // Sprawdź, czy kliknięty element lub jego rodzice mają klasę 'checkbox-cell'
+            if (event.target.closest('.checkbox-cell')) {
+                // Jeśli tak, nie rób nic (już obsłużyliśmy kliknięcie w checkbox)
+                return;
+            }
 
-    // Prevent navigation when clicking on the checkbox
-    document.addEventListener('DOMContentLoaded', function () {
-        document.querySelectorAll('.table-orders tr[data-contact]').forEach(row => {
-            row.addEventListener('click', function (event) {
-                if (event.target.tagName.toLowerCase() !== 'input') {
-                    var clientId = this.getAttribute('data-contact');
-                    window.location.href = '/ClientProfile/Edit/' + clientId;
-                }
-            });
+            var clientId = this.getAttribute('data-contact-id');
+            window.location.href = '/ClientProfile/Edit/' + clientId;
         });
-
-        calculateAccounts();
     });
+
 
     // Funkcja do przeliczania liczby kont
     function calculateAccounts() {
         let accountsCount = $('.table-orders tbody tr:visible').length;
         document.getElementById('accountsCount').innerText = accountsCount;
     }
+
+    document.querySelectorAll('.checkbox-cell').forEach(cell => {
+        cell.addEventListener('click', function (event) {
+            // Zapobiegamy propagacji zdarzenia do wiersza
+            event.stopPropagation();
+
+            var checkbox = this.querySelector('.select-client');
+            if (checkbox) {
+                // Przełączamy stan checkboxa
+                checkbox.checked = !checkbox.checked;
+            }
+        });
+    });
+
 
     // Obsługa checkboxa "Zaznacz wszystkie"
     document.getElementById('select-all').addEventListener('change', function () {

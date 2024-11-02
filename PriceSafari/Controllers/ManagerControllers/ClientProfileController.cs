@@ -94,7 +94,7 @@ public class ClientProfileController : Controller
     public async Task<IActionResult> Edit(int id)
     {
         var clientProfile = await _context.ClientProfiles
-            .Include(cp => cp.CreatedByUser) 
+            .Include(cp => cp.CreatedByUser)
             .FirstOrDefaultAsync(cp => cp.ClientProfileId == id);
 
         if (clientProfile == null)
@@ -136,7 +136,7 @@ public class ClientProfileController : Controller
             {
                 // Update the existing profile with new values
                 existingProfile.CeneoProfileName = model.CeneoProfileName;
-                existingProfile.CeneoProfileEmail = model.CeneoProfileEmail;
+                existingProfile.CeneoProfileEmail = model.CeneoProfileEmail; // Upewnij się, że to pole jest aktualizowane
                 existingProfile.CeneoProfileTelephone = model.CeneoProfileTelephone;
                 existingProfile.CeneoProfileUrl = model.CeneoProfileUrl;
                 existingProfile.CeneoProfileProductCount = model.CeneoProfileProductCount;
@@ -159,6 +159,7 @@ public class ClientProfileController : Controller
 
         return View("~/Views/ManagerPanel/ClientProfiles/Edit.cshtml", model);
     }
+
 
 
     [HttpPost]
@@ -226,7 +227,17 @@ public class ClientProfileController : Controller
 
                 var emailBody = personalizedContent + GetEmailFooter();
 
-                await _emailSender.SendEmailAsync(client.CeneoProfileEmail, model.EmailSubject, emailBody);
+                // Split the emails by comma or semicolon
+                var emailAddresses = client.CeneoProfileEmail
+                    .Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries)
+                    .Select(e => e.Trim())
+                    .Where(e => !string.IsNullOrWhiteSpace(e))
+                    .ToList();
+
+                foreach (var email in emailAddresses)
+                {
+                    await _emailSender.SendEmailAsync(email, model.EmailSubject, emailBody);
+                }
 
                 // Update client status and email tracking properties
                 client.Status = ClientStatus.Mail;

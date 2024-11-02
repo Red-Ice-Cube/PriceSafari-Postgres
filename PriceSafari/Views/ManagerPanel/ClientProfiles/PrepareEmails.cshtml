@@ -51,7 +51,25 @@
                                 <tr>
 
                                     <td>@client.CeneoProfileName</td>
-                                    <td>@client.CeneoProfileEmail</td>
+                                    <td>
+                                        @{
+                                            var emailAddresses = client.CeneoProfileEmail
+                                            ?.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries)
+                                            .Select(e => e.Trim());
+                                        }
+                                        @if (emailAddresses != null && emailAddresses.Any())
+                                        {
+                                            foreach (var email in emailAddresses)
+                                            {
+                                                <div>@email</div>
+                                            }
+                                        }
+                                        else
+                                        {
+                                            <span>Brak adresu email</span>
+                                        }
+                                    </td>
+
                                     <td>@client.CeneoProfileProductCount</td>
                                     <td>@client.EmailSentCount</td>
                                     <td>@(client.LastEmailSentDate.HasValue ? client.LastEmailSentDate.Value.ToString("dd-MM-yyyy HH:mm") : "Brak")</td>
