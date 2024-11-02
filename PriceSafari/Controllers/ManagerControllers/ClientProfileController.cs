@@ -161,7 +161,6 @@ public class ClientProfileController : Controller
     }
 
 
-
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> PrepareEmailsAjax([FromBody] SelectedClientIdsModel model)
@@ -173,7 +172,7 @@ public class ClientProfileController : Controller
 
         var selectedClientIds = model.SelectedClientIds;
 
-        // Fetch all clients and filter in-memory due to SQL Server 2012 limitations
+        // Pobierz wszystkich klientów i filtruj w pamięci
         var allClients = await _context.ClientProfiles.ToListAsync();
         var clients = allClients.Where(cp => selectedClientIds.Contains(cp.ClientProfileId)).ToList();
 
@@ -186,15 +185,13 @@ public class ClientProfileController : Controller
         {
             Clients = clients,
             SelectedClientIds = selectedClientIds,
-            EmailSubject = "", // Default subject, can be customized
-            EmailContent = ""  // Default content, can be customized
+            EmailSubject = "", // Użytkownik wprowadzi temat w widoku
+            EmailContent = GetDefaultEmailContent() // Ustawiamy domyślną treść emaila
         };
 
-        // Specify the full path to the view
+        // Określamy pełną ścieżkę do widoku
         return PartialView("~/Views/ManagerPanel/ClientProfiles/PrepareEmails.cshtml", sendEmailViewModel);
     }
-
-
 
     [HttpPost]
     [ValidateAntiForgeryToken]
@@ -206,11 +203,14 @@ public class ClientProfileController : Controller
             return View("PrepareEmails", model);
         }
 
-        if (string.IsNullOrWhiteSpace(model.EmailSubject) || string.IsNullOrWhiteSpace(model.EmailContent))
+        if (string.IsNullOrWhiteSpace(model.EmailSubject))
         {
-            ModelState.AddModelError("", "Temat i treść emaila nie mogą być puste.");
+            ModelState.AddModelError("", "Temat emaila nie może być pusty.");
             return View("PrepareEmails", model);
         }
+
+        // Ensure EmailContent is set
+        model.EmailContent = GetDefaultEmailContent();
 
         // Fetch all clients and filter in-memory
         var allClients = await _context.ClientProfiles.ToListAsync();
@@ -220,13 +220,18 @@ public class ClientProfileController : Controller
         {
             try
             {
-                var personalizedContent = model.EmailContent.Replace("{ClientName}", client.CeneoProfileName);
+                var personalizedContent = model.EmailContent
+                    .Replace("{ClientName}", client.CeneoProfileName)
+                    .Replace("{ProductCount}", client.CeneoProfileProductCount.ToString());
+
                 var emailBody = personalizedContent + GetEmailFooter();
 
                 await _emailSender.SendEmailAsync(client.CeneoProfileEmail, model.EmailSubject, emailBody);
 
-                // Update client status
+                // Update client status and email tracking properties
                 client.Status = ClientStatus.Mail;
+                client.EmailSentCount += 1;
+                client.LastEmailSentDate = DateTime.Now;
             }
             catch (Exception ex)
             {
@@ -239,6 +244,20 @@ public class ClientProfileController : Controller
 
         TempData["SuccessMessage"] = "Wiadomości zostały wysłane pomyślnie.";
         return RedirectToAction("Index");
+    }
+
+
+
+    private string GetDefaultEmailContent()
+    {
+        return @"Szanowni Państwo,
+
+        Monitorujemy ceny produktów w różnych sklepach i znaleźliśmy {ProductCount} produktów w Państwa sklepie.
+
+        Chcielibyśmy przedstawić naszą ofertę monitorowania cen konkurencji dla tych produktów.
+
+        Prosimy o kontakt, aby omówić szczegóły."
+        ;
     }
 
 

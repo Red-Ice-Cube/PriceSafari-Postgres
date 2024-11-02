@@ -11,7 +11,7 @@
 
 <div class="Page-Box" style="min-width:1440px;">
     <div class="Page-Box-Container">
-        <div class="Page-Box-Category" style="min-width:158px;">
+        <div class="Page-Box-Category" style="min-width:128px;">
             <div class="Category-Box-Title">
                 Kontakty
             </div>
@@ -21,7 +21,7 @@
 
             <div class="product-upper-box">
                 <a asp-action="Create" class="Button-Page-Small">Dodaj profil</a>
-                <button type="button" class="Button-Page-Small" onclick="sendEmails()">Wyślij Email</button>
+               
 
                 <div class="order-search-box">
                     <input type="text" id="accountSearch" placeholder="Wyszukaj firmę">
@@ -40,6 +40,7 @@
                             <option value="@((int)status)">@GetStatusDisplayName(status)</option>
                         }
                     </select>
+                    <button type="button" class="Button-Page-Small-b" onclick="sendEmails()">Kokpit wiadomości E-mail</button>
                 </div>
             </div>
 
@@ -66,6 +67,8 @@
                             <th>Url</th>
                             <th>Produkty</th>
                             <th>Status</th>
+                            <th>Wysłano</th>
+                            <th>Nadanie</th>
                             <th>Dodał</th>
                         </tr>
                     </thead>
@@ -82,7 +85,7 @@
                                 <td>@item.CeneoProfileEmail</td>
 
                                 <td>
-                                    <a href="@item.CeneoProfileUrl" target="_blank" class="Button-Page-Small" onclick="event.stopPropagation()">Profil</a>
+                                    <a href="@item.CeneoProfileUrl" target="_blank" class="Button-Page-Small" onclick="event.stopPropagation()">Ceneo</a>
                                 </td>
                                 <td>@item.CeneoProfileProductCount</td>
                                 <td>
@@ -90,6 +93,8 @@
                                         @GetStatusDisplayName(item.Status)
                                     </span>
                                 </td>
+                                <td>@item.EmailSentCount</td>
+                                <td>@(item.LastEmailSentDate.HasValue ? item.LastEmailSentDate.Value.ToString("dd-MM-yyyy HH:mm") : "Brak")</td>
                                 <td>@item.CreatedByUser?.PartnerName @item.CreatedByUser?.PartnerSurname</td>
                             </tr>
                           
@@ -118,17 +123,25 @@
         calculateAccounts();
     });
 
+    // Funkcja do przeliczania liczby kont
     function calculateAccounts() {
         let accountsCount = $('.table-orders tbody tr:visible').length;
         document.getElementById('accountsCount').innerText = accountsCount;
     }
 
-    // Handle "Select All" checkbox
+    // Obsługa checkboxa "Zaznacz wszystkie"
     document.getElementById('select-all').addEventListener('change', function () {
-        var checkboxes = document.querySelectorAll('.select-client');
-        checkboxes.forEach(function (checkbox) {
-            checkbox.checked = this.checked;
-        }.bind(this));
+        var isChecked = this.checked;
+        var rows = document.querySelectorAll('.table-orders tbody tr');
+        rows.forEach(function (row) {
+            var style = window.getComputedStyle(row);
+            if (style.display !== 'none') {
+                var checkbox = row.querySelector('.select-client');
+                if (checkbox) {
+                    checkbox.checked = isChecked;
+                }
+            }
+        });
     });
 
     $(document).ready(function () {
@@ -151,6 +164,9 @@
 
             // Przeliczenie liczby kont
             calculateAccounts();
+
+            // Zresetuj checkbox "Zaznacz wszystkie" po filtrowaniu
+            $('#select-all').prop('checked', false);
         }
 
         // Podłączenie obsługi zdarzeń
@@ -159,7 +175,7 @@
         $('#statusFilter').on('change', filterTable);
     });
 
-
+    // Funkcja sendEmails pozostaje bez zmian
     function sendEmails() {
         var selectedIds = [];
         document.querySelectorAll('.select-client:checked').forEach(function (checkbox) {
@@ -167,7 +183,7 @@
         });
 
         if (selectedIds.length === 0) {
-            alert('Nie wybrano żadnych klientów.');
+            alert('Wybierz jakieś cele do napierdalania!');
             return;
         }
 

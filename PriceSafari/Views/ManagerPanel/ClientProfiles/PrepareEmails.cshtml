@@ -1,37 +1,98 @@
 ﻿@model SendEmailViewModel
 
-<h2>Przygotuj Email do wysłania</h2>
+@{
+    Layout = "~/Views/Shared/_PanelLayout.cshtml";
+    
+}
 
-<form method="post" asp-action="ConfirmSendEmails">
-    @Html.AntiForgeryToken()
 
-    @foreach (var clientId in Model.SelectedClientIds)
-    {
-        <input type="hidden" name="SelectedClientIds" value="@clientId" />
-    }
+<div class="Page-Box">
+    <div class="Page-Box-Container">
+        <div class="Page-Box-Category">
+            <div class="Category-Box-Title">
+                Wysyłka
+            </div>
+            <partial name="_ContactNavCol" />
+        </div>
+        <div class="Horizontal">
 
-    <p>Wybrano @Model.Clients.Count klientów:</p>
-    <ul>
-        @foreach (var client in Model.Clients)
-        {
-            <li>@client.CeneoProfileName (@client.CeneoProfileEmail)</li>
-        }
-    </ul>
 
-    <div>
-        <label for="EmailSubject">Temat Emaila:</label><br />
-        <input type="text" name="EmailSubject" id="EmailSubject" value="@Model.EmailSubject" />
+
+            <form method="post" asp-action="ConfirmSendEmails">
+                @Html.AntiForgeryToken()
+
+                @foreach (var clientId in Model.SelectedClientIds)
+                {
+                    <input type="hidden" name="SelectedClientIds" value="@clientId" />
+                }
+
+                <!-- Ukryte pole dla EmailContent -->
+                <input type="hidden" name="EmailContent" value="@Model.EmailContent" />
+
+             
+                <div class="Vert-table" style="height:30vh;">
+
+
+                    <table class="table-orders">
+                        <thead>
+                            <tr>
+
+                                <th>Klienci (@Model.Clients.Count)</th>
+                                <th>E-mail</th>
+                                <th>Ilość produktów</th>
+                                <th>Liczba Wysłanych Emaili</th>
+                                <th>Data Ostatniego Emaila</th>
+                              
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var client in Model.Clients)
+                            {
+                                <tr>
+
+                                    <td>@client.CeneoProfileName</td>
+                                    <td>@client.CeneoProfileEmail</td>
+                                    <td>@client.CeneoProfileProductCount</td>
+                                    <td>@client.EmailSentCount</td>
+                                    <td>@(client.LastEmailSentDate.HasValue ? client.LastEmailSentDate.Value.ToString("dd-MM-yyyy HH:mm") : "Brak")</td>
+
+
+
+                                </tr>
+
+                            }
+                        </tbody>
+                    </table>
+                </div>
+
+
+
+
+
+
+
+                <div>
+                    <label for="EmailSubject">Temat Emaila:</label><br />
+                    <input type="text" name="EmailSubject" id="EmailSubject" value="@Model.EmailSubject" />
+                </div>
+
+                <div>
+                    <label>Treść Emaila:</label><br />
+                    <pre>@Model.EmailContent</pre>
+                </div>
+
+                <p>Treść wiadomości jest stała i zawiera następujące zastępniki:</p>
+                <ul>
+
+                    <li>{ProductCount} - zostanie zastąpione liczbą produktów klienta</li>
+                </ul>
+
+
+                <button type="submit" class="Button-Page-Small-r">Wyślij E-maile</button>
+            </form>
+
+        </div>
     </div>
+</div>
 
-    <div>
-        <label for="EmailContent">Treść Emaila:</label><br />
-        <textarea name="EmailContent" id="EmailContent" rows="10" cols="80">@Model.EmailContent</textarea>
-    </div>
 
-    <p>Możesz użyć następujących znaczników w treści emaila:</p>
-    <ul>
-        <li>{ClientName} - nazwa klienta</li>
-    </ul>
-
-    <button type="submit">Wyślij Email</button>
-</form>

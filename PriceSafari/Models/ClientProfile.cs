@@ -35,5 +35,9 @@ namespace PriceSafari.Models
         public ClientStatus Status { get; set; } = ClientStatus.Nowy;
 
         public DateTime? ScheduledMeetingDate { get; set; }
+
+        // New properties
+        public int EmailSentCount { get; set; } = 0; // Default to 0
+        public DateTime? LastEmailSentDate { get; set; }
     }
 }
