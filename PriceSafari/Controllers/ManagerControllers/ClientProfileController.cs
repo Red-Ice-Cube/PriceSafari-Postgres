@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using PriceSafari.Data;
@@ -11,14 +12,15 @@ public class ClientProfileController : Controller
     private readonly PriceSafariContext _context;
     private readonly UserManager<PriceSafariUser> _userManager;
     private readonly ILogger<ClientProfileController> _logger;
+    private readonly IEmailSender _emailSender;
 
-    public ClientProfileController(PriceSafariContext context, UserManager<PriceSafariUser> userManager, ILogger<ClientProfileController> logger)
+    public ClientProfileController(PriceSafariContext context, UserManager<PriceSafariUser> userManager, ILogger<ClientProfileController> logger, IEmailSender emailSender)
     {
         _context = context;
         _userManager = userManager;
         _logger = logger;
+        _emailSender = emailSender;
     }
-
     public IActionResult Index()
     {
         var clientProfiles = _context.ClientProfiles
@@ -157,6 +159,84 @@ public class ClientProfileController : Controller
 
         return View("~/Views/ManagerPanel/ClientProfiles/Edit.cshtml", model);
     }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> SendEmailsAjax([FromBody] SelectedClientIdsModel model)
+    {
+        if (model == null || model.SelectedClientIds == null || !model.SelectedClientIds.Any())
+        {
+            return Json(new { success = false, error = "Nie wybrano żadnych klientów." });
+        }
+
+        var selectedClientIds = model.SelectedClientIds;
+
+        // Pobierz wszystkich klientów i filtruj w pamięci
+        var allClients = await _context.ClientProfiles.ToListAsync();
+        var clients = allClients.Where(cp => selectedClientIds.Contains(cp.ClientProfileId)).ToList();
+
+        if (!clients.Any())
+        {
+            return Json(new { success = false, error = "Nie znaleziono wybranych klientów." });
+        }
+
+        // Logowanie identyfikatorów i emaili do debugowania
+        Console.WriteLine("Selected Client IDs: " + string.Join(", ", selectedClientIds));
+        Console.WriteLine("Clients to Email: " + string.Join(", ", clients.Select(c => c.CeneoProfileEmail)));
+
+        foreach (var client in clients)
+        {
+            try
+            {
+                var personalizedContent = "Treść maila";
+                var emailBody = personalizedContent + GetEmailFooter();
+
+                await _emailSender.SendEmailAsync(client.CeneoProfileEmail, "Temat testowy", emailBody);
+
+                // Zaktualizuj status klienta
+                client.Status = ClientStatus.Mail;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Błąd podczas wysyłania maila do {Email}", client.CeneoProfileEmail);
+                return Json(new { success = false, error = "Błąd podczas wysyłania maili." });
+            }
+        }
+
+        await _context.SaveChangesAsync();
+
+        return Json(new { success = true });
+    }
+
+
+
+
+    private string GetEmailFooter()
+    {
+        return @"
+    <p>
+        Pozdrawiamy,<br />
+        <strong>Zespół PriceSafari</strong>
+    </p>
+    <p>
+        Tel.: +48 514 188 340<br />
+        <a href=""mailto:biuro@pricesafari.pl"">biuro@pricesafari.pl</a><br />
+        <a href=""https://www.pricesafari.pl"">www.pricesafari.pl</a>
+    </p>
+    <p>
+        <img src=""cid:signatureImage"" alt=""Podpis"" />
+    </p>
+    <p>
+        <strong>Heated Box Polska sp. z o. o.</strong><br />
+        Wojciecha Korfantego 16<br />
+        42-202 Częstochowa<br />
+        NIP 9492247951 &nbsp;&nbsp; REGON 388799620 &nbsp;&nbsp; KRS 0000897972
+    </p>
+    <p>
+        <em>Poufność:</em> Treść tej wiadomości jest poufna i prawnie chroniona...
+    </p>";
+    }
+
 
 
 }

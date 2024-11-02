@@ -1,5 +1,7 @@
-﻿@model IEnumerable<PriceSafari.Models.ClientProfile>
+﻿
 
+
+@model IEnumerable<PriceSafari.Models.ClientProfile>
 @{
     Layout = "~/Views/Shared/_PanelLayout.cshtml";  
     var users = Model.Where(m => m.CreatedByUser != null)
@@ -18,38 +20,49 @@
         <div class="Horizontal">
 
             <div class="product-upper-box">
-               
                 <a asp-action="Create" class="Button-Page-Small">Dodaj profil</a>
+                <button type="button" class="Button-Page-Small" onclick="sendEmails()">Wyślij Email</button>
 
                 <div class="order-search-box">
                     <input type="text" id="accountSearch" placeholder="Wyszukaj firmę">
                     <select id="createdByFilter" class="DropDown">
                         <option value="">Wszystkie osoby</option>
-        @foreach (var user in users)
-        {
+                        @foreach (var user in users)
+                        {
                             <option value="@user.Id.ToString()">@user.PartnerName @user.PartnerSurname</option>
-        }
+                        }
                     </select>
 
                     <select id="statusFilter" class="DropDown">
                         <option value="">Wszystkie statusy</option>
-        @foreach (var status in Enum.GetValues(typeof(PriceSafari.Models.ClientStatus)).Cast<PriceSafari.Models.ClientStatus>())
-        {
+                        @foreach (var status in Enum.GetValues(typeof(PriceSafari.Models.ClientStatus)).Cast<PriceSafari.Models.ClientStatus>())
+                        {
                             <option value="@((int)status)">@GetStatusDisplayName(status)</option>
-        }
+                        }
                     </select>
                 </div>
-
             </div>
+
+            <!-- Display any messages -->
+            @if (TempData["ErrorMessage"] != null)
+            {
+                <div class="alert alert-danger">@TempData["ErrorMessage"]</div>
+            }
+
+            @if (TempData["SuccessMessage"] != null)
+            {
+                <div class="alert alert-success">@TempData["SuccessMessage"]</div>
+            }
+
             <div class="Vert-table">
                 <table class="table-orders">
                     <thead>
                         <tr>
+                            <th><input type="checkbox" id="select-all" /></th>
                             <th>ID</th>
                             <th>Data Dodania</th>
                             <th>Firma (<span id="accountsCount">0</span>)</th>
                             <th>Email</th>
-                            <th>Telefon</th>
                             <th>Url</th>
                             <th>Produkty</th>
                             <th>Status</th>
@@ -57,24 +70,30 @@
                         </tr>
                     </thead>
                     <tbody>
-        @foreach (var item in Model)
-        {
-                            <tr data-contact="@item.ClientProfileId" data-createdby="@item.CreatedByUser?.Id.ToString()" data-status="@((int)item.Status)" style="cursor:pointer;">
+                        @foreach (var item in Model)
+                        {
+                            <tr data-contact="@item.ClientProfileId" data-createdby="@item.CreatedByUser?.Id.ToString()" data-status="@((int)item.Status)">
+                                <td>
+                                    <input type="checkbox" name="selectedClientIds" value="@item.ClientProfileId" class="select-client" />
+                                </td>
                                 <td>@item.ClientProfileId</td>
                                 <td>@item.CreationDate.ToString("dd-MM-yyyy")</td>
                                 <td>@item.CeneoProfileName</td>
                                 <td>@item.CeneoProfileEmail</td>
-                                <td>@item.CeneoProfileTelephone</td>
-                                <td>@item.CeneoProfileUrl</td>
+
+                                <td>
+                                    <a href="@item.CeneoProfileUrl" target="_blank" class="Button-Page-Small" onclick="event.stopPropagation()">Profil</a>
+                                </td>
                                 <td>@item.CeneoProfileProductCount</td>
                                 <td>
                                     <span class="badge" style="background-color:@GetStatusColor(item.Status)">
-                        @GetStatusDisplayName(item.Status)
+                                        @GetStatusDisplayName(item.Status)
                                     </span>
                                 </td>
                                 <td>@item.CreatedByUser?.PartnerName @item.CreatedByUser?.PartnerSurname</td>
                             </tr>
-        }
+                          
+                        }
                     </tbody>
                 </table>
             </div>
@@ -82,19 +101,20 @@
     </div>
 </div>
 
-
-
 <script>
+    // JavaScript functions
+
+    // Prevent navigation when clicking on the checkbox
     document.addEventListener('DOMContentLoaded', function () {
-        // Enable row click to navigate to Edit page
         document.querySelectorAll('.table-orders tr[data-contact]').forEach(row => {
-            row.addEventListener('click', function () {
-                var clientId = this.getAttribute('data-contact');
-                window.location.href = '/ClientProfile/Edit/' + clientId;
+            row.addEventListener('click', function (event) {
+                if (event.target.tagName.toLowerCase() !== 'input') {
+                    var clientId = this.getAttribute('data-contact');
+                    window.location.href = '/ClientProfile/Edit/' + clientId;
+                }
             });
         });
 
-        // Initial calculation of accounts
         calculateAccounts();
     });
 
@@ -103,6 +123,14 @@
         document.getElementById('accountsCount').innerText = accountsCount;
     }
 
+    // Handle "Select All" checkbox
+    document.getElementById('select-all').addEventListener('change', function () {
+        var checkboxes = document.querySelectorAll('.select-client');
+        checkboxes.forEach(function (checkbox) {
+            checkbox.checked = this.checked;
+        }.bind(this));
+    });
+
     $(document).ready(function () {
         function filterTable() {
             var searchText = $('#accountSearch').val().toLowerCase();
@@ -110,7 +138,7 @@
             var selectedStatus = $('#statusFilter').val();
 
             $('.table-orders tbody tr').each(function () {
-                var contactName = $(this).find('td:nth-child(3)').text().toLowerCase(); // 'Firma' column
+                var contactName = $(this).find('td:nth-child(4)').text().toLowerCase(); // 'Firma' column
                 var createdByUserId = $(this).data('createdby') ? $(this).data('createdby').toString() : '';
                 var status = $(this).data('status') !== undefined ? $(this).data('status').toString() : '';
 
@@ -121,45 +149,92 @@
                 $(this).toggle(matchesSearch && matchesUser && matchesStatus);
             });
 
-            // Recalculate accounts count
+            // Przeliczenie liczby kont
             calculateAccounts();
         }
 
-        // Attach event handlers
+        // Podłączenie obsługi zdarzeń
         $('#accountSearch').on('keyup', filterTable);
         $('#createdByFilter').on('change', filterTable);
         $('#statusFilter').on('change', filterTable);
     });
+
+    // AJAX function to send emails
+    function sendEmails() {
+        var selectedIds = [];
+        document.querySelectorAll('.select-client:checked').forEach(function (checkbox) {
+            selectedIds.push(parseInt(checkbox.value));
+        });
+
+        if (selectedIds.length === 0) {
+            alert('Nie wybrano żadnych klientów.');
+            return;
+        }
+
+        // For debugging
+        console.log('Selected IDs:', selectedIds);
+
+        // Get the anti-forgery token
+        var token = document.querySelector('input[name="__RequestVerificationToken"]').value;
+
+        // Send the IDs via AJAX
+        fetch('/ClientProfile/SendEmailsAjax', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'RequestVerificationToken': token
+            },
+            body: JSON.stringify({ selectedClientIds: selectedIds })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Wiadomości zostały wysłane pomyślnie.');
+                window.location.href = '/ClientProfile/Index';
+            } else {
+                alert('Wystąpił błąd: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Błąd:', error);
+            alert('Wystąpił błąd podczas wysyłania wiadomości.');
+        });
+    }
 </script>
 
-        @functions {
-            public string GetStatusColor(PriceSafari.Models.ClientStatus status)
-            {
-                return status switch
-                {
-                    PriceSafari.Models.ClientStatus.Nowy => "#17a2b8",
-                    PriceSafari.Models.ClientStatus.Mail => "#ffc107",
-                    PriceSafari.Models.ClientStatus.Urabiany => "#28a745",
-                    PriceSafari.Models.ClientStatus.Spotkanie => "#007bff",
-                    PriceSafari.Models.ClientStatus.Testuje => "#6f42c1",
-                    PriceSafari.Models.ClientStatus.Frajer => "#000",
-                    PriceSafari.Models.ClientStatus.Ojebane => "#dc3545",
-                    _ => "#6c757d"
-                };
-            }
 
-            public string GetStatusDisplayName(PriceSafari.Models.ClientStatus status)
-            {
-                return status switch
-                {
-                    PriceSafari.Models.ClientStatus.Nowy => "Nowy Kontakt",
-                    PriceSafari.Models.ClientStatus.Mail => "Wysłano Maila",
-                    PriceSafari.Models.ClientStatus.Urabiany => "Rozmowy w toku",
-                    PriceSafari.Models.ClientStatus.Spotkanie => "Umówiono Spotkanie",
-                    PriceSafari.Models.ClientStatus.Testuje => "Testuje oprogramowanie",
-                    PriceSafari.Models.ClientStatus.Frajer => "Klient frajer",
-                    PriceSafari.Models.ClientStatus.Ojebane => "Oprogramowanie ojebane",
-                    _ => "Nieznany"
-                };
-            }
+@functions {
+    public string GetStatusColor(PriceSafari.Models.ClientStatus status)
+    {
+        return status switch
+        {
+            PriceSafari.Models.ClientStatus.Nowy => "#17a2b8",
+            PriceSafari.Models.ClientStatus.Mail => "#ffc107",
+            PriceSafari.Models.ClientStatus.Urabiany => "#28a745",
+            PriceSafari.Models.ClientStatus.Spotkanie => "#007bff",
+            PriceSafari.Models.ClientStatus.Testuje => "#6f42c1",
+            PriceSafari.Models.ClientStatus.Frajer => "#000",
+            PriceSafari.Models.ClientStatus.Ojebane => "#dc3545",
+            _ => "#6c757d"
+        };
+    }
+
+    public string GetStatusDisplayName(PriceSafari.Models.ClientStatus status)
+    {
+        return status switch
+        {
+            PriceSafari.Models.ClientStatus.Nowy => "Nowy Kontakt",
+            PriceSafari.Models.ClientStatus.Mail => "Wysłano Maila",
+            PriceSafari.Models.ClientStatus.Urabiany => "Rozmowy w toku",
+            PriceSafari.Models.ClientStatus.Spotkanie => "Umówiono Spotkanie",
+            PriceSafari.Models.ClientStatus.Testuje => "Testuje oprogramowanie",
+            PriceSafari.Models.ClientStatus.Frajer => "Klient frajer",
+            PriceSafari.Models.ClientStatus.Ojebane => "Oprogramowanie ojebane",
+            _ => "Nieznany"
+        };
+    }
 }
+
+<!-- Include the anti-forgery token -->
+@Html.AntiForgeryToken()
+
