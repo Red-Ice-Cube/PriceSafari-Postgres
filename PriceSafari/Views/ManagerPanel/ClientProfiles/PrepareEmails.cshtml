@@ -1,0 +1,37 @@
+﻿@model SendEmailViewModel
+
+<h2>Przygotuj Email do wysłania</h2>
+
+<form method="post" asp-action="ConfirmSendEmails">
+    @Html.AntiForgeryToken()
+
+    @foreach (var clientId in Model.SelectedClientIds)
+    {
+        <input type="hidden" name="SelectedClientIds" value="@clientId" />
+    }
+
+    <p>Wybrano @Model.Clients.Count klientów:</p>
+    <ul>
+        @foreach (var client in Model.Clients)
+        {
+            <li>@client.CeneoProfileName (@client.CeneoProfileEmail)</li>
+        }
+    </ul>
+
+    <div>
+        <label for="EmailSubject">Temat Emaila:</label><br />
+        <input type="text" name="EmailSubject" id="EmailSubject" value="@Model.EmailSubject" />
+    </div>
+
+    <div>
+        <label for="EmailContent">Treść Emaila:</label><br />
+        <textarea name="EmailContent" id="EmailContent" rows="10" cols="80">@Model.EmailContent</textarea>
+    </div>
+
+    <p>Możesz użyć następujących znaczników w treści emaila:</p>
+    <ul>
+        <li>{ClientName} - nazwa klienta</li>
+    </ul>
+
+    <button type="submit">Wyślij Email</button>
+</form>

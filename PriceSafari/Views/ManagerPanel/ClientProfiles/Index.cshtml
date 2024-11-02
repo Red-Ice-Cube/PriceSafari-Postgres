@@ -159,7 +159,7 @@
         $('#statusFilter').on('change', filterTable);
     });
 
-    // AJAX function to send emails
+
     function sendEmails() {
         var selectedIds = [];
         document.querySelectorAll('.select-client:checked').forEach(function (checkbox) {
@@ -178,7 +178,7 @@
         var token = document.querySelector('input[name="__RequestVerificationToken"]').value;
 
         // Send the IDs via AJAX
-        fetch('/ClientProfile/SendEmailsAjax', {
+        fetch('/ClientProfile/PrepareEmailsAjax', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -186,20 +186,17 @@
             },
             body: JSON.stringify({ selectedClientIds: selectedIds })
         })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                alert('Wiadomości zostały wysłane pomyślnie.');
-                window.location.href = '/ClientProfile/Index';
-            } else {
-                alert('Wystąpił błąd: ' + data.error);
-            }
-        })
-        .catch(error => {
-            console.error('Błąd:', error);
-            alert('Wystąpił błąd podczas wysyłania wiadomości.');
-        });
+            .then(response => response.text())
+            .then(html => {
+                // Replace the current content with the new HTML
+                document.body.innerHTML = html;
+            })
+            .catch(error => {
+                console.error('Błąd:', error);
+                alert('Wystąpił błąd podczas przygotowywania wiadomości.');
+            });
     }
+
 </script>
 
 

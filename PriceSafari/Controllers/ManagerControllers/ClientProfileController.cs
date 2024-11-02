@@ -160,55 +160,86 @@ public class ClientProfileController : Controller
         return View("~/Views/ManagerPanel/ClientProfiles/Edit.cshtml", model);
     }
 
+
+
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> SendEmailsAjax([FromBody] SelectedClientIdsModel model)
+    public async Task<IActionResult> PrepareEmailsAjax([FromBody] SelectedClientIdsModel model)
     {
         if (model == null || model.SelectedClientIds == null || !model.SelectedClientIds.Any())
         {
-            return Json(new { success = false, error = "Nie wybrano żadnych klientów." });
+            return BadRequest("Nie wybrano żadnych klientów.");
         }
 
         var selectedClientIds = model.SelectedClientIds;
 
-        // Pobierz wszystkich klientów i filtruj w pamięci
+        // Fetch all clients and filter in-memory due to SQL Server 2012 limitations
         var allClients = await _context.ClientProfiles.ToListAsync();
         var clients = allClients.Where(cp => selectedClientIds.Contains(cp.ClientProfileId)).ToList();
 
         if (!clients.Any())
         {
-            return Json(new { success = false, error = "Nie znaleziono wybranych klientów." });
+            return BadRequest("Nie znaleziono wybranych klientów.");
         }
 
-        // Logowanie identyfikatorów i emaili do debugowania
-        Console.WriteLine("Selected Client IDs: " + string.Join(", ", selectedClientIds));
-        Console.WriteLine("Clients to Email: " + string.Join(", ", clients.Select(c => c.CeneoProfileEmail)));
+        var sendEmailViewModel = new SendEmailViewModel
+        {
+            Clients = clients,
+            SelectedClientIds = selectedClientIds,
+            EmailSubject = "", // Default subject, can be customized
+            EmailContent = ""  // Default content, can be customized
+        };
 
-        foreach (var client in clients)
+        // Specify the full path to the view
+        return PartialView("~/Views/ManagerPanel/ClientProfiles/PrepareEmails.cshtml", sendEmailViewModel);
+    }
+
+
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ConfirmSendEmails(SendEmailViewModel model)
+    {
+        if (model.SelectedClientIds == null || !model.SelectedClientIds.Any())
+        {
+            ModelState.AddModelError("", "Nie wybrano żadnych klientów.");
+            return View("PrepareEmails", model);
+        }
+
+        if (string.IsNullOrWhiteSpace(model.EmailSubject) || string.IsNullOrWhiteSpace(model.EmailContent))
+        {
+            ModelState.AddModelError("", "Temat i treść emaila nie mogą być puste.");
+            return View("PrepareEmails", model);
+        }
+
+        // Fetch all clients and filter in-memory
+        var allClients = await _context.ClientProfiles.ToListAsync();
+        var clientsToEmail = allClients.Where(cp => model.SelectedClientIds.Contains(cp.ClientProfileId)).ToList();
+
+        foreach (var client in clientsToEmail)
         {
             try
             {
-                var personalizedContent = "Treść maila";
+                var personalizedContent = model.EmailContent.Replace("{ClientName}", client.CeneoProfileName);
                 var emailBody = personalizedContent + GetEmailFooter();
 
-                await _emailSender.SendEmailAsync(client.CeneoProfileEmail, "Temat testowy", emailBody);
+                await _emailSender.SendEmailAsync(client.CeneoProfileEmail, model.EmailSubject, emailBody);
 
-                // Zaktualizuj status klienta
+                // Update client status
                 client.Status = ClientStatus.Mail;
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Błąd podczas wysyłania maila do {Email}", client.CeneoProfileEmail);
-                return Json(new { success = false, error = "Błąd podczas wysyłania maili." });
+                // Optionally handle errors
             }
         }
 
         await _context.SaveChangesAsync();
 
-        return Json(new { success = true });
+        TempData["SuccessMessage"] = "Wiadomości zostały wysłane pomyślnie.";
+        return RedirectToAction("Index");
     }
-
-
 
 
     private string GetEmailFooter()
