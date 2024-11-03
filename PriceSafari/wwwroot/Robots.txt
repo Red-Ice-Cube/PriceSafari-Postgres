@@ -1,0 +1,5 @@
+User-agent: *
+Disallow: /Identity/Account/Login
+Disallow: /Identity/Account/Register
+Allow: /
+Sitemap: https://pricesafari.pl/sitemap.xml

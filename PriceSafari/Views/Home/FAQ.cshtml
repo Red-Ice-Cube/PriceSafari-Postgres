@@ -6,6 +6,7 @@
     ViewData["Title"] = "Price Safari";
     Layout = "~/Views/Shared/_Layout.cshtml";
     var faqItems = ViewBag.FAQItems as List<PriceSafari.Models.HomeModels.FAQItem>;
+
 }
 
 <!DOCTYPE html>
@@ -14,6 +15,8 @@
     <meta charset="UTF-8">
     <title>@ViewData["Title"] - FAQ</title>
     <script src="/js/Home/index.min.js"></script>
+    <meta name="description" content="Najczęściej zadawane pytania dotyczące PriceSafari. Dowiedz się, jak działa nasz monitoring cen, jakie są korzyści i jak zacząć." />
+
     @if (faqItems != null && faqItems.Any())
     {
         // Tworzymy tablicę IThing[]

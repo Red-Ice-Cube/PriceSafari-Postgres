@@ -227,6 +227,11 @@ namespace PriceSafari.Controllers.HomeControllers
             return View();
         }
 
+        public IActionResult SiteMap()
+        {
+            return View();
+        }
+
         public IActionResult Contact()
         {
             return View();
