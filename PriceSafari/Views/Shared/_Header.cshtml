@@ -22,7 +22,7 @@
                     <a href="#" class="Nav-Bar-Menu-Link">Narzędzie</a>
                     <ul class="Nav-Bar-Submenu">
 
-                        <div class="Submenu-text">
+                        <li class="Submenu-text">
                             <a href="/Home/PriceMonitoring">
                                 Monitoring cen w Polsce
                                 <div class="Submenu-desc">
@@ -30,9 +30,9 @@
                                 </div>
                             </a>
 
-                        </div>
+                        </li>
 
-                        <div class="Submenu-text">
+                        <li class="Submenu-text">
                             <a href="/Home/PriceRaports">
                                 Raporty cenowe w Europie
                                 <div class="Submenu-desc">
@@ -40,7 +40,7 @@
                                 </div>
                             </a>
 
-                        </div>
+                        </li>
 
                     </ul>
                 </li>
@@ -48,25 +48,57 @@
                 <li class="Nav-Bar-Menu-Item">
                     <a href="#" class="Nav-Bar-Menu-Link">Dlaczego PriceSafari</a>
                     <ul class="Nav-Bar-Submenu">
-                          <div class="Submenu-text">
+                          <li class="Submenu-text">
                             <a href="/Home/AboutUs">
                                 O Nas
                                 <div class="Submenu-desc">
                                     Poznaj nasze zespół i wartości jakimi się kieruje.
                                 </div>
                             </a>
-                          </div>
-                        <li><a href="/Home/WhyPriceSafari">Dlaczego PriceSafari</a></li>
+                          </li>
+                        <li class="Submenu-text">
+                            <a href="/Home/WhyPriceSafari">
+                                Dlaczego PriceSafari?
+                                <div class="Submenu-desc">
+                                    Nasze przewagi technologiczne i indywidualne podejście.
+                                </div>
+                            </a>
+                        </li>
+                       
                     </ul>
                 </li>
 
                 <li class="Nav-Bar-Menu-Item">
-                    <a href="/Home/Pricing" class="Nav-Bar-Menu-Link">Cennik</a>
+                    <a href="#" class="Nav-Bar-Menu-Link">Cennik</a>
+                    <ul class="Nav-Bar-Submenu">
+                        <li class="Submenu-text">
+                            <a href="/Home/Pricing">
+                                Cennik
+                                <div class="Submenu-desc">
+                                    Podstawowe plany monitoringu cen w Polsce.
+                                </div>
+                            </a>
+                        </li>
+                    </ul>
                 </li>
 
                 <li class="Nav-Bar-Menu-Item">
-                    <a href="/Home/FAQ" class="Nav-Bar-Menu-Link">FAQ</a>
+                    <a href="#" class="Nav-Bar-Menu-Link">FAQ</a>
+                    <ul class="Nav-Bar-Submenu">
+                        <li class="Submenu-text">
+                            <a href="/Home/FAQ">
+                                FAQ
+                                <div class="Submenu-desc">
+                                    Pełna lista najczęściej zadawanych pytań.
+                                </div>
+                            </a>
+                        </li>
+                    </ul>
                 </li>
+
+              
+               
+               
             </ul>
         </div>
 
@@ -121,17 +153,51 @@
                         </div>
                     </a>
                 </li>
-                <li><a href="/Home/WhyPriceSafari">Dlaczego PriceSafari</a></li>
+                <li>
+                    <a href="/Home/WhyPriceSafari">
+                        Dlaczego PriceSafari?
+                        <div class="Mobile-Submenu-Desc">
+                            Nasze przewagi technologiczne i indywidualne podejście.
+                        </div>
+                    </a>
+                </li>
+               
             </ul>
         </li>
-        <!-- Cennik -->
+
+
         <li class="Mobile-Menu-Item">
-            <a href="/Home/Pricing" class="Mobile-Menu-Link">Cennik</a>
+            <a href="#" class="Mobile-Menu-Link" onclick="toggleSubmenu(event, 'submenu-cennik')">Cennik</a>
+            <ul id="submenu-cennik" class="Mobile-Submenu">
+
+                <li>
+                    <a href="/Home/Pricing">
+                        Cennik
+                        <div class="Mobile-Submenu-Desc">
+                            Podstawowe plany monitoringu cen w Polsce.
+                        </div>
+                    </a>
+                </li>
+            </ul>
         </li>
-        <!-- FAQ -->
         <li class="Mobile-Menu-Item">
-            <a href="/Home/FAQ" class="Mobile-Menu-Link">FAQ</a>
+            <a href="#" class="Mobile-Menu-Link" onclick="toggleSubmenu(event, 'submenu-faq')">FAQ</a>
+            <ul id="submenu-faq" class="Mobile-Submenu">
+
+                <li>
+                    <a href="/Home/FAQ">
+                        FAQ
+                        <div class="Mobile-Submenu-Desc">
+                            Pełna lista najczęściej zadawanych pytań.
+                        </div>
+                    </a>
+                </li>
+            </ul>
         </li>
+
+
+
+     
         <!-- Pozostałe elementy menu -->
     </ul>
     <div class="Mobile-bottom">
