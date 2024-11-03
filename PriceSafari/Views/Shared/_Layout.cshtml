@@ -17,6 +17,36 @@
     <link rel="icon" type="image/png" sizes="16x16" href="~/icon/icon.png">
 
     @RenderSection("Styles", required: false)
+
+
+    @Html.Raw(@"<script type=""application/ld+json"">
+    {
+    ""@context"": ""https://schema.org"",
+    ""@type"": ""Organization"",
+    ""name"": ""Heated Box Polska Sp. z o.o."",
+    ""url"": ""https://pricesafari.pl"",
+    ""logo"": ""https://pricesafari.pl/images homepage/PriceSafari.png"",
+    ""address"": {
+    ""@type"": ""PostalAddress"",
+    ""streetAddress"": ""ul. Wojciecha Korfantego 16"",
+    ""addressLocality"": ""Częstochowa"",
+    ""postalCode"": ""42-202"",
+    ""addressCountry"": ""PL""
+    },
+    ""contactPoint"": {
+    ""@type"": ""ContactPoint"",
+    ""telephone"": ""+48 514 188 340"",
+    ""contactType"": ""Customer Service"",
+    ""areaServed"": ""PL"",
+    ""availableLanguage"": [""Polish""]
+    },
+    ""email"": ""biuro@pricesafari.pl"",
+    ""foundingDate"": ""2024"",
+    ""vatID"": ""PL9492247951""
+    }
+    </script>")
+
+
 </head>
 <body>
     @{

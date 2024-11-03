@@ -19,18 +19,39 @@ h1 {
 }
 
 h2 {
-    font-size: 30px;
+    font-size: 36px;
     font-weight: 300;
     color: #353535
 }
 
 h3 {
+    font-size: 30px;
+    font-weight: 300;
+    color: #353535
+}
+
+h4 {
     font-size: 24px;
     font-weight: 300;
     color: #353535
 }
 
+h5 {
+    font-size: 20px;
+    font-weight: 300;
+    color: #353535
+}
 
+h6 {
+    font-size: 18px;
+    font-weight: 300;
+    color: #353535
+}
+
+
+.lightText {
+    color: rgba(255, 255, 255, 0.8);
+}
 
 
 /*footer */
@@ -506,10 +527,11 @@ h3 {
 
 .Vert-Space-Dark {
     display: flex;
+    flex-direction:column;
+    gap: 32px;
     padding: 64px 128px;
     justify-content: center;
     align-items: center;
-    gap: 10px;
     flex-shrink: 0;
     align-self: stretch;
     border: 1px solid #000;
