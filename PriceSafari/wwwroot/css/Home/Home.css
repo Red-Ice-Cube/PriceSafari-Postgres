@@ -38,7 +38,7 @@ h4 {
 
 h5 {
     font-size: 20px;
-    font-weight: 300;
+    font-weight: 400;
     color: #353535
 }
 
@@ -48,10 +48,31 @@ h6 {
     color: #353535
 }
 
+p {
+    font-size: 18px;
+    font-weight: 300;
+    color: #353535
+}
+
+strong {
+    font-size: 18px;
+    font-weight: 400;
+    color: #353535
+}
+
+span {
+    font-size: 18px;
+    font-weight: 300;
+}
 
 .lightText {
     color: rgba(255, 255, 255, 0.8);
 }
+
+.tranText {
+    color: rgba(255, 255, 255, 0.4);
+}
+
 
 
 /*footer */
@@ -427,7 +448,7 @@ h6 {
     display: flex;
     max-height: 30px;
     max-width: 58px;
-    margin-top: 4px;
+    margin-top: 2px;
     padding: 2px;
 
 }
@@ -487,9 +508,9 @@ h6 {
     display: flex;
     align-items: center;
     gap: 10px;
+    font-size:22px;
+    font-weight:200;
     color: rgba(255, 255, 255, 0.4);
-    font-size: 28px;
-    font-weight: 200;
 }
 
 .Icon-Box-Text-Text {
@@ -499,8 +520,6 @@ h6 {
     align-items: flex-start;
     align-self: stretch;
     color: rgba(255, 255, 255, 0.8);
-    font-size: 17px;
-    font-weight: 200;
     
 }
 
@@ -527,17 +546,15 @@ h6 {
 
 .Vert-Space-Dark {
     display: flex;
-    flex-direction:column;
-    gap: 32px;
     padding: 64px 128px;
     justify-content: center;
     align-items: center;
+    gap: 10px;
     flex-shrink: 0;
     align-self: stretch;
     border: 1px solid #000;
     background: #222222;
     box-shadow: -6px 6px 15.2px 0px rgba(0, 0, 0, 0.25) inset;
-   
 }
 
 .List-Box {
@@ -569,18 +586,12 @@ h6 {
 .List-Box-Text-Title {
     display: flex;
     align-self: stretch;
-    color: #353535;
-    font-size: 20px;
-    font-weight: 400;
 }
 
 .List-Box-Text-Text {
     display: flex;
     flex-direction: column;
     align-self: stretch;
-    color: #353535;
-    font-size: 17px;
-    font-weight: 300;
 }
 /* Container for each FAQ item */
 .List-Box-Q {
@@ -616,9 +627,6 @@ h6 {
     max-height: 0;
     overflow: hidden;
     transition: max-height 0.5s ease, margin-top 0.5s ease;
-    font-size: 17px;
-    font-weight: 300;
-    color: #353535;
     margin-top: 0;
 }
 
@@ -868,9 +876,59 @@ h6 {
 
     @media (max-width: 900px) {
 
-      .Main-home {
-          padding-top:36px;
-      }
+
+        h1 {
+            font-size: 28px;
+       
+        }
+
+        h2 {
+            font-size: 28px;
+          
+        }
+
+        h3 {
+            font-size: 24px;
+          
+        }
+
+        h4 {
+            font-size: 20px;
+           
+        }
+
+        h5 {
+            font-size: 18px;
+      
+        }
+
+        h6 {
+            font-size: 18px;
+          
+        }
+
+        
+
+        p {
+            font-size: 18px;
+            font-weight: 300;
+          
+        }
+
+        strong {
+            font-size: 18px;
+            font-weight: 400;
+            
+        }
+
+        span {
+            font-size: 18px;
+            font-weight: 300;
+        }
+
+        .Main-home {
+            padding-top: 36px;
+        }
 
         /* Główna zawartość */
         .Vert-Home {
@@ -891,15 +949,9 @@ h6 {
             max-width: none;
         }
 
-        /* Teksty */
-        .Text-Box-Text,
-        .Icon-Box-Text-Text,
-        .Icon-Box-Text-Title,
-        .List-Box-Text-Text,
-        .List-Box-Text-Title {
-            font-size: 16px;
-        }
+  
 
+      
         /* Ikony */
         .Icon-Box-Text {
             width: 100%;

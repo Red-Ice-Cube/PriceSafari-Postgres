@@ -62,6 +62,31 @@ namespace PriceSafari.Controllers.HomeControllers
                     Możesz śledzić, które produkty przynoszą realne zyski, a które nie generują sprzedaży, co pozwala na bardziej świadome decyzje marketingowe – na przykład rezygnację z promowania nieopłacalnych produktów.
                     Wgrywając marże, masz również pełną kontrolę nad zyskownością: sprawdzisz, czy przez niedopatrzenie nie sprzedajesz produktów poniżej planowanej rentowności lub, czy będąc liderem cenowym, nie warto podnieść ceny w celu maksymalizacji zysków.</p>
                     <p>Tego rodzaju optymalizacje mogą przynieść oszczędności sięgające kilkudziesięciu tysięcy złotych miesięcznie, jednocześnie zwiększając Twoją sprzedaż.</p>"
+                },
+                new FAQItem
+                {
+                    Question = "Dlaczego ręczne monitorowanie cen jest nieskuteczne?",
+                    Answer = @"<p>Ręczny monitoring cen produktów konkurencji jest czasochłonny i podatny na błędy. Manualne zbieranie cen produktów to żmudny proces, który wymaga stałego aktualizowania informacji. W świecie dynamicznych zmian rynkowych takie podejście nie tylko pochłania ogromne ilości czasu, ale też naraża firmę na niepełne i przestarzałe dane. Każdy błąd w ręcznie gromadzonych danych, każde pominięcie zmiany w cenniku konkurenta może oznaczać utratę szans sprzedażowych i osłabienie pozycji na rynku.</p>
+                    
+                    <h5>Automatyczny monitoring cen i dostępności przez PriceSafari</h5>
+                    <p>PriceSafari rozwiązuje ten problem, zapewniając całkowicie zautomatyzowany monitoring cen, który eliminuje ryzyko błędów i przyspiesza proces pozyskiwania danych. Nasze roboty scrapujące przeszukują internet 24/7, automatycznie zbierając dane z różnych platform i porównywarek cenowych, a także analizując kluczowe wskaźniki, takie jak dostępność produktów, promocje oraz zmiany w polityce cenowej konkurencji.</p>
+                    <p>Dzięki automatyzacji PriceSafari nie tylko pozyskuje aktualne ceny konkurencji , ale także oferuje szersze spojrzenie na rynek, umożliwiając skuteczniejsze zarządzanie cenami:</p>
+                    <ul>
+
+                    <li><strong>Wykrywanie trendów</strong> – Dostarczane na bieżąco informacje pozwalają na natychmiastowe dostosowanie strategii cenowej, aby zawsze być o krok przed konkurencją.</li>
+                    <li><strong>Precyzyjne dane dotyczące cen</strong> – Automatyczna analiza cen eliminuje ryzyko pominięcia kluczowych zmian, co bywa problemem w ręcznym monitoringu.</li>
+                    <li><strong>Oszczędność zasobów</strong> – Dzięki automatyzacji zespoły mogą skupić się na analizie i wdrażaniu strategii, zamiast poświęcać czas na zbieranie danych.</li>
+                   </ul>
+                    "
+                },
+                 new FAQItem
+                {
+                    Question = "Jaka jest częstotliwość monitorowania cen?",
+                    Answer = @$"<p>W naszych <a href='{Url.Action("Pricing", "Home")}' class='CleanButton'>standardowych planach</a> aktualizujemy monitorowane ceny co 24 godziny, codziennie o godzinie 5:00 rano, i to przez 7 dni w tygodniu. Dzięki temu każdego dnia masz dostęp do świeżych, rzetelnych danych, które wspierają Cię w ustalaniu cen  swoich produktów, niezależnie od tego, kiedy nastąpią zmiany na rynku. Stała, codzienna aktualizacja sprawia, że możesz działać szybko i pewnie,
+                    mając pełen obraz sytuacji cenowej w Twojej branży, nawet w weekendy i dni świąteczne.</p>
+                    
+                    <p>Jeżeli potrzebujesz większej częstotliwości monitorowania cen, oferujemy plan Enterprise, gdzie ustalamy indywidualną aktualizację.</p>
+                    "
                 }
             };
 
