@@ -163,9 +163,9 @@ span {
 
 .CleanCTA {
     display: flex;
-    padding: 4px 24px;
+    padding: 8px 24px;
     justify-content: center;
-    border-radius: 4px;
+    border-radius: 24px;
     align-items: center;
     background: #41C7C7;
     color: #fff;
@@ -216,7 +216,7 @@ span {
     display: flex;
     padding: 2px 24px;
     justify-content: center;
-    border-radius: 4px;
+    border-radius: 24px;
     align-items: center;
     border: 2px solid rgba(6, 6, 6, 0.98);
     background: rgba(6, 6, 6, 0.4);
@@ -238,7 +238,7 @@ span {
     display: flex;
     padding: 2px 24px;
     justify-content: center;
-    border-radius: 4px;
+    border-radius: 24px;
     align-items: center;
     border: 2px solid #41C7C7;
     background: #41C7C7;
@@ -256,28 +256,6 @@ span {
         color: #fff;
     }
 
-.DarkButton {
-    display: flex;
-    padding: 4px 8px;
-    justify-content: center;
-    align-items: center;
-    border-radius: 10px;
-    border: 2px solid rgba(6, 6, 6, 0.92);
-    background: rgba(6, 6, 6, 0.3);
-    color: #fff;
-    font-size: 22px;
-    font-weight: 300;
-    width: 50%;
-    transition: 0.3s ease;
-    text-decoration: none;
-}
-
-    .DarkButton:hover {
-        box-shadow: 0px 4px 4px 0px rgba(0, 0, 0, 0.25);
-        background: rgba(6, 6, 6, 0.7);
-        text-decoration: none;
-        color: #fff;
-    }
 
 
 
@@ -285,7 +263,7 @@ span {
     display: inline-flex;
     align-items: center;
     padding: 4px 12px;
-    border-radius: 8px;
+    border-radius: 24px;
     border: 2px solid rgba(6, 6, 6, 0.95);
     background: rgba(6, 6, 6, 0.8);
     color: #fff;
@@ -321,7 +299,7 @@ span {
     background: #41C7C7;
     color: #fff;
     font-size: 22px;
-    border-radius: 10px;
+    border-radius: 30px;
     font-weight: 300;
     width: 50%;
     transition: 0.3s ease;
@@ -334,10 +312,33 @@ span {
         color: #fff;
     }
 
+.DarkButton {
+    display: flex;
+    padding: 4px 8px;
+    justify-content: center;
+    align-items: center;
+    border-radius: 30px;
+    border: 2px solid rgba(6, 6, 6, 0.92);
+    background: rgba(6, 6, 6, 0.3);
+    color: #fff;
+    font-size: 22px;
+    font-weight: 300;
+    width: 50%;
+    transition: 0.3s ease;
+    text-decoration: none;
+}
+
+    .DarkButton:hover {
+        box-shadow: 0px 4px 4px 0px rgba(0, 0, 0, 0.25);
+        background: rgba(6, 6, 6, 0.7);
+        text-decoration: none;
+        color: #fff;
+    }
+
 
 .Vert-50-Horizontal {
-    display:flex;
-    gap:10px;
+    display: flex;
+    gap: 10px;
 }
 
 .Vert-Home {
@@ -669,8 +670,8 @@ span {
     display: flex;
     justify-content: center;
     align-items: center;
-    border-radius: 4px;
-    padding: 2px 10px;
+    border-radius: 24px;
+    padding: 2px 16px;
     color: #353535;
     font-size: 18px;
     font-weight: 400;
@@ -981,10 +982,11 @@ span {
 
         .VertDark {
             padding: 32px 24px;
+            height:600px;
         }
 
         .contact-box-info {
-            font-size: 15px;
+            font-size: 18px;
             margin-top: 0px;
         }
 
@@ -1027,8 +1029,8 @@ span {
 
 
         .change-banner-1, .change-banner-2 {
-            padding: 2px 6px;
-            font-size: 15px;
+            padding: 2px 10px;
+            font-size: 16px;
             font-weight: 400;
         }
 
@@ -1039,7 +1041,7 @@ span {
 
         .CleanCTA {
         
-            padding: 4px 16px;          
+            padding: 8px 16px;          
             font-size: 20px;
             font-weight: 400;
             align-self:center;
