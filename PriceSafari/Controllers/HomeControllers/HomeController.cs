@@ -250,7 +250,10 @@ namespace PriceSafari.Controllers.HomeControllers
             return View();
         }
 
-
+        public IActionResult PrivacyPolicy()
+        {  
+            return View(); 
+        }
 
 
         public IActionResult WhyPriceSafari()
