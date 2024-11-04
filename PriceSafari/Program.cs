@@ -77,9 +77,20 @@ public class Program
         app.UseSession();
 
         app.MapControllerRoute(
-            name: "default",
-            pattern: "{controller=Home}/{action=Index}/{id?}"
-        );
+              name: "default",
+              pattern: "{controller=Identity}/{action=Login}/{id?}"
+         );
+
+        app.Use(async (context, next) =>
+        {
+            if (context.Request.Path == "/")
+            {
+                context.Response.Redirect("/Identity/Account/Login");
+                return;
+            }
+
+            await next();
+        });
 
         app.MapRazorPages();
 

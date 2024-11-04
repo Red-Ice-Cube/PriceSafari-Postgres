@@ -1,7 +1,7 @@
 ﻿using PriceSafari.Models;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
-using PriceSafari.Models.HomeModels;
+
 
 namespace PriceSafari.Data
 {
@@ -33,7 +33,6 @@ namespace PriceSafari.Data
         public DbSet<PriceSafariReport> PriceSafariReports { get; set; }
         public DbSet<GlobalPriceReport> GlobalPriceReports { get; set; }
         public DbSet<ScheduledTask> ScheduledTasks { get; set; }
-        public DbSet<ContactFormSubmission> ContactFormSubmissions { get; set; }
         public DbSet<PlanClass> Plans { get; set; }
 
         public DbSet<InvoiceClass> Invoices { get; set; }

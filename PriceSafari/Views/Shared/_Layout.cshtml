@@ -1,94 +1,23 @@
-﻿@using Schema.NET
-@using Newtonsoft.Json
-
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="pl">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>@ViewData["Title"] - Price Safari</title>
     <meta name="description" content="Price Safari - Monitoruj ceny produktów i analizuj konkurencję z łatwością. Nasze narzędzie pozwala na szybki wgląd w trendy cenowe, aby wspierać rozwój Twojego e-commerce.">
+    <meta name="robots" content="noindex, nofollow" />
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link href="~/css/Login.css" rel="stylesheet" />
-    <link href="~/css/Home/Home.css" rel="stylesheet">
-    <link href="~/css/Home/Header.css" rel="stylesheet">
     <link rel="icon" type="image/png" sizes="16x16" href="~/icon/icon.png">
 
-    <script type="text/javascript" charset="UTF-8" src="//cdn.cookie-script.com/s/5431587fee554fdff298011d0c4add33.js"></script>
-
     @RenderSection("Styles", required: false)
-
-
-    @Html.Raw(@"<script type=""application/ld+json"">
-    {
-    ""@context"": ""https://schema.org"",
-    ""@type"": ""Organization"",
-    ""name"": ""Heated Box Polska Sp. z o.o."",
-    ""url"": ""https://pricesafari.pl"",
-    ""logo"": ""https://pricesafari.pl/images homepage/PriceSafari.png"",
-    ""address"": {
-    ""@type"": ""PostalAddress"",
-    ""streetAddress"": ""ul. Wojciecha Korfantego 16"",
-    ""addressLocality"": ""Częstochowa"",
-    ""postalCode"": ""42-202"",
-    ""addressCountry"": ""PL""
-    },
-    ""contactPoint"": {
-    ""@type"": ""ContactPoint"",
-    ""telephone"": ""+48 514 188 340"",
-    ""contactType"": ""Customer Service"",
-    ""areaServed"": ""PL"",
-    ""availableLanguage"": [""Polish""]
-    },
-    ""email"": ""biuro@pricesafari.pl"",
-    ""foundingDate"": ""2024"",
-    ""vatID"": ""PL9492247951""
-    }
-    </script>")
-
-
 </head>
 <body>
-    @{
-        var hideHeaderFooter = ViewBag.HideHeaderFooter as bool? ?? false;
-    }
-    @if (!hideHeaderFooter)
-    {
-        @Html.Partial("_Header")
-    }
-
-
-    <div class="overlay"></div>
 
     <div>
         @RenderBody()
     </div>
-    @if (!hideHeaderFooter)
-    {
-        @Html.Partial("_Footer")
-    }
-
 
     @RenderSection("Scripts", required: false)
-
-    <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            const menuItems = document.querySelectorAll('.Nav-Bar-Menu-Item');
-
-            menuItems.forEach(function (item) {
-                const submenu = item.querySelector('.Nav-Bar-Submenu');
-                if (submenu) {
-                    item.addEventListener('mouseenter', function () {
-                        document.body.classList.add('menu-hovered');
-                    });
-
-                    item.addEventListener('mouseleave', function () {
-                        document.body.classList.remove('menu-hovered');
-                    });
-                }
-            });
-        });
-    </script>
-
 </body>
 </html>

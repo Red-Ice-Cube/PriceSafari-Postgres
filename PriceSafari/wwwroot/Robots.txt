@@ -5,9 +5,4 @@ Disallow: /backend/
 Disallow: /temp/
 Disallow: /test/
 Disallow: /draft/
-Disallow: /search
-Disallow: /*?sort=
-Disallow: /*?filter=
 Allow: /
-
-Sitemap: https://pricesafari.pl/sitemap.xml
