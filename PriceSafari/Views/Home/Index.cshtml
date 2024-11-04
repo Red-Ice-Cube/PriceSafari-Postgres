@@ -3,7 +3,6 @@
 @using Newtonsoft.Json
 
 @{
-    ViewData["Title"] = "Price Safari";
     Layout = "~/Views/Shared/_Layout.cshtml";
     var faqItems = ViewBag.FAQItems as List<PriceSafari.Models.HomeModels.FAQItem>;
 }
@@ -14,7 +13,7 @@
     <link rel="canonical" href="https://pricesafari.pl/" />
     <meta charset="UTF-8">
     <meta name="description" content="PriceSafari - zaawansowane narzędzie do monitorowania cen w Polsce i Europie. Zyskaj przewagę nad konkurencją, zarządzaj cenami produktów i maksymalizuj zyski dzięki precyzyjnym danym rynkowym.">
-    <title>@ViewData["Title"] - Price Safari</title>
+    <title>PriceSafari - Monitoring cen Twojej konkurencji</title>
     @if (faqItems != null && faqItems.Any())
     {
 
@@ -82,7 +81,7 @@
                             </div>
                         </div>
                     </div>
-                    <a href="/Home/Contact" class="CleanCTA">Testuj za darmo</a>
+                    <a href="/Home/Contact" class="CleanCTA">Testuj PriceSafari za darmo</a>
 
                 </div>
 
@@ -167,7 +166,10 @@
 
                     <div class="Text-Box-Text">
                         <p>
-                            Wyobraź sobie, że masz dostęp do całościowego widoku rynku z poziomu jednego pulpitu — możesz śledzić historię cen produktów, swoją pozycję cenową i wskaźniki rankingowe w odniesieniu do głównych konkurentów. Wyobraź sobie, że strategiczne decyzje zmiany cen stają się szybsze i bardziej precyzyjne dzięki natychmiastowemu dostępowi do tych kluczowych informacji. Jak bardzo mogłoby zwiększyć się efektywność Twojej pracy dzięki monitoringowi cen?
+                            Wyobraź sobie, że masz dostęp do całościowego widoku rynku z poziomu jednego pulpitu — możesz śledzić historię cen produktów, swoją pozycję cenową i wskaźniki rankingowe w odniesieniu do głównych konkurentów. Wyobraź sobie, że strategiczne decyzje zmiany cen stają się szybsze i bardziej precyzyjne dzięki natychmiastowemu dostępowi do tych kluczowych informacji. 
+                        </p>
+                        <p>
+                            Jak bardzo mogłoby zwiększyć się efektywność Twojej pracy dzięki monitoringowi cen?
                         </p>
 
                     </div>
