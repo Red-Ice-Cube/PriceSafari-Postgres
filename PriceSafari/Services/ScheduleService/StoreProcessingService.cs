@@ -65,11 +65,12 @@ public class StoreProcessingService
                         StoreName = coOfrPrice.StoreName,
                         Price = coOfrPrice.Price,
                         IsBidding = coOfrPrice.IsBidding,
-                        Position = coOfrPrice.Position,
+                        Position = int.TryParse(coOfrPrice.Position, out var position) ? position : (int?)null,
                         ShippingCostNum = coOfrPrice.ShippingCostNum,
                         AvailabilityNum = coOfrPrice.AvailabilityNum,
                         ScrapHistory = scrapHistory
                     };
+
 
                     priceHistories.Add(priceHistory);
 

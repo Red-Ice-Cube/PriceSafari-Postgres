@@ -15,10 +15,11 @@
         sortLowerAmount: null,
         sortLowerPercentage: null,
         sortMarginAmount: null,
-        sortMarginPercentage: null
+        sortMarginPercentage: null,
+        showRejected: false // Added this line
     };
 
-    let positionSlider; 
+    let positionSlider;
 
     function debounce(func, wait) {
         let timeout;
@@ -121,7 +122,7 @@
         updateUnits(usePriceDifference);
     });
 
-    // Funkcja ładowania danych cen z serwera
+    // Function to load price data from the server
     function loadPrices() {
         fetch(`/PriceHistory/GetPrices?storeId=${storeId}&competitorStore=${competitorStore}`)
             .then(response => response.json())
@@ -131,53 +132,66 @@
                 setPrice2 = response.setPrice2;
                 missedProductsCount = response.missedProductsCount;
 
-                // Pobierz wartość usePriceDiff z odpowiedzi serwera
+                // Get usePriceDiff value from server response
                 const usePriceDifference = response.usePriceDiff;
 
-                // Ustaw checkbox na wartość z serwera
+                // Set the checkbox to the value from the server
                 document.getElementById('usePriceDifference').checked = usePriceDifference;
 
-                // Zaktualizuj etykiety
+                // Update labels
                 updateUnits(usePriceDifference);
 
-                // Obsługa przetwarzania cen
+                // Process prices
                 allPrices = response.prices.map(price => {
-                    let valueToUse;
+                    const isRejected = price.isRejected;
 
-                    if (usePriceDifference) {
-                        valueToUse = price.savings !== null ? price.savings : price.priceDifference;
-                    } else {
-                        valueToUse = price.percentageDifference;
-                    }
-
-                    // Ensure that marginPrice and myPrice are numbers
-                    const marginPrice = price.marginPrice != null && !isNaN(price.marginPrice) ? parseFloat(price.marginPrice) : null;
-                    const myPrice = price.myPrice != null && !isNaN(price.myPrice) ? parseFloat(price.myPrice) : null;
-
-                    // Initialize margin variables
+                    // Initialize variables
+                    let valueToUse = null;
+                    let colorClass = '';
+                    let marginPrice = null;
+                    let myPrice = null;
                     let marginAmount = null;
                     let marginPercentage = null;
                     let marginSign = '';
-                    let marginClass = 'priceBox-diff-margin';
+                    let marginClass = '';
 
-                    // Calculate margin if both prices are available
-                    if (marginPrice != null && myPrice != null) {
-                        marginAmount = myPrice - marginPrice;
-                        if (marginPrice !== 0) {
-                            marginPercentage = (marginAmount / marginPrice) * 100;
+                    if (!isRejected) {
+                        // Product is not rejected, proceed as usual
+                        if (usePriceDifference) {
+                            valueToUse = price.savings !== null ? price.savings : price.priceDifference;
                         } else {
-                            marginPercentage = null;
+                            valueToUse = price.percentageDifference;
                         }
 
-                        // Determine sign and class
-                        marginSign = marginAmount >= 0 ? '+' : '-';
-                        marginClass = marginAmount >= 0 ? 'priceBox-diff-margin' : 'priceBox-diff-margin-minus';
+                        colorClass = getColorClass(valueToUse, price.isUniqueBestPrice, price.isSharedBestPrice);
+
+                        // Ensure that marginPrice and myPrice are numbers
+                        marginPrice = price.marginPrice != null && !isNaN(price.marginPrice) ? parseFloat(price.marginPrice) : null;
+                        myPrice = price.myPrice != null && !isNaN(price.myPrice) ? parseFloat(price.myPrice) : null;
+
+                        // Calculate margin if both prices are available
+                        if (marginPrice != null && myPrice != null) {
+                            marginAmount = myPrice - marginPrice;
+                            if (marginPrice !== 0) {
+                                marginPercentage = (marginAmount / marginPrice) * 100;
+                            } else {
+                                marginPercentage = null;
+                            }
+
+                            // Determine sign and class
+                            marginSign = marginAmount >= 0 ? '+' : '-';
+                            marginClass = marginAmount >= 0 ? 'priceBox-diff-margin' : 'priceBox-diff-margin-minus';
+                        }
+                    } else {
+                        // Product is rejected, assign default values
+                        colorClass = 'prRejected'; // Define a new class for rejected products if needed
                     }
 
                     return {
                         ...price,
+                        isRejected: isRejected,
                         valueToUse: valueToUse,
-                        colorClass: getColorClass(valueToUse, price.isUniqueBestPrice, price.isSharedBestPrice),
+                        colorClass: colorClass,
                         marginPrice: marginPrice,
                         myPrice: myPrice,
                         marginAmount: marginAmount,
@@ -211,12 +225,10 @@
                 debouncedRenderChart(filteredPrices);
                 updateColorCounts(filteredPrices);
                 updateMarginSortButtonsVisibility();
-
-                // Update visibility of margin sort buttons
-                updateMarginSortButtonsVisibility();
             })
             .catch(error => console.error('Error fetching prices:', error));
     }
+
 
     function updateFlagCounts(prices) {
         const flagCounts = {};
@@ -382,23 +394,40 @@
         container.innerHTML = '';
 
         data.forEach(item => {
+            const isRejected = item.isRejected;
+
             const highlightedProductName = highlightMatches(item.productName, currentSearchTerm);
-            const percentageDifference = item.percentageDifference != null ? item.percentageDifference.toFixed(2) : "N/A";
-            const priceDifference = item.priceDifference != null ? item.priceDifference.toFixed(2) : "N/A";
-            const savings = item.savings != null ? item.savings.toFixed(2) : "N/A";
-
             const isBidding = item.isBidding === "1";
-            const myIsBidding = item.myIsBidding === "1";
-
             const deliveryClass = getDeliveryClass(item.delivery);
-            const myDeliveryClass = getDeliveryClass(item.myDelivery);
 
-            const marginAmount = item.marginAmount;
-            const marginPercentage = item.marginPercentage;
-            const marginSign = item.marginSign;
-            const marginClass = item.marginClass;
-            const marginPrice = item.marginPrice;
-            const myPrice = item.myPrice;
+            let percentageDifference = null;
+            let priceDifference = null;
+            let savings = null;
+            let myIsBidding = null;
+            let myDeliveryClass = null;
+            let marginAmount = null;
+            let marginPercentage = null;
+            let marginSign = '';
+            let marginClass = '';
+            let marginPrice = null;
+            let myPrice = null;
+            let myPosition = null;
+
+            if (!isRejected) {
+                percentageDifference = item.percentageDifference != null ? item.percentageDifference.toFixed(2) : "N/A";
+                priceDifference = item.priceDifference != null ? item.priceDifference.toFixed(2) : "N/A";
+                savings = item.savings != null ? item.savings.toFixed(2) : "N/A";
+
+                myIsBidding = item.myIsBidding === "1";
+                myDeliveryClass = getDeliveryClass(item.myDelivery);
+                marginAmount = item.marginAmount;
+                marginPercentage = item.marginPercentage;
+                marginSign = item.marginSign;
+                marginClass = item.marginClass;
+                marginPrice = item.marginPrice;
+                myPrice = item.myPrice;
+                myPosition = item.myPosition;
+            }
 
             const box = document.createElement('div');
             box.className = 'price-box ' + item.colorClass;
@@ -477,21 +506,30 @@
             const priceBoxColumnMyPrice = document.createElement('div');
             priceBoxColumnMyPrice.className = 'price-box-column';
 
-            const priceBoxMyText = document.createElement('div');
-            priceBoxMyText.className = 'price-box-column-text';
-            priceBoxMyText.innerHTML =
-                '<span style="font-weight: 500;">' + item.myPrice.toFixed(2) + ' PLN</span>' + '<br>' + myStoreName;
+            if (!isRejected && myPrice != null) {
+                const priceBoxMyText = document.createElement('div');
+                priceBoxMyText.className = 'price-box-column-text';
+                priceBoxMyText.innerHTML =
+                    '<span style="font-weight: 500;">' + myPrice.toFixed(2) + ' PLN</span>' + '<br>' + myStoreName;
 
-            const priceBoxMyDetails = document.createElement('div');
-            priceBoxMyDetails.className = 'price-box-column-text';
-            priceBoxMyDetails.innerHTML =
-                (myIsBidding ? '<span class="Bidding">Bid</span>' : '') +
-                (item.myPosition !== null ? '<span class="Position">Msc ' + item.myPosition + '</span>' :
-                    '<span class="Position" style="background-color: #4B0089;">Schowany</span>') +
-                (item.myDelivery != null ? '<span class="' + myDeliveryClass + '">Wysyłka w ' + (item.myDelivery == 1 ? '1 dzień' : item.myDelivery + ' dni') + '</span>' : '');
+                const priceBoxMyDetails = document.createElement('div');
+                priceBoxMyDetails.className = 'price-box-column-text';
+                priceBoxMyDetails.innerHTML =
+                    (myIsBidding ? '<span class="Bidding">Bid</span>' : '') +
+                    (myPosition !== null ? '<span class="Position">Msc ' + myPosition + '</span>' :
+                        '<span class="Position" style="background-color: #4B0089;">Schowany</span>') +
+                    (item.myDelivery != null ? '<span class="' + myDeliveryClass + '">Wysyłka w ' + (item.myDelivery == 1 ? '1 dzień' : item.myDelivery + ' dni') + '</span>' : '');
 
-            priceBoxColumnMyPrice.appendChild(priceBoxMyText);
-            priceBoxColumnMyPrice.appendChild(priceBoxMyDetails);
+                priceBoxColumnMyPrice.appendChild(priceBoxMyText);
+                priceBoxColumnMyPrice.appendChild(priceBoxMyDetails);
+            } else {
+                // For rejected products or missing myPrice, display placeholder
+                const priceBoxMyText = document.createElement('div');
+                priceBoxMyText.className = 'price-box-column-text';
+                priceBoxMyText.innerHTML = '<span style="font-weight: 500;">Brak ceny</span><br>' + myStoreName;
+
+                priceBoxColumnMyPrice.appendChild(priceBoxMyText);
+            }
 
             // Create priceBoxColumnInfo once
             const priceBoxColumnInfo = document.createElement('div');
@@ -500,64 +538,69 @@
             // Initialize innerHTML
             priceBoxColumnInfo.innerHTML = '';
 
-            // Add purchase price and margin information
-            if (marginPrice != null) {
-                const formattedMarginPrice = marginPrice.toLocaleString('pl-PL', {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2
-                }) + ' PLN';
-
-                if (myPrice != null) {
-                    const formattedMarginAmount = marginSign + Math.abs(marginAmount).toLocaleString('pl-PL', {
+            if (!isRejected) {
+                // Add purchase price and margin information
+                if (marginPrice != null) {
+                    const formattedMarginPrice = marginPrice.toLocaleString('pl-PL', {
                         minimumFractionDigits: 2,
                         maximumFractionDigits: 2
                     }) + ' PLN';
-                    const formattedMarginPercentage = '(' + marginSign + Math.abs(marginPercentage).toLocaleString('pl-PL', {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2
-                    }) + '%)';
 
-                    priceBoxColumnInfo.innerHTML +=
-                        '<div class="' + marginClass + '">' +
-                        '<p>Cena zakupu: ' + formattedMarginPrice + '</p>' +
-                        '<p>Marża: ' + formattedMarginAmount + ' ' + formattedMarginPercentage + '</p>' +
-                        '</div>';
-                } else {
-                    priceBoxColumnInfo.innerHTML +=
-                        '<div class="' + marginClass + '">' +
-                        '<p>Cena zakupu: ' + formattedMarginPrice + '</p>' +
-                        '</div>';
-                }
-            }
+                    if (myPrice != null) {
+                        const formattedMarginAmount = marginSign + Math.abs(marginAmount).toLocaleString('pl-PL', {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2
+                        }) + ' PLN';
+                        const formattedMarginPercentage = '(' + marginSign + Math.abs(marginPercentage).toLocaleString('pl-PL', {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2
+                        }) + '%)';
 
-            if (item.colorClass === "prToLow" || item.colorClass === "prIdeal") {
-                const diffClass = item.colorClass + ' ' + 'priceBox-diff';
-                if (savings != null && percentageDifference != null) {
-                    const savingsFormatted = (savings >= 0 ? '+' : '') + savings.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' PLN';
-                    const percentageFormatted = '(' + (percentageDifference >= 0 ? '+' : '') + percentageDifference.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%)';
-                    priceBoxColumnInfo.innerHTML +=
-                        '<div class="' + diffClass + '">Podnieś: ' + savingsFormatted + ' ' + percentageFormatted + '</div>';
-                } else {
-                    priceBoxColumnInfo.innerHTML += '<div class="' + diffClass + '">Podnieś: N/A</div>';
+                        priceBoxColumnInfo.innerHTML +=
+                            '<div class="' + marginClass + '">' +
+                            '<p>Cena zakupu: ' + formattedMarginPrice + '</p>' +
+                            '<p>Marża: ' + formattedMarginAmount + ' ' + formattedMarginPercentage + '</p>' +
+                            '</div>';
+                    } else {
+                        priceBoxColumnInfo.innerHTML +=
+                            '<div class="' + marginClass + '">' +
+                            '<p>Cena zakupu: ' + formattedMarginPrice + '</p>' +
+                            '</div>';
+                    }
                 }
-            } else if (item.colorClass === "prMid" || item.colorClass === "prToHigh") {
-                const diffClass = item.colorClass + ' ' + 'priceBox-diff';
-                if (priceDifference != null && percentageDifference != null) {
-                    const priceDiffFormatted = (priceDifference >= 0 ? '-' : '') + Math.abs(priceDifference).toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' PLN';
-                    const percentageFormatted = '(' + (percentageDifference >= 0 ? '-' : '') + Math.abs(percentageDifference).toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%)';
-                    priceBoxColumnInfo.innerHTML +=
-                        '<div class="' + diffClass + '">Obniż: ' + priceDiffFormatted + ' ' + percentageFormatted + '</div>';
-                } else {
-                    priceBoxColumnInfo.innerHTML += '<div class="' + diffClass + '">Obniż: N/A</div>';
+
+                if (item.colorClass === "prToLow" || item.colorClass === "prIdeal") {
+                    const diffClass = item.colorClass + ' ' + 'priceBox-diff';
+                    if (savings != null && percentageDifference != null) {
+                        const savingsFormatted = (savings >= 0 ? '+' : '') + savings.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' PLN';
+                        const percentageFormatted = '(' + (percentageDifference >= 0 ? '+' : '') + percentageDifference.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%)';
+                        priceBoxColumnInfo.innerHTML +=
+                            '<div class="' + diffClass + '">Podnieś: ' + savingsFormatted + ' ' + percentageFormatted + '</div>';
+                    } else {
+                        priceBoxColumnInfo.innerHTML += '<div class="' + diffClass + '">Podnieś: N/A</div>';
+                    }
+                } else if (item.colorClass === "prMid" || item.colorClass === "prToHigh") {
+                    const diffClass = item.colorClass + ' ' + 'priceBox-diff';
+                    if (priceDifference != null && percentageDifference != null) {
+                        const priceDiffFormatted = (priceDifference >= 0 ? '-' : '') + Math.abs(priceDifference).toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' PLN';
+                        const percentageFormatted = '(' + (percentageDifference >= 0 ? '-' : '') + Math.abs(percentageDifference).toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%)';
+                        priceBoxColumnInfo.innerHTML +=
+                            '<div class="' + diffClass + '">Obniż: ' + priceDiffFormatted + ' ' + percentageFormatted + '</div>';
+                    } else {
+                        priceBoxColumnInfo.innerHTML += '<div class="' + diffClass + '">Obniż: N/A</div>';
+                    }
+                } else if (item.colorClass === "prGood") {
+                    const diffClass = item.colorClass + ' ' + 'priceBox-diff-top';
+                    priceBoxColumnInfo.innerHTML += '<div class="' + diffClass + '">Jesteś w najlepszych cenach</div>';
                 }
-            } else if (item.colorClass === "prGood") {
-                const diffClass = item.colorClass + ' ' + 'priceBox-diff-top';
-                priceBoxColumnInfo.innerHTML += '<div class="' + diffClass + '">Jesteś w najlepszych cenach</div>';
+            } else {
+                // For rejected products, display a note or different rendering
+                priceBoxColumnInfo.innerHTML += '<div class="rejected-product">Produkt odrzucony</div>';
             }
 
             const priceBoxColumnExternalPrice = document.createElement('div');
             priceBoxColumnExternalPrice.className = 'price-box-column-api';
-            if (item.externalPrice !== null) {
+            if (!isRejected && item.externalPrice !== null) {
                 const externalPriceDifference = (item.externalPrice - item.myPrice).toFixed(2);
                 const externalPriceDifferenceText = (item.externalPrice > item.myPrice ? '+' : '') + externalPriceDifference;
                 priceBoxColumnExternalPrice.innerHTML =
@@ -589,7 +632,7 @@
             priceBoxData.appendChild(priceBoxColumnLowestPrice);
             priceBoxData.appendChild(priceBoxColumnMyPrice);
             priceBoxData.appendChild(priceBoxColumnInfo);
-            if (item.externalPrice !== null) {
+            if (!isRejected && item.externalPrice !== null) {
                 priceBoxData.appendChild(priceBoxColumnExternalPrice);
             }
             priceBoxData.appendChild(flagsContainer);
@@ -603,7 +646,7 @@
 
         document.getElementById('displayedProductCount').textContent = data.length;
 
-        // Lazy loading obrazków
+        // Lazy loading of images
         const lazyLoadImages = document.querySelectorAll('.lazy-load');
         const timers = new Map();
 
@@ -653,6 +696,7 @@
         });
     }
 
+
     function getDeliveryClass(days) {
         if (days <= 1) return 'Availability1Day';
         if (days <= 3) return 'Availability3Days';
@@ -684,9 +728,11 @@
             prToLow: 0
         };
 
-        // Zliczanie ilości produktów dla każdej kategorii
+        // Exclude rejected products from the chart data
         data.forEach(item => {
-            colorCounts[item.colorClass]++;
+            if (!item.isRejected) {
+                colorCounts[item.colorClass]++;
+            }
         });
 
         const chartData = [colorCounts.prToHigh, colorCounts.prMid, colorCounts.prGood, colorCounts.prIdeal, colorCounts.prToLow];
@@ -776,19 +822,20 @@
         document.querySelector('label[for="prToLowCheckbox"]').textContent = `Zaniżona (${colorCounts.prToLow})`;
     }
 
+    // Modify the sorting functions to exclude rejected products from 'raise' and 'lower' sorts
     function filterPricesAndUpdateUI() {
         const currentSearchTerm = document.getElementById('productSearch').value.toLowerCase().replace(/\s+/g, '').trim();
 
-        // Przygotowujemy zsanityzowane dane produktów (raz, zamiast w pętli)
+        // Prepare sanitized search term
         const sanitizedSearchTerm = currentSearchTerm.replace(/[^a-zA-Z0-9\s/.-]/g, '').toLowerCase().replace(/\s+/g, '');
 
         let filteredPrices = allPrices.filter(price => {
-            // Sanitizujemy nazwę produktu tylko raz na początku
+            // Sanitize product name
             const sanitizedProductName = price.productName.toLowerCase().replace(/[^a-zA-Z0-9\s/.-]/g, '').replace(/\s+/g, '');
             return sanitizedProductName.includes(sanitizedSearchTerm);
         });
 
-        // Sortowanie wyników na podstawie dopasowania ciągu znaków
+        // Sort results based on string match
         filteredPrices.sort((a, b) => {
             const sanitizedProductNameA = a.productName.toLowerCase().replace(/[^a-zA-Z0-9\s/.-]/g, '').replace(/\s+/g, '');
             const sanitizedProductNameB = b.productName.toLowerCase().replace(/[^a-zA-Z0-9\s/.-]/g, '').replace(/\s+/g, '');
@@ -796,12 +843,10 @@
             const exactMatchIndexA = getExactMatchIndex(sanitizedProductNameA, sanitizedSearchTerm);
             const exactMatchIndexB = getExactMatchIndex(sanitizedProductNameB, sanitizedSearchTerm);
 
-            // Najpierw sortujemy na podstawie dokładnego dopasowania (im bliżej początku, tym lepiej)
             if (exactMatchIndexA !== exactMatchIndexB) {
                 return exactMatchIndexA - exactMatchIndexB;
             }
 
-            // Jeśli pozycja jest taka sama, sortujemy po długości dopasowania (im dłuższe, tym lepiej)
             const matchLengthA = getLongestMatchLength(sanitizedProductNameA, sanitizedSearchTerm);
             const matchLengthB = getLongestMatchLength(sanitizedProductNameB, sanitizedSearchTerm);
 
@@ -814,6 +859,14 @@
 
         filteredPrices = filterPricesByCategoryAndColorAndFlag(filteredPrices);
 
+        // Apply 'Show Rejected' filter
+        if (sortingState.showRejected) {
+            filteredPrices = filteredPrices.filter(item => item.isRejected);
+        } else {
+            filteredPrices = filteredPrices.filter(item => !item.isRejected);
+        }
+
+        // Apply sorting
         if (sortingState.sortName !== null) {
             if (sortingState.sortName === 'asc') {
                 filteredPrices.sort((a, b) => a.productName.localeCompare(b.productName));
@@ -827,28 +880,28 @@
                 filteredPrices.sort((a, b) => b.lowestPrice - a.lowestPrice);
             }
         } else if (sortingState.sortRaiseAmount !== null) {
-            filteredPrices = filteredPrices.filter(item => item.savings !== null);
+            filteredPrices = filteredPrices.filter(item => !item.isRejected && item.savings !== null);
             if (sortingState.sortRaiseAmount === 'asc') {
                 filteredPrices.sort((a, b) => a.savings - b.savings);
             } else {
                 filteredPrices.sort((a, b) => b.savings - a.savings);
             }
         } else if (sortingState.sortRaisePercentage !== null) {
-            filteredPrices = filteredPrices.filter(item => item.savings !== null);
+            filteredPrices = filteredPrices.filter(item => !item.isRejected && item.savings !== null);
             if (sortingState.sortRaisePercentage === 'asc') {
                 filteredPrices.sort((a, b) => a.percentageDifference - b.percentageDifference);
             } else {
                 filteredPrices.sort((a, b) => b.percentageDifference - a.percentageDifference);
             }
         } else if (sortingState.sortLowerAmount !== null) {
-            filteredPrices = filteredPrices.filter(item => item.savings === null && item.priceDifference !== 0);
+            filteredPrices = filteredPrices.filter(item => !item.isRejected && item.savings === null && item.priceDifference !== 0);
             if (sortingState.sortLowerAmount === 'asc') {
                 filteredPrices.sort((a, b) => a.priceDifference - b.priceDifference);
             } else {
                 filteredPrices.sort((a, b) => b.priceDifference - a.priceDifference);
             }
         } else if (sortingState.sortLowerPercentage !== null) {
-            filteredPrices = filteredPrices.filter(item => item.savings === null && item.priceDifference !== 0);
+            filteredPrices = filteredPrices.filter(item => !item.isRejected && item.savings === null && item.priceDifference !== 0);
             if (sortingState.sortLowerPercentage === 'asc') {
                 filteredPrices.sort((a, b) => a.percentageDifference - b.percentageDifference);
             } else {
@@ -876,14 +929,34 @@
         updateFlagCounts(filteredPrices);
     }
 
+    // Add event listener for the new 'Show Rejected' button
+    document.getElementById('showRejectedButton').addEventListener('click', function () {
+        sortingState.showRejected = !sortingState.showRejected;
+        if (sortingState.showRejected) {
+            this.classList.add('active');
+        } else {
+            this.classList.remove('active');
+        }
+        resetSortingStates('showRejected');
+        filterPricesAndUpdateUI();
+    });
+
     function resetSortingStates(except) {
         for (let key in sortingState) {
             if (key !== except) {
-                sortingState[key] = null;
-                let button = document.getElementById(key);
-                if (button) {
-                    button.innerHTML = getDefaultButtonLabel(key);
-                    button.classList.remove('active');
+                if (key === 'showRejected') {
+                    sortingState[key] = false;
+                    let button = document.getElementById('showRejectedButton');
+                    if (button) {
+                        button.classList.remove('active');
+                    }
+                } else {
+                    sortingState[key] = null;
+                    let button = document.getElementById(key);
+                    if (button) {
+                        button.innerHTML = getDefaultButtonLabel(key);
+                        button.classList.remove('active');
+                    }
                 }
             }
         }
@@ -902,6 +975,7 @@
         }
     }
 
+    // Update getDefaultButtonLabel function to include 'showRejected'
     function getDefaultButtonLabel(key) {
         switch (key) {
             case 'sortName':
@@ -920,6 +994,8 @@
                 return 'Marża PLN';
             case 'sortMarginPercentage':
                 return 'Marża %';
+            case 'showRejected':
+                return 'Pokaż Odrzucone';
             default:
                 return '';
         }
