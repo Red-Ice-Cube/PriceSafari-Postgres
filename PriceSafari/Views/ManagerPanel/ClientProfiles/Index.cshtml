@@ -13,6 +13,11 @@
     .checkbox-cell {
         cursor: pointer;
     }
+    
+
+    .select-client {
+        cursor: pointer;
+    }
 </style>
 
 
@@ -147,21 +152,26 @@
         });
     });
 
-
     // Funkcja do przeliczania liczby kont
     function calculateAccounts() {
         let accountsCount = $('.table-orders tbody tr:visible').length;
         document.getElementById('accountsCount').innerText = accountsCount;
     }
 
+    
+
     document.querySelectorAll('.checkbox-cell').forEach(cell => {
         cell.addEventListener('click', function (event) {
-            // Zapobiegamy propagacji zdarzenia do wiersza
-            event.stopPropagation();
-
+            // Znajdź checkbox wewnątrz klikniętego td
             var checkbox = this.querySelector('.select-client');
+
+            // Jeśli kliknięto checkbox bezpośrednio, zachowaj jego domyślne działanie
+            if (event.target === checkbox) {
+                return;
+            }
+
+            // Przełączamy stan checkboxa, jeśli kliknięto poza checkboxem, ale w obrębie td
             if (checkbox) {
-                // Przełączamy stan checkboxa
                 checkbox.checked = !checkbox.checked;
             }
         });
@@ -201,7 +211,7 @@
                 $(this).toggle(matchesSearch && matchesUser && matchesStatus);
             });
 
-            // Przeliczenie liczby kont
+            // Przeliczenie liczby kont po zastosowaniu filtru
             calculateAccounts();
 
             // Zresetuj checkbox "Zaznacz wszystkie" po filtrowaniu
@@ -212,6 +222,9 @@
         $('#accountSearch').on('keyup', filterTable);
         $('#createdByFilter').on('change', filterTable);
         $('#statusFilter').on('change', filterTable);
+
+        // Przelicz początkową liczbę kont przy załadowaniu strony
+        calculateAccounts();
     });
 
     // Funkcja sendEmails pozostaje bez zmian
@@ -251,8 +264,8 @@
                 alert('Wystąpił błąd podczas przygotowywania wiadomości.');
             });
     }
-
 </script>
+
 
 
 @functions {
