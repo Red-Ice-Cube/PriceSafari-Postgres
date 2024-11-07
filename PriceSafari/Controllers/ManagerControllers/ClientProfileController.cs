@@ -261,14 +261,35 @@ public class ClientProfileController : Controller
 
     private string GetDefaultEmailContent()
     {
-        return @"Szanowni Państwo,
+        return @"
+                <p>Dzień dobry,</p>
 
-        Monitorujemy ceny produktów w różnych sklepach i znaleźliśmy {ProductCount} produktów w Państwa sklepie.
+                <p>Codziennie monitorujemy ceny produktów w e-sklepach.</p>
 
-        Chcielibyśmy przedstawić naszą ofertę monitorowania cen konkurencji dla tych produktów.
+                <p>Zaindeksowaliśmy <strong>{ProductCount}</strong> produktów dostępnych w Państwa sklepie, które moglibyśmy zacząć monitorować, dostarczając codziennie aktualne raporty rynkowe.</p>
 
-        Prosimy o kontakt, aby omówić szczegóły."
-        ;
+                <p>Namierzymy konkurentów, ich ceny oraz dostępność towarów. Śledzenie zmian dzień po dniu odkryje ich strategie cenowe, takie jak podwyżki przed weekendami czy nadchodzącym Black Weekiem.</p>
+
+                <p>Jak bardzo mogłaby wzrosnąć efektywność Państwa pracy dzięki dostępowi do informacji:</p>
+
+                <ul>
+                    <li>Kto ma najlepszą cenę na danym produkcie?</li>
+                    <li>Gdzie w rankingu cenowym znajduje się Państwa oferta?</li>
+                    <li>Kto i gdzie promuje oferty?</li>
+                    <li>Jak szeroka jest konkurencja?</li>
+                    <li>Jaki czas wysyłki oferują poszczególni konkurenci?</li>
+                    <li>Które ceny produktów można podnieść, aby maksymalizować zyski, wiedząc, że są najtańszymi ofertami na całym rynku?</li>
+                    <li>Na jakich produktach wybrany konkurent zmienił wczoraj cenę?</li>
+                </ul>
+
+                <p>Strategiczne ceny gwarantują, że Państwa produkty są tak konkurencyjne, jak powinny, a także zapewniają odpowiedni zysk. Nie chodzi tylko o bycie najtańszym, ale także o bycie najmądrzejszym. 
+                   Połączenie spostrzeżeń z wydajnością gwarantuje szybsze i pewniejsze decyzje o zmianach cen.</p>
+
+                <p>PriceSafari to pełny wgląd w rynek z poziomu jednego pulpitu.</p>
+
+                <p>Zapraszamy do kontaktu. Oferujemy bezpłatne konto demo, na którym mogą Państwo przetestować nasz program na 300 własnych produktach.</p>
+        ";
+
     }
 
     private string GetEmailFooter()
