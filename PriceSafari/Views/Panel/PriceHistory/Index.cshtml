@@ -362,7 +362,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/5.0.9/signalr.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.6.1/nouislider.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/wnumb/1.2.0/wNumb.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+   
 
 
     <script>
@@ -375,6 +375,7 @@
     <script>
         $(document).ready(function () {
             var connection = new signalR.HubConnectionBuilder().withUrl("/scrapingHub").build();
+            var updateSuccessful = false; // Flaga sukcesu
 
             connection.on("ReceiveProgressUpdate", function (processedCount, totalProducts, updatedCount, skippedCount) {
                 var percentage = Math.round((processedCount / totalProducts) * 100);
@@ -413,6 +414,7 @@
                         $('#updateStatusMessage').show().text('Aktualizacja zakończona. Zaktualizowano ceny dla ' + data.updatedCount + ' produktów. Sprawdzono ' + data.skippedCount + ' produktów.');
                         $('#cancelUpdatePrices').show();
                         $('#confirmUpdatePrices').prop('disabled', false);
+                        updateSuccessful = true; // Ustaw flagę sukcesu
                     },
                     error: function () {
                         $('#updateProgress').hide();
@@ -426,8 +428,16 @@
             $('#cancelUpdatePrices').on('click', function () {
                 $('#updatePricesModal').modal('hide');
             });
+
+           
+            $('#updatePricesModal').on('hidden.bs.modal', function () {
+                if (updateSuccessful) {
+                    location.reload(); 
+                }
+            });
         });
     </script>
+
 }
 
 <div class="modal fade" id="updatePricesModal" tabindex="-1" role="dialog" aria-labelledby="updatePricesModalLabel" aria-hidden="true">

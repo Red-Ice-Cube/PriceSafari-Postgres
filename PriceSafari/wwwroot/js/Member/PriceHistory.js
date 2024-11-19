@@ -50,7 +50,7 @@
     // Aktualizacja wyświetlanego zakresu przy zmianie wartości suwaka
     positionSlider.noUiSlider.on('update', function (values, handle) {
         const displayValues = values.map(value => {
-            return parseInt(value) === 16 ? 'Schowany' : 'Msc ' + value;
+            return parseInt(value) === 16 ? 'Schowany' : 'Poz. Ceneo ' + value;
         });
         positionRangeInput.textContent = displayValues.join(' - ');
     });
@@ -496,7 +496,7 @@
             priceBoxLowestDetails.className = 'price-box-column-text';
             priceBoxLowestDetails.innerHTML =
                 (isBidding ? '<span class="Bidding">Bid</span>' : '') +
-                (item.position !== null ? '<span class="Position">Msc ' + item.position + '</span>' :
+                (item.position !== null ? '<span class="Position">Poz. Ceneo ' + item.position + '</span>' :
                     '<span class="Position" style="background-color: #4B0089;">Schowany</span>') +
                 (item.delivery != null ? '<span class="' + deliveryClass + '">Wysyłka w ' + (item.delivery == 1 ? '1 dzień' : item.delivery + ' dni') + '</span>' : '');
 
@@ -516,21 +516,43 @@
                     const externalPriceDifference = (item.externalPrice - myPrice).toFixed(2);
                     const isPriceDecrease = item.externalPrice < myPrice;
 
-                    // Przekreśl myPrice na górze
-                    priceBoxMyText.innerHTML =
-                        '<span style="font-weight: 500; text-decoration: line-through;">' + myPrice.toFixed(2) + ' PLN</span><br>';
+                    // Tworzenie kontenera dla nazwy sklepu i zmiany w cenie
+                    const priceChangeContainer = document.createElement('div');
+                    priceChangeContainer.style.display = 'flex';
+                    priceChangeContainer.style.justifyContent = 'space-between';
+                    priceChangeContainer.style.alignItems = 'center';
 
-                    // Dodaj nową cenę externalPrice poniżej
-                    priceBoxMyText.innerHTML +=
-                        '<span style="font-weight: 500;">' + item.externalPrice.toFixed(2) + ' PLN</span><br>';
+                    // Dodanie nazwy sklepu po lewej stronie
+                    const storeName = document.createElement('span');
+                    storeName.style.fontWeight = '500';
+                    storeName.style.marginRight = '20px';
+                    storeName.textContent = myStoreName;
 
-                    // Dodaj różnicę między cenami ze strzałką
+                    // Dodanie zmiany ceny (z różnicą i strzałką) po prawej stronie
+                    const priceDifference = document.createElement('span');
+                    priceDifference.style.fontWeight = '500';
                     const arrow = '<span class="' + (isPriceDecrease ? 'arrow-down' : 'arrow-up') + '"></span>';
-                    const differenceText = '<span style="font-weight: 500;">' + (isPriceDecrease ? '-' : '+') + Math.abs(externalPriceDifference) + ' PLN</span> ' + arrow + '<br>';
-                    priceBoxMyText.innerHTML += differenceText;
+                    priceDifference.innerHTML = arrow + (isPriceDecrease ? '-' : '+') + Math.abs(externalPriceDifference) + ' PLN ';
 
-                    // Dodaj nazwę sklepu na dole
-                    priceBoxMyText.innerHTML += myStoreName;
+                    // Dodanie elementów do kontenera
+                    priceChangeContainer.appendChild(storeName);
+                    priceChangeContainer.appendChild(priceDifference);
+
+                    // Tworzenie elementów dla starych i nowych cen
+                    const oldPrice = document.createElement('span');
+                    oldPrice.style.fontWeight = '500';
+                    oldPrice.style.textDecoration = 'line-through';
+                    oldPrice.style.marginRight = '10px'; // Odstęp między cenami
+                    oldPrice.textContent = myPrice.toFixed(2) + ' PLN';
+
+                    const newPrice = document.createElement('span');
+                    newPrice.style.fontWeight = '500';
+                    newPrice.textContent = item.externalPrice.toFixed(2) + ' PLN';
+
+                    // Dodanie cen do głównego kontenera
+                    priceBoxMyText.appendChild(oldPrice);
+                    priceBoxMyText.appendChild(newPrice);
+                    priceBoxMyText.appendChild(priceChangeContainer);
                 } else {
                     // Jeśli nie ma externalPrice, wyświetl normalnie myPrice
                     priceBoxMyText.innerHTML =
@@ -541,7 +563,7 @@
                 priceBoxMyDetails.className = 'price-box-column-text';
                 priceBoxMyDetails.innerHTML =
                     (myIsBidding ? '<span class="Bidding">Bid</span>' : '') +
-                    (myPosition !== null ? '<span class="Position">Msc ' + myPosition + '</span>' :
+                    (myPosition !== null ? '<span class="Position">Poz. Ceneo ' + myPosition + '</span>' :
                         '<span class="Position" style="background-color: #4B0089;">Schowany</span>') +
                     (item.myDelivery != null ? '<span class="' + myDeliveryClass + '">Wysyłka w ' + (item.myDelivery == 1 ? '1 dzień' : item.myDelivery + ' dni') + '</span>' : '');
 
@@ -557,6 +579,7 @@
             }
 
 
+
             // Create priceBoxColumnInfo once
             const priceBoxColumnInfo = document.createElement('div');
             priceBoxColumnInfo.className = 'price-box-column-action';
@@ -565,7 +588,34 @@
             priceBoxColumnInfo.innerHTML = '';
 
             if (!isRejected) {
-                // Add purchase price and margin information
+        
+               
+
+                if (item.colorClass === "prToLow" || item.colorClass === "prIdeal") {
+                    const diffClass = item.colorClass + ' ' + 'priceBox-diff';
+                    if (savings != null && percentageDifference != null) {
+                        const savingsFormatted = (savings >= 0 ? '+' : '') + savings.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' PLN';
+                        const percentageFormatted = '(' + (percentageDifference >= 0 ? '+' : '') + percentageDifference.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%)';
+                        priceBoxColumnInfo.innerHTML +=
+                            '<div class="' + diffClass + '">Podnieś: ' + savingsFormatted + ' ' + percentageFormatted + '</div>';
+                    } else {
+                        priceBoxColumnInfo.innerHTML += '<div class="' + diffClass + '">Podnieś: N/A</div>';
+                    }
+                } else if (item.colorClass === "prMid" || item.colorClass === "prToHigh") {
+                    const diffClass = item.colorClass + ' ' + 'priceBox-diff';
+                    if (priceDifference != null && percentageDifference != null) {
+                        const priceDiffFormatted = (priceDifference >= 0 ? '-' : '') + Math.abs(priceDifference).toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' PLN';
+                        const percentageFormatted = '(' + (percentageDifference >= 0 ? '-' : '') + Math.abs(percentageDifference).toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%)';
+                        priceBoxColumnInfo.innerHTML +=
+                            '<div class="' + diffClass + '">Obniż: ' + priceDiffFormatted + ' ' + percentageFormatted + '</div>';
+                    } else {
+                        priceBoxColumnInfo.innerHTML += '<div class="' + diffClass + '">Obniż: N/A</div>';
+                    }
+                } else if (item.colorClass === "prGood") {
+                    const diffClass = item.colorClass + ' ' + 'priceBox-diff-top';
+                    priceBoxColumnInfo.innerHTML += '<div class="' + diffClass + '">Jesteś w najlepszych cenach</div>';
+                }
+
                 if (marginPrice != null) {
                     const formattedMarginPrice = marginPrice.toLocaleString('pl-PL', {
                         minimumFractionDigits: 2,
@@ -594,45 +644,12 @@
                             '</div>';
                     }
                 }
-
-                if (item.colorClass === "prToLow" || item.colorClass === "prIdeal") {
-                    const diffClass = item.colorClass + ' ' + 'priceBox-diff';
-                    if (savings != null && percentageDifference != null) {
-                        const savingsFormatted = (savings >= 0 ? '+' : '') + savings.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' PLN';
-                        const percentageFormatted = '(' + (percentageDifference >= 0 ? '+' : '') + percentageDifference.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%)';
-                        priceBoxColumnInfo.innerHTML +=
-                            '<div class="' + diffClass + '">Podnieś: ' + savingsFormatted + ' ' + percentageFormatted + '</div>';
-                    } else {
-                        priceBoxColumnInfo.innerHTML += '<div class="' + diffClass + '">Podnieś: N/A</div>';
-                    }
-                } else if (item.colorClass === "prMid" || item.colorClass === "prToHigh") {
-                    const diffClass = item.colorClass + ' ' + 'priceBox-diff';
-                    if (priceDifference != null && percentageDifference != null) {
-                        const priceDiffFormatted = (priceDifference >= 0 ? '-' : '') + Math.abs(priceDifference).toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' PLN';
-                        const percentageFormatted = '(' + (percentageDifference >= 0 ? '-' : '') + Math.abs(percentageDifference).toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%)';
-                        priceBoxColumnInfo.innerHTML +=
-                            '<div class="' + diffClass + '">Obniż: ' + priceDiffFormatted + ' ' + percentageFormatted + '</div>';
-                    } else {
-                        priceBoxColumnInfo.innerHTML += '<div class="' + diffClass + '">Obniż: N/A</div>';
-                    }
-                } else if (item.colorClass === "prGood") {
-                    const diffClass = item.colorClass + ' ' + 'priceBox-diff-top';
-                    priceBoxColumnInfo.innerHTML += '<div class="' + diffClass + '">Jesteś w najlepszych cenach</div>';
-                }
             } else {
                 // For rejected products, display a note or different rendering
                 priceBoxColumnInfo.innerHTML += '<div class="rejected-product">Produkt odrzucony</div>';
             }
 
-            const priceBoxColumnExternalPrice = document.createElement('div');
-            priceBoxColumnExternalPrice.className = 'price-box-column-api';
-            if (!isRejected && item.externalPrice !== null) {
-                const externalPriceDifference = (item.externalPrice - item.myPrice).toFixed(2);
-                const externalPriceDifferenceText = (item.externalPrice > item.myPrice ? '+' : '') + externalPriceDifference;
-                priceBoxColumnExternalPrice.innerHTML =
-                    '<div class="price-box-column-text-api">Nowa cena: ' + item.externalPrice.toFixed(2) + ' PLN</div>' +
-                    '<div class="price-box-column-text-api">Zmiana: ' + externalPriceDifferenceText + ' PLN</div>';
-            }
+        
 
             const flagsContainer = createFlagsContainer(item);
 
@@ -658,9 +675,7 @@
             priceBoxData.appendChild(priceBoxColumnLowestPrice);
             priceBoxData.appendChild(priceBoxColumnMyPrice);
             priceBoxData.appendChild(priceBoxColumnInfo);
-            if (!isRejected && item.externalPrice !== null) {
-                priceBoxData.appendChild(priceBoxColumnExternalPrice);
-            }
+         
             priceBoxData.appendChild(flagsContainer);
 
             box.appendChild(priceBoxSpace);
