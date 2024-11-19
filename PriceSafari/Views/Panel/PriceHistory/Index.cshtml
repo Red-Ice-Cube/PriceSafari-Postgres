@@ -137,7 +137,17 @@
         max-height: 8px;
     }
 
+    .arrow-up::before {
+        content: '▲';
+        color: red;
+        margin-left: 5px;
+    }
 
+    .arrow-down::before {
+        content: '▼';
+        color: green;
+        margin-left: 5px;
+    }
 
 
 </style>
@@ -352,6 +362,8 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/5.0.9/signalr.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.6.1/nouislider.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/wnumb/1.2.0/wNumb.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
 
     <script>
         var storeId = '@storeId';
@@ -359,7 +371,7 @@
     <script>
         var flags = @Html.Raw(JsonConvert.SerializeObject(ViewBag.Flags));
     </script>
-    <script src="~/js/member/pricehistory.min.js"></script>
+    <script src="~/js/member/PriceHistory.js"></script>
     <script>
         $(document).ready(function () {
             var connection = new signalR.HubConnectionBuilder().withUrl("/scrapingHub").build();

@@ -509,8 +509,33 @@
             if (!isRejected && myPrice != null) {
                 const priceBoxMyText = document.createElement('div');
                 priceBoxMyText.className = 'price-box-column-text';
-                priceBoxMyText.innerHTML =
-                    '<span style="font-weight: 500;">' + myPrice.toFixed(2) + ' PLN</span>' + '<br>' + myStoreName;
+
+                // Sprawdź, czy istnieje externalPrice
+                if (item.externalPrice !== null) {
+                    // Oblicz różnicę między externalPrice a myPrice
+                    const externalPriceDifference = (item.externalPrice - myPrice).toFixed(2);
+                    const isPriceDecrease = item.externalPrice < myPrice;
+
+                    // Przekreśl myPrice na górze
+                    priceBoxMyText.innerHTML =
+                        '<span style="font-weight: 500; text-decoration: line-through;">' + myPrice.toFixed(2) + ' PLN</span><br>';
+
+                    // Dodaj nową cenę externalPrice poniżej
+                    priceBoxMyText.innerHTML +=
+                        '<span style="font-weight: 500;">' + item.externalPrice.toFixed(2) + ' PLN</span><br>';
+
+                    // Dodaj różnicę między cenami ze strzałką
+                    const arrow = '<span class="' + (isPriceDecrease ? 'arrow-down' : 'arrow-up') + '"></span>';
+                    const differenceText = '<span style="font-weight: 500;">' + (isPriceDecrease ? '-' : '+') + Math.abs(externalPriceDifference) + ' PLN</span> ' + arrow + '<br>';
+                    priceBoxMyText.innerHTML += differenceText;
+
+                    // Dodaj nazwę sklepu na dole
+                    priceBoxMyText.innerHTML += myStoreName;
+                } else {
+                    // Jeśli nie ma externalPrice, wyświetl normalnie myPrice
+                    priceBoxMyText.innerHTML =
+                        '<span style="font-weight: 500;">' + myPrice.toFixed(2) + ' PLN</span><br>' + myStoreName;
+                }
 
                 const priceBoxMyDetails = document.createElement('div');
                 priceBoxMyDetails.className = 'price-box-column-text';
@@ -523,13 +548,14 @@
                 priceBoxColumnMyPrice.appendChild(priceBoxMyText);
                 priceBoxColumnMyPrice.appendChild(priceBoxMyDetails);
             } else {
-                // For rejected products or missing myPrice, display placeholder
+                // Dla produktów odrzuconych lub gdy brak myPrice
                 const priceBoxMyText = document.createElement('div');
                 priceBoxMyText.className = 'price-box-column-text';
                 priceBoxMyText.innerHTML = '<span style="font-weight: 500;">Brak ceny</span><br>' + myStoreName;
 
                 priceBoxColumnMyPrice.appendChild(priceBoxMyText);
             }
+
 
             // Create priceBoxColumnInfo once
             const priceBoxColumnInfo = document.createElement('div');

@@ -86,7 +86,7 @@ namespace PriceSafari.Controllers.MemberControllers
                 .Select(sn => sn.StoreLogoUrl)
                 .FirstOrDefaultAsync();
 
-         
+
             var categories = await _context.PriceHistories
                 .Where(ph => ph.ScrapHistoryId == latestScrap.Id && !ph.Product.IsRejected)
                 .Select(ph => ph.Product.Category)
@@ -551,7 +551,7 @@ namespace PriceSafari.Controllers.MemberControllers
             ViewBag.StoreName = (await _context.Stores.FindAsync(scrapHistory.StoreId))?.StoreName;
             ViewBag.SetPrice1 = priceValues.SetPrice1;
             ViewBag.SetPrice2 = priceValues.SetPrice2;
-            ViewBag.ProductId = productId; 
+            ViewBag.ProductId = productId;
             ViewBag.ExternalId = product.ExternalId;
             ViewBag.ExternalPrice = product.ExternalPrice;
             ViewBag.Img = product.MainUrl;
@@ -574,7 +574,7 @@ namespace PriceSafari.Controllers.MemberControllers
             }
 
             product.ExternalId = externalId;
-          
+
 
             await _context.SaveChangesAsync();
 
@@ -591,7 +591,7 @@ namespace PriceSafari.Controllers.MemberControllers
             }
 
             product.ExternalId = null;
-          
+
 
             await _context.SaveChangesAsync();
 
