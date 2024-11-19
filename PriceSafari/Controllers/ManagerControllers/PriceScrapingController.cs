@@ -44,6 +44,8 @@ public class PriceScrapingController : Controller
             {
                 OfferUrl = g.Key,
                 ProductIds = g.Select(p => p.ProductId).ToList(),
+                StoreNames = g.Select(p => p.Store.StoreName).ToList(),
+                StoreProfiles = g.Select(p => p.Store.StoreProfile).ToList(),
                 IsScraped = false
             })
             .ToListAsync();
@@ -235,150 +237,6 @@ public class PriceScrapingController : Controller
 
         return Ok(new { Message = "Scraping completed.", TotalPrices = totalPrices, RejectedCount = rejectedCount });
     }
-
-
-    //[HttpPost]
-    //public async Task<IActionResult> StartScrapingWithCaptchaHandling()
-    //{
-    //    ResetCancellationToken();
-    //    var cancellationToken = _cancellationTokenSource.Token;
-
-    //    var settings = await _context.Settings.FirstOrDefaultAsync();
-    //    if (settings == null)
-    //    {
-    //        Console.WriteLine("Settings not found.");
-    //        return NotFound("Settings not found.");
-    //    }
-
-    //    int captchaSpeed = settings.Semophore;
-    //    bool getCeneoName = settings.GetCeneoName;
-
-    //    // Fetch unsraped offers and map them for quick access
-    //    var coOfrs = await _context.CoOfrs.Where(co => !co.IsScraped).ToListAsync();
-    //    var urlCoOfrDict = coOfrs.ToDictionary(co => co.OfferUrl);
-
-    //    var urls = coOfrs.Select(co => co.OfferUrl).ToList();
-    //    var urlQueue = new ConcurrentQueue<string>(urls);
-
-    //    if (!urls.Any())
-    //    {
-    //        Console.WriteLine("No URLs found to scrape.");
-    //        return NotFound("No URLs found to scrape.");
-    //    }
-
-    //    int totalPrices = 0;
-    //    int scrapedCount = 0;
-    //    int rejectedCount = 0;
-    //    var stopwatch = new Stopwatch();
-    //    stopwatch.Start();
-
-    //    var tasks = new List<Task>();
-
-    //    for (int i = 0; i < captchaSpeed; i++)
-    //    {
-    //        tasks.Add(Task.Run(async () =>
-    //        {
-    //            var httpClient = _httpClientFactory.CreateClient();
-    //            var captchaScraper = new CaptchaScraper(httpClient);
-    //            await captchaScraper.InitializeBrowserAsync(settings);
-
-    //            try
-    //            {
-    //                while (urlQueue.TryDequeue(out var url))
-    //                {
-    //                    if (cancellationToken.IsCancellationRequested)
-    //                    {
-    //                        Console.WriteLine("Scraping canceled.");
-    //                        break;
-    //                    }
-
-    //                    try
-    //                    {
-    //                        using var scope = _serviceProvider.CreateScope();
-    //                        var scopedContext = scope.ServiceProvider.GetRequiredService<PriceSafariContext>();
-
-    //                        // Get data from the scraper, including prices and optionally the Ceneo product name
-    //                        var (prices, log, rejected) = await captchaScraper.HandleCaptchaAndScrapePricesAsync(url, getCeneoName);
-    //                        Console.WriteLine(log);
-
-    //                        var coOfr = urlCoOfrDict[url];
-
-    //                        if (prices.Count > 0)
-    //                        {
-    //                            // Create a list of price history entries, including the Ceneo product name if available
-    //                            var priceHistories = prices.Select(priceData => new CoOfrPriceHistoryClass
-    //                            {
-    //                                CoOfrClassId = coOfr.Id,
-    //                                StoreName = priceData.storeName,
-    //                                Price = priceData.price,
-    //                                ShippingCostNum = priceData.shippingCostNum,
-    //                                AvailabilityNum = priceData.availabilityNum,
-    //                                IsBidding = priceData.isBidding,
-    //                                Position = priceData.position,
-    //                                ExportedName = priceData.ceneoName
-    //                            }).ToList();
-
-    //                            await scopedContext.CoOfrPriceHistories.AddRangeAsync(priceHistories);
-    //                            coOfr.IsScraped = true;
-    //                            coOfr.ScrapingMethod = "Puppeteer";
-    //                            coOfr.PricesCount = priceHistories.Count;
-    //                            coOfr.IsRejected = (priceHistories.Count == 0);
-    //                            scopedContext.CoOfrs.Update(coOfr);
-    //                            await scopedContext.SaveChangesAsync();
-
-    //                            await _hubContext.Clients.All.SendAsync("ReceiveScrapingUpdate", coOfr.OfferUrl, coOfr.IsScraped, coOfr.IsRejected, coOfr.ScrapingMethod, coOfr.PricesCount);
-
-    //                            Interlocked.Add(ref totalPrices, priceHistories.Count);
-    //                            Interlocked.Increment(ref scrapedCount);
-    //                            if (coOfr.IsRejected)
-    //                            {
-    //                                Interlocked.Increment(ref rejectedCount);
-    //                            }
-    //                            await _hubContext.Clients.All.SendAsync("ReceiveProgressUpdate", scrapedCount, coOfrs.Count, stopwatch.Elapsed.TotalSeconds, rejectedCount);
-    //                        }
-    //                        else
-    //                        {
-    //                            // Handle cases where no prices were scraped
-    //                            coOfr.IsScraped = true;
-    //                            coOfr.IsRejected = true;
-    //                            coOfr.ScrapingMethod = "Puppeteer";
-    //                            scopedContext.CoOfrs.Update(coOfr);
-    //                            await scopedContext.SaveChangesAsync();
-
-    //                            Interlocked.Increment(ref scrapedCount);
-    //                            Interlocked.Increment(ref rejectedCount);
-    //                            await _hubContext.Clients.All.SendAsync("ReceiveProgressUpdate", scrapedCount, coOfrs.Count, stopwatch.Elapsed.TotalSeconds, rejectedCount);
-    //                        }
-    //                    }
-    //                    catch (Exception ex)
-    //                    {
-    //                        var log = $"Error scraping URL: {url}. Exception: {ex.Message}";
-    //                        Console.WriteLine(log);
-    //                    }
-    //                }
-    //            }
-    //            finally
-    //            {
-    //                await captchaScraper.CloseBrowserAsync();
-    //            }
-    //        }, cancellationToken));
-    //    }
-
-    //    try
-    //    {
-    //        await Task.WhenAll(tasks);
-    //    }
-    //    catch (OperationCanceledException)
-    //    {
-    //        Console.WriteLine("Scraping was canceled.");
-    //    }
-
-    //    stopwatch.Stop();
-
-    //    return Ok(new { Message = "Scraping completed.", TotalPrices = totalPrices, RejectedCount = rejectedCount });
-    //}
-
-
 
     [HttpGet]
     public async Task<IActionResult> GetStoreProductsWithCoOfrIds(int storeId)

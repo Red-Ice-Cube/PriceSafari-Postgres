@@ -1,0 +1,40 @@
+﻿using Microsoft.EntityFrameworkCore.Migrations;
+
+#nullable disable
+
+namespace PriceSafari.Migrations
+{
+    /// <inheritdoc />
+    public partial class ExCOfr : Migration
+    {
+        /// <inheritdoc />
+        protected override void Up(MigrationBuilder migrationBuilder)
+        {
+            migrationBuilder.AddColumn<string>(
+                name: "StoreNames",
+                table: "CoOfrs",
+                type: "nvarchar(max)",
+                nullable: false,
+                defaultValue: "[]");
+
+            migrationBuilder.AddColumn<string>(
+                name: "StoreProfiles",
+                table: "CoOfrs",
+                type: "nvarchar(max)",
+                nullable: false,
+                defaultValue: "[]");
+        }
+
+        /// <inheritdoc />
+        protected override void Down(MigrationBuilder migrationBuilder)
+        {
+            migrationBuilder.DropColumn(
+                name: "StoreNames",
+                table: "CoOfrs");
+
+            migrationBuilder.DropColumn(
+                name: "StoreProfiles",
+                table: "CoOfrs");
+        }
+    }
+}
