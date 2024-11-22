@@ -62,7 +62,11 @@
 
         <!-- Button to open modal -->
         <div>
-            @if (Model.HasUnpaidInvoice)
+            @if (Model.IsTestPlan)
+            {
+                <p><strong>Generowanie lub dodawanie faktur jest niedostępne w planie testowym.</strong></p>
+            }
+            else if (Model.HasUnpaidInvoice)
             {
                 <p><strong>Proforma została już wygenerowana.</strong></p>
             }
@@ -73,7 +77,7 @@
                 </button>
             }
         </div>
-    
+
 
         <!-- Modal for Generating Proforma -->
         <div class="modal fade" id="generateProformaModal" tabindex="-1" role="dialog" aria-labelledby="generateProformaModalLabel" aria-hidden="true">

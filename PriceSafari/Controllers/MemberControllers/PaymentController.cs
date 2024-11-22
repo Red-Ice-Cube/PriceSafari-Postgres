@@ -99,6 +99,7 @@ namespace PriceSafari.Controllers.MemberControllers
                 StoreName = store.StoreName,
                 LogoUrl = store.StoreLogoUrl,
                 PlanName = store.Plan?.PlanName ?? "Brak Planu",
+                IsTestPlan = store.Plan.IsTestPlan,
                 PlanPrice = store.Plan?.NetPrice ?? 0,
                 ProductsToScrap = store.Plan?.ProductsToScrap ?? 0,
                 ScrapesPerInvoice = store.Plan?.ScrapesPerInvoice ?? 0,

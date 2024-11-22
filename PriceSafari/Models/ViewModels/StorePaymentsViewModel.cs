@@ -13,6 +13,7 @@ namespace PriceSafari.Models.ViewModels
         public int ProductsToScrap { get; set; }
         public int ScrapesPerInvoice { get; set; }
         public bool HasUnpaidInvoice { get; set; }
+        public bool IsTestPlan { get; set; }
         public List<InvoiceClass> Invoices { get; set; }
         public List<UserPaymentData> PaymentDataList { get; set; }
     }

@@ -1542,9 +1542,9 @@ img.lazy-load-flex {
 }
 
 .Validation-company {
-    border: 1px solid #FFD700;
-    background: rgba(255, 215, 0, 0.20);
-    color: #FFD700;
+    border: 1px solid #FF8000;
+    background: rgba(255, 128, 0, 0.20);
+    color: #FF8000;
 }
 
 .Validation-individual {
