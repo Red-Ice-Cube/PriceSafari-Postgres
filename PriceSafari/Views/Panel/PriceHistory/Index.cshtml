@@ -81,13 +81,24 @@
             width: 100%;
         }
 
-    /* Dostosowanie rozmiaru suwaka */
+   
     #positionRangeSlider {
-        width: 85%; /* Dostosuj wartość procentową według potrzeb */
+        width: 85%; 
         margin-left:6px;
         
     
     }
+
+
+    #offerRangeSlider {
+        width: 85%;
+        margin-left: 6px;
+    }
+
+    .offer-slider-container {
+        margin-bottom: 10px;
+    }
+
 
     /* Zmniejszenie wysokości suwaka */
     .noUi-target {
@@ -234,7 +245,21 @@
 
                         <div id="positionRangeSlider"></div>
                     </div>
-                    <div class="Category-Container-Select">Wysyłka (ty)</div>
+
+
+                    <div class="Category-Container-Select">Liczba ofert</div>
+                    <div class="store-section">
+                        <div class="offer-slider-container">
+                            <div id="offerRange" class="offer-range-display" style="font-size:14px; font-weight:400;"></div>
+                        </div>
+
+                        <div id="offerRangeSlider"></div>
+                    </div>
+
+
+
+
+                    <div class="Category-Container-Select">Wysyłka - @ViewBag.storeName</div>
                     <div class="store-section">
                         <div class="filter-category">
 
@@ -255,7 +280,7 @@
                                 <label class="form-check-label" for="delivery14MyStore">Wysyłka w 14 dni</label>
                             </div>
                         </div>
-                        <div class="Category-Container-Select">Wysyłka (konkurencja)</div>
+                        <div class="Category-Container-Select">Wysyłka - konkurencja</div>
                         <div class="store-section">
                             <div class="filter-category">
 

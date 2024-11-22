@@ -16,10 +16,11 @@
         sortLowerPercentage: null,
         sortMarginAmount: null,
         sortMarginPercentage: null,
-        showRejected: false // Added this line
+        showRejected: false 
     };
 
     let positionSlider;
+    let offerSlider;
 
     function debounce(func, wait) {
         let timeout;
@@ -34,7 +35,7 @@
     var positionRangeInput = document.getElementById('positionRange');
 
     noUiSlider.create(positionSlider, {
-        start: [1, 16], // Początkowy zakres (od 1 do 16)
+        start: [1, 16], 
         connect: true,
         range: {
             'min': 1,
@@ -42,12 +43,12 @@
         },
         step: 1,
         format: wNumb({
-            decimals: 0 // Bez miejsc po przecinku
+            decimals: 0 
         })  
     });
 
 
-    // Aktualizacja wyświetlanego zakresu przy zmianie wartości suwaka
+   
     positionSlider.noUiSlider.on('update', function (values, handle) {
         const displayValues = values.map(value => {
             return parseInt(value) === 16 ? 'Schowany' : 'Poz. Ceneo ' + value;
@@ -55,18 +56,53 @@
         positionRangeInput.textContent = displayValues.join(' - ');
     });
 
-    // Przefiltrowanie danych przy zmianie wartości suwaka
+
     positionSlider.noUiSlider.on('change', function () {
-        // Wywołaj swoją funkcję filtrowania
+    
         filterPricesAndUpdateUI();
     });
 
-    // Przefiltruj dane, gdy wartość suwaka się zmienia
+    
     positionSlider.noUiSlider.on('change', function () {
         filterPricesAndUpdateUI();
     });
 
- 
+
+
+    offerSlider = document.getElementById('offerRangeSlider');
+    var offerRangeInput = document.getElementById('offerRange');
+
+    // Inicjalizacja suwaka z tymczasowym zakresem, zostanie zaktualizowany po załadowaniu danych
+    noUiSlider.create(offerSlider, {
+        start: [1, 1],
+        connect: true,
+        range: {
+            'min': 1,
+            'max': 1
+        },
+        step: 1,
+        format: wNumb({
+            decimals: 0
+        })
+    });
+
+    // Aktualizacja wyświetlanego zakresu podczas przesuwania suwaka
+    offerSlider.noUiSlider.on('update', function (values, handle) {
+        const displayValues = values.map(value => {
+            const intValue = parseInt(value);
+            let suffix = ' Ofert';
+            if (intValue === 1) suffix = ' Oferta';
+            else if (intValue >= 2 && intValue <= 4) suffix = ' Oferty';
+            return intValue + suffix;
+        });
+        offerRangeInput.textContent = displayValues.join(' - ');
+    });
+
+    // Aktualizacja interfejsu po zmianie wartości suwaka
+    offerSlider.noUiSlider.on('change', function () {
+        filterPricesAndUpdateUI();
+    });
+
 
     const updatePricesDebounced = debounce(function () {
         const usePriceDifference = document.getElementById('usePriceDifference').checked;
@@ -105,7 +141,7 @@
     const unitLabel1 = document.getElementById('unitLabel1');
     const unitLabel2 = document.getElementById('unitLabel2');
 
-    // Funkcja aktualizująca etykiety
+
     function updateUnits(usePriceDifference) {
         if (usePriceDifference) {
             unitLabel1.textContent = 'PLN';
@@ -116,13 +152,13 @@
         }
     }
 
-    // Reaguj na kliknięcie checkboxa
+
     usePriceDifferenceCheckbox.addEventListener('change', function () {
         const usePriceDifference = usePriceDifferenceCheckbox.checked;
         updateUnits(usePriceDifference);
     });
 
-    // Function to load price data from the server
+ 
     function loadPrices() {
         fetch(`/PriceHistory/GetPrices?storeId=${storeId}&competitorStore=${competitorStore}`)
             .then(response => response.json())
@@ -132,16 +168,15 @@
                 setPrice2 = response.setPrice2;
                 missedProductsCount = response.missedProductsCount;
 
-                // Get usePriceDiff value from server response
+             
                 const usePriceDifference = response.usePriceDiff;
-
-                // Set the checkbox to the value from the server
+              
                 document.getElementById('usePriceDifference').checked = usePriceDifference;
 
-                // Update labels
+         
                 updateUnits(usePriceDifference);
 
-                // Process prices
+                
                 allPrices = response.prices.map(price => {
                     const isRejected = price.isRejected;
 
@@ -189,6 +224,7 @@
 
                     return {
                         ...price,
+                        storeCount: price.storeCount, 
                         isRejected: isRejected,
                         valueToUse: valueToUse,
                         colorClass: colorClass,
@@ -200,6 +236,19 @@
                         marginClass: marginClass
                     };
                 });
+
+                const storeCounts = allPrices.map(item => item.storeCount);
+                const maxStoreCount = Math.max(...storeCounts);
+                const offerSliderMax = Math.max(maxStoreCount, 1);
+
+                offerSlider.noUiSlider.updateOptions({
+                    range: {
+                        'min': 1,
+                        'max': offerSliderMax
+                    }
+                });
+
+                offerSlider.noUiSlider.set([1, offerSliderMax]);
 
                 document.getElementById('totalPriceCount').textContent = response.priceCount;
                 document.getElementById('price1').value = setPrice1;
@@ -296,7 +345,10 @@
         const positionMin = parseInt(positionSliderValues[0]);
         const positionMax = parseInt(positionSliderValues[1]);
 
-  
+        // **Add this code to get values from offerSlider**
+        const offerSliderValues = offerSlider.noUiSlider.get();
+        const offerMin = parseInt(offerSliderValues[0]);
+        const offerMax = parseInt(offerSliderValues[1]);
 
 
         let filteredPrices = selectedCategory ? data.filter(item => item.category === selectedCategory) : data;
@@ -304,6 +356,12 @@
         filteredPrices = filteredPrices.filter(item => {
             const position = item.myPosition === null ? 16 : parseInt(item.myPosition);
             return position >= positionMin && position <= positionMax;
+        });
+
+        // **Add this code to filter based on storeCount**
+        filteredPrices = filteredPrices.filter(item => {
+            const storeCount = item.storeCount;
+            return storeCount >= offerMin && storeCount <= offerMax;
         });
 
         if (selectedColors.length) {
@@ -453,6 +511,12 @@
                 apiBox.innerHTML = 'API ID ' + item.externalId;
                 priceBoxColumnCategory.appendChild(apiBox);
             }
+
+            // **Nowy kod**: Dodajemy element z liczbą ofert
+            const storeCountElement = document.createElement('div');
+            storeCountElement.className = 'price-box-store-count';
+            storeCountElement.innerHTML = 'Liczba ofert: ' + item.storeCount;
+            priceBoxColumnCategory.appendChild(storeCountElement);
 
             const assignFlagButton = document.createElement('button');
             assignFlagButton.className = 'assign-flag-button';
