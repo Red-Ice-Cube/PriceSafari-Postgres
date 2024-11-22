@@ -30,18 +30,17 @@
                 @productName
                 <div class="form-check-orders" style="margin: 16px;">
                     <div>
-                     
                         <p><strong>Wykonano:</strong> @scrapHistory?.Date.ToString("dd.MM.yyyy")</p>
                     </div>
                 </div>
 
                 <div class="store-section">
                     <div class="form-check">
-                        <input class="form-check-input sortFilter" type="checkbox" id="sortPrice" checked>
+                        <input class="form-check-input sortFilter" type="radio" name="sortOption" id="sortPrice" value="price" checked>
                         <label class="form-check-label" for="sortPrice">Sortuj po cenie</label>
                     </div>
                     <div class="form-check">
-                        <input class="form-check-input sortFilter" type="checkbox" id="sortPosition">
+                        <input class="form-check-input sortFilter" type="radio" name="sortOption" id="sortPosition" value="position">
                         <label class="form-check-label" for="sortPosition">Sortuj po pozycji Ceneo</label>
                     </div>
                 </div>
@@ -90,7 +89,6 @@
                         var isUniqueBestPrice = item.Price == Model.Min(m => m.Price) && Model.Count(m => m.Price == item.Price) == 1;
                         var isSharedBestPrice = item.Price == Model.Min(m => m.Price) && Model.Count(m => m.Price == item.Price) > 1;
                         var savings = isUniqueBestPrice ? Model.Where(m => m.Price > item.Price).OrderBy(m => m.Price).FirstOrDefault()?.Price - item.Price : (decimal?)null;
-
 
                         decimal priceDifferencePLN = item.Price - basePrice;
                         decimal percentageDifference = (basePrice > 0) ? ((item.Price - basePrice) / basePrice) * 100 : 0;
@@ -154,7 +152,7 @@
 
                         var availabilityClass = getAvailabilityClass(item.AvailabilityNum);
 
-                        <tr class="price-row @colorClass" data-store-name="@item.StoreName" data-price="@item.Price" data-position="@item.Position">
+                        <tr class="price-row @colorClass" data-store-name="@item.StoreName" data-price="@item.Price.ToString(System.Globalization.CultureInfo.InvariantCulture)" data-position="@item.Position">
                             <td>
                                 <div class="color-bar @colorClass"></div>
                             </td>
@@ -196,7 +194,7 @@
                                 }
                                 else
                                 {
-                                    <div class="Position" style="background-color: #4B0089;">Schowany</div> 
+                                    <div class="Position" style="background-color: #4B0089;">Schowany</div>
                                 }
                             </td>
 
@@ -281,8 +279,56 @@
 @section Scripts {
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
-    <script src="~/js/member/pricedetails.min.js"></script>
-  
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+
+            var observedStoreName = document.querySelector(".Vert").getAttribute("data-store-name").toLowerCase();
+            var rows = Array.from(document.querySelectorAll(".price-row"));
+
+            rows.forEach(function (row) {
+                var storeName = row.getAttribute("data-store-name").toLowerCase();
+                if (storeName === observedStoreName) {
+                    row.querySelector(".store-name").style.fontWeight = "bold";
+                    row.querySelector(".store-price").style.fontWeight = "bold";
+                }
+            });
+
+            function sortRowsByPrice() {
+                rows.sort((a, b) => {
+                    var priceA = parseFloat(a.getAttribute("data-price"));
+                    var priceB = parseFloat(b.getAttribute("data-price"));
+                    if (isNaN(priceA)) priceA = Infinity;
+                    if (isNaN(priceB)) priceB = Infinity;
+                    return priceA - priceB;
+                });
+                rows.forEach(row => document.querySelector("#priceTable tbody").appendChild(row));
+            }
+
+            function sortRowsByPosition() {
+                rows.sort((a, b) => {
+                    var posA = parseInt(a.getAttribute("data-position")) || Infinity;
+                    var posB = parseInt(b.getAttribute("data-position")) || Infinity;
+                    return posA - posB;
+                });
+                rows.forEach(row => document.querySelector("#priceTable tbody").appendChild(row));
+            }
+
+            function handleSortChange() {
+                if (this.id === "sortPrice") {
+                    sortRowsByPrice();
+                } else if (this.id === "sortPosition") {
+                    sortRowsByPosition();
+                }
+            }
+
+            document.getElementById("sortPrice").addEventListener("change", handleSortChange);
+            document.getElementById("sortPosition").addEventListener("change", handleSortChange);
+
+            // Initial sorting by price
+            sortRowsByPrice();
+        });
+    </script>
     <script>
         $(document).ready(function () {
             $('#editExternalIdButton').on('click', function () {

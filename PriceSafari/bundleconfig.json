@@ -73,15 +73,6 @@
     "minify": {
       "enabled": true
     }
-  },
-  {
-    "outputFileName": "wwwroot/js/Member/pricedetails.min.js",
-    "inputFiles": [
-      "wwwroot/js/Member/PriceDetails.js"
-    ],
-    "minify": {
-      "enabled": true
-    }
   }
 
 ]
