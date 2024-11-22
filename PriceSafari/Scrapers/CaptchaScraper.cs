@@ -201,14 +201,14 @@ namespace PriceSafari.Scrapers
 
 
 
-                // Collect found store names
+               // Sprawdzenie czy mamy kluczowe sklepy
                 var foundStoreNames = priceResults.Select(p => p.storeName).Distinct().ToList();
 
-                // Prepare desired stores list
+               
                 var desiredStores = storeNames.Zip(storeProfiles, (name, profile) => new { StoreName = name, StoreProfile = profile }).ToList();
                 var notFoundStores = desiredStores.Where(ds => !foundStoreNames.Contains(ds.StoreName)).ToList();
 
-                // Scrape store-specific pages for stores not found
+               //permutacja o store profajle na przeladowanie filtrowania wedlug sklepu
                 foreach (var store in notFoundStores)
                 {
                     var storeSpecificUrl = $"{url};{store.StoreProfile}-0v.htm";
@@ -216,10 +216,10 @@ namespace PriceSafari.Scrapers
 
                     var (storePrices, storeLog, storeRejectedProducts) = await ScrapePricesFromCurrentPage(storeSpecificUrl, false, getCeneoName);
 
-                    // Filter to include only offers from the desired store
+        
                     var storeSpecificOffers = storePrices.Where(p => p.storeName == store.StoreName).ToList();
 
-                    // Set position to null for these offers
+                  
                     storeSpecificOffers = storeSpecificOffers.Select(p => (
                         p.storeName,
                         p.price,
@@ -230,10 +230,10 @@ namespace PriceSafari.Scrapers
                         p.ceneoName
                     )).ToList();
 
-                    // Add to priceResults
+                 
                     priceResults.AddRange(storeSpecificOffers);
 
-                    // Update log and rejectedProducts as needed
+                  
                     log += storeLog;
                     rejectedProducts.AddRange(storeRejectedProducts);
                 }

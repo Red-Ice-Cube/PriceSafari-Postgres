@@ -810,6 +810,7 @@
                 },
                 options: {
                     aspectRatio: 1,
+                    cutout: '60%', // Zwiększenie tej wartości sprawi, że pierścień będzie cieńszy
                     plugins: {
                         legend: {
                             display: false,
@@ -838,6 +839,7 @@
                     }
                 }
             });
+
         }
     }
 
