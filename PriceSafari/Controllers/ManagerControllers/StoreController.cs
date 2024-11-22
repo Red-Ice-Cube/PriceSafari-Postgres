@@ -99,6 +99,25 @@ namespace PriceSafari.Controllers.ManagerControllers
                     if (newPlan != null)
                     {
                         existingStore.ProductsToScrap = newPlan.ProductsToScrap;
+
+                        // Check if the new plan is free or test plan
+                        if (newPlan.NetPrice == 0 || newPlan.IsTestPlan)
+                        {
+                            // Set RemainingScrapes based on the plan's ScrapesPerInvoice
+                            existingStore.RemainingScrapes = newPlan.ScrapesPerInvoice; // Assuming ScrapesPerInvoice represents the number of days or scrapes
+
+                            // Optionally, mark any unpaid invoices as paid (if applicable)
+                            var unpaidInvoices = await _context.Invoices.Where(i => i.StoreId == store.StoreId && !i.IsPaid).ToListAsync();
+                            foreach (var invoice in unpaidInvoices)
+                            {
+                                invoice.IsPaid = true;
+                            }
+                        }
+                        else
+                        {
+                            // For paid plans, RemainingScrapes remains 0 until the invoice is paid
+                            existingStore.RemainingScrapes = 0;
+                        }
                     }
                     else
                     {
@@ -114,6 +133,7 @@ namespace PriceSafari.Controllers.ManagerControllers
             ViewBag.Plans = new SelectList(plans, "PlanId", "PlanName", store.PlanId);
             return View("~/Views/ManagerPanel/Store/EditStore.cshtml", store);
         }
+
 
         [HttpGet]
         public async Task<IActionResult> Index()

@@ -389,7 +389,7 @@
 
                 progressBarInner.style.width = percentage + "%";
                 progressBarInner.innerHTML = percentage + "%";
-                progressText.innerHTML = `Zaktualizowano ceny dla ${updatedCount}/${totalProducts} produktów. Pominęto ${skippedCount} produktów.`;
+                progressText.innerHTML = `Wykryto aktualizację ceny dla ${updatedCount}/${totalProducts} produktów. Sprawdzono ${skippedCount} produktów.`;
             });
 
             connection.start().then(function () {

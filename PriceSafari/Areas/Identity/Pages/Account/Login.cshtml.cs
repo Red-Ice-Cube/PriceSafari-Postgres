@@ -71,35 +71,36 @@ namespace PriceSafari.Areas.Identity.Pages.Account
             if (ModelState.IsValid)
             {
                 var user = await _signInManager.UserManager.FindByEmailAsync(Input.Email);
-                if (user != null && !user.IsActive)
+
+                if (user == null)
+                {
+                    ModelState.AddModelError(string.Empty, "Błędne dane logowania.");
+                    return Page();
+                }
+
+                if (!user.IsActive)
                 {
                     _logger.LogWarning("Próba logowania na zdezaktywowane konto.");
                     ModelState.AddModelError(string.Empty, "To konto zostało zdezaktywowane.");
                     return Page();
                 }
 
-                // Sprawdź, czy weryfikacja afiliacyjna jest wymagana
                 var settings = await _context.Settings.FirstOrDefaultAsync();
                 if (settings != null && settings.VerificationRequired)
                 {
-                    // Sprawdź, czy użytkownik jest zweryfikowany
                     var affiliateVerification = await _context.AffiliateVerification.FirstOrDefaultAsync(av => av.UserId == user.Id);
                     if (affiliateVerification == null || !affiliateVerification.IsVerified)
                     {
-                        ModelState.AddModelError(string.Empty, "Konto jest jeszcze przygototwywane. Po zakończonej konfiguracji powiadomimy Cię o tym mailowo.");
+                        ModelState.AddModelError(string.Empty, "Konto jest jeszcze przygotowywane. Po zakończonej konfiguracji powiadomimy Cię o tym mailowo.");
                         return Page();
                     }
                 }
 
-                // Kontynuuj proces logowania, jeśli weryfikacja nie jest wymagana lub użytkownik jest już zweryfikowany
                 var result = await _signInManager.PasswordSignInAsync(Input.Email, Input.Password, Input.RememberMe, lockoutOnFailure: false);
                 if (result.Succeeded)
                 {
                     _logger.LogInformation("User logged in.");
-                    // Pobierz role użytkownika
                     var roles = await _signInManager.UserManager.GetRolesAsync(user);
-
-                    // Przekieruj na odpowiednią stronę w zależności od roli użytkownika
 
                     if (roles.Contains("Admin"))
                     {
@@ -109,7 +110,6 @@ namespace PriceSafari.Areas.Identity.Pages.Account
                     {
                         return RedirectToAction("Index", "ClientProfile");
                     }
-
                     else if (roles.Contains("Member"))
                     {
                         return RedirectToAction("Index", "Chanel");
@@ -121,15 +121,14 @@ namespace PriceSafari.Areas.Identity.Pages.Account
                 }
                 else
                 {
-                   
                     ModelState.AddModelError(string.Empty, "Błędne dane logowania.");
                     return Page();
                 }
-
             }
 
             return Page();
         }
+
 
 
 

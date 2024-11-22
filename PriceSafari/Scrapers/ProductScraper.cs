@@ -15,7 +15,10 @@ namespace PriceSafari.Scrapers
         private IPage _page;
         private readonly Settings _settings;
 
-        public ProductScraper(PriceSafariContext context, IHubContext<ScrapingHub> hubContext, Settings settings)
+        public ProductScraper(
+            PriceSafariContext context,
+            IHubContext<ScrapingHub> hubContext,
+            Settings settings)
         {
             _context = context;
             _hubContext = hubContext;
@@ -75,25 +78,17 @@ namespace PriceSafari.Scrapers
 
             var random = new Random();
             var randomResolution = commonResolutions[random.Next(commonResolutions.Count)];
-            await _page.SetViewportAsync(new ViewPortOptions { Width = randomResolution.width, Height = randomResolution.height });
+            await _page.SetViewportAsync(new ViewPortOptions
+            {
+                Width = randomResolution.width,
+                Height = randomResolution.height
+            });
 
             // Enable request interception based on settings
             if (!_settings.Styles)
             {
                 await _page.SetRequestInterceptionAsync(true);
-                _page.Request += async (sender, e) =>
-                {
-                    if (e.Request.ResourceType == ResourceType.Image ||
-                        e.Request.ResourceType == ResourceType.StyleSheet ||
-                        e.Request.ResourceType == ResourceType.Font)
-                    {
-                        await e.Request.AbortAsync();
-                    }
-                    else
-                    {
-                        await e.Request.ContinueAsync();
-                    }
-                };
+                _page.Request += OnRequest;
             }
 
             // Set extra HTTP headers
@@ -125,29 +120,27 @@ namespace PriceSafari.Scrapers
 
                 try
                 {
-                    // Navigate to the URL on the existing page
                     await _page.GoToAsync(url, WaitUntilNavigation.Networkidle0);
+                    Console.WriteLine("Page loaded successfully.");
 
-                    // Check if the current URL indicates a CAPTCHA
+                    // CAPTCHA handling
                     if (_page.Url.Contains("Captcha"))
                     {
                         Console.WriteLine("Encountered CAPTCHA page. Waiting for user to solve it.");
 
-                        // Wait for user to solve the CAPTCHA
                         bool captchaSolved = await WaitForCaptchaToBeSolvedAsync();
 
                         if (!captchaSolved)
                         {
-                            Console.WriteLine("CAPTCHA was not solved in time.");
-                            break; // or handle accordingly
+                            Console.WriteLine("CAPTCHA was not solved in time. Exiting scraper.");
+                            break;
                         }
 
-                        // After CAPTCHA is solved, reload the page
                         await _page.GoToAsync(url, WaitUntilNavigation.Networkidle0);
                     }
 
-                    // Wait for the content to load with a reasonable timeout
-                    var contentLoaded = await _page.WaitForSelectorAsync("div.cat-prod-box", new WaitForSelectorOptions { Timeout = 500 });
+                    // Wait for products to load
+                    var contentLoaded = await _page.WaitForSelectorAsync("div.cat-prod-box", new WaitForSelectorOptions { Timeout = 5000 });
 
                     if (contentLoaded == null)
                     {
@@ -162,7 +155,7 @@ namespace PriceSafari.Scrapers
                     break;
                 }
 
-                // Get the total page count on the first page
+                // Get total page count on first page
                 if (pageIndex == 0)
                 {
                     try
@@ -174,14 +167,32 @@ namespace PriceSafari.Scrapers
                             if (int.TryParse(pageCountValue, out int pc))
                             {
                                 pageCount = pc;
+                                Console.WriteLine($"Total pages to process: {pageCount}");
                             }
                         }
+                        else
+                        {
+                            Console.WriteLine("Page count element not found.");
+                        }
                     }
-                    catch { /* Ignore errors */ }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"Error retrieving total page count: {ex.Message}");
+                    }
                 }
 
                 // Select all product elements
-                var productElements = await _page.QuerySelectorAllAsync("div.cat-prod-box");
+                IElementHandle[] productElements = null;
+                try
+                {
+                    productElements = (await _page.QuerySelectorAllAsync("div.cat-prod-box")).ToArray();
+                    Console.WriteLine($"Found {productElements.Length} products on page {pageIndex}.");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Error selecting product elements on page {pageIndex}: {ex.Message}");
+                    continue;
+                }
 
                 if (productElements != null && productElements.Length > 0)
                 {
@@ -189,22 +200,32 @@ namespace PriceSafari.Scrapers
                     {
                         try
                         {
-                            // Extract product data using JavaScript evaluation
+                            // Extract product data
                             var pid = await productElement.EvaluateFunctionAsync<string>("el => el.getAttribute('data-pid')");
                             var gaCategoryName = await productElement.EvaluateFunctionAsync<string>("el => el.getAttribute('data-gacategoryname')");
                             var nameNode = await productElement.QuerySelectorAsync("strong.cat-prod-box__name a");
 
-                            if (nameNode != null && !string.IsNullOrEmpty(pid) && !string.IsNullOrEmpty(gaCategoryName))
+                            if (nameNode != null && !string.IsNullOrEmpty(pid))
                             {
                                 var name = await nameNode.EvaluateFunctionAsync<string>("el => el.textContent.trim()");
                                 var offerUrl = "https://www.ceneo.pl/" + pid;
 
                                 if (existingProductUrls.Contains(offerUrl) || newProductUrls.Contains(offerUrl))
                                 {
+                                    Console.WriteLine($"Product already exists: {offerUrl}");
                                     continue;
                                 }
 
-                                var trimmedCategoryName = gaCategoryName.Split('/').LastOrDefault()?.Trim() ?? categoryName;
+                                // Use gaCategoryName if available; otherwise, use categoryName
+                                string trimmedCategoryName;
+                                if (!string.IsNullOrEmpty(gaCategoryName))
+                                {
+                                    trimmedCategoryName = gaCategoryName.Split('/').LastOrDefault()?.Trim();
+                                }
+                                else
+                                {
+                                    trimmedCategoryName = categoryName;
+                                }
 
                                 var productEntity = new ProductClass
                                 {
@@ -219,6 +240,10 @@ namespace PriceSafari.Scrapers
 
                                 Console.WriteLine($"Scraped Product - Name: {name}, Category: {trimmedCategoryName}, URL: {offerUrl}");
                             }
+                            else
+                            {
+                                Console.WriteLine($"Incomplete product data on page {pageIndex}. PID: {pid}, Category: {gaCategoryName}");
+                            }
                         }
                         catch (Exception ex)
                         {
@@ -227,10 +252,21 @@ namespace PriceSafari.Scrapers
                         }
                     }
 
-                    await _context.SaveChangesAsync();
+
+                    try
+                    {
+                        await _context.SaveChangesAsync();
+                        Console.WriteLine("Product data saved to database.");
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"Error saving product data to database: {ex.Message}");
+                        throw; // Re-throw or handle accordingly
+                    }
                 }
                 else
                 {
+                    Console.WriteLine($"No product elements found on page {pageIndex}.");
                     hasMorePages = false;
                 }
 
@@ -242,6 +278,8 @@ namespace PriceSafari.Scrapers
                     hasMorePages = false;
                 }
             }
+
+            Console.WriteLine("Scraping completed.");
         }
 
         private async Task<bool> WaitForCaptchaToBeSolvedAsync(int maxWaitTimeSeconds = 300, int checkIntervalSeconds = 5)
@@ -289,7 +327,7 @@ namespace PriceSafari.Scrapers
             Task.Run(async () => await CloseBrowserAsync()).GetAwaiter().GetResult();
         }
 
-        // Optional: If you need to handle requests outside of InitializeBrowserAndPageAsync
+        // Event handler for request interception
         private async void OnRequest(object sender, RequestEventArgs e)
         {
             if (e.Request.ResourceType == ResourceType.Image ||

@@ -5,7 +5,7 @@
     Layout = "~/Views/Shared/_PanelLayout.cshtml";
     var totalUrls = ViewBag.TotalUrlsCount;
     var scrapedUrlsCount = ViewBag.ScrapedUrlsCount;
-    var totalProducts = Model.Sum(item => item.ProductIds.Count);
+    var totalProducts = Model.Sum(item => item.ProductIds != null ? item.ProductIds.Count : 0);
 }
 
 <div class="Vert" data-store-id="uniqueUrls">
@@ -34,17 +34,13 @@
             </div>
         </div>
         <div class="bar-List">
-         
-
-
             <form asp-action="GroupAndSaveUniqueUrls" asp-controller="PriceScraping" method="post">
                 <button type="submit" class="Button-Page-Small-b">Scal produkty</button>
             </form>
             <form id="captchaScrapingForm" asp-action="StartScrapingWithCaptchaHandling" asp-controller="PriceScraping" method="post">
                 <button type="submit" class="Button-Page-Small-bl">Rozpocznij scrapowanie Pupeeter</button>
             </form>
-    
-          
+
             <button id="stopScrapingButton" class="Button-Page-Small-y">Przerwij scrapowanie</button>
             <form id="clearRejectedAndScrapedForm" asp-controller="PriceScraping" asp-action="ClearRejectedAndScrapedProducts" method="post">
                 <button type="submit" class="Button-Page-Small-o">Resetuj odrzucone statusy</button>
@@ -52,9 +48,6 @@
             <form asp-action="ClearCoOfrPriceHistories" asp-controller="PriceScraping" method="post">
                 <button type="submit" class="Button-Page-Small-r">Usuń zescrapowane dane</button>
             </form>
-       
-
-           
         </div>
         <div class="order-upper-box">
             <div class="chart-box">
@@ -89,7 +82,7 @@
                         var rowClass = item.IsRejected && item.IsScraped ? "rejected-row" : item.IsScraped ? "scraped-row" : "unscraped-row";
                         <tr id="@rowId" class="product-row @rowClass">
                             <td>@item.OfferUrl</td>
-                            <td>@string.Join(", ", item.ProductIds)</td>
+                            <td>@(item.ProductIds != null ? string.Join(", ", item.ProductIds) : "Brak danych")</td>
                             <td>@(item.IsScraped ? "Tak" : "Nie")</td>
                             <td>@(item.IsRejected ? "Tak" : "Nie")</td>
                             <td>@item.ScrapingMethod</td>

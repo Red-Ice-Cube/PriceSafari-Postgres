@@ -63,7 +63,6 @@ namespace PriceSafari.Controllers.MemberControllers
         }
 
         // GET: Payment/StorePayments/5
-        // GET: Payment/StorePayments/5
         [HttpGet]
         public async Task<IActionResult> StorePayments(int storeId)
         {
@@ -196,13 +195,12 @@ namespace PriceSafari.Controllers.MemberControllers
             return Ok(new { success = true });
         }
 
-        // POST: Payment/GenerateProforma
         [HttpPost]
         public async Task<IActionResult> GenerateProforma(int storeId, int paymentDataId)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
-            // Sprawdzenie, czy sklep należy do użytkownika
+            // Check if the store belongs to the user
             var userStore = await _context.UserStores
                 .FirstOrDefaultAsync(us => us.UserId == userId && us.StoreId == storeId);
 
@@ -221,14 +219,38 @@ namespace PriceSafari.Controllers.MemberControllers
                 return NotFound("Sklep lub plan nie został znaleziony.");
             }
 
-            // Sprawdź, czy istnieje już nieopłacona faktura
+            var plan = store.Plan;
+
+            // Check if the plan is free or test plan
+            if (plan.NetPrice == 0 || plan.IsTestPlan)
+            {
+                // Set RemainingScrapes based on the plan's ScrapesPerInvoice
+                store.RemainingScrapes = plan.ScrapesPerInvoice; // Assuming ScrapesPerInvoice represents the number of days or scrapes
+
+                // Optionally, mark any unpaid invoices as paid (if applicable)
+                var unpaidInvoices = await _context.Invoices.Where(i => i.StoreId == store.StoreId && !i.IsPaid).ToListAsync();
+                foreach (var unpaidInvoice in unpaidInvoices)
+                {
+                    unpaidInvoice.IsPaid = true;
+                }
+
+                // Save changes to the database
+                await _context.SaveChangesAsync();
+
+                TempData["Success"] = "Plan darmowy został aktywowany.";
+                return RedirectToAction("StorePayments", new { storeId = storeId });
+            }
+
+            // Continue with the code for paid plans...
+
+            // Check if there is already an unpaid invoice
             if (store.Invoices.Any(i => !i.IsPaid))
             {
                 TempData["Error"] = "Istnieje już wygenerowana proforma dla tego sklepu.";
                 return RedirectToAction("StorePayments", new { storeId = storeId });
             }
 
-            // Pobierz wybrane dane rozliczeniowe użytkownika
+            // Get the selected payment data of the user
             var paymentData = await _context.UserPaymentDatas
                 .FirstOrDefaultAsync(pd => pd.UserId == userId && pd.PaymentDataId == paymentDataId);
 
@@ -272,6 +294,7 @@ namespace PriceSafari.Controllers.MemberControllers
             TempData["Success"] = "Proforma została wygenerowana.";
             return RedirectToAction("StorePayments", new { storeId = storeId });
         }
+
 
 
         [HttpGet]
