@@ -22,6 +22,8 @@
     let positionSlider;
     let offerSlider;
 
+    let priceDifferenceValue = 0.50; 
+
     function debounce(func, wait) {
         let timeout;
         return function (...args) {
@@ -168,6 +170,7 @@
                 setPrice2 = response.setPrice2;
                 missedProductsCount = response.missedProductsCount;
 
+                priceDifferenceValue = response.priceDifferenceValue || 0.50;
              
                 const usePriceDifference = response.usePriceDiff;
               
@@ -732,7 +735,7 @@
 
                         if (savingsValue < 1) {
                             // Jeśli savings jest mniejsze niż 1 PLN, sugerujemy obniżenie ceny o 1 PLN
-                            suggestedPrice2 = suggestedPrice1 - 1;
+                            suggestedPrice2 = suggestedPrice1 - priceDifferenceValue;
                             amountToSuggestedPrice2 = suggestedPrice2 - myPrice;
                             percentageToSuggestedPrice2 = (amountToSuggestedPrice2 / myPrice) * 100;
 
@@ -742,10 +745,9 @@
                             }
 
                         } else {
-                            // Jeśli savings jest większe lub równe 1 PLN, sugerujemy dalsze podniesienie ceny o 1 PLN
-                            const additionalAmount = 1;
-                            suggestedPrice2 = suggestedPrice1 - additionalAmount;
-                            amountToSuggestedPrice2 = amountToSuggestedPrice1 - additionalAmount;
+                           
+                            suggestedPrice2 = suggestedPrice1 - priceDifferenceValue;
+                            amountToSuggestedPrice2 = amountToSuggestedPrice1 - priceDifferenceValue;
                             percentageToSuggestedPrice2 = (amountToSuggestedPrice2 / myPrice) * 100;
                         }
 
@@ -845,7 +847,7 @@
                         const amountToMatchLowestPrice = myPrice - lowestPrice;
                         const percentageToMatchLowestPrice = (amountToMatchLowestPrice / myPrice) * 100;
 
-                        const strategicPrice = lowestPrice - 1;
+                        const strategicPrice = lowestPrice - priceDifferenceValue;
                         const amountToBeatLowestPrice = myPrice - strategicPrice;
                         const percentageToBeatLowestPrice = (amountToBeatLowestPrice / myPrice) * 100;
 
@@ -946,7 +948,7 @@
                         const amountToMatchLowestPrice = myPrice - lowestPrice;
                         const percentageToMatchLowestPrice = (amountToMatchLowestPrice / myPrice) * 100;
 
-                        const strategicPrice = lowestPrice - 1;
+                        const strategicPrice = lowestPrice - priceDifferenceValue;
                         const amountToBeatLowestPrice = myPrice - strategicPrice;
                         const percentageToBeatLowestPrice = (amountToBeatLowestPrice / myPrice) * 100;
 
@@ -1043,10 +1045,125 @@
                     }
 
                 } else if (item.colorClass === "prGood") {
-                    // Existing code for prGood remains unchanged
-                    const diffClass = item.colorClass + ' ' + 'priceBox-diff-top';
-                    priceBoxColumnInfo.innerHTML += '<div class="' + diffClass + '">Jesteś w najlepszych cenach</div>';
+                    if (myPrice != null) {
+                        // First action box: No change
+                        const amountToSuggestedPrice1 = 0;
+                        const percentageToSuggestedPrice1 = 0;
+                        const suggestedPrice1 = myPrice;
+
+                        const amount1Formatted = '+0,00 PLN';
+                        const percentage1Formatted = '(+0,00%)';
+                        const newSuggestedPrice1Formatted = '= ' + suggestedPrice1.toLocaleString('pl-PL', {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2
+                        }) + ' PLN';
+
+                        // Second action box
+                        let amountToSuggestedPrice2, percentageToSuggestedPrice2, suggestedPrice2;
+                        let amount2Formatted, percentage2Formatted, newSuggestedPrice2Formatted;
+                        let downArrowClass, colorSquare2Class;
+
+                        if (item.storeCount === 1) {
+                            // Jeśli liczba ofert wynosi 1, drugi box pokazuje brak zmiany
+                            amountToSuggestedPrice2 = 0;
+                            percentageToSuggestedPrice2 = 0;
+                            suggestedPrice2 = myPrice;
+
+                            amount2Formatted = '+0,00 PLN';
+                            percentage2Formatted = '(+0,00%)';
+                            newSuggestedPrice2Formatted = '= ' + suggestedPrice2.toLocaleString('pl-PL', {
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2
+                            }) + ' PLN';
+
+                            downArrowClass = 'no-change-icon-turquoise'; // Użyjemy ikony braku zmiany
+                            colorSquare2Class = 'color-square-turquoise'; // Turkusowe kółko
+                        } else {
+                            // W przeciwnym razie sugerujemy obniżkę ceny o priceDifferenceValue
+                            amountToSuggestedPrice2 = -priceDifferenceValue;
+                            percentageToSuggestedPrice2 = (amountToSuggestedPrice2 / myPrice) * 100;
+                            suggestedPrice2 = myPrice + amountToSuggestedPrice2; // Obniżamy cenę
+
+                            amount2Formatted = '-' + Math.abs(amountToSuggestedPrice2).toLocaleString('pl-PL', {
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2
+                            }) + ' PLN';
+                            percentage2Formatted = '(' + Math.abs(percentageToSuggestedPrice2).toLocaleString('pl-PL', {
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2
+                            }) + '%)';
+                            newSuggestedPrice2Formatted = '= ' + suggestedPrice2.toLocaleString('pl-PL', {
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2
+                            }) + ' PLN';
+
+                            downArrowClass = 'arrow-down-green'; // Zielona strzałka w dół
+                            colorSquare2Class = 'color-square-turquoise';
+                        }
+
+                        // First action box
+                        const matchPriceBox = document.createElement('div');
+                        matchPriceBox.className = 'price-box-column';
+
+                        const matchPriceLine = document.createElement('div');
+                        matchPriceLine.className = 'price-action-line';
+
+                        const noChangeIcon = document.createElement('span');
+                        noChangeIcon.className = 'no-change-icon';
+
+                        const noChangeText = document.createElement('span');
+                        noChangeText.innerHTML = amount1Formatted + ' ' + percentage1Formatted;
+
+                        const newPriceText = document.createElement('div');
+                        newPriceText.innerHTML = newSuggestedPrice1Formatted;
+
+                        const colorSquare = document.createElement('span');
+                        colorSquare.className = 'color-square-green';
+
+                        matchPriceLine.appendChild(noChangeIcon);
+                        matchPriceLine.appendChild(noChangeText);
+                        matchPriceLine.appendChild(newPriceText);
+                        matchPriceLine.appendChild(colorSquare);
+
+                        matchPriceBox.appendChild(matchPriceLine);
+
+                        // Second action box
+                        const strategicPriceBox = document.createElement('div');
+                        strategicPriceBox.className = 'price-box-column';
+
+                        const strategicPriceLine = document.createElement('div');
+                        strategicPriceLine.className = 'price-action-line';
+
+                        const downArrow = document.createElement('span');
+                        downArrow.className = downArrowClass; // Dynamiczna klasa
+
+                        const reduceText = document.createElement('span');
+                        reduceText.innerHTML = amount2Formatted + ' ' + percentage2Formatted;
+
+                        const newPriceText2 = document.createElement('div');
+                        newPriceText2.innerHTML = newSuggestedPrice2Formatted;
+
+                        const colorSquare2 = document.createElement('span');
+                        colorSquare2.className = colorSquare2Class;
+
+                        strategicPriceLine.appendChild(downArrow);
+                        strategicPriceLine.appendChild(reduceText);
+                        strategicPriceLine.appendChild(newPriceText2);
+                        strategicPriceLine.appendChild(colorSquare2);
+
+                        strategicPriceBox.appendChild(strategicPriceLine);
+
+                        // Append the two boxes to priceBoxColumnInfo
+                        priceBoxColumnInfo.appendChild(matchPriceBox);
+                        priceBoxColumnInfo.appendChild(strategicPriceBox);
+
+                    } else {
+                        // Fallback jeśli myPrice jest niedostępne
+                        const diffClass = item.colorClass + ' ' + 'priceBox-diff-top';
+                        priceBoxColumnInfo.innerHTML += '<div class="' + diffClass + '">Jesteś w najlepszych cenach</div>';
+                    }
                 }
+
 
                
             } else {
