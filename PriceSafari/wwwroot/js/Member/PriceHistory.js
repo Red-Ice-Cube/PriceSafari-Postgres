@@ -470,7 +470,7 @@
             let marginPrice = null;
             let myPrice = null;
             let myPosition = null;
-            let lowestPrice = null; // Add this line
+            let lowestPrice = null;
 
             if (!isRejected) {
                 percentageDifference = item.percentageDifference != null ? item.percentageDifference.toFixed(2) : "N/A";
@@ -484,9 +484,9 @@
                 marginSign = item.marginSign;
                 marginClass = item.marginClass;
                 marginPrice = item.marginPrice;
-                myPrice = item.myPrice != null ? parseFloat(item.myPrice) : null; // Ensure myPrice is a number
+                myPrice = item.myPrice != null ? parseFloat(item.myPrice) : null;
                 myPosition = item.myPosition;
-                lowestPrice = item.lowestPrice != null ? parseFloat(item.lowestPrice) : null; // Define lowestPrice
+                lowestPrice = item.lowestPrice != null ? parseFloat(item.lowestPrice) : null;
             }
 
             const box = document.createElement('div');
@@ -498,6 +498,8 @@
                 window.open(this.dataset.detailsUrl, '_blank');
             });
 
+
+            // Create priceBoxSpace
             const priceBoxSpace = document.createElement('div');
             priceBoxSpace.className = 'price-box-space';
 
@@ -516,14 +518,10 @@
                 priceBoxColumnCategory.appendChild(apiBox);
             }
 
-            
-            const priceBoxColumnStoreCount = document.createElement('div');
-            priceBoxColumnStoreCount.className = 'price-box-column-offers'; 
-            priceBoxColumnStoreCount.innerHTML = 'Liczba ofert: ' + item.storeCount;
-
-
+            // Create flagsContainer before appending to priceBoxSpace
             const flagsContainer = createFlagsContainer(item);
-    
+
+            // Assign Flag Button
             const assignFlagButton = document.createElement('button');
             assignFlagButton.className = 'assign-flag-button';
             assignFlagButton.dataset.productId = item.productId;
@@ -545,14 +543,70 @@
                     .catch(error => console.error('Błąd pobierania flag dla produktu:', error));
             });
 
+            // Append elements to priceBoxSpace
             priceBoxSpace.appendChild(priceBoxColumnName);
-            priceBoxSpace.appendChild(flagsContainer);   
+            priceBoxSpace.appendChild(flagsContainer);
             priceBoxSpace.appendChild(assignFlagButton);
-            priceBoxSpace.appendChild(priceBoxColumnCategory);  
-            priceBoxSpace.appendChild(priceBoxColumnStoreCount);
+            priceBoxSpace.appendChild(priceBoxColumnCategory);
+
+            // Tworzenie externalInfoContainer
+            const externalInfoContainer = document.createElement('div');
+            externalInfoContainer.className = 'price-box-externalInfo';
+
+            // 'Liczba ofert'
+            const priceBoxColumnStoreCount = document.createElement('div');
+            priceBoxColumnStoreCount.className = 'price-box-column-offers';
+            priceBoxColumnStoreCount.innerHTML = 'Liczba ofert: ' + item.storeCount;
+
+            // Dodaj 'Liczba ofert' do externalInfoContainer
+            externalInfoContainer.appendChild(priceBoxColumnStoreCount);
+
+            // Obliczenia marży
+            if (marginPrice != null) {
+                const formattedMarginPrice = marginPrice.toLocaleString('pl-PL', {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                }) + ' PLN';
+
+                // Utwórz box 'Cena zakupu'
+                const purchasePriceBox = document.createElement('div');
+                purchasePriceBox.className = 'price-box-diff-margin ' + marginClass;
+                purchasePriceBox.innerHTML = '<p>Cena zakupu: ' + formattedMarginPrice + '</p>';
+
+                // Dodaj 'Cena zakupu' do externalInfoContainer
+                externalInfoContainer.appendChild(purchasePriceBox);
+
+                if (myPrice != null) {
+                    const formattedMarginAmount = marginSign + Math.abs(marginAmount).toLocaleString('pl-PL', {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2
+                    }) + ' PLN';
+                    const formattedMarginPercentage = '(' + marginSign + Math.abs(marginPercentage).toLocaleString('pl-PL', {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2
+                    }) + '%)';
+
+                    // Utwórz box 'Marża'
+                    const marginBox = document.createElement('div');
+                    marginBox.className = 'price-box-diff-margin ' + marginClass;
+                    marginBox.innerHTML = '<p>Marża: ' + formattedMarginAmount + ' ' + formattedMarginPercentage + '</p>';
+
+                    // Dodaj 'Marża' do externalInfoContainer
+                    externalInfoContainer.appendChild(marginBox);
+                }
+            }
+
+            // Dodaj externalInfoContainer do priceBoxSpace lub w miejsce, gdzie chcesz go umieścić
+            priceBoxSpace.appendChild(externalInfoContainer);
+
+     
+
 
             const priceBoxData = document.createElement('div');
             priceBoxData.className = 'price-box-data';
+
+
+
 
             const colorBar = document.createElement('div');
             colorBar.className = 'color-bar ' + item.colorClass;
@@ -885,33 +939,7 @@
                     priceBoxColumnInfo.innerHTML += '<div class="' + diffClass + '">Jesteś w najlepszych cenach</div>';
                 }
 
-                // Margin calculations (existing code remains unchanged)
-                if (marginPrice != null) {
-                    const formattedMarginPrice = marginPrice.toLocaleString('pl-PL', {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2
-                    }) + ' PLN';
-
-                    if (myPrice != null) {
-                        const formattedMarginAmount = marginSign + Math.abs(marginAmount).toLocaleString('pl-PL', {
-                            minimumFractionDigits: 2,
-                            maximumFractionDigits: 2
-                        }) + ' PLN';
-                        const formattedMarginPercentage = '(' + marginSign + Math.abs(marginPercentage).toLocaleString('pl-PL', {
-                            minimumFractionDigits: 2,
-                            maximumFractionDigits: 2
-                        }) + '%)';
-
-                        priceBoxColumnInfo.innerHTML += '<div class="' + marginClass + '">' +
-                            '<p>Cena zakupu: ' + formattedMarginPrice + '</p>' +
-                            '<p>Marża: ' + formattedMarginAmount + ' ' + formattedMarginPercentage + '</p>' +
-                            '</div>';
-                    } else {
-                        priceBoxColumnInfo.innerHTML += '<div class="' + marginClass + '">' +
-                            '<p>Cena zakupu: ' + formattedMarginPrice + '</p>' +
-                            '</div>';
-                    }
-                }
+               
             } else {
                 // For rejected products, display a note or different rendering
                 priceBoxColumnInfo.innerHTML += '<div class="rejected-product">Produkt odrzucony</div>';
@@ -953,8 +981,9 @@
 
             box.appendChild(priceBoxSpace);             // Nazwa produktu i przycisk
             box.appendChild(priceBoxColumnCategory);    // Kategoria i API ID
-            box.appendChild(priceBoxColumnStoreCount);  // Liczba ofert
-            box.appendChild(priceBoxData);
+            box.appendChild(externalInfoContainer);     // Nowy kontener z 'Liczba ofert' i marżami
+            box.appendChild(priceBoxData);              // Reszta danych
+
 
             container.appendChild(box);
         });
