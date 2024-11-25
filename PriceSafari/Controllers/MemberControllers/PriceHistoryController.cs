@@ -161,8 +161,8 @@ namespace PriceSafari.Controllers.MemberControllers
 
             var priceValues = await _context.PriceValues
                 .Where(pv => pv.StoreId == storeId)
-                .Select(pv => new { pv.SetPrice1, pv.SetPrice2, pv.UsePriceDiff })
-                .FirstOrDefaultAsync() ?? new { SetPrice1 = 2.00m, SetPrice2 = 2.00m, UsePriceDiff = true };
+                .Select(pv => new { pv.SetPrice1, pv.SetPrice2, pv.PriceStep, pv.UsePriceDiff })
+                .FirstOrDefaultAsync() ?? new { SetPrice1 = 2.00m, SetPrice2 = 2.00m, PriceStep = 2.00m, UsePriceDiff = true };
 
             var pricesQuery = _context.PriceHistories
                 .Include(ph => ph.Product)
@@ -311,6 +311,7 @@ namespace PriceSafari.Controllers.MemberControllers
                 missedProductsCount = missedProducts.Count,
                 setPrice1 = priceValues.SetPrice1,
                 setPrice2 = priceValues.SetPrice2,
+                stepPrice = priceValues.PriceStep,
                 usePriceDiff = priceValues.UsePriceDiff
             });
         }
@@ -499,6 +500,7 @@ namespace PriceSafari.Controllers.MemberControllers
                     StoreId = model.StoreId,
                     SetPrice1 = model.SetPrice1,
                     SetPrice2 = model.SetPrice2,
+                    PriceStep = model.PriceStep,
                     UsePriceDiff = model.usePriceDiff
                 };
                 _context.PriceValues.Add(priceValues);
@@ -507,6 +509,7 @@ namespace PriceSafari.Controllers.MemberControllers
             {
                 priceValues.SetPrice1 = model.SetPrice1;
                 priceValues.SetPrice2 = model.SetPrice2;
+                priceValues.PriceStep = model.PriceStep;
                 priceValues.UsePriceDiff = model.usePriceDiff;
                 _context.PriceValues.Update(priceValues);
             }

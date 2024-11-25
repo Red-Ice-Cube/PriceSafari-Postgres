@@ -1088,7 +1088,7 @@
                                 minimumFractionDigits: 2,
                                 maximumFractionDigits: 2
                             }) + ' PLN';
-                            percentage2Formatted = '(' + Math.abs(percentageToSuggestedPrice2).toLocaleString('pl-PL', {
+                            percentage2Formatted = '(-' + Math.abs(percentageToSuggestedPrice2).toLocaleString('pl-PL', {
                                 minimumFractionDigits: 2,
                                 maximumFractionDigits: 2
                             }) + '%)';
