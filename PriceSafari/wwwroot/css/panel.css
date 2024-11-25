@@ -3050,10 +3050,9 @@ tr:last-child .sub-line {
     display: flex;
     flex-direction: column;
     align-items: flex-start;
-    gap: 4px;
+    gap: 10px;
     min-width: 240px;
-    padding-left: 10px;
-    padding-right: 10px;
+
 }
 .price-box-column-api {
     display: flex;
@@ -3333,9 +3332,9 @@ tr:last-child .sub-line {
     border-radius: 4px;
     padding: 2px 6px;
     display: inline-flex;
+    height:33px;
     align-items: center;
     justify-content: center;
-    margin: 2px;
     font-weight: 500;
     font-size:14px;
 }
@@ -3360,6 +3359,8 @@ tr:last-child .sub-line {
     justify-content: flex-end;
     align-items: flex-end;
     flex-grow: 1;
+    gap:4px;
+    padding-right:4px;
 }
 
 .close {
