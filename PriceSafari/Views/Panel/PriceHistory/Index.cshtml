@@ -167,6 +167,7 @@
     .price-action-line {
         display: flex;
         align-items: center;
+        margin-top:2px;
     }
 
     .arrow-down-red::before {
@@ -175,6 +176,31 @@
         margin-right: 5px;
         font-size: 16px;
     }
+
+
+
+    .arrow-up-black::before {
+        content: '▲';
+        color: rgba(6, 6, 6, 0.7); /* Czarny kolor */
+        margin-right: 5px;
+        font-size: 16px;
+    }
+
+    .arrow-up-turquoise::before {
+        content: '▲';
+        color: rgba(0, 145, 123, 0.7);
+        margin-right: 5px;
+        font-size: 16px;
+    }
+
+
+    .arrow-down-turquoise::before {
+        content: '▼';
+        color: rgba(0, 145, 123, 0.7);
+        margin-right: 5px;
+        font-size: 16px;
+    }
+
 
     .arrow-down-yellow::before {
         content: '▼';
@@ -193,7 +219,7 @@
     .color-square-turquoise {
         width: 10px;
         height: 10px;
-        background-color: turquoise;
+        background-color: rgba(0, 145, 123, 0.7);
         display: inline-block;
         margin-left: 10px;
     }

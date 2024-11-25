@@ -3044,7 +3044,8 @@ tr:last-child .sub-line {
     margin-right: 5px;
     background: rgb(245, 245, 245);
     border: 1px solid #e3e3e3;
-    min-width:240px;
+    min-width:220px;
+    min-height:50px;
 }
 
 .price-box-column-action {
@@ -3241,7 +3242,7 @@ tr:last-child .sub-line {
     border: 1px solid rgba(0, 145, 123, 0.80);
     background: rgba(0, 145, 123, 0.20);
     color: rgba(0, 145, 123, 1) !important;
-    min-width:240px;
+    min-width:220px;
 }
 
 
@@ -3303,7 +3304,7 @@ tr:last-child .sub-line {
     border: 1px solid rgba(171, 37, 32, 0.80);
     background: rgba(171, 37, 32, 0.20);
     color: rgba(171, 37, 32, 1) !important;
-    min-width:240px;
+    min-width:220px;
 }
 
 .priceBox-diff-top {

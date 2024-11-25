@@ -623,7 +623,7 @@
             priceBoxLowestDetails.className = 'price-box-column-text';
             priceBoxLowestDetails.innerHTML =
                 (isBidding ? '<span class="Bidding">Bid</span>' : '') +
-                (item.position !== null ? '<span class="Position">Poz. Ceneo ' + item.position + '</span>' :
+                (item.position !== null ? '<span class="Position">Ceneo ' + item.position + '</span>' :
                     '<span class="Position" style="background-color: #4B0089;">Schowany</span>') +
                 (item.delivery != null ? '<span class="' + deliveryClass + '">Wysyłka w ' + (item.delivery == 1 ? '1 dzień' : item.delivery + ' dni') + '</span>' : '');
 
@@ -690,7 +690,7 @@
                 priceBoxMyDetails.className = 'price-box-column-text';
                 priceBoxMyDetails.innerHTML =
                     (myIsBidding ? '<span class="Bidding">Bid</span>' : '') +
-                    (myPosition !== null ? '<span class="Position">Poz. Ceneo ' + myPosition + '</span>' :
+                    (myPosition !== null ? '<span class="Position">Ceneo ' + myPosition + '</span>' :
                         '<span class="Position" style="background-color: #4B0089;">Schowany</span>') +
                     (item.myDelivery != null ? '<span class="' + myDeliveryClass + '">Wysyłka w ' + (item.myDelivery == 1 ? '1 dzień' : item.myDelivery + ' dni') + '</span>' : '');
 
@@ -715,21 +715,130 @@
             priceBoxColumnInfo.innerHTML = '';
             if (!isRejected) {
                 if (item.colorClass === "prToLow" || item.colorClass === "prIdeal") {
-                    // Existing code for prToLow and prIdeal remains unchanged
-                    const diffClass = item.colorClass + ' ' + 'priceBox-diff';
-                    if (savings != null && percentageDifference != null) {
-                        const savingsFormatted = (savings >= 0 ? '+' : '') + savings.toLocaleString('pl-PL', {
+                    if (myPrice != null && savings != null) {
+                        const savingsValue = parseFloat(savings.replace(',', '.'));
+
+                        // Ustalanie klasy strzałki na podstawie colorClass
+                        const upArrowClass = item.colorClass === 'prToLow' ? 'arrow-up-black' : 'arrow-up-turquoise';
+
+                        // Obliczanie pierwszej sugerowanej ceny (nasza cena + savings)
+                        const suggestedPrice1 = myPrice + savingsValue;
+                        const amountToSuggestedPrice1 = savingsValue;
+                        const percentageToSuggestedPrice1 = (amountToSuggestedPrice1 / myPrice) * 100;
+
+                        // Inicjalizacja zmiennych dla drugiej sugerowanej ceny
+                        let suggestedPrice2, amountToSuggestedPrice2, percentageToSuggestedPrice2;
+                        let arrowClass2 = upArrowClass; // Domyślna klasa strzałki
+
+                        if (savingsValue < 1) {
+                            // Jeśli savings jest mniejsze niż 1 PLN, sugerujemy obniżenie ceny o 1 PLN
+                            suggestedPrice2 = suggestedPrice1 - 1;
+                            amountToSuggestedPrice2 = suggestedPrice2 - myPrice;
+                            percentageToSuggestedPrice2 = (amountToSuggestedPrice2 / myPrice) * 100;
+
+                            // Jeśli różnica jest ujemna, zmieniamy strzałkę na w dół
+                            if (amountToSuggestedPrice2 < 0) {
+                                arrowClass2 = 'arrow-down-turquoise'; // Strzałka w dół turkusowa
+                            }
+
+                        } else {
+                            // Jeśli savings jest większe lub równe 1 PLN, sugerujemy dalsze podniesienie ceny o 1 PLN
+                            const additionalAmount = 1;
+                            suggestedPrice2 = suggestedPrice1 - additionalAmount;
+                            amountToSuggestedPrice2 = amountToSuggestedPrice1 - additionalAmount;
+                            percentageToSuggestedPrice2 = (amountToSuggestedPrice2 / myPrice) * 100;
+                        }
+
+                        // Formatowanie wartości do wyświetlenia
+                        const amount1Formatted = (amountToSuggestedPrice1 >= 0 ? '+' : '') + amountToSuggestedPrice1.toLocaleString('pl-PL', {
                             minimumFractionDigits: 2,
                             maximumFractionDigits: 2
                         }) + ' PLN';
-                        const percentageFormatted = '(' + (percentageDifference >= 0 ? '+' : '') + percentageDifference.toLocaleString('pl-PL', {
+                        const percentage1Formatted = '(' + (amountToSuggestedPrice1 >= 0 ? '+' : '') + percentageToSuggestedPrice1.toLocaleString('pl-PL', {
                             minimumFractionDigits: 2,
                             maximumFractionDigits: 2
                         }) + '%)';
-                        priceBoxColumnInfo.innerHTML += '<div class="' + diffClass + '">Podnieś: ' + savingsFormatted + ' ' + percentageFormatted + '</div>';
+                        const newSuggestedPrice1Formatted = suggestedPrice1.toLocaleString('pl-PL', {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2
+                        }) + ' PLN';
+
+                        const amount2Formatted = (amountToSuggestedPrice2 >= 0 ? '+' : '') + amountToSuggestedPrice2.toLocaleString('pl-PL', {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2
+                        }) + ' PLN';
+                        const percentage2Formatted = '(' + (amountToSuggestedPrice2 >= 0 ? '+' : '') + percentageToSuggestedPrice2.toLocaleString('pl-PL', {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2
+                        }) + '%)';
+                        const newSuggestedPrice2Formatted = suggestedPrice2.toLocaleString('pl-PL', {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2
+                        }) + ' PLN';
+
+                        // Tworzenie pierwszego boxu akcji
+                        const matchPriceBox = document.createElement('div');
+                        matchPriceBox.className = 'price-box-column';
+
+                        const matchPriceLine = document.createElement('div');
+                        matchPriceLine.className = 'price-action-line';
+
+                        const upArrow = document.createElement('span');
+                        upArrow.className = upArrowClass; // Używamy dynamicznej klasy
+
+                        const increaseText = document.createElement('span');
+                        increaseText.innerHTML = amount1Formatted + ' ' + percentage1Formatted;
+
+                        const newPriceText = document.createElement('div');
+                        newPriceText.innerHTML = '= ' + newSuggestedPrice1Formatted;
+
+                        const colorSquare = document.createElement('span');
+                        colorSquare.className = 'color-square-green';
+
+                        matchPriceLine.appendChild(upArrow);
+                        matchPriceLine.appendChild(increaseText);
+                        matchPriceLine.appendChild(newPriceText);
+                        matchPriceLine.appendChild(colorSquare);
+
+                        matchPriceBox.appendChild(matchPriceLine);
+
+                        // Tworzenie drugiego boxu akcji
+                        const strategicPriceBox = document.createElement('div');
+                        strategicPriceBox.className = 'price-box-column';
+
+                        const strategicPriceLine = document.createElement('div');
+                        strategicPriceLine.className = 'price-action-line';
+
+                        const arrow2 = document.createElement('span');
+                        arrow2.className = arrowClass2; // Może być strzałka w dół turkusowa
+
+                        const increaseText2 = document.createElement('span');
+                        increaseText2.innerHTML = amount2Formatted + ' ' + percentage2Formatted;
+
+                        const newPriceText2 = document.createElement('div');
+                        newPriceText2.innerHTML = '= ' + newSuggestedPrice2Formatted;
+
+                        const colorSquare2 = document.createElement('span');
+                        colorSquare2.className = 'color-square-turquoise';
+
+                        strategicPriceLine.appendChild(arrow2);
+                        strategicPriceLine.appendChild(increaseText2);
+                        strategicPriceLine.appendChild(newPriceText2);
+                        strategicPriceLine.appendChild(colorSquare2);
+
+                        strategicPriceBox.appendChild(strategicPriceLine);
+
+                        // Dodanie boxów do priceBoxColumnInfo
+                        priceBoxColumnInfo.appendChild(matchPriceBox);
+                        priceBoxColumnInfo.appendChild(strategicPriceBox);
                     } else {
+                        // Fallback jeśli dane są niedostępne
+                        const diffClass = item.colorClass + ' ' + 'priceBox-diff';
                         priceBoxColumnInfo.innerHTML += '<div class="' + diffClass + '">Podnieś: N/A</div>';
                     }
+                
+            
+
                 } else if (item.colorClass === "prMid") {
                     if (myPrice != null && lowestPrice != null) {
                         // Calculate amounts and percentages
