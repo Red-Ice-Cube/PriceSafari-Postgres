@@ -9,8 +9,8 @@ namespace PriceSafari.Models
         public int StoreId { get; set; }
         public string ExternalId { get; set; }
         public string Url { get; set; }
-        public string CatalogNumber { get; set; }
-        public string Ean { get; set; }
+        public string? CatalogNumber { get; set; }
+        public string? Ean { get; set; }
         public string? MainUrl { get; set; }
 
         public string ExportedName { get; set; }

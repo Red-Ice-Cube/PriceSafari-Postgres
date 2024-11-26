@@ -49,73 +49,106 @@ namespace PriceSafari.Controllers.ManagerControllers
             return View("~/Views/ManagerPanel/ProductMapping/ProductXml.cshtml", mappedProducts);
         }
 
-
-
         [HttpPost]
         public async Task<IActionResult> ImportProductsFromXml(int storeId)
         {
             var store = await _context.Stores.FindAsync(storeId);
             if (store == null || string.IsNullOrEmpty(store.ProductMapXmlUrl))
             {
-                return NotFound();
+                TempData["ErrorMessage"] = "Nie znaleziono sklepu lub brak adresu URL pliku XML.";
+                return RedirectToAction("Index");
             }
 
-            using (var client = new HttpClient())
+            try
             {
-                var response = await client.GetStringAsync(store.ProductMapXmlUrl);
-                var xml = XDocument.Parse(response);
+                using (var client = new HttpClient())
+                {
+                    string response;
 
-                var products = xml.Descendants("o")
-                    .GroupBy(x => x.Descendants("a")
-                        .FirstOrDefault(a => a.Attribute("name")?.Value == "EAN")?.Value)
-                    .Select(g => g.OrderBy(x => decimal.TryParse(x.Attribute("price")?.Value, out var price) ? price : decimal.MaxValue).First())
-                    .Select(x =>
+                    try
                     {
-                        var rawProductName = x.Element("name")?.Value ?? "Brak";
+                        response = await client.GetStringAsync(store.ProductMapXmlUrl);
+                        Console.WriteLine($"Pobrano dane XML z: {store.ProductMapXmlUrl}");
+                    }
+                    catch (HttpRequestException ex)
+                    {
+                        TempData["ErrorMessage"] = $"Błąd podczas pobierania pliku XML: {ex.Message}";
+                        return RedirectToAction("Index");
+                    }
 
-                        // Usuwamy specyficzne znaki, takie jak ✔, ale zachowujemy inne znaki specjalne
-                        var cleanedProductName = Regex.Replace(rawProductName, @"✔", "")
-                                                      .Trim();
+                    XDocument xml;
 
-                        return new ProductMap
+                    try
+                    {
+                        xml = XDocument.Parse(response);
+                        Console.WriteLine("Plik XML został pomyślnie sparsowany.");
+                    }
+                    catch (Exception ex)
+                    {
+                        TempData["ErrorMessage"] = $"Nie udało się sparsować pliku XML: {ex.Message}";
+                        return RedirectToAction("Index");
+                    }
+
+                    var products = xml.Descendants(XName.Get("item"))
+                        .Select(x => new ProductMap
                         {
                             StoreId = storeId,
-                            ExternalId = x.Attribute("id")?.Value,
-                            Url = x.Attribute("url")?.Value,
-                            CatalogNumber = x.Descendants("a")
-                                             .FirstOrDefault(a => a.Attribute("name")?.Value == "Kod_producenta")?.Value,
-                            Ean = x.Descendants("a")
-                                   .FirstOrDefault(a => a.Attribute("name")?.Value == "EAN")?.Value,
-                            MainUrl = x.Descendants("main").FirstOrDefault()?.Attribute("url")?.Value,
-                            ExportedName = cleanedProductName
-                        };
-                    }).ToList();
+                            ExternalId = x.Element(XName.Get("id", xml.Root.GetNamespaceOfPrefix("g").NamespaceName))?.Value,
+                            Url = x.Element(XName.Get("link", xml.Root.GetNamespaceOfPrefix("g").NamespaceName))?.Value,
+                            CatalogNumber = null,
+                            Ean = x.Element(XName.Get("gtin", xml.Root.GetNamespaceOfPrefix("g").NamespaceName))?.Value,
+                            ExportedName = x.Element(XName.Get("title", xml.Root.GetNamespaceOfPrefix("g").NamespaceName))?.Value,
+                            MainUrl = x.Element(XName.Get("image_link", xml.Root.GetNamespaceOfPrefix("g").NamespaceName))?.Value
+                        })
+                        .ToList();
 
-                // Logowanie liczby produktów
-                Console.WriteLine($"Znaleziono {products.Count} produktów do zaimportowania.");
+                    if (!products.Any())
+                    {
+                        TempData["ErrorMessage"] = "Brak produktów do zaimportowania.";
+                        return RedirectToAction("Index");
+                    }
 
-                // Użycie BulkConfig do aktualizacji lub dodania nowych produktów
-                var bulkConfig = new BulkConfig
-                {
-                    CustomDestinationTableName = "heatlead1_SQL_user.ProductMaps",  // Niestandardowa nazwa schematu i tabeli
-                    PreserveInsertOrder = true,  // Utrzymanie porządku wstawiania
-                    SetOutputIdentity = false,   // Wyłącz, jeśli nie potrzebujesz zwracania kluczy
-                    BatchSize = 100,             // Definiujemy batch size dla większej optymalizacji
-                    BulkCopyTimeout = 0,
-                    UpdateByProperties = new List<string> { "Ean", "StoreId" }
-                };
+                    // Logowanie szczegółów produktów
+                    Console.WriteLine($"Znaleziono {products.Count} produktów do zaimportowania:");
+                    foreach (var product in products)
+                    {
+                        Console.WriteLine($"Produkt: ExternalId={product.ExternalId}, Ean={product.Ean}, Url={product.Url}, ExportedName={product.ExportedName}");
+                    }
 
-                // Wstawienie lub aktualizacja danych za pomocą BulkInsertOrUpdate
-                await _context.BulkInsertOrUpdateAsync(products, bulkConfig);
+                    // Konfiguracja BulkExtensions
+                    var bulkConfig = new BulkConfig
+                    {
+                        CustomDestinationTableName = "heatlead1_SQL_user.ProductMaps", // Ustawienie pełnej nazwy tabeli
+                        PreserveInsertOrder = true,
+                        SetOutputIdentity = true,
+                        BatchSize = 100,
+                        BulkCopyTimeout = 60,
+                        UpdateByProperties = new List<string> { "Ean", "StoreId" }
+                    };
 
-                Console.WriteLine($"Zakończono importowanie produktów.");
+                    try
+                    {
+                        await _context.BulkInsertOrUpdateAsync(products, bulkConfig);
+                        Console.WriteLine("Produkty zostały pomyślnie zapisane do bazy danych.");
+                    }
+                    catch (Exception ex)
+                    {
+                        TempData["ErrorMessage"] = $"Błąd podczas zapisywania produktów do bazy danych: {ex.Message}";
+                        Console.WriteLine($"Błąd zapisu do bazy danych: {ex.Message}");
+                        return RedirectToAction("Index");
+                    }
+                }
+
+                TempData["SuccessMessage"] = "Import produktów zakończony sukcesem.";
+                return RedirectToAction("Index");
             }
-
-            return RedirectToAction("Index");
+            catch (Exception ex)
+            {
+                TempData["ErrorMessage"] = $"Nieoczekiwany błąd: {ex.Message}";
+                Console.WriteLine($"Nieoczekiwany błąd: {ex.Message}");
+                return RedirectToAction("Index");
+            }
         }
-
-
-
 
 
 
@@ -173,7 +206,7 @@ namespace PriceSafari.Controllers.ManagerControllers
 
             // Pobieramy produkty zmapowane
             var mappedProducts = await _context.ProductMaps
-                .Where(p => p.StoreId == storeId && !string.IsNullOrEmpty(p.CatalogNumber))
+                .Where(p => p.StoreId == storeId)
                 .ToListAsync();
 
             var unmappedProducts = new List<ProductClass>(); // Lista produktów, których nie udało się zmapować po nazwie
@@ -186,19 +219,16 @@ namespace PriceSafari.Controllers.ManagerControllers
 
                 // Próbujemy znaleźć odpowiedni produkt mapowany na podstawie nazwy
                 var possibleMappedProducts = mappedProducts
-                    .Where(mp => SimplifyName(mp.ExportedName).Contains(cleanedStoreProductName) ||
-                                 cleanedStoreProductName.Contains(SimplifyName(mp.ExportedName)))
+                    .Where(mp => !string.IsNullOrEmpty(mp.ExportedName) &&
+                                 (SimplifyName(mp.ExportedName).Contains(cleanedStoreProductName) ||
+                                  cleanedStoreProductName.Contains(SimplifyName(mp.ExportedName))))
                     .ToList();
 
                 if (possibleMappedProducts.Count == 1)
                 {
                     // Jeśli znaleźliśmy jedno dokładne dopasowanie, mapujemy produkt
                     var mappedProduct = possibleMappedProducts.First();
-                    storeProduct.ExternalId = int.Parse(mappedProduct.ExternalId);
-                    storeProduct.Url = mappedProduct.Url;
-                    storeProduct.CatalogNumber = mappedProduct.CatalogNumber;
-                    storeProduct.Ean = mappedProduct.Ean;
-                    storeProduct.MainUrl = mappedProduct.MainUrl;
+                    MapProductFields(storeProduct, mappedProduct);
                 }
                 else
                 {
@@ -207,37 +237,50 @@ namespace PriceSafari.Controllers.ManagerControllers
                 }
             }
 
-            // Etap 2: Mapowanie po kodzie producenta (CatalogNumber)
-            foreach (var storeProduct in unmappedProducts)
+            // Etap 2: Mapowanie po kodzie producenta (CatalogNumber) i innymi polami
+            foreach (var storeProduct in unmappedProducts.ToList())
             {
                 foreach (var mappedProduct in mappedProducts)
                 {
-                    // Sprawdzamy, czy CatalogNumber z mapowanego produktu znajduje się w nazwie produktu sklepowego
-                    if (storeProduct.ProductName.Contains(mappedProduct.CatalogNumber))
+                    if (!string.IsNullOrEmpty(mappedProduct.CatalogNumber) &&
+                        storeProduct.ProductName.Contains(mappedProduct.CatalogNumber))
                     {
                         // Mapujemy produkt na podstawie kodu producenta
-                        storeProduct.ExternalId = int.Parse(mappedProduct.ExternalId);
-                        storeProduct.Url = mappedProduct.Url;
-                        storeProduct.CatalogNumber = mappedProduct.CatalogNumber;
-                        storeProduct.Ean = mappedProduct.Ean;
-                        storeProduct.MainUrl = mappedProduct.MainUrl;
-
-                        // Przerwij pętlę, jeśli znajdziemy dopasowanie
+                        MapProductFields(storeProduct, mappedProduct);
+                        unmappedProducts.Remove(storeProduct);
+                        break;
+                    }
+                    else if (!string.IsNullOrEmpty(mappedProduct.Ean) &&
+                             storeProduct.ProductName.Contains(mappedProduct.Ean))
+                    {
+                        // Mapowanie na podstawie EAN
+                        MapProductFields(storeProduct, mappedProduct);
+                        unmappedProducts.Remove(storeProduct);
                         break;
                     }
                 }
 
-                // Jeśli nie udało się zmapować, dodajemy log
-                if (string.IsNullOrEmpty(storeProduct.ExternalId.ToString()))
+                // Jeśli nadal nie udało się zmapować, dodajemy log
+                if (unmappedProducts.Contains(storeProduct))
                 {
                     Console.WriteLine($"Nie udało się zmapować produktu:");
-                    Console.WriteLine($"Nazwa produktu: {storeProduct.ProductName}, Kod producenta: {storeProduct.CatalogNumber}");
+                    Console.WriteLine($"Nazwa produktu: {storeProduct.ProductName}, Kod producenta: {storeProduct.CatalogNumber}, EAN: {storeProduct.Ean}");
                 }
             }
 
             await _context.SaveChangesAsync();
 
             return RedirectToAction("MappedProducts", new { storeId });
+        }
+
+        // Funkcja pomocnicza do mapowania pól produktu
+        private void MapProductFields(ProductClass storeProduct, ProductMap mappedProduct)
+        {
+            storeProduct.ExternalId = int.TryParse(mappedProduct.ExternalId, out var externalId) ? externalId : (int?)null;
+            storeProduct.Url = mappedProduct.Url;
+            storeProduct.CatalogNumber = mappedProduct.CatalogNumber;
+            storeProduct.Ean = mappedProduct.Ean;
+            storeProduct.MainUrl = mappedProduct.MainUrl;
         }
 
         // Funkcja do uproszczania nazw poprzez usunięcie zbędnych spacji i standaryzację znaków
