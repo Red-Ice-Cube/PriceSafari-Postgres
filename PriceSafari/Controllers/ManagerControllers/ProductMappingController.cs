@@ -266,67 +266,38 @@ namespace PriceSafari.Controllers.ManagerControllers
                 .Where(p => p.StoreId == storeId && !string.IsNullOrEmpty(p.ExportedNameCeneo))
                 .ToListAsync();
 
-            // Pobieramy produkty zmapowane
-            var mappedProducts = await _context.ProductMaps
-                .Where(p => p.StoreId == storeId)
-                .ToListAsync();
+            // Grupujemy produkty według oczyszczonej nazwy z Ceneo
+            var groupedProducts = storeProducts
+                .GroupBy(p => SimplifyName(p.ExportedNameCeneo))
+                .ToList();
 
-            var unmappedProducts = new List<ProductClass>(); // Lista produktów, których nie udało się zmapować po nazwie
-
-            // Etap 1: Mapowanie po nazwie
-            foreach (var storeProduct in storeProducts)
+            foreach (var group in groupedProducts)
             {
-                // Oczyszczamy nazwę produktu sklepowego
-                string cleanedStoreProductName = SimplifyName(storeProduct.ExportedNameCeneo);
+                var productsInGroup = group.ToList();
 
-                // Próbujemy znaleźć odpowiedni produkt mapowany na podstawie nazwy
-                var possibleMappedProducts = mappedProducts
-                    .Where(mp => !string.IsNullOrEmpty(mp.ExportedName) &&
-                                 (SimplifyName(mp.ExportedName).Contains(cleanedStoreProductName) ||
-                                  cleanedStoreProductName.Contains(SimplifyName(mp.ExportedName))))
-                    .ToList();
-
-                if (possibleMappedProducts.Count == 1)
+                if (productsInGroup.Count > 1)
                 {
-                    // Jeśli znaleźliśmy jedno dokładne dopasowanie, mapujemy produkt
-                    var mappedProduct = possibleMappedProducts.First();
-                    MapProductFields(storeProduct, mappedProduct);
+                    // Jeśli mamy więcej niż jeden produkt w grupie, dokonujemy scalenia
+                    var mainProduct = productsInGroup.First();
+
+                    for (int i = 1; i < productsInGroup.Count; i++)
+                    {
+                        var duplicateProduct = productsInGroup[i];
+
+                        // Łączymy dane z duplikatu do głównego produktu
+                        MergeProductData(mainProduct, duplicateProduct);
+
+                        // Usuwamy duplikat z kontekstu bazy danych
+                        _context.Products.Remove(duplicateProduct);
+                    }
+
+                    // Aktualizujemy główny produkt w bazie danych
+                    _context.Products.Update(mainProduct);
                 }
                 else
                 {
-                    // Jeśli nie udało się jednoznacznie przypisać, dodajemy do listy produktów do dalszego przetwarzania
-                    unmappedProducts.Add(storeProduct);
-                }
-            }
-
-            // Etap 2: Mapowanie po kodzie producenta (CatalogNumber) i innymi polami
-            foreach (var storeProduct in unmappedProducts.ToList())
-            {
-                foreach (var mappedProduct in mappedProducts)
-                {
-                    if (!string.IsNullOrEmpty(mappedProduct.CatalogNumber) &&
-                        storeProduct.ProductName.Contains(mappedProduct.CatalogNumber))
-                    {
-                        // Mapujemy produkt na podstawie kodu producenta
-                        MapProductFields(storeProduct, mappedProduct);
-                        unmappedProducts.Remove(storeProduct);
-                        break;
-                    }
-                    else if (!string.IsNullOrEmpty(mappedProduct.Ean) &&
-                             storeProduct.ProductName.Contains(mappedProduct.Ean))
-                    {
-                        // Mapowanie na podstawie EAN
-                        MapProductFields(storeProduct, mappedProduct);
-                        unmappedProducts.Remove(storeProduct);
-                        break;
-                    }
-                }
-
-                // Jeśli nadal nie udało się zmapować, dodajemy log
-                if (unmappedProducts.Contains(storeProduct))
-                {
-                    Console.WriteLine($"Nie udało się zmapować produktu:");
-                    Console.WriteLine($"Nazwa produktu: {storeProduct.ProductName}, Kod producenta: {storeProduct.CatalogNumber}, EAN: {storeProduct.Ean}");
+                    // Jeśli jest tylko jeden produkt w grupie, nie musimy nic robić
+                    continue;
                 }
             }
 
@@ -335,16 +306,102 @@ namespace PriceSafari.Controllers.ManagerControllers
             return RedirectToAction("MappedProducts", new { storeId });
         }
 
-        // Funkcja do uproszczania nazw poprzez usunięcie zbędnych spacji i standaryzację znaków
+
+        // Funkcja do uproszczania nazw poprzez usunięcie zbędnych znaków i standaryzację
         private string SimplifyName(string name)
         {
             if (string.IsNullOrWhiteSpace(name))
                 return string.Empty;
 
-            // Zachowujemy ważne znaki specjalne i usuwamy jedynie niepożądane
-            var simplifiedName = Regex.Replace(name, @"[^\w\s\-+/*=°²,.()]", "").ToUpperInvariant().Replace(" ", "");
+            // Usuwamy niepożądane znaki i konwertujemy na wielkie litery
+            var simplifiedName = Regex.Replace(name, @"[^\w]", "").ToUpperInvariant();
             return simplifiedName;
         }
+
+
+
+
+
+        // Funkcja do łączenia danych z duplikatu do głównego produktu
+        private void MergeProductData(ProductClass mainProduct, ProductClass duplicateProduct)
+        {
+            // Jeśli główny produkt nie ma wartości w polu, a duplikat ma, to kopiujemy dane
+
+            if (string.IsNullOrEmpty(mainProduct.ProductName) && !string.IsNullOrEmpty(duplicateProduct.ProductName))
+                mainProduct.ProductName = duplicateProduct.ProductName;
+
+            if (string.IsNullOrEmpty(mainProduct.Category) && !string.IsNullOrEmpty(duplicateProduct.Category))
+                mainProduct.Category = duplicateProduct.Category;
+
+            if (string.IsNullOrEmpty(mainProduct.OfferUrl) && !string.IsNullOrEmpty(duplicateProduct.OfferUrl))
+                mainProduct.OfferUrl = duplicateProduct.OfferUrl;
+
+            if (!mainProduct.ExternalId.HasValue && duplicateProduct.ExternalId.HasValue)
+                mainProduct.ExternalId = duplicateProduct.ExternalId;
+
+            if (string.IsNullOrEmpty(mainProduct.CatalogNumber) && !string.IsNullOrEmpty(duplicateProduct.CatalogNumber))
+                mainProduct.CatalogNumber = duplicateProduct.CatalogNumber;
+
+            if (string.IsNullOrEmpty(mainProduct.Ean) && !string.IsNullOrEmpty(duplicateProduct.Ean))
+                mainProduct.Ean = duplicateProduct.Ean;
+
+            if (string.IsNullOrEmpty(mainProduct.MainUrl) && !string.IsNullOrEmpty(duplicateProduct.MainUrl))
+                mainProduct.MainUrl = duplicateProduct.MainUrl;
+
+            if (!mainProduct.ExternalPrice.HasValue && duplicateProduct.ExternalPrice.HasValue)
+                mainProduct.ExternalPrice = duplicateProduct.ExternalPrice;
+
+            if (mainProduct.IsScrapable != duplicateProduct.IsScrapable)
+                mainProduct.IsScrapable = mainProduct.IsScrapable || duplicateProduct.IsScrapable;
+
+            if (mainProduct.IsRejected != duplicateProduct.IsRejected)
+                mainProduct.IsRejected = mainProduct.IsRejected && duplicateProduct.IsRejected;
+
+            if (string.IsNullOrEmpty(mainProduct.ExportedNameCeneo) && !string.IsNullOrEmpty(duplicateProduct.ExportedNameCeneo))
+                mainProduct.ExportedNameCeneo = duplicateProduct.ExportedNameCeneo;
+
+            // Google Shopping fields
+            if (string.IsNullOrEmpty(mainProduct.Url) && !string.IsNullOrEmpty(duplicateProduct.Url))
+                mainProduct.Url = duplicateProduct.Url;
+
+            if (string.IsNullOrEmpty(mainProduct.GoogleUrl) && !string.IsNullOrEmpty(duplicateProduct.GoogleUrl))
+                mainProduct.GoogleUrl = duplicateProduct.GoogleUrl;
+
+            if (string.IsNullOrEmpty(mainProduct.ProductNameInStoreForGoogle) && !string.IsNullOrEmpty(duplicateProduct.ProductNameInStoreForGoogle))
+                mainProduct.ProductNameInStoreForGoogle = duplicateProduct.ProductNameInStoreForGoogle;
+
+            if (string.IsNullOrEmpty(mainProduct.EanGoogle) && !string.IsNullOrEmpty(duplicateProduct.EanGoogle))
+                mainProduct.EanGoogle = duplicateProduct.EanGoogle;
+
+            if (string.IsNullOrEmpty(mainProduct.ImgUrlGoogle) && !string.IsNullOrEmpty(duplicateProduct.ImgUrlGoogle))
+                mainProduct.ImgUrlGoogle = duplicateProduct.ImgUrlGoogle;
+
+            if (!mainProduct.FoundOnGoogle.HasValue && duplicateProduct.FoundOnGoogle.HasValue)
+                mainProduct.FoundOnGoogle = duplicateProduct.FoundOnGoogle;
+
+            // Marża
+            if (!mainProduct.MarginPrice.HasValue && duplicateProduct.MarginPrice.HasValue)
+                mainProduct.MarginPrice = duplicateProduct.MarginPrice;
+
+            // Łączymy historię cen
+            foreach (var priceHistory in duplicateProduct.PriceHistories)
+            {
+                if (!mainProduct.PriceHistories.Contains(priceHistory))
+                {
+                    mainProduct.PriceHistories.Add(priceHistory);
+                }
+            }
+
+            // Łączymy flagi produktu
+            foreach (var productFlag in duplicateProduct.ProductFlags)
+            {
+                if (!mainProduct.ProductFlags.Contains(productFlag))
+                {
+                    mainProduct.ProductFlags.Add(productFlag);
+                }
+            }
+        }
+
 
         [HttpPost]
         public async Task<IActionResult> RemoveWordFromProductNamesCeneo(string wordToRemove)
