@@ -746,10 +746,12 @@ namespace PriceSafari.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Category")
-                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Ean")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("EanGoogle")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("ExportedNameCeneo")
@@ -770,6 +772,9 @@ namespace PriceSafari.Migrations
                     b.Property<string>("GoogleUrl")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("ImgUrlGoogle")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<bool>("IsRejected")
                         .HasColumnType("bit");
 
@@ -783,7 +788,6 @@ namespace PriceSafari.Migrations
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<string>("OfferUrl")
-                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<bool>("OnGoogle")

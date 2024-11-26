@@ -402,7 +402,7 @@ namespace PriceSafari.Migrations
                     b.Property<string>("CatalogNumber")
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<string>("Ean")
+                    b.Property<string>("EanCeneo")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("ExternalId")

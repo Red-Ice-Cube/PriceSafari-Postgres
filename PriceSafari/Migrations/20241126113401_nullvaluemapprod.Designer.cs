@@ -752,7 +752,7 @@ namespace PriceSafari.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<string>("Ean")
+                    b.Property<string>("EanCeneo")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("ExportedNameCeneo")
@@ -842,7 +842,7 @@ namespace PriceSafari.Migrations
                     b.Property<string>("CatalogNumber")
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<string>("Ean")
+                    b.Property<string>("EanCeneo")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 

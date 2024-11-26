@@ -12,15 +12,15 @@ using PriceSafari.Data;
 namespace PriceSafari.Migrations
 {
     [DbContext(typeof(PriceSafariContext))]
-    [Migration("20240917091338_SafariRegionUpdate")]
-    partial class SafariRegionUpdate
+    [Migration("20241126135447_stayname")]
+    partial class stayname
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "8.0.8")
+                .HasAnnotation("ProductVersion", "8.0.10")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
@@ -53,9 +53,68 @@ namespace PriceSafari.Migrations
                     b.Property<string>("ScrapingMethod")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("StoreNames")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("StoreProfiles")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
                     b.HasKey("Id");
 
                     b.ToTable("CoOfrs");
+                });
+
+            modelBuilder.Entity("GlobalPriceReport", b =>
+                {
+                    b.Property<int>("ReportId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("ReportId"));
+
+                    b.Property<decimal>("CalculatedPrice")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("CalculatedPriceWithDelivery")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("OfferUrl")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<decimal>("Price")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("PriceSafariReportId")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("PriceWithDelivery")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("ProductId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("RegionId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ScrapingProductId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("StoreName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("ReportId");
+
+                    b.HasIndex("PriceSafariReportId");
+
+                    b.HasIndex("ProductId");
+
+                    b.HasIndex("RegionId");
+
+                    b.ToTable("GlobalPriceReports");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole", b =>
@@ -281,6 +340,12 @@ namespace PriceSafari.Migrations
                     b.Property<DateTime>("CreationDate")
                         .HasColumnType("datetime2");
 
+                    b.Property<int>("EmailSentCount")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("LastEmailSentDate")
+                        .HasColumnType("datetime2");
+
                     b.Property<DateTime?>("ScheduledMeetingDate")
                         .HasColumnType("datetime2");
 
@@ -307,6 +372,9 @@ namespace PriceSafari.Migrations
 
                     b.Property<int>("CoOfrClassId")
                         .HasColumnType("int");
+
+                    b.Property<string>("ExportedName")
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("IsBidding")
                         .IsRequired()
@@ -361,6 +429,139 @@ namespace PriceSafari.Migrations
                     b.ToTable("Flags");
                 });
 
+            modelBuilder.Entity("PriceSafari.Models.GoogleScrapingProduct", b =>
+                {
+                    b.Property<int>("ScrapingProductId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("ScrapingProductId"));
+
+                    b.Property<string>("CountryCode")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("GoogleUrl")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool?>("IsScraped")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("OffersCount")
+                        .HasColumnType("int");
+
+                    b.Property<int>("PriceSafariRaportId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ProductIds")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("RegionId")
+                        .HasColumnType("int");
+
+                    b.HasKey("ScrapingProductId");
+
+                    b.HasIndex("RegionId");
+
+                    b.ToTable("GoogleScrapingProducts");
+                });
+
+            modelBuilder.Entity("PriceSafari.Models.InvoiceClass", b =>
+                {
+                    b.Property<int>("InvoiceId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("InvoiceId"));
+
+                    b.Property<string>("Address")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("City")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("CompanyName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("InvoiceNumber")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("IsPaid")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime>("IssueDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("NIP")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<decimal>("NetAmount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime?>("PaymentDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("PlanId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("PostalCode")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("ScrapesIncluded")
+                        .HasColumnType("int");
+
+                    b.Property<int>("StoreId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("UrlsIncluded")
+                        .HasColumnType("int");
+
+                    b.HasKey("InvoiceId");
+
+                    b.HasIndex("PlanId");
+
+                    b.HasIndex("StoreId");
+
+                    b.ToTable("Invoices");
+                });
+
+            modelBuilder.Entity("PriceSafari.Models.PlanClass", b =>
+                {
+                    b.Property<int>("PlanId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("PlanId"));
+
+                    b.Property<bool>("IsTestPlan")
+                        .HasColumnType("bit");
+
+                    b.Property<decimal>("NetPrice")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("PlanName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("ProductsToScrap")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ScrapesPerInvoice")
+                        .HasColumnType("int");
+
+                    b.HasKey("PlanId");
+
+                    b.ToTable("Plans");
+                });
+
             modelBuilder.Entity("PriceSafari.Models.PriceData", b =>
                 {
                     b.Property<int>("PriceDataId")
@@ -376,13 +577,13 @@ namespace PriceSafari.Migrations
                     b.Property<decimal>("Price")
                         .HasColumnType("decimal(18,2)");
 
-                    b.Property<int>("ProductId")
-                        .HasColumnType("int");
+                    b.Property<decimal>("PriceWithDelivery")
+                        .HasColumnType("decimal(18,2)");
 
                     b.Property<int>("RegionId")
                         .HasColumnType("int");
 
-                    b.Property<int>("ScrapeRunId")
+                    b.Property<int>("ScrapingProductId")
                         .HasColumnType("int");
 
                     b.Property<string>("StoreName")
@@ -391,11 +592,9 @@ namespace PriceSafari.Migrations
 
                     b.HasKey("PriceDataId");
 
-                    b.HasIndex("ProductId");
-
                     b.HasIndex("RegionId");
 
-                    b.HasIndex("ScrapeRunId");
+                    b.HasIndex("ScrapingProductId");
 
                     b.ToTable("PriceData");
                 });
@@ -415,8 +614,8 @@ namespace PriceSafari.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<string>("Position")
-                        .HasColumnType("nvarchar(max)");
+                    b.Property<int?>("Position")
+                        .HasColumnType("int");
 
                     b.Property<decimal>("Price")
                         .HasColumnType("decimal(18,2)");
@@ -441,6 +640,44 @@ namespace PriceSafari.Migrations
                     b.HasIndex("ScrapHistoryId");
 
                     b.ToTable("PriceHistories");
+                });
+
+            modelBuilder.Entity("PriceSafari.Models.PriceSafariReport", b =>
+                {
+                    b.Property<int>("ReportId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("ReportId"));
+
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool?>("Prepared")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("ProductIds")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("ReadyDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("RegionIds")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ReportName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("StoreId")
+                        .HasColumnType("int");
+
+                    b.HasKey("ReportId");
+
+                    b.HasIndex("StoreId");
+
+                    b.ToTable("PriceSafariReports");
                 });
 
             modelBuilder.Entity("PriceSafari.Models.PriceSafariUserStore", b =>
@@ -469,14 +706,29 @@ namespace PriceSafari.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("PriceValueClassId"));
 
+                    b.Property<decimal>("PriceStep")
+                        .HasColumnType("decimal(18,2)");
+
                     b.Property<decimal>("SetPrice1")
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<decimal>("SetPrice2")
                         .HasColumnType("decimal(18,2)");
 
+                    b.Property<decimal>("SetSafariPrice1")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("SetSafariPrice2")
+                        .HasColumnType("decimal(18,2)");
+
                     b.Property<int>("StoreId")
                         .HasColumnType("int");
+
+                    b.Property<bool>("UsePriceDiff")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("UsePriceDiffSafari")
+                        .HasColumnType("bit");
 
                     b.HasKey("PriceValueClassId");
 
@@ -500,7 +752,10 @@ namespace PriceSafari.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<string>("EanCeneo")
+                    b.Property<string>("Ean")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ExportedNameCeneo")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<int?>("ExternalId")
@@ -511,6 +766,9 @@ namespace PriceSafari.Migrations
 
                     b.Property<bool?>("FoundOnGoogle")
                         .HasColumnType("bit");
+
+                    b.Property<int?>("GoogleScrapingProductScrapingProductId")
+                        .HasColumnType("int");
 
                     b.Property<string>("GoogleUrl")
                         .HasColumnType("nvarchar(max)");
@@ -523,6 +781,9 @@ namespace PriceSafari.Migrations
 
                     b.Property<string>("MainUrl")
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<decimal?>("MarginPrice")
+                        .HasColumnType("decimal(18,2)");
 
                     b.Property<string>("OfferUrl")
                         .IsRequired()
@@ -545,6 +806,8 @@ namespace PriceSafari.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.HasKey("ProductId");
+
+                    b.HasIndex("GoogleScrapingProductScrapingProductId");
 
                     b.HasIndex("StoreId");
 
@@ -577,15 +840,25 @@ namespace PriceSafari.Migrations
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("ProductMapId"));
 
                     b.Property<string>("CatalogNumber")
-                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<string>("EanCeneo")
-                        .IsRequired()
+                    b.Property<string>("Ean")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ExportedName")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("ExternalId")
                         .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("GoogleEan")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("GoogleExportedName")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("GoogleImage")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("MainUrl")
@@ -611,9 +884,16 @@ namespace PriceSafari.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("RegionId"));
 
+                    b.Property<string>("CountryCode")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("Currency")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<decimal>("CurrencyValue")
+                        .HasColumnType("decimal(18, 4)");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -622,6 +902,25 @@ namespace PriceSafari.Migrations
                     b.HasKey("RegionId");
 
                     b.ToTable("Regions");
+                });
+
+            modelBuilder.Entity("PriceSafari.Models.ScheduledTask", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<bool>("IsEnabled")
+                        .HasColumnType("bit");
+
+                    b.Property<TimeSpan>("ScheduledTime")
+                        .HasColumnType("time");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("ScheduledTasks");
                 });
 
             modelBuilder.Entity("PriceSafari.Models.ScrapHistoryClass", b =>
@@ -651,22 +950,6 @@ namespace PriceSafari.Migrations
                     b.ToTable("ScrapHistories");
                 });
 
-            modelBuilder.Entity("PriceSafari.Models.ScrapeRun", b =>
-                {
-                    b.Property<int>("ScrapeRunId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("ScrapeRunId"));
-
-                    b.Property<DateTime>("StartTime")
-                        .HasColumnType("datetime2");
-
-                    b.HasKey("ScrapeRunId");
-
-                    b.ToTable("ScrapeRuns");
-                });
-
             modelBuilder.Entity("PriceSafari.Models.Settings", b =>
                 {
                     b.Property<int>("SettingsId")
@@ -675,11 +958,8 @@ namespace PriceSafari.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("SettingsId"));
 
-                    b.Property<string>("ContactEmail")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("ContactNumber")
-                        .HasColumnType("nvarchar(max)");
+                    b.Property<bool>("GetCeneoName")
+                        .HasColumnType("bit");
 
                     b.Property<bool>("HeadLess")
                         .HasColumnType("bit");
@@ -712,10 +992,25 @@ namespace PriceSafari.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("StoreId"));
 
+                    b.Property<bool>("AutoMatching")
+                        .HasColumnType("bit");
+
+                    b.Property<decimal?>("DiscountPercentage")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int?>("PlanId")
+                        .HasColumnType("int");
+
                     b.Property<string>("ProductMapXmlUrl")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("ProductMapXmlUrlGoogle")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<int?>("ProductsToScrap")
+                        .HasColumnType("int");
+
+                    b.Property<int>("RemainingScrapes")
                         .HasColumnType("int");
 
                     b.Property<string>("StoreApiKey")
@@ -736,13 +1031,66 @@ namespace PriceSafari.Migrations
 
                     b.HasKey("StoreId");
 
+                    b.HasIndex("PlanId");
+
                     b.ToTable("Stores");
+                });
+
+            modelBuilder.Entity("PriceSafari.Models.UserPaymentData", b =>
+                {
+                    b.Property<int>("PaymentDataId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("PaymentDataId"));
+
+                    b.Property<string>("Address")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("City")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("CompanyName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("NIP")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("PostalCode")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("PaymentDataId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("UserPaymentDatas");
                 });
 
             modelBuilder.Entity("PriceSafariUser", b =>
                 {
                     b.Property<string>("Id")
                         .HasColumnType("nvarchar(450)");
+
+                    b.Property<bool>("AccesToCreateSafari")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("AccesToSetMargin")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("AccesToViewMargin")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("AccesToViewSafari")
+                        .HasColumnType("bit");
 
                     b.Property<int>("AccessFailedCount")
                         .HasColumnType("int");
@@ -823,6 +1171,33 @@ namespace PriceSafari.Migrations
                         .HasFilter("[NormalizedUserName] IS NOT NULL");
 
                     b.ToTable("AspNetUsers", (string)null);
+                });
+
+            modelBuilder.Entity("GlobalPriceReport", b =>
+                {
+                    b.HasOne("PriceSafari.Models.PriceSafariReport", "PriceSafariReport")
+                        .WithMany()
+                        .HasForeignKey("PriceSafariReportId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("PriceSafari.Models.ProductClass", "Product")
+                        .WithMany()
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("PriceSafari.Models.Region", "Region")
+                        .WithMany("GlobalPriceReports")
+                        .HasForeignKey("RegionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("PriceSafariReport");
+
+                    b.Navigation("Product");
+
+                    b.Navigation("Region");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
@@ -927,31 +1302,51 @@ namespace PriceSafari.Migrations
                         .HasForeignKey("StoreClassStoreId");
                 });
 
-            modelBuilder.Entity("PriceSafari.Models.PriceData", b =>
+            modelBuilder.Entity("PriceSafari.Models.GoogleScrapingProduct", b =>
                 {
-                    b.HasOne("PriceSafari.Models.ProductClass", "Product")
-                        .WithMany()
-                        .HasForeignKey("ProductId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
                     b.HasOne("PriceSafari.Models.Region", "Region")
-                        .WithMany("PriceData")
+                        .WithMany("GoogleScrapingProducts")
                         .HasForeignKey("RegionId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("PriceSafari.Models.ScrapeRun", "ScrapeRun")
-                        .WithMany("PriceData")
-                        .HasForeignKey("ScrapeRunId")
+                    b.Navigation("Region");
+                });
+
+            modelBuilder.Entity("PriceSafari.Models.InvoiceClass", b =>
+                {
+                    b.HasOne("PriceSafari.Models.PlanClass", "Plan")
+                        .WithMany("Invoices")
+                        .HasForeignKey("PlanId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("Product");
+                    b.HasOne("PriceSafari.Models.StoreClass", "Store")
+                        .WithMany("Invoices")
+                        .HasForeignKey("StoreId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
-                    b.Navigation("Region");
+                    b.Navigation("Plan");
 
-                    b.Navigation("ScrapeRun");
+                    b.Navigation("Store");
+                });
+
+            modelBuilder.Entity("PriceSafari.Models.PriceData", b =>
+                {
+                    b.HasOne("PriceSafari.Models.Region", null)
+                        .WithMany("PriceData")
+                        .HasForeignKey("RegionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("PriceSafari.Models.GoogleScrapingProduct", "ScrapingProduct")
+                        .WithMany("PriceData")
+                        .HasForeignKey("ScrapingProductId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ScrapingProduct");
                 });
 
             modelBuilder.Entity("PriceSafari.Models.PriceHistoryClass", b =>
@@ -971,6 +1366,17 @@ namespace PriceSafari.Migrations
                     b.Navigation("Product");
 
                     b.Navigation("ScrapHistory");
+                });
+
+            modelBuilder.Entity("PriceSafari.Models.PriceSafariReport", b =>
+                {
+                    b.HasOne("PriceSafari.Models.StoreClass", "Store")
+                        .WithMany("PriceSafariReports")
+                        .HasForeignKey("StoreId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Store");
                 });
 
             modelBuilder.Entity("PriceSafari.Models.PriceSafariUserStore", b =>
@@ -1005,6 +1411,10 @@ namespace PriceSafari.Migrations
 
             modelBuilder.Entity("PriceSafari.Models.ProductClass", b =>
                 {
+                    b.HasOne("PriceSafari.Models.GoogleScrapingProduct", null)
+                        .WithMany("Products")
+                        .HasForeignKey("GoogleScrapingProductScrapingProductId");
+
                     b.HasOne("PriceSafari.Models.StoreClass", "Store")
                         .WithMany("Products")
                         .HasForeignKey("StoreId")
@@ -1044,9 +1454,43 @@ namespace PriceSafari.Migrations
                     b.Navigation("Store");
                 });
 
+            modelBuilder.Entity("PriceSafari.Models.StoreClass", b =>
+                {
+                    b.HasOne("PriceSafari.Models.PlanClass", "Plan")
+                        .WithMany("Stores")
+                        .HasForeignKey("PlanId");
+
+                    b.Navigation("Plan");
+                });
+
+            modelBuilder.Entity("PriceSafari.Models.UserPaymentData", b =>
+                {
+                    b.HasOne("PriceSafariUser", "User")
+                        .WithMany("UserPaymentDatas")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("PriceSafari.Models.FlagsClass", b =>
                 {
                     b.Navigation("ProductFlags");
+                });
+
+            modelBuilder.Entity("PriceSafari.Models.GoogleScrapingProduct", b =>
+                {
+                    b.Navigation("PriceData");
+
+                    b.Navigation("Products");
+                });
+
+            modelBuilder.Entity("PriceSafari.Models.PlanClass", b =>
+                {
+                    b.Navigation("Invoices");
+
+                    b.Navigation("Stores");
                 });
 
             modelBuilder.Entity("PriceSafari.Models.ProductClass", b =>
@@ -1058,6 +1502,10 @@ namespace PriceSafari.Migrations
 
             modelBuilder.Entity("PriceSafari.Models.Region", b =>
                 {
+                    b.Navigation("GlobalPriceReports");
+
+                    b.Navigation("GoogleScrapingProducts");
+
                     b.Navigation("PriceData");
                 });
 
@@ -1066,16 +1514,15 @@ namespace PriceSafari.Migrations
                     b.Navigation("PriceHistories");
                 });
 
-            modelBuilder.Entity("PriceSafari.Models.ScrapeRun", b =>
-                {
-                    b.Navigation("PriceData");
-                });
-
             modelBuilder.Entity("PriceSafari.Models.StoreClass", b =>
                 {
                     b.Navigation("Categories");
 
                     b.Navigation("Flags");
+
+                    b.Navigation("Invoices");
+
+                    b.Navigation("PriceSafariReports");
 
                     b.Navigation("PriceValues");
 
@@ -1090,6 +1537,8 @@ namespace PriceSafari.Migrations
                 {
                     b.Navigation("AffiliateVerification")
                         .IsRequired();
+
+                    b.Navigation("UserPaymentDatas");
 
                     b.Navigation("UserStores");
                 });

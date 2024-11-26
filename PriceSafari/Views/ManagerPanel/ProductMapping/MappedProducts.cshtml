@@ -27,6 +27,11 @@
     <button type="submit" class="btn btn-danger">Usuń słowo z nazw produktów</button>
 </form>
 
+<form asp-action="CreateOrUpdateProductsFromProductMap" method="post">
+    <input type="hidden" name="storeId" value="@ViewBag.StoreId" />
+    <button type="submit" class="btn btn-primary">Utwórz lub zaktualizuj produkty</button>
+</form>
+
 
 <form method="post" action="@Url.Action("MapProducts", "ProductMapping", new { storeId })">
     <button type="submit" class="btn btn-primary">Mapuj Produkty</button>
