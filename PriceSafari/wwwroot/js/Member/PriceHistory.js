@@ -4,6 +4,8 @@
     let myStoreName = "";
     let setPrice1 = 2.00;
     let setPrice2 = 2.00;
+    let setStepPrice = 2.00; 
+    let usePriceDifference = document.getElementById('usePriceDifference').checked;
     let selectedProductId = null;
     let competitorStore = "";
     let selectedFlags = new Set();
@@ -22,7 +24,6 @@
     let positionSlider;
     let offerSlider;
 
-    let priceDifferenceValue = 0.50; 
 
     function debounce(func, wait) {
         let timeout;
@@ -49,6 +50,45 @@
         })  
     });
 
+    function enforceLimits(input, min, max) {
+        let value = parseFloat(input.value.replace(',', '.'));
+        if (isNaN(value)) {
+            // Pozwól użytkownikowi kontynuować wpisywanie
+            return;
+        }
+        if (value < min) {
+            input.value = min.toFixed(2); // Jeśli za nisko, ustaw na minimum
+        } else if (value > max) {
+            input.value = max.toFixed(2); // Jeśli za wysoko, ustaw na maksimum
+        } else {
+            input.value = value.toFixed(2); // Jeśli w zakresie, zaokrąglij do dwóch miejsc po przecinku
+        }
+    }
+
+    // Pobierz pola `input`
+    const price1Input = document.getElementById("price1");
+    const price2Input = document.getElementById("price2");
+    const stepPriceInput = document.getElementById("stepPrice");
+
+    // Dodaj zdarzenia dla pól
+    price1Input.addEventListener("blur", () => {
+        enforceLimits(price1Input, 0.01, 100);
+        if (parseFloat(stepPriceInput.value.replace(',', '.')) > parseFloat(price1Input.value.replace(',', '.'))) {
+            stepPriceInput.value = price1Input.value;
+        }
+        enforceLimits(stepPriceInput, 0.01, parseFloat(price1Input.value.replace(',', '.')));
+        updatePricesDebounced();
+    });
+
+    price2Input.addEventListener("blur", () => {
+        enforceLimits(price2Input, 0.01, 100);
+        updatePricesDebounced();
+    });
+
+    stepPriceInput.addEventListener("blur", () => {
+        enforceLimits(stepPriceInput, 0.01, parseFloat(price1Input.value.replace(',', '.')));
+        updatePricesDebounced();
+    });
 
    
     positionSlider.noUiSlider.on('update', function (values, handle) {
@@ -140,24 +180,28 @@
     }
 
     const usePriceDifferenceCheckbox = document.getElementById('usePriceDifference');
+
     const unitLabel1 = document.getElementById('unitLabel1');
     const unitLabel2 = document.getElementById('unitLabel2');
-
+    const unitLabelStepPrice = document.getElementById('unitLabelStepPrice'); // Dodaj to
 
     function updateUnits(usePriceDifference) {
         if (usePriceDifference) {
             unitLabel1.textContent = 'PLN';
             unitLabel2.textContent = 'PLN';
+            unitLabelStepPrice.textContent = 'PLN'; // Aktualizuj jednostkę
         } else {
             unitLabel1.textContent = '%';
             unitLabel2.textContent = '%';
+            unitLabelStepPrice.textContent = '%'; // Aktualizuj jednostkę
         }
     }
 
 
     usePriceDifferenceCheckbox.addEventListener('change', function () {
-        const usePriceDifference = usePriceDifferenceCheckbox.checked;
+        usePriceDifference = this.checked;
         updateUnits(usePriceDifference);
+        updatePricesDebounced(); // Dodaj tę linię, jeśli chcesz, aby ceny były natychmiast zaktualizowane po zmianie stanu checkboxa
     });
 
  
@@ -168,15 +212,12 @@
                 myStoreName = response.myStoreName;
                 setPrice1 = response.setPrice1;
                 setPrice2 = response.setPrice2;
+                setStepPrice = response.stepPrice; // Upewniamy się, że przypisujemy do 'setStepPrice'
                 missedProductsCount = response.missedProductsCount;
 
-                priceDifferenceValue = response.priceDifferenceValue || 0.50;
-             
-                const usePriceDifference = response.usePriceDiff;
-              
+                
+                usePriceDifference = response.usePriceDiff;
                 document.getElementById('usePriceDifference').checked = usePriceDifference;
-
-         
                 updateUnits(usePriceDifference);
 
                 
@@ -256,6 +297,7 @@
                 document.getElementById('totalPriceCount').textContent = response.priceCount;
                 document.getElementById('price1').value = setPrice1;
                 document.getElementById('price2').value = setPrice2;
+                document.getElementById('stepPrice').value = setStepPrice;
                 document.getElementById('missedProductsCount').textContent = missedProductsCount;
 
                 updateFlagCounts(allPrices);
@@ -627,7 +669,7 @@
             priceBoxLowestDetails.innerHTML =
                 (isBidding ? '<span class="Bidding">Bid</span>' : '') +
                 (item.position !== null ? '<span class="Position">Ceneo ' + item.position + '</span>' :
-                    '<span class="Position" style="background-color: #4B0089;">Schowany</span>') +
+                    '<span class="Position" style="background-color: #6C3B17;">Schowany</span>') +
                 (item.delivery != null ? '<span class="' + deliveryClass + '">Wysyłka w ' + (item.delivery == 1 ? '1 dzień' : item.delivery + ' dni') + '</span>' : '');
 
             priceBoxColumnLowestPrice.appendChild(priceBoxLowestText);
@@ -694,7 +736,7 @@
                 priceBoxMyDetails.innerHTML =
                     (myIsBidding ? '<span class="Bidding">Bid</span>' : '') +
                     (myPosition !== null ? '<span class="Position">Ceneo ' + myPosition + '</span>' :
-                        '<span class="Position" style="background-color: #4B0089;">Schowany</span>') +
+                        '<span class="Position" style="background-color: #6C3B17;">Schowany</span>') +
                     (item.myDelivery != null ? '<span class="' + myDeliveryClass + '">Wysyłka w ' + (item.myDelivery == 1 ? '1 dzień' : item.myDelivery + ' dni') + '</span>' : '');
 
                 priceBoxColumnMyPrice.appendChild(priceBoxMyText);
@@ -733,30 +775,59 @@
                         let suggestedPrice2, amountToSuggestedPrice2, percentageToSuggestedPrice2;
                         let arrowClass2 = upArrowClass; // Domyślna klasa strzałki
 
-                        if (savingsValue < 1) {
-                            // Jeśli savings jest mniejsze niż 1 PLN, sugerujemy obniżenie ceny o 1 PLN
-                            suggestedPrice2 = suggestedPrice1 - priceDifferenceValue;
-                            amountToSuggestedPrice2 = suggestedPrice2 - myPrice;
-                            percentageToSuggestedPrice2 = (amountToSuggestedPrice2 / myPrice) * 100;
+                        if (usePriceDifference) {
+                            // Używamy wartości kwotowych
+                            if (savingsValue < 1) {
+                                suggestedPrice2 = suggestedPrice1 - setStepPrice;
+                                amountToSuggestedPrice2 = suggestedPrice2 - myPrice;
+                                percentageToSuggestedPrice2 = (amountToSuggestedPrice2 / myPrice) * 100;
 
-                            // Jeśli różnica jest ujemna, zmieniamy strzałkę na w dół
-                            if (amountToSuggestedPrice2 < 0) {
-                                arrowClass2 = 'arrow-down-turquoise'; // Strzałka w dół turkusowa
+                                // Jeśli różnica jest ujemna, zmieniamy strzałkę na w dół
+                                if (amountToSuggestedPrice2 < 0) {
+                                    arrowClass2 = 'arrow-down-turquoise';
+                                }
+                            } else {
+                                suggestedPrice2 = suggestedPrice1 - setStepPrice;
+                                amountToSuggestedPrice2 = amountToSuggestedPrice1 - setStepPrice;
+                                percentageToSuggestedPrice2 = (amountToSuggestedPrice2 / myPrice) * 100;
+
+                                // Dodaj to sprawdzenie
+                                if (amountToSuggestedPrice2 < 0) {
+                                    arrowClass2 = 'arrow-down-turquoise';
+                                }
                             }
-
                         } else {
-                           
-                            suggestedPrice2 = suggestedPrice1 - priceDifferenceValue;
-                            amountToSuggestedPrice2 = amountToSuggestedPrice1 - priceDifferenceValue;
-                            percentageToSuggestedPrice2 = (amountToSuggestedPrice2 / myPrice) * 100;
+                            // Używamy wartości procentowych
+                            const percentageStep = setStepPrice / 100;
+
+                            if (savingsValue < 1) {
+                                suggestedPrice2 = suggestedPrice1 * (1 - percentageStep);
+                                amountToSuggestedPrice2 = suggestedPrice2 - myPrice;
+                                percentageToSuggestedPrice2 = (amountToSuggestedPrice2 / myPrice) * 100;
+
+                                // Jeśli różnica jest ujemna, zmieniamy strzałkę na w dół
+                                if (amountToSuggestedPrice2 < 0) {
+                                    arrowClass2 = 'arrow-down-turquoise';
+                                }
+                            } else {
+                                suggestedPrice2 = suggestedPrice1 * (1 - percentageStep);
+                                amountToSuggestedPrice2 = amountToSuggestedPrice1 - (myPrice * percentageStep);
+                                percentageToSuggestedPrice2 = (amountToSuggestedPrice2 / myPrice) * 100;
+
+                                // Dodaj to sprawdzenie
+                                if (amountToSuggestedPrice2 < 0) {
+                                    arrowClass2 = 'arrow-down-turquoise';
+                                }
+                            }
                         }
+
 
                         // Formatowanie wartości do wyświetlenia
                         const amount1Formatted = (amountToSuggestedPrice1 >= 0 ? '+' : '') + amountToSuggestedPrice1.toLocaleString('pl-PL', {
                             minimumFractionDigits: 2,
                             maximumFractionDigits: 2
                         }) + ' PLN';
-                        const percentage1Formatted = '(' + (amountToSuggestedPrice1 >= 0 ? '+' : '') + percentageToSuggestedPrice1.toLocaleString('pl-PL', {
+                        const percentage1Formatted = '(' + (percentageToSuggestedPrice1 >= 0 ? '+' : '') + percentageToSuggestedPrice1.toLocaleString('pl-PL', {
                             minimumFractionDigits: 2,
                             maximumFractionDigits: 2
                         }) + '%)';
@@ -769,7 +840,7 @@
                             minimumFractionDigits: 2,
                             maximumFractionDigits: 2
                         }) + ' PLN';
-                        const percentage2Formatted = '(' + (amountToSuggestedPrice2 >= 0 ? '+' : '') + percentageToSuggestedPrice2.toLocaleString('pl-PL', {
+                        const percentage2Formatted = '(' + (percentageToSuggestedPrice2 >= 0 ? '+' : '') + percentageToSuggestedPrice2.toLocaleString('pl-PL', {
                             minimumFractionDigits: 2,
                             maximumFractionDigits: 2
                         }) + '%)';
@@ -838,16 +909,18 @@
                         const diffClass = item.colorClass + ' ' + 'priceBox-diff';
                         priceBoxColumnInfo.innerHTML += '<div class="' + diffClass + '">Podnieś: N/A</div>';
                     }
-                
-            
-
                 } else if (item.colorClass === "prMid") {
                     if (myPrice != null && lowestPrice != null) {
                         // Calculate amounts and percentages
                         const amountToMatchLowestPrice = myPrice - lowestPrice;
                         const percentageToMatchLowestPrice = (amountToMatchLowestPrice / myPrice) * 100;
 
-                        const strategicPrice = lowestPrice - priceDifferenceValue;
+                        let strategicPrice;
+                        if (usePriceDifference) {
+                            strategicPrice = lowestPrice - setStepPrice;
+                        } else {
+                            strategicPrice = lowestPrice * (1 - setStepPrice / 100);
+                        }
                         const amountToBeatLowestPrice = myPrice - strategicPrice;
                         const percentageToBeatLowestPrice = (amountToBeatLowestPrice / myPrice) * 100;
 
@@ -856,7 +929,7 @@
                             minimumFractionDigits: 2,
                             maximumFractionDigits: 2
                         }) + ' PLN';
-                        const percentageMatchFormatted = '(' + percentageToMatchLowestPrice.toLocaleString('pl-PL', {
+                        const percentageMatchFormatted = '(-' + percentageToMatchLowestPrice.toLocaleString('pl-PL', {
                             minimumFractionDigits: 2,
                             maximumFractionDigits: 2
                         }) + '%)';
@@ -869,7 +942,7 @@
                             minimumFractionDigits: 2,
                             maximumFractionDigits: 2
                         }) + ' PLN';
-                        const percentageBeatFormatted = '(' + percentageToBeatLowestPrice.toLocaleString('pl-PL', {
+                        const percentageBeatFormatted = '(-' + percentageToBeatLowestPrice.toLocaleString('pl-PL', {
                             minimumFractionDigits: 2,
                             maximumFractionDigits: 2
                         }) + '%)';
@@ -894,11 +967,9 @@
                         const newPriceText = document.createElement('div');
                         newPriceText.innerHTML = '= ' + newSuggestedPriceMatch;
 
-                        // Color square (no label)
                         const colorSquare = document.createElement('span');
-                        colorSquare.className = 'color-square-green'; // Use appropriate class for color
+                        colorSquare.className = 'color-square-green';
 
-                        // Assemble the first action box
                         matchPriceLine.appendChild(downArrow);
                         matchPriceLine.appendChild(reduceText);
                         matchPriceLine.appendChild(newPriceText);
@@ -922,11 +993,9 @@
                         const newPriceText2 = document.createElement('div');
                         newPriceText2.innerHTML = '= ' + newSuggestedPriceBeat;
 
-                        // Color square (no label)
                         const colorSquare2 = document.createElement('span');
-                        colorSquare2.className = 'color-square-turquoise'; // Use appropriate class for color
+                        colorSquare2.className = 'color-square-turquoise';
 
-                        // Assemble the second action box
                         strategicPriceLine.appendChild(downArrow2);
                         strategicPriceLine.appendChild(reduceText2);
                         strategicPriceLine.appendChild(newPriceText2);
@@ -948,7 +1017,12 @@
                         const amountToMatchLowestPrice = myPrice - lowestPrice;
                         const percentageToMatchLowestPrice = (amountToMatchLowestPrice / myPrice) * 100;
 
-                        const strategicPrice = lowestPrice - priceDifferenceValue;
+                        let strategicPrice;
+                        if (usePriceDifference) {
+                            strategicPrice = lowestPrice - setStepPrice;
+                        } else {
+                            strategicPrice = lowestPrice * (1 - setStepPrice / 100);
+                        }
                         const amountToBeatLowestPrice = myPrice - strategicPrice;
                         const percentageToBeatLowestPrice = (amountToBeatLowestPrice / myPrice) * 100;
 
@@ -957,7 +1031,7 @@
                             minimumFractionDigits: 2,
                             maximumFractionDigits: 2
                         }) + ' PLN';
-                        const percentageMatchFormatted = '(' + percentageToMatchLowestPrice.toLocaleString('pl-PL', {
+                        const percentageMatchFormatted = '(-' + percentageToMatchLowestPrice.toLocaleString('pl-PL', {
                             minimumFractionDigits: 2,
                             maximumFractionDigits: 2
                         }) + '%)';
@@ -970,7 +1044,7 @@
                             minimumFractionDigits: 2,
                             maximumFractionDigits: 2
                         }) + ' PLN';
-                        const percentageBeatFormatted = '(' + percentageToBeatLowestPrice.toLocaleString('pl-PL', {
+                        const percentageBeatFormatted = '(-' + percentageToBeatLowestPrice.toLocaleString('pl-PL', {
                             minimumFractionDigits: 2,
                             maximumFractionDigits: 2
                         }) + '%)';
@@ -995,11 +1069,9 @@
                         const newPriceText = document.createElement('div');
                         newPriceText.innerHTML = '= ' + newSuggestedPriceMatch;
 
-                        // Color square (no label)
                         const colorSquare = document.createElement('span');
-                        colorSquare.className = 'color-square-green'; // Use appropriate class for color
+                        colorSquare.className = 'color-square-green';
 
-                        // Assemble the first action box
                         matchPriceLine.appendChild(downArrow);
                         matchPriceLine.appendChild(reduceText);
                         matchPriceLine.appendChild(newPriceText);
@@ -1023,11 +1095,9 @@
                         const newPriceText2 = document.createElement('div');
                         newPriceText2.innerHTML = '= ' + newSuggestedPriceBeat;
 
-                        // Color square (no label)
                         const colorSquare2 = document.createElement('span');
-                        colorSquare2.className = 'color-square-turquoise'; // Use appropriate class for color
+                        colorSquare2.className = 'color-square-turquoise';
 
-                        // Assemble the second action box
                         strategicPriceLine.appendChild(downArrow2);
                         strategicPriceLine.appendChild(reduceText2);
                         strategicPriceLine.appendChild(newPriceText2);
@@ -1043,7 +1113,6 @@
                         const diffClass = item.colorClass + ' ' + 'priceBox-diff';
                         priceBoxColumnInfo.innerHTML += '<div class="' + diffClass + '">Obniż: N/A</div>';
                     }
-
                 } else if (item.colorClass === "prGood") {
                     if (myPrice != null) {
                         // First action box: No change
@@ -1076,19 +1145,25 @@
                                 maximumFractionDigits: 2
                             }) + ' PLN';
 
-                            downArrowClass = 'no-change-icon-turquoise'; // Użyjemy ikony braku zmiany
-                            colorSquare2Class = 'color-square-turquoise'; // Turkusowe kółko
+                            downArrowClass = 'no-change-icon-turquoise';
+                            colorSquare2Class = 'color-square-turquoise';
                         } else {
-                            // W przeciwnym razie sugerujemy obniżkę ceny o priceDifferenceValue
-                            amountToSuggestedPrice2 = -priceDifferenceValue;
-                            percentageToSuggestedPrice2 = (amountToSuggestedPrice2 / myPrice) * 100;
-                            suggestedPrice2 = myPrice + amountToSuggestedPrice2; // Obniżamy cenę
+                            if (usePriceDifference) {
+                                amountToSuggestedPrice2 = -setStepPrice;
+                                suggestedPrice2 = myPrice + amountToSuggestedPrice2;
+                                percentageToSuggestedPrice2 = (amountToSuggestedPrice2 / myPrice) * 100;
+                            } else {
+                                const percentageReduction = setStepPrice / 100;
+                                amountToSuggestedPrice2 = -myPrice * percentageReduction;
+                                suggestedPrice2 = myPrice * (1 - percentageReduction);
+                                percentageToSuggestedPrice2 = -setStepPrice;
+                            }
 
-                            amount2Formatted = '-' + Math.abs(amountToSuggestedPrice2).toLocaleString('pl-PL', {
+                            amount2Formatted = (amountToSuggestedPrice2 >= 0 ? '+' : '') + amountToSuggestedPrice2.toLocaleString('pl-PL', {
                                 minimumFractionDigits: 2,
                                 maximumFractionDigits: 2
                             }) + ' PLN';
-                            percentage2Formatted = '(-' + Math.abs(percentageToSuggestedPrice2).toLocaleString('pl-PL', {
+                            percentage2Formatted = '(' + (percentageToSuggestedPrice2 >= 0 ? '+' : '') + percentageToSuggestedPrice2.toLocaleString('pl-PL', {
                                 minimumFractionDigits: 2,
                                 maximumFractionDigits: 2
                             }) + '%)';
@@ -1097,7 +1172,7 @@
                                 maximumFractionDigits: 2
                             }) + ' PLN';
 
-                            downArrowClass = 'arrow-down-green'; // Zielona strzałka w dół
+                            downArrowClass = 'arrow-down-green';
                             colorSquare2Class = 'color-square-turquoise';
                         }
 
@@ -1135,7 +1210,7 @@
                         strategicPriceLine.className = 'price-action-line';
 
                         const downArrow = document.createElement('span');
-                        downArrow.className = downArrowClass; // Dynamiczna klasa
+                        downArrow.className = downArrowClass;
 
                         const reduceText = document.createElement('span');
                         reduceText.innerHTML = amount2Formatted + ' ' + percentage2Formatted;
@@ -1156,18 +1231,14 @@
                         // Append the two boxes to priceBoxColumnInfo
                         priceBoxColumnInfo.appendChild(matchPriceBox);
                         priceBoxColumnInfo.appendChild(strategicPriceBox);
-
                     } else {
                         // Fallback jeśli myPrice jest niedostępne
                         const diffClass = item.colorClass + ' ' + 'priceBox-diff-top';
                         priceBoxColumnInfo.innerHTML += '<div class="' + diffClass + '">Jesteś w najlepszych cenach</div>';
                     }
                 }
-
-
-               
             } else {
-                // For rejected products, display a note or different rendering
+                // Dla produktów odrzuconych wyświetlamy odpowiednią informację
                 priceBoxColumnInfo.innerHTML += '<div class="rejected-product">Produkt odrzucony</div>';
             }
 
@@ -1780,18 +1851,27 @@
         setPrice2 = parseFloat(this.value);
         updatePricesDebounced();
     });
+    document.getElementById('stepPrice').addEventListener('input', function () {
+        setStepPrice = parseFloat(this.value);
+       
+        updatePricesDebounced();
+    });
+
+
 
     document.getElementById('savePriceValues').addEventListener('click', function () {
         const price1 = parseFloat(document.getElementById('price1').value);
         const price2 = parseFloat(document.getElementById('price2').value);
+        const stepPrice = parseFloat(document.getElementById('stepPrice').value);
         const usePriceDiff = document.getElementById('usePriceDifference').checked;
-
         const data = {
             StoreId: storeId,
             SetPrice1: price1,
             SetPrice2: price2,
-            UsePriceDiff: usePriceDiff
+            PriceStep: stepPrice,
+            UsePriceDiff: usePriceDiff // Zmieniamy na 'UsePriceDiff' z wielkiej litery 'U'
         };
+
 
         fetch('/PriceHistory/SavePriceValues', {
             method: 'POST',
@@ -1805,15 +1885,17 @@
                 if (response.success) {
                     setPrice1 = price1;
                     setPrice2 = price2;
-                    usePriceDifferenceGlobal = usePriceDiff; // Zaktualizuj globalną zmienną, jeśli istnieje
-
+                    setStepPrice = stepPrice; // Używamy 'setStepPrice' tutaj
+                    usePriceDifferenceGlobal = usePriceDiff;
                     loadPrices();
                 } else {
-                    alert('Error updating price values: ' + response.message);
+                    alert('Błąd zapisu wartości: ' + response.message);
                 }
+
             })
-            .catch(error => console.error('Błąd w aktualizowaniu wartości:', error));
+            .catch(error => console.error('Błąd zapisu wartości:', error));
     });
+
 
     const modal = document.getElementById('flagModal');
     const span = document.getElementsByClassName('close')[0];

@@ -501,7 +501,7 @@ namespace PriceSafari.Controllers.MemberControllers
                     SetPrice1 = model.SetPrice1,
                     SetPrice2 = model.SetPrice2,
                     PriceStep = model.PriceStep,
-                    UsePriceDiff = model.usePriceDiff
+                    UsePriceDiff = model.usePriceDiff // Używamy 'UsePriceDiff'
                 };
                 _context.PriceValues.Add(priceValues);
             }
@@ -510,7 +510,7 @@ namespace PriceSafari.Controllers.MemberControllers
                 priceValues.SetPrice1 = model.SetPrice1;
                 priceValues.SetPrice2 = model.SetPrice2;
                 priceValues.PriceStep = model.PriceStep;
-                priceValues.UsePriceDiff = model.usePriceDiff;
+                priceValues.UsePriceDiff = model.usePriceDiff; // Używamy 'UsePriceDiff'
                 _context.PriceValues.Update(priceValues);
             }
 

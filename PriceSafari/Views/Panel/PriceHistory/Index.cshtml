@@ -209,9 +209,9 @@
         font-size: 16px;
     }
     .color-square-green {
-        width: 12px;
+        width: 16px;
         height: 24px;
-        border-radius: 2px;
+        border-radius: 4px;
         background-color: rgba(117, 152, 112, 0.7);
         display: inline-block;
         margin-left: 14px;
@@ -243,9 +243,9 @@
 
 
     .color-square-turquoise {
-        width: 12px;
+        width: 16px;
         height: 24px;
-        border-radius:2px;
+        border-radius:4px;
         background-color: rgba(0, 145, 123, 0.7);
         display: inline-block;
         margin-left: 14px;
@@ -302,17 +302,24 @@
                         <label class="form-check-label" for="prToLowCheckbox">Zaniżona </label>
                     </div>
 
-                    <div class="price-range-settings">
-                        <div class="color-circle prIdeal-circle"></div>
-                        <label for="price1"></label>
-                        <input type="number" id="price1" value="@ViewBag.SetPrice1" step="0.01" min="0.01">
-                        <span id="unitLabel1"></span>
-                    </div>
+                   
                     <div class="price-range-settings">
                         <div class="color-circle prMid-circle"></div>
                         <label for="price2"></label>
-                        <input type="number" id="price2" value="@ViewBag.SetPrice2" step="0.01" min="0.01">
+                        <input type="number" id="price2" value="@ViewBag.SetPrice2" step="0.01" min="0.01" max="100">
                         <span id="unitLabel2"></span>
+                    </div>
+                    <div class="price-range-settings">
+                        <div class="color-circle prIdeal-circle"></div>
+                        <label for="price1"></label>
+                        <input type="number" id="price1" value="@ViewBag.SetPrice1" step="0.01" min="0.01" max="100">
+                        <span id="unitLabel1"></span>
+                    </div>
+                    <div class="price-range-settings">
+                        <div class="price-range-settings-stepPrice"></div>
+                        <label for="stepPrice"></label>
+                        <input type="number" id="stepPrice" value="@ViewBag.PriceStep" step="0.01" min="0.01" max="100">
+                        <span id="unitLabelStepPrice"></span>
                     </div>
 
                     <div>
