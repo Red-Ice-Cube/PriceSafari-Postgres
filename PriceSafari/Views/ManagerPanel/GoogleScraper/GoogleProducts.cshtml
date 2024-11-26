@@ -14,6 +14,8 @@
     <button id="resetNotFoundStatuses" class="btn btn-warning">Resetuj nieznalezione</button> <!-- Nowy przycisk -->
     <button id="resetIncorrectGoogleStatuses" class="btn btn-danger">Resetuj Niepoprawnie znalezione produkty Google</button>
 
+    <button id="clearGoogleUrls" class="btn btn-danger">Wyczyść Google URLs</button> <!-- Nowy przycisk -->
+
 </div>
 
 
@@ -158,6 +160,30 @@
                 });
             }
 
+
+             // Nowy przycisk: Clear Google URLs
+            $('#clearGoogleUrls').click(function () {
+                console.log("Clear Google URLs button clicked.");
+                clearGoogleUrls();
+            });
+
+            function clearGoogleUrls() {
+                console.log("Sending POST request to clear Google URLs...");
+                $.ajax({
+                    type: "POST",
+                    url: '@Url.Action("ClearGoogleUrls", "GoogleScraper")',
+                    data: { storeId: '@storeId' },
+                    success: function (response) {
+                        console.log("Google URLs cleared successfully.");
+                        loadProducts(); // Po wyczyszczeniu odśwież produkty
+                    },
+                    error: function (xhr, status, error) {
+                        console.error("Error clearing Google URLs: ", error);
+                        console.error("Response status: ", status);
+                        console.error("Response details: ", xhr.responseText);
+                    }
+                });
+            }
 
             function updateTable(products) {
                 console.log("Updating product table...");
