@@ -15,10 +15,6 @@ public class GoogleScraperController : Controller
     {
         _context = context;
     }
-
-
-
-
     [HttpPost]
     public async Task<IActionResult> StartScrapingForProducts(int storeId)
     {
@@ -31,9 +27,9 @@ public class GoogleScraperController : Controller
         var scraper = new GoogleScraper();
         await scraper.InitializeBrowserAsync();
 
-        // Pobieramy wszystkie produkty do przetworzenia
+        // Retrieve products to process
         var products = await _context.Products
-            .Where(p => p.StoreId == storeId && p.OnGoogle && !string.IsNullOrEmpty(p.Url) && string.IsNullOrEmpty(p.GoogleUrl))
+            .Where(p => p.StoreId == storeId && p.OnGoogle && !string.IsNullOrEmpty(p.Url) && p.FoundOnGoogle == null)
             .ToListAsync();
 
         if (!products.Any())
@@ -43,8 +39,8 @@ public class GoogleScraperController : Controller
             return Content("No products to process.");
         }
 
-        // Lista URL-i produktów
-        var searchUrls = products.Select(p => p.Url).ToList();
+        // List of product URLs to compare
+        var allProductUrls = products.Select(p => p.Url).ToList();
 
         foreach (var product in products)
         {
@@ -52,12 +48,12 @@ public class GoogleScraperController : Controller
             {
                 await scraper.InitializeAndSearchAsync(product.ProductNameInStoreForGoogle);
 
-                var matchedUrls = await scraper.SearchForMatchingProductUrlsAsync(searchUrls);
+                var matchedUrls = await scraper.SearchForMatchingProductUrlsAsync(allProductUrls);
 
-                // Aktualizujemy produkty na podstawie dopasowanych URL-i
+                // Update products based on matched URLs
                 foreach (var (matchedStoreUrl, googleProductUrl) in matchedUrls)
                 {
-                    var matchedProduct = products.FirstOrDefault(p => NormalizeUrl(p.Url) == NormalizeUrl(matchedStoreUrl));
+                    var matchedProduct = products.FirstOrDefault(p => p.Url == matchedStoreUrl);
                     if (matchedProduct != null && string.IsNullOrEmpty(matchedProduct.GoogleUrl))
                     {
                         matchedProduct.GoogleUrl = googleProductUrl;
@@ -69,8 +65,8 @@ public class GoogleScraperController : Controller
                     }
                 }
 
-                // Jeżeli produkt nie został znaleziony, ustawiamy FoundOnGoogle na false
-                if (string.IsNullOrEmpty(product.GoogleUrl))
+                // If the current product was not found, set FoundOnGoogle to false
+                if (!matchedUrls.Any(m => m.storeUrl == product.Url))
                 {
                     product.FoundOnGoogle = false;
                     Console.WriteLine($"Product not found on Google: {product.ProductName}");
@@ -88,18 +84,7 @@ public class GoogleScraperController : Controller
         return Content("Scraping completed.");
     }
 
-    private string NormalizeUrl(string url)
-    {
-        try
-        {
-            var uri = new Uri(url);
-            return uri.GetLeftPart(UriPartial.Path).TrimEnd('/');
-        }
-        catch
-        {
-            return url.TrimEnd('/');
-        }
-    }
+
 
 
     //[HttpPost]

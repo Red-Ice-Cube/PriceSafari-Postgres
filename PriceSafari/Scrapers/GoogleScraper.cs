@@ -47,37 +47,58 @@ public class GoogleScraper
     {
         Console.WriteLine("Navigating to Google Shopping with product title...");
 
-        try
+        int retries = 0;
+        const int maxRetries = 3;
+
+        while (retries < maxRetries)
         {
-            var encodedTitle = System.Web.HttpUtility.UrlEncode(title);
-            var url = $"https://www.google.com/search?tbm=shop&tbs=merchagg:g5341299802&q={encodedTitle}";
-
-            await _page.GoToAsync(url, new NavigationOptions { Timeout = 60000, WaitUntil = new[] { WaitUntilNavigation.Load } });
-
-            var rejectButton = await _page.QuerySelectorAsync("button[aria-label='Odrzuć wszystko']");
-            if (rejectButton != null)
+            try
             {
-                await rejectButton.ClickAsync();
+                if (_browser == null || _page == null)
+                {
+                    await InitializeBrowserAsync();
+                }
+
+                var encodedTitle = System.Web.HttpUtility.UrlEncode(title);
+                var url = $"https://www.google.com/search?tbm=shop&tbs=merchagg:g5341299802&q={encodedTitle}";
+
+                await _page.GoToAsync(url, new NavigationOptions { Timeout = 60000, WaitUntil = new[] { WaitUntilNavigation.Load } });
+
+                var currentUrl = _page.Url;
+                if (currentUrl.Contains("/sorry/"))
+                {
+                    Console.WriteLine("Encountered CAPTCHA page. Restarting browser...");
+                    await CloseBrowserAsync();
+                    retries++;
+                    continue;
+                }
+
+                var rejectButton = await _page.QuerySelectorAsync("button[aria-label='Odrzuć wszystko']");
+                if (rejectButton != null)
+                {
+                    await rejectButton.ClickAsync();
+                }
+
+                Console.WriteLine("Page loaded.");
+                break;
             }
+            catch (TimeoutException ex)
+            {
+                Console.WriteLine($"Error: Timeout while navigating to Google Shopping: {ex.Message}");
+                await CloseBrowserAsync();
+                retries++;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error: {ex.Message}");
+                await CloseBrowserAsync();
+                retries++;
+            }
+        }
 
-            Console.WriteLine("Page loaded.");
-        }
-        catch (TimeoutException ex)
+        if (retries == maxRetries)
         {
-            Console.WriteLine($"Error: Timeout while navigating to Google Shopping: {ex.Message}");
-        }
-    }
-
-    private string NormalizeUrl(string url)
-    {
-        try
-        {
-            var uri = new Uri(url);
-            return uri.GetLeftPart(UriPartial.Path).TrimEnd('/');
-        }
-        catch
-        {
-            return url.TrimEnd('/');
+            throw new Exception("Maximum retries reached while trying to navigate to Google Shopping.");
         }
     }
 
@@ -86,23 +107,21 @@ public class GoogleScraper
         var matchedUrls = new List<(string storeUrl, string googleProductUrl)>();
         Console.WriteLine("Searching for matching product URLs on the search results page...");
 
-        // Normalizujemy searchUrls
-        var normalizedSearchUrls = searchUrls.Select(u => NormalizeUrl(u)).ToList();
-
         try
         {
-            await _page.WaitForSelectorAsync("div.sh-dgr__grid-result", new WaitForSelectorOptions { Timeout = 3000 });
+            await _page.WaitForSelectorAsync("div.sh-dgr__grid-result", new WaitForSelectorOptions { Timeout = 500 });
 
             var productContainers = await _page.QuerySelectorAllAsync("div.sh-dgr__grid-result");
             Console.WriteLine($"Found {productContainers.Length} product boxes on the search results page.");
 
             foreach (var container in productContainers)
             {
-                string? googleProductUrl = null;
-                string? storeUrl = null;
+                string googleProductUrl = null;
+                string storeUrl = null;
 
                 try
                 {
+                    // Get and clean the Google Shopping URL
                     var googleProductLinkElement = await container.QuerySelectorAsync("a[href^='/shopping/product/']");
                     if (googleProductLinkElement != null)
                     {
@@ -111,20 +130,20 @@ public class GoogleScraper
                         Console.WriteLine($"Found Google Shopping URL: {googleProductUrl}");
                     }
 
+                    // Get the Store URL
                     var storeLinkElement = await container.QuerySelectorAsync("a[href*='/url?url=']");
                     if (storeLinkElement != null)
                     {
-                        storeUrl = await storeLinkElement.EvaluateFunctionAsync<string>("el => el.href");
-                        storeUrl = CleanUrl(storeUrl);
-                        storeUrl = NormalizeUrl(storeUrl);
+                        var googleRedirectUrl = await storeLinkElement.EvaluateFunctionAsync<string>("el => el.href");
+                        storeUrl = ExtractStoreUrlFromGoogleRedirect(googleRedirectUrl);
                         Console.WriteLine($"Found Store URL: {storeUrl}");
 
-                        foreach (var searchUrl in normalizedSearchUrls)
+                        foreach (var searchUrl in searchUrls)
                         {
                             if (!string.IsNullOrEmpty(storeUrl) && !string.IsNullOrEmpty(searchUrl))
                             {
-                                if (storeUrl.Contains(searchUrl, StringComparison.OrdinalIgnoreCase) ||
-                                    searchUrl.Contains(storeUrl, StringComparison.OrdinalIgnoreCase))
+                                // Check if the provided URL is entirely contained within the found Store URL
+                                if (storeUrl.Contains(searchUrl, StringComparison.OrdinalIgnoreCase))
                                 {
                                     if (!string.IsNullOrEmpty(googleProductUrl))
                                     {
@@ -152,12 +171,36 @@ public class GoogleScraper
         return matchedUrls;
     }
 
+    private string ExtractStoreUrlFromGoogleRedirect(string googleRedirectUrl)
+    {
+        try
+        {
+            var uri = new Uri(googleRedirectUrl);
+            var queryParams = System.Web.HttpUtility.ParseQueryString(uri.Query);
+            var storeUrlEncoded = queryParams["url"];
+
+            if (!string.IsNullOrEmpty(storeUrlEncoded))
+            {
+                var storeUrl = System.Web.HttpUtility.UrlDecode(storeUrlEncoded);
+                return storeUrl; // Return the store URL without cleaning or removing query parameters
+            }
+            else
+            {
+                return googleRedirectUrl; // In case 'url' parameter is missing
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error extracting store URL: {ex.Message}");
+            return googleRedirectUrl;
+        }
+    }
+
     private string CleanGoogleUrl(string url)
     {
         int questionMarkIndex = url.IndexOf("?");
         string cleanedUrl = questionMarkIndex > 0 ? url.Substring(0, questionMarkIndex) : url;
 
-        // Jeśli URL nie zaczyna się od "http", dodaj "https://www.google.com"
         if (!cleanedUrl.StartsWith("http", StringComparison.OrdinalIgnoreCase))
         {
             cleanedUrl = "https://www.google.com" + cleanedUrl;
@@ -166,24 +209,18 @@ public class GoogleScraper
         return cleanedUrl;
     }
 
-    private string CleanUrl(string url)
-    {
-        string decodedUrl = System.Web.HttpUtility.UrlDecode(url);
-        string cleanedUrl = decodedUrl.Replace("/url?url=", "");
-
-        if (cleanedUrl.StartsWith("https://www.google.com"))
-        {
-            cleanedUrl = cleanedUrl.Replace("https://www.google.com", "");
-        }
-
-        int questionMarkIndex = cleanedUrl.IndexOf("&");
-        return questionMarkIndex > 0 ? cleanedUrl.Substring(0, questionMarkIndex) : cleanedUrl;
-    }
-
     public async Task CloseBrowserAsync()
     {
-        await _page.CloseAsync();
-        await _browser.CloseAsync();
+        if (_page != null && !_page.IsClosed)
+        {
+            await _page.CloseAsync();
+        }
+        if (_browser != null)
+        {
+            await _browser.CloseAsync();
+        }
+        _browser = null;
+        _page = null;
     }
 }
 

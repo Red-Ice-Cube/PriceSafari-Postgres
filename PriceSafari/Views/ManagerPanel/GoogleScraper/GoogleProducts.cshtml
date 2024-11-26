@@ -187,13 +187,12 @@
 
             function updateTable(products) {
                 console.log("Updating product table...");
-                // Clear the table body before updating
+               
                 $('#productTable').empty();
                 var foundCount = 0;
                 var pendingCount = 0;
                 var notFoundCount = 0;
 
-                // Iterate through products and update the table
                 $.each(products, function (index, product) {
                     console.log("Processing product:", product);
 
