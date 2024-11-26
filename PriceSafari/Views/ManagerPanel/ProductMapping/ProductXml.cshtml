@@ -4,47 +4,62 @@
     ViewData["Title"] = "Produkty XML dla sklepu " + ViewBag.StoreName;
     Layout = "~/Views/Shared/_PanelLayout.cshtml";
     var storeId = ViewBag.StoreId;
+    var totalProducts = Model.Count();
 }
 
 <h2>Produkty XML dla sklepu @ViewBag.StoreName</h2>
 
+<p><strong>Łączna liczba produktów:</strong> @totalProducts</p>
 
 <a href="@Url.Action("ImportProductsFromXml", new { storeId = storeId })" class="btn btn-primary">Importuj produkty XML</a>
+<a href="@Url.Action("ImportProductsFromGoogleXml", new { storeId = storeId })" class="btn btn-primary">Importuj produkty Google Shopping</a>
 <a href="@Url.Action("MapProducts", new { storeId = storeId })" class="btn btn-success">Mapuj produkty</a>
-
 
 <table class="table table-bordered table-striped">
     <thead>
         <tr>
-            <th>Zdjęcie</th>
-            <th>Nazwa Export</th>
+            <th>Zdjęcie (Ceneo)</th>
+            <th>Zdjęcie (Google)</th>
+            <th>Nazwa Export (Ceneo)</th>
+            <th>Nazwa Export (Google)</th>
             <th>Katalogowy Numer</th>
-            <th>EAN</th>
+            <th>EAN (Ceneo)</th>
+            <th>EAN (Google)</th>
             <th>URL Produktu</th>
             <th>External ID</th>
-            <th>Główne Zdjęcie</th>
         </tr>
     </thead>
     <tbody>
         @foreach (var product in Model)
         {
             <tr>
-                <td><img src="@product.MainUrl" alt="Brak zdjęcia" style="max-width: 100px;" /></td>
-                <td>@product.ExportedName</td>
-                <td>@product.CatalogNumber</td>
-                <td>@product.Ean</td>
-                <td><a href="@product.Url" target="_blank">@product.Url</a></td>
-                <td>@product.ExternalId</td>
                 <td>
                     @if (!string.IsNullOrEmpty(product.MainUrl))
                     {
-                        <a href="@product.MainUrl" target="_blank">Zobacz zdjęcie</a>
+                        <img src="@product.MainUrl" alt="Brak zdjęcia" style="max-width: 100px;" />
                     }
                     else
                     {
-                        <span>Brak</span>
+                        <span>Brak zdjęcia</span>
                     }
                 </td>
+                <td>
+                    @if (!string.IsNullOrEmpty(product.GoogleImage))
+                    {
+                        <img src="@product.GoogleImage" alt="Brak zdjęcia Google" style="max-width: 100px;" />
+                    }
+                    else
+                    {
+                        <span>Brak zdjęcia Google</span>
+                    }
+                </td>
+                <td>@product.ExportedName</td>
+                <td>@product.GoogleExportedName</td>
+                <td>@product.CatalogNumber</td>
+                <td>@product.Ean</td>
+                <td>@product.GoogleEan</td>
+                <td><a href="@product.Url" target="_blank">@product.Url</a></td>
+                <td>@product.ExternalId</td>
             </tr>
         }
     </tbody>

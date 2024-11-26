@@ -13,6 +13,13 @@ namespace PriceSafari.Models
         public string? Ean { get; set; }
         public string? MainUrl { get; set; }
 
-        public string ExportedName { get; set; }
+        public string? ExportedName { get; set; }
+
+
+
+        // Nowe pola dla danych z Google Shopping
+        public string? GoogleEan { get; set; }
+        public string? GoogleImage { get; set; }
+        public string? GoogleExportedName { get; set; } // Nowa kolumna
     }
 }

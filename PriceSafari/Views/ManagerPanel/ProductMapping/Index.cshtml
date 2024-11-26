@@ -40,6 +40,20 @@
                         <span>Brak URL do mapowania produktów</span>
                     }
                 </td>
+                <td>
+                    @if (!string.IsNullOrEmpty(store.ProductMapXmlUrlGoogle))
+                    {
+                        <form asp-action="ImportProductsFromGoogleXml" method="post" style="display:inline;">
+                            <input type="hidden" name="storeId" value="@store.StoreId" />
+                            <button type="submit" class="btn btn-success">Importuj z Google Shopping</button>
+                        </form>
+                    }
+                    else
+                    {
+                        <span>Brak URL do mapowania z Google Shopping</span>
+                    }
+                </td>
+
             </tr>
         }
     </tbody>
