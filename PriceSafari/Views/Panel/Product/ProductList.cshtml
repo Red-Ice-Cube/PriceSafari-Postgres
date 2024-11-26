@@ -155,6 +155,24 @@
                     </div>
                 </div>
 
+            <div class="store-section">
+                <div class="form-check">
+                    <input class="form-check-input status-filter" type="checkbox" id="google" value="google" data-status="google">
+                    <label class="form-check-label" for="google">Google (<span id="count-google">0</span>)</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input status-filter" type="checkbox" id="ceneo" value="ceneo" data-status="ceneo">
+                    <label class="form-check-label" for="ceneo">Ceneo (<span id="count-ceneo">0</span>)</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input status-filter" type="checkbox" id="google-ceneo" value="google-ceneo" data-status="google-ceneo">
+                    <label class="form-check-label" for="google-ceneo">Google&Ceneo (<span id="count-google-ceneo">0</span>)</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input status-filter" type="checkbox" id="not-found" value="not-found" data-status="not-found">
+                    <label class="form-check-label" for="not-found">Nie znalezione (<span id="count-not-found">0</span>)</label>
+                </div>
+            </div>
         </div>
 
         <div class="Vert-table">
@@ -164,9 +182,8 @@
                         <th>Produkt (<span id="displayed-count"></span>)</th>
                         <th></th>
                         <th>Ean</th>
-                        <th>Oznaczenie</th>
                         <th>Cena zakupu</th>
-                        <th>Ceno</th>
+                        <th>Oferta</th>
                         <th>@ViewBag.StoreName</th>
                         <th>Scrapować</th>
                         <th>Status</th>
@@ -224,7 +241,7 @@
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
     <script>
-        document.addEventListener('DOMContentLoaded', function () {
+                  document.addEventListener('DOMContentLoaded', function () {
             var storeId = @ViewBag.StoreId;
             var selectAllButton = document.getElementById('select-all');
             var deselectAllButton = document.getElementById('deselect-all');
@@ -233,6 +250,23 @@
             var allProducts = [];
             var lastScrollPosition = 0;
             var selectedCategory = 'all';
+
+            // Definiujemy platformStatuses globalnie
+            var platformStatuses = ['google', 'ceneo', 'google-ceneo', 'not-found'];
+
+            // Funkcja pomocnicza do określenia statusu platformy
+            function getProductPlatformStatus(product) {
+                var hasGoogle = product.googleUrl && product.googleUrl.trim() !== '';
+                var hasCeneo = product.offerUrl && product.offerUrl.trim() !== '';
+                var hasBoth = hasGoogle && hasCeneo;
+                var notFound = !hasGoogle && !hasCeneo;
+                return {
+                    hasGoogle: hasGoogle,
+                    hasCeneo: hasCeneo,
+                    hasBoth: hasBoth,
+                    notFound: notFound
+                };
+            }
 
             function saveState() {
                 lastScrollPosition = window.scrollY;
@@ -291,6 +325,7 @@
             }
 
             function updateCounters(products) {
+                // Liczniki istniejących statusów
                 var activeRejectedCount = allProducts.filter(p => p.isScrapable && p.isRejected).length;
                 var activeCount = allProducts.filter(p => p.isScrapable && !p.isRejected).length;
                 var inactiveRejectedCount = allProducts.filter(p => !p.isScrapable && p.isRejected).length;
@@ -304,6 +339,32 @@
                 var scrapableCount = activeRejectedCount + activeCount;
                 document.getElementById('scrapable-count').textContent = scrapableCount;
                 document.getElementById('total-products').textContent = allProducts.length;
+
+                // Nowe liczniki
+                var googleCount = allProducts.filter(p => {
+                    var status = getProductPlatformStatus(p);
+                    return status.hasGoogle;
+                }).length;
+
+                var ceneoCount = allProducts.filter(p => {
+                    var status = getProductPlatformStatus(p);
+                    return status.hasCeneo;
+                }).length;
+
+                var googleCeneoCount = allProducts.filter(p => {
+                    var status = getProductPlatformStatus(p);
+                    return status.hasBoth;
+                }).length;
+
+                var notFoundCount = allProducts.filter(p => {
+                    var platformStatus = getProductPlatformStatus(p);
+                    return platformStatus.notFound;
+                }).length;
+
+                document.getElementById('count-google').textContent = googleCount;
+                document.getElementById('count-ceneo').textContent = ceneoCount;
+                document.getElementById('count-google-ceneo').textContent = googleCeneoCount;
+                document.getElementById('count-not-found').textContent = notFoundCount;
             }
 
             function highlightMatches(text, searchTerm) {
@@ -325,8 +386,9 @@
                     var highlightedProductName = highlightMatches(product.productName, searchTerm);
                     var category = product.category || '';
                     var offerUrlButton = product.offerUrl ? `<a href="${product.offerUrl}" class="Button-Page-Small" target="_blank">Ceneo</a>` : '';
+                    var googleUrlButton = product.googleUrl ? `<a href="${product.googleUrl}" class="Button-Page-Small" target="_blank">Google</a>` : '';
                     var urlButton = product.url ? `<a href="${product.url}" class="Button-Page-Small" target="_blank">Strona</a>` : '';
-                    var catalogNumber = product.catalogNumber || '';
+
                     var ean = product.ean || '';
                     var marginPrice = product.marginPrice || '';
                     var imageUrl = product.mainUrl || '';
@@ -353,9 +415,14 @@
                                 <td> <p>${highlightedProductName}</p><p>${category}</p></td>
                                 <td>${imageCell}</td>
                                 <td>${ean}</td>
-                                <td>${catalogNumber}</td>
+
                                 <td>${marginPrice} PLN</td>
-                                <td>${offerUrlButton}</td>
+                                <td>
+                                <div class="store-section" style="gap:4px;">
+                                     ${offerUrlButton}${googleUrlButton}
+                                     </div>
+                                </td>
+
                                 <td>${urlButton}</td>
                                 <td>
                                     <input type="checkbox" class="scrapable-checkbox" data-product-id="${product.productId}" ${product.isScrapable ? "checked" : ""} />
@@ -401,10 +468,46 @@
                 var searchTerm = searchInput.value;
                 var filteredProducts = filterProductsByName(allProducts, searchTerm);
 
-                if (selectedStatuses.length > 0) {
+                var existingStatuses = ['active', 'inactive', 'active-rejected', 'inactive-rejected'];
+
+                var selectedExistingStatuses = selectedStatuses.filter(status => existingStatuses.includes(status));
+                var selectedPlatformStatuses = selectedStatuses.filter(status => platformStatuses.includes(status));
+
+                // Filtrujemy po istniejących statusach
+                if (selectedExistingStatuses.length > 0) {
                     filteredProducts = filteredProducts.filter(product => {
                         var productStatus = getProductStatus(product);
-                        return selectedStatuses.includes(productStatus);
+                        return selectedExistingStatuses.includes(productStatus);
+                    });
+                }
+
+                // Filtrujemy po statusach platform
+                if (selectedPlatformStatuses.length > 0) {
+                    filteredProducts = filteredProducts.filter(product => {
+                        var platformStatus = getProductPlatformStatus(product);
+
+                        // 'Nie znalezione' i 'Google&Ceneo' są wzajemnie wykluczające z innymi
+                        if (selectedPlatformStatuses.includes('not-found')) {
+                            return platformStatus.notFound;
+                        }
+
+                        if (selectedPlatformStatuses.includes('google-ceneo')) {
+                            return platformStatus.hasBoth;
+                        }
+
+                        // 'Google' i 'Ceneo' mogą być zaznaczone razem
+                        var includeProduct = false;
+                        if (selectedPlatformStatuses.includes('google')) {
+                            if (platformStatus.hasGoogle) {
+                                includeProduct = true;
+                            }
+                        }
+                        if (selectedPlatformStatuses.includes('ceneo')) {
+                            if (platformStatus.hasCeneo) {
+                                includeProduct = true;
+                            }
+                        }
+                        return includeProduct;
                     });
                 }
 
@@ -440,8 +543,23 @@
                     });
             }
 
+            // Event listeners dla checkboxów
             document.querySelectorAll('.status-filter').forEach(function (checkbox) {
-                checkbox.addEventListener('change', filterRows);
+                checkbox.addEventListener('change', function () {
+                    if ((this.id === 'not-found' || this.id === 'google-ceneo') && this.checked) {
+                        // Odznaczamy inne platformowe checkboxy
+                        platformStatuses.forEach(function (status) {
+                            if (status !== this.id) {
+                                document.getElementById(status).checked = false;
+                            }
+                        }.bind(this));
+                    } else if (this.checked && (this.id === 'google' || this.id === 'ceneo')) {
+                        // Odznaczamy 'Nie znalezione' i 'Google&Ceneo' jeśli zaznaczone są 'Google' lub 'Ceneo'
+                        document.getElementById('not-found').checked = false;
+                        document.getElementById('google-ceneo').checked = false;
+                    }
+                    filterRows();
+                });
             });
 
             searchInput.addEventListener('input', filterRows);
@@ -506,6 +624,8 @@
 
             fetchProducts();
         });
+
+
     </script>
     <script>
         $(document).ready(function () {

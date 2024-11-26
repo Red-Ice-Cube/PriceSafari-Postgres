@@ -93,10 +93,10 @@ namespace PriceSafari.Controllers
                     p.IsScrapable,
                     p.IsRejected,
                     p.Url,
-                    p.CatalogNumber,
                     p.Ean,
                     p.MarginPrice,
                     p.MainUrl,
+                    p.GoogleUrl,
                    
                 })
                 .ToListAsync();
