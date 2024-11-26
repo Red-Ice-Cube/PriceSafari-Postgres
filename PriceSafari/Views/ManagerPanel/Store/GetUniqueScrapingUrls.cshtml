@@ -67,30 +67,39 @@
             <table id="initialTable" class="table-orders">
                 <thead>
                     <tr>
-                        <th>Url Ceneo</th>
+                        <th>URL Ceneo</th>
+                        <th>URL Google</th>
                         <th>Id</th>
-                        <th>Zescrapowane</th>
-                        <th>Odrzucone</th>
-                        <th>Metoda Scrapowania</th>
-                        <th>Liczba Cen</th>
+                        <th>Zescrapowane Ceneo</th>
+                        <th>Odrzucone Ceneo</th>
+                        <th>Liczba Cen Ceneo</th>
+                        <th>Zescrapowane Google</th>
+                        <th>Odrzucone Google</th>
+                        <th>Liczba Cen Google</th>
                     </tr>
                 </thead>
                 <tbody id="scrapingTableBody">
                     @foreach (var item in Model)
                     {
-                        var rowId = $"row-{item.OfferUrl}";
-                        var rowClass = item.IsRejected && item.IsScraped ? "rejected-row" : item.IsScraped ? "scraped-row" : "unscraped-row";
+                        var rowId = $"row-{item.Id}";
+                        // Determine the row class based on scraping status
+                        var rowClass = item.IsScraped || item.GoogleIsScraped ? "scraped-row" : "unscraped-row";
+                        // You can customize the rowClass further based on your highlighting logic
                         <tr id="@rowId" class="product-row @rowClass">
                             <td>@item.OfferUrl</td>
+                            <td>@item.GoogleOfferUrl</td>
                             <td>@(item.ProductIds != null ? string.Join(", ", item.ProductIds) : "Brak danych")</td>
                             <td>@(item.IsScraped ? "Tak" : "Nie")</td>
                             <td>@(item.IsRejected ? "Tak" : "Nie")</td>
-                            <td>@item.ScrapingMethod</td>
                             <td>@item.PricesCount</td>
+                            <td>@(item.GoogleIsScraped ? "Tak" : "Nie")</td>
+                            <td>@(item.GoogleIsRejected ? "Tak" : "Nie")</td>
+                            <td>@item.GooglePricesCount</td>
                         </tr>
                     }
                 </tbody>
             </table>
+
         </div>
     </div>
 </div>
@@ -103,19 +112,254 @@
         }
 
         .unscraped-row {
-            background-color: #d3d3d3; /* Szary kolor */
+            background-color: #f0f0f0; /* Light gray for unscraped rows */
         }
 
         .scraped-row {
-            background-color: #e0f7fa; /* Lekko niebieski kolor */
+            background-color: #d1e7dd; /* Light green for scraped rows */
+        }
+
+        .scraped-ceneo {
+            background-color: #d1e7dd; /* Light green */
+        }
+
+        .scraped-google {
+            background-color: #cfe2ff; /* Light blue */
         }
 
         .rejected-row {
-            background-color: #ffcccc; /* Lekko czerwony kolor */
+            background-color: #f8d7da; /* Light red for rejected rows */
         }
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/3.1.11/signalr.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="~/js/manager/ScrapeAll.js"></script>
+    <script>
+                document.addEventListener("DOMContentLoaded", function () {
+            var ctx = document.getElementById('speedChart').getContext('2d');
+
+            var gradientFill1 = ctx.createLinearGradient(0, 0, 0, ctx.canvas.clientHeight);
+            gradientFill1.addColorStop(0, 'rgba(14, 126, 135, 0.2)');
+            gradientFill1.addColorStop(1, 'rgba(14, 126, 135, 0.6)');
+
+            var speedChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Zebrane produkty na sekunde:',
+                        data: [],
+                        backgroundColor: gradientFill1,
+                        borderColor: 'rgba(14, 126, 135, 1)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.5,
+                        pointRadius: 0,
+                        pointHoverRadius: 6,
+                        pointHoverBorderWidth: 2
+                    }]
+                },
+                options: {
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            type: 'linear',
+                            position: 'bottom',
+                            title: {
+                                display: false,
+                                text: 'Sekundy',
+                                color: 'rgba(255, 255, 255, 0.8)'
+                            },
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.2)'
+                            },
+                            ticks: {
+                                color: 'rgba(255, 255, 255, 0.8)'
+                            }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: false,
+                                text: 'Zebrane produkty',
+                                color: 'rgba(255, 255, 255, 0.8)'
+                            },
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.2)'
+                            },
+                            ticks: {
+                                color: 'rgba(255, 255, 255, 0.8'
+                            }
+                        }
+                    },
+                    elements: {
+                        point: {
+                            radius: 0,
+                            hoverRadius: 6,
+                            hoverBorderWidth: 2
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false,
+                            labels: {
+                                color: 'rgba(0, 69, 82, 1)',
+                                font: {
+                                    size: 15
+                                }
+                            }
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                            callbacks: {
+                                label: function (context) {
+                                    var label = context.dataset.label || '';
+                                    var value = context.parsed.y;
+                                    return label + ': ' + value;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            var connection = new signalR.HubConnectionBuilder().withUrl("/scrapingHub").build();
+            var scrapingComplete = false;
+
+                   connection.on("ReceiveScrapingUpdate", function (coOfrId, isScraped, isRejected, pricesCount, source) {
+            var rowId = "row-" + coOfrId;
+            var row = document.getElementById(rowId);
+
+            if (row) {
+                // Update cells based on the source (Ceneo or Google)
+                if (source === "Ceneo") {
+                    row.cells[3].innerText = isScraped ? "Tak" : "Nie"; // Zescrapowane Ceneo
+                    row.cells[4].innerText = isRejected ? "Tak" : "Nie"; // Odrzucone Ceneo
+                    row.cells[5].innerText = pricesCount; // Liczba Cen Ceneo
+                } else if (source === "Google") {
+                    row.cells[6].innerText = isScraped ? "Tak" : "Nie"; // Zescrapowane Google
+                    row.cells[7].innerText = isRejected ? "Tak" : "Nie"; // Odrzucone Google
+                    row.cells[8].innerText = pricesCount; // Liczba Cen Google
+                }
+
+                // Update row class based on statuses
+                var ceneoScraped = row.cells[3].innerText === "Tak";
+                var googleScraped = row.cells[6].innerText === "Tak";
+                var rowClass = "";
+
+                if (ceneoScraped && googleScraped) {
+                    rowClass = "scraped-row"; // Both scraped
+                } else if (ceneoScraped) {
+                    rowClass = "scraped-ceneo";
+                } else if (googleScraped) {
+                    rowClass = "scraped-google";
+                } else {
+                    rowClass = "unscraped-row";
+                }
+
+                row.className = "product-row " + rowClass;
+            }
+        });
+
+
+            connection.on("ReceiveProgressUpdate", function (totalScraped, uniqueProducts, elapsedSeconds, rejectedCount) {
+                if (scrapingComplete) return;
+
+                var percentage = Math.round((totalScraped / uniqueProducts) * 100);
+                var progressBarInner = document.getElementById("progressBarInner");
+                var progressText = document.getElementById("progressText");
+                var completionMessage = document.getElementById("completionMessage");
+
+                progressBarInner.style.width = percentage + "%";
+                progressBarInner.innerHTML = percentage + "%";
+                progressText.innerHTML = `Zbieranie cen ${totalScraped}/${uniqueProducts} produktów (${rejectedCount} odrzuconych)`;
+
+                var currentTime = Math.floor(elapsedSeconds);
+
+                var speed = (totalScraped / elapsedSeconds).toFixed(2);
+
+                if (speedChart.data.labels.length > 0 && currentTime === speedChart.data.labels[speedChart.data.labels.length - 1]) {
+                    var lastIndex = speedChart.data.labels.length - 1;
+                    speedChart.data.datasets[0].data[lastIndex] = (parseFloat(speedChart.data.datasets[0].data[lastIndex]) + parseFloat(speed)) / 2;
+                } else {
+                    speedChart.data.labels.push(currentTime);
+                    speedChart.data.datasets[0].data.push(parseFloat(speed));
+                }
+
+                speedChart.update();
+
+                if (totalScraped === uniqueProducts) {
+                    completionMessage.style.display = "block";
+                    completionMessage.innerHTML = `Zebrano ceny dla ${totalScraped}/${uniqueProducts} produktów (${rejectedCount} odrzuconych).`;
+                    completionMessage.style.color = "#0E7E87";
+
+                    progressBarInner.style.backgroundColor = "#0E7E87";
+
+                    progressText.style.display = "none";
+
+                    scrapingComplete = true;
+                }
+            });
+
+            connection.start().catch(function (err) {
+                return console.error(err.toString());
+            });
+
+            $('#scrapingForm').on('submit', function (e) {
+                e.preventDefault();
+                var form = $(this);
+                var url = form.attr('action');
+
+                $.ajax({
+                    url: url,
+                    method: 'POST',
+                    success: function () {
+                        console.log('Scraping started successfully');
+                    },
+                    error: function () {
+                        console.error('Error starting scraping');
+                    }
+                });
+            });
+
+            $('#stopScrapingButton').on('click', function () {
+                $.ajax({
+                    url: '/PriceScraping/StopScraping',
+                    method: 'POST',
+                    success: function () {
+                        console.log('Scraping stopped successfully');
+                    },
+                    error: function () {
+                        console.error('Error stopping scraping');
+                    }
+                });
+            });
+
+            function updateCounters() {
+                var rows = document.querySelectorAll("#scrapingTableBody tr");
+                var totalUrls = rows.length;
+                var totalProductIds = 0;
+                var totalPricesCount = 0;
+                var totalRejectedCount = 0;
+
+                rows.forEach(function (row) {
+                    totalProductIds += row.querySelectorAll('td')[1].textContent.split(', ').length;
+                    totalPricesCount += parseInt(row.querySelectorAll('td')[5].textContent) || 0;
+                    if (row.querySelectorAll('td')[3].innerText === "Tak") {
+                        totalRejectedCount++;
+                    }
+                });
+
+                document.getElementById("totalUrlCount").textContent = totalUrls;
+                document.getElementById("totalProductCount").textContent = totalProductIds;
+                document.getElementById("totalPricesCount").textContent = totalPricesCount;
+                document.getElementById("totalRejectedCount").textContent = totalRejectedCount;
+            }
+        });
+
+
+
+
+    </script>
 }

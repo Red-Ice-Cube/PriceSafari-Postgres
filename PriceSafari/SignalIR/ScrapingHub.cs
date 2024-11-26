@@ -9,9 +9,9 @@ namespace PriceSafari.Hubs
             await Clients.All.SendAsync("ReceiveProgressUpdate", totalScraped, uniqueProducts, elapsedSeconds, rejectedCount);
         }
 
-        public async Task SendScrapingUpdate(string offerUrl, bool isScraped, bool isRejected, string scrapingMethod, int pricesCount)
+        public async Task SendScrapingUpdate(string offerUrl, bool isScraped, bool isRejected, int pricesCount)
         {
-            await Clients.All.SendAsync("ReceiveScrapingUpdate", offerUrl, isScraped, isRejected, scrapingMethod, pricesCount);
+            await Clients.All.SendAsync("ReceiveScrapingUpdate", offerUrl, isScraped, isRejected, pricesCount);
         }
     }
 }

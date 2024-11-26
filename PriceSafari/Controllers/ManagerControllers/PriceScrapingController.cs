@@ -34,26 +34,159 @@ public class PriceScrapingController : Controller
     [HttpPost]
     public async Task<IActionResult> GroupAndSaveUniqueUrls()
     {
-        var uniqueUrls = await _context.Products
+        var products = await _context.Products
             .Include(p => p.Store)
             .Where(p => p.IsScrapable && p.Store.RemainingScrapes > 0)
-            .GroupBy(p => p.OfferUrl)
-            .Select(g => new CoOfrClass
-            {
-                OfferUrl = g.Key,
-                ProductIds = g.Select(p => p.ProductId).ToList(),
-                StoreNames = g.Select(p => p.Store.StoreName).ToList(),
-                StoreProfiles = g.Select(p => p.Store.StoreProfile).ToList(),
-                IsScraped = false
-            })
             .ToListAsync();
 
+        // Union-Find data structures
+        var parent = new Dictionary<int, int>(); // productId -> parent productId
+        var rank = new Dictionary<int, int>();   // productId -> rank
+
+        // Initialize Union-Find
+        foreach (var product in products)
+        {
+            parent[product.ProductId] = product.ProductId;
+            rank[product.ProductId] = 0;
+        }
+
+        // Mapping from URL to list of product IDs
+        var urlToProductIds = new Dictionary<string, List<int>>();
+
+        // Collect URLs and build urlToProductIds mapping
+        foreach (var product in products)
+        {
+            if (!string.IsNullOrEmpty(product.OfferUrl))
+            {
+                if (!urlToProductIds.TryGetValue(product.OfferUrl, out var productIdList))
+                {
+                    productIdList = new List<int>();
+                    urlToProductIds[product.OfferUrl] = productIdList;
+                }
+                productIdList.Add(product.ProductId);
+            }
+
+            if (!string.IsNullOrEmpty(product.GoogleUrl))
+            {
+                if (!urlToProductIds.TryGetValue(product.GoogleUrl, out var productIdList))
+                {
+                    productIdList = new List<int>();
+                    urlToProductIds[product.GoogleUrl] = productIdList;
+                }
+                productIdList.Add(product.ProductId);
+            }
+        }
+
+        // Union products that share URLs
+        foreach (var kvp in urlToProductIds)
+        {
+            var productIds = kvp.Value;
+            if (productIds.Count > 1)
+            {
+                var firstProductId = productIds[0];
+                for (int i = 1; i < productIds.Count; i++)
+                {
+                    Union(parent, rank, firstProductId, productIds[i]);
+                }
+            }
+        }
+
+        // Group products by their root parent
+        var groups = new Dictionary<int, List<ProductClass>>();
+
+        foreach (var product in products)
+        {
+            var root = Find(parent, product.ProductId);
+
+            if (!groups.TryGetValue(root, out var groupProducts))
+            {
+                groupProducts = new List<ProductClass>();
+                groups[root] = groupProducts;
+            }
+            groupProducts.Add(product);
+        }
+
+        // Now, create CoOfrClass instances for each group
+        var coOfrs = new List<CoOfrClass>();
+
+        foreach (var group in groups.Values)
+        {
+            var coOfr = new CoOfrClass
+            {
+                ProductIds = new List<int>(),
+                StoreNames = new List<string>(),
+                StoreProfiles = new List<string>(),
+                IsScraped = false,
+                GoogleIsScraped = false,
+                IsRejected = false,
+                GoogleIsRejected = false,
+            };
+
+            var offerUrls = new HashSet<string>();
+            var googleUrls = new HashSet<string>();
+
+            foreach (var product in group)
+            {
+                coOfr.ProductIds.Add(product.ProductId);
+
+                if (!string.IsNullOrEmpty(product.OfferUrl))
+                {
+                    offerUrls.Add(product.OfferUrl);
+                }
+                if (!string.IsNullOrEmpty(product.GoogleUrl))
+                {
+                    googleUrls.Add(product.GoogleUrl);
+                }
+
+                coOfr.StoreNames.Add(product.Store.StoreName);
+                coOfr.StoreProfiles.Add(product.Store.StoreProfile);
+            }
+
+            // Assign URLs (you may need to adjust this if you want to store multiple URLs)
+            coOfr.OfferUrl = offerUrls.FirstOrDefault();
+            coOfr.GoogleOfferUrl = googleUrls.FirstOrDefault();
+
+            coOfrs.Add(coOfr);
+        }
+
+        // Remove previous data and save new data
         _context.CoOfrs.RemoveRange(_context.CoOfrs);
-        _context.CoOfrs.AddRange(uniqueUrls);
+        _context.CoOfrs.AddRange(coOfrs);
         await _context.SaveChangesAsync();
 
         return RedirectToAction("GetUniqueScrapingUrls");
     }
+
+    // Union-Find methods
+    private int Find(Dictionary<int, int> parent, int x)
+    {
+        if (parent[x] != x)
+        {
+            parent[x] = Find(parent, parent[x]);
+        }
+        return parent[x];
+    }
+
+    private void Union(Dictionary<int, int> parent, Dictionary<int, int> rank, int x, int y)
+    {
+        x = Find(parent, x);
+        y = Find(parent, y);
+        if (x == y)
+            return;
+        if (rank[x] < rank[y])
+        {
+            parent[x] = y;
+        }
+        else
+        {
+            parent[y] = x;
+            if (rank[x] == rank[y])
+            {
+                rank[x]++;
+            }
+        }
+    }
+
 
 
     [HttpGet]
@@ -187,13 +320,13 @@ public class PriceScrapingController : Controller
 
                                     await scopedContext.CoOfrPriceHistories.AddRangeAsync(priceHistories);
                                     coOfr.IsScraped = true;
-                                    coOfr.ScrapingMethod = "Puppeteer";
+                                    
                                     coOfr.PricesCount = priceHistories.Count;
                                     coOfr.IsRejected = (priceHistories.Count == 0);
                                     scopedContext.CoOfrs.Update(coOfr);
                                     await scopedContext.SaveChangesAsync();
 
-                                    await _hubContext.Clients.All.SendAsync("ReceiveScrapingUpdate", coOfr.OfferUrl, coOfr.IsScraped, coOfr.IsRejected, coOfr.ScrapingMethod, coOfr.PricesCount);
+                                    await _hubContext.Clients.All.SendAsync("ReceiveScrapingUpdate", coOfr.OfferUrl, coOfr.IsScraped, coOfr.IsRejected, coOfr.PricesCount);
 
                                     Interlocked.Add(ref totalPrices, priceHistories.Count);
                                     Interlocked.Increment(ref scrapedCount);

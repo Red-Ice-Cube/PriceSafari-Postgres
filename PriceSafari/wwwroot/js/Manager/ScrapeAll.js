@@ -90,7 +90,7 @@
     var connection = new signalR.HubConnectionBuilder().withUrl("/scrapingHub").build();
     var scrapingComplete = false;
 
-    connection.on("ReceiveScrapingUpdate", function (offerUrl, isScraped, isRejected, scrapingMethod, pricesCount) {
+    connection.on("ReceiveScrapingUpdate", function (offerUrl, isScraped, isRejected,  pricesCount) {
         var rowId = "row-" + offerUrl;
         var row = document.getElementById(rowId);
         var rowClass = isRejected && isScraped ? "rejected-row" : isScraped ? "scraped-row" : "unscraped-row";
@@ -99,15 +99,15 @@
             row.className = "product-row " + rowClass;
             row.cells[2].innerText = isScraped ? "Tak" : "Nie";
             row.cells[3].innerText = isRejected ? "Tak" : "Nie";
-            row.cells[4].innerText = scrapingMethod;
-            row.cells[5].innerText = pricesCount;
+       
+            row.cells[4].innerText = pricesCount;
         } else {
             var newRow = `<tr id="${rowId}" class="product-row ${rowClass}">
                         <td>${offerUrl}</td>
                         <td></td>
                         <td>${isScraped ? "Tak" : "Nie"}</td>
                         <td>${isRejected ? "Tak" : "Nie"}</td>
-                        <td>${scrapingMethod}</td>
+                       
                         <td>${pricesCount}</td>
                     </tr>`;
             document.getElementById("scrapingTableBody").insertAdjacentHTML('beforeend', newRow);
