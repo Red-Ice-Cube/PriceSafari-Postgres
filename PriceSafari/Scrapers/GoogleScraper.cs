@@ -36,7 +36,7 @@ public class GoogleScraper
 
         _page = await _browser.NewPageAsync();
 
-        await _page.SetViewportAsync(new ViewPortOptions { Width = 1280, Height = 720 });
+        await _page.SetViewportAsync(new ViewPortOptions { Width = 1440, Height = 900 });
         await _page.SetExtraHttpHeadersAsync(new Dictionary<string, string>
         {
             { "Accept-Language", "pl-PL,pl;q=0.9,en-US;q=0.8,en;q=0.7" }

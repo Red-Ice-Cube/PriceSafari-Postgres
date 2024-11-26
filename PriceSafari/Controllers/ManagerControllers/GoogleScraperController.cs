@@ -15,6 +15,7 @@ public class GoogleScraperController : Controller
     {
         _context = context;
     }
+
     [HttpPost]
     public async Task<IActionResult> StartScrapingForProducts(int storeId)
     {
@@ -27,22 +28,28 @@ public class GoogleScraperController : Controller
         var scraper = new GoogleScraper();
         await scraper.InitializeBrowserAsync();
 
-        // Retrieve products to process
-        var products = await _context.Products
-            .Where(p => p.StoreId == storeId && p.OnGoogle && !string.IsNullOrEmpty(p.Url) && p.FoundOnGoogle == null)
+        // Retrieve all products for the store that are OnGoogle and have a non-empty URL
+        var allProducts = await _context.Products
+            .Where(p => p.StoreId == storeId && p.OnGoogle && !string.IsNullOrEmpty(p.Url))
             .ToListAsync();
 
-        if (!products.Any())
+        if (!allProducts.Any())
         {
             Console.WriteLine("No products to process.");
             await scraper.CloseBrowserAsync();
             return Content("No products to process.");
         }
 
-        // List of product URLs to compare
-        var allProductUrls = products.Select(p => p.Url).ToList();
+        // Create a dictionary for quick lookup by URL
+        var productDict = allProducts.ToDictionary(p => p.Url, p => p);
 
-        foreach (var product in products)
+        // List of product URLs to compare
+        var allProductUrls = productDict.Keys.ToList();
+
+        // Filter products to process (those that have not been found yet or were previously not found)
+        var productsToProcess = allProducts.Where(p => p.FoundOnGoogle == null || p.FoundOnGoogle == false).ToList();
+
+        foreach (var product in productsToProcess)
         {
             try
             {
@@ -53,9 +60,9 @@ public class GoogleScraperController : Controller
                 // Update products based on matched URLs
                 foreach (var (matchedStoreUrl, googleProductUrl) in matchedUrls)
                 {
-                    var matchedProduct = products.FirstOrDefault(p => p.Url == matchedStoreUrl);
-                    if (matchedProduct != null && string.IsNullOrEmpty(matchedProduct.GoogleUrl))
+                    if (productDict.TryGetValue(matchedStoreUrl, out var matchedProduct))
                     {
+                        // Update the product regardless of its previous FoundOnGoogle status
                         matchedProduct.GoogleUrl = googleProductUrl;
                         matchedProduct.FoundOnGoogle = true;
                         Console.WriteLine($"Updated product: {matchedProduct.ProductName}, GoogleUrl: {matchedProduct.GoogleUrl}");
@@ -65,13 +72,17 @@ public class GoogleScraperController : Controller
                     }
                 }
 
-                // If the current product was not found, set FoundOnGoogle to false
+                // If the current product was not found in this search
                 if (!matchedUrls.Any(m => m.storeUrl == product.Url))
                 {
-                    product.FoundOnGoogle = false;
-                    Console.WriteLine($"Product not found on Google: {product.ProductName}");
-                    _context.Products.Update(product);
-                    await _context.SaveChangesAsync();
+                    // Update FoundOnGoogle to false if it wasn't already true
+                    if (product.FoundOnGoogle != true)
+                    {
+                        product.FoundOnGoogle = false;
+                        Console.WriteLine($"Product not found on Google: {product.ProductName}");
+                        _context.Products.Update(product);
+                        await _context.SaveChangesAsync();
+                    }
                 }
             }
             catch (Exception ex)
