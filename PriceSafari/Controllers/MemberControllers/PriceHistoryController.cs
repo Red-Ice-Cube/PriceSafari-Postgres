@@ -556,6 +556,7 @@ namespace PriceSafari.Controllers.MemberControllers
             ViewBag.ScrapHistory = scrapHistory;
             ViewBag.ProductName = product.ProductName;
             ViewBag.Url = product.OfferUrl;
+            ViewBag.GoogleUrl = product.GoogleUrl;
             ViewBag.StoreName = (await _context.Stores.FindAsync(scrapHistory.StoreId))?.StoreName;
             ViewBag.SetPrice1 = priceValues.SetPrice1;
             ViewBag.SetPrice2 = priceValues.SetPrice2;

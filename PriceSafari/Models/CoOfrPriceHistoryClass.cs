@@ -27,6 +27,7 @@ namespace PriceSafari.Models
       
         public string? GoogleStoreName { get; set; }
         public decimal? GooglePrice { get; set; }
+        public string? GooglePosition { get; set; }
         public decimal? GooglePriceWithDelivery { get; set; }
        
 

@@ -3394,6 +3394,7 @@ tr:last-child .sub-line {
 
 .Bidding,
 .Position,
+.Position-Google,
 .FreeShipping,
 .PaidShipping,
 .BD,
@@ -3418,6 +3419,10 @@ tr:last-child .sub-line {
 
 .Position {
     background: #FF6400;
+}
+
+.Position-Google {
+    background: #488EFF;
 }
 
 .FreeShipping {

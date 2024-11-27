@@ -10,6 +10,7 @@
     var productName = ViewBag.ProductName as string;
     var storeName = ViewBag.StoreName as string;
     var url = ViewBag.Url;
+    var googleUrl = ViewBag.GoogleUrl;
     var setPrice1 = ViewBag.SetPrice1;
     var setPrice2 = ViewBag.SetPrice2;
     var externalUrl = ViewBag.ExternalUrl as string;
@@ -43,14 +44,29 @@
                         <input class="form-check-input sortFilter" type="radio" name="sortOption" id="sortPosition" value="position">
                         <label class="form-check-label" for="sortPosition">Sortuj po pozycji Ceneo</label>
                     </div>
+                    <div class="form-check">
+                        <input class="form-check-input sortFilter" type="radio" name="sortOption" id="sortGooglePosition" value="googlePosition">
+                        <label class="form-check-label" for="sortGooglePosition">Sortuj po pozycji Google</label>
+                    </div>
                 </div>
                 <div style="margin-top: 16px;">
-                    <a href="@url" class="Button-Page-Small-o" target="_blank">
-                        Ceneo
-                    </a>
+                    
+                    
+                    @if (!string.IsNullOrEmpty(googleUrl))
+                    {
+                        <a href="@googleUrl" class="Button-Page-Small-bl" target="_blank">
+                            Google
+                        </a>
+                    }
+                    @if (!string.IsNullOrEmpty(url))
+                    {
+                        <a href="@url" class="Button-Page-Small-o" target="_blank">
+                            Ceneo
+                        </a>
+                    }
                     @if (!string.IsNullOrEmpty(externalUrl))
                     {
-                        <a href="@externalUrl" class="Button-Page-Small-b" target="_blank">
+                        <a href="@externalUrl" class="Button-Page-Small" target="_blank">
                             Twoja strona
                         </a>
                     }
@@ -78,7 +94,7 @@
                        
                         <th>Cena</th>
                         <th>Różnica</th>
-                        <th>Widoczność</th>
+                        <th>Pozycja</th>
                         <th>Bid</th>
                         <th>Koszt wysyłki</th>
                         <th>Dostępność</th>
@@ -155,7 +171,7 @@
 
                         var availabilityClass = getAvailabilityClass(item.AvailabilityNum);
 
-                        <tr class="price-row @colorClass" data-store-name="@item.StoreName" data-price="@item.Price.ToString(System.Globalization.CultureInfo.InvariantCulture)" data-position="@item.Position">
+                        <tr class="price-row @colorClass" data-store-name="@item.StoreName" data-price="@item.Price.ToString(System.Globalization.CultureInfo.InvariantCulture)" data-position="@item.Position" data-is-google="@item.IsGoogle">
                             <td>
                                 <div class="color-bar @colorClass"></div>
                             </td>
@@ -194,9 +210,14 @@
                             </td>
 
                             <td>
-                                @if (item.Position != null)
+                                @if (item.Position != null & item.IsGoogle == false)
                                 {
-                                    <div class="Position">Ceneo @item.Position</div>
+                                    <div class="Position">Poz. Ceneo @item.Position</div>
+                                }
+
+                                @if (item.Position != null & item.IsGoogle == true)
+                                {
+                                    <div class="Position-Google">Poz. Google @item.Position</div>
                                 }
                                 else
                                 {
@@ -290,18 +311,8 @@
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
 
     <script>
-        document.addEventListener("DOMContentLoaded", function () {
-
-            var observedStoreName = document.querySelector(".Vert").getAttribute("data-store-name").toLowerCase();
+               document.addEventListener("DOMContentLoaded", function () {
             var rows = Array.from(document.querySelectorAll(".price-row"));
-
-            rows.forEach(function (row) {
-                var storeName = row.getAttribute("data-store-name").toLowerCase();
-                if (storeName === observedStoreName) {
-                    row.querySelector(".store-name").style.fontWeight = "bold";
-                    row.querySelector(".store-price").style.fontWeight = "bold";
-                }
-            });
 
             function sortRowsByPrice() {
                 rows.sort((a, b) => {
@@ -316,27 +327,53 @@
 
             function sortRowsByPosition() {
                 rows.sort((a, b) => {
+                    var isGoogleA = a.getAttribute("data-is-google") === "true";
+                    var isGoogleB = b.getAttribute("data-is-google") === "true";
+
+                    if (isGoogleA && !isGoogleB) return 1;
+                    if (!isGoogleA && isGoogleB) return -1;
+
                     var posA = parseInt(a.getAttribute("data-position")) || Infinity;
                     var posB = parseInt(b.getAttribute("data-position")) || Infinity;
                     return posA - posB;
                 });
+
                 rows.forEach(row => document.querySelector("#priceTable tbody").appendChild(row));
             }
 
-            function handleSortChange() {
-                if (this.id === "sortPrice") {
+            function sortRowsByGooglePosition() {
+                rows.sort((a, b) => {
+                    var isGoogleA = a.getAttribute("data-is-google") === "true";
+                    var isGoogleB = b.getAttribute("data-is-google") === "true";
+
+                    if (!isGoogleA && isGoogleB) return 1;
+                    if (isGoogleA && !isGoogleB) return -1;
+
+                    var posA = parseInt(a.getAttribute("data-position")) || Infinity;
+                    var posB = parseInt(b.getAttribute("data-position")) || Infinity;
+                    return posA - posB;
+                });
+
+                rows.forEach(row => document.querySelector("#priceTable tbody").appendChild(row));
+            }
+
+            function handleSortChange(event) {
+                if (event.target.id === "sortPrice") {
                     sortRowsByPrice();
-                } else if (this.id === "sortPosition") {
+                } else if (event.target.id === "sortPosition") {
                     sortRowsByPosition();
+                } else if (event.target.id === "sortGooglePosition") {
+                    sortRowsByGooglePosition();
                 }
             }
 
-            document.getElementById("sortPrice").addEventListener("change", handleSortChange);
-            document.getElementById("sortPosition").addEventListener("change", handleSortChange);
+            document.getElementById("sortPrice").addEventListener("click", handleSortChange);
+            document.getElementById("sortPosition").addEventListener("click", handleSortChange);
+            document.getElementById("sortGooglePosition").addEventListener("click", handleSortChange);
 
-            // Initial sorting by price
             sortRowsByPrice();
         });
+
     </script>
     <script>
         $(document).ready(function () {

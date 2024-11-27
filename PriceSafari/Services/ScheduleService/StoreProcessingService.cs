@@ -240,6 +240,7 @@ public class StoreProcessingService
                             ProductId = product.ProductId,
                             StoreName = coOfrPrice.GoogleStoreName,
                             Price = coOfrPrice.GooglePrice ?? 0,
+                            Position = int.TryParse(coOfrPrice.GooglePosition, out var googlePosition) ? googlePosition : (int?)null,
                             IsBidding = "Google",
                             ScrapHistory = scrapHistory,
                             IsGoogle = true
@@ -250,11 +251,7 @@ public class StoreProcessingService
                         {
                             hasStorePrice = true;
 
-                            // Update any Google-specific product properties if needed
-                            // lock (product)
-                            // {
-                            //     product.ExportedNameGoogle = coOfrPrice.GoogleExportedName;
-                            // }
+                        
                         }
                     }
                 }
