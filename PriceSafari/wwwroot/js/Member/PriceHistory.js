@@ -669,7 +669,7 @@
             priceBoxLowestDetails.innerHTML =
                 (isBidding ? '<span class="Bidding">Bid</span>' : '') +
                 (item.position !== null ? '<span class="Position">Ceneo ' + item.position + '</span>' :
-                    '<span class="Position" style="background-color: #6C3B17;">Schowany</span>') +
+                    '<span class="Position" style="background-color: #414141;">Schowany</span>') +
                 (item.delivery != null ? '<span class="' + deliveryClass + '">Wysyłka w ' + (item.delivery == 1 ? '1 dzień' : item.delivery + ' dni') + '</span>' : '');
 
             priceBoxColumnLowestPrice.appendChild(priceBoxLowestText);
@@ -736,7 +736,7 @@
                 priceBoxMyDetails.innerHTML =
                     (myIsBidding ? '<span class="Bidding">Bid</span>' : '') +
                     (myPosition !== null ? '<span class="Position">Ceneo ' + myPosition + '</span>' :
-                        '<span class="Position" style="background-color: #6C3B17;">Schowany</span>') +
+                        '<span class="Position" style="background-color: #414141;">Schowany</span>') +
                     (item.myDelivery != null ? '<span class="' + myDeliveryClass + '">Wysyłka w ' + (item.myDelivery == 1 ? '1 dzień' : item.myDelivery + ' dni') + '</span>' : '');
 
                 priceBoxColumnMyPrice.appendChild(priceBoxMyText);

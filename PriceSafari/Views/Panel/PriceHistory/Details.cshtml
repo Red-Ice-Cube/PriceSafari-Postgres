@@ -72,14 +72,17 @@
             <table class="table-orders" id="priceTable">
                 <thead>
                     <tr>
-                        <th></th>
+                        <th></th> 
+                       
                         <th>Sklep (@Model.Count())</th>
+                       
                         <th>Cena</th>
                         <th>Różnica</th>
                         <th>Widoczność</th>
                         <th>Bid</th>
                         <th>Koszt wysyłki</th>
                         <th>Dostępność</th>
+                        <th></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -156,9 +159,12 @@
                             <td>
                                 <div class="color-bar @colorClass"></div>
                             </td>
+                          
                             <td class="store-name">
                                 @item.StoreName
                             </td>
+                         
+
                             <td class="store-price">@item.Price PLN</td>
                             <td>
                                 @if (item.StoreName != storeName && priceDifferencePLN != 0)
@@ -190,11 +196,11 @@
                             <td>
                                 @if (item.Position != null)
                                 {
-                                    <div class="Position">Msc @item.Position</div>
+                                    <div class="Position">Ceneo @item.Position</div>
                                 }
                                 else
                                 {
-                                    <div class="Position" style="background-color: #6C3B17;">Schowany</div>
+                                    <div class="Position" style="background-color: #414141;">Schowany</div>
                                 }
                             </td>
 
@@ -242,6 +248,9 @@
                                         <div>Brak danych</div>
                                     }
                                 </div>
+                            </td>
+                            <td class="data-chanel">
+                                <img src="@Url.Content(item.IsGoogle ? "~/images/GoogleShopping.png" : "~/images/Ceneo.png")" alt="Channel Icon" style="width:24px; height:24px;" />
                             </td>
                         </tr>
                     }
