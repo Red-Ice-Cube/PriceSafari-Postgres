@@ -38,7 +38,7 @@
                 <button type="submit" class="Button-Page-Small-b">Scal produkty</button>
             </form>
             <form id="captchaScrapingForm" asp-action="StartScrapingWithCaptchaHandling" asp-controller="PriceScraping" method="post">
-                <button type="submit" class="Button-Page-Small-bl">Rozpocznij scrapowanie Pupeeter</button>
+                <button type="submit" class="Button-Page-Small-bl">Rozpocznij scrapowanie Ceneo</button>
             </form>
 
             <button id="stopScrapingButton" class="Button-Page-Small-y">Przerwij scrapowanie</button>
@@ -49,6 +49,14 @@
                 <button type="submit" class="Button-Page-Small-r">Usuń zescrapowane dane</button>
             </form>
         </div>
+        <div class="bar-List">
+           
+            <form id="googleScrapingForm" asp-action="StartScraping" asp-controller="GoogleMainPriceScraper" method="post">
+                <button type="submit" class="Button-Page-Small-bl">Rozpocznij scrapowanie Google</button>
+            </form>
+
+        </div>
+
         <div class="order-upper-box">
             <div class="chart-box">
                 <div class="chart-container-cam">
@@ -135,7 +143,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script>
-                document.addEventListener("DOMContentLoaded", function () {
+                  document.addEventListener("DOMContentLoaded", function () {
             var ctx = document.getElementById('speedChart').getContext('2d');
 
             var gradientFill1 = ctx.createLinearGradient(0, 0, 0, ctx.canvas.clientHeight);
@@ -147,7 +155,7 @@
                 data: {
                     labels: [],
                     datasets: [{
-                        label: 'Zebrane produkty na sekunde:',
+                        label: 'Zebrane produkty na sekundę:',
                         data: [],
                         backgroundColor: gradientFill1,
                         borderColor: 'rgba(14, 126, 135, 1)',
@@ -188,7 +196,7 @@
                                 color: 'rgba(255, 255, 255, 0.2)'
                             },
                             ticks: {
-                                color: 'rgba(255, 255, 255, 0.8'
+                                color: 'rgba(255, 255, 255, 0.8)'
                             }
                         }
                     },
@@ -227,29 +235,35 @@
             var connection = new signalR.HubConnectionBuilder().withUrl("/scrapingHub").build();
             var scrapingComplete = false;
 
-                   connection.on("ReceiveScrapingUpdate", function (coOfrId, isScraped, isRejected, pricesCount, source) {
-            var rowId = "row-" + coOfrId;
-            var row = document.getElementById(rowId);
+            var offerUrlToRowId = {};
+            var googleOfferUrlToRowId = {};
 
-            if (row) {
-                // Update cells based on the source (Ceneo or Google)
-                if (source === "Ceneo") {
-                    row.cells[3].innerText = isScraped ? "Tak" : "Nie"; // Zescrapowane Ceneo
-                    row.cells[4].innerText = isRejected ? "Tak" : "Nie"; // Odrzucone Ceneo
-                    row.cells[5].innerText = pricesCount; // Liczba Cen Ceneo
-                } else if (source === "Google") {
-                    row.cells[6].innerText = isScraped ? "Tak" : "Nie"; // Zescrapowane Google
-                    row.cells[7].innerText = isRejected ? "Tak" : "Nie"; // Odrzucone Google
-                    row.cells[8].innerText = pricesCount; // Liczba Cen Google
+            // Tworzenie mapowania podczas ładowania strony
+            document.querySelectorAll('#scrapingTableBody tr').forEach(function (row) {
+                var rowId = row.id;
+                var offerUrl = row.cells[0].innerText.trim();
+                var googleOfferUrl = row.cells[1].innerText.trim();
+
+                if (offerUrl) {
+                    offerUrlToRowId[offerUrl] = rowId;
                 }
+                if (googleOfferUrl) {
+                    googleOfferUrlToRowId[googleOfferUrl] = rowId;
+                }
+            });
 
-                // Update row class based on statuses
+            function updateRowClass(row) {
                 var ceneoScraped = row.cells[3].innerText === "Tak";
                 var googleScraped = row.cells[6].innerText === "Tak";
+                var ceneoRejected = row.cells[4].innerText === "Tak";
+                var googleRejected = row.cells[7].innerText === "Tak";
+
                 var rowClass = "";
 
-                if (ceneoScraped && googleScraped) {
-                    rowClass = "scraped-row"; // Both scraped
+                if (ceneoRejected || googleRejected) {
+                    rowClass = "rejected-row";
+                } else if (ceneoScraped && googleScraped) {
+                    rowClass = "scraped-row"; // Oba zescrapowane
                 } else if (ceneoScraped) {
                     rowClass = "scraped-ceneo";
                 } else if (googleScraped) {
@@ -260,8 +274,55 @@
 
                 row.className = "product-row " + rowClass;
             }
-        });
 
+            // Funkcja obsługująca aktualizacje z obu scraperów
+            connection.on("ReceiveScrapingUpdate", function () {
+                var args = arguments;
+                if (args.length === 4) {
+                    // Dane z Ceneo scraper (bez 'source')
+                    var offerUrl = args[0];
+                    var isScraped = args[1];
+                    var isRejected = args[2];
+                    var pricesCount = args[3];
+
+                    var rowId = offerUrlToRowId[offerUrl];
+
+                    var row = document.getElementById(rowId);
+
+                    if (row) {
+                        // Aktualizacja komórek dla Ceneo
+                        row.cells[3].innerText = isScraped ? "Tak" : "Nie"; // Zescrapowane Ceneo
+                        row.cells[4].innerText = isRejected ? "Tak" : "Nie"; // Odrzucone Ceneo
+                        row.cells[5].innerText = pricesCount; // Liczba Cen Ceneo
+
+                        // Aktualizacja klasy wiersza
+                        updateRowClass(row);
+                    }
+                } else if (args.length === 5) {
+                    // Dane z Google scraper (z 'source')
+                    var coOfrId = args[0];
+                    var isScraped = args[1];
+                    var isRejected = args[2];
+                    var pricesCount = args[3];
+                    var source = args[4];
+
+                    if (source === "Google") {
+                        var rowId = "row-" + coOfrId;
+
+                        var row = document.getElementById(rowId);
+
+                        if (row) {
+                            // Aktualizacja komórek dla Google
+                            row.cells[6].innerText = isScraped ? "Tak" : "Nie"; // Zescrapowane Google
+                            row.cells[7].innerText = isRejected ? "Tak" : "Nie"; // Odrzucone Google
+                            row.cells[8].innerText = pricesCount; // Liczba Cen Google
+
+                            // Aktualizacja klasy wiersza
+                            updateRowClass(row);
+                        }
+                    }
+                }
+            });
 
             connection.on("ReceiveProgressUpdate", function (totalScraped, uniqueProducts, elapsedSeconds, rejectedCount) {
                 if (scrapingComplete) return;
@@ -340,25 +401,31 @@
                 var rows = document.querySelectorAll("#scrapingTableBody tr");
                 var totalUrls = rows.length;
                 var totalProductIds = 0;
-                var totalPricesCount = 0;
-                var totalRejectedCount = 0;
+                var totalPricesCountCeneo = 0;
+                var totalPricesCountGoogle = 0;
+                var totalRejectedCountCeneo = 0;
+                var totalRejectedCountGoogle = 0;
 
                 rows.forEach(function (row) {
-                    totalProductIds += row.querySelectorAll('td')[1].textContent.split(', ').length;
-                    totalPricesCount += parseInt(row.querySelectorAll('td')[5].textContent) || 0;
-                    if (row.querySelectorAll('td')[3].innerText === "Tak") {
-                        totalRejectedCount++;
+                    totalProductIds += row.querySelectorAll('td')[2].textContent.split(', ').length;
+
+                    totalPricesCountCeneo += parseInt(row.querySelectorAll('td')[5].innerText) || 0;
+                    totalPricesCountGoogle += parseInt(row.querySelectorAll('td')[8].innerText) || 0;
+
+                    if (row.querySelectorAll('td')[4].innerText === "Tak") {
+                        totalRejectedCountCeneo++;
+                    }
+                    if (row.querySelectorAll('td')[7].innerText === "Tak") {
+                        totalRejectedCountGoogle++;
                     }
                 });
 
                 document.getElementById("totalUrlCount").textContent = totalUrls;
                 document.getElementById("totalProductCount").textContent = totalProductIds;
-                document.getElementById("totalPricesCount").textContent = totalPricesCount;
-                document.getElementById("totalRejectedCount").textContent = totalRejectedCount;
+                document.getElementById("totalPricesCount").textContent = totalPricesCountCeneo + totalPricesCountGoogle;
+                document.getElementById("totalRejectedCount").textContent = totalRejectedCountCeneo + totalRejectedCountGoogle;
             }
         });
-
-
 
 
     </script>

@@ -70,7 +70,8 @@ public class StoreProcessingService
                     {
                         ProductId = product.ProductId,
                         StoreName = coOfrPrice.StoreName,
-                        Price = coOfrPrice.Price,
+                        //Price = coOfrPrice.Price,
+                        Price = (decimal)coOfrPrice.Price,
                         IsBidding = coOfrPrice.IsBidding,
                         Position = int.TryParse(coOfrPrice.Position, out var position) ? position : (int?)null,
                         ShippingCostNum = coOfrPrice.ShippingCostNum,
