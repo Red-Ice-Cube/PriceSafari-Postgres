@@ -93,7 +93,7 @@
    
     positionSlider.noUiSlider.on('update', function (values, handle) {
         const displayValues = values.map(value => {
-            return parseInt(value) === 16 ? 'Schowany' : 'Poz. Ceneo ' + value;
+            return parseInt(value) === 16 ? 'Schowany' : 'Pozycja ' + value;
         });
         positionRangeInput.textContent = displayValues.join(' - ');
     });

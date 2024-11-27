@@ -50,8 +50,8 @@
                     </div>
                 </div>
                 <div style="margin-top: 16px;">
-                    
-                    
+
+
                     @if (!string.IsNullOrEmpty(googleUrl))
                     {
                         <a href="@googleUrl" class="Button-Page-Small-bl" target="_blank">
@@ -88,10 +88,10 @@
             <table class="table-orders" id="priceTable">
                 <thead>
                     <tr>
-                        <th></th> 
-                       
+                        <th></th>
+
                         <th>Sklep (@Model.Count())</th>
-                       
+
                         <th>Cena</th>
                         <th>Różnica</th>
                         <th>Pozycja</th>
@@ -175,11 +175,11 @@
                             <td>
                                 <div class="color-bar @colorClass"></div>
                             </td>
-                          
+
                             <td class="store-name">
                                 @item.StoreName
                             </td>
-                         
+
 
                             <td class="store-price">@item.Price PLN</td>
                             <td>
@@ -313,8 +313,22 @@
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
 
     <script>
-                   document.addEventListener("DOMContentLoaded", function () {
+            document.addEventListener("DOMContentLoaded", function () {
             const rows = Array.from(document.querySelectorAll(".price-row"));
+            const observedStoreName = document.querySelector(".Vert").getAttribute("data-store-name").toLowerCase();
+
+            function highlightObservedStore() {
+                rows.forEach(function (row) {
+                    const storeName = row.getAttribute("data-store-name").toLowerCase();
+                    if (storeName === observedStoreName) {
+                        row.querySelector(".store-name").style.fontWeight = "bold";
+                        row.querySelector(".store-price").style.fontWeight = "bold";
+                    } else {
+                        row.querySelector(".store-name").style.fontWeight = "normal";
+                        row.querySelector(".store-price").style.fontWeight = "normal";
+                    }
+                });
+            }
 
             function sortRowsByPosition() {
                 rows.sort((a, b) => {
@@ -336,9 +350,9 @@
                     return posA - posB;
                 });
 
-                // Aktualizujemy tabelę w DOM
                 const tbody = document.querySelector("#priceTable tbody");
                 rows.forEach(row => tbody.appendChild(row));
+                highlightObservedStore(); // Podświetlanie po sortowaniu
             }
 
             function sortRowsByPrice() {
@@ -350,9 +364,9 @@
                     return priceA - priceB;
                 });
 
-                // Aktualizujemy tabelę w DOM
                 const tbody = document.querySelector("#priceTable tbody");
                 rows.forEach(row => tbody.appendChild(row));
+                highlightObservedStore(); // Podświetlanie po sortowaniu
             }
 
             function sortRowsByGooglePosition() {
@@ -371,9 +385,9 @@
                     return posA - posB;
                 });
 
-                // Aktualizujemy tabelę w DOM
                 const tbody = document.querySelector("#priceTable tbody");
                 rows.forEach(row => tbody.appendChild(row));
+                highlightObservedStore(); // Podświetlanie po sortowaniu
             }
 
             function handleSortChange(event) {
@@ -393,6 +407,7 @@
 
             // Domyślne sortowanie po cenie
             sortRowsByPrice();
+            highlightObservedStore(); // Podświetlanie po załadowaniu
         });
 
 
@@ -443,3 +458,385 @@
         });
     </script>
 }
+
+
+
+
+@* @model IEnumerable<PriceSafari.Models.PriceHistoryClass>
+
+@{
+    Layout = "~/Views/Shared/_PanelLayout.cshtml";
+}
+
+@{
+    ViewData["Title"] = "Szczegóły Cen";
+    var scrapHistory = ViewBag.ScrapHistory as PriceSafari.Models.ScrapHistoryClass;
+    var productName = ViewBag.ProductName as string;
+    var storeName = ViewBag.StoreName as string;
+    var url = ViewBag.Url;
+    var setPrice1 = ViewBag.SetPrice1;
+    var setPrice2 = ViewBag.SetPrice2;
+    var externalUrl = ViewBag.ExternalUrl as string;
+    var img = ViewBag.Img as string;
+
+    decimal basePrice = 0;
+    var myStorePrice = Model.FirstOrDefault(p => string.Equals(p.StoreName, storeName, StringComparison.OrdinalIgnoreCase));
+    if (myStorePrice != null)
+    {
+        basePrice = myStorePrice.Price;
+    }
+}
+
+<div class="Vert" data-store-name="@storeName">
+    <div class="Page-Box">
+        <div class="price-box-space">
+            <div class="price-box-column-name">
+                @productName
+                <div class="form-check-orders" style="margin: 16px;">
+                    <div>
+                        <p><strong>Wykonano:</strong> @scrapHistory?.Date.ToString("dd.MM.yyyy")</p>
+                    </div>
+                </div>
+
+                <div class="store-section">
+                    <div class="form-check">
+                        <input class="form-check-input sortFilter" type="radio" name="sortOption" id="sortPrice" value="price" checked>
+                        <label class="form-check-label" for="sortPrice">Sortuj po cenie</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input sortFilter" type="radio" name="sortOption" id="sortPosition" value="position">
+                        <label class="form-check-label" for="sortPosition">Sortuj po pozycji Ceneo</label>
+                    </div>
+                </div>
+                <div style="margin-top: 16px;">
+                    <a href="@url" class="Button-Page-Small-o" target="_blank">
+                        Ceneo
+                    </a>
+                    @if (!string.IsNullOrEmpty(externalUrl))
+                    {
+                        <a href="@externalUrl" class="Button-Page-Small-b" target="_blank">
+                            Twoja strona
+                        </a>
+                    }
+
+                    <button type="button" class="Button-Page-Small-r" id="editExternalIdButton">
+                        API ID @ViewBag.ApiId
+                    </button>
+                </div>
+            </div>
+            @if (!string.IsNullOrEmpty(img))
+            {
+                <div>
+                    <img src="@img" style="height: 180px; width: 180px;" />
+                </div>
+            }
+        </div>
+
+        <div class="Vert-table">
+            <table class="table-orders" id="priceTable">
+                <thead>
+                    <tr>
+                        <th></th>
+                        <th>Sklep (@Model.Count())</th>
+                        <th>Cena</th>
+                        <th>Różnica</th>
+                        <th>Widoczność</th>
+                        <th>Bid</th>
+                        <th>Koszt wysyłki</th>
+                        <th>Dostępność</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in Model)
+                    {
+                        var priceDifference = item.Price - Model.Min(m => m.Price);
+                        var isUniqueBestPrice = item.Price == Model.Min(m => m.Price) && Model.Count(m => m.Price == item.Price) == 1;
+                        var isSharedBestPrice = item.Price == Model.Min(m => m.Price) && Model.Count(m => m.Price == item.Price) > 1;
+                        var savings = isUniqueBestPrice ? Model.Where(m => m.Price > item.Price).OrderBy(m => m.Price).FirstOrDefault()?.Price - item.Price : (decimal?)null;
+
+                        decimal priceDifferencePLN = item.Price - basePrice;
+                        decimal percentageDifference = (basePrice > 0) ? ((item.Price - basePrice) / basePrice) * 100 : 0;
+
+                        string getColorClass(decimal priceDifference, bool isUniqueBestPrice, bool isSharedBestPrice, decimal? savings)
+                        {
+                            if (isUniqueBestPrice && savings >= 0.01m && savings <= setPrice1)
+                            {
+                                return "prIdeal";
+                            }
+                            if (isUniqueBestPrice)
+                            {
+                                return "prToLow";
+                            }
+                            if (isSharedBestPrice)
+                            {
+                                return "prGood";
+                            }
+                            if (priceDifference <= 0)
+                            {
+                                return "prGood";
+                            }
+                            else if (priceDifference < setPrice2)
+                            {
+                                return "prMid";
+                            }
+                            else
+                            {
+                                return "prToHigh";
+                            }
+                        }
+
+                        var colorClass = getColorClass(priceDifference, isUniqueBestPrice, isSharedBestPrice, savings);
+                        var shippingCost = item.ShippingCostNum == 0 ? "Free" : $"{item.ShippingCostNum - item.Price} PLN";
+
+                        string getAvailabilityClass(int? availabilityNum)
+                        {
+                            if (availabilityNum == null)
+                            {
+                                return "BD";
+                            }
+                            if (availabilityNum == 1)
+                            {
+                                return "Availability1Day";
+                            }
+                            if (availabilityNum == 3)
+                            {
+                                return "Availability3Days";
+                            }
+                            if (availabilityNum == 7)
+                            {
+                                return "Availability7Days";
+                            }
+                            if (availabilityNum == 14)
+                            {
+                                return "Availability14Days";
+                            }
+
+                            return "";
+                        }
+
+                        var availabilityClass = getAvailabilityClass(item.AvailabilityNum);
+
+                        <tr class="price-row @colorClass" data-store-name="@item.StoreName" data-price="@item.Price.ToString(System.Globalization.CultureInfo.InvariantCulture)" data-position="@item.Position">
+                            <td>
+                                <div class="color-bar @colorClass"></div>
+                            </td>
+                            <td class="store-name">
+                                @item.StoreName
+                            </td>
+                            <td class="store-price">@item.Price PLN</td>
+                            <td>
+                                @if (item.StoreName != storeName && priceDifferencePLN != 0)
+                                {
+                                    var priceDiffFormatted = priceDifferencePLN.ToString("+#,##0.00;-#,##0.00") + " PLN";
+                                    var percentageDiffFormatted = percentageDifference.ToString("+#,##0.00;-#,##0.00") + " %";
+
+                                    var diffText = $"{priceDiffFormatted} ({percentageDiffFormatted})";
+
+                                    if (priceDifferencePLN < 0)
+                                    {
+                                        <div class="priceBox-diff-up">@diffText</div>
+                                    }
+                                    else if (priceDifferencePLN > 0)
+                                    {
+                                        <div class="priceBox-diff-down">@diffText</div>
+                                    }
+                                    else
+                                    {
+                                        <div class="priceBox-diff-neutral">@diffText</div>
+                                    }
+                                }
+                                else
+                                {
+                                    <div class="priceBox-diff-neutral">0,00 PLN (0,00 %)</div>
+                                }
+                            </td>
+
+                            <td>
+                                @if (item.Position != null)
+                                {
+                                    <div class="Position">Msc @item.Position</div>
+                                }
+                                else
+                                {
+                                    <div class="Position" style="background-color: #6C3B17;">Schowany</div>
+                                }
+                            </td>
+
+
+                            <td>
+                                @if (item.IsBidding == "1")
+                                {
+                                    <div class="Bidding">Bid</div>
+                                }
+                            </td>
+                            <td>
+                                @if (item.ShippingCostNum == null)
+                                {
+                                    <div class="BD">Brak danych</div>
+                                }
+                                else if (item.ShippingCostNum == 0)
+                                {
+                                    <div class="FreeShipping">Free</div>
+                                }
+                                else
+                                {
+                                    <div class="PaidShipping">@shippingCost</div>
+                                }
+                            </td>
+                            <td>
+                                <div class="@availabilityClass">
+                                    @if (item.AvailabilityNum == 1)
+                                    {
+                                        <div>Wysyłka w 1 dzień</div>
+                                    }
+                                    else if (item.AvailabilityNum == 3)
+                                    {
+                                        <div>Wysyłka w 3 dni</div>
+                                    }
+                                    else if (item.AvailabilityNum == 7)
+                                    {
+                                        <div>Wysyłka w 7 dni</div>
+                                    }
+                                    else if (item.AvailabilityNum == 14)
+                                    {
+                                        <div>Wysyłka w 14 dni</div>
+                                    }
+                                    else if (item.AvailabilityNum == null)
+                                    {
+                                        <div>Brak danych</div>
+                                    }
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="editExternalIdModal" tabindex="-1" role="dialog" aria-labelledby="editExternalIdModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="price-box-column-name" id="editExternalIdModalLabel">Edytuj API ID produktu</div>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="editExternalIdForm">
+                    <div class="form-group" style="margin-bottom:16px;">
+                        <label for="editExternalId" class="control-label">API Product ID</label>
+                        <input type="text" id="editExternalId" class="form-control" />
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="Button-Page-Small-r" id="deleteExternalId">Usuń API ID</button>
+                <button type="button" class="Button-Page-Small-b" id="saveExternalIdChanges">Zapisz zmiany</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+
+            var observedStoreName = document.querySelector(".Vert").getAttribute("data-store-name").toLowerCase();
+            var rows = Array.from(document.querySelectorAll(".price-row"));
+
+            rows.forEach(function (row) {
+                var storeName = row.getAttribute("data-store-name").toLowerCase();
+                if (storeName === observedStoreName) {
+                    row.querySelector(".store-name").style.fontWeight = "bold";
+                    row.querySelector(".store-price").style.fontWeight = "bold";
+                }
+            });
+
+            function sortRowsByPrice() {
+                rows.sort((a, b) => {
+                    var priceA = parseFloat(a.getAttribute("data-price"));
+                    var priceB = parseFloat(b.getAttribute("data-price"));
+                    if (isNaN(priceA)) priceA = Infinity;
+                    if (isNaN(priceB)) priceB = Infinity;
+                    return priceA - priceB;
+                });
+                rows.forEach(row => document.querySelector("#priceTable tbody").appendChild(row));
+            }
+
+            function sortRowsByPosition() {
+                rows.sort((a, b) => {
+                    var posA = parseInt(a.getAttribute("data-position")) || Infinity;
+                    var posB = parseInt(b.getAttribute("data-position")) || Infinity;
+                    return posA - posB;
+                });
+                rows.forEach(row => document.querySelector("#priceTable tbody").appendChild(row));
+            }
+
+            function handleSortChange() {
+                if (this.id === "sortPrice") {
+                    sortRowsByPrice();
+                } else if (this.id === "sortPosition") {
+                    sortRowsByPosition();
+                }
+            }
+
+            document.getElementById("sortPrice").addEventListener("change", handleSortChange);
+            document.getElementById("sortPosition").addEventListener("change", handleSortChange);
+
+            // Initial sorting by price
+            sortRowsByPrice();
+        });
+    </script>
+    <script>
+        $(document).ready(function () {
+            $('#editExternalIdButton').on('click', function () {
+                var externalId = '@(ViewBag.ExternalId ?? "")';
+                $('#editExternalId').val(externalId);
+                $('#editExternalIdModal').modal('show');
+            });
+
+            $('#saveExternalIdChanges').on('click', function () {
+                var externalId = $('#editExternalId').val();
+                $.ajax({
+                    url: '@Url.Action("UpdateExternalId", "PriceHistory")',
+                    type: 'POST',
+                    data: {
+                        productId: @ViewBag.ProductId,
+                        externalId: externalId,
+                    },
+                    success: function () {
+                        $('#editExternalIdModal').modal('hide');
+                        location.reload();
+                    },
+                    error: function () {
+                        alert('Error updating External Id');
+                    }
+                });
+            });
+
+            $('#deleteExternalId').on('click', function () {
+                $.ajax({
+                    url: '@Url.Action("DeleteExternalId", "PriceHistory")',
+                    type: 'POST',
+                    data: {
+                        productId: @ViewBag.ProductId
+                            },
+                    success: function () {
+                        $('#editExternalIdModal').modal('hide');
+                        location.reload();
+                    },
+                    error: function () {
+                        alert('Error deleting External Id');
+                    }
+                });
+            });
+        });
+    </script>
+}
+ *@
