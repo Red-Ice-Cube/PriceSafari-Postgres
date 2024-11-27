@@ -208,22 +208,24 @@
                                     <div class="priceBox-diff-neutral">0,00 PLN (0,00 %)</div>
                                 }
                             </td>
-
                             <td>
-                                @if (item.Position != null & item.IsGoogle == false)
+                                @if (item.Position != null)
                                 {
-                                    <div class="Position">Poz. Ceneo @item.Position</div>
-                                }
-
-                                @if (item.Position != null & item.IsGoogle == true)
-                                {
-                                    <div class="Position-Google">Poz. Google @item.Position</div>
+                                    @if (item.IsGoogle == true)
+                                    {
+                                        <div class="Position-Google">Poz. Google @item.Position</div>
+                                    }
+                                    else
+                                    {
+                                        <div class="Position">Poz. Ceneo @item.Position</div>
+                                    }
                                 }
                                 else
                                 {
                                     <div class="Position" style="background-color: #414141;">Schowany</div>
                                 }
                             </td>
+
 
 
                             <td>

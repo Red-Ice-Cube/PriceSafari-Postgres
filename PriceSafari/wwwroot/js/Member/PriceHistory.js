@@ -678,7 +678,7 @@
             (item.position !== null ?
                 (item.isGoogle ?
                     '<span class="Position-Google">Poz. Google ' + item.position + '</span>' :
-                    '<span class="Position">Ceneo ' + item.position + '</span>')
+                    '<span class="Position">Poz. Ceneo ' + item.position + '</span>')
                 :
                 '<span class="Position" style="background-color: #414141;">Schowany</span>') +
 
@@ -765,9 +765,9 @@
 
 
                 (myPosition !== null ?
-                    (item.isGoogle ?
+                    (item.myIsGoogle ?
                         '<span class="Position-Google">Poz. Google ' + myPosition + '</span>' :
-                        '<span class="Position">Ceneo ' + myPosition + '</span>')
+                        '<span class="Position">Poz. Ceneo ' + myPosition + '</span>')
                     :
                     '<span class="Position" style="background-color: #414141;">Schowany</span>') +
 
