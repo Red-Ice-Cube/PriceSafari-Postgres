@@ -123,9 +123,7 @@ public class GoogleMainPriceScraper
                         var priceDecimal = ExtractPrice(priceText);
                         var priceWithDeliveryDecimal = ExtractPrice(priceWithDeliveryText);
 
-                        var offerUrlElement = await _page.QuerySelectorAsync(offerUrlSelector);
-                        var offerUrl = offerUrlElement != null ? await offerUrlElement.EvaluateFunctionAsync<string>("node => node.href") : "No URL";
-                        Console.WriteLine($"Offer URL: {offerUrl}");
+                      
 
                         if (storeBestOffers.ContainsKey(storeName))
                         {
@@ -137,7 +135,7 @@ public class GoogleMainPriceScraper
                                     GoogleStoreName = storeName,
                                     GooglePrice = priceDecimal,
                                     GooglePriceWithDelivery = priceWithDeliveryDecimal,
-                                    GoogleOfferUrl = offerUrl,
+                                 
                                 };
                             }
                         }
@@ -148,7 +146,7 @@ public class GoogleMainPriceScraper
                                 GoogleStoreName = storeName,
                                 GooglePrice = priceDecimal,
                                 GooglePriceWithDelivery = priceWithDeliveryDecimal,
-                                GoogleOfferUrl = offerUrl,
+                           
                             };
                         }
                     }
@@ -187,9 +185,7 @@ public class GoogleMainPriceScraper
                         var hiddenPriceDecimal = ExtractPrice(hiddenPriceText);
                         var hiddenPriceWithDeliveryDecimal = ExtractPrice(hiddenPriceWithDeliveryText);
 
-                        var hiddenOfferUrlElement = await hiddenRowElement.QuerySelectorAsync(hiddenOfferUrlSelector);
-                        var hiddenOfferUrl = hiddenOfferUrlElement != null ? await hiddenOfferUrlElement.EvaluateFunctionAsync<string>("node => node.href") : "No URL";
-                        Console.WriteLine($"Hidden offer URL: {hiddenOfferUrl}");
+                        
 
                         // Check if the hidden offer for this store is better
                         if (storeBestOffers.ContainsKey(hiddenStoreName))
@@ -202,7 +198,7 @@ public class GoogleMainPriceScraper
                                     GoogleStoreName = hiddenStoreName,
                                     GooglePrice = hiddenPriceDecimal,
                                     GooglePriceWithDelivery = hiddenPriceWithDeliveryDecimal,
-                                    GoogleOfferUrl = hiddenOfferUrl,
+                              
                                 };
                             }
                         }
@@ -213,7 +209,7 @@ public class GoogleMainPriceScraper
                                 GoogleStoreName = hiddenStoreName,
                                 GooglePrice = hiddenPriceDecimal,
                                 GooglePriceWithDelivery = hiddenPriceWithDeliveryDecimal,
-                                GoogleOfferUrl = hiddenOfferUrl,
+                               
                             };
                         }
                     }
