@@ -171,7 +171,7 @@
 
                         var availabilityClass = getAvailabilityClass(item.AvailabilityNum);
 
-                        <tr class="price-row @colorClass" data-store-name="@item.StoreName" data-price="@item.Price.ToString(System.Globalization.CultureInfo.InvariantCulture)" data-position="@item.Position" data-is-google="@item.IsGoogle">
+                        <tr class="price-row @colorClass" data-store-name="@item.StoreName" data-price="@item.Price.ToString(System.Globalization.CultureInfo.InvariantCulture)" data-position="@item.Position">
                             <td>
                                 <div class="color-bar @colorClass"></div>
                             </td>
@@ -313,50 +313,67 @@
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
 
     <script>
-               document.addEventListener("DOMContentLoaded", function () {
-            var rows = Array.from(document.querySelectorAll(".price-row"));
+                   document.addEventListener("DOMContentLoaded", function () {
+            const rows = Array.from(document.querySelectorAll(".price-row"));
+
+            function sortRowsByPosition() {
+                rows.sort((a, b) => {
+                    const isGoogleA = a.querySelector(".Position-Google") !== null; // Sprawdzamy klasę `Position-Google`
+                    const isGoogleB = b.querySelector(".Position-Google") !== null;
+
+                    const posA = parseInt(a.getAttribute("data-position")) || Infinity; // Ukryte pozycje -> Infinity
+                    const posB = parseInt(b.getAttribute("data-position")) || Infinity;
+
+                    // 1. Najpierw sortujemy pozycje Ceneo (bez `Position-Google`)
+                    if (!isGoogleA && isGoogleB) return -1; // Ceneo przed Google
+                    if (isGoogleA && !isGoogleB) return 1;  // Google za Ceneo
+
+                    // 2. Sortujemy schowane pozycje (null position) na końcu każdej grupy
+                    if (posA === Infinity && posB !== Infinity) return 1;
+                    if (posA !== Infinity && posB === Infinity) return -1;
+
+                    // 3. Sortowanie wewnątrz grup według pozycji
+                    return posA - posB;
+                });
+
+                // Aktualizujemy tabelę w DOM
+                const tbody = document.querySelector("#priceTable tbody");
+                rows.forEach(row => tbody.appendChild(row));
+            }
 
             function sortRowsByPrice() {
                 rows.sort((a, b) => {
-                    var priceA = parseFloat(a.getAttribute("data-price"));
-                    var priceB = parseFloat(b.getAttribute("data-price"));
+                    const priceA = parseFloat(a.getAttribute("data-price"));
+                    const priceB = parseFloat(b.getAttribute("data-price"));
                     if (isNaN(priceA)) priceA = Infinity;
                     if (isNaN(priceB)) priceB = Infinity;
                     return priceA - priceB;
                 });
-                rows.forEach(row => document.querySelector("#priceTable tbody").appendChild(row));
-            }
 
-            function sortRowsByPosition() {
-                rows.sort((a, b) => {
-                    var isGoogleA = a.getAttribute("data-is-google") === "true";
-                    var isGoogleB = b.getAttribute("data-is-google") === "true";
-
-                    if (isGoogleA && !isGoogleB) return 1;
-                    if (!isGoogleA && isGoogleB) return -1;
-
-                    var posA = parseInt(a.getAttribute("data-position")) || Infinity;
-                    var posB = parseInt(b.getAttribute("data-position")) || Infinity;
-                    return posA - posB;
-                });
-
-                rows.forEach(row => document.querySelector("#priceTable tbody").appendChild(row));
+                // Aktualizujemy tabelę w DOM
+                const tbody = document.querySelector("#priceTable tbody");
+                rows.forEach(row => tbody.appendChild(row));
             }
 
             function sortRowsByGooglePosition() {
                 rows.sort((a, b) => {
-                    var isGoogleA = a.getAttribute("data-is-google") === "true";
-                    var isGoogleB = b.getAttribute("data-is-google") === "true";
+                    const isGoogleA = a.querySelector(".Position-Google") !== null; // Sprawdzamy klasę `Position-Google`
+                    const isGoogleB = b.querySelector(".Position-Google") !== null;
 
-                    if (!isGoogleA && isGoogleB) return 1;
-                    if (isGoogleA && !isGoogleB) return -1;
+                    const posA = parseInt(a.getAttribute("data-position")) || Infinity;
+                    const posB = parseInt(b.getAttribute("data-position")) || Infinity;
 
-                    var posA = parseInt(a.getAttribute("data-position")) || Infinity;
-                    var posB = parseInt(b.getAttribute("data-position")) || Infinity;
+                    // 1. Najpierw sortujemy pozycje Google (`Position-Google`), potem Ceneo
+                    if (!isGoogleA && isGoogleB) return 1;  // Ceneo za Google
+                    if (isGoogleA && !isGoogleB) return -1; // Google przed Ceneo
+
+                    // 2. Sortowanie wewnątrz grup według pozycji
                     return posA - posB;
                 });
 
-                rows.forEach(row => document.querySelector("#priceTable tbody").appendChild(row));
+                // Aktualizujemy tabelę w DOM
+                const tbody = document.querySelector("#priceTable tbody");
+                rows.forEach(row => tbody.appendChild(row));
             }
 
             function handleSortChange(event) {
@@ -369,12 +386,15 @@
                 }
             }
 
+            // Obsługa kliknięć w przyciski sortowania
             document.getElementById("sortPrice").addEventListener("click", handleSortChange);
             document.getElementById("sortPosition").addEventListener("click", handleSortChange);
             document.getElementById("sortGooglePosition").addEventListener("click", handleSortChange);
 
+            // Domyślne sortowanie po cenie
             sortRowsByPrice();
         });
+
 
     </script>
     <script>
