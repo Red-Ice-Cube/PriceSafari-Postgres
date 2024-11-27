@@ -5,6 +5,7 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 using System;
+using System.Web;
 
 public class GoogleMainPriceScraper
 {
@@ -34,7 +35,7 @@ public class GoogleMainPriceScraper
         });
 
         _page = (Page)await _browser.NewPageAsync();
-        Console.WriteLine("Przeglądarka zainicjalizowana.");
+        Console.WriteLine("Browser initialized.");
     }
 
     public async Task<List<CoOfrPriceHistoryClass>> ScrapePricesAsync(string googleOfferUrl)
@@ -42,8 +43,17 @@ public class GoogleMainPriceScraper
         var scrapedData = new List<CoOfrPriceHistoryClass>();
         var storeBestOffers = new Dictionary<string, CoOfrPriceHistoryClass>();
 
-        // Inicjalizacja URL na pierwszą stronę
-        string nextPageUrl = googleOfferUrl;
+        // Extract productId from URL
+        string productId = ExtractProductId(googleOfferUrl);
+
+        if (string.IsNullOrEmpty(productId))
+        {
+            Console.WriteLine("Product ID not found in URL.");
+            return scrapedData;
+        }
+
+        // Create the offers URL
+        string productOffersUrl = $"{googleOfferUrl}/offers?prds=cid:{productId},cond:1&gl=pl&hl=pl";
         bool hasNextPage = true;
         int totalOffersCount = 0;
         int currentPage = 0;
@@ -52,15 +62,26 @@ public class GoogleMainPriceScraper
         {
             while (hasNextPage && currentPage < 3)
             {
-                Console.WriteLine($"Odwiedzanie URL: {nextPageUrl}");
-                await _page.GoToAsync(nextPageUrl, new NavigationOptions { WaitUntil = new[] { WaitUntilNavigation.Networkidle2 } });
+                string paginatedUrl;
+
+                if (currentPage == 0)
+                {
+                    paginatedUrl = productOffersUrl;
+                }
+                else
+                {
+                    paginatedUrl = $"{googleOfferUrl}/offers?prds=cid:{productId},cond:1,start:{currentPage * 20}&gl=pl&hl=pl";
+                }
+
+                Console.WriteLine($"Visiting URL: {paginatedUrl}");
+                await _page.GoToAsync(paginatedUrl, new NavigationOptions { WaitUntil = new[] { WaitUntilNavigation.Networkidle2 } });
                 await Task.Delay(1000);
 
-                // Kliknij przyciski "Jeszcze oferty"
+                // Click "More offers" buttons
                 var moreOffersButtons = await _page.QuerySelectorAllAsync("div.cNMlI");
                 foreach (var button in moreOffersButtons)
                 {
-                    Console.WriteLine("Znaleziono przycisk 'Jeszcze oferty'. Klikam, aby rozwinąć.");
+                    Console.WriteLine("Found 'More offers' button. Clicking to expand.");
                     await button.ClickAsync();
                     await Task.Delay(500);
                 }
@@ -72,11 +93,11 @@ public class GoogleMainPriceScraper
 
                 if (offersCount == 0)
                 {
-                    Console.WriteLine("Brak ofert na stronie.");
+                    Console.WriteLine("No offers on the page.");
                     break;
                 }
 
-                Console.WriteLine($"Znaleziono {offersCount} ofert. Rozpoczynam scrapowanie...");
+                Console.WriteLine($"Found {offersCount} offers. Starting scraping...");
 
                 for (int i = 1; i <= offersCount; i++)
                 {
@@ -89,22 +110,22 @@ public class GoogleMainPriceScraper
                     if (storeNameElement != null)
                     {
                         var storeName = await storeNameElement.EvaluateFunctionAsync<string>("node => node.firstChild.textContent.trim()");
-                        Console.WriteLine($"Znaleziono sklep: {storeName}");
+                        Console.WriteLine($"Found store: {storeName}");
 
                         var priceElement = await _page.QuerySelectorAsync(priceSelector);
-                        var priceText = priceElement != null ? await priceElement.EvaluateFunctionAsync<string>("node => node.textContent.trim()") : "Brak ceny";
-                        Console.WriteLine($"Cena: {priceText}");
+                        var priceText = priceElement != null ? await priceElement.EvaluateFunctionAsync<string>("node => node.textContent.trim()") : "No price";
+                        Console.WriteLine($"Price: {priceText}");
 
                         var priceWithDeliveryElement = await _page.QuerySelectorAsync(priceWithDeliverySelector);
                         var priceWithDeliveryText = priceWithDeliveryElement != null ? await priceWithDeliveryElement.EvaluateFunctionAsync<string>("node => node.textContent.trim()") : priceText;
-                        Console.WriteLine($"Cena z dostawą: {priceWithDeliveryText}");
+                        Console.WriteLine($"Price with delivery: {priceWithDeliveryText}");
 
                         var priceDecimal = ExtractPrice(priceText);
                         var priceWithDeliveryDecimal = ExtractPrice(priceWithDeliveryText);
 
                         var offerUrlElement = await _page.QuerySelectorAsync(offerUrlSelector);
-                        var offerUrl = offerUrlElement != null ? await offerUrlElement.EvaluateFunctionAsync<string>("node => node.href") : "Brak URL";
-                        Console.WriteLine($"URL oferty: {offerUrl}");
+                        var offerUrl = offerUrlElement != null ? await offerUrlElement.EvaluateFunctionAsync<string>("node => node.href") : "No URL";
+                        Console.WriteLine($"Offer URL: {offerUrl}");
 
                         if (storeBestOffers.ContainsKey(storeName))
                         {
@@ -133,11 +154,11 @@ public class GoogleMainPriceScraper
                     }
                     else
                     {
-                        Console.WriteLine($"Nie znaleziono elementu nazwy sklepu w wierszu {i}.");
+                        Console.WriteLine($"Store name element not found in row {i}.");
                     }
                 }
 
-                // Scraping ukrytych ofert po rozwinięciu
+                // Scrape hidden offers after expanding
                 var hiddenOfferRowsSelector = "tr.sh-osd__offer-row[data-hveid][data-is-grid-offer='true']";
                 var hiddenOfferRows = await _page.QuerySelectorAllAsync(hiddenOfferRowsSelector);
                 for (int j = 0; j < hiddenOfferRows.Length; j++)
@@ -153,24 +174,24 @@ public class GoogleMainPriceScraper
                     if (hiddenStoreNameElement != null)
                     {
                         var hiddenStoreName = await hiddenStoreNameElement.EvaluateFunctionAsync<string>("node => node.firstChild.textContent.trim()");
-                        Console.WriteLine($"Znaleziono ukryty sklep: {hiddenStoreName}");
+                        Console.WriteLine($"Found hidden store: {hiddenStoreName}");
 
                         var hiddenPriceElement = await hiddenRowElement.QuerySelectorAsync(hiddenPriceSelector);
-                        var hiddenPriceText = hiddenPriceElement != null ? await hiddenPriceElement.EvaluateFunctionAsync<string>("node => node.textContent.trim()") : "Brak ceny";
-                        Console.WriteLine($"Ukryta cena: {hiddenPriceText}");
+                        var hiddenPriceText = hiddenPriceElement != null ? await hiddenPriceElement.EvaluateFunctionAsync<string>("node => node.textContent.trim()") : "No price";
+                        Console.WriteLine($"Hidden price: {hiddenPriceText}");
 
                         var hiddenPriceWithDeliveryElement = await hiddenRowElement.QuerySelectorAsync(hiddenPriceWithDeliverySelector);
                         var hiddenPriceWithDeliveryText = hiddenPriceWithDeliveryElement != null ? await hiddenPriceWithDeliveryElement.EvaluateFunctionAsync<string>("node => node.textContent.trim()") : hiddenPriceText;
-                        Console.WriteLine($"Ukryta cena z dostawą: {hiddenPriceWithDeliveryText}");
+                        Console.WriteLine($"Hidden price with delivery: {hiddenPriceWithDeliveryText}");
 
                         var hiddenPriceDecimal = ExtractPrice(hiddenPriceText);
                         var hiddenPriceWithDeliveryDecimal = ExtractPrice(hiddenPriceWithDeliveryText);
 
                         var hiddenOfferUrlElement = await hiddenRowElement.QuerySelectorAsync(hiddenOfferUrlSelector);
-                        var hiddenOfferUrl = hiddenOfferUrlElement != null ? await hiddenOfferUrlElement.EvaluateFunctionAsync<string>("node => node.href") : "Brak URL";
-                        Console.WriteLine($"Ukryty URL oferty: {hiddenOfferUrl}");
+                        var hiddenOfferUrl = hiddenOfferUrlElement != null ? await hiddenOfferUrlElement.EvaluateFunctionAsync<string>("node => node.href") : "No URL";
+                        Console.WriteLine($"Hidden offer URL: {hiddenOfferUrl}");
 
-                        // Sprawdzenie, czy oferta ukryta dla tego sklepu jest lepsza
+                        // Check if the hidden offer for this store is better
                         if (storeBestOffers.ContainsKey(hiddenStoreName))
                         {
                             var existingOffer = storeBestOffers[hiddenStoreName];
@@ -198,31 +219,39 @@ public class GoogleMainPriceScraper
                     }
                 }
 
-                // Sprawdzenie, czy istnieje kolejna strona
-                var nextPageElement = await _page.QuerySelectorAsync("a.sh-fp__pagination-button[aria-label='Następna strona']");
-                if (nextPageElement != null)
+                // Check if there is a next page
+                var paginationElement = await _page.QuerySelectorAsync("#sh-fp__pagination-button-wrapper");
+                if (paginationElement != null)
                 {
-                    nextPageUrl = await nextPageElement.EvaluateFunctionAsync<string>("node => node.href");
-                    currentPage++;
-                    Console.WriteLine($"Przechodzę do następnej strony: {currentPage}");
-                    hasNextPage = true;
+                    var nextPageElement = await paginationElement.QuerySelectorAsync("a.internal-link[data-url*='start']");
+                    if (nextPageElement != null)
+                    {
+                        currentPage++;
+                        Console.WriteLine($"Moving to next page: {currentPage}");
+                        hasNextPage = true;
+                    }
+                    else
+                    {
+                        Console.WriteLine("No next page.");
+                        hasNextPage = false;
+                    }
                 }
                 else
                 {
-                    Console.WriteLine("Brak kolejnej strony.");
+                    Console.WriteLine("Pagination element not found.");
                     hasNextPage = false;
                 }
 
                 await Task.Delay(500);
             }
 
-            // Dodajemy wszystkie najlepsze oferty do listy scrapedData
+            // Add all best offers to scrapedData
             scrapedData.AddRange(storeBestOffers.Values);
-            Console.WriteLine($"Zakończono przetwarzanie {scrapedData.Count} ofert.");
+            Console.WriteLine($"Finished processing {scrapedData.Count} offers.");
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Błąd podczas scrapowania: {ex.Message}");
+            Console.WriteLine($"Error during scraping: {ex.Message}");
         }
 
         return scrapedData;
@@ -254,7 +283,7 @@ public class GoogleMainPriceScraper
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Błąd podczas przetwarzania ceny: {ex.Message}");
+            Console.WriteLine($"Error processing price: {ex.Message}");
         }
 
         return 0;
@@ -264,6 +293,6 @@ public class GoogleMainPriceScraper
     {
         await _page.CloseAsync();
         await _browser.CloseAsync();
-        Console.WriteLine("Przeglądarka zamknięta.");
+        Console.WriteLine("Browser closed.");
     }
 }
