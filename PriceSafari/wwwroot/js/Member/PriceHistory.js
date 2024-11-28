@@ -554,7 +554,9 @@
 
             const priceBoxColumnCategory = document.createElement('div');
             priceBoxColumnCategory.className = 'price-box-column-category';
-            priceBoxColumnCategory.innerHTML = item.category;
+
+
+         
 
             if (item.externalId) {
                 const apiBox = document.createElement('span');
@@ -601,7 +603,17 @@
             // 'Liczba ofert'
             const priceBoxColumnStoreCount = document.createElement('div');
             priceBoxColumnStoreCount.className = 'price-box-column-offers';
-            priceBoxColumnStoreCount.innerHTML = 'Liczba ofert: ' + item.storeCount;
+            priceBoxColumnStoreCount.innerHTML =
+                (
+                    (item.sourceGoogle || item.sourceCeneo) ?
+                        '<span class="data-channel">' +
+                        (item.sourceGoogle ? '<img src="/images/GoogleShopping.png" alt="Google Icon" style="width:15px; height:15px;" />' : '') +
+                        (item.sourceCeneo ? '<img src="/images/Ceneo.png" alt="Ceneo Icon" style="width:15px; height:15px;" />' : '') +
+                        '</span>'
+                        : ''
+                ) +
+                '<div class="offer-count-box">' + item.storeCount + ' Ofert</div>';
+
 
             // Dodaj 'Liczba ofert' do externalInfoContainer
             externalInfoContainer.appendChild(priceBoxColumnStoreCount);
@@ -1709,9 +1721,9 @@
 
     document.getElementById('productSearch').addEventListener('input', debouncedFilterPrices);
 
-    document.getElementById('category').addEventListener('change', function () {
-        filterPricesAndUpdateUI();
-    });
+    //document.getElementById('category').addEventListener('change', function () {
+    //    filterPricesAndUpdateUI();
+    //});
 
     document.querySelectorAll('.colorFilter, .flagFilter, .positionFilter, .deliveryFilterMyStore, .deliveryFilterCompetitor, .externalPriceFilter').forEach(function (checkbox) {
         checkbox.addEventListener('change', function () {

@@ -3084,7 +3084,7 @@ tr:last-child .sub-line {
 
 .price-box-column-name {
     font-weight: 300;
-    font-size: 20px;
+    font-size: 22px;
 }
 
 .price-box-column-name-com {
@@ -3099,17 +3099,23 @@ tr:last-child .sub-line {
     font-weight: 400;
     font-size: 16px;
     width: 100%;
-    justify-content:space-between;
+    justify-content:flex-end;
+}
+
+
+.data-channel {
+    display: flex;
+    gap:4px;
 }
 
 .price-box-column-offers {
-    display:flex;
+    display: flex;
     border-radius: 4px;
-    padding: 2px 5px;
+    padding: 4px 10px;
     width: 110px;
-    height:31px;
+    height: 31px;
     align-items: center;
-    justify-content: center;
+    justify-content: space-between;
     background: rgb(245, 245, 245);
     border: 1px solid #e3e3e3;
     font-size: 12px;
