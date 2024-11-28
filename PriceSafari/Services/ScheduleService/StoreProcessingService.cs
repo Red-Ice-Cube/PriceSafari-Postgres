@@ -242,6 +242,7 @@ public class StoreProcessingService
                             Price = coOfrPrice.GooglePrice ?? 0,
                             Position = int.TryParse(coOfrPrice.GooglePosition, out var googlePosition) ? googlePosition : (int?)null,
                             IsBidding = "Google",
+                            ShippingCostNum = coOfrPrice.GooglePriceWithDelivery,
                             ScrapHistory = scrapHistory,
                             IsGoogle = true
                         };

@@ -18,7 +18,7 @@
         sortLowerPercentage: null,
         sortMarginAmount: null,
         sortMarginPercentage: null,
-        showRejected: false 
+        showRejected: null 
     };
 
     let positionSlider;
@@ -38,11 +38,11 @@
     var positionRangeInput = document.getElementById('positionRange');
 
     noUiSlider.create(positionSlider, {
-        start: [1, 16], 
+        start: [1, 50], 
         connect: true,
         range: {
             'min': 1,
-            'max': 16
+            'max': 50
         },
         step: 1,
         format: wNumb({
@@ -93,7 +93,7 @@
    
     positionSlider.noUiSlider.on('update', function (values, handle) {
         const displayValues = values.map(value => {
-            return parseInt(value) === 16 ? 'Schowany' : 'Pozycja ' + value;
+            return parseInt(value) === 50 ? 'Schowany' : 'Pozycja ' + value;
         });
         positionRangeInput.textContent = displayValues.join(' - ');
     });
@@ -201,7 +201,7 @@
     usePriceDifferenceCheckbox.addEventListener('change', function () {
         usePriceDifference = this.checked;
         updateUnits(usePriceDifference);
-        updatePricesDebounced(); // Dodaj tę linię, jeśli chcesz, aby ceny były natychmiast zaktualizowane po zmianie stanu checkboxa
+        updatePricesDebounced();
     });
 
  
@@ -213,7 +213,7 @@
                 myStoreName = response.myStoreName;
                 setPrice1 = response.setPrice1;
                 setPrice2 = response.setPrice2;
-                setStepPrice = response.stepPrice; // Upewniamy się, że przypisujemy do 'setStepPrice'
+                setStepPrice = response.stepPrice; 
                 missedProductsCount = response.missedProductsCount;
 
                 
@@ -236,7 +236,7 @@
                     let marginClass = '';
 
                     if (!isRejected) {
-                        // Product is not rejected, proceed as usual
+                      
                         if (usePriceDifference) {
                             valueToUse = price.savings !== null ? price.savings : price.priceDifference;
                         } else {
@@ -245,11 +245,11 @@
 
                         colorClass = getColorClass(valueToUse, price.isUniqueBestPrice, price.isSharedBestPrice);
 
-                        // Ensure that marginPrice and myPrice are numbers
+                      
                         marginPrice = price.marginPrice != null && !isNaN(price.marginPrice) ? parseFloat(price.marginPrice) : null;
                         myPrice = price.myPrice != null && !isNaN(price.myPrice) ? parseFloat(price.myPrice) : null;
 
-                        // Calculate margin if both prices are available
+                  
                         if (marginPrice != null && myPrice != null) {
                             marginAmount = myPrice - marginPrice;
                             if (marginPrice !== 0) {
@@ -263,14 +263,14 @@
                             marginClass = marginAmount >= 0 ? 'priceBox-diff-margin' : 'priceBox-diff-margin-minus';
                         }
                     } else {
-                        // Product is rejected, assign default values
-                        colorClass = 'prRejected'; // Define a new class for rejected products if needed
+                       
+                        colorClass = 'prRejected'; 
                     }
 
                     return {
                         ...price,
                         storeCount: price.storeCount, 
-                        isRejected: isRejected,
+                        isRejected: price.isRejected || false,
                         valueToUse: valueToUse,
                         colorClass: colorClass,
                         marginPrice: marginPrice,
@@ -281,6 +281,8 @@
                         marginClass: marginClass
                     };
                 });
+
+             
 
                 const storeCounts = allPrices.map(item => item.storeCount);
                 const maxStoreCount = Math.max(...storeCounts);
@@ -380,7 +382,7 @@
     
         const selectedColors = Array.from(document.querySelectorAll('.colorFilter:checked')).map(checkbox => checkbox.value);
         const selectedBid = document.getElementById('bidFilter').checked;
-       /* const selectedPositions = Array.from(document.querySelectorAll('.positionFilter:checked')).map(checkbox => parseInt(checkbox.value));*/
+
         const selectedDeliveryMyStore = Array.from(document.querySelectorAll('.deliveryFilterMyStore:checked')).map(checkbox => parseInt(checkbox.value));
         const selectedDeliveryCompetitor = Array.from(document.querySelectorAll('.deliveryFilterCompetitor:checked')).map(checkbox => parseInt(checkbox.value));
         const selectedExternalPrice = Array.from(document.querySelectorAll('.externalPriceFilter:checked')).map(checkbox => checkbox.value);
@@ -396,13 +398,26 @@
         const offerMin = parseInt(offerSliderValues[0]);
         const offerMax = parseInt(offerSliderValues[1]);
 
+ 
 
-        let filteredPrices = data; // Instead of filtering by category
+        let filteredPrices = data; 
 
+        
 
+        // Filtr pozycji
         filteredPrices = filteredPrices.filter(item => {
-            const position = item.myPosition === null ? 16 : parseInt(item.myPosition);
-            return position >= positionMin && position <= positionMax;
+            const position = item.myPosition;
+            if (position === null || position === undefined) {
+                
+                return true; // Przepuść produkty bez pozycji
+            }
+
+            const numericPosition = parseInt(position);
+            const isInRange = numericPosition >= positionMin && numericPosition <= positionMax;
+            if (!isInRange) {
+              
+            }
+            return isInRange;
         });
 
         // **Add this code to filter based on storeCount**
@@ -441,8 +456,13 @@
             filteredPrices = filteredPrices.filter(item => item.externalPrice === null);
         }
 
+      
+
         return filteredPrices;
+
+      
     }
+
     function getColorClass(valueToUse, isUniqueBestPrice = false, isSharedBestPrice = false) {
         if (isUniqueBestPrice && valueToUse <= setPrice1) {
             return "prIdeal";
@@ -541,9 +561,35 @@
             box.dataset.detailsUrl = '/PriceHistory/Details?scrapId=' + item.scrapId + '&productId=' + item.productId;
             box.dataset.productId = item.productId;
 
+
+
+
+
+
+
+
+
+            if (item.index) {
+                box.dataset.index = item.index;
+            } else {
+                console.warn(`Brak indeksu dla produktu: ${item.productName}`);
+            }
+
             box.addEventListener('click', function () {
                 window.open(this.dataset.detailsUrl, '_blank');
             });
+
+            box.addEventListener('click', function () {
+                window.open(this.dataset.detailsUrl, '_blank');
+            });
+
+
+
+
+
+
+
+
 
 
             // Create priceBoxSpace
@@ -1339,7 +1385,33 @@
             container.appendChild(box);
         });
 
-        document.getElementById('displayedProductCount').textContent = data.length;
+
+        const visibleProducts = document.querySelectorAll('.price-box:not([style*="display: none"])');
+        document.getElementById('displayedProductCount').textContent = visibleProducts.length;
+
+        // Pobieranie wszystkich indeksów widocznych produktów
+        const allIndexes = Array.from(visibleProducts).map(product => parseInt(product.dataset.index));
+
+        // Logowanie wszystkich poprawnych indeksów
+        console.log("Indeksy widocznych produktów:", allIndexes);
+
+        // Znajdowanie brakujących indeksów w zakresie od 1 do 500
+        const missingIndexes = [];
+        for (let i = 1; i <= 500; i++) {
+            if (!allIndexes.includes(i)) {
+                missingIndexes.push(i);
+            }
+        }
+
+        // Logowanie brakujących indeksów
+        if (missingIndexes.length > 0) {
+            console.warn("Brakujące indeksy (w zakresie 1-500):", missingIndexes);
+        } else {
+            console.log("Nie znaleziono brakujących indeksów w zakresie 1-500.");
+        }
+
+
+
 
         // Lazy loading of images
         const lazyLoadImages = document.querySelectorAll('.lazy-load');
@@ -1532,6 +1604,7 @@
             return sanitizedProductName.includes(sanitizedSearchTerm);
         });
 
+    
         // Sort results based on string match
         filteredPrices.sort((a, b) => {
             const sanitizedProductNameA = a.productName.toLowerCase().replace(/[^a-zA-Z0-9\s/.-]/g, '').replace(/\s+/g, '');
@@ -1723,9 +1796,6 @@
 
     document.getElementById('productSearch').addEventListener('input', debouncedFilterPrices);
 
-    //document.getElementById('category').addEventListener('change', function () {
-    //    filterPricesAndUpdateUI();
-    //});
 
     document.querySelectorAll('.colorFilter, .flagFilter, .positionFilter, .deliveryFilterMyStore, .deliveryFilterCompetitor, .externalPriceFilter').forEach(function (checkbox) {
         checkbox.addEventListener('change', function () {
@@ -2062,6 +2132,8 @@
         }
         return flagsContainer;
     }
+
+
 
     loadStores();
     loadPrices();
