@@ -87,11 +87,7 @@ namespace PriceSafari.Controllers.MemberControllers
                 .FirstOrDefaultAsync();
 
 
-            var categories = await _context.PriceHistories
-                .Where(ph => ph.ScrapHistoryId == latestScrap.Id && !ph.Product.IsRejected)
-                .Select(ph => ph.Product.Category)
-                .Distinct()
-                .ToListAsync();
+       
 
             var scrapedproducts = await _context.Products
                 .Where(p => p.StoreId == storeId && p.IsScrapable)
@@ -104,8 +100,7 @@ namespace PriceSafari.Controllers.MemberControllers
             ViewBag.LatestScrap = latestScrap;
             ViewBag.StoreId = storeId;
             ViewBag.StoreName = storeName;
-            ViewBag.StoreLogo = storeLogo;
-            ViewBag.Categories = categories;
+            ViewBag.StoreLogo = storeLogo;          
             ViewBag.Flags = flags;
             ViewBag.ScrapedProducts = scrapedproducts;
 
@@ -113,7 +108,7 @@ namespace PriceSafari.Controllers.MemberControllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> GetPrices(int? storeId, string competitorStore = null)
+        public async Task<IActionResult> GetPrices(int? storeId, string competitorStore = null, string source = "All")
         {
             if (storeId == null)
             {
@@ -168,6 +163,26 @@ namespace PriceSafari.Controllers.MemberControllers
                 .Include(ph => ph.Product)
                 .Where(ph => ph.ScrapHistoryId == latestScrap.Id);
 
+            // Apply source filter
+            if (!string.IsNullOrEmpty(source))
+            {
+                switch (source.ToLower())
+                {
+                    case "ceneo":
+                        pricesQuery = pricesQuery.Where(ph => ph.IsGoogle == false);
+                        break;
+                    case "google":
+                        pricesQuery = pricesQuery.Where(ph => ph.IsGoogle == true);
+                        break;
+                    case "all":
+                        // Do not filter; include all sources
+                        break;
+                    default:
+                        // Invalid source parameter; return an error or default to all
+                        return Json(new { error = "Invalid source parameter" });
+                }
+            }
+
             if (!string.IsNullOrEmpty(competitorStore))
             {
                 pricesQuery = pricesQuery.Where(ph => ph.StoreName.ToLower() == storeName.ToLower() || ph.StoreName.ToLower() == competitorStore.ToLower());
@@ -178,7 +193,6 @@ namespace PriceSafari.Controllers.MemberControllers
                 {
                     ph.ProductId,
                     ph.Product.ProductName,
-                    ph.Product.Category,
                     ph.Price,
                     ph.StoreName,
                     ph.ScrapHistoryId,
@@ -208,108 +222,105 @@ namespace PriceSafari.Controllers.MemberControllers
                 .ToDictionary(p => p.ProductId, p => new { p.ExternalId, p.ExternalPrice, p.MainUrl, p.MarginPrice });
 
             var allPrices = prices
-        .GroupBy(p => p.ProductId)
-        .Select(g =>
-        {
-            // Oblicz liczbę unikalnych sklepów dla tego produktu
-            var storeCount = g.Select(p => p.StoreName).Distinct().Count();
-
-            // Dodanie logiki określającej źródła danych
-            bool sourceGoogle = g.Any(p => p.IsGoogle);
-            bool sourceCeneo = g.Any(p => !p.IsGoogle);
-
-            // Wyznaczanie najlepszej ceny
-            var bestPriceEntry = g.OrderBy(p => p.Price).First();
-            var myPriceEntry = g.FirstOrDefault(p => string.Equals(p.StoreName, storeName, StringComparison.OrdinalIgnoreCase));
-            var competitorPriceEntry = g.FirstOrDefault(p => !string.IsNullOrEmpty(competitorStore) && p.StoreName.ToLower() == competitorStore.ToLower());
-
-            if (!string.IsNullOrEmpty(competitorStore) && (myPriceEntry == null || competitorPriceEntry == null))
-            {
-                return null;
-            }
-            if (!string.IsNullOrEmpty(competitorStore))
-            {
-                bestPriceEntry = competitorPriceEntry;
-            }
-
-            var bestPrice = bestPriceEntry.Price;
-            decimal? myPrice = null;
-            decimal? priceDifference = null;
-            decimal? percentageDifference = null;
-            decimal? savings = null;
-            bool isUniqueBestPrice = false;
-            int? myPosition = myPriceEntry?.Position;
-            int? myDelivery = myPriceEntry?.AvailabilityNum;
-
-            if (!bestPriceEntry.IsRejected)
-            {
-                myPrice = myPriceEntry?.Price ?? bestPrice;
-
-                if (string.IsNullOrEmpty(competitorStore))
+                .GroupBy(p => p.ProductId)
+                .Select(g =>
                 {
-                    var secondBestPrice = g
-                        .Where(p => p.Price > myPrice)
-                        .OrderBy(p => p.Price)
-                        .FirstOrDefault()?.Price ?? myPrice;
+                    // Calculate unique store count
+                    var storeCount = g.Select(p => p.StoreName).Distinct().Count();
 
-                    isUniqueBestPrice = myPrice == bestPrice && g.Count(p => p.Price == bestPrice) == 1 && secondBestPrice > myPrice;
-                    savings = isUniqueBestPrice ? Math.Round(secondBestPrice.Value - bestPrice, 2) : (decimal?)null;
-                    percentageDifference = isUniqueBestPrice ? Math.Round((secondBestPrice.Value - myPrice.Value) / myPrice.Value * 100, 2) : Math.Round((myPrice.Value - bestPrice) / bestPrice * 100, 2);
-                    priceDifference = Math.Round(myPrice.Value - bestPrice, 2);
-                }
-                else
-                {
-                    isUniqueBestPrice = myPrice < bestPrice;
-                    savings = isUniqueBestPrice ? Math.Abs(Math.Round(myPrice.Value - bestPrice, 2)) : (decimal?)null;
-                    percentageDifference = Math.Round((myPrice.Value - bestPrice) / bestPrice * 100, 2);
-                    priceDifference = Math.Round(myPrice.Value - bestPrice, 2);
-                }
-            }
+                    // Determine data sources present
+                    bool sourceGoogle = g.Any(p => p.IsGoogle);
+                    bool sourceCeneo = g.Any(p => !p.IsGoogle);
 
-            productFlagsDictionary.TryGetValue(g.Key, out var flagIds);
-            flagIds = flagIds ?? new List<int>();
+                    // Find the best price entry
+                    var bestPriceEntry = g.OrderBy(p => p.Price).First();
+                    var myPriceEntry = g.FirstOrDefault(p => string.Equals(p.StoreName, storeName, StringComparison.OrdinalIgnoreCase));
+                    var competitorPriceEntry = g.FirstOrDefault(p => !string.IsNullOrEmpty(competitorStore) && p.StoreName.ToLower() == competitorStore.ToLower());
 
-            return new
-            {
-                bestPriceEntry.ProductId,
-                bestPriceEntry.ProductName,
-                bestPriceEntry.Category,
-                LowestPrice = bestPrice,
-                bestPriceEntry.StoreName,
-                MyPrice = myPrice,
-                ScrapId = bestPriceEntry.ScrapHistoryId,
-                PriceDifference = priceDifference,
-                PercentageDifference = percentageDifference,
-                Savings = savings,
-                IsSharedBestPrice = string.IsNullOrEmpty(competitorStore) && myPrice == bestPrice && g.Count(p => p.Price == bestPrice) > 1,
-                IsUniqueBestPrice = isUniqueBestPrice,
-                bestPriceEntry.IsBidding,
-                bestPriceEntry.IsGoogle,
-                bestPriceEntry.Position,
-                MyIsBidding = myPriceEntry?.IsBidding,
-                MyIsGoogle = myPriceEntry?.IsGoogle,
-                MyPosition = myPosition,
-                FlagIds = flagIds,
-                Delivery = bestPriceEntry.AvailabilityNum,
-                MyDelivery = myDelivery,
-                ExternalId = productExternalInfoDictionary.ContainsKey(g.Key) ? productExternalInfoDictionary[g.Key].ExternalId : null,
-                ExternalPrice = productExternalInfoDictionary.ContainsKey(g.Key) ? productExternalInfoDictionary[g.Key].ExternalPrice : null,
-                MarginPrice = productExternalInfoDictionary.ContainsKey(g.Key) ? productExternalInfoDictionary[g.Key].MarginPrice : null,
-                ImgUrl = productExternalInfoDictionary.ContainsKey(g.Key) ? productExternalInfoDictionary[g.Key].MainUrl : null,
-                IsRejected = bestPriceEntry.IsRejected,
-                StoreCount = storeCount,
-                SourceGoogle = sourceGoogle,
-                SourceCeneo = sourceCeneo
-            };
-        })
-        .Where(p => p != null)
-        .ToList();
+                    if (!string.IsNullOrEmpty(competitorStore) && (myPriceEntry == null || competitorPriceEntry == null))
+                    {
+                        return null;
+                    }
+                    if (!string.IsNullOrEmpty(competitorStore))
+                    {
+                        bestPriceEntry = competitorPriceEntry;
+                    }
 
+                    var bestPrice = bestPriceEntry.Price;
+                    decimal? myPrice = null;
+                    decimal? priceDifference = null;
+                    decimal? percentageDifference = null;
+                    decimal? savings = null;
+                    bool isUniqueBestPrice = false;
+                    int? myPosition = myPriceEntry?.Position;
+                    int? myDelivery = myPriceEntry?.AvailabilityNum;
 
+                    if (!bestPriceEntry.IsRejected)
+                    {
+                        myPrice = myPriceEntry?.Price ?? bestPrice;
+
+                        if (string.IsNullOrEmpty(competitorStore))
+                        {
+                            var secondBestPrice = g
+                                .Where(p => p.Price > myPrice)
+                                .OrderBy(p => p.Price)
+                                .FirstOrDefault()?.Price ?? myPrice;
+
+                            isUniqueBestPrice = myPrice == bestPrice && g.Count(p => p.Price == bestPrice) == 1 && secondBestPrice > myPrice;
+                            savings = isUniqueBestPrice ? Math.Round(secondBestPrice.Value - bestPrice, 2) : (decimal?)null;
+                            percentageDifference = isUniqueBestPrice ? Math.Round((secondBestPrice.Value - myPrice.Value) / myPrice.Value * 100, 2) : Math.Round((myPrice.Value - bestPrice) / bestPrice * 100, 2);
+                            priceDifference = Math.Round(myPrice.Value - bestPrice, 2);
+                        }
+                        else
+                        {
+                            isUniqueBestPrice = myPrice < bestPrice;
+                            savings = isUniqueBestPrice ? Math.Abs(Math.Round(myPrice.Value - bestPrice, 2)) : (decimal?)null;
+                            percentageDifference = Math.Round((myPrice.Value - bestPrice) / bestPrice * 100, 2);
+                            priceDifference = Math.Round(myPrice.Value - bestPrice, 2);
+                        }
+                    }
+
+                    productFlagsDictionary.TryGetValue(g.Key, out var flagIds);
+                    flagIds = flagIds ?? new List<int>();
+
+                    return new
+                    {
+                        bestPriceEntry.ProductId,
+                        bestPriceEntry.ProductName,
+                        LowestPrice = bestPrice,
+                        bestPriceEntry.StoreName,
+                        MyPrice = myPrice,
+                        ScrapId = bestPriceEntry.ScrapHistoryId,
+                        PriceDifference = priceDifference,
+                        PercentageDifference = percentageDifference,
+                        Savings = savings,
+                        IsSharedBestPrice = string.IsNullOrEmpty(competitorStore) && myPrice == bestPrice && g.Count(p => p.Price == bestPrice) > 1,
+                        IsUniqueBestPrice = isUniqueBestPrice,
+                        bestPriceEntry.IsBidding,
+                        bestPriceEntry.IsGoogle,
+                        bestPriceEntry.Position,
+                        MyIsBidding = myPriceEntry?.IsBidding,
+                        MyIsGoogle = myPriceEntry?.IsGoogle,
+                        MyPosition = myPosition,
+                        FlagIds = flagIds,
+                        Delivery = bestPriceEntry.AvailabilityNum,
+                        MyDelivery = myDelivery,
+                        ExternalId = productExternalInfoDictionary.ContainsKey(g.Key) ? productExternalInfoDictionary[g.Key].ExternalId : null,
+                        ExternalPrice = productExternalInfoDictionary.ContainsKey(g.Key) ? productExternalInfoDictionary[g.Key].ExternalPrice : null,
+                        MarginPrice = productExternalInfoDictionary.ContainsKey(g.Key) ? productExternalInfoDictionary[g.Key].MarginPrice : null,
+                        ImgUrl = productExternalInfoDictionary.ContainsKey(g.Key) ? productExternalInfoDictionary[g.Key].MainUrl : null,
+                        IsRejected = bestPriceEntry.IsRejected,
+                        StoreCount = storeCount,
+                        SourceGoogle = sourceGoogle,
+                        SourceCeneo = sourceCeneo
+                    };
+                })
+                .Where(p => p != null)
+                .ToList();
 
             var missedProducts = await _context.Products
                 .Where(p => p.StoreId == storeId && p.IsRejected && p.IsScrapable)
-                .Select(p => new { p.ProductId, p.ProductName, p.Category })
+                .Select(p => new { p.ProductId, p.ProductName})
                 .ToListAsync();
 
             return Json(new
@@ -326,6 +337,7 @@ namespace PriceSafari.Controllers.MemberControllers
                 usePriceDiff = priceValues.UsePriceDiff
             });
         }
+
 
 
 

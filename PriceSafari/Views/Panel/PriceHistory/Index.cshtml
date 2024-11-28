@@ -5,7 +5,6 @@
     var latestScrap = ViewBag.LatestScrap as PriceSafari.Models.ScrapHistoryClass;
     var storeId = ViewBag.StoreId;
     var storeLogo = ViewBag.StoreLogo;
-    var categories = ViewBag.Categories as List<string>;
     var flags = ViewBag.Flags as List<PriceSafari.Models.FlagsClass>;
 }
 
@@ -435,14 +434,16 @@
 
                     <input type="text" id="productSearch" placeholder="Wyszukaj produkt">
                     <form id="filterForm">
-                        <select id="category" name="category" class="DropDown">
-                            <option value="">Wszystkie kategorie</option>
-                            @foreach (var category in categories)
-                            {
-                                <option value="@category">@category</option>
-                            }
-                        </select>
+                        
+                        <div style="display: inline-block;">
+                            <select id="sourceSelect" name="source" class="DropDown">
+                                <option value="All">Wszystkie źródła danych</option>
+                                <option value="Google">Tylko Google</option>
+                                <option value="Ceneo">Tylko Ceneo</option>
+                            </select>
+                        </div>
                     </form>
+
                     <div>
 
                         <select id="competitorStoreSelect" name="competitorStore" class="DropDown">

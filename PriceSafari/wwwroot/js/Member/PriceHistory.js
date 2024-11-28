@@ -206,7 +206,8 @@
 
  
     function loadPrices() {
-        fetch(`/PriceHistory/GetPrices?storeId=${storeId}&competitorStore=${competitorStore}`)
+        const source = document.getElementById('sourceSelect').value;
+        fetch(`/PriceHistory/GetPrices?storeId=${storeId}&competitorStore=${encodeURIComponent(competitorStore)}&source=${encodeURIComponent(source)}`)
             .then(response => response.json())
             .then(response => {
                 myStoreName = response.myStoreName;
@@ -376,7 +377,7 @@
     }
 
     function filterPricesByCategoryAndColorAndFlag(data) {
-        const selectedCategory = document.getElementById('category').value;
+    
         const selectedColors = Array.from(document.querySelectorAll('.colorFilter:checked')).map(checkbox => checkbox.value);
         const selectedBid = document.getElementById('bidFilter').checked;
        /* const selectedPositions = Array.from(document.querySelectorAll('.positionFilter:checked')).map(checkbox => parseInt(checkbox.value));*/
@@ -396,7 +397,8 @@
         const offerMax = parseInt(offerSliderValues[1]);
 
 
-        let filteredPrices = selectedCategory ? data.filter(item => item.category === selectedCategory) : data;
+        let filteredPrices = data; // Instead of filtering by category
+
 
         filteredPrices = filteredPrices.filter(item => {
             const position = item.myPosition === null ? 16 : parseInt(item.myPosition);
@@ -1909,6 +1911,10 @@
         updatePricesDebounced();
     });
 
+    document.getElementById('sourceSelect').addEventListener('change', function () {
+        loadStores();
+        loadPrices();
+    });
 
 
     document.getElementById('savePriceValues').addEventListener('click', function () {
