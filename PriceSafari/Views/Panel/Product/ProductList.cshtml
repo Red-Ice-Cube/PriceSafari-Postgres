@@ -62,18 +62,32 @@
         appearance: none;
         width: 44px;
         height: 44px;
-        background-color: red;
+        background-color: red; /* Unchecked state background */
         border: 2px solid black;
         border-radius: 24px;
         position: relative;
         cursor: pointer;
     }
 
-        .scrapable-checkbox:checked {
-            background-color: red;
+        .scrapable-checkbox:checked::after {
+            content: "";
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 40px;
+            height: 40px;
+            background-color: green; /* Inner circle when checked */
+            border-radius: 24px;
         }
 
-            .scrapable-checkbox:checked::after {
+        /* Style for disabled checkbox */
+        .scrapable-checkbox:disabled {
+            background-color: #555555; /* Dark gray outer circle */
+            cursor: not-allowed;
+        }
+
+            .scrapable-checkbox:disabled::after {
                 content: "";
                 position: absolute;
                 top: 50%;
@@ -81,9 +95,10 @@
                 transform: translate(-50%, -50%);
                 width: 40px;
                 height: 40px;
-                background-color: green;
+                background-color: #555555; /* Dark gray inner circle */
                 border-radius: 24px;
             }
+
 
 </style>
 
@@ -374,62 +389,69 @@
                 return text.replace(regex, '<span style="color: #9400D3; font-weight: 600;">$1</span>');
             }
 
-            function renderProducts(products, searchTerm = "") {
-                var tbody = document.getElementById('product-list');
-                tbody.innerHTML = '';
-                products.forEach(function (product) {
-                    var row = document.createElement('tr');
-                    row.classList.add('product-row');
-                    row.setAttribute('data-scrapable', product.isScrapable);
-                    row.setAttribute('data-rejected', product.isRejected);
+                    function renderProducts(products, searchTerm = "") {
+            var tbody = document.getElementById('product-list');
+            tbody.innerHTML = '';
+            products.forEach(function (product) {
+                var row = document.createElement('tr');
+                row.classList.add('product-row');
+                row.setAttribute('data-scrapable', product.isScrapable);
+                row.setAttribute('data-rejected', product.isRejected);
 
-                    var highlightedProductName = highlightMatches(product.productName, searchTerm);
-                    var category = product.category || '';
-                    var offerUrlButton = product.offerUrl ? `<a href="${product.offerUrl}" class="Button-Page-Small" target="_blank">Ceneo</a>` : '';
-                    var googleUrlButton = product.googleUrl ? `<a href="${product.googleUrl}" class="Button-Page-Small" target="_blank">Google</a>` : '';
-                    var urlButton = product.url ? `<a href="${product.url}" class="Button-Page-Small" target="_blank">Strona</a>` : '';
+                // Determine if the product is "Not Found"
+                var platformStatus = getProductPlatformStatus(product);
+                var isNotFound = platformStatus.notFound;
 
-                    var ean = product.ean || '';
-                    var marginPrice = product.marginPrice || '';
-                    var imageUrl = product.mainUrl || '';
-                    var imageCell = imageUrl ? `<img src="${imageUrl}" style="width: 90px; height: 90px; object-fit: contain; background-color: white;" />` : `<div style="width: 90px; height: 90px;"></div>`;
+                var highlightedProductName = highlightMatches(product.productName, searchTerm);
+                var category = product.category || '';
+                var offerUrlButton = product.offerUrl ? `<a href="${product.offerUrl}" class="Button-Page-Small" target="_blank">Ceneo</a>` : '';
+                var googleUrlButton = product.googleUrl ? `<a href="${product.googleUrl}" class="Button-Page-Small" target="_blank">Google</a>` : '';
+                var urlButton = product.url ? `<a href="${product.url}" class="Button-Page-Small" target="_blank">Strona</a>` : '';
 
-                    var statusBoxClass = "";
-                    var statusText = "";
+                var ean = product.ean || '';
+                var marginPrice = product.marginPrice || '';
+                var imageUrl = product.mainUrl || '';
+                var imageCell = imageUrl ? `<img src="${imageUrl}" style="width: 90px; height: 90px; object-fit: contain; background-color: white;" />` : `<div style="width: 90px; height: 90px;"></div>`;
 
-                    if (product.isScrapable && product.isRejected) {
-                        statusBoxClass = "StatusBoxProduct-1";
-                        statusText = "Odrzucony";
-                    } else if (product.isScrapable) {
-                        statusBoxClass = "StatusBoxProduct-2";
-                        statusText = "Aktywny";
-                    } else if (product.isRejected) {
-                        statusBoxClass = "StatusBoxProduct-3";
-                        statusText = "Wyłączony";
-                    } else {
-                        statusBoxClass = "StatusBoxProduct-4";
-                        statusText = "Nieaktywny";
-                    }
+                var statusBoxClass = "";
+                var statusText = "";
 
-                    row.innerHTML = `
-                                <td> <p>${highlightedProductName}</p><p>${category}</p></td>
-                                <td>${imageCell}</td>
-                                <td>${ean}</td>
+                if (product.isScrapable && product.isRejected) {
+                    statusBoxClass = "StatusBoxProduct-1";
+                    statusText = "Odrzucony";
+                } else if (product.isScrapable) {
+                    statusBoxClass = "StatusBoxProduct-2";
+                    statusText = "Aktywny";
+                } else if (product.isRejected) {
+                    statusBoxClass = "StatusBoxProduct-3";
+                    statusText = "Wyłączony";
+                } else {
+                    statusBoxClass = "StatusBoxProduct-4";
+                    statusText = "Nieaktywny";
+                }
 
-                                <td>${marginPrice} PLN</td>
-                                <td>
-                                <div class="store-section" style="gap:4px;">
-                                     ${offerUrlButton}${googleUrlButton}
-                                     </div>
-                                </td>
+                // Modify the checkbox input
+                row.innerHTML = `
+                    <td><p>${highlightedProductName}</p><p>${category}</p></td>
+                    <td>${imageCell}</td>
+                    <td>${ean}</td>
+                    <td>${marginPrice} PLN</td>
+                    <td>
+                        <div class="store-section" style="gap:4px;">
+                            ${offerUrlButton}${googleUrlButton}
+                        </div>
+                    </td>
+                    <td>${urlButton}</td>
+                    <td>
+                        <input type="checkbox" class="scrapable-checkbox" data-product-id="${product.productId}"
+                            ${product.isScrapable ? "checked" : ""}
+                            ${isNotFound ? "disabled" : ""} />
+                    </td>
+                    <td><div class="${statusBoxClass}">${statusText}</div></td>
+                `;
 
-                                <td>${urlButton}</td>
-                                <td>
-                                    <input type="checkbox" class="scrapable-checkbox" data-product-id="${product.productId}" ${product.isScrapable ? "checked" : ""} />
-                                </td>
-                                <td><div class="${statusBoxClass}">${statusText}</div></td>
-                            `;
-
+                // Only add the event listener if the checkbox is not disabled
+                if (!isNotFound) {
                     row.querySelector('.scrapable-checkbox').addEventListener('change', function () {
                         saveState();
                         var productId = this.getAttribute('data-product-id');
@@ -454,12 +476,14 @@
                                 console.error('There was a problem with your fetch operation:', error);
                             });
                     });
+                }
 
-                    tbody.appendChild(row);
-                });
-                document.getElementById('displayed-count').textContent = products.length;
-                window.scrollTo(0, lastScrollPosition);
-            }
+                tbody.appendChild(row);
+            });
+            document.getElementById('displayed-count').textContent = products.length;
+            window.scrollTo(0, lastScrollPosition);
+        }
+
 
             function filterRows() {
                 var selectedStatuses = Array.from(document.querySelectorAll('.status-filter:checked'))
@@ -568,59 +592,68 @@
                 filterRows();
             });
 
-            selectAllButton.addEventListener('click', function () {
-                var productIds = [];
-                document.querySelectorAll('.scrapable-checkbox').forEach(function (checkbox) {
-                    if (!checkbox.checked) {
-                        checkbox.checked = true;
-                        productIds.push(parseInt(checkbox.getAttribute('data-product-id')));
-                    }
-                });
-                if (productIds.length > 0) {
-                    fetch('@Url.Action("UpdateMultipleScrapableProducts", "Product")?storeId=' + storeId, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify(productIds)
-                    })
-                        .then(response => response.json())
-                        .then(data => {
-                            if (data.success) {
-                                fetchProducts();
-                            }
-                        })
-                        .catch(error => {
-                            console.error('There was a problem with your fetch operation:', error);
-                        });
-                }
-            });
-
-            deselectAllButton.addEventListener('click', function () {
-                var productIds = [];
-                document.querySelectorAll('.scrapable-checkbox:checked').forEach(function (checkbox) {
-                    checkbox.checked = false;
+               // Select All Button Event Listener
+        selectAllButton.addEventListener('click', function () {
+            var productIds = [];
+            // Select only enabled checkboxes
+            document.querySelectorAll('.scrapable-checkbox').forEach(function (checkbox) {
+                if (!checkbox.disabled && !checkbox.checked) {
+                    checkbox.checked = true;
                     productIds.push(parseInt(checkbox.getAttribute('data-product-id')));
-                });
-                if (productIds.length > 0) {
-                    fetch('@Url.Action("ResetMultipleScrapableProducts", "Product")?storeId=' + storeId, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify(productIds)
-                    })
-                        .then(response => response.json())
-                        .then(data => {
-                            if (data.success) {
-                                fetchProducts();
-                            }
-                        })
-                        .catch(error => {
-                            console.error('There was a problem with your fetch operation:', error);
-                        });
                 }
             });
+            if (productIds.length > 0) {
+                fetch('@Url.Action("UpdateMultipleScrapableProducts", "Product")?storeId=' + storeId, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(productIds)
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            fetchProducts();
+                        } else {
+                            alert('Błąd podczas aktualizacji produktów: ' + data.message);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Problem z operacją fetch:', error);
+                    });
+            }
+        });
+
+        // Deselect All Button Event Listener
+        deselectAllButton.addEventListener('click', function () {
+            var productIds = [];
+            // Select only enabled checkboxes that are currently checked
+            document.querySelectorAll('.scrapable-checkbox:checked:not(:disabled)').forEach(function (checkbox) {
+                checkbox.checked = false;
+                productIds.push(parseInt(checkbox.getAttribute('data-product-id')));
+            });
+            if (productIds.length > 0) {
+                fetch('@Url.Action("ResetMultipleScrapableProducts", "Product")?storeId=' + storeId, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(productIds)
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            fetchProducts();
+                        } else {
+                            alert('Błąd podczas resetowania produktów: ' + data.message);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Problem z operacją fetch:', error);
+                    });
+            }
+        });
+
 
             fetchProducts();
         });
