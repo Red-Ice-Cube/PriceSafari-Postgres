@@ -231,10 +231,22 @@ public class StoreProcessingService
                             }
                         }
                     }
-
                     // Process Google data
                     if (coOfrPrice.GoogleStoreName != null)
                     {
+                        // Oblicz ShippingCostNum zgodnie z wymaganiami
+                        var shippingCostNum = coOfrPrice.GooglePriceWithDelivery;
+                        if (coOfrPrice.GooglePrice.HasValue && coOfrPrice.GooglePriceWithDelivery.HasValue)
+                        {
+                            shippingCostNum = coOfrPrice.GooglePrice.Value == coOfrPrice.GooglePriceWithDelivery.Value
+                                ? 0
+                                : coOfrPrice.GooglePriceWithDelivery;
+                        }
+                        else
+                        {
+                            shippingCostNum = null; // Brak danych
+                        }
+
                         var priceHistoryGoogle = new PriceHistoryClass
                         {
                             ProductId = product.ProductId,
@@ -242,7 +254,7 @@ public class StoreProcessingService
                             Price = coOfrPrice.GooglePrice ?? 0,
                             Position = int.TryParse(coOfrPrice.GooglePosition, out var googlePosition) ? googlePosition : (int?)null,
                             IsBidding = "Google",
-                            ShippingCostNum = coOfrPrice.GooglePriceWithDelivery,
+                            ShippingCostNum = shippingCostNum,
                             ScrapHistory = scrapHistory,
                             IsGoogle = true
                         };
@@ -251,10 +263,9 @@ public class StoreProcessingService
                         if (string.Equals(coOfrPrice.GoogleStoreName, store.StoreName, StringComparison.OrdinalIgnoreCase))
                         {
                             hasStorePrice = true;
-
-                        
                         }
                     }
+
                 }
 
                 lock (product)
