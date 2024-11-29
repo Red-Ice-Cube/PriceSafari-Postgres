@@ -129,6 +129,93 @@ namespace PriceSafari.Controllers.ManagerControllers
             }
         }
 
+        //[HttpPost]
+        //public async Task<IActionResult> ImportProductsFromGoogleXml(int storeId)
+        //{
+        //    var store = await _context.Stores.FindAsync(storeId);
+        //    if (store == null || string.IsNullOrEmpty(store.ProductMapXmlUrlGoogle))
+        //    {
+        //        TempData["ErrorMessage"] = "Nie znaleziono sklepu lub brak adresu URL pliku XML Google.";
+        //        return RedirectToAction("Index");
+        //    }
+
+        //    try
+        //    {
+        //        using (var client = new HttpClient())
+        //        {
+        //            var response = await client.GetStringAsync(store.ProductMapXmlUrlGoogle);
+        //            var xml = XDocument.Parse(response);
+
+        //            // Pobranie produktów z Google Shopping
+        //            var googleProducts = xml.Descendants(XName.Get("item"))
+        //                .Select(x => new
+        //                {
+        //                    ExternalId = x.Element(XName.Get("id", xml.Root.GetNamespaceOfPrefix("g").NamespaceName))?.Value,
+        //                    Url = x.Element(XName.Get("link", xml.Root.GetNamespaceOfPrefix("g").NamespaceName))?.Value,
+        //                    GoogleEan = x.Element(XName.Get("gtin", xml.Root.GetNamespaceOfPrefix("g").NamespaceName))?.Value,
+        //                    GoogleImage = x.Element(XName.Get("image_link", xml.Root.GetNamespaceOfPrefix("g").NamespaceName))?.Value,
+        //                    GoogleExportedName = x.Element(XName.Get("title", xml.Root.GetNamespaceOfPrefix("g").NamespaceName))?.Value,
+        //                    CatalogNumber = x.Element(XName.Get("mpn", xml.Root.GetNamespaceOfPrefix("g").NamespaceName))?.Value
+        //                })
+        //                .ToList();
+
+        //            // Pobranie istniejących produktów
+        //            var existingProducts = await _context.ProductMaps
+        //                .Where(p => p.StoreId == storeId)
+        //                .ToListAsync();
+
+        //            foreach (var existingProduct in existingProducts)
+        //            {
+        //                var googleProduct = googleProducts.FirstOrDefault(p => p.Url == existingProduct.Url);
+
+        //                if (googleProduct != null)
+        //                {
+        //                    // Aktualizacja danych Google w istniejącym produkcie
+        //                    existingProduct.GoogleEan = googleProduct.GoogleEan;
+        //                    existingProduct.GoogleImage = googleProduct.GoogleImage;
+        //                    existingProduct.GoogleExportedName = googleProduct.GoogleExportedName;
+        //                    existingProduct.CatalogNumber = googleProduct.CatalogNumber ?? existingProduct.CatalogNumber;
+        //                }
+        //                else
+        //                {
+        //                    // Jeśli produkt nie istnieje w nowym pliku Google, usuwamy dane Google
+        //                    existingProduct.GoogleEan = null;
+        //                    existingProduct.GoogleImage = null;
+        //                    existingProduct.GoogleExportedName = null;
+        //                }
+        //            }
+
+        //            foreach (var googleProduct in googleProducts)
+        //            {
+        //                if (!existingProducts.Any(p => p.Url == googleProduct.Url))
+        //                {
+        //                    // Dodanie nowego produktu z Google
+        //                    _context.ProductMaps.Add(new ProductMap
+        //                    {
+        //                        StoreId = storeId,
+        //                        ExternalId = googleProduct.ExternalId,
+        //                        Url = googleProduct.Url,
+        //                        GoogleEan = googleProduct.GoogleEan, // Może być null
+        //                        GoogleImage = googleProduct.GoogleImage,
+        //                        GoogleExportedName = googleProduct.GoogleExportedName,
+        //                        CatalogNumber = googleProduct.CatalogNumber
+        //                    });
+        //                }
+        //            }
+
+        //            await _context.SaveChangesAsync();
+        //        }
+
+        //        TempData["SuccessMessage"] = "Import produktów z Google zakończony sukcesem.";
+        //        return RedirectToAction("MappedProducts", new { storeId });
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        TempData["ErrorMessage"] = $"Błąd podczas importu produktów z Google: {ex.Message}";
+        //        return RedirectToAction("Index");
+        //    }
+        //}
+
         [HttpPost]
         public async Task<IActionResult> ImportProductsFromGoogleXml(int storeId)
         {
@@ -146,17 +233,49 @@ namespace PriceSafari.Controllers.ManagerControllers
                     var response = await client.GetStringAsync(store.ProductMapXmlUrlGoogle);
                     var xml = XDocument.Parse(response);
 
+                    // Pobranie przestrzeni nazw z pliku XML
+                    var ns = xml.Root.GetNamespaceOfPrefix("g")?.NamespaceName;
+
                     // Pobranie produktów z Google Shopping
-                    var googleProducts = xml.Descendants(XName.Get("item"))
-                        .Select(x => new
+                    var googleProducts = xml.Descendants("item")
+                        .Select(x =>
                         {
-                            ExternalId = x.Element(XName.Get("id", xml.Root.GetNamespaceOfPrefix("g").NamespaceName))?.Value,
-                            Url = x.Element(XName.Get("link", xml.Root.GetNamespaceOfPrefix("g").NamespaceName))?.Value,
-                            GoogleEan = x.Element(XName.Get("gtin", xml.Root.GetNamespaceOfPrefix("g").NamespaceName))?.Value,
-                            GoogleImage = x.Element(XName.Get("image_link", xml.Root.GetNamespaceOfPrefix("g").NamespaceName))?.Value,
-                            GoogleExportedName = x.Element(XName.Get("title", xml.Root.GetNamespaceOfPrefix("g").NamespaceName))?.Value,
-                            CatalogNumber = x.Element(XName.Get("mpn", xml.Root.GetNamespaceOfPrefix("g").NamespaceName))?.Value
+                            try
+                            {
+                                // Pobieranie danych z XML z obsługą przestrzeni nazw
+                                var url = GetElementValue(x, "link", ns);
+                                var externalId = ExtractIdFromUrl(url); // Wyciąganie ExternalId z poprawionego URL
+                                var googleEan = GetElementValue(x, "gtin", ns);
+                                var googleImage = GetElementValue(x, "image_link", ns);
+                                var googleExportedName = GetElementValue(x, "title", ns);
+                                var catalogNumber = GetElementValue(x, "mpn", ns);
+
+                                // Debugging log
+                                Console.WriteLine("---------------------------------------------------");
+                                Console.WriteLine($"Extracted ExternalId: {externalId}");
+                                Console.WriteLine($"Url: {url}");
+                                Console.WriteLine($"GoogleEan: {googleEan}");
+                                Console.WriteLine($"GoogleImage: {googleImage}");
+                                Console.WriteLine($"GoogleExportedName: {googleExportedName}");
+                                Console.WriteLine($"CatalogNumber: {catalogNumber}");
+
+                                return new
+                                {
+                                    ExternalId = externalId,
+                                    Url = url,
+                                    GoogleEan = googleEan,
+                                    GoogleImage = googleImage,
+                                    GoogleExportedName = googleExportedName,
+                                    CatalogNumber = catalogNumber
+                                };
+                            }
+                            catch (Exception ex)
+                            {
+                                Console.WriteLine($"Błąd podczas przetwarzania produktu: {ex.Message}");
+                                return null;
+                            }
                         })
+                        .Where(product => product != null) // Usuwanie błędnych rekordów
                         .ToList();
 
                     // Pobranie istniejących produktów
@@ -195,7 +314,7 @@ namespace PriceSafari.Controllers.ManagerControllers
                                 StoreId = storeId,
                                 ExternalId = googleProduct.ExternalId,
                                 Url = googleProduct.Url,
-                                GoogleEan = googleProduct.GoogleEan, // Może być null
+                                GoogleEan = googleProduct.GoogleEan,
                                 GoogleImage = googleProduct.GoogleImage,
                                 GoogleExportedName = googleProduct.GoogleExportedName,
                                 CatalogNumber = googleProduct.CatalogNumber
@@ -215,6 +334,52 @@ namespace PriceSafari.Controllers.ManagerControllers
                 return RedirectToAction("Index");
             }
         }
+        private string GetElementValue(XElement element, string name, string namespaceName)
+        {
+            if (element == null) return null;
+
+            // Pobierz element z przestrzenią nazw
+            XName xNameWithNamespace = !string.IsNullOrEmpty(namespaceName)
+                ? XName.Get(name, namespaceName)
+                : null;
+
+            // Pobierz element bez przestrzeni nazw
+            XName xNameWithoutNamespace = XName.Get(name);
+
+            // Spróbuj znaleźć element z przestrzenią nazw, jeśli istnieje, lub bez niej
+            return element.Element(xNameWithNamespace)?.Value?.Trim()
+                ?? element.Element(xNameWithoutNamespace)?.Value?.Trim();
+        }
+
+
+        // Funkcja do wyciągania ID z URL
+        private string ExtractIdFromUrl(string url)
+        {
+            if (string.IsNullOrEmpty(url)) return null;
+
+            try
+            {
+                // Znajdź fragment URL pomiędzy ostatnim '/' a '.html'
+                var startIndex = url.LastIndexOf('/') + 1;
+                var endIndex = url.LastIndexOf(".html");
+
+                if (startIndex >= 0 && endIndex > startIndex)
+                {
+                    var id = url.Substring(startIndex, endIndex - startIndex);
+
+                    // Jeśli ID zawiera "-", podziel i weź pierwszą część
+                    return id.Contains("-") ? id.Split('-')[0] : id;
+                }
+
+                return null;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+
 
         [HttpPost]
         public async Task<IActionResult> TruncateProductMaps()

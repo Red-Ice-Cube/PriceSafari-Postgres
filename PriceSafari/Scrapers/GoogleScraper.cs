@@ -29,14 +29,14 @@ public class GoogleScraper
                 "--disable-features=IsolateOrigins,site-per-process",
                 "--disable-infobars",
                 "--use-gl=swiftshader",
-                "--enable-webgl",
+                "--disable-webgl",
                 "--ignore-gpu-blocklist"
             }
         });
 
         _page = await _browser.NewPageAsync();
 
-        await _page.SetViewportAsync(new ViewPortOptions { Width = 1440, Height = 900 });
+        await _page.SetViewportAsync(new ViewPortOptions { Width = 1459, Height = 789 });
         await _page.SetExtraHttpHeadersAsync(new Dictionary<string, string>
         {
             { "Accept-Language", "pl-PL,pl;q=0.9,en-US;q=0.8,en;q=0.7" }
@@ -60,7 +60,14 @@ public class GoogleScraper
                 }
 
                 var encodedTitle = System.Web.HttpUtility.UrlEncode(title);
-                var url = $"https://www.google.com/search?tbm=shop&tbs=merchagg:g5341299802&q={encodedTitle}";
+
+                //Myjki com 100925695
+
+                //myjki eu 141313220
+
+                // Kawa w biurze   5341299802
+
+                var url = $"https://www.google.com/search?tbm=shop&tbs=merchagg:g141313220&q={encodedTitle}";
 
                 await _page.GoToAsync(url, new NavigationOptions { Timeout = 60000, WaitUntil = new[] { WaitUntilNavigation.Load } });
 
