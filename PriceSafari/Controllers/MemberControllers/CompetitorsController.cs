@@ -56,7 +56,6 @@ public class CompetitorsController : Controller
       
         return View("~/Views/Panel/Competitors/Index.cshtml", stores);
     }
-
     public async Task<IActionResult> Competitors(int storeId)
     {
         if (!await UserHasAccessToStore(storeId))
@@ -80,28 +79,26 @@ public class CompetitorsController : Controller
             return Content("Brak danych o cenach.");
         }
 
-        // Pobranie cen dla naszego sklepu
         var myPrices = await _context.PriceHistories
             .Where(ph => ph.ScrapHistoryId == latestScrap.Id && ph.StoreName.ToLower() == storeName.ToLower())
             .Select(ph => new { ph.ProductId, ph.Price })
             .ToListAsync();
 
-        // Pobranie cen konkurentów
         var competitorPrices = await _context.PriceHistories
             .Where(ph => ph.ScrapHistoryId == latestScrap.Id && ph.StoreName.ToLower() != storeName.ToLower())
             .ToListAsync();
 
-        // Grupowanie po konkurentach
         var competitors = competitorPrices
             .GroupBy(ph => ph.StoreName)
             .Select(g => new
             {
                 StoreName = g.Key,
-                CommonProductsCount = g.Count(),
+                CommonProductsCount = g.Count(ph => myPrices.Any(mp => mp.ProductId == ph.ProductId)),
                 SamePriceCount = g.Count(ph => myPrices.Any(mp => mp.ProductId == ph.ProductId && mp.Price == ph.Price)),
                 HigherPriceCount = g.Count(ph => myPrices.Any(mp => mp.ProductId == ph.ProductId && mp.Price < ph.Price)),
                 LowerPriceCount = g.Count(ph => myPrices.Any(mp => mp.ProductId == ph.ProductId && mp.Price > ph.Price))
             })
+            .Where(c => c.CommonProductsCount >= 10) // Filtrujemy konkurentów z przynajmniej 10 wspólnymi produktami
             .OrderByDescending(c => c.CommonProductsCount)
             .ToList();
 
@@ -109,6 +106,7 @@ public class CompetitorsController : Controller
         ViewBag.StoreId = storeId;
         return View("~/Views/Panel/Competitors/Competitors.cshtml", competitors);
     }
+
 
 
     public async Task<IActionResult> CompetitorPrices(int storeId, string competitorStoreName)

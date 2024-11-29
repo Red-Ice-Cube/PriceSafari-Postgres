@@ -233,8 +233,16 @@ namespace PriceSafari.Controllers.MemberControllers
                     bool sourceCeneo = g.Any(p => !p.IsGoogle);
 
                     // Find the best price entry
-                    var bestPriceEntry = g.OrderBy(p => p.Price).First();
-                    var myPriceEntry = g.FirstOrDefault(p => string.Equals(p.StoreName, storeName, StringComparison.OrdinalIgnoreCase));
+                    var bestPriceEntry = g
+                      .OrderBy(p => p.Price)
+                      .ThenByDescending(p => !p.IsGoogle) 
+                      .First();
+
+                    var myPriceEntry = g
+                     .Where(p => string.Equals(p.StoreName, storeName, StringComparison.OrdinalIgnoreCase))
+                     .OrderByDescending(p => !p.IsGoogle) 
+                     .FirstOrDefault();
+
                     var competitorPriceEntry = g.FirstOrDefault(p => !string.IsNullOrEmpty(competitorStore) && p.StoreName.ToLower() == competitorStore.ToLower());
 
                     if (!string.IsNullOrEmpty(competitorStore) && (myPriceEntry == null || competitorPriceEntry == null))
@@ -318,10 +326,21 @@ namespace PriceSafari.Controllers.MemberControllers
                 .Where(p => p != null)
                 .ToList();
 
+
             var missedProducts = await _context.Products
                 .Where(p => p.StoreId == storeId && p.IsRejected && p.IsScrapable)
-                .Select(p => new { p.ProductId, p.ProductName})
+                .Select(p => new { p.ProductId, p.ProductName })
                 .ToListAsync();
+
+         
+            //if (missedProducts.Any())
+            //{
+            //    Console.WriteLine("Missed Products:");
+            //    foreach (var missedProduct in missedProducts)
+            //    {
+            //        Console.WriteLine($"ProductId: {missedProduct.ProductId}, ProductName: {missedProduct.ProductName}");
+            //    }
+            //}
 
             return Json(new
             {

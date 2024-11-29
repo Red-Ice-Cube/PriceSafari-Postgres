@@ -38,11 +38,11 @@
     var positionRangeInput = document.getElementById('positionRange');
 
     noUiSlider.create(positionSlider, {
-        start: [1, 50], 
+        start: [1, 60], 
         connect: true,
         range: {
             'min': 1,
-            'max': 50
+            'max': 60
         },
         step: 1,
         format: wNumb({
@@ -93,7 +93,7 @@
    
     positionSlider.noUiSlider.on('update', function (values, handle) {
         const displayValues = values.map(value => {
-            return parseInt(value) === 50 ? 'Schowany' : 'Pozycja ' + value;
+            return parseInt(value) === 60 ? 'Schowany' : 'Pozycja ' + value;
         });
         positionRangeInput.textContent = displayValues.join(' - ');
     });
@@ -323,7 +323,7 @@
                 updateColorCounts(filteredPrices);
                 updateMarginSortButtonsVisibility();
             })
-            .catch(error => console.error('Error fetching prices:', error));
+           
     }
 
 
@@ -562,18 +562,6 @@
             box.dataset.productId = item.productId;
 
 
-
-
-
-
-
-
-
-            if (item.index) {
-                box.dataset.index = item.index;
-            } else {
-                console.warn(`Brak indeksu dla produktu: ${item.productName}`);
-            }
 
             box.addEventListener('click', function () {
                 window.open(this.dataset.detailsUrl, '_blank');
@@ -1386,30 +1374,17 @@
         });
 
 
+
+
+
+
         const visibleProducts = document.querySelectorAll('.price-box:not([style*="display: none"])');
         document.getElementById('displayedProductCount').textContent = visibleProducts.length;
 
         // Pobieranie wszystkich indeksów widocznych produktów
         const allIndexes = Array.from(visibleProducts).map(product => parseInt(product.dataset.index));
 
-        // Logowanie wszystkich poprawnych indeksów
-        console.log("Indeksy widocznych produktów:", allIndexes);
-
-        // Znajdowanie brakujących indeksów w zakresie od 1 do 500
-        const missingIndexes = [];
-        for (let i = 1; i <= 500; i++) {
-            if (!allIndexes.includes(i)) {
-                missingIndexes.push(i);
-            }
-        }
-
-        // Logowanie brakujących indeksów
-        if (missingIndexes.length > 0) {
-            console.warn("Brakujące indeksy (w zakresie 1-500):", missingIndexes);
-        } else {
-            console.log("Nie znaleziono brakujących indeksów w zakresie 1-500.");
-        }
-
+ 
 
 
 
