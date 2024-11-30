@@ -83,14 +83,18 @@ namespace PriceSafari.Scrapers
                 var randomResolution = commonResolutions[random.Next(commonResolutions.Count)];
                 await _page.SetViewportAsync(new ViewPortOptions { Width = randomResolution.width, Height = randomResolution.height });
 
+             
                 await _page.SetRequestInterceptionAsync(true);
+
                 _page.Request += async (sender, e) =>
                 {
-                    if (settings.Styles == false)
+                    try
                     {
-                        if (e.Request.ResourceType == ResourceType.Image ||
-                            e.Request.ResourceType == ResourceType.StyleSheet ||
-                            e.Request.ResourceType == ResourceType.Font)
+                        var resourceType = e.Request.ResourceType;
+
+                        if (resourceType == ResourceType.Image ||
+                            resourceType == ResourceType.Font ||
+                            resourceType == ResourceType.StyleSheet)
                         {
                             await e.Request.AbortAsync();
                         }
@@ -99,16 +103,14 @@ namespace PriceSafari.Scrapers
                             await e.Request.ContinueAsync();
                         }
                     }
-                    else
+                    catch (Exception ex)
                     {
+                        Console.WriteLine($"Exception during request interception: {ex.Message}");
+                  
                         await e.Request.ContinueAsync();
                     }
                 };
 
-                await _page.SetExtraHttpHeadersAsync(new Dictionary<string, string>
-                {
-                    { "Accept-Language", "pl-PL,pl;q=0.9,en-US;q=0.8,en;q=0.7" }
-                });
 
                 Console.WriteLine($"Bot gotowy, teraz rozgrzewka przez {settings.WarmUpTime} sekund...");
                 await Task.Delay(settings.WarmUpTime * 1000);
