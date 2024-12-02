@@ -124,7 +124,7 @@ namespace PriceSafari.Controllers
             if (!string.IsNullOrEmpty(lastActionTime))
             {
                 var lastActionDateTime = DateTime.Parse(lastActionTime);
-                if ((DateTime.Now - lastActionDateTime).TotalSeconds < 10)
+                if ((DateTime.Now - lastActionDateTime).TotalSeconds < 2)
                 {
                     return BadRequest("Please wait before clicking again.");
                 }
@@ -247,7 +247,7 @@ namespace PriceSafari.Controllers
                         ProductId = productId,
                         ProductName = ourPrice?.Product?.ProductName ?? lowestCompetitorPrice?.Product?.ProductName,
                         GoogleUrl = ourPrice?.Product?.GoogleUrl ?? lowestCompetitorPrice?.Product?.GoogleUrl,
-                        Category = ourPrice?.Product?.Category ?? lowestCompetitorPrice?.Product?.Category,
+                 
                         MarginPrice = ourPrice?.Product.MarginPrice ?? null,
                         Price = lowestCompetitorPrice?.Price ?? 0,
                         StoreName = lowestCompetitorPrice?.StoreName ?? "Brak konkurencyjnej ceny",
