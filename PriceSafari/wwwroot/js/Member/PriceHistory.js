@@ -781,6 +781,13 @@
                     priceChangeContainer.appendChild(storeName);
                     priceChangeContainer.appendChild(priceDifference);
 
+                    // Tworzenie kontenera dla starych i nowych cen
+                    const priceContainer = document.createElement('div');
+                    priceContainer.style.display = 'flex';
+                    priceContainer.style.justifyContent = 'space-between';
+                    priceContainer.style.alignItems = 'center';
+                 
+
                     // Tworzenie elementów dla starych i nowych cen
                     const oldPrice = document.createElement('span');
                     oldPrice.style.fontWeight = '500';
@@ -792,15 +799,19 @@
                     newPrice.style.fontWeight = '500';
                     newPrice.textContent = item.externalPrice.toFixed(2) + ' PLN';
 
-                    // Dodanie cen do głównego kontenera
-                    priceBoxMyText.appendChild(oldPrice);
-                    priceBoxMyText.appendChild(newPrice);
+                    // Dodanie starych i nowych cen do priceContainer
+                    priceContainer.appendChild(oldPrice);
+                    priceContainer.appendChild(newPrice);
+
+                    // Dodanie kontenerów do głównego elementu
+                    priceBoxMyText.appendChild(priceContainer);
                     priceBoxMyText.appendChild(priceChangeContainer);
                 } else {
                     // Jeśli nie ma externalPrice, wyświetl normalnie myPrice
                     priceBoxMyText.innerHTML =
                         '<span style="font-weight: 500; font-size:17px;">' + myPrice.toFixed(2) + ' PLN</span><br>' + myStoreName;
                 }
+
 
                 const priceBoxMyDetails = document.createElement('div');
                 priceBoxMyDetails.className = 'price-box-column-text';

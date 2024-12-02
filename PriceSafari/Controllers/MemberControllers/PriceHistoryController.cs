@@ -240,12 +240,18 @@ namespace PriceSafari.Controllers.MemberControllers
 
                     var myPriceEntry = g
                      .Where(p => string.Equals(p.StoreName, storeName, StringComparison.OrdinalIgnoreCase))
-                     .OrderByDescending(p => !p.IsGoogle) 
+                     .OrderByDescending(p => !p.IsGoogle)
                      .FirstOrDefault();
 
                     var competitorPriceEntry = g.FirstOrDefault(p => !string.IsNullOrEmpty(competitorStore) && p.StoreName.ToLower() == competitorStore.ToLower());
 
                     if (!string.IsNullOrEmpty(competitorStore) && (myPriceEntry == null || competitorPriceEntry == null))
+                    {
+                        return null;
+                    }
+
+                    // Add this check to exclude products where your store's price isn't present
+                    if (string.IsNullOrEmpty(competitorStore) && myPriceEntry == null)
                     {
                         return null;
                     }
@@ -333,14 +339,6 @@ namespace PriceSafari.Controllers.MemberControllers
                 .ToListAsync();
 
          
-            //if (missedProducts.Any())
-            //{
-            //    Console.WriteLine("Missed Products:");
-            //    foreach (var missedProduct in missedProducts)
-            //    {
-            //        Console.WriteLine($"ProductId: {missedProduct.ProductId}, ProductName: {missedProduct.ProductName}");
-            //    }
-            //}
 
             return Json(new
             {
@@ -370,7 +368,7 @@ namespace PriceSafari.Controllers.MemberControllers
             }
 
             var products = await _context.Products
-                .Where(p => p.StoreId == storeId && p.ExternalId.HasValue)
+                .Where(p => p.StoreId == storeId && p.ExternalId.HasValue  && p.IsRejected == false && p.IsScrapable == true)
                 .ToListAsync();
 
             var latestScrap = await _context.ScrapHistories
