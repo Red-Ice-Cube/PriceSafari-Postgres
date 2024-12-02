@@ -264,11 +264,11 @@ public class ClientProfileController : Controller
         return @"
                 <p>Dzień dobry,</p>
 
-                <p>Codziennie monitorujemy ceny produktów w e-sklepach.</p>
+                <p>Codziennie monitorujemy ceny produktów na Google Shopping, Ceneo i Allegro.</p>
 
-                <p>Zaindeksowaliśmy <strong>{ProductCount}</strong> produktów dostępnych w Państwa sklepie, które moglibyśmy zacząć monitorować, dostarczając codziennie aktualne raporty rynkowe.</p>
-
-                <p>Namierzymy konkurentów, ich ceny oraz dostępność towarów. Śledzenie zmian dzień po dniu odkryje ich strategie cenowe, takie jak podwyżki przed weekendami czy nadchodzącym Black Weekiem.</p>
+                <p>Na samym Ceneo zaindeksowaliśmy <strong>{ProductCount}</strong> produktów dostępnych w Państwa sklepie, które moglibyśmy zacząć monitorować, dostarczając codziennie aktualne raporty rynkowe.</p>
+                
+             
 
                 <p>Jak bardzo mogłaby wzrosnąć efektywność Państwa pracy dzięki dostępowi do informacji:</p>
 
@@ -286,6 +286,7 @@ public class ClientProfileController : Controller
                    Połączenie spostrzeżeń z wydajnością gwarantuje szybsze i pewniejsze decyzje o zmianach cen.</p>
 
                 <p>PriceSafari to pełny wgląd w rynek z poziomu jednego pulpitu.</p>
+               
 
                 <p>Zapraszamy do kontaktu. Oferujemy bezpłatne konto demo, na którym mogą Państwo przetestować nasz program na 300 własnych produktach.</p>
         ";
