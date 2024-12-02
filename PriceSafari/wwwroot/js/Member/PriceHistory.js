@@ -710,7 +710,7 @@
             const priceBoxLowestText = document.createElement('div');
             priceBoxLowestText.className = 'price-box-column-text';
             priceBoxLowestText.innerHTML =
-                '<span style="font-weight: 500;">' + item.lowestPrice.toFixed(2) + ' PLN</span>' + '<br>' + item.storeName;
+                '<span style="font-weight: 500; font-size:17px;">' + item.lowestPrice.toFixed(2) + ' PLN</span>' + '<br>' + item.storeName;
 
             const priceBoxLowestDetails = document.createElement('div');
             priceBoxLowestDetails.className = 'price-box-column-text';
@@ -799,7 +799,7 @@
                 } else {
                     // Jeśli nie ma externalPrice, wyświetl normalnie myPrice
                     priceBoxMyText.innerHTML =
-                        '<span style="font-weight: 500;">' + myPrice.toFixed(2) + ' PLN</span><br>' + myStoreName;
+                        '<span style="font-weight: 500; font-size:17px;">' + myPrice.toFixed(2) + ' PLN</span><br>' + myStoreName;
                 }
 
                 const priceBoxMyDetails = document.createElement('div');

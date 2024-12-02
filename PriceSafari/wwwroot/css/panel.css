@@ -762,7 +762,7 @@ p {
 
 .lazy-load {
     width:1px;
-    height: 84px;
+    height: 110px;
     background-color: #ffffff; 
     display: block;
 }
@@ -3044,7 +3044,7 @@ tr:last-child .sub-line {
     margin-right: 5px;
     background: rgb(245, 245, 245);
     border: 1px solid #e3e3e3;
-    min-width:220px;
+    min-width:260px;
     min-height:50px;
 }
 
@@ -3105,10 +3105,15 @@ tr:last-child .sub-line {
 
 .data-channel {
     display: flex;
-    gap:4px;
+    align-items: center;
+    justify-content: flex-start;
 }
 
-.price-box-column-offers {
+.price-box-column span {
+    margin-right:3px !important;
+}
+
+    .price-box-column-offers {
     display: flex;
     border-radius: 4px;
     padding: 4px 10px;
@@ -3118,13 +3123,13 @@ tr:last-child .sub-line {
     justify-content: space-between;
     background: rgb(245, 245, 245);
     border: 1px solid #e3e3e3;
-    font-size: 12px;
-    font-weight: 500;
+    font-size: 14px;
+    font-weight: 400;
     color: #4e4e4e;
 }
 
 .price-box-column-text {
-    font-size: 16px;
+    font-size: 15px;
     font-weight: 400;
     min-width:160px;
 }
@@ -3248,7 +3253,7 @@ tr:last-child .sub-line {
     border: 1px solid rgba(0, 145, 123, 0.80);
     background: rgba(0, 145, 123, 0.20);
     color: rgba(0, 145, 123, 1) !important;
-    min-width:220px;
+    min-width:260px;
 }
 
 
@@ -3310,7 +3315,7 @@ tr:last-child .sub-line {
     border: 1px solid rgba(171, 37, 32, 0.80);
     background: rgba(171, 37, 32, 0.20);
     color: rgba(171, 37, 32, 1) !important;
-    min-width:220px;
+    min-width:260px;
 }
 
 .priceBox-diff-top {
@@ -3393,7 +3398,6 @@ tr:last-child .sub-line {
     align-items: center;
     justify-content: center;
     font-size: 11px;
-    margin: 2px;
     background: #8E0C0C;
     color: #fff;
 }
@@ -3415,7 +3419,6 @@ tr:last-child .sub-line {
     justify-content: center;
     font-size: 11px;
     font-weight: 500;
-    margin: 2px;
     color: #fff;
 }
 
@@ -3604,10 +3607,10 @@ tr:last-child .sub-line {
     padding-left: 2px;
     padding-bottom: 2px;
     content: '⮯';
-    color:#fff;
+    color: #fff;
     font-size: 18px;
     margin-left: 3px;
-    background-color: #4B0089;
+    background-color: #0d6efd;
     min-width: 16px;
     max-width: 16px;
     height: 24px;

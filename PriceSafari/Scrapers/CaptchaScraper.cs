@@ -17,7 +17,6 @@ namespace PriceSafari.Scrapers
             _httpClient = httpClient;
         }
 
-        // Expose the _page via a public property
         public Page Page => _page;
 
         public async Task InitializeBrowserAsync(Settings settings)
