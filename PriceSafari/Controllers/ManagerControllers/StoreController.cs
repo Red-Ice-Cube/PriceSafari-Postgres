@@ -91,6 +91,7 @@ namespace PriceSafari.Controllers.ManagerControllers
                 existingStore.ProductMapXmlUrlGoogle = store.ProductMapXmlUrlGoogle;
                 existingStore.AutoMatching = store.AutoMatching;
                 existingStore.DiscountPercentage = store.DiscountPercentage;
+                existingStore.GoogleMiG = store.GoogleMiG;
 
                 // Check if the plan has changed
                 if (existingStore.PlanId != store.PlanId)

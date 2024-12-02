@@ -3107,10 +3107,11 @@ tr:last-child .sub-line {
     display: flex;
     align-items: center;
     justify-content: flex-start;
+    gap:4px;
 }
 
 .price-box-column span {
-    margin-right:3px !important;
+    margin-right:0px !important;
 }
 
     .price-box-column-offers {

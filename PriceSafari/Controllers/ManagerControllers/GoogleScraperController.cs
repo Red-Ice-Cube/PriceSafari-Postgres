@@ -25,6 +25,12 @@ public class GoogleScraperController : Controller
             return NotFound();
         }
 
+        var googleMiG = store.GoogleMiG;
+        if (string.IsNullOrEmpty(googleMiG))
+        {
+            return BadRequest("GoogleMiG is not set for this store.");
+        }
+
         var scraper = new GoogleScraper();
         await scraper.InitializeBrowserAsync();
 
@@ -53,7 +59,7 @@ public class GoogleScraperController : Controller
         {
             try
             {
-                await scraper.InitializeAndSearchAsync(product.ProductNameInStoreForGoogle);
+                await scraper.InitializeAndSearchAsync(product.ProductNameInStoreForGoogle, googleMiG);
 
                 var matchedUrls = await scraper.SearchForMatchingProductUrlsAsync(allProductUrls);
 

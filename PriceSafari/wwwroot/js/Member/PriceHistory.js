@@ -53,15 +53,15 @@
     function enforceLimits(input, min, max) {
         let value = parseFloat(input.value.replace(',', '.'));
         if (isNaN(value)) {
-            // Pozwól użytkownikowi kontynuować wpisywanie
+        
             return;
         }
         if (value < min) {
-            input.value = min.toFixed(2); // Jeśli za nisko, ustaw na minimum
+            input.value = min.toFixed(2); 
         } else if (value > max) {
-            input.value = max.toFixed(2); // Jeśli za wysoko, ustaw na maksimum
+            input.value = max.toFixed(2); 
         } else {
-            input.value = value.toFixed(2); // Jeśli w zakresie, zaokrąglij do dwóch miejsc po przecinku
+            input.value = value.toFixed(2); 
         }
     }
 
@@ -481,47 +481,56 @@
             return "prToHigh";
         }
     }
-
     function highlightMatches(text, searchTerm) {
         if (!searchTerm) return text;
 
-       
-        const sanitizedSearchTerm = searchTerm.replace(/[^a-zA-Z0-9\s/.-]/g, '').replace(/\s+/g, '');
+        // Usunięcie znaków specjalnych i konwersja do małych liter
+        const sanitizedSearchTerm = searchTerm.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+        const sanitizedText = text.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
 
-        let searchIndex = 0;
-        let result = '';
+        // Znalezienie indeksu dopasowania
+        const index = sanitizedText.indexOf(sanitizedSearchTerm);
+
+        if (index === -1) {
+            return text;
+        }
+
+        // Mapowanie indeksów z oczyszczonego tekstu do oryginalnego
+        let sanitizedIndexToOriginalIndex = [];
+        let sanitizedIdx = 0;
 
         for (let i = 0; i < text.length; i++) {
-           
-            const currentChar = text[i].toLowerCase();
-
-            if (sanitizedSearchTerm[searchIndex] === currentChar.replace(/\s+/g, '') ||
-                sanitizedSearchTerm[searchIndex] === text[i].replace(/\s+/g, '')) {
-                result += `<span style="color: #9400D3;font-weight: 600;">${text[i]}</span>`;
-                searchIndex++;
-            } else {
-                result += text[i];
-            }
-
-          
-            if (searchIndex >= sanitizedSearchTerm.length) {
-                result += text.slice(i + 1);
-                break;
+            if (/[a-zA-Z0-9]/.test(text[i])) {
+                sanitizedIndexToOriginalIndex[sanitizedIdx] = i;
+                sanitizedIdx++;
             }
         }
 
-        return result;
+        const matchStart = sanitizedIndexToOriginalIndex[index];
+        const matchEnd = sanitizedIndexToOriginalIndex[index + sanitizedSearchTerm.length - 1];
+
+        // Podział tekstu na części
+        const beforeMatch = text.substring(0, matchStart);
+        const matchText = text.substring(matchStart, matchEnd + 1);
+        const afterMatch = text.substring(matchEnd + 1);
+
+        // Zwrócenie tekstu z podświetleniem
+        return beforeMatch + `<span class="highlighted-text">` + matchText + `</span>` + afterMatch;
     }
+
+
 
     function renderPrices(data) {
         const container = document.getElementById('priceContainer');
-        const currentSearchTerm = document.getElementById('productSearch').value.trim();
+        const currentProductSearchTerm = document.getElementById('productSearch').value.trim();
+        const currentStoreSearchTerm = document.getElementById('storeSearch').value.trim();
         container.innerHTML = '';
 
         data.forEach(item => {
             const isRejected = item.isRejected;
 
-            const highlightedProductName = highlightMatches(item.productName, currentSearchTerm);
+            const highlightedProductName = highlightMatches(item.productName, currentProductSearchTerm);
+            const highlightedStoreName = highlightMatches(item.storeName, currentStoreSearchTerm);
             const isBidding = item.isBidding === "1";
             const deliveryClass = getDeliveryClass(item.delivery);
 
@@ -710,7 +719,9 @@
             const priceBoxLowestText = document.createElement('div');
             priceBoxLowestText.className = 'price-box-column-text';
             priceBoxLowestText.innerHTML =
-                '<span style="font-weight: 500; font-size:17px;">' + item.lowestPrice.toFixed(2) + ' PLN</span>' + '<br>' + item.storeName;
+                '<span style="font-weight: 500; font-size:17px;">' + item.lowestPrice.toFixed(2) + ' PLN</span>' + '<br>' + highlightedStoreName;
+
+
 
             const priceBoxLowestDetails = document.createElement('div');
             priceBoxLowestDetails.className = 'price-box-column-text';
@@ -1579,15 +1590,23 @@
 
     // Modify the sorting functions to exclude rejected products from 'raise' and 'lower' sorts
     function filterPricesAndUpdateUI() {
-        const currentSearchTerm = document.getElementById('productSearch').value.toLowerCase().replace(/\s+/g, '').trim();
+        const currentProductSearchTerm = document.getElementById('productSearch').value.toLowerCase().replace(/\s+/g, '').trim();
+        const currentStoreSearchTerm = document.getElementById('storeSearch').value.toLowerCase().replace(/\s+/g, '').trim();
 
-        // Prepare sanitized search term
-        const sanitizedSearchTerm = currentSearchTerm.replace(/[^a-zA-Z0-9\s/.-]/g, '').toLowerCase().replace(/\s+/g, '');
+        // Przygotuj oczyszczone terminy wyszukiwania
+        const sanitizedProductSearchTerm = currentProductSearchTerm.replace(/[^a-zA-Z0-9\s/.-]/g, '').toLowerCase().replace(/\s+/g, '');
+        const sanitizedStoreSearchTerm = currentStoreSearchTerm.replace(/[^a-zA-Z0-9\s/.-]/g, '').toLowerCase().replace(/\s+/g, '');
 
         let filteredPrices = allPrices.filter(price => {
-            // Sanitize product name
+            // Oczyść nazwę produktu i sklepu
             const sanitizedProductName = price.productName.toLowerCase().replace(/[^a-zA-Z0-9\s/.-]/g, '').replace(/\s+/g, '');
-            return sanitizedProductName.includes(sanitizedSearchTerm);
+            const sanitizedStoreName = price.storeName.toLowerCase().replace(/[^a-zA-Z0-9\s/.-]/g, '').replace(/\s+/g, '');
+
+            const matchesProduct = sanitizedProductName.includes(sanitizedProductSearchTerm);
+            const matchesStore = sanitizedStoreName.includes(sanitizedStoreSearchTerm);
+
+            // Zwróć true, jeśli oba kryteria są spełnione (lub jeśli pola są puste)
+            return (sanitizedProductSearchTerm === '' || matchesProduct) && (sanitizedStoreSearchTerm === '' || matchesStore);
         });
 
     
@@ -1596,15 +1615,15 @@
             const sanitizedProductNameA = a.productName.toLowerCase().replace(/[^a-zA-Z0-9\s/.-]/g, '').replace(/\s+/g, '');
             const sanitizedProductNameB = b.productName.toLowerCase().replace(/[^a-zA-Z0-9\s/.-]/g, '').replace(/\s+/g, '');
 
-            const exactMatchIndexA = getExactMatchIndex(sanitizedProductNameA, sanitizedSearchTerm);
-            const exactMatchIndexB = getExactMatchIndex(sanitizedProductNameB, sanitizedSearchTerm);
+            const exactMatchIndexA = getExactMatchIndex(sanitizedProductNameA, sanitizedProductSearchTerm);
+            const exactMatchIndexB = getExactMatchIndex(sanitizedProductNameB, sanitizedProductSearchTerm);
 
             if (exactMatchIndexA !== exactMatchIndexB) {
                 return exactMatchIndexA - exactMatchIndexB;
             }
 
-            const matchLengthA = getLongestMatchLength(sanitizedProductNameA, sanitizedSearchTerm);
-            const matchLengthB = getLongestMatchLength(sanitizedProductNameB, sanitizedSearchTerm);
+            const matchLengthA = getLongestMatchLength(sanitizedProductNameA, sanitizedProductSearchTerm);
+            const matchLengthB = getLongestMatchLength(sanitizedProductNameB, sanitizedProductSearchTerm);
 
             if (matchLengthA !== matchLengthB) {
                 return matchLengthB - matchLengthA;
@@ -1612,6 +1631,7 @@
 
             return a.productName.localeCompare(b.productName);
         });
+
 
         filteredPrices = filterPricesByCategoryAndColorAndFlag(filteredPrices);
 
@@ -1949,6 +1969,10 @@
 
         filterPricesAndUpdateUI();
     });
+
+
+    document.getElementById('storeSearch').addEventListener('input', debouncedFilterPrices);
+
 
     // Aktualizacja przy zmianie price1
     document.getElementById('price1').addEventListener('input', function () {

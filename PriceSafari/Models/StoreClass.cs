@@ -18,6 +18,8 @@ namespace PriceSafari.Models
 
         public string? ProductMapXmlUrlGoogle { get; set; }
 
+        public string? GoogleMiG {  get; set; }
+
         [Display(Name = "Produkty do Zeskrobania")]
         public int? ProductsToScrap { get; set; }
 

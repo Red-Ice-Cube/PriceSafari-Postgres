@@ -43,8 +43,13 @@ public class GoogleScraper
         });
     }
 
-    public async Task InitializeAndSearchAsync(string title)
+    public async Task InitializeAndSearchAsync(string title, string googleMiG)
     {
+        if (string.IsNullOrEmpty(googleMiG))
+        {
+            throw new ArgumentException("GoogleMiG cannot be null or empty.", nameof(googleMiG));
+        }
+
         Console.WriteLine("Navigating to Google Shopping with product title...");
 
         int retries = 0;
@@ -61,13 +66,7 @@ public class GoogleScraper
 
                 var encodedTitle = System.Web.HttpUtility.UrlEncode(title);
 
-                //Myjki com 100925695
-
-                //myjki eu 141313220
-
-                // Kawa w biurze   5341299802
-
-                var url = $"https://www.google.com/search?tbm=shop&tbs=merchagg:g141313220&q={encodedTitle}";
+                var url = $"https://www.google.com/search?tbm=shop&tbs=merchagg:g{googleMiG}&q={encodedTitle}";
 
                 await _page.GoToAsync(url, new NavigationOptions { Timeout = 60000, WaitUntil = new[] { WaitUntilNavigation.Load } });
 
