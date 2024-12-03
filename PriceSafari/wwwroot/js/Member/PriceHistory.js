@@ -1,1 +1,1934 @@
-﻿document.addEventListener("DOMContentLoaded", (function () { let e, t, n = [], o = null, i = "", a = 2, r = 2, c = 2, s = document.getElementById("usePriceDifference").checked, l = null, d = "", m = new Set, u = { sortName: null, sortPrice: null, sortRaiseAmount: null, sortRaisePercentage: null, sortLowerAmount: null, sortLowerPercentage: null, sortMarginAmount: null, sortMarginPercentage: null, showRejected: null }; function p(e, t) { let n; return function (...o) { const i = this; clearTimeout(n), n = setTimeout((() => e.apply(i, o)), t) } } e = document.getElementById("positionRangeSlider"); var g = document.getElementById("positionRange"); function h(e, t, n) { let o = parseFloat(e.value.replace(",", ".")); isNaN(o) || (e.value = o < t ? t.toFixed(2) : o > n ? n.toFixed(2) : o.toFixed(2)) } noUiSlider.create(e, { start: [1, 60], connect: !0, range: { min: 1, max: 60 }, step: 1, format: wNumb({ decimals: 0 }) }); const f = document.getElementById("price1"), L = document.getElementById("price2"), y = document.getElementById("stepPrice"); f.addEventListener("blur", (() => { h(f, .01, 100), parseFloat(y.value.replace(",", ".")) > parseFloat(f.value.replace(",", ".")) && (y.value = f.value), h(y, .01, parseFloat(f.value.replace(",", "."))), v() })), L.addEventListener("blur", (() => { h(L, .01, 100), v() })), y.addEventListener("blur", (() => { h(y, .01, parseFloat(f.value.replace(",", "."))), v() })), e.noUiSlider.on("update", (function (e, t) { const n = e.map((e => 60 === parseInt(e) ? "Schowany" : "Pozycja " + e)); g.textContent = n.join(" - ") })), e.noUiSlider.on("change", (function () { k() })), e.noUiSlider.on("change", (function () { k() })), t = document.getElementById("offerRangeSlider"); var P = document.getElementById("offerRange"); noUiSlider.create(t, { start: [1, 1], connect: !0, range: { min: 1, max: 1 }, step: 1, format: wNumb({ decimals: 0 }) }), t.noUiSlider.on("update", (function (e, t) { const n = e.map((e => { const t = parseInt(e); let n = " Ofert"; return 1 === t ? n = " Oferta" : t >= 2 && t <= 4 && (n = " Oferty"), t + n })); P.textContent = n.join(" - ") })), t.noUiSlider.on("change", (function () { k() })); const v = p((function () { const e = document.getElementById("usePriceDifference").checked; n.forEach((t => { t.valueToUse = e ? null !== t.savings ? t.savings : t.priceDifference : t.percentageDifference, t.colorClass = S(t.valueToUse, t.isUniqueBestPrice, t.isSharedBestPrice) })), k() }), 300); function C() { fetch(`/PriceHistory/GetStores?storeId=${storeId}`).then((e => e.json())).then((e => { const t = document.getElementById("competitorStoreSelect"); e.forEach((e => { const n = document.createElement("option"); n.value = e, n.text = e, t.appendChild(n) })), t.addEventListener("change", (function () { d = this.value, F() })) })).catch((e => console.error("Error fetching stores:", e))) } const E = document.getElementById("usePriceDifference"), x = document.getElementById("unitLabel1"), I = document.getElementById("unitLabel2"), N = document.getElementById("unitLabelStepPrice"); function b(e) { e ? (x.textContent = "PLN", I.textContent = "PLN", N.textContent = "PLN") : (x.textContent = "%", I.textContent = "%", N.textContent = "%") } function F() { const e = document.getElementById("sourceSelect").value; fetch(`/PriceHistory/GetPrices?storeId=${storeId}&competitorStore=${encodeURIComponent(d)}&source=${encodeURIComponent(e)}`).then((e => e.json())).then((e => { i = e.myStoreName, a = e.setPrice1, r = e.setPrice2, c = e.stepPrice, missedProductsCount = e.missedProductsCount, s = e.usePriceDiff, document.getElementById("usePriceDifference").checked = s, b(s), n = e.prices.map((e => { let t = null, n = "", o = null, i = null, a = null, r = null, c = "", l = ""; return e.isRejected ? n = "prRejected" : (t = s ? null !== e.savings ? e.savings : e.priceDifference : e.percentageDifference, n = S(t, e.isUniqueBestPrice, e.isSharedBestPrice), o = null == e.marginPrice || isNaN(e.marginPrice) ? null : parseFloat(e.marginPrice), i = null == e.myPrice || isNaN(e.myPrice) ? null : parseFloat(e.myPrice), null != o && null != i && (a = i - o, r = 0 !== o ? a / o * 100 : null, c = a >= 0 ? "+" : "-", l = a >= 0 ? "priceBox-diff-margin" : "priceBox-diff-margin-minus")), { ...e, storeCount: e.storeCount, isRejected: e.isRejected || !1, valueToUse: t, colorClass: n, marginPrice: o, myPrice: i, marginAmount: a, marginPercentage: r, marginSign: c, marginClass: l } })); const o = n.map((e => e.storeCount)), l = Math.max(...o), d = Math.max(l, 1); t.noUiSlider.updateOptions({ range: { min: 1, max: d } }), t.noUiSlider.set([1, d]), document.getElementById("totalPriceCount").textContent = e.priceCount, document.getElementById("price1").value = a, document.getElementById("price2").value = r, document.getElementById("stepPrice").value = c, document.getElementById("missedProductsCount").textContent = missedProductsCount, w(n); const m = document.getElementById("productSearch").value; let u = n; m && (u = u.filter((e => { const t = m.replace(/[^a-zA-Z0-9\s.-]/g, "").trim().toLowerCase().replace(/\s+/g, ""); return e.productName.toLowerCase().replace(/[^a-zA-Z0-9\s.-]/g, "").replace(/\s+/g, "").includes(t) }))), u = M(u), T(u), A(u), H(u), function () { const e = n.some((e => null !== e.marginAmount && null !== e.marginPercentage)), t = document.getElementById("sortMarginAmount"), o = document.getElementById("sortMarginPercentage"); e ? (t.style.display = "", o.style.display = "") : (t.style.display = "none", o.style.display = "none") }() })) } function w(e) { const t = {}; let n = 0; e.forEach((e => { 0 === e.flagIds.length && n++, e.flagIds.forEach((e => { t[e] || (t[e] = 0), t[e]++ })) })); const o = document.getElementById("flagContainer"); o.innerHTML = "", flags.forEach((e => { const n = t[e.FlagId] || 0, i = `\n            <div class="form-check">\n                <input class="form-check-input flagFilter" type="checkbox" id="flagCheckbox_${e.FlagId}" value="${e.FlagId}" ${m.has(e.FlagId.toString()) ? "checked" : ""}>\n                <label class="form-check-label" for="flagCheckbox_${e.FlagId}">${e.FlagName} (${n})</label>\n            </div>\n        `; o.innerHTML += i })); const i = `\n        <div class="form-check">\n            <input class="form-check-input flagFilter" type="checkbox" id="noFlagCheckbox" value="noFlag" ${m.has("noFlag") ? "checked" : ""}>\n            <label class="form-check-label" for="noFlagCheckbox">Brak flagi (${n})</label>\n        </div>\n        `; o.innerHTML += i, document.querySelectorAll(".flagFilter").forEach((e => { e.addEventListener("change", (function () { const e = this.value; this.checked ? m.add(e) : m.delete(e), k() })) })) } function M(n) { const o = Array.from(document.querySelectorAll(".colorFilter:checked")).map((e => e.value)), i = document.getElementById("bidFilter").checked, a = Array.from(document.querySelectorAll(".deliveryFilterMyStore:checked")).map((e => parseInt(e.value))), r = Array.from(document.querySelectorAll(".deliveryFilterCompetitor:checked")).map((e => parseInt(e.value))), c = Array.from(document.querySelectorAll(".externalPriceFilter:checked")).map((e => e.value)), s = e.noUiSlider.get(), l = parseInt(s[0]), d = parseInt(s[1]), u = t.noUiSlider.get(), p = parseInt(u[0]), g = parseInt(u[1]); let h = n; return h = h.filter((e => { const t = e.myPosition; if (null == t) return !0; const n = parseInt(t), o = n >= l && n <= d; return o })), h = h.filter((e => { const t = e.storeCount; return t >= p && t <= g })), o.length && (h = h.filter((e => o.includes(e.colorClass)))), m.has("noFlag") ? h = h.filter((e => 0 === e.flagIds.length)) : m.size > 0 && (h = h.filter((e => Array.from(m).some((t => e.flagIds.includes(parseInt(t))))))), i && (h = h.filter((e => "1" === e.myIsBidding))), a.length && (h = h.filter((e => a.includes(e.myDelivery)))), r.length && (h = h.filter((e => r.includes(e.delivery)))), c.includes("yes") ? h = h.filter((e => null !== e.externalPrice)) : c.includes("no") && (h = h.filter((e => null === e.externalPrice))), h } function S(e, t = !1, n = !1) { return t && e <= a ? "prIdeal" : t ? "prToLow" : n || e <= 0 ? "prGood" : e < r ? "prMid" : "prToHigh" } function D(e, t) { if (!t) return e; const n = t.replace(/[^a-zA-Z0-9]/g, "").toLowerCase(), o = e.replace(/[^a-zA-Z0-9]/g, "").toLowerCase().indexOf(n); if (-1 === o) return e; let i = [], a = 0; for (let t = 0; t < e.length; t++)/[a-zA-Z0-9]/.test(e[t]) && (i[a] = t, a++); const r = i[o], c = i[o + n.length - 1]; return e.substring(0, r) + '<span class="highlighted-text">' + e.substring(r, c + 1) + "</span>" + e.substring(c + 1) } function T(e) { const t = document.getElementById("priceContainer"), n = document.getElementById("productSearch").value.trim(), o = document.getElementById("storeSearch").value.trim(); t.innerHTML = "", e.forEach((e => { const a = e.isRejected, r = D(e.productName, n), d = D(e.storeName, o), m = "1" === e.isBidding, u = B(e.delivery); let p = null, g = null, h = null, f = null, L = null, y = null, P = null, v = "", C = "", E = null, x = null, I = null, N = null; a || (p = null != e.percentageDifference ? e.percentageDifference.toFixed(2) : "N/A", g = null != e.priceDifference ? e.priceDifference.toFixed(2) : "N/A", h = null != e.savings ? e.savings.toFixed(2) : "N/A", f = "1" === e.myIsBidding, L = B(e.myDelivery), y = e.marginAmount, P = e.marginPercentage, v = e.marginSign, C = e.marginClass, E = e.marginPrice, x = null != e.myPrice ? parseFloat(e.myPrice) : null, I = e.myPosition, N = null != e.lowestPrice ? parseFloat(e.lowestPrice) : null); const b = document.createElement("div"); b.className = "price-box " + e.colorClass, b.dataset.detailsUrl = "/PriceHistory/Details?scrapId=" + e.scrapId + "&productId=" + e.productId, b.dataset.productId = e.productId, b.addEventListener("click", (function () { window.open(this.dataset.detailsUrl, "_blank") })), b.addEventListener("click", (function () { window.open(this.dataset.detailsUrl, "_blank") })); const F = document.createElement("div"); F.className = "price-box-space"; const w = document.createElement("div"); w.className = "price-box-column-name", w.innerHTML = r; const M = document.createElement("div"); if (M.className = "price-box-column-category", e.externalId) { const t = document.createElement("span"); t.className = "ApiBox", t.innerHTML = "API ID " + e.externalId, M.appendChild(t) } const S = O(e), T = document.createElement("button"); T.className = "assign-flag-button", T.dataset.productId = e.productId, T.innerHTML = "+ Przypisz flagi", T.style.pointerEvents = "auto", T.addEventListener("click", (function (e) { e.stopPropagation(), l = this.dataset.productId, U.style.display = "block", fetch(`/ProductFlags/GetFlagsForProduct?productId=${l}`).then((e => e.json())).then((e => { document.querySelectorAll(".flagCheckbox").forEach((t => { t.checked = e.includes(parseInt(t.value)) })) })).catch((e => console.error("Błąd pobierania flag dla produktu:", e))) })), F.appendChild(w), F.appendChild(S), F.appendChild(T), F.appendChild(M); const A = document.createElement("div"); A.className = "price-box-externalInfo"; const H = document.createElement("div"); if (H.className = "price-box-column-offers", H.innerHTML = (e.sourceGoogle || e.sourceCeneo ? '<span class="data-channel">' + (e.sourceGoogle ? '<img src="/images/GoogleShopping.png" alt="Google Icon" style="width:15px; height:15px;" />' : "") + (e.sourceCeneo ? '<img src="/images/Ceneo.png" alt="Ceneo Icon" style="width:15px; height:15px;" />' : "") + "</span>" : "") + '<div class="offer-count-box">' + e.storeCount + " Ofert</div>", A.appendChild(H), null != E) { const e = E.toLocaleString("pl-PL", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " PLN", t = document.createElement("div"); if (t.className = "price-box-diff-margin " + C, t.innerHTML = "<p>Cena zakupu: " + e + "</p>", A.appendChild(t), null != x) { const e = v + Math.abs(y).toLocaleString("pl-PL", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " PLN", t = "(" + v + Math.abs(P).toLocaleString("pl-PL", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + "%)", n = document.createElement("div"); n.className = "price-box-diff-margin " + C, n.innerHTML = "<p>Marża: " + e + " " + t + "</p>", A.appendChild(n) } } F.appendChild(A); const k = document.createElement("div"); k.className = "price-box-data"; const R = document.createElement("div"); R.className = "color-bar " + e.colorClass; const q = document.createElement("div"); q.className = "price-box-column"; const j = document.createElement("div"); j.className = "price-box-column-text", j.innerHTML = '<span style="font-weight: 500; font-size:17px;">' + e.lowestPrice.toFixed(2) + " PLN</span><br>" + d; const z = document.createElement("div"); z.className = "price-box-column-text", z.innerHTML = (null != e.isGoogle ? '<span class="data-channel"><img src="' + (e.isGoogle ? "/images/GoogleShopping.png" : "/images/Ceneo.png") + '" alt="Channel Icon" style="width:20px; height:20px; margin-right:4px;" /></div>' : "") + (null !== e.position ? e.isGoogle ? '<span class="Position-Google">Poz. Google ' + e.position + "</span>" : '<span class="Position">Poz. Ceneo ' + e.position + "</span>" : '<span class="Position" style="background-color: #414141;">Schowany</span>') + (m ? '<span class="Bidding">Bid</span>' : "") + (null != e.delivery ? '<span class="' + u + '">Wysyłka w ' + (1 == e.delivery ? "1 dzień" : e.delivery + " dni") + "</span>" : ""), q.appendChild(j), q.appendChild(z); const G = document.createElement("div"); if (G.className = "price-box-column", a || null == x) { const e = document.createElement("div"); e.className = "price-box-column-text", e.innerHTML = '<span style="font-weight: 500;">Brak ceny</span><br>' + i, G.appendChild(e) } else { const t = document.createElement("div"); if (t.className = "price-box-column-text", null !== e.externalPrice) { const n = (e.externalPrice - x).toFixed(2), o = e.externalPrice < x, a = document.createElement("div"); a.style.display = "flex", a.style.justifyContent = "space-between", a.style.alignItems = "center"; const r = document.createElement("span"); r.style.fontWeight = "500", r.style.marginRight = "20px", r.textContent = i; const c = document.createElement("span"); c.style.fontWeight = "500"; const s = '<span class="' + (o ? "arrow-down" : "arrow-up") + '"></span>'; c.innerHTML = s + (o ? "-" : "+") + Math.abs(n) + " PLN ", a.appendChild(r), a.appendChild(c); const l = document.createElement("div"); l.style.display = "flex", l.style.justifyContent = "space-between", l.style.alignItems = "center"; const d = document.createElement("span"); d.style.fontWeight = "500", d.style.textDecoration = "line-through", d.style.marginRight = "10px", d.textContent = x.toFixed(2) + " PLN"; const m = document.createElement("span"); m.style.fontWeight = "500", m.textContent = e.externalPrice.toFixed(2) + " PLN", l.appendChild(d), l.appendChild(m), t.appendChild(l), t.appendChild(a) } else t.innerHTML = '<span style="font-weight: 500; font-size:17px;">' + x.toFixed(2) + " PLN</span><br>" + i; const n = document.createElement("div"); n.className = "price-box-column-text", n.innerHTML = (null != e.myIsGoogle ? '<span class="data-channel"><img src="' + (e.myIsGoogle ? "/images/GoogleShopping.png" : "/images/Ceneo.png") + '" alt="Channel Icon" style="width:20px; height:20px; margin-right:4px;" /></div>' : "") + (null !== I ? e.myIsGoogle ? '<span class="Position-Google">Poz. Google ' + I + "</span>" : '<span class="Position">Poz. Ceneo ' + I + "</span>" : '<span class="Position" style="background-color: #414141;">Schowany</span>') + (f ? '<span class="Bidding">Bid</span>' : "") + (null != e.myDelivery ? '<span class="' + L + '">Wysyłka w ' + (1 == e.myDelivery ? "1 dzień" : e.myDelivery + " dni") + "</span>" : ""), G.appendChild(t), G.appendChild(n) } const $ = document.createElement("div"); if ($.className = "price-box-column-action", $.innerHTML = "", a) $.innerHTML += '<div class="rejected-product">Produkt odrzucony</div>'; else if ("prToLow" === e.colorClass || "prIdeal" === e.colorClass) if (null != x && null != h) { const t = parseFloat(h.replace(",", ".")), n = "prToLow" === e.colorClass ? "arrow-up-black" : "arrow-up-turquoise", o = x + t, i = t / x * 100; let a, r, l, d = n; if (s) t < 1 ? (a = o - c, r = a - x, l = r / x * 100, r < 0 && (d = "arrow-down-turquoise")) : (a = o - c, r = t - c, l = r / x * 100, r < 0 && (d = "arrow-down-turquoise")); else { const e = c / 100; t < 1 ? (a = o * (1 - e), r = a - x, l = r / x * 100, r < 0 && (d = "arrow-down-turquoise")) : (a = o * (1 - e), r = t - x * e, l = r / x * 100, r < 0 && (d = "arrow-down-turquoise")) } const m = (t >= 0 ? "+" : "") + t.toLocaleString("pl-PL", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " PLN", u = "(" + (i >= 0 ? "+" : "") + i.toLocaleString("pl-PL", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + "%)", p = o.toLocaleString("pl-PL", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " PLN", g = (r >= 0 ? "+" : "") + r.toLocaleString("pl-PL", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " PLN", f = "(" + (l >= 0 ? "+" : "") + l.toLocaleString("pl-PL", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + "%)", L = a.toLocaleString("pl-PL", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " PLN", y = document.createElement("div"); y.className = "price-box-column"; const P = document.createElement("div"); P.className = "price-action-line"; const v = document.createElement("span"); v.className = n; const C = document.createElement("span"); C.innerHTML = m + " " + u; const E = document.createElement("div"); E.innerHTML = "= " + p; const I = document.createElement("span"); I.className = "color-square-green", P.appendChild(v), P.appendChild(C), P.appendChild(E), P.appendChild(I), y.appendChild(P); const N = document.createElement("div"); N.className = "price-box-column"; const b = document.createElement("div"); b.className = "price-action-line"; const F = document.createElement("span"); F.className = d; const w = document.createElement("span"); w.innerHTML = g + " " + f; const M = document.createElement("div"); M.innerHTML = "= " + L; const S = document.createElement("span"); S.className = "color-square-turquoise", b.appendChild(F), b.appendChild(w), b.appendChild(M), b.appendChild(S), N.appendChild(b), $.appendChild(y), $.appendChild(N) } else { const t = e.colorClass + " priceBox-diff"; $.innerHTML += '<div class="' + t + '">Podnieś: N/A</div>' } else if ("prMid" === e.colorClass) if (null != x && null != N) { const e = x - N, t = e / x * 100; let n; n = s ? N - c : N * (1 - c / 100); const o = x - n, i = o / x * 100, a = e.toLocaleString("pl-PL", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " PLN", r = "(-" + t.toLocaleString("pl-PL", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + "%)", l = N.toLocaleString("pl-PL", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " PLN", d = o.toLocaleString("pl-PL", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " PLN", m = "(-" + i.toLocaleString("pl-PL", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + "%)", u = n.toLocaleString("pl-PL", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " PLN", p = document.createElement("div"); p.className = "price-box-column"; const g = document.createElement("div"); g.className = "price-action-line"; const h = document.createElement("span"); h.className = "arrow-down-yellow"; const f = document.createElement("span"); f.innerHTML = "-" + a + " " + r; const L = document.createElement("div"); L.innerHTML = "= " + l; const y = document.createElement("span"); y.className = "color-square-green", g.appendChild(h), g.appendChild(f), g.appendChild(L), g.appendChild(y), p.appendChild(g); const P = document.createElement("div"); P.className = "price-box-column"; const v = document.createElement("div"); v.className = "price-action-line"; const C = document.createElement("span"); C.className = "arrow-down-yellow"; const E = document.createElement("span"); E.innerHTML = "-" + d + " " + m; const I = document.createElement("div"); I.innerHTML = "= " + u; const b = document.createElement("span"); b.className = "color-square-turquoise", v.appendChild(C), v.appendChild(E), v.appendChild(I), v.appendChild(b), P.appendChild(v), $.appendChild(p), $.appendChild(P) } else { const t = e.colorClass + " priceBox-diff"; $.innerHTML += '<div class="' + t + '">Obniż: N/A</div>' } else if ("prToHigh" === e.colorClass) if (null != x && null != N) { const e = x - N, t = e / x * 100; let n; n = s ? N - c : N * (1 - c / 100); const o = x - n, i = o / x * 100, a = e.toLocaleString("pl-PL", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " PLN", r = "(-" + t.toLocaleString("pl-PL", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + "%)", l = N.toLocaleString("pl-PL", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " PLN", d = o.toLocaleString("pl-PL", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " PLN", m = "(-" + i.toLocaleString("pl-PL", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + "%)", u = n.toLocaleString("pl-PL", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " PLN", p = document.createElement("div"); p.className = "price-box-column"; const g = document.createElement("div"); g.className = "price-action-line"; const h = document.createElement("span"); h.className = "arrow-down-red"; const f = document.createElement("span"); f.innerHTML = "-" + a + " " + r; const L = document.createElement("div"); L.innerHTML = "= " + l; const y = document.createElement("span"); y.className = "color-square-green", g.appendChild(h), g.appendChild(f), g.appendChild(L), g.appendChild(y), p.appendChild(g); const P = document.createElement("div"); P.className = "price-box-column"; const v = document.createElement("div"); v.className = "price-action-line"; const C = document.createElement("span"); C.className = "arrow-down-red"; const E = document.createElement("span"); E.innerHTML = "-" + d + " " + m; const I = document.createElement("div"); I.innerHTML = "= " + u; const b = document.createElement("span"); b.className = "color-square-turquoise", v.appendChild(C), v.appendChild(E), v.appendChild(I), v.appendChild(b), P.appendChild(v), $.appendChild(p), $.appendChild(P) } else { const t = e.colorClass + " priceBox-diff"; $.innerHTML += '<div class="' + t + '">Obniż: N/A</div>' } else if ("prGood" === e.colorClass) if (null != x) { const t = "+0,00 PLN", n = "(+0,00%)", o = "= " + x.toLocaleString("pl-PL", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " PLN"; let i, a, r, l, d, m, u, p; if (1 === e.storeCount) i = 0, a = 0, r = x, l = "+0,00 PLN", d = "(+0,00%)", m = "= " + r.toLocaleString("pl-PL", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " PLN", u = "no-change-icon-turquoise", p = "color-square-turquoise"; else { if (s) i = -c, r = x + i, a = i / x * 100; else { const e = c / 100; i = -x * e, r = x * (1 - e), a = -c } l = (i >= 0 ? "+" : "") + i.toLocaleString("pl-PL", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " PLN", d = "(" + (a >= 0 ? "+" : "") + a.toLocaleString("pl-PL", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + "%)", m = "= " + r.toLocaleString("pl-PL", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " PLN", u = "arrow-down-green", p = "color-square-turquoise" } const g = document.createElement("div"); g.className = "price-box-column"; const h = document.createElement("div"); h.className = "price-action-line"; const f = document.createElement("span"); f.className = "no-change-icon"; const L = document.createElement("span"); L.innerHTML = t + " " + n; const y = document.createElement("div"); y.innerHTML = o; const P = document.createElement("span"); P.className = "color-square-green", h.appendChild(f), h.appendChild(L), h.appendChild(y), h.appendChild(P), g.appendChild(h); const v = document.createElement("div"); v.className = "price-box-column"; const C = document.createElement("div"); C.className = "price-action-line"; const E = document.createElement("span"); E.className = u; const I = document.createElement("span"); I.innerHTML = l + " " + d; const N = document.createElement("div"); N.innerHTML = m; const b = document.createElement("span"); b.className = p, C.appendChild(E), C.appendChild(I), C.appendChild(N), C.appendChild(b), v.appendChild(C), $.appendChild(g), $.appendChild(v) } else { const t = e.colorClass + " priceBox-diff-top"; $.innerHTML += '<div class="' + t + '">Jesteś w najlepszych cenach</div>' } if (k.appendChild(R), e.imgUrl) { const t = document.createElement("img"); t.dataset.src = e.imgUrl, t.alt = e.productName, t.className = "lazy-load", t.style.width = "110px", t.style.height = "110px", t.style.marginRight = "5px", t.style.marginLeft = "5px", t.style.backgroundColor = "#ffffff", t.style.border = "1px solid #e3e3e3", t.style.borderRadius = "4px", t.style.padding = "10px", t.style.display = "block", k.appendChild(t) } k.appendChild(q), k.appendChild(G), k.appendChild($), b.appendChild(F), b.appendChild(M), b.appendChild(A), b.appendChild(k), t.appendChild(b) })); const a = document.querySelectorAll('.price-box:not([style*="display: none"])'); document.getElementById("displayedProductCount").textContent = a.length; Array.from(a).map((e => parseInt(e.dataset.index))); const r = document.querySelectorAll(".lazy-load"), d = new Map, m = new IntersectionObserver(((e, t) => { e.forEach((e => { const n = e.target, o = [...r].indexOf(n); if (e.isIntersecting) { const e = setTimeout((() => { !function (e) { const t = 6, n = Math.max(0, e - t), o = Math.min(r.length - 1, e + t); for (let e = n; e <= o; e++) { const t = r[e]; t.src || (t.src = t.dataset.src, t.onload = () => { t.classList.add("loaded") }) } }(o), t.unobserve(n), d.delete(n) }), 100); d.set(n, e) } else d.has(n) && (clearTimeout(d.get(n)), d.delete(n)) })) }), { root: null, rootMargin: "50px", threshold: .01 }); r.forEach((e => { m.observe(e) })) } function B(e) { return e <= 1 ? "Availability1Day" : e <= 3 ? "Availability3Days" : e <= 7 ? "Availability7Days" : "Availability14Days" } E.addEventListener("change", (function () { s = this.checked, b(s), v() })); const A = p((function (e) { const t = { prGood: 0, prMid: 0, prToHigh: 0, prIdeal: 0, prToLow: 0 }; e.forEach((e => { e.isRejected || t[e.colorClass]++ })); const n = [t.prToHigh, t.prMid, t.prGood, t.prIdeal, t.prToLow]; if (o) o.data.datasets[0].data = n, o.update(); else { const e = document.getElementById("colorChart").getContext("2d"); o = new Chart(e, { type: "doughnut", data: { labels: ["Zawyżona", "Suboptymalna", "Konkurencyjna", "Strategiczna", "Zaniżona"], datasets: [{ data: n, backgroundColor: ["rgba(171, 37, 32, 0.8)", "rgba(224, 168, 66, 0.8)", "rgba(117, 152, 112, 0.8)", "rgba(0, 145, 123, 0.8)", "rgba(6, 6, 6, 0.8)"], borderColor: ["rgba(171, 37, 32, 1)", "rgba(224, 168, 66, 1)", "rgba(117, 152, 112, 1)", "rgba(0, 145, 123, 1)", "rgba(6, 6, 6, 1)"], borderWidth: 1 }] }, options: { aspectRatio: 1, cutout: "60%", plugins: { legend: { display: !1, position: "right", labels: { usePointStyle: !0, padding: 16, generateLabels: function (e) { const t = Chart.overrides.doughnut.plugins.legend.labels.generateLabels.call(this, e); return t.forEach((e => { e.text = "   " + e.text })), t } } }, tooltip: { callbacks: { label: function (e) { return "Produkty: " + e.parsed } } } } } }) } }), 600); function H(e) { const t = { prToHigh: 0, prMid: 0, prGood: 0, prIdeal: 0, prToLow: 0 }; e.forEach((e => { t[e.colorClass]++ })), document.querySelector('label[for="prToHighCheckbox"]').textContent = `Zawyżona (${t.prToHigh})`, document.querySelector('label[for="prMidCheckbox"]').textContent = `Suboptymalna (${t.prMid})`, document.querySelector('label[for="prGoodCheckbox"]').textContent = `Konkurencyjna (${t.prGood})`, document.querySelector('label[for="prIdealCheckbox"]').textContent = `Strategiczna (${t.prIdeal})`, document.querySelector('label[for="prToLowCheckbox"]').textContent = `Zaniżona (${t.prToLow})` } function k() { const e = document.getElementById("productSearch").value.toLowerCase().replace(/\s+/g, "").trim(), t = document.getElementById("storeSearch").value.toLowerCase().replace(/\s+/g, "").trim(), o = e.replace(/[^a-zA-Z0-9\s/.-]/g, "").toLowerCase().replace(/\s+/g, ""), i = t.replace(/[^a-zA-Z0-9\s/.-]/g, "").toLowerCase().replace(/\s+/g, ""); let a = n.filter((e => { const t = e.productName.toLowerCase().replace(/[^a-zA-Z0-9\s/.-]/g, "").replace(/\s+/g, ""), n = e.storeName.toLowerCase().replace(/[^a-zA-Z0-9\s/.-]/g, "").replace(/\s+/g, ""), a = t.includes(o), r = n.includes(i); return ("" === o || a) && ("" === i || r) })); a.sort(((e, t) => { const n = e.productName.toLowerCase().replace(/[^a-zA-Z0-9\s/.-]/g, "").replace(/\s+/g, ""), i = t.productName.toLowerCase().replace(/[^a-zA-Z0-9\s/.-]/g, "").replace(/\s+/g, ""), a = j(n, o), r = j(i, o); if (a !== r) return a - r; const c = z(n, o), s = z(i, o); return c !== s ? s - c : e.productName.localeCompare(t.productName) })), a = M(a), a = u.showRejected ? a.filter((e => e.isRejected)) : a.filter((e => !e.isRejected)), null !== u.sortName ? "asc" === u.sortName ? a.sort(((e, t) => e.productName.localeCompare(t.productName))) : a.sort(((e, t) => t.productName.localeCompare(e.productName))) : null !== u.sortPrice ? "asc" === u.sortPrice ? a.sort(((e, t) => e.lowestPrice - t.lowestPrice)) : a.sort(((e, t) => t.lowestPrice - e.lowestPrice)) : null !== u.sortRaiseAmount ? (a = a.filter((e => !e.isRejected && null !== e.savings)), "asc" === u.sortRaiseAmount ? a.sort(((e, t) => e.savings - t.savings)) : a.sort(((e, t) => t.savings - e.savings))) : null !== u.sortRaisePercentage ? (a = a.filter((e => !e.isRejected && null !== e.savings)), "asc" === u.sortRaisePercentage ? a.sort(((e, t) => e.percentageDifference - t.percentageDifference)) : a.sort(((e, t) => t.percentageDifference - e.percentageDifference))) : null !== u.sortLowerAmount ? (a = a.filter((e => !e.isRejected && null === e.savings && 0 !== e.priceDifference)), "asc" === u.sortLowerAmount ? a.sort(((e, t) => e.priceDifference - t.priceDifference)) : a.sort(((e, t) => t.priceDifference - e.priceDifference))) : null !== u.sortLowerPercentage ? (a = a.filter((e => !e.isRejected && null === e.savings && 0 !== e.priceDifference)), "asc" === u.sortLowerPercentage ? a.sort(((e, t) => e.percentageDifference - t.percentageDifference)) : a.sort(((e, t) => t.percentageDifference - e.percentageDifference))) : null !== u.sortMarginAmount ? (a = a.filter((e => null !== e.marginAmount)), "asc" === u.sortMarginAmount ? a.sort(((e, t) => e.marginAmount - t.marginAmount)) : a.sort(((e, t) => t.marginAmount - e.marginAmount))) : null !== u.sortMarginPercentage && (a = a.filter((e => null !== e.marginPercentage)), "asc" === u.sortMarginPercentage ? a.sort(((e, t) => e.marginPercentage - t.marginPercentage)) : a.sort(((e, t) => t.marginPercentage - e.marginPercentage))), T(a), A(a), H(a), w(a) } function R(e) { for (let t in u) if (t !== e) if ("showRejected" === t) { u[t] = !1; let e = document.getElementById("showRejectedButton"); e && e.classList.remove("active") } else { u[t] = null; let e = document.getElementById(t); e && (e.innerHTML = q(t), e.classList.remove("active")) } } function q(e) { switch (e) { case "sortName": return "A-Z"; case "sortPrice": return "Cena"; case "sortRaiseAmount": return "Podnieś PLN"; case "sortRaisePercentage": return "Podnieś %"; case "sortLowerAmount": return "Obniż PLN"; case "sortLowerPercentage": return "Obniż %"; case "sortMarginAmount": return "Marża PLN"; case "sortMarginPercentage": return "Marża %"; case "showRejected": return "Pokaż Odrzucone"; default: return "" } } function j(e, t) { return e.indexOf(t) } function z(e, t) { let n = 0; for (let o = 0; o < e.length; o++)for (let i = o; i <= e.length; i++) { const a = e.slice(o, i); t.includes(a) && a.length > n && (n = a.length) } return n } document.getElementById("showRejectedButton").addEventListener("click", (function () { u.showRejected = !u.showRejected, u.showRejected ? this.classList.add("active") : this.classList.remove("active"), R("showRejected"), k() })); const G = p((function () { k() }), 300); document.getElementById("productSearch").addEventListener("input", G), document.querySelectorAll(".colorFilter, .flagFilter, .positionFilter, .deliveryFilterMyStore, .deliveryFilterCompetitor, .externalPriceFilter").forEach((function (e) { e.addEventListener("change", (function () { k() })) })), document.getElementById("bidFilter").addEventListener("change", (function () { k() })), document.getElementById("sortName").addEventListener("click", (function () { null === u.sortName ? (u.sortName = "asc", this.innerHTML = "A-Z ↑", this.classList.add("active")) : "asc" === u.sortName ? (u.sortName = "desc", this.innerHTML = "A-Z ↓", this.classList.add("active")) : (u.sortName = null, this.innerHTML = "A-Z", this.classList.remove("active")), R("sortName"), k() })), document.getElementById("sortPrice").addEventListener("click", (function () { null === u.sortPrice ? (u.sortPrice = "asc", this.innerHTML = "Cena ↑", this.classList.add("active")) : "asc" === u.sortPrice ? (u.sortPrice = "desc", this.innerHTML = "Cena ↓", this.classList.add("active")) : (u.sortPrice = null, this.innerHTML = "Cena", this.classList.remove("active")), R("sortPrice"), k() })), document.getElementById("sortRaiseAmount").addEventListener("click", (function () { null === u.sortRaiseAmount ? (u.sortRaiseAmount = "asc", this.innerHTML = "Podnieś PLN ↑", this.classList.add("active")) : "asc" === u.sortRaiseAmount ? (u.sortRaiseAmount = "desc", this.innerHTML = "Podnieś PLN ↓", this.classList.add("active")) : (u.sortRaiseAmount = null, this.innerHTML = "Podnieś PLN", this.classList.remove("active")), R("sortRaiseAmount"), k() })), document.getElementById("sortRaisePercentage").addEventListener("click", (function () { null === u.sortRaisePercentage ? (u.sortRaisePercentage = "asc", this.innerHTML = "Podnieś % ↑", this.classList.add("active")) : "asc" === u.sortRaisePercentage ? (u.sortRaisePercentage = "desc", this.innerHTML = "Podnieś % ↓", this.classList.add("active")) : (u.sortRaisePercentage = null, this.innerHTML = "Podnieś %", this.classList.remove("active")), R("sortRaisePercentage"), k() })), document.getElementById("sortLowerAmount").addEventListener("click", (function () { null === u.sortLowerAmount ? (u.sortLowerAmount = "asc", this.innerHTML = "Obniż PLN ↑", this.classList.add("active")) : "asc" === u.sortLowerAmount ? (u.sortLowerAmount = "desc", this.innerHTML = "Obniż PLN ↓", this.classList.add("active")) : (u.sortLowerAmount = null, this.innerHTML = "Obniż PLN", this.classList.remove("active")), R("sortLowerAmount"), k() })), document.getElementById("sortLowerPercentage").addEventListener("click", (function () { null === u.sortLowerPercentage ? (u.sortLowerPercentage = "asc", this.innerHTML = "Obniż % ↑", this.classList.add("active")) : "asc" === u.sortLowerPercentage ? (u.sortLowerPercentage = "desc", this.innerHTML = "Obniż % ↓", this.classList.add("active")) : (u.sortLowerPercentage = null, this.innerHTML = "Obniż %", this.classList.remove("active")), R("sortLowerPercentage"), k() })), document.getElementById("sortMarginAmount").addEventListener("click", (function () { null === u.sortMarginAmount ? (u.sortMarginAmount = "asc", this.innerHTML = "Marża PLN ↑", this.classList.add("active")) : "asc" === u.sortMarginAmount ? (u.sortMarginAmount = "desc", this.innerHTML = "Marża PLN ↓", this.classList.add("active")) : (u.sortMarginAmount = null, this.innerHTML = "Marża PLN", this.classList.remove("active")), R("sortMarginAmount"), k() })), document.getElementById("sortMarginPercentage").addEventListener("click", (function () { null === u.sortMarginPercentage ? (u.sortMarginPercentage = "asc", this.innerHTML = "Marża % ↑", this.classList.add("active")) : "asc" === u.sortMarginPercentage ? (u.sortMarginPercentage = "desc", this.innerHTML = "Marża % ↓", this.classList.add("active")) : (u.sortMarginPercentage = null, this.innerHTML = "Marża %", this.classList.remove("active")), R("sortMarginPercentage"), k() })), document.getElementById("usePriceDifference").addEventListener("change", (function () { const e = this.checked; n.forEach((t => { t.valueToUse = e ? null !== t.savings ? t.savings : t.priceDifference : t.percentageDifference, t.colorClass = S(t.valueToUse, t.isUniqueBestPrice, t.isSharedBestPrice) })), k() })), document.getElementById("storeSearch").addEventListener("input", G), document.getElementById("price1").addEventListener("input", (function () { a = parseFloat(this.value), v() })), document.getElementById("price2").addEventListener("input", (function () { r = parseFloat(this.value), v() })), document.getElementById("stepPrice").addEventListener("input", (function () { c = parseFloat(this.value), v() })), document.getElementById("sourceSelect").addEventListener("change", (function () { C(), F() })), document.getElementById("savePriceValues").addEventListener("click", (function () { const e = parseFloat(document.getElementById("price1").value), t = parseFloat(document.getElementById("price2").value), n = parseFloat(document.getElementById("stepPrice").value), o = document.getElementById("usePriceDifference").checked, i = { StoreId: storeId, SetPrice1: e, SetPrice2: t, PriceStep: n, UsePriceDiff: o }; fetch("/PriceHistory/SavePriceValues", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(i) }).then((e => e.json())).then((i => { i.success ? (a = e, r = t, c = n, usePriceDifferenceGlobal = o, F()) : alert("Błąd zapisu wartości: " + i.message) })).catch((e => console.error("Błąd zapisu wartości:", e))) })); const U = document.getElementById("flagModal"); function O(e) { const t = document.createElement("div"); return t.className = "flags-container", e.flagIds && e.flagIds.length > 0 && e.flagIds.forEach((function (e) { const n = flags.find((function (t) { return t.FlagId === e })); if (n) { const e = document.createElement("span"); e.className = "flag", e.style.color = n.FlagColor, e.style.border = "2px solid " + n.FlagColor, e.style.backgroundColor = function (e, t) { let n = 0, o = 0, i = 0; return 4 == e.length ? (n = parseInt(e[1] + e[1], 16), o = parseInt(e[2] + e[2], 16), i = parseInt(e[3] + e[3], 16)) : 7 == e.length && (n = parseInt(e[1] + e[2], 16), o = parseInt(e[3] + e[4], 16), i = parseInt(e[5] + e[6], 16)), `rgba(${n}, ${o}, ${i}, ${t})` }(n.FlagColor, .3), e.innerHTML = n.FlagName, t.appendChild(e) } })), t } document.getElementsByClassName("close")[0].onclick = function () { U.style.display = "none" }, window.onclick = function (e) { e.target == U && (U.style.display = "none") }, document.getElementById("saveFlagsButton").addEventListener("click", (function () { const e = Array.from(document.querySelectorAll(".flagCheckbox:checked")).map((e => parseInt(e.value))), t = { productId: l, flagIds: e }; fetch("/ProductFlags/AssignFlagsToProduct", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(t) }).then((e => e.json())).then((e => { e.success ? (U.style.display = "none", fetch(`/ProductFlags/GetFlagsForProduct?productId=${l}`).then((e => e.json())).then((e => { const t = parseInt(l), o = n.find((e => e.productId === t)); o ? o.flagIds = e : console.error("Product not found in allPrices:", l), function (e) { const t = parseInt(e), o = document.querySelector(`.price-box[data-product-id='${e}']`); if (o) { const i = o.querySelector(".flags-container"), a = n.find((e => e.productId === t)); if (a) { const e = O(a); i ? i.parentNode.replaceChild(e, i) : o.appendChild(e) } else console.error("Product not found in allPrices:", e) } }(l), w(n) })).catch((e => console.error("Error fetching updated flags for product:", e)))) : alert("Error assigning flags: " + e.message) })).catch((e => console.error("Error assigning flags:", e))) })), C(), F() }));
+﻿document.addEventListener("DOMContentLoaded", function () {
+    let allPrices = [];
+    let chartInstance = null;
+    let myStoreName = "";
+    let setPrice1 = 2.00;
+    let setPrice2 = 2.00;
+    let setStepPrice = 2.00;
+    let usePriceDifference = document.getElementById('usePriceDifference').checked;
+    let selectedProductId = null;
+    let competitorStore = "";
+    let selectedFlags = new Set();
+    let sortingState = {
+        sortName: null,
+        sortPrice: null,
+        sortRaiseAmount: null,
+        sortRaisePercentage: null,
+        sortLowerAmount: null,
+        sortLowerPercentage: null,
+        sortMarginAmount: null,
+        sortMarginPercentage: null,
+        showRejected: null
+    };
+
+    let positionSlider;
+    let offerSlider;
+
+    function debounce(func, wait) {
+        let timeout;
+        return function (...args) {
+            const context = this;
+            clearTimeout(timeout);
+            timeout = setTimeout(() => func.apply(context, args), wait);
+        };
+    }
+
+    positionSlider = document.getElementById('positionRangeSlider');
+    var positionRangeInput = document.getElementById('positionRange');
+
+    noUiSlider.create(positionSlider, {
+        start: [1, 60],
+        connect: true,
+        range: {
+            'min': 1,
+            'max': 60
+        },
+        step: 1,
+        format: wNumb({
+            decimals: 0
+        })
+    });
+
+    function enforceLimits(input, min, max) {
+        let value = parseFloat(input.value.replace(',', '.'));
+        if (isNaN(value)) {
+            return;
+        }
+        if (value < min) {
+            input.value = min.toFixed(2);
+        } else if (value > max) {
+            input.value = max.toFixed(2);
+        } else {
+            input.value = value.toFixed(2);
+        }
+    }
+
+    const price1Input = document.getElementById("price1");
+    const price2Input = document.getElementById("price2");
+    const stepPriceInput = document.getElementById("stepPrice");
+
+    price1Input.addEventListener("blur", () => {
+        enforceLimits(price1Input, 0.01, 100);
+        if (parseFloat(stepPriceInput.value.replace(',', '.')) > parseFloat(price1Input.value.replace(',', '.'))) {
+            stepPriceInput.value = price1Input.value;
+        }
+        enforceLimits(stepPriceInput, 0.01, parseFloat(price1Input.value.replace(',', '.')));
+        updatePricesDebounced();
+    });
+
+    price2Input.addEventListener("blur", () => {
+        enforceLimits(price2Input, 0.01, 100);
+        updatePricesDebounced();
+    });
+
+    stepPriceInput.addEventListener("blur", () => {
+        enforceLimits(stepPriceInput, 0.01, parseFloat(price1Input.value.replace(',', '.')));
+        updatePricesDebounced();
+    });
+
+    positionSlider.noUiSlider.on('update', function (values, handle) {
+        const displayValues = values.map(value => {
+            return parseInt(value) === 60 ? 'Schowany' : 'Pozycja ' + value;
+        });
+        positionRangeInput.textContent = displayValues.join(' - ');
+    });
+
+    positionSlider.noUiSlider.on('change', function () {
+        filterPricesAndUpdateUI();
+    });
+
+    positionSlider.noUiSlider.on('change', function () {
+        filterPricesAndUpdateUI();
+    });
+
+    offerSlider = document.getElementById('offerRangeSlider');
+    var offerRangeInput = document.getElementById('offerRange');
+
+    noUiSlider.create(offerSlider, {
+        start: [1, 1],
+        connect: true,
+        range: {
+            'min': 1,
+            'max': 1
+        },
+        step: 1,
+        format: wNumb({
+            decimals: 0
+        })
+    });
+
+    offerSlider.noUiSlider.on('update', function (values, handle) {
+        const displayValues = values.map(value => {
+            const intValue = parseInt(value);
+            let suffix = ' Ofert';
+            if (intValue === 1) suffix = ' Oferta';
+            else if (intValue >= 2 && intValue <= 4) suffix = ' Oferty';
+            return intValue + suffix;
+        });
+        offerRangeInput.textContent = displayValues.join(' - ');
+    });
+
+    offerSlider.noUiSlider.on('change', function () {
+        filterPricesAndUpdateUI();
+    });
+
+    const updatePricesDebounced = debounce(function () {
+        const usePriceDifference = document.getElementById('usePriceDifference').checked;
+
+        allPrices.forEach(price => {
+            price.valueToUse = usePriceDifference
+                ? (price.savings !== null ? price.savings : price.priceDifference)
+                : price.percentageDifference;
+            price.colorClass = getColorClass(price.valueToUse, price.isUniqueBestPrice, price.isSharedBestPrice);
+        });
+
+        filterPricesAndUpdateUI();
+    }, 300);
+
+    function loadStores() {
+        fetch(`/PriceHistory/GetStores?storeId=${storeId}`)
+            .then(response => response.json())
+            .then(stores => {
+                const storeSelect = document.getElementById('competitorStoreSelect');
+                stores.forEach(store => {
+                    const option = document.createElement('option');
+                    option.value = store;
+                    option.text = store;
+                    storeSelect.appendChild(option);
+                });
+
+                storeSelect.addEventListener('change', function () {
+                    competitorStore = this.value;
+                    loadPrices();
+                });
+            })
+            .catch(error => console.error('Error fetching stores:', error));
+    }
+
+    const usePriceDifferenceCheckbox = document.getElementById('usePriceDifference');
+
+    const unitLabel1 = document.getElementById('unitLabel1');
+    const unitLabel2 = document.getElementById('unitLabel2');
+    const unitLabelStepPrice = document.getElementById('unitLabelStepPrice');
+
+    function updateUnits(usePriceDifference) {
+        if (usePriceDifference) {
+            unitLabel1.textContent = 'PLN';
+            unitLabel2.textContent = 'PLN';
+            unitLabelStepPrice.textContent = 'PLN';
+        } else {
+            unitLabel1.textContent = '%';
+            unitLabel2.textContent = '%';
+            unitLabelStepPrice.textContent = '%';
+        }
+    }
+
+    usePriceDifferenceCheckbox.addEventListener('change', function () {
+        usePriceDifference = this.checked;
+        updateUnits(usePriceDifference);
+        updatePricesDebounced();
+    });
+
+    function loadPrices() {
+        const source = document.getElementById('sourceSelect').value;
+        fetch(`/PriceHistory/GetPrices?storeId=${storeId}&competitorStore=${encodeURIComponent(competitorStore)}&source=${encodeURIComponent(source)}`)
+            .then(response => response.json())
+            .then(response => {
+                myStoreName = response.myStoreName;
+                setPrice1 = response.setPrice1;
+                setPrice2 = response.setPrice2;
+                setStepPrice = response.stepPrice;
+                missedProductsCount = response.missedProductsCount;
+
+                usePriceDifference = response.usePriceDiff;
+                document.getElementById('usePriceDifference').checked = usePriceDifference;
+                updateUnits(usePriceDifference);
+
+                allPrices = response.prices.map(price => {
+                    const isRejected = price.isRejected;
+
+                    let valueToUse = null;
+                    let colorClass = '';
+                    let marginPrice = null;
+                    let myPrice = null;
+                    let marginAmount = null;
+                    let marginPercentage = null;
+                    let marginSign = '';
+                    let marginClass = '';
+
+                    if (!isRejected) {
+                        if (usePriceDifference) {
+                            valueToUse = price.savings !== null ? price.savings : price.priceDifference;
+                        } else {
+                            valueToUse = price.percentageDifference;
+                        }
+
+                        colorClass = getColorClass(valueToUse, price.isUniqueBestPrice, price.isSharedBestPrice);
+
+                        marginPrice = price.marginPrice != null && !isNaN(price.marginPrice) ? parseFloat(price.marginPrice) : null;
+                        myPrice = price.myPrice != null && !isNaN(price.myPrice) ? parseFloat(price.myPrice) : null;
+
+                        if (marginPrice != null && myPrice != null) {
+                            marginAmount = myPrice - marginPrice;
+                            if (marginPrice !== 0) {
+                                marginPercentage = (marginAmount / marginPrice) * 100;
+                            } else {
+                                marginPercentage = null;
+                            }
+
+                            marginSign = marginAmount >= 0 ? '+' : '-';
+                            marginClass = marginAmount >= 0 ? 'priceBox-diff-margin' : 'priceBox-diff-margin-minus';
+                        }
+                    } else {
+                        colorClass = 'prRejected';
+                    }
+
+                    return {
+                        ...price,
+                        storeCount: price.storeCount,
+                        isRejected: price.isRejected || false,
+                        valueToUse: valueToUse,
+                        colorClass: colorClass,
+                        marginPrice: marginPrice,
+                        myPrice: myPrice,
+                        marginAmount: marginAmount,
+                        marginPercentage: marginPercentage,
+                        marginSign: marginSign,
+                        marginClass: marginClass
+                    };
+                });
+
+                const storeCounts = allPrices.map(item => item.storeCount);
+                const maxStoreCount = Math.max(...storeCounts);
+                const offerSliderMax = Math.max(maxStoreCount, 1);
+
+                offerSlider.noUiSlider.updateOptions({
+                    range: {
+                        'min': 1,
+                        'max': offerSliderMax
+                    }
+                });
+
+                offerSlider.noUiSlider.set([1, offerSliderMax]);
+
+                document.getElementById('totalPriceCount').textContent = response.priceCount;
+                document.getElementById('price1').value = setPrice1;
+                document.getElementById('price2').value = setPrice2;
+                document.getElementById('stepPrice').value = setStepPrice;
+                document.getElementById('missedProductsCount').textContent = missedProductsCount;
+
+                updateFlagCounts(allPrices);
+                const currentSearchTerm = document.getElementById('productSearch').value;
+                let filteredPrices = allPrices;
+
+                if (currentSearchTerm) {
+                    filteredPrices = filteredPrices.filter(price => {
+                        const sanitizedInput = currentSearchTerm.replace(/[^a-zA-Z0-9\s.-]/g, '').trim();
+                        const sanitizedInputLowerCase = sanitizedInput.toLowerCase().replace(/\s+/g, '');
+                        const sanitizedProductName = price.productName.toLowerCase().replace(/[^a-zA-Z0-9\s.-]/g, '').replace(/\s+/g, '');
+                        return sanitizedProductName.includes(sanitizedInputLowerCase);
+                    });
+                }
+
+                filteredPrices = filterPricesByCategoryAndColorAndFlag(filteredPrices);
+
+                renderPrices(filteredPrices);
+                debouncedRenderChart(filteredPrices);
+                updateColorCounts(filteredPrices);
+                updateMarginSortButtonsVisibility();
+            })
+    }
+
+    function updateFlagCounts(prices) {
+        const flagCounts = {};
+        let noFlagCount = 0;
+
+        prices.forEach(price => {
+            if (price.flagIds.length === 0) {
+                noFlagCount++;
+            }
+            price.flagIds.forEach(flagId => {
+                if (!flagCounts[flagId]) {
+                    flagCounts[flagId] = 0;
+                }
+                flagCounts[flagId]++;
+            });
+        });
+
+        const flagContainer = document.getElementById('flagContainer');
+        flagContainer.innerHTML = '';
+
+        flags.forEach(flag => {
+            const count = flagCounts[flag.FlagId] || 0;
+            const flagElement = `
+            <div class="form-check">
+                <input class="form-check-input flagFilter" type="checkbox" id="flagCheckbox_${flag.FlagId}" value="${flag.FlagId}" ${selectedFlags.has(flag.FlagId.toString()) ? 'checked' : ''}>
+                <label class="form-check-label" for="flagCheckbox_${flag.FlagId}">${flag.FlagName} (${count})</label>
+            </div>
+        `;
+            flagContainer.innerHTML += flagElement;
+        });
+
+        const noFlagElement = `
+        <div class="form-check">
+            <input class="form-check-input flagFilter" type="checkbox" id="noFlagCheckbox" value="noFlag" ${selectedFlags.has('noFlag') ? 'checked' : ''}>
+            <label class="form-check-label" for="noFlagCheckbox">Brak flagi (${noFlagCount})</label>
+        </div>
+        `;
+        flagContainer.innerHTML += noFlagElement;
+
+        document.querySelectorAll('.flagFilter').forEach(checkbox => {
+            checkbox.addEventListener('change', function () {
+                const flagValue = this.value;
+                if (this.checked) {
+                    selectedFlags.add(flagValue);
+                } else {
+                    selectedFlags.delete(flagValue);
+                }
+                filterPricesAndUpdateUI();
+            });
+        });
+    }
+
+    function filterPricesByCategoryAndColorAndFlag(data) {
+        const selectedColors = Array.from(document.querySelectorAll('.colorFilter:checked')).map(checkbox => checkbox.value);
+        const selectedBid = document.getElementById('bidFilter').checked;
+
+        const selectedDeliveryMyStore = Array.from(document.querySelectorAll('.deliveryFilterMyStore:checked')).map(checkbox => parseInt(checkbox.value));
+        const selectedDeliveryCompetitor = Array.from(document.querySelectorAll('.deliveryFilterCompetitor:checked')).map(checkbox => parseInt(checkbox.value));
+        const selectedExternalPrice = Array.from(document.querySelectorAll('.externalPriceFilter:checked')).map(checkbox => checkbox.value);
+
+        const positionSliderValues = positionSlider.noUiSlider.get();
+        const positionMin = parseInt(positionSliderValues[0]);
+        const positionMax = parseInt(positionSliderValues[1]);
+
+        const offerSliderValues = offerSlider.noUiSlider.get();
+        const offerMin = parseInt(offerSliderValues[0]);
+        const offerMax = parseInt(offerSliderValues[1]);
+
+        let filteredPrices = data;
+
+        filteredPrices = filteredPrices.filter(item => {
+            const position = item.myPosition;
+            if (position === null || position === undefined) {
+                return true;
+            }
+
+            const numericPosition = parseInt(position);
+            const isInRange = numericPosition >= positionMin && numericPosition <= positionMax;
+            if (!isInRange) {
+            }
+            return isInRange;
+        });
+
+        filteredPrices = filteredPrices.filter(item => {
+            const storeCount = item.storeCount;
+            return storeCount >= offerMin && storeCount <= offerMax;
+        });
+
+        if (selectedColors.length) {
+            filteredPrices = filteredPrices.filter(item => selectedColors.includes(item.colorClass));
+        }
+
+        if (selectedFlags.has("noFlag")) {
+            filteredPrices = filteredPrices.filter(item => item.flagIds.length === 0);
+        } else if (selectedFlags.size > 0) {
+            filteredPrices = filteredPrices.filter(item => Array.from(selectedFlags).some(flag => item.flagIds.includes(parseInt(flag))));
+        }
+
+        if (selectedBid) {
+            filteredPrices = filteredPrices.filter(item => item.myIsBidding === "1");
+        }
+
+        if (selectedDeliveryMyStore.length) {
+            filteredPrices = filteredPrices.filter(item => selectedDeliveryMyStore.includes(item.myDelivery));
+        }
+
+        if (selectedDeliveryCompetitor.length) {
+            filteredPrices = filteredPrices.filter(item => selectedDeliveryCompetitor.includes(item.delivery));
+        }
+
+        if (selectedExternalPrice.includes("yes")) {
+            filteredPrices = filteredPrices.filter(item => item.externalPrice !== null);
+        } else if (selectedExternalPrice.includes("no")) {
+            filteredPrices = filteredPrices.filter(item => item.externalPrice === null);
+        }
+
+        return filteredPrices;
+    }
+
+    function getColorClass(valueToUse, isUniqueBestPrice = false, isSharedBestPrice = false) {
+        if (isUniqueBestPrice && valueToUse <= setPrice1) {
+            return "prIdeal";
+        }
+        if (isUniqueBestPrice) {
+            return "prToLow";
+        }
+        if (isSharedBestPrice) {
+            return "prGood";
+        }
+        if (valueToUse <= 0) {
+            return "prGood";
+        } else if (valueToUse < setPrice2) {
+            return "prMid";
+        } else {
+            return "prToHigh";
+        }
+    }
+    function highlightMatches(text, searchTerm) {
+        if (!searchTerm) return text;
+
+        const sanitizedSearchTerm = searchTerm.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+        const sanitizedText = text.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+
+        const index = sanitizedText.indexOf(sanitizedSearchTerm);
+
+        if (index === -1) {
+            return text;
+        }
+
+        let sanitizedIndexToOriginalIndex = [];
+        let sanitizedIdx = 0;
+
+        for (let i = 0; i < text.length; i++) {
+            if (/[a-zA-Z0-9]/.test(text[i])) {
+                sanitizedIndexToOriginalIndex[sanitizedIdx] = i;
+                sanitizedIdx++;
+            }
+        }
+
+        const matchStart = sanitizedIndexToOriginalIndex[index];
+        const matchEnd = sanitizedIndexToOriginalIndex[index + sanitizedSearchTerm.length - 1];
+
+        const beforeMatch = text.substring(0, matchStart);
+        const matchText = text.substring(matchStart, matchEnd + 1);
+        const afterMatch = text.substring(matchEnd + 1);
+
+        return beforeMatch + `<span class="highlighted-text">` + matchText + `</span>` + afterMatch;
+    }
+
+    function renderPrices(data) {
+        const container = document.getElementById('priceContainer');
+        const currentProductSearchTerm = document.getElementById('productSearch').value.trim();
+        const currentStoreSearchTerm = document.getElementById('storeSearch').value.trim();
+        container.innerHTML = '';
+
+        data.forEach(item => {
+            const isRejected = item.isRejected;
+
+            const highlightedProductName = highlightMatches(item.productName, currentProductSearchTerm);
+            const highlightedStoreName = highlightMatches(item.storeName, currentStoreSearchTerm);
+            const isBidding = item.isBidding === "1";
+            const deliveryClass = getDeliveryClass(item.delivery);
+
+            let percentageDifference = null;
+            let priceDifference = null;
+            let savings = null;
+            let myIsBidding = null;
+            let myDeliveryClass = null;
+            let marginAmount = null;
+            let marginPercentage = null;
+            let marginSign = '';
+            let marginClass = '';
+            let marginPrice = null;
+            let myPrice = null;
+            let myPosition = null;
+            let lowestPrice = null;
+
+            if (!isRejected) {
+                percentageDifference = item.percentageDifference != null ? item.percentageDifference.toFixed(2) : "N/A";
+                priceDifference = item.priceDifference != null ? item.priceDifference.toFixed(2) : "N/A";
+                savings = item.savings != null ? item.savings.toFixed(2) : "N/A";
+
+                myIsBidding = item.myIsBidding === "1";
+                myDeliveryClass = getDeliveryClass(item.myDelivery);
+                marginAmount = item.marginAmount;
+                marginPercentage = item.marginPercentage;
+                marginSign = item.marginSign;
+                marginClass = item.marginClass;
+                marginPrice = item.marginPrice;
+                myPrice = item.myPrice != null ? parseFloat(item.myPrice) : null;
+                myPosition = item.myPosition;
+                lowestPrice = item.lowestPrice != null ? parseFloat(item.lowestPrice) : null;
+            }
+
+            const box = document.createElement('div');
+            box.className = 'price-box ' + item.colorClass;
+            box.dataset.detailsUrl = '/PriceHistory/Details?scrapId=' + item.scrapId + '&productId=' + item.productId;
+            box.dataset.productId = item.productId;
+
+            box.addEventListener('click', function () {
+                window.open(this.dataset.detailsUrl, '_blank');
+            });
+
+            box.addEventListener('click', function () {
+                window.open(this.dataset.detailsUrl, '_blank');
+            });
+
+            const priceBoxSpace = document.createElement('div');
+            priceBoxSpace.className = 'price-box-space';
+
+            const priceBoxColumnName = document.createElement('div');
+            priceBoxColumnName.className = 'price-box-column-name';
+            priceBoxColumnName.innerHTML = highlightedProductName;
+
+            const priceBoxColumnCategory = document.createElement('div');
+            priceBoxColumnCategory.className = 'price-box-column-category';
+
+            if (item.externalId) {
+                const apiBox = document.createElement('span');
+                apiBox.className = 'ApiBox';
+                apiBox.innerHTML = 'API ID ' + item.externalId;
+                priceBoxColumnCategory.appendChild(apiBox);
+            }
+
+            const flagsContainer = createFlagsContainer(item);
+
+            const assignFlagButton = document.createElement('button');
+            assignFlagButton.className = 'assign-flag-button';
+            assignFlagButton.dataset.productId = item.productId;
+            assignFlagButton.innerHTML = '+ Przypisz flagi';
+            assignFlagButton.style.pointerEvents = 'auto';
+
+            assignFlagButton.addEventListener('click', function (event) {
+                event.stopPropagation();
+                selectedProductId = this.dataset.productId;
+                modal.style.display = 'block';
+
+                fetch(`/ProductFlags/GetFlagsForProduct?productId=${selectedProductId}`)
+                    .then(response => response.json())
+                    .then(flags => {
+                        document.querySelectorAll('.flagCheckbox').forEach(checkbox => {
+                            checkbox.checked = flags.includes(parseInt(checkbox.value));
+                        });
+                    })
+                    .catch(error => console.error('Błąd pobierania flag dla produktu:', error));
+            });
+
+            priceBoxSpace.appendChild(priceBoxColumnName);
+            priceBoxSpace.appendChild(flagsContainer);
+            priceBoxSpace.appendChild(assignFlagButton);
+            priceBoxSpace.appendChild(priceBoxColumnCategory);
+
+            const externalInfoContainer = document.createElement('div');
+            externalInfoContainer.className = 'price-box-externalInfo';
+
+            const priceBoxColumnStoreCount = document.createElement('div');
+            priceBoxColumnStoreCount.className = 'price-box-column-offers';
+            priceBoxColumnStoreCount.innerHTML =
+                (
+                    (item.sourceGoogle || item.sourceCeneo) ?
+                        '<span class="data-channel">' +
+                        (item.sourceGoogle ? '<img src="/images/GoogleShopping.png" alt="Google Icon" style="width:15px; height:15px;" />' : '') +
+                        (item.sourceCeneo ? '<img src="/images/Ceneo.png" alt="Ceneo Icon" style="width:15px; height:15px;" />' : '') +
+                        '</span>'
+                        : ''
+                ) +
+                '<div class="offer-count-box">' + item.storeCount + ' Ofert</div>';
+
+            externalInfoContainer.appendChild(priceBoxColumnStoreCount);
+
+            if (marginPrice != null) {
+                const formattedMarginPrice = marginPrice.toLocaleString('pl-PL', {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                }) + ' PLN';
+
+                const purchasePriceBox = document.createElement('div');
+                purchasePriceBox.className = 'price-box-diff-margin ' + marginClass;
+                purchasePriceBox.innerHTML = '<p>Cena zakupu: ' + formattedMarginPrice + '</p>';
+
+                externalInfoContainer.appendChild(purchasePriceBox);
+
+                if (myPrice != null) {
+                    const formattedMarginAmount = marginSign + Math.abs(marginAmount).toLocaleString('pl-PL', {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2
+                    }) + ' PLN';
+                    const formattedMarginPercentage = '(' + marginSign + Math.abs(marginPercentage).toLocaleString('pl-PL', {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2
+                    }) + '%)';
+
+                    const marginBox = document.createElement('div');
+                    marginBox.className = 'price-box-diff-margin ' + marginClass;
+                    marginBox.innerHTML = '<p>Marża: ' + formattedMarginAmount + ' ' + formattedMarginPercentage + '</p>';
+
+                    externalInfoContainer.appendChild(marginBox);
+                }
+            }
+
+            priceBoxSpace.appendChild(externalInfoContainer);
+
+            const priceBoxData = document.createElement('div');
+            priceBoxData.className = 'price-box-data';
+
+            const colorBar = document.createElement('div');
+            colorBar.className = 'color-bar ' + item.colorClass;
+
+            const priceBoxColumnLowestPrice = document.createElement('div');
+            priceBoxColumnLowestPrice.className = 'price-box-column';
+
+            const priceBoxLowestText = document.createElement('div');
+            priceBoxLowestText.className = 'price-box-column-text';
+            priceBoxLowestText.innerHTML =
+                '<span style="font-weight: 500; font-size:17px;">' + item.lowestPrice.toFixed(2) + ' PLN</span>' + '<br>' + highlightedStoreName;
+
+            const priceBoxLowestDetails = document.createElement('div');
+            priceBoxLowestDetails.className = 'price-box-column-text';
+            priceBoxLowestDetails.innerHTML =
+
+                (item.isGoogle != null ?
+                    '<span class="data-channel"><img src="' +
+                    (item.isGoogle ? '/images/GoogleShopping.png' : '/images/Ceneo.png') +
+                    '" alt="Channel Icon" style="width:20px; height:20px; margin-right:4px;" /></div>'
+                    : '') +
+
+                (item.position !== null ?
+                    (item.isGoogle ?
+                        '<span class="Position-Google">Poz. Google ' + item.position + '</span>' :
+                        '<span class="Position">Poz. Ceneo ' + item.position + '</span>')
+                    :
+                    '<span class="Position" style="background-color: #414141;">Schowany</span>') +
+
+                (isBidding ? '<span class="Bidding">Bid</span>' : '') +
+
+                (item.delivery != null ? '<span class="' + deliveryClass + '">Wysyłka w ' + (item.delivery == 1 ? '1 dzień' : item.delivery + ' dni') + '</span>' : '');
+
+            priceBoxColumnLowestPrice.appendChild(priceBoxLowestText);
+            priceBoxColumnLowestPrice.appendChild(priceBoxLowestDetails);
+
+            const priceBoxColumnMyPrice = document.createElement('div');
+            priceBoxColumnMyPrice.className = 'price-box-column';
+
+            if (!isRejected && myPrice != null) {
+                const priceBoxMyText = document.createElement('div');
+                priceBoxMyText.className = 'price-box-column-text';
+
+                if (item.externalPrice !== null) {
+                    const externalPriceDifference = (item.externalPrice - myPrice).toFixed(2);
+                    const isPriceDecrease = item.externalPrice < myPrice;
+
+                    const priceChangeContainer = document.createElement('div');
+                    priceChangeContainer.style.display = 'flex';
+                    priceChangeContainer.style.justifyContent = 'space-between';
+                    priceChangeContainer.style.alignItems = 'center';
+
+                    const storeName = document.createElement('span');
+                    storeName.style.fontWeight = '500';
+                    storeName.style.marginRight = '20px';
+                    storeName.textContent = myStoreName;
+
+                    const priceDifference = document.createElement('span');
+                    priceDifference.style.fontWeight = '500';
+                    const arrow = '<span class="' + (isPriceDecrease ? 'arrow-down' : 'arrow-up') + '"></span>';
+                    priceDifference.innerHTML = arrow + (isPriceDecrease ? '-' : '+') + Math.abs(externalPriceDifference) + ' PLN ';
+
+                    priceChangeContainer.appendChild(storeName);
+                    priceChangeContainer.appendChild(priceDifference);
+
+                    const priceContainer = document.createElement('div');
+                    priceContainer.style.display = 'flex';
+                    priceContainer.style.justifyContent = 'space-between';
+                    priceContainer.style.alignItems = 'center';
+
+                    const oldPrice = document.createElement('span');
+                    oldPrice.style.fontWeight = '500';
+                    oldPrice.style.textDecoration = 'line-through';
+                    oldPrice.style.marginRight = '10px';
+                    oldPrice.textContent = myPrice.toFixed(2) + ' PLN';
+
+                    const newPrice = document.createElement('span');
+                    newPrice.style.fontWeight = '500';
+                    newPrice.textContent = item.externalPrice.toFixed(2) + ' PLN';
+
+                    priceContainer.appendChild(oldPrice);
+                    priceContainer.appendChild(newPrice);
+
+                    priceBoxMyText.appendChild(priceContainer);
+                    priceBoxMyText.appendChild(priceChangeContainer);
+                } else {
+                    priceBoxMyText.innerHTML =
+                        '<span style="font-weight: 500; font-size:17px;">' + myPrice.toFixed(2) + ' PLN</span><br>' + myStoreName;
+                }
+
+                const priceBoxMyDetails = document.createElement('div');
+                priceBoxMyDetails.className = 'price-box-column-text';
+                priceBoxMyDetails.innerHTML =
+                    (item.myIsGoogle != null ?
+                        '<span class="data-channel"><img src="' +
+                        (item.myIsGoogle ? '/images/GoogleShopping.png' : '/images/Ceneo.png') +
+                        '" alt="Channel Icon" style="width:20px; height:20px; margin-right:4px;" /></div>'
+                        : '') +
+
+                    (myPosition !== null ?
+                        (item.myIsGoogle ?
+                            '<span class="Position-Google">Poz. Google ' + myPosition + '</span>' :
+                            '<span class="Position">Poz. Ceneo ' + myPosition + '</span>')
+                        :
+                        '<span class="Position" style="background-color: #414141;">Schowany</span>') +
+
+                    (myIsBidding ? '<span class="Bidding">Bid</span>' : '') +
+
+                    (item.myDelivery != null ? '<span class="' + myDeliveryClass + '">Wysyłka w ' + (item.myDelivery == 1 ? '1 dzień' : item.myDelivery + ' dni') + '</span>' : '');
+
+                priceBoxColumnMyPrice.appendChild(priceBoxMyText);
+                priceBoxColumnMyPrice.appendChild(priceBoxMyDetails);
+            } else {
+                const priceBoxMyText = document.createElement('div');
+                priceBoxMyText.className = 'price-box-column-text';
+                priceBoxMyText.innerHTML = '<span style="font-weight: 500;">Brak ceny</span><br>' + myStoreName;
+
+                priceBoxColumnMyPrice.appendChild(priceBoxMyText);
+            }
+
+            const priceBoxColumnInfo = document.createElement('div');
+            priceBoxColumnInfo.className = 'price-box-column-action';
+
+            priceBoxColumnInfo.innerHTML = '';
+            if (!isRejected) {
+                if (item.colorClass === "prToLow" || item.colorClass === "prIdeal") {
+                    if (myPrice != null && savings != null) {
+                        const savingsValue = parseFloat(savings.replace(',', '.'));
+
+                        const upArrowClass = item.colorClass === 'prToLow' ? 'arrow-up-black' : 'arrow-up-turquoise';
+
+                        const suggestedPrice1 = myPrice + savingsValue;
+                        const amountToSuggestedPrice1 = savingsValue;
+                        const percentageToSuggestedPrice1 = (amountToSuggestedPrice1 / myPrice) * 100;
+
+                        let suggestedPrice2, amountToSuggestedPrice2, percentageToSuggestedPrice2;
+                        let arrowClass2 = upArrowClass;
+
+                        if (usePriceDifference) {
+                            if (savingsValue < 1) {
+                                suggestedPrice2 = suggestedPrice1 - setStepPrice;
+                                amountToSuggestedPrice2 = suggestedPrice2 - myPrice;
+                                percentageToSuggestedPrice2 = (amountToSuggestedPrice2 / myPrice) * 100;
+
+                                if (amountToSuggestedPrice2 < 0) {
+                                    arrowClass2 = 'arrow-down-turquoise';
+                                }
+                            } else {
+                                suggestedPrice2 = suggestedPrice1 - setStepPrice;
+                                amountToSuggestedPrice2 = amountToSuggestedPrice1 - setStepPrice;
+                                percentageToSuggestedPrice2 = (amountToSuggestedPrice2 / myPrice) * 100;
+
+                                if (amountToSuggestedPrice2 < 0) {
+                                    arrowClass2 = 'arrow-down-turquoise';
+                                }
+                            }
+                        } else {
+                            const percentageStep = setStepPrice / 100;
+
+                            if (savingsValue < 1) {
+                                suggestedPrice2 = suggestedPrice1 * (1 - percentageStep);
+                                amountToSuggestedPrice2 = suggestedPrice2 - myPrice;
+                                percentageToSuggestedPrice2 = (amountToSuggestedPrice2 / myPrice) * 100;
+
+                                if (amountToSuggestedPrice2 < 0) {
+                                    arrowClass2 = 'arrow-down-turquoise';
+                                }
+                            } else {
+                                suggestedPrice2 = suggestedPrice1 * (1 - percentageStep);
+                                amountToSuggestedPrice2 = amountToSuggestedPrice1 - (myPrice * percentageStep);
+                                percentageToSuggestedPrice2 = (amountToSuggestedPrice2 / myPrice) * 100;
+
+                                if (amountToSuggestedPrice2 < 0) {
+                                    arrowClass2 = 'arrow-down-turquoise';
+                                }
+                            }
+                        }
+
+                        const amount1Formatted = (amountToSuggestedPrice1 >= 0 ? '+' : '') + amountToSuggestedPrice1.toLocaleString('pl-PL', {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2
+                        }) + ' PLN';
+                        const percentage1Formatted = '(' + (percentageToSuggestedPrice1 >= 0 ? '+' : '') + percentageToSuggestedPrice1.toLocaleString('pl-PL', {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2
+                        }) + '%)';
+                        const newSuggestedPrice1Formatted = suggestedPrice1.toLocaleString('pl-PL', {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2
+                        }) + ' PLN';
+
+                        const amount2Formatted = (amountToSuggestedPrice2 >= 0 ? '+' : '') + amountToSuggestedPrice2.toLocaleString('pl-PL', {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2
+                        }) + ' PLN';
+                        const percentage2Formatted = '(' + (percentageToSuggestedPrice2 >= 0 ? '+' : '') + percentageToSuggestedPrice2.toLocaleString('pl-PL', {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2
+                        }) + '%)';
+                        const newSuggestedPrice2Formatted = suggestedPrice2.toLocaleString('pl-PL', {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2
+                        }) + ' PLN';
+
+                        const matchPriceBox = document.createElement('div');
+                        matchPriceBox.className = 'price-box-column';
+
+                        const matchPriceLine = document.createElement('div');
+                        matchPriceLine.className = 'price-action-line';
+
+                        const upArrow = document.createElement('span');
+                        upArrow.className = upArrowClass;
+
+                        const increaseText = document.createElement('span');
+                        increaseText.innerHTML = amount1Formatted + ' ' + percentage1Formatted;
+
+                        const newPriceText = document.createElement('div');
+                        newPriceText.innerHTML = '= ' + newSuggestedPrice1Formatted;
+
+                        const colorSquare = document.createElement('span');
+                        colorSquare.className = 'color-square-green';
+
+                        matchPriceLine.appendChild(upArrow);
+                        matchPriceLine.appendChild(increaseText);
+                        matchPriceLine.appendChild(newPriceText);
+                        matchPriceLine.appendChild(colorSquare);
+
+                        matchPriceBox.appendChild(matchPriceLine);
+
+                        const strategicPriceBox = document.createElement('div');
+                        strategicPriceBox.className = 'price-box-column';
+
+                        const strategicPriceLine = document.createElement('div');
+                        strategicPriceLine.className = 'price-action-line';
+
+                        const arrow2 = document.createElement('span');
+                        arrow2.className = arrowClass2;
+
+                        const increaseText2 = document.createElement('span');
+                        increaseText2.innerHTML = amount2Formatted + ' ' + percentage2Formatted;
+
+                        const newPriceText2 = document.createElement('div');
+                        newPriceText2.innerHTML = '= ' + newSuggestedPrice2Formatted;
+
+                        const colorSquare2 = document.createElement('span');
+                        colorSquare2.className = 'color-square-turquoise';
+
+                        strategicPriceLine.appendChild(arrow2);
+                        strategicPriceLine.appendChild(increaseText2);
+                        strategicPriceLine.appendChild(newPriceText2);
+                        strategicPriceLine.appendChild(colorSquare2);
+
+                        strategicPriceBox.appendChild(strategicPriceLine);
+
+                        priceBoxColumnInfo.appendChild(matchPriceBox);
+                        priceBoxColumnInfo.appendChild(strategicPriceBox);
+                    } else {
+                        const diffClass = item.colorClass + ' ' + 'priceBox-diff';
+                        priceBoxColumnInfo.innerHTML += '<div class="' + diffClass + '">Podnieś: N/A</div>';
+                    }
+                } else if (item.colorClass === "prMid") {
+                    if (myPrice != null && lowestPrice != null) {
+                        const amountToMatchLowestPrice = myPrice - lowestPrice;
+                        const percentageToMatchLowestPrice = (amountToMatchLowestPrice / myPrice) * 100;
+
+                        let strategicPrice;
+                        if (usePriceDifference) {
+                            strategicPrice = lowestPrice - setStepPrice;
+                        } else {
+                            strategicPrice = lowestPrice * (1 - setStepPrice / 100);
+                        }
+                        const amountToBeatLowestPrice = myPrice - strategicPrice;
+                        const percentageToBeatLowestPrice = (amountToBeatLowestPrice / myPrice) * 100;
+
+                        const amountMatchFormatted = amountToMatchLowestPrice.toLocaleString('pl-PL', {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2
+                        }) + ' PLN';
+                        const percentageMatchFormatted = '(-' + percentageToMatchLowestPrice.toLocaleString('pl-PL', {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2
+                        }) + '%)';
+                        const newSuggestedPriceMatch = lowestPrice.toLocaleString('pl-PL', {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2
+                        }) + ' PLN';
+
+                        const amountBeatFormatted = amountToBeatLowestPrice.toLocaleString('pl-PL', {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2
+                        }) + ' PLN';
+                        const percentageBeatFormatted = '(-' + percentageToBeatLowestPrice.toLocaleString('pl-PL', {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2
+                        }) + '%)';
+                        const newSuggestedPriceBeat = strategicPrice.toLocaleString('pl-PL', {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2
+                        }) + ' PLN';
+
+                        const matchPriceBox = document.createElement('div');
+                        matchPriceBox.className = 'price-box-column';
+
+                        const matchPriceLine = document.createElement('div');
+                        matchPriceLine.className = 'price-action-line';
+
+                        const downArrow = document.createElement('span');
+                        downArrow.className = 'arrow-down-yellow';
+
+                        const reduceText = document.createElement('span');
+                        reduceText.innerHTML = '-' + amountMatchFormatted + ' ' + percentageMatchFormatted;
+
+                        const newPriceText = document.createElement('div');
+                        newPriceText.innerHTML = '= ' + newSuggestedPriceMatch;
+
+                        const colorSquare = document.createElement('span');
+                        colorSquare.className = 'color-square-green';
+
+                        matchPriceLine.appendChild(downArrow);
+                        matchPriceLine.appendChild(reduceText);
+                        matchPriceLine.appendChild(newPriceText);
+                        matchPriceLine.appendChild(colorSquare);
+
+                        matchPriceBox.appendChild(matchPriceLine);
+
+                        const strategicPriceBox = document.createElement('div');
+                        strategicPriceBox.className = 'price-box-column';
+
+                        const strategicPriceLine = document.createElement('div');
+                        strategicPriceLine.className = 'price-action-line';
+
+                        const downArrow2 = document.createElement('span');
+                        downArrow2.className = 'arrow-down-yellow';
+
+                        const reduceText2 = document.createElement('span');
+                        reduceText2.innerHTML = '-' + amountBeatFormatted + ' ' + percentageBeatFormatted;
+
+                        const newPriceText2 = document.createElement('div');
+                        newPriceText2.innerHTML = '= ' + newSuggestedPriceBeat;
+
+                        const colorSquare2 = document.createElement('span');
+                        colorSquare2.className = 'color-square-turquoise';
+
+                        strategicPriceLine.appendChild(downArrow2);
+                        strategicPriceLine.appendChild(reduceText2);
+                        strategicPriceLine.appendChild(newPriceText2);
+                        strategicPriceLine.appendChild(colorSquare2);
+
+                        strategicPriceBox.appendChild(strategicPriceLine);
+
+                        priceBoxColumnInfo.appendChild(matchPriceBox);
+                        priceBoxColumnInfo.appendChild(strategicPriceBox);
+                    } else {
+                        const diffClass = item.colorClass + ' ' + 'priceBox-diff';
+                        priceBoxColumnInfo.innerHTML += '<div class="' + diffClass + '">Obniż: N/A</div>';
+                    }
+                } else if (item.colorClass === "prToHigh") {
+                    if (myPrice != null && lowestPrice != null) {
+                        const amountToMatchLowestPrice = myPrice - lowestPrice;
+                        const percentageToMatchLowestPrice = (amountToMatchLowestPrice / myPrice) * 100;
+
+                        let strategicPrice;
+                        if (usePriceDifference) {
+                            strategicPrice = lowestPrice - setStepPrice;
+                        } else {
+                            strategicPrice = lowestPrice * (1 - setStepPrice / 100);
+                        }
+                        const amountToBeatLowestPrice = myPrice - strategicPrice;
+                        const percentageToBeatLowestPrice = (amountToBeatLowestPrice / myPrice) * 100;
+
+                        const amountMatchFormatted = amountToMatchLowestPrice.toLocaleString('pl-PL', {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2
+                        }) + ' PLN';
+                        const percentageMatchFormatted = '(-' + percentageToMatchLowestPrice.toLocaleString('pl-PL', {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2
+                        }) + '%)';
+                        const newSuggestedPriceMatch = lowestPrice.toLocaleString('pl-PL', {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2
+                        }) + ' PLN';
+
+                        const amountBeatFormatted = amountToBeatLowestPrice.toLocaleString('pl-PL', {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2
+                        }) + ' PLN';
+                        const percentageBeatFormatted = '(-' + percentageToBeatLowestPrice.toLocaleString('pl-PL', {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2
+                        }) + '%)';
+                        const newSuggestedPriceBeat = strategicPrice.toLocaleString('pl-PL', {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2
+                        }) + ' PLN';
+
+                        const matchPriceBox = document.createElement('div');
+                        matchPriceBox.className = 'price-box-column';
+
+                        const matchPriceLine = document.createElement('div');
+                        matchPriceLine.className = 'price-action-line';
+
+                        const downArrow = document.createElement('span');
+                        downArrow.className = 'arrow-down-red';
+
+                        const reduceText = document.createElement('span');
+                        reduceText.innerHTML = '-' + amountMatchFormatted + ' ' + percentageMatchFormatted;
+
+                        const newPriceText = document.createElement('div');
+                        newPriceText.innerHTML = '= ' + newSuggestedPriceMatch;
+
+                        const colorSquare = document.createElement('span');
+                        colorSquare.className = 'color-square-green';
+
+                        matchPriceLine.appendChild(downArrow);
+                        matchPriceLine.appendChild(reduceText);
+                        matchPriceLine.appendChild(newPriceText);
+                        matchPriceLine.appendChild(colorSquare);
+
+                        matchPriceBox.appendChild(matchPriceLine);
+
+                        const strategicPriceBox = document.createElement('div');
+                        strategicPriceBox.className = 'price-box-column';
+
+                        const strategicPriceLine = document.createElement('div');
+                        strategicPriceLine.className = 'price-action-line';
+
+                        const downArrow2 = document.createElement('span');
+                        downArrow2.className = 'arrow-down-red';
+
+                        const reduceText2 = document.createElement('span');
+                        reduceText2.innerHTML = '-' + amountBeatFormatted + ' ' + percentageBeatFormatted;
+
+                        const newPriceText2 = document.createElement('div');
+                        newPriceText2.innerHTML = '= ' + newSuggestedPriceBeat;
+
+                        const colorSquare2 = document.createElement('span');
+                        colorSquare2.className = 'color-square-turquoise';
+
+                        strategicPriceLine.appendChild(downArrow2);
+                        strategicPriceLine.appendChild(reduceText2);
+                        strategicPriceLine.appendChild(newPriceText2);
+                        strategicPriceLine.appendChild(colorSquare2);
+
+                        strategicPriceBox.appendChild(strategicPriceLine);
+
+                        priceBoxColumnInfo.appendChild(matchPriceBox);
+                        priceBoxColumnInfo.appendChild(strategicPriceBox);
+                    } else {
+                        const diffClass = item.colorClass + ' ' + 'priceBox-diff';
+                        priceBoxColumnInfo.innerHTML += '<div class="' + diffClass + '">Obniż: N/A</div>';
+                    }
+                } else if (item.colorClass === "prGood") {
+                    if (myPrice != null) {
+                        const amountToSuggestedPrice1 = 0;
+                        const percentageToSuggestedPrice1 = 0;
+                        const suggestedPrice1 = myPrice;
+
+                        const amount1Formatted = '+0,00 PLN';
+                        const percentage1Formatted = '(+0,00%)';
+                        const newSuggestedPrice1Formatted = '= ' + suggestedPrice1.toLocaleString('pl-PL', {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2
+                        }) + ' PLN';
+
+                        let amountToSuggestedPrice2, percentageToSuggestedPrice2, suggestedPrice2;
+                        let amount2Formatted, percentage2Formatted, newSuggestedPrice2Formatted;
+                        let downArrowClass, colorSquare2Class;
+
+                        if (item.storeCount === 1) {
+                            amountToSuggestedPrice2 = 0;
+                            percentageToSuggestedPrice2 = 0;
+                            suggestedPrice2 = myPrice;
+
+                            amount2Formatted = '+0,00 PLN';
+                            percentage2Formatted = '(+0,00%)';
+                            newSuggestedPrice2Formatted = '= ' + suggestedPrice2.toLocaleString('pl-PL', {
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2
+                            }) + ' PLN';
+
+                            downArrowClass = 'no-change-icon-turquoise';
+                            colorSquare2Class = 'color-square-turquoise';
+                        } else {
+                            if (usePriceDifference) {
+                                amountToSuggestedPrice2 = -setStepPrice;
+                                suggestedPrice2 = myPrice + amountToSuggestedPrice2;
+                                percentageToSuggestedPrice2 = (amountToSuggestedPrice2 / myPrice) * 100;
+                            } else {
+                                const percentageReduction = setStepPrice / 100;
+                                amountToSuggestedPrice2 = -myPrice * percentageReduction;
+                                suggestedPrice2 = myPrice * (1 - percentageReduction);
+                                percentageToSuggestedPrice2 = -setStepPrice;
+                            }
+
+                            amount2Formatted = (amountToSuggestedPrice2 >= 0 ? '+' : '') + amountToSuggestedPrice2.toLocaleString('pl-PL', {
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2
+                            }) + ' PLN';
+                            percentage2Formatted = '(' + (percentageToSuggestedPrice2 >= 0 ? '+' : '') + percentageToSuggestedPrice2.toLocaleString('pl-PL', {
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2
+                            }) + '%)';
+                            newSuggestedPrice2Formatted = '= ' + suggestedPrice2.toLocaleString('pl-PL', {
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2
+                            }) + ' PLN';
+
+                            downArrowClass = 'arrow-down-green';
+                            colorSquare2Class = 'color-square-turquoise';
+                        }
+
+                        const matchPriceBox = document.createElement('div');
+                        matchPriceBox.className = 'price-box-column';
+
+                        const matchPriceLine = document.createElement('div');
+                        matchPriceLine.className = 'price-action-line';
+
+                        const noChangeIcon = document.createElement('span');
+                        noChangeIcon.className = 'no-change-icon';
+
+                        const noChangeText = document.createElement('span');
+                        noChangeText.innerHTML = amount1Formatted + ' ' + percentage1Formatted;
+
+                        const newPriceText = document.createElement('div');
+                        newPriceText.innerHTML = newSuggestedPrice1Formatted;
+
+                        const colorSquare = document.createElement('span');
+                        colorSquare.className = 'color-square-green';
+
+                        matchPriceLine.appendChild(noChangeIcon);
+                        matchPriceLine.appendChild(noChangeText);
+                        matchPriceLine.appendChild(newPriceText);
+                        matchPriceLine.appendChild(colorSquare);
+
+                        matchPriceBox.appendChild(matchPriceLine);
+
+                        const strategicPriceBox = document.createElement('div');
+                        strategicPriceBox.className = 'price-box-column';
+
+                        const strategicPriceLine = document.createElement('div');
+                        strategicPriceLine.className = 'price-action-line';
+
+                        const downArrow = document.createElement('span');
+                        downArrow.className = downArrowClass;
+
+                        const reduceText = document.createElement('span');
+                        reduceText.innerHTML = amount2Formatted + ' ' + percentage2Formatted;
+
+                        const newPriceText2 = document.createElement('div');
+                        newPriceText2.innerHTML = newSuggestedPrice2Formatted;
+
+                        const colorSquare2 = document.createElement('span');
+                        colorSquare2.className = colorSquare2Class;
+
+                        strategicPriceLine.appendChild(downArrow);
+                        strategicPriceLine.appendChild(reduceText);
+                        strategicPriceLine.appendChild(newPriceText2);
+                        strategicPriceLine.appendChild(colorSquare2);
+
+                        strategicPriceBox.appendChild(strategicPriceLine);
+
+                        priceBoxColumnInfo.appendChild(matchPriceBox);
+                        priceBoxColumnInfo.appendChild(strategicPriceBox);
+                    } else {
+                        const diffClass = item.colorClass + ' ' + 'priceBox-diff-top';
+                        priceBoxColumnInfo.innerHTML += '<div class="' + diffClass + '">Jesteś w najlepszych cenach</div>';
+                    }
+                }
+            } else {
+                priceBoxColumnInfo.innerHTML += '<div class="rejected-product">Produkt odrzucony</div>';
+            }
+
+            priceBoxData.appendChild(colorBar);
+
+            if (item.imgUrl) {
+                const productImage = document.createElement('img');
+                productImage.dataset.src = item.imgUrl;
+                productImage.alt = item.productName;
+                productImage.className = 'lazy-load';
+                productImage.style.width = '110px';
+                productImage.style.height = '110px';
+                productImage.style.marginRight = '5px';
+                productImage.style.marginLeft = '5px';
+                productImage.style.backgroundColor = '#ffffff';
+                productImage.style.border = '1px solid #e3e3e3';
+                productImage.style.borderRadius = '4px';
+                productImage.style.padding = '10px';
+                productImage.style.display = 'block';
+
+                priceBoxData.appendChild(productImage);
+            }
+
+            priceBoxData.appendChild(priceBoxColumnLowestPrice);
+            priceBoxData.appendChild(priceBoxColumnMyPrice);
+            priceBoxData.appendChild(priceBoxColumnInfo);
+
+            box.appendChild(priceBoxSpace);
+            box.appendChild(priceBoxColumnCategory);
+            box.appendChild(externalInfoContainer);
+            box.appendChild(priceBoxData);
+
+            container.appendChild(box);
+        });
+
+        const visibleProducts = document.querySelectorAll('.price-box:not([style*="display: none"])');
+        document.getElementById('displayedProductCount').textContent = visibleProducts.length;
+
+        const allIndexes = Array.from(visibleProducts).map(product => parseInt(product.dataset.index));
+
+        const lazyLoadImages = document.querySelectorAll('.lazy-load');
+        const timers = new Map();
+
+        const observer = new IntersectionObserver((entries, observer) => {
+            entries.forEach(entry => {
+                const img = entry.target;
+                const index = [...lazyLoadImages].indexOf(img);
+
+                if (entry.isIntersecting) {
+                    const timer = setTimeout(() => {
+                        loadImageWithNeighbors(index);
+                        observer.unobserve(img);
+                        timers.delete(img);
+                    }, 100);
+                    timers.set(img, timer);
+                } else {
+                    if (timers.has(img)) {
+                        clearTimeout(timers.get(img));
+                        timers.delete(img);
+                    }
+                }
+            });
+        }, {
+            root: null,
+            rootMargin: '50px',
+            threshold: 0.01
+        });
+
+        function loadImageWithNeighbors(index) {
+            const range = 6;
+            const start = Math.max(0, index - range);
+            const end = Math.min(lazyLoadImages.length - 1, index + range);
+
+            for (let i = start; i <= end; i++) {
+                const img = lazyLoadImages[i];
+                if (!img.src) {
+                    img.src = img.dataset.src;
+                    img.onload = () => {
+                        img.classList.add('loaded');
+                    };
+                }
+            }
+        }
+
+        lazyLoadImages.forEach(img => {
+            observer.observe(img);
+        });
+    }
+
+    function getDeliveryClass(days) {
+        if (days <= 1) return 'Availability1Day';
+        if (days <= 3) return 'Availability3Days';
+        if (days <= 7) return 'Availability7Days';
+        return 'Availability14Days';
+    }
+
+    function hexToRgba(hex, alpha) {
+        let r = 0, g = 0, b = 0;
+        if (hex.length == 4) {
+            r = parseInt(hex[1] + hex[1], 16);
+            g = parseInt(hex[2] + hex[2], 16);
+            b = parseInt(hex[3] + hex[3], 16);
+        } else if (hex.length == 7) {
+            r = parseInt(hex[1] + hex[2], 16);
+            g = parseInt(hex[3] + hex[4], 16);
+            b = parseInt(hex[5] + hex[6], 16);
+        }
+        return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    }
+
+    function renderChart(data) {
+        const colorCounts = {
+            prGood: 0,
+            prMid: 0,
+            prToHigh: 0,
+            prIdeal: 0,
+            prToLow: 0
+        };
+
+        data.forEach(item => {
+            if (!item.isRejected) {
+                colorCounts[item.colorClass]++;
+            }
+        });
+
+        const chartData = [colorCounts.prToHigh, colorCounts.prMid, colorCounts.prGood, colorCounts.prIdeal, colorCounts.prToLow];
+
+        if (chartInstance) {
+            chartInstance.data.datasets[0].data = chartData;
+            chartInstance.update();
+        } else {
+            const ctx = document.getElementById('colorChart').getContext('2d');
+            chartInstance = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Zawyżona', 'Suboptymalna', 'Konkurencyjna', 'Strategiczna', 'Zaniżona'],
+                    datasets: [{
+                        data: chartData,
+                        backgroundColor: [
+                            'rgba(171, 37, 32, 0.8)',
+                            'rgba(224, 168, 66, 0.8)',
+                            'rgba(117, 152, 112, 0.8)',
+                            'rgba(0, 145, 123, 0.8)',
+                            'rgba(6, 6, 6, 0.8)'
+                        ],
+                        borderColor: [
+                            'rgba(171, 37, 32, 1)',
+                            'rgba(224, 168, 66, 1)',
+                            'rgba(117, 152, 112, 1)',
+                            'rgba(0, 145, 123, 1)',
+                            'rgba(6, 6, 6, 1)'
+                        ],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    aspectRatio: 1,
+                    cutout: '60%',
+                    plugins: {
+                        legend: {
+                            display: false,
+                            position: 'right',
+                            labels: {
+                                usePointStyle: true,
+                                padding: 16,
+                                generateLabels: function (chart) {
+                                    const original = Chart.overrides.doughnut.plugins.legend.labels.generateLabels;
+                                    const labels = original.call(this, chart);
+                                    labels.forEach(label => {
+                                        label.text = '   ' + label.text;
+                                    });
+                                    return labels;
+                                }
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function (context) {
+                                    var value = context.parsed;
+                                    return 'Produkty: ' + value;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+    }
+
+    const debouncedRenderChart = debounce(renderChart, 600);
+
+    function updateColorCounts(data) {
+        const colorCounts = {
+            prToHigh: 0,
+            prMid: 0,
+            prGood: 0,
+            prIdeal: 0,
+            prToLow: 0
+        };
+
+        data.forEach(item => {
+            colorCounts[item.colorClass]++;
+        });
+
+        document.querySelector('label[for="prToHighCheckbox"]').textContent = `Zawyżona (${colorCounts.prToHigh})`;
+        document.querySelector('label[for="prMidCheckbox"]').textContent = `Suboptymalna (${colorCounts.prMid})`;
+        document.querySelector('label[for="prGoodCheckbox"]').textContent = `Konkurencyjna (${colorCounts.prGood})`;
+        document.querySelector('label[for="prIdealCheckbox"]').textContent = `Strategiczna (${colorCounts.prIdeal})`;
+        document.querySelector('label[for="prToLowCheckbox"]').textContent = `Zaniżona (${colorCounts.prToLow})`;
+    }
+
+    function filterPricesAndUpdateUI() {
+        const currentProductSearchTerm = document.getElementById('productSearch').value.toLowerCase().replace(/\s+/g, '').trim();
+        const currentStoreSearchTerm = document.getElementById('storeSearch').value.toLowerCase().replace(/\s+/g, '').trim();
+
+        const sanitizedProductSearchTerm = currentProductSearchTerm.replace(/[^a-zA-Z0-9\s/.-]/g, '').toLowerCase().replace(/\s+/g, '');
+        const sanitizedStoreSearchTerm = currentStoreSearchTerm.replace(/[^a-zA-Z0-9\s/.-]/g, '').toLowerCase().replace(/\s+/g, '');
+
+        let filteredPrices = allPrices.filter(price => {
+            const sanitizedProductName = price.productName.toLowerCase().replace(/[^a-zA-Z0-9\s/.-]/g, '').replace(/\s+/g, '');
+            const sanitizedStoreName = price.storeName.toLowerCase().replace(/[^a-zA-Z0-9\s/.-]/g, '').replace(/\s+/g, '');
+
+            const matchesProduct = sanitizedProductName.includes(sanitizedProductSearchTerm);
+            const matchesStore = sanitizedStoreName.includes(sanitizedStoreSearchTerm);
+
+            return (sanitizedProductSearchTerm === '' || matchesProduct) && (sanitizedStoreSearchTerm === '' || matchesStore);
+        });
+
+        filteredPrices.sort((a, b) => {
+            const sanitizedProductNameA = a.productName.toLowerCase().replace(/[^a-zA-Z0-9\s/.-]/g, '').replace(/\s+/g, '');
+            const sanitizedProductNameB = b.productName.toLowerCase().replace(/[^a-zA-Z0-9\s/.-]/g, '').replace(/\s+/g, '');
+
+            const exactMatchIndexA = getExactMatchIndex(sanitizedProductNameA, sanitizedProductSearchTerm);
+            const exactMatchIndexB = getExactMatchIndex(sanitizedProductNameB, sanitizedProductSearchTerm);
+
+            if (exactMatchIndexA !== exactMatchIndexB) {
+                return exactMatchIndexA - exactMatchIndexB;
+            }
+
+            const matchLengthA = getLongestMatchLength(sanitizedProductNameA, sanitizedProductSearchTerm);
+            const matchLengthB = getLongestMatchLength(sanitizedProductNameB, sanitizedProductSearchTerm);
+
+            if (matchLengthA !== matchLengthB) {
+                return matchLengthB - matchLengthA;
+            }
+
+            return a.productName.localeCompare(b.productName);
+        });
+
+        filteredPrices = filterPricesByCategoryAndColorAndFlag(filteredPrices);
+
+        if (sortingState.showRejected) {
+            filteredPrices = filteredPrices.filter(item => item.isRejected);
+        } else {
+            filteredPrices = filteredPrices.filter(item => !item.isRejected);
+        }
+
+        if (sortingState.sortName !== null) {
+            if (sortingState.sortName === 'asc') {
+                filteredPrices.sort((a, b) => a.productName.localeCompare(b.productName));
+            } else {
+                filteredPrices.sort((a, b) => b.productName.localeCompare(a.productName));
+            }
+        } else if (sortingState.sortPrice !== null) {
+            if (sortingState.sortPrice === 'asc') {
+                filteredPrices.sort((a, b) => a.lowestPrice - b.lowestPrice);
+            } else {
+                filteredPrices.sort((a, b) => b.lowestPrice - a.lowestPrice);
+            }
+        } else if (sortingState.sortRaiseAmount !== null) {
+            filteredPrices = filteredPrices.filter(item => !item.isRejected && item.savings !== null);
+            if (sortingState.sortRaiseAmount === 'asc') {
+                filteredPrices.sort((a, b) => a.savings - b.savings);
+            } else {
+                filteredPrices.sort((a, b) => b.savings - a.savings);
+            }
+        } else if (sortingState.sortRaisePercentage !== null) {
+            filteredPrices = filteredPrices.filter(item => !item.isRejected && item.savings !== null);
+            if (sortingState.sortRaisePercentage === 'asc') {
+                filteredPrices.sort((a, b) => a.percentageDifference - b.percentageDifference);
+            } else {
+                filteredPrices.sort((a, b) => b.percentageDifference - a.percentageDifference);
+            }
+        } else if (sortingState.sortLowerAmount !== null) {
+            filteredPrices = filteredPrices.filter(item => !item.isRejected && item.savings === null && item.priceDifference !== 0);
+            if (sortingState.sortLowerAmount === 'asc') {
+                filteredPrices.sort((a, b) => a.priceDifference - b.priceDifference);
+            } else {
+                filteredPrices.sort((a, b) => b.priceDifference - a.priceDifference);
+            }
+        } else if (sortingState.sortLowerPercentage !== null) {
+            filteredPrices = filteredPrices.filter(item => !item.isRejected && item.savings === null && item.priceDifference !== 0);
+            if (sortingState.sortLowerPercentage === 'asc') {
+                filteredPrices.sort((a, b) => a.percentageDifference - b.percentageDifference);
+            } else {
+                filteredPrices.sort((a, b) => b.percentageDifference - a.percentageDifference);
+            }
+        } else if (sortingState.sortMarginAmount !== null) {
+            filteredPrices = filteredPrices.filter(item => item.marginAmount !== null);
+            if (sortingState.sortMarginAmount === 'asc') {
+                filteredPrices.sort((a, b) => a.marginAmount - b.marginAmount);
+            } else {
+                filteredPrices.sort((a, b) => b.marginAmount - a.marginAmount);
+            }
+        } else if (sortingState.sortMarginPercentage !== null) {
+            filteredPrices = filteredPrices.filter(item => item.marginPercentage !== null);
+            if (sortingState.sortMarginPercentage === 'asc') {
+                filteredPrices.sort((a, b) => a.marginPercentage - b.marginPercentage);
+            } else {
+                filteredPrices.sort((a, b) => b.marginPercentage - a.marginPercentage);
+            }
+        }
+
+        renderPrices(filteredPrices);
+        debouncedRenderChart(filteredPrices);
+        updateColorCounts(filteredPrices);
+        updateFlagCounts(filteredPrices);
+    }
+
+    document.getElementById('showRejectedButton').addEventListener('click', function () {
+        sortingState.showRejected = !sortingState.showRejected;
+        if (sortingState.showRejected) {
+            this.classList.add('active');
+        } else {
+            this.classList.remove('active');
+        }
+        resetSortingStates('showRejected');
+        filterPricesAndUpdateUI();
+    });
+
+    function resetSortingStates(except) {
+        for (let key in sortingState) {
+            if (key !== except) {
+                if (key === 'showRejected') {
+                    sortingState[key] = false;
+                    let button = document.getElementById('showRejectedButton');
+                    if (button) {
+                        button.classList.remove('active');
+                    }
+                } else {
+                    sortingState[key] = null;
+                    let button = document.getElementById(key);
+                    if (button) {
+                        button.innerHTML = getDefaultButtonLabel(key);
+                        button.classList.remove('active');
+                    }
+                }
+            }
+        }
+    }
+
+    function updateMarginSortButtonsVisibility() {
+        const hasMarginData = allPrices.some(item => item.marginAmount !== null && item.marginPercentage !== null);
+        const sortMarginAmountButton = document.getElementById('sortMarginAmount');
+        const sortMarginPercentageButton = document.getElementById('sortMarginPercentage');
+        if (hasMarginData) {
+            sortMarginAmountButton.style.display = '';
+            sortMarginPercentageButton.style.display = '';
+        } else {
+            sortMarginAmountButton.style.display = 'none';
+            sortMarginPercentageButton.style.display = 'none';
+        }
+    }
+
+    function getDefaultButtonLabel(key) {
+        switch (key) {
+            case 'sortName':
+                return 'A-Z';
+            case 'sortPrice':
+                return 'Cena';
+            case 'sortRaiseAmount':
+                return 'Podnieś PLN';
+            case 'sortRaisePercentage':
+                return 'Podnieś %';
+            case 'sortLowerAmount':
+                return 'Obniż PLN';
+            case 'sortLowerPercentage':
+                return 'Obniż %';
+            case 'sortMarginAmount':
+                return 'Marża PLN';
+            case 'sortMarginPercentage':
+                return 'Marża %';
+            case 'showRejected':
+                return 'Pokaż Odrzucone';
+            default:
+                return '';
+        }
+    }
+
+    function getExactMatchIndex(text, searchTerm) {
+        return text.indexOf(searchTerm);
+    }
+
+    function getLongestMatchLength(text, searchTerm) {
+        let maxLength = 0;
+
+        for (let i = 0; i < text.length; i++) {
+            for (let j = i; j <= text.length; j++) {
+                const substring = text.slice(i, j);
+                if (searchTerm.includes(substring) && substring.length > maxLength) {
+                    maxLength = substring.length;
+                }
+            }
+        }
+
+        return maxLength;
+    }
+
+    const debouncedFilterPrices = debounce(function () {
+        filterPricesAndUpdateUI();
+    }, 300);
+
+    document.getElementById('productSearch').addEventListener('input', debouncedFilterPrices);
+
+    document.querySelectorAll('.colorFilter, .flagFilter, .positionFilter, .deliveryFilterMyStore, .deliveryFilterCompetitor, .externalPriceFilter').forEach(function (checkbox) {
+        checkbox.addEventListener('change', function () {
+            filterPricesAndUpdateUI();
+        });
+    });
+
+    document.getElementById('bidFilter').addEventListener('change', function () {
+        filterPricesAndUpdateUI();
+    });
+
+    document.getElementById('sortName').addEventListener('click', function () {
+        if (sortingState.sortName === null) {
+            sortingState.sortName = 'asc';
+            this.innerHTML = 'A-Z ↑';
+            this.classList.add('active');
+        } else if (sortingState.sortName === 'asc') {
+            sortingState.sortName = 'desc';
+            this.innerHTML = 'A-Z ↓';
+            this.classList.add('active');
+        } else {
+            sortingState.sortName = null;
+            this.innerHTML = 'A-Z';
+            this.classList.remove('active');
+        }
+        resetSortingStates('sortName');
+        filterPricesAndUpdateUI();
+    });
+
+    document.getElementById('sortPrice').addEventListener('click', function () {
+        if (sortingState.sortPrice === null) {
+            sortingState.sortPrice = 'asc';
+            this.innerHTML = 'Cena ↑';
+            this.classList.add('active');
+        } else if (sortingState.sortPrice === 'asc') {
+            sortingState.sortPrice = 'desc';
+            this.innerHTML = 'Cena ↓';
+            this.classList.add('active');
+        } else {
+            sortingState.sortPrice = null;
+            this.innerHTML = 'Cena';
+            this.classList.remove('active');
+        }
+        resetSortingStates('sortPrice');
+        filterPricesAndUpdateUI();
+    });
+
+    document.getElementById('sortRaiseAmount').addEventListener('click', function () {
+        if (sortingState.sortRaiseAmount === null) {
+            sortingState.sortRaiseAmount = 'asc';
+            this.innerHTML = 'Podnieś PLN ↑';
+            this.classList.add('active');
+        } else if (sortingState.sortRaiseAmount === 'asc') {
+            sortingState.sortRaiseAmount = 'desc';
+            this.innerHTML = 'Podnieś PLN ↓';
+            this.classList.add('active');
+        } else {
+            sortingState.sortRaiseAmount = null;
+            this.innerHTML = 'Podnieś PLN';
+            this.classList.remove('active');
+        }
+        resetSortingStates('sortRaiseAmount');
+        filterPricesAndUpdateUI();
+    });
+
+    document.getElementById('sortRaisePercentage').addEventListener('click', function () {
+        if (sortingState.sortRaisePercentage === null) {
+            sortingState.sortRaisePercentage = 'asc';
+            this.innerHTML = 'Podnieś % ↑';
+            this.classList.add('active');
+        } else if (sortingState.sortRaisePercentage === 'asc') {
+            sortingState.sortRaisePercentage = 'desc';
+            this.innerHTML = 'Podnieś % ↓';
+            this.classList.add('active');
+        } else {
+            sortingState.sortRaisePercentage = null;
+            this.innerHTML = 'Podnieś %';
+            this.classList.remove('active');
+        }
+        resetSortingStates('sortRaisePercentage');
+        filterPricesAndUpdateUI();
+    });
+
+    document.getElementById('sortLowerAmount').addEventListener('click', function () {
+        if (sortingState.sortLowerAmount === null) {
+            sortingState.sortLowerAmount = 'asc';
+            this.innerHTML = 'Obniż PLN ↑';
+            this.classList.add('active');
+        } else if (sortingState.sortLowerAmount === 'asc') {
+            sortingState.sortLowerAmount = 'desc';
+            this.innerHTML = 'Obniż PLN ↓';
+            this.classList.add('active');
+        } else {
+            sortingState.sortLowerAmount = null;
+            this.innerHTML = 'Obniż PLN';
+            this.classList.remove('active');
+        }
+        resetSortingStates('sortLowerAmount');
+        filterPricesAndUpdateUI();
+    });
+
+    document.getElementById('sortLowerPercentage').addEventListener('click', function () {
+        if (sortingState.sortLowerPercentage === null) {
+            sortingState.sortLowerPercentage = 'asc';
+            this.innerHTML = 'Obniż % ↑';
+            this.classList.add('active');
+        } else if (sortingState.sortLowerPercentage === 'asc') {
+            sortingState.sortLowerPercentage = 'desc';
+            this.innerHTML = 'Obniż % ↓';
+            this.classList.add('active');
+        } else {
+            sortingState.sortLowerPercentage = null;
+            this.innerHTML = 'Obniż %';
+            this.classList.remove('active');
+        }
+        resetSortingStates('sortLowerPercentage');
+        filterPricesAndUpdateUI();
+    });
+
+    document.getElementById('sortMarginAmount').addEventListener('click', function () {
+        if (sortingState.sortMarginAmount === null) {
+            sortingState.sortMarginAmount = 'asc';
+            this.innerHTML = 'Marża PLN ↑';
+            this.classList.add('active');
+        } else if (sortingState.sortMarginAmount === 'asc') {
+            sortingState.sortMarginAmount = 'desc';
+            this.innerHTML = 'Marża PLN ↓';
+            this.classList.add('active');
+        } else {
+            sortingState.sortMarginAmount = null;
+            this.innerHTML = 'Marża PLN';
+            this.classList.remove('active');
+        }
+        resetSortingStates('sortMarginAmount');
+        filterPricesAndUpdateUI();
+    });
+
+    document.getElementById('sortMarginPercentage').addEventListener('click', function () {
+        if (sortingState.sortMarginPercentage === null) {
+            sortingState.sortMarginPercentage = 'asc';
+            this.innerHTML = 'Marża % ↑';
+            this.classList.add('active');
+        } else if (sortingState.sortMarginPercentage === 'asc') {
+            sortingState.sortMarginPercentage = 'desc';
+            this.innerHTML = 'Marża % ↓';
+            this.classList.add('active');
+        } else {
+            sortingState.sortMarginPercentage = null;
+            this.innerHTML = 'Marża %';
+            this.classList.remove('active');
+        }
+        resetSortingStates('sortMarginPercentage');
+        filterPricesAndUpdateUI();
+    });
+
+    document.getElementById('usePriceDifference').addEventListener('change', function () {
+        const usePriceDifference = this.checked;
+
+        allPrices.forEach(price => {
+            price.valueToUse = usePriceDifference
+                ? (price.savings !== null ? price.savings : price.priceDifference)
+                : price.percentageDifference;
+            price.colorClass = getColorClass(price.valueToUse, price.isUniqueBestPrice, price.isSharedBestPrice);
+        });
+
+        filterPricesAndUpdateUI();
+    });
+
+    document.getElementById('storeSearch').addEventListener('input', debouncedFilterPrices);
+
+    document.getElementById('price1').addEventListener('input', function () {
+        setPrice1 = parseFloat(this.value);
+        updatePricesDebounced();
+    });
+
+    document.getElementById('price2').addEventListener('input', function () {
+        setPrice2 = parseFloat(this.value);
+        updatePricesDebounced();
+    });
+    document.getElementById('stepPrice').addEventListener('input', function () {
+        setStepPrice = parseFloat(this.value);
+
+        updatePricesDebounced();
+    });
+
+    document.getElementById('sourceSelect').addEventListener('change', function () {
+        loadStores();
+        loadPrices();
+    });
+
+    document.getElementById('savePriceValues').addEventListener('click', function () {
+        const price1 = parseFloat(document.getElementById('price1').value);
+        const price2 = parseFloat(document.getElementById('price2').value);
+        const stepPrice = parseFloat(document.getElementById('stepPrice').value);
+        const usePriceDiff = document.getElementById('usePriceDifference').checked;
+        const data = {
+            StoreId: storeId,
+            SetPrice1: price1,
+            SetPrice2: price2,
+            PriceStep: stepPrice,
+            UsePriceDiff: usePriceDiff
+        };
+
+        fetch('/PriceHistory/SavePriceValues', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(data)
+        })
+            .then(response => response.json())
+            .then(response => {
+                if (response.success) {
+                    setPrice1 = price1;
+                    setPrice2 = price2;
+                    setStepPrice = stepPrice;
+                    usePriceDifferenceGlobal = usePriceDiff;
+                    loadPrices();
+                } else {
+                    alert('Błąd zapisu wartości: ' + response.message);
+                }
+            })
+            .catch(error => console.error('Błąd zapisu wartości:', error));
+    });
+
+    const modal = document.getElementById('flagModal');
+    const span = document.getElementsByClassName('close')[0];
+
+    span.onclick = function () {
+        modal.style.display = 'none';
+    };
+
+    window.onclick = function (event) {
+        if (event.target == modal) {
+            modal.style.display = 'none';
+        }
+    };
+
+    document.getElementById('saveFlagsButton').addEventListener('click', function () {
+        const selectedFlags = Array.from(document.querySelectorAll('.flagCheckbox:checked')).map(checkbox => parseInt(checkbox.value));
+        const data = {
+            productId: selectedProductId,
+            flagIds: selectedFlags
+        };
+
+        fetch('/ProductFlags/AssignFlagsToProduct', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(data)
+        })
+            .then(response => response.json())
+            .then(response => {
+                if (response.success) {
+                    modal.style.display = 'none';
+
+                    fetch(`/ProductFlags/GetFlagsForProduct?productId=${selectedProductId}`)
+                        .then(res => res.json())
+                        .then(updatedFlagIds => {
+                            const numericProductId = parseInt(selectedProductId);
+                            const priceItem = allPrices.find(item => item.productId === numericProductId);
+                            if (priceItem) {
+                                priceItem.flagIds = updatedFlagIds;
+                            } else {
+                                console.error('Product not found in allPrices:', selectedProductId);
+                            }
+
+                            updateProductFlagsInUI(selectedProductId);
+
+                            updateFlagCounts(allPrices);
+                        })
+                        .catch(error => console.error('Error fetching updated flags for product:', error));
+                } else {
+                    alert('Error assigning flags: ' + response.message);
+                }
+            })
+            .catch(error => console.error('Error assigning flags:', error));
+    });
+
+    function updateProductFlagsInUI(productId) {
+        const numericProductId = parseInt(productId);
+
+        const productElement = document.querySelector(`.price-box[data-product-id='${productId}']`);
+
+        if (productElement) {
+            const existingFlagsContainer = productElement.querySelector('.flags-container');
+
+            const priceItem = allPrices.find(item => item.productId === numericProductId);
+
+            if (priceItem) {
+                const newFlagsContainer = createFlagsContainer(priceItem);
+
+                if (existingFlagsContainer) {
+                    existingFlagsContainer.parentNode.replaceChild(newFlagsContainer, existingFlagsContainer);
+                } else {
+                    productElement.appendChild(newFlagsContainer);
+                }
+            } else {
+                console.error('Product not found in allPrices:', productId);
+            }
+        }
+    }
+
+    function createFlagsContainer(item) {
+        const flagsContainer = document.createElement('div');
+        flagsContainer.className = 'flags-container';
+        if (item.flagIds && item.flagIds.length > 0) {
+            item.flagIds.forEach(function (flagId) {
+                const flag = flags.find(function (f) { return f.FlagId === flagId; });
+                if (flag) {
+                    const flagSpan = document.createElement('span');
+                    flagSpan.className = 'flag';
+                    flagSpan.style.color = flag.FlagColor;
+                    flagSpan.style.border = '2px solid ' + flag.FlagColor;
+                    flagSpan.style.backgroundColor = hexToRgba(flag.FlagColor, 0.3);
+                    flagSpan.innerHTML = flag.FlagName;
+                    flagsContainer.appendChild(flagSpan);
+                }
+            });
+        }
+        return flagsContainer;
+    }
+
+    loadStores();
+    loadPrices();
+});
