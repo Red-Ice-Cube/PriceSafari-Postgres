@@ -36,6 +36,7 @@
 		<PackageReference Include="PuppeteerSharp" Version="20.0.5" />
 		<PackageReference Include="Schema.NET" Version="13.0.0" />
 		<PackageReference Include="System.ComponentModel.Annotations" Version="5.0.0" />
+
 	</ItemGroup>
 
 	<ItemGroup>
@@ -44,6 +45,7 @@
 		<Folder Include="wwwroot\icon\" />
 		<Folder Include="wwwroot\pdf\" />
 	</ItemGroup>
+
 
 	<ItemGroup>
 		<Content Update="wwwroot\sitemap.xml">

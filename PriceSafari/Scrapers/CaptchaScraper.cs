@@ -1,6 +1,6 @@
-﻿using PriceSafari.Models;
+﻿
+using PriceSafari.Models;
 using PuppeteerSharp;
-using System;
 using System.Globalization;
 using System.Text.RegularExpressions;
 
@@ -75,14 +75,14 @@ namespace PriceSafari.Scrapers
 
                 var commonResolutions = new List<(int width, int height)>
                 {
-                    (1920, 1080)
+                    (1366, 768)
                 };
 
                 var random = new Random();
                 var randomResolution = commonResolutions[random.Next(commonResolutions.Count)];
                 await _page.SetViewportAsync(new ViewPortOptions { Width = randomResolution.width, Height = randomResolution.height });
 
-             
+
                 await _page.SetRequestInterceptionAsync(true);
 
                 _page.Request += async (sender, e) =>
@@ -105,7 +105,7 @@ namespace PriceSafari.Scrapers
                     catch (Exception ex)
                     {
                         Console.WriteLine($"Exception during request interception: {ex.Message}");
-                  
+
                         await e.Request.ContinueAsync();
                     }
                 };
@@ -531,157 +531,294 @@ namespace PriceSafari.Scrapers
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+//using Microsoft.Playwright;
 //using PriceSafari.Models;
-//using PuppeteerSharp;
-//using System;
 //using System.Globalization;
 //using System.Text.RegularExpressions;
+
 
 //namespace PriceSafari.Scrapers
 //{
 //    public class CaptchaScraper
 //    {
-//        private Browser _browser;
-//        private Page _page;
+//        private IBrowserContext _browserContext;
+//        private IPage _page;
 //        private readonly HttpClient _httpClient;
+//        private Settings _settings;
+//        private bool _isHeadless;
+//        private string _userDataDir;
+//        private IPlaywright _playwright;
 
 //        public CaptchaScraper(HttpClient httpClient)
 //        {
 //            _httpClient = httpClient;
 //        }
 
-//        public async Task InitializeBrowserAsync(Settings settings)
+//        public IPage Page => _page;
+
+//        public async Task InitializeBrowserAsync(Settings settings, bool headless, string userDataDir)
 //        {
-//            var browserFetcher = new BrowserFetcher();
-//            await browserFetcher.DownloadAsync();
-
-//            _browser = (Browser)await Puppeteer.LaunchAsync(new LaunchOptions
-//            {
-//                Headless = settings.HeadLess,
-//                Args = new[]
-//                {
-//               "--no-sandbox",
-//                    "--disable-setuid-sandbox",
-//                    "--disable-gpu",
-//                    "--disable-blink-features=AutomationControlled",
-//                    "--disable-software-rasterizer",
-//                    "--disable-extensions",
-//                    "--disable-dev-shm-usage",
-//                    "--disable-features=IsolateOrigins,site-per-process",
-//                    "--disable-infobars"
-//        }
-//            });
-
-//            _page = (Page)await _browser.NewPageAsync();
-
-
-//            await _page.SetJavaScriptEnabledAsync(settings.JavaScript);
-
-//            await _page.EvaluateFunctionAsync(@"() => {
-//                Object.defineProperty(navigator, 'webdriver', { get: () => false, configurable: true });
-
-//                Object.defineProperty(navigator, 'plugins', {
-//                    get: () => [
-//                        { name: 'Chrome PDF Viewer' },
-//                        { name: 'Native Client' },
-//                        { name: 'Widevine Content Decryption Module' }
-//                    ],
-//                    configurable: true
-//                });
-
-              
-//            }");
-
-//            var commonResolutions = new List<(int width, int height)>
-//            {
-
-//                (1920, 1080)
-//            };
-
-//            var random = new Random();
-//            var randomResolution = commonResolutions[random.Next(commonResolutions.Count)];
-//            await _page.SetViewportAsync(new ViewPortOptions { Width = randomResolution.width, Height = randomResolution.height });
-
-//            await _page.SetRequestInterceptionAsync(true);
-//            _page.Request += async (sender, e) =>
-//            {
-//                if (settings.Styles == false)
-//                {
-//                    if (e.Request.ResourceType == ResourceType.Image ||
-//                        e.Request.ResourceType == ResourceType.StyleSheet ||
-//                        e.Request.ResourceType == ResourceType.Font)
-//                    {
-//                        await e.Request.AbortAsync();
-//                    }
-//                    else
-//                    {
-//                        await e.Request.ContinueAsync();
-//                    }
-//                }
-//                else
-//                {
-//                    await e.Request.ContinueAsync();
-//                }
-//            };
-
-//            await _page.SetExtraHttpHeadersAsync(new Dictionary<string, string>
-//            {
-//                { "Accept-Language", "pl-PL,pl;q=0.9,en-US;q=0.8,en;q=0.7" }
-//            });
-
-
-
-//            Console.WriteLine($"Bot gotowy, teraz rozgrzewka przez {settings.WarmUpTime} sekund...");
-//            await Task.Delay(settings.WarmUpTime * 1000);
-//            Console.WriteLine("Rozgrzewka zakończona. Bot gotowy do scrapowania.");
-//        }
-
-//        public async Task CloseBrowserAsync()
-//        {
-//            await _page.CloseAsync();
-//            await _browser.CloseAsync();
-//        }
-
-
-
-//        public async Task<(List<(string storeName, decimal price, decimal? shippingCostNum, int? availabilityNum, string isBidding, string? position, string? ceneoName)> Prices, string Log, List<(string Reason, string Url)> RejectedProducts)> HandleCaptchaAndScrapePricesAsync(
-//        string url, bool getCeneoName, List<string> storeNames, List<string> storeProfiles)
-//        {
-//            var priceResults = new List<(string storeName, decimal price, decimal? shippingCostNum, int? availabilityNum, string isBidding, string? position, string? ceneoName)>();
-//            var rejectedProducts = new List<(string Reason, string Url)>();
-//            string log;
+//            _settings = settings;
+//            _isHeadless = headless;
+//            _userDataDir = userDataDir;
 
 //            try
 //            {
-//                await _page.GoToAsync(url);
-//                var currentUrl = _page.Url;
+//                Console.WriteLine("Starting browser initialization...");
 
-//                // Sprawdzanie Captcha
-//                while (currentUrl.Contains("/Captcha/Add"))
+//                _playwright = await Playwright.CreateAsync();
+
+//                var launchOptions = new BrowserTypeLaunchPersistentContextOptions
 //                {
-//                    Console.WriteLine("Captcha detected. Please solve it manually in the browser.");
-//                    while (currentUrl.Contains("/Captcha/Add"))
+//                    ExecutablePath = @"C:\Users\Mateusz Werner\AppData\Local\ms-playwright\chromium-1124\chrome-win\chrome.exe", // Ścieżka do przeglądarki
+//                    Headless = headless, // Tryb headless
+//                    Args = new[]
 //                    {
-//                        await Task.Delay(15000);
-//                        currentUrl = _page.Url;
+//                        "--no-sandbox",
+//                        "--disable-setuid-sandbox",
+//                        "--disable-gpu",
+//                        "--disable-blink-features=AutomationControlled",
+//                        "--disable-software-rasterizer",
+//                        "--disable-extensions",
+//                        "--disable-dev-shm-usage",
+//                        "--disable-features=IsolateOrigins,site-per-process",
+//                        "--disable-infobars"
 //                    }
+//                };
+
+//                // Uruchamianie przeglądarki
+//                _browserContext = await _playwright.Chromium.LaunchPersistentContextAsync(_userDataDir, launchOptions);
+
+//                if (_browserContext == null)
+//                {
+//                    throw new Exception("Browser failed to launch.");
 //                }
 
-//                // Pobranie liczby ofert
+//                _page = _browserContext.Pages.FirstOrDefault() ?? await _browserContext.NewPageAsync();
+
+//                if (_page == null)
+//                {
+//                    throw new Exception("Failed to create a new page.");
+//                }
+
+//                // Zastosuj funkcje stealth
+//                await ApplyStealthAsync(_page);
+
+//                // Ustaw rozmiar okna
+//                var commonResolutions = new List<(int width, int height)>
+//                {
+//                    (1920, 1080)
+//                };
+
+//                var random = new Random();
+//                var randomResolution = commonResolutions[random.Next(commonResolutions.Count)];
+//                await _page.SetViewportSizeAsync(randomResolution.width, randomResolution.height);
+
+//                Console.WriteLine($"Browser initialized in {(_isHeadless ? "headless" : "headful")} mode.");
+//            }
+//            catch (Exception ex)
+//            {
+//                Console.WriteLine($"Error in InitializeBrowserAsync: {ex.Message}");
+//                throw;
+//            }
+//        }
+//        private async Task ApplyStealthAsync(IPage page)
+//        {
+//            // Remove navigator.webdriver
+//            await page.AddInitScriptAsync(@"() => {
+//        Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+//    }");
+
+//            // Mock navigator properties
+//            await page.AddInitScriptAsync(@"() => {
+//        // navigator.platform
+//        Object.defineProperty(navigator, 'platform', { get: () => 'Win32' });
+
+//        // navigator.userAgent
+//        Object.defineProperty(navigator, 'userAgent', {
+//            get: () => navigator.userAgent.replace('Headless', '')
+//        });
+
+//        // navigator.plugins
+//        Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3] });
+
+//        // navigator.languages
+//        Object.defineProperty(navigator, 'languages', { get: () => ['en-US', 'en'] });
+//    }");
+
+//            // WebGL fingerprinting
+//            await page.AddInitScriptAsync(@"() => {
+//        const getParameter = WebGLRenderingContext.prototype.getParameter;
+//        WebGLRenderingContext.prototype.getParameter = function(parameter) {
+//            // UNMASKED_VENDOR_WEBGL
+//            if (parameter === 37445) {
+//                return 'Intel Inc.';
+//            }
+//            // UNMASKED_RENDERER_WEBGL
+//            if (parameter === 37446) {
+//                return 'Intel Iris OpenGL Engine';
+//            }
+//            return getParameter(parameter);
+//        };
+//    }");
+
+//            // Canvas fingerprinting
+//            await page.AddInitScriptAsync(@"() => {
+//        const toDataURL = HTMLCanvasElement.prototype.toDataURL;
+//        HTMLCanvasElement.prototype.toDataURL = function() {
+//            return toDataURL.apply(this, arguments);
+//        };
+//    }");
+
+//            // Other stealth techniques...
+//        }
+
+
+//        public async Task CloseBrowserAsync()
+//        {
+//            if (_page != null)
+//            {
+//                await _page.CloseAsync();
+//            }
+//            if (_browserContext != null)
+//            {
+//                await _browserContext.CloseAsync();
+//            }
+//            if (_playwright != null)
+//            {
+//                _playwright.Dispose();
+//            }
+//        }
+
+
+//        public async Task<(List<(string storeName, decimal price, decimal? shippingCostNum, int? availabilityNum,
+//           string isBidding, string? position, string? ceneoName)> Prices, string Log,
+//           List<(string Reason, string Url)> RejectedProducts)> HandleCaptchaAndScrapePricesAsync(
+//           string url, bool getCeneoName, List<string> storeNames, List<string> storeProfiles, string userDataDir)
+//        {
+//            var priceResults = new List<(string storeName, decimal price, decimal? shippingCostNum,
+//                int? availabilityNum, string isBidding, string? position, string? ceneoName)>();
+//            var rejectedProducts = new List<(string Reason, string Url)>();
+//            string log = "";
+
+//            try
+//            {
+//                if (string.IsNullOrWhiteSpace(url))
+//                {
+//                    log = "The URL provided is null or empty.";
+//                    Console.WriteLine(log);
+//                    return (priceResults, log, rejectedProducts);
+//                }
+
+//                if (_page == null)
+//                {
+//                    throw new Exception("Browser page is not initialized.");
+//                }
+
+//                // Nawiguj do URL
+//                await _page.GotoAsync(url, new PageGotoOptions
+//                {
+//                    WaitUntil = WaitUntilState.DOMContentLoaded
+//                });
+
+//                var currentUrl = _page.Url;
+
+//                // Sprawdź, czy jest Captcha w trybie bezgłowym
+//                if (currentUrl.Contains("/Captcha/Add") && _isHeadless)
+//                {
+//                    Console.WriteLine("Captcha detected in headless mode. Switching to headful mode.");
+
+//                    // Zamknij przeglądarkę
+//                    await CloseBrowserAsync();
+
+//                    // Ponownie zainicjuj przeglądarkę w trybie graficznym
+//                    await InitializeBrowserAsync(_settings, headless: false, userDataDir: userDataDir);
+
+//                    // Nawiguj ponownie do URL
+//                    await _page.GotoAsync(url, new PageGotoOptions
+//                    {
+//                        WaitUntil = WaitUntilState.DOMContentLoaded
+//                    });
+
+//                    // Poczekaj, aż captcha zostanie rozwiązana
+//                    while (_page.Url.Contains("/Captcha/Add"))
+//                    {
+//                        Console.WriteLine("Please solve the captcha in the opened browser window.");
+//                        await Task.Delay(5000); // Sprawdza co 5 sekund
+//                    }
+
+//                    Console.WriteLine("Captcha solved. Switching back to headless mode.");
+
+//                    // Zamknij przeglądarkę
+//                    await CloseBrowserAsync();
+
+//                    // Ponownie zainicjuj przeglądarkę w trybie bezgłowym
+//                    await InitializeBrowserAsync(_settings, headless: true, userDataDir: userDataDir);
+
+//                    // Nawiguj ponownie do URL
+//                    await _page.GotoAsync(url, new PageGotoOptions
+//                    {
+//                        WaitUntil = WaitUntilState.DOMContentLoaded
+//                    });
+//                }
+
+//                // Kontynuuj scrapowanie
+//                // Poczekaj na elementy ofert
+//                await _page.WaitForSelectorAsync("li.product-offers__list__item");
+
+//                currentUrl = _page.Url;
+
+//                // Sprawdź ponownie Captcha
+//                if (currentUrl.Contains("/Captcha/Add"))
+//                {
+//                    Console.WriteLine("Captcha detected after switching back to headless mode. Cannot proceed.");
+//                    log += "Captcha detected in headless mode after attempting to solve.";
+//                    rejectedProducts.Add(("Captcha detected in headless mode after solving", url));
+//                    return (priceResults, log, rejectedProducts);
+//                }
+
+//                // Pobierz liczbę ofert
 //                var totalOffersCount = await GetTotalOffersCountAsync();
 //                Console.WriteLine($"Total number of offers: {totalOffersCount}");
 
-//                // Pobieranie cen z bieżącej strony i nazw produktów, jeśli jest to wymagane
+//                // Scrape ceny z bieżącej strony
 //                var (mainPrices, scrapeLog, scrapeRejectedProducts) = await ScrapePricesFromCurrentPage(url, true, getCeneoName);
 //                priceResults.AddRange(mainPrices);
-//                log = scrapeLog;
+//                log += scrapeLog;
 //                rejectedProducts.AddRange(scrapeRejectedProducts);
 
-//                // Pobieranie kolejnych stron ofert, jeśli jest ich więcej
+//                // Pobierz dodatkowe strony, jeśli jest więcej ofert
 //                if (totalOffersCount > 15)
 //                {
 //                    var sortedUrl = $"{url};0281-1.htm";
-//                    await _page.GoToAsync(sortedUrl);
+
+
+//                    await _page.GotoAsync(sortedUrl, new PageGotoOptions
+//                    {
+//                        WaitUntil = WaitUntilState.DOMContentLoaded
+//                    });
+
+//                    await _page.WaitForSelectorAsync("li.product-offers__list__item");
 
 //                    var (sortedPrices, sortedLog, sortedRejectedProducts) = await ScrapePricesFromCurrentPage(sortedUrl, false, getCeneoName);
 //                    log += sortedLog;
@@ -698,7 +835,15 @@ namespace PriceSafari.Scrapers
 //                    if (priceResults.Count < totalOffersCount)
 //                    {
 //                        var nextSortedUrl = $"{url};0281-0.htm";
-//                        await _page.GoToAsync(nextSortedUrl);
+
+
+//                        await _page.GotoAsync(nextSortedUrl, new PageGotoOptions
+//                        {
+//                            WaitUntil = WaitUntilState.DOMContentLoaded
+//                        });
+
+
+//                        await _page.WaitForSelectorAsync("li.product-offers__list__item");
 
 //                        var (nextSortedPrices, nextSortedLog, nextSortedRejectedProducts) = await ScrapePricesFromCurrentPage(nextSortedUrl, false, getCeneoName);
 //                        log += nextSortedLog;
@@ -716,7 +861,14 @@ namespace PriceSafari.Scrapers
 //                    if (priceResults.Count < totalOffersCount)
 //                    {
 //                        var fastestDeliveryUrl = $"{url};0282-1;02516.htm";
-//                        await _page.GoToAsync(fastestDeliveryUrl);
+
+//                        await _page.GotoAsync(fastestDeliveryUrl, new PageGotoOptions
+//                        {
+//                            WaitUntil = WaitUntilState.DOMContentLoaded
+//                        });
+
+
+//                        await _page.WaitForSelectorAsync("li.product-offers__list__item");
 
 //                        var (fastestDeliveryPrices, fastestDeliveryLog, fastestDeliveryRejectedProducts) = await ScrapePricesFromCurrentPage(fastestDeliveryUrl, false, getCeneoName);
 //                        log += fastestDeliveryLog;
@@ -732,27 +884,30 @@ namespace PriceSafari.Scrapers
 //                    }
 //                }
 
-
-
-//               // Sprawdzenie czy mamy kluczowe sklepy
+//                // Check for desired stores
 //                var foundStoreNames = priceResults.Select(p => p.storeName).Distinct().ToList();
 
-               
 //                var desiredStores = storeNames.Zip(storeProfiles, (name, profile) => new { StoreName = name, StoreProfile = profile }).ToList();
 //                var notFoundStores = desiredStores.Where(ds => !foundStoreNames.Contains(ds.StoreName)).ToList();
 
-//               //permutacja o store profajle na przeladowanie filtrowania wedlug sklepu
+//                // Iterate over not found stores
 //                foreach (var store in notFoundStores)
 //                {
 //                    var storeSpecificUrl = $"{url};{store.StoreProfile}-0v.htm";
-//                    await _page.GoToAsync(storeSpecificUrl);
+
+
+//                    await _page.GotoAsync(storeSpecificUrl, new PageGotoOptions
+//                    {
+//                        WaitUntil = WaitUntilState.DOMContentLoaded
+//                    });
+
+
+//                    await _page.WaitForSelectorAsync("li.product-offers__list__item");
 
 //                    var (storePrices, storeLog, storeRejectedProducts) = await ScrapePricesFromCurrentPage(storeSpecificUrl, false, getCeneoName);
 
-        
 //                    var storeSpecificOffers = storePrices.Where(p => p.storeName == store.StoreName).ToList();
 
-                  
 //                    storeSpecificOffers = storeSpecificOffers.Select(p => (
 //                        p.storeName,
 //                        p.price,
@@ -763,36 +918,36 @@ namespace PriceSafari.Scrapers
 //                        p.ceneoName
 //                    )).ToList();
 
-                 
 //                    priceResults.AddRange(storeSpecificOffers);
 
-                  
 //                    log += storeLog;
 //                    rejectedProducts.AddRange(storeRejectedProducts);
 //                }
 
 //                log += $"Scraping completed, found {priceResults.Count} unique offers in total.";
 //            }
-
 //            catch (Exception ex)
 //            {
 //                log = $"Error scraping URL: {url}. Exception: {ex.Message}";
+//                Console.WriteLine(log);
 //                rejectedProducts.Add(($"Exception: {ex.Message}", url));
 //            }
 
 //            return (priceResults, log, rejectedProducts);
 //        }
 
-
-
-
 //        private async Task<int> GetTotalOffersCountAsync()
 //        {
-//            var totalOffersText = await _page.QuerySelectorAsync("span.page-tab__title.js_prevent-middle-button-click");
-//            var totalOffersCount = 0;
-//            if (totalOffersText != null)
+//            if (_page == null)
 //            {
-//                var textContent = await totalOffersText.EvaluateFunctionAsync<string>("el => el.innerText");
+//                throw new Exception("Browser page is not initialized.");
+//            }
+
+//            var totalOffersElement = await _page.QuerySelectorAsync("span.page-tab__title.js_prevent-middle-button-click");
+//            var totalOffersCount = 0;
+//            if (totalOffersElement != null)
+//            {
+//                var textContent = await totalOffersElement.InnerTextAsync();
 //                var match = Regex.Match(textContent, @"\d+");
 //                if (match.Success)
 //                {
@@ -802,51 +957,60 @@ namespace PriceSafari.Scrapers
 //            return totalOffersCount;
 //        }
 
-//        private async Task<(List<(string storeName, decimal price, decimal? shippingCostNum, int? availabilityNum, string isBidding, string? position, string? ceneoName)> Prices, string Log, List<(string Reason, string Url)> RejectedProducts)> ScrapePricesFromCurrentPage(string url, bool includePosition, bool getCeneoName)
+//        private async Task<(List<(string storeName, decimal price, decimal? shippingCostNum, int? availabilityNum,
+//            string isBidding, string? position, string? ceneoName)> Prices, string Log,
+//            List<(string Reason, string Url)> RejectedProducts)> ScrapePricesFromCurrentPage(string url, bool includePosition, bool getCeneoName)
 //        {
-//            var prices = new List<(string storeName, decimal price, decimal? shippingCostNum, int? availabilityNum, string isBidding, string? position, string? ceneoName)>();
+//            var prices = new List<(string storeName, decimal price, decimal? shippingCostNum,
+//                int? availabilityNum, string isBidding, string? position, string? ceneoName)>();
 //            var rejectedProducts = new List<(string Reason, string Url)>();
-//            var storeOffers = new Dictionary<string, (decimal price, decimal? shippingCostNum, int? availabilityNum, string isBidding, string? position, string? ceneoName)>();
+//            var storeOffers = new Dictionary<string, (decimal price, decimal? shippingCostNum,
+//                int? availabilityNum, string isBidding, string? position, string? ceneoName)>();
 //            string log;
 //            int positionCounter = 1;
+
+//            if (_page == null)
+//            {
+//                throw new Exception("Browser page is not initialized.");
+//            }
 
 //            Console.WriteLine("Querying for offer nodes...");
 //            var offerNodes = await _page.QuerySelectorAllAsync("li.product-offers__list__item");
 
-//            if (offerNodes.Length > 0)
+//            if (offerNodes.Count > 0)
 //            {
-//                Console.WriteLine($"Found {offerNodes.Length} offer nodes.");
+//                Console.WriteLine($"Found {offerNodes.Count} offer nodes.");
 
 //                foreach (var offerNode in offerNodes)
 //                {
-//                    var parentList = await offerNode.EvaluateFunctionAsync<string>("el => el.closest('ul')?.className");
-//                    if (!string.IsNullOrEmpty(parentList) && parentList.Contains("similar-offers"))
+//                    var parentListClass = await offerNode.EvaluateAsync<string>("el => el.closest('ul')?.className");
+//                    if (!string.IsNullOrEmpty(parentListClass) && parentListClass.Contains("similar-offers"))
 //                    {
 //                        Console.WriteLine("Ignoring similar offer.");
 //                        rejectedProducts.Add(("Similar offer detected", url));
 //                        continue;
 //                    }
 
-//                    var storeName = await GetStoreNameFromOfferNodeAsync((ElementHandle)offerNode);
+//                    var storeName = await GetStoreNameFromOfferNodeAsync(offerNode);
 
-//                    var priceValue = await GetPriceFromOfferNodeAsync((ElementHandle)offerNode);
+//                    var priceValue = await GetPriceFromOfferNodeAsync(offerNode);
 //                    if (!priceValue.HasValue)
 //                    {
 //                        rejectedProducts.Add(("Failed to parse price", url));
 //                        continue;
 //                    }
 
-//                    decimal? shippingCostNum = await GetShippingCostFromOfferNodeAsync((ElementHandle)offerNode);
-//                    int? availabilityNum = await GetAvailabilityFromOfferNodeAsync((ElementHandle)offerNode);
-//                    var isBidding = await GetBiddingInfoFromOfferNodeAsync((ElementHandle)offerNode);
+//                    decimal? shippingCostNum = await GetShippingCostFromOfferNodeAsync(offerNode);
+//                    int? availabilityNum = await GetAvailabilityFromOfferNodeAsync(offerNode);
+//                    var isBidding = await GetBiddingInfoFromOfferNodeAsync(offerNode);
 
 //                    string? position = includePosition ? positionCounter.ToString() : null;
 //                    positionCounter++;
 
-//                    // Zbieranie nazwy produktu z każdej indywidualnej oferty
-//                    string? ceneoProductName = getCeneoName ? await GetCeneoProductNameFromOfferNodeAsync((ElementHandle)offerNode) : null;
+//                    // Pobierz nazwę produktu z oferty
+//                    string? ceneoProductName = getCeneoName ? await GetCeneoProductNameFromOfferNodeAsync(offerNode) : null;
 
-//                    // Dodanie do listy cen ofert dla każdego sklepu z nazwą produktu Ceneo
+//                    // Dodaj ofertę do listy
 //                    if (storeOffers.ContainsKey(storeName))
 //                    {
 //                        if (priceValue.Value < storeOffers[storeName].price)
@@ -860,7 +1024,8 @@ namespace PriceSafari.Scrapers
 //                    }
 //                }
 
-//                prices = storeOffers.Select(x => (x.Key, x.Value.price, x.Value.shippingCostNum, x.Value.availabilityNum, x.Value.isBidding, x.Value.position, x.Value.ceneoName)).ToList();
+//                prices = storeOffers.Select(x => (x.Key, x.Value.price, x.Value.shippingCostNum,
+//                    x.Value.availabilityNum, x.Value.isBidding, x.Value.position, x.Value.ceneoName)).ToList();
 //                log = $"Successfully scraped prices and names from URL: {url}";
 //            }
 //            else
@@ -872,21 +1037,17 @@ namespace PriceSafari.Scrapers
 //            return (prices, log, rejectedProducts);
 //        }
 
-
-
-
-//        private async Task<string> GetStoreNameFromOfferNodeAsync(ElementHandle offerNode)
+//        private async Task<string> GetStoreNameFromOfferNodeAsync(IElementHandle offerNode)
 //        {
-//            var storeName = await offerNode.QuerySelectorAsync("div.product-offer__store img") is ElementHandle imgElement
-//                ? await imgElement.EvaluateFunctionAsync<string>("el => el.alt")
-//                : null;
+//            var imgElement = await offerNode.QuerySelectorAsync("div.product-offer__store img");
+//            var storeName = imgElement != null ? await imgElement.GetAttributeAsync("alt") : null;
 
 //            if (string.IsNullOrWhiteSpace(storeName))
 //            {
 //                var storeLink = await offerNode.QuerySelectorAsync("li.offer-shop-opinions a.link.js_product-offer-link");
 //                if (storeLink != null)
 //                {
-//                    var offerParameter = await storeLink.EvaluateFunctionAsync<string>("el => el.getAttribute('offer-parameter')");
+//                    var offerParameter = await storeLink.GetAttributeAsync("offer-parameter");
 //                    if (!string.IsNullOrEmpty(offerParameter))
 //                    {
 //                        var match = Regex.Match(offerParameter, @"sklepy/([^;]+);");
@@ -907,7 +1068,7 @@ namespace PriceSafari.Scrapers
 //            return storeName;
 //        }
 
-//        private async Task<decimal?> GetPriceFromOfferNodeAsync(ElementHandle offerNode)
+//        private async Task<decimal?> GetPriceFromOfferNodeAsync(IElementHandle offerNode)
 //        {
 //            var priceNode = await offerNode.QuerySelectorAsync("span.price-format span.price span.value");
 //            var pennyNode = await offerNode.QuerySelectorAsync("span.price-format span.price span.penny");
@@ -917,8 +1078,8 @@ namespace PriceSafari.Scrapers
 //                return null;
 //            }
 
-//            var priceText = (await priceNode.EvaluateFunctionAsync<string>("el => el.innerText")).Trim() +
-//                            (await pennyNode.EvaluateFunctionAsync<string>("el => el.innerText")).Trim();
+//            var priceText = (await priceNode.InnerTextAsync()).Trim() +
+//                            (await pennyNode.InnerTextAsync()).Trim();
 //            var priceValue = Regex.Replace(priceText, @"[^\d,.]", "").Replace(",", ".").Trim();
 
 //            if (!decimal.TryParse(priceValue, NumberStyles.Any, CultureInfo.InvariantCulture, out decimal price))
@@ -929,14 +1090,14 @@ namespace PriceSafari.Scrapers
 //            return price;
 //        }
 
-//        private async Task<decimal?> GetShippingCostFromOfferNodeAsync(ElementHandle offerNode)
+//        private async Task<decimal?> GetShippingCostFromOfferNodeAsync(IElementHandle offerNode)
 //        {
 //            var shippingNode = await offerNode.QuerySelectorAsync("div.free-delivery-label") ??
 //                               await offerNode.QuerySelectorAsync("span.product-delivery-info.js_deliveryInfo");
 
 //            if (shippingNode != null)
 //            {
-//                var shippingText = await shippingNode.EvaluateFunctionAsync<string>("el => el.innerText");
+//                var shippingText = await shippingNode.InnerTextAsync();
 //                if (shippingText.Contains("Darmowa wysyłka") || shippingText.Contains("bezpłatna dostawa"))
 //                {
 //                    return 0.00m;
@@ -944,7 +1105,9 @@ namespace PriceSafari.Scrapers
 //                else
 //                {
 //                    var shippingCostText = Regex.Match(shippingText, @"\d+[.,]?\d*").Value;
-//                    if (!string.IsNullOrEmpty(shippingCostText) && decimal.TryParse(shippingCostText.Replace(",", "."), NumberStyles.Any, CultureInfo.InvariantCulture, out decimal parsedShippingCost))
+//                    if (!string.IsNullOrEmpty(shippingCostText) &&
+//                        decimal.TryParse(shippingCostText.Replace(",", "."), NumberStyles.Any, CultureInfo.InvariantCulture,
+//                            out decimal parsedShippingCost))
 //                    {
 //                        return parsedShippingCost;
 //                    }
@@ -953,14 +1116,14 @@ namespace PriceSafari.Scrapers
 //            return null;
 //        }
 
-//        private async Task<int?> GetAvailabilityFromOfferNodeAsync(ElementHandle offerNode)
+//        private async Task<int?> GetAvailabilityFromOfferNodeAsync(IElementHandle offerNode)
 //        {
 //            var availabilityNode = await offerNode.QuerySelectorAsync("span.instock") ??
 //                                   await offerNode.QuerySelectorAsync("div.product-availability span");
 
 //            if (availabilityNode != null)
 //            {
-//                var availabilityText = await availabilityNode.EvaluateFunctionAsync<string>("el => el.innerText");
+//                var availabilityText = await availabilityNode.InnerTextAsync();
 //                if (availabilityText.Contains("Wysyłka w 1 dzień"))
 //                {
 //                    return 1;
@@ -977,21 +1140,21 @@ namespace PriceSafari.Scrapers
 //            return null;
 //        }
 
-//        private async Task<string> GetBiddingInfoFromOfferNodeAsync(ElementHandle offerNode)
+//        private async Task<string> GetBiddingInfoFromOfferNodeAsync(IElementHandle offerNode)
 //        {
 //            var offerContainer = await offerNode.QuerySelectorAsync(".product-offer__container");
-//            var offerType = await offerContainer?.EvaluateFunctionAsync<string>("el => el.getAttribute('data-offertype')");
+//            var offerType = await offerContainer?.GetAttributeAsync("data-offertype");
 //            return offerType?.Contains("Bid") == true ? "1" : "0";
 //        }
 
-//        private async Task<string?> GetCeneoProductNameFromOfferNodeAsync(ElementHandle offerNode)
+//        private async Task<string?> GetCeneoProductNameFromOfferNodeAsync(IElementHandle offerNode)
 //        {
 //            try
 //            {
 //                var productNameElement = await offerNode.QuerySelectorAsync("span.short-name__txt");
 //                if (productNameElement != null)
 //                {
-//                    var productName = await productNameElement.EvaluateFunctionAsync<string>("el => el.innerText");
+//                    var productName = await productNameElement.InnerTextAsync();
 //                    return productName.Trim();
 //                }
 //            }
@@ -1000,469 +1163,10 @@ namespace PriceSafari.Scrapers
 //                Console.WriteLine($"Error scraping product name from offer node: {ex.Message}");
 //            }
 
-//            return null; // Zwraca null, jeśli nie znaleziono nazwy
-//        }
-
-
-//    }
-//}
-
-
-
-
-
-
-
-
-
-
-
-//MODEL BEZ ZBIERANIA WYBRANYCH SKLEPOW
-
-
-
-//using PriceSafari.Models;
-//using PuppeteerSharp;
-//using System;
-//using System.Globalization;
-//using System.Text.RegularExpressions;
-
-//namespace PriceSafari.Scrapers
-//{
-//    public class CaptchaScraper
-//    {
-//        private Browser _browser;
-//        private Page _page;
-//        private readonly HttpClient _httpClient;
-
-//        public CaptchaScraper(HttpClient httpClient)
-//        {
-//            _httpClient = httpClient;
-//        }
-
-//        public async Task InitializeBrowserAsync(Settings settings)
-//        {
-//            var browserFetcher = new BrowserFetcher();
-//            await browserFetcher.DownloadAsync();
-
-//            _browser = (Browser)await Puppeteer.LaunchAsync(new LaunchOptions
-//            {
-//                Headless = settings.HeadLess,
-//                Args = new[]
-//                {
-//               "--no-sandbox",
-//                    "--disable-setuid-sandbox",
-//                    "--disable-gpu",
-//                    "--disable-blink-features=AutomationControlled",
-//                    "--disable-software-rasterizer",
-//                    "--disable-extensions",
-//                    "--disable-dev-shm-usage",
-//                    "--disable-features=IsolateOrigins,site-per-process",
-//                    "--disable-infobars"
-//        }
-//            });
-
-//            _page = (Page)await _browser.NewPageAsync();
-
-
-//            await _page.SetJavaScriptEnabledAsync(settings.JavaScript);
-
-//            await _page.EvaluateFunctionAsync(@"() => {
-//                Object.defineProperty(navigator, 'webdriver', { get: () => false, configurable: true });
-
-//                Object.defineProperty(navigator, 'plugins', {
-//                    get: () => [
-//                        { name: 'Chrome PDF Viewer' },
-//                        { name: 'Native Client' },
-//                        { name: 'Widevine Content Decryption Module' }
-//                    ],
-//                    configurable: true
-//                });
-
-
-//            }");
-
-//            var commonResolutions = new List<(int width, int height)>
-//            {
-
-//                (1920, 1080)
-//            };
-
-//            var random = new Random();
-//            var randomResolution = commonResolutions[random.Next(commonResolutions.Count)];
-//            await _page.SetViewportAsync(new ViewPortOptions { Width = randomResolution.width, Height = randomResolution.height });
-
-//            await _page.SetRequestInterceptionAsync(true);
-//            _page.Request += async (sender, e) =>
-//            {
-//                if (settings.Styles == false)
-//                {
-//                    if (e.Request.ResourceType == ResourceType.Image ||
-//                        e.Request.ResourceType == ResourceType.StyleSheet ||
-//                        e.Request.ResourceType == ResourceType.Font)
-//                    {
-//                        await e.Request.AbortAsync();
-//                    }
-//                    else
-//                    {
-//                        await e.Request.ContinueAsync();
-//                    }
-//                }
-//                else
-//                {
-//                    await e.Request.ContinueAsync();
-//                }
-//            };
-
-//            await _page.SetExtraHttpHeadersAsync(new Dictionary<string, string>
-//            {
-//                { "Accept-Language", "pl-PL,pl;q=0.9,en-US;q=0.8,en;q=0.7" }
-//            });
-
-
-
-//            Console.WriteLine($"Bot gotowy, teraz rozgrzewka przez {settings.WarmUpTime} sekund...");
-//            await Task.Delay(settings.WarmUpTime * 1000);
-//            Console.WriteLine("Rozgrzewka zakończona. Bot gotowy do scrapowania.");
-//        }
-
-//        public async Task CloseBrowserAsync()
-//        {
-//            await _page.CloseAsync();
-//            await _browser.CloseAsync();
-//        }
-
-
-
-//        public async Task<(List<(string storeName, decimal price, decimal? shippingCostNum, int? availabilityNum, string isBidding, string? position, string? ceneoName)> Prices, string Log, List<(string Reason, string Url)> RejectedProducts)> HandleCaptchaAndScrapePricesAsync(string url, bool getCeneoName)
-//        {
-//            var priceResults = new List<(string storeName, decimal price, decimal? shippingCostNum, int? availabilityNum, string isBidding, string? position, string? ceneoName)>();
-//            var rejectedProducts = new List<(string Reason, string Url)>();
-//            string log;
-
-//            try
-//            {
-//                await _page.GoToAsync(url);
-//                var currentUrl = _page.Url;
-
-//                // Sprawdzanie Captcha
-//                while (currentUrl.Contains("/Captcha/Add"))
-//                {
-//                    Console.WriteLine("Captcha detected. Please solve it manually in the browser.");
-//                    while (currentUrl.Contains("/Captcha/Add"))
-//                    {
-//                        await Task.Delay(15000);
-//                        currentUrl = _page.Url;
-//                    }
-//                }
-
-//                // Pobranie liczby ofert
-//                var totalOffersCount = await GetTotalOffersCountAsync();
-//                Console.WriteLine($"Total number of offers: {totalOffersCount}");
-
-//                // Pobieranie cen z bieżącej strony i nazw produktów, jeśli jest to wymagane
-//                var (mainPrices, scrapeLog, scrapeRejectedProducts) = await ScrapePricesFromCurrentPage(url, true, getCeneoName);
-//                priceResults.AddRange(mainPrices);
-//                log = scrapeLog;
-//                rejectedProducts.AddRange(scrapeRejectedProducts);
-
-//                // Pobieranie kolejnych stron ofert, jeśli jest ich więcej
-//                if (totalOffersCount > 15)
-//                {
-//                    var sortedUrl = $"{url};0281-1.htm";
-//                    await _page.GoToAsync(sortedUrl);
-
-//                    var (sortedPrices, sortedLog, sortedRejectedProducts) = await ScrapePricesFromCurrentPage(sortedUrl, false, getCeneoName);
-//                    log += sortedLog;
-//                    rejectedProducts.AddRange(sortedRejectedProducts);
-
-//                    foreach (var sortedPrice in sortedPrices)
-//                    {
-//                        if (!priceResults.Any(p => p.storeName == sortedPrice.storeName && p.price == sortedPrice.price))
-//                        {
-//                            priceResults.Add(sortedPrice);
-//                        }
-//                    }
-
-//                    if (priceResults.Count < totalOffersCount)
-//                    {
-//                        var nextSortedUrl = $"{url};0281-0.htm";
-//                        await _page.GoToAsync(nextSortedUrl);
-
-//                        var (nextSortedPrices, nextSortedLog, nextSortedRejectedProducts) = await ScrapePricesFromCurrentPage(nextSortedUrl, false, getCeneoName);
-//                        log += nextSortedLog;
-//                        rejectedProducts.AddRange(nextSortedRejectedProducts);
-
-//                        foreach (var nextSortedPrice in nextSortedPrices)
-//                        {
-//                            if (!priceResults.Any(p => p.storeName == nextSortedPrice.storeName && p.price == nextSortedPrice.price))
-//                            {
-//                                priceResults.Add(nextSortedPrice);
-//                            }
-//                        }
-//                    }
-
-//                    if (priceResults.Count < totalOffersCount)
-//                    {
-//                        var fastestDeliveryUrl = $"{url};0282-1;02516.htm";
-//                        await _page.GoToAsync(fastestDeliveryUrl);
-
-//                        var (fastestDeliveryPrices, fastestDeliveryLog, fastestDeliveryRejectedProducts) = await ScrapePricesFromCurrentPage(fastestDeliveryUrl, false, getCeneoName);
-//                        log += fastestDeliveryLog;
-//                        rejectedProducts.AddRange(fastestDeliveryRejectedProducts);
-
-//                        foreach (var fastestDeliveryPrice in fastestDeliveryPrices)
-//                        {
-//                            if (!priceResults.Any(p => p.storeName == fastestDeliveryPrice.storeName && p.price == fastestDeliveryPrice.price))
-//                            {
-//                                priceResults.Add(fastestDeliveryPrice);
-//                            }
-//                        }
-//                    }
-//                }
-
-//                log += $"Scraping completed, found {priceResults.Count} unique offers in total.";
-//            }
-//            catch (Exception ex)
-//            {
-//                log = $"Error scraping URL: {url}. Exception: {ex.Message}";
-//                rejectedProducts.Add(($"Exception: {ex.Message}", url));
-//            }
-
-//            return (priceResults, log, rejectedProducts);
-//        }
-
-
-
-
-//        private async Task<int> GetTotalOffersCountAsync()
-//        {
-//            var totalOffersText = await _page.QuerySelectorAsync("span.page-tab__title.js_prevent-middle-button-click");
-//            var totalOffersCount = 0;
-//            if (totalOffersText != null)
-//            {
-//                var textContent = await totalOffersText.EvaluateFunctionAsync<string>("el => el.innerText");
-//                var match = Regex.Match(textContent, @"\d+");
-//                if (match.Success)
-//                {
-//                    totalOffersCount = int.Parse(match.Value);
-//                }
-//            }
-//            return totalOffersCount;
-//        }
-
-//        private async Task<(List<(string storeName, decimal price, decimal? shippingCostNum, int? availabilityNum, string isBidding, string? position, string? ceneoName)> Prices, string Log, List<(string Reason, string Url)> RejectedProducts)> ScrapePricesFromCurrentPage(string url, bool includePosition, bool getCeneoName)
-//        {
-//            var prices = new List<(string storeName, decimal price, decimal? shippingCostNum, int? availabilityNum, string isBidding, string? position, string? ceneoName)>();
-//            var rejectedProducts = new List<(string Reason, string Url)>();
-//            var storeOffers = new Dictionary<string, (decimal price, decimal? shippingCostNum, int? availabilityNum, string isBidding, string? position, string? ceneoName)>();
-//            string log;
-//            int positionCounter = 1;
-
-//            Console.WriteLine("Querying for offer nodes...");
-//            var offerNodes = await _page.QuerySelectorAllAsync("li.product-offers__list__item");
-
-//            if (offerNodes.Length > 0)
-//            {
-//                Console.WriteLine($"Found {offerNodes.Length} offer nodes.");
-
-//                foreach (var offerNode in offerNodes)
-//                {
-//                    var parentList = await offerNode.EvaluateFunctionAsync<string>("el => el.closest('ul')?.className");
-//                    if (!string.IsNullOrEmpty(parentList) && parentList.Contains("similar-offers"))
-//                    {
-//                        Console.WriteLine("Ignoring similar offer.");
-//                        rejectedProducts.Add(("Similar offer detected", url));
-//                        continue;
-//                    }
-
-//                    var storeName = await GetStoreNameFromOfferNodeAsync((ElementHandle)offerNode);
-
-//                    var priceValue = await GetPriceFromOfferNodeAsync((ElementHandle)offerNode);
-//                    if (!priceValue.HasValue)
-//                    {
-//                        rejectedProducts.Add(("Failed to parse price", url));
-//                        continue;
-//                    }
-
-//                    decimal? shippingCostNum = await GetShippingCostFromOfferNodeAsync((ElementHandle)offerNode);
-//                    int? availabilityNum = await GetAvailabilityFromOfferNodeAsync((ElementHandle)offerNode);
-//                    var isBidding = await GetBiddingInfoFromOfferNodeAsync((ElementHandle)offerNode);
-
-//                    string? position = includePosition ? positionCounter.ToString() : null;
-//                    positionCounter++;
-
-//                    // Zbieranie nazwy produktu z każdej indywidualnej oferty
-//                    string? ceneoProductName = getCeneoName ? await GetCeneoProductNameFromOfferNodeAsync((ElementHandle)offerNode) : null;
-
-//                    // Dodanie do listy cen ofert dla każdego sklepu z nazwą produktu Ceneo
-//                    if (storeOffers.ContainsKey(storeName))
-//                    {
-//                        if (priceValue.Value < storeOffers[storeName].price)
-//                        {
-//                            storeOffers[storeName] = (priceValue.Value, shippingCostNum, availabilityNum, isBidding, position, ceneoProductName);
-//                        }
-//                    }
-//                    else
-//                    {
-//                        storeOffers[storeName] = (priceValue.Value, shippingCostNum, availabilityNum, isBidding, position, ceneoProductName);
-//                    }
-//                }
-
-//                prices = storeOffers.Select(x => (x.Key, x.Value.price, x.Value.shippingCostNum, x.Value.availabilityNum, x.Value.isBidding, x.Value.position, x.Value.ceneoName)).ToList();
-//                log = $"Successfully scraped prices and names from URL: {url}";
-//            }
-//            else
-//            {
-//                log = $"Failed to find prices on URL: {url}";
-//                rejectedProducts.Add(("No offer nodes found", url));
-//            }
-
-//            return (prices, log, rejectedProducts);
-//        }
-
-
-
-
-//        private async Task<string> GetStoreNameFromOfferNodeAsync(ElementHandle offerNode)
-//        {
-//            var storeName = await offerNode.QuerySelectorAsync("div.product-offer__store img") is ElementHandle imgElement
-//                ? await imgElement.EvaluateFunctionAsync<string>("el => el.alt")
-//                : null;
-
-//            if (string.IsNullOrWhiteSpace(storeName))
-//            {
-//                var storeLink = await offerNode.QuerySelectorAsync("li.offer-shop-opinions a.link.js_product-offer-link");
-//                if (storeLink != null)
-//                {
-//                    var offerParameter = await storeLink.EvaluateFunctionAsync<string>("el => el.getAttribute('offer-parameter')");
-//                    if (!string.IsNullOrEmpty(offerParameter))
-//                    {
-//                        var match = Regex.Match(offerParameter, @"sklepy/([^;]+);");
-//                        if (match.Success)
-//                        {
-//                            storeName = match.Groups[1].Value;
-
-//                            var hyphenIndex = storeName.LastIndexOf('-');
-//                            if (hyphenIndex > 0)
-//                            {
-//                                storeName = storeName.Substring(0, hyphenIndex);
-//                            }
-//                        }
-//                    }
-//                }
-//            }
-
-//            return storeName;
-//        }
-
-//        private async Task<decimal?> GetPriceFromOfferNodeAsync(ElementHandle offerNode)
-//        {
-//            var priceNode = await offerNode.QuerySelectorAsync("span.price-format span.price span.value");
-//            var pennyNode = await offerNode.QuerySelectorAsync("span.price-format span.price span.penny");
-
-//            if (priceNode == null || pennyNode == null)
-//            {
-//                return null;
-//            }
-
-//            var priceText = (await priceNode.EvaluateFunctionAsync<string>("el => el.innerText")).Trim() +
-//                            (await pennyNode.EvaluateFunctionAsync<string>("el => el.innerText")).Trim();
-//            var priceValue = Regex.Replace(priceText, @"[^\d,.]", "").Replace(",", ".").Trim();
-
-//            if (!decimal.TryParse(priceValue, NumberStyles.Any, CultureInfo.InvariantCulture, out decimal price))
-//            {
-//                return null;
-//            }
-
-//            return price;
-//        }
-
-//        private async Task<decimal?> GetShippingCostFromOfferNodeAsync(ElementHandle offerNode)
-//        {
-//            var shippingNode = await offerNode.QuerySelectorAsync("div.free-delivery-label") ??
-//                               await offerNode.QuerySelectorAsync("span.product-delivery-info.js_deliveryInfo");
-
-//            if (shippingNode != null)
-//            {
-//                var shippingText = await shippingNode.EvaluateFunctionAsync<string>("el => el.innerText");
-//                if (shippingText.Contains("Darmowa wysyłka") || shippingText.Contains("bezpłatna dostawa"))
-//                {
-//                    return 0.00m;
-//                }
-//                else
-//                {
-//                    var shippingCostText = Regex.Match(shippingText, @"\d+[.,]?\d*").Value;
-//                    if (!string.IsNullOrEmpty(shippingCostText) && decimal.TryParse(shippingCostText.Replace(",", "."), NumberStyles.Any, CultureInfo.InvariantCulture, out decimal parsedShippingCost))
-//                    {
-//                        return parsedShippingCost;
-//                    }
-//                }
-//            }
 //            return null;
 //        }
-
-//        private async Task<int?> GetAvailabilityFromOfferNodeAsync(ElementHandle offerNode)
-//        {
-//            var availabilityNode = await offerNode.QuerySelectorAsync("span.instock") ??
-//                                   await offerNode.QuerySelectorAsync("div.product-availability span");
-
-//            if (availabilityNode != null)
-//            {
-//                var availabilityText = await availabilityNode.EvaluateFunctionAsync<string>("el => el.innerText");
-//                if (availabilityText.Contains("Wysyłka w 1 dzień"))
-//                {
-//                    return 1;
-//                }
-//                else if (availabilityText.Contains("Wysyłka do"))
-//                {
-//                    var daysText = Regex.Match(availabilityText, @"\d+").Value;
-//                    if (int.TryParse(daysText, out int parsedDays))
-//                    {
-//                        return parsedDays;
-//                    }
-//                }
-//            }
-//            return null;
-//        }
-
-//        private async Task<string> GetBiddingInfoFromOfferNodeAsync(ElementHandle offerNode)
-//        {
-//            var offerContainer = await offerNode.QuerySelectorAsync(".product-offer__container");
-//            var offerType = await offerContainer?.EvaluateFunctionAsync<string>("el => el.getAttribute('data-offertype')");
-//            return offerType?.Contains("Bid") == true ? "1" : "0";
-//        }
-
-//        private async Task<string?> GetCeneoProductNameFromOfferNodeAsync(ElementHandle offerNode)
-//        {
-//            try
-//            {
-//                var productNameElement = await offerNode.QuerySelectorAsync("span.short-name__txt");
-//                if (productNameElement != null)
-//                {
-//                    var productName = await productNameElement.EvaluateFunctionAsync<string>("el => el.innerText");
-//                    return productName.Trim();
-//                }
-//            }
-//            catch (Exception ex)
-//            {
-//                Console.WriteLine($"Error scraping product name from offer node: {ex.Message}");
-//            }
-
-//            return null; // Zwraca null, jeśli nie znaleziono nazwy
-//        }
-
-
 //    }
 //}
-
-
-
-
-
-
-
-
 
 
 

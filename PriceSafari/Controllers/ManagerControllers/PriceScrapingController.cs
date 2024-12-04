@@ -226,7 +226,6 @@ public class PriceScrapingController : Controller
 
 
 
-
     //[HttpPost]
     //public async Task<IActionResult> StartScrapingWithCaptchaHandling()
     //{
@@ -241,9 +240,13 @@ public class PriceScrapingController : Controller
     //    }
 
     //    int captchaSpeed = settings.Semophore;
-    //    bool getCeneoName = settings.GetCeneoName; // Pobieramy wartość ustawienia
+    //    bool getCeneoName = settings.GetCeneoName; // Retrieve the setting
 
-    //    var coOfrs = await _context.CoOfrs.Where(co => !co.IsScraped).ToListAsync();
+    //    // Modify the query to include only CoOfrs with a non-empty OfferUrl
+    //    var coOfrs = await _context.CoOfrs
+    //        .Where(co => !co.IsScraped && !string.IsNullOrEmpty(co.OfferUrl))
+    //        .ToListAsync();
+
     //    var urls = coOfrs.Select(co => co.OfferUrl).ToList();
     //    var urlQueue = new Queue<string>(urls);
 
@@ -273,9 +276,13 @@ public class PriceScrapingController : Controller
     //                    var httpClient = _httpClientFactory.CreateClient();
     //                    var captchaScraper = new CaptchaScraper(httpClient);
 
-    //                    await captchaScraper.InitializeBrowserAsync(settings);
+    //                    // Generate a unique userDataDir for this instance
+    //                    string userDataDir = Path.Combine("user_data", $"instance_{Guid.NewGuid()}");
 
-    //                    while (urlQueue.Count > 0)
+    //                    // Initialize browser in headless mode
+    //                    await captchaScraper.InitializeBrowserAsync(settings, headless: true, userDataDir: userDataDir);
+
+    //                    while (true)
     //                    {
     //                        string url;
     //                        lock (urlQueue)
@@ -297,15 +304,22 @@ public class PriceScrapingController : Controller
 
     //                            // Pass StoreNames and StoreProfiles to the scraper
     //                            var (prices, log, rejected) = await captchaScraper.HandleCaptchaAndScrapePricesAsync(
-    //                                url, getCeneoName, coOfr.StoreNames, coOfr.StoreProfiles);
+    //                                url, getCeneoName, coOfr.StoreNames, coOfr.StoreProfiles, userDataDir);
     //                            Console.WriteLine(log);
+
+    //                            // Log captcha detection
+    //                            if (log.Contains("Captcha detected"))
+    //                            {
+    //                                Console.WriteLine($"Captcha encountered for URL: {url}");
+    //                            }
+    //                            else
+    //                            {
+    //                                Console.WriteLine($"Captcha not encountered or solved for URL: {url}");
+    //                            }
 
     //                            if (prices.Count > 0)
     //                            {
-    //                                // Remove the second declaration of coOfr
-    //                                // var coOfr = coOfrs.First(co => co.OfferUrl == url); // Remove this line
-
-    //                                // Use the coOfr variable already declared
+    //                                // Existing code to process prices
     //                                var priceHistories = prices.Select(priceData => new CoOfrPriceHistoryClass
     //                                {
     //                                    CoOfrClassId = coOfr.Id,
@@ -320,28 +334,38 @@ public class PriceScrapingController : Controller
 
     //                                await scopedContext.CoOfrPriceHistories.AddRangeAsync(priceHistories);
     //                                coOfr.IsScraped = true;
-
     //                                coOfr.PricesCount = priceHistories.Count;
-    //                                coOfr.IsRejected = (priceHistories.Count == 0);
+    //                                coOfr.IsRejected = false;
     //                                scopedContext.CoOfrs.Update(coOfr);
     //                                await scopedContext.SaveChangesAsync();
 
-    //                                await _hubContext.Clients.All.SendAsync("ReceiveScrapingUpdate", coOfr.OfferUrl, coOfr.IsScraped, coOfr.IsRejected, coOfr.PricesCount);
-
+    //                                // Update progress
     //                                Interlocked.Add(ref totalPrices, priceHistories.Count);
-    //                                Interlocked.Increment(ref scrapedCount);
-    //                                if (coOfr.IsRejected)
-    //                                {
-    //                                    Interlocked.Increment(ref rejectedCount);
-    //                                }
-    //                                await _hubContext.Clients.All.SendAsync("ReceiveProgressUpdate", scrapedCount, coOfrs.Count, stopwatch.Elapsed.TotalSeconds, rejectedCount);
     //                            }
+    //                            else
+    //                            {
+    //                                // Handle the case where no prices were found
+    //                                coOfr.IsScraped = true;
+    //                                coOfr.IsRejected = true;
+    //                                coOfr.PricesCount = 0;
+    //                                scopedContext.CoOfrs.Update(coOfr);
+    //                                await scopedContext.SaveChangesAsync();
+
+    //                                Console.WriteLine($"No prices found for URL: {url}. Marked as rejected.");
+
+    //                                // Update progress
+    //                                Interlocked.Increment(ref rejectedCount);
+    //                            }
+
+    //                            // Common to both cases
+    //                            Interlocked.Increment(ref scrapedCount);
+    //                            await _hubContext.Clients.All.SendAsync("ReceiveScrapingUpdate", coOfr.OfferUrl, coOfr.IsScraped, coOfr.IsRejected, coOfr.PricesCount);
+    //                            await _hubContext.Clients.All.SendAsync("ReceiveProgressUpdate", scrapedCount, coOfrs.Count, stopwatch.Elapsed.TotalSeconds, rejectedCount);
 
     //                            if (cancellationToken.IsCancellationRequested)
     //                            {
     //                                Console.WriteLine("Scraping canceled.");
-    //                                await captchaScraper.CloseBrowserAsync();
-    //                                return;
+    //                                break;
     //                            }
     //                        }
     //                        catch (Exception ex)
@@ -351,7 +375,21 @@ public class PriceScrapingController : Controller
     //                        }
     //                    }
 
+    //                    // Close the browser and delete the userDataDir
     //                    await captchaScraper.CloseBrowserAsync();
+
+    //                    // Clean up userDataDir
+    //                    try
+    //                    {
+    //                        if (Directory.Exists(userDataDir))
+    //                        {
+    //                            Directory.Delete(userDataDir, true);
+    //                        }
+    //                    }
+    //                    catch (Exception ex)
+    //                    {
+    //                        Console.WriteLine($"Error deleting userDataDir {userDataDir}: {ex.Message}");
+    //                    }
     //                }
     //                finally
     //                {
@@ -374,9 +412,6 @@ public class PriceScrapingController : Controller
 
     //    return Ok(new { Message = "Scraping completed.", TotalPrices = totalPrices, RejectedCount = rejectedCount });
     //}
-
-
-
 
 
 
