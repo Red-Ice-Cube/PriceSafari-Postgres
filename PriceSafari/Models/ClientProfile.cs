@@ -12,6 +12,8 @@ namespace PriceSafari.Models
         Spotkanie,
         Testuje,
         Frajer,
+        ZaDużaRyba,
+        Płotka,
         Ojebane
     }
 

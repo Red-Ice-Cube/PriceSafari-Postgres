@@ -16,26 +16,21 @@
                 <a asp-action="Index" asp-controller="ClientProfile" class="Button-Page-Small">Powrót do listy kontaktów</a>
             </div>
 
-            <!-- Wyświetlanie komunikatów -->
-            @if (TempData["ErrorMessage"] != null)
-            {
-                <div class="alert alert-danger">@TempData["ErrorMessage"]</div>
-            }
-
-            @if (TempData["SuccessMessage"] != null)
-            {
-                <div class="alert alert-success">@TempData["SuccessMessage"]</div>
-            }
-
+          
             <form method="post" asp-action="Scrape" asp-controller="ClientProfileScraper">
+                @Html.AntiForgeryToken()
                 <div class="form-group">
                     <label for="url">URL do scrapowania:</label>
                     <input type="text" class="form-control" id="url" name="url" placeholder="Wprowadź URL" required />
                 </div>
-                <button type="submit" class="Button-Page-Small">Rozpocznij scrapowanie</button>
+                <button type="submit" class="Button-Page-Small">Rozpocznij / Kontynuuj scrapowanie</button>
+            </form>
+
+            <!-- Dodaj przycisk do zatrzymania scrapera -->
+            <form method="post" asp-action="StopScraper" asp-controller="ClientProfileScraper" style="margin-top:10px;">
+                @Html.AntiForgeryToken()
+                <button type="submit" class="Button-Page-Small" style="background-color:red;color:white;">Zatrzymaj scrapera</button>
             </form>
         </div>
     </div>
 </div>
-
-@Html.AntiForgeryToken()
