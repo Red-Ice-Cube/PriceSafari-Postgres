@@ -234,14 +234,7 @@ namespace PriceSafari.Scrapers
                         Console.WriteLine("Could not extract storeId from URL, skipping product count retrieval.");
                     }
 
-                 
-                    if (productCountInt < 200 || productCountInt > 25000)
-                    {
-                        Console.WriteLine("Store does not meet product count criteria (less than 400 or more than 25000). Skipping...");
-                        continue;
-                    }
-
-                    // Dodajemy dane do listy wyników
+                    // Nie pomijamy sklepów, dodajemy je wszystkie do wyników
                     results.Add(new StoreData
                     {
                         OriginalUrl = url,
@@ -260,6 +253,7 @@ namespace PriceSafari.Scrapers
 
             return results;
         }
+
 
         private async Task<string> WaitForSelectorAndGetTextContentAsync(string selector, bool optional = false)
         {

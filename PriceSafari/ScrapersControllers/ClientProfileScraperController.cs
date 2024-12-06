@@ -5,6 +5,8 @@ using Microsoft.EntityFrameworkCore;
 using PriceSafari.Data;
 using PriceSafari.Models;
 using PriceSafari.Scrapers;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace PriceSafari.ScrapersControllers
 {
@@ -99,7 +101,14 @@ namespace PriceSafari.ScrapersControllers
             Console.WriteLine($"Main scraped URL: {url}");
 
             int savedCount = 0;
-            int skippedCount = 0;
+            int skippedCount = 0; // Jeśli byłyby jakieś pominięcia
+            int totalNewFound = newUrls.Count;
+
+            // Dodajemy zmienne do liczenia poszczególnych kategorii
+            int countPlotka = 0;       // <300
+            int countZaduzaRyba = 0;   // >25000
+            int countNowy = 0;         // 300 - 25000
+
             foreach (var store in processedStores)
             {
                 Console.WriteLine("------");
@@ -110,17 +119,34 @@ namespace PriceSafari.ScrapersControllers
                 Console.WriteLine($"Products Count: {store.ProductCount}");
             }
 
-            // Zapis do bazy danych przetworzonych sklepów
             var user = await _userManager.GetUserAsync(User);
 
+            // Teraz zapisujemy wszystkie sklepy niezależnie od liczby produktów
             foreach (var store in processedStores)
             {
-                // Sprawdź czy już istnieje w bazie
                 bool urlExists = await _context.ClientProfiles
                     .AnyAsync(cp => cp.CeneoProfileUrl == store.OriginalUrl);
 
                 if (!urlExists)
                 {
+                    // Ustalamy status na podstawie liczby produktów
+                    ClientStatus status;
+                    if (store.ProductCount < 200)
+                    {
+                        status = ClientStatus.Płotka;
+                        countPlotka++;
+                    }
+                    else if (store.ProductCount > 25000)
+                    {
+                        status = ClientStatus.ZaDużaRyba;
+                        countZaduzaRyba++;
+                    }
+                    else
+                    {
+                        status = ClientStatus.Nowy;
+                        countNowy++;
+                    }
+
                     var clientProfile = new ClientProfile
                     {
                         CeneoProfileUrl = store.OriginalUrl,
@@ -130,7 +156,7 @@ namespace PriceSafari.ScrapersControllers
                         CeneoProfileProductCount = store.ProductCount,
                         CreatedByUserId = user.Id,
                         CreationDate = DateTime.Now,
-                        Status = ClientStatus.Nowy
+                        Status = status
                     };
 
                     _context.ClientProfiles.Add(clientProfile);
@@ -149,17 +175,18 @@ namespace PriceSafari.ScrapersControllers
             }
 
             // Podsumowanie
-            int totalNewFound = newUrls.Count;
             Console.WriteLine("\n=== SUMMARY ===");
             Console.WriteLine($"Znaleziono {totalNewFound} nowych kontaktów.");
             Console.WriteLine($"Zapisano do bazy NOWYCH KONTAKTÓW: {savedCount}");
-        
 
-            // Informacja dla użytkownika, co dalej
+            // Podsumowanie kategorii:
+            Console.WriteLine($"Zapisano jako Płotka (<200 produktów): {countPlotka}");
+            Console.WriteLine($"Zapisano jako ZaDużaRyba (>25000 produktów): {countZaduzaRyba}");
+            Console.WriteLine($"Zapisano jako Nowy (200-25000 produktów): {countNowy}");
+
             Console.WriteLine("\nAby kontynuować scrapowanie, wprowadź kolejny URL w aplikacji webowej.");
             Console.WriteLine("Aby zakończyć, naciśnij przycisk 'Zatrzymaj scrapera' w aplikacji.");
 
-            // Nie zamykamy przeglądarki, scraper czeka na nowe żądanie lub zatrzymanie
             return RedirectToAction("Index");
         }
 
