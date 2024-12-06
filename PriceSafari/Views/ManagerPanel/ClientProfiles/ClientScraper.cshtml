@@ -1,0 +1,41 @@
+﻿@{
+    Layout = "~/Views/Shared/_PanelLayout.cshtml";
+    ViewData["Title"] = "Scraper Klientów";
+}
+
+<div class="Page-Box" style="min-width:1440px;">
+    <div class="Page-Box-Container">
+        <div class="Page-Box-Category" style="min-width:128px;">
+            <div class="Category-Box-Title">
+                Scraper Klientów
+            </div>
+            <partial name="_ContactNavCol" />
+        </div>
+        <div class="Horizontal">
+            <div class="product-upper-box">
+                <a asp-action="Index" asp-controller="ClientProfile" class="Button-Page-Small">Powrót do listy kontaktów</a>
+            </div>
+
+            <!-- Wyświetlanie komunikatów -->
+            @if (TempData["ErrorMessage"] != null)
+            {
+                <div class="alert alert-danger">@TempData["ErrorMessage"]</div>
+            }
+
+            @if (TempData["SuccessMessage"] != null)
+            {
+                <div class="alert alert-success">@TempData["SuccessMessage"]</div>
+            }
+
+            <form method="post" asp-action="Scrape" asp-controller="ClientProfileScraper">
+                <div class="form-group">
+                    <label for="url">URL do scrapowania:</label>
+                    <input type="text" class="form-control" id="url" name="url" placeholder="Wprowadź URL" required />
+                </div>
+                <button type="submit" class="Button-Page-Small">Rozpocznij scrapowanie</button>
+            </form>
+        </div>
+    </div>
+</div>
+
+@Html.AntiForgeryToken()
