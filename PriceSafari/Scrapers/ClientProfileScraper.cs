@@ -168,7 +168,7 @@ namespace PriceSafari.Scrapers
                         }
 
                         // Poczekaj chwilę po rozwiązaniu captchy
-                        await Task.Delay(2000);
+                        await Task.Delay(500);
                     }
                     else
                     {
