@@ -520,10 +520,7 @@
             box.addEventListener('click', function () {
                 window.open(this.dataset.detailsUrl, '_blank');
             });
-
-            box.addEventListener('click', function () {
-                window.open(this.dataset.detailsUrl, '_blank');
-            });
+         
 
             const priceBoxSpace = document.createElement('div');
             priceBoxSpace.className = 'price-box-space';
