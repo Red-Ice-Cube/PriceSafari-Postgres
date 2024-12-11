@@ -83,32 +83,32 @@ namespace PriceSafari.Scrapers
                 await _page.SetViewportAsync(new ViewPortOptions { Width = randomResolution.width, Height = randomResolution.height });
 
 
-                await _page.SetRequestInterceptionAsync(true);
+                await _page.SetRequestInterceptionAsync(false);
 
-                _page.Request += async (sender, e) =>
-                {
-                    try
-                    {
-                        var resourceType = e.Request.ResourceType;
+                //_page.Request += async (sender, e) =>
+                //{
+                //    try
+                //    {
+                //        var resourceType = e.Request.ResourceType;
 
-                        if (resourceType == ResourceType.Image ||
-                            resourceType == ResourceType.Font ||
-                            resourceType == ResourceType.StyleSheet)
-                        {
-                            await e.Request.AbortAsync();
-                        }
-                        else
-                        {
-                            await e.Request.ContinueAsync();
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        Console.WriteLine($"Exception during request interception: {ex.Message}");
+                //        if (resourceType == ResourceType.Image ||
+                //            resourceType == ResourceType.Font ||
+                //            resourceType == ResourceType.StyleSheet)
+                //        {
+                //            await e.Request.AbortAsync();
+                //        }
+                //        else
+                //        {
+                //            await e.Request.ContinueAsync();
+                //        }
+                //    }
+                //    catch (Exception ex)
+                //    {
+                //        Console.WriteLine($"Exception during request interception: {ex.Message}");
 
-                        await e.Request.ContinueAsync();
-                    }
-                };
+                //        await e.Request.ContinueAsync();
+                //    }
+                //};
 
 
                 Console.WriteLine($"Bot gotowy, teraz rozgrzewka przez {settings.WarmUpTime} sekund...");
