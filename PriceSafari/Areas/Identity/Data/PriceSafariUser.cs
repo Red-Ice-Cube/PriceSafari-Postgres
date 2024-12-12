@@ -15,7 +15,7 @@ public class PriceSafariUser : IdentityUser
     public ICollection<PriceSafariUserStore> UserStores { get; set; } = new List<PriceSafariUserStore>();
     public ICollection<UserPaymentData> UserPaymentDatas { get; set; } = new List<UserPaymentData>();
 
-    //Nowe poziomy zabezpieczen
+ 
 
 
     public bool AccesToViewSafari {  get; set; } = false;
@@ -24,6 +24,10 @@ public class PriceSafariUser : IdentityUser
 
     public bool AccesToViewMargin { get; set; } = false;
     public bool AccesToSetMargin { get; set; } = false;
+
+
+    public DateTime? LastLoginDateTime { get; set; } // data ostatniego logowania
+    public int LoginCount { get; set; } = 0;
 
 
     public PriceSafariUser()

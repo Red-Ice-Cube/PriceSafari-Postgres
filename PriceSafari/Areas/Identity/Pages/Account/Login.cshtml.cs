@@ -1,14 +1,14 @@
-﻿#nullable disable
-
-
-using PriceSafari.Data;
-using Microsoft.AspNetCore.Authentication;
+﻿using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
-
+using PriceSafari.Data;
+using PriceSafari.Models;
 using System.ComponentModel.DataAnnotations;
+using System.Linq;
+using System.Threading.Tasks;
+using System;
 
 namespace PriceSafari.Areas.Identity.Pages.Account
 {
@@ -31,6 +31,7 @@ namespace PriceSafari.Areas.Identity.Pages.Account
         public string ReturnUrl { get; set; }
         [TempData]
         public string ErrorMessage { get; set; }
+
         public class InputModel
         {
             [Required(ErrorMessage = "Podanie adresu email jest wymagane.")]
@@ -53,19 +54,14 @@ namespace PriceSafari.Areas.Identity.Pages.Account
             }
 
             returnUrl ??= Url.Content("~/");
-
-
             await HttpContext.SignOutAsync(IdentityConstants.ExternalScheme);
-
             ExternalLogins = (await _signInManager.GetExternalAuthenticationSchemesAsync()).ToList();
-
             ReturnUrl = returnUrl;
         }
 
         public async Task<IActionResult> OnPostAsync(string returnUrl = null)
         {
             returnUrl ??= Url.Content("~/");
-
             ExternalLogins = (await _signInManager.GetExternalAuthenticationSchemesAsync()).ToList();
 
             if (ModelState.IsValid)
@@ -100,6 +96,12 @@ namespace PriceSafari.Areas.Identity.Pages.Account
                 if (result.Succeeded)
                 {
                     _logger.LogInformation("User logged in.");
+
+                    // Aktualizacja danych logowania
+                    user.LastLoginDateTime = DateTime.Now;
+                    user.LoginCount += 1;
+                    await _signInManager.UserManager.UpdateAsync(user);
+
                     var roles = await _signInManager.UserManager.GetRolesAsync(user);
 
                     if (roles.Contains("Admin"))
@@ -128,9 +130,5 @@ namespace PriceSafari.Areas.Identity.Pages.Account
 
             return Page();
         }
-
-
-
-
     }
 }

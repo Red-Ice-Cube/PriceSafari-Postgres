@@ -88,6 +88,8 @@ namespace PriceSafari.Controllers.ManagerControllers
                 Surname = user.PartnerSurname,
                 CodePAR = user.CodePAR,
                 UserName = user.UserName,
+                LogCount = user.LoginCount,
+                LastLogi = user.LastLoginDateTime,
                 Status = user.IsActive,
                 Verification = user.AffiliateVerification?.IsVerified ?? false,
                 Role = string.Join(", ", _userManager.GetRolesAsync(user).Result),

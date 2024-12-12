@@ -20,6 +20,9 @@
         public string? Role { get; set; }
         public string? UserName { get; set; }
         public bool EmailConfirmed { get; set; }
+
+        public DateTime? LastLogi { get; set; }
+        public int LogCount { get; set; }
     }
 
     // DTOs używane dla szczegółowych danych afiliantów
