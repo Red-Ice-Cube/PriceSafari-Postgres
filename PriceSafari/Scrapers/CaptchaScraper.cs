@@ -107,10 +107,7 @@ namespace PriceSafari.Scrapers
             }
         }
 
-        /// <summary>
-        /// Metoda, która przyjmuje dane sesyjne przeniesione z innej przeglądarki (cookies, localStorage, sessionStorage)
-        /// i stosuje je do aktualnej strony, tak aby strona miała te same uwierzytelnienia i stan.
-        /// </summary>
+ 
         public async Task ApplySessionData(CaptchaSessionData sessionData)
         {
             if (_page == null)
