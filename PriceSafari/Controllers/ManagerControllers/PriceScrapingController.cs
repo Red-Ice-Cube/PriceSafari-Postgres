@@ -29,8 +29,6 @@ public class PriceScrapingController : Controller
         _httpClientFactory = httpClientFactory;
         _storeProcessingService = storeProcessingService;
     }
-
-
     [HttpPost]
     public async Task<IActionResult> GroupAndSaveUniqueUrls()
     {
@@ -39,117 +37,49 @@ public class PriceScrapingController : Controller
             .Where(p => p.IsScrapable && p.Store.RemainingScrapes > 0)
             .ToListAsync();
 
-        // Union-Find data structures
-        var parent = new Dictionary<int, int>(); // productId -> parent productId
-        var rank = new Dictionary<int, int>();   // productId -> rank
-
-        // Initialize Union-Find
-        foreach (var product in products)
-        {
-            parent[product.ProductId] = product.ProductId;
-            rank[product.ProductId] = 0;
-        }
-
-        // Mapping from URL to list of product IDs
-        var urlToProductIds = new Dictionary<string, List<int>>();
-
-        // Collect URLs and build urlToProductIds mapping
-        foreach (var product in products)
-        {
-            if (!string.IsNullOrEmpty(product.OfferUrl))
-            {
-                if (!urlToProductIds.TryGetValue(product.OfferUrl, out var productIdList))
-                {
-                    productIdList = new List<int>();
-                    urlToProductIds[product.OfferUrl] = productIdList;
-                }
-                productIdList.Add(product.ProductId);
-            }
-
-            if (!string.IsNullOrEmpty(product.GoogleUrl))
-            {
-                if (!urlToProductIds.TryGetValue(product.GoogleUrl, out var productIdList))
-                {
-                    productIdList = new List<int>();
-                    urlToProductIds[product.GoogleUrl] = productIdList;
-                }
-                productIdList.Add(product.ProductId);
-            }
-        }
-
-        // Union products that share URLs
-        foreach (var kvp in urlToProductIds)
-        {
-            var productIds = kvp.Value;
-            if (productIds.Count > 1)
-            {
-                var firstProductId = productIds[0];
-                for (int i = 1; i < productIds.Count; i++)
-                {
-                    Union(parent, rank, firstProductId, productIds[i]);
-                }
-            }
-        }
-
-        // Group products by their root parent
-        var groups = new Dictionary<int, List<ProductClass>>();
-
-        foreach (var product in products)
-        {
-            var root = Find(parent, product.ProductId);
-
-            if (!groups.TryGetValue(root, out var groupProducts))
-            {
-                groupProducts = new List<ProductClass>();
-                groups[root] = groupProducts;
-            }
-            groupProducts.Add(product);
-        }
-
-        // Now, create CoOfrClass instances for each group
         var coOfrs = new List<CoOfrClass>();
 
-        foreach (var group in groups.Values)
+        // Podział na dwa zestawy:
+        // 1. Produkty, które mają OfferUrl
+        var productsWithOffer = products.Where(p => !string.IsNullOrEmpty(p.OfferUrl)).ToList();
+        // 2. Produkty, które nie mają OfferUrl
+        var productsWithoutOffer = products.Where(p => string.IsNullOrEmpty(p.OfferUrl)).ToList();
+
+        // Grupowanie produktów z OfferUrl po OfferUrl
+        var groupsByOfferUrl = productsWithOffer
+            .GroupBy(p => p.OfferUrl ?? "")
+            .ToDictionary(g => g.Key, g => g.ToList());
+
+        foreach (var kvp in groupsByOfferUrl)
         {
-            var coOfr = new CoOfrClass
-            {
-                ProductIds = new List<int>(),
-                StoreNames = new List<string>(),
-                StoreProfiles = new List<string>(),
-                IsScraped = false,
-                GoogleIsScraped = false,
-                IsRejected = false,
-                GoogleIsRejected = false,
-            };
+            var offerUrl = kvp.Key;
+            var productList = kvp.Value;
 
-            var offerUrls = new HashSet<string>();
-            var googleUrls = new HashSet<string>();
+            // Znajdź pierwszy niepusty GoogleUrl
+            string? chosenGoogleUrl = productList
+                .Select(p => p.GoogleUrl)
+                .Where(gu => !string.IsNullOrEmpty(gu))
+                .FirstOrDefault();
 
-            foreach (var product in group)
-            {
-                coOfr.ProductIds.Add(product.ProductId);
-
-                if (!string.IsNullOrEmpty(product.OfferUrl))
-                {
-                    offerUrls.Add(product.OfferUrl);
-                }
-                if (!string.IsNullOrEmpty(product.GoogleUrl))
-                {
-                    googleUrls.Add(product.GoogleUrl);
-                }
-
-                coOfr.StoreNames.Add(product.Store.StoreName);
-                coOfr.StoreProfiles.Add(product.Store.StoreProfile);
-            }
-
-            // Assign URLs (you may need to adjust this if you want to store multiple URLs)
-            coOfr.OfferUrl = offerUrls.FirstOrDefault();
-            coOfr.GoogleOfferUrl = googleUrls.FirstOrDefault();
-
+            var coOfr = CreateCoOfrClass(productList, offerUrl, chosenGoogleUrl);
             coOfrs.Add(coOfr);
         }
 
-        // Remove previous data and save new data
+        // Grupowanie produktów bez OfferUrl po GoogleUrl
+        var groupsByGoogleUrlForNoOffer = productsWithoutOffer
+            .GroupBy(p => p.GoogleUrl ?? "")
+            .ToDictionary(g => g.Key, g => g.ToList());
+
+        foreach (var kvp in groupsByGoogleUrlForNoOffer)
+        {
+            var googleUrl = kvp.Key;
+            var productList = kvp.Value;
+
+            // Tu OfferUrl jest puste (null), a GoogleUrl może być puste lub konkretne
+            var coOfr = CreateCoOfrClass(productList, null, string.IsNullOrEmpty(googleUrl) ? null : googleUrl);
+            coOfrs.Add(coOfr);
+        }
+
         _context.CoOfrs.RemoveRange(_context.CoOfrs);
         _context.CoOfrs.AddRange(coOfrs);
         await _context.SaveChangesAsync();
@@ -157,37 +87,42 @@ public class PriceScrapingController : Controller
         return RedirectToAction("GetUniqueScrapingUrls");
     }
 
-    // Union-Find methods
-    private int Find(Dictionary<int, int> parent, int x)
+    private CoOfrClass CreateCoOfrClass(List<ProductClass> productList, string? offerUrl, string? googleUrl)
     {
-        if (parent[x] != x)
-        {
-            parent[x] = Find(parent, parent[x]);
-        }
-        return parent[x];
-    }
+        if (string.IsNullOrEmpty(offerUrl)) offerUrl = null;
+        if (string.IsNullOrEmpty(googleUrl)) googleUrl = null;
 
-    private void Union(Dictionary<int, int> parent, Dictionary<int, int> rank, int x, int y)
-    {
-        x = Find(parent, x);
-        y = Find(parent, y);
-        if (x == y)
-            return;
-        if (rank[x] < rank[y])
+        var coOfr = new CoOfrClass
         {
-            parent[x] = y;
-        }
-        else
+            OfferUrl = offerUrl,
+            GoogleOfferUrl = googleUrl,
+            ProductIds = new List<int>(),
+            ProductIdsGoogle = new List<int>(),
+            StoreNames = new List<string>(),
+            StoreProfiles = new List<string>(),
+            IsScraped = false,
+            GoogleIsScraped = false,
+            IsRejected = false,
+            GoogleIsRejected = false,
+        };
+
+        foreach (var product in productList)
         {
-            parent[y] = x;
-            if (rank[x] == rank[y])
+            // Każdy produkt trafia do ProductIds
+            coOfr.ProductIds.Add(product.ProductId);
+
+            // Jeśli mamy wybrany GoogleUrl i produkt go posiada – trafia również do ProductIdsGoogle
+            if (!string.IsNullOrEmpty(googleUrl) && product.GoogleUrl == googleUrl)
             {
-                rank[x]++;
+                coOfr.ProductIdsGoogle.Add(product.ProductId);
             }
+
+            coOfr.StoreNames.Add(product.Store.StoreName);
+            coOfr.StoreProfiles.Add(product.Store.StoreProfile);
         }
+
+        return coOfr;
     }
-
-
 
     [HttpGet]
     public async Task<IActionResult> GetUniqueScrapingUrls()

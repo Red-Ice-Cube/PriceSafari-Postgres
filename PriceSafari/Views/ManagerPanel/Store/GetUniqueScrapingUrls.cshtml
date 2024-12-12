@@ -85,7 +85,8 @@
                     <tr>
                         <th>URL Ceneo</th>
                         <th>URL Google</th>
-                        <th>Id</th>
+                        <th>Id Ce</th>
+                        <th>Id Go</th>
                         <th>Zescrapowane Ceneo</th>
                         <th>Odrzucone Ceneo</th>
                         <th>Liczba Cen Ceneo</th>
@@ -125,6 +126,7 @@
                             <td>@item.OfferUrl</td>
                             <td>@item.GoogleOfferUrl</td>
                             <td>@(item.ProductIds != null ? string.Join(", ", item.ProductIds) : "Brak danych")</td>
+                            <td>@(item.ProductIdsGoogle != null ? string.Join(", ", item.ProductIdsGoogle) : "Brak danych")</td>
                             <td>@(item.IsScraped ? "Tak" : "Nie")</td>
                             <td>@(item.IsRejected ? "Tak" : "Nie")</td>
                             <td>@item.PricesCount</td>
@@ -141,7 +143,6 @@
 </div>
 
 
-
 @section Scripts {
     <style>
         #speedChart {
@@ -149,14 +150,12 @@
             height: 200px !important;
         }
 
-        /* Ogólny efekt hover dla wszystkich wierszy z klasą product-row */
         .product-row:hover {
             filter: brightness(85%) !important;
         }
 
-        /* Istniejące style dla klas */
         .unscraped-row {
-            background-color: ghostwhite; /* Light gray for unscraped rows */
+            background-color: ghostwhite;
         }
 
         .scraped-ceneo {
@@ -178,7 +177,6 @@
         .product-row td {
             padding: 8px;
         }
-       
 
         .bar-List {
             display: flex;
@@ -224,11 +222,6 @@
                         x: {
                             type: 'linear',
                             position: 'bottom',
-                            title: {
-                                display: false,
-                                text: 'Sekundy',
-                                color: 'rgba(255, 255, 255, 0.8)'
-                            },
                             grid: {
                                 color: 'rgba(255, 255, 255, 0.2)'
                             },
@@ -238,11 +231,6 @@
                         },
                         y: {
                             beginAtZero: true,
-                            title: {
-                                display: false,
-                                text: 'Zebrane produkty',
-                                color: 'rgba(255, 255, 255, 0.8)'
-                            },
                             grid: {
                                 color: 'rgba(255, 255, 255, 0.2)'
                             },
@@ -251,22 +239,9 @@
                             }
                         }
                     },
-                    elements: {
-                        point: {
-                            radius: 0,
-                            hoverRadius: 6,
-                            hoverBorderWidth: 2
-                        }
-                    },
                     plugins: {
                         legend: {
-                            display: false,
-                            labels: {
-                                color: 'rgba(0, 69, 82, 1)',
-                                font: {
-                                    size: 15
-                                }
-                            }
+                            display: false
                         },
                         tooltip: {
                             mode: 'index',
@@ -289,11 +264,10 @@
             var offerUrlToRowId = {};
             var coOfrIdToRowId = {};
 
-            // Create mapping on page load
+            // Mapa wierszy po załadowaniu strony
             document.querySelectorAll('#scrapingTableBody tr').forEach(function (row) {
                 var rowId = row.id;
                 var offerUrl = row.cells[0].innerText.trim();
-                var googleOfferUrl = row.cells[1].innerText.trim();
                 var coOfrId = rowId.replace('row-', '');
 
                 if (offerUrl) {
@@ -305,17 +279,17 @@
             });
 
             function updateRowClass(row) {
-                var ceneoScraped = row.cells[3].innerText === "Tak";
-                var googleScraped = row.cells[6].innerText === "Tak";
-                var ceneoRejected = row.cells[4].innerText === "Tak";
-                var googleRejected = row.cells[7].innerText === "Tak";
+                var ceneoScraped = row.cells[4].innerText === "Tak";   // Zescrapowane Ceneo
+                var ceneoRejected = row.cells[5].innerText === "Tak";  // Odrzucone Ceneo
+                var googleScraped = row.cells[7].innerText === "Tak";  // Zescrapowane Google
+                var googleRejected = row.cells[8].innerText === "Tak"; // Odrzucone Google
 
                 var rowClass = "";
 
                 if (ceneoRejected || googleRejected) {
                     rowClass = "rejected-row";
                 } else if (ceneoScraped && googleScraped) {
-                    rowClass = "scraped-both"; // Both scraped
+                    rowClass = "scraped-both";
                 } else if (ceneoScraped) {
                     rowClass = "scraped-ceneo";
                 } else if (googleScraped) {
@@ -327,34 +301,33 @@
                 row.className = "product-row " + rowClass;
             }
 
-            // Function to handle updates from both scrapers
             connection.on("ReceiveScrapingUpdate", function () {
                 var args = arguments;
+                // Zakładając, że z Ceneo przychodzą argumenty: offerUrl, isScraped, isRejected, pricesCount
+                // a z Google: coOfrId, isScraped, isRejected, pricesCount, source="Google"
                 if (args.length === 4) {
-                    // Data from Ceneo scraper (without 'source')
+                    // Ceneo update
                     var offerUrl = args[0];
                     var isScraped = args[1];
                     var isRejected = args[2];
                     var pricesCount = args[3];
 
                     var rowId = offerUrlToRowId[offerUrl];
-
                     var row = document.getElementById(rowId);
 
                     if (row) {
-                        // Update cells for Ceneo
-                        row.cells[3].innerText = isScraped ? "Tak" : "Nie"; // Scraped Ceneo
-                        row.cells[4].innerText = isRejected ? "Tak" : "Nie"; // Rejected Ceneo
-                        row.cells[5].innerText = pricesCount; // Price Count Ceneo
+                        // Zescrapowane Ceneo = col 4
+                        row.cells[4].innerText = isScraped ? "Tak" : "Nie";
+                        // Odrzucone Ceneo = col 5
+                        row.cells[5].innerText = isRejected ? "Tak" : "Nie";
+                        // Liczba Cen Ceneo = col 6
+                        row.cells[6].innerText = pricesCount;
 
-                        // Update row class
                         updateRowClass(row);
-
-                        // Update counters
                         updateCounters();
                     }
                 } else if (args.length === 5) {
-                    // Data from Google scraper (with 'source')
+                    // Google update
                     var coOfrId = args[0];
                     var isScraped = args[1];
                     var isRejected = args[2];
@@ -363,19 +336,17 @@
 
                     if (source === "Google") {
                         var rowId = coOfrIdToRowId[coOfrId];
-
                         var row = document.getElementById(rowId);
 
                         if (row) {
-                            // Update cells for Google
-                            row.cells[6].innerText = isScraped ? "Tak" : "Nie"; // Scraped Google
-                            row.cells[7].innerText = isRejected ? "Tak" : "Nie"; // Rejected Google
-                            row.cells[8].innerText = pricesCount; // Price Count Google
+                            // Zescrapowane Google = col 7
+                            row.cells[7].innerText = isScraped ? "Tak" : "Nie";
+                            // Odrzucone Google = col 8
+                            row.cells[8].innerText = isRejected ? "Tak" : "Nie";
+                            // Liczba Cen Google = col 9
+                            row.cells[9].innerText = pricesCount;
 
-                            // Update row class
                             updateRowClass(row);
-
-                            // Update counters
                             updateCounters();
                         }
                     }
@@ -395,7 +366,6 @@
                 progressText.innerHTML = `Zbieranie cen ${totalScraped}/${uniqueProducts} produktów (${rejectedCount} odrzuconych)`;
 
                 var currentTime = Math.floor(elapsedSeconds);
-
                 var speed = (totalScraped / elapsedSeconds).toFixed(2);
 
                 if (speedChart.data.labels.length > 0 && currentTime === speedChart.data.labels[speedChart.data.labels.length - 1]) {
@@ -484,22 +454,29 @@
                 var scrapedUrlsCountGoogle = 0;
 
                 rows.forEach(function (row) {
-                    totalProductIds += row.querySelectorAll('td')[2].textContent.split(', ').length;
+                    var productIdsCe = row.cells[2].innerText;
+                    totalProductIds += productIdsCe === "Brak danych" ? 0 : productIdsCe.split(', ').length;
 
-                    totalPricesCountCeneo += parseInt(row.querySelectorAll('td')[5].innerText) || 0;
-                    totalPricesCountGoogle += parseInt(row.querySelectorAll('td')[8].innerText) || 0;
+                    // Liczba Cen Ceneo w kolumnie 6
+                    totalPricesCountCeneo += parseInt(row.cells[6].innerText) || 0;
+                    // Liczba Cen Google w kolumnie 9
+                    totalPricesCountGoogle += parseInt(row.cells[9].innerText) || 0;
 
-                    if (row.querySelectorAll('td')[3].innerText === "Tak") {
+                    // Zescrapowane Ceneo = col 4
+                    if (row.cells[4].innerText === "Tak") {
                         scrapedUrlsCountCeneo++;
                     }
-                    if (row.querySelectorAll('td')[6].innerText === "Tak") {
+                    // Zescrapowane Google = col 7
+                    if (row.cells[7].innerText === "Tak") {
                         scrapedUrlsCountGoogle++;
                     }
 
-                    if (row.querySelectorAll('td')[4].innerText === "Tak") {
+                    // Odrzucone Ceneo = col 5
+                    if (row.cells[5].innerText === "Tak") {
                         totalRejectedCountCeneo++;
                     }
-                    if (row.querySelectorAll('td')[7].innerText === "Tak") {
+                    // Odrzucone Google = col 8
+                    if (row.cells[8].innerText === "Tak") {
                         totalRejectedCountGoogle++;
                     }
                 });
