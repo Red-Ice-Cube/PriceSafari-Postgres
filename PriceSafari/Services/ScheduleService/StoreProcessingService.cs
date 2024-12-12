@@ -14,7 +14,6 @@ public class StoreProcessingService
     }
 
 
-
     public async Task ProcessStoreAsync(int storeId)
     {
         var store = await _context.Stores
@@ -51,125 +50,28 @@ public class StoreProcessingService
         var priceHistories = new ConcurrentBag<PriceHistoryClass>();
         var updatedProducts = new ConcurrentBag<ProductClass>();
 
-        //await Task.Run(() => Parallel.ForEach(products, product =>
-        //{
-        //    var coOfrId = coOfrClasses.FirstOrDefault(co => co.ProductIds.Contains(product.ProductId))?.Id;
-        //    if (coOfrId != null)
-        //    {
-        //        var coOfrPriceHistory = coOfrPriceHistories.Where(ph => ph.CoOfrClassId == coOfrId).ToList();
-
-        //        bool hasStorePrice = false;
-
-        //        foreach (var coOfrPrice in coOfrPriceHistory)
-        //        {
-        //            // Process Ceneo data
-        //            if (coOfrPrice.StoreName != null)
-        //            {
-        //                var priceHistoryCeneo = new PriceHistoryClass
-        //                {
-        //                    ProductId = product.ProductId,
-        //                    StoreName = coOfrPrice.StoreName,
-        //                    Price = coOfrPrice.Price ?? 0,
-        //                    IsBidding = coOfrPrice.IsBidding,
-        //                    Position = int.TryParse(coOfrPrice.Position, out var position) ? position : (int?)null,
-        //                    ShippingCostNum = coOfrPrice.ShippingCostNum,
-        //                    AvailabilityNum = coOfrPrice.AvailabilityNum,
-        //                    ScrapHistory = scrapHistory,
-        //                    IsGoogle = false
-        //                };
-        //                priceHistories.Add(priceHistoryCeneo);
-
-        //                if (string.Equals(coOfrPrice.StoreName, store.StoreName, StringComparison.OrdinalIgnoreCase))
-        //                {
-        //                    hasStorePrice = true;
-
-        //                    if (!string.IsNullOrEmpty(coOfrPrice.ExportedName))
-        //                    {
-        //                        lock (product)
-        //                        {
-        //                            product.ExportedNameCeneo = coOfrPrice.ExportedName;
-        //                        }
-        //                    }
-        //                }
-        //            }
-        //            // Process Google data
-        //            if (coOfrPrice.GoogleStoreName != null)
-        //            {
-        //                // Oblicz ShippingCostNum zgodnie z wymaganiami
-        //                var shippingCostNum = coOfrPrice.GooglePriceWithDelivery;
-        //                if (coOfrPrice.GooglePrice.HasValue && coOfrPrice.GooglePriceWithDelivery.HasValue)
-        //                {
-        //                    shippingCostNum = coOfrPrice.GooglePrice.Value == coOfrPrice.GooglePriceWithDelivery.Value
-        //                        ? 0
-        //                        : coOfrPrice.GooglePriceWithDelivery;
-        //                }
-        //                else
-        //                {
-        //                    shippingCostNum = null; // Brak danych
-        //                }
-
-        //                var priceHistoryGoogle = new PriceHistoryClass
-        //                {
-        //                    ProductId = product.ProductId,
-        //                    StoreName = coOfrPrice.GoogleStoreName,
-        //                    Price = coOfrPrice.GooglePrice ?? 0,
-        //                    Position = int.TryParse(coOfrPrice.GooglePosition, out var googlePosition) ? googlePosition : (int?)null,
-        //                    IsBidding = "Google",
-        //                    ShippingCostNum = shippingCostNum,
-        //                    ScrapHistory = scrapHistory,
-        //                    IsGoogle = true
-        //                };
-        //                priceHistories.Add(priceHistoryGoogle);
-
-        //                if (string.Equals(coOfrPrice.GoogleStoreName, store.StoreName, StringComparison.OrdinalIgnoreCase))
-        //                {
-        //                    hasStorePrice = true;
-        //                }
-        //            }
-
-        //        }
-
-        //        lock (product)
-        //        {
-        //            if (hasStorePrice)
-        //            {
-        //                if (product.IsRejected)
-        //                {
-        //                    product.IsRejected = false;
-        //                    updatedProducts.Add(product);
-        //                }
-        //            }
-        //            else
-        //            {
-        //                if (!product.IsRejected)
-        //                {
-        //                    product.IsRejected = true;
-        //                    updatedProducts.Add(product);
-        //                }
-        //            }
-        //        }
-        //    }
-        //}));
-
-
         await Task.Run(() => Parallel.ForEach(products, product =>
         {
-            // Szukamy coOfr uwzględniając obie listy: ProductIds oraz ProductIdsGoogle
-            var coOfrId = coOfrClasses
+            // Znajdujemy właściwy CoOfrClass dla produktu
+            var coOfr = coOfrClasses
                 .FirstOrDefault(co => co.ProductIds.Contains(product.ProductId)
-                                   || co.ProductIdsGoogle.Contains(product.ProductId))
-                ?.Id;
+                                   || co.ProductIdsGoogle.Contains(product.ProductId));
 
-            if (coOfrId != null)
+            if (coOfr != null)
             {
+                var coOfrId = coOfr.Id;
                 var coOfrPriceHistory = coOfrPriceHistories.Where(ph => ph.CoOfrClassId == coOfrId).ToList();
 
                 bool hasStorePrice = false;
 
+                // Sprawdzenie przynależności produktu do list
+                bool inCeneoList = coOfr.ProductIds.Contains(product.ProductId);
+                bool inGoogleList = coOfr.ProductIdsGoogle.Contains(product.ProductId);
+
                 foreach (var coOfrPrice in coOfrPriceHistory)
                 {
-                    // Procesowanie danych Ceneo
-                    if (coOfrPrice.StoreName != null)
+                    // Procesowanie danych Ceneo tylko jeśli produkt jest w ProductIds
+                    if (inCeneoList && coOfrPrice.StoreName != null)
                     {
                         var priceHistoryCeneo = new PriceHistoryClass
                         {
@@ -199,8 +101,8 @@ public class StoreProcessingService
                         }
                     }
 
-                    // Procesowanie danych Google
-                    if (coOfrPrice.GoogleStoreName != null)
+                    // Procesowanie danych Google tylko jeśli produkt jest w ProductIdsGoogle
+                    if (inGoogleList && coOfrPrice.GoogleStoreName != null)
                     {
                         var shippingCostNum = coOfrPrice.GooglePriceWithDelivery;
                         if (coOfrPrice.GooglePrice.HasValue && coOfrPrice.GooglePriceWithDelivery.HasValue)
@@ -256,7 +158,6 @@ public class StoreProcessingService
             }
         }));
 
-
         scrapHistory.PriceCount = priceHistories.Count;
         _context.ScrapHistories.Add(scrapHistory);
         _context.PriceHistories.AddRange(priceHistories);
@@ -295,6 +196,7 @@ public class StoreProcessingService
             }
         }
     }
+
 
 
 }
