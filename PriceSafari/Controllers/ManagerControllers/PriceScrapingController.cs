@@ -6,6 +6,7 @@ using PriceSafari.Data;
 using PriceSafari.Hubs;
 using PriceSafari.Models;
 using PriceSafari.Scrapers;
+using PuppeteerSharp;
 using System.Diagnostics;
 
 
@@ -29,6 +30,7 @@ public class PriceScrapingController : Controller
         _httpClientFactory = httpClientFactory;
         _storeProcessingService = storeProcessingService;
     }
+   
     [HttpPost]
     public async Task<IActionResult> GroupAndSaveUniqueUrls()
     {
@@ -161,6 +163,8 @@ public class PriceScrapingController : Controller
 
 
 
+
+
     //[HttpPost]
     //public async Task<IActionResult> StartScrapingWithCaptchaHandling()
     //{
@@ -211,13 +215,9 @@ public class PriceScrapingController : Controller
     //                    var httpClient = _httpClientFactory.CreateClient();
     //                    var captchaScraper = new CaptchaScraper(httpClient);
 
-    //                    // Generate a unique userDataDir for this instance
-    //                    string userDataDir = Path.Combine("user_data", $"instance_{Guid.NewGuid()}");
+    //                    await captchaScraper.InitializeBrowserAsync(settings);
 
-    //                    // Initialize browser in headless mode
-    //                    await captchaScraper.InitializeBrowserAsync(settings, headless: true, userDataDir: userDataDir);
-
-    //                    while (true)
+    //                    while (urlQueue.Count > 0)
     //                    {
     //                        string url;
     //                        lock (urlQueue)
@@ -239,19 +239,8 @@ public class PriceScrapingController : Controller
 
     //                            // Pass StoreNames and StoreProfiles to the scraper
     //                            var (prices, log, rejected) = await captchaScraper.HandleCaptchaAndScrapePricesAsync(
-    //                                url, getCeneoName, coOfr.StoreNames, coOfr.StoreProfiles, userDataDir);
+    //                                url, getCeneoName, coOfr.StoreNames, coOfr.StoreProfiles);
     //                            Console.WriteLine(log);
-
-    //                            // Log captcha detection
-    //                            if (log.Contains("Captcha detected"))
-    //                            {
-    //                                Console.WriteLine($"Captcha encountered for URL: {url}");
-    //                            }
-    //                            else
-    //                            {
-    //                                Console.WriteLine($"Captcha not encountered or solved for URL: {url}");
-    //                            }
-
     //                            if (prices.Count > 0)
     //                            {
     //                                // Existing code to process prices
@@ -297,10 +286,12 @@ public class PriceScrapingController : Controller
     //                            await _hubContext.Clients.All.SendAsync("ReceiveScrapingUpdate", coOfr.OfferUrl, coOfr.IsScraped, coOfr.IsRejected, coOfr.PricesCount);
     //                            await _hubContext.Clients.All.SendAsync("ReceiveProgressUpdate", scrapedCount, coOfrs.Count, stopwatch.Elapsed.TotalSeconds, rejectedCount);
 
+
     //                            if (cancellationToken.IsCancellationRequested)
     //                            {
     //                                Console.WriteLine("Scraping canceled.");
-    //                                break;
+    //                                await captchaScraper.CloseBrowserAsync();
+    //                                return;
     //                            }
     //                        }
     //                        catch (Exception ex)
@@ -310,21 +301,7 @@ public class PriceScrapingController : Controller
     //                        }
     //                    }
 
-    //                    // Close the browser and delete the userDataDir
     //                    await captchaScraper.CloseBrowserAsync();
-
-    //                    // Clean up userDataDir
-    //                    try
-    //                    {
-    //                        if (Directory.Exists(userDataDir))
-    //                        {
-    //                            Directory.Delete(userDataDir, true);
-    //                        }
-    //                    }
-    //                    catch (Exception ex)
-    //                    {
-    //                        Console.WriteLine($"Error deleting userDataDir {userDataDir}: {ex.Message}");
-    //                    }
     //                }
     //                finally
     //                {
@@ -363,10 +340,18 @@ public class PriceScrapingController : Controller
             return NotFound("Settings not found.");
         }
 
-        int captchaSpeed = settings.Semophore;
-        bool getCeneoName = settings.GetCeneoName; // Retrieve the setting
+        // Najpierw rozwiązujemy captchę w normalnym środowisku
+        var resolveCaptchaScraper = new ResolveCaptchaScraper();
+        await resolveCaptchaScraper.InitializeNormalBrowserAsync();
+        await resolveCaptchaScraper.NavigateToCaptchaAsync();
 
-        // Modify the query to include only CoOfrs with a non-empty OfferUrl
+        // Użytkownik rozwiązuje captchę ręcznie...
+        await resolveCaptchaScraper.WaitForCaptchaSolutionAsync();
+
+        // Pobieramy dane sesyjne (teraz tylko cookies)
+        var captchaSessionData = await resolveCaptchaScraper.GetSessionDataAsync();
+        await resolveCaptchaScraper.CloseBrowserAsync();
+
         var coOfrs = await _context.CoOfrs
             .Where(co => !co.IsScraped && !string.IsNullOrEmpty(co.OfferUrl))
             .ToListAsync();
@@ -380,12 +365,15 @@ public class PriceScrapingController : Controller
             return NotFound("No URLs found to scrape.");
         }
 
-        var tasks = new List<Task>();
+        int captchaSpeed = settings.Semophore;
+        bool getCeneoName = settings.GetCeneoName;
         int totalPrices = 0;
         int scrapedCount = 0;
         int rejectedCount = 0;
         var stopwatch = new Stopwatch();
         stopwatch.Start();
+
+        var tasks = new List<Task>();
 
         using (var semaphore = new SemaphoreSlim(captchaSpeed))
         {
@@ -394,7 +382,6 @@ public class PriceScrapingController : Controller
                 tasks.Add(Task.Run(async () =>
                 {
                     await semaphore.WaitAsync(cancellationToken);
-
                     try
                     {
                         var httpClient = _httpClientFactory.CreateClient();
@@ -402,33 +389,31 @@ public class PriceScrapingController : Controller
 
                         await captchaScraper.InitializeBrowserAsync(settings);
 
+                        // Ustawiamy tylko cookies
+                        await captchaScraper.Page.SetCookieAsync(captchaSessionData.Cookies);
+
                         while (urlQueue.Count > 0)
                         {
                             string url;
                             lock (urlQueue)
                             {
-                                if (urlQueue.Count == 0)
-                                {
-                                    break;
-                                }
+                                if (urlQueue.Count == 0) break;
                                 url = urlQueue.Dequeue();
                             }
 
                             try
                             {
-                                // First declaration of coOfr
                                 var coOfr = coOfrs.First(co => co.OfferUrl == url);
 
                                 using var scope = _serviceProvider.CreateScope();
                                 var scopedContext = scope.ServiceProvider.GetRequiredService<PriceSafariContext>();
 
-                                // Pass StoreNames and StoreProfiles to the scraper
                                 var (prices, log, rejected) = await captchaScraper.HandleCaptchaAndScrapePricesAsync(
                                     url, getCeneoName, coOfr.StoreNames, coOfr.StoreProfiles);
                                 Console.WriteLine(log);
+
                                 if (prices.Count > 0)
                                 {
-                                    // Existing code to process prices
                                     var priceHistories = prices.Select(priceData => new CoOfrPriceHistoryClass
                                     {
                                         CoOfrClassId = coOfr.Id,
@@ -448,12 +433,10 @@ public class PriceScrapingController : Controller
                                     scopedContext.CoOfrs.Update(coOfr);
                                     await scopedContext.SaveChangesAsync();
 
-                                    // Update progress
                                     Interlocked.Add(ref totalPrices, priceHistories.Count);
                                 }
                                 else
                                 {
-                                    // Handle the case where no prices were found
                                     coOfr.IsScraped = true;
                                     coOfr.IsRejected = true;
                                     coOfr.PricesCount = 0;
@@ -461,16 +444,12 @@ public class PriceScrapingController : Controller
                                     await scopedContext.SaveChangesAsync();
 
                                     Console.WriteLine($"No prices found for URL: {url}. Marked as rejected.");
-
-                                    // Update progress
                                     Interlocked.Increment(ref rejectedCount);
                                 }
 
-                                // Common to both cases
                                 Interlocked.Increment(ref scrapedCount);
                                 await _hubContext.Clients.All.SendAsync("ReceiveScrapingUpdate", coOfr.OfferUrl, coOfr.IsScraped, coOfr.IsRejected, coOfr.PricesCount);
                                 await _hubContext.Clients.All.SendAsync("ReceiveProgressUpdate", scrapedCount, coOfrs.Count, stopwatch.Elapsed.TotalSeconds, rejectedCount);
-
 
                                 if (cancellationToken.IsCancellationRequested)
                                 {
@@ -508,6 +487,15 @@ public class PriceScrapingController : Controller
         stopwatch.Stop();
 
         return Ok(new { Message = "Scraping completed.", TotalPrices = totalPrices, RejectedCount = rejectedCount });
+    }
+
+
+
+
+    public class CaptchaSessionData
+    {
+        public CookieParam[] Cookies { get; set; }
+  
     }
 
 

@@ -2,6 +2,7 @@
 using PuppeteerSharp;
 using System.Globalization;
 using System.Text.RegularExpressions;
+using static PriceScrapingController;
 
 namespace PriceSafari.Scrapers
 {
@@ -15,6 +16,8 @@ namespace PriceSafari.Scrapers
         {
             _httpClient = httpClient;
         }
+
+    
 
         public Page Page => _page;
 
@@ -32,17 +35,17 @@ namespace PriceSafari.Scrapers
                     Headless = settings.HeadLess,
                     Args = new[]
                     {
-                "--no-sandbox",
-                "--disable-setuid-sandbox",
-                "--disable-gpu",
-                "--disable-blink-features=AutomationControlled",
-                "--disable-software-rasterizer",
-                "--disable-extensions",
-                "--disable-dev-shm-usage",
-                "--disable-features=IsolateOrigins,site-per-process",
-                "--disable-infobars",
-                "--blink-settings=imagesEnabled=false" // Wyłącza ładowanie obrazów
-            }
+                        "--no-sandbox",
+                        "--disable-setuid-sandbox",
+                        "--disable-gpu",
+                        "--disable-blink-features=AutomationControlled",
+                        "--disable-software-rasterizer",
+                        "--disable-extensions",
+                        "--disable-dev-shm-usage",
+                        "--disable-features=IsolateOrigins,site-per-process",
+                        "--disable-infobars",
+                        "--blink-settings=imagesEnabled=false"
+                    }
                 });
 
                 if (_browser == null)
@@ -60,38 +63,38 @@ namespace PriceSafari.Scrapers
                 await _page.SetJavaScriptEnabledAsync(settings.JavaScript);
 
                 await _page.EvaluateFunctionOnNewDocumentAsync(@"() => {
-    Object.defineProperty(navigator, 'webdriver', { get: () => false, configurable: true });
-    Object.defineProperty(navigator, 'plugins', {
-        get: () => [
-            { name: 'Chrome PDF Viewer' },
-            { name: 'Native Client' },
-            { name: 'Widevine Content Decryption Module' }
-        ],
-        configurable: true
-    });
-}");
+                    Object.defineProperty(navigator, 'webdriver', { get: () => false, configurable: true });
+                    Object.defineProperty(navigator, 'plugins', {
+                        get: () => [
+                            { name: 'Chrome PDF Viewer' },
+                            { name: 'Native Client' },
+                            { name: 'Widevine Content Decryption Module' }
+                        ],
+                        configurable: true
+                    });
+                }");
 
                 // Ustawienie rozdzielczości
                 var commonResolutions = new List<(int width, int height)>
-        {
-            (1366, 768)
-        };
+                {
+                    (1366, 768)
+                };
 
                 var random = new Random();
                 var randomResolution = commonResolutions[random.Next(commonResolutions.Count)];
                 await _page.SetViewportAsync(new ViewPortOptions { Width = randomResolution.width, Height = randomResolution.height });
 
                 await _page.EvaluateFunctionOnNewDocumentAsync(@"() => {
-    [...document.querySelectorAll('link[rel=stylesheet], style')].forEach(e => e.remove());
-    const origCreateElement = document.createElement;
-    document.createElement = function(tagName, ...args) {
-        const el = origCreateElement.call(document, tagName, ...args);
-        if (tagName.toLowerCase() === 'link' || tagName.toLowerCase() === 'style') {
-            el.setAttribute('disabled', 'true');
-        }
-        return el;
-    };
-}");
+                    [...document.querySelectorAll('link[rel=stylesheet], style')].forEach(e => e.remove());
+                    const origCreateElement = document.createElement;
+                    document.createElement = function(tagName, ...args) {
+                        const el = origCreateElement.call(document, tagName, ...args);
+                        if (tagName.toLowerCase() === 'link' || tagName.toLowerCase() === 'style') {
+                            el.setAttribute('disabled', 'true');
+                        }
+                        return el;
+                    };
+                }");
 
                 Console.WriteLine($"Bot gotowy, teraz rozgrzewka przez {settings.WarmUpTime} sekund...");
                 await Task.Delay(settings.WarmUpTime * 1000);
@@ -102,6 +105,24 @@ namespace PriceSafari.Scrapers
                 Console.WriteLine($"Error in InitializeBrowserAsync: {ex.Message}");
                 throw; // Rethrow the exception to be handled by the caller
             }
+        }
+
+        /// <summary>
+        /// Metoda, która przyjmuje dane sesyjne przeniesione z innej przeglądarki (cookies, localStorage, sessionStorage)
+        /// i stosuje je do aktualnej strony, tak aby strona miała te same uwierzytelnienia i stan.
+        /// </summary>
+        public async Task ApplySessionData(CaptchaSessionData sessionData)
+        {
+            if (_page == null)
+                throw new InvalidOperationException("Page is not initialized. Call InitializeBrowserAsync first.");
+
+            // Ustawiamy cookies
+            if (sessionData.Cookies != null && sessionData.Cookies.Any())
+            {
+                await _page.SetCookieAsync(sessionData.Cookies);
+            }
+
+           
         }
 
         public async Task CloseBrowserAsync()
