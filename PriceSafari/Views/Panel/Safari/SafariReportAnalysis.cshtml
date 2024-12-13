@@ -3,7 +3,48 @@
 
 @model PriceSafari.Models.ViewModels.SafariReportAnalysisViewModel
 
-       
+       <style>
+
+    #sortingButtons {
+        display: inline-flex;
+        gap: 10px;
+        height: 34px;
+    }
+
+        #sortingButtons button {
+            display: inline-flex;
+            box-sizing: border-box;
+            align-items: center;
+            justify-content: center;
+            padding: 2px 12px;
+            border: none;
+            background-color: #e3e3e3;
+            color: #4e4e4e;
+            font-size: 13px;
+            cursor: pointer;
+            transition: background-color 0.3s, color 0.3s;
+            border-radius: 4px;
+        }
+
+            #sortingButtons button.active {
+                background-color: #323232;
+                color: #e3e3e3;
+            }
+
+            #sortingButtons button:hover {
+                background-color: #ccc;
+                color: #4e4e4e;
+            }
+
+            #sortingButtons button.active:hover, {
+                background-color: #323232;
+                color: #e3e3e3;
+                cursor: pointer;
+            }
+
+
+
+       </style>
 
 @{
     Layout = "~/Views/Shared/_PanelLayout.cshtml";
@@ -134,8 +175,15 @@
 
                 </div>
 
+              
                 <div id="sortingButtons">
                     <div class="ProductCount" id="displayedProductCount"></div>
+                    <button id="sortName">A-Z</button>
+                    <button id="sortPrice">Cena</button>
+                    <button id="sortRaiseAmount">Różnica w cenie PLN</button>
+                    <button id="sortRaisePercentage">Różnica w cenie %</button>
+                   
+ 
                 </div>
 
                 <div class="Vert-table">
@@ -476,7 +524,171 @@
             updateClassificationLabels();
 
             updateFlagCounts();
+
+
+               
+            document.getElementById('displayedProductCount').textContent = filteredProducts.length;
         }
+
+            
+    let sortingState = {
+        sortName: null,
+        sortPrice: null,
+        sortRaiseAmount: null,
+        sortRaisePercentage: null,
+
+    };
+
+    // Funkcja resetująca wszystkie stany sortowania z wyjątkiem jednego
+    function resetSortingStates(except) {
+        for (let key in sortingState) {
+            if (key !== except) {
+                sortingState[key] = null;
+                const btn = document.getElementById(key);
+                if (btn) {
+                    btn.textContent = getDefaultButtonLabel(key);
+                    btn.classList.remove('active');
+                }
+            }
+        }
+    }
+
+    // Funkcja zwracająca domyślne etykiety przycisków
+    function getDefaultButtonLabel(key) {
+        switch (key) {
+            case 'sortName': return 'A-Z';
+            case 'sortPrice': return 'Cena';
+            case 'sortRaiseAmount': return 'Różnica w cenie PLN';
+            case 'sortRaisePercentage': return 'Różnica w cenie %';
+  
+        }
+        return '';
+    }
+
+    // Funkcja sortująca aktualnie widoczne produkty
+    function sortVisibleProducts() {
+        const container = document.getElementById('priceContainer');
+        let visibleProducts = Array.from(container.querySelectorAll('.price-box'))
+            .filter(p => p.style.display !== 'none');
+
+        function getPercDifference(el) {
+            const p = el.getAttribute('data-percdifference');
+            return p !== 'null' ? parseFloat(p) : 0;
+        }
+
+        if (sortingState.sortName !== null) {
+            visibleProducts.sort((a, b) => {
+                const nameA = a.querySelector('.price-box-column-name').textContent.trim().toLowerCase();
+                const nameB = b.querySelector('.price-box-column-name').textContent.trim().toLowerCase();
+                if (nameA < nameB) return sortingState.sortName === 'asc' ? -1 : 1;
+                if (nameA > nameB) return sortingState.sortName === 'asc' ? 1 : -1;
+                return 0;
+            });
+        } else if (sortingState.sortPrice !== null) {
+            visibleProducts.sort((a, b) => {
+                const priceA = parseFloat(a.getAttribute('data-ourcalculatedprice')) || 0;
+                const priceB = parseFloat(b.getAttribute('data-ourcalculatedprice')) || 0;
+                return sortingState.sortPrice === 'asc' ? (priceA - priceB) : (priceB - priceA);
+            });
+        } else if (sortingState.sortRaiseAmount !== null) {
+            // sortowanie według różnicy cen (Podnieś PLN) - rosnąco/malejąco
+            visibleProducts.sort((a, b) => {
+                const diffA = parseFloat(a.getAttribute('data-pricedifference')) || 0;
+                const diffB = parseFloat(b.getAttribute('data-pricedifference')) || 0;
+                return sortingState.sortRaiseAmount === 'asc' ? (diffA - diffB) : (diffB - diffA);
+            });
+        } else if (sortingState.sortRaisePercentage !== null) {
+            visibleProducts.sort((a, b) => {
+                const percA = getPercDifference(a);
+                const percB = getPercDifference(b);
+                return sortingState.sortRaisePercentage === 'asc' ? (percA - percB) : (percB - percA);
+            });
+        }
+
+        visibleProducts.forEach(p => container.appendChild(p));
+    }
+
+    // Po zaktualizowaniu produktów wywołaj funkcję sortującą:
+    const originalUpdateProducts = updateProducts;
+    updateProducts = function() {
+        originalUpdateProducts();
+        sortVisibleProducts();
+    };
+
+    // Event listenery dla przycisków sortowania
+    document.getElementById('sortName').addEventListener('click', function() {
+        if (sortingState.sortName === null) {
+            sortingState.sortName = 'asc';
+            this.textContent = 'A-Z ↑';
+            this.classList.add('active');
+        } else if (sortingState.sortName === 'asc') {
+            sortingState.sortName = 'desc';
+            this.textContent = 'A-Z ↓';
+            this.classList.add('active');
+        } else {
+            sortingState.sortName = null;
+            this.textContent = 'A-Z';
+            this.classList.remove('active');
+        }
+        resetSortingStates('sortName');
+        updateProducts();
+    });
+
+    document.getElementById('sortPrice').addEventListener('click', function() {
+        if (sortingState.sortPrice === null) {
+            sortingState.sortPrice = 'asc';
+            this.textContent = 'Cena rosnąco ↑';
+            this.classList.add('active');
+        } else if (sortingState.sortPrice === 'asc') {
+            sortingState.sortPrice = 'desc';
+            this.textContent = 'Cena malejąco ↓';
+            this.classList.add('active');
+        } else {
+            sortingState.sortPrice = null;
+            this.textContent = 'Cena';
+            this.classList.remove('active');
+        }
+        resetSortingStates('sortPrice');
+        updateProducts();
+    });
+
+    document.getElementById('sortRaiseAmount').addEventListener('click', function() {
+        if (sortingState.sortRaiseAmount === null) {
+            sortingState.sortRaiseAmount = 'asc';
+            this.textContent = 'Największa różnica PLN ↑';
+            this.classList.add('active');
+        } else if (sortingState.sortRaiseAmount === 'asc') {
+            sortingState.sortRaiseAmount = 'desc';
+            this.textContent = 'Najmniejsza różnica PLN ↓';
+            this.classList.add('active');
+        } else {
+            sortingState.sortRaiseAmount = null;
+            this.textContent = 'Różnica w cenie PLN';
+            this.classList.remove('active');
+        }
+        resetSortingStates('sortRaiseAmount');
+        updateProducts();
+    });
+
+    document.getElementById('sortRaisePercentage').addEventListener('click', function() {
+        if (sortingState.sortRaisePercentage === null) {
+            sortingState.sortRaisePercentage = 'asc';
+            this.textContent = 'Największa różnica % ↑';
+            this.classList.add('active');
+        } else if (sortingState.sortRaisePercentage === 'asc') {
+            sortingState.sortRaisePercentage = 'desc';
+            this.textContent = 'Najmniejsza różnica % ↓';
+            this.classList.add('active');
+        } else {
+            sortingState.sortRaisePercentage = null;
+            this.textContent = 'Różnica w cenie %';
+            this.classList.remove('active');
+        }
+        resetSortingStates('sortRaisePercentage');
+        updateProducts();
+    });
+
+
 
         const ctx = document.getElementById('classificationChart').getContext('2d');
         let classificationChart;
@@ -591,7 +803,19 @@
         document.querySelectorAll('.flagFilter').forEach(checkbox => checkbox.addEventListener('change', updateProducts));
 
         updateProducts();
+
+
+
+           
+
+
+
+
     });
+
+
+
+
 </script>
 
 
@@ -616,6 +840,9 @@
        
         updateUnits();
     });
+
+
+
 </script>
 <script>
     document.getElementById('regionFilter').addEventListener('change', function () {
