@@ -62,7 +62,7 @@ public class GoogleMainPriceScraperController : Controller
         var serviceScopeFactory = HttpContext.RequestServices.GetRequiredService<IServiceScopeFactory>();
 
         // Get semaphore value from settings
-        int maxConcurrentScrapers = settings.Semophore;
+        int maxConcurrentScrapers = settings.SemophoreGoogle;
         var semaphore = new SemaphoreSlim(maxConcurrentScrapers);
         var tasks = new List<Task>();
 

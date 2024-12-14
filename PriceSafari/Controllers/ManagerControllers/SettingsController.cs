@@ -33,6 +33,7 @@ namespace PriceSafari.Controllers.ManagerControllers
                 VerificationRequired = settings.VerificationRequired,
        
                 Semophore = settings.Semophore,
+                SemophoreGoogle = settings.SemophoreGoogle,
                 WarmUp = settings.WarmUpTime,
                 Headless = settings.HeadLess,
                 JS = settings.JavaScript,
@@ -57,6 +58,7 @@ namespace PriceSafari.Controllers.ManagerControllers
             var viewModel = new EditSpeedSettingsViewModel
             {
                 Semophore = settings.Semophore,
+                SemophoreGoogle = settings.SemophoreGoogle,
                 WarmUp = settings.WarmUpTime,
                 Headless = settings.HeadLess,
                 JS = settings.JavaScript,
@@ -81,6 +83,7 @@ namespace PriceSafari.Controllers.ManagerControllers
                 }
 
                 settings.Semophore = viewModel.Semophore;
+                settings.SemophoreGoogle = viewModel.SemophoreGoogle;
                 settings.WarmUpTime = viewModel.WarmUp;
                 settings.HeadLess = viewModel.Headless;
                 settings.Styles = viewModel.Style;

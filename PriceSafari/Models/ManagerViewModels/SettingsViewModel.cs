@@ -5,6 +5,7 @@
         public bool VerificationRequired { get; set; }
 
         public int Semophore { get; set; }
+        public int SemophoreGoogle { get; set; }
         public int WarmUp { get; set; }
         public bool Headless { get; set; }
         public bool GetCeneoName { get; set; }  
@@ -21,6 +22,7 @@
     public class EditSpeedSettingsViewModel
     {
         public int Semophore { get; set; }
+        public int SemophoreGoogle { get; set; }
         public int WarmUp { get; set; }
 
         public bool Headless { get; set; }

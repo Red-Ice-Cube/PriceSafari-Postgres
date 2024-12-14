@@ -322,7 +322,7 @@ namespace PriceSafari.Controllers
             }
 
             // Pobieramy wartość semafora z ustawień
-            int maxConcurrentScrapers = settings.Semophore;
+            int maxConcurrentScrapers = settings.SemophoreGoogle;
             var semaphore = new SemaphoreSlim(maxConcurrentScrapers);
             var tasks = new List<Task>();
 

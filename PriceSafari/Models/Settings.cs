@@ -11,6 +11,7 @@ namespace PriceSafari.Models
         public bool VerificationRequired { get; set; } = true;
 
         public int Semophore { get; set; } = 1;
+        public int SemophoreGoogle { get; set; } = 1;
         public int WarmUpTime { get; set; } = 30;
         public bool HeadLess { get; set; } = false;
         public bool JavaScript { get; set; } = false;
