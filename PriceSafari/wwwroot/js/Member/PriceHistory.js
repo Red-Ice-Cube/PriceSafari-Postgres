@@ -285,7 +285,8 @@
                     filteredPrices = filteredPrices.filter(price => {
                         const sanitizedInput = currentSearchTerm.replace(/[^a-zA-Z0-9\s.-]/g, '').trim();
                         const sanitizedInputLowerCase = sanitizedInput.toLowerCase().replace(/\s+/g, '');
-                        const sanitizedProductName = price.productName.toLowerCase().replace(/[^a-zA-Z0-9\s.-]/g, '').replace(/\s+/g, '');
+                        const sanitizedProductName = (price.productName || '').toLowerCase().replace(/[^a-zA-Z0-9\s/.-]/g, '').replace(/\s+/g, '');
+
                         return sanitizedProductName.includes(sanitizedInputLowerCase);
                     });
                 }
@@ -1408,14 +1409,15 @@
         const sanitizedStoreSearchTerm = currentStoreSearchTerm.replace(/[^a-zA-Z0-9\s/.-]/g, '').toLowerCase().replace(/\s+/g, '');
 
         let filteredPrices = allPrices.filter(price => {
-            const sanitizedProductName = price.productName.toLowerCase().replace(/[^a-zA-Z0-9\s/.-]/g, '').replace(/\s+/g, '');
-            const sanitizedStoreName = price.storeName.toLowerCase().replace(/[^a-zA-Z0-9\s/.-]/g, '').replace(/\s+/g, '');
+            const productName = (price.productName || '').toLowerCase().replace(/[^a-zA-Z0-9\s/.-]/g, '').replace(/\s+/g, '');
+            const storeName = (price.storeName || '').toLowerCase().replace(/[^a-zA-Z0-9\s/.-]/g, '').replace(/\s+/g, '');
 
-            const matchesProduct = sanitizedProductName.includes(sanitizedProductSearchTerm);
-            const matchesStore = sanitizedStoreName.includes(sanitizedStoreSearchTerm);
+            const matchesProduct = productName.includes(sanitizedProductSearchTerm);
+            const matchesStore = storeName.includes(sanitizedStoreSearchTerm);
 
             return (sanitizedProductSearchTerm === '' || matchesProduct) && (sanitizedStoreSearchTerm === '' || matchesStore);
         });
+
 
         filteredPrices.sort((a, b) => {
             const sanitizedProductNameA = a.productName.toLowerCase().replace(/[^a-zA-Z0-9\s/.-]/g, '').replace(/\s+/g, '');
