@@ -266,6 +266,7 @@ namespace PriceSafari.Controllers.MemberControllers
                     var validPrices = g.Where(p => p.Price.HasValue).ToList();
                     var bestPriceEntry = validPrices
                         .OrderBy(p => p.Price)
+                        .ThenBy(p => p.StoreName)
                         .ThenByDescending(p => p.IsGoogle == false)
                         .FirstOrDefault();
 
@@ -601,11 +602,19 @@ namespace PriceSafari.Controllers.MemberControllers
             {
                 return Content("Nie ma takiego sklepu");
             }
-
             var prices = await _context.PriceHistories
                 .Where(ph => ph.ScrapHistoryId == scrapId && ph.ProductId == productId)
                 .Include(ph => ph.Product)
                 .ToListAsync();
+
+            // Najpierw sortujemy po cenie, a w przypadku remisu po nazwie sklepu
+            prices = prices.OrderBy(p => p.Price)
+                           .ThenBy(p => p.StoreName)
+                            .ThenByDescending(p => p.IsGoogle == false)
+                           .ToList();
+
+
+           
 
             var product = await _context.Products.FindAsync(productId);
             if (product == null)
@@ -617,6 +626,14 @@ namespace PriceSafari.Controllers.MemberControllers
                 .Where(pv => pv.StoreId == scrapHistory.StoreId)
                 .Select(pv => new { pv.SetPrice1, pv.SetPrice2 })
                 .FirstOrDefaultAsync();
+
+            var pricesDataJson = JsonConvert.SerializeObject(
+                prices.Select(p => new {
+                    store = p.StoreName,
+                    price = p.Price,
+                    isBidding = p.IsBidding
+                })
+            );
 
             if (priceValues == null)
             {
@@ -638,6 +655,7 @@ namespace PriceSafari.Controllers.MemberControllers
             ViewBag.CatalogNum = product.CatalogNumber;
             ViewBag.ExternalUrl = product.Url;
             ViewBag.ApiId = product.ExternalId;
+            ViewBag.PricesDataJson = pricesDataJson;
 
             return View("~/Views/Panel/PriceHistory/Details.cshtml", prices);
         }

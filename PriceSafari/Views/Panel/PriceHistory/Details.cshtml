@@ -3,9 +3,10 @@
 @{
     Layout = "~/Views/Shared/_PanelLayout.cshtml";
 }
-
 @{
+    Layout = "~/Views/Shared/_PanelLayout.cshtml";
     ViewData["Title"] = "Szczegóły Cen";
+
     var scrapHistory = ViewBag.ScrapHistory as PriceSafari.Models.ScrapHistoryClass;
     var productName = ViewBag.ProductName as string;
     var storeName = ViewBag.StoreName as string;
@@ -15,8 +16,8 @@
     var setPrice2 = ViewBag.SetPrice2;
     var externalUrl = ViewBag.ExternalUrl as string;
     var img = ViewBag.Img as string;
-
     decimal basePrice = 0;
+
     var myStorePrice = Model.FirstOrDefault(p => string.Equals(p.StoreName, storeName, StringComparison.OrdinalIgnoreCase));
     if (myStorePrice != null)
     {
@@ -329,16 +330,18 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <script>
+        // Definicja zmiennej JS na podstawie ViewBag
+        var pricesData = @Html.Raw(ViewBag.PricesDataJson ?? "[]");
 
-            var chart;
+        var chart;
 
-            document.addEventListener("DOMContentLoaded", function () {
+        document.addEventListener("DOMContentLoaded", function () {
             const rows = Array.from(document.querySelectorAll(".price-row"));
-            const observedStoreName = document.querySelector(".Vert").getAttribute("data-store-name").toLowerCase();
+            const observedStoreName = document.querySelector(".Vert").getAttribute("data-store-name").toLowerCase().trim();
 
             function highlightObservedStore() {
                 rows.forEach(function (row) {
-                    const storeName = row.getAttribute("data-store-name").toLowerCase();
+                    const storeName = row.getAttribute("data-store-name").toLowerCase().trim();
                     if (storeName === observedStoreName) {
                         row.querySelector(".store-name").style.fontWeight = "bold";
                         row.querySelector(".store-price").style.fontWeight = "bold";
@@ -374,19 +377,29 @@
                 highlightObservedStore(); // Podświetlanie po sortowaniu
             }
 
-            function sortRowsByPrice() {
-                rows.sort((a, b) => {
-                    const priceA = parseFloat(a.getAttribute("data-price"));
-                    const priceB = parseFloat(b.getAttribute("data-price"));
-                    if (isNaN(priceA)) priceA = Infinity;
-                    if (isNaN(priceB)) priceB = Infinity;
-                    return priceA - priceB;
-                });
+                   function sortRowsByPrice() {
+            rows.sort((a, b) => {
+                let priceA = parseFloat(a.getAttribute("data-price"));
+                let priceB = parseFloat(b.getAttribute("data-price"));
 
-                const tbody = document.querySelector("#priceTable tbody");
-                rows.forEach(row => tbody.appendChild(row));
-                highlightObservedStore(); // Podświetlanie po sortowaniu
-            }
+                if (isNaN(priceA)) priceA = Infinity;
+                if (isNaN(priceB)) priceB = Infinity;
+
+                // Sprawdzamy czy ceny są takie same
+                if (priceA === priceB) {
+                    const storeA = a.getAttribute("data-store-name").toLowerCase();
+                    const storeB = b.getAttribute("data-store-name").toLowerCase();
+                    return storeA.localeCompare(storeB); // Sortowanie alfabetyczne w przypadku remisu
+                }
+
+                return priceA - priceB; // Sortowanie po cenie
+            });
+
+            const tbody = document.querySelector("#priceTable tbody");
+            rows.forEach(row => tbody.appendChild(row));
+            highlightObservedStore();
+        }
+
 
             function sortRowsByGooglePosition() {
                 rows.sort((a, b) => {
@@ -400,13 +413,13 @@
                     if (!isGoogleA && isGoogleB) return 1;  // Ceneo za Google
                     if (isGoogleA && !isGoogleB) return -1; // Google przed Ceneo
 
-                    // 2. Sortowanie wewnątrz grup według pozycji
+                  
                     return posA - posB;
                 });
 
                 const tbody = document.querySelector("#priceTable tbody");
                 rows.forEach(row => tbody.appendChild(row));
-                highlightObservedStore(); // Podświetlanie po sortowaniu
+                highlightObservedStore(); 
             }
 
             function handleSortChange(event) {
@@ -429,36 +442,48 @@
             highlightObservedStore(); // Podświetlanie po załadowaniu
 
 
-            var pricesData = @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(Model.Select(m => new { store = m.StoreName, price = m.Price })));
+       
             var myStoreName = "@storeName";
 
             createChart(pricesData, myStoreName);
         });
 
 
-         function createChart(pricesData, myStore) {
-            // Sortowanie danych od najwyższej do najniższej ceny
+        function createChart(pricesData, myStore) {
             const sortedData = pricesData.sort((a, b) => b.price - a.price);
-
             const sortedPrices = sortedData.map(item => item.price);
             const sortedStores = sortedData.map(item => item.store);
+            const myStoreNormalized = myStore.toLowerCase().trim();
 
-            const barColors = sortedStores.map(store => {
-                return store.toLowerCase() === myStore ? 'rgba(65, 199, 199, 0.4)' : 'rgba(34, 34, 34, 0.4)';
+            const barColors = sortedData.map(item => {
+                const storeNormalized = item.store.toLowerCase().trim();
+                if (storeNormalized === myStoreNormalized) {
+                    if (item.isBidding === "Google") {
+                        return 'rgba(72, 142, 255, 0.6)';
+                    } else {
+                        return 'rgba(255, 100, 0, 0.6)';
+                    }
+                }
+                return 'rgba(34, 34, 34, 0.4)';
             });
 
-            const borderColors = sortedStores.map(store => {
-                return store.toLowerCase() === myStore ? 'rgba(65, 199, 199, 1)' : 'rgba(34, 34, 34, 1)';
+            const borderColors = sortedData.map(item => {
+                const storeNormalized = item.store.toLowerCase().trim();
+                if (storeNormalized === myStoreNormalized) {
+                    if (item.isBidding === "Google") {
+                        return 'rgba(72, 142, 255, 1)';
+                    } else {
+                        return 'rgba(255, 100, 0, 1)';
+                    }
+                }
+                return 'rgba(34, 34, 34, 1)';
             });
 
             const ctx = document.getElementById('priceChart').getContext('2d');
-
-            // Jeśli istnieje już wykres, to go niszczymy
             if (chart) {
                 chart.destroy();
             }
 
-            // Tworzymy nowy wykres
             chart = new Chart(ctx, {
                 type: 'bar',
                 data: {
