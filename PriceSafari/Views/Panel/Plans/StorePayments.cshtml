@@ -200,7 +200,30 @@
                             <div class="store-details">
                                 <img src="~/images/@($"{Model.PlanName}.png")" alt="@Model.PlanName" style="height:36px; margin-bottom:24px;" />
                                 <div class="store-details-title">Plan @Model.PlanName dla @Model.StoreName</div>
-                                <p>Kwota: @Model.PlanPrice.ToString("C") Netto</p>
+                                @if (Model.DiscountValue.HasValue && Model.DiscountValue.Value > 0)
+                                {
+                                    // Obliczenia: Wartość rabatu i cena po rabacie
+                                    var discountAmount = Model.PlanPrice * (Model.DiscountValue.Value / 100);
+                                    var discountedPrice = Model.PlanPrice - discountAmount;
+
+                                    <div style="display:flex; flex-direction:column; align-items:flex-start; margin-bottom:10px;">
+                                        <div>
+                                            <p style="color: darkgreen; font-weight: bold;">
+                                                @discountedPrice.ToString("C") <!-- Cena po rabacie -->
+                                            </p>
+                                            <p style="text-decoration: line-through; font-weight: normal; color: #222222;">
+                                                @Model.PlanPrice.ToString("C") <!-- Oryginalna cena -->
+                                            </p>
+                                        </div>
+                                        <div style="font-weight:500; color: #222222; margin-top: 4px;">
+                                            Rabat: @Model.DiscountValue.Value.ToString("F2")%
+                                        </div>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <p>Kwota: @Model.PlanPrice.ToString("C") Netto</p>
+                                }
                                 <p>Maksymalna ilość produktów: @Model.ProductsToScrap</p>
                                 <p>Pakiet analiz: @Model.ScrapesPerInvoice</p>
                                 <p>Częstotliwość wykonywania analizy: 24h</p>
@@ -208,10 +231,6 @@
                                 <p>Dane historyczne: 30 analiz</p>
 
 
-                                @if (Model.DiscountValue.HasValue && Model.DiscountValue.Value > 0)
-                                {
-                                    <p><strong>Rabat: </strong>@Model.DiscountValue.Value.ToString("F2")%</p>
-                                }
                             </div>
 
 
