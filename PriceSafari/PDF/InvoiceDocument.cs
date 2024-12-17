@@ -44,10 +44,10 @@ public class InvoiceDocument
         // Define styles
         var style = document.Styles["Normal"];
         style.Font.Name = "Arial";
-        style.Font.Size = 10; // Reduced font size to fit more content
+        style.Font.Size = 10; // Reduced font size
 
         var headerStyle = document.Styles.AddStyle("Header", "Normal");
-        headerStyle.Font.Size = 18; // Reduced header font size
+        headerStyle.Font.Size = 18;
         headerStyle.Font.Bold = true;
 
         var boldStyle = document.Styles.AddStyle("Bold", "Normal");
@@ -58,33 +58,34 @@ public class InvoiceDocument
     {
         var vatRate = 0.23m; // 23% VAT
 
-        // Kwoty po rabacie (aktualne)
         var discountedNet = _invoice.NetAmount;
         var discountedVat = discountedNet * vatRate;
         var discountedGross = discountedNet + discountedVat;
 
-        // Kwoty przed rabatem
         var originalNet = discountedNet + _invoice.AppliedDiscountAmount;
         var originalVat = originalNet * vatRate;
         var originalGross = originalNet + originalVat;
 
-        // Each MigraDoc document needs at least one section
         var section = document.AddSection();
-
-        // Adjust page margins
         section.PageSetup.TopMargin = "2cm";
         section.PageSetup.BottomMargin = "2cm";
         section.PageSetup.LeftMargin = "1.5cm";
         section.PageSetup.RightMargin = "1.5cm";
 
-        // Add the logo and horizontal line at the top
         AddLogoAndLine(section);
 
-        // Header
         var headerTitle = _invoice.IsPaid ? "Faktura VAT" : "ProForma";
         var header = section.AddParagraph($"{headerTitle} nr {_invoice.InvoiceNumber}");
         header.Style = "Header";
-        header.Format.SpaceAfter = "0.5cm"; // Reduced space after header
+        header.Format.SpaceAfter = "0.5cm";
+
+        // Jeśli faktura jest opłacona i posiada oryginalny numer proformy, wyświetlamy tę informację
+        if (_invoice.IsPaid && !string.IsNullOrEmpty(_invoice.OriginalProformaNumber))
+        {
+            var fakturaDoProformyParagraph = section.AddParagraph($"Faktura do proformy: {_invoice.OriginalProformaNumber}");
+            fakturaDoProformyParagraph.Format.Font.Bold = true;
+            fakturaDoProformyParagraph.Format.SpaceAfter = "0.5cm";
+        }
 
         // Date and Status Info
         var dateTable = section.AddTable();
@@ -97,15 +98,12 @@ public class InvoiceDocument
         // Termin płatności 7 dni
         var paymentTerm = 7;
 
-        // Left cell: Dates and status
         var cell = dateRow.Cells[0];
         cell.AddParagraph($"Data wystawienia: {_invoice.IssueDate:yyyy-MM-dd}");
         cell.AddParagraph($"Termin płatności: {_invoice.IssueDate.AddDays(paymentTerm):yyyy-MM-dd}");
         cell.AddParagraph($"Status: {(_invoice.IsPaid ? "Opłacona" : "Nieopłacona")}");
 
-        // Right cell: Empty or additional info
         dateRow.Cells[1].AddParagraph("");
-
         section.AddParagraph().AddLineBreak();
 
         // Buyer and Seller Info Table
@@ -145,7 +143,7 @@ public class InvoiceDocument
         table.Borders.Width = 0.75;
         table.Format.Alignment = ParagraphAlignment.Left;
 
-        // Define Columns
+        // Columns
         table.AddColumn("1cm");    // L.p.
         table.AddColumn("7.8cm");  // Usługa
         table.AddColumn("2.5cm");  // Cena netto
@@ -175,26 +173,14 @@ public class InvoiceDocument
                                  $"Ilość analiz: {_invoice.ScrapesIncluded}\n" +
                                  $"Maksymalna ilość produktów: {_invoice.UrlsIncluded}";
         dataRow.Cells[1].AddParagraph(serviceDescription);
-
-        // Cena netto (po rabacie)
-        dataRow.Cells[2].AddParagraph($"{discountedNet:C}");
-        dataRow.Cells[2].Format.Alignment = ParagraphAlignment.Right;
-
-        // VAT %
-        dataRow.Cells[3].AddParagraph($"{vatRate:P0}");
-        dataRow.Cells[3].Format.Alignment = ParagraphAlignment.Right;
-
-        // Kwota VAT (po rabacie)
-        dataRow.Cells[4].AddParagraph($"{discountedVat:C}");
-        dataRow.Cells[4].Format.Alignment = ParagraphAlignment.Right;
-
-        // Cena brutto (po rabacie)
-        dataRow.Cells[5].AddParagraph($"{discountedGross:C}");
-        dataRow.Cells[5].Format.Alignment = ParagraphAlignment.Right;
+        dataRow.Cells[2].AddParagraph($"{discountedNet:C}").Format.Alignment = ParagraphAlignment.Right;
+        dataRow.Cells[3].AddParagraph($"{vatRate:P0}").Format.Alignment = ParagraphAlignment.Right;
+        dataRow.Cells[4].AddParagraph($"{discountedVat:C}").Format.Alignment = ParagraphAlignment.Right;
+        dataRow.Cells[5].AddParagraph($"{discountedGross:C}").Format.Alignment = ParagraphAlignment.Right;
 
         section.AddParagraph().AddLineBreak();
 
-        // Jeśli zastosowano rabat, wyświetlamy informację o kwotach przed i po rabacie
+        // Rabat info
         if (_invoice.AppliedDiscountPercentage > 0)
         {
             var discountParagraph = section.AddParagraph();
@@ -209,6 +195,7 @@ public class InvoiceDocument
             discountParagraph.Format.SpaceAfter = "0.5cm";
         }
 
+        // Sekcja z finalną płatnością/ZAPŁACONO
         var totalParagraph = section.AddParagraph();
         totalParagraph.Format.Borders.Top.Width = 0.75;
         totalParagraph.Format.Borders.Bottom.Width = 0.75;
@@ -217,13 +204,28 @@ public class InvoiceDocument
         totalParagraph.Format.Borders.DistanceFromBottom = "0.2cm";
         totalParagraph.Format.Borders.DistanceFromLeft = "0.13cm";
         totalParagraph.Format.Borders.DistanceFromRight = "0.13cm";
-
-        totalParagraph.AddFormattedText($"Razem do zapłaty: {discountedGross:C}", TextFormat.Bold);
         totalParagraph.Format.Alignment = ParagraphAlignment.Right;
         totalParagraph.Format.SpaceBefore = "0.5cm";
         totalParagraph.Format.SpaceAfter = "0.5cm";
 
-        // Signature Rectangles
+        if (_invoice.IsPaid)
+        {
+            // Jeśli opłacone, zamiast "Razem do zapłaty" pokazujemy "ZAPŁACONO" na zielono i kwotę na czarno
+            var zaplacono = totalParagraph.AddFormattedText("ZAPŁACONO\n", TextFormat.Bold);
+            zaplacono.Color = Colors.Green;
+            zaplacono.Font.Size = 11;
+
+            var kwotaParagraph = totalParagraph.AddFormattedText($"{discountedGross:C}", TextFormat.Bold);
+            kwotaParagraph.Color = Colors.Black;
+            kwotaParagraph.Font.Size = 11;
+        }
+        else
+        {
+            // Jeśli nieopłacone, pokazujemy standardowo "Razem do zapłaty"
+            totalParagraph.AddFormattedText($"Razem do zapłaty: {discountedGross:C}", TextFormat.Bold);
+        }
+
+        // Signatures
         var signatureTable = section.AddTable();
         signatureTable.Borders.Width = 0.75;
         signatureTable.AddColumn("9.13cm");
@@ -231,7 +233,6 @@ public class InvoiceDocument
 
         var signatureRow = signatureTable.AddRow();
 
-        // Lewa komórka: Wystawił(a)
         var leftSignatureCell = signatureRow.Cells[0];
         leftSignatureCell.Borders.Width = 0.75;
         leftSignatureCell.Borders.Color = Colors.Black;
@@ -241,17 +242,14 @@ public class InvoiceDocument
         wystawilParagraph.Format.Alignment = ParagraphAlignment.Center;
         wystawilParagraph.Format.SpaceBefore = "0.2cm";
 
-        // Dodanie odstępu przed obrazkiem (opcjonalne)
         var stampParagraph = leftSignatureCell.AddParagraph();
         stampParagraph.Format.Alignment = ParagraphAlignment.Center;
-        stampParagraph.Format.SpaceBefore = "0.1cm"; // ewentualny odstęp przed pieczątką
+        stampParagraph.Format.SpaceBefore = "0.1cm";
 
         var stampImage = stampParagraph.AddImage("wwwroot\\cid\\CD.png");
         stampImage.LockAspectRatio = true;
-        stampImage.Height = "2.3cm"; // dostosuj w razie potrzeby
+        stampImage.Height = "2.3cm";
 
-
-        // Prawa komórka: Odebrał(a)
         var rightSignatureCell = signatureRow.Cells[1];
         rightSignatureCell.Borders.Width = 0.75;
         rightSignatureCell.Borders.Color = Colors.Black;
@@ -262,7 +260,7 @@ public class InvoiceDocument
         odebralParagraph.Format.SpaceBefore = "0.2cm";
 
 
-        // Payment Info
+        // Payment Info if not paid
         if (!_invoice.IsPaid)
         {
             section.AddParagraph().AddLineBreak();
@@ -292,7 +290,6 @@ public class InvoiceDocument
 
         var headerRow = headerTable.AddRow();
 
-        // Logo cell
         var logoCell = headerRow.Cells[0];
         var image = logoCell.AddImage("wwwroot\\cid\\PriceSafari.png");
         image.LockAspectRatio = true;
@@ -303,10 +300,8 @@ public class InvoiceDocument
         image.Left = ShapePosition.Left;
         logoCell.VerticalAlignment = VerticalAlignment.Top;
 
-        var emptyCell = headerRow.Cells[1];
-        emptyCell.AddParagraph("");
+        headerRow.Cells[1].AddParagraph("");
 
-        // Horizontal line
         var lineParagraph = section.AddParagraph();
         lineParagraph.Format.SpaceBefore = "0.5cm";
         lineParagraph.Format.Borders.Bottom.Width = 0.75;

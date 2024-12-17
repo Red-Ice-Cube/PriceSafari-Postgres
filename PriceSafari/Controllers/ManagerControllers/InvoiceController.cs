@@ -142,9 +142,14 @@ namespace PriceSafari.Controllers.ManagerControllers
                 invoice.IsPaid = true;
                 invoice.PaymentDate = DateTime.Now;
 
-                // Zmiana prefiksu numeru faktury po opłaceniu (z FPPS na PS)
+                // Jeśli numer faktury to proforma (zaczyna się od FPPS), to zapisujemy jej oryginalny numer
+                // i zamieniamy prefix na PS (faktura właściwa).
                 if (invoice.InvoiceNumber.StartsWith("FPPS"))
                 {
+                    // Zapamiętanie oryginalnego numeru proformy
+                    invoice.OriginalProformaNumber = invoice.InvoiceNumber;
+
+                    // Zmiana prefixu
                     invoice.InvoiceNumber = invoice.InvoiceNumber.Replace("FPPS", "PS");
                 }
 
@@ -159,9 +164,9 @@ namespace PriceSafari.Controllers.ManagerControllers
 
                     // Update ProductsToScrap to match the plan's ProductsToScrap
                     store.ProductsToScrap = invoice.Plan.ProductsToScrap;
-
-                    await _context.SaveChangesAsync();
                 }
+
+                await _context.SaveChangesAsync();
             }
 
             return RedirectToAction(nameof(Index));

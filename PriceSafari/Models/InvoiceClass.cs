@@ -55,6 +55,7 @@ namespace PriceSafari.Models
         [Display(Name = "Kwota Rabatu")]
         public decimal AppliedDiscountAmount { get; set; } = 0;
 
+        public string? OriginalProformaNumber { get; set; }
 
 
         public string CompanyName { get; set; }
