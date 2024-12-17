@@ -122,54 +122,71 @@ namespace PriceSafari.Controllers.MemberControllers
                 return BadRequest(ModelState);
             }
 
+            // Upewniamy się, że jeśli nie ma e-maila, to auto-wysyłka jest wyłączona
+            if (string.IsNullOrWhiteSpace(model.InvoiceAutoMail))
+            {
+                model.InvoiceAutoMailSend = false;
+            }
+
+            UserPaymentData paymentDataEntity;
+
             if (model.PaymentDataId.HasValue && model.PaymentDataId > 0)
             {
                 // Update existing data
-                var existingData = await _context.UserPaymentDatas
+                paymentDataEntity = await _context.UserPaymentDatas
                     .FirstOrDefaultAsync(pd => pd.UserId == userId && pd.PaymentDataId == model.PaymentDataId.Value);
 
-                if (existingData == null)
+                if (paymentDataEntity == null)
                 {
                     return NotFound();
                 }
 
-                existingData.CompanyName = model.CompanyName;
-                existingData.Address = model.Address;
-                existingData.PostalCode = model.PostalCode;
-                existingData.City = model.City;
-                existingData.NIP = model.NIP;
+                paymentDataEntity.CompanyName = model.CompanyName;
+                paymentDataEntity.Address = model.Address;
+                paymentDataEntity.PostalCode = model.PostalCode;
+                paymentDataEntity.City = model.City;
+                paymentDataEntity.NIP = model.NIP;
+                paymentDataEntity.InvoiceAutoMail = model.InvoiceAutoMail;
+                paymentDataEntity.InvoiceAutoMailSend = model.InvoiceAutoMailSend && !string.IsNullOrWhiteSpace(model.InvoiceAutoMail);
 
-                _context.UserPaymentDatas.Update(existingData);
+                _context.UserPaymentDatas.Update(paymentDataEntity);
             }
             else
             {
                 // Add new data
-                var paymentData = new UserPaymentData
+                paymentDataEntity = new UserPaymentData
                 {
                     UserId = userId,
                     CompanyName = model.CompanyName,
                     Address = model.Address,
                     PostalCode = model.PostalCode,
                     City = model.City,
-                    NIP = model.NIP
+                    NIP = model.NIP,
+                    InvoiceAutoMail = model.InvoiceAutoMail,
+                    InvoiceAutoMailSend = model.InvoiceAutoMailSend && !string.IsNullOrWhiteSpace(model.InvoiceAutoMail)
                 };
-                _context.UserPaymentDatas.Add(paymentData);
+                _context.UserPaymentDatas.Add(paymentDataEntity);
             }
 
             await _context.SaveChangesAsync();
 
-            // Return success
+            // Teraz paymentDataEntity.PaymentDataId jest już ustawione przez bazę w przypadku nowego wpisu.
+            // Upewniamy się, że model ma ustawione poprawne PaymentDataId na potrzeby odpowiedzi:
+            model.PaymentDataId = paymentDataEntity.PaymentDataId;
+
             return Ok(new
             {
                 success = true,
                 paymentData = new
                 {
-                    paymentDataId = model.PaymentDataId,
-                    companyName = model.CompanyName,
-                    address = model.Address,
-                    postalCode = model.PostalCode,
-                    city = model.City,
-                    nip = model.NIP
+                    paymentDataId = paymentDataEntity.PaymentDataId,
+                    companyName = paymentDataEntity.CompanyName,
+                    address = paymentDataEntity.Address,
+                    postalCode = paymentDataEntity.PostalCode,
+                    city = paymentDataEntity.City,
+                    nip = paymentDataEntity.NIP,
+                    invoiceAutoMail = paymentDataEntity.InvoiceAutoMail,
+                    invoiceAutoMailSend = paymentDataEntity.InvoiceAutoMailSend
                 }
             });
         }

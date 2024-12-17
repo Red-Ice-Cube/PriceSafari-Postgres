@@ -150,6 +150,19 @@
                                         <label for="NIP">NIP</label>
                                         <input type="text" class="form-control" id="NIP" name="NIP" required />
                                     </div>
+
+                                    <div class="form-group">
+                                        <label for="InvoiceAutoMail">E-mail do automatycznej wysyłki faktur (opcjonalny)</label>
+                                        <input type="email" class="form-control" id="InvoiceAutoMail" name="InvoiceAutoMail" />
+                                    </div>
+                                    <div class="form-group form-check">
+                                        <input type="checkbox" class="form-check-input" id="InvoiceAutoMailSend" name="InvoiceAutoMailSend" value="true" />
+                                        <label class="form-check-label" for="InvoiceAutoMailSend">Automatyczna wysyłka faktur na e-mail</label>
+                                    </div>
+
+
+
+
                                     <div style="margin-top:16px;">
                                         <button type="button" class="Button-Page-Small-bl" id="savePaymentDataButton">Zapisz dane</button>
                                         <button type="button" class="Button-Page-Small" id="cancelPaymentDataButton">Anuluj</button>
@@ -244,16 +257,70 @@
     </div>
 </div>
 
+
 @section Scripts {
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <!-- Include Bootstrap JS -->
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.bundle.min.js"></script>
 
     <script>
         $(document).ready(function () {
             var paymentDataList = @Html.Raw(paymentDataListJson);
 
-            // Function to populate billing data details
+            function resetForm() {
+                $("#paymentDataForm")[0].reset();
+                toggleAutoMailSendCheckbox("");
+                $("#PaymentDataId").val('');
+            }
+
+            function showForm() {
+                $("#paymentDataFormContainer").show();
+                $("#paymentDataDetails").hide();
+                $("#generateProformaButton").prop('disabled', true);
+            }
+
+            function hideForm() {
+                $("#paymentDataFormContainer").hide();
+            }
+
+            function showDetails() {
+                $("#paymentDataDetails").show();
+                $("#editPaymentDataButton").show();
+                $("#deletePaymentDataButton").show();
+            }
+
+            function hideDetails() {
+                $("#paymentDataDetails").hide();
+                $("#editPaymentDataButton").hide();
+                $("#deletePaymentDataButton").hide();
+            }
+
+            function clearDetailsFields() {
+                $("#companyName").text('');
+                $("#address").text('');
+                $("#postalCode").text('');
+                $("#city").text('');
+                $("#nip").text('');
+            }
+
+            function disableGenerateProforma() {
+                $("#generateProformaButton").prop('disabled', true);
+            }
+
+            function enableGenerateProforma() {
+                $("#generateProformaButton").prop('disabled', false);
+            }
+
+            // Funkcja do włączenia/wyłączenia checkboxa InvoiceAutoMailSend
+            function toggleAutoMailSendCheckbox(emailValue) {
+                if (!emailValue || emailValue.trim() === "") {
+                    $("#InvoiceAutoMailSend").prop("checked", false);
+                    $("#InvoiceAutoMailSend").prop("disabled", true);
+                } else {
+                    $("#InvoiceAutoMailSend").prop("disabled", false);
+                }
+            }
+
+            // Funkcja wypełniająca dane wybranego adresu rozliczeniowego
             function populatePaymentData(paymentDataId) {
                 var data = paymentDataList.find(x => x.paymentDataId == paymentDataId);
                 if (data) {
@@ -262,79 +329,86 @@
                     $("#postalCode").text(data.postalCode);
                     $("#city").text(data.city);
                     $("#nip").text(data.nip);
-                    $("#paymentDataDetails").show();
-                    $("#paymentDataFormContainer").hide();
-                    $("#generateProformaButton").prop('disabled', false);
+
+                    showDetails();
+                    hideForm();
+                    enableGenerateProforma();
                     $("#paymentDataId").val(data.paymentDataId);
-                    $("#editPaymentDataButton").show();
-                    $("#deletePaymentDataButton").show();
                 } else {
-                    $("#paymentDataDetails").hide();
-                    $("#companyName").text('');
-                    $("#address").text('');
-                    $("#postalCode").text('');
-                    $("#city").text('');
-                    $("#nip").text('');
+                    hideDetails();
+                    clearDetailsFields();
                     $("#paymentDataId").val('');
-                    $("#generateProformaButton").prop('disabled', true);
-                    $("#editPaymentDataButton").hide();
-                    $("#deletePaymentDataButton").hide();
+                    disableGenerateProforma();
                 }
             }
 
-            // When the billing address selection changes
+            // Reakcja na zmianę wybranego adresu rozliczeniowego
             $("#paymentDataSelect").change(function () {
                 var selectedValue = $(this).val();
                 if (selectedValue) {
                     populatePaymentData(selectedValue);
                 } else {
-                    $("#paymentDataDetails").hide();
-                    $("#generateProformaButton").prop('disabled', true);
+                    hideDetails();
+                    clearDetailsFields();
                     $("#paymentDataId").val('');
-                    $("#editPaymentDataButton").hide();
-                    $("#deletePaymentDataButton").hide();
+                    disableGenerateProforma();
                 }
             });
 
-            // Adding a new billing address
+            // Dodawanie nowego adresu rozliczeniowego
             $("#addPaymentDataButton").click(function () {
-                $("#paymentDataFormContainer").show();
-                $("#paymentDataDetails").hide();
-                $("#generateProformaButton").prop('disabled', true);
-                $("#paymentDataId").val('');
-                $("#paymentDataForm")[0].reset();
-                $("#PaymentDataId").val('');
+                resetForm();
+                showForm();
+                hideDetails();
+                disableGenerateProforma();
             });
 
-            // Editing an existing billing address
+            // Edycja istniejącego adresu rozliczeniowego
             $("#editPaymentDataButton").click(function () {
                 var paymentDataId = $("#paymentDataId").val();
                 var data = paymentDataList.find(x => x.paymentDataId == paymentDataId);
                 if (data) {
-                    $("#paymentDataFormContainer").show();
-                    $("#paymentDataDetails").hide();
-                    $("#generateProformaButton").prop('disabled', true);
+                    showForm();
+                    hideDetails();
+                    disableGenerateProforma();
+
                     $("#PaymentDataId").val(data.paymentDataId);
                     $("#CompanyName").val(data.companyName);
                     $("#Address").val(data.address);
                     $("#PostalCode").val(data.postalCode);
                     $("#City").val(data.city);
                     $("#NIP").val(data.nip);
+                    $("#InvoiceAutoMail").val(data.invoiceAutoMail || '');
+                    $("#InvoiceAutoMailSend").prop('checked', data.invoiceAutoMailSend);
+
+                    toggleAutoMailSendCheckbox($("#InvoiceAutoMail").val());
+                } else {
+                    // Jeśli nie znaleziono danych - może zostały usunięte w międzyczasie:
+                    alert("Nie można edytować - dane nie istnieją.");
                 }
             });
 
-            // Cancel adding/editing billing address
+            // Anulowanie dodawania/edycji adresu rozliczeniowego
             $("#cancelPaymentDataButton").click(function () {
-                $("#paymentDataFormContainer").hide();
+                hideForm();
                 var paymentDataId = $("#paymentDataId").val();
                 if (paymentDataId) {
+                    // Powrót do detali wybranego adresu
                     populatePaymentData(paymentDataId);
                 } else {
-                    $("#generateProformaButton").prop('disabled', true);
+                    // Brak wybranego adresu, wszystko puste
+                    hideDetails();
+                    clearDetailsFields();
+                    disableGenerateProforma();
                 }
             });
 
-            // Save billing address (add or edit)
+            // Reakcja na zmiany w polu email do automatycznej wysyłki
+            $("#InvoiceAutoMail").on("input", function () {
+                toggleAutoMailSendCheckbox($(this).val());
+            });
+
+            // Zapis adresu rozliczeniowego (dodawanie lub edycja)
             $("#savePaymentDataButton").click(function () {
                 var formData = $("#paymentDataForm").serialize();
                 $.ajax({
@@ -349,31 +423,40 @@
                                 address: response.paymentData.address,
                                 postalCode: response.paymentData.postalCode,
                                 city: response.paymentData.city,
-                                nip: response.paymentData.nip
+                                nip: response.paymentData.nip,
+                                invoiceAutoMail: response.paymentData.invoiceAutoMail,
+                                invoiceAutoMailSend: response.paymentData.invoiceAutoMailSend
                             };
 
-                            // If it's an edit, update the existing item
+                            // Jeśli PaymentDataId jest null lub 0, to nowy wpis
+                            if (!newPaymentData.paymentDataId) {
+                                // Aby prawidłowo działało, PaymentDataId powinien być ustawiony po zapisie.
+                                // Jeżeli w kontrolerze jest problem i PaymentDataId nie jest zwracany,
+                                // można go pobrać z paymentData po SaveChanges().
+                                // Zakładam, że PaymentDataId jest ustawiany prawidłowo przez serwer.
+                                // W przeciwnym razie trzeba zwrócić PaymentDataId z serwera.
+                                alert("Brak PaymentDataId w odpowiedzi serwera. Sprawdź czy kontroler zwraca poprawnie PaymentDataId.");
+                            }
+
                             var existingData = paymentDataList.find(x => x.paymentDataId == newPaymentData.paymentDataId);
                             if (existingData) {
+                                // Edycja
                                 Object.assign(existingData, newPaymentData);
                                 $("#paymentDataSelect option[value='" + newPaymentData.paymentDataId + "']").text(newPaymentData.companyName);
                             } else {
-                                // Add new data to the list
+                                // Dodawanie nowego
                                 paymentDataList.push(newPaymentData);
-                                // Add new option to the select
                                 $("#paymentDataSelect").append($('<option>', {
                                     value: newPaymentData.paymentDataId,
                                     text: newPaymentData.companyName
                                 }));
                             }
 
-                            // Select the new or updated data
                             $("#paymentDataSelect").val(newPaymentData.paymentDataId);
-                            $("#paymentDataFormContainer").hide();
+                            hideForm();
                             populatePaymentData(newPaymentData.paymentDataId);
                         } else {
-                            // Handle validation errors
-                            alert("Błąd podczas zapisywania danych.");
+                            alert("Błąd podczas zapisywania danych: Niepoprawne dane wejściowe.");
                         }
                     },
                     error: function (xhr) {
@@ -385,38 +468,47 @@
                             }
                             alert(errorMessage);
                         } else {
-                            alert("Błąd podczas zapisywania danych.");
+                            alert("Błąd podczas zapisywania danych (HTTP " + xhr.status + ").");
                         }
                     }
                 });
             });
 
-            // Deleting a billing address
+            // Usuwanie adresu rozliczeniowego
             $("#deletePaymentDataButton").click(function () {
                 if (confirm("Czy na pewno chcesz usunąć te dane?")) {
                     var paymentDataId = $("#paymentDataId").val();
+                    if (!paymentDataId) {
+                        alert("Brak wybranego adresu do usunięcia.");
+                        return;
+                    }
+
                     $.ajax({
                         type: "POST",
                         url: "@Url.Action("DeletePaymentData", "Payment")",
                         data: { paymentDataId: paymentDataId },
                         success: function (response) {
                             if (response.success) {
-                                // Remove from paymentDataList
+                                // Usuwamy z paymentDataList
                                 paymentDataList = paymentDataList.filter(x => x.paymentDataId != paymentDataId);
-                                // Remove from dropdown
+                                // Usuwamy z dropdowna
                                 $("#paymentDataSelect option[value='" + paymentDataId + "']").remove();
-                                // Reset selection
+                                // Reset wyboru
                                 $("#paymentDataSelect").val('');
-                                $("#paymentDataDetails").hide();
-                                $("#generateProformaButton").prop('disabled', true);
-                                $("#editPaymentDataButton").hide();
-                                $("#deletePaymentDataButton").hide();
+                                hideDetails();
+                                clearDetailsFields();
+                                disableGenerateProforma();
+                                hideForm();
                             } else {
-                                alert("Błąd podczas usuwania danych.");
+                                alert("Błąd podczas usuwania danych - operacja nieudana po stronie serwera.");
                             }
                         },
-                        error: function () {
-                            alert("Błąd podczas usuwania danych.");
+                        error: function (xhr) {
+                            if (xhr.status == 404) {
+                                alert("Nie znaleziono danych do usunięcia (404). Prawdopodobnie zostały już wcześniej usunięte.");
+                            } else {
+                                alert("Błąd podczas usuwania danych (HTTP " + xhr.status + ").");
+                            }
                         }
                     });
                 }
@@ -424,3 +516,4 @@
         });
     </script>
 }
+

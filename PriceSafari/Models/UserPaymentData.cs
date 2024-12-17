@@ -34,5 +34,9 @@ namespace PriceSafari.Models
         [Required]
         [Display(Name = "NIP")]
         public string NIP { get; set; }
+
+        public string? InvoiceAutoMail { get; set; }
+        public bool InvoiceAutoMailSend { get; set; } = false;
+
     }
 }

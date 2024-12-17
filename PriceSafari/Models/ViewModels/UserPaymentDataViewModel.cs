@@ -3,6 +3,7 @@
 public class UserPaymentDataViewModel
 {
     public int? PaymentDataId { get; set; } // Nullable to handle new entries
+
     [Required]
     [Display(Name = "Nazwa firmy")]
     public string CompanyName { get; set; }
@@ -22,4 +23,11 @@ public class UserPaymentDataViewModel
     [Required]
     [Display(Name = "NIP")]
     public string NIP { get; set; }
+
+    [EmailAddress]
+    [Display(Name = "E-mail do automatycznej wysyłki faktur (opcjonalny)")]
+    public string? InvoiceAutoMail { get; set; }
+
+    [Display(Name = "Automatyczna wysyłka faktur na e-mail")]
+    public bool InvoiceAutoMailSend { get; set; }
 }

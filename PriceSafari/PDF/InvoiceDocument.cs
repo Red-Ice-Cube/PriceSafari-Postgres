@@ -57,8 +57,16 @@ public class InvoiceDocument
     private void CreatePage(Document document)
     {
         var vatRate = 0.23m; // 23% VAT
-        var vatAmount = _invoice.NetAmount * vatRate;
-        var grossAmount = _invoice.NetAmount + vatAmount;
+
+        // Kwoty po rabacie (aktualne)
+        var discountedNet = _invoice.NetAmount;
+        var discountedVat = discountedNet * vatRate;
+        var discountedGross = discountedNet + discountedVat;
+
+        // Kwoty przed rabatem
+        var originalNet = discountedNet + _invoice.AppliedDiscountAmount;
+        var originalVat = originalNet * vatRate;
+        var originalGross = originalNet + originalVat;
 
         // Each MigraDoc document needs at least one section
         var section = document.AddSection();
@@ -86,14 +94,13 @@ public class InvoiceDocument
 
         var dateRow = dateTable.AddRow();
 
+        // Termin płatności 7 dni
+        var paymentTerm = 7;
+
         // Left cell: Dates and status
         var cell = dateRow.Cells[0];
         cell.AddParagraph($"Data wystawienia: {_invoice.IssueDate:yyyy-MM-dd}");
-
-        // Termin płatności 7 dni
-        var paymentTerm = 7;
         cell.AddParagraph($"Termin płatności: {_invoice.IssueDate.AddDays(paymentTerm):yyyy-MM-dd}");
-
         cell.AddParagraph($"Status: {(_invoice.IsPaid ? "Opłacona" : "Nieopłacona")}");
 
         // Right cell: Empty or additional info
@@ -169,33 +176,35 @@ public class InvoiceDocument
                                  $"Maksymalna ilość produktów: {_invoice.UrlsIncluded}";
         dataRow.Cells[1].AddParagraph(serviceDescription);
 
-        // Cena netto
-        dataRow.Cells[2].AddParagraph($"{_invoice.NetAmount:C}");
+        // Cena netto (po rabacie)
+        dataRow.Cells[2].AddParagraph($"{discountedNet:C}");
         dataRow.Cells[2].Format.Alignment = ParagraphAlignment.Right;
 
         // VAT %
         dataRow.Cells[3].AddParagraph($"{vatRate:P0}");
         dataRow.Cells[3].Format.Alignment = ParagraphAlignment.Right;
 
-        // Kwota VAT
-        dataRow.Cells[4].AddParagraph($"{vatAmount:C}");
+        // Kwota VAT (po rabacie)
+        dataRow.Cells[4].AddParagraph($"{discountedVat:C}");
         dataRow.Cells[4].Format.Alignment = ParagraphAlignment.Right;
 
-        // Cena brutto
-        dataRow.Cells[5].AddParagraph($"{grossAmount:C}");
+        // Cena brutto (po rabacie)
+        dataRow.Cells[5].AddParagraph($"{discountedGross:C}");
         dataRow.Cells[5].Format.Alignment = ParagraphAlignment.Right;
 
         section.AddParagraph().AddLineBreak();
 
-        // Jeśli zastosowano rabat, wyświetlamy informację o rabacie
+        // Jeśli zastosowano rabat, wyświetlamy informację o kwotach przed i po rabacie
         if (_invoice.AppliedDiscountPercentage > 0)
         {
             var discountParagraph = section.AddParagraph();
+            discountParagraph.AddFormattedText("Ceny przed rabatem:\n", TextFormat.Bold);
+            discountParagraph.AddText($"Netto: {originalNet:C}, Brutto: {originalGross:C}\n");
             discountParagraph.AddFormattedText("Zastosowano rabat: ", TextFormat.Bold);
-            discountParagraph.AddText($"{_invoice.AppliedDiscountPercentage}%");
-            discountParagraph.AddLineBreak();
-            discountParagraph.AddFormattedText("Kwota rabatu: ", TextFormat.Bold);
-            discountParagraph.AddText($"{_invoice.AppliedDiscountAmount:C}");
+            discountParagraph.AddText($"{_invoice.AppliedDiscountPercentage}% (Kwota rabatu: {_invoice.AppliedDiscountAmount:C})\n");
+            discountParagraph.AddFormattedText("Ceny po rabacie:\n", TextFormat.Bold);
+            discountParagraph.AddText($"Netto: {discountedNet:C}, Brutto: {discountedGross:C}");
+
             discountParagraph.Format.SpaceBefore = "0.5cm";
             discountParagraph.Format.SpaceAfter = "0.5cm";
         }
@@ -209,7 +218,7 @@ public class InvoiceDocument
         totalParagraph.Format.Borders.DistanceFromLeft = "0.13cm";
         totalParagraph.Format.Borders.DistanceFromRight = "0.13cm";
 
-        totalParagraph.AddFormattedText($"Razem do zapłaty: {grossAmount:C}", TextFormat.Bold);
+        totalParagraph.AddFormattedText($"Razem do zapłaty: {discountedGross:C}", TextFormat.Bold);
         totalParagraph.Format.Alignment = ParagraphAlignment.Right;
         totalParagraph.Format.SpaceBefore = "0.5cm";
         totalParagraph.Format.SpaceAfter = "0.5cm";
@@ -227,17 +236,27 @@ public class InvoiceDocument
         leftSignatureCell.Borders.Width = 0.75;
         leftSignatureCell.Borders.Color = Colors.Black;
         leftSignatureCell.Shading.Color = Colors.White;
-        leftSignatureCell.Format.SpaceAfter = "2.4cm";
+        leftSignatureCell.Format.SpaceAfter = "0.4cm";
         var wystawilParagraph = leftSignatureCell.AddParagraph("Wystawił(a)");
         wystawilParagraph.Format.Alignment = ParagraphAlignment.Center;
         wystawilParagraph.Format.SpaceBefore = "0.2cm";
+
+        // Dodanie odstępu przed obrazkiem (opcjonalne)
+        var stampParagraph = leftSignatureCell.AddParagraph();
+        stampParagraph.Format.Alignment = ParagraphAlignment.Center;
+        stampParagraph.Format.SpaceBefore = "0.1cm"; // ewentualny odstęp przed pieczątką
+
+        var stampImage = stampParagraph.AddImage("wwwroot\\cid\\CD.png");
+        stampImage.LockAspectRatio = true;
+        stampImage.Height = "2.3cm"; // dostosuj w razie potrzeby
+
 
         // Prawa komórka: Odebrał(a)
         var rightSignatureCell = signatureRow.Cells[1];
         rightSignatureCell.Borders.Width = 0.75;
         rightSignatureCell.Borders.Color = Colors.Black;
         rightSignatureCell.Shading.Color = Colors.White;
-        rightSignatureCell.Format.SpaceAfter = "2.4cm";
+        rightSignatureCell.Format.SpaceAfter = "0.4cm";
         var odebralParagraph = rightSignatureCell.AddParagraph("Odebrał(a)");
         odebralParagraph.Format.Alignment = ParagraphAlignment.Center;
         odebralParagraph.Format.SpaceBefore = "0.2cm";
@@ -275,7 +294,7 @@ public class InvoiceDocument
 
         // Logo cell
         var logoCell = headerRow.Cells[0];
-        var image = logoCell.AddImage(_logoImagePath);
+        var image = logoCell.AddImage("wwwroot\\cid\\PriceSafari.png");
         image.LockAspectRatio = true;
         image.Height = "0.6cm";
         image.RelativeVertical = RelativeVertical.Line;
