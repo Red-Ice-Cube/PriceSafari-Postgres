@@ -34,6 +34,7 @@ namespace PriceSafari.Data
         public DbSet<GlobalPriceReport> GlobalPriceReports { get; set; }
         public DbSet<ScheduledTask> ScheduledTasks { get; set; }
         public DbSet<PlanClass> Plans { get; set; }
+        public DbSet<InvoiceCounter> InvoiceCounters { get; set; }
 
         public DbSet<InvoiceClass> Invoices { get; set; }
         public DbSet<UserPaymentData> UserPaymentDatas { get; set; }

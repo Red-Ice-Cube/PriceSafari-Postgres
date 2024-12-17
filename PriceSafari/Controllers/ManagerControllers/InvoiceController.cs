@@ -142,15 +142,14 @@ namespace PriceSafari.Controllers.ManagerControllers
                 invoice.IsPaid = true;
                 invoice.PaymentDate = DateTime.Now;
 
-                // Jeśli numer faktury to proforma (zaczyna się od FPPS), to zapisujemy jej oryginalny numer
-                // i zamieniamy prefix na PS (faktura właściwa).
-                if (invoice.InvoiceNumber.StartsWith("FPPS"))
+                // Zapisujemy oryginalny numer proformy, a następnie generujemy nowy numer faktury VAT
+                if (invoice.InvoiceNumber.StartsWith("FP/"))
                 {
-                    // Zapamiętanie oryginalnego numeru proformy
                     invoice.OriginalProformaNumber = invoice.InvoiceNumber;
 
-                    // Zmiana prefixu
-                    invoice.InvoiceNumber = invoice.InvoiceNumber.Replace("FPPS", "PS");
+                    int invoiceNumber = await GetNextInvoiceNumberAsync();
+                    // Nowy numer faktury: PS/000001/1/2024
+                    invoice.InvoiceNumber = $"PS/{invoiceNumber.ToString("D6")}/1/{invoice.IssueDate.Year}";
                 }
 
                 var store = invoice.Store;
@@ -170,6 +169,23 @@ namespace PriceSafari.Controllers.ManagerControllers
             }
 
             return RedirectToAction(nameof(Index));
+        }
+
+
+        private async Task<int> GetNextInvoiceNumberAsync()
+        {
+            var currentYear = DateTime.Now.Year;
+            var counter = await _context.InvoiceCounters.FirstOrDefaultAsync(c => c.Year == currentYear);
+            if (counter == null)
+            {
+                counter = new InvoiceCounter { Year = currentYear, LastProformaNumber = 0, LastInvoiceNumber = 0 };
+                _context.InvoiceCounters.Add(counter);
+                await _context.SaveChangesAsync();
+            }
+
+            counter.LastInvoiceNumber++;
+            await _context.SaveChangesAsync();
+            return counter.LastInvoiceNumber;
         }
 
 

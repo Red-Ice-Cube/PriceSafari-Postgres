@@ -239,7 +239,7 @@ namespace PriceSafari.Controllers.MemberControllers
 
             var plan = store.Plan;
 
-            // Jeśli plan jest darmowy lub testowy
+            // Jeśli plan darmowy lub testowy
             if (plan.NetPrice == 0 || plan.IsTestPlan)
             {
                 store.RemainingScrapes = plan.ScrapesPerInvoice;
@@ -282,9 +282,12 @@ namespace PriceSafari.Controllers.MemberControllers
                 netPrice = netPrice - appliedDiscountAmount;
             }
 
-            // Generuj tymczasowy numer proformy z prefiksem "FPPS"
-            var tempInvoiceNumber = $"TEMP-PF{Guid.NewGuid()}";
+            // Najpierw pobierzmy numer proformy
+            int proformaNumber = await GetNextProformaNumberAsync();
+            var currentYear = DateTime.Now.Year;
+            var proformaNumberFormatted = $"FP/PS/{proformaNumber.ToString("D6")}/sDB/{currentYear}";
 
+            // Tworzymy nową proformę z gotowym numerem
             var invoice = new InvoiceClass
             {
                 StoreId = storeId,
@@ -299,25 +302,33 @@ namespace PriceSafari.Controllers.MemberControllers
                 PostalCode = paymentData.PostalCode,
                 City = paymentData.City,
                 NIP = paymentData.NIP,
-                InvoiceNumber = tempInvoiceNumber,
                 AppliedDiscountPercentage = appliedDiscountPercentage,
-                AppliedDiscountAmount = appliedDiscountAmount
+                AppliedDiscountAmount = appliedDiscountAmount,
+                InvoiceNumber = proformaNumberFormatted // ustawiamy przed zapisaniem
             };
 
             _context.Invoices.Add(invoice);
-            await _context.SaveChangesAsync(); // zapisz aby otrzymać InvoiceId
-
-            // Finalny numer proformy "FPPS" i numer kolejny
-            invoice.InvoiceNumber = $"FPPS{invoice.InvoiceId.ToString("D6")}";
-
-            _context.Invoices.Update(invoice);
-            await _context.SaveChangesAsync();
+            await _context.SaveChangesAsync(); // teraz zapisze bez problemu, bo InvoiceNumber nie jest NULL
 
             TempData["Success"] = "Proforma została wygenerowana.";
             return RedirectToAction("StorePayments", new { storeId = storeId });
         }
 
+        private async Task<int> GetNextProformaNumberAsync()
+        {
+            var currentYear = DateTime.Now.Year;
+            var counter = await _context.InvoiceCounters.FirstOrDefaultAsync(c => c.Year == currentYear);
+            if (counter == null)
+            {
+                counter = new InvoiceCounter { Year = currentYear, LastProformaNumber = 0, LastInvoiceNumber = 0 };
+                _context.InvoiceCounters.Add(counter);
+                await _context.SaveChangesAsync();
+            }
 
+            counter.LastProformaNumber++;
+            await _context.SaveChangesAsync();
+            return counter.LastProformaNumber;
+        }
 
 
 

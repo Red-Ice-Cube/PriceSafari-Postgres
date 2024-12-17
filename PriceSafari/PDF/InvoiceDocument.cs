@@ -95,13 +95,19 @@ public class InvoiceDocument
 
         var dateRow = dateTable.AddRow();
 
-        // Termin płatności 7 dni
-        var paymentTerm = 7;
+
 
         var cell = dateRow.Cells[0];
         cell.AddParagraph($"Data wystawienia: {_invoice.IssueDate:yyyy-MM-dd}");
-        cell.AddParagraph($"Termin płatności: {_invoice.IssueDate.AddDays(paymentTerm):yyyy-MM-dd}");
+
+    
+        if (_invoice.PaymentDate != null)
+        {
+            cell.AddParagraph($"Data sprzedaży: {_invoice.PaymentDate:yyyy-MM-dd}");
+        }
+
         cell.AddParagraph($"Status: {(_invoice.IsPaid ? "Opłacona" : "Nieopłacona")}");
+
 
         dateRow.Cells[1].AddParagraph("");
         section.AddParagraph().AddLineBreak();
@@ -264,12 +270,13 @@ public class InvoiceDocument
         if (!_invoice.IsPaid)
         {
             section.AddParagraph().AddLineBreak();
-            var paymentInfo = section.AddParagraph("Prosimy o dokonanie płatności na poniższy rachunek bankowy w terminie 7 dni:");
+            var paymentInfo = section.AddParagraph("Prosimy o dokonanie płatności na poniższy rachunek bankowy w terminie 14 dni:");
             paymentInfo.Style = "Bold";
             paymentInfo.Format.SpaceBefore = "1cm";
 
             section.AddParagraph("PKO Bank Polski");
             section.AddParagraph("Nr konta: PL88 1020 1664 0000 3302 0645 9798");
+            section.AddParagraph($"Tytuł płatności: {_invoice.InvoiceNumber}");
         }
 
         // Footer
