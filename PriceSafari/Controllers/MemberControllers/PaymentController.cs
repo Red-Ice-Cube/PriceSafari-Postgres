@@ -104,6 +104,7 @@ namespace PriceSafari.Controllers.MemberControllers
                 ProductsToScrap = store.Plan?.ProductsToScrap ?? 0,
                 ScrapesPerInvoice = store.Plan?.ScrapesPerInvoice ?? 0,
                 HasUnpaidInvoice = store.Invoices.Any(i => !i.IsPaid),
+                DiscountValue = store.DiscountPercentage,
                 Invoices = store.Invoices.OrderByDescending(i => i.IssueDate).ToList(),
                 PaymentDataList = paymentDataList
             };

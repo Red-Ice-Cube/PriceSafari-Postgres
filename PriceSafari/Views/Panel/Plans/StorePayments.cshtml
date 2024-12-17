@@ -45,20 +45,43 @@
 
 <div class="Vert">
     <div class="Vert-full">
-
         <div class="store-details">
             <img src="~/images/@($"{Model.PlanName}.png")" alt="@Model.PlanName" style="height:36px; margin-bottom:24px;" />
             <div class="store-details-title">Plan @Model.PlanName dla @Model.StoreName</div>
-            <p>Kwota: @Model.PlanPrice.ToString("C") Netto</p>
+
+            @if (Model.DiscountValue.HasValue && Model.DiscountValue.Value > 0)
+            {
+                // Obliczenia: Wartość rabatu i cena po rabacie
+                var discountAmount = Model.PlanPrice * (Model.DiscountValue.Value / 100);
+                var discountedPrice = Model.PlanPrice - discountAmount;
+
+                <div style="display:flex; flex-direction:column; align-items:flex-start; margin-bottom:10px;">
+                    <div>
+                        <p style="color: darkgreen; font-weight: bold;">
+                            @discountedPrice.ToString("C") <!-- Cena po rabacie -->
+                        </p>
+                        <p style="text-decoration: line-through; font-weight: normal; color: #222222;">
+                            @Model.PlanPrice.ToString("C") <!-- Oryginalna cena -->
+                        </p>
+                    </div>
+                    <div style="font-weight:500; color: #222222; margin-top: 4px;">
+                        Rabat: @Model.DiscountValue.Value.ToString("F2")%
+                    </div>
+                </div>
+            }
+            else
+            {
+                <p>Kwota: @Model.PlanPrice.ToString("C") Netto</p>
+            }
+
             <p>Maksymalna ilość produktów: @Model.ProductsToScrap</p>
             <p>Pakiet analiz: @Model.ScrapesPerInvoice</p>
             <p>Częstotliwość wykonywania analizy: 24h</p>
             <p>Źródło danych: Ceneo, Google Shopping</p>
             <p>Dane historyczne: 30 analiz</p>
-           
-
-
         </div>
+
+
 
         <!-- Button to open modal -->
         <div>
@@ -181,8 +204,14 @@
                                 <p>Maksymalna ilość produktów: @Model.ProductsToScrap</p>
                                 <p>Pakiet analiz: @Model.ScrapesPerInvoice</p>
                                 <p>Częstotliwość wykonywania analizy: 24h</p>
-                                <p>Źródło danych: Ceneo</p>
-                                <p>Dane historyczne: 7 analiz</p>
+                                <p>Źródło danych: Ceneo, Google Shopping</p>
+                                <p>Dane historyczne: 30 analiz</p>
+
+
+                                @if (Model.DiscountValue.HasValue && Model.DiscountValue.Value > 0)
+                                {
+                                    <p><strong>Rabat: </strong>@Model.DiscountValue.Value.ToString("F2")%</p>
+                                }
                             </div>
 
 
@@ -202,8 +231,6 @@
                 </div>
             </div>
         </div>
-
-        <!-- Invoice History -->
         @if (Model.Invoices != null && Model.Invoices.Any())
         {
             <div class="Vert-table">
@@ -222,12 +249,34 @@
                         @foreach (var invoice in Model.Invoices)
                         {
                             <tr class="store-row">
-                                <td>
-                                    @invoice.InvoiceNumber
-                                </td>
+                                <td>@invoice.InvoiceNumber</td>
                                 <td>@invoice.IssueDate.ToString("yyyy-MM-dd")</td>
                                 <td>@(invoice.PaymentDate?.ToString("yyyy-MM-dd") ?? "N/A")</td>
-                                <td>@invoice.NetAmount.ToString("C")</td>
+                                <td>
+                                    @if (invoice.AppliedDiscountPercentage > 0)
+                                    {
+                                        var originalPrice = invoice.NetAmount + invoice.AppliedDiscountAmount;
+                                        <div style="display:flex; flex-direction:column; align-items:flex-start;">
+                                            <div>
+
+                                                <span style="color: darkgreen; font-weight: bold;">
+                                                    @invoice.NetAmount.ToString("C")
+                                                </span>
+                                                <span style="text-decoration: line-through; font-weight: normal; color: #222222; margin-left: 10px;">
+                                                    @originalPrice.ToString("C")
+                                                </span>
+                                               
+                                            </div>
+                                            <div style="font-size:0.9em; color: #222222; margin-top: 4px;">
+                                                Rabat: @invoice.AppliedDiscountPercentage.ToString("F2")% (@invoice.AppliedDiscountAmount.ToString("C"))
+                                            </div>
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <span>@invoice.NetAmount.ToString("C")</span>
+                                    }
+                                </td>
                                 <td>
                                     @if (invoice.IsPaid)
                                     {
@@ -239,14 +288,13 @@
                                     }
                                 </td>
                                 <td>
-                                    <a href="@Url.Action("InvoicePdf", "Payment", new { invoiceId = invoice.InvoiceId })" class="Button-Action-Small"  target="_blank">
+                                    <a href="@Url.Action("InvoicePdf", "Payment", new { invoiceId = invoice.InvoiceId })" class="Button-Action-Small" target="_blank">
                                         Pobierz
                                     </a>
                                 </td>
                             </tr>
                         }
                     </tbody>
-
                 </table>
             </div>
         }
@@ -254,6 +302,8 @@
         {
             <p>Brak historii faktur dla tego sklepu.</p>
         }
+
+
     </div>
 </div>
 
