@@ -48,7 +48,12 @@ namespace PriceSafari.Models
 
 
 
+        // Nowe pola rabatowe
+        [Display(Name = "Rabat (%)")]
+        public decimal AppliedDiscountPercentage { get; set; } = 0;
 
+        [Display(Name = "Kwota Rabatu")]
+        public decimal AppliedDiscountAmount { get; set; } = 0;
 
 
 

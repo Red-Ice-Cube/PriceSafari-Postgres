@@ -142,6 +142,12 @@ namespace PriceSafari.Controllers.ManagerControllers
                 invoice.IsPaid = true;
                 invoice.PaymentDate = DateTime.Now;
 
+                // Zmiana prefiksu numeru faktury po opłaceniu (z FPPS na PS)
+                if (invoice.InvoiceNumber.StartsWith("FPPS"))
+                {
+                    invoice.InvoiceNumber = invoice.InvoiceNumber.Replace("FPPS", "PS");
+                }
+
                 var store = invoice.Store;
                 if (store != null)
                 {

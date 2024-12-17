@@ -89,7 +89,11 @@ public class InvoiceDocument
         // Left cell: Dates and status
         var cell = dateRow.Cells[0];
         cell.AddParagraph($"Data wystawienia: {_invoice.IssueDate:yyyy-MM-dd}");
-        cell.AddParagraph($"Termin płatności: {_invoice.IssueDate.AddDays(3):yyyy-MM-dd}"); // Payment term of 3 days
+
+        // Termin płatności 7 dni
+        var paymentTerm = 7;
+        cell.AddParagraph($"Termin płatności: {_invoice.IssueDate.AddDays(paymentTerm):yyyy-MM-dd}");
+
         cell.AddParagraph($"Status: {(_invoice.IsPaid ? "Opłacona" : "Nieopłacona")}");
 
         // Right cell: Empty or additional info
@@ -100,12 +104,12 @@ public class InvoiceDocument
         // Buyer and Seller Info Table
         var infoTable = section.AddTable();
         infoTable.Borders.Visible = true;
-        infoTable.AddColumn("9.13cm"); 
-        infoTable.AddColumn("9.13cm"); 
-        infoTable.Format.Borders.DistanceFromTop = "0.07cm";   // Dodanie paddingu od góry
-        infoTable.Format.Borders.DistanceFromBottom = "0.07cm"; // Dodanie paddingu od dołu
-        infoTable.Format.Borders.DistanceFromLeft = "0.05cm";   // Dodanie paddingu od lewej
-        infoTable.Format.Borders.DistanceFromRight = "0.05cm";  // Dodanie paddingu od prawej
+        infoTable.AddColumn("9.13cm");
+        infoTable.AddColumn("9.13cm");
+        infoTable.Format.Borders.DistanceFromTop = "0.07cm";
+        infoTable.Format.Borders.DistanceFromBottom = "0.07cm";
+        infoTable.Format.Borders.DistanceFromLeft = "0.05cm";
+        infoTable.Format.Borders.DistanceFromRight = "0.05cm";
 
         var row = infoTable.AddRow();
 
@@ -134,9 +138,9 @@ public class InvoiceDocument
         table.Borders.Width = 0.75;
         table.Format.Alignment = ParagraphAlignment.Left;
 
-        // Define Columns with adjusted widths
+        // Define Columns
         table.AddColumn("1cm");    // L.p.
-        table.AddColumn("7.8cm");    // Usługa
+        table.AddColumn("7.8cm");  // Usługa
         table.AddColumn("2.5cm");  // Cena netto
         table.AddColumn("1.5cm");  // VAT %
         table.AddColumn("2.5cm");  // Kwota VAT
@@ -160,7 +164,6 @@ public class InvoiceDocument
         var dataRow = table.AddRow();
         dataRow.Cells[0].AddParagraph("1");
 
-        // Include plan name and additional info
         var serviceDescription = $"PriceSafari {_invoice.Plan.PlanName}\n" +
                                  $"Ilość analiz: {_invoice.ScrapesIncluded}\n" +
                                  $"Maksymalna ilość produktów: {_invoice.UrlsIncluded}";
@@ -183,14 +186,28 @@ public class InvoiceDocument
         dataRow.Cells[5].Format.Alignment = ParagraphAlignment.Right;
 
         section.AddParagraph().AddLineBreak();
+
+        // Jeśli zastosowano rabat, wyświetlamy informację o rabacie
+        if (_invoice.AppliedDiscountPercentage > 0)
+        {
+            var discountParagraph = section.AddParagraph();
+            discountParagraph.AddFormattedText("Zastosowano rabat: ", TextFormat.Bold);
+            discountParagraph.AddText($"{_invoice.AppliedDiscountPercentage}%");
+            discountParagraph.AddLineBreak();
+            discountParagraph.AddFormattedText("Kwota rabatu: ", TextFormat.Bold);
+            discountParagraph.AddText($"{_invoice.AppliedDiscountAmount:C}");
+            discountParagraph.Format.SpaceBefore = "0.5cm";
+            discountParagraph.Format.SpaceAfter = "0.5cm";
+        }
+
         var totalParagraph = section.AddParagraph();
         totalParagraph.Format.Borders.Top.Width = 0.75;
         totalParagraph.Format.Borders.Bottom.Width = 0.75;
         totalParagraph.Format.Borders.Color = Colors.Black;
-        totalParagraph.Format.Borders.DistanceFromTop = "0.2cm";   // Dodanie paddingu od góry
-        totalParagraph.Format.Borders.DistanceFromBottom = "0.2cm"; // Dodanie paddingu od dołu
-        totalParagraph.Format.Borders.DistanceFromLeft = "0.13cm";   // Dodanie paddingu od lewej
-        totalParagraph.Format.Borders.DistanceFromRight = "0.13cm";  // Dodanie paddingu od prawej
+        totalParagraph.Format.Borders.DistanceFromTop = "0.2cm";
+        totalParagraph.Format.Borders.DistanceFromBottom = "0.2cm";
+        totalParagraph.Format.Borders.DistanceFromLeft = "0.13cm";
+        totalParagraph.Format.Borders.DistanceFromRight = "0.13cm";
 
         totalParagraph.AddFormattedText($"Razem do zapłaty: {grossAmount:C}", TextFormat.Bold);
         totalParagraph.Format.Alignment = ParagraphAlignment.Right;
@@ -199,9 +216,9 @@ public class InvoiceDocument
 
         // Signature Rectangles
         var signatureTable = section.AddTable();
-        signatureTable.Borders.Width = 0.75; // Ustalona szerokość granic dla tabeli
-        signatureTable.AddColumn("9.13cm"); // Lewa kolumna
-        signatureTable.AddColumn("9.13cm"); // Prawa kolumna
+        signatureTable.Borders.Width = 0.75;
+        signatureTable.AddColumn("9.13cm");
+        signatureTable.AddColumn("9.13cm");
 
         var signatureRow = signatureTable.AddRow();
 
@@ -210,29 +227,27 @@ public class InvoiceDocument
         leftSignatureCell.Borders.Width = 0.75;
         leftSignatureCell.Borders.Color = Colors.Black;
         leftSignatureCell.Shading.Color = Colors.White;
-        leftSignatureCell.Format.SpaceAfter = "2.4cm"; // Więcej miejsca na pieczątkę i podpis
+        leftSignatureCell.Format.SpaceAfter = "2.4cm";
         var wystawilParagraph = leftSignatureCell.AddParagraph("Wystawił(a)");
         wystawilParagraph.Format.Alignment = ParagraphAlignment.Center;
-        wystawilParagraph.Format.SpaceBefore = "0.2cm"; // Opcjonalny odstęp nad tekstem
+        wystawilParagraph.Format.SpaceBefore = "0.2cm";
 
         // Prawa komórka: Odebrał(a)
         var rightSignatureCell = signatureRow.Cells[1];
         rightSignatureCell.Borders.Width = 0.75;
         rightSignatureCell.Borders.Color = Colors.Black;
         rightSignatureCell.Shading.Color = Colors.White;
-        rightSignatureCell.Format.SpaceAfter = "2.4cm"; // Więcej miejsca na pieczątkę i podpis
+        rightSignatureCell.Format.SpaceAfter = "2.4cm";
         var odebralParagraph = rightSignatureCell.AddParagraph("Odebrał(a)");
         odebralParagraph.Format.Alignment = ParagraphAlignment.Center;
-        odebralParagraph.Format.SpaceBefore = "0.2cm"; // Opcjonalny odstęp nad tekstem
-
-     
+        odebralParagraph.Format.SpaceBefore = "0.2cm";
 
 
         // Payment Info
         if (!_invoice.IsPaid)
         {
             section.AddParagraph().AddLineBreak();
-            var paymentInfo = section.AddParagraph("Prosimy o dokonanie płatności na poniższy rachunek bankowy:");
+            var paymentInfo = section.AddParagraph("Prosimy o dokonanie płatności na poniższy rachunek bankowy w terminie 7 dni:");
             paymentInfo.Style = "Bold";
             paymentInfo.Format.SpaceBefore = "1cm";
 
@@ -251,11 +266,10 @@ public class InvoiceDocument
 
     private void AddLogoAndLine(Section section)
     {
-        // Create a table for layout
         var headerTable = section.AddTable();
         headerTable.Borders.Visible = false;
         headerTable.AddColumn("1cm");
-        headerTable.AddColumn("16cm"); // Adjusted to fit page width
+        headerTable.AddColumn("16cm");
 
         var headerRow = headerTable.AddRow();
 
@@ -270,16 +284,15 @@ public class InvoiceDocument
         image.Left = ShapePosition.Left;
         logoCell.VerticalAlignment = VerticalAlignment.Top;
 
-        // Empty cell (you can add content here if needed)
         var emptyCell = headerRow.Cells[1];
-        emptyCell.AddParagraph(""); // Placeholder
+        emptyCell.AddParagraph("");
 
-        // Add horizontal line
+        // Horizontal line
         var lineParagraph = section.AddParagraph();
         lineParagraph.Format.SpaceBefore = "0.5cm";
         lineParagraph.Format.Borders.Bottom.Width = 0.75;
         lineParagraph.Format.Borders.Bottom.Color = Colors.Black;
         lineParagraph.Format.Borders.Bottom.Style = BorderStyle.Single;
-        lineParagraph.Format.SpaceAfter = "0.5cm"; // Reduced space after line
+        lineParagraph.Format.SpaceAfter = "0.5cm";
     }
 }

@@ -201,7 +201,6 @@ namespace PriceSafari.Controllers.MemberControllers
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
-            // Check if the store belongs to the user
             var userStore = await _context.UserStores
                 .FirstOrDefaultAsync(us => us.UserId == userId && us.StoreId == storeId);
 
@@ -222,36 +221,28 @@ namespace PriceSafari.Controllers.MemberControllers
 
             var plan = store.Plan;
 
-            // Check if the plan is free or test plan
+            // Jeśli plan jest darmowy lub testowy
             if (plan.NetPrice == 0 || plan.IsTestPlan)
             {
-                // Set RemainingScrapes based on the plan's ScrapesPerInvoice
-                store.RemainingScrapes = plan.ScrapesPerInvoice; // Assuming ScrapesPerInvoice represents the number of days or scrapes
-
-                // Optionally, mark any unpaid invoices as paid (if applicable)
+                store.RemainingScrapes = plan.ScrapesPerInvoice;
                 var unpaidInvoices = await _context.Invoices.Where(i => i.StoreId == store.StoreId && !i.IsPaid).ToListAsync();
                 foreach (var unpaidInvoice in unpaidInvoices)
                 {
                     unpaidInvoice.IsPaid = true;
                 }
-
-                // Save changes to the database
                 await _context.SaveChangesAsync();
 
                 TempData["Success"] = "Plan darmowy został aktywowany.";
                 return RedirectToAction("StorePayments", new { storeId = storeId });
             }
 
-            // Continue with the code for paid plans...
-
-            // Check if there is already an unpaid invoice
+            // Sprawdź, czy nie ma już nieopłaconej faktury
             if (store.Invoices.Any(i => !i.IsPaid))
             {
                 TempData["Error"] = "Istnieje już wygenerowana proforma dla tego sklepu.";
                 return RedirectToAction("StorePayments", new { storeId = storeId });
             }
 
-            // Get the selected payment data of the user
             var paymentData = await _context.UserPaymentDatas
                 .FirstOrDefaultAsync(pd => pd.UserId == userId && pd.PaymentDataId == paymentDataId);
 
@@ -261,16 +252,27 @@ namespace PriceSafari.Controllers.MemberControllers
                 return RedirectToAction("StorePayments", new { storeId = storeId });
             }
 
-            // Generate a temporary unique InvoiceNumber
-            var tempInvoiceNumber = $"TEMP-{Guid.NewGuid()}";
+            // Wylicz cenę netto z rabatem
+            decimal netPrice = store.Plan.NetPrice;
+            decimal appliedDiscountPercentage = 0;
+            decimal appliedDiscountAmount = 0;
 
-            // Create the invoice with the temporary InvoiceNumber
+            if (store.DiscountPercentage.HasValue && store.DiscountPercentage.Value > 0)
+            {
+                appliedDiscountPercentage = store.DiscountPercentage.Value;
+                appliedDiscountAmount = netPrice * (appliedDiscountPercentage / 100m);
+                netPrice = netPrice - appliedDiscountAmount;
+            }
+
+            // Generuj tymczasowy numer proformy z prefiksem "FPPS"
+            var tempInvoiceNumber = $"TEMP-PF{Guid.NewGuid()}";
+
             var invoice = new InvoiceClass
             {
                 StoreId = storeId,
                 PlanId = store.PlanId.Value,
                 IssueDate = DateTime.Now,
-                NetAmount = store.Plan.NetPrice,
+                NetAmount = netPrice,
                 ScrapesIncluded = store.Plan.ScrapesPerInvoice,
                 UrlsIncluded = store.Plan.ProductsToScrap,
                 IsPaid = false,
@@ -279,22 +281,25 @@ namespace PriceSafari.Controllers.MemberControllers
                 PostalCode = paymentData.PostalCode,
                 City = paymentData.City,
                 NIP = paymentData.NIP,
-                InvoiceNumber = tempInvoiceNumber
+                InvoiceNumber = tempInvoiceNumber,
+                AppliedDiscountPercentage = appliedDiscountPercentage,
+                AppliedDiscountAmount = appliedDiscountAmount
             };
 
             _context.Invoices.Add(invoice);
-            await _context.SaveChangesAsync(); // Save to get the InvoiceId
+            await _context.SaveChangesAsync(); // zapisz aby otrzymać InvoiceId
 
-            // Generate the final custom invoice number
-            invoice.InvoiceNumber = $"PS{invoice.InvoiceId.ToString("D6")}";
+            // Finalny numer proformy "FPPS" i numer kolejny
+            invoice.InvoiceNumber = $"FPPS{invoice.InvoiceId.ToString("D6")}";
 
-            // Update the invoice with the new InvoiceNumber
             _context.Invoices.Update(invoice);
             await _context.SaveChangesAsync();
 
             TempData["Success"] = "Proforma została wygenerowana.";
             return RedirectToAction("StorePayments", new { storeId = storeId });
         }
+
+
 
 
 
