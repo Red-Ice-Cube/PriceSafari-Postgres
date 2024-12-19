@@ -148,8 +148,8 @@ namespace PriceSafari.Controllers.ManagerControllers
                     invoice.OriginalProformaNumber = invoice.InvoiceNumber;
 
                     int invoiceNumber = await GetNextInvoiceNumberAsync();
-                    // Nowy numer faktury: PS/000001/1/2024
-                    invoice.InvoiceNumber = $"PS/{invoiceNumber.ToString("D6")}/1/{invoice.IssueDate.Year}";
+                    // Nowy numer faktury: PS/000001/sDB/2024
+                    invoice.InvoiceNumber = $"PS/{invoiceNumber.ToString("D6")}/sDB/{invoice.IssueDate.Year}";
                 }
 
                 var store = invoice.Store;
