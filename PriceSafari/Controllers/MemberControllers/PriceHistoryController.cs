@@ -392,10 +392,15 @@ namespace PriceSafari.Controllers.MemberControllers
                  productFlagsDictionary.TryGetValue(g.Key, out var flagIds);
                  flagIds = flagIds ?? new List<int>();
 
-                 // Liczymy ile innych sklepów ma tę samą najlepszą cenę, pomijając nasze oferty
-                 // Zakładamy że bestPrice zostało już ustalone
                  var finalBestPriceEntries = validPrices.Where(p => p.Price == bestPrice).ToList();
                  int externalBestPriceCount = finalBestPriceEntries.Count;
+
+                 // Nowa logika: jeśli nasze sklepy mają niższą cenę niż bestPrice, to externalBestPriceCount = 0
+                 // Czyli jeżeli myPrice < bestPrice
+                 if (myPrice < bestPrice)
+                 {
+                     externalBestPriceCount = 0;
+                 }
 
 
                  return new

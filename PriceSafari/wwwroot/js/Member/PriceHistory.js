@@ -289,7 +289,7 @@
                     let marginSign = '';
                     let marginClass = '';
 
-                    if (!isRejected && !onlyMe && marginPrice != null && myPrice != null) {
+                    if (!isRejected && marginPrice != null && myPrice != null) {
                         marginAmount = myPrice - marginPrice;
                         if (marginPrice !== 0) {
                             marginPercentage = (marginAmount / marginPrice) * 100;
@@ -300,6 +300,7 @@
                         marginSign = marginAmount >= 0 ? '+' : '-';
                         marginClass = marginAmount >= 0 ? 'priceBox-diff-margin' : 'priceBox-diff-margin-minus';
                     }
+
 
                     return {
                         ...price,
