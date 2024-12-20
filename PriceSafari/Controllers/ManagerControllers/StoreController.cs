@@ -162,7 +162,6 @@ namespace PriceSafari.Controllers.ManagerControllers
 
 
 
-
         [HttpGet]
         public async Task<IActionResult> ScrapeProducts(int storeId, int depth)
         {
@@ -176,26 +175,31 @@ namespace PriceSafari.Controllers.ManagerControllers
             var settings = await _context.Settings.FirstOrDefaultAsync();
             if (settings == null)
             {
-                // Handle the case where settings are not found
-                // For example, you can create default settings
+                // Tworzymy domyślne ustawienia, jeśli brak w bazie
                 settings = new Settings
                 {
                     HeadLess = true,
                     JavaScript = true,
                     Styles = false,
-                    WarmUpTime = 5 // In seconds
+                    WarmUpTime = 5 // sekundy
                 };
             }
 
-            // Instantiate ProductScraper with settings
             using (var productScraper = new ProductScraper(_context, _hubContext, settings))
             {
+                // Najpierw przechodzimy intencjonalnie do strony z Captchą
+                await productScraper.NavigateToCaptchaAsync();
+
+                // Czekamy aż użytkownik rozwiąże Captchę
+                await productScraper.WaitForCaptchaSolutionAsync();
+
+                // Teraz, gdy Captcha jest rozwiązana, możemy kontynuować scrapowanie kategorii
                 foreach (var category in categories)
                 {
                     var baseUrlTemplate = $"https://www.ceneo.pl/{category.CategoryUrl};0192;{store.StoreProfile}-0v;0020-15-0-0-{{0}}.htm";
                     await productScraper.ScrapeCategoryProducts(storeId, category.CategoryName, baseUrlTemplate);
                 }
-            } // Dispose is called automatically here
+            }
 
             return RedirectToAction("ProductList", new { storeId });
         }

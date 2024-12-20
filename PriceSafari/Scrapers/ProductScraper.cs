@@ -102,6 +102,25 @@ namespace PriceSafari.Scrapers
             Console.WriteLine("Warm-up complete. Bot is ready to scrape.");
         }
 
+
+        public async Task NavigateToCaptchaAsync()
+        {
+            await _page.GoToAsync("https://www.ceneo.pl/captcha/add", new NavigationOptions { WaitUntil = new[] { WaitUntilNavigation.Networkidle2 } });
+            Console.WriteLine("Otworzono stronę z Captchą. Rozwiąż ją ręcznie w otwartym oknie...");
+        }
+
+        public async Task WaitForCaptchaSolutionAsync()
+        {
+            // Czekamy aż strona się przeładuje po rozwiązaniu captchy
+            await _page.WaitForNavigationAsync(new NavigationOptions
+            {
+                WaitUntil = new[] { WaitUntilNavigation.DOMContentLoaded }
+            });
+            Console.WriteLine("Captcha rozwiązana, przechodzimy dalej.");
+        }
+
+
+
         public async Task ScrapeCategoryProducts(int storeId, string categoryName, string baseUrlTemplate)
         {
             int pageIndex = 0;
@@ -123,21 +142,7 @@ namespace PriceSafari.Scrapers
                     await _page.GoToAsync(url, WaitUntilNavigation.Networkidle0);
                     Console.WriteLine("Page loaded successfully.");
 
-                    // CAPTCHA handling
-                    if (_page.Url.Contains("Captcha"))
-                    {
-                        Console.WriteLine("Encountered CAPTCHA page. Waiting for user to solve it.");
-
-                        bool captchaSolved = await WaitForCaptchaToBeSolvedAsync();
-
-                        if (!captchaSolved)
-                        {
-                            Console.WriteLine("CAPTCHA was not solved in time. Exiting scraper.");
-                            break;
-                        }
-
-                        await _page.GoToAsync(url, WaitUntilNavigation.Networkidle0);
-                    }
+                   
 
                     // Wait for products to load
                     var contentLoaded = await _page.WaitForSelectorAsync("div.cat-prod-box", new WaitForSelectorOptions { Timeout = 5000 });
@@ -282,22 +287,7 @@ namespace PriceSafari.Scrapers
             Console.WriteLine("Scraping completed.");
         }
 
-        private async Task<bool> WaitForCaptchaToBeSolvedAsync(int maxWaitTimeSeconds = 300, int checkIntervalSeconds = 5)
-        {
-            int elapsedWaitTime = 0;
-            while (elapsedWaitTime < maxWaitTimeSeconds)
-            {
-                if (!_page.Url.Contains("Captcha"))
-                {
-                    // CAPTCHA solved
-                    return true;
-                }
-                Console.WriteLine("Waiting for CAPTCHA to be solved...");
-                await Task.Delay(checkIntervalSeconds * 1000);
-                elapsedWaitTime += checkIntervalSeconds;
-            }
-            return false; // CAPTCHA not solved within max wait time
-        }
+ 
 
         public async Task CloseBrowserAsync()
         {
