@@ -231,212 +231,231 @@ namespace PriceSafari.Controllers.MemberControllers
                 .ToDictionary(p => p.ProductId, p => new { p.ExternalId, p.ExternalPrice, p.MainUrl, p.MarginPrice });
 
             var allPrices = prices
-                .GroupBy(p => p.ProductId)
-                .Select(g =>
-                {
-                    var product = g.First();
-                    var storeCount = g.Select(p => p.StoreName).Where(s => s != null).Distinct().Count();
+             .GroupBy(p => p.ProductId)
+             .Select(g =>
+             {
+                 var product = g.First();
+                 var storeCount = g.Select(p => p.StoreName).Where(s => s != null).Distinct().Count();
 
-                    bool sourceGoogle = g.Any(p => p.IsGoogle == true);
-                    bool sourceCeneo = g.Any(p => p.IsGoogle == false);
+                 bool sourceGoogle = g.Any(p => p.IsGoogle == true);
+                 bool sourceCeneo = g.Any(p => p.IsGoogle == false);
 
-                    var myPriceEntries = g.Where(p => p.StoreName != null && p.StoreName.ToLower() == storeName.ToLower());
-                    var myPriceEntry = myPriceEntries.OrderByDescending(p => p.IsGoogle == false).FirstOrDefault();
+                 var myPriceEntries = g.Where(p => p.StoreName != null && p.StoreName.ToLower() == storeName.ToLower());
+                 var myPriceEntry = myPriceEntries.OrderByDescending(p => p.IsGoogle == false).FirstOrDefault();
 
-                    if (string.IsNullOrEmpty(competitorStore) && myPriceEntry == null)
+                 if (string.IsNullOrEmpty(competitorStore) && myPriceEntry == null)
+                 {
+                     if (source.ToLower() != "all")
+                     {
+                         return null;
+                     }
+                     else
+                     {
+                         myPriceEntry = null;
+                     }
+                 }
+
+                 var validPrices = g.Where(p => p.Price.HasValue).ToList();
+
+                 bool onlyMe = validPrices.Count > 0 && validPrices.All(p => p.StoreName != null && p.StoreName.ToLower() == storeName.ToLower());
+
+                 var bestPriceEntry = validPrices
+                     .OrderBy(p => p.Price)
+                     .ThenBy(p => p.StoreName)
+                     .ThenByDescending(p => p.IsGoogle == false)
+                     .FirstOrDefault();
+
+                 var competitorPriceEntry = validPrices.FirstOrDefault(p =>
+                     !string.IsNullOrEmpty(competitorStore) &&
+                     p.StoreName != null &&
+                     p.StoreName.ToLower() == competitorStore.ToLower());
+
+                 if (!string.IsNullOrEmpty(competitorStore) && (myPriceEntry == null || competitorPriceEntry == null))
+                 {
+                     return null;
+                 }
+
+                 if (!string.IsNullOrEmpty(competitorStore))
+                 {
+                     bestPriceEntry = competitorPriceEntry;
+                 }
+
+                 decimal? bestPrice = bestPriceEntry?.Price;
+                 decimal? myPrice = myPriceEntry?.Price ?? bestPrice;
+                 decimal? priceDifference = null;
+                 decimal? percentageDifference = null;
+                 decimal? savings = null;
+                 bool isUniqueBestPrice = false;
+                 int? myPosition = myPriceEntry?.Position;
+                 int? myDelivery = myPriceEntry?.AvailabilityNum;
+                 bool isRejectedDueToZeroPrice = false;
+
+                 if (product.IsRejected || bestPrice == 0 || myPrice == 0)
+                 {
+                     percentageDifference = null;
+                     priceDifference = null;
+                     savings = null;
+                     isUniqueBestPrice = false;
+                     isRejectedDueToZeroPrice = true;
+                 }
+                 else if (bestPrice.HasValue && myPrice.HasValue)
+                 {
+                     var secondBestPrice = validPrices
+                         .Where(p => p.Price > myPrice)
+                         .OrderBy(p => p.Price)
+                         .FirstOrDefault()?.Price ?? myPrice;
+
+                     var bestPriceEntries = validPrices.Where(p => p.Price == bestPrice).ToList();
+                     bool allBestFromMyStore = bestPriceEntries.All(p =>
+                         p.StoreName != null && p.StoreName.ToLower() == storeName.ToLower()
+                     );
+
+                     if (string.IsNullOrEmpty(competitorStore))
+                     {
+                         if (myPrice == bestPrice)
+                         {
+                             // Jeśli wszystkie najlepsze oferty są nasze lub jest tylko jedna
+                             if (allBestFromMyStore || bestPriceEntries.Count == 1)
+                             {
+                                 isUniqueBestPrice = true;
+
+                                 if (secondBestPrice > myPrice)
+                                 {
+                                     var secondBestPriceEntry = validPrices.FirstOrDefault(p => p.Price == secondBestPrice);
+
+                                     if (secondBestPriceEntry != null)
+                                     {
+                                         bestPrice = secondBestPrice;
+                                         bestPriceEntry = secondBestPriceEntry;
+                                         savings = Math.Round(secondBestPrice.Value - myPrice.Value, 2);
+                                         percentageDifference = Math.Round((secondBestPrice.Value - myPrice.Value) / myPrice.Value * 100, 2);
+                                         priceDifference = Math.Round(myPrice.Value - secondBestPrice.Value, 2);
+                                     }
+                                     else
+                                     {
+                                         savings = Math.Round(secondBestPrice.Value - bestPrice.Value, 2);
+                                         percentageDifference = Math.Round((secondBestPrice.Value - myPrice.Value) / myPrice.Value * 100, 2);
+                                         priceDifference = Math.Round(myPrice.Value - bestPrice.Value, 2);
+                                     }
+                                 }
+                                 else
+                                 {
+                                     savings = null;
+                                     percentageDifference = 0;
+                                     priceDifference = 0;
+                                 }
+                             }
+                             else
+                             {
+                                 // Więcej niż jedna oferta z najlepszą ceną i nie wszystkie są nasze
+                                 isUniqueBestPrice = false;
+                                 savings = null;
+                                 priceDifference = Math.Round(myPrice.Value - bestPrice.Value, 2);
+                                 percentageDifference = Math.Round((myPrice.Value - bestPrice.Value) / bestPrice.Value * 100, 2);
+                             }
+                         }
+                         else
+                         {
+                             isUniqueBestPrice = false;
+                             priceDifference = Math.Round(myPrice.Value - bestPrice.Value, 2);
+                             percentageDifference = Math.Round((myPrice.Value - bestPrice.Value) / bestPrice.Value * 100, 2);
+                             savings = null;
+                         }
+                     }
+                     else
+                     {
+                         // Porównanie z konkretnym sklepem
+                         isUniqueBestPrice = myPrice < bestPrice;
+                         savings = isUniqueBestPrice ? Math.Abs(Math.Round(myPrice.Value - bestPrice.Value, 2)) : (decimal?)null;
+                         percentageDifference = Math.Round((myPrice.Value - bestPrice.Value) / bestPrice.Value * 100, 2);
+                         priceDifference = Math.Round(myPrice.Value - bestPrice.Value, 2);
+                     }
+
+                     // Nowa logika: jeśli jest remis, preferujemy sklep inny niż nasz jako bestPriceEntry
+                     var tiedBestPriceEntries = validPrices.Where(p => p.Price == bestPrice).ToList();
+                     if (tiedBestPriceEntries.Count > 1 && tiedBestPriceEntries.Any(e => e.StoreName.ToLower() == storeName.ToLower()))
+                     {
+                         var nonMyBest = tiedBestPriceEntries.FirstOrDefault(x => x.StoreName != null && x.StoreName.ToLower() != storeName.ToLower());
+                         if (nonMyBest != null)
+                         {
+                             bestPriceEntry = nonMyBest;
+                         }
+                     }
+                 }
+
+                 // Jeśli onlyMe = true, to nie ustawiamy unique best price na true
+                 if (onlyMe)
+                 {
+                     isUniqueBestPrice = false;
+                 }
+
+                 productFlagsDictionary.TryGetValue(g.Key, out var flagIds);
+                 flagIds = flagIds ?? new List<int>();
+
+                 // Liczymy ile innych sklepów ma tę samą najlepszą cenę, pomijając nasze oferty
+                 // Zakładamy że bestPrice zostało już ustalone
+                 var finalBestPriceEntries = validPrices.Where(p => p.Price == bestPrice).ToList();
+                 int externalBestPriceCount = finalBestPriceEntries.Count;
+
+
+                 return new
+                 {
+                     ProductId = product.ProductId,
+                     ProductName = product.ProductName,
+                     LowestPrice = bestPrice,
+                     StoreName = bestPriceEntry?.StoreName,
+                     MyPrice = myPriceEntry?.Price,
+                     ScrapId = bestPriceEntry?.ScrapHistoryId,
+                     PriceDifference = priceDifference,
+                     PercentageDifference = percentageDifference,
+                     Savings = savings,
+                     IsSharedBestPrice = string.IsNullOrEmpty(competitorStore) &&
+                                         myPrice == bestPrice &&
+                                         validPrices.Count(p => p.Price == bestPrice) > 1 &&
+                                         !(validPrices.Where(p => p.Price == bestPrice)
+                                             .All(x => x.StoreName != null && x.StoreName.ToLower() == storeName.ToLower())),
+                     IsUniqueBestPrice = isUniqueBestPrice,
+                     OnlyMe = onlyMe,
+                     // Dodajemy nowe pole ExternalBestPriceCount
+                     ExternalBestPriceCount = externalBestPriceCount,
+                     IsBidding = bestPriceEntry?.IsBidding,
+                     IsGoogle = bestPriceEntry?.IsGoogle,
+                     Position = bestPriceEntry?.Position,
+                     MyIsBidding = myPriceEntry?.IsBidding,
+                     MyIsGoogle = myPriceEntry?.IsGoogle,
+                     MyPosition = myPosition,
+                     FlagIds = flagIds,
+                     Delivery = bestPriceEntry?.AvailabilityNum,
+                     MyDelivery = myDelivery,
+                     ExternalId = productExternalInfoDictionary.ContainsKey(g.Key) ? productExternalInfoDictionary[g.Key].ExternalId : null,
+                     ExternalPrice = productExternalInfoDictionary.ContainsKey(g.Key) ? productExternalInfoDictionary[g.Key].ExternalPrice : null,
+                     MarginPrice = productExternalInfoDictionary.ContainsKey(g.Key) ? productExternalInfoDictionary[g.Key].MarginPrice : null,
+                     ImgUrl = productExternalInfoDictionary.ContainsKey(g.Key) ? productExternalInfoDictionary[g.Key].MainUrl : null,
+                     IsRejected = product.IsRejected || isRejectedDueToZeroPrice,
+                     StoreCount = storeCount,
+                     SourceGoogle = sourceGoogle,
+                     SourceCeneo = sourceCeneo
+                 };
+             })
+             .Where(p => p != null)
+             .ToList();
+
+                    var missedProductsCount = allPrices.Count(p => p.IsRejected == true);
+
+                    return Json(new
                     {
-                        if (source.ToLower() != "all")
-                        {
-                            return null;
-                        }
-                        else
-                        {
-                            myPriceEntry = null;
-                        }
-                    }
+                        productCount = allPrices.Count,
+                        priceCount = prices.Count,
+                        myStoreName = storeName,
+                        prices = allPrices,
+                        missedProductsCount = missedProductsCount,
+                        setPrice1 = priceValues.SetPrice1,
+                        setPrice2 = priceValues.SetPrice2,
+                        stepPrice = priceValues.PriceStep,
+                        usePriceDiff = priceValues.UsePriceDiff
+                    });
 
-                    var validPrices = g.Where(p => p.Price.HasValue).ToList();
 
-                    // Sprawdzamy, czy oferty pochodzą wyłącznie z naszego sklepu
-                    bool onlyMe = validPrices.Count > 0 && validPrices.All(p => p.StoreName != null && p.StoreName.ToLower() == storeName.ToLower());
-
-                    var bestPriceEntry = validPrices
-                        .OrderBy(p => p.Price)
-                        .ThenBy(p => p.StoreName)
-                        .ThenByDescending(p => p.IsGoogle == false)
-                        .FirstOrDefault();
-
-                    var competitorPriceEntry = validPrices.FirstOrDefault(p =>
-                        !string.IsNullOrEmpty(competitorStore) &&
-                        p.StoreName != null &&
-                        p.StoreName.ToLower() == competitorStore.ToLower());
-
-                    if (!string.IsNullOrEmpty(competitorStore) && (myPriceEntry == null || competitorPriceEntry == null))
-                    {
-                        return null;
-                    }
-
-                    if (!string.IsNullOrEmpty(competitorStore))
-                    {
-                        bestPriceEntry = competitorPriceEntry;
-                    }
-
-                    decimal? bestPrice = bestPriceEntry?.Price;
-                    decimal? myPrice = myPriceEntry?.Price ?? bestPrice;
-                    decimal? priceDifference = null;
-                    decimal? percentageDifference = null;
-                    decimal? savings = null;
-                    bool isUniqueBestPrice = false;
-                    int? myPosition = myPriceEntry?.Position;
-                    int? myDelivery = myPriceEntry?.AvailabilityNum;
-                    bool isRejectedDueToZeroPrice = false;
-
-                    if (product.IsRejected || bestPrice == 0 || myPrice == 0)
-                    {
-                        percentageDifference = null;
-                        priceDifference = null;
-                        savings = null;
-                        isUniqueBestPrice = false;
-                        isRejectedDueToZeroPrice = true;
-                    }
-                    else if (bestPrice.HasValue && myPrice.HasValue)
-                    {
-                        var secondBestPrice = validPrices
-                            .Where(p => p.Price > myPrice)
-                            .OrderBy(p => p.Price)
-                            .FirstOrDefault()?.Price ?? myPrice;
-
-                        var bestPriceEntries = validPrices.Where(p => p.Price == bestPrice).ToList();
-                        bool allBestFromMyStore = bestPriceEntries.All(p =>
-                            p.StoreName != null && p.StoreName.ToLower() == storeName.ToLower()
-                        );
-
-                        if (string.IsNullOrEmpty(competitorStore))
-                        {
-                            if (myPrice == bestPrice)
-                            {
-                                // Jeśli wszystkie najlepsze oferty są nasze lub jest tylko jedna
-                                if (allBestFromMyStore || bestPriceEntries.Count == 1)
-                                {
-                                    isUniqueBestPrice = true;
-
-                                    // Jeżeli mamy drugą najlepszą cenę większą niż nasza
-                                    if (secondBestPrice > myPrice)
-                                    {
-                                        var secondBestPriceEntry = validPrices.FirstOrDefault(p => p.Price == secondBestPrice);
-
-                                        if (secondBestPriceEntry != null)
-                                        {
-                                            bestPrice = secondBestPrice;
-                                            bestPriceEntry = secondBestPriceEntry;
-                                            savings = Math.Round(secondBestPrice.Value - myPrice.Value, 2);
-                                            percentageDifference = Math.Round((secondBestPrice.Value - myPrice.Value) / myPrice.Value * 100, 2);
-                                            priceDifference = Math.Round(myPrice.Value - secondBestPrice.Value, 2);
-                                        }
-                                        else
-                                        {
-                                            savings = Math.Round(secondBestPrice.Value - bestPrice.Value, 2);
-                                            percentageDifference = Math.Round((secondBestPrice.Value - myPrice.Value) / myPrice.Value * 100, 2);
-                                            priceDifference = Math.Round(myPrice.Value - bestPrice.Value, 2);
-                                        }
-                                    }
-                                    else
-                                    {
-                                        savings = null;
-                                        percentageDifference = 0;
-                                        priceDifference = 0;
-                                    }
-                                }
-                                else
-                                {
-                                    // Więcej niż jedna oferta z najlepszą ceną i nie wszystkie są nasze
-                                    isUniqueBestPrice = false;
-                                    savings = null;
-                                    priceDifference = Math.Round(myPrice.Value - bestPrice.Value, 2);
-                                    percentageDifference = Math.Round((myPrice.Value - bestPrice.Value) / bestPrice.Value * 100, 2);
-                                }
-                            }
-                            else
-                            {
-                                isUniqueBestPrice = false;
-                                priceDifference = Math.Round(myPrice.Value - bestPrice.Value, 2);
-                                percentageDifference = Math.Round((myPrice.Value - bestPrice.Value) / bestPrice.Value * 100, 2);
-                                savings = null;
-                            }
-                        }
-                        else
-                        {
-                            // Porównanie z konkretnym sklepem
-                            isUniqueBestPrice = myPrice < bestPrice;
-                            savings = isUniqueBestPrice ? Math.Abs(Math.Round(myPrice.Value - bestPrice.Value, 2)) : (decimal?)null;
-                            percentageDifference = Math.Round((myPrice.Value - bestPrice.Value) / bestPrice.Value * 100, 2);
-                            priceDifference = Math.Round(myPrice.Value - bestPrice.Value, 2);
-                        }
-                    }
-
-                    // Jeśli onlyMe = true, to nie ustawiamy unique best price na true
-                    if (onlyMe)
-                    {
-                        isUniqueBestPrice = false;
-                    }
-
-                    productFlagsDictionary.TryGetValue(g.Key, out var flagIds);
-                    flagIds = flagIds ?? new List<int>();
-
-                    return new
-                    {
-                        ProductId = product.ProductId,
-                        ProductName = product.ProductName,
-                        LowestPrice = bestPrice,
-                        StoreName = bestPriceEntry?.StoreName,
-                        MyPrice = myPriceEntry?.Price,
-                        ScrapId = bestPriceEntry?.ScrapHistoryId,
-                        PriceDifference = priceDifference,
-                        PercentageDifference = percentageDifference,
-                        Savings = savings,
-                        IsSharedBestPrice = string.IsNullOrEmpty(competitorStore) &&
-                                            myPrice == bestPrice &&
-                                            validPrices.Count(p => p.Price == bestPrice) > 1 &&
-                                            !(validPrices.Where(p => p.Price == bestPrice)
-                                                .All(x => x.StoreName != null && x.StoreName.ToLower() == storeName.ToLower())),
-                        IsUniqueBestPrice = isUniqueBestPrice,
-                        OnlyMe = onlyMe,
-                        IsBidding = bestPriceEntry?.IsBidding,
-                        IsGoogle = bestPriceEntry?.IsGoogle,
-                        Position = bestPriceEntry?.Position,
-                        MyIsBidding = myPriceEntry?.IsBidding,
-                        MyIsGoogle = myPriceEntry?.IsGoogle,
-                        MyPosition = myPosition,
-                        FlagIds = flagIds,
-                        Delivery = bestPriceEntry?.AvailabilityNum,
-                        MyDelivery = myDelivery,
-                        ExternalId = productExternalInfoDictionary.ContainsKey(g.Key) ? productExternalInfoDictionary[g.Key].ExternalId : null,
-                        ExternalPrice = productExternalInfoDictionary.ContainsKey(g.Key) ? productExternalInfoDictionary[g.Key].ExternalPrice : null,
-                        MarginPrice = productExternalInfoDictionary.ContainsKey(g.Key) ? productExternalInfoDictionary[g.Key].MarginPrice : null,
-                        ImgUrl = productExternalInfoDictionary.ContainsKey(g.Key) ? productExternalInfoDictionary[g.Key].MainUrl : null,
-                        IsRejected = product.IsRejected || isRejectedDueToZeroPrice,
-                        StoreCount = storeCount,
-                        SourceGoogle = sourceGoogle,
-                        SourceCeneo = sourceCeneo
-                    };
-                })
-                .Where(p => p != null)
-                .ToList();
-
-            var missedProductsCount = allPrices.Count(p => p.IsRejected == true);
-
-            return Json(new
-            {
-                productCount = allPrices.Count,
-                priceCount = prices.Count,
-                myStoreName = storeName,
-                prices = allPrices,
-                missedProductsCount = missedProductsCount,
-                setPrice1 = priceValues.SetPrice1,
-                setPrice2 = priceValues.SetPrice2,
-                stepPrice = priceValues.PriceStep,
-                usePriceDiff = priceValues.UsePriceDiff
-            });
         }
 
 
