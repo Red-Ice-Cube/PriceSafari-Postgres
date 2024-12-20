@@ -2965,6 +2965,12 @@ tr:last-child .sub-line {
         border: 2px solid rgba(0, 145, 123, 1);
     }
 
+
+    .colorFilter:checked#prOnlyMeCheckbox {
+        background-color: rgba(180, 180, 180, 0.7);
+        border: 2px solid rgba(180, 180, 180, 1);
+    }
+
     .colorFilter:checked#prGrayCheckbox {
         background-color: rgba(40, 40, 40, 0.7);
         border: 2px solid rgba(40, 40, 40, 1);
@@ -3174,6 +3180,9 @@ tr:last-child .sub-line {
     background-color: rgba(40,40, 40, 0.7);
 }
 
+.prOnlyMe .color-bar {
+    background-color: rgba(180,180, 180, 0.7);
+}
 
 .priceBox-diff-up {
     display: inline-flex;

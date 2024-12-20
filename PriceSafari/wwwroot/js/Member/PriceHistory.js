@@ -810,7 +810,7 @@
                 if (item.colorClass === "prOnlyMe") {
                     // OnlyMe: Jesteśmy jedynym sklepem, brak zmian cen
                     const diffClass = item.colorClass + ' ' + 'priceBox-diff-top';
-                    priceBoxColumnInfo.innerHTML += '<div class="' + diffClass + '">Tylko nasza oferta, brak konkurencji</div>';
+                    priceBoxColumnInfo.innerHTML += '<div class="' + diffClass + '">Brak ofert konkurencji dla tego produktu na podstawie kodu EAN</div>';
 
                 } else if (item.colorClass === "prToLow" || item.colorClass === "prIdeal") {
                     if (myPrice != null && savings != null) {
@@ -2213,11 +2213,11 @@
             chartInstance = new Chart(ctx, {
                 type: 'doughnut',
                 data: {
-                    labels: ['Tylko My', 'Zawyżona', 'Suboptymalna', 'Konkurencyjna', 'Strategiczna', 'Zaniżona'],
+                    labels: ['Nieporównywalna', 'Zawyżona', 'Suboptymalna', 'Konkurencyjna', 'Strategiczna', 'Zaniżona'],
                     datasets: [{
                         data: chartData,
                         backgroundColor: [
-                            'rgba(100, 100, 100, 0.8)', // kolor dla prOnlyMe
+                            'rgba(180, 180, 180, 0.8)', // kolor dla prOnlyMe
                             'rgba(171, 37, 32, 0.8)',
                             'rgba(224, 168, 66, 0.8)',
                             'rgba(117, 152, 112, 0.8)',
@@ -2225,7 +2225,7 @@
                             'rgba(6, 6, 6, 0.8)'
                         ],
                         borderColor: [
-                            'rgba(100, 100, 100, 1)',
+                            'rgba(180, 180, 180, 1)',
                             'rgba(171, 37, 32, 1)',
                             'rgba(224, 168, 66, 1)',
                             'rgba(117, 152, 112, 1)',
@@ -2273,7 +2273,7 @@
             colorCounts[item.colorClass] = (colorCounts[item.colorClass] || 0) + 1;
         });
 
-        document.querySelector('label[for="prOnlyMeCheckbox"]').textContent = `Tylko My (${colorCounts.prOnlyMe})`;
+        document.querySelector('label[for="prOnlyMeCheckbox"]').textContent = `Nieporównywalna (${colorCounts.prOnlyMe})`;
         document.querySelector('label[for="prToHighCheckbox"]').textContent = `Zawyżona (${colorCounts.prToHigh})`;
         document.querySelector('label[for="prMidCheckbox"]').textContent = `Suboptymalna (${colorCounts.prMid})`;
         document.querySelector('label[for="prGoodCheckbox"]').textContent = `Konkurencyjna (${colorCounts.prGood})`;
