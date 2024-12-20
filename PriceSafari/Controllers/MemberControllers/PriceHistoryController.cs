@@ -298,7 +298,6 @@ namespace PriceSafari.Controllers.MemberControllers
                             .OrderBy(p => p.Price)
                             .FirstOrDefault()?.Price ?? myPrice;
 
-                        // Pobieramy wszystkie oferty z ceną równą bestPrice
                         var bestPriceEntries = validPrices.Where(p => p.Price == bestPrice).ToList();
                         bool allBestFromMyStore = bestPriceEntries.All(p =>
                             p.StoreName != null && p.StoreName.ToLower() == storeName.ToLower()
@@ -308,20 +307,40 @@ namespace PriceSafari.Controllers.MemberControllers
                         {
                             if (myPrice == bestPrice)
                             {
-                                // Jeśli wszystkie najlepsze oferty są nasze lub jest tylko jedna taka oferta
-                                // to traktujemy to jako unique best price
+                                // Jeśli wszystkie najlepsze oferty są nasze lub jest tylko jedna
                                 if (allBestFromMyStore || bestPriceEntries.Count == 1)
                                 {
                                     isUniqueBestPrice = true;
 
+                                    // Jeżeli mamy drugą najlepszą cenę większą niż nasza
                                     if (secondBestPrice > myPrice)
                                     {
-                                        savings = Math.Round(secondBestPrice.Value - bestPrice.Value, 2);
-                                        percentageDifference = Math.Round((secondBestPrice.Value - myPrice.Value) / myPrice.Value * 100, 2);
-                                        priceDifference = Math.Round(myPrice.Value - bestPrice.Value, 2);
+                                        // Pobieramy wpis drugiej najlepszej ceny
+                                        var secondBestPriceEntry = validPrices.FirstOrDefault(p => p.Price == secondBestPrice);
+
+                                        if (secondBestPriceEntry != null)
+                                        {
+                                            // Teraz ustawiamy bestPrice oraz bestPriceEntry na druga najlepszą cenę
+                                            bestPrice = secondBestPrice;
+                                            bestPriceEntry = secondBestPriceEntry;
+
+                                            // Obliczamy różnice w stosunku do nowej "bestPrice" (która jest tak naprawdę drugą najlepszą ceną, droższą od naszej)
+                                            savings = Math.Round(secondBestPrice.Value - myPrice.Value, 2);
+                                            percentageDifference = Math.Round((secondBestPrice.Value - myPrice.Value) / myPrice.Value * 100, 2);
+                                            priceDifference = Math.Round(myPrice.Value - secondBestPrice.Value, 2);
+                                        }
+                                        else
+                                        {
+                                            // Jeśli nie znaleziono wpisu odpowiadającego secondBestPrice (teoretycznie nie powinno się zdarzyć)
+                                            // zachowujemy domyślne obliczenia tak jak były
+                                            savings = Math.Round(secondBestPrice.Value - bestPrice.Value, 2);
+                                            percentageDifference = Math.Round((secondBestPrice.Value - myPrice.Value) / myPrice.Value * 100, 2);
+                                            priceDifference = Math.Round(myPrice.Value - bestPrice.Value, 2);
+                                        }
                                     }
                                     else
                                     {
+                                        // Brak drugiej najlepszej ceny wyższej niż nasza - pozostawiamy pierwotną logikę
                                         savings = null;
                                         percentageDifference = 0;
                                         priceDifference = 0;
@@ -346,13 +365,14 @@ namespace PriceSafari.Controllers.MemberControllers
                         }
                         else
                         {
-                            // Porównanie z konkretnym sklepem
+                            // Porównanie z konkretnym sklepem (bez zmian)
                             isUniqueBestPrice = myPrice < bestPrice;
                             savings = isUniqueBestPrice ? Math.Abs(Math.Round(myPrice.Value - bestPrice.Value, 2)) : (decimal?)null;
                             percentageDifference = Math.Round((myPrice.Value - bestPrice.Value) / bestPrice.Value * 100, 2);
                             priceDifference = Math.Round(myPrice.Value - bestPrice.Value, 2);
                         }
                     }
+
 
                     productFlagsDictionary.TryGetValue(g.Key, out var flagIds);
                     flagIds = flagIds ?? new List<int>();
