@@ -364,14 +364,12 @@ namespace PriceSafari.Controllers.MemberControllers
                      }
                      else
                      {
-                         // Porównanie z konkretnym sklepem
                          isUniqueBestPrice = myPrice < bestPrice;
                          savings = isUniqueBestPrice ? Math.Abs(Math.Round(myPrice.Value - bestPrice.Value, 2)) : (decimal?)null;
                          percentageDifference = Math.Round((myPrice.Value - bestPrice.Value) / bestPrice.Value * 100, 2);
                          priceDifference = Math.Round(myPrice.Value - bestPrice.Value, 2);
                      }
 
-                     // Nowa logika: jeśli jest remis, preferujemy sklep inny niż nasz jako bestPriceEntry
                      var tiedBestPriceEntries = validPrices.Where(p => p.Price == bestPrice).ToList();
                      if (tiedBestPriceEntries.Count > 1 && tiedBestPriceEntries.Any(e => e.StoreName.ToLower() == storeName.ToLower()))
                      {
@@ -383,7 +381,6 @@ namespace PriceSafari.Controllers.MemberControllers
                      }
                  }
 
-                 // Jeśli onlyMe = true, to nie ustawiamy unique best price na true
                  if (onlyMe)
                  {
                      isUniqueBestPrice = false;
@@ -395,13 +392,45 @@ namespace PriceSafari.Controllers.MemberControllers
                  var finalBestPriceEntries = validPrices.Where(p => p.Price == bestPrice).ToList();
                  int externalBestPriceCount = finalBestPriceEntries.Count;
 
-                 // Nowa logika: jeśli nasze sklepy mają niższą cenę niż bestPrice, to externalBestPriceCount = 0
-                 // Czyli jeżeli myPrice < bestPrice
+             
                  if (myPrice < bestPrice)
                  {
                      externalBestPriceCount = 0;
                  }
 
+
+                 // Deklarujemy dodatkowe zmienne:
+                 decimal? singleBestCheaperDiff = null;
+                 decimal? singleBestCheaperDiffPerc = null;
+
+                 // Najpierw upewniamy się, że mamy obliczone 'bestPrice'.
+                 if (bestPrice.HasValue && bestPrice.Value > 0)
+                 {
+                     // Ilu sprzedawców ma tę 'bestPrice'?
+                     int bestPriceCount = validPrices.Count(p => p.Price == bestPrice.Value);
+
+                     // Interesuje nas tylko sytuacja, gdy jest dokładnie 1 sklep z tą ceną.
+                     if (bestPriceCount == 1)
+                     {
+                         // Znajdź "drugą najniższą" cenę, czyli minimalną cenę większą niż bestPrice
+                         var secondBestEntry = validPrices
+                             .Where(p => p.Price.HasValue && p.Price.Value > bestPrice.Value)
+                             .OrderBy(p => p.Price)
+                             .FirstOrDefault();
+
+                         if (secondBestEntry != null)
+                         {
+                             decimal secondVal = secondBestEntry.Price.Value;
+
+                             // Różnica w zł
+                             singleBestCheaperDiff = Math.Round(secondVal - bestPrice.Value, 2);
+
+                             // Różnica w % (ile tańsza jest najniższa w stosunku do drugiej)
+                             decimal diffPercent = (secondVal - bestPrice.Value) / secondVal * 100;
+                             singleBestCheaperDiffPerc = Math.Round(diffPercent, 2);
+                         }
+                     }
+                 }
 
                  return new
                  {
@@ -421,7 +450,6 @@ namespace PriceSafari.Controllers.MemberControllers
                                              .All(x => x.StoreName != null && x.StoreName.ToLower() == storeName.ToLower())),
                      IsUniqueBestPrice = isUniqueBestPrice,
                      OnlyMe = onlyMe,
-                     // Dodajemy nowe pole ExternalBestPriceCount
                      ExternalBestPriceCount = externalBestPriceCount,
                      IsBidding = bestPriceEntry?.IsBidding,
                      IsGoogle = bestPriceEntry?.IsGoogle,
@@ -439,7 +467,9 @@ namespace PriceSafari.Controllers.MemberControllers
                      IsRejected = product.IsRejected || isRejectedDueToZeroPrice,
                      StoreCount = storeCount,
                      SourceGoogle = sourceGoogle,
-                     SourceCeneo = sourceCeneo
+                     SourceCeneo = sourceCeneo,
+                     SingleBestCheaperDiff = singleBestCheaperDiff,
+                     SingleBestCheaperDiffPerc = singleBestCheaperDiffPerc
                  };
              })
              .Where(p => p != null)

@@ -3226,7 +3226,7 @@ tr:last-child .sub-line {
     font-size: 10px;
     font-weight: 500;
     color: #fff;
-    background: rgba(0, 145, 123, 0.7);
+    background: #555;
 }
 
 .shareBestPriceBox {
@@ -3240,8 +3240,60 @@ tr:last-child .sub-line {
     font-size: 10px;
     font-weight: 500;
     color: #fff;
-    background: rgba(117, 152, 112, 0.7);
+    background: #555;
 }
+
+
+.singlePriceDiffBox {
+    display: flex;
+    border-radius: 4px;
+    height: 18px;
+    align-self: center;
+    padding: 0px 6px 0px 6px;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: 500;
+    color: #fff;
+    background: #555;
+}
+.singlePriceDiffBoxHigh {
+    display: flex;
+    border-radius: 4px;
+    height: 18px;
+    align-self: center;
+    padding: 2px 7px;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: 500;
+    color: #fff;
+    /* Tło z diagonalnymi paskami */
+    background: repeating-linear-gradient(45deg, #ffc107 0, 2.5px, #000 2.5px, #000 5px);
+    position: relative; /* konieczne dla pseudo-elementu */
+}
+
+    .singlePriceDiffBoxHigh::before {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 3px;
+        right: 3px;
+        color: #000 !important;
+        
+        height: 12px; /* wysokość „mazaka” */
+        background-color: #000; /* kolor mazaka */
+        transform: translateY(-50%); /* wyrównanie środka */
+        z-index: 0; /* umieszczenie za tekstem */
+        border-radius: 2px; /* lekko zaokrąglone krawędzie tła */
+    }
+
+    .singlePriceDiffBoxHigh span {
+        position: relative; /* tekst nad pseudo-elementem */
+        z-index: 1; /* tekst nad pseudo-elementem */
+    }
+
+
 
 
 .priceBox-diff-up-margin {

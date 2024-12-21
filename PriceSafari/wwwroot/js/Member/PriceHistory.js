@@ -637,11 +637,9 @@
 
             const priceBoxLowestText = document.createElement('div');
             priceBoxLowestText.className = 'price-box-column-text';
-
-            // Tworzymy linię z ceną i boxami obok ceny
+  
             const priceLine = document.createElement('div');
-            priceLine.style.display = 'flex'; 
-
+            priceLine.style.display = 'flex';
 
             const priceSpan = document.createElement('div');
             priceSpan.style.fontWeight = '500';
@@ -655,19 +653,37 @@
                     // uniqueBestPriceBox
                     const uniqueBox = document.createElement('div');
                     uniqueBox.className = 'uniqueBestPriceBox';
-                    uniqueBox.textContent = '★ TOP';                
+                    uniqueBox.textContent = '★ TOP';
                     uniqueBox.style.marginLeft = '8px'; // odstęp od ceny
                     priceLine.appendChild(uniqueBox);
                 } else if (item.externalBestPriceCount > 1) {
                     // shareBestPriceBox
                     const shareBox = document.createElement('div');
                     shareBox.className = 'shareBestPriceBox';
-                    shareBox.textContent = item.externalBestPriceCount + ' TOP' ;
-                  
+                    shareBox.textContent = item.externalBestPriceCount + ' TOP';
                     shareBox.style.marginLeft = '8px';
                     priceLine.appendChild(shareBox);
                 }
             }
+            if (item.singleBestCheaperDiffPerc !== null && item.singleBestCheaperDiffPerc !== undefined) {
+                const diffBox = document.createElement('div');
+                diffBox.style.marginLeft = '8px'; // odstęp od poprzedniego elementu
+
+                // W zależności od wartości >30% czy <=30% ustawiamy inną klasę
+                if (item.singleBestCheaperDiffPerc > 30) {
+                    diffBox.className = 'singlePriceDiffBoxHigh';
+                } else {
+                    diffBox.className = 'singlePriceDiffBox';
+                }
+
+                // Tworzymy element span na tekst
+                const span = document.createElement('span');
+                span.textContent = item.singleBestCheaperDiffPerc.toFixed(2) + '%';
+                diffBox.appendChild(span);
+
+                priceLine.appendChild(diffBox);
+            }
+
 
             // Dodajemy priceLine do priceBoxLowestText
             priceBoxLowestText.appendChild(priceLine);
@@ -676,6 +692,8 @@
             const storeNameDiv = document.createElement('div');
             storeNameDiv.textContent = highlightedStoreName;
             priceBoxLowestText.appendChild(storeNameDiv);
+
+
 
             const priceBoxLowestDetails = document.createElement('div');
             priceBoxLowestDetails.className = 'price-box-column-text';
