@@ -3139,6 +3139,7 @@ tr:last-child .sub-line {
     font-size: 15px;
     font-weight: 400;
     min-width:160px;
+
 }
 
 .price-box-column-text-api {
@@ -3214,10 +3215,39 @@ tr:last-child .sub-line {
 
 
 
+.uniqueBestPriceBox {
+    display: flex;
+    border-radius: 4px;
+    height: 18px;
+    align-self: center;
+    padding: 0px 7px 0px 5px;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: 500;
+    color: #fff;
+    background: rgba(0, 145, 123, 0.7);
+}
+
+.shareBestPriceBox {
+    display: flex;
+    border-radius: 4px;
+    height: 18px;
+    align-self: center;
+    padding: 0px 6px 0px 6px;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: 500;
+    color: #fff;
+    background: rgba(117, 152, 112, 0.7);
+}
+
+
 .priceBox-diff-up-margin {
     display: flex;
     padding: 4px 12px;
-    width:100%;
+    width: 100%;
     border-radius: 4px;
     font-size: 14px;
     font-weight: 400;

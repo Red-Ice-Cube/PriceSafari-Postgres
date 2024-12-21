@@ -204,59 +204,6 @@
                 document.getElementById('usePriceDifference').checked = usePriceDifference;
                 updateUnits(usePriceDifference);
 
-                //allPrices = response.prices.map(price => {
-                //    const isRejected = price.isRejected;
-
-                //    let valueToUse = null;
-                //    let colorClass = '';
-                //    let marginPrice = null;
-                //    let myPrice = null;
-                //    let marginAmount = null;
-                //    let marginPercentage = null;
-                //    let marginSign = '';
-                //    let marginClass = '';
-
-                //    if (!isRejected) {
-                //        if (usePriceDifference) {
-                //            valueToUse = price.savings !== null ? price.savings : price.priceDifference;
-                //        } else {
-                //            valueToUse = price.percentageDifference;
-                //        }
-
-                //        colorClass = getColorClass(valueToUse, price.isUniqueBestPrice, price.isSharedBestPrice);
-
-                //        marginPrice = price.marginPrice != null && !isNaN(price.marginPrice) ? parseFloat(price.marginPrice) : null;
-                //        myPrice = price.myPrice != null && !isNaN(price.myPrice) ? parseFloat(price.myPrice) : null;
-
-                //        if (marginPrice != null && myPrice != null) {
-                //            marginAmount = myPrice - marginPrice;
-                //            if (marginPrice !== 0) {
-                //                marginPercentage = (marginAmount / marginPrice) * 100;
-                //            } else {
-                //                marginPercentage = null;
-                //            }
-
-                //            marginSign = marginAmount >= 0 ? '+' : '-';
-                //            marginClass = marginAmount >= 0 ? 'priceBox-diff-margin' : 'priceBox-diff-margin-minus';
-                //        }
-                //    } else {
-                //        colorClass = 'prRejected';
-                //    }
-
-                //    return {
-                //        ...price,
-                //        storeCount: price.storeCount,
-                //        isRejected: price.isRejected || false,
-                //        valueToUse: valueToUse,
-                //        colorClass: colorClass,
-                //        marginPrice: marginPrice,
-                //        myPrice: myPrice,
-                //        marginAmount: marginAmount,
-                //        marginPercentage: marginPercentage,
-                //        marginSign: marginSign,
-                //        marginClass: marginClass
-                //    };
-                //});
 
 
                 allPrices = response.prices.map(price => {
@@ -693,9 +640,10 @@
 
             // Tworzymy linię z ceną i boxami obok ceny
             const priceLine = document.createElement('div');
-            priceLine.style.display = 'inline-block'; // zapewni, że elementy znajdą się obok siebie
+            priceLine.style.display = 'flex'; 
 
-            const priceSpan = document.createElement('span');
+
+            const priceSpan = document.createElement('div');
             priceSpan.style.fontWeight = '500';
             priceSpan.style.fontSize = '17px';
             priceSpan.textContent = item.lowestPrice.toFixed(2) + ' PLN';
@@ -707,16 +655,15 @@
                     // uniqueBestPriceBox
                     const uniqueBox = document.createElement('div');
                     uniqueBox.className = 'uniqueBestPriceBox';
-                    uniqueBox.textContent = 'Ma najlepszą cenę';
-                    uniqueBox.style.display = 'inline-block';
+                    uniqueBox.textContent = '★ TOP';                
                     uniqueBox.style.marginLeft = '8px'; // odstęp od ceny
                     priceLine.appendChild(uniqueBox);
                 } else if (item.externalBestPriceCount > 1) {
                     // shareBestPriceBox
                     const shareBox = document.createElement('div');
                     shareBox.className = 'shareBestPriceBox';
-                    shareBox.textContent = 'Najlepsze ceny ' + item.externalBestPriceCount;
-                    shareBox.style.display = 'inline-block';
+                    shareBox.textContent = item.externalBestPriceCount + ' TOP' ;
+                  
                     shareBox.style.marginLeft = '8px';
                     priceLine.appendChild(shareBox);
                 }
