@@ -3268,7 +3268,6 @@ tr:last-child .sub-line {
     font-size: 10px;
     font-weight: 500;
     color: #fff;
-    /* Tło z diagonalnymi paskami */
     background: repeating-linear-gradient(45deg, #ffc107 0, 2.5px, #000 2.5px, #000 5px);
     position: relative; /* konieczne dla pseudo-elementu */
 }
@@ -3290,7 +3289,7 @@ tr:last-child .sub-line {
 
     .singlePriceDiffBoxHigh span {
         position: relative; /* tekst nad pseudo-elementem */
-        z-index: 1; /* tekst nad pseudo-elementem */
+        z-index: 1; 
     }
 
 
