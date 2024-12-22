@@ -3218,77 +3218,80 @@ tr:last-child .sub-line {
 .uniqueBestPriceBox {
     display: flex;
     border-radius: 4px;
-    height: 18px;
+    height: 20.5px;
     align-self: center;
     padding: 0px 7px 0px 5px;
     align-items: center;
     justify-content: center;
-    font-size: 10px;
+    font-size: 11px;
     font-weight: 500;
     color: #fff;
-    background: #555;
+    background: #A5A5A5;
 }
 
 .shareBestPriceBox {
     display: flex;
     border-radius: 4px;
-    height: 18px;
+    height: 20.5px;
     align-self: center;
     padding: 0px 6px 0px 6px;
     align-items: center;
     justify-content: center;
-    font-size: 10px;
+    font-size: 11px;
     font-weight: 500;
     color: #fff;
-    background: #555;
+    background: #A5A5A5;
 }
 
 
 .singlePriceDiffBox {
     display: flex;
     border-radius: 4px;
-    height: 18px;
+    height: 20.5px;
     align-self: center;
     padding: 0px 6px 0px 6px;
     align-items: center;
     justify-content: center;
-    font-size: 10px;
+    font-size: 11px;
     font-weight: 500;
     color: #fff;
-    background: #555;
+    background: #A5A5A5;
 }
+
+
+
 .singlePriceDiffBoxHigh {
     display: flex;
-    border-radius: 4px;
-    height: 18px;
+    align-items: center; 
     align-self: center;
-    padding: 2px 7px;
-    align-items: center;
-    justify-content: center;
-    font-size: 10px;
-    font-weight: 500;
-    color: #fff;
-    background: repeating-linear-gradient(45deg, #ffc107 0, 2.5px, #000 2.5px, #000 5px);
-    position: relative; /* konieczne dla pseudo-elementu */
+    justify-content: center; 
+    border-radius: 4px;
+    height: 20.5px; 
+    padding: 0 8px; 
+    font-size: 11px; 
+    font-weight: 500; 
+    color: #fff; 
+    background: repeating-linear-gradient(45deg, #C50000 0, 4px, #fff 4px, #fff 8px);
+    position: relative;
+    border: 1px solid #C50000;
+    box-sizing: border-box; 
 }
 
     .singlePriceDiffBoxHigh::before {
         content: '';
         position: absolute;
-        top: 50%;
-        left: 3px;
-        right: 3px;
-        color: #000 !important;
-        
-        height: 12px; /* wysokość „mazaka” */
-        background-color: #000; /* kolor mazaka */
-        transform: translateY(-50%); /* wyrównanie środka */
-        z-index: 0; /* umieszczenie za tekstem */
-        border-radius: 2px; /* lekko zaokrąglone krawędzie tła */
+        top: 9.1px; 
+        left: 2px; 
+        right: 2px; 
+        height: 15.2px; 
+        background-color: #C50000; 
+        transform: translateY(-50%); 
+        z-index: 0; 
+        border-radius: 2px; 
     }
 
     .singlePriceDiffBoxHigh span {
-        position: relative; /* tekst nad pseudo-elementem */
+        position: relative;
         z-index: 1; 
     }
 

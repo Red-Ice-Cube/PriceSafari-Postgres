@@ -398,39 +398,52 @@ namespace PriceSafari.Controllers.MemberControllers
                      externalBestPriceCount = 0;
                  }
 
-
-                 // Deklarujemy dodatkowe zmienne:
                  decimal? singleBestCheaperDiff = null;
                  decimal? singleBestCheaperDiffPerc = null;
 
-                 // Najpierw upewniamy się, że mamy obliczone 'bestPrice'.
-                 if (bestPrice.HasValue && bestPrice.Value > 0)
+                 // 1. Wyznaczamy realnie najniższą cenę spośród validPrices
+                 decimal? absoluteLowestPrice = validPrices
+                     .Where(x => x.Price.HasValue)
+                     .Select(x => x.Price.Value)
+                     .DefaultIfEmpty(0m)
+                     .Min();
+
+                 // 2. Sprawdzamy, czy nasza cena w ogóle istnieje
+                 if (myPrice.HasValue && myPrice.Value > 0 && absoluteLowestPrice > 0)
                  {
-                     // Ilu sprzedawców ma tę 'bestPrice'?
-                     int bestPriceCount = validPrices.Count(p => p.Price == bestPrice.Value);
-
-                     // Interesuje nas tylko sytuacja, gdy jest dokładnie 1 sklep z tą ceną.
-                     if (bestPriceCount == 1)
+                     // 3. Jeżeli my mamy cenę <= tej najniższej, to nie obliczamy SingleBestCheaperDiff – zostaje null.
+                     if (myPrice.Value <= absoluteLowestPrice)
                      {
-                         // Znajdź "drugą najniższą" cenę, czyli minimalną cenę większą niż bestPrice
-                         var secondBestEntry = validPrices
-                             .Where(p => p.Price.HasValue && p.Price.Value > bestPrice.Value)
-                             .OrderBy(p => p.Price)
-                             .FirstOrDefault();
+                         // Mamy najlepszą lub taką samą jak najlepsza -> singleBestCheaperDiff zostaje null
+                     }
+                     else
+                     {
+                         // 4. W przeciwnym wypadku (my mamy cenę wyższą) sprawdzamy, czy tamta najniższa cena jest unikalna
+                         int countStoresWithAbsoluteLowest = validPrices
+                             .Count(x => x.Price.HasValue && x.Price.Value == absoluteLowestPrice);
 
-                         if (secondBestEntry != null)
+                         // 5. Jeżeli ta najniższa cena występuje tylko w jednym sklepie (i to nie jesteśmy my),
+                         //    to wtedy liczymy SingleBestCheaperDiff.
+                         if (countStoresWithAbsoluteLowest == 1)
                          {
-                             decimal secondVal = secondBestEntry.Price.Value;
+                             // Znajdź drugą najniższą cenę
+                             var secondLowestPrice = validPrices
+                                 .Where(x => x.Price.HasValue && x.Price.Value > absoluteLowestPrice)
+                                 .Select(x => x.Price.Value)
+                                 .OrderBy(x => x)
+                                 .FirstOrDefault(); // jak nie ma, to 0
 
-                             // Różnica w zł
-                             singleBestCheaperDiff = Math.Round(secondVal - bestPrice.Value, 2);
+                             if (secondLowestPrice > 0)
+                             {
+                                 singleBestCheaperDiff = Math.Round(secondLowestPrice - absoluteLowestPrice.Value, 2);
 
-                             // Różnica w % (ile tańsza jest najniższa w stosunku do drugiej)
-                             decimal diffPercent = (secondVal - bestPrice.Value) / secondVal * 100;
-                             singleBestCheaperDiffPerc = Math.Round(diffPercent, 2);
+                                 decimal diffPercent = (secondLowestPrice - absoluteLowestPrice.Value) / secondLowestPrice * 100;
+                                 singleBestCheaperDiffPerc = Math.Round(diffPercent, 2);
+                             }
                          }
                      }
                  }
+
 
                  return new
                  {

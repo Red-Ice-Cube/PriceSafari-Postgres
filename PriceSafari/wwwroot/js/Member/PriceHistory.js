@@ -667,10 +667,10 @@
             }
             if (item.singleBestCheaperDiffPerc !== null && item.singleBestCheaperDiffPerc !== undefined) {
                 const diffBox = document.createElement('div');
-                diffBox.style.marginLeft = '8px'; // odstęp od poprzedniego elementu
+                diffBox.style.marginLeft = '4px'; // odstęp od poprzedniego elementu
 
                 // W zależności od wartości >30% czy <=30% ustawiamy inną klasę
-                if (item.singleBestCheaperDiffPerc > 30) {
+                if (item.singleBestCheaperDiffPerc > 25) {
                     diffBox.className = 'singlePriceDiffBoxHigh';
                 } else {
                     diffBox.className = 'singlePriceDiffBox';
