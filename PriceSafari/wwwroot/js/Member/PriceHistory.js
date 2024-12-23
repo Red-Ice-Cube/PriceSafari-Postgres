@@ -361,7 +361,7 @@
     function filterPricesByCategoryAndColorAndFlag(data) {
         const selectedColors = Array.from(document.querySelectorAll('.colorFilter:checked')).map(checkbox => checkbox.value);
         const selectedBid = document.getElementById('bidFilter').checked;
-
+        const suspiciouslyLowFilter = document.getElementById('suspiciouslyLowFilter').checked;
         const selectedDeliveryMyStore = Array.from(document.querySelectorAll('.deliveryFilterMyStore:checked')).map(checkbox => parseInt(checkbox.value));
         const selectedDeliveryCompetitor = Array.from(document.querySelectorAll('.deliveryFilterCompetitor:checked')).map(checkbox => parseInt(checkbox.value));
         const selectedExternalPrice = Array.from(document.querySelectorAll('.externalPriceFilter:checked')).map(checkbox => checkbox.value);
@@ -393,6 +393,18 @@
             const storeCount = item.storeCount;
             return storeCount >= offerMin && storeCount <= offerMax;
         });
+
+        if (suspiciouslyLowFilter) {
+            // a) zostawiamy TYLKO te oferty, gdzie singleBestCheaperDiffPerc > 25
+            filteredPrices = filteredPrices.filter(item =>
+                item.singleBestCheaperDiffPerc !== null &&
+                item.singleBestCheaperDiffPerc > 25
+            );
+
+            // b) sortujemy je malejąco według singleBestCheaperDiffPerc
+            filteredPrices.sort((a, b) => b.singleBestCheaperDiffPerc - a.singleBestCheaperDiffPerc);
+        }
+
 
         if (selectedColors.length) {
             filteredPrices = filteredPrices.filter(item => selectedColors.includes(item.colorClass));
@@ -1684,6 +1696,11 @@
     document.getElementById('bidFilter').addEventListener('change', function () {
         filterPricesAndUpdateUI();
     });
+
+    document.getElementById('suspiciouslyLowFilter').addEventListener('change', function () {
+        filterPricesAndUpdateUI();
+    });
+
 
     document.getElementById('sortName').addEventListener('click', function () {
         if (sortingState.sortName === null) {
