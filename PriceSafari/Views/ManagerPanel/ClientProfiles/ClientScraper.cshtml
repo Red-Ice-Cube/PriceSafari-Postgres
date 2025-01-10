@@ -18,21 +18,35 @@
                 <h2>Odpalaj scrapera tylko i wylacznie lokalnie nigy nie z SERWERA, w URL MUSISZ MIEC LOCAL HOST </h2>
             </div>
 
-          
-            <form method="post" asp-action="Scrape" asp-controller="ClientProfileScraper">
-                @Html.AntiForgeryToken()
-                <div class="form-group">
-                    <label for="url">URL do scrapowania:</label>
-                    <input type="text" class="form-control" id="url" name="url" placeholder="Wprowadź URL" required />
-                </div>
-                <button type="submit" class="Button-Page-Small">Rozpocznij / Kontynuuj scrapowanie</button>
-            </form>
 
-            <!-- Dodaj przycisk do zatrzymania scrapera -->
-            <form method="post" asp-action="StopScraper" asp-controller="ClientProfileScraper" style="margin-top:10px;">
-                @Html.AntiForgeryToken()
-                <button type="submit" class="Button-Page-Small" style="background-color:red;color:white;">Zatrzymaj scrapera</button>
-            </form>
+            <div class="Horizontal">
+                <!-- Pierwszy formularz (jak dotychczas) wywołujący Scrape -->
+                <form method="post" asp-action="Scrape" asp-controller="ClientProfileScraper">
+                    @Html.AntiForgeryToken()
+                    <div class="form-group">
+                        <label for="url">URL do scrapowania (pierwsza metoda):</label>
+                        <input type="text" class="form-control" id="url" name="url" placeholder="Wprowadź URL" required />
+                    </div>
+                    <button type="submit" class="Button-Page-Small">Rozpocznij / Kontynuuj scrapowanie</button>
+                </form>
+
+                <!-- Nowy formularz wywołujący MultiScrape -->
+                <form method="post" asp-action="MultiScrape" asp-controller="ClientProfileScraper" style="margin-top:20px;">
+                    @Html.AntiForgeryToken()
+                    <div class="form-group">
+                        <label for="urlMulti">URL do scrapowania (druga metoda - multiscraper):</label>
+                        <input type="text" class="form-control" id="urlMulti" name="url" placeholder="Wprowadź URL (multiscraper)" required />
+                    </div>
+                    <button type="submit" class="Button-Page-Small">Rozpocznij / Kontynuuj MULTI scrapowanie</button>
+                </form>
+
+                <!-- Przyciski do zatrzymania scrapera (wspólne dla obydwu) -->
+                <form method="post" asp-action="StopScraper" asp-controller="ClientProfileScraper" style="margin-top:10px;">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="Button-Page-Small" style="background-color:red;color:white;">Zatrzymaj scrapera</button>
+                </form>
+            </div>
+
         </div>
     </div>
 </div>

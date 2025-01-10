@@ -77,7 +77,7 @@ namespace PriceSafari.Scrapers
                 Console.WriteLine($"Navigating to {url}...");
                 await _page.GoToAsync(url);
 
-                // Kliknięcie przycisku akceptacji ciasteczek
+                // Obsługa ewentualnego buttona od cookies
                 try
                 {
                     var cookieButtonSelector = "#js_cookie-consent-general > div > div.cookie-consent__buttons > button.cookie-consent__buttons__action.js_cookie-consent-necessary";
@@ -129,6 +129,77 @@ namespace PriceSafari.Scrapers
             }
         }
 
+
+
+        public async Task<List<string>> ScrapeMultiProfileUrlsAsync(string url)
+        {
+            if (_page == null)
+                throw new InvalidOperationException("Browser is not initialized. Call InitializeBrowserAsync first.");
+
+            try
+            {
+                Console.WriteLine($"Navigating to (multi) {url}...");
+                await _page.GoToAsync(url);
+
+                // Obsługa ewentualnego buttona od cookies (analogicznie jak w poprzedniej metodzie)
+                try
+                {
+                    var cookieButtonSelector = "#js_cookie-consent-general > div > div.cookie-consent__buttons > button.cookie-consent__buttons__action.js_cookie-consent-necessary";
+                    if (await _page.QuerySelectorAsync(cookieButtonSelector) != null)
+                    {
+                        await _page.ClickAsync(cookieButtonSelector);
+                        Console.WriteLine("Cookie consent accepted (multi).");
+                        await Task.Delay(1000);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Cookie button not found or could not be clicked: {ex.Message}");
+                }
+
+                // Czekamy na jakąś charakterystyczną sekcję z ofertami
+                var multiSelector = "li.offer-shop-opinions";
+                await _page.WaitForSelectorAsync(multiSelector);
+
+                // Poniższy kod to tylko przykład – dopasuj do swoich potrzeb i selektorów.
+                // Załóżmy, że w atrybucie "offer-parameter" jest np. "sklepy/gemini.pl-s9026;offer496214222"
+                // i chcesz skrócić do "sklepy/gemini.pl-s9026" oraz dokleić "https://www.ceneo.pl/".
+                var multiUrls = await _page.EvaluateExpressionAsync<IEnumerable<string>>(
+                    @"
+                Array.from(document.querySelectorAll('li.offer-shop-opinions a.link.js_product-offer-link'))
+                .map(a => a.getAttribute('offer-parameter'))
+                .filter(txt => !!txt)
+                .map(txt => {
+                    const trimmedPart = txt.split(';')[0]; 
+                    return 'https://www.ceneo.pl/' + trimmedPart;
+                })
+            "
+                );
+
+                if (multiUrls == null || !multiUrls.Any())
+                {
+                    Console.WriteLine("No multi-URLs found on the page.");
+                    return new List<string>();
+                }
+
+                var distinctUrls = multiUrls.Distinct().ToList(); // usuwamy duplikaty, jeśli się powtarzają
+
+                Console.WriteLine("Found multi-URLs:");
+                foreach (var fUrl in distinctUrls)
+                {
+                    Console.WriteLine(fUrl);
+                }
+
+                return distinctUrls;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error during multi-scraping: {ex.Message}");
+                throw;
+            }
+        }
+
+
         public async Task<List<StoreData>> ProcessNewUrlsAsync(List<string> newUrls)
         {
             if (_page == null)
@@ -140,7 +211,6 @@ namespace PriceSafari.Scrapers
             {
                 try
                 {
-                    // Sprawdź czy już w momencie przetwarzania nie mamy tego URL-a
                     if (_existingUrls.Contains(url))
                     {
                         Console.WriteLine($"URL {url} already exists in DB, skipping.");
@@ -150,7 +220,7 @@ namespace PriceSafari.Scrapers
                     Console.WriteLine($"Processing URL: {url}");
                     await _page.GoToAsync(url);
 
-                    // Kliknięcie przycisku wyświetlania e-maila, jeśli istnieje
+                    // Przyciski do pokazywania e‑maila
                     var emailButtonSelector = "#body > div.wrapper.site-full-width > article > section > div.main-details-container > div.main-info-container > div.main-content-card > div:nth-child(4) > div:nth-child(2) > span.js_showShopEmailLinkSSL.dotted-link";
                     var emailButton = await _page.QuerySelectorAsync(emailButtonSelector);
 
@@ -159,7 +229,7 @@ namespace PriceSafari.Scrapers
                         Console.WriteLine($"Clicking to reveal email on: {url}");
                         await emailButton.ClickAsync();
 
-                        // Jeżeli captcha nie została jeszcze rozwiązana, dajmy użytkownikowi szansę
+                        // Jeżeli jeszcze nie rozwiązywaliśmy captchy – prosimy użytkownika, aby to zrobił
                         if (!_captchaSolved)
                         {
                             Console.WriteLine("Jeżeli pojawiła się zagadka (captcha), rozwiąż ją teraz w przeglądarce i naciśnij Enter w konsoli, aby kontynuować...");
@@ -167,7 +237,6 @@ namespace PriceSafari.Scrapers
                             _captchaSolved = true;
                         }
 
-                        // Poczekaj chwilę po rozwiązaniu captchy
                         await Task.Delay(500);
                     }
                     else
@@ -175,11 +244,34 @@ namespace PriceSafari.Scrapers
                         Console.WriteLine($"Email button not found on {url}");
                     }
 
-                    // Pobierz email
+                    // Pobranie maila
                     var emailSelector = "#body > div.wrapper.site-full-width > article > section > div.main-details-container > div.main-info-container > div.main-content-card > div:nth-child(4) > div:nth-child(2) > span.js_ShopEmail.js_element-to-click";
                     var email = await WaitForSelectorAndGetTextContentAsync(emailSelector);
 
-                    // Pobierz telefon
+
+                    if (!string.IsNullOrEmpty(email) && !email.Contains("@"))
+                    {
+          
+                        Console.WriteLine($"Brak @ w EMAIL ({email}), " +
+                                          "Rozwiąż captche jeszcze raz"
+                                          );
+                        Console.ReadLine();
+
+                        // Spróbuj ponownie kliknąć w przycisk pokazujący email
+                        if (emailButton != null)
+                        {
+                            await emailButton.ClickAsync();
+                            await Task.Delay(500);
+                            email = await WaitForSelectorAndGetTextContentAsync(emailSelector);
+                        }
+                        else
+                        {
+                            Console.WriteLine("Nie znaleziono ponownie przycisku do pobrania e‑maila.");
+                        }
+
+                        Console.WriteLine($"Po powtórce pobrany email: {email}");
+                    }
+                  
                     var phoneSelector = "#body > div.wrapper.site-full-width > article > section > div.main-details-container > div.main-info-container > div.main-content-card > div:nth-child(3) > div:nth-child(2) > span";
                     var phone = await WaitForSelectorAndGetTextContentAsync(phoneSelector, optional: true);
                     if (string.IsNullOrWhiteSpace(phone))
@@ -234,7 +326,7 @@ namespace PriceSafari.Scrapers
                         Console.WriteLine("Could not extract storeId from URL, skipping product count retrieval.");
                     }
 
-                    // Nie pomijamy sklepów, dodajemy je wszystkie do wyników
+                    // Dodajemy do listy wyników
                     results.Add(new StoreData
                     {
                         OriginalUrl = url,
@@ -243,7 +335,6 @@ namespace PriceSafari.Scrapers
                         StoreName = storeName,
                         ProductCount = productCountInt
                     });
-
                 }
                 catch (Exception ex)
                 {
@@ -253,7 +344,6 @@ namespace PriceSafari.Scrapers
 
             return results;
         }
-
 
         private async Task<string> WaitForSelectorAndGetTextContentAsync(string selector, bool optional = false)
         {
@@ -278,7 +368,6 @@ namespace PriceSafari.Scrapers
 
         private string ExtractStoreId(string url)
         {
-         
             try
             {
                 var parts = url.Split('-');
