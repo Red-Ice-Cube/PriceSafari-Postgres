@@ -270,7 +270,7 @@ public class InvoiceDocument
         if (!_invoice.IsPaid)
         {
             section.AddParagraph().AddLineBreak();
-            var paymentInfo = section.AddParagraph("Prosimy o dokonanie płatności na poniższy rachunek bankowy w terminie 14 dni:");
+            var paymentInfo = section.AddParagraph("Prosimy o dokonanie płatności na poniższy rachunek bankowy w terminie 7 dni:");
             paymentInfo.Style = "Bold";
             paymentInfo.Format.SpaceBefore = "1cm";
 
