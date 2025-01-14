@@ -123,25 +123,16 @@
         </div>
     </div>
 </div>
-
-
-
 <script>
-    // Pierwszy log - czy w ogóle dotarliśmy do tego miejsca:
-    console.log("Skrypt JS został wczytany. Sprawdzamy jQuery:", typeof $);
-
-    // Tablica dostępnych maili:
-    var mailTypes = [
-        { value: 1, text: 'Mail 1' },
-        { value: 2, text: 'Mail 2' },
-        { value: 3, text: 'Mail 3' }
-    ];
-
     $(document).ready(function() {
-        // Drugi log - czy document.ready w ogóle się wywołuje:
         console.log("document.ready - start!");
 
-        // 1) Generujemy dropdown w JS:
+        // Generowanie dropdown
+        var mailTypes = [
+            { value: 1, text: 'Mail 1' },
+            { value: 2, text: 'Mail 2' },
+            { value: 3, text: 'Mail 3' }
+        ];
         var dropdownHtml = '<label>Wybierz rodzaj maila (JS):</label><br />' +
                            '<select id="SelectedMailType">';
         mailTypes.forEach(function(item) {
@@ -149,59 +140,54 @@
         });
         dropdownHtml += '</select>';
 
-        console.log("Wygenerowany kod dropdown:", dropdownHtml);
-
-        // Wstawiamy dropdown do kontenera
         $('#mailTypeDropdownContainer').html(dropdownHtml);
-        console.log("Dropdown dodany do #mailTypeDropdownContainer.");
 
-        // 2) Podpinamy zdarzenie change() pod nasz select
+        // Obsługa zmiany rodzaju maila
         $('#SelectedMailType').change(function() {
             var selectedMailType = $(this).val();
             console.log("Zmieniono mailType na:", selectedMailType);
 
-            // Ustawiamy hidden input w formularzu:
+            // Ustaw hidden input w formularzu:
             $('#HiddenSelectedMailType').val(selectedMailType);
 
-            // Zbieramy ID klientów:
+            // Zbierz ID klientów:
             var selectedClientIds = [];
             $('input[name="SelectedClientIds"]').each(function() {
                 selectedClientIds.push(parseInt($(this).val()));
             });
 
-            console.log("Wywołujemy AJAX -> /ClientProfile/ChangeMailTypeAjax z parametrami:", {
-                mailType: parseInt(selectedMailType),
-                selectedClientIds: selectedClientIds
-            });
+               $.ajax({
+        url: '/ClientProfile/ChangeMailTypeAjax',
+        type: 'POST',
+        data: {
+            mailType: parseInt(selectedMailType),
+            selectedClientIds: selectedClientIds
+        },
+        traditional: true, // <- aby listy przesyłały się w formacie ?selectedClientIds=2&selectedClientIds=3
+        success: function (response) {
+            // Tutaj mamy dostęp do danych zwróconych przez kontroler
+            console.log("Odebrano z serwera:", response);
+            if (response && response.content) {
+                // 1) Podmień w <div id="mailContentPreview"> nową treść
+                $('#mailContentPreview').html(response.content);
 
-            $.ajax({
-                url: '/ClientProfile/ChangeMailTypeAjax',
-                type: 'POST',
-                data: JSON.stringify({
-                    mailType: parseInt(selectedMailType),
-                    selectedClientIds: selectedClientIds
-                }),
-                contentType: 'application/json; charset=utf-8',
-                success: function(response) {
-                    console.log("Odebrano z serwera:", response);
-                    if (response.content) {
-                        $('#mailContentPreview').html(response.content);
-                    } else {
-                        console.warn("W odpowiedzi brak klucza 'content'.", response);
-                    }
-                },
-                error: function(xhr) {
-                    console.error("Błąd AJAX:", xhr);
-                    alert('Błąd podczas pobierania treści maila.');
-                }
-            });
+                // 2) Podmień w hidden input name="EmailContent", by wysłać poprawną treść w ConfirmSendEmails
+                $('input[name="EmailContent"]').val(response.content);
+            } else {
+                console.warn("W odpowiedzi brak klucza 'content'.", response);
+            }
+        },
+        error: function (xhr) {
+            console.error("Błąd AJAX:", xhr);
+            alert('Błąd podczas pobierania treści maila.');
+        }
+    });
+
+
         });
 
-        // 3) Inicjalizujemy dropdown z wstępną wartością (z naszego ukrytego inputa)
+        // Ustaw wartość dropdownu z modelu i wywołaj .change(), aby wstępnie pobrać treść
         var initialSelectedType = parseInt($('#HiddenSelectedMailType').val());
-        console.log("Wstępna wartość (SelectedMailType) =", initialSelectedType);
-
-        // Ustawiamy tę wartość w dropdown i wywołujemy change() - by pobrało initial content
         $('#SelectedMailType').val(initialSelectedType).trigger('change');
     });
 </script>

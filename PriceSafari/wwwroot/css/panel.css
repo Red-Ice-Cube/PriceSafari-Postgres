@@ -3271,29 +3271,9 @@ tr:last-child .sub-line {
     font-size: 11px; 
     font-weight: 500; 
     color: #fff; 
-    background: repeating-linear-gradient(45deg, #C50000 0, 4px, #fff 4px, #fff 8px);
-    position: relative;
-    border: 1px solid #C50000;
+    background: #C50000;
     box-sizing: border-box; 
 }
-
-    .singlePriceDiffBoxHigh::before {
-        content: '';
-        position: absolute;
-        top: 9.1px; 
-        left: 2px; 
-        right: 2px; 
-        height: 15.2px; 
-        background-color: #C50000; 
-        transform: translateY(-50%); 
-        z-index: 0; 
-        border-radius: 2px; 
-    }
-
-    .singlePriceDiffBoxHigh span {
-        position: relative;
-        z-index: 1; 
-    }
 
 
 
