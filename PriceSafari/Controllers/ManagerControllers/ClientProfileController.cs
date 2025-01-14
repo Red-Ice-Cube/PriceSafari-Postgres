@@ -161,10 +161,9 @@ public class ClientProfileController : Controller
     }
 
 
-
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> PrepareEmailsAjax([FromBody] SelectedClientIdsModel model)
+    public async Task<IActionResult> PrepareEmails(SelectedClientIdsModel model)
     {
         if (model == null || model.SelectedClientIds == null || !model.SelectedClientIds.Any())
         {
@@ -173,7 +172,6 @@ public class ClientProfileController : Controller
 
         var selectedClientIds = model.SelectedClientIds;
 
-        // Pobierz wszystkich klientów i filtruj w pamięci
         var allClients = await _context.ClientProfiles.ToListAsync();
         var clients = allClients.Where(cp => selectedClientIds.Contains(cp.ClientProfileId)).ToList();
 
@@ -186,13 +184,45 @@ public class ClientProfileController : Controller
         {
             Clients = clients,
             SelectedClientIds = selectedClientIds,
-            EmailSubject = "", // Użytkownik wprowadzi temat w widoku
-            EmailContent = GetDefaultEmailContent() // Ustawiamy domyślną treść emaila
+            EmailSubject = "",
+            EmailContent = GetEmailContent1(),
+            SelectedMailType = 1
         };
 
-        // Określamy pełną ścieżkę do widoku
-        return PartialView("~/Views/ManagerPanel/ClientProfiles/PrepareEmails.cshtml", sendEmailViewModel);
+        // ZWRACAMY PEŁNY WIDOK zamiast partiala!
+        return View("~/Views/ManagerPanel/ClientProfiles/PrepareEmails.cshtml", sendEmailViewModel);
     }
+
+
+    [HttpPost]
+    public IActionResult ChangeMailTypeAjax(int mailType, List<int> selectedClientIds)
+    {
+        // Zdecyduj, czy musisz odczytywać Klientów z bazy,
+        // czy wystarczy Ci tylko nowa treść maila
+        // Na początek – tylko wypełnimy treść.
+
+        string baseContent;
+        switch (mailType)
+        {
+            case 1:
+                baseContent = GetEmailContent1();
+                break;
+            case 2:
+                baseContent = GetEmailContent2();
+                break;
+            case 3:
+                baseContent = GetEmailContent3();
+                break;
+            default:
+                baseContent = GetEmailContent1();
+                break;
+        }
+
+        // Możesz skorzystać z istniejącego modelu, np. SendEmailViewModel
+        // ale nie musisz tworzyć całego widoku, wystarczy np. zwrócić JSON-a:
+        return Json(new { content = baseContent });
+    }
+
 
     [HttpPost]
     [ValidateAntiForgeryToken]
@@ -210,20 +240,54 @@ public class ClientProfileController : Controller
             return View("PrepareEmails", model);
         }
 
-        // Ensure EmailContent is set
-        model.EmailContent = GetDefaultEmailContent();
+        // Tutaj dynamicznie pobieramy treść w zależności od wybranego maila
+        string baseContent;
+        switch (model.SelectedMailType)
+        {
+            case 1:
+                // Mail #1 - np. „standardowy” z {ProductCount}
+                baseContent = GetEmailContent1();
+                break;
+            case 2:
+                // Mail #2 - inny; np. nie używamy {ProductCount}
+                baseContent = GetEmailContent2();
+                break;
+            case 3:
+                // Mail #3 - jeszcze inny
+                baseContent = GetEmailContent3();
+                break;
+            default:
+                // Domyślnie mail #1
+                baseContent = GetEmailContent1();
+                break;
+        }
 
         // Fetch all clients and filter in-memory
         var allClients = await _context.ClientProfiles.ToListAsync();
-        var clientsToEmail = allClients.Where(cp => model.SelectedClientIds.Contains(cp.ClientProfileId)).ToList();
+        var clientsToEmail = allClients
+            .Where(cp => model.SelectedClientIds.Contains(cp.ClientProfileId))
+            .ToList();
 
         foreach (var client in clientsToEmail)
         {
             try
             {
-                var personalizedContent = model.EmailContent
-                    .Replace("{ClientName}", client.CeneoProfileName)
-                    .Replace("{ProductCount}", client.CeneoProfileProductCount.ToString());
+                // Personalizujemy treść, jeśli w danym mailu mamy {ProductCount}.
+                // Zamiast replace'ować zawsze, można w pewnych mailach w ogóle nie mieć takiego placeholdera.
+                var personalizedContent = baseContent
+                    .Replace("{ClientName}", client.CeneoProfileName);
+
+                // Tylko w Mailu #1 i #3 chcemy liczyć ProductCount, a w #2 np. nie.
+                // Możemy to zrobić warunkowo:
+                if (model.SelectedMailType == 1 || model.SelectedMailType == 3)
+                {
+                    personalizedContent = personalizedContent.Replace("{ProductCount}", client.CeneoProfileProductCount.ToString());
+                }
+                else
+                {
+                    // Jeżeli w mailu #2 byłoby {ProductCount}, to kasujemy/zerujemy itp.
+                    personalizedContent = personalizedContent.Replace("{ProductCount}", "");
+                }
 
                 var emailBody = personalizedContent + GetEmailFooter();
 
@@ -259,7 +323,7 @@ public class ClientProfileController : Controller
 
 
 
-    private string GetDefaultEmailContent()
+    private string GetEmailContent1()
     {
         return @"
                 <p>Dzień dobry,</p>
@@ -290,8 +354,28 @@ public class ClientProfileController : Controller
 
                 <p>Zapraszamy do kontaktu. Oferujemy bezpłatne konto demo, na którym mogą Państwo przetestować nasz program na 300 własnych produktach.</p>
         ";
-
     }
+
+    private string GetEmailContent2()
+    {
+        return @"
+        <p>To jest Mail #2 – nie używamy {ProductCount} tutaj.</p>
+        <p>Moja alternatywna treść nr 2.</p>
+        ...
+    ";
+    }
+
+    private string GetEmailContent3()
+    {
+        return @"
+        <p>To jest Mail #3 – inny wariant. Możemy też używać {ProductCount}, jeśli chcemy.</p>
+        ...
+    ";
+    }
+
+
+
+
 
     private string GetEmailFooter()
     {

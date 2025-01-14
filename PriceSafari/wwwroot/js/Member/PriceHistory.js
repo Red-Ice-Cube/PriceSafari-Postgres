@@ -824,7 +824,7 @@
                 if (item.colorClass === "prOnlyMe") {
                     // OnlyMe: Jesteśmy jedynym sklepem, brak zmian cen
                     const diffClass = item.colorClass + ' ' + 'priceBox-diff-top';
-                    priceBoxColumnInfo.innerHTML += '<div class="' + diffClass + '">Brak ofert konkurencji dla tego produktu na podstawie kodu EAN</div>';
+                    priceBoxColumnInfo.innerHTML += '<div class="' + diffClass + '">Brak ofert konkurencji</div>';
 
                 } else if (item.colorClass === "prToLow" || item.colorClass === "prIdeal") {
                     if (myPrice != null && savings != null) {
