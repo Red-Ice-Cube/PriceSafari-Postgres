@@ -31,13 +31,18 @@
         </div>
         <div class="Horizontal">
 
-            <div class="product-upper-box">
+            <div class="product-upper-box" style="justify-content: flex-start; gap:16px;">
                 <a asp-action="Create" class="Button-Page-Small">Dodaj profil</a>
-                <a asp-action="Index" asp-controller="ClientProfileScraper" class="Button-Page-Small">Scraper Klientów</a>
+                <a asp-action="Index" asp-controller="ClientProfileScraper" class="Button-Page-Small-r">Scraper Klientów</a>
                
-
-                <div class="order-search-box">
+                
                     <input type="text" id="accountSearch" placeholder="Wyszukaj firmę">
+
+                    <div style="display:flex; flex-direction:column;">
+                        <input type="date" class="dateSelect" id="startDate" placeholder="Data od (Nadanie)" />
+                        <input type="date" class="dateSelect" id="endDate" placeholder="Data do (Nadanie)" />
+                    </div>
+
                     <select id="createdByFilter" class="DropDown">
                         <option value="">Wszystkie osoby</option>
                         @foreach (var user in users)
@@ -53,8 +58,13 @@
                             <option value="@((int)status)">@GetStatusDisplayName(status)</option>
                         }
                     </select>
+
+                
+
                     <button type="button" class="Button-Page-Small-b" onclick="sendEmails()">Kokpit wiadomości E-mail</button>
-                </div>
+             
+
+               
             </div>
 
             <!-- Display any messages -->
@@ -88,7 +98,9 @@
                     <tbody>
                         @foreach (var item in Model)
                         {
-                            <tr data-contact-id="@item.ClientProfileId" data-contact="@item.ClientProfileId" data-createdby="@item.CreatedByUser?.Id.ToString()" data-status="@((int)item.Status)">
+                            <tr data-contact-id="@item.ClientProfileId" data-contact="@item.ClientProfileId" data-createdby="@item.CreatedByUser?.Id.ToString()" data-status="@((int)item.Status)"
+                                data-nadanie="@(item.LastEmailSentDate.HasValue ? item.LastEmailSentDate.Value.ToString("yyyy-MM-dd HH:mm") : "")">
+                                
 
                                 <td class="checkbox-cell">
                                     <input type="checkbox" name="selectedClientIds" value="@item.ClientProfileId" class="select-client" />
@@ -194,22 +206,50 @@
         });
     });
 
-    $(document).ready(function () {
+     $(document).ready(function () {
         function filterTable() {
             var searchText = $('#accountSearch').val().toLowerCase();
             var selectedUserId = $('#createdByFilter').val();
             var selectedStatus = $('#statusFilter').val();
+
+            // Pobieramy zakres dat z inputów
+            var startDateVal = $('#startDate').val();
+            var endDateVal   = $('#endDate').val();
+
+            // Jeśli pola nie są uzupełnione, będą null-ami
+            var startDate = startDateVal ? new Date(startDateVal) : null;
+            var endDate   = endDateVal   ? new Date(endDateVal)   : null;
 
             $('.table-orders tbody tr').each(function () {
                 var contactName = $(this).find('td:nth-child(4)').text().toLowerCase(); // 'Firma' column
                 var createdByUserId = $(this).data('createdby') ? $(this).data('createdby').toString() : '';
                 var status = $(this).data('status') !== undefined ? $(this).data('status').toString() : '';
 
+                // Odczytujemy datę z atrybutu data-nadanie
+                var nadanieVal = $(this).data('nadanie'); // np. "2024-02-28 10:30"
+                // Jeśli puste, to wiersz nie ma ustawionej daty
+                var rowDate = nadanieVal ? new Date(nadanieVal) : null;
+
+                // Dotychczasowe filtry
                 var matchesSearch = contactName.indexOf(searchText) > -1;
                 var matchesUser = selectedUserId === '' || createdByUserId == selectedUserId;
                 var matchesStatus = selectedStatus === '' || status == selectedStatus;
 
-                $(this).toggle(matchesSearch && matchesUser && matchesStatus);
+                // Nowy filtr daty
+                // Uwaga: jeżeli data jest null, to możemy go traktować jako niepasujący (false)
+                // lub przeciwnie - zależy od logiki (np. brak daty = zawsze się nie kwalifikuje, bo nie wiadomo).
+                // Tu załóżmy, że brak daty (null) NIE przechodzi filtra jeśli mamy włączone filtry startDate / endDate.
+                var matchesDate = true; // domyślnie true
+
+                if (startDate && (!rowDate || rowDate < startDate)) {
+                    matchesDate = false;
+                }
+                if (endDate && (!rowDate || rowDate > endDate)) {
+                    matchesDate = false;
+                }
+
+                var shouldShow = matchesSearch && matchesUser && matchesStatus && matchesDate;
+                $(this).toggle(shouldShow);
             });
 
             // Przeliczenie liczby kont po zastosowaniu filtru
@@ -219,14 +259,19 @@
             $('#select-all').prop('checked', false);
         }
 
-        // Podłączenie obsługi zdarzeń
+        // Podłączamy zdarzenia do naszych inputów dat
+        $('#startDate').on('change', filterTable);
+        $('#endDate').on('change', filterTable);
+
+        // Pozostałe zdarzenia
         $('#accountSearch').on('keyup', filterTable);
         $('#createdByFilter').on('change', filterTable);
         $('#statusFilter').on('change', filterTable);
 
-        // Przelicz początkową liczbę kont przy załadowaniu strony
+        // Na starcie przelicz liczbę kont
         calculateAccounts();
     });
+
 
     // Funkcja sendEmails pozostaje bez zmian
     function sendEmails() {
