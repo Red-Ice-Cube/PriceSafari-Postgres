@@ -321,13 +321,13 @@
                  style="
             position: absolute;
             top: 0;
-            right: -300px; /* odsuń w prawo, aby nie zasłaniało wykresu */
+            right: -300px; 
             width: 300px;
             padding: 8px;
             background: #fefefe;
             border: 1px solid #ccc;
             font-size: 0.9rem;
-            display: none; /* na starcie ukrywamy */
+            display: none; 
          ">
             </div>
         </div>
@@ -361,11 +361,19 @@
     </div>
 </div>
 
+
+
 @section Scripts {
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
+
+    <script>
+      // 2. Rejestrujemy plugin
+      Chart.register(window['chartjs-plugin-annotation']);
+    </script>
+
 
 
     <script>
@@ -607,11 +615,12 @@
         });
     </script>
     <script>
-      
+        // 1. Na starcie (po załadowaniu) – obsługa przycisków i wczytanie ID produktu
+        let productId = @ViewBag.ProductId;
+
         $(document).ready(function () {
             const $showTableBtn = $('#showTableBtn');
             const $showChartBtn = $('#showChartBtn');
-
             const $tableContainer = $('#priceTableContainer');
             const $chartContainer = $('#trendChartContainer');
 
@@ -626,13 +635,12 @@
                 loadTrendDataAndDrawChart();
             });
 
-            // Obsługa przycisków "Pokaż nasz sklep" / "Pokaż wszystkich"
+            // Obsługa "Pokaż nasz sklep" / "Pokaż wszystkich"
             $('#showOnlyMyStoreBtn').on('click', function() {
                 if (window.trendChartRef) {
                     let myStore = "@storeName".toLowerCase().trim();
                     window.trendChartRef.data.datasets.forEach(ds => {
-                        // Ukrywamy wszystkie linie poza "naszym sklepem"
-                        ds.hidden = ds.label.toLowerCase().trim() !== myStore;
+                        ds.hidden = (ds.label.toLowerCase().trim() !== myStore);
                     });
                     window.trendChartRef.update();
                 }
@@ -641,22 +649,21 @@
             $('#showAllStoresBtn').on('click', function() {
                 if (window.trendChartRef) {
                     window.trendChartRef.data.datasets.forEach(ds => {
-                        ds.hidden = false; // Pokaż wszystkie
+                        ds.hidden = false;
                     });
                     window.trendChartRef.update();
                 }
             });
         });
 
+        // 2. AJAX pobranie danych i wywołanie drawTrendChart
         function loadTrendDataAndDrawChart() {
-            let productId = @ViewBag.ProductId;
-
             $.ajax({
                 url: '@Url.Action("GetPriceTrendData", "PriceHistory")',
                 type: 'GET',
                 data: { productId: productId },
                 success: function(response) {
-                    // response.timelineData -> dane historyczne
+                    // Otrzymujemy response.timelineData
                     drawTrendChart(response.timelineData);
                 },
                 error: function() {
@@ -665,25 +672,26 @@
             });
         }
 
+        // 3. Funkcja tworząca wykres
         function drawTrendChart(timelineData) {
             const ctx = document.getElementById("trendChart").getContext("2d");
             if (window.trendChartRef) {
                 window.trendChartRef.destroy();
             }
 
-            // 1. Zbierzmy listę unikalnych dat (posortowanych)
+            // A) Zbierzmy listę unikalnych dat (posortowanych)
             let allDatesSet = new Set();
             timelineData.forEach(item => allDatesSet.add(item.scrapDate));
             let allDates = Array.from(allDatesSet).sort();
 
-            // 2. Zbierzmy wszystkie sklepy (z historii)
+            // B) Zbierzmy sklepy
             let allStoresSet = new Set();
             timelineData.forEach(item => {
                 item.pricesByStore.forEach(ps => allStoresSet.add(ps.storeName));
             });
             let allStores = Array.from(allStoresSet);
 
-            // 3. priceMap[date][store] = cena
+            // C) priceMap[date][store] = cena
             let priceMap = {};
             timelineData.forEach(entry => {
                 let date = entry.scrapDate;
@@ -695,9 +703,7 @@
                 });
             });
 
-            // -------------------------------------------
-            // SZUKANIE SKLEPU Z NAJLEPSZĄ CENĄ (ostatnia data)
-            // -------------------------------------------
+            // D) Znajdź sklep z najlepszą ceną na ostatnią datę
             let lastDate = allDates[allDates.length - 1];
             let bestPrice = Infinity;
             let storeWithBestPriceLast = null;
@@ -712,12 +718,10 @@
                 }
             }
 
-
+            // E) Znajdź sklep z najniższą ceną historyczną
             let storeWithLowestHistoricalPrice = null;
             let absoluteMinPrice = Infinity;
-            // Dla każdego sklepu znajdź jego minimalną cenę w całym timeline
             allStores.forEach(store => {
-                // Szukamy minimalnej ceny dla danego sklepu w danych
                 let minPriceForStore = Infinity;
                 allDates.forEach(date => {
                     let val = priceMap[date][store];
@@ -725,36 +729,26 @@
                         minPriceForStore = val;
                     }
                 });
-                // Jeśli ten sklep ma mniejszą minimalną cenę niż dotychczasowa
                 if (minPriceForStore < absoluteMinPrice) {
                     absoluteMinPrice = minPriceForStore;
                     storeWithLowestHistoricalPrice = store;
                 }
             });
 
-            // 4. Budujemy tablice "datasets" - każda linia to inny sklep
-            let myStore = "@storeName".toLowerCase().trim();  // nazwa naszego sklepu
+            // F) Budujemy datasets
+            let myStore = "@storeName".toLowerCase().trim();
             let datasets = allStores.map(store => {
                 let dataArray = allDates.map(date => {
                     let dateMap = priceMap[date] || {};
-                    // Jeśli dla danego dnia i sklepu nie ma ceny -> null
                     return (dateMap[store] !== undefined) ? dateMap[store] : null;
                 });
 
-                // Domyślny kolor to szary (przezroczysty)
-                let lineColor = 'rgba(128, 128, 128, 0.2)';
-
-                // Jeśli to nasz sklep -> czarna linia
+                let lineColor = 'rgba(128, 128, 128, 0.2)'; // domyślny szary
                 if (store.toLowerCase().trim() === myStore) {
-                    lineColor = 'rgba(0, 0, 0, 1)';
-                }
-                // Jeśli to sklep z najniższą ceną historyczną -> niebieska linia
-                else if (store === storeWithLowestHistoricalPrice) {
+                    lineColor = 'rgba(0, 0, 0, 1)'; // nasz sklep -> czarny
+                } else if (store === storeWithLowestHistoricalPrice) {
                     lineColor = 'rgba(0, 102, 255, 1)';
-                }
-                // Jeśli to sklep z najlepszą ceną w ostatniej dacie -> czerwona linia
-                // (ale tylko, jeśli nie jest już naszym sklepem lub "niebieskim")
-                else if (store === storeWithBestPriceLast) {
+                } else if (store === storeWithBestPriceLast) {
                     lineColor = 'rgba(255, 0, 0, 1)';
                 }
 
@@ -765,140 +759,203 @@
                     borderColor: lineColor,
                     fill: false,
                     tension: 0.1,
-                    spanGaps: true,     // Pozwala łączyć punkty mimo null
-                    pointRadius: 0,     // Ukrycie kropek
-                    pointHoverRadius: 0 // Brak powiększania kropek przy hover
+                    spanGaps: true,
+                    pointRadius: 0,
+                    pointHoverRadius: 0
                 };
             });
 
-                    const defaultXValue = allDates[allDates.length - 1]; // np. ostatnia data
+            // G) Domyślna pozycja crosshair (np. ostatnia data)
+            const defaultXValue = allDates[allDates.length - 1];
 
-            // 3. Tworzymy nowy Chart
+            // H) Tworzymy wykres z pluginem annotation i custom tooltip
             window.trendChartRef = new Chart(ctx, {
-              type: 'line',
-              data: {
-                labels: allDates,
-                datasets: datasets
-              },
-              options: {
-                responsive: true,
-                interaction: {
-                  mode: 'index',
-                  intersect: false
+                type: 'line',
+                data: {
+                    labels: allDates,
+                    datasets: datasets
                 },
-                scales: {
-                  x: {
-                    type: 'category',
-                    title: {
-                      display: true,
-                      text: 'Data'
-                    }
-                  },
-                  y: {
-                    title: {
-                      display: true,
-                      text: 'Cena PLN'
+                options: {
+                    responsive: true,
+                    animation: {
+                        duration: 0 // wyłączamy globalną animację
                     },
-                    ticks: {
-                      callback: function (value) {
-                        return value + ' PLN';
-                      }
-                    }
-                  }
-                },
-                plugins: {
-                  legend: {
-                    position: 'bottom'
-                  },
-                  tooltip: {
-                    // Wyłączamy standardowe tooltipy
-                    enabled: false,
-                    external: externalTooltipHandler // Nasza funkcja
-                  },
-                  // TU konfigurujemy wtyczkę annotation
-                  annotation: {
-                    annotations: {
-                      crosshairLine: {
-                        type: 'line',
-                        mode: 'vertical',    // linia pionowa
-                        scaleID: 'x',        // względem osi x
-                        value: defaultXValue,
-                        borderColor: 'rgba(255, 0, 0, 0.6)',
-                        borderWidth: 2,
-                        // Pozwala na łapanie i przesuwanie:
-                        draggable: true,
-                        // Reagujemy na drag (przeciąganie)
-                        onDrag: (event) => {
-                          // event - zawiera m.in. event.chart (ChartJS),
-                          //          event.element (obiekt linii) itd.
-                          const newVal = event.element.value;
-                          // newVal to etykieta x (z allDates) lub index, zależnie od skali
+                    // Kliknięcie w wykres: obliczamy najbliższy indeks
+                    onClick: function(evt, elements, chart) {
+                        const canvasPos = Chart.helpers.getRelativePosition(evt, chart);
+                        const xScale = chart.scales.x;
+                        const labels = chart.data.labels;
 
-                          // Wywołajmy metodę odświeżania tooltipa:
-                          refreshCustomTooltip(event.chart, newVal);
+                        // 1) Oblicz floatIndex (działamy w skali 'category')
+                        const floatIndex = xScale.getValueForPixel(canvasPos.x);
+                        let nearestIndex = Math.round(floatIndex);
+
+                        // 2) Ograniczamy do zakresu
+                        if (nearestIndex < 0) nearestIndex = 0;
+                        if (nearestIndex >= labels.length) {
+                            nearestIndex = labels.length - 1;
                         }
-                      }
+
+                        let xLabel = labels[nearestIndex];
+                        console.log("[onClick] nearestIndex =", nearestIndex, " xLabel =", xLabel);
+
+                        // 3) Ustawiamy crosshairLine.value
+                        chart.config.options.plugins.annotation.annotations.crosshairLine.value = nearestIndex;
+                        chart.update();
+
+                        // 4) Wywołujemy tooltip
+                        refreshCustomTooltip(chart, xLabel);
+                    },
+                    interaction: {
+                        mode: 'index',
+                        intersect: false,
+                        axis: 'x'
+                    },
+                    scales: {
+                        x: {
+                            type: 'category',
+                            title: { display: true, text: 'Data' }
+                        },
+                        y: {
+                            title: { display: true, text: 'Cena PLN' }
+                        }
+                    },
+                    plugins: {
+                        legend: { position: 'bottom' },
+                        tooltip: {
+                            enabled: false,
+                            external: externalTooltipHandler
+                        },
+                        annotation: {
+                            annotations: {
+                                crosshairLine: {
+                                    type: 'line',
+                                    mode: 'vertical',
+                                    scaleID: 'x',
+                                    value: null, // początkowo brak
+                                    borderColor: 'rgba(255, 0, 0, 1)',
+                                    borderWidth: 2,
+                                    hitRadius: 8,
+                                    draggable: true,
+                                    adjustScaleRange: false,
+                                    display: (ctx) => {
+                                        // Rysujemy linię tylko, jeśli value != null
+                                        return ctx.chart.config.options.plugins.annotation.annotations.crosshairLine.value != null;
+                                    },
+                                    enter: (ctx) => {
+                                        ctx.chart.canvas.style.cursor = 'grab';
+                                    },
+                                    leave: (ctx) => {
+                                        ctx.chart.canvas.style.cursor = 'default';
+                                    },
+                                    onDragStart: (ctx) => {
+                                        ctx.chart.canvas.style.cursor = 'grabbing';
+                                    },
+                                    onDragEnd: (ctx) => {
+                                        ctx.chart.canvas.style.cursor = 'default';
+                                    },
+                                    onDrag: (ctx) => {
+                                        const chart = ctx.chart;
+                                        const labels = chart.data.labels;
+
+                                        // 'ctx.element.value' to floatIndex (np. 2.3)
+                                        let floatIndex = ctx.element.value;
+                                        let nearestIndex = Math.round(floatIndex);
+
+                                        if (nearestIndex < 0) nearestIndex = 0;
+                                        if (nearestIndex >= labels.length) {
+                                            nearestIndex = labels.length - 1;
+                                        }
+
+                                        const xLabel = labels[nearestIndex];
+                                        console.log("[onDrag] floatIndex =", floatIndex, " nearestIndex =", nearestIndex, " xLabel =", xLabel);
+
+                                        // Aktualizujemy tooltip i rysowanie
+                                        refreshCustomTooltip(chart, xLabel);
+                                        chart.update('none');
+                                    }
+                                }
+                            }
+                        }
                     }
-                  }
                 }
-              }
             });
 
-            // 4. Po stworzeniu wykresu, jednorazowo wywołajmy refresh, żeby tooltip się pokazał
+            // I) Na końcu – ustawiamy crosshairLine na defaultXValue
+            // ale uwaga, bo w 'category' scale 'defaultXValue' jest stringiem,
+            // a w pluginie annotation 'value' musi być floatIndex:
+            let idxDefault = allDates.indexOf(defaultXValue);
+            if (idxDefault === -1) {
+                idxDefault = 0;
+            }
+            window.trendChartRef.config.options.plugins.annotation.annotations.crosshairLine.value = idxDefault;
+            window.trendChartRef.update();
+
+            // Wywołujemy tooltip (jeśli chcesz od razu zaktualizować)
             refreshCustomTooltip(window.trendChartRef, defaultXValue);
         }
 
-                function externalTooltipHandler(context) {
-            const { chart, tooltip } = context;
-            const tooltipEl = document.getElementById('customTrendTooltip');
+        // 4. Funkcja wyświetlająca customowy tooltip
+        function refreshCustomTooltip(chart, xLabel) {
+            const labels = chart.data.labels;
+            const idx = labels.indexOf(xLabel);
 
-            // 1. Jeśli tooltip jest niewidoczny (opacity: 0), chowamy kontener
-            if (!tooltip || tooltip.opacity === 0) {
-                tooltipEl.style.display = 'none';
+            console.log("[refreshCustomTooltip] xLabel =", xLabel, " idx =", idx);
+
+            if (idx < 0) {
+                // Brak dopasowania
                 return;
             }
 
-            // 2. Wyciągamy wszystkie punkty (dataPoints) z tooltipa
-            const dataPoints = tooltip.dataPoints;
-            if (!dataPoints || !dataPoints.length) {
-                tooltipEl.style.display = 'none';
-                return;
-            }
-
-            // 3. Budujemy tablicę {storeName, price}, sortujemy po cenie (ASC)
-            let items = dataPoints.map(dp => {
-                return {
-                    storeName: dp.dataset.label,
-                    price: dp.parsed.y
-                };
+            // Zbieramy widoczne dataset-y
+            let items = [];
+            chart.data.datasets.forEach(ds => {
+                if (ds.hidden) return;
+                const val = ds.data[idx];
+                if (val != null) {
+                    items.push({
+                        storeName: ds.label,
+                        price: val
+                    });
+                }
             });
-            items.sort((a, b) => a.price - b.price); // najniższa cena na górze
 
-            // 4. Renderujemy HTML – prosta tabela/lista
+            items.sort((a, b) => a.price - b.price);
+
+            const tooltipEl = document.getElementById('customTrendTooltip');
+            if (!tooltipEl) return;
+
             let html = `<div style="font-weight:bold; margin-bottom:4px;">
-                            <span>Data: ${tooltip.title[0] || ''}</span>
+                          Data: ${xLabel}
                         </div>`;
             html += `<table style="width:100%; border-collapse:collapse;">`;
             items.forEach(item => {
                 html += `
-                  <tr style="border-bottom:1px solid #eee;">
-                    <td style="padding:2px;">${item.storeName}</td>
-                    <td style="padding:2px; text-align:right;">${item.price} PLN</td>
-                  </tr>
+                    <tr style="border-bottom:1px solid #eee;">
+                      <td style="padding:2px;">${item.storeName}</td>
+                      <td style="padding:2px; text-align:right;">${item.price} PLN</td>
+                    </tr>
                 `;
             });
             html += `</table>`;
 
-            // Wstawiamy wygenerowany HTML do kontenera
             tooltipEl.innerHTML = html;
-
-            // 5. Pokazujemy tooltip (jeśli był hidden)
-            tooltipEl.style.display = 'block';
+            tooltipEl.style.display = items.length ? 'block' : 'none';
         }
 
+        // 5. Funkcja externalTooltipHandler – wyłączamy standardowe rysowanie tooltipów
+        function externalTooltipHandler(context) {
+            const { tooltip } = context;
+            const tooltipEl = document.getElementById('customTrendTooltip');
 
-        
+            // Gdy opacity = 0 -> chowamy (chyba, że nie chcemy chować przy drag)
+            if (!tooltip || tooltip.opacity === 0) {
+               
+                return;
+            }
+        }
     </script>
+
 
 }
 
