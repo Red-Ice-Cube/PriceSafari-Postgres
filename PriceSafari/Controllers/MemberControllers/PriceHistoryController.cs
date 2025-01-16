@@ -797,7 +797,6 @@ namespace PriceSafari.Controllers.MemberControllers
             return View("~/Views/Panel/PriceHistory/PriceTrend.cshtml", product);
         }
 
-
         [HttpGet]
         public async Task<IActionResult> GetPriceTrendData(int productId)
         {
@@ -829,6 +828,7 @@ namespace PriceSafari.Controllers.MemberControllers
                 .ToList();
 
             // Tutaj zmiana: ScrapDate jako string "yyyy-MM-dd"
+            // DODAJEMY pole: Source = (ph.IsGoogle == true) ? "google" : "ceneo"
             var timelineData = lastScraps.Select(scrap => new
             {
                 ScrapDate = scrap.Date.ToString("yyyy-MM-dd"), // tylko data, bez czasu
@@ -837,7 +837,9 @@ namespace PriceSafari.Controllers.MemberControllers
                     .Select(ph => new
                     {
                         ph.StoreName,
-                        ph.Price
+                        ph.Price,
+                        // Nowe pole - skąd pochodzi oferta
+                        Source = (ph.IsGoogle == true) ? "google" : "ceneo"
                     })
                     .ToList()
             })
@@ -849,6 +851,7 @@ namespace PriceSafari.Controllers.MemberControllers
                 TimelineData = timelineData
             });
         }
+
 
 
 

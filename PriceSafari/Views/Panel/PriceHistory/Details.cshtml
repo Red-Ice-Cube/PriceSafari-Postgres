@@ -314,15 +314,21 @@
 
         <div id="trendChartContainer" style="display:none; margin-top:20px; position: relative;">
             <!-- kontener na nasz wykres -->
-            <canvas id="trendChart" width="1400" height="650"></canvas>
+            <canvas id="trendChart" width="1200" height="600"></canvas>
 
             <!-- kontener na naszą "tabelkę–tooltip" -->
+
+            <div>
+                <label for="grayAlphaRange">Przezroczystość linii szarych:</label>
+                <input type="range" id="grayAlphaRange" min="0" max="1" step="0.1" value="0.4" style="width:200px;">
+            </div>
+
             <div id="customTrendTooltip"
                  style="
             position: absolute;
             top: 0;
-            right: -300px; 
-            width: 300px;
+            right: -400px; 
+            width: 400px;
             padding: 8px;
             background: #fefefe;
             border: 1px solid #ccc;
@@ -615,10 +621,28 @@
         });
     </script>
     <script>
-        // 1. Na starcie (po załadowaniu) – obsługa przycisków i wczytanie ID produktu
+        // 1. Na starcie
         let productId = @ViewBag.ProductId;
+        let myStoreLower = "@storeName".toLowerCase().trim();
 
-        $(document).ready(function () {
+        // Maksymalnie 6 highlightów
+        let highlightedStores = [];
+        let storeColorMap = {};
+
+        // 6 kolorów:
+        const highlightColors = [
+          'rgba(54, 162, 235, 1)',   // niebieski
+          'rgba(255, 128, 0, 1)',   // pomarańcz
+          'rgba(153, 102, 255, 1)', // fiolet
+          'rgba(100, 200, 100, 1)', // zieleń
+          'rgba(255, 51, 153, 1)',  // róż
+          'rgba(139, 0, 0, 1)'      // ciemnoczerwony
+        ];
+
+        // Domyślny alpha dla szarych linii
+        let defaultGrayAlpha = 0.4;
+
+        document.addEventListener("DOMContentLoaded", function() {
             const $showTableBtn = $('#showTableBtn');
             const $showChartBtn = $('#showChartBtn');
             const $tableContainer = $('#priceTableContainer');
@@ -635,7 +659,16 @@
                 loadTrendDataAndDrawChart();
             });
 
-            // Obsługa "Pokaż nasz sklep" / "Pokaż wszystkich"
+            // Suwak do regulacji alpha dla szarych linii
+            const grayAlphaRange = document.getElementById("grayAlphaRange");
+            if (grayAlphaRange) {
+                grayAlphaRange.addEventListener("input", function(e) {
+                    defaultGrayAlpha = parseFloat(e.target.value);
+                    // Odśwież linie z nową przezroczystością
+                    updateHighlightedLines();
+                });
+            }
+
             $('#showOnlyMyStoreBtn').on('click', function() {
                 if (window.trendChartRef) {
                     let myStore = "@storeName".toLowerCase().trim();
@@ -656,14 +689,13 @@
             });
         });
 
-        // 2. AJAX pobranie danych i wywołanie drawTrendChart
+        // 2. AJAX -> rysowanie wykresu
         function loadTrendDataAndDrawChart() {
             $.ajax({
                 url: '@Url.Action("GetPriceTrendData", "PriceHistory")',
                 type: 'GET',
                 data: { productId: productId },
                 success: function(response) {
-                    // Otrzymujemy response.timelineData
                     drawTrendChart(response.timelineData);
                 },
                 error: function() {
@@ -679,19 +711,16 @@
                 window.trendChartRef.destroy();
             }
 
-            // A) Zbierzmy listę unikalnych dat (posortowanych)
             let allDatesSet = new Set();
             timelineData.forEach(item => allDatesSet.add(item.scrapDate));
             let allDates = Array.from(allDatesSet).sort();
 
-            // B) Zbierzmy sklepy
             let allStoresSet = new Set();
             timelineData.forEach(item => {
                 item.pricesByStore.forEach(ps => allStoresSet.add(ps.storeName));
             });
             let allStores = Array.from(allStoresSet);
 
-            // C) priceMap[date][store] = cena
             let priceMap = {};
             timelineData.forEach(entry => {
                 let date = entry.scrapDate;
@@ -699,76 +728,58 @@
                     priceMap[date] = {};
                 }
                 entry.pricesByStore.forEach(ps => {
-                    priceMap[date][ps.storeName] = ps.price;
+                    priceMap[date][ps.storeName] = {
+                        price: ps.price,
+                        source: ps.source
+                    };
                 });
             });
 
-            // D) Znajdź sklep z najlepszą ceną na ostatnią datę
-            let lastDate = allDates[allDates.length - 1];
-            let bestPrice = Infinity;
-            let storeWithBestPriceLast = null;
-            if (lastDate) {
-                let lastDayPrices = priceMap[lastDate];
-                for (const store of Object.keys(lastDayPrices)) {
-                    let price = lastDayPrices[store];
-                    if (price < bestPrice) {
-                        bestPrice = price;
-                        storeWithBestPriceLast = store;
-                    }
-                }
-            }
-
-            // E) Znajdź sklep z najniższą ceną historyczną
-            let storeWithLowestHistoricalPrice = null;
-            let absoluteMinPrice = Infinity;
-            allStores.forEach(store => {
-                let minPriceForStore = Infinity;
-                allDates.forEach(date => {
-                    let val = priceMap[date][store];
-                    if (val !== undefined && val < minPriceForStore) {
-                        minPriceForStore = val;
-                    }
-                });
-                if (minPriceForStore < absoluteMinPrice) {
-                    absoluteMinPrice = minPriceForStore;
-                    storeWithLowestHistoricalPrice = store;
-                }
-            });
-
-            // F) Budujemy datasets
             let myStore = "@storeName".toLowerCase().trim();
+
+            // Budujemy datasets
             let datasets = allStores.map(store => {
-                let dataArray = allDates.map(date => {
-                    let dateMap = priceMap[date] || {};
-                    return (dateMap[store] !== undefined) ? dateMap[store] : null;
+                let dataArray = [];
+                let sourceArray = [];
+
+                allDates.forEach(date => {
+                    let obj = priceMap[date][store];
+                    if (obj) {
+                        dataArray.push(obj.price);
+                        sourceArray.push(obj.source);
+                    } else {
+                        dataArray.push(null);
+                        sourceArray.push(null);
+                    }
                 });
 
-                let lineColor = 'rgba(128, 128, 128, 0.2)'; // domyślny szary
+                // Domyślna szara linia (z alpha)
+                let lineColor = `rgba(128,128,128,${defaultGrayAlpha})`;
+                let lineWidth = 2;
+
+                // Jeśli to nasz sklep -> czarny
                 if (store.toLowerCase().trim() === myStore) {
-                    lineColor = 'rgba(0, 0, 0, 1)'; // nasz sklep -> czarny
-                } else if (store === storeWithLowestHistoricalPrice) {
-                    lineColor = 'rgba(0, 102, 255, 1)';
-                } else if (store === storeWithBestPriceLast) {
-                    lineColor = 'rgba(255, 0, 0, 1)';
+                    lineColor = 'rgba(0,0,0,1)';
+                    lineWidth = 2;
                 }
 
                 return {
                     label: store,
                     data: dataArray,
-                    borderWidth: 2,
+                    sourceByIndex: sourceArray,
+                    originalBorderColor: lineColor,
                     borderColor: lineColor,
+                    borderWidth: lineWidth,
                     fill: false,
-                    tension: 0.1,
+                
                     spanGaps: true,
                     pointRadius: 0,
                     pointHoverRadius: 0
                 };
             });
 
-            // G) Domyślna pozycja crosshair (np. ostatnia data)
-            const defaultXValue = allDates[allDates.length - 1];
+            const defaultXValue = allDates[allDates.length - 1] || null;
 
-            // H) Tworzymy wykres z pluginem annotation i custom tooltip
             window.trendChartRef = new Chart(ctx, {
                 type: 'line',
                 data: {
@@ -777,33 +788,47 @@
                 },
                 options: {
                     responsive: true,
-                    animation: {
-                        duration: 0 // wyłączamy globalną animację
+                    animation: { duration: 0 },
+                    // LEKKI grid
+                    scales: {
+                        x: {
+                            type: 'category',
+                            title: { display: true, text: 'Data' },
+                            grid: {
+                                display: true,
+                                color: 'rgba(0,0,0,0.06)'
+                            }
+                        },
+                        y: {
+                            title: { display: true, text: 'Cena PLN' },
+                            grid: {
+                                display: true,
+                                color: 'rgba(0,0,0,0.06)'
+                            }
+                        }
                     },
-                    // Kliknięcie w wykres: obliczamy najbliższy indeks
+                    onHover: function(e) {
+                        e.native.target.style.cursor = 'crosshair';
+                    },
                     onClick: function(evt, elements, chart) {
+                        // Crosshair
+                        if (!chart.data.labels.length) return;
                         const canvasPos = Chart.helpers.getRelativePosition(evt, chart);
                         const xScale = chart.scales.x;
                         const labels = chart.data.labels;
 
-                        // 1) Oblicz floatIndex (działamy w skali 'category')
-                        const floatIndex = xScale.getValueForPixel(canvasPos.x);
+                        let floatIndex = xScale.getValueForPixel(canvasPos.x);
                         let nearestIndex = Math.round(floatIndex);
-
-                        // 2) Ograniczamy do zakresu
                         if (nearestIndex < 0) nearestIndex = 0;
                         if (nearestIndex >= labels.length) {
                             nearestIndex = labels.length - 1;
                         }
+                        let xLabel = labels[nearestIndex] || null;
+                        if (!xLabel) return;
 
-                        let xLabel = labels[nearestIndex];
-                        console.log("[onClick] nearestIndex =", nearestIndex, " xLabel =", xLabel);
-
-                        // 3) Ustawiamy crosshairLine.value
                         chart.config.options.plugins.annotation.annotations.crosshairLine.value = nearestIndex;
                         chart.update();
 
-                        // 4) Wywołujemy tooltip
                         refreshCustomTooltip(chart, xLabel);
                     },
                     interaction: {
@@ -811,17 +836,8 @@
                         intersect: false,
                         axis: 'x'
                     },
-                    scales: {
-                        x: {
-                            type: 'category',
-                            title: { display: true, text: 'Data' }
-                        },
-                        y: {
-                            title: { display: true, text: 'Cena PLN' }
-                        }
-                    },
                     plugins: {
-                        legend: { position: 'bottom' },
+                        legend: { display: false },
                         tooltip: {
                             enabled: false,
                             external: externalTooltipHandler
@@ -832,24 +848,24 @@
                                     type: 'line',
                                     mode: 'vertical',
                                     scaleID: 'x',
-                                    value: null, // początkowo brak
-                                    borderColor: 'rgba(255, 0, 0, 1)',
+                                    value: null,
+                                    borderColor: 'rgba(80,80,80,1)',
                                     borderWidth: 2,
+                                    borderDash: [4,2],
                                     hitRadius: 8,
                                     draggable: true,
                                     adjustScaleRange: false,
                                     display: (ctx) => {
-                                        // Rysujemy linię tylko, jeśli value != null
                                         return ctx.chart.config.options.plugins.annotation.annotations.crosshairLine.value != null;
                                     },
                                     enter: (ctx) => {
-                                        ctx.chart.canvas.style.cursor = 'grab';
+                                        ctx.chart.canvas.style.cursor = 'crosshair';
                                     },
                                     leave: (ctx) => {
                                         ctx.chart.canvas.style.cursor = 'default';
                                     },
                                     onDragStart: (ctx) => {
-                                        ctx.chart.canvas.style.cursor = 'grabbing';
+                                        ctx.chart.canvas.style.cursor = 'crosshair';
                                     },
                                     onDragEnd: (ctx) => {
                                         ctx.chart.canvas.style.cursor = 'default';
@@ -857,20 +873,14 @@
                                     onDrag: (ctx) => {
                                         const chart = ctx.chart;
                                         const labels = chart.data.labels;
-
-                                        // 'ctx.element.value' to floatIndex (np. 2.3)
                                         let floatIndex = ctx.element.value;
                                         let nearestIndex = Math.round(floatIndex);
-
                                         if (nearestIndex < 0) nearestIndex = 0;
-                                        if (nearestIndex >= labels.length) {
-                                            nearestIndex = labels.length - 1;
-                                        }
+                                        if (nearestIndex >= labels.length) nearestIndex = labels.length - 1;
 
-                                        const xLabel = labels[nearestIndex];
-                                        console.log("[onDrag] floatIndex =", floatIndex, " nearestIndex =", nearestIndex, " xLabel =", xLabel);
+                                        let xLabel = labels[nearestIndex];
+                                        if (!xLabel) return;
 
-                                        // Aktualizujemy tooltip i rysowanie
                                         refreshCustomTooltip(chart, xLabel);
                                         chart.update('none');
                                     }
@@ -881,46 +891,42 @@
                 }
             });
 
-            // I) Na końcu – ustawiamy crosshairLine na defaultXValue
-            // ale uwaga, bo w 'category' scale 'defaultXValue' jest stringiem,
-            // a w pluginie annotation 'value' musi być floatIndex:
-            let idxDefault = allDates.indexOf(defaultXValue);
-            if (idxDefault === -1) {
-                idxDefault = 0;
-            }
-            window.trendChartRef.config.options.plugins.annotation.annotations.crosshairLine.value = idxDefault;
-            window.trendChartRef.update();
+            if (defaultXValue) {
+                let idxDefault = window.trendChartRef.data.labels.indexOf(defaultXValue);
+                if (idxDefault < 0) idxDefault = 0;
+                window.trendChartRef.config.options.plugins.annotation.annotations.crosshairLine.value = idxDefault;
+                window.trendChartRef.update();
 
-            // Wywołujemy tooltip (jeśli chcesz od razu zaktualizować)
-            refreshCustomTooltip(window.trendChartRef, defaultXValue);
+                refreshCustomTooltip(window.trendChartRef, defaultXValue);
+            }
         }
 
-        // 4. Funkcja wyświetlająca customowy tooltip
+        // 4. Custom tooltip (klikalny)
         function refreshCustomTooltip(chart, xLabel) {
+            window.currentTooltipDate = xLabel;
+
             const labels = chart.data.labels;
             const idx = labels.indexOf(xLabel);
+            if (idx < 0) return;
 
-            console.log("[refreshCustomTooltip] xLabel =", xLabel, " idx =", idx);
-
-            if (idx < 0) {
-                // Brak dopasowania
-                return;
-            }
-
-            // Zbieramy widoczne dataset-y
             let items = [];
             chart.data.datasets.forEach(ds => {
                 if (ds.hidden) return;
-                const val = ds.data[idx];
-                if (val != null) {
+                const priceVal = ds.data[idx];
+                const sourceVal = ds.sourceByIndex[idx];
+                if (priceVal != null) {
                     items.push({
                         storeName: ds.label,
-                        price: val
+                        price: priceVal,
+                        source: sourceVal
                     });
                 }
             });
 
-            items.sort((a, b) => a.price - b.price);
+            items.sort((a, b) => {
+                if (a.price !== b.price) return a.price - b.price;
+                return a.storeName.localeCompare(b.storeName);
+            });
 
             const tooltipEl = document.getElementById('customTrendTooltip');
             if (!tooltipEl) return;
@@ -929,32 +935,134 @@
                           Data: ${xLabel}
                         </div>`;
             html += `<table style="width:100%; border-collapse:collapse;">`;
+
             items.forEach(item => {
+                let storeLower = item.storeName.toLowerCase().trim();
+                let isHighlighted = (highlightedStores.indexOf(storeLower) >= 0);
+
+                let cIndex = storeColorMap[storeLower];
+                let colorText = 'black';
+
+                if (isHighlighted && cIndex != null) {
+                    // Sklep w highlight => jego pastelowy kolor
+                    colorText = highlightColors[cIndex];
+                }
+                // Czy to nasz sklep?
+                let isMyStore = (storeLower === myStoreLower);
+                let fontWeight = (isMyStore || isHighlighted) ? 'bold' : 'normal';
+
+                let iconHtml = (item.source === 'google')
+                  ? `<img src="/images/GoogleShopping.png"
+                           alt="Google"
+                           style="width:16px;height:16px;margin-right:4px;" />`
+                  : `<img src="/images/Ceneo.png"
+                           alt="Ceneo"
+                           style="width:16px;height:16px;margin-right:4px;" />`;
+
                 html += `
-                    <tr style="border-bottom:1px solid #eee;">
-                      <td style="padding:2px;">${item.storeName}</td>
-                      <td style="padding:2px; text-align:right;">${item.price} PLN</td>
-                    </tr>
+                  <tr style="border-bottom:1px solid #eee; cursor:pointer;"
+                      onclick="toggleStoreHighlight('${item.storeName.replace("'", "\\'")}')">
+                    <td style="padding:2px; color:${colorText}; font-weight:${fontWeight};">
+                      ${iconHtml} ${item.storeName}
+                    </td>
+                    <td style="padding:2px; text-align:right; color:${colorText}; font-weight:${fontWeight};">
+                      ${item.price} PLN
+                    </td>
+                  </tr>
                 `;
             });
-            html += `</table>`;
 
+            html += `</table>`;
             tooltipEl.innerHTML = html;
             tooltipEl.style.display = items.length ? 'block' : 'none';
         }
 
-        // 5. Funkcja externalTooltipHandler – wyłączamy standardowe rysowanie tooltipów
         function externalTooltipHandler(context) {
             const { tooltip } = context;
             const tooltipEl = document.getElementById('customTrendTooltip');
-
-            // Gdy opacity = 0 -> chowamy (chyba, że nie chcemy chować przy drag)
             if (!tooltip || tooltip.opacity === 0) {
-               
                 return;
             }
         }
+
+        // LOGIKA HIGHLIGHT (max 6 sklepów)
+        function toggleStoreHighlight(storeName) {
+            let sLower = storeName.toLowerCase().trim();
+            let idx = highlightedStores.indexOf(sLower);
+
+            if (idx >= 0) {
+                // usuwamy
+                highlightedStores.splice(idx, 1);
+                storeColorMap[sLower] = null;
+            } else {
+                if (highlightedStores.length >= 6) {
+                    alert("Możesz zaznaczyć maks. 6 sklepów do porównania!");
+                    return;
+                }
+                let cIndex = findNextFreeColorIndex();
+                if (cIndex === null) {
+                    alert("Brak wolnych kolorów!");
+                    return;
+                }
+                highlightedStores.push(sLower);
+                storeColorMap[sLower] = cIndex;
+            }
+
+            updateHighlightedLines();
+
+            if (window.trendChartRef && window.currentTooltipDate) {
+                refreshCustomTooltip(window.trendChartRef, window.currentTooltipDate);
+            }
+        }
+
+        function findNextFreeColorIndex() {
+            for (let i = 0; i < highlightColors.length; i++) {
+                let used = false;
+                for (let s in storeColorMap) {
+                    if (storeColorMap[s] === i) {
+                        used = true;
+                        break;
+                    }
+                }
+                if (!used) {
+                    return i;
+                }
+            }
+            return null;
+        }
+
+        function updateHighlightedLines() {
+            if (!window.trendChartRef) return;
+            let chart = window.trendChartRef;
+
+            chart.data.datasets.forEach(ds => {
+                if (!ds.originalBorderColor) {
+                    ds.originalBorderColor = ds.borderColor;
+                }
+
+                let storeLower = ds.label.toLowerCase().trim();
+                let cIndex = storeColorMap[storeLower];
+                let isHighlighted = (highlightedStores.indexOf(storeLower) >= 0);
+                let isOurStore = (storeLower === myStoreLower);
+
+                if (isHighlighted && cIndex != null) {
+                    // Zaznaczone => pastelowy kolor + alpha=1
+                    ds.borderColor = highlightColors[cIndex];
+                } else if (isOurStore) {
+                    // Nasz sklep => zawsze czarny, alpha=1
+                    ds.borderColor = 'rgba(0,0,0,1)';
+                } else {
+                    // Inne szare => alpha = defaultGrayAlpha
+                    // Zakładamy oryginalny kolor to np. szary, podmieniamy w nim alpha
+                    ds.borderColor = `rgba(128,128,128,${defaultGrayAlpha})`;
+                }
+            });
+
+            chart.update('none');
+        }
     </script>
+
+
 
 
 }
