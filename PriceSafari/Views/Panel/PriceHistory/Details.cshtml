@@ -61,6 +61,8 @@
                             <input class="form-check-input sortFilter" type="radio" name="sortOption" id="sortGooglePosition" value="googlePosition">
                             <label class="form-check-label" for="sortGooglePosition">Sortuj po pozycji Google</label>
                         </div>
+
+
                     </div>
                     <div style="margin-top: 16px;">
 
@@ -84,6 +86,16 @@
                             </a>
                         }
 
+
+
+                        <!-- Dwa przyciski do przełączania widoków -->
+                        <button type="button" class="Button-Page-Small-r" style="margin-left:8px;" id="showTableBtn">
+                            Pokaż ceny
+                        </button>
+                        <button type="button" class="Button-Page-Small-r" style="margin-left:8px;" id="showChartBtn">
+                            Pokaż wykres
+                        </button>
+
                         <button type="button" class="Button-Page-Small-r" id="editExternalIdButton">
                             API ID @ViewBag.ApiId
                         </button>
@@ -100,14 +112,13 @@
            
         </div>
 
-        <div class="Vert-table">
+        <!-- 1. Kontener z TABELĄ (domyślnie widoczny) -->
+        <div id="priceTableContainer" class="Vert-table" style="display: block;">
             <table class="table-orders" id="priceTable">
                 <thead>
                     <tr>
                         <th></th>
-
                         <th>Sklep (@Model.Count())</th>
-
                         <th>Cena</th>
                         <th>Różnica</th>
                         <th>Pozycja</th>
@@ -118,6 +129,7 @@
                     </tr>
                 </thead>
                 <tbody>
+                   
                     @foreach (var item in Model)
                     {
                         var priceDifference = item.Price - Model.Min(m => m.Price);
@@ -295,7 +307,32 @@
                     }
                 </tbody>
             </table>
+
         </div>
+
+
+
+        <div id="trendChartContainer" style="display:none; margin-top:20px; position: relative;">
+            <!-- kontener na nasz wykres -->
+            <canvas id="trendChart" width="1400" height="650"></canvas>
+
+            <!-- kontener na naszą "tabelkę–tooltip" -->
+            <div id="customTrendTooltip"
+                 style="
+            position: absolute;
+            top: 0;
+            right: -300px; /* odsuń w prawo, aby nie zasłaniało wykresu */
+            width: 300px;
+            padding: 8px;
+            background: #fefefe;
+            border: 1px solid #ccc;
+            font-size: 0.9rem;
+            display: none; /* na starcie ukrywamy */
+         ">
+            </div>
+        </div>
+
+
     </div>
 </div>
 
@@ -328,6 +365,8 @@
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
+
 
     <script>
         // Definicja zmiennej JS na podstawie ViewBag
@@ -567,8 +606,299 @@
             });
         });
     </script>
+    <script>
+      
+        $(document).ready(function () {
+            const $showTableBtn = $('#showTableBtn');
+            const $showChartBtn = $('#showChartBtn');
 
-   
+            const $tableContainer = $('#priceTableContainer');
+            const $chartContainer = $('#trendChartContainer');
+
+            $showTableBtn.on('click', function() {
+                $chartContainer.hide();
+                $tableContainer.show();
+            });
+
+            $showChartBtn.on('click', function() {
+                $tableContainer.hide();
+                $chartContainer.show();
+                loadTrendDataAndDrawChart();
+            });
+
+            // Obsługa przycisków "Pokaż nasz sklep" / "Pokaż wszystkich"
+            $('#showOnlyMyStoreBtn').on('click', function() {
+                if (window.trendChartRef) {
+                    let myStore = "@storeName".toLowerCase().trim();
+                    window.trendChartRef.data.datasets.forEach(ds => {
+                        // Ukrywamy wszystkie linie poza "naszym sklepem"
+                        ds.hidden = ds.label.toLowerCase().trim() !== myStore;
+                    });
+                    window.trendChartRef.update();
+                }
+            });
+
+            $('#showAllStoresBtn').on('click', function() {
+                if (window.trendChartRef) {
+                    window.trendChartRef.data.datasets.forEach(ds => {
+                        ds.hidden = false; // Pokaż wszystkie
+                    });
+                    window.trendChartRef.update();
+                }
+            });
+        });
+
+        function loadTrendDataAndDrawChart() {
+            let productId = @ViewBag.ProductId;
+
+            $.ajax({
+                url: '@Url.Action("GetPriceTrendData", "PriceHistory")',
+                type: 'GET',
+                data: { productId: productId },
+                success: function(response) {
+                    // response.timelineData -> dane historyczne
+                    drawTrendChart(response.timelineData);
+                },
+                error: function() {
+                    alert("Błąd pobierania danych trendu!");
+                }
+            });
+        }
+
+        function drawTrendChart(timelineData) {
+            const ctx = document.getElementById("trendChart").getContext("2d");
+            if (window.trendChartRef) {
+                window.trendChartRef.destroy();
+            }
+
+            // 1. Zbierzmy listę unikalnych dat (posortowanych)
+            let allDatesSet = new Set();
+            timelineData.forEach(item => allDatesSet.add(item.scrapDate));
+            let allDates = Array.from(allDatesSet).sort();
+
+            // 2. Zbierzmy wszystkie sklepy (z historii)
+            let allStoresSet = new Set();
+            timelineData.forEach(item => {
+                item.pricesByStore.forEach(ps => allStoresSet.add(ps.storeName));
+            });
+            let allStores = Array.from(allStoresSet);
+
+            // 3. priceMap[date][store] = cena
+            let priceMap = {};
+            timelineData.forEach(entry => {
+                let date = entry.scrapDate;
+                if (!priceMap[date]) {
+                    priceMap[date] = {};
+                }
+                entry.pricesByStore.forEach(ps => {
+                    priceMap[date][ps.storeName] = ps.price;
+                });
+            });
+
+            // -------------------------------------------
+            // SZUKANIE SKLEPU Z NAJLEPSZĄ CENĄ (ostatnia data)
+            // -------------------------------------------
+            let lastDate = allDates[allDates.length - 1];
+            let bestPrice = Infinity;
+            let storeWithBestPriceLast = null;
+            if (lastDate) {
+                let lastDayPrices = priceMap[lastDate];
+                for (const store of Object.keys(lastDayPrices)) {
+                    let price = lastDayPrices[store];
+                    if (price < bestPrice) {
+                        bestPrice = price;
+                        storeWithBestPriceLast = store;
+                    }
+                }
+            }
+
+
+            let storeWithLowestHistoricalPrice = null;
+            let absoluteMinPrice = Infinity;
+            // Dla każdego sklepu znajdź jego minimalną cenę w całym timeline
+            allStores.forEach(store => {
+                // Szukamy minimalnej ceny dla danego sklepu w danych
+                let minPriceForStore = Infinity;
+                allDates.forEach(date => {
+                    let val = priceMap[date][store];
+                    if (val !== undefined && val < minPriceForStore) {
+                        minPriceForStore = val;
+                    }
+                });
+                // Jeśli ten sklep ma mniejszą minimalną cenę niż dotychczasowa
+                if (minPriceForStore < absoluteMinPrice) {
+                    absoluteMinPrice = minPriceForStore;
+                    storeWithLowestHistoricalPrice = store;
+                }
+            });
+
+            // 4. Budujemy tablice "datasets" - każda linia to inny sklep
+            let myStore = "@storeName".toLowerCase().trim();  // nazwa naszego sklepu
+            let datasets = allStores.map(store => {
+                let dataArray = allDates.map(date => {
+                    let dateMap = priceMap[date] || {};
+                    // Jeśli dla danego dnia i sklepu nie ma ceny -> null
+                    return (dateMap[store] !== undefined) ? dateMap[store] : null;
+                });
+
+                // Domyślny kolor to szary (przezroczysty)
+                let lineColor = 'rgba(128, 128, 128, 0.2)';
+
+                // Jeśli to nasz sklep -> czarna linia
+                if (store.toLowerCase().trim() === myStore) {
+                    lineColor = 'rgba(0, 0, 0, 1)';
+                }
+                // Jeśli to sklep z najniższą ceną historyczną -> niebieska linia
+                else if (store === storeWithLowestHistoricalPrice) {
+                    lineColor = 'rgba(0, 102, 255, 1)';
+                }
+                // Jeśli to sklep z najlepszą ceną w ostatniej dacie -> czerwona linia
+                // (ale tylko, jeśli nie jest już naszym sklepem lub "niebieskim")
+                else if (store === storeWithBestPriceLast) {
+                    lineColor = 'rgba(255, 0, 0, 1)';
+                }
+
+                return {
+                    label: store,
+                    data: dataArray,
+                    borderWidth: 2,
+                    borderColor: lineColor,
+                    fill: false,
+                    tension: 0.1,
+                    spanGaps: true,     // Pozwala łączyć punkty mimo null
+                    pointRadius: 0,     // Ukrycie kropek
+                    pointHoverRadius: 0 // Brak powiększania kropek przy hover
+                };
+            });
+
+                    const defaultXValue = allDates[allDates.length - 1]; // np. ostatnia data
+
+            // 3. Tworzymy nowy Chart
+            window.trendChartRef = new Chart(ctx, {
+              type: 'line',
+              data: {
+                labels: allDates,
+                datasets: datasets
+              },
+              options: {
+                responsive: true,
+                interaction: {
+                  mode: 'index',
+                  intersect: false
+                },
+                scales: {
+                  x: {
+                    type: 'category',
+                    title: {
+                      display: true,
+                      text: 'Data'
+                    }
+                  },
+                  y: {
+                    title: {
+                      display: true,
+                      text: 'Cena PLN'
+                    },
+                    ticks: {
+                      callback: function (value) {
+                        return value + ' PLN';
+                      }
+                    }
+                  }
+                },
+                plugins: {
+                  legend: {
+                    position: 'bottom'
+                  },
+                  tooltip: {
+                    // Wyłączamy standardowe tooltipy
+                    enabled: false,
+                    external: externalTooltipHandler // Nasza funkcja
+                  },
+                  // TU konfigurujemy wtyczkę annotation
+                  annotation: {
+                    annotations: {
+                      crosshairLine: {
+                        type: 'line',
+                        mode: 'vertical',    // linia pionowa
+                        scaleID: 'x',        // względem osi x
+                        value: defaultXValue,
+                        borderColor: 'rgba(255, 0, 0, 0.6)',
+                        borderWidth: 2,
+                        // Pozwala na łapanie i przesuwanie:
+                        draggable: true,
+                        // Reagujemy na drag (przeciąganie)
+                        onDrag: (event) => {
+                          // event - zawiera m.in. event.chart (ChartJS),
+                          //          event.element (obiekt linii) itd.
+                          const newVal = event.element.value;
+                          // newVal to etykieta x (z allDates) lub index, zależnie od skali
+
+                          // Wywołajmy metodę odświeżania tooltipa:
+                          refreshCustomTooltip(event.chart, newVal);
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            });
+
+            // 4. Po stworzeniu wykresu, jednorazowo wywołajmy refresh, żeby tooltip się pokazał
+            refreshCustomTooltip(window.trendChartRef, defaultXValue);
+        }
+
+                function externalTooltipHandler(context) {
+            const { chart, tooltip } = context;
+            const tooltipEl = document.getElementById('customTrendTooltip');
+
+            // 1. Jeśli tooltip jest niewidoczny (opacity: 0), chowamy kontener
+            if (!tooltip || tooltip.opacity === 0) {
+                tooltipEl.style.display = 'none';
+                return;
+            }
+
+            // 2. Wyciągamy wszystkie punkty (dataPoints) z tooltipa
+            const dataPoints = tooltip.dataPoints;
+            if (!dataPoints || !dataPoints.length) {
+                tooltipEl.style.display = 'none';
+                return;
+            }
+
+            // 3. Budujemy tablicę {storeName, price}, sortujemy po cenie (ASC)
+            let items = dataPoints.map(dp => {
+                return {
+                    storeName: dp.dataset.label,
+                    price: dp.parsed.y
+                };
+            });
+            items.sort((a, b) => a.price - b.price); // najniższa cena na górze
+
+            // 4. Renderujemy HTML – prosta tabela/lista
+            let html = `<div style="font-weight:bold; margin-bottom:4px;">
+                            <span>Data: ${tooltip.title[0] || ''}</span>
+                        </div>`;
+            html += `<table style="width:100%; border-collapse:collapse;">`;
+            items.forEach(item => {
+                html += `
+                  <tr style="border-bottom:1px solid #eee;">
+                    <td style="padding:2px;">${item.storeName}</td>
+                    <td style="padding:2px; text-align:right;">${item.price} PLN</td>
+                  </tr>
+                `;
+            });
+            html += `</table>`;
+
+            // Wstawiamy wygenerowany HTML do kontenera
+            tooltipEl.innerHTML = html;
+
+            // 5. Pokazujemy tooltip (jeśli był hidden)
+            tooltipEl.style.display = 'block';
+        }
+
+
+        
+    </script>
 
 }
 
