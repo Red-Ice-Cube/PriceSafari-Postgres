@@ -25,6 +25,8 @@
     }
 }
 
+
+
 <div class="Vert" data-store-name="@storeName">
     <div class="Page-Box">
         <div style="font-weight: 300; font-size: 22px;">
@@ -309,34 +311,67 @@
             </table>
 
         </div>
+        <!-- Kontener WYKRESU + TOOLTIPA -->
+        <div id="trendChartContainer"
+             style="
+       display: none;       /* na starcie ukryte */
+       flex-direction: row;
+       width: 100%;
+       height: 600px;       /* lub 'max-height: 600px;' */
+       gap: 48px;
+       margin-top: 20px;
+     ">
+            <!-- Lewa kolumna: wykres -->
+            <div style="
+       max-width: 70%;
+       min-width: 0;
+       display: flex;
+       flex-direction: column;
+       height: 100%;
+     ">
+                <!-- Kontener z płynną wysokością na wykres -->
+                <div style="
+         flex: 1 1 auto;
+         min-height: 0;
+         /* background: #fafafa; (opcjonalne) */
+       ">
+                    <canvas id="trendChart"
+                            style="
+          max-width: 100%;
+          height: 100%;
+          border: 1px solid #ccc;
+        "></canvas>
+                </div>
 
-
-
-        <div id="trendChartContainer" style="display:none; margin-top:20px; position: relative;">
-            <!-- kontener na nasz wykres -->
-            <canvas id="trendChart" width="1200" height="600"></canvas>
-
-            <!-- kontener na naszą "tabelkę–tooltip" -->
-
-            <div>
-                <label for="grayAlphaRange">Przezroczystość linii szarych:</label>
-                <input type="range" id="grayAlphaRange" min="0" max="1" step="0.1" value="0.4" style="width:200px;">
+                <!-- Suwak (przezroczystość) pod wykresem -->
+                <div style="margin-top: 8px;">
+                    <label for="grayAlphaRange">Przezroczystość linii:</label>
+                    <input type="range"
+                           id="grayAlphaRange"
+                           min="0"
+                           max="1"
+                           step="0.1"
+                           value="0.4"
+                           style="width: 200px;">
+                </div>
             </div>
 
+            <!-- Prawa kolumna: tooltip -->
             <div id="customTrendTooltip"
                  style="
-            position: absolute;
-            top: 0;
-            right: -400px; 
-            width: 400px;
-            padding: 8px;
-            background: #fefefe;
-            border: 1px solid #ccc;
-            font-size: 0.9rem;
-            display: none; 
-         ">
+         width: 400px;
+         height: 60vh;
+         overflow-y: auto;
+         padding: 8px;
+         background: #fefefe;
+         border: 1px solid #ccc;
+         font-size: 0.9rem;
+         display: none;
+       ">
+                <!-- tu wstawiasz tabelkę generowaną przez JS -->
             </div>
         </div>
+
 
 
     </div>
@@ -789,7 +824,7 @@
                 options: {
                     responsive: true,
                     animation: { duration: 0 },
-                    // LEKKI grid
+                    maintainAspectRatio: false,
                     scales: {
                         x: {
                             type: 'category',
@@ -902,80 +937,85 @@
         }
 
         // 4. Custom tooltip (klikalny)
-        function refreshCustomTooltip(chart, xLabel) {
-            window.currentTooltipDate = xLabel;
+              function refreshCustomTooltip(chart, xLabel) {
+          window.currentTooltipDate = xLabel;
 
-            const labels = chart.data.labels;
-            const idx = labels.indexOf(xLabel);
-            if (idx < 0) return;
+          const labels = chart.data.labels;
+          const idx = labels.indexOf(xLabel);
+          if (idx < 0) return;
 
-            let items = [];
-            chart.data.datasets.forEach(ds => {
-                if (ds.hidden) return;
-                const priceVal = ds.data[idx];
-                const sourceVal = ds.sourceByIndex[idx];
-                if (priceVal != null) {
-                    items.push({
-                        storeName: ds.label,
-                        price: priceVal,
-                        source: sourceVal
-                    });
-                }
-            });
+          let items = [];
+          chart.data.datasets.forEach(ds => {
+            if (ds.hidden) return;
+            const priceVal = ds.data[idx];
+            const sourceVal = ds.sourceByIndex[idx];
+            if (priceVal != null) {
+              items.push({
+                storeName: ds.label,
+                price: priceVal,
+                source: sourceVal
+              });
+            }
+          });
 
-            items.sort((a, b) => {
-                if (a.price !== b.price) return a.price - b.price;
-                return a.storeName.localeCompare(b.storeName);
-            });
+          // Sortujemy dane w tooltipie
+          items.sort((a, b) => {
+            if (a.price !== b.price) return a.price - b.price;
+            return a.storeName.localeCompare(b.storeName);
+          });
 
-            const tooltipEl = document.getElementById('customTrendTooltip');
-            if (!tooltipEl) return;
+          const tooltipEl = document.getElementById('customTrendTooltip');
+          if (!tooltipEl) return;
 
-            let html = `<div style="font-weight:bold; margin-bottom:4px;">
-                          Data: ${xLabel}
-                        </div>`;
-            html += `<table style="width:100%; border-collapse:collapse;">`;
+          // Nagłówek z datą
+          let html = `
+            <div style="font-weight:bold; margin-bottom:4px;">
+              Data: ${xLabel}
+            </div>
+            <table style="width:100%; border-collapse:collapse;">
+          `;
 
-            items.forEach(item => {
-                let storeLower = item.storeName.toLowerCase().trim();
-                let isHighlighted = (highlightedStores.indexOf(storeLower) >= 0);
+          // Wypełniamy wiersze tabelki
+          items.forEach(item => {
+            const storeLower = item.storeName.toLowerCase().trim();
+            const isHighlighted = (highlightedStores.indexOf(storeLower) >= 0);
 
-                let cIndex = storeColorMap[storeLower];
-                let colorText = 'black';
+            let colorText = 'black';
+            if (isHighlighted && storeColorMap[storeLower] != null) {
+              const cIndex = storeColorMap[storeLower];
+              colorText = highlightColors[cIndex];
+            }
 
-                if (isHighlighted && cIndex != null) {
-                    // Sklep w highlight => jego pastelowy kolor
-                    colorText = highlightColors[cIndex];
-                }
-                // Czy to nasz sklep?
-                let isMyStore = (storeLower === myStoreLower);
-                let fontWeight = (isMyStore || isHighlighted) ? 'bold' : 'normal';
+            // Czy to nasz sklep?
+            const isMyStore = (storeLower === myStoreLower);
+            let fontWeight = (isMyStore || isHighlighted) ? 'bold' : 'normal';
 
-                let iconHtml = (item.source === 'google')
-                  ? `<img src="/images/GoogleShopping.png"
-                           alt="Google"
-                           style="width:16px;height:16px;margin-right:4px;" />`
-                  : `<img src="/images/Ceneo.png"
-                           alt="Ceneo"
-                           style="width:16px;height:16px;margin-right:4px;" />`;
+            let iconHtml = (item.source === 'google')
+              ? `<img src="/images/GoogleShopping.png" alt="Google" style="width:16px;height:16px;margin-right:4px;" />`
+              : `<img src="/images/Ceneo.png" alt="Ceneo" style="width:16px;height:16px;margin-right:4px;" />`;
 
-                html += `
-                  <tr style="border-bottom:1px solid #eee; cursor:pointer;"
-                      onclick="toggleStoreHighlight('${item.storeName.replace("'", "\\'")}')">
-                    <td style="padding:2px; color:${colorText}; font-weight:${fontWeight};">
-                      ${iconHtml} ${item.storeName}
-                    </td>
-                    <td style="padding:2px; text-align:right; color:${colorText}; font-weight:${fontWeight};">
-                      ${item.price} PLN
-                    </td>
-                  </tr>
-                `;
-            });
+            html += `
+              <tr style="border-bottom:1px solid #eee; cursor:pointer;"
+                  onclick="toggleStoreHighlight('${item.storeName.replace("'", "\\'")}')">
+                <td style="padding:2px; color:${colorText}; font-weight:${fontWeight};">
+                  ${iconHtml} ${item.storeName}
+                </td>
+                <td style="padding:2px; text-align:right; color:${colorText}; font-weight:${fontWeight};">
+                  ${item.price} PLN
+                </td>
+              </tr>
+            `;
+          });
 
-            html += `</table>`;
-            tooltipEl.innerHTML = html;
-            tooltipEl.style.display = items.length ? 'block' : 'none';
+          html += `</table>`;
+
+          // Wstawiamy HTML do tooltipa
+          tooltipEl.innerHTML = html;
+
+          // Pokazujemy tooltip, jeżeli mamy jakieś elementy do wyświetlenia
+          tooltipEl.style.display = items.length ? 'block' : 'none';
         }
+
 
         function externalTooltipHandler(context) {
             const { tooltip } = context;
