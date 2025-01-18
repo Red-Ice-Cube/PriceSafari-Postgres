@@ -701,6 +701,7 @@
             const $tableContainer = $('#priceTableContainer');
             const $chartContainer = $('#trendChartContainer');
 
+            // Domyślnie ukrywamy kontener wykresu
             $chartContainer.hide();
 
             $showTableBtn.on('click', function() {
@@ -714,12 +715,11 @@
                 loadTrendDataAndDrawChart();
             });
 
-            // Suwak do regulacji alpha dla szarych linii
+            // Suwak do regulacji alpha (przezroczystości szarych linii)
             const grayAlphaRange = document.getElementById("grayAlphaRange");
             if (grayAlphaRange) {
                 grayAlphaRange.addEventListener("input", function(e) {
                     defaultGrayAlpha = parseFloat(e.target.value);
-                    // Odśwież linie z nową przezroczystością
                     updateHighlightedLines();
                 });
             }
@@ -731,7 +731,8 @@
                     window.trendChartRef.data.datasets.forEach(ds => {
                         ds.hidden = (ds.label.toLowerCase().trim() !== myStore);
                     });
-                    window.trendChartRef.update();
+                    // Aktualizujemy z animacją
+                    window.trendChartRef.update({ duration: 600 });
                 }
             });
 
@@ -741,12 +742,13 @@
                     window.trendChartRef.data.datasets.forEach(ds => {
                         ds.hidden = false;
                     });
-                    window.trendChartRef.update();
+                    // Aktualizujemy z animacją
+                    window.trendChartRef.update({ duration: 600 });
                 }
             });
         });
 
-        // 2. AJAX -> rysowanie wykresu
+        // 1. AJAX -> pobranie danych i rysowanie wykresu
         function loadTrendDataAndDrawChart() {
             $.ajax({
                 url: '@Url.Action("GetPriceTrendData", "PriceHistory")',
@@ -761,7 +763,7 @@
             });
         }
 
-        // 3. Funkcja tworząca wykres
+        // 2. Funkcja tworząca wykres
         function drawTrendChart(timelineData) {
             const ctx = document.getElementById("trendChart").getContext("2d");
             if (window.trendChartRef) {
@@ -829,13 +831,17 @@
                     borderWidth: lineWidth,
                     fill: false,
                     spanGaps: true,
+                    // Domyślnie brak kropek
                     pointRadius: 0,
-                    pointHoverRadius: 0
+                    pointHoverRadius: 0,
+                         tension: 0.4,
+        cubicInterpolationMode: 'monotone'
                 };
             });
 
             const defaultXValue = allDates[allDates.length - 1] || null;
 
+            // Tworzymy wykres z animacją
             window.trendChartRef = new Chart(ctx, {
                 type: 'line',
                 data: {
@@ -844,12 +850,15 @@
                 },
                 options: {
                     responsive: true,
-                    animation: { duration: 0 },
+                    // Tutaj ustawiamy główną animację przy pierwszym wczytaniu
+                    animation: {
+                        duration: 1000,   // Czas w ms
+                        easing: 'easeInOutQuad'
+                    },
                     maintainAspectRatio: false,
                     scales: {
                         x: {
                             type: 'category',
-                            // Ukrywamy tytuł osi X (zamiast "Data")
                             title: { display: false },
                             grid: {
                                 display: true,
@@ -857,14 +866,12 @@
                             }
                         },
                         y: {
-                            // Ukrywamy tytuł osi Y (zamiast "Cena PLN")
                             title: { display: false },
                             grid: {
                                 display: true,
                                 color: 'rgba(0,0,0,0.06)'
                             },
                             ticks: {
-                                // Dopisujemy "PLN" obok wartości
                                 callback: function(value) {
                                     return value + ' PLN';
                                 }
@@ -875,7 +882,6 @@
                         e.native.target.style.cursor = 'crosshair';
                     },
                     onClick: function(evt, elements, chart) {
-                        // Crosshair
                         if (!chart.data.labels.length) return;
                         const canvasPos = Chart.helpers.getRelativePosition(evt, chart);
                         const xScale = chart.scales.x;
@@ -955,6 +961,7 @@
                 }
             });
 
+            // Ustawiamy crosshairLine na końcu
             if (defaultXValue) {
                 let idxDefault = window.trendChartRef.data.labels.indexOf(defaultXValue);
                 if (idxDefault < 0) idxDefault = 0;
@@ -965,7 +972,7 @@
             }
         }
 
-        // 4. Custom tooltip (klikalny)
+        // 3. Custom tooltip (klikalny)
         function refreshCustomTooltip(chart, xLabel) {
             window.currentTooltipDate = xLabel;
 
@@ -996,7 +1003,6 @@
             const tooltipEl = document.getElementById('customTrendTooltip');
             if (!tooltipEl) return;
 
-            // Nagłówek z datą
             let html = `
               <div style="font-weight:bold; margin-bottom:4px;">
                 Data: ${xLabel}
@@ -1004,7 +1010,6 @@
               <table style="width:100%; border-collapse:collapse;">
             `;
 
-            // Wypełniamy wiersze tabelki
             items.forEach(item => {
                 const storeLower = item.storeName.toLowerCase().trim();
                 const isHighlighted = (highlightedStores.indexOf(storeLower) >= 0);
@@ -1015,7 +1020,6 @@
                     colorText = highlightColors[cIndex];
                 }
 
-                // Czy to nasz sklep?
                 const isMyStore = (storeLower === myStoreLower);
                 let fontWeight = (isMyStore || isHighlighted) ? 'bold' : 'normal';
 
@@ -1037,11 +1041,7 @@
             });
 
             html += `</table>`;
-
-            // Wstawiamy HTML do tooltipa
             tooltipEl.innerHTML = html;
-
-            // Pokazujemy tooltip, jeżeli mamy jakieś elementy do wyświetlenia
             tooltipEl.style.display = items.length ? 'block' : 'none';
         }
 
@@ -1053,16 +1053,37 @@
             }
         }
 
+
+
+        // FUNKCJA: przeniesienie datasetu sklepu na sam koniec tablicy, aby był rysowany na wierzchu
+        function moveDatasetToTop(storeName) {
+            const chart = window.trendChartRef;
+            if (!chart) return;
+
+            let sLower = storeName.toLowerCase().trim();
+            let dsIndex = chart.data.datasets.findIndex(ds => ds.label.toLowerCase().trim() === sLower);
+
+            if (dsIndex === -1) return; // nie znaleziono
+
+            // Wycinamy dataset i wstawiamy go na koniec
+            let datasetToMove = chart.data.datasets.splice(dsIndex, 1)[0];
+            chart.data.datasets.push(datasetToMove);
+        }
+
+
+
+
         // LOGIKA HIGHLIGHT (max 6 sklepów)
         function toggleStoreHighlight(storeName) {
             let sLower = storeName.toLowerCase().trim();
             let idx = highlightedStores.indexOf(sLower);
 
             if (idx >= 0) {
-                // usuwamy
+                // -> Jeśli kliknięto ponownie, to usuwamy highlight
                 highlightedStores.splice(idx, 1);
                 storeColorMap[sLower] = null;
             } else {
+                // -> Dodajemy highlight (o ile nie przekroczyliśmy limitu)
                 if (highlightedStores.length >= 6) {
                     alert("Możesz zaznaczyć maks. 6 sklepów do porównania!");
                     return;
@@ -1074,10 +1095,14 @@
                 }
                 highlightedStores.push(sLower);
                 storeColorMap[sLower] = cIndex;
+
+                // *** TU klucz: przenosimy dataset na koniec, by był na wierzchu ***
+                moveDatasetToTop(storeName);
             }
 
             updateHighlightedLines();
 
+            // Odświeżamy tooltip (żeby kolory i pogrubienie były aktualne)
             if (window.trendChartRef && window.currentTooltipDate) {
                 refreshCustomTooltip(window.trendChartRef, window.currentTooltipDate);
             }
@@ -1099,6 +1124,7 @@
             return null;
         }
 
+        // 5. Aktualizacja linii (kolor i kropki) + delikatna animacja
         function updateHighlightedLines() {
             if (!window.trendChartRef) return;
             let chart = window.trendChartRef;
@@ -1114,21 +1140,27 @@
                 let isOurStore = (storeLower === myStoreLower);
 
                 if (isHighlighted && cIndex != null) {
-                    // Zaznaczone => pastelowy kolor + alpha=1
+                    // Linie wyróżnione -> kolor + wyświetlamy punkty
                     ds.borderColor = highlightColors[cIndex];
+                    ds.pointRadius = 0;
+                    ds.pointHoverRadius = 0;
                 } else if (isOurStore) {
-                    // Nasz sklep => zawsze czarny, alpha=1
+                    // Nasz sklep -> zawsze czarna linia, też z punktami
                     ds.borderColor = 'rgba(0,0,0,1)';
+                    ds.pointRadius = 0;
+                    ds.pointHoverRadius = 0;
                 } else {
-                    // Inne szare => alpha = defaultGrayAlpha
+                    // Pozostałe -> szare + brak punktów
                     ds.borderColor = `rgba(128,128,128,${defaultGrayAlpha})`;
+                    ds.pointRadius = 0;
+                    ds.pointHoverRadius = 0;
                 }
             });
 
-            chart.update('none');
+            // Wywołanie update z animacją (zmiana koloru/punktów)
+            chart.update({ duration: 0 });
         }
     </script>
-
 
 
 }
