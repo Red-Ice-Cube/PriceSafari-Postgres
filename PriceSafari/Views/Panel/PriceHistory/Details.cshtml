@@ -385,6 +385,14 @@
                            step="0.1"
                            value="0.4">
                 </div>
+                <div style="margin-top: 16px;">
+  <label for="priceMinRange">Min cena:</label>
+  <input type="range" id="priceMinRange" style="width: 200px;" />
+  
+  <label for="priceMaxRange">Max cena:</label>
+  <input type="range" id="priceMaxRange" style="width: 200px;" />
+</div>
+
             </div>
 
             <!-- Prawa kolumna: tooltip -->
@@ -428,6 +436,7 @@
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
+
 
     <script>
       // 2. Rejestrujemy plugin
@@ -675,7 +684,7 @@
         });
     </script>
     <script>
-        let productId = @ViewBag.ProductId;
+             let productId = @ViewBag.ProductId;
         let myStoreLower = "@storeName".toLowerCase().trim();
 
         // Maksymalnie 6 highlightów
@@ -796,6 +805,22 @@
 
             let myStore = "@storeName".toLowerCase().trim();
 
+            // Obliczamy globalMinPrice i globalMaxPrice
+            let globalMinPrice = Number.POSITIVE_INFINITY;
+            let globalMaxPrice = Number.NEGATIVE_INFINITY;
+
+            // Szukamy w timelineData wszystkich cen
+            timelineData.forEach(entry => {
+                entry.pricesByStore.forEach(ps => {
+                    if (ps.price < globalMinPrice) globalMinPrice = ps.price;
+                    if (ps.price > globalMaxPrice) globalMaxPrice = ps.price;
+                });
+            });
+
+            // Zabezpiecz się, gdyby nie było danych
+            if (!isFinite(globalMinPrice)) globalMinPrice = 0;
+            if (!isFinite(globalMaxPrice)) globalMaxPrice = 1000;
+
             // Budujemy datasets
             let datasets = allStores.map(store => {
                 let dataArray = [];
@@ -831,17 +856,16 @@
                     borderWidth: lineWidth,
                     fill: false,
                     spanGaps: true,
-                    // Domyślnie brak kropek
                     pointRadius: 0,
                     pointHoverRadius: 0,
-                         tension: 0.4,
-        cubicInterpolationMode: 'monotone'
+                    tension: 0.4,
+                    cubicInterpolationMode: 'monotone'
                 };
             });
 
             const defaultXValue = allDates[allDates.length - 1] || null;
 
-            // Tworzymy wykres z animacją
+            // Tworzymy wykres
             window.trendChartRef = new Chart(ctx, {
                 type: 'line',
                 data: {
@@ -850,9 +874,8 @@
                 },
                 options: {
                     responsive: true,
-                    // Tutaj ustawiamy główną animację przy pierwszym wczytaniu
                     animation: {
-                        duration: 1000,   // Czas w ms
+                        duration: 1000,
                         easing: 'easeInOutQuad'
                     },
                     maintainAspectRatio: false,
@@ -866,11 +889,11 @@
                             }
                         },
                         y: {
-                            title: { display: false },
-                            grid: {
-                                display: true,
-                                color: 'rgba(0,0,0,0.06)'
-                            },
+                            // Domyślnie pokazujemy całość
+                            // Wartości min i max będą zmieniane suwakiem
+                            suggestedMin: globalMinPrice,
+                            suggestedMax: globalMaxPrice,
+                            grid: { display: true, color: 'rgba(0,0,0,0.06)' },
                             ticks: {
                                 callback: function(value) {
                                     return value + ' PLN';
@@ -961,6 +984,9 @@
                 }
             });
 
+            // 3. Inicjalizujemy suwaki "Min cena" i "Max cena"
+            initPriceSliders(globalMinPrice, globalMaxPrice);
+
             // Ustawiamy crosshairLine na końcu
             if (defaultXValue) {
                 let idxDefault = window.trendChartRef.data.labels.indexOf(defaultXValue);
@@ -970,6 +996,51 @@
 
                 refreshCustomTooltip(window.trendChartRef, defaultXValue);
             }
+        }
+
+        // 4. Funkcja, która ustawia suwaki i podpina eventy
+        function initPriceSliders(globalMinPrice, globalMaxPrice) {
+            let sliderMin = document.getElementById('priceMinRange');
+            let sliderMax = document.getElementById('priceMaxRange');
+            if (!sliderMin || !sliderMax) {
+                console.warn("Suwaki min/max nie znalezione w DOM.");
+                return;
+            }
+
+            // Ustawiamy parametry suwaków
+            sliderMin.min = Math.floor(globalMinPrice);
+            sliderMin.max = Math.ceil(globalMaxPrice);
+            sliderMin.value = Math.floor(globalMinPrice);
+
+            sliderMax.min = Math.floor(globalMinPrice);
+            sliderMax.max = Math.ceil(globalMaxPrice);
+            sliderMax.value = Math.ceil(globalMaxPrice);
+
+            // Podpinamy event 'input'
+            sliderMin.addEventListener('input', onPriceSliderChange);
+            sliderMax.addEventListener('input', onPriceSliderChange);
+        }
+
+        function onPriceSliderChange(e) {
+            // Odczytujemy aktualne wartości z suwaków
+            let minVal = parseFloat(document.getElementById('priceMinRange').value) || 0;
+            let maxVal = parseFloat(document.getElementById('priceMaxRange').value) || 100000;
+
+            // Jeśli min > max, można zamienić kolejnością, lub zablokować
+            if (minVal > maxVal) {
+                // Prosta korekta
+                maxVal = minVal;
+            }
+
+            // Ustawiamy w wykresie
+            let chart = window.trendChartRef;
+            if (!chart) return;
+
+            chart.options.scales.y.min = minVal;
+            chart.options.scales.y.max = maxVal;
+
+            console.log(`Ustawiam Y-min=${minVal}, Y-max=${maxVal}`);
+            chart.update('none'); // bez animacji
         }
 
         // 3. Custom tooltip (klikalny)
