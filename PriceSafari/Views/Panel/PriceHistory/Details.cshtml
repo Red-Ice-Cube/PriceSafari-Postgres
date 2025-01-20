@@ -97,7 +97,53 @@
 
     #customTrendTooltip::-webkit-scrollbar-thumb:hover {
             background: #555;
-        }
+    }
+
+
+
+    #showTableBtn{
+        display: inline-flex;
+        box-sizing: border-box;
+        align-items: center;
+        justify-content: center;
+        padding: 4px 12px;
+        border: none;
+     
+      
+        font-size: 14px;
+        cursor: pointer;
+        transition: background-color 0.3s, color 0.3s;
+        border-radius: 4px;
+    }
+
+
+
+    #showChartBtn {
+        display: inline-flex;
+        box-sizing: border-box;
+        align-items: center;
+        justify-content: center;
+        padding: 4px 12px;
+        border: none;
+      
+        font-size: 14px;
+        cursor: pointer;
+        transition: background-color 0.3s, color 0.3s;
+        border-radius: 4px;
+    }
+
+
+
+    .button-active {
+        background-color: #222222;
+        color: white;
+    }
+
+    .button-inactive {
+        background-color: #e3e3e3;
+        color: #222222;
+    }
+
 
 
 </style>
@@ -105,13 +151,28 @@
 
 <div class="Vert" data-store-name="@storeName">
     <div class="Page-Box">
-        <div style="font-weight: 300; font-size: 22px;">
-            @productName
+        <div style="display:flex; width:100%; justify-content:space-between;">
+            <div style="font-weight: 300; font-size: 22px;">
+                @productName
+            </div>
+            <div style="margin-top:4px;">
+                <button type="button" id="showTableBtn" class="button-active">
+                    Ranking
+                </button>
+                <button type="button" id="showChartBtn" class="button-inactive">
+                    Wykres
+                </button>
+            </div>
+
         </div>
-      
+  
         <div class="form-check-orders" style="margin-bottom:16px;">
             <div>
-                <p><strong>Wykonano:</strong> @scrapHistory?.Date.ToString("dd.MM.yyyy")</p>
+               
+                    <p><strong>Wykonano:</strong> @scrapHistory?.Date.ToString("dd.MM.yyyy")</p>
+               
+            
+              
             </div>
         </div>
         <div class="price-box-space" style="gap:32px;">
@@ -167,12 +228,7 @@
 
 
                         <!-- Dwa przyciski do przełączania widoków -->
-                        <button type="button" class="Button-Page-Small-r" style="margin-left:8px;" id="showTableBtn">
-                            Pokaż ceny
-                        </button>
-                        <button type="button" class="Button-Page-Small-r" style="margin-left:8px;" id="showChartBtn">
-                            Pokaż wykres
-                        </button>
+                       
 
                         <button type="button" class="Button-Page-Small-r" id="editExternalIdButton">
                             API ID @ViewBag.ApiId
@@ -719,68 +775,76 @@
         // Domyślny alpha dla szarych linii
         let defaultGrayAlpha = 0.3;
 
-        document.addEventListener("DOMContentLoaded", function() {
+                document.addEventListener("DOMContentLoaded", function () {
             const $showTableBtn = $('#showTableBtn');
             const $showChartBtn = $('#showChartBtn');
             const $tableContainer = $('#priceTableContainer');
             const $chartContainer = $('#trendChartContainer');
 
-            // Domyślnie ukrywamy kontener wykresu
+            // Ukryj domyślnie wykres
             $chartContainer.hide();
 
-            $showTableBtn.on('click', function() {
+            // Obsługa przycisku "Ranking"
+            $showTableBtn.on('click', function () {
                 $chartContainer.hide();
                 $tableContainer.show();
+
+                // Ustaw aktywny stan dla przycisku
+                $showTableBtn.removeClass('button-inactive').addClass('button-active');
+                $showChartBtn.removeClass('button-active').addClass('button-inactive');
             });
 
-                  // ZMIANA w sekcji "document.addEventListener('DOMContentLoaded', ... )"
-            $showChartBtn.on('click', function() {
+            // Obsługa przycisku "Wykres"
+            $showChartBtn.on('click', function () {
                 $tableContainer.hide();
                 $chartContainer.show();
 
-                // Jeśli wykres jeszcze nie istnieje (pierwsze przejście), dopiero wtedy go ładujemy
+                // Ustaw aktywny stan dla przycisku
+                $showChartBtn.removeClass('button-inactive').addClass('button-active');
+                $showTableBtn.removeClass('button-active').addClass('button-inactive');
+
+                // Jeśli wykres nie istnieje, załaduj dane i narysuj wykres
                 if (!window.trendChartRef) {
                     loadTrendDataAndDrawChart();
                 } else {
-                    // Jeśli wykres istnieje, ewentualnie możesz go przeupdate'ować bez animacji
+                    // Zaktualizuj wykres
                     window.trendChartRef.update('none');
-                    // Lub nie rób nic, jeżeli nie chcesz nawet drobnego odświeżenia
                 }
             });
 
-
-            // Suwak do regulacji alpha (przezroczystości szarych linii)
+            // Obsługa suwaka do zmiany przezroczystości
             const grayAlphaRange = document.getElementById("grayAlphaRange");
             if (grayAlphaRange) {
-                grayAlphaRange.addEventListener("input", function(e) {
+                grayAlphaRange.addEventListener("input", function (e) {
                     defaultGrayAlpha = parseFloat(e.target.value);
                     updateHighlightedLines();
                 });
             }
 
             // Przycisk: pokaż tylko mój sklep
-            $('#showOnlyMyStoreBtn').on('click', function() {
+            $('#showOnlyMyStoreBtn').on('click', function () {
                 if (window.trendChartRef) {
                     let myStore = "@storeName".toLowerCase().trim();
                     window.trendChartRef.data.datasets.forEach(ds => {
                         ds.hidden = (ds.label.toLowerCase().trim() !== myStore);
                     });
-                    // Aktualizujemy z animacją
+                    // Aktualizuj wykres z animacją
                     window.trendChartRef.update({ duration: 600 });
                 }
             });
 
             // Przycisk: pokaż wszystkie sklepy
-            $('#showAllStoresBtn').on('click', function() {
+            $('#showAllStoresBtn').on('click', function () {
                 if (window.trendChartRef) {
                     window.trendChartRef.data.datasets.forEach(ds => {
                         ds.hidden = false;
                     });
-                    // Aktualizujemy z animacją
+                    // Aktualizuj wykres z animacją
                     window.trendChartRef.update({ duration: 600 });
                 }
             });
         });
+
 
         // 1. AJAX -> pobranie danych i rysowanie wykresu
         function loadTrendDataAndDrawChart() {
