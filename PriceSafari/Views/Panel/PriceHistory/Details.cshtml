@@ -25,39 +25,33 @@
     }
 }
 
-
-
 <style>
 
     #trendChartContainer {
         display: flex;
         width: 100%;
-        height: 65vh; 
+        height: 65vh;
         margin-top: 10px;
     }
 
-   
     .chart-column {
-        flex: 1 1 auto; 
-        min-width: 0; 
+        flex: 1 1 auto;
+        min-width: 0;
         display: flex;
         flex-direction: column;
         height: 100%;
     }
-
 
     .chart-container {
         flex: 1 1 auto;
         min-height: 0;
     }
 
-
     #trendChart {
         max-width: 100%;
         height: 100%;
-       
-    }
 
+    }
 
     .range-container {
         margin-top: 8px;
@@ -68,7 +62,7 @@
     }
 
     #customTrendTooltip {
-        width: 400px; 
+        width: 400px;
         flex-shrink: 0;
         border-radius: 4px;
         margin-top:8px;
@@ -78,9 +72,8 @@
         background: #fefefe;
         border: 1px solid #ccc;
         font-size: 0.9rem;
-        display: none; 
+        display: none;
     }
-
 
     #customTrendTooltip::-webkit-scrollbar {
         width: 4px;
@@ -99,8 +92,6 @@
             background: #555;
     }
 
-
-
     #showTableBtn{
         display: inline-flex;
         box-sizing: border-box;
@@ -108,15 +99,12 @@
         justify-content: center;
         padding: 4px 12px;
         border: none;
-     
-      
+
         font-size: 14px;
         cursor: pointer;
         transition: background-color 0.3s, color 0.3s;
         border-radius: 4px;
     }
-
-
 
     #showChartBtn {
         display: inline-flex;
@@ -125,14 +113,12 @@
         justify-content: center;
         padding: 4px 12px;
         border: none;
-      
+
         font-size: 14px;
         cursor: pointer;
         transition: background-color 0.3s, color 0.3s;
         border-radius: 4px;
     }
-
-
 
     .button-active {
         background-color: #222222;
@@ -144,10 +130,77 @@
         color: #222222;
     }
 
+    #grayAlphaRange {
+        width: 300px;
+        appearance: none;
 
+        background: transparent;
+
+        outline: none;
+
+    }
+
+        #grayAlphaRange::-webkit-slider-thumb {
+            appearance: none;
+            width: 15px;
+            height: 15px;
+            background-color: #666;
+            border-radius: 50%;
+            cursor: pointer;
+            border: 2px solid #fff;
+            margin-top: -5px;
+        }
+
+        #grayAlphaRange::-webkit-slider-runnable-track {
+            background: #ccc;
+            height: 5px;
+            border-radius: 5px;
+        }
+
+        #grayAlphaRange::-moz-range-thumb {
+            width: 15px;
+            height: 15px;
+            background-color: #666;
+            border: 2px solid #fff;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+
+        #grayAlphaRange::-moz-range-track {
+            background: #ccc;
+            height: 5px;
+            border-radius: 5px;
+        }
+
+        #grayAlphaRange::-ms-thumb {
+            width: 15px;
+            height: 15px;
+            background-color: #666;
+            border: 2px solid #fff;
+            border-radius: 50%;
+            cursor: pointer;
+            margin-top: 0px;
+        }
+
+        #grayAlphaRange::-ms-track {
+            background: transparent;
+            border-color: transparent;
+            color: transparent;
+            height: 5px;
+            border-radius: 5px;
+        }
+
+        #grayAlphaRange::-ms-fill-lower {
+            background: #ccc;
+            border-radius: 5px;
+        }
+
+        #grayAlphaRange::-ms-fill-upper {
+            background: #ccc;
+            border-radius: 5px;
+        }
 
 </style>
-
 
 <div class="Vert" data-store-name="@storeName">
     <div class="Page-Box">
@@ -165,14 +218,12 @@
             </div>
 
         </div>
-  
+
         <div class="form-check-orders" style="margin-bottom:16px;">
             <div>
-               
+
                     <p><strong>Wykonano:</strong> @scrapHistory?.Date.ToString("dd.MM.yyyy")</p>
-               
-            
-              
+
             </div>
         </div>
         <div class="price-box-space" style="gap:32px;">
@@ -184,8 +235,6 @@
                     </div>
                 }
                 <div class="price-box-column-name" style="align-content:flex-end;">
-
-
 
                     <div class="store-section">
                         <div class="form-check">
@@ -201,10 +250,8 @@
                             <label class="form-check-label" for="sortGooglePosition">Sortuj po pozycji Google</label>
                         </div>
 
-
                     </div>
                     <div style="margin-top: 16px;">
-
 
                         @if (!string.IsNullOrEmpty(googleUrl))
                         {
@@ -225,10 +272,7 @@
                             </a>
                         }
 
-
-
                         <!-- Dwa przyciski do przełączania widoków -->
-                       
 
                         <button type="button" class="Button-Page-Small-r" id="editExternalIdButton">
                             API ID @ViewBag.ApiId
@@ -237,13 +281,12 @@
                     </div>
 
                 </div>
-               
+
             </div>
             <div style="display:flex; width:50%; height:130px; align-self:flex-end; margin-right:14px;">
                 <canvas id="priceChart" width="100" height="100"></canvas>
             </div>
 
-           
         </div>
 
         <!-- 1. Kontener z TABELĄ (domyślnie widoczny) -->
@@ -263,7 +306,7 @@
                     </tr>
                 </thead>
                 <tbody>
-                   
+
                     @foreach (var item in Model)
                     {
                         var priceDifference = item.Price - Model.Min(m => m.Price);
@@ -342,7 +385,6 @@
                                 @item.StoreName
                             </td>
 
-
                             <td class="store-price">@item.Price PLN</td>
                             <td>
                                 @if (item.StoreName != storeName && priceDifferencePLN != 0)
@@ -387,8 +429,6 @@
                                     <div class="Position" style="background-color: #414141;">Schowany</div>
                                 }
                             </td>
-
-
 
                             <td>
                                 @if (item.IsBidding == "1")
@@ -453,8 +493,8 @@
                 </div>
 
                 <!-- Suwak (przezroczystość) pod wykresem -->
-                <div class="range-container">
-              
+                <div class="range-container" style="margin-top:10px;">
+
                     <input type="range"
                            id="grayAlphaRange"
                            min="0"
@@ -462,7 +502,6 @@
                            step="0.01"
                            value="0.3">
                 </div>
-
 
             </div>
 
@@ -500,21 +539,16 @@
     </div>
 </div>
 
-
-
 @section Scripts {
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
 
-
     <script>
       // 2. Rejestrujemy plugin
       Chart.register(window['chartjs-plugin-annotation']);
     </script>
-
-
 
     <script>
         // Definicja zmiennej JS na podstawie ViewBag
@@ -587,7 +621,6 @@
             highlightObservedStore();
         }
 
-
             function sortRowsByGooglePosition() {
                 rows.sort((a, b) => {
                     const isGoogleA = a.querySelector(".Position-Google") !== null; // Sprawdzamy klasę `Position-Google`
@@ -600,13 +633,12 @@
                     if (!isGoogleA && isGoogleB) return 1;  // Ceneo za Google
                     if (isGoogleA && !isGoogleB) return -1; // Google przed Ceneo
 
-                  
                     return posA - posB;
                 });
 
                 const tbody = document.querySelector("#priceTable tbody");
                 rows.forEach(row => tbody.appendChild(row));
-                highlightObservedStore(); 
+                highlightObservedStore();
             }
 
             function handleSortChange(event) {
@@ -628,13 +660,10 @@
             sortRowsByPrice();
             highlightObservedStore(); // Podświetlanie po załadowaniu
 
-
-       
             var myStoreName = "@storeName";
 
             createChart(pricesData, myStoreName);
         });
-
 
         function createChart(pricesData, myStore) {
             const sortedData = pricesData.sort((a, b) => b.price - a.price);
@@ -845,7 +874,6 @@
             });
         });
 
-
         // 1. AJAX -> pobranie danych i rysowanie wykresu
         function loadTrendDataAndDrawChart() {
             $.ajax({
@@ -864,7 +892,6 @@
         // 2. Funkcja tworząca wykres
         function drawTrendChart(timelineData) {
             const ctx = document.getElementById("trendChart").getContext("2d");
-          
 
             let allDatesSet = new Set();
             timelineData.forEach(item => allDatesSet.add(item.scrapDate));
@@ -1080,7 +1107,7 @@
             }
         }
 
-             function refreshCustomTooltip(chart, xLabel) {
+        function refreshCustomTooltip(chart, xLabel) {
             window.currentTooltipDate = xLabel;
 
             const labels = chart.data.labels;
@@ -1158,12 +1185,10 @@
             `;
         });
 
-
             html += `</table>`;
             tooltipEl.innerHTML = html;
             tooltipEl.style.display = items.length ? 'block' : 'none';
         }
-
 
         function externalTooltipHandler(context) {
             const { tooltip } = context;
@@ -1183,7 +1208,6 @@
 
             if (dsIndex === -1) return; // nie znaleziono
 
-            
             let datasetToMove = chart.data.datasets.splice(dsIndex, 1)[0];
             chart.data.datasets.push(datasetToMove);
         }
@@ -1278,4 +1302,3 @@
     </script>
 
 }
-
