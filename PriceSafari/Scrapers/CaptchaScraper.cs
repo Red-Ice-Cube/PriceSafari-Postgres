@@ -161,8 +161,11 @@ namespace PriceSafari.Scrapers
                     WaitUntil = new[] { WaitUntilNavigation.DOMContentLoaded }
                 });
 
-                // Wait for the offer nodes to be available
-                await _page.WaitForSelectorAsync("li.product-offers__list__item");
+                await _page.WaitForSelectorAsync("li.product-offers__list__item", new WaitForSelectorOptions
+                {
+                    Timeout = 5000 
+                });
+
 
                 var currentUrl = _page.Url;
 
@@ -172,7 +175,7 @@ namespace PriceSafari.Scrapers
                     Console.WriteLine("Captcha detected. Please solve it manually in the browser.");
                     while (currentUrl.Contains("/Captcha/Add"))
                     {
-                        await Task.Delay(15000);
+                        await Task.Delay(1500000);
                         currentUrl = _page.Url;
                     }
                 }
@@ -195,7 +198,11 @@ namespace PriceSafari.Scrapers
                     {
                         WaitUntil = new[] { WaitUntilNavigation.DOMContentLoaded }
                     });
-                    await _page.WaitForSelectorAsync("li.product-offers__list__item");
+                    await _page.WaitForSelectorAsync("li.product-offers__list__item", new WaitForSelectorOptions
+                    {
+                        Timeout = 5000 
+                    });
+
 
                     var (sortedPrices, sortedLog, sortedRejectedProducts) = await ScrapePricesFromCurrentPage(sortedUrl, false, getCeneoName);
                     log += sortedLog;
@@ -209,27 +216,7 @@ namespace PriceSafari.Scrapers
                         }
                     }
 
-                    //if (priceResults.Count < totalOffersCount)
-                    //{
-                    //    var nextSortedUrl = $"{url};0281-0.htm";
-                    //    await _page.GoToAsync(nextSortedUrl, new NavigationOptions
-                    //    {
-                    //        WaitUntil = new[] { WaitUntilNavigation.DOMContentLoaded }
-                    //    });
-                    //    await _page.WaitForSelectorAsync("li.product-offers__list__item");
-
-                    //    var (nextSortedPrices, nextSortedLog, nextSortedRejectedProducts) = await ScrapePricesFromCurrentPage(nextSortedUrl, false, getCeneoName);
-                    //    log += nextSortedLog;
-                    //    rejectedProducts.AddRange(nextSortedRejectedProducts);
-
-                    //    foreach (var nextSortedPrice in nextSortedPrices)
-                    //    {
-                    //        if (!priceResults.Any(p => p.storeName == nextSortedPrice.storeName && p.price == nextSortedPrice.price))
-                    //        {
-                    //            priceResults.Add(nextSortedPrice);
-                    //        }
-                    //    }
-                    //}
+                   
 
                     if (priceResults.Count < totalOffersCount)
                     {
@@ -238,7 +225,11 @@ namespace PriceSafari.Scrapers
                         {
                             WaitUntil = new[] { WaitUntilNavigation.DOMContentLoaded }
                         });
-                        await _page.WaitForSelectorAsync("li.product-offers__list__item");
+                        await _page.WaitForSelectorAsync("li.product-offers__list__item", new WaitForSelectorOptions
+                        {
+                            Timeout = 5000 // 10s 
+                        });
+
 
                         var (fastestDeliveryPrices, fastestDeliveryLog, fastestDeliveryRejectedProducts) = await ScrapePricesFromCurrentPage(fastestDeliveryUrl, false, getCeneoName);
                         log += fastestDeliveryLog;
@@ -268,7 +259,11 @@ namespace PriceSafari.Scrapers
                     {
                         WaitUntil = new[] { WaitUntilNavigation.DOMContentLoaded }
                     });
-                    await _page.WaitForSelectorAsync("li.product-offers__list__item");
+                    await _page.WaitForSelectorAsync("li.product-offers__list__item", new WaitForSelectorOptions
+                    {
+                        Timeout = 5000  
+                    });
+
 
                     var (storePrices, storeLog, storeRejectedProducts) = await ScrapePricesFromCurrentPage(storeSpecificUrl, false, getCeneoName);
 
