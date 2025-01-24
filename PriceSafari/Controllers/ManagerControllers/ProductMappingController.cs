@@ -402,9 +402,9 @@ namespace PriceSafari.Controllers.ManagerControllers
         // Możliwe nazwy (synonimy) EAN / GTIN w pliku Google
         private static readonly string[] GoogleEanPossibleNames = new[]
         {
-    "gtin",  // standard
-    "EAN", "ean"
-};
+        "gtin",  
+        "EAN", "ean"
+        };
 
       
 
