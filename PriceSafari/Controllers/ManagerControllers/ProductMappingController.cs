@@ -459,13 +459,10 @@ namespace PriceSafari.Controllers.ManagerControllers
                     var xml = XDocument.Parse(response);
                     Console.WriteLine($"[GoogleImport] Parsowanie OK. Root element: {xml.Root?.Name}");
 
-                    // Znajdź namespace Google (z prefixu g:)
+                  
                     var gNs = xml.Root.GetNamespaceOfPrefix("g").NamespaceName;
                     Console.WriteLine($"[GoogleImport] Namespace Google = '{gNs}'");
 
-                    // Pobieramy produkty (entry) – w pliku Google 
-                    // (czasem to jest 'channel' / 'item', ale w Twoim feedzie widać <entry>).
-                    // Wyciągnięcie wszystkich <entry>
                     var entries = xml.Descendants(XName.Get("entry", xml.Root.Name.NamespaceName)).ToList();
                     Console.WriteLine($"[GoogleImport] Znaleziono {entries.Count} węzłów <entry> w XML.");
 
@@ -485,13 +482,13 @@ namespace PriceSafari.Controllers.ManagerControllers
                         var ean = GetGoogleElementValue(x, GoogleEanPossibleNames, gNs);
                         var img = GetGoogleElementValue(x, new[] { "image_link" }, gNs);
                         var title = GetGoogleElementValue(x, new[] { "title" }, gNs);
-                        var mpn = GetGoogleElementValue(x, GoogleMpnPossibleNames, gNs); // "kod_producenta" bez spacji
+                        var mpn = GetGoogleElementValue(x, GoogleMpnPossibleNames, gNs); 
 
                         Console.WriteLine($"[GoogleImport] Wczytano entry -> ID='{rawId}' -> extIdInt={extIdInt}, LINK='{link}', EAN='{ean}', TITLE='{title}'");
 
                         return new
                         {
-                            ExternalId = numericPart,  // Jako string
+                            ExternalId = numericPart,  
                             Url = link,
                             GoogleEan = ean,
                             GoogleImage = img,
@@ -508,7 +505,7 @@ namespace PriceSafari.Controllers.ManagerControllers
                         .ToListAsync();
                     Console.WriteLine($"[GoogleImport] Wczytano {existingProducts.Count} istniejących ProductMap z bazy.");
 
-                    // Update istniejących
+                 
                     int updated = 0;
                     foreach (var existingProduct in existingProducts)
                     {
@@ -523,7 +520,7 @@ namespace PriceSafari.Controllers.ManagerControllers
                         }
                         else
                         {
-                            // Brak w nowym feedzie
+                           
                             existingProduct.GoogleEan = null;
                             existingProduct.GoogleImage = null;
                             existingProduct.GoogleExportedName = null;
@@ -531,11 +528,11 @@ namespace PriceSafari.Controllers.ManagerControllers
                     }
                     Console.WriteLine($"[GoogleImport] Zaktualizowano {updated} istniejących rekordów ProductMap.");
 
-                    // Dodawanie nowych
+                  
                     int added = 0;
                     foreach (var gp in googleProducts)
                     {
-                        // Szukamy czy już istnieje w existingProducts
+                      
                         if (!existingProducts.Any(p => p.Url == gp.Url))
                         {
                             var newMap = new ProductMap
@@ -549,7 +546,7 @@ namespace PriceSafari.Controllers.ManagerControllers
                                 CatalogNumber = gp.CatalogNumber
                             };
                             _context.ProductMaps.Add(newMap);
-                            existingProducts.Add(newMap); // żeby ewentualnie kolejny nie dodał zdublowanego
+                            existingProducts.Add(newMap); 
                             added++;
                         }
                     }
@@ -578,21 +575,20 @@ namespace PriceSafari.Controllers.ManagerControllers
         {
             if (element == null) return null;
 
-            // Pobierz element z przestrzenią nazw
+         
             XName xNameWithNamespace = !string.IsNullOrEmpty(namespaceName)
                 ? XName.Get(name, namespaceName)
                 : null;
 
-            // Pobierz element bez przestrzeni nazw
+        
             XName xNameWithoutNamespace = XName.Get(name);
 
-            // Spróbuj znaleźć element z przestrzenią nazw, jeśli istnieje, lub bez niej
+       
             return element.Element(xNameWithNamespace)?.Value?.Trim()
                 ?? element.Element(xNameWithoutNamespace)?.Value?.Trim();
         }
 
 
-        // Funkcja do wyciągania ID z URL
         private string ExtractIdFromUrl(string url)
         {
             if (string.IsNullOrEmpty(url)) return null;
