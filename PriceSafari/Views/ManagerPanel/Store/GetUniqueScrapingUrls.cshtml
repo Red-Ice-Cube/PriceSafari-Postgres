@@ -56,7 +56,8 @@
                 <button type="submit" class="Button-Page-Small-bl">Rozpocznij scrapowanie Google</button>
             </form>
 
-            <button id="stopScrapingButton" class="Button-Page-Small-y">Przerwij scrapowanie</button>
+            <button id="stopScrapingCeneoButton" class="Button-Page-Small-y">Przerwij scrapowanie Ceneo</button>
+            <button id="stopScrapingGoogleButton" class="Button-Page-Small-y">Przerwij scrapowanie Google</button>
             <form id="clearRejectedAndScrapedForm" asp-controller="PriceScraping" asp-action="ClearRejectedAndScrapedProducts" method="post">
                 <button type="submit" class="Button-Page-Small-o">Resetuj odrzucone statusy</button>
             </form>
@@ -429,18 +430,32 @@
                 });
             });
 
-            $('#stopScrapingButton').on('click', function () {
-                $.ajax({
-                    url: '/PriceScraping/StopScraping',
-                    method: 'POST',
-                    success: function () {
-                        console.log('Scraping stopped successfully');
-                    },
-                    error: function () {
-                        console.error('Error stopping scraping');
-                    }
-                });
+        $('#stopScrapingCeneoButton').on('click', function () {
+            $.ajax({
+                url: '/PriceScraping/StopScraping',
+                method: 'POST',
+                success: function () {
+                    console.log('Scraping Ceneo stopped successfully');
+                },
+                error: function () {
+                    console.error('Error stopping scraping Ceneo');
+                }
             });
+        });
+
+        $('#stopScrapingGoogleButton').on('click', function () {
+            $.ajax({
+                url: '/GoogleMainPriceScraper/StopScrapingGoogle',
+                method: 'POST',
+                success: function () {
+                    console.log('Scraping Google stopped successfully');
+                },
+                error: function () {
+                    console.error('Error stopping scraping Google');
+                }
+            });
+        });
+
 
             function updateCounters() {
                 var rows = document.querySelectorAll("#scrapingTableBody tr");

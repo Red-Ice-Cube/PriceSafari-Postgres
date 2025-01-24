@@ -208,24 +208,61 @@ namespace PriceSafari.Controllers.ManagerControllers
         [HttpPost]
         public async Task<IActionResult> DeleteStore(int storeId)
         {
-            var store = await _context.Stores.Include(s => s.Products)
-                                             .Include(s => s.Categories)
-                                             .Include(s => s.ScrapHistories)
-                                             .Include(s => s.PriceValues)
-                                             .Include(s => s.Flags)
-                                             .Include(s => s.UserStores)
-                                             .FirstOrDefaultAsync(s => s.StoreId == storeId);
+            // Wczytujemy Store wraz ze wszystkimi powiązaniami, które chcemy usunąć
+            var store = await _context.Stores
+                .Include(s => s.Products)
+                .Include(s => s.Categories)
+                .Include(s => s.ScrapHistories)
+                .Include(s => s.PriceValues)
+                .Include(s => s.Flags)
+                .Include(s => s.UserStores)
+                .Include(s => s.PriceSafariReports)
+                .Include(s => s.Invoices)
+                .FirstOrDefaultAsync(s => s.StoreId == storeId);
 
             if (store == null)
             {
                 return NotFound();
             }
 
+            // 1. Usuwanie powiązanych encji, jeśli nie używasz kaskadowego usuwania w modelu/bazie:
+
+            // Produkty powiązane
+            _context.Products.RemoveRange(store.Products);
+
+            // Kategorie (jeśli faktycznie mają być usuwane)
+            // Uwaga: Czasem kategorie są wspólne dla wielu sklepów - wtedy ostrożnie
+            _context.Categories.RemoveRange(store.Categories);
+
+            // Historię scrapowania
+            _context.ScrapHistories.RemoveRange(store.ScrapHistories);
+
+            // Ceny (PriceValues) powiązane ze sklepem
+            _context.PriceValues.RemoveRange(store.PriceValues);
+
+            // Flags – jeżeli jest to relacja many-to-many, czasem wystarczy:
+            // store.Flags.Clear();
+            // Ale jeżeli chcesz usunąć same obiekty z tabeli Flags (co może być niewskazane, jeśli używane są w innych miejscach), wtedy:
+            // _context.Flags.RemoveRange(store.Flags);
+
+            // UserStores (tabela łącząca)
+            _context.UserStores.RemoveRange(store.UserStores);
+
+            // Raporty
+            _context.PriceSafariReports.RemoveRange(store.PriceSafariReports);
+
+            // Faktury
+            _context.Invoices.RemoveRange(store.Invoices);
+
+            // 2. Na końcu usuwamy sam obiekt Store
             _context.Stores.Remove(store);
+
+            // 3. Zapisujemy wszystko w jednym "strzale"
             await _context.SaveChangesAsync();
 
             return RedirectToAction("Index");
         }
+
 
         [HttpGet]
         public async Task<IActionResult> ProductList(int storeId)
