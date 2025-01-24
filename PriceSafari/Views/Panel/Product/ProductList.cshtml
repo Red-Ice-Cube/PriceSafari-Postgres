@@ -100,6 +100,13 @@
             }
 
 
+    .dates-vertical p {
+        margin: 0;
+        padding: 2px 0;
+        font-size: 0.9em;
+    }
+
+
 </style>
 
 <div class="Vert">
@@ -202,6 +209,7 @@
                         <th>@ViewBag.StoreName</th>
                         <th>Scrapować</th>
                         <th>Status</th>
+                        <th>Daty</th>
                     </tr>
                 </thead>
 
@@ -212,8 +220,7 @@
     </div>
 </div>
 
-<!-- Modal -->
-<!-- Modal -->
+
 <div class="modal fade" id="uploadMarginsModal" tabindex="-1" role="dialog" aria-labelledby="uploadMarginsModalLabel" aria-hidden="true">
     <div class="modal-dialog" role="document">
         <div class="modal-content">
@@ -282,6 +289,19 @@
                     notFound: notFound
                 };
             }
+
+                    function formatDate(dateString) {
+            if (!dateString) return ""; // null lub undefined
+            const d = new Date(dateString);
+            if (isNaN(d.getTime())) return ""; // jeśli niepoprawna data
+            // Zwróć np. dd-MM-yyyy HH:mm
+            const day = String(d.getDate()).padStart(2, '0');
+            const month = String(d.getMonth() + 1).padStart(2, '0');
+            const year = d.getFullYear();
+            const hours = String(d.getHours()).padStart(2, '0');
+            const minutes = String(d.getMinutes()).padStart(2, '0');
+            return `${day}-${month}-${year} ${hours}:${minutes}`;
+        }
 
             function saveState() {
                 lastScrollPosition = window.scrollY;
@@ -413,6 +433,11 @@
                 var imageUrl = product.mainUrl || '';
                 var imageCell = imageUrl ? `<img src="${imageUrl}" style="width: 90px; height: 90px; object-fit: contain; background-color: white;" />` : `<div style="width: 90px; height: 90px;"></div>`;
 
+                 var addedDateFormatted = formatDate(product.addedDate);
+                var foundOnGoogleDateFormatted = formatDate(product.foundOnGoogleDate);
+                var foundOnCeneoDateFormatted = formatDate(product.foundOnCeneoDate);
+
+
                 var statusBoxClass = "";
                 var statusText = "";
 
@@ -431,24 +456,34 @@
                 }
 
                 // Modify the checkbox input
-                row.innerHTML = `
-                    <td><p>${highlightedProductName}</p><p>${category}</p></td>
-                    <td>${imageCell}</td>
-                    <td>${ean}</td>
-                    <td>${marginPrice} PLN</td>
-                    <td>
-                        <div class="store-section" style="gap:4px;">
-                            ${offerUrlButton}${googleUrlButton}
-                        </div>
-                    </td>
-                    <td>${urlButton}</td>
-                    <td>
-                        <input type="checkbox" class="scrapable-checkbox" data-product-id="${product.productId}"
-                            ${product.isScrapable ? "checked" : ""}
-                            ${isNotFound ? "disabled" : ""} />
-                    </td>
-                    <td><div class="${statusBoxClass}">${statusText}</div></td>
-                `;
+               var datesCell = `
+            <div class="dates-vertical">
+                <p><strong>Dodany:</strong> ${addedDateFormatted || "-"}</p>
+                <p><strong>Google:</strong> ${foundOnGoogleDateFormatted || "-"}</p>
+                <p><strong>Ceneo:</strong> ${foundOnCeneoDateFormatted || "-"}</p>
+            </div>
+        `;
+
+        row.innerHTML = `
+            <td><p>${highlightedProductName}</p><p>${category}</p></td>
+            <td>${imageCell}</td>
+            <td>${ean}</td>
+            <td>${marginPrice} PLN</td>
+            <td>
+                <div class="store-section" style="gap:4px;">
+                    ${offerUrlButton}${googleUrlButton}
+                </div>
+            </td>
+            <td>${urlButton}</td>
+            <td>
+                <input type="checkbox" class="scrapable-checkbox" data-product-id="${product.productId}"
+                    ${product.isScrapable ? "checked" : ""}
+                    ${isNotFound ? "disabled" : ""} />
+            </td>
+            <td><div class="${statusBoxClass}">${statusText}</div></td>
+            <!-- Nowe TD na daty -->
+            <td>${datesCell}</td>
+        `;
 
                 // Only add the event listener if the checkbox is not disabled
                 if (!isNotFound) {

@@ -241,7 +241,7 @@ namespace PriceSafari.Controllers.ManagerControllers
             _context.PriceValues.RemoveRange(store.PriceValues);
 
             // Flags – jeżeli jest to relacja many-to-many, czasem wystarczy:
-            // store.Flags.Clear();
+            store.Flags.Clear();
             // Ale jeżeli chcesz usunąć same obiekty z tabeli Flags (co może być niewskazane, jeśli używane są w innych miejscach), wtedy:
             // _context.Flags.RemoveRange(store.Flags);
 
