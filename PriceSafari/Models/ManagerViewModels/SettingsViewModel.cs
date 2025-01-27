@@ -11,6 +11,8 @@
         public bool GetCeneoName { get; set; }  
         public bool JS { get; set; }
         public bool Style { get; set; }
+
+        public bool ControlXY { get; set; }
     }
 
     public class EditVerificationRequiredViewModel
@@ -29,5 +31,7 @@
         public bool JS { get; set; }
         public bool Style { get; set; }
         public bool GetCeneoName { get; set; }
+
+        public bool ControlXY { get; set; }
     }
 }
