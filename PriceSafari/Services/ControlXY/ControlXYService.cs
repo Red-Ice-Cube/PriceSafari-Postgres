@@ -133,91 +133,98 @@ namespace PriceSafari.Services.ControlXY
             mouse_event(MOUSEEVENTF_LEFTDOWN, 0, 0, 0, UIntPtr.Zero);
             mouse_event(MOUSEEVENTF_LEFTUP, 0, 0, 0, UIntPtr.Zero);
 
-            // 12. Ruch w górę o 150px (od downY do upY) w krokach co 5px, 15ms
-            Console.WriteLine("Przesuwam kursor w górę...");
-            int upY = downY - 150;
-            for (int y = downY; y >= upY; y -= 5)
-            {
-                MoveCursor(newX, y, 15);
-            }
-
-            // 13. Kliknięcie prawym
-            Console.WriteLine("Klikam prawym przyciskiem myszy...");
-            mouse_event(MOUSEEVENTF_RIGHTDOWN, 0, 0, 0, UIntPtr.Zero);
-            mouse_event(MOUSEEVENTF_RIGHTUP, 0, 0, 0, UIntPtr.Zero);
-            Thread.Sleep(200);
-
-            // 14. W prawo (kopiowanie) – w oryginale błąd logiczny, zostawiamy
-            Console.WriteLine("Przesuwam kursor w prawo...");
-            int rightX = currentPos.X + 70;
-            for (int x = currentPos.X; x >= newX; x -= 5)
-            {
-                MoveCursor(x, newY, 15);
-            }
-
-            // 15. Kliknięcie lewym
-            Console.WriteLine("Klikam lewym przyciskiem myszy...");
-            mouse_event(MOUSEEVENTF_LEFTDOWN, 0, 0, 0, UIntPtr.Zero);
-            mouse_event(MOUSEEVENTF_LEFTUP, 0, 0, 0, UIntPtr.Zero);
-
-            // 16. Ruch w górę o 180px (od newY w górę)
-            Console.WriteLine("Przesuwam kursor w górę o 180px...");
-            int upNetY = newY - 180;
-            for (int y = newY; y >= upNetY; y -= 5)
-            {
-                MoveCursor(currentPos.X, y, 15);
-            }
-
-            // 17. Kliknięcie lewym
-            Console.WriteLine("Klikam lewym przyciskiem myszy...");
-            mouse_event(MOUSEEVENTF_LEFTDOWN, 0, 0, 0, UIntPtr.Zero);
-            mouse_event(MOUSEEVENTF_LEFTUP, 0, 0, 0, UIntPtr.Zero);
-
-            //
-            // 18. Ruch w dół o 15px (w kodzie było +40, bo tak oryginalnie)
-            //
-            Console.WriteLine("Przesuwam kursor w dół o 15px...");
-            GetCursorPos(out POINT pos18);
-            int target18 = pos18.Y + 40;
-            for (int y = pos18.Y; y <= target18; y += 5)
-            {
-                Thread.Sleep(100);
-                MoveCursor(pos18.X, y, 20);
-            }
-
-            //
-            // 19. Kliknięcie prawym przyciskiem myszy
-            //
-            Console.WriteLine("Klikam prawym przyciskiem myszy...");
-            Thread.Sleep(200);
-            mouse_event(MOUSEEVENTF_RIGHTDOWN, 0, 0, 0, UIntPtr.Zero);
-            mouse_event(MOUSEEVENTF_RIGHTUP, 0, 0, 0, UIntPtr.Zero);
-
-            //
-            // 20. Ruch w dół o 50px (w kodzie 180)
-            //
-            Console.WriteLine("Przesuwam kursor w dół o 50px...");
-            GetCursorPos(out POINT pos20);
-            int target20 = pos20.Y + 180;
-            for (int y = pos20.Y; y <= target20; y += 5)
-            {
-                MoveCursor(pos20.X, y, 15);
-            }
-
-            //
-            // 21. Kliknięcie lewym przyciskiem
-            //
-            Console.WriteLine("Klikam lewym przyciskiem myszy...");
-            mouse_event(MOUSEEVENTF_LEFTDOWN, 0, 0, 0, UIntPtr.Zero);
-            mouse_event(MOUSEEVENTF_LEFTUP, 0, 0, 0, UIntPtr.Zero);
-
-            //
-            // 22. Naciśnięcie klawisza Enter
-            //
-            Console.WriteLine("Naciskam klawisz ENTER...");
-            PressEnter();
+          
 
             Console.WriteLine("Zakończono akcje kursora.");
         }
     }
 }
+
+
+
+
+
+
+//// 12. Ruch w górę o 150px (od downY do upY) w krokach co 5px, 15ms
+//Console.WriteLine("Przesuwam kursor w górę...");
+//int upY = downY - 150;
+//for (int y = downY; y >= upY; y -= 5)
+//{
+//    MoveCursor(newX, y, 15);
+//}
+
+//// 13. Kliknięcie prawym
+//Console.WriteLine("Klikam prawym przyciskiem myszy...");
+//mouse_event(MOUSEEVENTF_RIGHTDOWN, 0, 0, 0, UIntPtr.Zero);
+//mouse_event(MOUSEEVENTF_RIGHTUP, 0, 0, 0, UIntPtr.Zero);
+//Thread.Sleep(200);
+
+//// 14. W prawo (kopiowanie) – w oryginale błąd logiczny, zostawiamy
+//Console.WriteLine("Przesuwam kursor w prawo...");
+//int rightX = currentPos.X + 70;
+//for (int x = currentPos.X; x >= newX; x -= 5)
+//{
+//    MoveCursor(x, newY, 15);
+//}
+
+//// 15. Kliknięcie lewym
+//Console.WriteLine("Klikam lewym przyciskiem myszy...");
+//mouse_event(MOUSEEVENTF_LEFTDOWN, 0, 0, 0, UIntPtr.Zero);
+//mouse_event(MOUSEEVENTF_LEFTUP, 0, 0, 0, UIntPtr.Zero);
+
+//// 16. Ruch w górę o 180px (od newY w górę)
+//Console.WriteLine("Przesuwam kursor w górę o 180px...");
+//int upNetY = newY - 180;
+//for (int y = newY; y >= upNetY; y -= 5)
+//{
+//    MoveCursor(currentPos.X, y, 15);
+//}
+
+//// 17. Kliknięcie lewym
+//Console.WriteLine("Klikam lewym przyciskiem myszy...");
+//mouse_event(MOUSEEVENTF_LEFTDOWN, 0, 0, 0, UIntPtr.Zero);
+//mouse_event(MOUSEEVENTF_LEFTUP, 0, 0, 0, UIntPtr.Zero);
+
+////
+//// 18. Ruch w dół o 15px (w kodzie było +40, bo tak oryginalnie)
+////
+//Console.WriteLine("Przesuwam kursor w dół o 15px...");
+//GetCursorPos(out POINT pos18);
+//int target18 = pos18.Y + 40;
+//for (int y = pos18.Y; y <= target18; y += 5)
+//{
+//    Thread.Sleep(100);
+//    MoveCursor(pos18.X, y, 20);
+//}
+
+////
+//// 19. Kliknięcie prawym przyciskiem myszy
+////
+//Console.WriteLine("Klikam prawym przyciskiem myszy...");
+//Thread.Sleep(200);
+//mouse_event(MOUSEEVENTF_RIGHTDOWN, 0, 0, 0, UIntPtr.Zero);
+//mouse_event(MOUSEEVENTF_RIGHTUP, 0, 0, 0, UIntPtr.Zero);
+
+////
+//// 20. Ruch w dół o 50px (w kodzie 180)
+////
+//Console.WriteLine("Przesuwam kursor w dół o 50px...");
+//GetCursorPos(out POINT pos20);
+//int target20 = pos20.Y + 180;
+//for (int y = pos20.Y; y <= target20; y += 5)
+//{
+//    MoveCursor(pos20.X, y, 15);
+//}
+
+////
+//// 21. Kliknięcie lewym przyciskiem
+////
+//Console.WriteLine("Klikam lewym przyciskiem myszy...");
+//mouse_event(MOUSEEVENTF_LEFTDOWN, 0, 0, 0, UIntPtr.Zero);
+//mouse_event(MOUSEEVENTF_LEFTUP, 0, 0, 0, UIntPtr.Zero);
+
+////
+//// 22. Naciśnięcie klawisza Enter
+////
+//Console.WriteLine("Naciskam klawisz ENTER...");
+//PressEnter();

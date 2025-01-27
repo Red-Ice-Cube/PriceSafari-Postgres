@@ -44,10 +44,8 @@ public class PriceScrapingController : Controller
 
         var coOfrs = new List<CoOfrClass>();
 
-        // Podział na dwa zestawy:
-        // 1. Produkty, które mają OfferUrl
+       
         var productsWithOffer = products.Where(p => !string.IsNullOrEmpty(p.OfferUrl)).ToList();
-        // 2. Produkty, które nie mają OfferUrl
         var productsWithoutOffer = products.Where(p => string.IsNullOrEmpty(p.OfferUrl)).ToList();
 
         // Grupowanie produktów z OfferUrl po OfferUrl
@@ -179,24 +177,31 @@ public class PriceScrapingController : Controller
             return NotFound("Settings not found.");
         }
 
-        // Najpierw rozwiązujemy captchę w normalnym środowisku
         var resolveCaptchaScraper = new ResolveCaptchaScraper();
         await resolveCaptchaScraper.InitializeNormalBrowserAsync();
+
+        
         await resolveCaptchaScraper.NavigateToCaptchaAsync();
 
+      
         if (settings.ControlXY)
         {
-            
+            await _hubContext.Clients.All.SendAsync("ReceiveControlXYCountdown", 10);
+            await Task.Delay(TimeSpan.FromSeconds(9));
             _controlXYService.StartControlXY();
         }
 
-        // Użytkownik rozwiązuje captchę ręcznie...
-        await resolveCaptchaScraper.WaitForCaptchaSolutionAsync();
+        await resolveCaptchaScraper.WaitAndNavigateToCeneoAsync();
 
-        // Pobieramy dane sesyjne (teraz tylko cookies)
+    
+
+     
         var captchaSessionData = await resolveCaptchaScraper.GetSessionDataAsync();
+
+    
         await resolveCaptchaScraper.CloseBrowserAsync();
 
+       
         var coOfrs = await _context.CoOfrs
             .Where(co => !co.IsScraped && !string.IsNullOrEmpty(co.OfferUrl))
             .ToListAsync();
