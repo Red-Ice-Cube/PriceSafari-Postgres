@@ -6,6 +6,7 @@ using PriceSafari.Data;
 using PriceSafari.Hubs;
 using PriceSafari.Models;
 using PriceSafari.Scrapers;
+using PriceSafari.Services.ControlXY;
 using PuppeteerSharp;
 using System.Diagnostics;
 
@@ -20,8 +21,9 @@ public class PriceScrapingController : Controller
     private readonly IHttpClientFactory _httpClientFactory;
     private static CancellationTokenSource _cancellationTokenSource = new CancellationTokenSource();
     private readonly StoreProcessingService _storeProcessingService;
+    private readonly ControlXYService _controlXYService;
 
-    public PriceScrapingController(PriceSafariContext context, IHubContext<ScrapingHub> hubContext, IServiceProvider serviceProvider, HttpClient httpClient, IHttpClientFactory httpClientFactory, StoreProcessingService storeProcessingService)
+    public PriceScrapingController(PriceSafariContext context, IHubContext<ScrapingHub> hubContext, IServiceProvider serviceProvider, HttpClient httpClient, IHttpClientFactory httpClientFactory, StoreProcessingService storeProcessingService, ControlXYService controlXYService)
     {
         _context = context;
         _hubContext = hubContext;
@@ -29,6 +31,7 @@ public class PriceScrapingController : Controller
         _httpClient = httpClient;
         _httpClientFactory = httpClientFactory;
         _storeProcessingService = storeProcessingService;
+        _controlXYService = controlXYService;
     }
    
     [HttpPost]
@@ -180,6 +183,12 @@ public class PriceScrapingController : Controller
         var resolveCaptchaScraper = new ResolveCaptchaScraper();
         await resolveCaptchaScraper.InitializeNormalBrowserAsync();
         await resolveCaptchaScraper.NavigateToCaptchaAsync();
+
+        if (settings.ControlXY)
+        {
+            
+            _controlXYService.StartControlXY();
+        }
 
         // Użytkownik rozwiązuje captchę ręcznie...
         await resolveCaptchaScraper.WaitForCaptchaSolutionAsync();
