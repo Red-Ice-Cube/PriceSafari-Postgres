@@ -25,15 +25,205 @@
     }
 }
 
+<style>
+
+    #trendChartContainer {
+        display: flex;
+        width: 100%;
+        height: 65vh;
+        margin-top: 10px;
+    }
+
+    .chart-column {
+        flex: 1 1 auto;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+    }
+
+    .chart-container {
+        flex: 1 1 auto;
+        min-height: 0;
+    }
+
+    #trendChart {
+        max-width: 100%;
+        height: 100%;
+
+    }
+
+    .range-container {
+        margin-top: 8px;
+    }
+
+    #grayAlphaRange {
+        width: 200px;
+    }
+
+    #customTrendTooltip {
+        width: 400px;
+        flex-shrink: 0;
+        border-radius: 4px;
+        margin-top:8px;
+        height: 64vh;
+        overflow-y: auto;
+        padding: 16px;
+        background: #fefefe;
+        border: 1px solid #ccc;
+        font-size: 0.9rem;
+        display: none;
+    }
+
+    #customTrendTooltip::-webkit-scrollbar {
+        width: 4px;
+    }
+
+    #customTrendTooltip::-webkit-scrollbar-track {
+        background: #fff;
+    }
+
+    #customTrendTooltip::-webkit-scrollbar-thumb {
+        background: #999;
+        border-radius: 5px;
+    }
+
+    #customTrendTooltip::-webkit-scrollbar-thumb:hover {
+            background: #555;
+    }
+
+    #showTableBtn{
+        display: inline-flex;
+        box-sizing: border-box;
+        align-items: center;
+        justify-content: center;
+        padding: 4px 12px;
+        border: none;
+
+        font-size: 14px;
+        cursor: pointer;
+        transition: background-color 0.3s, color 0.3s;
+        border-radius: 4px;
+    }
+
+    #showChartBtn {
+        display: inline-flex;
+        box-sizing: border-box;
+        align-items: center;
+        justify-content: center;
+        padding: 4px 12px;
+        border: none;
+
+        font-size: 14px;
+        cursor: pointer;
+        transition: background-color 0.3s, color 0.3s;
+        border-radius: 4px;
+    }
+
+    .button-active {
+        background-color: #222222;
+        color: white;
+    }
+
+    .button-inactive {
+        background-color: #e3e3e3;
+        color: #222222;
+    }
+
+    #grayAlphaRange {
+        width: 300px;
+        appearance: none;
+
+        background: transparent;
+
+        outline: none;
+
+    }
+
+        #grayAlphaRange::-webkit-slider-thumb {
+            appearance: none;
+            width: 15px;
+            height: 15px;
+            background-color: #666;
+            border-radius: 50%;
+            cursor: pointer;
+            border: 2px solid #fff;
+            margin-top: -5px;
+        }
+
+        #grayAlphaRange::-webkit-slider-runnable-track {
+            background: #ccc;
+            height: 5px;
+            border-radius: 5px;
+        }
+
+        #grayAlphaRange::-moz-range-thumb {
+            width: 15px;
+            height: 15px;
+            background-color: #666;
+            border: 2px solid #fff;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+
+        #grayAlphaRange::-moz-range-track {
+            background: #ccc;
+            height: 5px;
+            border-radius: 5px;
+        }
+
+        #grayAlphaRange::-ms-thumb {
+            width: 15px;
+            height: 15px;
+            background-color: #666;
+            border: 2px solid #fff;
+            border-radius: 50%;
+            cursor: pointer;
+            margin-top: 0px;
+        }
+
+        #grayAlphaRange::-ms-track {
+            background: transparent;
+            border-color: transparent;
+            color: transparent;
+            height: 5px;
+            border-radius: 5px;
+        }
+
+        #grayAlphaRange::-ms-fill-lower {
+            background: #ccc;
+            border-radius: 5px;
+        }
+
+        #grayAlphaRange::-ms-fill-upper {
+            background: #ccc;
+            border-radius: 5px;
+        }
+
+</style>
+
 <div class="Vert" data-store-name="@storeName">
     <div class="Page-Box">
-        <div style="font-weight: 300; font-size: 22px;">
-            @productName
+        <div style="display:flex; width:100%; justify-content:space-between;">
+            <div style="font-weight: 300; font-size: 22px;">
+                @productName
+            </div>
+            <div style="margin-top:4px;">
+                <button type="button" id="showTableBtn" class="button-active">
+                    Ranking
+                </button>
+                <button type="button" id="showChartBtn" class="button-inactive">
+                    Wykres
+                </button>
+            </div>
+
         </div>
-      
+
         <div class="form-check-orders" style="margin-bottom:16px;">
             <div>
-                <p><strong>Wykonano:</strong> @scrapHistory?.Date.ToString("dd.MM.yyyy")</p>
+
+                    <p><strong>Wykonano:</strong> @scrapHistory?.Date.ToString("dd.MM.yyyy")</p>
+
             </div>
         </div>
         <div class="price-box-space" style="gap:32px;">
@@ -45,8 +235,6 @@
                     </div>
                 }
                 <div class="price-box-column-name" style="align-content:flex-end;">
-
-
 
                     <div class="store-section">
                         <div class="form-check">
@@ -61,9 +249,9 @@
                             <input class="form-check-input sortFilter" type="radio" name="sortOption" id="sortGooglePosition" value="googlePosition">
                             <label class="form-check-label" for="sortGooglePosition">Sortuj po pozycji Google</label>
                         </div>
+
                     </div>
                     <div style="margin-top: 16px;">
-
 
                         @if (!string.IsNullOrEmpty(googleUrl))
                         {
@@ -84,6 +272,8 @@
                             </a>
                         }
 
+                        <!-- Dwa przyciski do przełączania widoków -->
+
                         <button type="button" class="Button-Page-Small-r" id="editExternalIdButton">
                             API ID @ViewBag.ApiId
                         </button>
@@ -91,23 +281,21 @@
                     </div>
 
                 </div>
-               
+
             </div>
             <div style="display:flex; width:50%; height:130px; align-self:flex-end; margin-right:14px;">
                 <canvas id="priceChart" width="100" height="100"></canvas>
             </div>
 
-           
         </div>
 
-        <div class="Vert-table">
+        <!-- 1. Kontener z TABELĄ (domyślnie widoczny) -->
+        <div id="priceTableContainer" class="Vert-table" style="display: block;">
             <table class="table-orders" id="priceTable">
                 <thead>
                     <tr>
                         <th></th>
-
                         <th>Sklep (@Model.Count())</th>
-
                         <th>Cena</th>
                         <th>Różnica</th>
                         <th>Pozycja</th>
@@ -118,6 +306,7 @@
                     </tr>
                 </thead>
                 <tbody>
+
                     @foreach (var item in Model)
                     {
                         var priceDifference = item.Price - Model.Min(m => m.Price);
@@ -196,7 +385,6 @@
                                 @item.StoreName
                             </td>
 
-
                             <td class="store-price">@item.Price PLN</td>
                             <td>
                                 @if (item.StoreName != storeName && priceDifferencePLN != 0)
@@ -241,8 +429,6 @@
                                     <div class="Position" style="background-color: #414141;">Schowany</div>
                                 }
                             </td>
-
-
 
                             <td>
                                 @if (item.IsBidding == "1")
@@ -295,7 +481,36 @@
                     }
                 </tbody>
             </table>
+
         </div>
+        <!-- Kontener WYKRESU + TOOLTIPA -->
+        <div id="trendChartContainer">
+            <!-- Lewa kolumna: wykres -->
+            <div class="chart-column">
+                <!-- Kontener z płynną wysokością na wykres -->
+                <div class="chart-container">
+                    <canvas id="trendChart"></canvas>
+                </div>
+
+                <!-- Suwak (przezroczystość) pod wykresem -->
+                <div class="range-container" style="margin-top:10px;">
+
+                    <input type="range"
+                           id="grayAlphaRange"
+                           min="0"
+                           max="0.6"
+                           step="0.01"
+                           value="0.3">
+                </div>
+
+            </div>
+
+            <!-- Prawa kolumna: tooltip -->
+            <div id="customTrendTooltip">
+                <!-- Tutaj JavaScript wstawia tabelkę z danymi -->
+            </div>
+        </div>
+
     </div>
 </div>
 
@@ -328,6 +543,12 @@
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
+
+    <script>
+      // 2. Rejestrujemy plugin
+      Chart.register(window['chartjs-plugin-annotation']);
+    </script>
 
     <script>
         // Definicja zmiennej JS na podstawie ViewBag
@@ -400,7 +621,6 @@
             highlightObservedStore();
         }
 
-
             function sortRowsByGooglePosition() {
                 rows.sort((a, b) => {
                     const isGoogleA = a.querySelector(".Position-Google") !== null; // Sprawdzamy klasę `Position-Google`
@@ -413,13 +633,12 @@
                     if (!isGoogleA && isGoogleB) return 1;  // Ceneo za Google
                     if (isGoogleA && !isGoogleB) return -1; // Google przed Ceneo
 
-                  
                     return posA - posB;
                 });
 
                 const tbody = document.querySelector("#priceTable tbody");
                 rows.forEach(row => tbody.appendChild(row));
-                highlightObservedStore(); 
+                highlightObservedStore();
             }
 
             function handleSortChange(event) {
@@ -441,13 +660,10 @@
             sortRowsByPrice();
             highlightObservedStore(); // Podświetlanie po załadowaniu
 
-
-       
             var myStoreName = "@storeName";
 
             createChart(pricesData, myStoreName);
         });
-
 
         function createChart(pricesData, myStore) {
             const sortedData = pricesData.sort((a, b) => b.price - a.price);
@@ -567,8 +783,522 @@
             });
         });
     </script>
+    <script>
+        let productId = @ViewBag.ProductId;
+        let myStoreLower = "@storeName".toLowerCase().trim();
 
-   
+        // Maksymalnie 6 highlightów
+        let highlightedStores = [];
+        let storeColorMap = {};
+
+        // 6 kolorów do highlightu:
+        const highlightColors = [
+            'rgba(54, 162, 235, 1)',   // niebieski
+            'rgba(255, 128, 0, 1)',   // pomarańcz
+            'rgba(153, 102, 255, 1)', // fiolet
+            'rgba(100, 200, 100, 1)', // zieleń
+            'rgba(255, 51, 153, 1)',  // róż
+            'rgba(255, 204, 0, 1)'      // zółty
+        ];
+
+        // Domyślny alpha dla szarych linii
+        let defaultGrayAlpha = 0.3;
+
+                document.addEventListener("DOMContentLoaded", function () {
+            const $showTableBtn = $('#showTableBtn');
+            const $showChartBtn = $('#showChartBtn');
+            const $tableContainer = $('#priceTableContainer');
+            const $chartContainer = $('#trendChartContainer');
+
+            // Ukryj domyślnie wykres
+            $chartContainer.hide();
+
+            // Obsługa przycisku "Ranking"
+            $showTableBtn.on('click', function () {
+                $chartContainer.hide();
+                $tableContainer.show();
+
+                // Ustaw aktywny stan dla przycisku
+                $showTableBtn.removeClass('button-inactive').addClass('button-active');
+                $showChartBtn.removeClass('button-active').addClass('button-inactive');
+            });
+
+            // Obsługa przycisku "Wykres"
+            $showChartBtn.on('click', function () {
+                $tableContainer.hide();
+                $chartContainer.show();
+
+                // Ustaw aktywny stan dla przycisku
+                $showChartBtn.removeClass('button-inactive').addClass('button-active');
+                $showTableBtn.removeClass('button-active').addClass('button-inactive');
+
+                // Jeśli wykres nie istnieje, załaduj dane i narysuj wykres
+                if (!window.trendChartRef) {
+                    loadTrendDataAndDrawChart();
+                } else {
+                    // Zaktualizuj wykres
+                    window.trendChartRef.update('none');
+                }
+            });
+
+            // Obsługa suwaka do zmiany przezroczystości
+            const grayAlphaRange = document.getElementById("grayAlphaRange");
+            if (grayAlphaRange) {
+                grayAlphaRange.addEventListener("input", function (e) {
+                    defaultGrayAlpha = parseFloat(e.target.value);
+                    updateHighlightedLines();
+                });
+            }
+
+            // Przycisk: pokaż tylko mój sklep
+            $('#showOnlyMyStoreBtn').on('click', function () {
+                if (window.trendChartRef) {
+                    let myStore = "@storeName".toLowerCase().trim();
+                    window.trendChartRef.data.datasets.forEach(ds => {
+                        ds.hidden = (ds.label.toLowerCase().trim() !== myStore);
+                    });
+                    // Aktualizuj wykres z animacją
+                    window.trendChartRef.update({ duration: 600 });
+                }
+            });
+
+            // Przycisk: pokaż wszystkie sklepy
+            $('#showAllStoresBtn').on('click', function () {
+                if (window.trendChartRef) {
+                    window.trendChartRef.data.datasets.forEach(ds => {
+                        ds.hidden = false;
+                    });
+                    // Aktualizuj wykres z animacją
+                    window.trendChartRef.update({ duration: 600 });
+                }
+            });
+        });
+
+        // 1. AJAX -> pobranie danych i rysowanie wykresu
+        function loadTrendDataAndDrawChart() {
+            $.ajax({
+                url: '@Url.Action("GetPriceTrendData", "PriceHistory")',
+                type: 'GET',
+                data: { productId: productId },
+                success: function(response) {
+                    drawTrendChart(response.timelineData);
+                },
+                error: function() {
+                    alert("Błąd pobierania danych trendu!");
+                }
+            });
+        }
+
+        // 2. Funkcja tworząca wykres
+        function drawTrendChart(timelineData) {
+            const ctx = document.getElementById("trendChart").getContext("2d");
+
+            let allDatesSet = new Set();
+            timelineData.forEach(item => allDatesSet.add(item.scrapDate));
+            let allDates = Array.from(allDatesSet).sort();
+
+            let allStoresSet = new Set();
+            timelineData.forEach(item => {
+                item.pricesByStore.forEach(ps => allStoresSet.add(ps.storeName));
+            });
+            let allStores = Array.from(allStoresSet);
+
+            let priceMap = {};
+            timelineData.forEach(entry => {
+                let date = entry.scrapDate;
+                if (!priceMap[date]) {
+                    priceMap[date] = {};
+                }
+                entry.pricesByStore.forEach(ps => {
+                    priceMap[date][ps.storeName] = {
+                        price: ps.price,
+                        source: ps.source
+                    };
+                });
+            });
+
+            let myStore = "@storeName".toLowerCase().trim();
+
+            // Obliczamy globalMinPrice i globalMaxPrice
+            let globalMinPrice = Number.POSITIVE_INFINITY;
+            let globalMaxPrice = Number.NEGATIVE_INFINITY;
+
+            // Szukamy w timelineData wszystkich cen
+            timelineData.forEach(entry => {
+                entry.pricesByStore.forEach(ps => {
+                    if (ps.price < globalMinPrice) globalMinPrice = ps.price;
+                    if (ps.price > globalMaxPrice) globalMaxPrice = ps.price;
+                });
+            });
+
+            // Zabezpiecz się, gdyby nie było danych
+            if (!isFinite(globalMinPrice)) globalMinPrice = 0;
+            if (!isFinite(globalMaxPrice)) globalMaxPrice = 1000;
+
+            // Budujemy datasets
+            let datasets = allStores.map(store => {
+                let dataArray = [];
+                let sourceArray = [];
+
+                allDates.forEach(date => {
+                    let obj = priceMap[date][store];
+                    if (obj) {
+                        dataArray.push(obj.price);
+                        sourceArray.push(obj.source);
+                    } else {
+                        dataArray.push(null);
+                        sourceArray.push(null);
+                    }
+                });
+
+                // Domyślna szara linia (z alpha)
+                let lineColor = `rgba(128,128,128,${defaultGrayAlpha})`;
+                let lineWidth = 2;
+
+                // Jeśli to nasz sklep -> czarny
+                if (store.toLowerCase().trim() === myStore) {
+                    lineColor = 'rgba(197,0,0,1)';
+                    lineWidth = 2;
+                }
+
+                return {
+                    label: store,
+                    data: dataArray,
+                    sourceByIndex: sourceArray,
+                    originalBorderColor: lineColor,
+                    borderColor: lineColor,
+                    borderWidth: lineWidth,
+                    fill: false,
+                    spanGaps: true,
+                    pointRadius: 0,
+                    pointHoverRadius: 0,
+                    tension: 0.4,
+                    cubicInterpolationMode: 'monotone'
+                };
+            });
+
+            const defaultXValue = allDates[allDates.length - 1] || null;
+
+            // Tworzymy wykres
+            window.trendChartRef = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: allDates,
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    animation: {
+                        duration: 600,
+                        easing: 'easeInOutQuad'
+                    },
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            type: 'category',
+                            title: { display: false },
+                            grid: {
+                                display: true,
+                                color: 'rgba(0,0,0,0.06)'
+                            }
+                        },
+                        y: {
+                            suggestedMin: globalMinPrice,
+                            suggestedMax: globalMaxPrice,
+                            grid: { display: true, color: 'rgba(0,0,0,0.06)' },
+                            ticks: {
+                                callback: function(value) {
+                                    return value + ' PLN';
+                                }
+                            }
+                        }
+                    },
+                    onHover: function(e) {
+                        e.native.target.style.cursor = 'crosshair';
+                    },
+                    onClick: function(evt, elements, chart) {
+                        if (!chart.data.labels.length) return;
+                        const canvasPos = Chart.helpers.getRelativePosition(evt, chart);
+                        const xScale = chart.scales.x;
+                        const labels = chart.data.labels;
+
+                        let floatIndex = xScale.getValueForPixel(canvasPos.x);
+                        let nearestIndex = Math.round(floatIndex);
+                        if (nearestIndex < 0) nearestIndex = 0;
+                        if (nearestIndex >= labels.length) {
+                            nearestIndex = labels.length - 1;
+                        }
+                        let xLabel = labels[nearestIndex] || null;
+                        if (!xLabel) return;
+
+                        chart.config.options.plugins.annotation.annotations.crosshairLine.value = nearestIndex;
+                        chart.update();
+
+                        refreshCustomTooltip(chart, xLabel);
+                    },
+                    interaction: {
+                        mode: 'index',
+                        intersect: false,
+                        axis: 'x'
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            enabled: false,
+                            external: externalTooltipHandler
+                        },
+                        annotation: {
+                            annotations: {
+                                crosshairLine: {
+                                    type: 'line',
+                                    mode: 'vertical',
+                                    scaleID: 'x',
+                                    value: null,
+                                    borderColor: 'rgba(80,80,80,0.7)',
+                                    borderWidth: 2,
+                                    borderDash: [4,2],
+                                    hitRadius: 8,
+                                    draggable: true,
+                                    adjustScaleRange: false,
+                                    display: (ctx) => {
+                                        return ctx.chart.config.options.plugins.annotation.annotations.crosshairLine.value != null;
+                                    },
+                                    enter: (ctx) => {
+                                        ctx.chart.canvas.style.cursor = 'crosshair';
+                                    },
+                                    leave: (ctx) => {
+                                        ctx.chart.canvas.style.cursor = 'default';
+                                    },
+                                    onDragStart: (ctx) => {
+                                        ctx.chart.canvas.style.cursor = 'crosshair';
+                                    },
+                                    onDragEnd: (ctx) => {
+                                        ctx.chart.canvas.style.cursor = 'default';
+                                    },
+                                    onDrag: (ctx) => {
+                                        const chart = ctx.chart;
+                                        const labels = chart.data.labels;
+                                        let floatIndex = ctx.element.value;
+                                        let nearestIndex = Math.round(floatIndex);
+                                        if (nearestIndex < 0) nearestIndex = 0;
+                                        if (nearestIndex >= labels.length) nearestIndex = labels.length - 1;
+
+                                        let xLabel = labels[nearestIndex];
+                                        if (!xLabel) return;
+
+                                        refreshCustomTooltip(chart, xLabel);
+                                        chart.update('none');
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Ustawiamy crosshairLine na końcu
+            if (defaultXValue) {
+                let idxDefault = window.trendChartRef.data.labels.indexOf(defaultXValue);
+                if (idxDefault < 0) idxDefault = 0;
+                window.trendChartRef.config.options.plugins.annotation.annotations.crosshairLine.value = idxDefault;
+                window.trendChartRef.update();
+
+                refreshCustomTooltip(window.trendChartRef, defaultXValue);
+            }
+        }
+
+        function refreshCustomTooltip(chart, xLabel) {
+            window.currentTooltipDate = xLabel;
+
+            const labels = chart.data.labels;
+            const idx = labels.indexOf(xLabel);
+            if (idx < 0) return;
+
+            let items = [];
+            chart.data.datasets.forEach(ds => {
+                if (ds.hidden) return;
+                const priceVal = ds.data[idx];
+                const sourceVal = ds.sourceByIndex[idx];
+                if (priceVal != null) {
+                    items.push({
+                        storeName: ds.label,
+                        price: priceVal,
+                        source: sourceVal
+                    });
+                }
+            });
+
+            // Sortujemy dane w tooltipie
+            items.sort((a, b) => {
+                if (a.price !== b.price) return a.price - b.price;
+                return a.storeName.localeCompare(b.storeName);
+            });
+
+            const tooltipEl = document.getElementById('customTrendTooltip');
+            if (!tooltipEl) return;
+
+            let html = `
+                <div style="font-weight:bold; margin-bottom:4px;">
+                    Data: ${xLabel}
+                </div>
+                <table style="width:100%; border-collapse:collapse;">
+            `;
+
+                   items.forEach(item => {
+            const storeLower = item.storeName.toLowerCase().trim();
+            const isHighlighted = (highlightedStores.indexOf(storeLower) >= 0);
+            const isMyStore = (storeLower === myStoreLower);
+
+            // Kolory dla sklepów: czerwony dla Twojego sklepu, reszta wg highlightColors
+            let colorText = 'black';
+            if (isMyStore) {
+                colorText = 'rgba(197, 0, 0, 1)';
+            } else if (isHighlighted && storeColorMap[storeLower] != null) {
+                const cIndex = storeColorMap[storeLower];
+                colorText = highlightColors[cIndex];
+            }
+
+            // Pogrubienie dla Twojego sklepu lub podświetlonych
+            let fontWeight = (isMyStore || isHighlighted) ? 'bold' : 'normal';
+
+            // Skrócenie nazwy sklepu do 30 znaków z dodaniem "..." w razie potrzeby
+            let displayName = item.storeName;
+            if (displayName.length > 30) {
+                displayName = displayName.substring(0, 27) + '...';
+            }
+
+            let iconHtml = (item.source === 'google')
+                ? `<img src="/images/GoogleShopping.png" alt="Google" style="width:16px;height:16px;margin-right:4px;" />`
+                : `<img src="/images/Ceneo.png" alt="Ceneo" style="width:16px;height:16px;margin-right:4px;" />`;
+
+            // Generowanie wiersza tabeli
+            html += `
+                <tr style="border-bottom:1px solid #eee; cursor:pointer;"
+                    onclick="toggleStoreHighlight('${item.storeName.replace("'", "\\'")}')">
+                    <td style="padding:2px; color:${colorText}; font-weight:${fontWeight}; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                        ${iconHtml} ${displayName}
+                    </td>
+                    <td style="padding:2px; text-align:right; color:${colorText}; font-weight:${fontWeight};">
+                        ${item.price} PLN
+                    </td>
+                </tr>
+            `;
+        });
+
+            html += `</table>`;
+            tooltipEl.innerHTML = html;
+            tooltipEl.style.display = items.length ? 'block' : 'none';
+        }
+
+        function externalTooltipHandler(context) {
+            const { tooltip } = context;
+            const tooltipEl = document.getElementById('customTrendTooltip');
+            if (!tooltip || tooltip.opacity === 0) {
+                return;
+            }
+        }
+
+        // FUNKCJA: przeniesienie datasetu sklepu na sam koniec tablicy, aby był rysowany na wierzchu
+        function moveDatasetToTop(storeName) {
+            const chart = window.trendChartRef;
+            if (!chart) return;
+
+            let sLower = storeName.toLowerCase().trim();
+            let dsIndex = chart.data.datasets.findIndex(ds => ds.label.toLowerCase().trim() === sLower);
+
+            if (dsIndex === -1) return; // nie znaleziono
+
+            let datasetToMove = chart.data.datasets.splice(dsIndex, 1)[0];
+            chart.data.datasets.push(datasetToMove);
+        }
+
+        // LOGIKA HIGHLIGHT (max 6 sklepów)
+        function toggleStoreHighlight(storeName) {
+            let sLower = storeName.toLowerCase().trim();
+            let idx = highlightedStores.indexOf(sLower);
+
+            if (idx >= 0) {
+                // -> Jeśli kliknięto ponownie, to usuwamy highlight
+                highlightedStores.splice(idx, 1);
+                storeColorMap[sLower] = null;
+            } else {
+                // -> Dodajemy highlight (o ile nie przekroczyliśmy limitu)
+                if (highlightedStores.length >= 6) {
+                    alert("Możesz zaznaczyć maks. 6 sklepów do porównania!");
+                    return;
+                }
+                let cIndex = findNextFreeColorIndex();
+                if (cIndex === null) {
+                    alert("Brak wolnych kolorów!");
+                    return;
+                }
+                highlightedStores.push(sLower);
+                storeColorMap[sLower] = cIndex;
+
+                // *** TU klucz: przenosimy dataset na koniec, by był na wierzchu ***
+                moveDatasetToTop(storeName);
+            }
+
+            updateHighlightedLines();
+
+            // Odświeżamy tooltip (żeby kolory i pogrubienie były aktualne)
+            if (window.trendChartRef && window.currentTooltipDate) {
+                refreshCustomTooltip(window.trendChartRef, window.currentTooltipDate);
+            }
+        }
+
+        function findNextFreeColorIndex() {
+            for (let i = 0; i < highlightColors.length; i++) {
+                let used = false;
+                for (let s in storeColorMap) {
+                    if (storeColorMap[s] === i) {
+                        used = true;
+                        break;
+                    }
+                }
+                if (!used) {
+                    return i;
+                }
+            }
+            return null;
+        }
+
+        // 5. Aktualizacja linii (kolor i kropki) + delikatna animacja
+        function updateHighlightedLines() {
+            if (!window.trendChartRef) return;
+            let chart = window.trendChartRef;
+
+            chart.data.datasets.forEach(ds => {
+                if (!ds.originalBorderColor) {
+                    ds.originalBorderColor = ds.borderColor;
+                }
+
+                let storeLower = ds.label.toLowerCase().trim();
+                let cIndex = storeColorMap[storeLower];
+                let isHighlighted = (highlightedStores.indexOf(storeLower) >= 0);
+                let isOurStore = (storeLower === myStoreLower);
+
+                if (isHighlighted && cIndex != null) {
+                    // Linie wyróżnione -> kolor + wyświetlamy punkty
+                    ds.borderColor = highlightColors[cIndex];
+                    ds.pointRadius = 0;
+                    ds.pointHoverRadius = 0;
+                } else if (isOurStore) {
+                    // Nasz sklep -> zawsze czarna linia, też z punktami
+                    ds.borderColor = 'rgba(197,0,0,1)';
+                    ds.pointRadius = 0;
+                    ds.pointHoverRadius = 0;
+                } else {
+                    // Pozostałe -> szare + brak punktów
+                    ds.borderColor = `rgba(128,128,128,${defaultGrayAlpha})`;
+                    ds.pointRadius = 0;
+                    ds.pointHoverRadius = 0;
+                }
+            });
+
+            // Wywołanie update z animacją (zmiana koloru/punktów)
+            chart.update({ duration: 0 });
+        }
+    </script>
 
 }
-

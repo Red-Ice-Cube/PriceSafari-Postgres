@@ -14,6 +14,11 @@
     var totalRejectedCountGoogle = Model.Count(item => item.GoogleIsRejected);
 }
 
+
+
+
+
+
 <div class="Vert" data-store-id="uniqueUrls">
     <div class="Vert-full">
         <div class="Order-Container-Title">
@@ -43,7 +48,29 @@
                 <div>
                     <strong>Łącznie odrzuc. Google: </strong><span id="totalRejectedCountGoogle">@totalRejectedCountGoogle</span>
                 </div>
+                <div id="controlXYCountdown" style="display:none;
+                     background-color: rgba(0, 128, 0, 0.1);
+                     border: 2px solid #008000;
+                     color: #008000;
+                     font-weight:400;
+                     border-radius:4px;
+                     padding: 8px;">
+                    Uruchomienie ControlXY za <span id="controlXYCounter">10</span> sekund...
+                </div>
+
+                <!-- Nowe, czerwone ostrzeżenie na 8 sekund -->
+                <div id="controlXYWarning" style="display:none;
+                     background-color: rgba(255, 0, 0, 0.1);
+                     border: 2px solid #ff0000;
+                     color: #ff0000;
+                     font-weight:600;
+                     border-radius:4px;
+                     padding: 8px;">
+                    UWAGA! Kontrola XY jest włączona!
+                </div>
+
             </div>
+
         </div>
         <div class="bar-List">
             <form asp-action="GroupAndSaveUniqueUrls" asp-controller="PriceScraping" method="post">
@@ -56,7 +83,8 @@
                 <button type="submit" class="Button-Page-Small-bl">Rozpocznij scrapowanie Google</button>
             </form>
 
-            <button id="stopScrapingButton" class="Button-Page-Small-y">Przerwij scrapowanie</button>
+            <button id="stopScrapingCeneoButton" class="Button-Page-Small-y">Przerwij scrapowanie Ceneo</button>
+            <button id="stopScrapingGoogleButton" class="Button-Page-Small-y">Przerwij scrapowanie Google</button>
             <form id="clearRejectedAndScrapedForm" asp-controller="PriceScraping" asp-action="ClearRejectedAndScrapedProducts" method="post">
                 <button type="submit" class="Button-Page-Small-o">Resetuj odrzucone statusy</button>
             </form>
@@ -391,6 +419,48 @@
                 }
             });
 
+
+                  connection.on("ReceiveControlXYCountdown", function(startValue) {
+            // startValue = np. 10
+
+            var countdownDiv = document.getElementById("controlXYCountdown");
+            var counterSpan = document.getElementById("controlXYCounter");
+            var warningDiv   = document.getElementById("controlXYWarning");
+
+          
+            countdownDiv.style.display = "block";
+
+            
+            var timeLeft = startValue;
+            counterSpan.textContent = timeLeft;
+
+           
+            var intervalId = setInterval(function() {
+                timeLeft--;
+                counterSpan.textContent = timeLeft;
+
+                
+                if (timeLeft <= 0) {
+                    clearInterval(intervalId);
+                    countdownDiv.style.display = "none";
+
+                   
+                    setTimeout(function() {
+                        warningDiv.style.display = "block";
+
+                        setTimeout(function() {
+                            warningDiv.style.display = "none";
+                        }, 15000);
+                      
+                    }, 1000);
+                    
+                }
+            }, 1000);
+        });
+
+
+
+
             connection.start().catch(function (err) {
                 return console.error(err.toString());
             });
@@ -429,18 +499,32 @@
                 });
             });
 
-            $('#stopScrapingButton').on('click', function () {
-                $.ajax({
-                    url: '/PriceScraping/StopScraping',
-                    method: 'POST',
-                    success: function () {
-                        console.log('Scraping stopped successfully');
-                    },
-                    error: function () {
-                        console.error('Error stopping scraping');
-                    }
-                });
+        $('#stopScrapingCeneoButton').on('click', function () {
+            $.ajax({
+                url: '/PriceScraping/StopScraping',
+                method: 'POST',
+                success: function () {
+                    console.log('Scraping Ceneo stopped successfully');
+                },
+                error: function () {
+                    console.error('Error stopping scraping Ceneo');
+                }
             });
+        });
+
+        $('#stopScrapingGoogleButton').on('click', function () {
+            $.ajax({
+                url: '/GoogleMainPriceScraper/StopScrapingGoogle',
+                method: 'POST',
+                success: function () {
+                    console.log('Scraping Google stopped successfully');
+                },
+                error: function () {
+                    console.error('Error stopping scraping Google');
+                }
+            });
+        });
+
 
             function updateCounters() {
                 var rows = document.querySelectorAll("#scrapingTableBody tr");

@@ -20,6 +20,7 @@ namespace PriceSafari.Models
 
         public bool GetCeneoName { get; set; } = false;
 
+        public bool ControlXY { get; set; } = false;
 
 
         public Settings()

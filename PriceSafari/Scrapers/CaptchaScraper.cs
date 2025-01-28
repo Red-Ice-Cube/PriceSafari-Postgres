@@ -134,8 +134,8 @@ namespace PriceSafari.Scrapers
             }
         }
 
-        public async Task<(List<(string storeName, decimal price, decimal? shippingCostNum, int? availabilityNum, string isBidding, string? position, string? ceneoName)> Prices, string Log, List<(string Reason, string Url)> RejectedProducts)> HandleCaptchaAndScrapePricesAsync(
-        string url, bool getCeneoName, List<string> storeNames, List<string> storeProfiles)
+        public async Task<(List<(string storeName, decimal price, decimal? shippingCostNum, int? availabilityNum, string isBidding, string? position, string? ceneoName)> Prices, string Log, List<(string Reason, string Url)> RejectedProducts)>
+    HandleCaptchaAndScrapePricesAsync(string url, bool getCeneoName, List<string> storeNames, List<string> storeProfiles)
         {
             var priceResults = new List<(string storeName, decimal price, decimal? shippingCostNum, int? availabilityNum, string isBidding, string? position, string? ceneoName)>();
             var rejectedProducts = new List<(string Reason, string Url)>();
@@ -155,39 +155,43 @@ namespace PriceSafari.Scrapers
                     throw new Exception("Browser page is not initialized.");
                 }
 
-                // Navigate to the URL but only wait until DOMContentLoaded
+                // Główne przejście na stronę (krótki timeout)
                 await _page.GoToAsync(url, new NavigationOptions
                 {
                     WaitUntil = new[] { WaitUntilNavigation.DOMContentLoaded }
                 });
 
-                // Wait for the offer nodes to be available
-                await _page.WaitForSelectorAsync("li.product-offers__list__item");
+              
+                await _page.WaitForSelectorAsync("li.product-offers__list__item", new WaitForSelectorOptions
+                {
+                    Timeout = 3000
+                });
 
                 var currentUrl = _page.Url;
 
-                // Check for Captcha
+                // Obsługa Captchy
                 while (currentUrl.Contains("/Captcha/Add"))
                 {
                     Console.WriteLine("Captcha detected. Please solve it manually in the browser.");
                     while (currentUrl.Contains("/Captcha/Add"))
                     {
-                        await Task.Delay(15000);
+                     
+                        await Task.Delay(150000);
                         currentUrl = _page.Url;
                     }
                 }
 
-                // Get total number of offers
+                // Liczba wszystkich ofert
                 var totalOffersCount = await GetTotalOffersCountAsync();
                 Console.WriteLine($"Total number of offers: {totalOffersCount}");
 
-                // Scrape prices from the current page
+                // 1) Wczytujemy oferty z bieżącej strony
                 var (mainPrices, scrapeLog, scrapeRejectedProducts) = await ScrapePricesFromCurrentPage(url, true, getCeneoName);
                 priceResults.AddRange(mainPrices);
                 log = scrapeLog;
                 rejectedProducts.AddRange(scrapeRejectedProducts);
 
-                // Fetch additional pages if there are more offers
+                // 2) Jeżeli > 15 ofert, wtedy dopiero sprawdzamy strony z sortowaniem i fastestDelivery
                 if (totalOffersCount > 15)
                 {
                     var sortedUrl = $"{url};0281-0.htm";
@@ -195,7 +199,10 @@ namespace PriceSafari.Scrapers
                     {
                         WaitUntil = new[] { WaitUntilNavigation.DOMContentLoaded }
                     });
-                    await _page.WaitForSelectorAsync("li.product-offers__list__item");
+                    await _page.WaitForSelectorAsync("li.product-offers__list__item", new WaitForSelectorOptions
+                    {
+                        Timeout = 3000
+                    });
 
                     var (sortedPrices, sortedLog, sortedRejectedProducts) = await ScrapePricesFromCurrentPage(sortedUrl, false, getCeneoName);
                     log += sortedLog;
@@ -209,28 +216,8 @@ namespace PriceSafari.Scrapers
                         }
                     }
 
-                    //if (priceResults.Count < totalOffersCount)
-                    //{
-                    //    var nextSortedUrl = $"{url};0281-0.htm";
-                    //    await _page.GoToAsync(nextSortedUrl, new NavigationOptions
-                    //    {
-                    //        WaitUntil = new[] { WaitUntilNavigation.DOMContentLoaded }
-                    //    });
-                    //    await _page.WaitForSelectorAsync("li.product-offers__list__item");
-
-                    //    var (nextSortedPrices, nextSortedLog, nextSortedRejectedProducts) = await ScrapePricesFromCurrentPage(nextSortedUrl, false, getCeneoName);
-                    //    log += nextSortedLog;
-                    //    rejectedProducts.AddRange(nextSortedRejectedProducts);
-
-                    //    foreach (var nextSortedPrice in nextSortedPrices)
-                    //    {
-                    //        if (!priceResults.Any(p => p.storeName == nextSortedPrice.storeName && p.price == nextSortedPrice.price))
-                    //        {
-                    //            priceResults.Add(nextSortedPrice);
-                    //        }
-                    //    }
-                    //}
-
+                    // Jeśli wciąż mamy mniej ofert, a totalOffersCount > 15, 
+                    // wchodzimy na fastestDeliveryUrl
                     if (priceResults.Count < totalOffersCount)
                     {
                         var fastestDeliveryUrl = $"{url};0282-1;02516.htm";
@@ -238,7 +225,10 @@ namespace PriceSafari.Scrapers
                         {
                             WaitUntil = new[] { WaitUntilNavigation.DOMContentLoaded }
                         });
-                        await _page.WaitForSelectorAsync("li.product-offers__list__item");
+                        await _page.WaitForSelectorAsync("li.product-offers__list__item", new WaitForSelectorOptions
+                        {
+                            Timeout = 3000
+                        });
 
                         var (fastestDeliveryPrices, fastestDeliveryLog, fastestDeliveryRejectedProducts) = await ScrapePricesFromCurrentPage(fastestDeliveryUrl, false, getCeneoName);
                         log += fastestDeliveryLog;
@@ -252,42 +242,48 @@ namespace PriceSafari.Scrapers
                             }
                         }
                     }
-                }
 
-                // Check for desired stores
-                var foundStoreNames = priceResults.Select(p => p.storeName).Distinct().ToList();
+                    // 3) Jeżeli mamy powyżej 15 ofert, to sprawdzajmy szczegółowe linki sklepów,
+                    //    ale tylko wtedy, jeśli rzeczywiście czegoś brakuje
+                    var foundStoreNames = priceResults.Select(p => p.storeName).Distinct().ToList();
+                    var desiredStores = storeNames.Zip(storeProfiles, (name, profile) => new { StoreName = name, StoreProfile = profile }).ToList();
+                    var notFoundStores = desiredStores.Where(ds => !foundStoreNames.Contains(ds.StoreName)).ToList();
 
-                var desiredStores = storeNames.Zip(storeProfiles, (name, profile) => new { StoreName = name, StoreProfile = profile }).ToList();
-                var notFoundStores = desiredStores.Where(ds => !foundStoreNames.Contains(ds.StoreName)).ToList();
-
-                // Iterate over not found stores
-                foreach (var store in notFoundStores)
-                {
-                    var storeSpecificUrl = $"{url};{store.StoreProfile}-0v.htm";
-                    await _page.GoToAsync(storeSpecificUrl, new NavigationOptions
+                    foreach (var store in notFoundStores)
                     {
-                        WaitUntil = new[] { WaitUntilNavigation.DOMContentLoaded }
-                    });
-                    await _page.WaitForSelectorAsync("li.product-offers__list__item");
+                        var storeSpecificUrl = $"{url};{store.StoreProfile}-0v.htm";
+                        await _page.GoToAsync(storeSpecificUrl, new NavigationOptions
+                        {
+                            WaitUntil = new[] { WaitUntilNavigation.DOMContentLoaded }
+                        });
+                        await _page.WaitForSelectorAsync("li.product-offers__list__item", new WaitForSelectorOptions
+                        {
+                            Timeout = 3000
+                        });
 
-                    var (storePrices, storeLog, storeRejectedProducts) = await ScrapePricesFromCurrentPage(storeSpecificUrl, false, getCeneoName);
+                        var (storePrices, storeLog, storeRejectedProducts) = await ScrapePricesFromCurrentPage(storeSpecificUrl, false, getCeneoName);
+                        var storeSpecificOffers = storePrices
+                            .Where(p => p.storeName == store.StoreName)
+                            .Select(p => (
+                                p.storeName,
+                                p.price,
+                                p.shippingCostNum,
+                                p.availabilityNum,
+                                p.isBidding,
+                                position: (string?)null,
+                                p.ceneoName
+                            ))
+                            .ToList();
 
-                    var storeSpecificOffers = storePrices.Where(p => p.storeName == store.StoreName).ToList();
-
-                    storeSpecificOffers = storeSpecificOffers.Select(p => (
-                        p.storeName,
-                        p.price,
-                        p.shippingCostNum,
-                        p.availabilityNum,
-                        p.isBidding,
-                        position: (string?)null,
-                        p.ceneoName
-                    )).ToList();
-
-                    priceResults.AddRange(storeSpecificOffers);
-
-                    log += storeLog;
-                    rejectedProducts.AddRange(storeRejectedProducts);
+                        priceResults.AddRange(storeSpecificOffers);
+                        log += storeLog;
+                        rejectedProducts.AddRange(storeRejectedProducts);
+                    }
+                }
+                else
+                {
+                    // Jeżeli <= 15 ofert, to wszystko mamy na jednej stronie
+                    log += "No need for additional pages or store-specific URLs (<= 15 offers). ";
                 }
 
                 log += $"Scraping completed, found {priceResults.Count} unique offers in total.";
@@ -301,6 +297,7 @@ namespace PriceSafari.Scrapers
 
             return (priceResults, log, rejectedProducts);
         }
+
 
         private async Task<int> GetTotalOffersCountAsync()
         {

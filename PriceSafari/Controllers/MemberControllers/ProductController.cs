@@ -82,6 +82,7 @@ namespace PriceSafari.Controllers
                 return Forbid();
             }
 
+            // Tutaj dodajemy trzy nowe daty do anonimu:
             var products = await _context.Products
                 .Where(p => p.StoreId == storeId)
                 .Select(p => new
@@ -97,7 +98,11 @@ namespace PriceSafari.Controllers
                     p.MarginPrice,
                     p.MainUrl,
                     p.GoogleUrl,
-                   
+
+                    // Nowe pola dat
+                    AddedDate = p.AddedDate,
+                    FoundOnGoogleDate = p.FoundOnGoogleDate,
+                    FoundOnCeneoDate = p.FoundOnCeneoDate
                 })
                 .ToListAsync();
 

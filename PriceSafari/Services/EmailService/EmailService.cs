@@ -2,7 +2,6 @@
 using System.Net;
 using System.Net.Mail;
 using System.Net.Mime;
-using System.Threading.Tasks;
 
 public class EmailService : IEmailSender
 {
@@ -23,43 +22,42 @@ public class EmailService : IEmailSender
 
     public async Task SendEmailAsync(string email, string subject, string htmlMessage)
     {
-        using (var client = new SmtpClient(_mailServer, _mailPort))
+        using var client = new SmtpClient(_mailServer, _mailPort)
         {
-            client.UseDefaultCredentials = false;
-            client.Credentials = new NetworkCredential(_sender, _password);
-            client.EnableSsl = true;
+            UseDefaultCredentials = false,
+            Credentials = new NetworkCredential(_sender, _password),
+            EnableSsl = true
+        };
 
-            var mailMessage = new MailMessage
+        var mailMessage = new MailMessage
+        {
+            From = new MailAddress(_sender, _senderName),
+            Subject = subject,
+            Body = htmlMessage,
+            IsBodyHtml = true,
+        };
+        mailMessage.To.Add(email);
+
+     
+        if (htmlMessage.Contains("cid:signatureImage", StringComparison.OrdinalIgnoreCase))
+        {
+            var signaturePath = Path.Combine(
+                Directory.GetCurrentDirectory(),
+                "wwwroot",
+                "cid",
+                "signature.png"
+            );
+
+            if (File.Exists(signaturePath))
             {
-                From = new MailAddress(_sender, _senderName),
-                Subject = subject,
-                Body = htmlMessage,
-                IsBodyHtml = true,
-            };
-            mailMessage.To.Add(email);
-
-            // Ścieżka do obrazka
-            var imagePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "cid", "signature.png");
-
-            // Sprawdzenie, czy plik istnieje
-            if (File.Exists(imagePath))
-            {
-                // Utworzenie załącznika
-                Attachment inline = new Attachment(imagePath);
-                inline.ContentId = "signatureImage";
-                inline.ContentDisposition.Inline = true;
-                inline.ContentDisposition.DispositionType = DispositionTypeNames.Inline;
-
-                // Dodanie załącznika do wiadomości
-                mailMessage.Attachments.Add(inline);
+                var signatureAttachment = new Attachment(signaturePath);
+                signatureAttachment.ContentId = "signatureImage";
+                signatureAttachment.ContentDisposition.Inline = true;
+                signatureAttachment.ContentDisposition.DispositionType = DispositionTypeNames.Inline;
+                mailMessage.Attachments.Add(signatureAttachment);
             }
-            else
-            {
-               
-            }
-
-            await client.SendMailAsync(mailMessage);
         }
-    }
 
+        await client.SendMailAsync(mailMessage);
+    }
 }

@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using PriceSafari.Hubs;
 using PriceSafari.Services.ViewRenderService;
 using PriceSafari.Scrapers;
+using PriceSafari.Services.ControlXY;
 
 
 
@@ -46,7 +47,7 @@ public class Program
         builder.Services.AddSignalR();
         builder.Services.AddHostedService<KeepAliveService>();
         builder.Services.AddTransient<IViewRenderService, ViewRenderService>();
-
+        builder.Services.AddSingleton<ControlXYService>();
         builder.Services.AddScoped<StoreProcessingService>();
         builder.Services.AddHostedService<ScheduledTaskService>();
 
