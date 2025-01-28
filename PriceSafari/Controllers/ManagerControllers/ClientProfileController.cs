@@ -324,55 +324,59 @@ public class ClientProfileController : Controller
     private string GetEmailContent1()
     {
         return @"
-                <p>Dzień dobry,</p>
+            <p>Dzień dobry,</p>
 
-                <p>Monitorujemy ceny produktów na Google Shopping, Ceneo i Allegro.</p>
+            <p>Monitorujemy ceny produktów na Google Shopping, Ceneo i Allegro.</p>
 
-                <p>Na samym Ceneo zaindeksowaliśmy <strong>{ProductCount}</strong> produktów dostępnych w Państwa sklepie, które moglibyśmy zacząć monitorować.</p>
+            <p>Na samym Ceneo zaindeksowaliśmy <strong>{ProductCount}</strong> produktów dostępnych w Państwa sklepie, które moglibyśmy zacząć monitorować.</p>
 
-                <p>Dzięki śledzeniu cen, możemy szybko sprawdzić:</p>
+            <p>Dzięki śledzeniu cen, możemy szybko sprawdzić:</p>
 
-                <ul>
-                    <li>Kto ma najlepszą cenę na danym produkcie?</li>
-                    <li>Gdzie w rankingu cenowym znajduje się Państwa oferta?</li>
-                    <li>Kto i gdzie promuje oferty?</li>
-                    <li>Jak szeroka jest konkurencja?</li>
-                    <li>Jaki czas wysyłki oferują poszczególni konkurenci?</li>
-                    <li>Które ceny produktów można podnieść, aby maksymalizować zyski, wiedząc, że są najtańszymi ofertami na całym rynku?</li>
-                    <li>Na jakich produktach wybrany konkurent zmienił wczoraj cenę?</li>
-                </ul>
+            <ul>
+                <li>Kto ma najlepszą cenę na danym produkcie?</li>
+                <li>Gdzie w rankingu cenowym znajduje się Państwa oferta?</li>
+                <li>Kto i gdzie promuje oferty?</li>
+                <li>Jak szeroka jest konkurencja?</li>
+                <li>Jaki czas wysyłki oferują poszczególni konkurenci?</li>
+                <li>Które ceny produktów można podnieść, aby maksymalizować zyski, wiedząc, że są najtańszymi ofertami na całym rynku?</li>
+                <li>Na jakich produktach wybrany konkurent zmienił wczoraj cenę?</li>
+            </ul>
 
+            <p>Panel PriceSafari z danymi jednej z zaprzyjaźnionych firm:</p>
+            <img src=""https://pricesafari.pl/mail/Panel_PriceSafari.png"" alt=""Panel_PriceSafari"" style=""width: 1400px; height: auto;"" />
 
-                
-                <p>Panel PriceSafari z danymi jednej z zaprzyjaźnionych firm:</p>
-                <img src=""cid:Image1"" alt=""Panel_PriceSafari"" style=""width: 1400px; height: auto;""/>
+            <p>Rozkład cen:</p>
+            <img src=""https://pricesafari.pl/mail/Ranking_PriceSafari.png"" alt=""Ranking_PriceSafari"" style=""width: 1400px; height: auto;"" />
 
-                <p>Rozkład cen:</p>
-                <img src=""cid:Image2"" alt=""Ranking_PriceSafari"" style=""width: 1400px; height: auto;""/>
+            <p>Ceny w czasie:</p>
+            <img src=""https://pricesafari.pl/mail/Wykres_PriceSafari.png"" alt=""Wykres_PriceSafari"" style=""width: 1400px; height: auto;"" />
 
+            <p><strong>Raporty cenowe w Europie</strong></p>
+            <p>
+                Posiadamy też oczywiście możliwość śledzenia ofert na googlu w 16 krajach w EU. 
+                Zbieramy wtedy dane ze wszystkich porównywarek cenowych takich jak Zbozi.cz, Heureca.cz czy Idealo i Allegro. 
+                Jest to już inna część programu, gdzie nie zbieramy cen każdego dnia tylko robimy taki raport na zlecenie dla wybranych produktów i rynków.
+                Nasi klienci wykorzystują takie raporty głównie przed składaniem zamówień u dystrybutorów, ponieważ widać wtedy od razu, czy oferowane ceny są dobre. 
+                Zdarzają się często takie przypadki, że np. w Rumunii czy w Czechach możemy znaleźć produkt w o wiele niższej cenie, 
+                co może posłużyć jako podstawa do dalszych negocjacji czy zamówienia towaru zza granicy.
+            </p>
+            <p>
+                Raporty to nie pliki excel (jak w konkurencyjnych rozwiązaniach), tylko panel, który automatycznie przelicza ceny 
+                z różnych walut po kursach NBP na PLN.
+            </p>
 
-                <p>Ceny w czasie:</p>
-                <img src=""cid:Image3"" alt=""Wykres_PriceSafari"" style=""width: 1400px; height: auto;""/>
+            <img src=""https://pricesafari.pl/mail/Eu_PriceSafari.png"" alt=""Eu_PriceSafari"" style=""width: 1400px; height: auto;"" />
 
-              
+            <p>
+                Raporty można też wykorzystać w drugą stronę i przeanalizować np. czeski rynek, odkryć na jakich produktach jesteśmy 
+                tańsi o 30% od najtańszego Czecha i wejść z ofertą na Allegro.cz.
+            </p>
+            <img src=""https://pricesafari.pl/mail/Czechy_PriceSafari.png"" alt=""Czechy_PriceSafari"" style=""width: 1400px; height: auto;"" />
+            <img src=""https://pricesafari.pl/mail/Produkt_Czechy_PriceSafari.png"" alt=""Produkt_Czechy_PriceSafari"" style=""width: 1400px; height: auto;"" />
 
-                
-                 <p><strong>Raporty cenowe w Europie</strong></p>
-                <p>Posiadamy też oczywiście możliwość śledzenia ofert na googlu w 16 krachaj w EU. Zbieramy wtedy dane ze wszystkich porównywarek cenowych takich jak Zbozi.cz, Heureca.cz czy Idealo i Allegro. Jest to już inna część programu, gdzie nie zbieramy cen każdego dnia tylko robimy taki raport na zlecenie dla wybranych produktów i rynków. 
-                Nasi klienci wykorzystują takie raporty głownie przed składaniem zamówień u dystrybutorów, ponieważ widać wtedy od razu czy oferowane ceny są dobre. Zdarzają się często takie przypadki, ze na przykład w Rumuni czy na Czechach możemy znaleźć produkt w o wiele niższej cenie, co może posłużyć jako podstawa do dalszych negocjacji czy zamówienia towaru zza granicy. </p>
-                 <p>Raporty to nie pliki excel (jak w konkurencyjnych rozwiązaniach), tylko panel który automatycznie przelicza ceny z różnych walut po kursach NBP na PLN.</p>
-
-
-                <img src=""cid:Image4"" alt=""Eu_PriceSafari"" style=""width: 1400px; height: auto;""/>
-
-                <p>Raporty można też wykorzystać w drugą stronę i przeanalizować na przykład czeski rynek i odkryć na jakich produktach jesteśmy na przykład tańsi o 30% od najtańszego Czecha i wejść z ofertą na Allegro.cz.</p>
-                <img src=""cid:Image5"" alt=""Czechy_PriceSafari"" style=""width: 1400px; height: auto;""/>  
-                <img src=""cid:Image6"" alt=""Produkt_Czechy_PriceSafari"" style=""width: 1400px; height: auto;""/> 
-
-
-                <p>Zapraszamy do kontaktu. Oferujemy bezpłatne konto demo, na którym mogą Państwo przetestować nasz program na 500 własnych produktach.</p>
-                 <p><strong>Konto demo przygotujemy w kilka godzin.</strong></p>
-        ";
+            <p>Zapraszamy do kontaktu. Oferujemy bezpłatne konto demo, na którym mogą Państwo przetestować nasz program na 500 własnych produktach.</p>
+            <p><strong>Konto demo przygotujemy w kilka godzin.</strong></p>
+            ";
     }
 
     private string GetEmailContent2()
@@ -404,7 +408,7 @@ public class ClientProfileController : Controller
         <strong>Zespół PriceSafari</strong>
     </p>
     <p>
-        Tel.: +48 514 188 340<br />
+        Tel.: +48 791 855 755<br />
         <a href=""mailto:biuro@pricesafari.pl"">biuro@pricesafari.pl</a><br />
         <a href=""https://www.pricesafari.pl"">www.pricesafari.pl</a>
     </p>
