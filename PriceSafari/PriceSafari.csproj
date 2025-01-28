@@ -43,6 +43,7 @@
 		<Folder Include="Migrations\" />
 		<Folder Include="wwwroot\js\Home\" />
 		<Folder Include="wwwroot\icon\" />
+		<Folder Include="wwwroot\mail\" />
 		<Folder Include="wwwroot\pdf\" />
 	</ItemGroup>
 

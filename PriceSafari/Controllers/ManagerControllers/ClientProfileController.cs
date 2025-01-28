@@ -262,7 +262,7 @@ public class ClientProfileController : Controller
                 break;
         }
 
-        // Fetch all clients and filter in-memory
+   
         var allClients = await _context.ClientProfiles.ToListAsync();
         var clientsToEmail = allClients
             .Where(cp => model.SelectedClientIds.Contains(cp.ClientProfileId))
@@ -272,26 +272,24 @@ public class ClientProfileController : Controller
         {
             try
             {
-                // Personalizujemy treść, jeśli w danym mailu mamy {ProductCount}.
-                // Zamiast replace'ować zawsze, można w pewnych mailach w ogóle nie mieć takiego placeholdera.
+               
                 var personalizedContent = baseContent
                     .Replace("{ClientName}", client.CeneoProfileName);
 
-                // Tylko w Mailu #1 i #3 chcemy liczyć ProductCount, a w #2 np. nie.
-                // Możemy to zrobić warunkowo:
+             
                 if (model.SelectedMailType == 1 || model.SelectedMailType == 3)
                 {
                     personalizedContent = personalizedContent.Replace("{ProductCount}", client.CeneoProfileProductCount.ToString());
                 }
                 else
                 {
-                    // Jeżeli w mailu #2 byłoby {ProductCount}, to kasujemy/zerujemy itp.
+                  
                     personalizedContent = personalizedContent.Replace("{ProductCount}", "");
                 }
 
                 var emailBody = personalizedContent + GetEmailFooter();
 
-                // Split the emails by comma or semicolon
+               
                 var emailAddresses = client.CeneoProfileEmail
                     .Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries)
                     .Select(e => e.Trim())
@@ -311,7 +309,7 @@ public class ClientProfileController : Controller
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Błąd podczas wysyłania maila do {Email}", client.CeneoProfileEmail);
-                // Optionally handle errors
+             
             }
         }
 
@@ -328,13 +326,11 @@ public class ClientProfileController : Controller
         return @"
                 <p>Dzień dobry,</p>
 
-                <p>Codziennie monitorujemy ceny produktów na Google Shopping, Ceneo i Allegro.</p>
+                <p>Monitorujemy ceny produktów na Google Shopping, Ceneo i Allegro.</p>
 
-                <p>Na samym Ceneo zaindeksowaliśmy <strong>{ProductCount}</strong> produktów dostępnych w Państwa sklepie, które moglibyśmy zacząć monitorować, dostarczając codziennie aktualne raporty rynkowe.</p>
-                
-             
+                <p>Na samym Ceneo zaindeksowaliśmy <strong>{ProductCount}</strong> produktów dostępnych w Państwa sklepie, które moglibyśmy zacząć monitorować.</p>
 
-                <p>Jak bardzo mogłaby wzrosnąć efektywność Państwa pracy dzięki dostępowi do informacji:</p>
+                <p>Dzięki śledzeniu cen, możemy szybko sprawdzić:</p>
 
                 <ul>
                     <li>Kto ma najlepszą cenę na danym produkcie?</li>
@@ -346,13 +342,36 @@ public class ClientProfileController : Controller
                     <li>Na jakich produktach wybrany konkurent zmienił wczoraj cenę?</li>
                 </ul>
 
-                <p>Strategiczne ceny gwarantują, że Państwa produkty są tak konkurencyjne, jak powinny, a także zapewniają odpowiedni zysk. Nie chodzi tylko o bycie najtańszym, ale także o bycie najmądrzejszym. 
-                   Połączenie spostrzeżeń z wydajnością gwarantuje szybsze i pewniejsze decyzje o zmianach cen.</p>
 
-                <p>PriceSafari to pełny wgląd w rynek z poziomu jednego pulpitu.</p>
-               
+                
+                <p>Panel PriceSafari z danymi jednej z zaprzyjaźnionych firm:</p>
+                <img src=""cid:Image1"" alt=""Panel_PriceSafari"" style=""width: 1400px; height: auto;""/>
 
-                <p>Zapraszamy do kontaktu. Oferujemy bezpłatne konto demo, na którym mogą Państwo przetestować nasz program na 300 własnych produktach.</p>
+                <p>Rozkład cen:</p>
+                <img src=""cid:Image2"" alt=""Ranking_PriceSafari"" style=""width: 1400px; height: auto;""/>
+
+
+                <p>Ceny w czasie:</p>
+                <img src=""cid:Image3"" alt=""Wykres_PriceSafari"" style=""width: 1400px; height: auto;""/>
+
+              
+
+                
+                 <p><strong>Raporty cenowe w Europie</strong></p>
+                <p>Posiadamy też oczywiście możliwość śledzenia ofert na googlu w 16 krachaj w EU. Zbieramy wtedy dane ze wszystkich porównywarek cenowych takich jak Zbozi.cz, Heureca.cz czy Idealo i Allegro. Jest to już inna część programu, gdzie nie zbieramy cen każdego dnia tylko robimy taki raport na zlecenie dla wybranych produktów i rynków. 
+                Nasi klienci wykorzystują takie raporty głownie przed składaniem zamówień u dystrybutorów, ponieważ widać wtedy od razu czy oferowane ceny są dobre. Zdarzają się często takie przypadki, ze na przykład w Rumuni czy na Czechach możemy znaleźć produkt w o wiele niższej cenie, co może posłużyć jako podstawa do dalszych negocjacji czy zamówienia towaru zza granicy. </p>
+                 <p>Raporty to nie pliki excel (jak w konkurencyjnych rozwiązaniach), tylko panel który automatycznie przelicza ceny z różnych walut po kursach NBP na PLN.</p>
+
+
+                <img src=""cid:Image4"" alt=""Eu_PriceSafari"" style=""width: 1400px; height: auto;""/>
+
+                <p>Raporty można też wykorzystać w drugą stronę i przeanalizować na przykład czeski rynek i odkryć na jakich produktach jesteśmy na przykład tańsi o 30% od najtańszego Czecha i wejść z ofertą na Allegro.cz.</p>
+                <img src=""cid:Image5"" alt=""Czechy_PriceSafari"" style=""width: 1400px; height: auto;""/>  
+                <img src=""cid:Image6"" alt=""Produkt_Czechy_PriceSafari"" style=""width: 1400px; height: auto;""/> 
+
+
+                <p>Zapraszamy do kontaktu. Oferujemy bezpłatne konto demo, na którym mogą Państwo przetestować nasz program na 500 własnych produktach.</p>
+                 <p><strong>Konto demo przygotujemy w kilka godzin.</strong></p>
         ";
     }
 

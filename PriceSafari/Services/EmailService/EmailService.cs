@@ -38,28 +38,68 @@ public class EmailService : IEmailSender
             };
             mailMessage.To.Add(email);
 
-            // Ścieżka do obrazka
-            var imagePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "cid", "signature.png");
+      
+            var imagesToEmbed = new Dictionary<string, string>()
+        {
+            { "Image1", "Panel_PriceSafari.png" },
+            { "Image2", "Ranking_PriceSafari.png" },
+            { "Image3", "Wykres_PriceSafari.png" },
+            { "Image4", "Eu_PriceSafari.png" },
+            { "Image5", "Czechy_PriceSafari.png" },
+            { "Image6", "Produkt_Czechy_PriceSafari.png" },
 
-            // Sprawdzenie, czy plik istnieje
-            if (File.Exists(imagePath))
+        };
+
+            foreach (var pair in imagesToEmbed)
             {
-                // Utworzenie załącznika
-                Attachment inline = new Attachment(imagePath);
-                inline.ContentId = "signatureImage";
-                inline.ContentDisposition.Inline = true;
-                inline.ContentDisposition.DispositionType = DispositionTypeNames.Inline;
+                var contentId = pair.Key;     // np. "Image1"
+                var fileName = pair.Value;    // np. "1.png"
 
-                // Dodanie załącznika do wiadomości
-                mailMessage.Attachments.Add(inline);
+                // Ścieżka do pliku w katalogu wwwroot/mail
+                var imagePath = Path.Combine(
+                    Directory.GetCurrentDirectory(),
+                    "wwwroot",
+                    "mail",
+                    fileName
+                );
+
+                if (File.Exists(imagePath))
+                {
+                    // Tworzymy Attachment ze ścieżki do pliku
+                    var inline = new Attachment(imagePath);
+
+                    // Ustawiamy ContentId = temu, co używasz w HTML (cid:Image1, etc.)
+                    inline.ContentId = contentId;
+                    inline.ContentDisposition.Inline = true;
+                    inline.ContentDisposition.DispositionType = DispositionTypeNames.Inline;
+
+                    mailMessage.Attachments.Add(inline);
+                }
+                else
+                {
+                 
+                }
             }
-            else
+
+            var signaturePath = Path.Combine(
+                Directory.GetCurrentDirectory(),
+                "wwwroot",
+                "cid", // jeśli masz osobny folder 'cid'
+                "signature.png"
+            );
+            if (File.Exists(signaturePath))
             {
-               
+                var signatureAttachment = new Attachment(signaturePath);
+                signatureAttachment.ContentId = "signatureImage";
+                signatureAttachment.ContentDisposition.Inline = true;
+                signatureAttachment.ContentDisposition.DispositionType = DispositionTypeNames.Inline;
+                mailMessage.Attachments.Add(signatureAttachment);
             }
 
+            // Wysyłamy maila
             await client.SendMailAsync(mailMessage);
         }
     }
+
 
 }
