@@ -139,7 +139,7 @@ namespace PriceSafari.Controllers.ManagerControllers
         // Możliwe nazwy (synonimy) w węźle <attrs><a name="...">
         private static readonly string[] EanPossibleNames = new[]
         {
-    "EAN", "Kod EAN", "EAN CODE", "kod ean"
+            "EAN", "Kod EAN", "EAN CODE", "kod ean"
         };
 
                 private static readonly string[] ProducerCodePossibleNames = new[]
@@ -157,11 +157,6 @@ namespace PriceSafari.Controllers.ManagerControllers
 
 
 
-
-        /// <summary>
-        /// Szuka wewnątrz <attrs> elementu <a name="...">, którego "name"
-        /// pasuje do jednego z możliwych nazw i zwraca jego zawartość (Value).
-        /// </summary>
         private string GetAttributeValue(XElement attrsElement, string[] possibleNames)
         {
             if (attrsElement == null) return null;
@@ -300,12 +295,158 @@ namespace PriceSafari.Controllers.ManagerControllers
             productMap.ExportedName = productName;
             productMap.Ean = ean;
             productMap.CatalogNumber = producerCode;
-            // ... jeżeli chcesz "Kod producenta" zapisać w .CatalogNumber
-
-            // Możesz też dodać pole np. productMap.Producer = producer;
-
-            // i ewentualnie zapisać priceAttr, desc, category, cokolwiek chcesz
+        
         }
+
+
+
+        //apteka 
+
+
+        //[HttpPost]
+        //public async Task<IActionResult> ImportProductsFromGoogleXml(int storeId)
+        //{
+        //    var store = await _context.Stores.FindAsync(storeId);
+        //    if (store == null || string.IsNullOrEmpty(store.ProductMapXmlUrlGoogle))
+        //    {
+        //        TempData["ErrorMessage"] = "Nie znaleziono sklepu lub brak adresu URL pliku XML Google.";
+        //        return RedirectToAction("Index");
+        //    }
+
+        //    try
+        //    {
+        //        using (var client = new HttpClient())
+        //        {
+        //            Console.WriteLine($"[GoogleImport] Pobieranie pliku XML z: {store.ProductMapXmlUrlGoogle}");
+
+        //            var response = await client.GetStringAsync(store.ProductMapXmlUrlGoogle);
+        //            Console.WriteLine($"[GoogleImport] Odebrano {response.Length} znaków XML.");
+
+        //            var xml = XDocument.Parse(response);
+        //            Console.WriteLine($"[GoogleImport] Parsowanie OK. Root element: {xml.Root?.Name}");
+
+        //            // Dla plików RSS z Google Shopping zwykle przestrzeń nazw dla elementów <g:...> to:
+        //            var gNs = xml.Root.GetNamespaceOfPrefix("g")?.NamespaceName
+        //                      ?? "http://base.google.com/ns/1.0";
+        //            Console.WriteLine($"[GoogleImport] Namespace Google = '{gNs}'");
+
+        //            // Szukamy węzłów <item> zamiast <entry> (typowe dla RSS)
+        //            var items = xml.Descendants("item").ToList();
+        //            Console.WriteLine($"[GoogleImport] Znaleziono {items.Count} węzłów <item> w XML.");
+
+        //            var googleProducts = items.Select(x =>
+        //            {
+        //                // Pobieramy surowe ID z <g:id>
+        //                var rawId = GetGoogleElementValue(x, new[] { "id" }, gNs);
+        //                // Wyciągamy tylko cyfry
+        //                var numericPart = new string(rawId?.Where(char.IsDigit).ToArray());
+        //                int? extIdInt = null;
+        //                if (!string.IsNullOrEmpty(numericPart) && int.TryParse(numericPart, out var parsed))
+        //                {
+        //                    extIdInt = parsed;
+        //                }
+
+        //                // Link -> <g:link>
+        //                var link = GetGoogleElementValue(x, new[] { "link" }, gNs);
+
+        //                // EAN -> np. <g:gtin>, <g:ean> - korzystamy z tablicy GoogleEanPossibleNames
+        //                var ean = GetGoogleElementValue(x, GoogleEanPossibleNames, gNs);
+
+        //                // Obrazek -> <g:image_link>
+        //                var img = GetGoogleElementValue(x, new[] { "image_link" }, gNs);
+
+        //                // Tytuł -> <g:title>
+        //                var title = GetGoogleElementValue(x, new[] { "title" }, gNs);
+
+        //                // MPN -> <g:mpn> (z tablicy GoogleMpnPossibleNames)
+        //                var mpn = GetGoogleElementValue(x, GoogleMpnPossibleNames, gNs);
+
+        //                Console.WriteLine($"[GoogleImport] Wczytano item -> ID='{rawId}' -> " +
+        //                                  $"extIdInt={extIdInt}, LINK='{link}', EAN='{ean}', TITLE='{title}'");
+
+        //                return new
+        //                {
+        //                    ExternalId = numericPart,
+        //                    Url = link,
+        //                    GoogleEan = ean,
+        //                    GoogleImage = img,
+        //                    GoogleExportedName = title,
+        //                    CatalogNumber = mpn
+        //                };
+        //            }).ToList();
+
+        //            Console.WriteLine($"[GoogleImport] Zakończono tworzenie listy googleProducts (count={googleProducts.Count}).");
+
+        //            // Wczytujemy istniejące mapowania z bazy
+        //            var existingProducts = await _context.ProductMaps
+        //                .Where(p => p.StoreId == storeId)
+        //                .ToListAsync();
+        //            Console.WriteLine($"[GoogleImport] Wczytano {existingProducts.Count} istniejących ProductMap z bazy.");
+
+        //            // Aktualizujemy istniejące rekordy
+        //            int updated = 0;
+        //            foreach (var existingProduct in existingProducts)
+        //            {
+        //                // Szukamy produktu w liście wczytanej z RSS na podstawie URL
+        //                var gp = googleProducts.FirstOrDefault(p => p.Url == existingProduct.Url);
+        //                if (gp != null)
+        //                {
+        //                    existingProduct.GoogleEan = gp.GoogleEan;
+        //                    existingProduct.GoogleImage = gp.GoogleImage;
+        //                    existingProduct.GoogleExportedName = gp.GoogleExportedName;
+        //                    existingProduct.CatalogNumber = gp.CatalogNumber
+        //                        ?? existingProduct.CatalogNumber;
+        //                    updated++;
+        //                }
+        //                else
+        //                {
+        //                    // Jeśli już go nie ma w pliku, czyścimy pola Google
+        //                    existingProduct.GoogleEan = null;
+        //                    existingProduct.GoogleImage = null;
+        //                    existingProduct.GoogleExportedName = null;
+        //                }
+        //            }
+        //            Console.WriteLine($"[GoogleImport] Zaktualizowano {updated} istniejących rekordów ProductMap.");
+
+        //            // Dodajemy nowe rekordy, jeśli URL (link) nie istnieje w bazie
+        //            int added = 0;
+        //            foreach (var gp in googleProducts)
+        //            {
+        //                if (!existingProducts.Any(p => p.Url == gp.Url))
+        //                {
+        //                    var newMap = new ProductMap
+        //                    {
+        //                        StoreId = storeId,
+        //                        ExternalId = gp.ExternalId,
+        //                        Url = gp.Url,
+        //                        GoogleEan = gp.GoogleEan,
+        //                        GoogleImage = gp.GoogleImage,
+        //                        GoogleExportedName = gp.GoogleExportedName,
+        //                        CatalogNumber = gp.CatalogNumber
+        //                    };
+        //                    _context.ProductMaps.Add(newMap);
+        //                    existingProducts.Add(newMap);
+        //                    added++;
+        //                }
+        //            }
+        //            Console.WriteLine($"[GoogleImport] Dodano {added} nowych rekordów ProductMap.");
+
+        //            await _context.SaveChangesAsync();
+        //            Console.WriteLine("[GoogleImport] Zapis zmian w bazie zakończony.");
+        //        }
+
+        //        TempData["SuccessMessage"] = "Import produktów z Google zakończony sukcesem.";
+        //        return RedirectToAction("MappedProducts", new { storeId });
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        var errorMsg = $"Błąd podczas importu produktów z Google: {ex.Message}";
+        //        Console.WriteLine("[GoogleImport] " + errorMsg);
+        //        TempData["ErrorMessage"] = errorMsg;
+        //        return RedirectToAction("Index");
+        //    }
+        //}
+
 
 
 
@@ -396,9 +537,9 @@ namespace PriceSafari.Controllers.ManagerControllers
         //    }
         //}
 
-        
-        
-        
+
+
+
         // Możliwe nazwy (synonimy) EAN / GTIN w pliku Google
         private static readonly string[] GoogleEanPossibleNames = new[]
         {
