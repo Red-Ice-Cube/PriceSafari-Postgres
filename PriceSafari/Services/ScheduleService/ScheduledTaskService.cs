@@ -14,48 +14,61 @@ public class ScheduledTaskService : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        while (!stoppingToken.IsCancellationRequested)
+
+        var baseScalKey = Environment.GetEnvironmentVariable("BASE_SCAL");
+
+        if (baseScalKey == "34692471")
         {
-            try
+            while (!stoppingToken.IsCancellationRequested)
             {
-                using (var scope = _scopeFactory.CreateScope())
+                try
                 {
-                    var context = scope.ServiceProvider.GetRequiredService<PriceSafariContext>();
-                    var scheduledTask = await context.ScheduledTasks.FirstOrDefaultAsync();
-
-                    if (scheduledTask != null && scheduledTask.IsEnabled)
+                    using (var scope = _scopeFactory.CreateScope())
                     {
-                        var now = DateTime.Now.TimeOfDay;
+                        var context = scope.ServiceProvider.GetRequiredService<PriceSafariContext>();
+                        var scheduledTask = await context.ScheduledTasks.FirstOrDefaultAsync();
 
-                        // Compare with some tolerance to avoid missing the time
-                        var scheduledTime = scheduledTask.ScheduledTime;
-                        var timeDifference = now - scheduledTime;
-                        if (timeDifference.TotalMinutes >= 0 && timeDifference.TotalMinutes < 1)
+                        if (scheduledTask != null && scheduledTask.IsEnabled)
                         {
-                            var stores = await context.Stores
-                                .Where(s => s.AutoMatching)
-                                .ToListAsync();
+                            var now = DateTime.Now.TimeOfDay;
 
-                            var storeProcessingService = scope.ServiceProvider.GetRequiredService<StoreProcessingService>();
-
-                            foreach (var store in stores)
+                            // Compare with some tolerance to avoid missing the time
+                            var scheduledTime = scheduledTask.ScheduledTime;
+                            var timeDifference = now - scheduledTime;
+                            if (timeDifference.TotalMinutes >= 0 && timeDifference.TotalMinutes < 1)
                             {
-                                await storeProcessingService.ProcessStoreAsync(store.StoreId);
-                            }
+                                var stores = await context.Stores
+                                    .Where(s => s.AutoMatching)
+                                    .ToListAsync();
 
-                            // Wait for a minute to avoid duplicate execution within the same minute
-                            await Task.Delay(TimeSpan.FromMinutes(1), stoppingToken);
+                                var storeProcessingService = scope.ServiceProvider.GetRequiredService<StoreProcessingService>();
+
+                                foreach (var store in stores)
+                                {
+                                    await storeProcessingService.ProcessStoreAsync(store.StoreId);
+                                }
+
+                                // Wait for a minute to avoid duplicate execution within the same minute
+                                await Task.Delay(TimeSpan.FromMinutes(1), stoppingToken);
+                            }
                         }
                     }
                 }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "An error occurred while executing scheduled tasks.");
-            }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "An error occurred while executing scheduled tasks.");
+                }
 
-            // Check every 30 seconds
-            await Task.Delay(TimeSpan.FromSeconds(30), stoppingToken);
+                // Check every 30 seconds
+                await Task.Delay(TimeSpan.FromSeconds(30), stoppingToken);
+            }
         }
+        else
+        {
+     
+            _logger.LogInformation("BASE_SCAL klucz niezgodny - pomijam automatyczne zadania.");
+        }
+
+        
     }
 }

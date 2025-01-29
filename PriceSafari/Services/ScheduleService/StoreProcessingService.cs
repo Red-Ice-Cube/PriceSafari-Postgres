@@ -29,7 +29,7 @@ public class StoreProcessingService
             .Where(p => p.StoreId == storeId)
             .ToListAsync();
 
-        // Reset ExternalPrice for each product
+
         foreach (var product in products)
         {
             product.ExternalPrice = null;
