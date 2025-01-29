@@ -3,18 +3,13 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.SignalR;
 using System.Diagnostics;
 using PriceSafari.Hubs;
-using System.Net.Http;
-using System.Threading;
-using System.Threading.Tasks;
 using PriceSafari.Models;
 using PriceSafari.Scrapers;
 using PriceSafari.Services.ControlXY;
 
 namespace PriceSafari.Services.ScheduleService
 {
-    /// <summary>
-    /// Serwis do scrapowania z Ceneo (z obsługą captchy).
-    /// </summary>
+ 
     public class CeneoScraperService
     {
         private readonly PriceSafariContext _context;
@@ -51,11 +46,7 @@ namespace PriceSafari.Services.ScheduleService
         // Opcjonalnie: klasa/rekord zwracająca dodatkowe informacje (np. liczba odrzuconych, liczba pobranych cen)
         public record CeneoScrapingDto(CeneoScrapingResult Result, int TotalPrices, int RejectedCount, string? Message);
 
-        /// <summary>
-        /// Główna metoda scrapowania, przeniesiona z kontrolera.
-        /// NIE używamy tu metod kontrolera (NotFound, Ok, itp.).
-        /// Zwracamy własny typ (CenScrapingDto) z informacją o wyniku.
-        /// </summary>
+   
         public async Task<CeneoScrapingDto> StartScrapingWithCaptchaHandlingAsync(CancellationToken cancellationToken = default)
         {
             // 1) Pobranie settings z bazy

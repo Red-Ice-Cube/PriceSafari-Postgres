@@ -61,7 +61,7 @@ public class ScheduledTaskService : BackgroundService
                         // ====================================================
                         // 2) SPRAWDZANIE AKCJI POWIĄZANEJ Z URL_SCAL
                         // ====================================================
-                        if (urlScalKey == "99999999" && scheduledTask.UrlIsEnabled)
+                        if (urlScalKey == "49276583" && scheduledTask.UrlIsEnabled)
                         {
                             var now = DateTime.Now.TimeOfDay;
                             var timeDifference = now - scheduledTask.UrlScheduledTime;
