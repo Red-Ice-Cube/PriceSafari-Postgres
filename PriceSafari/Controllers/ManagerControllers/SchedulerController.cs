@@ -33,6 +33,9 @@ public class SchedulerController : Controller
             GoogleScheduledTime = task.GoogleScheduledTime.ToString(@"hh\:mm"),
             GoogleIsEnabled = task.GoogleIsEnabled,
 
+            CeneoScheduledTime = task.CeneoScheduledTime.ToString(@"hh\:mm"),
+            CeneoIsEnabled = task.CeneoIsEnabled,
+
             AutoMatchingStores = autoMatchingStores
         };
 
@@ -45,8 +48,9 @@ public class SchedulerController : Controller
         if (ModelState.IsValid)
         {
             if (TimeSpan.TryParse(model.ScheduledTime, out var baseTime)
-              && TimeSpan.TryParse(model.UrlScheduledTime, out var urlTime)
-              && TimeSpan.TryParse(model.GoogleScheduledTime, out var googleTime))
+                  && TimeSpan.TryParse(model.UrlScheduledTime, out var urlTime)
+                  && TimeSpan.TryParse(model.GoogleScheduledTime, out var googleTime)
+                  && TimeSpan.TryParse(model.CeneoScheduledTime, out var ceneoTime))
                {
                     // Pobierz (lub utwórz nowy) rekord z bazy
                     var task = _context.ScheduledTasks.FirstOrDefault();
@@ -63,7 +67,10 @@ public class SchedulerController : Controller
                             UrlIsEnabled = model.UrlIsEnabled,
                             // Google
                             GoogleScheduledTime = googleTime,
-                            GoogleIsEnabled = model.GoogleIsEnabled
+                            GoogleIsEnabled = model.GoogleIsEnabled,
+                            // Ceneo
+                            CeneoScheduledTime = ceneoTime,
+                            CeneoIsEnabled = model.CeneoIsEnabled
                         };
                         _context.ScheduledTasks.Add(task);
                     }
@@ -78,7 +85,10 @@ public class SchedulerController : Controller
                         task.GoogleScheduledTime = googleTime;
                         task.GoogleIsEnabled = model.GoogleIsEnabled;
 
-                        _context.ScheduledTasks.Update(task);
+                        task.CeneoScheduledTime = ceneoTime;
+                        task.CeneoIsEnabled = model.CeneoIsEnabled;
+
+                    _context.ScheduledTasks.Update(task);
                     }
 
                     await _context.SaveChangesAsync();
@@ -86,12 +96,18 @@ public class SchedulerController : Controller
                 }
             else
             {
-                // Jeśli parsowanie się nie udało, to też dodajmy błędy do ModelState
+              
                 if (!TimeSpan.TryParse(model.ScheduledTime, out _))
                     ModelState.AddModelError("ScheduledTime", "Invalid time format for BASE_SCAL time.");
 
                 if (!TimeSpan.TryParse(model.UrlScheduledTime, out _))
                     ModelState.AddModelError("UrlScheduledTime", "Invalid time format for URL_SCAL time.");
+
+                if (!TimeSpan.TryParse(model.GoogleScheduledTime, out _))
+                    ModelState.AddModelError("GoogleScheduledTime", "Invalid time format for GOO_CRAW time.");
+
+                if (!TimeSpan.TryParse(model.CeneoScheduledTime, out _))
+                    ModelState.AddModelError("CeneoScheduledTime", "Invalid time format for CEN_CRAW time.");
             }
         }
 
@@ -109,6 +125,8 @@ public class SchedulerController : Controller
             UrlIsEnabled = model.UrlIsEnabled,
             GoogleScheduledTime = model.GoogleScheduledTime,
             GoogleIsEnabled = model.GoogleIsEnabled,
+            CeneoScheduledTime = model.GoogleScheduledTime,
+            CeneoIsEnabled = model.GoogleIsEnabled,
 
             AutoMatchingStores = autoMatchingStores
         };

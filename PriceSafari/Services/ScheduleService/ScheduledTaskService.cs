@@ -19,6 +19,7 @@ public class ScheduledTaskService : BackgroundService
         var baseScalKey = Environment.GetEnvironmentVariable("BASE_SCAL");
         var urlScalKey = Environment.GetEnvironmentVariable("URL_SCAL");
         var gooCrawKey = Environment.GetEnvironmentVariable("GOO_CRAW");
+        var cenCrawKey = Environment.GetEnvironmentVariable("CEN_CRAW");
 
 
         while (!stoppingToken.IsCancellationRequested)
@@ -77,7 +78,7 @@ public class ScheduledTaskService : BackgroundService
                                 await Task.Delay(TimeSpan.FromMinutes(1), stoppingToken);
                             }
                         }
-
+                        // 3) SPRAWDZANIE AKCJI POWIĄZANEJ Z GOO_SCRAPER
                         if (gooCrawKey == "03713857" && scheduledTask.GoogleIsEnabled)
                         {
                             var now = DateTime.Now.TimeOfDay;
@@ -104,6 +105,34 @@ public class ScheduledTaskService : BackgroundService
                         }
 
 
+                        // 4) SPRAWDZANIE AKCJI POWIĄZANEJ Z CEN_SCRAPER
+                        if (cenCrawKey == "56981467" && scheduledTask.CeneoIsEnabled)
+                        {
+                            var now = DateTime.Now.TimeOfDay;
+                            var timeDifference = now - scheduledTask.CeneoScheduledTime;
+
+                            if (timeDifference.TotalMinutes >= 0 && timeDifference.TotalMinutes < 1)
+                            {
+                                // Wstrzykujemy serwis
+                                var ceneoScraperService = scope.ServiceProvider.GetRequiredService<CeneoScraperService>();
+
+                                // Wywołanie scrapowania
+                                var result = await ceneoScraperService.StartScrapingWithCaptchaHandlingAsync(stoppingToken);
+
+                                if (result.Result == CeneoScraperService.CeneoScrapingResult.Success)
+                                {
+                                    _logger.LogInformation("Ceneo scraping completed successfully.");
+                                }
+                                else if (result.Result == CeneoScraperService.CeneoScrapingResult.NoUrlsFound)
+                                {
+                                    _logger.LogInformation("No URLs to scrape for Ceneo.");
+                                }
+                                // etc.
+
+                                // aby unikać wielokrotnego wywołania w tej samej minucie
+                                await Task.Delay(TimeSpan.FromMinutes(1), stoppingToken);
+                            }
+                        }
 
                     }
                 }

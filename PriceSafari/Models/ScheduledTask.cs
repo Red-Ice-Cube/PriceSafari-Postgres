@@ -17,6 +17,11 @@
         public TimeSpan GoogleScheduledTime { get; set; }
         public bool GoogleIsEnabled { get; set; }
 
+
+        // 4) CEN_CRAW
+        public TimeSpan CeneoScheduledTime { get; set; }
+        public bool CeneoIsEnabled { get; set; }
+
     }
 
 

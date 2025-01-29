@@ -55,6 +55,7 @@ public class Program
         builder.Services.AddHttpClient<CaptchaScraper>();
         builder.Services.AddScoped<CaptchaScraper>();
         builder.Services.AddScoped<GoogleScraperService>();
+        builder.Services.AddScoped<CeneoScraperService>();
 
 
         builder.Services.AddMemoryCache();

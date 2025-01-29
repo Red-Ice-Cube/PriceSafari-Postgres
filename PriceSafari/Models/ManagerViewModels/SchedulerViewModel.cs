@@ -15,6 +15,11 @@ namespace PriceSafari.Models.ManagerViewModels
         public string GoogleScheduledTime { get; set; }
         public bool GoogleIsEnabled { get; set; }
 
+
+        // Ceneo
+        public string CeneoScheduledTime { get; set; }
+        public bool CeneoIsEnabled { get; set; }
+
         public List<StoreClass> AutoMatchingStores { get; set; } = new List<StoreClass>();
     }
 
@@ -39,6 +44,14 @@ namespace PriceSafari.Models.ManagerViewModels
         [RegularExpression(@"^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$", ErrorMessage = "Invalid time format.")]
         public string GoogleScheduledTime { get; set; }
         public bool GoogleIsEnabled { get; set; }
+
+
+        // Ceneo scraping
+        [Required]
+        [RegularExpression(@"^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$", ErrorMessage = "Invalid time format.")]
+        public string CeneoScheduledTime { get; set; }
+        public bool CeneoIsEnabled { get; set; }
+
     }
 
 
