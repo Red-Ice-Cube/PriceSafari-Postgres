@@ -15,9 +15,11 @@ public class ScheduledTaskService : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        // Klucze z pliku .env
+        // klucze z .env
         var baseScalKey = Environment.GetEnvironmentVariable("BASE_SCAL");
         var urlScalKey = Environment.GetEnvironmentVariable("URL_SCAL");
+        var gooCrawKey = Environment.GetEnvironmentVariable("GOO_CRAW");
+
 
         while (!stoppingToken.IsCancellationRequested)
         {
@@ -75,6 +77,34 @@ public class ScheduledTaskService : BackgroundService
                                 await Task.Delay(TimeSpan.FromMinutes(1), stoppingToken);
                             }
                         }
+
+                        if (gooCrawKey == "03713857" && scheduledTask.GoogleIsEnabled)
+                        {
+                            var now = DateTime.Now.TimeOfDay;
+                            var timeDifference = now - scheduledTask.GoogleScheduledTime;
+
+                            if (timeDifference.TotalMinutes >= 0 && timeDifference.TotalMinutes < 1)
+                            {
+                                var googleScraperService = scope.ServiceProvider.GetRequiredService<GoogleScraperService>();
+
+                                // Wywołaj i sprawdź rezultat
+                                var result = await googleScraperService.StartScraping();
+                                if (result == GoogleScraperService.GoogleScrapingResult.Success)
+                                {
+                                    // Udało się
+                                }
+                                else if (result == GoogleScraperService.GoogleScrapingResult.NoProductsToScrape)
+                                {
+                                    // Obsłuż brak produktów do scrapowania
+                                }
+                                // itd.
+
+                                await Task.Delay(TimeSpan.FromMinutes(1), stoppingToken);
+                            }
+                        }
+
+
+
                     }
                 }
             }

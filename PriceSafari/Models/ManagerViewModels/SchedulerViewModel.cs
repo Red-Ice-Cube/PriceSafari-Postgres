@@ -4,40 +4,43 @@ namespace PriceSafari.Models.ManagerViewModels
 {
     public class SchedulerViewModel
     {
-        // Dotychczasowe pola
         public ScheduledTask ScheduledTask { get; set; }
         public string ScheduledTime { get; set; }
         public bool IsEnabled { get; set; }
 
-
-        public List<StoreClass> AutoMatchingStores { get; set; } = new List<StoreClass>();
-
-        // Nowe pola dla akcji URL_SCAL
         public string UrlScheduledTime { get; set; }
         public bool UrlIsEnabled { get; set; }
 
-    
+        // Google
+        public string GoogleScheduledTime { get; set; }
+        public bool GoogleIsEnabled { get; set; }
+
+        public List<StoreClass> AutoMatchingStores { get; set; } = new List<StoreClass>();
     }
+
 
 
     public class ScheduledTaskInputModel
     {
-        [Required(ErrorMessage = "Scheduled time is required.")]
+        // Base scraping
+        [Required]
         [RegularExpression(@"^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$", ErrorMessage = "Invalid time format.")]
         public string ScheduledTime { get; set; }
-
         public bool IsEnabled { get; set; }
 
-
-
-        [Required(ErrorMessage = "Scheduled time is required.")]
+        // URL scraping
+        [Required]
         [RegularExpression(@"^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$", ErrorMessage = "Invalid time format.")]
         public string UrlScheduledTime { get; set; }
-
         public bool UrlIsEnabled { get; set; }
 
-
+        // Google scraping
+        [Required]
+        [RegularExpression(@"^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$", ErrorMessage = "Invalid time format.")]
+        public string GoogleScheduledTime { get; set; }
+        public bool GoogleIsEnabled { get; set; }
     }
+
 
 
 }

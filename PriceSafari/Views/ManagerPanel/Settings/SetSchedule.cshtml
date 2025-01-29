@@ -54,6 +54,16 @@
                 </label>
                 <span asp-validation-for="UrlIsEnabled"></span>
 
+                <input asp-for="GoogleScheduledTime" class="GoogleScheduledTime" type="time" required />
+                <span asp-validation-for="GoogleScheduledTime"></span>
+
+                <label>
+                    <input asp-for="GoogleIsEnabled" type="checkbox" /> Google Scraping
+                </label>
+                <span asp-validation-for="GoogleIsEnabled"></span>
+
+
+
                 <button type="submit">Zapisz zmiany</button>
             </form>
 

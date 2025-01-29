@@ -30,6 +30,9 @@ public class SchedulerController : Controller
             UrlScheduledTime = task.UrlScheduledTime.ToString(@"hh\:mm"),
             UrlIsEnabled = task.UrlIsEnabled,
 
+            GoogleScheduledTime = task.GoogleScheduledTime.ToString(@"hh\:mm"),
+            GoogleIsEnabled = task.GoogleIsEnabled,
+
             AutoMatchingStores = autoMatchingStores
         };
 
@@ -41,36 +44,46 @@ public class SchedulerController : Controller
     {
         if (ModelState.IsValid)
         {
-            // Próba sparsowania czasu
             if (TimeSpan.TryParse(model.ScheduledTime, out var baseTime)
-                && TimeSpan.TryParse(model.UrlScheduledTime, out var urlTime))
-            {
-                // Pobierz (lub utwórz nowy) rekord z bazy
-                var task = _context.ScheduledTasks.FirstOrDefault();
+              && TimeSpan.TryParse(model.UrlScheduledTime, out var urlTime)
+              && TimeSpan.TryParse(model.GoogleScheduledTime, out var googleTime))
+               {
+                    // Pobierz (lub utwórz nowy) rekord z bazy
+                    var task = _context.ScheduledTasks.FirstOrDefault();
 
-                if (task == null)
-                {
-                    task = new ScheduledTask
+                    if (task == null)
                     {
-                        ScheduledTime = baseTime,
-                        IsEnabled = model.IsEnabled,
-                        UrlScheduledTime = urlTime,
-                        UrlIsEnabled = model.UrlIsEnabled
-                    };
-                    _context.ScheduledTasks.Add(task);
-                }
-                else
-                {
-                    task.ScheduledTime = baseTime;
-                    task.IsEnabled = model.IsEnabled;
-                    task.UrlScheduledTime = urlTime;
-                    task.UrlIsEnabled = model.UrlIsEnabled;
-                    _context.ScheduledTasks.Update(task);
-                }
+                        task = new ScheduledTask
+                        {
+                            // Base
+                            ScheduledTime = baseTime,
+                            IsEnabled = model.IsEnabled,
+                            // URL
+                            UrlScheduledTime = urlTime,
+                            UrlIsEnabled = model.UrlIsEnabled,
+                            // Google
+                            GoogleScheduledTime = googleTime,
+                            GoogleIsEnabled = model.GoogleIsEnabled
+                        };
+                        _context.ScheduledTasks.Add(task);
+                    }
+                    else
+                    {
+                        task.ScheduledTime = baseTime;
+                        task.IsEnabled = model.IsEnabled;
 
-                await _context.SaveChangesAsync();
-                return RedirectToAction("SetSchedule");
-            }
+                        task.UrlScheduledTime = urlTime;
+                        task.UrlIsEnabled = model.UrlIsEnabled;
+
+                        task.GoogleScheduledTime = googleTime;
+                        task.GoogleIsEnabled = model.GoogleIsEnabled;
+
+                        _context.ScheduledTasks.Update(task);
+                    }
+
+                    await _context.SaveChangesAsync();
+                    return RedirectToAction("SetSchedule");
+                }
             else
             {
                 // Jeśli parsowanie się nie udało, to też dodajmy błędy do ModelState
@@ -94,6 +107,8 @@ public class SchedulerController : Controller
             IsEnabled = model.IsEnabled,
             UrlScheduledTime = model.UrlScheduledTime,
             UrlIsEnabled = model.UrlIsEnabled,
+            GoogleScheduledTime = model.GoogleScheduledTime,
+            GoogleIsEnabled = model.GoogleIsEnabled,
 
             AutoMatchingStores = autoMatchingStores
         };

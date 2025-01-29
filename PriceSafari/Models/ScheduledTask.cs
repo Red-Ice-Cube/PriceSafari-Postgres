@@ -11,6 +11,12 @@
         // Zadanie nr 2 (URL_SCAL)
         public TimeSpan UrlScheduledTime { get; set; }
         public bool UrlIsEnabled { get; set; }
+
+
+        // 3) GOO_CRAW
+        public TimeSpan GoogleScheduledTime { get; set; }
+        public bool GoogleIsEnabled { get; set; }
+
     }
 
 

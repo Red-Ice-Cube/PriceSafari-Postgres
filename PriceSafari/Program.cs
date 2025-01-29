@@ -54,6 +54,8 @@ public class Program
         builder.Services.AddScoped<UrlGroupingService>();
         builder.Services.AddHttpClient<CaptchaScraper>();
         builder.Services.AddScoped<CaptchaScraper>();
+        builder.Services.AddScoped<GoogleScraperService>();
+
 
         builder.Services.AddMemoryCache();
         builder.Services.AddSession(options =>
