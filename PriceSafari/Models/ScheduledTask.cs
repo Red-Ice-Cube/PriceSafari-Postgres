@@ -3,8 +3,15 @@
     public class ScheduledTask
     {
         public int Id { get; set; }
-        public TimeSpan ScheduledTime { get; set; } // BASE SCAL 
+
+        // Zadanie nr 1 (BASE_SCAL)
+        public TimeSpan ScheduledTime { get; set; }
         public bool IsEnabled { get; set; }
+
+        // Zadanie nr 2 (URL_SCAL)
+        public TimeSpan UrlScheduledTime { get; set; }
+        public bool UrlIsEnabled { get; set; }
     }
+
 
 }

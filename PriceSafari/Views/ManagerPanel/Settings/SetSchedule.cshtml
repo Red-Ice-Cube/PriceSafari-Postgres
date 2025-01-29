@@ -34,18 +34,29 @@
 
         <div class="simpleColumnBox">
 
-            <div asp-validation-summary="All"></div>
-            <form asp-action="SetSchedule" method="post" class="product-upper-box">
-                <div>
-                    <input asp-for="ScheduledTime" class="ScheduledTask" type="time" required />
-                    <span asp-validation-for="ScheduledTime"></span>
-                    <label>
-                        <input asp-for="IsEnabled" type="checkbox" />Włącz mapowanie
-                    </label>
-                    <span asp-validation-for="IsEnabled"></span>
-                </div>
-                <button type="submit" class="Button-Add-Small">Zapisz zmiany</button>
+            <form asp-action="SetSchedule" method="post">
+                <!-- Pola: -->
+                <input asp-for="ScheduledTime" type="time" required />
+                <span asp-validation-for="ScheduledTime"></span>
+
+                <label>
+                    <input asp-for="IsEnabled" type="checkbox" />
+                    Mapowanie
+                </label>
+                <span asp-validation-for="IsEnabled"></span>
+
+                <input asp-for="UrlScheduledTime" type="time" required />
+                <span asp-validation-for="UrlScheduledTime"></span>
+
+                <label>
+                    <input asp-for="UrlIsEnabled" type="checkbox" />
+                    Scalanie URL
+                </label>
+                <span asp-validation-for="UrlIsEnabled"></span>
+
+                <button type="submit">Zapisz zmiany</button>
             </form>
+
 
             
 
@@ -67,6 +78,7 @@
             </table>
 
         </div>
+
     </div>
 </div>
 

@@ -45,7 +45,7 @@ public class PriceScrapingController : Controller
         var coOfrs = new List<CoOfrClass>();
 
        
-        var productsWithOffer = products.Where(p => !string.IsNullOrEmpty(p.OfferUrl)).ToList();
+        var productsWithOffer = products.Where(p => !string.IsNullOrEmpty(p.OfferUrl)).ToList();                                                                
         var productsWithoutOffer = products.Where(p => string.IsNullOrEmpty(p.OfferUrl)).ToList();
 
         // Grupowanie produktów z OfferUrl po OfferUrl

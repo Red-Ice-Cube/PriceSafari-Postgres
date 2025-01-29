@@ -8,6 +8,7 @@ using PriceSafari.Hubs;
 using PriceSafari.Services.ViewRenderService;
 using PriceSafari.Scrapers;
 using PriceSafari.Services.ControlXY;
+using PriceSafari.Services.ScheduleService;
 
 
 
@@ -50,7 +51,7 @@ public class Program
         builder.Services.AddSingleton<ControlXYService>();
         builder.Services.AddScoped<StoreProcessingService>();
         builder.Services.AddHostedService<ScheduledTaskService>();
-
+        builder.Services.AddScoped<UrlGroupingService>();
         builder.Services.AddHttpClient<CaptchaScraper>();
         builder.Services.AddScoped<CaptchaScraper>();
 
