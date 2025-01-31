@@ -41,18 +41,35 @@ public class ScheduledTaskService : BackgroundService
                     if (scheduledTask != null)
                     {
                         // 1) SPRAWDZANIE AKCJI POWIĄZANEJ Z BASE_SCAL - Scalanie Bazy
+                        
                         if (baseScalKey == "34692471" && scheduledTask.IsEnabled)
                         {
                             var now = DateTime.Now.TimeOfDay;
                             var timeDifference = now - scheduledTask.ScheduledTime;
 
-                            // Wywołuj, jeśli jest "porządany" czas
+                            // Wywołuj, jeśli jest "pożądany" czas
                             if (timeDifference.TotalMinutes >= 0 && timeDifference.TotalMinutes < 1)
                             {
-                                // Twoja dotychczasowa logika autoprocessingu store’ów
+                                // Najpierw pobierz stores
                                 var storeProcessingService = scope.ServiceProvider.GetRequiredService<StoreProcessingService>();
-                                var stores = await context.Stores.Where(s => s.AutoMatching).ToListAsync();
+                                var stores = await context.Stores.Where(s => s.AutoMatching).ToListAsync(stoppingToken);
 
+                                // 1) Rejestrujemy start zadania w tabeli TaskExecutionLogs
+                                var baseScalLog = new TaskExecutionLog
+                                {
+                                    DeviceName = deviceName,
+                                    OperationName = "BASE_SCAL",
+                                    StartTime = DateTime.Now,
+                                    Comment = $"Rozpoczęcie scalania bazy (StoreCount: {stores.Count})"
+                                };
+
+                                context.TaskExecutionLogs.Add(baseScalLog);
+                                await context.SaveChangesAsync(stoppingToken);
+
+                                // Zapamiętujemy ID logu, by później zaktualizować
+                                var baseScalLogId = baseScalLog.Id;
+
+                                // Twoja logika autoprocessingu store’ów
                                 foreach (var store in stores)
                                 {
                                     await storeProcessingService.ProcessStoreAsync(store.StoreId);
@@ -60,28 +77,63 @@ public class ScheduledTaskService : BackgroundService
 
                                 // żeby nie wywoływać kilka razy w ciągu tej samej minuty
                                 await Task.Delay(TimeSpan.FromMinutes(1), stoppingToken);
+
+                                // 2) Aktualizujemy log – koniec zadania
+                                var finishedBaseScalLog = await context.TaskExecutionLogs.FindAsync(baseScalLogId);
+                                if (finishedBaseScalLog != null)
+                                {
+                                    finishedBaseScalLog.EndTime = DateTime.Now;
+                                    finishedBaseScalLog.Comment += $" | Zakończono scalanie. Łącznie obsłużono {stores.Count} store’ów.";
+                                    context.TaskExecutionLogs.Update(finishedBaseScalLog);
+                                    await context.SaveChangesAsync(stoppingToken);
+                                }
                             }
                         }
 
-                        // 2) SPRAWDZANIE AKCJI POWIĄZANEJ Z URL_SCAL - Grupowanie URL
+
                         if (urlScalKey == "49276583" && scheduledTask.UrlIsEnabled)
                         {
                             var now = DateTime.Now.TimeOfDay;
                             var timeDifference = now - scheduledTask.UrlScheduledTime;
 
-                            // Wywołuj, jeśli jest "porządany" czas
                             if (timeDifference.TotalMinutes >= 0 && timeDifference.TotalMinutes < 1)
                             {
-                             
+                                // 1) Stworzenie wpisu w TaskExecutionLogs na początek operacji
+                                var startLog = new TaskExecutionLog
+                                {
+                                    DeviceName = deviceName,
+                                    OperationName = "URL_SCAL",
+                                    StartTime = DateTime.Now,
+                                    Comment = "Początek grupowania URL"
+                                };
+                                context.TaskExecutionLogs.Add(startLog);
+                                await context.SaveChangesAsync(stoppingToken);
+
+                                // Zapamiętujemy ID logu do późniejszego update
+                                var logId = startLog.Id;
+
+                                // 2) Wywołanie usługi grupowania URL i odebranie zwracanych statystyk
                                 var urlGroupingService = scope.ServiceProvider.GetRequiredService<UrlGroupingService>();
-                                await urlGroupingService.GroupAndSaveUniqueUrls();
+                                var (totalProducts, distinctStoreNames) = await urlGroupingService.GroupAndSaveUniqueUrls();
 
-
-                                // żeby nie wywoływać kilka razy w ciągu tej samej minuty
+                                // 3) Aby nie wykonywać kilka razy w ciągu tej samej minuty
                                 await Task.Delay(TimeSpan.FromMinutes(1), stoppingToken);
+
+                                // 4) Aktualizacja wpisu w logu – koniec zadania
+                                var endLog = await context.TaskExecutionLogs.FindAsync(logId);
+                                if (endLog != null)
+                                {
+                                    endLog.EndTime = DateTime.Now;
+                                    endLog.Comment += $" | Zakończono grupowanie URL. " +
+                                                      $"Sklepy: {string.Join(", ", distinctStoreNames)}. " +
+                                                      $"Łącznie {totalProducts} produktów.";
+
+                                    context.TaskExecutionLogs.Update(endLog);
+                                    await context.SaveChangesAsync(stoppingToken);
+                                }
                             }
                         }
-                        // 3) SPRAWDZANIE AKCJI POWIĄZANEJ Z GOO_SCRAPER - Google
+
                         if (gooCrawKey == "03713857" && scheduledTask.GoogleIsEnabled)
                         {
                             var now = DateTime.Now.TimeOfDay;
@@ -89,23 +141,59 @@ public class ScheduledTaskService : BackgroundService
 
                             if (timeDifference.TotalMinutes >= 0 && timeDifference.TotalMinutes < 1)
                             {
+                                // 1) Tworzymy wpis logu (start)
+                                var googleLog = new TaskExecutionLog
+                                {
+                                    DeviceName = deviceName,
+                                    OperationName = "GOO_CRAW",
+                                    StartTime = DateTime.Now,
+                                    Comment = "Początek scrapowania Google"
+                                };
+                                context.TaskExecutionLogs.Add(googleLog);
+                                await context.SaveChangesAsync(stoppingToken);
+
+                                var googleLogId = googleLog.Id;
+
+                                // 2) Wywołujemy scrapowanie
                                 var googleScraperService = scope.ServiceProvider.GetRequiredService<GoogleScraperService>();
+                                var resultDto = await googleScraperService.StartScraping();
 
-                                // Wywołaj i sprawdź rezultat
-                                var result = await googleScraperService.StartScraping();
-                                if (result == GoogleScraperService.GoogleScrapingResult.Success)
-                                {
-                                    // Udało się
-                                }
-                                else if (result == GoogleScraperService.GoogleScrapingResult.NoProductsToScrape)
-                                {
-                                    // Obsłuż brak produktów do scrapowania
-                                }
-                                // itd.
-
+                                // 3) Czekamy minutę, aby nie wywoływać kilka razy w ciągu tej samej minuty
                                 await Task.Delay(TimeSpan.FromMinutes(1), stoppingToken);
+
+                                // 4) Aktualizujemy wpis logu (koniec)
+                                var finishedGoogleLog = await context.TaskExecutionLogs.FindAsync(googleLogId);
+                                if (finishedGoogleLog != null)
+                                {
+                                    finishedGoogleLog.EndTime = DateTime.Now;
+
+                                    // Możesz dobrać treść 'Comment' w zależności od wyniku
+                                    switch (resultDto.Result)
+                                    {
+                                        case GoogleScraperService.GoogleScrapingResult.Success:
+                                            finishedGoogleLog.Comment += $" | Sukces. Zeskrapowano: {resultDto.TotalScraped} ofert.";
+                                            break;
+
+                                        case GoogleScraperService.GoogleScrapingResult.NoProductsToScrape:
+                                            finishedGoogleLog.Comment += " | Brak produktów do scrapowania.";
+                                            break;
+
+                                        case GoogleScraperService.GoogleScrapingResult.SettingsNotFound:
+                                            finishedGoogleLog.Comment += " | Błąd: Brak Settings w bazie.";
+                                            break;
+
+                                        case GoogleScraperService.GoogleScrapingResult.Error:
+                                        default:
+                                            finishedGoogleLog.Comment += $" | Wystąpił błąd. Szczegóły: {resultDto.Message}";
+                                            break;
+                                    }
+
+                                    context.TaskExecutionLogs.Update(finishedGoogleLog);
+                                    await context.SaveChangesAsync(stoppingToken);
+                                }
                             }
                         }
+
 
 
                         // 4) SPRAWDZANIE AKCJI POWIĄZANEJ Z CEN_SCRAPER

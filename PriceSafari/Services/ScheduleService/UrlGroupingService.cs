@@ -16,12 +16,21 @@ namespace PriceSafari.Services.ScheduleService
             _context = context;
         }
 
-        public async Task GroupAndSaveUniqueUrls()
+        public async Task<(int totalProducts, List<string> distinctStoreNames)> GroupAndSaveUniqueUrls()
         {
+            // 1) Pobranie produktów
             var products = await _context.Products
                 .Include(p => p.Store)
                 .Where(p => p.IsScrapable && p.Store.RemainingScrapes > 0)
                 .ToListAsync();
+
+            // 2) Wyznaczamy unikatowe nazwy sklepów
+            var distinctStoreNames = products
+                .Select(p => p.Store.StoreName)
+                .Distinct()
+                .ToList();
+
+            int totalProducts = products.Count;
 
             var coOfrs = new List<CoOfrClass>();
 
@@ -71,6 +80,7 @@ namespace PriceSafari.Services.ScheduleService
             _context.CoOfrs.AddRange(coOfrs);
 
             await _context.SaveChangesAsync();
+            return (totalProducts, distinctStoreNames);
         }
 
         private CoOfrClass CreateCoOfrClass(List<ProductClass> productList, string? offerUrl, string? googleUrl)

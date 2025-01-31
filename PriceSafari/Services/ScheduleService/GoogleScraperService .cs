@@ -31,14 +31,21 @@ namespace PriceSafari.Services.ScheduleService
             Error
         }
 
-        public async Task<GoogleScrapingResult> StartScraping()
+        public record GoogleScrapingDto(
+            GoogleScraperService.GoogleScrapingResult Result,
+            int TotalScraped,
+            string? Message
+        );
+
+
+        public async Task<GoogleScrapingDto> StartScraping()
         {
             // 1. Pobranie ustawień z bazy
             var settings = await _context.Settings.FirstOrDefaultAsync();
             if (settings == null)
             {
                 Console.WriteLine("Settings not found in the database.");
-                return GoogleScrapingResult.SettingsNotFound;
+                return new GoogleScrapingDto(GoogleScrapingResult.SettingsNotFound, 0, "Settings not found.");
             }
 
             // 2. Pobranie CoOfrClass do scrapowania
@@ -49,7 +56,7 @@ namespace PriceSafari.Services.ScheduleService
             if (!coOfrsToScrape.Any())
             {
                 Console.WriteLine("No products found to scrape.");
-                return GoogleScrapingResult.NoProductsToScrape;
+                return new GoogleScrapingDto(GoogleScrapingResult.NoProductsToScrape, 0, "No products found to scrape.");
             }
 
             Console.WriteLine($"Found {coOfrsToScrape.Count} products to scrape (Google).");
@@ -126,6 +133,7 @@ namespace PriceSafari.Services.ScheduleService
                                         // Zapis do bazy
                                         scopedContext.CoOfrPriceHistories.AddRange(scrapedPrices);
                                         await scopedContext.SaveChangesAsync();
+
                                         Console.WriteLine($"Saved {scrapedPrices.Count} offers for {coOfr.GoogleOfferUrl}.");
 
                                         // Aktualizacja statusu
@@ -134,6 +142,7 @@ namespace PriceSafari.Services.ScheduleService
 
                                         scopedContext.CoOfrs.Update(coOfr);
                                         await scopedContext.SaveChangesAsync();
+
                                         Console.WriteLine($"Updated {coOfr.Id}: {coOfr.GooglePricesCount} offers.");
 
                                         // Komunikat przez SignalR
@@ -183,8 +192,12 @@ namespace PriceSafari.Services.ScheduleService
 
             Console.WriteLine("All tasks completed (Google scraping).");
 
-            // Jeśli wszystko się udało, zwróć "Success"
-            return GoogleScrapingResult.Success;
+            return new GoogleScrapingDto(
+                GoogleScrapingResult.Success,
+                totalScraped,
+                $"All tasks completed. Scraped {totalScraped} offers."
+            );
         }
+
     }
 }

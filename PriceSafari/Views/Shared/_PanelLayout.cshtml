@@ -120,7 +120,7 @@
 
                 <div class="@((controllerName == "ManagerAffiliate" && actionName == "Accounts") || controllerName == "Settings" || controllerName == "UserManagement" ? "active-link" : "inactive-link")
                     menu-link" onclick="location.href='@Url.Action("Accounts", "ManagerAffiliate")'">
-                    <img src="~/images/Settings-bone.svg" alt="Assign Icon" class="menu-icon" />Konta
+                    <img src="~/images/Settings-bone.svg" alt="Assign Icon" class="menu-icon" />Ustawienia
                 </div>
 
                 <div class="@(controllerName == "ProductMapping" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "ProductMapping")'">
@@ -208,6 +208,7 @@
                 }
 
             }
+
             @if (isAdmin)
             {
                 var controllerName = ViewContext.RouteData.Values["controller"]?.ToString();
@@ -231,9 +232,39 @@
                 </div>
 
                 <div class="@(controllerName == "ProductMapping" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "ProductMapping")'">
+                    <img src="~/images/Link-bone.svg" alt="Panel Icon" class="menu-icon" />Mapowanie
+                </div>
+                <div class="@(controllerName == "ClientProfile" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "ClientProfile")'">
                     <img src="~/images/Affiliate-bone.svg" alt="Panel Icon" class="menu-icon" />
                 </div>
+
+                <div class="@(controllerName == "Region" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "Region")'">
+                    <img src="~/images/Affiliate-bone.svg" alt="Panel Icon" class="menu-icon" />
+                </div>
+
+                <div class="@(controllerName == "Prepare" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Prepare", "GoogleScraping")'">
+                    <img src="~/images/Affiliate-bone.svg" alt="Panel Icon" class="menu-icon" />
+                </div>
+
+                <div class="@(controllerName == "PreparedProducts" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("PreparedProducts", "GoogleScraping")'">
+                    <img src="~/images/Link-bone.svg" alt="Panel Icon" class="menu-icon" />
+                </div>
+
+                <div class="@(controllerName == "LoadUnpreparedReports" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("LoadUnpreparedReports", "GoogleScraping")'">
+                    <img src="~/images/Link-bone.svg" alt="Panel Icon" class="menu-icon" />
+                </div>
+
+
+                <div class="@(controllerName == "Plan" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "Plan")'">
+                    <img src="~/images/MoneyIn-bone.svg" alt="Panel Icon" class="menu-icon" />
+                </div>
+
+
+                <div class="@(controllerName == "Invoice" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "Invoice")'">
+                    <img src="~/images/MoneyIn-bone.svg" alt="Panel Icon" class="menu-icon" />
+                </div>
             }
+
 
             @if (isManager)
             {
