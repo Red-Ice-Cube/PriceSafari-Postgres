@@ -32,10 +32,12 @@ namespace PriceSafari.Services.ScheduleService
         }
 
         public record GoogleScrapingDto(
-            GoogleScraperService.GoogleScrapingResult Result,
-            int TotalScraped,
-            string? Message
-        );
+             GoogleScrapingResult Result,
+             int TotalScraped,
+             int TotalRejected,
+             string? Message
+         );
+
 
 
         public async Task<GoogleScrapingDto> StartScraping()
@@ -45,7 +47,12 @@ namespace PriceSafari.Services.ScheduleService
             if (settings == null)
             {
                 Console.WriteLine("Settings not found in the database.");
-                return new GoogleScrapingDto(GoogleScrapingResult.SettingsNotFound, 0, "Settings not found.");
+                return new GoogleScrapingDto(
+                    GoogleScrapingResult.SettingsNotFound,
+                    0,
+                    0,
+                    "Settings not found."
+                );
             }
 
             // 2. Pobranie CoOfrClass do scrapowania
@@ -56,12 +63,17 @@ namespace PriceSafari.Services.ScheduleService
             if (!coOfrsToScrape.Any())
             {
                 Console.WriteLine("No products found to scrape.");
-                return new GoogleScrapingDto(GoogleScrapingResult.NoProductsToScrape, 0, "No products found to scrape.");
+                return new GoogleScrapingDto(
+                    GoogleScrapingResult.NoProductsToScrape,
+                    0,
+                    0,
+                    "No products found to scrape."
+                );
             }
 
             Console.WriteLine($"Found {coOfrsToScrape.Count} products to scrape (Google).");
 
-            // 3. Wysyłanie komunikatu startowego przez SignalR (jeśli huba nie ma, tylko loguj)
+            // 3. Komunikat startowy (SignalR)
             if (_hubContext != null)
             {
                 await _hubContext.Clients.All.SendAsync("ReceiveProgressUpdate", 0, coOfrsToScrape.Count, 0, 0);
@@ -73,23 +85,24 @@ namespace PriceSafari.Services.ScheduleService
 
             // 4. Przygotowanie zmiennych do śledzenia postępu
             int totalScraped = 0;
+            int totalRejected = 0; // << Dodajemy licznik odrzuconych
             var stopwatch = new Stopwatch();
             stopwatch.Start();
 
-            // 5. Przygotowanie semafora dla wielowątkowości
+            // 5. Semafor
             int maxConcurrentScrapers = settings.SemophoreGoogle;
             var semaphore = new SemaphoreSlim(maxConcurrentScrapers);
             var tasks = new List<Task>();
             var productQueue = new Queue<CoOfrClass>(coOfrsToScrape);
 
-            // 6. Uruchomienie puli wątków
+            // 6. Uruchomienie wątków
             for (int i = 0; i < maxConcurrentScrapers; i++)
             {
                 tasks.Add(Task.Run(async () =>
                 {
                     await semaphore.WaitAsync();
 
-                    var scraper = new GoogleMainPriceScraper(); // np. klasa Selenium/Puppeteer
+                    var scraper = new GoogleMainPriceScraper(); // klasa Selenium/Puppeteer
                     await scraper.InitializeAsync(settings);
 
                     try
@@ -107,13 +120,12 @@ namespace PriceSafari.Services.ScheduleService
                                 }
                             }
 
-                            // Koniec kolejki
                             if (coOfr == null)
-                                break;
+                                break; // Koniec kolejki
 
                             try
                             {
-                                // Osobny scope dla kontekstu EF
+                                // Scope dla EF
                                 using (var scope = _scopeFactory.CreateScope())
                                 {
                                     var scopedContext = scope.ServiceProvider.GetRequiredService<PriceSafariContext>();
@@ -136,7 +148,7 @@ namespace PriceSafari.Services.ScheduleService
 
                                         Console.WriteLine($"Saved {scrapedPrices.Count} offers for {coOfr.GoogleOfferUrl}.");
 
-                                        // Aktualizacja statusu
+                                        // Aktualizacja coOfr
                                         coOfr.GoogleIsScraped = true;
                                         coOfr.GooglePricesCount = scrapedPrices.Count;
 
@@ -145,9 +157,11 @@ namespace PriceSafari.Services.ScheduleService
 
                                         Console.WriteLine($"Updated {coOfr.Id}: {coOfr.GooglePricesCount} offers.");
 
-                                        // Komunikat przez SignalR
+                                        // Komunikat SignalR
                                         await _hubContext.Clients.All.SendAsync("ReceiveScrapingUpdate",
                                             coOfr.Id, coOfr.GoogleIsScraped, coOfr.GoogleIsRejected, coOfr.GooglePricesCount, "Google");
+
+                                        Interlocked.Increment(ref totalScraped);
                                     }
                                     else
                                     {
@@ -161,15 +175,19 @@ namespace PriceSafari.Services.ScheduleService
 
                                         await _hubContext.Clients.All.SendAsync("ReceiveScrapingUpdate",
                                             coOfr.Id, coOfr.GoogleIsScraped, coOfr.GoogleIsRejected, coOfr.GooglePricesCount, "Google");
-                                    }
 
-                                    // Zwiększamy licznik
-                                    Interlocked.Increment(ref totalScraped);
+                                        // Zwiększamy licznik odrzuconych
+                                        Interlocked.Increment(ref totalRejected);
+                                    }
 
                                     // Informacja o postępie
                                     double elapsedSeconds = stopwatch.Elapsed.TotalSeconds;
                                     await _hubContext.Clients.All.SendAsync("ReceiveProgressUpdate",
-                                        totalScraped, coOfrsToScrape.Count, elapsedSeconds, 0);
+                                        (totalScraped + totalRejected), // łączna liczba 'przetworzonych' (scraped + rejected)
+                                        coOfrsToScrape.Count,
+                                        elapsedSeconds,
+                                        totalRejected
+                                    );
                                 }
                             }
                             catch (Exception ex)
@@ -195,9 +213,11 @@ namespace PriceSafari.Services.ScheduleService
             return new GoogleScrapingDto(
                 GoogleScrapingResult.Success,
                 totalScraped,
-                $"All tasks completed. Scraped {totalScraped} offers."
+                totalRejected,
+                $"All tasks completed. Scraped {totalScraped} offers, Rejected: {totalRejected}."
             );
         }
+
 
     }
 }

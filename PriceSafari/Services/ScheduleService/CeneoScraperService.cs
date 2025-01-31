@@ -44,7 +44,7 @@ namespace PriceSafari.Services.ScheduleService
         }
 
         // Opcjonalnie: klasa/rekord zwracająca dodatkowe informacje (np. liczba odrzuconych, liczba pobranych cen)
-        public record CeneoScrapingDto(CeneoScrapingResult Result, int TotalPrices, int RejectedCount, string? Message);
+        public record CeneoScrapingDto(CeneoScrapingResult Result, int ScrapedCount, int RejectedCount, string? Message);
 
    
         public async Task<CeneoScrapingDto> StartScrapingWithCaptchaHandlingAsync(CancellationToken cancellationToken = default)
@@ -254,7 +254,7 @@ namespace PriceSafari.Services.ScheduleService
             // 6) Zwracamy wynik do kodu wywołującego (bez Ok(), NotFound(), itp.)
             return new CeneoScrapingDto(
                 CeneoScrapingResult.Success,
-                totalPrices,
+                scrapedCount,
                 rejectedCount,
                 "Scraping completed."
             );

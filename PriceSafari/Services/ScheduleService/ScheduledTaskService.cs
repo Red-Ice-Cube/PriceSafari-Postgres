@@ -58,7 +58,7 @@ public class ScheduledTaskService : BackgroundService
                                 var baseScalLog = new TaskExecutionLog
                                 {
                                     DeviceName = deviceName,
-                                    OperationName = "BASE_SCAL",
+                                    OperationName = "TABLICE_SCALANIE",
                                     StartTime = DateTime.Now,
                                     Comment = $"Rozpoczęcie scalania bazy (StoreCount: {stores.Count})"
                                 };
@@ -102,7 +102,7 @@ public class ScheduledTaskService : BackgroundService
                                 var startLog = new TaskExecutionLog
                                 {
                                     DeviceName = deviceName,
-                                    OperationName = "URL_SCAL",
+                                    OperationName = "URL_SCALANIE",
                                     StartTime = DateTime.Now,
                                     Comment = "Początek grupowania URL"
                                 };
@@ -145,7 +145,7 @@ public class ScheduledTaskService : BackgroundService
                                 var googleLog = new TaskExecutionLog
                                 {
                                     DeviceName = deviceName,
-                                    OperationName = "GOO_CRAW",
+                                    OperationName = "GOOGLE_SCRAPER",
                                     StartTime = DateTime.Now,
                                     Comment = "Początek scrapowania Google"
                                 };
@@ -158,20 +158,17 @@ public class ScheduledTaskService : BackgroundService
                                 var googleScraperService = scope.ServiceProvider.GetRequiredService<GoogleScraperService>();
                                 var resultDto = await googleScraperService.StartScraping();
 
-                                // 3) Czekamy minutę, aby nie wywoływać kilka razy w ciągu tej samej minuty
-                                await Task.Delay(TimeSpan.FromMinutes(1), stoppingToken);
-
                                 // 4) Aktualizujemy wpis logu (koniec)
                                 var finishedGoogleLog = await context.TaskExecutionLogs.FindAsync(googleLogId);
                                 if (finishedGoogleLog != null)
                                 {
                                     finishedGoogleLog.EndTime = DateTime.Now;
 
-                                    // Możesz dobrać treść 'Comment' w zależności od wyniku
                                     switch (resultDto.Result)
                                     {
                                         case GoogleScraperService.GoogleScrapingResult.Success:
-                                            finishedGoogleLog.Comment += $" | Sukces. Zeskrapowano: {resultDto.TotalScraped} ofert.";
+                                            // Tutaj uwzględniasz liczbę zeskrapowanych i odrzuconych
+                                            finishedGoogleLog.Comment += $" | Sukces. Zmielono: {resultDto.TotalScraped} produktów, odrzucono: {resultDto.TotalRejected}.";
                                             break;
 
                                         case GoogleScraperService.GoogleScrapingResult.NoProductsToScrape:
@@ -191,6 +188,7 @@ public class ScheduledTaskService : BackgroundService
                                     context.TaskExecutionLogs.Update(finishedGoogleLog);
                                     await context.SaveChangesAsync(stoppingToken);
                                 }
+
                             }
                         }
 
@@ -204,26 +202,69 @@ public class ScheduledTaskService : BackgroundService
 
                             if (timeDifference.TotalMinutes >= 0 && timeDifference.TotalMinutes < 1)
                             {
-                                // Wstrzykujemy serwis
+                            
+
+                                // 1) Log w TaskExecutionLogs (start)
+                                var ceneoLog = new TaskExecutionLog
+                                {
+                                    DeviceName = deviceName,
+                                    OperationName = "CENEO_SCRAPER",
+                                    StartTime = DateTime.Now,
+                                    Comment = "Start scrapowania Ceneo z captchą"
+                                };
+                                context.TaskExecutionLogs.Add(ceneoLog);
+                                await context.SaveChangesAsync(stoppingToken);
+
+                                int ceneoLogId = ceneoLog.Id;
+
+                                // 2) Wstrzykujemy serwis i wykonujemy scraping
                                 var ceneoScraperService = scope.ServiceProvider.GetRequiredService<CeneoScraperService>();
+                                var resultDto = await ceneoScraperService.StartScrapingWithCaptchaHandlingAsync(stoppingToken);
 
-                                // Wywołanie scrapowania
-                                var result = await ceneoScraperService.StartScrapingWithCaptchaHandlingAsync(stoppingToken);
+                                // 3) Po zakończeniu, czekamy minutę (aby nie wywołać kilka razy)
+                                await Task.Delay(TimeSpan.FromMinutes(1), stoppingToken);
 
-                                if (result.Result == CeneoScraperService.CeneoScrapingResult.Success)
+                                // 4) Log w TaskExecutionLogs (koniec)
+                                var finishedLog = await context.TaskExecutionLogs.FindAsync(ceneoLogId);
+                                if (finishedLog != null)
+                                {
+                                    finishedLog.EndTime = DateTime.Now;
+
+                                    // W zależności od wyniku, uzupełniamy "Comment"
+                                    switch (resultDto.Result)
+                                    {
+                                        case CeneoScraperService.CeneoScrapingResult.Success:
+                                            finishedLog.Comment += $" | Sukces. Zmielono {resultDto.ScrapedCount} produktów. Odrzucono: {resultDto.RejectedCount}.";
+                                            break;
+                                        case CeneoScraperService.CeneoScrapingResult.NoUrlsFound:
+                                            finishedLog.Comment += " | Brak URL do scrapowania (NoUrlsFound).";
+                                            break;
+                                        case CeneoScraperService.CeneoScrapingResult.SettingsNotFound:
+                                            finishedLog.Comment += " | Błąd: Brak settingsów (SettingsNotFound).";
+                                            break;
+                                        case CeneoScraperService.CeneoScrapingResult.Error:
+                                        default:
+                                            finishedLog.Comment += $" | Wystąpił błąd: {resultDto.Message}";
+                                            break;
+                                    }
+
+                                    context.TaskExecutionLogs.Update(finishedLog);
+                                    await context.SaveChangesAsync(stoppingToken);
+                                }
+
+                                // Możesz też logować do `_logger.LogInformation(...)` w zależności od resultDto
+                                if (resultDto.Result == CeneoScraperService.CeneoScrapingResult.Success)
                                 {
                                     _logger.LogInformation("Ceneo scraping completed successfully.");
                                 }
-                                else if (result.Result == CeneoScraperService.CeneoScrapingResult.NoUrlsFound)
+                                else if (resultDto.Result == CeneoScraperService.CeneoScrapingResult.NoUrlsFound)
                                 {
                                     _logger.LogInformation("No URLs to scrape for Ceneo.");
                                 }
-                                // etc.
-
-                                // aby unikać wielokrotnego wywołania w tej samej minucie
-                                await Task.Delay(TimeSpan.FromMinutes(1), stoppingToken);
+                               
                             }
                         }
+
 
                         if (DateTime.Now - _lastDeviceCheck >= _deviceCheckInterval)
                         {
