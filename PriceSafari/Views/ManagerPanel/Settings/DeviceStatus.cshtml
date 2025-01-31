@@ -1,0 +1,177 @@
+﻿@model List<PriceSafari.Models.DeviceStatus>
+
+@{
+    Layout = "~/Views/Shared/_PanelLayout.cshtml";
+    // lub inna ścieżka do Twojego layoutu
+
+    // Wygeneruj listę unikalnych nazw urządzeń (DeviceName) z modelu
+    var distinctDeviceNames = Model
+        .Where(m => !string.IsNullOrWhiteSpace(m.DeviceName))
+        .Select(m => m.DeviceName)
+        .Distinct()
+        .ToList();
+}
+
+<style>
+    /* Styl podstawowej tabeli */
+    .table-orders {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+
+
+    /* CAŁA komórka na zielono lub czerwono, ale tekst czarny */
+    .bg-yes {
+        background-color: #c6f6c6; /* pastelowo-zielone tło */
+        color: #000;
+        font-weight: bold;
+    }
+
+    .bg-no {
+        background-color: #f9c6c6; /* pastelowo-czerwone tło */
+        color: #000;
+        font-weight: bold;
+    }
+
+
+
+
+
+    .Vert-table {
+        margin-top: 20px;
+    }
+
+    .sort-container {
+        margin-bottom: 10px;
+    }
+
+        .sort-container select {
+            padding: 5px;
+            border-radius: 4px;
+            border: 1px solid #aaa;
+        }
+
+    .Button-ClearAll {
+        margin-bottom: 10px;
+        background-color: #ff6666;
+        border: none;
+        color: #fff;
+        padding: 6px 12px;
+        border-radius: 4px;
+        cursor: pointer;
+    }
+
+        .Button-ClearAll:hover {
+            background-color: #ff4c4c;
+        }
+</style>
+
+<div class="Page-Box">
+    <div class="Page-Box-Container">
+        <div class="Page-Box-Category">
+            <div class="Category-Box-Title">
+                Statusy Maszyn
+            </div>
+            <partial name="_ManageNavCol" />
+        </div>
+
+        <!-- Dropdown do filtrowania po DeviceName -->
+        <div class="sort-container">
+            <label for="deviceNameFilter">Maszyny</label>
+            <select id="deviceNameFilter">
+                <option value="">Wszystkie</option>
+                @foreach (var name in distinctDeviceNames)
+                {
+                    <option value="@name">@name</option>
+                }
+            </select>
+        </div>
+
+        <div class="Vert-table">
+            <!-- Przycisk "Usuń wszystkie wpisy" -->
+            <form asp-action="ClearAll" method="post"
+                  onsubmit="return confirm('Czy na pewno chcesz usunąć wszystkie wpisy?');">
+                <button type="submit" class="Button-ClearAll">Usuń wszystkie wpisy</button>
+            </form>
+
+            <table class="table-orders" id="deviceTable">
+                <thead>
+                    <tr>
+                        <th>Nazwa urządzenia</th>
+                        <th>Ostatni meldunek</th>
+                        <th>Online</th>
+                        <th>BaseScal</th>
+                        <th>UrlScal</th>
+                        <th>Google Crawler</th>
+                        <th>Ceneo Crawler</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in Model)
+                    {
+                        <tr>
+                            <!-- Nazwa urządzenia -->
+                            <td class="td-deviceName">@item.DeviceName</td>
+                            <!-- Ostatni meldunek -->
+                            <td>@item.LastCheck</td>
+                            <!-- Online? (komórka na zielono jeśli tak, czerwono jeśli nie) -->
+                            <td class="@(item.IsOnline ? "bg-yes" : "bg-no")">
+                                @(item.IsOnline ? "tak" : "nie")
+                            </td>
+                            <!-- BaseScal -->
+                            <td class="@(item.BaseScalEnabled ? "bg-yes" : "bg-no")">
+                                @(item.BaseScalEnabled ? "tak" : "nie")
+                            </td>
+                            <!-- UrlScal -->
+                            <td class="@(item.UrlScalEnabled ? "bg-yes" : "bg-no")">
+                                @(item.UrlScalEnabled ? "tak" : "nie")
+                            </td>
+                            <!-- GooCraw -->
+                            <td class="@(item.GooCrawEnabled ? "bg-yes" : "bg-no")">
+                                @(item.GooCrawEnabled ? "tak" : "nie")
+                            </td>
+                            <!-- CenCraw -->
+                            <td class="@(item.CenCrawEnabled ? "bg-yes" : "bg-no")">
+                                @(item.CenCrawEnabled ? "tak" : "nie")
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        /*
+         * Filtrowanie TYLKO po nazwie urządzenia:
+         * Gdy użytkownik wybierze coś z dropdownu (deviceNameFilter),
+         * pokazujemy tylko wiersze o pasującej nazwie (lub wszystkie, gdy pusto).
+         */
+        const dropdown = document.getElementById('deviceNameFilter');
+        const table    = document.getElementById('deviceTable');
+        const rows     = Array.from(table.querySelectorAll('tbody tr'));
+
+        dropdown.addEventListener('change', function () {
+            const selectedName = dropdown.value.trim().toLowerCase();
+
+            rows.forEach(row => {
+                // Odczyt nazwy urządzenia (z kolumny <td class="td-deviceName">)
+                const deviceNameCell = row.querySelector('.td-deviceName');
+                if (!deviceNameCell) return;
+
+                const rowDeviceName = deviceNameCell.textContent.trim().toLowerCase();
+
+                // Jeżeli dropdown jest pusty (value=""), pokazujemy wszystkie
+                // Jeżeli jest wybrana konkretna nazwa, pokazujemy tylko wiersze z tą nazwą
+                if (selectedName === "" || rowDeviceName === selectedName) {
+                    row.style.display = "";
+                } else {
+                    row.style.display = "none";
+                }
+            });
+        });
+    </script>
+}
