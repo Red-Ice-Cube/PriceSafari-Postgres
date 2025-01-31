@@ -1,11 +1,15 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using PriceSafari.Data;
+using PriceSafari.Models;
 using PriceSafari.Services.ScheduleService;
 
 public class ScheduledTaskService : BackgroundService
 {
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<ScheduledTaskService> _logger;
+
+    private DateTime _lastDeviceCheck = DateTime.MinValue;
+    private readonly TimeSpan _deviceCheckInterval = TimeSpan.FromMinutes(10);
 
     public ScheduledTaskService(IServiceScopeFactory scopeFactory, ILogger<ScheduledTaskService> logger)
     {
@@ -21,6 +25,9 @@ public class ScheduledTaskService : BackgroundService
         var gooCrawKey = Environment.GetEnvironmentVariable("GOO_CRAW");
         var cenCrawKey = Environment.GetEnvironmentVariable("CEN_CRAW");
 
+        var deviceName = Environment.GetEnvironmentVariable("DEVICE_NAME")
+                     ?? "UnknownDevice";
+
 
         while (!stoppingToken.IsCancellationRequested)
         {
@@ -33,9 +40,7 @@ public class ScheduledTaskService : BackgroundService
 
                     if (scheduledTask != null)
                     {
-                        // ====================================================
-                        // 1) SPRAWDZANIE AKCJI POWIĄZANEJ Z BASE_SCAL
-                        // ====================================================
+                        // 1) SPRAWDZANIE AKCJI POWIĄZANEJ Z BASE_SCAL - Scalanie Bazy
                         if (baseScalKey == "34692471" && scheduledTask.IsEnabled)
                         {
                             var now = DateTime.Now.TimeOfDay;
@@ -58,9 +63,7 @@ public class ScheduledTaskService : BackgroundService
                             }
                         }
 
-                        // ====================================================
-                        // 2) SPRAWDZANIE AKCJI POWIĄZANEJ Z URL_SCAL
-                        // ====================================================
+                        // 2) SPRAWDZANIE AKCJI POWIĄZANEJ Z URL_SCAL - Grupowanie URL
                         if (urlScalKey == "49276583" && scheduledTask.UrlIsEnabled)
                         {
                             var now = DateTime.Now.TimeOfDay;
@@ -78,7 +81,7 @@ public class ScheduledTaskService : BackgroundService
                                 await Task.Delay(TimeSpan.FromMinutes(1), stoppingToken);
                             }
                         }
-                        // 3) SPRAWDZANIE AKCJI POWIĄZANEJ Z GOO_SCRAPER
+                        // 3) SPRAWDZANIE AKCJI POWIĄZANEJ Z GOO_SCRAPER - Google
                         if (gooCrawKey == "03713857" && scheduledTask.GoogleIsEnabled)
                         {
                             var now = DateTime.Now.TimeOfDay;
@@ -134,6 +137,23 @@ public class ScheduledTaskService : BackgroundService
                             }
                         }
 
+                        if (DateTime.Now - _lastDeviceCheck >= _deviceCheckInterval)
+                        {
+                            // Ustawiamy, żeby ponownie „za 10 minut” się to wykonało
+                            _lastDeviceCheck = DateTime.Now;
+
+                            // Wywołanie metody, która zaktualizuje DeviceStatus w bazie
+                            await UpdateDeviceStatusAsync(
+                                context,
+                                deviceName,
+                                baseScalKey,
+                                urlScalKey,
+                                gooCrawKey,
+                                cenCrawKey,
+                                stoppingToken
+                            );
+                        }
+
                     }
                 }
             }
@@ -145,5 +165,61 @@ public class ScheduledTaskService : BackgroundService
             // pętla co 30 sekund
             await Task.Delay(TimeSpan.FromSeconds(30), stoppingToken);
         }
+    }
+
+    private async Task UpdateDeviceStatusAsync(
+       PriceSafariContext context,
+       string deviceName,
+       string baseScalKey,
+       string urlScalKey,
+       string gooCrawKey,
+       string cenCrawKey,
+       CancellationToken ct
+   )
+    {
+        // 1. Odczyt "prawidłowych" wartości (twardo zakodowane lub z configa)
+        const string BASE_SCAL_EXPECTED = "34692471";
+        const string URL_SCAL_EXPECTED = "49276583";
+        const string GOO_CRAW_EXPECTED = "03713857";
+        const string CEN_CRAW_EXPECTED = "56981467";
+
+        // 2. Czy klucz .env zgadza się z oczekiwanym?
+        bool hasBaseScal = (baseScalKey == BASE_SCAL_EXPECTED);
+        bool hasUrlScal = (urlScalKey == URL_SCAL_EXPECTED);
+        bool hasGooCraw = (gooCrawKey == GOO_CRAW_EXPECTED);
+        bool hasCenCraw = (cenCrawKey == CEN_CRAW_EXPECTED);
+
+        // 3. Znajdź w bazie DeviceStatus dla danego deviceName
+        var existingStatus = await context.DeviceStatuses
+            .FirstOrDefaultAsync(d => d.DeviceName == deviceName, ct);
+
+        if (existingStatus == null)
+        {
+            // Nie ma wpisu w bazie => tworzymy nowy
+            var newStatus = new DeviceStatus
+            {
+                DeviceName = deviceName,
+                IsOnline = true,             // bo właśnie się odezwało
+                LastCheck = DateTime.Now,
+                BaseScalEnabled = hasBaseScal,
+                UrlScalEnabled = hasUrlScal,
+                GooCrawEnabled = hasGooCraw,
+                CenCrawEnabled = hasCenCraw
+            };
+
+            await context.DeviceStatuses.AddAsync(newStatus, ct);
+        }
+        else
+        {
+            // Już istnieje => uaktualniamy
+            existingStatus.IsOnline = true;  // bo właśnie się odezwało
+            existingStatus.LastCheck = DateTime.Now;
+            existingStatus.BaseScalEnabled = hasBaseScal;
+            existingStatus.UrlScalEnabled = hasUrlScal;
+            existingStatus.GooCrawEnabled = hasGooCraw;
+            existingStatus.CenCrawEnabled = hasCenCraw;
+        }
+
+        await context.SaveChangesAsync(ct);
     }
 }

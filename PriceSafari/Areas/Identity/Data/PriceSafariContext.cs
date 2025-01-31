@@ -38,6 +38,7 @@ namespace PriceSafari.Data
 
         public DbSet<InvoiceClass> Invoices { get; set; }
         public DbSet<UserPaymentData> UserPaymentDatas { get; set; }
+        public DbSet<DeviceStatus> DeviceStatuses { get; set; }
 
 
 

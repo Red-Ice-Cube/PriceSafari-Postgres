@@ -508,16 +508,12 @@ namespace PriceSafari.Controllers.ManagerControllers
         private string GetElementValue(XElement element, string name, string namespaceName)
         {
             if (element == null) return null;
-
-         
             XName xNameWithNamespace = !string.IsNullOrEmpty(namespaceName)
                 ? XName.Get(name, namespaceName)
                 : null;
 
         
             XName xNameWithoutNamespace = XName.Get(name);
-
-       
             return element.Element(xNameWithNamespace)?.Value?.Trim()
                 ?? element.Element(xNameWithoutNamespace)?.Value?.Trim();
         }
