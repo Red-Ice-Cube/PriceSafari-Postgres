@@ -83,7 +83,7 @@ public class ScheduledTaskService : BackgroundService
                                 if (finishedBaseScalLog != null)
                                 {
                                     finishedBaseScalLog.EndTime = DateTime.Now;
-                                    finishedBaseScalLog.Comment += $" | Zakończono scalanie. Łącznie obsłużono {stores.Count} store’ów.";
+                                    finishedBaseScalLog.Comment += $" | Sukces scalania. Łącznie obsłużono {stores.Count} kanałów.";
                                     context.TaskExecutionLogs.Update(finishedBaseScalLog);
                                     await context.SaveChangesAsync(stoppingToken);
                                 }
@@ -124,7 +124,7 @@ public class ScheduledTaskService : BackgroundService
                                 if (endLog != null)
                                 {
                                     endLog.EndTime = DateTime.Now;
-                                    endLog.Comment += $" | Zakończono grupowanie URL. " +
+                                    endLog.Comment += $" | Sukces grupowania URL. " +
                                                       $"Sklepy: {string.Join(", ", distinctStoreNames)}. " +
                                                       $"Łącznie {totalProducts} produktów.";
 
@@ -252,7 +252,7 @@ public class ScheduledTaskService : BackgroundService
                                     await context.SaveChangesAsync(stoppingToken);
                                 }
 
-                                // Możesz też logować do `_logger.LogInformation(...)` w zależności od resultDto
+                                
                                 if (resultDto.Result == CeneoScraperService.CeneoScrapingResult.Success)
                                 {
                                     _logger.LogInformation("Ceneo scraping completed successfully.");
@@ -297,38 +297,33 @@ public class ScheduledTaskService : BackgroundService
     }
 
     private async Task UpdateDeviceStatusAsync(
-       PriceSafariContext context,
-       string deviceName,
-       string baseScalKey,
-       string urlScalKey,
-       string gooCrawKey,
-       string cenCrawKey,
-       CancellationToken ct
-   )
+           PriceSafariContext context,
+           string deviceName,
+           string baseScalKey,
+           string urlScalKey,
+           string gooCrawKey,
+           string cenCrawKey,
+           CancellationToken ct
+    )
     {
-        // 1. Odczyt "prawidłowych" wartości (twardo zakodowane lub z configa)
-        const string BASE_SCAL_EXPECTED = "34692471";
-        const string URL_SCAL_EXPECTED = "49276583";
-        const string GOO_CRAW_EXPECTED = "03713857";
-        const string CEN_CRAW_EXPECTED = "56981467";
+            // 1. Odczyt "prawidłowych" wartości (twardo zakodowane lub z configa)
+            const string BASE_SCAL_EXPECTED = "34692471";
+            const string URL_SCAL_EXPECTED = "49276583";
+            const string GOO_CRAW_EXPECTED = "03713857";
+            const string CEN_CRAW_EXPECTED = "56981467";
 
-        // 2. Czy klucz .env zgadza się z oczekiwanym?
-        bool hasBaseScal = (baseScalKey == BASE_SCAL_EXPECTED);
-        bool hasUrlScal = (urlScalKey == URL_SCAL_EXPECTED);
-        bool hasGooCraw = (gooCrawKey == GOO_CRAW_EXPECTED);
-        bool hasCenCraw = (cenCrawKey == CEN_CRAW_EXPECTED);
+            // 2. Czy klucz .env zgadza się z oczekiwanym?
+            bool hasBaseScal = (baseScalKey == BASE_SCAL_EXPECTED);
+            bool hasUrlScal = (urlScalKey == URL_SCAL_EXPECTED);
+            bool hasGooCraw = (gooCrawKey == GOO_CRAW_EXPECTED);
+            bool hasCenCraw = (cenCrawKey == CEN_CRAW_EXPECTED);
 
-        // 3. Znajdź w bazie DeviceStatus dla danego deviceName
-        var existingStatus = await context.DeviceStatuses
-            .FirstOrDefaultAsync(d => d.DeviceName == deviceName, ct);
-
-        if (existingStatus == null)
-        {
-            // Nie ma wpisu w bazie => tworzymy nowy
+            // 3. Tworzymy ZA KAŻDYM RAZEM nowy wpis w DeviceStatuses
+            //    (czyli nie szukamy już "existingStatus", tylko zawsze Add)
             var newStatus = new DeviceStatus
             {
                 DeviceName = deviceName,
-                IsOnline = true,             // bo właśnie się odezwało
+                IsOnline = true,    // bo właśnie się odezwało
                 LastCheck = DateTime.Now,
                 BaseScalEnabled = hasBaseScal,
                 UrlScalEnabled = hasUrlScal,
@@ -337,18 +332,9 @@ public class ScheduledTaskService : BackgroundService
             };
 
             await context.DeviceStatuses.AddAsync(newStatus, ct);
-        }
-        else
-        {
-            // Już istnieje => uaktualniamy
-            existingStatus.IsOnline = true;  // bo właśnie się odezwało
-            existingStatus.LastCheck = DateTime.Now;
-            existingStatus.BaseScalEnabled = hasBaseScal;
-            existingStatus.UrlScalEnabled = hasUrlScal;
-            existingStatus.GooCrawEnabled = hasGooCraw;
-            existingStatus.CenCrawEnabled = hasCenCraw;
-        }
 
-        await context.SaveChangesAsync(ct);
+            // Zapisujemy zmiany w bazie
+            await context.SaveChangesAsync(ct);
     }
+
 }

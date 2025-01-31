@@ -1,0 +1,190 @@
+﻿@model List<PriceSafari.Models.TaskExecutionLog>
+
+@{
+    Layout = "~/Views/Shared/_PanelLayout.cshtml";
+    // Wygeneruj listę unikalnych nazw urządzeń
+    var distinctDeviceNames = Model
+        .Where(m => !string.IsNullOrWhiteSpace(m.DeviceName))
+        .Select(m => m.DeviceName)
+        .Distinct()
+        .ToList();
+}
+
+<style>
+
+
+    /* Kolorowanie wierszy wg stanu */
+    .bg-green {
+        background-color: #c6f6c6; /* zielone tło */
+        color: #000;
+    }
+
+    .bg-red {
+        background-color: #f9c6c6; /* czerwone tło */
+        color: #000;
+    }
+
+    .bg-yellow {
+        background-color: #fffcc0; /* żółte tło */
+        color: #000;
+    }
+
+    .sort-container {
+        margin-bottom: 10px;
+    }
+
+        .sort-container select {
+            padding: 5px;
+            border-radius: 4px;
+            border: 1px solid #aaa;
+        }
+
+    .Button-ClearAll {
+        margin-bottom: 10px;
+        background-color: #ff6666;
+        border: none;
+        color: #fff;
+        padding: 6px 12px;
+        border-radius: 4px;
+        cursor: pointer;
+    }
+
+        .Button-ClearAll:hover {
+            background-color: #ff4c4c;
+        }
+
+    .Button-DeleteSingle {
+        background-color: #c43c3c;
+        color: #fff;
+        border: none;
+        padding: 4px 8px;
+        border-radius: 4px;
+        cursor: pointer;
+        text-decoration: none;
+    }
+
+        .Button-DeleteSingle:hover {
+            background-color: #a93232;
+        }
+
+    .td-deviceName {
+        font-weight: bold;
+    }
+</style>
+
+<div class="Page-Box">
+    <div class="Page-Box-Container">
+        <div class="Page-Box-Category">
+            <div class="Category-Box-Title">Logi zadań</div>
+            <partial name="_ManageNavCol" />
+        </div>
+
+        <!-- Dropdown do filtrowania po DeviceName -->
+        <div class="sort-container">
+            <label for="deviceNameFilter">Maszyna:</label>
+            <select id="deviceNameFilter">
+                <option value="">Wszystkie</option>
+                @foreach (var name in distinctDeviceNames)
+                {
+                    <option value="@name">@name</option>
+                }
+            </select>
+        </div>
+
+        <form asp-action="ClearAll" method="post"
+              onsubmit="return confirm('Czy na pewno chcesz usunąć wszystkie wpisy logów?');">
+            <button type="submit" class="Button-ClearAll">Kasuj</button>
+        </form>
+
+        <table class="table-orders" id="logTable">
+            <thead>
+                <tr>
+                    <th>Urządzenie</th>
+                    <th>Operacja</th>
+                    <th>Start</th>
+                    <th>Koniec</th>
+                    <th>Czas trwania</th>
+                    <th>Komentarz</th>
+                    <th>Usuń</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in Model)
+                {
+                    // Określamy stan, by ustawić klasę wiersza (bg-green, bg-red, bg-yellow)
+                    var rowClass = "";
+                    if (!item.EndTime.HasValue)
+                    {
+                        // Zadanie jeszcze trwa (brak EndTime) => żółty
+                        rowClass = "bg-yellow";
+                    }
+                    else
+                    {
+                        // Zadanie zakończone => zielone jeśli "Sukces" w komentarzu, inaczej czerwone
+                        if (!string.IsNullOrEmpty(item.Comment) &&
+                        (item.Comment.Contains("Sukces", StringComparison.OrdinalIgnoreCase)
+                        || item.Comment.Contains("Success", StringComparison.OrdinalIgnoreCase)))
+                        {
+                            rowClass = "bg-green";
+                        }
+                        else
+                        {
+                            rowClass = "bg-red";
+                        }
+                    }
+
+                    // Czas trwania:
+                    var durationText = "W trakcie";
+                    if (item.EndTime.HasValue)
+                    {
+                        var timespan = item.EndTime.Value - item.StartTime;
+                        // Format np. "00:05:31"
+                        durationText = timespan.ToString(@"hh\:mm\:ss");
+                    }
+                    <tr class="@rowClass">
+                        <td class="td-deviceName">@item.DeviceName</td>
+                        <td>@item.OperationName</td>
+                        <td>@item.StartTime</td>
+                        <td>@(item.EndTime?.ToString() ?? "-")</td>
+                        <td>@durationText</td>
+                        <td>@item.Comment</td>
+                        <td>
+                            <a asp-action="Delete" asp-route-id="@item.Id"
+                               onclick="return confirm('Na pewno usunąć ten pojedynczy wpis?');"
+                               class="Button-DeleteSingle">
+                                Usuń
+                            </a>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        /*
+         * Filtrowanie TYLKO po nazwie urządzenia (deviceNameFilter):
+         */
+        const dropdown = document.getElementById('deviceNameFilter');
+        const table    = document.getElementById('logTable');
+        const rows     = Array.from(table.querySelectorAll('tbody tr'));
+
+        dropdown.addEventListener('change', function () {
+            const selectedName = dropdown.value.trim().toLowerCase();
+
+            rows.forEach(row => {
+                const deviceCell = row.querySelector('.td-deviceName');
+                if (!deviceCell) return;
+                const rowDeviceName = deviceCell.textContent.trim().toLowerCase();
+
+                // Jeżeli dropdown jest pusty => pokaż wszystkie
+                // W innym wypadku pokazuj tylko pasujące
+                row.style.display = (selectedName === "" || rowDeviceName === selectedName)
+                    ? ""
+                    : "none";
+            });
+        });
+    </script>
+}

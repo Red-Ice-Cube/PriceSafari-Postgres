@@ -16,6 +16,7 @@
         <div class="@(controllerName == "Settings" ? "Flex-Column-Button-Active" : "Flex-Column-Button") menu-link" onclick="location.href='@Url.Action("Index", "Settings")'">Scrapowanie</div>
         <div class="@(controllerName == "SetSchedule" ? "Flex-Column-Button-Active" : "Flex-Column-Button") menu-link" onclick="location.href='@Url.Action("SetSchedule", "Scheduler")'">Interwały</div>
         <div class="@(controllerName == "DeviceStatus" ? "Flex-Column-Button-Active" : "Flex-Column-Button") menu-link" onclick="location.href='@Url.Action("DeviceStatus", "DeviceStatus")'">Statusy Maszyn</div>
+        <div class="@(controllerName == "TaskExecutionLog" ? "Flex-Column-Button-Active" : "Flex-Column-Button") menu-link" onclick="location.href='@Url.Action("TaskExecutionLog", "TaskExecutionLog")'">Logi</div>
     }
 
 }
