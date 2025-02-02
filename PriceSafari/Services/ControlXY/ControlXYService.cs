@@ -31,10 +31,6 @@ namespace PriceSafari.Services.ControlXY
         private const uint MOUSEEVENTF_RIGHTDOWN = 0x0008;
         private const uint MOUSEEVENTF_RIGHTUP = 0x0010;
 
-        // Stałe do obsługi klawiatury
-        private const byte VK_RETURN = 0x0D;
-        private const int KEYEVENTF_KEYDOWN = 0x0000;
-        private const int KEYEVENTF_KEYUP = 0x0002;
 
         private static void MoveCursor(int x, int y, int delayMs)
         {
