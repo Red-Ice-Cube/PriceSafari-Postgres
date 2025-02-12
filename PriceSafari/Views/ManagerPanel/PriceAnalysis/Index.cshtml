@@ -1,0 +1,198 @@
+﻿@model IEnumerable<PriceSafari.Controllers.ManagerControllers.PriceAnalysisController.DailyPriceChangeGroup>
+@{
+    ViewData["Title"] = "Analiza zmian cen – podsumowanie";
+}
+<h2>Analiza zmian cen dla sklepu @ViewBag.StoreName</h2>
+
+<!-- Wykres – Canvas -->
+<div style="width: 100%; max-width: 800px; margin-bottom: 30px;">
+    <canvas id="priceChart"></canvas>
+</div>
+
+<table class="table table-bordered">
+    <thead>
+        <tr>
+            <th>Data</th>
+            <th>Liczba obniżeń</th>
+            <th>Liczba podwyżek</th>
+            <th>Szczegóły</th>
+        </tr>
+    </thead>
+    <tbody>
+        @if (!Model.Any())
+        {
+            <tr>
+                <td colspan="4">Brak danych do wyświetlenia.</td>
+            </tr>
+        }
+        else
+        {
+            int index = 0;
+            foreach (var group in Model)
+            {
+                string detailDivId = "details_" + index;
+                <tr>
+                    <td>@group.Date.ToString("yyyy-MM-dd")</td>
+                    <td>@group.PriceLoweredCount</td>
+                    <td>@group.PriceRaisedCount</td>
+                    <td>
+                        <button type="button" class="btn btn-sm btn-primary" onclick="toggleDetails('@detailDivId')">
+                            Rozwiń szczegóły
+                        </button>
+                    </td>
+                </tr>
+                <tr id="@detailDivId" style="display:none;">
+                    <td colspan="4">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h4>Obniżki</h4>
+                                @if (!group.LoweredDetails.Any())
+                                {
+                                    <p>Brak obniżeń w tym dniu.</p>
+                                }
+                                else
+                                {
+                                    <table class="table table-sm">
+                                        <thead>
+                                            <tr>
+                                                <th>Produkt</th>
+                                                <th>Cena poprzednia</th>
+                                                <th>Cena nowa</th>
+                                                <th>Różnica</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @foreach (var item in group.LoweredDetails)
+                                            {
+                                                <tr>
+                                                    <td>@item.ProductName</td>
+                                                    <td>@item.OldPrice</td>
+                                                    <td>@item.NewPrice</td>
+                                                    <td style="color:red;">@item.PriceDifference</td>
+                                                </tr>
+                                            }
+                                        </tbody>
+                                    </table>
+                                }
+                            </div>
+                            <div class="col-md-6">
+                                <h4>Podwyżki</h4>
+                                @if (!group.RaisedDetails.Any())
+                                {
+                                    <p>Brak podwyżek w tym dniu.</p>
+                                }
+                                else
+                                {
+                                    <table class="table table-sm">
+                                        <thead>
+                                            <tr>
+                                                <th>Produkt</th>
+                                                <th>Cena poprzednia</th>
+                                                <th>Cena nowa</th>
+                                                <th>Różnica</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @foreach (var item in group.RaisedDetails)
+                                            {
+                                                <tr>
+                                                    <td>@item.ProductName</td>
+                                                    <td>@item.OldPrice</td>
+                                                    <td>@item.NewPrice</td>
+                                                    <td style="color:green;">+@item.PriceDifference</td>
+                                                </tr>
+                                            }
+                                        </tbody>
+                                    </table>
+                                }
+                            </div>
+                        </div>
+                    </td>
+                </tr>
+                index++;
+            }
+        }
+    </tbody>
+</table>
+
+@section Scripts {
+    <!-- Chart.js z CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        function toggleDetails(divId) {
+            var elem = document.getElementById(divId);
+            if (elem.style.display === "none") {
+                elem.style.display = "table-row";
+            } else {
+                elem.style.display = "none";
+            }
+        }
+
+        // Przygotowanie danych do wykresu
+        var labels = [];
+        var loweredData = [];
+        var raisedData = [];
+
+        @* Iterujemy po posortowanym modelu wg daty *@
+        @foreach (var group in Model.OrderBy(g => g.Date))
+        {
+            <text>
+                    labels.push("@group.Date.ToString("yyyy-MM-dd")");
+                    loweredData.push(@group.PriceLoweredCount);
+                    raisedData.push(-@group.PriceRaisedCount); // wartości ujemne, aby słupki podwyżek były poniżej osi 0
+            </text>
+        }
+
+        var ctx = document.getElementById('priceChart').getContext('2d');
+        var priceChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'Obniżki',
+                        data: loweredData,
+                        backgroundColor: 'green'
+                    },
+                    {
+                        label: 'Podwyżki',
+                        data: raisedData,
+                        backgroundColor: 'red'
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    x: {
+                        stacked: true
+                    },
+                    y: {
+                        stacked: true,
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(value) {
+                                return Math.abs(value);
+                            }
+                        },
+                        title: {
+                            display: true,
+                            text: 'Liczba zmian'
+                        }
+                    }
+                },
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                var label = context.dataset.label || '';
+                                var value = Math.abs(context.parsed.y);
+                                return label + ': ' + value;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    </script>
+}

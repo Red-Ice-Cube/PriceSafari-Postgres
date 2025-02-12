@@ -85,6 +85,13 @@
                         <button type="submit" class="btn btn-danger">Usuń</button>
                     </form>
                 </td>
+                <td>
+                    <a asp-controller="PriceAnalysis" asp-action="Index" asp-route-storeId="@store.StoreId" class="btn btn-info">
+                        Analiza zmian cen
+                    </a>
+
+                </td>
+              
             </tr>
         }
     </tbody>
