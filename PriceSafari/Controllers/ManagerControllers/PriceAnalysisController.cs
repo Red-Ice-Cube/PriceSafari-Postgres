@@ -21,11 +21,9 @@ namespace PriceSafari.Controllers.ManagerControllers
 
         /// <summary>
         /// Widok zbiorczy – dla danego sklepu pokazuje, ile produktów danego dnia miało cenę podniesioną i obniżoną.
-        /// Każdy wiersz ma przycisk rozwijający szczegółowe dane (lista produktów i zmiana ceny).
         /// Jeśli danego dnia nie było zmian, dzień i tak jest wyświetlony z zerowymi wartościami.
-        /// Dla każdego produktu, jeśli w obrębie jednego dnia mamy wiele wpisów (np. z różnych źródeł),
-        /// wyznaczamy efektywną cenę dnia – jeśli choć jeden wpis różni się od ceny z poprzedniego dnia,
-        /// przyjmujemy nową efektywną cenę (wybierając najczęściej występującą spośród tych, które się różnią).
+        /// Produkty, dla których w obrębie jednego dnia występują rozbieżne ceny (więcej niż jedna unikalna wartość)
+        /// nie są brane pod uwagę przy obliczaniu zmian, ale zapisywane są w liście AmbiguousProducts.
         /// </summary>
         /// <param name="storeId">Identyfikator sklepu</param>
         public async Task<IActionResult> Index(int? storeId)
@@ -41,7 +39,7 @@ namespace PriceSafari.Controllers.ManagerControllers
             if (storeName == null)
                 return NotFound("Sklep nie został znaleziony.");
 
-            // Używamy lowercase do porównań (naszych danych w PriceHistories)
+            // Używamy lowercase do porównań (w PriceHistories)
             string myStoreName = storeName.ToLower();
 
             // 1. Pobieramy ostatnie 30 scrapowań dla danego sklepu
@@ -51,11 +49,14 @@ namespace PriceSafari.Controllers.ManagerControllers
                 .Take(30)
                 .Select(sh => new { sh.Id, sh.Date })
                 .ToListAsync();
-            // Aby później porównywać dni, sortujemy rosnąco
+            // Sortujemy rosnąco wg daty, aby później łatwo porównywać dni
             last30ScrapHistories = last30ScrapHistories.OrderBy(sh => sh.Date).ToList();
 
-            // 2. Inicjujemy słownik – dla każdej daty scrapowania (nawet bez zmian) tworzymy domyślny DailyPriceChangeGroup
+            // 2. Inicjujemy słownik dla każdego dnia – nawet gdy nie ma zmian
             Dictionary<DateTime, DailyPriceChangeGroup> dailyChangeData = new Dictionary<DateTime, DailyPriceChangeGroup>();
+            // Inicjujemy też słownik dla produktów z rozbieżnymi cenami (ambiguous)
+            Dictionary<DateTime, List<PriceAmbiguityDetail>> ambiguousByDate = new Dictionary<DateTime, List<PriceAmbiguityDetail>>();
+
             foreach (var scrap in last30ScrapHistories)
             {
                 var date = scrap.Date.Date;
@@ -67,8 +68,13 @@ namespace PriceSafari.Controllers.ManagerControllers
                         PriceRaisedCount = 0,
                         PriceLoweredCount = 0,
                         RaisedDetails = new List<PriceChangeDetail>(),
-                        LoweredDetails = new List<PriceChangeDetail>()
+                        LoweredDetails = new List<PriceChangeDetail>(),
+                        AmbiguousProducts = new List<PriceAmbiguityDetail>()
                     };
+                }
+                if (!ambiguousByDate.ContainsKey(date))
+                {
+                    ambiguousByDate[date] = new List<PriceAmbiguityDetail>();
                 }
             }
 
@@ -101,27 +107,27 @@ namespace PriceSafari.Controllers.ManagerControllers
                         ProductId = rec.ProductId,
                         Price = rec.Price,
                         Date = scrap.Date.Date,
-                        ProductName = rec.ProductName
+                        ProductName = rec.ProductName,
+                        ScrapHistoryId = scrap.Id
                     });
                 }
             }
 
             // 5. Dla każdego produktu wyznaczamy efektywną cenę dla każdego dnia
-            //    (dla danego produktu grupujemy wpisy wg daty i zbieramy wszystkie ceny)
-            //    Następnie, przeglądając kolejne dni, porównujemy efektywną cenę z poprzedniego dnia.
-            //    Jeśli choć jeden wpis w danym dniu różni się od poprzedniej ceny, uznajemy, że cena uległa zmianie.
+            //    Grupujemy wpisy dla danego produktu wg daty i sprawdzamy, czy w obrębie dnia występuje jedna cena.
+            //    Jeśli dla danego dnia pojawia się więcej niż jedna unikalna cena, traktujemy to jako sytuację ambiguous.
             var priceChangeDetails = new List<PriceChangeDetail>();
             foreach (var productGroup in extendedRecords.GroupBy(r => r.ProductId))
             {
-                // Grupujemy dane dla produktu wg daty
+                // Grupujemy wpisy danego produktu wg daty
                 var dailyRecords = productGroup
                     .GroupBy(r => r.Date)
                     .Select(g => new
                     {
                         Date = g.Key,
-                        // Tworzymy słownik wystąpień cen w danym dniu
-                        PriceCounts = g.GroupBy(r => r.Price).ToDictionary(x => x.Key, x => x.Count()),
-                        ProductName = g.First().ProductName
+                        DistinctPrices = g.Select(r => r.Price).Distinct().OrderBy(p => p).ToList(),
+                        ProductName = g.First().ProductName,
+                        ScrapId = g.First().ScrapHistoryId
                     })
                     .OrderBy(x => x.Date)
                     .ToList();
@@ -129,41 +135,21 @@ namespace PriceSafari.Controllers.ManagerControllers
                 decimal? previousEffectivePrice = null;
                 foreach (var day in dailyRecords)
                 {
-                    decimal newEffectivePrice;
-                    if (!previousEffectivePrice.HasValue)
+                    // Jeśli w danym dniu pojawia się więcej niż jedna unikalna cena, traktujemy to jako ambiguous
+                    if (day.DistinctPrices.Count > 1)
                     {
-                        // Pierwszy dzień: jeśli tylko jedna cena, przyjmujemy ją;
-                        // w przeciwnym razie wybieramy wartość, która występuje najczęściej (przy remisie – tę o mniejszej wartości)
-                        if (day.PriceCounts.Count == 1)
+                        ambiguousByDate[day.Date].Add(new PriceAmbiguityDetail
                         {
-                            newEffectivePrice = day.PriceCounts.Keys.First();
-                        }
-                        else
-                        {
-                            newEffectivePrice = day.PriceCounts
-                                .OrderByDescending(kvp => kvp.Value)
-                                .ThenBy(kvp => kvp.Key)
-                                .First().Key;
-                        }
+                            ProductId = productGroup.Key,
+                            ProductName = day.ProductName,
+                            Prices = day.DistinctPrices,
+                            ScrapId = day.ScrapId
+                        });
+                        // W tym dniu nie aktualizujemy efektywnej ceny – pomijamy ten wpis
+                        continue;
                     }
-                    else
-                    {
-                        // Jeśli wszystkie ceny w danym dniu są równe poprzedniej efektywnej cenie, brak zmiany
-                        if (day.PriceCounts.Keys.All(price => price == previousEffectivePrice.Value))
-                        {
-                            newEffectivePrice = previousEffectivePrice.Value;
-                        }
-                        else
-                        {
-                            // Wśród tych, które są różne od poprzedniej ceny, wybieramy tę, która występuje najczęściej,
-                            // przy remisie wybieramy tę o mniejszej wartości.
-                            var newCandidates = day.PriceCounts.Where(kvp => kvp.Key != previousEffectivePrice.Value);
-                            newEffectivePrice = newCandidates
-                                .OrderByDescending(kvp => kvp.Value)
-                                .ThenBy(kvp => kvp.Key)
-                                .First().Key;
-                        }
-                    }
+                    // W przeciwnym razie efektywna cena to jedyna wartość
+                    decimal newEffectivePrice = day.DistinctPrices.First();
 
                     // Jeśli to nie pierwszy dzień i efektywna cena zmieniła się, rejestrujemy zmianę
                     if (previousEffectivePrice.HasValue && newEffectivePrice != previousEffectivePrice.Value)
@@ -175,7 +161,8 @@ namespace PriceSafari.Controllers.ManagerControllers
                             ProductName = day.ProductName,
                             OldPrice = previousEffectivePrice.Value,
                             NewPrice = newEffectivePrice,
-                            PriceDifference = newEffectivePrice - previousEffectivePrice.Value
+                            PriceDifference = newEffectivePrice - previousEffectivePrice.Value,
+                            ScrapId = day.ScrapId
                         });
                     }
                     previousEffectivePrice = newEffectivePrice;
@@ -201,6 +188,11 @@ namespace PriceSafari.Controllers.ManagerControllers
                     dailyChangeData[date].RaisedDetails = detailsByDate[date].RaisedDetails;
                     dailyChangeData[date].LoweredDetails = detailsByDate[date].LoweredDetails;
                 }
+                // Dołączamy także listę produktów ambiguous (jeśli jakieś wystąpiły)
+                if (ambiguousByDate.ContainsKey(date))
+                {
+                    dailyChangeData[date].AmbiguousProducts = ambiguousByDate[date];
+                }
             }
 
             // 7. Sortujemy wyniki wg daty
@@ -211,7 +203,7 @@ namespace PriceSafari.Controllers.ManagerControllers
             return View("~/Views/ManagerPanel/PriceAnalysis/Index.cshtml", groupedByDate);
         }
 
-        // Pomocnicze klasy – można je przenieść do osobnego pliku (np. ViewModels)
+        #region Klasy pomocnicze (można przenieść do osobnego pliku ViewModels)
 
         private class PriceRecord
         {
@@ -227,15 +219,16 @@ namespace PriceSafari.Controllers.ManagerControllers
             public decimal Price { get; set; }
             public DateTime Date { get; set; }
             public string ProductName { get; set; }
+            public int ScrapHistoryId { get; set; }
         }
 
-        // Agregowany rekord ceny dla danego produktu i dnia – opcjonalny, jeśli chcesz używać innej metody agregacji
-        private class AggregatedPriceRecord
+        // Klasa opisująca sytuację ambiguous – gdy w danym dniu dla produktu występuje więcej niż jedna cena
+        public class PriceAmbiguityDetail
         {
             public int ProductId { get; set; }
-            public DateTime Date { get; set; }
-            public decimal AggregatedPrice { get; set; }
             public string ProductName { get; set; }
+            public List<decimal> Prices { get; set; }
+            public int ScrapId { get; set; }
         }
 
         public class PriceChangeDetail
@@ -246,9 +239,10 @@ namespace PriceSafari.Controllers.ManagerControllers
             public decimal OldPrice { get; set; }
             public decimal NewPrice { get; set; }
             public decimal PriceDifference { get; set; }
+            public int ScrapId { get; set; }
         }
 
-        // Agregacja zmian wg daty – zawiera liczbę zmian oraz szczegółowe listy
+        // Grupa zmian wg daty – zawiera liczbę zmian, listy szczegółowe oraz listę produktów z ambiguous cenami
         public class DailyPriceChangeGroup
         {
             public DateTime Date { get; set; }
@@ -256,6 +250,9 @@ namespace PriceSafari.Controllers.ManagerControllers
             public int PriceLoweredCount { get; set; }
             public List<PriceChangeDetail> RaisedDetails { get; set; }
             public List<PriceChangeDetail> LoweredDetails { get; set; }
+            public List<PriceAmbiguityDetail> AmbiguousProducts { get; set; }
         }
+
+        #endregion
     }
 }

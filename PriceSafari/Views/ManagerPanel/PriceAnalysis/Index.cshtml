@@ -16,13 +16,14 @@
             <th>Liczba obniżeń</th>
             <th>Liczba podwyżek</th>
             <th>Szczegóły</th>
+            <th>Ambiguous</th>
         </tr>
     </thead>
     <tbody>
         @if (!Model.Any())
         {
             <tr>
-                <td colspan="4">Brak danych do wyświetlenia.</td>
+                <td colspan="5">Brak danych do wyświetlenia.</td>
             </tr>
         }
         else
@@ -31,8 +32,17 @@
             foreach (var group in Model)
             {
                 string detailDivId = "details_" + index;
+                string ambiguousDivId = "ambiguous_" + index;
+                // Obliczamy skrót dnia i ustawiamy tło komórki (szare dla dni roboczych, różowe dla weekendu)
+                var dayName = group.Date.ToString("ddd");
+                var dayStyle = (group.Date.DayOfWeek == DayOfWeek.Saturday || group.Date.DayOfWeek == DayOfWeek.Sunday)
+                ? "background-color: #FFC0CB; padding: 2px 5px;"
+                : "background-color: #D3D3D3; padding: 2px 5px;";
                 <tr>
-                    <td>@group.Date.ToString("yyyy-MM-dd")</td>
+                    <td>
+                        @group.Date.ToString("yyyy-MM-dd")
+                        <span style="@dayStyle">@dayName</span>
+                    </td>
                     <td>@group.PriceLoweredCount</td>
                     <td>@group.PriceRaisedCount</td>
                     <td>
@@ -40,9 +50,14 @@
                             Rozwiń szczegóły
                         </button>
                     </td>
+                    <td>
+                        <button type="button" class="btn btn-sm btn-warning" onclick="toggleDetails('@ambiguousDivId')">
+                            Pokaż ambiguous (@group.AmbiguousProducts.Count)
+                        </button>
+                    </td>
                 </tr>
                 <tr id="@detailDivId" style="display:none;">
-                    <td colspan="4">
+                    <td colspan="5">
                         <div class="row">
                             <div class="col-md-6">
                                 <h4>Obniżki</h4>
@@ -65,10 +80,15 @@
                                             @foreach (var item in group.LoweredDetails)
                                             {
                                                 <tr>
-                                                    <td>@item.ProductName</td>
+                                                    <td>
+                                                        <a href="/PriceHistory/Details?productId=@item.ProductId&scrapId=@item.ScrapId" target="_blank">
+                                                            @item.ProductName
+                                                        </a>
+                                                    </td>
                                                     <td>@item.OldPrice</td>
                                                     <td>@item.NewPrice</td>
-                                                    <td style="color:red;">@item.PriceDifference</td>
+                                                    <!-- Obniżki wyświetlamy na zielono -->
+                                                    <td style="color:green;">@item.PriceDifference</td>
                                                 </tr>
                                             }
                                         </tbody>
@@ -96,10 +116,15 @@
                                             @foreach (var item in group.RaisedDetails)
                                             {
                                                 <tr>
-                                                    <td>@item.ProductName</td>
+                                                    <td>
+                                                        <a href="/PriceHistory/Details?productId=@item.ProductId&scrapId=@item.ScrapId" target="_blank">
+                                                            @item.ProductName
+                                                        </a>
+                                                    </td>
                                                     <td>@item.OldPrice</td>
                                                     <td>@item.NewPrice</td>
-                                                    <td style="color:green;">+@item.PriceDifference</td>
+                                                    <!-- Podwyżki wyświetlamy na czerwono -->
+                                                    <td style="color:red;">+@item.PriceDifference</td>
                                                 </tr>
                                             }
                                         </tbody>
@@ -107,6 +132,39 @@
                                 }
                             </div>
                         </div>
+                    </td>
+                </tr>
+                <tr id="@ambiguousDivId" style="display:none;">
+                    <td colspan="5">
+                        <h4>Produkty z rozbieżnymi cenami</h4>
+                        @if (!group.AmbiguousProducts.Any())
+                        {
+                            <p>Brak produktów z rozbieżnymi cenami w tym dniu.</p>
+                        }
+                        else
+                        {
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Produkt</th>
+                                        <th>Wykazane ceny</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var item in group.AmbiguousProducts)
+                                    {
+                                        <tr>
+                                            <td>
+                                                <a href="/PriceHistory/Details?productId=@item.ProductId&scrapId=@item.ScrapId" target="_blank">
+                                                    @item.ProductName
+                                                </a>
+                                            </td>
+                                            <td>@string.Join(", ", item.Prices)</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        }
                     </td>
                 </tr>
                 index++;
@@ -119,29 +177,46 @@
     <!-- Chart.js z CDN -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
+        // Funkcja do przełączania widoczności szczegółów
         function toggleDetails(divId) {
             var elem = document.getElementById(divId);
-            if (elem.style.display === "none") {
-                elem.style.display = "table-row";
-            } else {
-                elem.style.display = "none";
+            elem.style.display = (elem.style.display === "none") ? "table-row" : "none";
+        }
+
+        // Funkcja mapująca skróty dni z angielskich na polskie
+        function mapDay(day) {
+            switch(day) {
+                case "Mon": return "Pon";
+                case "Tue": return "Wt";
+                case "Wed": return "Śr";
+                case "Thu": return "Czw";
+                case "Fri": return "Pt";
+                case "Sat": return "Sb";
+                case "Sun": return "Nd";
+                default: return day;
             }
         }
 
         // Przygotowanie danych do wykresu
         var labels = [];
+        var dayNames = [];
         var loweredData = [];
         var raisedData = [];
 
-        @* Iterujemy po posortowanym modelu wg daty *@
         @foreach (var group in Model.OrderBy(g => g.Date))
         {
+            // Generujemy etykietę (data) oraz osobno skrót dnia
             <text>
                     labels.push("@group.Date.ToString("yyyy-MM-dd")");
-                    loweredData.push(@group.PriceLoweredCount);
-                    raisedData.push(-@group.PriceRaisedCount); // wartości ujemne, aby słupki podwyżek były poniżej osi 0
+                    dayNames.push("@group.Date.ToString("ddd")");
+                    loweredData.push(-@group.PriceLoweredCount);
+                    raisedData.push(@group.PriceRaisedCount);
             </text>
         }
+
+        // Stałe kolory dla wykresu: obniżki (zielony) i podwyżki (czerwony)
+        var loweredColor = "rgba(0,128,0,0.8)";
+        var raisedColor = "rgba(255,0,0,0.8)";
 
         var ctx = document.getElementById('priceChart').getContext('2d');
         var priceChart = new Chart(ctx, {
@@ -152,17 +227,21 @@
                     {
                         label: 'Obniżki',
                         data: loweredData,
-                        backgroundColor: 'green'
+                        backgroundColor: loweredColor
                     },
                     {
                         label: 'Podwyżki',
                         data: raisedData,
-                        backgroundColor: 'red'
+                        backgroundColor: raisedColor
                     }
                 ]
             },
             options: {
                 responsive: true,
+                interaction: {
+                    mode: 'index',
+                    intersect: false
+                },
                 scales: {
                     x: {
                         stacked: true
@@ -183,7 +262,22 @@
                 },
                 plugins: {
                     tooltip: {
+                        // Sortujemy elementy tooltipa – chcemy, aby "Podwyżki" były wyświetlane na górze
+                        itemSort: function(a, b) {
+                            if(a.dataset.label === "Podwyżki" && b.dataset.label === "Obniżki") {
+                                return -1;
+                            } else if(a.dataset.label === "Obniżki" && b.dataset.label === "Podwyżki") {
+                                return 1;
+                            }
+                            return 0;
+                        },
                         callbacks: {
+                            title: function(context) {
+                                var index = context[0].dataIndex;
+                                // Mapujemy skrót dnia na polską wersję
+                                var day = mapDay(dayNames[index] || "");
+                                return labels[index] + " (" + day + ")";
+                            },
                             label: function(context) {
                                 var label = context.dataset.label || '';
                                 var value = Math.abs(context.parsed.y);
