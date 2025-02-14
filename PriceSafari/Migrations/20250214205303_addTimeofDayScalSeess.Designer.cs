@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using PriceSafari.Data;
 
@@ -11,9 +12,11 @@ using PriceSafari.Data;
 namespace PriceSafari.Migrations
 {
     [DbContext(typeof(PriceSafariContext))]
-    partial class PriceTrackerContextModelSnapshot : ModelSnapshot
+    [Migration("20250214205303_addTimeofDayScalSeess")]
+    partial class addTimeofDayScalSeess
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1258,6 +1261,9 @@ namespace PriceSafari.Migrations
                         .HasColumnType("int");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("StoreId"));
+
+                    b.Property<bool>("AutoMatching")
+                        .HasColumnType("bit");
 
                     b.Property<decimal?>("DiscountPercentage")
                         .HasColumnType("decimal(18,2)");

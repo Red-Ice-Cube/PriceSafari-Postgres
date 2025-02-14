@@ -89,7 +89,7 @@ namespace PriceSafari.Controllers.ManagerControllers
                 existingStore.StoreLogoUrl = store.StoreLogoUrl;
                 existingStore.ProductMapXmlUrl = store.ProductMapXmlUrl;
                 existingStore.ProductMapXmlUrlGoogle = store.ProductMapXmlUrlGoogle;
-                existingStore.AutoMatching = store.AutoMatching;
+            
                 existingStore.DiscountPercentage = store.DiscountPercentage;
                 existingStore.GoogleMiG = store.GoogleMiG;
 

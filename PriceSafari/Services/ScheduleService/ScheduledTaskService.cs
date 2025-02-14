@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using PriceSafari.Data;
 using PriceSafari.Models;
 using PriceSafari.Models.SchedulePlan;
@@ -20,14 +21,14 @@ public class ScheduledTaskService : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        // klucze z .env
-        var baseScalKey = Environment.GetEnvironmentVariable("BASE_SCAL");
-        var urlScalKey = Environment.GetEnvironmentVariable("URL_SCAL");
-        var gooCrawKey = Environment.GetEnvironmentVariable("GOO_CRAW");
-        var cenCrawKey = Environment.GetEnvironmentVariable("CEN_CRAW");
+        // Klucze .env (rozpoznanie, które boole obsługujemy)
+        var baseScalKey = Environment.GetEnvironmentVariable("BASE_SCAL"); // np. "34692471"
+        var urlScalKey = Environment.GetEnvironmentVariable("URL_SCAL");  // "49276583"
+        var gooCrawKey = Environment.GetEnvironmentVariable("GOO_CRAW"); // "03713857"
+        var cenCrawKey = Environment.GetEnvironmentVariable("CEN_CRAW"); // "56981467"
 
         var deviceName = Environment.GetEnvironmentVariable("DEVICE_NAME")
-            ?? "UnknownDevice";
+                         ?? "UnknownDevice";
 
         while (!stoppingToken.IsCancellationRequested)
         {
@@ -36,8 +37,9 @@ public class ScheduledTaskService : BackgroundService
                 using var scope = _scopeFactory.CreateScope();
                 var context = scope.ServiceProvider.GetRequiredService<PriceSafariContext>();
 
-                // 1) Pobierz plan
+                // 1) Pobieramy JEDEN plan (7 dni)
                 var plan = await context.SchedulePlans
+                    // Wczytujemy Monday ... Sunday + tasks + TaskStores + Store
                     .Include(sp => sp.Monday).ThenInclude(d => d.Tasks).ThenInclude(t => t.TaskStores).ThenInclude(ts => ts.Store)
                     .Include(sp => sp.Tuesday).ThenInclude(d => d.Tasks).ThenInclude(t => t.TaskStores).ThenInclude(ts => ts.Store)
                     .Include(sp => sp.Wednesday).ThenInclude(d => d.Tasks).ThenInclude(t => t.TaskStores).ThenInclude(ts => ts.Store)
@@ -49,8 +51,12 @@ public class ScheduledTaskService : BackgroundService
 
                 if (plan != null)
                 {
-                    // 2) Określ bieżący DayDetail w zależności od DayOfWeek
+                    // 2) Ustalamy, który "DayDetail" obowiązuje dzisiaj
                     var dayOfWeek = DateTime.Now.DayOfWeek;
+                    var nowTime = DateTime.Now.TimeOfDay;
+                    var today = DateTime.Today;
+
+                    // Wybieramy dayDetail
                     DayDetail dayDetail = dayOfWeek switch
                     {
                         DayOfWeek.Monday => plan.Monday,
@@ -65,11 +71,9 @@ public class ScheduledTaskService : BackgroundService
 
                     if (dayDetail?.Tasks != null)
                     {
-                        var nowTime = DateTime.Now.TimeOfDay;
-                        var today = DateTime.Today;
-
-                        // 3) Znajdź zadania, dla których StartTime <= now < EndTime,
-                        //    a LastRunDate != dzisiaj (czyli nie było jeszcze dziś wykonane)
+                        // 3) Znajdź zadania, dla których 
+                        //    StartTime <= now < EndTime
+                        //    i LastRunDate < today
                         var activeTasks = dayDetail.Tasks
                             .Where(t => nowTime >= t.StartTime
                                      && nowTime < t.EndTime
@@ -77,16 +81,16 @@ public class ScheduledTaskService : BackgroundService
                             .OrderBy(t => t.StartTime)
                             .ToList();
 
+                        // pętla po zadaniach w kolejności StartTime
                         foreach (var task in activeTasks)
                         {
-                            // Wykonujemy w kolejności: URL -> CENEO -> GOOGLE -> BASE
-                            // ale TYLKO, jeśli device ma klucz i boole jest true
-                            // i logujemy analogicznie do dawnych metod
-
+                            // Podzadania: URL → CENEO → GOOGLE → BASE
+                            // Tylko jeśli device ma klucz + boole
                             // 1) URL
                             if (urlScalKey == "49276583" && task.UrlEnabled)
                             {
                                 await RunUrlScalAsync(context, deviceName, task, stoppingToken);
+                                // 1 min przerwy
                                 await Task.Delay(TimeSpan.FromMinutes(1), stoppingToken);
                             }
 
@@ -111,7 +115,7 @@ public class ScheduledTaskService : BackgroundService
                                 await Task.Delay(TimeSpan.FromMinutes(1), stoppingToken);
                             }
 
-                            // Po wykonaniu zadań – ustawiamy LastRunDate = Today
+                            // Ustawiamy LastRunDate = dziś => zablokuje ponowne uruchomienie
                             task.LastRunDate = today;
                             context.ScheduleTasks.Update(task);
                             await context.SaveChangesAsync(stoppingToken);
@@ -119,7 +123,7 @@ public class ScheduledTaskService : BackgroundService
                     }
                 }
 
-                // ewentualnie update device status
+                // Okresowy update device status
                 if (DateTime.Now - _lastDeviceCheck >= _deviceCheckInterval)
                 {
                     _lastDeviceCheck = DateTime.Now;
@@ -136,89 +140,119 @@ public class ScheduledTaskService : BackgroundService
         }
     }
 
-    // PRZYKŁADOWE METODY POMOCNICZE
+    // =========================== POMOCNICZE METODY ===========================
 
     private async Task RunUrlScalAsync(PriceSafariContext context, string deviceName, ScheduleTask task, CancellationToken ct)
     {
-        // 1) Log start
+        // 1) LOG start
         var startLog = new TaskExecutionLog
         {
             DeviceName = deviceName,
             OperationName = "URL_SCALANIE",
             StartTime = DateTime.Now,
-            Comment = $"Session={task.SessionName} | Sklepy={string.Join(", ", task.TaskStores.Select(ts => ts.Store.StoreName))}"
+            Comment = $"Początek grupowania URL | SessionName={task.SessionName}; " +
+                      $"Sklepy: {string.Join(", ", task.TaskStores.Select(ts => ts.Store.StoreName))}"
         };
         context.TaskExecutionLogs.Add(startLog);
         await context.SaveChangesAsync(ct);
-        int logId = startLog.Id;
 
+        int logId = startLog.Id;
         try
         {
-            // 2) Wywołaj serwis
-            // var urlService = context.GetService<UrlGroupingService>(); // lub scope
-            // var (totalProducts, distinctStores) = await urlService.GroupAndSaveUniqueUrls();
-            await Task.Delay(3000, ct); // symulacja
+            // 2) Faktyczny serwis
+            var urlGroupingService = context.GetService<UrlGroupingService>();
+            var (totalProducts, distinctStoreNames) = await urlGroupingService.GroupAndSaveUniqueUrls();
 
-            // 3) Log koniec
-            var endLog = await context.TaskExecutionLogs.FindAsync(logId);
+            // 3) LOG koniec (sukces)
+            var endLog = await context.TaskExecutionLogs.FindAsync(new object[] { logId }, ct);
             if (endLog != null)
             {
                 endLog.EndTime = DateTime.Now;
-                endLog.Comment += " -> URL Scal ok (sample)";
+                endLog.Comment += $" | Sukces grupowania URL. " +
+                                  $"Sklepy: {string.Join(", ", distinctStoreNames)}. " +
+                                  $"Łącznie {totalProducts} produktów.";
                 context.TaskExecutionLogs.Update(endLog);
                 await context.SaveChangesAsync(ct);
             }
         }
         catch (Exception ex)
         {
-            var endLog = await context.TaskExecutionLogs.FindAsync(logId);
+            // Błąd
+            var endLog = await context.TaskExecutionLogs.FindAsync(logId, ct);
             if (endLog != null)
             {
                 endLog.EndTime = DateTime.Now;
-                endLog.Comment += $" -> Błąd: {ex.Message}";
+                endLog.Comment += $" | Błąd (URL_SCAL): {ex.Message}";
                 context.TaskExecutionLogs.Update(endLog);
                 await context.SaveChangesAsync(ct);
             }
-            _logger.LogError(ex, "RunUrlScalAsync error");
         }
     }
 
     private async Task RunCeneoAsync(PriceSafariContext context, string deviceName, ScheduleTask task, CancellationToken ct)
     {
-        var startLog = new TaskExecutionLog
+        // 1) LOG start
+        var ceneoLog = new TaskExecutionLog
         {
             DeviceName = deviceName,
             OperationName = "CENEO_SCRAPER",
             StartTime = DateTime.Now,
-            Comment = $"Session={task.SessionName} | Sklepy={string.Join(", ", task.TaskStores.Select(ts => ts.Store.StoreName))}"
+            Comment = $"Start scrapowania Ceneo z captchą | SessionName={task.SessionName}; " +
+                      $"Sklepy: {string.Join(", ", task.TaskStores.Select(ts => ts.Store.StoreName))}"
         };
-        context.TaskExecutionLogs.Add(startLog);
+        context.TaskExecutionLogs.Add(ceneoLog);
         await context.SaveChangesAsync(ct);
-        int logId = startLog.Id;
 
+        int ceneoLogId = ceneoLog.Id;
         try
         {
-            // var ceneoService = ...
-            // var resultDto = await ceneoService.StartScrapingWithCaptchaHandlingAsync(ct);
-            await Task.Delay(3000, ct); // symulacja
+            // 2) Faktyczny serwis
+            var ceneoScraperService = context.GetService<CeneoScraperService>();
+            var resultDto = await ceneoScraperService.StartScrapingWithCaptchaHandlingAsync(ct);
 
-            var endLog = await context.TaskExecutionLogs.FindAsync(logId);
-            if (endLog != null)
+            // 4) LOG koniec
+            var finishedLog = await context.TaskExecutionLogs.FindAsync(ceneoLogId, ct);
+            if (finishedLog != null)
             {
-                endLog.EndTime = DateTime.Now;
-                endLog.Comment += " -> Ceneo success (sample)";
-                context.TaskExecutionLogs.Update(endLog);
+                finishedLog.EndTime = DateTime.Now;
+                switch (resultDto.Result)
+                {
+                    case CeneoScraperService.CeneoScrapingResult.Success:
+                        finishedLog.Comment += $" | Sukces. Zmielono {resultDto.ScrapedCount} produktów. Odrzucono: {resultDto.RejectedCount}.";
+                        break;
+                    case CeneoScraperService.CeneoScrapingResult.NoUrlsFound:
+                        finishedLog.Comment += " | Brak URL do scrapowania (NoUrlsFound).";
+                        break;
+                    case CeneoScraperService.CeneoScrapingResult.SettingsNotFound:
+                        finishedLog.Comment += " | Błąd: Brak settingsów (SettingsNotFound).";
+                        break;
+                    case CeneoScraperService.CeneoScrapingResult.Error:
+                    default:
+                        finishedLog.Comment += $" | Wystąpił błąd: {resultDto.Message}";
+                        break;
+                }
+
+                context.TaskExecutionLogs.Update(finishedLog);
                 await context.SaveChangesAsync(ct);
+            }
+
+            if (resultDto.Result == CeneoScraperService.CeneoScrapingResult.Success)
+            {
+                _logger.LogInformation("Ceneo scraping completed successfully.");
+            }
+            else if (resultDto.Result == CeneoScraperService.CeneoScrapingResult.NoUrlsFound)
+            {
+                _logger.LogInformation("No URLs to scrape for Ceneo.");
             }
         }
         catch (Exception ex)
         {
-            var endLog = await context.TaskExecutionLogs.FindAsync(logId);
-            if (endLog != null)
+            var finishedLog = await context.TaskExecutionLogs.FindAsync(ceneoLogId, ct);
+            if (finishedLog != null)
             {
-                endLog.EndTime = DateTime.Now;
-                endLog.Comment += $" -> Błąd: {ex.Message}";
-                context.TaskExecutionLogs.Update(endLog);
+                finishedLog.EndTime = DateTime.Now;
+                finishedLog.Comment += $" | Wystąpił błąd (Ceneo): {ex.Message}";
+                context.TaskExecutionLogs.Update(finishedLog);
                 await context.SaveChangesAsync(ct);
             }
         }
@@ -226,40 +260,60 @@ public class ScheduledTaskService : BackgroundService
 
     private async Task RunGoogleAsync(PriceSafariContext context, string deviceName, ScheduleTask task, CancellationToken ct)
     {
-        var startLog = new TaskExecutionLog
+        // 1) LOG start
+        var googleLog = new TaskExecutionLog
         {
             DeviceName = deviceName,
             OperationName = "GOOGLE_SCRAPER",
             StartTime = DateTime.Now,
-            Comment = $"Session={task.SessionName} | Sklepy={string.Join(", ", task.TaskStores.Select(ts => ts.Store.StoreName))}"
+            Comment = $"Początek scrapowania Google | SessionName={task.SessionName}; " +
+                      $"Sklepy: {string.Join(", ", task.TaskStores.Select(ts => ts.Store.StoreName))}"
         };
-        context.TaskExecutionLogs.Add(startLog);
+        context.TaskExecutionLogs.Add(googleLog);
         await context.SaveChangesAsync(ct);
-        int logId = startLog.Id;
 
+        int googleLogId = googleLog.Id;
         try
         {
-            // var googleService = ...
-            // var resultDto = await googleService.StartScraping();
-            await Task.Delay(3000, ct); // symulacja
+            // 2) Faktyczna usługa
+            var googleScraperService = context.GetService<GoogleScraperService>();
+            var resultDto = await googleScraperService.StartScraping();
 
-            var endLog = await context.TaskExecutionLogs.FindAsync(logId);
-            if (endLog != null)
+            // 4) LOG koniec
+            var finishedGoogleLog = await context.TaskExecutionLogs.FindAsync(googleLogId, ct);
+            if (finishedGoogleLog != null)
             {
-                endLog.EndTime = DateTime.Now;
-                endLog.Comment += " -> Google success (sample)";
-                context.TaskExecutionLogs.Update(endLog);
+                finishedGoogleLog.EndTime = DateTime.Now;
+
+                switch (resultDto.Result)
+                {
+                    case GoogleScraperService.GoogleScrapingResult.Success:
+                        finishedGoogleLog.Comment += $" | Sukces. Zmielono: {resultDto.TotalScraped} produktów, odrzucono: {resultDto.TotalRejected}.";
+                        break;
+                    case GoogleScraperService.GoogleScrapingResult.NoProductsToScrape:
+                        finishedGoogleLog.Comment += " | Brak produktów do scrapowania.";
+                        break;
+                    case GoogleScraperService.GoogleScrapingResult.SettingsNotFound:
+                        finishedGoogleLog.Comment += " | Błąd: Brak Settings w bazie.";
+                        break;
+                    case GoogleScraperService.GoogleScrapingResult.Error:
+                    default:
+                        finishedGoogleLog.Comment += $" | Wystąpił błąd. Szczegóły: {resultDto.Message}";
+                        break;
+                }
+
+                context.TaskExecutionLogs.Update(finishedGoogleLog);
                 await context.SaveChangesAsync(ct);
             }
         }
         catch (Exception ex)
         {
-            var endLog = await context.TaskExecutionLogs.FindAsync(logId);
-            if (endLog != null)
+            var finishedLog = await context.TaskExecutionLogs.FindAsync(googleLogId, ct);
+            if (finishedLog != null)
             {
-                endLog.EndTime = DateTime.Now;
-                endLog.Comment += $" -> Błąd: {ex.Message}";
-                context.TaskExecutionLogs.Update(endLog);
+                finishedLog.EndTime = DateTime.Now;
+                finishedLog.Comment += $" | Błąd GoogleScraper: {ex.Message}";
+                context.TaskExecutionLogs.Update(finishedLog);
                 await context.SaveChangesAsync(ct);
             }
         }
@@ -267,59 +321,94 @@ public class ScheduledTaskService : BackgroundService
 
     private async Task RunBaseScalAsync(PriceSafariContext context, string deviceName, ScheduleTask task, CancellationToken ct)
     {
-        var startLog = new TaskExecutionLog
+        // 1) Log - START
+        int storeCount = task.TaskStores.Count;
+        var baseScalLog = new TaskExecutionLog
         {
             DeviceName = deviceName,
             OperationName = "TABLICE_SCALANIE",
             StartTime = DateTime.Now,
-            Comment = $"Session={task.SessionName} | Sklepy={string.Join(", ", task.TaskStores.Select(ts => ts.Store.StoreName))}"
+            Comment = $"Rozpoczęcie scalania bazy (StoreCount: {storeCount}) | SessionName={task.SessionName}; " +
+                      $"Sklepy: {string.Join(", ", task.TaskStores.Select(ts => ts.Store.StoreName))}"
         };
-        context.TaskExecutionLogs.Add(startLog);
+        context.TaskExecutionLogs.Add(baseScalLog);
         await context.SaveChangesAsync(ct);
-        int logId = startLog.Id;
+
+        int baseScalLogId = baseScalLog.Id;
 
         try
         {
-            // storeProcessing?
-            await Task.Delay(3000, ct); // symulacja
-
-            var endLog = await context.TaskExecutionLogs.FindAsync(logId);
-            if (endLog != null)
+            // 2) storeProcessingService
+            var storeProcessingService = context.GetService<StoreProcessingService>();
+            // Przykładowo: przetwarzamy sklepy w tym tasku
+            foreach (var stRel in task.TaskStores)
             {
-                endLog.EndTime = DateTime.Now;
-                endLog.Comment += " -> Base scal success (sample)";
-                context.TaskExecutionLogs.Update(endLog);
+                await storeProcessingService.ProcessStoreAsync(stRel.StoreId);
+            }
+
+            // 4) Log - KONIEC
+            var finishedBaseScalLog = await context.TaskExecutionLogs.FindAsync(baseScalLogId, ct);
+            if (finishedBaseScalLog != null)
+            {
+                finishedBaseScalLog.EndTime = DateTime.Now;
+                finishedBaseScalLog.Comment += $" | Sukces scalania. Łącznie obsłużono {storeCount} kanałów.";
+                context.TaskExecutionLogs.Update(finishedBaseScalLog);
                 await context.SaveChangesAsync(ct);
             }
         }
         catch (Exception ex)
         {
-            var endLog = await context.TaskExecutionLogs.FindAsync(logId);
-            if (endLog != null)
+            var finishedLog = await context.TaskExecutionLogs.FindAsync(baseScalLogId, ct);
+            if (finishedLog != null)
             {
-                endLog.EndTime = DateTime.Now;
-                endLog.Comment += $" -> Błąd: {ex.Message}";
-                context.TaskExecutionLogs.Update(endLog);
+                finishedLog.EndTime = DateTime.Now;
+                finishedLog.Comment += $" | Wystąpił błąd scalania: {ex.Message}";
+                context.TaskExecutionLogs.Update(finishedLog);
                 await context.SaveChangesAsync(ct);
             }
         }
     }
 
-    // ewentualnie UpdateDeviceStatusAsync jak dawniej
+    // =========================
+    // UpdateDeviceStatusAsync 
+    // =========================
     private async Task UpdateDeviceStatusAsync(
-       PriceSafariContext context,
-       string deviceName,
-       string baseScalKey,
-       string urlScalKey,
-       string gooCrawKey,
-       string cenCrawKey,
-       CancellationToken ct
-    )
+        PriceSafariContext context,
+        string deviceName,
+        string baseScalKey,
+        string urlScalKey,
+        string gooCrawKey,
+        string cenCrawKey,
+        CancellationToken ct)
     {
-        // ...
+        // 1. Odczyt twardych wartości
+        const string BASE_SCAL_EXPECTED = "34692471";
+        const string URL_SCAL_EXPECTED = "49276583";
+        const string GOO_CRAW_EXPECTED = "03713857";
+        const string CEN_CRAW_EXPECTED = "56981467";
+
+        // 2. Czy .env pasuje?
+        bool hasBaseScal = (baseScalKey == BASE_SCAL_EXPECTED);
+        bool hasUrlScal = (urlScalKey == URL_SCAL_EXPECTED);
+        bool hasGooCraw = (gooCrawKey == GOO_CRAW_EXPECTED);
+        bool hasCenCraw = (cenCrawKey == CEN_CRAW_EXPECTED);
+
+        // 3. Zapis w DeviceStatuses
+        var newStatus = new DeviceStatus
+        {
+            DeviceName = deviceName,
+            IsOnline = true,
+            LastCheck = DateTime.Now,
+            BaseScalEnabled = hasBaseScal,
+            UrlScalEnabled = hasUrlScal,
+            GooCrawEnabled = hasGooCraw,
+            CenCrawEnabled = hasCenCraw
+        };
+
+        await context.DeviceStatuses.AddAsync(newStatus, ct);
+        await context.SaveChangesAsync(ct);
     }
 }
-
 
 
 

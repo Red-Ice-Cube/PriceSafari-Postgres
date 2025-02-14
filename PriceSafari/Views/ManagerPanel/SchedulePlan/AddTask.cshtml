@@ -1,5 +1,10 @@
 ﻿@model PriceSafari.Models.ViewModels.SchedulePlanViewModels.AddTaskViewModel
 
+@{
+    Layout = "~/Views/Shared/_PanelLayout.cshtml";
+}
+
+
 <h2>Dodaj Zadanie</h2>
 <form asp-action="AddTask" method="post">
     <!-- Ukryte: dayDetailId (np. Monday) -->

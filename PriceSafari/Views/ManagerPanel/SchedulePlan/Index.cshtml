@@ -2,7 +2,11 @@
 @model PriceSafari.Models.SchedulePlan.SchedulePlan
 
 @{
-    ViewData["Title"] = "Kalendarz (co 10 min)";
+    Layout = "~/Views/Shared/_PanelLayout.cshtml";
+}
+
+@{
+    ViewData["Title"] = "Kalendarz Maszyn";
 
     // 7 kolumn (pon-nd)
     var days = new[]

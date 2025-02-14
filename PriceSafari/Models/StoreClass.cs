@@ -24,7 +24,7 @@ namespace PriceSafari.Models
         [Display(Name = "Produkty do Zeskrobania")]
         public int? ProductsToScrap { get; set; }
 
-        public bool AutoMatching { get; set; } = true;
+       
 
         [Display(Name = "Plan")]
         public int? PlanId { get; set; }
