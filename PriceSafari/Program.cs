@@ -9,6 +9,7 @@ using PriceSafari.Services.ViewRenderService;
 using PriceSafari.Scrapers;
 using PriceSafari.Services.ControlXY;
 using PriceSafari.Services.ScheduleService;
+using PriceSafari.Models.SchedulePlan;
 
 
 
@@ -187,4 +188,6 @@ public class Program
             }
         }
     }
+
+
 }

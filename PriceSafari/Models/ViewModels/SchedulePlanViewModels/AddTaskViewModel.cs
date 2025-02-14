@@ -1,21 +1,33 @@
-﻿namespace PriceSafari.Models.ViewModels.SchedulePlanViewModels
+﻿using System.Collections.Generic;
+
+namespace PriceSafari.Models.ViewModels.SchedulePlanViewModels
 {
     public class AddTaskViewModel
     {
-        public int TaskId { get; set; }         // do edycji istniejącego zadania
-        public int DayDetailId { get; set; }    // do którego dnia należy
+        // Nazwa sesji (np. "Ranna sesja")
+        public string SessionName { get; set; }
 
-        public string StartTime { get; set; }   // "HH:mm"
+        // Godzina startu (HH:mm)
+        public string StartTime { get; set; }
 
+        // Boole do włączenia akcji
         public bool BaseEnabled { get; set; }
         public bool UrlEnabled { get; set; }
         public bool GoogleEnabled { get; set; }
         public bool CeneoEnabled { get; set; }
 
-        public bool TaskComplete { get; set; }
+        // Opcjonalna data/godzina zakończenia (w formacie np. "yyyy-MM-dd HH:mm")
+        public string CompletedAt { get; set; }
 
-        // Jeśli chcesz dać użytkownikowi możliwość wpisania
-        // godziny zakończenia w formularzu (np. "2025-02-20 15:30"):
-        public string CompletedAt { get; set; }  // np. "yyyy-MM-dd HH:mm"
+        // Lista dostępnych sklepów (checkboxy)
+        public List<StoreCheckboxItem> Stores { get; set; } = new List<StoreCheckboxItem>();
+    }
+
+    // Pojedyncza pozycja sklepu w checkboxach
+    public class StoreCheckboxItem
+    {
+        public int StoreId { get; set; }
+        public string StoreName { get; set; }
+        public bool IsSelected { get; set; }
     }
 }

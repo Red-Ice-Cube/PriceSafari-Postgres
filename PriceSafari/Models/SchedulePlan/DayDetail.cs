@@ -9,7 +9,6 @@ namespace PriceSafari.Models.SchedulePlan
         [Key]
         public int Id { get; set; }
 
-        // Lista zadań tego dnia
         public ICollection<ScheduleTask> Tasks { get; set; } = new List<ScheduleTask>();
     }
 }

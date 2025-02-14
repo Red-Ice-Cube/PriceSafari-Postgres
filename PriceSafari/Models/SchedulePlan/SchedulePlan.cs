@@ -6,7 +6,8 @@ namespace PriceSafari.Models.SchedulePlan
     {
         [Key]
         public int Id { get; set; }
-    
+
+     
         public int? MondayId { get; set; }
         public DayDetail Monday { get; set; }
 
