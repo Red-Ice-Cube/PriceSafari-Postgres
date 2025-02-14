@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using PriceSafari.Data;
 
@@ -11,9 +12,11 @@ using PriceSafari.Data;
 namespace PriceSafari.Migrations
 {
     [DbContext(typeof(PriceSafariContext))]
-    partial class PriceTrackerContextModelSnapshot : ModelSnapshot
+    [Migration("20250214173137_setSessionADV")]
+    partial class setSessionADV
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1006,7 +1009,7 @@ namespace PriceSafari.Migrations
                     b.ToTable("Regions");
                 });
 
-            modelBuilder.Entity("PriceSafari.Models.SchedulePlan.DayDetail", b =>
+            modelBuilder.Entity("PriceSafari.Models.SchedulePlan.DayPlan", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -1014,74 +1017,20 @@ namespace PriceSafari.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.HasKey("Id");
-
-                    b.ToTable("DayDetails");
-                });
-
-            modelBuilder.Entity("PriceSafari.Models.SchedulePlan.SchedulePlan", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
+                    b.Property<int>("DayOfWeek")
                         .HasColumnType("int");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<int?>("FridayId")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("MondayId")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("SaturdayId")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("SundayId")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("ThursdayId")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("TuesdayId")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("WednesdayId")
+                    b.Property<int>("WeeklyPlanId")
                         .HasColumnType("int");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("FridayId")
-                        .IsUnique()
-                        .HasFilter("[FridayId] IS NOT NULL");
+                    b.HasIndex("WeeklyPlanId");
 
-                    b.HasIndex("MondayId")
-                        .IsUnique()
-                        .HasFilter("[MondayId] IS NOT NULL");
-
-                    b.HasIndex("SaturdayId")
-                        .IsUnique()
-                        .HasFilter("[SaturdayId] IS NOT NULL");
-
-                    b.HasIndex("SundayId")
-                        .IsUnique()
-                        .HasFilter("[SundayId] IS NOT NULL");
-
-                    b.HasIndex("ThursdayId")
-                        .IsUnique()
-                        .HasFilter("[ThursdayId] IS NOT NULL");
-
-                    b.HasIndex("TuesdayId")
-                        .IsUnique()
-                        .HasFilter("[TuesdayId] IS NOT NULL");
-
-                    b.HasIndex("WednesdayId")
-                        .IsUnique()
-                        .HasFilter("[WednesdayId] IS NOT NULL");
-
-                    b.ToTable("SchedulePlans");
+                    b.ToTable("DayPlans");
                 });
 
-            modelBuilder.Entity("PriceSafari.Models.SchedulePlan.ScheduleTask", b =>
+            modelBuilder.Entity("PriceSafari.Models.SchedulePlan.DaySession", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -1089,38 +1038,32 @@ namespace PriceSafari.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<bool>("BaseEnabled")
+                    b.Property<bool>("BaseScalEnabled")
                         .HasColumnType("bit");
 
-                    b.Property<bool>("CeneoEnabled")
+                    b.Property<bool>("CeneoScraperEnabled")
                         .HasColumnType("bit");
 
-                    b.Property<DateTime?>("CompletedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int>("DayDetailId")
+                    b.Property<int>("DayPlanId")
                         .HasColumnType("int");
 
-                    b.Property<bool>("GoogleEnabled")
+                    b.Property<bool>("GoogleScraperEnabled")
                         .HasColumnType("bit");
 
                     b.Property<TimeSpan>("StartTime")
                         .HasColumnType("time");
 
-                    b.Property<bool>("TaskComplete")
-                        .HasColumnType("bit");
-
-                    b.Property<bool>("UrlEnabled")
+                    b.Property<bool>("UrlScalEnabled")
                         .HasColumnType("bit");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("DayDetailId");
+                    b.HasIndex("DayPlanId");
 
-                    b.ToTable("ScheduleTasks");
+                    b.ToTable("DaySessions");
                 });
 
-            modelBuilder.Entity("PriceSafari.Models.SchedulePlan.ScheduleTaskStore", b =>
+            modelBuilder.Entity("PriceSafari.Models.SchedulePlan.DaySessionStore", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -1128,7 +1071,7 @@ namespace PriceSafari.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<int>("ScheduleTaskId")
+                    b.Property<int>("DaySessionId")
                         .HasColumnType("int");
 
                     b.Property<int>("StoreId")
@@ -1136,11 +1079,28 @@ namespace PriceSafari.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("ScheduleTaskId");
+                    b.HasIndex("DaySessionId");
 
                     b.HasIndex("StoreId");
 
-                    b.ToTable("ScheduleTaskStores");
+                    b.ToTable("DaySessionStores");
+                });
+
+            modelBuilder.Entity("PriceSafari.Models.SchedulePlan.WeeklyPlan", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("PlanName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("WeeklyPlans");
                 });
 
             modelBuilder.Entity("PriceSafari.Models.ScheduledTask", b =>
@@ -1752,84 +1712,43 @@ namespace PriceSafari.Migrations
                     b.Navigation("Product");
                 });
 
-            modelBuilder.Entity("PriceSafari.Models.SchedulePlan.SchedulePlan", b =>
+            modelBuilder.Entity("PriceSafari.Models.SchedulePlan.DayPlan", b =>
                 {
-                    b.HasOne("PriceSafari.Models.SchedulePlan.DayDetail", "Friday")
-                        .WithOne()
-                        .HasForeignKey("PriceSafari.Models.SchedulePlan.SchedulePlan", "FridayId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("PriceSafari.Models.SchedulePlan.DayDetail", "Monday")
-                        .WithOne()
-                        .HasForeignKey("PriceSafari.Models.SchedulePlan.SchedulePlan", "MondayId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("PriceSafari.Models.SchedulePlan.DayDetail", "Saturday")
-                        .WithOne()
-                        .HasForeignKey("PriceSafari.Models.SchedulePlan.SchedulePlan", "SaturdayId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("PriceSafari.Models.SchedulePlan.DayDetail", "Sunday")
-                        .WithOne()
-                        .HasForeignKey("PriceSafari.Models.SchedulePlan.SchedulePlan", "SundayId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("PriceSafari.Models.SchedulePlan.DayDetail", "Thursday")
-                        .WithOne()
-                        .HasForeignKey("PriceSafari.Models.SchedulePlan.SchedulePlan", "ThursdayId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("PriceSafari.Models.SchedulePlan.DayDetail", "Tuesday")
-                        .WithOne()
-                        .HasForeignKey("PriceSafari.Models.SchedulePlan.SchedulePlan", "TuesdayId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("PriceSafari.Models.SchedulePlan.DayDetail", "Wednesday")
-                        .WithOne()
-                        .HasForeignKey("PriceSafari.Models.SchedulePlan.SchedulePlan", "WednesdayId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.Navigation("Friday");
-
-                    b.Navigation("Monday");
-
-                    b.Navigation("Saturday");
-
-                    b.Navigation("Sunday");
-
-                    b.Navigation("Thursday");
-
-                    b.Navigation("Tuesday");
-
-                    b.Navigation("Wednesday");
-                });
-
-            modelBuilder.Entity("PriceSafari.Models.SchedulePlan.ScheduleTask", b =>
-                {
-                    b.HasOne("PriceSafari.Models.SchedulePlan.DayDetail", "DayDetail")
-                        .WithMany("Tasks")
-                        .HasForeignKey("DayDetailId")
+                    b.HasOne("PriceSafari.Models.SchedulePlan.WeeklyPlan", "WeeklyPlan")
+                        .WithMany("DayPlans")
+                        .HasForeignKey("WeeklyPlanId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("DayDetail");
+                    b.Navigation("WeeklyPlan");
                 });
 
-            modelBuilder.Entity("PriceSafari.Models.SchedulePlan.ScheduleTaskStore", b =>
+            modelBuilder.Entity("PriceSafari.Models.SchedulePlan.DaySession", b =>
                 {
-                    b.HasOne("PriceSafari.Models.SchedulePlan.ScheduleTask", "ScheduleTask")
-                        .WithMany("TaskStores")
-                        .HasForeignKey("ScheduleTaskId")
+                    b.HasOne("PriceSafari.Models.SchedulePlan.DayPlan", "DayPlan")
+                        .WithMany("Sessions")
+                        .HasForeignKey("DayPlanId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("DayPlan");
+                });
+
+            modelBuilder.Entity("PriceSafari.Models.SchedulePlan.DaySessionStore", b =>
+                {
+                    b.HasOne("PriceSafari.Models.SchedulePlan.DaySession", "DaySession")
+                        .WithMany("DaySessionStores")
+                        .HasForeignKey("DaySessionId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.HasOne("PriceSafari.Models.StoreClass", "Store")
-                        .WithMany("ScheduleTaskStores")
+                        .WithMany("DaySessionStores")
                         .HasForeignKey("StoreId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("ScheduleTask");
+                    b.Navigation("DaySession");
 
                     b.Navigation("Store");
                 });
@@ -1900,14 +1819,19 @@ namespace PriceSafari.Migrations
                     b.Navigation("PriceData");
                 });
 
-            modelBuilder.Entity("PriceSafari.Models.SchedulePlan.DayDetail", b =>
+            modelBuilder.Entity("PriceSafari.Models.SchedulePlan.DayPlan", b =>
                 {
-                    b.Navigation("Tasks");
+                    b.Navigation("Sessions");
                 });
 
-            modelBuilder.Entity("PriceSafari.Models.SchedulePlan.ScheduleTask", b =>
+            modelBuilder.Entity("PriceSafari.Models.SchedulePlan.DaySession", b =>
                 {
-                    b.Navigation("TaskStores");
+                    b.Navigation("DaySessionStores");
+                });
+
+            modelBuilder.Entity("PriceSafari.Models.SchedulePlan.WeeklyPlan", b =>
+                {
+                    b.Navigation("DayPlans");
                 });
 
             modelBuilder.Entity("PriceSafari.Models.ScrapHistoryClass", b =>
@@ -1919,6 +1843,8 @@ namespace PriceSafari.Migrations
                 {
                     b.Navigation("Categories");
 
+                    b.Navigation("DaySessionStores");
+
                     b.Navigation("Flags");
 
                     b.Navigation("Invoices");
@@ -1928,8 +1854,6 @@ namespace PriceSafari.Migrations
                     b.Navigation("PriceValues");
 
                     b.Navigation("Products");
-
-                    b.Navigation("ScheduleTaskStores");
 
                     b.Navigation("ScrapHistories");
 

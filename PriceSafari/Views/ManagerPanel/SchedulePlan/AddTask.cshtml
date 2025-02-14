@@ -1,0 +1,47 @@
+﻿@model PriceSafari.Models.ViewModels.SchedulePlanViewModels.AddTaskViewModel
+
+@{
+    ViewData["Title"] = "Dodaj Zadanie";
+}
+
+<h2>@ViewData["Title"]</h2>
+
+<form asp-action="AddTask" method="post">
+    <input type="hidden" asp-for="DayDetailId" />
+
+    <div class="form-group">
+        <label>Godzina startu (HH:mm):</label>
+        <input type="text" asp-for="StartTime" class="form-control" />
+        <span asp-validation-for="StartTime" class="text-danger"></span>
+    </div>
+
+    <div class="form-check">
+        <input type="checkbox" asp-for="BaseEnabled" class="form-check-input" />
+        <label class="form-check-label">Base Scal</label>
+    </div>
+    <div class="form-check">
+        <input type="checkbox" asp-for="UrlEnabled" class="form-check-input" />
+        <label class="form-check-label">Url Scal</label>
+    </div>
+    <div class="form-check">
+        <input type="checkbox" asp-for="GoogleEnabled" class="form-check-input" />
+        <label class="form-check-label">Google Scraper</label>
+    </div>
+    <div class="form-check">
+        <input type="checkbox" asp-for="CeneoEnabled" class="form-check-input" />
+        <label class="form-check-label">Ceneo Scraper</label>
+    </div>
+
+    <div class="form-check">
+        <input type="checkbox" asp-for="TaskComplete" class="form-check-input" />
+        <label class="form-check-label">Zadanie już ukończone?</label>
+    </div>
+
+    <div class="form-group">
+        <label>Data/godzina zakończenia (opcjonalnie):</label>
+        <input type="datetime-local" asp-for="CompletedAt" class="form-control" />
+        <!-- lub type="text" i format "yyyy-MM-dd HH:mm" -->
+    </div>
+
+    <button type="submit" class="btn btn-primary">Zapisz</button>
+</form>

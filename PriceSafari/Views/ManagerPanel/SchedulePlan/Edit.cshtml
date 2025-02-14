@@ -1,0 +1,42 @@
+﻿@model PriceSafari.Models.SchedulePlan.SchedulePlan
+
+@{
+    ViewData["Title"] = "Edycja Planu ID=" + Model.Id;
+}
+
+<h2>@ViewData["Title"]</h2>
+
+<!-- Monday -->
+<h3>Poniedziałek (MondayId = @Model.MondayId)</h3>
+@if (Model.Monday != null && Model.Monday.Tasks != null)
+{
+    foreach (var t in Model.Monday.Tasks)
+    {
+        <div style="border:1px solid #ccc; padding:5px; margin-bottom:5px;">
+            Godzina: @t.StartTime
+            (Base: @t.BaseEnabled, Url: @t.UrlEnabled, Google: @t.GoogleEnabled, Ceneo: @t.CeneoEnabled)
+            <br />
+            <a asp-action="EditTask" asp-route-taskId="@t.Id" class="btn btn-sm btn-info">Edytuj</a>
+            <a asp-action="AssignStores" asp-route-taskId="@t.Id" class="btn btn-sm btn-secondary">Sklepy</a>
+            <form asp-action="DeleteTask" asp-route-taskId="@t.Id" method="post" style="display:inline;">
+                <button class="btn btn-sm btn-danger"
+                        onclick="return confirm('Usunąć zadanie?')">
+                    Usuń
+                </button>
+            </form>
+        </div>
+    }
+}
+<p>
+    <a asp-action="AddTask" asp-route-dayDetailId="@Model.MondayId" class="btn btn-primary btn-sm">
+        Dodaj Zadanie
+    </a>
+</p>
+
+<hr />
+
+<!-- Tuesday, Wednesday, ... Sunday analogicznie -->
+
+<p>
+    <a asp-action="Index" class="btn btn-secondary">Powrót do Listy</a>
+</p>

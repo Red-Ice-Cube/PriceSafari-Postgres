@@ -1,0 +1,102 @@
+﻿@using PriceSafari.Models.SchedulePlan
+@model PriceSafari.Models.SchedulePlan.SchedulePlan
+
+@{
+    ViewData["Title"] = "Kalendarz (co 10 min)";
+    // Tworzymy tablicę 7 elementów (kolumny),
+    // aby móc w pętli łatwo je obsługiwać:
+    var days = new[]
+    {
+        new { Name = "Monday",    Detail = Model.Monday,    DayDetailId = Model.MondayId    },
+        new { Name = "Tuesday",   Detail = Model.Tuesday,   DayDetailId = Model.TuesdayId   },
+        new { Name = "Wednesday", Detail = Model.Wednesday, DayDetailId = Model.WednesdayId },
+        new { Name = "Thursday",  Detail = Model.Thursday,  DayDetailId = Model.ThursdayId  },
+        new { Name = "Friday",    Detail = Model.Friday,    DayDetailId = Model.FridayId    },
+        new { Name = "Saturday",  Detail = Model.Saturday,  DayDetailId = Model.SaturdayId  },
+        new { Name = "Sunday",    Detail = Model.Sunday,    DayDetailId = Model.SundayId    },
+    };
+
+    // Helper: funkcja do sprawdzenia, czy w DayDetail jest zadanie
+    // o danej godzinie i minucie.
+    Func<DayDetail, int, int, ScheduleTask> findTask = (dd, hour, minute) =>
+    {
+        if (dd == null || dd.Tasks == null) return null;
+        // Szukamy takiego Taska:
+        return dd.Tasks.FirstOrDefault(t => t.StartTime.Hours == hour
+                                            && t.StartTime.Minutes == minute);
+    };
+}
+
+<h2>Kalendarz w odstępach 10-minutowych</h2>
+
+<p>
+    <a asp-action="Create" class="btn btn-primary">Utwórz Nowy Plan</a>
+    <!-- Link do edycji całego planu: -->
+    <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-info">Edycja Planu</a>
+</p>
+
+<table class="table table-bordered table-sm" style="width:auto; text-align:center;">
+    <thead>
+        <tr>
+            <th style="width:80px;">Godzina</th>
+            <th>Poniedziałek</th>
+            <th>Wtorek</th>
+            <th>Środa</th>
+            <th>Czwartek</th>
+            <th>Piątek</th>
+            <th>Sobota</th>
+            <th>Niedziela</th>
+        </tr>
+    </thead>
+    <tbody>
+        @for (int hour = 0; hour < 24; hour++)
+        {
+            for (int minute = 0; minute < 60; minute += 10)
+            {
+                <tr>
+                    <td>
+                        @($"{hour:00}:{minute:00}")
+                    </td>
+
+                    @foreach (var day in days)
+                    {
+                        var task = findTask(day.Detail, hour, minute);
+
+                        <td>
+                            @if (task == null)
+                            {
+                                <!-- Nie ma taska o tej godzinie -> link do AddTask -->
+                                <a asp-action="AddTask"
+                                   asp-route-dayDetailId="@day.DayDetailId"
+                                   asp-route-hour="@hour"
+                                   asp-route-min="@minute"
+                                   class="btn btn-sm btn-outline-secondary">
+                                    Dodaj
+                                </a>
+                            }
+                            else
+                            {
+                                <!-- Jest task -> link do EditTask / AssignStores -->
+                                <div style="border:1px solid #aaa; padding:2px;">
+                                    <strong>Task</strong><br />
+                                    Base: @(task.BaseEnabled ? "T" : "F")
+                                    <br />
+                                    <a asp-action="EditTask"
+                                       asp-route-taskId="@task.Id"
+                                       class="btn btn-sm btn-info">
+                                        Edycja
+                                    </a>
+                                    <a asp-action="AssignStores"
+                                       asp-route-taskId="@task.Id"
+                                       class="btn btn-sm btn-secondary">
+                                        Sklepy
+                                    </a>
+                                </div>
+                            }
+                        </td>
+                    }
+                </tr>
+            }
+        }
+    </tbody>
+</table>

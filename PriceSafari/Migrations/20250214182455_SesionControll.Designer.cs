@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using PriceSafari.Data;
 
@@ -11,9 +12,11 @@ using PriceSafari.Data;
 namespace PriceSafari.Migrations
 {
     [DbContext(typeof(PriceSafariContext))]
-    partial class PriceTrackerContextModelSnapshot : ModelSnapshot
+    [Migration("20250214182455_SesionControll")]
+    partial class SesionControll
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1095,9 +1098,6 @@ namespace PriceSafari.Migrations
                     b.Property<bool>("CeneoEnabled")
                         .HasColumnType("bit");
 
-                    b.Property<DateTime?>("CompletedAt")
-                        .HasColumnType("datetime2");
-
                     b.Property<int>("DayDetailId")
                         .HasColumnType("int");
 
@@ -1106,9 +1106,6 @@ namespace PriceSafari.Migrations
 
                     b.Property<TimeSpan>("StartTime")
                         .HasColumnType("time");
-
-                    b.Property<bool>("TaskComplete")
-                        .HasColumnType("bit");
 
                     b.Property<bool>("UrlEnabled")
                         .HasColumnType("bit");

@@ -123,6 +123,10 @@
                     <img src="~/images/Settings-bone.svg" alt="Assign Icon" class="menu-icon" />Ustawienia
                 </div>
 
+                <div class="@(controllerName == "SchedulePlan" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "SchedulePlan")'">
+                    <img src="~/images/MoneyIn-bone.svg" alt="Panel Icon" class="menu-icon" />Taski
+                </div>
+
                 <div class="@(controllerName == "ProductMapping" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "ProductMapping")'">
                     <img src="~/images/Link-bone.svg" alt="Panel Icon" class="menu-icon" />Mapowanie
                 </div>

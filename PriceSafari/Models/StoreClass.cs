@@ -1,6 +1,7 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.Collections.Generic;
 using Microsoft.AspNetCore.Mvc.ModelBinding.Validation;
+using PriceSafari.Models.SchedulePlan;
 
 namespace PriceSafari.Models
 {
@@ -55,5 +56,9 @@ namespace PriceSafari.Models
         public ICollection<PriceSafariReport> PriceSafariReports { get; set; } = new List<PriceSafariReport>();
 
         public ICollection<InvoiceClass> Invoices { get; set; } = new List<InvoiceClass>();
+        public ICollection<ScheduleTaskStore> ScheduleTaskStores { get; set; }
+            = new List<ScheduleTaskStore>();
+
+
     }
 }

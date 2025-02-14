@@ -175,16 +175,21 @@ public class InvoiceDocument
         var dataRow = table.AddRow();
         dataRow.Cells[0].AddParagraph("1");
 
-        var serviceDescription = $"PriceSafari {_invoice.Plan.PlanName}\n" +
-                                 $"Ilość analiz: {_invoice.ScrapesIncluded}\n" +
-                                 $"Maksymalna ilość produktów: {_invoice.UrlsIncluded}";
-        dataRow.Cells[1].AddParagraph(serviceDescription);
+        var dataCell = dataRow.Cells[1];
+        dataCell.AddParagraph($"PriceSafari {_invoice.Plan.PlanName}");
+        dataCell.AddParagraph($"Ilość analiz: {_invoice.ScrapesIncluded}");
+        dataCell.AddParagraph("Częstotliwość aktualizacji: 168h");
+        dataCell.AddParagraph("Źródło danych: Ceneo, Google Shopping");
+        dataCell.AddParagraph($"Maksymalna ilość produktów: {_invoice.UrlsIncluded}");
+
+
         dataRow.Cells[2].AddParagraph($"{discountedNet:C}").Format.Alignment = ParagraphAlignment.Right;
         dataRow.Cells[3].AddParagraph($"{vatRate:P0}").Format.Alignment = ParagraphAlignment.Right;
         dataRow.Cells[4].AddParagraph($"{discountedVat:C}").Format.Alignment = ParagraphAlignment.Right;
         dataRow.Cells[5].AddParagraph($"{discountedGross:C}").Format.Alignment = ParagraphAlignment.Right;
 
         section.AddParagraph().AddLineBreak();
+
 
         // Rabat info
         if (_invoice.AppliedDiscountPercentage > 0)

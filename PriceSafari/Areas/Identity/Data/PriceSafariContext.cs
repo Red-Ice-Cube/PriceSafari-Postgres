@@ -1,6 +1,7 @@
 ﻿using PriceSafari.Models;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
+using PriceSafari.Models.SchedulePlan;
 
 
 namespace PriceSafari.Data
@@ -40,6 +41,11 @@ namespace PriceSafari.Data
         public DbSet<UserPaymentData> UserPaymentDatas { get; set; }
         public DbSet<DeviceStatus> DeviceStatuses { get; set; }
         public DbSet<TaskExecutionLog> TaskExecutionLogs { get; set; }
+        public DbSet<SchedulePlan> SchedulePlans { get; set; }
+        public DbSet<DayDetail> DayDetails { get; set; }
+        public DbSet<ScheduleTask> ScheduleTasks { get; set; }
+        public DbSet<ScheduleTaskStore> ScheduleTaskStores { get; set; }
+
 
 
 
@@ -131,6 +137,77 @@ namespace PriceSafari.Data
                    .WithOne(pd => pd.User)
                    .HasForeignKey(pd => pd.UserId)
                    .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<SchedulePlan>()
+                 .HasOne(sp => sp.Monday)
+                 .WithOne()
+                 .HasForeignKey<SchedulePlan>(sp => sp.MondayId)
+                 .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<SchedulePlan>()
+                .HasOne(sp => sp.Tuesday)
+                .WithOne()
+                .HasForeignKey<SchedulePlan>(sp => sp.TuesdayId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+
+            modelBuilder.Entity<SchedulePlan>()
+             .HasOne(sp => sp.Wednesday)
+             .WithOne()
+             .HasForeignKey<SchedulePlan>(sp => sp.WednesdayId)
+             .OnDelete(DeleteBehavior.Restrict);
+
+
+            modelBuilder.Entity<SchedulePlan>()
+              .HasOne(sp => sp.Thursday)
+              .WithOne()
+              .HasForeignKey<SchedulePlan>(sp => sp.ThursdayId)
+              .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<SchedulePlan>()
+               .HasOne(sp => sp.Friday)
+               .WithOne()
+               .HasForeignKey<SchedulePlan>(sp => sp.FridayId)
+               .OnDelete(DeleteBehavior.Restrict);
+
+
+
+            modelBuilder.Entity<SchedulePlan>()
+               .HasOne(sp => sp.Saturday)
+               .WithOne()
+               .HasForeignKey<SchedulePlan>(sp => sp.SaturdayId)
+               .OnDelete(DeleteBehavior.Restrict);
+
+
+
+            modelBuilder.Entity<SchedulePlan>()
+               .HasOne(sp => sp.Sunday)
+               .WithOne()
+               .HasForeignKey<SchedulePlan>(sp => sp.SundayId)
+               .OnDelete(DeleteBehavior.Restrict);
+
+
+
+            // DayDetail -> ScheduleTask: w sumie to jest 1:N
+            modelBuilder.Entity<ScheduleTask>()
+                .HasOne(st => st.DayDetail)
+                .WithMany(dd => dd.Tasks)
+                .HasForeignKey(st => st.DayDetailId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // M:N ScheduleTaskStore
+            modelBuilder.Entity<ScheduleTaskStore>()
+                .HasOne(sts => sts.ScheduleTask)
+                .WithMany(st => st.TaskStores)
+                .HasForeignKey(sts => sts.ScheduleTaskId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<ScheduleTaskStore>()
+                .HasOne(sts => sts.Store)
+                .WithMany(s => s.ScheduleTaskStores)
+                .HasForeignKey(sts => sts.StoreId)
+                .OnDelete(DeleteBehavior.Cascade);
+
         }
     }
 }
