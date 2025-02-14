@@ -1,47 +1,51 @@
 ﻿@model PriceSafari.Models.ViewModels.SchedulePlanViewModels.AddTaskViewModel
 
-<h2>Dodaj Zadanie</h2>
-<form asp-action="AddTask" method="post">
-    <!-- Ukryte: dayDetailId (np. Monday) -->
-    <input type="hidden" name="dayDetailId" value="@ViewBag.DayDetailId" />
+@{
+    ViewData["Title"] = "Edytuj Zadanie";
+}
+
+<h2>@ViewData["Title"]</h2>
+
+<form asp-action="EditTask" method="post">
+    <input type="hidden" name="taskId" value="@ViewBag.TaskId" />
 
     <div class="form-group">
-        <label>Nazwa Zadania (sesji):</label>
+        <label>Nazwa Zadania:</label>
         <input asp-for="SessionName" class="form-control" />
     </div>
 
     <div class="form-group">
-        <label>Godzina startu (HH:mm) [obowiązkowe]:</label>
+        <label>Start (HH:mm):</label>
         <input asp-for="StartTime" class="form-control" />
     </div>
 
     <div class="form-group">
-        <label>Godzina końca (HH:mm) [obowiązkowe]:</label>
+        <label>Koniec (HH:mm):</label>
         <input asp-for="EndTime" class="form-control" />
     </div>
 
     <div class="form-check">
         <input asp-for="BaseEnabled" class="form-check-input" />
-        <label class="form-check-label">Base Scal</label>
+        <label>Base Scal</label>
     </div>
     <div class="form-check">
         <input asp-for="UrlEnabled" class="form-check-input" />
-        <label class="form-check-label">Url Scal</label>
+        <label>Url Scal</label>
     </div>
     <div class="form-check">
         <input asp-for="GoogleEnabled" class="form-check-input" />
-        <label class="form-check-label">Google Scraper</label>
+        <label>Google Scraper</label>
     </div>
     <div class="form-check">
         <input asp-for="CeneoEnabled" class="form-check-input" />
-        <label class="form-check-label">Ceneo Scraper</label>
+        <label>Ceneo Scraper</label>
     </div>
 
     <hr />
     <h4>Sklepy:</h4>
     <table class="table">
         <thead>
-            <tr><th>Sklep</th><th>Wybierz</th></tr>
+            <tr><th>Nazwa</th><th>Wybrany?</th></tr>
         </thead>
         <tbody>
             @for (int i = 0; i < Model.Stores.Count; i++)
@@ -58,5 +62,5 @@
         </tbody>
     </table>
 
-    <button type="submit" class="btn btn-primary">Zapisz</button>
+    <button type="submit" class="btn btn-primary">Zapisz zmiany</button>
 </form>

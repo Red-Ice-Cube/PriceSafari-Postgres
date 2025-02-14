@@ -3,49 +3,42 @@
 
 @{
     ViewData["Title"] = "Kalendarz (co 10 min)";
-    // Tworzymy tablicę 7 elementów (kolumny),
-    // aby móc w pętli łatwo je obsługiwać:
+
+    // 7 kolumn (pon-nd)
     var days = new[]
     {
-        new { Name = "Monday",    Detail = Model.Monday,    DayDetailId = Model.MondayId    },
-        new { Name = "Tuesday",   Detail = Model.Tuesday,   DayDetailId = Model.TuesdayId   },
+        new { Name = "Monday",    Detail = Model.Monday,    DayDetailId = Model.MondayId },
+        new { Name = "Tuesday",   Detail = Model.Tuesday,   DayDetailId = Model.TuesdayId },
         new { Name = "Wednesday", Detail = Model.Wednesday, DayDetailId = Model.WednesdayId },
-        new { Name = "Thursday",  Detail = Model.Thursday,  DayDetailId = Model.ThursdayId  },
-        new { Name = "Friday",    Detail = Model.Friday,    DayDetailId = Model.FridayId    },
-        new { Name = "Saturday",  Detail = Model.Saturday,  DayDetailId = Model.SaturdayId  },
-        new { Name = "Sunday",    Detail = Model.Sunday,    DayDetailId = Model.SundayId    },
+        new { Name = "Thursday",  Detail = Model.Thursday,  DayDetailId = Model.ThursdayId },
+        new { Name = "Friday",    Detail = Model.Friday,    DayDetailId = Model.FridayId },
+        new { Name = "Saturday",  Detail = Model.Saturday,  DayDetailId = Model.SaturdayId },
+        new { Name = "Sunday",    Detail = Model.Sunday,    DayDetailId = Model.SundayId }
     };
 
-    // Helper: funkcja do sprawdzenia, czy w DayDetail jest zadanie
-    // o danej godzinie i minucie.
-    Func<DayDetail, int, int, ScheduleTask> findTask = (dd, hour, minute) =>
+    // Funkcja: wyszukujemy Zadanie, które startuje EXACT w tym slocie
+    Func<DayDetail, int, int, ScheduleTask> findTask = (dd, hr, mn) =>
     {
         if (dd == null || dd.Tasks == null) return null;
-        // Szukamy takiego Taska:
-        return dd.Tasks.FirstOrDefault(t => t.StartTime.Hours == hour
-                                            && t.StartTime.Minutes == minute);
+        return dd.Tasks.FirstOrDefault(t => t.StartTime.Hours == hr
+                                         && t.StartTime.Minutes == mn);
     };
 }
 
-<h2>Kalendarz w odstępach 10-minutowych</h2>
+<h2>Kalendarz 10-minutowy</h2>
+<p>(W tym przykładzie pokazujemy TYLKO te zadania, które startują w danym slocie)</p>
 
-<p>
-    <a asp-action="Create" class="btn btn-primary">Utwórz Nowy Plan</a>
-    <!-- Link do edycji całego planu: -->
-    <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-info">Edycja Planu</a>
-</p>
-
-<table class="table table-bordered table-sm" style="width:auto; text-align:center;">
+<table class="table table-bordered">
     <thead>
         <tr>
-            <th style="width:80px;">Godzina</th>
-            <th>Poniedziałek</th>
-            <th>Wtorek</th>
-            <th>Środa</th>
-            <th>Czwartek</th>
-            <th>Piątek</th>
-            <th>Sobota</th>
-            <th>Niedziela</th>
+            <th>Godzina</th>
+            <th>Pon</th>
+            <th>Wt</th>
+            <th>Śr</th>
+            <th>Czw</th>
+            <th>Pt</th>
+            <th>So</th>
+            <th>Nd</th>
         </tr>
     </thead>
     <tbody>
@@ -54,46 +47,72 @@
             for (int minute = 0; minute < 60; minute += 10)
             {
                 <tr>
-                    <td>
-                        @($"{hour:00}:{minute:00}")
-                    </td>
+                    <td>@($"{hour:00}:{minute:00}")</td>
 
                     @foreach (var day in days)
                     {
                         var task = findTask(day.Detail, hour, minute);
 
-                        <td>
-                            @if (task == null)
+                        if (task == null)
+                        {
+                            // sprawdzamy, czy ten slot jest w czyimś przedziale [StartTime, EndTime)?
+                            bool isOccupied = day.Detail?.Tasks?.Any(t =>
+                            new TimeSpan(hour, minute, 0) >= t.StartTime &&
+                            new TimeSpan(hour, minute, 0) < t.EndTime
+                            ) ?? false;
+
+                            if (isOccupied)
                             {
-                                <!-- Nie ma taska o tej godzinie -> link do AddTask -->
-                                <a asp-action="AddTask"
-                                   asp-route-dayDetailId="@day.DayDetailId"
-                                   asp-route-hour="@hour"
-                                   asp-route-min="@minute"
-                                   class="btn btn-sm btn-outline-secondary">
-                                    Dodaj
-                                </a>
+                                // Pokoloruj lub zablokuj
+                                <td style="background:#ddd;">
+                                    Zajęte
+                                </td>
                             }
                             else
                             {
-                                <!-- Jest task -> link do EditTask / AssignStores -->
-                                <div style="border:1px solid #aaa; padding:2px;">
-                                    <strong>Task</strong><br />
-                                    Base: @(task.BaseEnabled ? "T" : "F")
-                                    <br />
-                                    <a asp-action="EditTask"
-                                       asp-route-taskId="@task.Id"
-                                       class="btn btn-sm btn-info">
-                                        Edycja
+                                // Wolny slot
+                                <td>
+                                    <a asp-action="AddTask"
+                                       asp-route-dayDetailId="@day.DayDetailId"
+                                       asp-route-hour="@hour"
+                                       asp-route-min="@minute"
+                                       class="btn btn-sm btn-success">
+                                        Dodaj
                                     </a>
-                                    <a asp-action="AssignStores"
-                                       asp-route-taskId="@task.Id"
-                                       class="btn btn-sm btn-secondary">
-                                        Sklepy
-                                    </a>
-                                </div>
+                                </td>
                             }
-                        </td>
+                        }
+                        else
+                        {
+                            // W tym slocie startuje zadanie
+                            var duration = task.EndTime - task.StartTime;
+                            var minutesTotal = duration.TotalMinutes;
+                            <td style="background:#ffecb3;">
+                                <strong>@task.SessionName</strong><br />
+                                @($"{task.StartTime:hh\\:mm} - {task.EndTime:hh\\:mm}")
+                                <br />
+                                Sklepy: @string.Join(", ", task.TaskStores.Select(ts => ts.Store.StoreName))
+                                <br />
+                                Base=@(task.BaseEnabled ? "T" : "F"),
+                                Url=@(task.UrlEnabled ? "T" : "F"),
+                                Goo=@(task.GoogleEnabled ? "T" : "F"),
+                                Cen=@(task.CeneoEnabled ? "T" : "F")
+
+                                <hr />
+                                <a asp-action="EditTask" asp-route-taskId="@task.Id" class="btn btn-sm btn-info">
+                                    Edytuj
+                                </a>
+
+                                <form asp-action="DeleteTask" method="post" style="display:inline;">
+                                    <input type="hidden" name="taskId" value="@task.Id" />
+                                    <button type="submit" class="btn btn-sm btn-danger"
+                                            onclick="return confirm('Czy na pewno usunąć zadanie?')">
+                                        Usuń
+                                    </button>
+                                </form>
+                            </td>
+
+                        }
                     }
                 </tr>
             }

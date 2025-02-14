@@ -20,133 +20,98 @@ namespace PriceSafari.Controllers
             _context = context;
         }
 
-        // GET: /SchedulePlan/Index
-        // Wyświetla kalendarz (1 plan z 7 dniami).
+        /// <summary>
+        /// Index: wyświetla kalendarz 10-minutowy z 7 dni, 
+        /// wczytuje pełne dane (Tasks + TaskStores + Store).
+        /// </summary>
         [HttpGet]
         public async Task<IActionResult> Index()
         {
-            // Pobieramy PIERWSZY (i jedyny) plan
             var plan = await _context.SchedulePlans
                 .Include(sp => sp.Monday).ThenInclude(d => d.Tasks)
+                    .ThenInclude(t => t.TaskStores).ThenInclude(ts => ts.Store)
                 .Include(sp => sp.Tuesday).ThenInclude(d => d.Tasks)
+                    .ThenInclude(t => t.TaskStores).ThenInclude(ts => ts.Store)
                 .Include(sp => sp.Wednesday).ThenInclude(d => d.Tasks)
+                    .ThenInclude(t => t.TaskStores).ThenInclude(ts => ts.Store)
                 .Include(sp => sp.Thursday).ThenInclude(d => d.Tasks)
+                    .ThenInclude(t => t.TaskStores).ThenInclude(ts => ts.Store)
                 .Include(sp => sp.Friday).ThenInclude(d => d.Tasks)
+                    .ThenInclude(t => t.TaskStores).ThenInclude(ts => ts.Store)
                 .Include(sp => sp.Saturday).ThenInclude(d => d.Tasks)
+                    .ThenInclude(t => t.TaskStores).ThenInclude(ts => ts.Store)
                 .Include(sp => sp.Sunday).ThenInclude(d => d.Tasks)
+                    .ThenInclude(t => t.TaskStores).ThenInclude(ts => ts.Store)
                 .FirstOrDefaultAsync();
 
             if (plan == null)
             {
-                // Jeśli w bazie nie ma planu, możesz przekierować do Create
-                return Content("Brak planu w bazie. Utwórz lub zainicjuj plan.");
+                return Content("Brak planu. Musisz go utworzyć / zainicjować.");
             }
 
-            // Przekazujemy do widoku
             return View("~/Views/ManagerPanel/SchedulePlan/Index.cshtml", plan);
         }
 
-        // Tworzenie planu (jeden raz) - jeżeli chcesz w panelu
-        [HttpPost]
-        public async Task<IActionResult> CreatePlan()
-        {
-            // Tworzymy plan i 7 DayDetail, jeśli w ogóle chcesz to robić z poziomu panelu
-            var plan = new SchedulePlan();
-            _context.SchedulePlans.Add(plan);
-            await _context.SaveChangesAsync();
+        // ========== Tworzenie Zadania ==========
 
-            var mon = new DayDetail();
-            var tue = new DayDetail();
-            var wed = new DayDetail();
-            var thu = new DayDetail();
-            var fri = new DayDetail();
-            var sat = new DayDetail();
-            var sun = new DayDetail();
-
-            _context.DayDetails.AddRange(mon, tue, wed, thu, fri, sat, sun);
-            await _context.SaveChangesAsync();
-
-            plan.MondayId = mon.Id;
-            plan.TuesdayId = tue.Id;
-            plan.WednesdayId = wed.Id;
-            plan.ThursdayId = thu.Id;
-            plan.FridayId = fri.Id;
-            plan.SaturdayId = sat.Id;
-            plan.SundayId = sun.Id;
-
-            _context.SchedulePlans.Update(plan);
-            await _context.SaveChangesAsync();
-
-            return RedirectToAction("Index");
-        }
-
-        // GET: /SchedulePlan/AddTask?dayDetailId=X&hour=Y&min=Z
         [HttpGet]
         public IActionResult AddTask(int dayDetailId, int hour, int min)
         {
-            // Walidacja hour i min
+            // Ustal domyślny StartTime
             var h = Math.Clamp(hour, 0, 23);
             var m = Math.Clamp(min, 0, 59);
 
-            // Pobieramy sklepy z bazy, by zrobić checkboxy
             var allStores = _context.Stores.ToList();
 
             var vm = new AddTaskViewModel
             {
                 SessionName = "",
-                StartTime = $"{h:00}:{m:00}", // domyślna wartość
-                Stores = allStores.Select(s => new StoreCheckboxItem
-                {
-                    StoreId = s.StoreId,
-                    StoreName = s.StoreName,
-                    IsSelected = false
-                }).ToList()
+                StartTime = $"{h:00}:{m:00}",   // np. "13:40"
+                EndTime = "",
+                Stores = allStores
+                    .Select(s => new StoreCheckboxItem
+                    {
+                        StoreId = s.StoreId,
+                        StoreName = s.StoreName,
+                        IsSelected = false
+                    }).ToList()
             };
 
-            // Przechowujemy dayDetailId w ViewBag lub w hidden input w widoku
             ViewBag.DayDetailId = dayDetailId;
-
             return View("~/Views/ManagerPanel/SchedulePlan/AddTask.cshtml", vm);
         }
 
-        // POST: /SchedulePlan/AddTask
         [HttpPost]
         public async Task<IActionResult> AddTask(int dayDetailId, AddTaskViewModel model)
         {
-            // Parsujemy StartTime
-            if (!TimeSpan.TryParse(model.StartTime, out var parsedTime))
+            // Parsowanie StartTime
+            if (!TimeSpan.TryParse(model.StartTime, out var startTs))
             {
                 ModelState.AddModelError("StartTime", "Nieprawidłowy format godziny (HH:mm).");
             }
-
-            // Parsujemy CompletedAt (opcjonalnie)
-            DateTime? completedAtDate = null;
-            if (!string.IsNullOrWhiteSpace(model.CompletedAt))
+            // Parsowanie EndTime
+            if (!TimeSpan.TryParse(model.EndTime, out var endTs))
             {
-                if (DateTime.TryParse(model.CompletedAt, out var cdt))
-                {
-                    completedAtDate = cdt;
-                }
-                else
-                {
-                    ModelState.AddModelError("CompletedAt", "Nieprawidłowy format daty/godziny.");
-                }
+                ModelState.AddModelError("EndTime", "Nieprawidłowy format godziny (HH:mm).");
+            }
+            // Walidacja
+            if (endTs <= startTs)
+            {
+                ModelState.AddModelError("EndTime", "Godzina końca musi być późniejsza niż start.");
             }
 
             if (!ModelState.IsValid)
             {
-                // Musimy odtworzyć checkboxy sklepów
+                // Odtwarzamy listę sklepów
                 var allStores = _context.Stores.ToList();
-
-                // Dla każdego sklepu z bazy - sprawdzamy czy user miał zaznaczone (po ID)
-                model.Stores = allStores.Select(dbStore =>
+                model.Stores = allStores.Select(s =>
                 {
-                    var found = model.Stores.FirstOrDefault(x => x.StoreId == dbStore.StoreId);
+                    var existed = model.Stores.FirstOrDefault(x => x.StoreId == s.StoreId);
                     return new StoreCheckboxItem
                     {
-                        StoreId = dbStore.StoreId,
-                        StoreName = dbStore.StoreName,
-                        IsSelected = found?.IsSelected ?? false
+                        StoreId = s.StoreId,
+                        StoreName = s.StoreName,
+                        IsSelected = existed?.IsSelected ?? false
                     };
                 }).ToList();
 
@@ -154,148 +119,233 @@ namespace PriceSafari.Controllers
                 return View("~/Views/ManagerPanel/SchedulePlan/AddTask.cshtml", model);
             }
 
-            // Tworzymy obiekt ScheduleTask
+            // Sprawdzenie kolizji (opcjonalnie)
+            var dayDetail = await _context.DayDetails
+                .Include(d => d.Tasks)
+                .FirstOrDefaultAsync(d => d.Id == dayDetailId);
+
+            if (dayDetail == null)
+            {
+                return RedirectToAction("Index");
+            }
+
+            bool collision = dayDetail.Tasks.Any(t =>
+                // [startTs, endTs) vs [t.StartTime, t.EndTime)
+                (startTs < t.EndTime) && (endTs > t.StartTime)
+            );
+            if (collision)
+            {
+                ModelState.AddModelError("", "Przedział czasowy jest już zajęty.");
+
+                // Odtwarzamy checkboxy
+                var allStores = _context.Stores.ToList();
+                model.Stores = allStores.Select(s =>
+                {
+                    var existed = model.Stores.FirstOrDefault(x => x.StoreId == s.StoreId);
+                    return new StoreCheckboxItem
+                    {
+                        StoreId = s.StoreId,
+                        StoreName = s.StoreName,
+                        IsSelected = existed?.IsSelected ?? false
+                    };
+                }).ToList();
+
+                ViewBag.DayDetailId = dayDetailId;
+                return View("~/Views/ManagerPanel/SchedulePlan/AddTask.cshtml", model);
+            }
+
+            // Tworzymy zadanie
             var newTask = new ScheduleTask
             {
                 SessionName = model.SessionName,
-                StartTime = parsedTime,
+                StartTime = startTs,
+                EndTime = endTs,
                 BaseEnabled = model.BaseEnabled,
                 UrlEnabled = model.UrlEnabled,
                 GoogleEnabled = model.GoogleEnabled,
                 CeneoEnabled = model.CeneoEnabled,
-                CompletedAt = completedAtDate,
-
                 DayDetailId = dayDetailId
             };
             _context.ScheduleTasks.Add(newTask);
             await _context.SaveChangesAsync();
 
-            // Przypisanie sklepów
+            // Przypisywanie sklepów
             var selectedStoreIds = model.Stores
                 .Where(x => x.IsSelected)
                 .Select(x => x.StoreId)
                 .ToList();
-
-            foreach (var storeId in selectedStoreIds)
+            foreach (var sid in selectedStoreIds)
             {
                 var rel = new ScheduleTaskStore
                 {
                     ScheduleTaskId = newTask.Id,
-                    StoreId = storeId
+                    StoreId = sid
                 };
                 _context.ScheduleTaskStores.Add(rel);
             }
             await _context.SaveChangesAsync();
 
-            // Przekierowanie do Index (kalendarz)
             return RedirectToAction("Index");
         }
 
-        // GET: /SchedulePlan/EditTask/5
+        // ========== Edycja Zadania ==========
+
         [HttpGet]
         public async Task<IActionResult> EditTask(int taskId)
         {
-            var task = await _context.ScheduleTasks.FindAsync(taskId);
-            if (task == null)
-                return NotFound();
+            var task = await _context.ScheduleTasks
+                .Include(t => t.TaskStores)
+                .ThenInclude(ts => ts.Store)
+                .FirstOrDefaultAsync(t => t.Id == taskId);
+
+            if (task == null) return NotFound();
+
+            // Przygotowujemy ViewModel podobny do AddTaskViewModel
+            var allStores = _context.Stores.ToList();
 
             var vm = new AddTaskViewModel
             {
-                // Możesz dać SessionName do edycji, CompletedAt, itp.:
                 SessionName = task.SessionName,
                 StartTime = task.StartTime.ToString(@"hh\:mm"),
+                EndTime = task.EndTime.ToString(@"hh\:mm"),
                 BaseEnabled = task.BaseEnabled,
                 UrlEnabled = task.UrlEnabled,
                 GoogleEnabled = task.GoogleEnabled,
                 CeneoEnabled = task.CeneoEnabled,
-                CompletedAt = task.CompletedAt?.ToString("yyyy-MM-dd HH:mm") // format dowolny
-
-                // Jeśli chcesz edytować sklepy w tym samym formularzu,
-                // musisz odtworzyć "Stores" -> w tym przykładzie pominę
+                Stores = allStores.Select(s => new StoreCheckboxItem
+                {
+                    StoreId = s.StoreId,
+                    StoreName = s.StoreName,
+                    IsSelected = task.TaskStores.Any(ts => ts.StoreId == s.StoreId)
+                }).ToList()
             };
 
-            // ewentualnie dayDetailId w ViewBag
             ViewBag.TaskId = taskId;
             return View("~/Views/ManagerPanel/SchedulePlan/EditTask.cshtml", vm);
         }
 
-        // POST: /SchedulePlan/EditTask
         [HttpPost]
         public async Task<IActionResult> EditTask(int taskId, AddTaskViewModel model)
         {
-            // Walidacja StartTime
-            if (!TimeSpan.TryParse(model.StartTime, out var parsedTime))
+            // Walidacja Start/End Time
+            if (!TimeSpan.TryParse(model.StartTime, out var startTs))
             {
-                ModelState.AddModelError("StartTime", "Nieprawidłowy format godziny (HH:mm).");
+                ModelState.AddModelError("StartTime", "Błędny format godziny.");
             }
-
-            // Parsowanie CompletedAt
-            DateTime? completedAtDate = null;
-            if (!string.IsNullOrWhiteSpace(model.CompletedAt))
+            if (!TimeSpan.TryParse(model.EndTime, out var endTs))
             {
-                if (DateTime.TryParse(model.CompletedAt, out var cdt))
-                {
-                    completedAtDate = cdt;
-                }
-                else
-                {
-                    ModelState.AddModelError("CompletedAt", "Nieprawidłowy format daty/godziny.");
-                }
+                ModelState.AddModelError("EndTime", "Błędny format godziny.");
+            }
+            if (endTs <= startTs)
+            {
+                ModelState.AddModelError("EndTime", "Godzina końca musi być po starcie.");
             }
 
             if (!ModelState.IsValid)
             {
+                // Odtwarzamy checkboxy
+                var allStores = _context.Stores.ToList();
+                model.Stores = allStores.Select(s => new StoreCheckboxItem
+                {
+                    StoreId = s.StoreId,
+                    StoreName = s.StoreName,
+                    IsSelected = model.Stores.Any(x => x.StoreId == s.StoreId && x.IsSelected)
+                }).ToList();
+
                 ViewBag.TaskId = taskId;
                 return View("~/Views/ManagerPanel/SchedulePlan/EditTask.cshtml", model);
             }
 
-            var task = await _context.ScheduleTasks.FindAsync(taskId);
-            if (task == null)
-                return NotFound();
+            var task = await _context.ScheduleTasks
+                .Include(t => t.DayDetail)
+                .Include(t => t.TaskStores)
+                .FirstOrDefaultAsync(t => t.Id == taskId);
 
+            if (task == null) return NotFound();
+
+            // Sprawdzenie kolizji w DayDetail
+            var dayDetail = await _context.DayDetails
+                .Include(d => d.Tasks)
+                .FirstOrDefaultAsync(d => d.Id == task.DayDetailId);
+
+            if (dayDetail == null) return NotFound();
+
+            bool collision = dayDetail.Tasks
+                .Where(x => x.Id != taskId) // pomijamy edytowany task
+                .Any(t =>
+                    (startTs < t.EndTime) && (endTs > t.StartTime)
+                );
+            if (collision)
+            {
+                ModelState.AddModelError("", "Przedział czasowy już zajęty.");
+
+                // Odtwarzamy checkboxy
+                var allStores = _context.Stores.ToList();
+                model.Stores = allStores.Select(s => new StoreCheckboxItem
+                {
+                    StoreId = s.StoreId,
+                    StoreName = s.StoreName,
+                    IsSelected = model.Stores.Any(x => x.StoreId == s.StoreId && x.IsSelected)
+                }).ToList();
+
+                ViewBag.TaskId = taskId;
+                return View("~/Views/ManagerPanel/SchedulePlan/EditTask.cshtml", model);
+            }
+
+            // Aktualizujemy
             task.SessionName = model.SessionName;
-            task.StartTime = parsedTime;
+            task.StartTime = startTs;
+            task.EndTime = endTs;
             task.BaseEnabled = model.BaseEnabled;
             task.UrlEnabled = model.UrlEnabled;
             task.GoogleEnabled = model.GoogleEnabled;
             task.CeneoEnabled = model.CeneoEnabled;
-            task.CompletedAt = completedAtDate;
 
-            // Aktualizujemy
-            _context.ScheduleTasks.Update(task);
+            // Aktualizacja sklepów (M:N)
+            // 1) Usuwamy te, których już nie zaznaczono
+            foreach (var existingRel in task.TaskStores.ToList())
+            {
+                if (!model.Stores.Any(s => s.IsSelected && s.StoreId == existingRel.StoreId))
+                {
+                    _context.ScheduleTaskStores.Remove(existingRel);
+                }
+            }
+            // 2) Dodajemy te, których wcześniej nie było
+            var newSelected = model.Stores
+                .Where(x => x.IsSelected)
+                .Select(x => x.StoreId)
+                .ToList();
+            foreach (var sid in newSelected)
+            {
+                bool alreadyExists = task.TaskStores.Any(ts => ts.StoreId == sid);
+                if (!alreadyExists)
+                {
+                    _context.ScheduleTaskStores.Add(new ScheduleTaskStore
+                    {
+                        ScheduleTaskId = task.Id,
+                        StoreId = sid
+                    });
+                }
+            }
+
             await _context.SaveChangesAsync();
 
-            // Przekierowanie do Index
             return RedirectToAction("Index");
         }
 
-        // POST: /SchedulePlan/DeleteTask/5
+        // ========== Usunięcie Zadania ==========
+
         [HttpPost]
         public async Task<IActionResult> DeleteTask(int taskId)
         {
             var task = await _context.ScheduleTasks.FindAsync(taskId);
-            if (task == null) return NotFound();
+            if (task == null)
+                return NotFound();
 
             _context.ScheduleTasks.Remove(task);
             await _context.SaveChangesAsync();
 
             return RedirectToAction("Index");
-        }
-
-        // Metoda pomocnicza, jeśli w przyszłości potrzebujesz odszukać plan
-        private async Task<SchedulePlan> FindPlanByDayDetailId(int dayDetailId)
-        {
-            var plan = await _context.SchedulePlans
-                .FirstOrDefaultAsync(sp =>
-                       sp.MondayId == dayDetailId
-                    || sp.TuesdayId == dayDetailId
-                    || sp.WednesdayId == dayDetailId
-                    || sp.ThursdayId == dayDetailId
-                    || sp.FridayId == dayDetailId
-                    || sp.SaturdayId == dayDetailId
-                    || sp.SundayId == dayDetailId
-                );
-            return plan;
         }
     }
 }
