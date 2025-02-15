@@ -144,7 +144,6 @@ public class ScheduledTaskService : BackgroundService
 
     private async Task RunUrlScalAsync(PriceSafariContext context, string deviceName, ScheduleTask task, CancellationToken ct)
     {
-        // 1) LOG start
         var startLog = new TaskExecutionLog
         {
             DeviceName = deviceName,
@@ -157,13 +156,20 @@ public class ScheduledTaskService : BackgroundService
         await context.SaveChangesAsync(ct);
 
         int logId = startLog.Id;
+
         try
         {
-            // 2) Faktyczny serwis
-            var urlGroupingService = context.GetService<UrlGroupingService>();
-            var (totalProducts, distinctStoreNames) = await urlGroupingService.GroupAndSaveUniqueUrls();
+            // 1) Pobierz listę StoreId z powiązanych z zadaniem sklepów
+            var storeIds = task.TaskStores
+                .Select(sts => sts.StoreId)
+                .Distinct()
+                .ToList();
 
-            // 3) LOG koniec (sukces)
+            // 2) Wywołaj nową metodę serwisu z listą storeIds
+            var urlGroupingService = context.GetService<UrlGroupingService>();
+            var (totalProducts, distinctStoreNames) = await urlGroupingService.GroupAndSaveUniqueUrls(storeIds);
+
+            // 3) Log KONIEC
             var endLog = await context.TaskExecutionLogs.FindAsync(new object[] { logId }, ct);
             if (endLog != null)
             {
@@ -171,23 +177,24 @@ public class ScheduledTaskService : BackgroundService
                 endLog.Comment += $" | Sukces grupowania URL. " +
                                   $"Sklepy: {string.Join(", ", distinctStoreNames)}. " +
                                   $"Łącznie {totalProducts} produktów.";
+
                 context.TaskExecutionLogs.Update(endLog);
                 await context.SaveChangesAsync(ct);
             }
         }
         catch (Exception ex)
         {
-            // Błąd
             var endLog = await context.TaskExecutionLogs.FindAsync(logId, ct);
             if (endLog != null)
             {
                 endLog.EndTime = DateTime.Now;
-                endLog.Comment += $" | Błąd (URL_SCAL): {ex.Message}";
+                endLog.Comment += $" | Wystąpił błąd (URL_SCAL): {ex.Message}";
                 context.TaskExecutionLogs.Update(endLog);
                 await context.SaveChangesAsync(ct);
             }
         }
     }
+
 
     private async Task RunCeneoAsync(PriceSafariContext context, string deviceName, ScheduleTask task, CancellationToken ct)
     {

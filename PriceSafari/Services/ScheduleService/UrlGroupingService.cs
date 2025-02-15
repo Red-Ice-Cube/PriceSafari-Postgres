@@ -16,21 +16,25 @@ namespace PriceSafari.Services.ScheduleService
             _context = context;
         }
 
-        public async Task<(int totalProducts, List<string> distinctStoreNames)> GroupAndSaveUniqueUrls()
+        public async Task<(int totalProducts, List<string> distinctStoreNames)> GroupAndSaveUniqueUrls(List<int> storeIds)
         {
-            // 1) Pobranie produktów
+            // 1) Pobierz tylko te produkty, których StoreId jest na liście storeIds
             var products = await _context.Products
                 .Include(p => p.Store)
-                .Where(p => p.IsScrapable && p.Store.RemainingScrapes > 0)
+                .Where(p => p.IsScrapable
+                            && p.Store.RemainingScrapes > 0
+                            && storeIds.Contains(p.StoreId))    // <-- kluczowa zmiana
                 .ToListAsync();
 
-            // 2) Wyznaczamy unikatowe nazwy sklepów
+            // 2) Wyznacz unikatowe nazwy sklepów
             var distinctStoreNames = products
                 .Select(p => p.Store.StoreName)
                 .Distinct()
                 .ToList();
 
             int totalProducts = products.Count;
+
+          
 
             var coOfrs = new List<CoOfrClass>();
 
