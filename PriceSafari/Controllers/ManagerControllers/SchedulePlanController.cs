@@ -20,37 +20,43 @@ namespace PriceSafari.Controllers
             _context = context;
         }
 
-        /// <summary>
-        /// Index: wyświetla kalendarz 10-minutowy z 7 dni, 
-        /// wczytuje pełne dane (Tasks + TaskStores + Store).
-        /// </summary>
+
         [HttpGet]
         public async Task<IActionResult> Index()
         {
             var plan = await _context.SchedulePlans
-                .Include(sp => sp.Monday).ThenInclude(d => d.Tasks)
-                    .ThenInclude(t => t.TaskStores).ThenInclude(ts => ts.Store)
-                .Include(sp => sp.Tuesday).ThenInclude(d => d.Tasks)
-                    .ThenInclude(t => t.TaskStores).ThenInclude(ts => ts.Store)
-                .Include(sp => sp.Wednesday).ThenInclude(d => d.Tasks)
-                    .ThenInclude(t => t.TaskStores).ThenInclude(ts => ts.Store)
-                .Include(sp => sp.Thursday).ThenInclude(d => d.Tasks)
-                    .ThenInclude(t => t.TaskStores).ThenInclude(ts => ts.Store)
-                .Include(sp => sp.Friday).ThenInclude(d => d.Tasks)
-                    .ThenInclude(t => t.TaskStores).ThenInclude(ts => ts.Store)
-                .Include(sp => sp.Saturday).ThenInclude(d => d.Tasks)
-                    .ThenInclude(t => t.TaskStores).ThenInclude(ts => ts.Store)
-                .Include(sp => sp.Sunday).ThenInclude(d => d.Tasks)
-                    .ThenInclude(t => t.TaskStores).ThenInclude(ts => ts.Store)
+                .Include(sp => sp.Monday).ThenInclude(d => d.Tasks).ThenInclude(t => t.TaskStores).ThenInclude(ts => ts.Store)
+                .Include(sp => sp.Tuesday).ThenInclude(d => d.Tasks).ThenInclude(t => t.TaskStores).ThenInclude(ts => ts.Store)
+                .Include(sp => sp.Wednesday).ThenInclude(d => d.Tasks).ThenInclude(t => t.TaskStores).ThenInclude(ts => ts.Store)
+                .Include(sp => sp.Thursday).ThenInclude(d => d.Tasks).ThenInclude(t => t.TaskStores).ThenInclude(ts => ts.Store)
+                .Include(sp => sp.Friday).ThenInclude(d => d.Tasks).ThenInclude(t => t.TaskStores).ThenInclude(ts => ts.Store)
+                .Include(sp => sp.Saturday).ThenInclude(d => d.Tasks).ThenInclude(t => t.TaskStores).ThenInclude(ts => ts.Store)
+                .Include(sp => sp.Sunday).ThenInclude(d => d.Tasks).ThenInclude(t => t.TaskStores).ThenInclude(ts => ts.Store)
                 .FirstOrDefaultAsync();
 
             if (plan == null)
             {
-                return Content("Brak planu. Musisz go utworzyć / zainicjować.");
+                // Tworzymy nowy "pusty" plan wraz z 7 dniami
+                var newPlan = new SchedulePlan
+                {
+                    Monday = new DayDetail(),
+                    Tuesday = new DayDetail(),
+                    Wednesday = new DayDetail(),
+                    Thursday = new DayDetail(),
+                    Friday = new DayDetail(),
+                    Saturday = new DayDetail(),
+                    Sunday = new DayDetail()
+                };
+
+                _context.SchedulePlans.Add(newPlan);
+                await _context.SaveChangesAsync(); // zapis w bazie
+
+                plan = newPlan; // przypisujemy utworzony plan
             }
 
             return View("~/Views/ManagerPanel/SchedulePlan/Index.cshtml", plan);
         }
+
 
         // ========== Tworzenie Zadania ==========
 
