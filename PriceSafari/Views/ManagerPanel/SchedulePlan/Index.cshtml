@@ -20,19 +20,92 @@
         new { Name = "Sunday",    Detail = Model.Sunday,    DayDetailId = Model.SundayId }
     };
 
-    // Funkcja: wyszukujemy Zadanie, które startuje EXACT w tym slocie
+    // Funkcja pomocnicza, znajdująca zadanie, które STARTUJE dokładnie w danym slocie
     Func<DayDetail, int, int, ScheduleTask> findTask = (dd, hr, mn) =>
     {
         if (dd == null || dd.Tasks == null) return null;
-        return dd.Tasks.FirstOrDefault(t => t.StartTime.Hours == hr
-                                         && t.StartTime.Minutes == mn);
+        return dd.Tasks.FirstOrDefault(t => t.StartTime.Hours == hr && t.StartTime.Minutes == mn);
     };
+
+    // Zbieramy wszystkie zadania z całego tygodnia (Pon–Nd):
+    var allTasks = new List<ScheduleTask>();
+    if (Model.Monday?.Tasks != null) allTasks.AddRange(Model.Monday.Tasks);
+    if (Model.Tuesday?.Tasks != null) allTasks.AddRange(Model.Tuesday.Tasks);
+    if (Model.Wednesday?.Tasks != null) allTasks.AddRange(Model.Wednesday.Tasks);
+    if (Model.Thursday?.Tasks != null) allTasks.AddRange(Model.Thursday.Tasks);
+    if (Model.Friday?.Tasks != null) allTasks.AddRange(Model.Friday.Tasks);
+    if (Model.Saturday?.Tasks != null) allTasks.AddRange(Model.Saturday.Tasks);
+    if (Model.Sunday?.Tasks != null) allTasks.AddRange(Model.Sunday.Tasks);
+
+    // Grupujemy wszystkie sklepy i zliczamy, ile razy dany sklep pojawia się w zadaniach
+    var storeCounts = allTasks
+        .SelectMany(t => t.TaskStores)  // przechodzimy przez wszystkie sklepy w każdym Tasku
+        .GroupBy(ts => ts.Store.StoreName)
+        .Select(g => new { StoreName = g.Key, Count = g.Count() })
+        .OrderByDescending(x => x.Count)   // opcjonalnie: sortujemy po liczbie
+        .ToList();
 }
 
-<h2>Kalendarz 10-minutowy</h2>
-<p>(W tym przykładzie pokazujemy TYLKO te zadania, które startują w danym slocie)</p>
+<style>
+    .excel-table {
+        border-collapse: collapse;
+        font-family: Arial, sans-serif;
+        margin-bottom: 20px; /* odległość od tabeli głównej */
+    }
 
-<table class="table table-bordered">
+        .excel-table th {
+            background-color: #d9ead3;
+            border: 1px solid #999;
+            padding: 6px 12px;
+            text-align: left;
+        }
+
+        .excel-table td {
+            border: 1px solid #999;
+            padding: 6px 12px;
+        }
+
+        .excel-table caption {
+            background-color: #b6d7a8;
+            font-weight: bold;
+            padding: 6px 12px;
+        }
+</style>
+
+<!-- Tabela podsumowująca wystąpienia sklepów w ciągu 7 dni -->
+<table class="excel-table">
+    <caption>Wystąpienia w ciągu 7 dni</caption>
+    <thead>
+        <tr>
+            <th>Sklep</th>
+            <th>Liczba wystąpień</th>
+        </tr>
+    </thead>
+    <tbody>
+        @if (storeCounts.Any())
+        {
+            foreach (var sc in storeCounts)
+            {
+                <tr>
+                    <td>@sc.StoreName</td>
+                    <td>@sc.Count</td>
+                </tr>
+            }
+        }
+        else
+        {
+            <tr>
+                <td colspan="2" style="text-align: center;">
+                    Brak zaplanowanych sklepów w tym tygodniu
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+
+
+<table class="excel-table">
     <thead>
         <tr>
             <th>Godzina</th>
@@ -48,7 +121,8 @@
     <tbody>
         @for (int hour = 0; hour < 24; hour++)
         {
-            for (int minute = 0; minute < 60; minute += 10)
+            // Zmieniaj co 10 lub co 5 minut, w zależności od potrzeb
+            for (int minute = 0; minute < 60; minute += 5)
             {
                 <tr>
                     <td>@($"{hour:00}:{minute:00}")</td>
@@ -59,7 +133,7 @@
 
                         if (task == null)
                         {
-                            // sprawdzamy, czy ten slot jest w czyimś przedziale [StartTime, EndTime)?
+                            // sprawdzamy, czy w tym slocie jest KOLIZJA z zadaniem (czy ktoś ma w tym przedziale)
                             bool isOccupied = day.Detail?.Tasks?.Any(t =>
                             new TimeSpan(hour, minute, 0) >= t.StartTime &&
                             new TimeSpan(hour, minute, 0) < t.EndTime
@@ -67,14 +141,12 @@
 
                             if (isOccupied)
                             {
-                                // Pokoloruj lub zablokuj
-                                <td style="background:#ddd;">
+                                <td style="background:#ffecb3;">
                                     Zajęte
                                 </td>
                             }
                             else
                             {
-                                // Wolny slot
                                 <td>
                                     <a asp-action="AddTask"
                                        asp-route-dayDetailId="@day.DayDetailId"
@@ -88,19 +160,13 @@
                         }
                         else
                         {
-                            // W tym slocie startuje zadanie
-                            var duration = task.EndTime - task.StartTime;
-                            var minutesTotal = duration.TotalMinutes;
+                            // Zadanie, które startuje EXACT w tym slocie
                             <td style="background:#ffecb3;">
                                 <strong>@task.SessionName</strong><br />
-                                @($"{task.StartTime:hh\\:mm} - {task.EndTime:hh\\:mm}")
-                                <br />
-                                Sklepy: @string.Join(", ", task.TaskStores.Select(ts => ts.Store.StoreName))
-                                <br />
-                                Base=@(task.BaseEnabled ? "T" : "F"),
-                                Url=@(task.UrlEnabled ? "T" : "F"),
-                                Goo=@(task.GoogleEnabled ? "T" : "F"),
-                                Cen=@(task.CeneoEnabled ? "T" : "F")
+                                @($"{task.StartTime:hh\\:mm} - {task.EndTime:hh\\:mm}")<br />
+                                Sklepy: @string.Join(", ", task.TaskStores.Select(ts => ts.Store.StoreName))<br />
+                                Base=@(task.BaseEnabled ? "T" : "F"), Url=@(task.UrlEnabled ? "T" : "F"),
+                                Goo=@(task.GoogleEnabled ? "T" : "F"), Cen=@(task.CeneoEnabled ? "T" : "F")
 
                                 <hr />
                                 <a asp-action="EditTask" asp-route-taskId="@task.Id" class="btn btn-sm btn-info">
@@ -115,7 +181,6 @@
                                     </button>
                                 </form>
                             </td>
-
                         }
                     }
                 </tr>

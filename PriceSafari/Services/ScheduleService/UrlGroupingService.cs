@@ -18,15 +18,20 @@ namespace PriceSafari.Services.ScheduleService
 
         public async Task<(int totalProducts, List<string> distinctStoreNames)> GroupAndSaveUniqueUrls(List<int> storeIds)
         {
-            // 1) Pobierz tylko te produkty, których StoreId jest na liście storeIds
-            var products = await _context.Products
+            // Krok 1) Najpierw pobierz TYLKO podstawowe warunki z bazy:
+            //         (IsScrapable i .RemainingScrapes > 0), ALE NIE storeIds.Contains(...)!
+            var allProducts = await _context.Products
                 .Include(p => p.Store)
-                .Where(p => p.IsScrapable
-                            && p.Store.RemainingScrapes > 0
-                            && storeIds.Contains(p.StoreId))    // <-- kluczowa zmiana
+                .Where(p => p.IsScrapable && p.Store.RemainingScrapes > 0)
+                .AsNoTracking()
                 .ToListAsync();
 
-            // 2) Wyznacz unikatowe nazwy sklepów
+            // Krok 2) W pamięci (LINQ-to-Objects) ogranicz do tych, co pasują do `storeIds`
+            var products = allProducts
+                .Where(p => storeIds.Contains(p.StoreId))
+                .ToList();
+
+            // Krok 3) Dalej: distinct, groupBy, itp. w pamięci (jak w Twoim kodzie)
             var distinctStoreNames = products
                 .Select(p => p.Store.StoreName)
                 .Distinct()
@@ -34,14 +39,13 @@ namespace PriceSafari.Services.ScheduleService
 
             int totalProducts = products.Count;
 
-          
-
-            var coOfrs = new List<CoOfrClass>();
-
             var productsWithOffer = products.Where(p => !string.IsNullOrEmpty(p.OfferUrl)).ToList();
             var productsWithoutOffer = products.Where(p => string.IsNullOrEmpty(p.OfferUrl)).ToList();
 
-            // Grupowanie produktów z OfferUrl po OfferUrl
+            var coOfrs = new List<CoOfrClass>();
+
+            // --- Grupowanie w pamięci ---
+            // 1) Z OfferUrl
             var groupsByOfferUrl = productsWithOffer
                 .GroupBy(p => p.OfferUrl ?? "")
                 .ToDictionary(g => g.Key, g => g.ToList());
@@ -51,7 +55,6 @@ namespace PriceSafari.Services.ScheduleService
                 var offerUrl = kvp.Key;
                 var productList = kvp.Value;
 
-                // Znajdź pierwszy niepusty GoogleUrl
                 var chosenGoogleUrl = productList
                     .Select(p => p.GoogleUrl)
                     .FirstOrDefault(gu => !string.IsNullOrEmpty(gu));
@@ -60,7 +63,7 @@ namespace PriceSafari.Services.ScheduleService
                 coOfrs.Add(coOfr);
             }
 
-            // Grupowanie produktów bez OfferUrl po GoogleUrl
+            // 2) Bez OfferUrl (po GoogleUrl)
             var groupsByGoogleUrlForNoOffer = productsWithoutOffer
                 .GroupBy(p => p.GoogleUrl ?? "")
                 .ToDictionary(g => g.Key, g => g.ToList());
@@ -70,7 +73,6 @@ namespace PriceSafari.Services.ScheduleService
                 var googleUrl = kvp.Key;
                 var productList = kvp.Value;
 
-                // Tu OfferUrl jest puste, a GoogleUrl może być puste lub konkretne
                 var coOfr = CreateCoOfrClass(
                     productList,
                     null,
@@ -86,6 +88,7 @@ namespace PriceSafari.Services.ScheduleService
             await _context.SaveChangesAsync();
             return (totalProducts, distinctStoreNames);
         }
+
 
         private CoOfrClass CreateCoOfrClass(List<ProductClass> productList, string? offerUrl, string? googleUrl)
         {

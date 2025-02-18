@@ -21,14 +21,12 @@ public class ScheduledTaskService : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        // Klucze .env (rozpoznanie, które boole obsługujemy)
-        var baseScalKey = Environment.GetEnvironmentVariable("BASE_SCAL"); // np. "34692471"
-        var urlScalKey = Environment.GetEnvironmentVariable("URL_SCAL");  // "49276583"
-        var gooCrawKey = Environment.GetEnvironmentVariable("GOO_CRAW"); // "03713857"
-        var cenCrawKey = Environment.GetEnvironmentVariable("CEN_CRAW"); // "56981467"
+        var baseScalKey = Environment.GetEnvironmentVariable("BASE_SCAL");
+        var urlScalKey = Environment.GetEnvironmentVariable("URL_SCAL");
+        var gooCrawKey = Environment.GetEnvironmentVariable("GOO_CRAW");
+        var cenCrawKey = Environment.GetEnvironmentVariable("CEN_CRAW");
 
-        var deviceName = Environment.GetEnvironmentVariable("DEVICE_NAME")
-                         ?? "UnknownDevice";
+        var deviceName = Environment.GetEnvironmentVariable("DEVICE_NAME") ?? "UnknownDevice";
 
         while (!stoppingToken.IsCancellationRequested)
         {
@@ -37,9 +35,8 @@ public class ScheduledTaskService : BackgroundService
                 using var scope = _scopeFactory.CreateScope();
                 var context = scope.ServiceProvider.GetRequiredService<PriceSafariContext>();
 
-                // 1) Pobieramy JEDEN plan (7 dni)
+                // 1) Wczytanie planu
                 var plan = await context.SchedulePlans
-                    // Wczytujemy Monday ... Sunday + tasks + TaskStores + Store
                     .Include(sp => sp.Monday).ThenInclude(d => d.Tasks).ThenInclude(t => t.TaskStores).ThenInclude(ts => ts.Store)
                     .Include(sp => sp.Tuesday).ThenInclude(d => d.Tasks).ThenInclude(t => t.TaskStores).ThenInclude(ts => ts.Store)
                     .Include(sp => sp.Wednesday).ThenInclude(d => d.Tasks).ThenInclude(t => t.TaskStores).ThenInclude(ts => ts.Store)
@@ -51,12 +48,11 @@ public class ScheduledTaskService : BackgroundService
 
                 if (plan != null)
                 {
-                    // 2) Ustalamy, który "DayDetail" obowiązuje dzisiaj
+                    // 2) Wybór DayDetail w zależności od bieżącego dnia
                     var dayOfWeek = DateTime.Now.DayOfWeek;
                     var nowTime = DateTime.Now.TimeOfDay;
                     var today = DateTime.Today;
 
-                    // Wybieramy dayDetail
                     DayDetail dayDetail = dayOfWeek switch
                     {
                         DayOfWeek.Monday => plan.Monday,
@@ -71,51 +67,57 @@ public class ScheduledTaskService : BackgroundService
 
                     if (dayDetail?.Tasks != null)
                     {
-                        // 3) Znajdź zadania, dla których 
-                        //    StartTime <= now < EndTime
-                        //    i LastRunDate < today
+                        // 3) Szukamy zadań, dla których 
+                        //    - "Teraz" jest BARDZO BLISKO StartTime (np. różnica w min. < 1)
+                        //    - Oraz LastRunDate < Today (by nie uruchamiać drugi raz dziś)
+
                         var activeTasks = dayDetail.Tasks
-                            .Where(t => nowTime >= t.StartTime
-                                     && nowTime < t.EndTime
-                                     && (t.LastRunDate == null || t.LastRunDate < today))
+                            .Where(t =>
+                            {
+                                // Różnica w minutach pomiędzy nowTime a t.StartTime
+                                double diffMinutes = (nowTime - t.StartTime).TotalMinutes;
+                                // Oczekujemy np. [0..1) => tzn. jest od 0 do <1 min po "start"
+                                bool isStartMoment = (diffMinutes >= 0 && diffMinutes < 1);
+
+                                bool notRunToday = (t.LastRunDate == null || t.LastRunDate < today);
+
+                                return isStartMoment && notRunToday;
+                            })
                             .OrderBy(t => t.StartTime)
                             .ToList();
 
-                        // pętla po zadaniach w kolejności StartTime
+                        // Wykonujemy zadania w pętli
                         foreach (var task in activeTasks)
                         {
-                            // Podzadania: URL → CENEO → GOOGLE → BASE
-                            // Tylko jeśli device ma klucz + boole
-                            // 1) URL
+                            // URL
                             if (urlScalKey == "49276583" && task.UrlEnabled)
                             {
                                 await RunUrlScalAsync(context, deviceName, task, stoppingToken);
-                                // 1 min przerwy
                                 await Task.Delay(TimeSpan.FromMinutes(1), stoppingToken);
                             }
 
-                            // 2) CENEO
+                            // CENEO
                             if (cenCrawKey == "56981467" && task.CeneoEnabled)
                             {
                                 await RunCeneoAsync(context, deviceName, task, stoppingToken);
                                 await Task.Delay(TimeSpan.FromMinutes(1), stoppingToken);
                             }
 
-                            // 3) GOOGLE
+                            // GOOGLE
                             if (gooCrawKey == "03713857" && task.GoogleEnabled)
                             {
                                 await RunGoogleAsync(context, deviceName, task, stoppingToken);
                                 await Task.Delay(TimeSpan.FromMinutes(1), stoppingToken);
                             }
 
-                            // 4) BASE
+                            // BASE
                             if (baseScalKey == "34692471" && task.BaseEnabled)
                             {
                                 await RunBaseScalAsync(context, deviceName, task, stoppingToken);
                                 await Task.Delay(TimeSpan.FromMinutes(1), stoppingToken);
                             }
 
-                            // Ustawiamy LastRunDate = dziś => zablokuje ponowne uruchomienie
+                            // Oznaczamy LastRunDate
                             task.LastRunDate = today;
                             context.ScheduleTasks.Update(task);
                             await context.SaveChangesAsync(stoppingToken);
@@ -123,7 +125,7 @@ public class ScheduledTaskService : BackgroundService
                     }
                 }
 
-                // Okresowy update device status
+                // Okresowo update device status
                 if (DateTime.Now - _lastDeviceCheck >= _deviceCheckInterval)
                 {
                     _lastDeviceCheck = DateTime.Now;
@@ -135,7 +137,7 @@ public class ScheduledTaskService : BackgroundService
                 _logger.LogError(ex, "An error occurred while executing scheduled tasks.");
             }
 
-            // pętla co 30 sekund
+            // co 30 sek
             await Task.Delay(TimeSpan.FromSeconds(30), stoppingToken);
         }
     }
