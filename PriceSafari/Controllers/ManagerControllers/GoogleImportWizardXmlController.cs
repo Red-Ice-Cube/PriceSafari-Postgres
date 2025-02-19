@@ -45,9 +45,6 @@ namespace PriceSafari.Controllers.ManagerControllers
             return View("~/Views/ManagerPanel/ProductMapping/WizardGoogleFeedXml.cshtml");
         }
 
-        /// <summary>
-        /// Zwraca plik XML z bazy (store.ProductMapXmlUrlGoogle) jako "text/xml", omijając CORS.
-        /// </summary>
         [HttpGet]
         public async Task<IActionResult> ProxyXml(int storeId)
         {
@@ -58,11 +55,32 @@ namespace PriceSafari.Controllers.ManagerControllers
             if (string.IsNullOrEmpty(store.ProductMapXmlUrlGoogle))
                 return BadRequest("Brak URL do pliku w bazie.");
 
-            using var client = new HttpClient();
-            var xmlContent = await client.GetStringAsync(store.ProductMapXmlUrlGoogle);
+            var url = store.ProductMapXmlUrlGoogle;
 
-            return Content(xmlContent, "text/xml");
+            // Możesz dodać obsługę auto-redirect
+            var handler = new HttpClientHandler
+            {
+                AllowAutoRedirect = true // domyślnie True, ale można ustawić jawnie
+            };
+            using var client = new HttpClient(handler);
+
+            // Opcjonalnie zmień User-Agent, jeśli strona wymaga
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (compatible; MyFeedBot/1.0)");
+
+            try
+            {
+                var xmlContent = await client.GetStringAsync(url);
+
+                // Zwracamy w formacie XML do frontu:
+                return Content(xmlContent, "text/xml");
+            }
+            catch (Exception ex)
+            {
+                // Możesz przechwycić błąd i zwrócić np. BadRequest z komunikatem
+                return BadRequest($"Błąd pobierania z {url}: {ex.Message}");
+            }
         }
+
 
         /// <summary>
         /// Zwraca aktualne mapowania (GoogleFieldMapping) w formie JSON.
