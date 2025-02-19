@@ -210,7 +210,7 @@ namespace PriceSafari.Controllers.ManagerControllers
             productMap.ExportedName = productName;
             productMap.Ean = ean;
          
-
+             
         }
 
 
