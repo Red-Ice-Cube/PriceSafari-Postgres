@@ -4,12 +4,12 @@
     string existingMappingsJson = ViewBag.ExistingMappings ?? "[]";
 }
 
-<h2>Wizard Mapping Google - storeId=@storeId</h2>
+<h2>Wizard Mapping Ceneo - storeId=@storeId</h2>
 
 <!-- Górny panel z przyciskami -->
 <div style="margin-bottom: 10px;">
-    <form asp-action="ClearGoogleMappings"
-          asp-controller="GoogleImportWizardXml"
+    <form asp-action="ClearCeneoMappings"
+          asp-controller="CeneoImportWizardXml"
           method="post"
           style="display:inline;">
         <input type="hidden" name="storeId" value="@storeId" />
@@ -33,9 +33,9 @@
     <select id="fieldSelector">
         <option value="ExternalId">ExternalId</option>
         <option value="Url">Url</option>
-        <option value="GoogleEan">GoogleEan</option>
-        <option value="GoogleImage">GoogleImage</option>
-        <option value="GoogleExportedName">GoogleExportedName</option>
+        <option value="CeneoEan">CeneoEan</option>
+        <option value="CeneoImage">CeneoImage</option>
+        <option value="CeneoExportedName">CeneoExportedName</option>
     </select>
     <button id="saveMapping" style="margin-left:10px;">
         Zapisz Mapowanie
@@ -97,24 +97,22 @@
     let mappingForField = {
         "ExternalId": null,
         "Url": null,
-        "GoogleEan": null,
-        "GoogleImage": null,
-        "GoogleExportedName": null
+        "CeneoEan": null,
+        "CeneoImage": null,
+        "CeneoExportedName": null
     };
 
     // Inicjujemy mapowania z bazy
     existingMappings.forEach(m => {
-        if(m.fieldName){
-            mappingForField[m.fieldName] = {
-                xpath: m.localName,
-                nodeCount: 0,
-                firstValue: ""
-            };
-        }
+        mappingForField[m.fieldName] = {
+            xpath: m.localName,
+            nodeCount: 0,
+            firstValue: ""
+        };
     });
 
     let xmlDoc = null;
-    let proxyUrl = `/GoogleImportWizardXml/ProxyXml?storeId=${storeId}`;
+    let proxyUrl = `/CeneoImportWizardXml/ProxyXml?storeId=${storeId}`;
 
     //------------------------------------------------------------------
     // 2) Pobieranie XML i tworzenie drzewka
@@ -242,6 +240,7 @@
         let tbody = document.getElementById("mappingTable").querySelector("tbody");
         tbody.innerHTML = "";
         for (let fieldName in mappingForField) {
+            // Pomijamy puste lub nieokreślone klucze
             if (!fieldName || fieldName === "undefined") continue;
             let info = mappingForField[fieldName];
             let tr = document.createElement("tr");
@@ -265,7 +264,7 @@
     }
 
     //------------------------------------------------------------------
-    // 4) Zapisywanie mapowań w GoogleFieldMappings
+    // 4) Zapisywanie mapowań w bazie
     //------------------------------------------------------------------
     document.getElementById("saveMapping").addEventListener("click", function(){
         let finalMappings = [];
@@ -278,7 +277,7 @@
                 });
             }
         }
-        fetch(`/GoogleImportWizardXml/SaveGoogleMappings?storeId=${storeId}`, {
+        fetch(`/CeneoImportWizardXml/SaveCeneoMappings?storeId=${storeId}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(finalMappings)
@@ -289,7 +288,7 @@
     });
 
     document.getElementById("reloadMappings").addEventListener("click", function(){
-        fetch(`/GoogleImportWizardXml/GetGoogleMappings?storeId=${storeId}`)
+        fetch(`/CeneoImportWizardXml/GetCeneoMappings?storeId=${storeId}`)
           .then(r => r.json())
           .then(data => {
               console.log("Odebrano mapowania z bazy (reload):", data);
@@ -297,7 +296,7 @@
               // Resetujemy wartości tylko dla istniejących kluczy
               Object.keys(mappingForField).forEach(f => mappingForField[f] = null);
               data.forEach(m => {
-                  if(m.fieldName){
+                  if(m.fieldName){  // dodajemy tylko, gdy fieldName jest określone
                       mappingForField[m.fieldName] = {
                           xpath: m.localName,
                           nodeCount: 0,
@@ -307,7 +306,7 @@
               });
               applyExistingMappings();
           })
-          .catch(err => console.error("Błąd getGoogleMappings:", err));
+          .catch(err => console.error("Błąd getCeneoMappings:", err));
     });
 
     //------------------------------------------------------------------
@@ -318,7 +317,7 @@
             alert("Brak XML do parsowania");
             return;
         }
-        // Dynamiczny wybór elementów: jeśli <item> istnieje, używamy go; w przeciwnym razie szukamy <entry>
+        // Wybieramy elementy: <item> (RSS) lub <entry> (Atom)
         let entries = xmlDoc.getElementsByTagName("item").length > 0
                       ? xmlDoc.getElementsByTagName("item")
                       : xmlDoc.getElementsByTagName("entry");
@@ -330,11 +329,9 @@
                 StoreId: storeId.toString(),
                 ExternalId: getVal(entryNode, "ExternalId"),
                 Url: getVal(entryNode, "Url"),
-    
-
-                GoogleEan: getVal(entryNode, "GoogleEan"),
-                GoogleImage: getVal(entryNode, "GoogleImage"),
-                GoogleExportedName: getVal(entryNode, "GoogleExportedName")
+                CeneoEan: getVal(entryNode, "CeneoEan"),
+                CeneoImage: getVal(entryNode, "CeneoImage"),
+                CeneoExportedName: getVal(entryNode, "CeneoExportedName")
             };
             productMaps.push(pm);
         }
@@ -348,7 +345,8 @@
     function getVal(entryNode, fieldName) {
         let info = mappingForField[fieldName];
         if (!info || !info.xpath) return null;
-        // Dynamicznie usuwamy znane prefiksy (np. dla RSS lub Atom)
+
+        // Dynamicznie usuwamy znany prefiks, np. "/rss/channel/item/" lub "/feed/entry/"
         let trimmed = info.xpath;
         let possiblePrefixes = ["/rss/channel/item/", "/feed/entry/"];
         for (let i = 0; i < possiblePrefixes.length; i++) {
@@ -357,7 +355,7 @@
                 break;
             }
         }
-        // Usuwamy ewentualny namespace, np. "g:"
+        // Usuwamy namespace (np. "g:")
         if (trimmed.indexOf(':') !== -1) {
             trimmed = trimmed.split(':')[1];
         }
@@ -379,7 +377,7 @@
             alert("Błędny JSON w productMapsPreview!");
             return;
         }
-        fetch("/GoogleImportWizardXml/SaveProductMapsFromFront", {
+        fetch("/CeneoImportWizardXml/SaveProductMapsFromFront", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(productMaps)
@@ -408,15 +406,15 @@
         background-color: rgba(0, 255, 0, 0.1);
     }
 
-    .highlight-GoogleEan {
+    .highlight-CeneoEan {
         background-color: rgba(0, 0, 255, 0.1);
     }
 
-    .highlight-GoogleImage {
+    .highlight-CeneoImage {
         background-color: rgba(255, 165, 0, 0.1);
     }
 
-    .highlight-GoogleExportedName {
+    .highlight-CeneoExportedName {
         background-color: rgba(255, 255, 0, 0.2);
     }
 

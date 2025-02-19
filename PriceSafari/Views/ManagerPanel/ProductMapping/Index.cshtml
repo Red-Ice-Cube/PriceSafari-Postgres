@@ -46,21 +46,42 @@
                         <span>Brak URL do mapowania produktów</span>
                     }
                 </td>
+
+
+                <td>
+                    @if (!string.IsNullOrEmpty(store.ProductMapXmlUrl))
+                    {
+
+
+
+
+                        <a asp-controller="CeneoImportWizardXml"
+                           asp-action="ShowCeneoFeedXml"
+                           asp-route-storeId="@store.StoreId"
+                           class="btn btn-warning">
+                            Wizard - CENEO
+                        </a>
+
+
+                    }
+                    else
+                    {
+                        <span>Brak URL do mapowania z Ceneo</span>
+                    }
+                </td>
                 <td>
                     @if (!string.IsNullOrEmpty(store.ProductMapXmlUrlGoogle))
                     {
-                        <form asp-action="ImportProductsFromGoogleXml" method="post" style="display:inline;">
-                            <input type="hidden" name="storeId" value="@store.StoreId" />
-                            <button type="submit" class="btn btn-success">Importuj z Google Shopping</button>
-                        </form>
+         
 
                         <a asp-controller="GoogleImportWizardXml"
                            asp-action="ShowGoogleFeedXml"
                            asp-route-storeId="@store.StoreId"
-                           class="btn btn-warning">
-                            Wizard (Google)
+                           class="btn btn-info">
+                            Wizard - GOOGLE
                         </a>
 
+                  
 
 
                     }
@@ -69,7 +90,7 @@
                         <span>Brak URL do mapowania z Google Shopping</span>
                     }
                 </td>
-
+         
             </tr>
         }
     </tbody>

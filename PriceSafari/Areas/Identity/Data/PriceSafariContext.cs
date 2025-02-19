@@ -48,6 +48,7 @@ namespace PriceSafari.Data
         public DbSet<ScheduleTaskStore> ScheduleTaskStores { get; set; }
 
         public DbSet<GoogleFieldMapping> GoogleFieldMappings { get; set; }
+        public DbSet<CeneoFieldMapping> CeneoFieldMappings { get; set; }
 
 
 

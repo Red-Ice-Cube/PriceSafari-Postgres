@@ -10,6 +10,8 @@ namespace PriceSafari.Models
         public string ExternalId { get; set; }
         public string? Url { get; set; }
         public string? Ean { get; set; }
+
+        //grafika z xml ceneo
         public string? MainUrl { get; set; }
 
         public string? ExportedName { get; set; }
