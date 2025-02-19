@@ -41,7 +41,6 @@
 
 	<ItemGroup>
 		<Folder Include="Migrations\" />
-		<Folder Include="Models\ProductXML\" />
 		<Folder Include="wwwroot\js\Home\" />
 		<Folder Include="wwwroot\icon\" />
 		<Folder Include="wwwroot\pdf\" />

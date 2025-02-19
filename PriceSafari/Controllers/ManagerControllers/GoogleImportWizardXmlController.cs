@@ -2,7 +2,10 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authorization;
 using PriceSafari.Data;
-using System.Xml.Linq;
+using PriceSafari.Models; // GoogleFieldMapping
+using System.Collections.Generic;
+using System.Linq;
+using PriceSafari.Models.ProductXML;
 
 namespace PriceSafari.Controllers.ManagerControllers
 {
@@ -16,9 +19,11 @@ namespace PriceSafari.Controllers.ManagerControllers
             _context = context;
         }
 
-
+        /// <summary>
+        /// Wyświetla widok kreatora z mapowaniami w JSON (ViewBag.ExistingMappings).
+        /// </summary>
         [HttpGet]
-        public async Task<IActionResult> ShowGoogleFeedXml(int storeId)
+        public IActionResult ShowGoogleFeedXml(int storeId)
         {
             var store = _context.Stores.Find(storeId);
             if (store == null)
@@ -27,13 +32,22 @@ namespace PriceSafari.Controllers.ManagerControllers
                 return RedirectToAction("Index", "ProductMapping");
             }
 
-            // Nie pobieramy tu pliku; tylko przekazujemy storeId
-            // i w widoku użyjemy ProxyXml
+            // Odczytujemy mapowania z bazy
+            var existingMappings = _context.GoogleFieldMappings
+                .Where(m => m.StoreId == storeId)
+                .ToList();
+
+            // Serializujemy do JSON
+            var existingMappingsJson = System.Text.Json.JsonSerializer.Serialize(existingMappings);
+
             ViewBag.StoreId = storeId;
+            ViewBag.ExistingMappings = existingMappingsJson;
             return View("~/Views/ManagerPanel/ProductMapping/WizardGoogleFeedXml.cshtml");
         }
 
-        // Endpoint-proxy
+        /// <summary>
+        /// Zwraca plik XML z bazy (store.ProductMapXmlUrlGoogle) jako "text/xml", omijając CORS.
+        /// </summary>
         [HttpGet]
         public async Task<IActionResult> ProxyXml(int storeId)
         {
@@ -50,28 +64,76 @@ namespace PriceSafari.Controllers.ManagerControllers
             return Content(xmlContent, "text/xml");
         }
 
+        /// <summary>
+        /// Zwraca aktualne mapowania (GoogleFieldMapping) w formie JSON.
+        /// </summary>
+        [HttpGet]
+        public IActionResult GetGoogleMappings(int storeId)
+        {
+            var existing = _context.GoogleFieldMappings
+                .Where(m => m.StoreId == storeId)
+                .ToList();
+            return Json(existing);
+        }
 
+        /// <summary>
+        /// Zapisuje mapowania (nadpisuje stare) w tabeli GoogleFieldMappings.
+        /// </summary>
         [HttpPost]
         public IActionResult SaveGoogleMappings([FromBody] List<FieldMappingDto> mappings, int storeId)
         {
-            // Wypisujemy w konsoli
-            Console.WriteLine($"Zapis mapowań dla storeId={storeId}:");
+            if (mappings == null) mappings = new List<FieldMappingDto>();
+
+            // Usuń stare
+            var oldMappings = _context.GoogleFieldMappings
+                .Where(x => x.StoreId == storeId)
+                .ToList();
+            _context.GoogleFieldMappings.RemoveRange(oldMappings);
+
+            // Dodaj nowe
             foreach (var m in mappings)
             {
-                Console.WriteLine($"  {m.FieldName} => {m.LocalName}");
+                _context.GoogleFieldMappings.Add(new GoogleFieldMapping
+                {
+                    StoreId = storeId,
+                    FieldName = m.FieldName,
+                    LocalName = m.LocalName
+                });
             }
 
-            // Ewentualnie zapisz do bazy, itp.
+            _context.SaveChanges();
 
-            return Json(new { success = true, message = "Mapowania zapisane." });
+            return Json(new { success = true, message = "Mapowania zapisane w bazie." });
+        }
+
+        /// <summary>
+        /// Usuwa wszystkie mapowania dla danego storeId.
+        /// </summary>
+        [HttpPost]
+        public IActionResult ClearGoogleMappings(int storeId)
+        {
+            var toRemove = _context.GoogleFieldMappings
+                .Where(x => x.StoreId == storeId)
+                .ToList();
+
+            if (toRemove.Any())
+            {
+                _context.GoogleFieldMappings.RemoveRange(toRemove);
+                _context.SaveChanges();
+                TempData["SuccessMessage"] = $"Usunięto mapowania (StoreId={storeId}).";
+            }
+            else
+            {
+                TempData["InfoMessage"] = "Nie było żadnych mapowań do usunięcia.";
+            }
+
+            return RedirectToAction("ShowGoogleFeedXml", new { storeId });
         }
 
         public class FieldMappingDto
         {
-            public string FieldName { get; set; }       // "GoogleEan", "ExternalId" itd.
-            public string LocalName { get; set; }       // np. "g:id", "g:title"
-                                                        // lub "Path" - jeśli używasz pełnych ścieżek
+            public string FieldName { get; set; }  // "ExternalId" itp.
+            public string LocalName { get; set; }  // "g:id" itp.
         }
-
     }
 }

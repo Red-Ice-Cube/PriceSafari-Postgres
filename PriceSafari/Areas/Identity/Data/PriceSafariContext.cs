@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using PriceSafari.Models.SchedulePlan;
+using PriceSafari.Models.ProductXML;
 
 
 namespace PriceSafari.Data
@@ -46,6 +47,7 @@ namespace PriceSafari.Data
         public DbSet<ScheduleTask> ScheduleTasks { get; set; }
         public DbSet<ScheduleTaskStore> ScheduleTaskStores { get; set; }
 
+        public DbSet<GoogleFieldMapping> GoogleFieldMappings { get; set; }
 
 
 
