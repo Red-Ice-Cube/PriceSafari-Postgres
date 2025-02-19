@@ -57,29 +57,50 @@ namespace PriceSafari.Controllers.ManagerControllers
 
             var url = store.ProductMapXmlUrlGoogle;
 
-            // Możesz dodać obsługę auto-redirect
-            var handler = new HttpClientHandler
+            // Jeśli URL wskazuje na plik lokalny (np. "file:///C:/..."), odczytujemy plik z dysku
+            if (url.StartsWith("file://", System.StringComparison.OrdinalIgnoreCase))
             {
-                AllowAutoRedirect = true // domyślnie True, ale można ustawić jawnie
-            };
-            using var client = new HttpClient(handler);
+                try
+                {
+                    // Usuń prefiks "file://"
+                    string filePathEncoded = url.Substring("file://".Length);
+                    // Dekoduj URL, aby zamienić np. %20 na spację
+                    string filePath = Uri.UnescapeDataString(filePathEncoded);
+                    // Opcjonalnie usuń wiodące ukośniki
+                    filePath = filePath.TrimStart('/', '\\');
 
-            // Opcjonalnie zmień User-Agent, jeśli strona wymaga
-            client.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (compatible; MyFeedBot/1.0)");
-
-            try
-            {
-                var xmlContent = await client.GetStringAsync(url);
-
-                // Zwracamy w formacie XML do frontu:
-                return Content(xmlContent, "text/xml");
+                    // Odczytujemy zawartość pliku
+                    var xmlContent = System.IO.File.ReadAllText(filePath);
+                    return Content(xmlContent, "text/xml");
+                }
+                catch (Exception ex)
+                {
+                    return BadRequest($"Błąd odczytu pliku {url}: {ex.Message}");
+                }
             }
-            catch (Exception ex)
+            else
             {
-                // Możesz przechwycić błąd i zwrócić np. BadRequest z komunikatem
-                return BadRequest($"Błąd pobierania z {url}: {ex.Message}");
+                // Dla URL hostowanych (http/https) używamy HttpClient
+                var handler = new HttpClientHandler
+                {
+                    AllowAutoRedirect = true
+                };
+                using var client = new HttpClient(handler);
+                client.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (compatible; MyFeedBot/1.0)");
+
+                try
+                {
+                    var xmlContent = await client.GetStringAsync(url);
+                    return Content(xmlContent, "text/xml");
+                }
+                catch (Exception ex)
+                {
+                    return BadRequest($"Błąd pobierania z {url}: {ex.Message}");
+                }
             }
         }
+
+
 
 
         /// <summary>

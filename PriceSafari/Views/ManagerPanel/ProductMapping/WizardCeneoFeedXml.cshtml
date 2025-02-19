@@ -333,6 +333,10 @@
                 CeneoImage: getVal(entryNode, "CeneoImage"),
                 CeneoExportedName: getVal(entryNode, "CeneoExportedName")
             };
+               // Jeżeli pole CeneoEan jest puste, produkt nie zostanie dodany
+            if (!pm.CeneoEan || pm.CeneoEan.trim() === "") {
+                continue;
+            }
             productMaps.push(pm);
         }
         console.log("Wyciągnięto productMaps(front):", productMaps);

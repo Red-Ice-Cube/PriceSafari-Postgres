@@ -1,4 +1,87 @@
-﻿@model IEnumerable<PriceSafari.Models.ProductMap>
+﻿@* @model IEnumerable<PriceSafari.Models.ProductMap>
+@{
+    ViewData["Title"] = "Zmapowane Produkty dla sklepu " + ViewBag.StoreName;
+    Layout = "~/Views/Shared/_PanelLayout.cshtml";
+    var storeId = ViewBag.StoreId;
+}
+
+<h2>Zmapowane Produkty dla sklepu @ViewBag.StoreName</h2>
+
+<!-- Formularze akcji -->
+<form asp-action="RemoveWordFromProductNamesCeneo" method="post" class="mt-3">
+    <div class="form-group">
+        <label for="wordToRemove">Słowo do usunięcia z nazw produktów:</label>
+        <input type="text" class="form-control" id="wordToRemove" name="wordToRemove" placeholder="Wpisz słowo" required>
+    </div>
+    <button type="submit" class="btn btn-danger">Usuń słowo z nazw produktów</button>
+</form>
+
+<form asp-action="CreateOrUpdateProductsFromProductMap" method="post" class="mt-3">
+    <input type="hidden" name="storeId" value="@storeId" />
+    <button type="submit" class="btn btn-primary">Utwórz lub zaktualizuj produkty</button>
+</form>
+
+<form method="post" action="@Url.Action("MapProducts", "ProductMapping", new { storeId = storeId })" class="mt-3">
+    <button type="submit" class="btn btn-primary">Mapuj Produkty</button>
+</form>
+
+<!-- Tabela z danymi -->
+<table class="table table-bordered table-striped mt-3">
+    <thead>
+        <tr>
+            <th>Zdjęcie (Ceneo)</th>
+            <th>Zdjęcie (Google)</th>
+            <th>Nazwa Export (Ceneo)</th>
+            <th>Nazwa Export (Google)</th>
+            <th>EAN (Ceneo)</th>
+            <th>EAN (Google)</th>
+            <th>URL</th>
+            <th>External ID</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var product in Model)
+        {
+            <tr>
+                <td>
+                    @if (!string.IsNullOrEmpty(product.MainUrl))
+                    {
+                        <img src="@product.MainUrl" alt="Brak zdjęcia" style="max-width: 100px;" />
+                    }
+                    else
+                    {
+                        <span>Brak zdjęcia</span>
+                    }
+                </td>
+                <td>
+                    @if (!string.IsNullOrEmpty(product.GoogleImage))
+                    {
+                        <img src="@product.GoogleImage" alt="Brak zdjęcia Google" style="max-width: 100px;" />
+                    }
+                    else
+                    {
+                        <span>Brak zdjęcia Google</span>
+                    }
+                </td>
+                <td>@product.ExportedName</td>
+                <td>@product.GoogleExportedName</td>
+                <td>@product.Ean</td>
+                <td>@product.GoogleEan</td>
+                <td>
+                    @if (!string.IsNullOrEmpty(product.Url))
+                    {
+                        <a href="@product.Url" target="_blank">@product.Url</a>
+                    }
+                </td>
+              
+                <td>@product.ExternalId</td>
+            </tr>
+        }
+    </tbody>
+</table>
+ *@
+
+@model IEnumerable<PriceSafari.Models.ProductMap>
 @{
     ViewData["Title"] = "Zmapowane Produkty";
     Layout = "~/Views/Shared/_PanelLayout.cshtml";

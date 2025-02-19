@@ -46,7 +46,7 @@
 </div>
 
 <!-- Dwukolumnowy layout -->
-<div style="display: flex; gap: 10px; width:100%;" >
+<div style="display: flex; gap: 10px; width:100%;">
     <!-- LEWA kolumna: drzewo XML -->
     <div style="flex: 1; border:1px solid #ccc; height:900px; overflow:auto; padding:5px;">
         <h4>Struktura XML</h4>
@@ -330,16 +330,24 @@
                 StoreId: storeId.toString(),
                 ExternalId: getVal(entryNode, "ExternalId"),
                 Url: getVal(entryNode, "Url"),
-    
-
                 GoogleEan: getVal(entryNode, "GoogleEan"),
                 GoogleImage: getVal(entryNode, "GoogleImage"),
                 GoogleExportedName: getVal(entryNode, "GoogleExportedName")
             };
+            // Czyszczenie linku – usuwamy wszystko od znaku "?" włącznie
+            if (pm.Url) {
+                let qIdx = pm.Url.indexOf('?');
+                if (qIdx !== -1) {
+                    pm.Url = pm.Url.substring(0, qIdx);
+                }
+            }
+            // Jeżeli pole GoogleEan jest puste, produkt nie zostanie dodany
+            if (!pm.GoogleEan || pm.GoogleEan.trim() === "") {
+                continue;
+            }
             productMaps.push(pm);
         }
         console.log("Wyciągnięto productMaps(front):", productMaps);
-
         document.getElementById("productMapsPreview").textContent =
             JSON.stringify(productMaps, null, 2);
     });
