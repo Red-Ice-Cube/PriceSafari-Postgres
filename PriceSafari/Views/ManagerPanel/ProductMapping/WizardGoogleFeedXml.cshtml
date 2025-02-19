@@ -1,5 +1,5 @@
 ﻿@{
-    Layout = null; // Uproszczenie – brak layoutu
+    Layout = null; // Brak layoutu – uproszczenie
     var storeId = ViewBag.StoreId ?? 0;
     // Mapowania z bazy (JSON)
     var existingMappingsJson = ViewBag.ExistingMappings as string ?? "[]";
@@ -7,7 +7,7 @@
 
 <h2>Wizard Mapping - storeId=@storeId</h2>
 
-<!-- PRZYCISK USUWANIA MAPOWAŃ -->
+<!-- PRZYCISK USUWANIA MAPOWAŃ (opcjonalny) -->
 <form asp-action="ClearGoogleMappings"
       asp-controller="GoogleImportWizardXml"
       method="post"
@@ -17,6 +17,21 @@
         Usuń wszystkie mapowania
     </button>
 </form>
+
+<!-- PRZYCISK do wyciągania produktów z XML (na froncie) -->
+<button id="extractProducts" style="margin-top:10px;">
+    Wyciągnij produkty z XML (FRONT)
+</button>
+
+<!-- Podgląd wygenerowanej listy ProductMap -->
+<pre id="productMapsPreview"
+     style="border:1px solid #ccc; margin-top:10px; padding:10px;">
+</pre>
+
+<!-- Przycisk do wysłania do bazy (Create/Update ProductMap) -->
+<button id="saveProductMapsInDb" style="margin-top:10px;">
+    Zapisz w ProductMap
+</button>
 
 <!-- Tabela z mapowaniami (Field / Xpath / Liczba / Wartość) -->
 <table id="mappingTable" border="1" cellpadding="5" style="border-collapse: collapse;">
@@ -48,10 +63,14 @@
 </div>
 
 <!-- Miejsce na drzewo XML -->
-<div id="xmlContainer" style="margin-top:20px; border:1px solid #ccc; padding:10px;"></div>
+<div id="xmlContainer"
+     style="margin-top:20px; border:1px solid #ccc; padding:10px;">
+</div>
 
 <script>
-    // 1) Odczyt storeId i mapowań z bazy
+    //------------------------------------------------------------------
+    // 1) Inicjowanie
+    //------------------------------------------------------------------
     let storeId = "@storeId";
     let existingMappingsJson = `@existingMappingsJson`;
     let existingMappings = [];
@@ -65,7 +84,7 @@
     }
     console.log("Mapowania z bazy (Razor):", existingMappings);
 
-    // 2) Obiekt do przechowywania mapowań w JS: field -> { xpath, nodeCount, firstValue }
+    // mappingForField => fieldName -> { xpath, nodeCount, firstValue }
     let mappingForField = {
         "ExternalId": null,
         "Url": null,
@@ -74,85 +93,72 @@
         "GoogleExportedName": null
     };
 
-    // Zainicjuj w/g existingMappings (z bazy).
-    // Uwaga: w bazie w polu localName mogłeś wcześniej trzymać, teraz trzymajmy "xpath".
-    // Możesz nazwać tak samo lub dodać nową kolumnę w DB. Dla przykładu załóżmy, że
-    // DB ma "LocalName" -> to będzie nasz Xpath
+    // Wczytanie dotychczasowych mapowań
     existingMappings.forEach(m => {
         mappingForField[m.fieldName] = {
-            xpath: m.localName,  // w DB mamy localName, a tu interpretujemy jako "xpath"
+            xpath: m.localName,
             nodeCount: 0,
             firstValue: ""
         };
     });
 
-    // 3) Pobierz plik XML z Proxy
     let proxyUrl = `/GoogleImportWizardXml/ProxyXml?storeId=${storeId}`;
-    fetch(proxyUrl)
-        .then(r => r.text())
-        .then(xmlString => {
-            let parser = new DOMParser();
-            let doc = parser.parseFromString(xmlString, "application/xml");
-            if (doc.documentElement.nodeName === "parsererror") {
-                document.getElementById("xmlContainer").innerText =
-                    "Błąd parsowania XML:\n" + doc.documentElement.textContent;
-                return;
-            }
-            // Zbuduj drzewo z PSEUDO-xpath
-            buildXmlTree(doc.documentElement, ""); // start od ścieżki ""
-            // Nałóż mapowania
-            applyExistingMappings();
-        })
-        .catch(err => {
-            document.getElementById("xmlContainer").innerText =
-                "Błąd pobierania XML:\n" + err;
-        });
+    let xmlDoc = null;
 
-    // 4) Funkcja do budowania drzewa rekurencyjnie, z "data-xpath"
+    //------------------------------------------------------------------
+    // 2) Pobieranie XML i tworzenie drzewka
+    //------------------------------------------------------------------
+    fetch(proxyUrl)
+      .then(r => r.text())
+      .then(xmlString => {
+          let parser = new DOMParser();
+          xmlDoc = parser.parseFromString(xmlString, "application/xml");
+          if (xmlDoc.documentElement.nodeName === "parsererror") {
+              document.getElementById("xmlContainer").innerText =
+                  "Błąd parsowania XML:\n" + xmlDoc.documentElement.textContent;
+              return;
+          }
+          buildXmlTree(xmlDoc.documentElement, "");
+          applyExistingMappings();
+      })
+      .catch(err => {
+          document.getElementById("xmlContainer").innerText =
+              "Błąd pobierania XML:\n" + err;
+      });
+
     function buildXmlTree(node, parentPath) {
         let container = document.getElementById("xmlContainer");
-        // Jeżeli to pierwszy węzeł, stwórz UL tylko raz
         if (!parentPath && container.querySelector("ul") === null) {
             let ulRoot = document.createElement("ul");
             ulRoot.appendChild(createLi(node, parentPath));
             container.appendChild(ulRoot);
         } else {
-            // w pozostałych przypadkach parent's ul
             let rootUl = container.querySelector("ul");
             rootUl.appendChild(createLi(node, parentPath));
         }
     }
 
-    // createLi – tworzy <li> z data-xpath
     function createLi(node, parentPath) {
         let li = document.createElement("li");
         li.classList.add("xml-node");
 
-        // Budujemy xpath np. parentPath + "/" + nodeName
-        // Jeżeli parentPath jest "" (root), to dajmy "/" + nodeName
         let nodeName = node.nodeName;
-        let currentPath = parentPath
-            ? parentPath + "/" + nodeName
-            : "/" + nodeName; // root-level
+        let currentPath = parentPath ? parentPath + "/" + nodeName : "/" + nodeName;
 
         li.setAttribute("data-xpath", currentPath);
 
-        // Tytuł
         let b = document.createElement("b");
         b.innerText = nodeName;
         li.appendChild(b);
 
-        // Jeżeli brak dzieci i mamy text
         if (node.children.length === 0 && node.textContent.trim()) {
             let span = document.createElement("span");
             span.innerText = " : " + node.textContent.trim();
             li.appendChild(span);
         }
 
-        // Rekurencja
         if (node.children.length > 0) {
             let ul = document.createElement("ul");
-            // child
             Array.from(node.children).forEach(child => {
                 ul.appendChild(createLi(child, currentPath));
             });
@@ -161,52 +167,18 @@
         return li;
     }
 
-    // 5) Nakładanie highlight wg mappingForField
-    function applyExistingMappings() {
-        for (let fieldName in mappingForField) {
-            let info = mappingForField[fieldName];
-            if (!info || !info.xpath) continue;
-
-            let xPath = info.xpath;
-            let sameNodes = document.querySelectorAll(`.xml-node[data-xpath='${xPath}']`);
-            let count = sameNodes.length;
-            let firstVal = "";
-            if (count > 0) {
-                let span = sameNodes[0].querySelector("span");
-                if (span) {
-                    firstVal = span.innerText.replace(/^(\s*:\s*)/, "").trim();
-                }
-            }
-            info.nodeCount = count;
-            info.firstValue = firstVal;
-
-            sameNodes.forEach(n => n.classList.add(`highlight-${fieldName}`));
-        }
-        renderMappingTable();
-    }
-
-    // Usuwa wszystkie highlighty
-    function clearAllHighlights() {
-        Object.keys(mappingForField).forEach(field => {
-            document.querySelectorAll(`.highlight-${field}`).forEach(el => {
-                el.classList.remove(`highlight-${field}`);
-            });
-        });
-    }
-
-    // Obsługa kliknięcia w węzeł – bierzemy data-xpath
+    // Klik w drzewo => przypisanie do field
     document.addEventListener("click", function(e){
         let el = e.target.closest(".xml-node");
         if (!el) return;
         let xPath = el.getAttribute("data-xpath");
         let selectedField = document.getElementById("fieldSelector").value;
 
-        // Usuwamy stare highlight dla tego field
+        // Usuwamy stare highlight
         document.querySelectorAll(`.highlight-${selectedField}`).forEach(x => {
             x.classList.remove(`highlight-${selectedField}`);
         });
 
-        // Podświetlamy wszystkie węzły o tym samym XPATH
         let sameNodes = document.querySelectorAll(`.xml-node[data-xpath='${xPath}']`);
         sameNodes.forEach(n => n.classList.add(`highlight-${selectedField}`));
 
@@ -219,7 +191,6 @@
             }
         }
 
-        // Zapisujemy w mappingForField
         mappingForField[selectedField] = {
             xpath: xPath,
             nodeCount: count,
@@ -228,7 +199,39 @@
         renderMappingTable();
     });
 
-    // Rysuje tabelę
+    //------------------------------------------------------------------
+    // 3) Highlight, tabela mapowań
+    //------------------------------------------------------------------
+    function applyExistingMappings() {
+        for (let fieldName in mappingForField) {
+            let info = mappingForField[fieldName];
+            if (!info || !info.xpath) continue;
+
+            let xPath = info.xpath;
+            let sameNodes = document.querySelectorAll(`.xml-node[data-xpath='${xPath}']`);
+            let count = sameNodes.length;
+            let firstVal = "";
+            if (count > 0) {
+                let sp = sameNodes[0].querySelector("span");
+                if (sp) {
+                    firstVal = sp.innerText.replace(/^(\s*:\s*)/, "").trim();
+                }
+            }
+            info.nodeCount = count;
+            info.firstValue = firstVal;
+            sameNodes.forEach(n => n.classList.add(`highlight-${fieldName}`));
+        }
+        renderMappingTable();
+    }
+
+    function clearAllHighlights() {
+        Object.keys(mappingForField).forEach(field => {
+            document.querySelectorAll(`.highlight-${field}`).forEach(el => {
+                el.classList.remove(`highlight-${field}`);
+            });
+        });
+    }
+
     function renderMappingTable() {
         let tbody = document.getElementById("mappingTable").querySelector("tbody");
         tbody.innerHTML = "";
@@ -255,17 +258,17 @@
         }
     }
 
-    // Zapis do bazy
+    //------------------------------------------------------------------
+    // 4) Zapis mapowań (GoogleFieldMapping) i ich przeładowanie
+    //------------------------------------------------------------------
     document.getElementById("saveMapping").addEventListener("click", function(){
         let finalMappings = [];
         for (let fieldName in mappingForField) {
             let info = mappingForField[fieldName];
-            if (info) {
-                // Uwaga: w bazie mamy (fieldName, localName),
-                // a tu wysyłamy "xpath" => localName.
+            if (info && info.xpath) {
                 finalMappings.push({
                     fieldName: fieldName,
-                    localName: info.xpath // w DB zapiszemy w polu localName
+                    localName: info.xpath
                 });
             }
         }
@@ -279,21 +282,16 @@
         .catch(err => console.error(err));
     });
 
-    // [NOWOŚĆ] Załaduj mapowania z bazy
     document.getElementById("reloadMappings").addEventListener("click", function(){
         fetch(`/GoogleImportWizardXml/GetGoogleMappings?storeId=${storeId}`)
           .then(r => r.json())
           .then(data => {
               console.log("Odebrano mapowania z bazy (reload):", data);
-              // Czyścimy highlight
               clearAllHighlights();
-              // Czyścimy mappingForField
               Object.keys(mappingForField).forEach(f => mappingForField[f] = null);
-
-              // Ustawiamy wg data
               data.forEach(m => {
                   mappingForField[m.fieldName] = {
-                      xpath: m.localName, // z DB w polu localName trzymamy Xpath
+                      xpath: m.localName,
                       nodeCount: 0,
                       firstValue: ""
                   };
@@ -303,7 +301,90 @@
           .catch(err => console.error("Błąd getGoogleMappings:", err));
     });
 
-    // Na starcie rysujemy pustą tabelę
+    //------------------------------------------------------------------
+    // 5) Wyciąganie listy ProductMap (FRONT) i wysyłanie do bazy
+    //------------------------------------------------------------------
+    document.getElementById("extractProducts").addEventListener("click", function(){
+        if (!xmlDoc) {
+            alert("Nie wczytano XML!");
+            return;
+        }
+        // Zakładamy <item>; jeśli <entry>, zmieniamy
+        let items = xmlDoc.getElementsByTagName("item");
+        let productMaps = [];
+
+        for (let i = 0; i < items.length; i++) {
+            let itemNode = items[i];
+            // Budujemy obiekt w stylu ProductMap:
+            let pm = {
+                StoreId: storeId.toString(), // np. "3"
+                ExternalId: getValueByField(itemNode, "ExternalId"),
+                Url: getValueByField(itemNode, "Url"),
+                // Pola z Ceneo (Ean, MainUrl, ExportedName) pomijamy, bo chcemy tylko Google-limited
+                Ean: null,
+                MainUrl: null,
+                ExportedName: null,
+
+                // Interesują nas 4:
+                GoogleEan: getValueByField(itemNode, "GoogleEan"),
+                GoogleImage: getValueByField(itemNode, "GoogleImage"),
+                GoogleExportedName: getValueByField(itemNode, "GoogleExportedName")
+            };
+            productMaps.push(pm);
+        }
+
+        console.log("Wyciągnięto productMaps(front):", productMaps);
+        document.getElementById("productMapsPreview").textContent =
+            JSON.stringify(productMaps, null, 2);
+    });
+
+    function getValueByField(itemNode, fieldName) {
+        let mapInfo = mappingForField[fieldName];
+        if (!mapInfo || !mapInfo.xpath) return null;
+
+        // "/rss/channel/item/g:id" -> obcinamy "/rss/channel/item/"
+        let trimmed = mapInfo.xpath.replace("/rss/channel/item/", "");
+
+        // Dodatkowo, jeśli trimmed zaczyna się od "g:", usuwamy "g:"
+        // bo w localName jest "id", a nie "g:id"
+        if (trimmed.startsWith("g:")) {
+            trimmed = trimmed.substring(2); // usuwa "g:"
+        }
+
+        // Szukamy child-a w itemNode, localName == trimmed
+        let child = Array.from(itemNode.children)
+            .find(e => e.localName === trimmed);
+        return child ? child.textContent.trim() : null;
+    }
+
+    // Zapis do bazy (np. /ProductMapping/SaveProductMapsFromFront)
+    document.getElementById("saveProductMapsInDb").addEventListener("click", function(){
+        let text = document.getElementById("productMapsPreview").textContent;
+        if (!text) {
+            alert("Brak productMaps do zapisania!");
+            return;
+        }
+        let productMaps;
+        try {
+            productMaps = JSON.parse(text);
+        } catch(e) {
+            alert("Błędny JSON w #productMapsPreview!");
+            return;
+        }
+
+        fetch("/GoogleImportWizardXml/SaveProductMapsFromFront", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(productMaps)
+        })
+        .then(r => r.json())
+        .then(data => {
+            alert("Zapisano: " + data.message);
+        })
+        .catch(err => console.error(err));
+    });
+
+    // Na start: pusty rendering
     renderMappingTable();
 </script>
 
@@ -313,6 +394,7 @@
         margin: 3px 0;
     }
 
+    /* Podświetlenia w zależności od field */
     .highlight-ExternalId {
         background-color: rgba(255, 0, 0, 0.1);
     }

@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using System.Xml.Linq;
 using System.Net.Http;
 using System.Text.RegularExpressions;
+using PriceSafari.Models.ProductXML;
 
 namespace PriceSafari.Controllers.ManagerControllers
 {
@@ -140,7 +141,7 @@ namespace PriceSafari.Controllers.ManagerControllers
                             existingProduct.Ean = null;
                             existingProduct.ExportedName = null;
                             existingProduct.MainUrl = null;
-                            existingProduct.CatalogNumber = null;
+       
                         }
                     }
 
@@ -208,213 +209,235 @@ namespace PriceSafari.Controllers.ManagerControllers
             productMap.MainUrl = mainImgUrl;
             productMap.ExportedName = productName;
             productMap.Ean = ean;
-            productMap.CatalogNumber = producerCode;
+         
 
         }
 
 
 
-        //apteka 
 
 
-        [HttpPost]
-        public async Task<IActionResult> ImportProductsFromGoogleXml(int storeId)
-        {
-            var store = await _context.Stores.FindAsync(storeId);
-            if (store == null || string.IsNullOrEmpty(store.ProductMapXmlUrlGoogle))
-            {
-                TempData["ErrorMessage"] = "Nie znaleziono sklepu lub brak adresu URL pliku XML Google.";
-                return RedirectToAction("Index");
-            }
+        //[HttpPost]
+        //public async Task<IActionResult> ImportProductsFromGoogleXml(int storeId)
+        //{
+        //    var store = await _context.Stores.FindAsync(storeId);
+        //    if (store == null || string.IsNullOrEmpty(store.ProductMapXmlUrlGoogle))
+        //    {
+        //        TempData["ErrorMessage"] = "Nie znaleziono sklepu lub brak adresu URL pliku XML Google.";
+        //        return RedirectToAction("Index");
+        //    }
 
-            try
-            {
-                using (var client = new HttpClient())
-                {
-                    Console.WriteLine($"[GoogleImport] Pobieranie pliku XML z: {store.ProductMapXmlUrlGoogle}");
+        //    try
+        //    {
+        //        using (var client = new HttpClient())
+        //        {
+        //            Console.WriteLine($"[GoogleImport] Pobieranie pliku XML z: {store.ProductMapXmlUrlGoogle}");
 
-                    var response = await client.GetStringAsync(store.ProductMapXmlUrlGoogle);
-                    Console.WriteLine($"[GoogleImport] Odebrano {response.Length} znaków XML.");
+        //            var response = await client.GetStringAsync(store.ProductMapXmlUrlGoogle);
+        //            Console.WriteLine($"[GoogleImport] Odebrano {response.Length} znaków XML.");
 
-                    var xml = XDocument.Parse(response);
-                    Console.WriteLine($"[GoogleImport] Parsowanie OK. Root element: {xml.Root?.Name}");
+        //            var xml = XDocument.Parse(response);
+        //            Console.WriteLine($"[GoogleImport] Parsowanie OK. Root element: {xml.Root?.Name}");
 
-                    // Dla plików RSS z Google Shopping zwykle przestrzeń nazw dla elementów <g:...> to:
-                    var gNs = xml.Root.GetNamespaceOfPrefix("g")?.NamespaceName
-                              ?? "http://base.google.com/ns/1.0";
-                    Console.WriteLine($"[GoogleImport] Namespace Google = '{gNs}'");
+        //            // Dla plików RSS z Google Shopping zwykle przestrzeń nazw dla elementów <g:...> to:
+        //            var gNs = xml.Root.GetNamespaceOfPrefix("g")?.NamespaceName
+        //                      ?? "http://base.google.com/ns/1.0";
+        //            Console.WriteLine($"[GoogleImport] Namespace Google = '{gNs}'");
 
-                    // Szukamy węzłów <item> zamiast <entry> (typowe dla RSS)
-                    var items = xml.Descendants("item").ToList();
-                    Console.WriteLine($"[GoogleImport] Znaleziono {items.Count} węzłów <item> w XML.");
+        //            // Szukamy węzłów <item> zamiast <entry> (typowe dla RSS)
+        //            var items = xml.Descendants("item").ToList();
+        //            Console.WriteLine($"[GoogleImport] Znaleziono {items.Count} węzłów <item> w XML.");
 
-                    var googleProducts = items.Select(x =>
-                    {
-                        // Pobieramy surowe ID z <g:id>
-                        var rawId = GetGoogleElementValue(x, new[] { "id" }, gNs);
-                        // Wyciągamy tylko cyfry
-                        var numericPart = new string(rawId?.Where(char.IsDigit).ToArray());
-                        int? extIdInt = null;
-                        if (!string.IsNullOrEmpty(numericPart) && int.TryParse(numericPart, out var parsed))
-                        {
-                            extIdInt = parsed;
-                        }
+        //            var googleProducts = items.Select(x =>
+        //            {
+        //                // Pobieramy surowe ID z <g:id>
+        //                var rawId = GetGoogleElementValue(x, new[] { "id" }, gNs);
+        //                // Wyciągamy tylko cyfry
+        //                var numericPart = new string(rawId?.Where(char.IsDigit).ToArray());
+        //                int? extIdInt = null;
+        //                if (!string.IsNullOrEmpty(numericPart) && int.TryParse(numericPart, out var parsed))
+        //                {
+        //                    extIdInt = parsed;
+        //                }
 
-                        // Link -> <g:link>
-                        var link = GetGoogleElementValue(x, new[] { "link" }, gNs);
+        //                // Link -> <g:link>
+        //                var link = GetGoogleElementValue(x, new[] { "link" }, gNs);
 
-                        // Sprawdzenie czy identifier_exists = 'yes'
-                        var identifierExists = GetGoogleElementValue(x, new[] { "identifier_exists" }, gNs);
-                        string ean = null;
-                        if (identifierExists?.ToLower() == "yes")
-                        {
-                            // EAN -> np. <g:gtin>, <g:Ean> - korzystamy z tablicy GoogleEanPossibleNames
-                            ean = GetGoogleElementValue(x, GoogleEanPossibleNames, gNs);
-                        }
+        //                // Sprawdzenie czy identifier_exists = 'yes'
+        //                var identifierExists = GetGoogleElementValue(x, new[] { "identifier_exists" }, gNs);
+        //                string ean = null;
+        //                if (identifierExists?.ToLower() == "yes")
+        //                {
+        //                    // EAN -> np. <g:gtin>, <g:Ean> - korzystamy z tablicy GoogleEanPossibleNames
+        //                    ean = GetGoogleElementValue(x, GoogleEanPossibleNames, gNs);
+        //                }
 
-                        // Obrazek -> <g:image_link>
-                        var img = GetGoogleElementValue(x, new[] { "image_link" }, gNs);
+        //                // Obrazek -> <g:image_link>
+        //                var img = GetGoogleElementValue(x, new[] { "image_link" }, gNs);
 
-                        // Tytuł -> <g:title>
-                        var title = GetGoogleElementValue(x, new[] { "title" }, gNs);
+        //                // Tytuł -> <g:title>
+        //                var title = GetGoogleElementValue(x, new[] { "title" }, gNs);
 
-                        // MPN -> <g:mpn> (z tablicy GoogleMpnPossibleNames)
-                        var mpn = GetGoogleElementValue(x, GoogleMpnPossibleNames, gNs);
+        //                // MPN -> <g:mpn> (z tablicy GoogleMpnPossibleNames)
+        //                var mpn = GetGoogleElementValue(x, GoogleMpnPossibleNames, gNs);
 
-                        Console.WriteLine($"[GoogleImport] Wczytano item -> ID='{rawId}' -> " +
-                                            $"extIdInt={extIdInt}, LINK='{link}', EAN='{ean}', TITLE='{title}'");
+        //                Console.WriteLine($"[GoogleImport] Wczytano item -> ID='{rawId}' -> " +
+        //                                    $"extIdInt={extIdInt}, LINK='{link}', EAN='{ean}', TITLE='{title}'");
 
-                        return new
-                        {
-                            ExternalId = numericPart,
-                            Url = link,
-                            GoogleEan = ean,
-                            GoogleImage = img,
-                            GoogleExportedName = title,
-                            CatalogNumber = mpn
-                        };
-                    }).ToList();
+        //                return new
+        //                {
+        //                    ExternalId = numericPart,
+        //                    Url = link,
+        //                    GoogleEan = ean,
+        //                    GoogleImage = img,
+        //                    GoogleExportedName = title,
+        //                    CatalogNumber = mpn
+        //                };
+        //            }).ToList();
 
-                    Console.WriteLine($"[GoogleImport] Zakończono tworzenie listy googleProducts (count={googleProducts.Count}).");
+        //            Console.WriteLine($"[GoogleImport] Zakończono tworzenie listy googleProducts (count={googleProducts.Count}).");
 
-                    // Wczytujemy istniejące mapowania z bazy
-                    var existingProducts = await _context.ProductMaps
-                        .Where(p => p.StoreId == storeId)
-                        .ToListAsync();
-                    Console.WriteLine($"[GoogleImport] Wczytano {existingProducts.Count} istniejących ProductMap z bazy.");
+        //            // Wczytujemy istniejące mapowania z bazy
+        //            var existingProducts = await _context.ProductMaps
+        //                .Where(p => p.StoreId == storeId)
+        //                .ToListAsync();
+        //            Console.WriteLine($"[GoogleImport] Wczytano {existingProducts.Count} istniejących ProductMap z bazy.");
 
-                    // Aktualizujemy istniejące rekordy
-                    int updated = 0;
-                    foreach (var existingProduct in existingProducts)
-                    {
-                        // Szukamy produktu w liście wczytanej z RSS na podstawie URL
-                        var gp = googleProducts.FirstOrDefault(p => p.Url == existingProduct.Url);
-                        if (gp != null)
-                        {
-                            existingProduct.GoogleEan = gp.GoogleEan;
-                            existingProduct.GoogleImage = gp.GoogleImage;
-                            existingProduct.GoogleExportedName = gp.GoogleExportedName;
-                            existingProduct.CatalogNumber = gp.CatalogNumber
-                                ?? existingProduct.CatalogNumber;
-                            updated++;
-                        }
-                        else
-                        {
-                            // Jeśli już go nie ma w pliku, czyścimy pola Google
-                            existingProduct.GoogleEan = null;
-                            existingProduct.GoogleImage = null;
-                            existingProduct.GoogleExportedName = null;
-                        }
-                    }
-                    Console.WriteLine($"[GoogleImport] Zaktualizowano {updated} istniejących rekordów ProductMap.");
+        //            // Aktualizujemy istniejące rekordy
+        //            int updated = 0;
+        //            foreach (var existingProduct in existingProducts)
+        //            {
+        //                // Szukamy produktu w liście wczytanej z RSS na podstawie URL
+        //                var gp = googleProducts.FirstOrDefault(p => p.Url == existingProduct.Url);
+        //                if (gp != null)
+        //                {
+        //                    existingProduct.GoogleEan = gp.GoogleEan;
+        //                    existingProduct.GoogleImage = gp.GoogleImage;
+        //                    existingProduct.GoogleExportedName = gp.GoogleExportedName;
 
-                    // Dodajemy nowe rekordy, jeśli URL (link) nie istnieje w bazie
-                    int added = 0;
-                    foreach (var gp in googleProducts)
-                    {
-                        if (!existingProducts.Any(p => p.Url == gp.Url))
-                        {
-                            var newMap = new ProductMap
-                            {
-                                StoreId = storeId,
-                                ExternalId = gp.ExternalId,
-                                Url = gp.Url,
-                                GoogleEan = gp.GoogleEan,
-                                GoogleImage = gp.GoogleImage,
-                                GoogleExportedName = gp.GoogleExportedName,
-                                CatalogNumber = gp.CatalogNumber
-                            };
-                            _context.ProductMaps.Add(newMap);
-                            existingProducts.Add(newMap);
-                            added++;
-                        }
-                    }
-                    Console.WriteLine($"[GoogleImport] Dodano {added} nowych rekordów ProductMap.");
+        //                }
+        //                else
+        //                {
+        //                    // Jeśli już go nie ma w pliku, czyścimy pola Google
+        //                    existingProduct.GoogleEan = null;
+        //                    existingProduct.GoogleImage = null;
+        //                    existingProduct.GoogleExportedName = null;
+        //                }
+        //            }
+        //            Console.WriteLine($"[GoogleImport] Zaktualizowano {updated} istniejących rekordów ProductMap.");
 
-                    await _context.SaveChangesAsync();
-                    Console.WriteLine("[GoogleImport] Zapis zmian w bazie zakończony.");
-                }
+        //            // Dodajemy nowe rekordy, jeśli URL (link) nie istnieje w bazie
+        //            int added = 0;
+        //            foreach (var gp in googleProducts)
+        //            {
+        //                if (!existingProducts.Any(p => p.Url == gp.Url))
+        //                {
+        //                    var newMap = new ProductMap
+        //                    {
+        //                        StoreId = storeId,
+        //                        ExternalId = gp.ExternalId,
+        //                        Url = gp.Url,
+        //                        GoogleEan = gp.GoogleEan,
+        //                        GoogleImage = gp.GoogleImage,
+        //                        GoogleExportedName = gp.GoogleExportedName,
 
-                TempData["SuccessMessage"] = "Import produktów z Google zakończony sukcesem.";
-                return RedirectToAction("MappedProducts", new { storeId });
-            }
-            catch (Exception ex)
-            {
-                var errorMsg = $"Błąd podczas importu produktów z Google: {ex.Message}";
-                Console.WriteLine("[GoogleImport] " + errorMsg);
-                TempData["ErrorMessage"] = errorMsg;
-                return RedirectToAction("Index");
-            }
-        }
+        //                    };
+        //                    _context.ProductMaps.Add(newMap);
+        //                    existingProducts.Add(newMap);
+        //                    added++;
+        //                }
+        //            }
+        //            Console.WriteLine($"[GoogleImport] Dodano {added} nowych rekordów ProductMap.");
+
+        //            await _context.SaveChangesAsync();
+        //            Console.WriteLine("[GoogleImport] Zapis zmian w bazie zakończony.");
+        //        }
+
+        //        TempData["SuccessMessage"] = "Import produktów z Google zakończony sukcesem.";
+        //        return RedirectToAction("MappedProducts", new { storeId });
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        var errorMsg = $"Błąd podczas importu produktów z Google: {ex.Message}";
+        //        Console.WriteLine("[GoogleImport] " + errorMsg);
+        //        TempData["ErrorMessage"] = errorMsg;
+        //        return RedirectToAction("Index");
+        //    }
+        //}
 
 
 
-        private static readonly string[] GoogleEanPossibleNames = new[]
-         {
-            "gtin", "Ean", "EAN", "ean", "Gtin", "GTIN"
-        };
+        //private static readonly string[] GoogleEanPossibleNames = new[]
+        // {
+        //    "gtin", "Ean", "EAN", "ean", "Gtin", "GTIN"
+        //};
 
 
 
-        // itd. – można dodać kolejne, np. "mpn"
-        private static readonly string[] GoogleMpnPossibleNames = new[]
-        {
-        "mpn"
-        };
+        //// itd. – można dodać kolejne, np. "mpn"
+        //private static readonly string[] GoogleMpnPossibleNames = new[]
+        //{
+        //"mpn"
+        //};
 
-        private string GetGoogleElementValue(XElement entryElement, string[] possibleNames, string namespaceName)
-        {
-            if (entryElement == null)
-            {
-                Console.WriteLine("GetGoogleElementValue: entryElement jest null");
-                return null;
-            }
+        //private string GetGoogleElementValue(XElement entryElement, string[] possibleNames, string namespaceName)
+        //{
+        //    if (entryElement == null)
+        //    {
+        //        Console.WriteLine("GetGoogleElementValue: entryElement jest null");
+        //        return null;
+        //    }
 
-            foreach (var name in possibleNames)
-            {
-                // Szukaj elementu z dokładną nazwą
-                var node = entryElement.Element(XName.Get(name, namespaceName));
-                if (node != null)
-                {
-                    var val = node.Value?.Trim();
-                    Console.WriteLine($"GetGoogleElementValue: dopasowano <g:{name}> = '{val}'");
-                    return val;
-                }
+        //    foreach (var name in possibleNames)
+        //    {
+        //        // Szukaj elementu z dokładną nazwą
+        //        var node = entryElement.Element(XName.Get(name, namespaceName));
+        //        if (node != null)
+        //        {
+        //            var val = node.Value?.Trim();
+        //            Console.WriteLine($"GetGoogleElementValue: dopasowano <g:{name}> = '{val}'");
+        //            return val;
+        //        }
 
-                // Jeśli nie znaleziono, spróbuj z różnymi wariantami wielkości liter (opcjonalnie)
-                var lowerNode = entryElement.Elements()
-                    .FirstOrDefault(e => e.Name.LocalName.Equals(name, StringComparison.OrdinalIgnoreCase)
-                                         && e.Name.Namespace == namespaceName);
-                if (lowerNode != null)
-                {
-                    var val = lowerNode.Value?.Trim();
-                    Console.WriteLine($"GetGoogleElementValue: dopasowano <g:{lowerNode.Name.LocalName}> = '{val}'");
-                    return val;
-                }
-            }
+        //        // Jeśli nie znaleziono, spróbuj z różnymi wariantami wielkości liter (opcjonalnie)
+        //        var lowerNode = entryElement.Elements()
+        //            .FirstOrDefault(e => e.Name.LocalName.Equals(name, StringComparison.OrdinalIgnoreCase)
+        //                                 && e.Name.Namespace == namespaceName);
+        //        if (lowerNode != null)
+        //        {
+        //            var val = lowerNode.Value?.Trim();
+        //            Console.WriteLine($"GetGoogleElementValue: dopasowano <g:{lowerNode.Name.LocalName}> = '{val}'");
+        //            return val;
+        //        }
+        //    }
 
-            return null;
-        }
+        //    return null;
+        //}
+   
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

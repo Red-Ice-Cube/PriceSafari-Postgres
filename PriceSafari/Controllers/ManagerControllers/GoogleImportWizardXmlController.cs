@@ -153,5 +153,77 @@ namespace PriceSafari.Controllers.ManagerControllers
             public string FieldName { get; set; }  // "ExternalId" itp.
             public string LocalName { get; set; }  // "g:id" itp.
         }
+
+
+
+
+
+
+        [HttpPost]
+        public async Task<IActionResult> SaveProductMapsFromFront([FromBody] List<ProductMapDto> productMaps)
+        {
+            if (productMaps == null || productMaps.Count == 0)
+            {
+                return Json(new { success = false, message = "Brak productMaps" });
+            }
+
+            int storeId = productMaps[0].StoreId;
+            var existing = await _context.ProductMaps
+                .Where(pm => pm.StoreId == storeId)
+                .ToListAsync();
+
+            int added = 0, updated = 0;
+
+            foreach (var pmDto in productMaps)
+            {
+                var found = existing.FirstOrDefault(x =>
+                    (x.ExternalId == pmDto.ExternalId && !string.IsNullOrEmpty(pmDto.ExternalId))
+                    || (x.Url == pmDto.Url && !string.IsNullOrEmpty(pmDto.Url))
+                );
+
+                if (found == null)
+                {
+                    var newMap = new ProductMap
+                    {
+                        StoreId = pmDto.StoreId,
+                        ExternalId = pmDto.ExternalId,
+                        Url = pmDto.Url,
+                        GoogleEan = pmDto.GoogleEan,
+                        GoogleImage = pmDto.GoogleImage,
+                        GoogleExportedName = pmDto.GoogleExportedName
+                    };
+                    _context.ProductMaps.Add(newMap);
+                    existing.Add(newMap);
+                    added++;
+                }
+                else
+                {
+                    found.ExternalId = pmDto.ExternalId;
+                    found.Url = pmDto.Url;
+                    found.GoogleEan = pmDto.GoogleEan;
+                    found.GoogleImage = pmDto.GoogleImage;
+                    found.GoogleExportedName = pmDto.GoogleExportedName;
+
+                    _context.ProductMaps.Update(found);
+                    updated++;
+                }
+            }
+
+            await _context.SaveChangesAsync();
+            return Json(new { success = true, message = $"Dodano {added}, zaktualizowano {updated}." });
+        }
+
+        public class ProductMapDto
+        {
+            public int StoreId { get; set; }
+            public string ExternalId { get; set; }
+            public string Url { get; set; }
+            public string GoogleEan { get; set; }
+            public string GoogleImage { get; set; }
+            public string GoogleExportedName { get; set; }
+        }
+
+
+
     }
 }
