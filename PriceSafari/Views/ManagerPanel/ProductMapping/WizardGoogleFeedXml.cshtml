@@ -1,0 +1,182 @@
+﻿@{
+    Layout = null; // dla uproszczenia
+    var storeId = ViewBag.StoreId ?? 0;
+}
+
+<h2>Wizard Mapping - storeId=@storeId</h2>
+
+<div id="xmlContainer"></div>
+
+<div>
+    <label>Wybierz Pole: </label>
+    <select id="fieldSelector">
+        <option value="ExternalId">ExternalId</option>
+        <option value="Url">Url</option>
+        <option value="GoogleEan">GoogleEan</option>
+        <option value="GoogleImage">GoogleImage</option>
+        <option value="GoogleExportedName">GoogleExportedName</option>
+    </select>
+</div>
+
+<button id="saveMapping">Zapisz Mapowanie</button>
+
+<!-- Tutaj pokazujemy mapowania w formie JSON -->
+<pre id="mappingOutput" style="border:1px solid #ccc; padding:10px;"></pre>
+
+<!-- Tutaj pokazujemy info: ile węzłów, pierwsza wartość, itp. -->
+<div id="infoOutput" style="margin-top:10px; color:blue; font-weight:bold;"></div>
+
+<script>
+    let storeId = "@storeId";
+    let proxyUrl = `/GoogleImportWizardXml/ProxyXml?storeId=${storeId}`;
+
+    // 1. Pobieramy XML z Proxy
+    fetch(proxyUrl)
+      .then(resp => resp.text())
+      .then(xmlString => {
+          // Parsujemy w DOMParser
+          let parser = new DOMParser();
+          let doc = parser.parseFromString(xmlString, "application/xml");
+
+          // Sprawdź, czy jest błąd parsera
+          if (doc.documentElement.nodeName === "parsererror") {
+              document.getElementById("xmlContainer").innerText =
+                  "Błąd parsowania XML:\n" + doc.documentElement.textContent;
+              return;
+          }
+
+          // Generuj drzewo
+          buildXmlTree(doc.documentElement);
+      })
+      .catch(err => {
+          document.getElementById("xmlContainer").innerText =
+              "Błąd pobierania pliku XML:\n" + err;
+      });
+
+    // Funkcja do budowania <ul><li> rekurencyjnie
+    function buildXmlTree(rootNode) {
+        let container = document.getElementById("xmlContainer");
+        let ul = document.createElement("ul");
+        let liRoot = createLi(rootNode);
+        ul.appendChild(liRoot);
+        container.appendChild(ul);
+    }
+
+    function createLi(node) {
+        let li = document.createElement("li");
+        li.classList.add("xml-node");
+
+        let nodeName = node.nodeName; // np. g:id
+        li.setAttribute("data-name", nodeName);
+
+        // <b>nazwaWęzła</b>
+        let b = document.createElement("b");
+        b.innerText = nodeName;
+        li.appendChild(b);
+
+        // Jeżeli brak dzieci i jest text => wypisujemy w <span>
+        if (node.children.length === 0 && node.textContent.trim()) {
+            let span = document.createElement("span");
+            span.innerText = " : " + node.textContent.trim();
+            li.appendChild(span);
+        }
+
+        // Rekurencja
+        if (node.children.length > 0) {
+            let ul = document.createElement("ul");
+            for (let child of node.children) {
+                ul.appendChild(createLi(child));
+            }
+            li.appendChild(ul);
+        }
+
+        return li;
+    }
+
+    // Tablica mapowań
+    let mappings = [];
+
+    // Obsługa klikania w drzewo
+    document.addEventListener("click", function(e) {
+        let target = e.target.closest(".xml-node");
+        if (!target) return;
+
+        // Odczyt nazwy
+        let nodeName = target.getAttribute("data-name");
+        // Wybór pola
+        let selectedField = document.getElementById("fieldSelector").value;
+
+        // Dodaj do tablicy
+        mappings.push({ fieldName: selectedField, localName: nodeName });
+        document.getElementById("mappingOutput").textContent =
+            JSON.stringify(mappings, null, 2);
+
+        // Podświetlamy
+        let sameNodes = document.querySelectorAll(`.xml-node[data-name='${nodeName}']`);
+        sameNodes.forEach(n => n.classList.add("highlight-" + selectedField));
+
+        // [NOWOŚĆ] Zliczamy i pobieramy wartość pierwszego węzła
+        let nodeCount = sameNodes.length;
+        let firstValue = "";
+        if (sameNodes.length > 0) {
+            // Szukamy <span> w tym węźle
+            let span = sameNodes[0].querySelector("span");
+            if (span) {
+                // usuwamy " : " z początku
+                firstValue = span.innerText.replace(/^(\s*:\s*)/, "").trim();
+            }
+        }
+
+        // Wyświetlamy w #infoOutput
+        let info = `Znaleziono ${nodeCount} węzł(ów) <${nodeName}>.`;
+        if (firstValue) {
+            info += ` Pierwszy z nich zawiera wartość: "${firstValue}"`;
+        }
+        document.getElementById("infoOutput").textContent = info;
+
+        console.log(`[Mapping] ${nodeName} => ${selectedField}.
+                     Znaleziono ${nodeCount}, pierwszy: "${firstValue}"`);
+    });
+
+    // Zapis
+    document.getElementById("saveMapping").addEventListener("click", function() {
+        let url = `/GoogleImportWizardXml/SaveGoogleMappings?storeId=${storeId}`;
+        fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(mappings)
+        })
+        .then(resp => resp.json())
+        .then(data => {
+            alert(data.message);
+        })
+        .catch(err => console.error(err));
+    });
+</script>
+
+<style>
+    .xml-node {
+        cursor: pointer;
+        margin: 3px 0;
+    }
+
+    .highlight-ExternalId {
+        background-color: rgba(255, 0, 0, 0.1);
+    }
+
+    .highlight-Url {
+        background-color: rgba(0, 255, 0, 0.1);
+    }
+
+    .highlight-GoogleEan {
+        background-color: rgba(0, 0, 255, 0.1);
+    }
+
+    .highlight-GoogleImage {
+        background-color: rgba(255, 165, 0, 0.1);
+    }
+
+    .highlight-GoogleExportedName {
+        background-color: rgba(255, 255, 0, 0.2);
+    }
+</style>

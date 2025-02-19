@@ -20,6 +20,6 @@ namespace PriceSafari.Models
         // Nowe pola dla danych z Google Shopping
         public string? GoogleEan { get; set; }
         public string? GoogleImage { get; set; }
-        public string? GoogleExportedName { get; set; } // Nowa kolumna
+        public string? GoogleExportedName { get; set; } 
     }
 }

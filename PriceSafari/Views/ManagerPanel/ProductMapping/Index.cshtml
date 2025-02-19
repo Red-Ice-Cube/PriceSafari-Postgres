@@ -47,6 +47,14 @@
                             <input type="hidden" name="storeId" value="@store.StoreId" />
                             <button type="submit" class="btn btn-success">Importuj z Google Shopping</button>
                         </form>
+
+                        <a asp-controller="GoogleImportWizardXml"
+                           asp-action="ShowGoogleFeedXml"
+                           asp-route-storeId="@store.StoreId"
+                           class="btn btn-warning">
+                            Wizard (Google)
+                        </a>
+
                     }
                     else
                     {
