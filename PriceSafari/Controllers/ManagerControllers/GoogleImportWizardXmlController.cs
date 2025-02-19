@@ -57,12 +57,12 @@ namespace PriceSafari.Controllers.ManagerControllers
 
             var url = store.ProductMapXmlUrlGoogle;
 
-            // Jeśli URL wskazuje na plik lokalny (np. "file:///C:/..."), odczytujemy plik z dysku
+
             if (url.StartsWith("file://", System.StringComparison.OrdinalIgnoreCase))
             {
                 try
                 {
-                    // Usuń prefiks "file://"
+
                     string filePathEncoded = url.Substring("file://".Length);
                     // Dekoduj URL, aby zamienić np. %20 na spację
                     string filePath = Uri.UnescapeDataString(filePathEncoded);
