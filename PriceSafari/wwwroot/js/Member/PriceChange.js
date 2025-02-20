@@ -51,20 +51,40 @@
     });
 
     function openSimulationModal() {
+        // Przygotowujemy dane do symulacji
         var simulationData = selectedPriceChanges.map(function (item) {
-            return { ProductId: item.productId, CurrentPrice: item.currentPrice, NewPrice: item.newPrice };
+            return {
+                ProductId: item.productId,
+                CurrentPrice: item.currentPrice,
+                NewPrice: item.newPrice
+            };
         });
 
-        fetch('/PriceHistory/GetPriceChangeDetails?productIds=' + encodeURIComponent(JSON.stringify(selectedPriceChanges.map(item => item.productId))))
-            .then(function (response) { return response.json(); })
+        // Pobieramy dodatkowe informacje o produktach (np. nazwy, grafiki)
+        fetch('/PriceHistory/GetPriceChangeDetails?productIds=' +
+            encodeURIComponent(JSON.stringify(selectedPriceChanges.map(function (item) {
+                return item.productId;
+            }))))
+            .then(function (response) {
+                return response.json();
+            })
             .then(function (productDetails) {
+                // Następnie wysyłamy symulację zmian
                 fetch('/PriceHistory/SimulatePriceChange', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(simulationData)
                 })
-                    .then(function (response) { return response.json(); })
-                    .then(function (simulationResults) {
+                    .then(function (response) {
+                        return response.json();
+                    })
+                    .then(function (data) {
+                        // Zakładamy, że backend zwraca obiekt, w którym znajduje się właściwość simulationResults
+                        // (oraz ewentualnie więcej danych, np. ourStoreName, itp.)
+                        var simulationResults = data.simulationResults;
+                        // Jeśli potrzebne, można też odczytać inne informacje, np.:
+                        // var ourStoreName = data.ourStoreName;
+
                         var modalContent = '<table class="table table-sm">';
                         modalContent += '<thead><tr>';
                         modalContent += '<th>Grafika</th>';
@@ -73,15 +93,21 @@
                         modalContent += '<th style="white-space: nowrap;">Nowa cena<br/><small>(Google / Ceneo)</small></th>';
                         modalContent += '<th style="white-space: nowrap;">Różnica</th>';
                         modalContent += '</tr></thead><tbody>';
+
                         selectedPriceChanges.forEach(function (item) {
-                            var prodDetail = productDetails.find(x => x.productId == item.productId);
+                            var prodDetail = productDetails.find(function (x) {
+                                return x.productId == item.productId;
+                            });
                             var name = prodDetail ? prodDetail.productName : item.productName;
                             var imageUrl = prodDetail ? prodDetail.imageUrl : "";
                             var diff = item.newPrice - item.currentPrice;
-                            var arrow = diff > 0 ? '<span style="color: red;">▲</span>'
-                                : diff < 0 ? '<span style="color: green;">▼</span>'
-                                    : '<span style="color: gray;">●</span>';
-                            var simResult = simulationResults.find(x => x.productId == item.productId);
+                            var arrow = diff > 0 ? '<span style="color: red;">▲</span>' :
+                                diff < 0 ? '<span style="color: green;">▼</span>' :
+                                    '<span style="color: gray;">●</span>';
+                            // Pobieramy wynik symulacji dla danego produktu
+                            var simResult = simulationResults.find(function (x) {
+                                return x.productId == item.productId;
+                            });
 
                             var currentGoogle = simResult && simResult.currentGoogleRanking ? simResult.currentGoogleRanking : "-";
                             var newGoogle = simResult && simResult.newGoogleRanking ? simResult.newGoogleRanking : "-";
@@ -100,12 +126,14 @@
                             modalContent += '<td style="white-space: nowrap;">' + arrow + ' ' + Math.abs(diff).toFixed(2) + ' PLN</td>';
                             modalContent += '</tr>';
                         });
+
                         modalContent += '</tbody></table>';
 
                         var modalBody = document.getElementById("simulationModalBody");
                         if (modalBody) {
                             modalBody.innerHTML = modalContent;
                         }
+                       
                         $('#simulationModal').modal('show');
                     })
                     .catch(function (err) {

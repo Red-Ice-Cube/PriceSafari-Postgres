@@ -892,6 +892,13 @@ namespace PriceSafari.Controllers.MemberControllers
             return Json(products);
         }
 
+
+
+
+
+
+
+
         [HttpPost]
         public async Task<IActionResult> SimulatePriceChange([FromBody] List<SimulationItem> simulationItems)
         {
@@ -900,21 +907,19 @@ namespace PriceSafari.Controllers.MemberControllers
                 return Json(new List<object>());
             }
 
-            // Pobieramy pierwszy produkt, aby wywnioskować StoreId oraz nazwę naszego sklepu.
-            var firstProduct = await _context.Products.FindAsync(simulationItems.First().ProductId);
-            if (firstProduct == null)
-            {
-                return NotFound("Produkt nie znaleziony.");
-            }
+            var firstProduct = await _context.Products
+              .Include(p => p.Store)
+              .FirstOrDefaultAsync(p => p.ProductId == simulationItems.First().ProductId);
+                    if (firstProduct == null)
+                    {
+                        return NotFound("Produkt nie znaleziony.");
+                    }
 
             int storeId = firstProduct.StoreId;
-            // Pobieramy nazwę naszego sklepu przez relację (upewnij się, że jest załadowana – np. przez Include w razie potrzeby)
             string ourStoreName = firstProduct.Store != null ? firstProduct.Store.StoreName : "";
 
-            if (!await UserHasAccessToStore(storeId))
-            {
-                return Unauthorized("Brak dostępu do sklepu.");
-            }
+
+   
 
             // Pobierz ostatnie scrapowanie dla sklepu.
             var latestScrap = await _context.ScrapHistories
@@ -950,8 +955,9 @@ namespace PriceSafari.Controllers.MemberControllers
                               && ph.StoreName != ourStoreName)
                     .Select(ph => new
                     {
-                        ph.Price,      // Price jest typu decimal (nie-nullable)
-                        ph.IsGoogle   // true: Google, false: Ceneo
+                        ph.Price,
+                        ph.IsGoogle,
+                        ph.StoreName
                     })
                     .ToListAsync();
 
@@ -974,11 +980,11 @@ namespace PriceSafari.Controllers.MemberControllers
                     currentGoogleRanking = newGoogleRanking = "-";
                 }
 
-                // Dla kanału Ceneo:
-                var ceneoPrices = competitorPrices
-                    .Where(x => !x.IsGoogle)
-                    .Select(x => x.Price)
+                // Dla kanału Ceneo – dodatkowo filtrujemy rekordy, aby wykluczyć te z pustą nazwą sklepu.
+                var ceneoCompetitor = competitorPrices
+                    .Where(x => !x.IsGoogle && !string.IsNullOrEmpty(x.StoreName))
                     .ToList();
+                var ceneoPrices = ceneoCompetitor.Select(x => x.Price).ToList();
                 string currentCeneoRanking, newCeneoRanking;
                 int totalCeneoOffers = ceneoPrices.Count;
                 if (totalCeneoOffers > 0)
@@ -993,6 +999,32 @@ namespace PriceSafari.Controllers.MemberControllers
                     currentCeneoRanking = newCeneoRanking = "-";
                 }
 
+                // Przygotowujemy dodatkowe dane – oferty użyte do symulacji wraz z nazwami sklepów.
+                // Dla Google:
+                var googleCurrentOffers = competitorPrices
+                    .Where(x => x.IsGoogle)
+                    .Select(x => new { x.Price, x.StoreName })
+                    .ToList();
+                // Dodajemy naszą ofertę.
+                googleCurrentOffers.Add(new { Price = sim.CurrentPrice, StoreName = ourStoreName });
+
+                var googleNewOffers = competitorPrices
+                    .Where(x => x.IsGoogle)
+                    .Select(x => new { x.Price, x.StoreName })
+                    .ToList();
+                googleNewOffers.Add(new { Price = sim.NewPrice, StoreName = ourStoreName });
+
+                // Dla Ceneo – korzystamy z już przefiltrowanej listy ceneoCompetitor.
+                var ceneoCurrentOffers = ceneoCompetitor
+                    .Select(x => new { x.Price, x.StoreName })
+                    .ToList();
+                ceneoCurrentOffers.Add(new { Price = sim.CurrentPrice, StoreName = ourStoreName });
+
+                var ceneoNewOffers = ceneoCompetitor
+                    .Select(x => new { x.Price, x.StoreName })
+                    .ToList();
+                ceneoNewOffers.Add(new { Price = sim.NewPrice, StoreName = ourStoreName });
+
                 simulationResults.Add(new
                 {
                     productId = sim.ProductId,
@@ -1001,11 +1033,20 @@ namespace PriceSafari.Controllers.MemberControllers
                     totalGoogleOffers = totalGoogleOffers > 0 ? totalGoogleOffers : (int?)null,
                     currentCeneoRanking,
                     newCeneoRanking,
-                    totalCeneoOffers = totalCeneoOffers > 0 ? totalCeneoOffers : (int?)null
+                    totalCeneoOffers = totalCeneoOffers > 0 ? totalCeneoOffers : (int?)null,
+                    // Dodatkowe dane – oferty wykorzystane przy obliczeniach:
+                    googleCurrentOffers,
+                    googleNewOffers,
+                    ceneoCurrentOffers,
+                    ceneoNewOffers
                 });
             }
 
-            return Json(simulationResults);
+            return Json(new
+            {
+                ourStoreName,
+                simulationResults
+            });
         }
 
         public class SimulationItem
@@ -1014,6 +1055,10 @@ namespace PriceSafari.Controllers.MemberControllers
             public decimal CurrentPrice { get; set; }
             public decimal NewPrice { get; set; }
         }
+
+
+
+
 
 
 
