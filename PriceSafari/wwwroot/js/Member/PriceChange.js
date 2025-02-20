@@ -51,7 +51,6 @@
     });
 
     function openSimulationModal() {
-        // Przygotowujemy dane do symulacji
         var simulationData = selectedPriceChanges.map(function (item) {
             return {
                 ProductId: item.productId,
@@ -60,7 +59,6 @@
             };
         });
 
-        // Pobieramy dodatkowe informacje o produktach (np. nazwy, grafiki)
         fetch('/PriceHistory/GetPriceChangeDetails?productIds=' +
             encodeURIComponent(JSON.stringify(selectedPriceChanges.map(function (item) {
                 return item.productId;
@@ -69,7 +67,6 @@
                 return response.json();
             })
             .then(function (productDetails) {
-                // Następnie wysyłamy symulację zmian
                 fetch('/PriceHistory/SimulatePriceChange', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -79,11 +76,8 @@
                         return response.json();
                     })
                     .then(function (data) {
-                        // Zakładamy, że backend zwraca obiekt, w którym znajduje się właściwość simulationResults
-                        // (oraz ewentualnie więcej danych, np. ourStoreName, itp.)
+                        // Zakładamy, że backend zwraca obiekt z właściwością simulationResults
                         var simulationResults = data.simulationResults;
-                        // Jeśli potrzebne, można też odczytać inne informacje, np.:
-                        // var ourStoreName = data.ourStoreName;
 
                         var modalContent = '<table class="table table-sm">';
                         modalContent += '<thead><tr>';
@@ -104,25 +98,62 @@
                             var arrow = diff > 0 ? '<span style="color: red;">▲</span>' :
                                 diff < 0 ? '<span style="color: green;">▼</span>' :
                                     '<span style="color: gray;">●</span>';
-                            // Pobieramy wynik symulacji dla danego produktu
+
                             var simResult = simulationResults.find(function (x) {
                                 return x.productId == item.productId;
                             });
 
-                            var currentGoogle = simResult && simResult.currentGoogleRanking ? simResult.currentGoogleRanking : "-";
-                            var newGoogle = simResult && simResult.newGoogleRanking ? simResult.newGoogleRanking : "-";
-                            var currentCeneo = simResult && simResult.currentCeneoRanking ? simResult.currentCeneoRanking : "-";
-                            var newCeneo = simResult && simResult.newCeneoRanking ? simResult.newCeneoRanking : "-";
+                            // Przygotowujemy wizualizację danych kanałów.
+                            // Jeśli dla Google mamy oferty, wyświetlamy ikonę, ranking i liczbę ofert.
+                            var googleDisplay = "";
+                            if (simResult && simResult.totalGoogleOffers) {
+                                googleDisplay = '<span class="data-channel">' +
+                                    '<img src="/images/GoogleShopping.png" alt="Google Icon" style="width:15px; height:15px;" /> ' +
+                                    simResult.currentGoogleRanking + ' / ' + simResult.totalGoogleOffers +
+                                    '</span>';
+                            }
+                            // Analogicznie dla Ceneo.
+                            var ceneoDisplay = "";
+                            if (simResult && simResult.totalCeneoOffers) {
+                                ceneoDisplay = '<span class="data-channel">' +
+                                    '<img src="/images/Ceneo.png" alt="Ceneo Icon" style="width:15px; height:15px;" /> ' +
+                                    simResult.currentCeneoRanking + ' / ' + simResult.totalCeneoOffers +
+                                    '</span>';
+                            }
+
+                            // Podobnie przygotowujemy dane dla nowej ceny.
+                            var googleNewDisplay = "";
+                            if (simResult && simResult.totalGoogleOffers) {
+                                googleNewDisplay = '<span class="data-channel">' +
+                                    '<img src="/images/GoogleShopping.png" alt="Google Icon" style="width:15px; height:15px;" /> ' +
+                                    simResult.newGoogleRanking + ' / ' + simResult.totalGoogleOffers +
+                                    '</span>';
+                            }
+                            var ceneoNewDisplay = "";
+                            if (simResult && simResult.totalCeneoOffers) {
+                                ceneoNewDisplay = '<span class="data-channel">' +
+                                    '<img src="/images/Ceneo.png" alt="Ceneo Icon" style="width:15px; height:15px;" /> ' +
+                                    simResult.newCeneoRanking + ' / ' + simResult.totalCeneoOffers +
+                                    '</span>';
+                            }
 
                             modalContent += '<tr>';
                             modalContent += '<td>' + (imageUrl ? '<img src="' + imageUrl + '" alt="' + name + '" style="width:50px; height:auto;">' : '') + '</td>';
                             modalContent += '<td>' + name + '</td>';
-                            modalContent += '<td style="white-space: nowrap;">' + item.currentPrice.toFixed(2) + ' PLN' +
-                                '<br/><small>Google: ' + currentGoogle + (simResult && simResult.totalGoogleOffers ? " / " + simResult.totalGoogleOffers : "-") +
-                                '<br/>Ceneo: ' + currentCeneo + (simResult && simResult.totalCeneoOffers ? " / " + simResult.totalCeneoOffers : "-") + '</small></td>';
-                            modalContent += '<td style="white-space: nowrap;">' + item.newPrice.toFixed(2) + ' PLN' +
-                                '<br/><small>Google: ' + newGoogle + (simResult && simResult.totalGoogleOffers ? " / " + simResult.totalGoogleOffers : "-") +
-                                '<br/>Ceneo: ' + newCeneo + (simResult && simResult.totalCeneoOffers ? " / " + simResult.totalCeneoOffers : "-") + '</small></td>';
+                            modalContent += '<td style="white-space: nowrap;">' +
+                                item.currentPrice.toFixed(2) + ' PLN' +
+                                '<br/><small>' +
+                                googleDisplay +
+                                (googleDisplay && ceneoDisplay ? ' &nbsp; ' : '') +
+                                ceneoDisplay +
+                                '</small></td>';
+                            modalContent += '<td style="white-space: nowrap;">' +
+                                item.newPrice.toFixed(2) + ' PLN' +
+                                '<br/><small>' +
+                                googleNewDisplay +
+                                (googleNewDisplay && ceneoNewDisplay ? ' &nbsp; ' : '') +
+                                ceneoNewDisplay +
+                                '</small></td>';
                             modalContent += '<td style="white-space: nowrap;">' + arrow + ' ' + Math.abs(diff).toFixed(2) + ' PLN</td>';
                             modalContent += '</tr>';
                         });
@@ -133,7 +164,6 @@
                         if (modalBody) {
                             modalBody.innerHTML = modalContent;
                         }
-                       
                         $('#simulationModal').modal('show');
                     })
                     .catch(function (err) {
