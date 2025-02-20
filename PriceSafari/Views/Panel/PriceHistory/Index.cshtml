@@ -512,6 +512,12 @@
 
                 <div id="sortingButtons">
                     <div class="ProductCount" id="displayedProductCount"></div>
+
+                    <div id="priceChangeSummary" style="padding: 4px 8px; background-color: #f0f0f0; border-radius: 4px; font-size: 13px; margin-right: 8px;">
+                        Wybrane produkty: 0 | Podwyższone: 0 | Obniżone: 0
+                    </div>
+
+
                     <button id="sortName">A-Z</button>
                     <button id="sortPrice">Cena</button>
                     <button id="sortRaiseAmount">Podnieś PLN</button>
@@ -547,6 +553,7 @@
         var flags = @Html.Raw(JsonConvert.SerializeObject(ViewBag.Flags));
     </script>
     <script src="~/js/member/PriceHistory.js"></script>
+    <script src="~/js/member/PriceChange.js"></script>
     <script>
         $(document).ready(function () {
             var connection = new signalR.HubConnectionBuilder().withUrl("/scrapingHub").build();
