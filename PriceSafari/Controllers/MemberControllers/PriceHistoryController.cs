@@ -852,6 +852,40 @@ namespace PriceSafari.Controllers.MemberControllers
             });
         }
 
+        [HttpGet]
+        public IActionResult GetPriceChangeDetails(string productIds)
+        {
+            if (string.IsNullOrEmpty(productIds))
+            {
+                return Json(new List<object>());
+            }
+
+            List<int> productIdList;
+            try
+            {
+                productIdList = JsonConvert.DeserializeObject<List<int>>(productIds);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Błąd deserializacji productIds: {productIds}", productIds);
+                return Json(new List<object>());
+            }
+
+            // Aby uniknąć użycia OPENJSON (nieobsługiwanego przez SQL Server 2012),
+            // przeliczamy wynik na IEnumerable (AsEnumerable) – co powoduje, że filtrowanie nastąpi już po stronie aplikacji.
+            var products = _context.Products
+                .AsEnumerable()
+                .Where(p => productIdList.Contains(p.ProductId))
+                .Select(p => new {
+                    productId = p.ProductId,
+                    productName = p.ProductName,
+                    imageUrl = p.MainUrl  // zakładamy, że MainUrl zawiera URL grafiki
+                })
+                .ToList();
+
+            return Json(products);
+        }
+
 
 
 
