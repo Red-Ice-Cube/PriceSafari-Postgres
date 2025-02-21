@@ -137,6 +137,13 @@ namespace PriceSafari.Scrapers
                             var offerUrl = offerUrlElement != null ? await offerUrlElement.EvaluateFunctionAsync<string>("node => node.href") : "Brak URL";
                             Console.WriteLine($"URL oferty: {offerUrl}");
 
+                            // Sprawdzenie, czy URL zawiera "outlet"
+                            if (IsOutletOffer(offerUrl))
+                            {
+                                Console.WriteLine("Oferta outlet, pomijam.");
+                                continue; // Pomijamy tę ofertę
+                            }
+
                             if (storeBestOffers.ContainsKey(storeName))
                             {
                                 var existingOffer = storeBestOffers[storeName];
@@ -150,9 +157,7 @@ namespace PriceSafari.Scrapers
                                         OfferUrl = offerUrl,
                                         ScrapingProductId = scrapingProduct.ScrapingProductId,
                                         RegionId = scrapingProduct.RegionId,
-
                                     };
-
                                 }
                             }
                             else
@@ -166,7 +171,6 @@ namespace PriceSafari.Scrapers
                                     OfferUrl = offerUrl,
                                     ScrapingProductId = scrapingProduct.ScrapingProductId,
                                     RegionId = scrapingProduct.RegionId,
-
                                 };
                             }
                         }
@@ -225,20 +229,23 @@ namespace PriceSafari.Scrapers
                             var hiddenPriceDecimal = ExtractPrice(hiddenPriceText);
                             var hiddenPriceWithDeliveryDecimal = ExtractPrice(hiddenPriceWithDeliveryText);
 
+                            // ... wcześniejszy kod w pętli ofert ukrytych
                             var hiddenOfferUrlElement = await hiddenRowElement.QuerySelectorAsync(hiddenOfferUrlSelector);
                             var hiddenOfferUrl = hiddenOfferUrlElement != null ? await hiddenOfferUrlElement.EvaluateFunctionAsync<string>("node => node.href") : "Brak URL";
                             Console.WriteLine($"Ukryty URL oferty: {hiddenOfferUrl}");
 
-                            // Dodanie do logu informacji o znalezionej ofercie ukrytej
-                            Console.WriteLine($"Oferta ukryta -> Sklep: {hiddenStoreName}, Cena: {hiddenPriceText}, URL: {hiddenOfferUrl}");
+                            // Sprawdzamy, czy oferta nie jest outlet
+                            if (IsOutletOffer(hiddenOfferUrl))
+                            {
+                                Console.WriteLine("Ukryta oferta outlet, pomijam.");
+                                continue; // Pomijamy tę ofertę
+                            }
 
-                            // Sprawdzenie, czy oferta ukryta dla tego sklepu jest lepsza
                             if (storeBestOffers.ContainsKey(hiddenStoreName))
                             {
                                 var existingOffer = storeBestOffers[hiddenStoreName];
                                 if (hiddenPriceWithDeliveryDecimal < existingOffer.PriceWithDelivery)
                                 {
-                                    // Zastępujemy ofertę, jeśli ukryta oferta ma niższą cenę z dostawą
                                     storeBestOffers[hiddenStoreName] = new PriceData
                                     {
                                         StoreName = hiddenStoreName,
@@ -247,7 +254,6 @@ namespace PriceSafari.Scrapers
                                         OfferUrl = hiddenOfferUrl,
                                         ScrapingProductId = scrapingProduct.ScrapingProductId,
                                         RegionId = scrapingProduct.RegionId,
-
                                     };
                                 }
                             }
@@ -261,10 +267,9 @@ namespace PriceSafari.Scrapers
                                     OfferUrl = hiddenOfferUrl,
                                     ScrapingProductId = scrapingProduct.ScrapingProductId,
                                     RegionId = scrapingProduct.RegionId,
-
                                 };
-
                             }
+
                         }
                     }
 
@@ -319,6 +324,10 @@ namespace PriceSafari.Scrapers
             return string.Empty;
         }
 
+        private bool IsOutletOffer(string url)
+        {
+            return !string.IsNullOrEmpty(url) && url.IndexOf("outlet", StringComparison.OrdinalIgnoreCase) >= 0;
+        }
 
 
 

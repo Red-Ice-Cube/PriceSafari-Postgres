@@ -67,10 +67,7 @@ public class ScheduledTaskService : BackgroundService
 
                     if (dayDetail?.Tasks != null)
                     {
-                        // 3) Szukamy zadań, dla których 
-                        //    - "Teraz" jest BARDZO BLISKO StartTime (np. różnica w min. < 1)
-                        //    - Oraz LastRunDate < Today (by nie uruchamiać drugi raz dziś)
-
+                     
                         var activeTasks = dayDetail.Tasks
                             .Where(t =>
                             {
