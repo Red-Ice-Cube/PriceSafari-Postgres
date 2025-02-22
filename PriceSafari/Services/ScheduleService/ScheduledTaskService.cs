@@ -20,7 +20,6 @@ public class ScheduledTaskService : BackgroundService
         _scopeFactory = scopeFactory;
         _logger = logger;
     }
-
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         var baseScalKey = Environment.GetEnvironmentVariable("BASE_SCAL");
@@ -37,7 +36,7 @@ public class ScheduledTaskService : BackgroundService
                 using var scope = _scopeFactory.CreateScope();
                 var context = scope.ServiceProvider.GetRequiredService<PriceSafariContext>();
 
-                // 1) Pobranie planu
+                // Pobranie planu
                 var plan = await context.SchedulePlans
                     .Include(sp => sp.Monday).ThenInclude(d => d.Tasks).ThenInclude(t => t.TaskStores).ThenInclude(ts => ts.Store)
                     .Include(sp => sp.Tuesday).ThenInclude(d => d.Tasks).ThenInclude(t => t.TaskStores).ThenInclude(ts => ts.Store)
@@ -54,7 +53,7 @@ public class ScheduledTaskService : BackgroundService
                     var nowTime = DateTime.Now.TimeOfDay;
                     var today = DateTime.Today;
 
-                    // 2) Wybierz odpowiedni DayDetail
+                    // Wybór odpowiedniego planu na dany dzień
                     DayDetail dayDetail = dayOfWeek switch
                     {
                         DayOfWeek.Monday => plan.Monday,
@@ -69,22 +68,15 @@ public class ScheduledTaskService : BackgroundService
 
                     if (dayDetail?.Tasks != null)
                     {
-                        // Możemy dodatkowo zalogować, że sprawdzamy zadania dla danego dnia
                         _logger.LogInformation("Sprawdzanie zadań dla dnia {DayOfWeek} o czasie {Time}.", dayOfWeek, DateTime.Now);
 
+                        // Opcjonalnie: logowanie nadchodzących zadań (jeśli start jest za mniej niż 3h)
                         foreach (var t in dayDetail.Tasks)
                         {
-                            double diffMinutes = (nowTime - t.StartTime).TotalMinutes;
-                            bool isStartMoment = (diffMinutes >= 0 && diffMinutes < 3);
-
-                            // Ważne: porównanie po dacie (bez godziny)
-                            bool notRunToday = (t.LastRunDate == null || t.LastRunDate.Value.Date < today);
-
-                            // Jeżeli zadanie jeszcze nie zostało uruchomione dziś, to zaloguj, ile zostało do startu
-                            if (notRunToday && diffMinutes < 0)
+                            if ((t.LastRunDate == null || t.LastRunDate.Value.Date < today) && nowTime < t.StartTime)
                             {
-                                double minutesToStart = -diffMinutes; // ile minut do startu
-                                if (minutesToStart <= 180) // przykładowo loguj tylko jeśli start jest w ciągu 3h
+                                double minutesToStart = (t.StartTime - nowTime).TotalMinutes;
+                                if (minutesToStart <= 180)
                                 {
                                     _logger.LogInformation(
                                         "Zadanie '{SessionName}' wystartuje za {MinutesToStart:F1} minut.",
@@ -92,49 +84,48 @@ public class ScheduledTaskService : BackgroundService
                                     );
                                 }
                             }
+                        }
 
-                            if (isStartMoment && notRunToday)
+                        // Wybieramy tylko zadania, które jeszcze nie były uruchomione i których czas startu już minął
+                        var tasksToRun = dayDetail.Tasks
+                            .Where(t => (t.LastRunDate == null || t.LastRunDate.Value.Date < today) && nowTime >= t.StartTime)
+                            .OrderBy(t => t.StartTime)
+                            .ToList();
+
+                        foreach (var t in tasksToRun)
+                        {
+                            _logger.LogInformation("Rozpoczynam wykonywanie zadania '{SessionName}' (StartTime: {StartTime}).",
+                                t.SessionName, t.StartTime);
+
+                            if (urlScalKey == "49276583" && t.UrlEnabled)
                             {
-                                // 3) Log start
-                                _logger.LogInformation(
-                                    "Rozpoczynam wykonywanie zadania '{SessionName}' (StartTime: {StartTime}).",
-                                    t.SessionName, t.StartTime
-                                );
-
-                                // W tym miejscu uruchamiasz logikę (np. Google, Ceneo, itp.)
-                                // Na przykład:
-                                if (urlScalKey == "49276583" && t.UrlEnabled)
-                                {
-                                    // Twoja metoda
-                                    await RunUrlScalAsync(context, deviceName, t, stoppingToken);
-                                }
-                                if (cenCrawKey == "56981467" && t.CeneoEnabled)
-                                {
-                                    await RunCeneoAsync(context, deviceName, t, stoppingToken);
-                                }
-                                if (gooCrawKey == "03713857" && t.GoogleEnabled)
-                                {
-                                    await RunGoogleAsync(context, deviceName, t, stoppingToken);
-                                }
-                                if (baseScalKey == "34692471" && t.BaseEnabled)
-                                {
-                                    await RunBaseScalAsync(context, deviceName, t, stoppingToken);
-                                }
-
-                                // 4) Oznacz zadanie jako uruchomione (pełny czas)
-                                t.LastRunDate = DateTime.Now;
-                                context.ScheduleTasks.Update(t);
-                                await context.SaveChangesAsync(stoppingToken);
-
-                                // Możesz wstawić krótkie opóźnienie między kolejnymi zadaniami,
-                                // jeśli nie chcesz wykonywać ich równocześnie:
-                                await Task.Delay(TimeSpan.FromSeconds(10), stoppingToken);
+                                await RunUrlScalAsync(context, deviceName, t, stoppingToken);
                             }
+                            if (cenCrawKey == "56981467" && t.CeneoEnabled)
+                            {
+                                await RunCeneoAsync(context, deviceName, t, stoppingToken);
+                            }
+                            if (gooCrawKey == "03713857" && t.GoogleEnabled)
+                            {
+                                await RunGoogleAsync(context, deviceName, t, stoppingToken);
+                            }
+                            if (baseScalKey == "34692471" && t.BaseEnabled)
+                            {
+                                await RunBaseScalAsync(context, deviceName, t, stoppingToken);
+                            }
+
+                            // Oznaczamy zadanie jako uruchomione
+                            t.LastRunDate = DateTime.Now;
+                            context.ScheduleTasks.Update(t);
+                            await context.SaveChangesAsync(stoppingToken);
+
+                            // Opcjonalnie: krótkie opóźnienie między zadaniami
+                            await Task.Delay(TimeSpan.FromSeconds(10), stoppingToken);
                         }
                     }
                 }
 
-                // Okresowo update device status
+                // Aktualizacja statusu urządzenia co określony interwał
                 if (DateTime.Now - _lastDeviceCheck >= _deviceCheckInterval)
                 {
                     _lastDeviceCheck = DateTime.Now;
@@ -146,10 +137,11 @@ public class ScheduledTaskService : BackgroundService
                 _logger.LogError(ex, "Wystąpił błąd podczas wykonywania zaplanowanych zadań.");
             }
 
-         
+            // Zwiększony interwał odpytania do 60 sekund – przy zachowaniu logiki, że zadania uruchomione są, gdy czas startu już minął
             await Task.Delay(TimeSpan.FromSeconds(60), stoppingToken);
         }
     }
+
 
     // =========================== POMOCNICZE METODY ===========================
 
