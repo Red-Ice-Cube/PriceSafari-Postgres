@@ -640,12 +640,18 @@ namespace PriceSafari.Controllers
                         continue;
                     }
 
+                    // Jeśli dla danego produktu jest tylko jedna cena, pomiń go
+                    if (scrapingProduct.PriceData == null || scrapingProduct.PriceData.Count <= 1)
+                    {
+                        Console.WriteLine($"Produkt {scrapingProduct.ScrapingProductId} pominięty - tylko jedna cena.");
+                        continue;
+                    }
+
                     foreach (var price in scrapingProduct.PriceData)
                     {
                         foreach (var productId in scrapingProduct.ProductIds)
                         {
                             var product = await _context.Products.FindAsync(productId);
-
                             if (product == null)
                             {
                                 Console.WriteLine($"Nie znaleziono produktu dla ProductId: {productId}");
@@ -673,6 +679,7 @@ namespace PriceSafari.Controllers
                         }
                     }
                 }
+
 
                 stopwatch.Stop();
                 Console.WriteLine($"Przetwarzanie produktów zajęło: {stopwatch.ElapsedMilliseconds} ms");
