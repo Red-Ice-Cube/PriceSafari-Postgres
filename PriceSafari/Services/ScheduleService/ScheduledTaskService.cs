@@ -88,9 +88,12 @@ public class ScheduledTaskService : BackgroundService
 
                         // Wybieramy tylko zadania, które jeszcze nie były uruchomione i których czas startu już minął
                         var tasksToRun = dayDetail.Tasks
-                            .Where(t => (t.LastRunDate == null || t.LastRunDate.Value.Date < today) && nowTime >= t.StartTime)
-                            .OrderBy(t => t.StartTime)
-                            .ToList();
+                         .Where(t => (t.LastRunDate == null || t.LastRunDate.Value.Date < today)
+                                && nowTime >= t.StartTime
+                                && nowTime < t.StartTime.Add(TimeSpan.FromMinutes(5))) 
+                         .OrderBy(t => t.StartTime)
+                         .ToList();
+
 
                         foreach (var t in tasksToRun)
                         {
