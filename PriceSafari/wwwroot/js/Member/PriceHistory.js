@@ -68,22 +68,25 @@
     const stepPriceInput = document.getElementById("stepPrice");
 
     price1Input.addEventListener("blur", () => {
+      
         enforceLimits(price1Input, 0.01, 100);
         if (parseFloat(stepPriceInput.value.replace(',', '.')) > parseFloat(price1Input.value.replace(',', '.'))) {
             stepPriceInput.value = price1Input.value;
         }
         enforceLimits(stepPriceInput, 0.01, parseFloat(price1Input.value.replace(',', '.')));
-        updatePricesDebounced();
+       
     });
 
     price2Input.addEventListener("blur", () => {
+    
         enforceLimits(price2Input, 0.01, 100);
-        updatePricesDebounced();
+       
     });
 
     stepPriceInput.addEventListener("blur", () => {
+      
         enforceLimits(stepPriceInput, 0.01, parseFloat(price1Input.value.replace(',', '.')));
-        updatePricesDebounced();
+     
     });
 
     positionSlider.noUiSlider.on('update', function (values, handle) {
@@ -97,9 +100,7 @@
         filterPricesAndUpdateUI();
     });
 
-    positionSlider.noUiSlider.on('change', function () {
-        filterPricesAndUpdateUI();
-    });
+
 
     offerSlider = document.getElementById('offerRangeSlider');
     var offerRangeInput = document.getElementById('offerRange');
@@ -190,6 +191,8 @@
     });
 
     function loadPrices() {
+        showLoading();
+
         const source = document.getElementById('sourceSelect').value;
         fetch(`/PriceHistory/GetPrices?storeId=${storeId}&competitorStore=${encodeURIComponent(competitorStore)}&source=${encodeURIComponent(source)}`)
             .then(response => response.json())
@@ -305,6 +308,10 @@
                 updateColorCounts(filteredPrices);
                 updateMarginSortButtonsVisibility();
             })
+
+            .finally(() => {
+                hideLoading(); // chowamy loader zawsze po zakończeniu
+            });
     }
 
     function updateFlagCounts(prices) {
@@ -1487,113 +1494,126 @@
     }
 
 
+
+
+
+
+
     function filterPricesAndUpdateUI() {
-        const currentProductSearchTerm = document.getElementById('productSearch').value.toLowerCase().replace(/\s+/g, '').trim();
-        const currentStoreSearchTerm = document.getElementById('storeSearch').value.toLowerCase().replace(/\s+/g, '').trim();
 
-        const sanitizedProductSearchTerm = currentProductSearchTerm.replace(/[^a-zA-Z0-9\s/.-]/g, '').toLowerCase().replace(/\s+/g, '');
-        const sanitizedStoreSearchTerm = currentStoreSearchTerm.replace(/[^a-zA-Z0-9\s/.-]/g, '').toLowerCase().replace(/\s+/g, '');
+        showLoading();
 
-        let filteredPrices = allPrices.filter(price => {
-            const productName = (price.productName || '').toLowerCase().replace(/[^a-zA-Z0-9\s/.-]/g, '').replace(/\s+/g, '');
-            const storeName = (price.storeName || '').toLowerCase().replace(/[^a-zA-Z0-9\s/.-]/g, '').replace(/\s+/g, '');
+        setTimeout(() => {
 
-            const matchesProduct = productName.includes(sanitizedProductSearchTerm);
-            const matchesStore = storeName.includes(sanitizedStoreSearchTerm);
+            const currentProductSearchTerm = document.getElementById('productSearch').value.toLowerCase().replace(/\s+/g, '').trim();
+            const currentStoreSearchTerm = document.getElementById('storeSearch').value.toLowerCase().replace(/\s+/g, '').trim();
 
-            return (sanitizedProductSearchTerm === '' || matchesProduct) && (sanitizedStoreSearchTerm === '' || matchesStore);
-        });
+            const sanitizedProductSearchTerm = currentProductSearchTerm.replace(/[^a-zA-Z0-9\s/.-]/g, '').toLowerCase().replace(/\s+/g, '');
+            const sanitizedStoreSearchTerm = currentStoreSearchTerm.replace(/[^a-zA-Z0-9\s/.-]/g, '').toLowerCase().replace(/\s+/g, '');
+
+            let filteredPrices = allPrices.filter(price => {
+                const productName = (price.productName || '').toLowerCase().replace(/[^a-zA-Z0-9\s/.-]/g, '').replace(/\s+/g, '');
+                const storeName = (price.storeName || '').toLowerCase().replace(/[^a-zA-Z0-9\s/.-]/g, '').replace(/\s+/g, '');
+
+                const matchesProduct = productName.includes(sanitizedProductSearchTerm);
+                const matchesStore = storeName.includes(sanitizedStoreSearchTerm);
+
+                return (sanitizedProductSearchTerm === '' || matchesProduct) && (sanitizedStoreSearchTerm === '' || matchesStore);
+            });
 
 
-        filteredPrices.sort((a, b) => {
-            const sanitizedProductNameA = a.productName.toLowerCase().replace(/[^a-zA-Z0-9\s/.-]/g, '').replace(/\s+/g, '');
-            const sanitizedProductNameB = b.productName.toLowerCase().replace(/[^a-zA-Z0-9\s/.-]/g, '').replace(/\s+/g, '');
+            filteredPrices.sort((a, b) => {
+                const sanitizedProductNameA = a.productName.toLowerCase().replace(/[^a-zA-Z0-9\s/.-]/g, '').replace(/\s+/g, '');
+                const sanitizedProductNameB = b.productName.toLowerCase().replace(/[^a-zA-Z0-9\s/.-]/g, '').replace(/\s+/g, '');
 
-            const exactMatchIndexA = getExactMatchIndex(sanitizedProductNameA, sanitizedProductSearchTerm);
-            const exactMatchIndexB = getExactMatchIndex(sanitizedProductNameB, sanitizedProductSearchTerm);
+                const exactMatchIndexA = getExactMatchIndex(sanitizedProductNameA, sanitizedProductSearchTerm);
+                const exactMatchIndexB = getExactMatchIndex(sanitizedProductNameB, sanitizedProductSearchTerm);
 
-            if (exactMatchIndexA !== exactMatchIndexB) {
-                return exactMatchIndexA - exactMatchIndexB;
-            }
+                if (exactMatchIndexA !== exactMatchIndexB) {
+                    return exactMatchIndexA - exactMatchIndexB;
+                }
 
-            const matchLengthA = getLongestMatchLength(sanitizedProductNameA, sanitizedProductSearchTerm);
-            const matchLengthB = getLongestMatchLength(sanitizedProductNameB, sanitizedProductSearchTerm);
+                const matchLengthA = getLongestMatchLength(sanitizedProductNameA, sanitizedProductSearchTerm);
+                const matchLengthB = getLongestMatchLength(sanitizedProductNameB, sanitizedProductSearchTerm);
 
-            if (matchLengthA !== matchLengthB) {
-                return matchLengthB - matchLengthA;
-            }
+                if (matchLengthA !== matchLengthB) {
+                    return matchLengthB - matchLengthA;
+                }
 
-            return a.productName.localeCompare(b.productName);
-        });
+                return a.productName.localeCompare(b.productName);
+            });
 
-        filteredPrices = filterPricesByCategoryAndColorAndFlag(filteredPrices);
+            filteredPrices = filterPricesByCategoryAndColorAndFlag(filteredPrices);
 
-        if (sortingState.showRejected) {
-            filteredPrices = filteredPrices.filter(item => item.isRejected);
-        } else {
-            filteredPrices = filteredPrices.filter(item => !item.isRejected);
-        }
-
-        if (sortingState.sortName !== null) {
-            if (sortingState.sortName === 'asc') {
-                filteredPrices.sort((a, b) => a.productName.localeCompare(b.productName));
+            if (sortingState.showRejected) {
+                filteredPrices = filteredPrices.filter(item => item.isRejected);
             } else {
-                filteredPrices.sort((a, b) => b.productName.localeCompare(a.productName));
+                filteredPrices = filteredPrices.filter(item => !item.isRejected);
             }
-        } else if (sortingState.sortPrice !== null) {
-            if (sortingState.sortPrice === 'asc') {
-                filteredPrices.sort((a, b) => a.lowestPrice - b.lowestPrice);
-            } else {
-                filteredPrices.sort((a, b) => b.lowestPrice - a.lowestPrice);
-            }
-        } else if (sortingState.sortRaiseAmount !== null) {
-            filteredPrices = filteredPrices.filter(item => !item.isRejected && item.savings !== null);
-            if (sortingState.sortRaiseAmount === 'asc') {
-                filteredPrices.sort((a, b) => a.savings - b.savings);
-            } else {
-                filteredPrices.sort((a, b) => b.savings - a.savings);
-            }
-        } else if (sortingState.sortRaisePercentage !== null) {
-            filteredPrices = filteredPrices.filter(item => !item.isRejected && item.savings !== null);
-            if (sortingState.sortRaisePercentage === 'asc') {
-                filteredPrices.sort((a, b) => a.percentageDifference - b.percentageDifference);
-            } else {
-                filteredPrices.sort((a, b) => b.percentageDifference - a.percentageDifference);
-            }
-        } else if (sortingState.sortLowerAmount !== null) {
-            filteredPrices = filteredPrices.filter(item => !item.isRejected && item.savings === null && item.priceDifference !== 0);
-            if (sortingState.sortLowerAmount === 'asc') {
-                filteredPrices.sort((a, b) => a.priceDifference - b.priceDifference);
-            } else {
-                filteredPrices.sort((a, b) => b.priceDifference - a.priceDifference);
-            }
-        } else if (sortingState.sortLowerPercentage !== null) {
-            filteredPrices = filteredPrices.filter(item => !item.isRejected && item.savings === null && item.priceDifference !== 0);
-            if (sortingState.sortLowerPercentage === 'asc') {
-                filteredPrices.sort((a, b) => a.percentageDifference - b.percentageDifference);
-            } else {
-                filteredPrices.sort((a, b) => b.percentageDifference - a.percentageDifference);
-            }
-        } else if (sortingState.sortMarginAmount !== null) {
-            filteredPrices = filteredPrices.filter(item => item.marginAmount !== null);
-            if (sortingState.sortMarginAmount === 'asc') {
-                filteredPrices.sort((a, b) => a.marginAmount - b.marginAmount);
-            } else {
-                filteredPrices.sort((a, b) => b.marginAmount - a.marginAmount);
-            }
-        } else if (sortingState.sortMarginPercentage !== null) {
-            filteredPrices = filteredPrices.filter(item => item.marginPercentage !== null);
-            if (sortingState.sortMarginPercentage === 'asc') {
-                filteredPrices.sort((a, b) => a.marginPercentage - b.marginPercentage);
-            } else {
-                filteredPrices.sort((a, b) => b.marginPercentage - a.marginPercentage);
-            }
-        }
 
-        renderPrices(filteredPrices);
-        debouncedRenderChart(filteredPrices);
-        updateColorCounts(filteredPrices);
-        updateFlagCounts(filteredPrices);
+            if (sortingState.sortName !== null) {
+                if (sortingState.sortName === 'asc') {
+                    filteredPrices.sort((a, b) => a.productName.localeCompare(b.productName));
+                } else {
+                    filteredPrices.sort((a, b) => b.productName.localeCompare(a.productName));
+                }
+            } else if (sortingState.sortPrice !== null) {
+                if (sortingState.sortPrice === 'asc') {
+                    filteredPrices.sort((a, b) => a.lowestPrice - b.lowestPrice);
+                } else {
+                    filteredPrices.sort((a, b) => b.lowestPrice - a.lowestPrice);
+                }
+            } else if (sortingState.sortRaiseAmount !== null) {
+                filteredPrices = filteredPrices.filter(item => !item.isRejected && item.savings !== null);
+                if (sortingState.sortRaiseAmount === 'asc') {
+                    filteredPrices.sort((a, b) => a.savings - b.savings);
+                } else {
+                    filteredPrices.sort((a, b) => b.savings - a.savings);
+                }
+            } else if (sortingState.sortRaisePercentage !== null) {
+                filteredPrices = filteredPrices.filter(item => !item.isRejected && item.savings !== null);
+                if (sortingState.sortRaisePercentage === 'asc') {
+                    filteredPrices.sort((a, b) => a.percentageDifference - b.percentageDifference);
+                } else {
+                    filteredPrices.sort((a, b) => b.percentageDifference - a.percentageDifference);
+                }
+            } else if (sortingState.sortLowerAmount !== null) {
+                filteredPrices = filteredPrices.filter(item => !item.isRejected && item.savings === null && item.priceDifference !== 0);
+                if (sortingState.sortLowerAmount === 'asc') {
+                    filteredPrices.sort((a, b) => a.priceDifference - b.priceDifference);
+                } else {
+                    filteredPrices.sort((a, b) => b.priceDifference - a.priceDifference);
+                }
+            } else if (sortingState.sortLowerPercentage !== null) {
+                filteredPrices = filteredPrices.filter(item => !item.isRejected && item.savings === null && item.priceDifference !== 0);
+                if (sortingState.sortLowerPercentage === 'asc') {
+                    filteredPrices.sort((a, b) => a.percentageDifference - b.percentageDifference);
+                } else {
+                    filteredPrices.sort((a, b) => b.percentageDifference - a.percentageDifference);
+                }
+            } else if (sortingState.sortMarginAmount !== null) {
+                filteredPrices = filteredPrices.filter(item => item.marginAmount !== null);
+                if (sortingState.sortMarginAmount === 'asc') {
+                    filteredPrices.sort((a, b) => a.marginAmount - b.marginAmount);
+                } else {
+                    filteredPrices.sort((a, b) => b.marginAmount - a.marginAmount);
+                }
+            } else if (sortingState.sortMarginPercentage !== null) {
+                filteredPrices = filteredPrices.filter(item => item.marginPercentage !== null);
+                if (sortingState.sortMarginPercentage === 'asc') {
+                    filteredPrices.sort((a, b) => a.marginPercentage - b.marginPercentage);
+                } else {
+                    filteredPrices.sort((a, b) => b.marginPercentage - a.marginPercentage);
+                }
+            }
+
+            renderPrices(filteredPrices);
+            debouncedRenderChart(filteredPrices);
+            updateColorCounts(filteredPrices);
+            updateFlagCounts(filteredPrices);
+
+            hideLoading();
+        })
     }
 
     document.getElementById('showRejectedButton').addEventListener('click', function () {
@@ -1691,11 +1711,14 @@
 
     document.getElementById('productSearch').addEventListener('input', debouncedFilterPrices);
 
-    document.querySelectorAll('.colorFilter, .flagFilter, .positionFilter, .deliveryFilterMyStore, .deliveryFilterCompetitor, .externalPriceFilter').forEach(function (checkbox) {
-        checkbox.addEventListener('change', function () {
-            filterPricesAndUpdateUI();
+    document.querySelectorAll('.colorFilter, .flagFilter, .positionFilter, .deliveryFilterMyStore, .deliveryFilterCompetitor, .externalPriceFilter')
+        .forEach(function (checkbox) {
+            checkbox.addEventListener('change', function () {
+                showLoading(); // <-- pokaż loader
+                filterPricesAndUpdateUI();
+            });
         });
-    });
+
 
     document.getElementById('bidFilter').addEventListener('change', function () {
         filterPricesAndUpdateUI();
@@ -1707,6 +1730,7 @@
 
 
     document.getElementById('sortName').addEventListener('click', function () {
+       
         if (sortingState.sortName === null) {
             sortingState.sortName = 'asc';
             this.innerHTML = 'A-Z ↑';
@@ -1725,6 +1749,7 @@
     });
 
     document.getElementById('sortPrice').addEventListener('click', function () {
+
         if (sortingState.sortPrice === null) {
             sortingState.sortPrice = 'asc';
             this.innerHTML = 'Cena ↑';
@@ -1743,6 +1768,7 @@
     });
 
     document.getElementById('sortRaiseAmount').addEventListener('click', function () {
+       
         if (sortingState.sortRaiseAmount === null) {
             sortingState.sortRaiseAmount = 'asc';
             this.innerHTML = 'Podnieś PLN ↑';
@@ -1761,6 +1787,7 @@
     });
 
     document.getElementById('sortRaisePercentage').addEventListener('click', function () {
+        
         if (sortingState.sortRaisePercentage === null) {
             sortingState.sortRaisePercentage = 'asc';
             this.innerHTML = 'Podnieś % ↑';
@@ -1779,6 +1806,7 @@
     });
 
     document.getElementById('sortLowerAmount').addEventListener('click', function () {
+     
         if (sortingState.sortLowerAmount === null) {
             sortingState.sortLowerAmount = 'asc';
             this.innerHTML = 'Obniż PLN ↑';
@@ -1797,6 +1825,7 @@
     });
 
     document.getElementById('sortLowerPercentage').addEventListener('click', function () {
+       
         if (sortingState.sortLowerPercentage === null) {
             sortingState.sortLowerPercentage = 'asc';
             this.innerHTML = 'Obniż % ↑';
@@ -1815,6 +1844,7 @@
     });
 
     document.getElementById('sortMarginAmount').addEventListener('click', function () {
+        
         if (sortingState.sortMarginAmount === null) {
             sortingState.sortMarginAmount = 'asc';
             this.innerHTML = 'Marża PLN ↑';
@@ -1833,6 +1863,7 @@
     });
 
     document.getElementById('sortMarginPercentage').addEventListener('click', function () {
+       
         if (sortingState.sortMarginPercentage === null) {
             sortingState.sortMarginPercentage = 'asc';
             this.innerHTML = 'Marża % ↑';
@@ -2021,4 +2052,18 @@
 
     loadStores();
     loadPrices();
+
+
+
+    function showLoading() {
+        document.getElementById("loadingOverlay").style.display = "flex";
+    }
+
+    function hideLoading() {
+        document.getElementById("loadingOverlay").style.display = "none";
+    }
+
+
+
+
 });
