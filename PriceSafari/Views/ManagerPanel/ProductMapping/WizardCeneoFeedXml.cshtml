@@ -77,10 +77,11 @@
     </div>
 </div>
 
+
+
+
 <script>
-    //------------------------------------------------------------------
-    // 1) Zmienne i wczytanie existingMappings
-    //------------------------------------------------------------------
+  
     let storeId = "@storeId";
     let existingMappingsJson = `@Html.Raw(existingMappingsJson)`;
     let existingMappings = [];
@@ -93,7 +94,7 @@
 
     console.log("Mapowania z bazy (Razor):", existingMappings);
 
-    // Obiekt mapowań: fieldName -> { xpath, nodeCount, firstValue }
+   
     let mappingForField = {
         "ExternalId": null,
         "Url": null,
@@ -102,7 +103,7 @@
         "CeneoExportedName": null
     };
 
-    // Inicjujemy mapowania z bazy
+
     existingMappings.forEach(m => {
         mappingForField[m.fieldName] = {
             xpath: m.localName,
@@ -114,9 +115,6 @@
     let xmlDoc = null;
     let proxyUrl = `/CeneoImportWizardXml/ProxyXml?storeId=${storeId}`;
 
-    //------------------------------------------------------------------
-    // 2) Pobieranie XML i tworzenie drzewka
-    //------------------------------------------------------------------
     fetch(proxyUrl)
       .then(resp => resp.text())
       .then(xmlStr => {
@@ -175,14 +173,14 @@
         return li;
     }
 
-    // Klik -> przypisanie mapowania dla wybranego pola
+   
     document.addEventListener("click", function(e){
         let el = e.target.closest(".xml-node");
         if (!el) return;
         let xPath = el.getAttribute("data-xpath");
         let selectedField = document.getElementById("fieldSelector").value;
 
-        // Usuwamy stare highlight dla wybranego pola
+     
         document.querySelectorAll(`.highlight-${selectedField}`)
                 .forEach(x => x.classList.remove(`highlight-${selectedField}`));
 
@@ -206,9 +204,6 @@
         renderMappingTable();
     });
 
-    //------------------------------------------------------------------
-    // 3) Wyświetlanie mapowań i highlightów
-    //------------------------------------------------------------------
     function applyExistingMappings() {
         for (let fieldName in mappingForField) {
             let info = mappingForField[fieldName];
@@ -240,7 +235,7 @@
         let tbody = document.getElementById("mappingTable").querySelector("tbody");
         tbody.innerHTML = "";
         for (let fieldName in mappingForField) {
-            // Pomijamy puste lub nieokreślone klucze
+
             if (!fieldName || fieldName === "undefined") continue;
             let info = mappingForField[fieldName];
             let tr = document.createElement("tr");
@@ -263,9 +258,7 @@
         }
     }
 
-    //------------------------------------------------------------------
-    // 4) Zapisywanie mapowań w bazie
-    //------------------------------------------------------------------
+    
     document.getElementById("saveMapping").addEventListener("click", function(){
         let finalMappings = [];
         for (let fieldName in mappingForField) {
@@ -293,10 +286,10 @@
           .then(data => {
               console.log("Odebrano mapowania z bazy (reload):", data);
               clearAllHighlights();
-              // Resetujemy wartości tylko dla istniejących kluczy
+              
               Object.keys(mappingForField).forEach(f => mappingForField[f] = null);
               data.forEach(m => {
-                  if(m.fieldName){  // dodajemy tylko, gdy fieldName jest określone
+                  if(m.fieldName){  
                       mappingForField[m.fieldName] = {
                           xpath: m.localName,
                           nodeCount: 0,
@@ -309,15 +302,12 @@
           .catch(err => console.error("Błąd getCeneoMappings:", err));
     });
 
-    //------------------------------------------------------------------
-    // 5) Wyciąganie productMaps (na froncie) i zapisywanie w bazie
-    //------------------------------------------------------------------
     document.getElementById("extractProducts").addEventListener("click", function(){
         if (!xmlDoc) {
             alert("Brak XML do parsowania");
             return;
         }
-        // Wybieramy elementy: <item> (RSS) lub <entry> (Atom)
+    
         let entries = xmlDoc.getElementsByTagName("item").length > 0
                       ? xmlDoc.getElementsByTagName("item")
                       : xmlDoc.getElementsByTagName("entry");
@@ -333,7 +323,7 @@
                 CeneoImage: getVal(entryNode, "CeneoImage"),
                 CeneoExportedName: getVal(entryNode, "CeneoExportedName")
             };
-               // Jeżeli pole CeneoEan jest puste, produkt nie zostanie dodany
+           
             if (!pm.CeneoEan || pm.CeneoEan.trim() === "") {
                 continue;
             }
@@ -345,12 +335,12 @@
             JSON.stringify(productMaps, null, 2);
     });
 
-    // Funkcja pobierająca wartość z elementu XML na podstawie mapowania
+    
     function getVal(entryNode, fieldName) {
         let info = mappingForField[fieldName];
         if (!info || !info.xpath) return null;
 
-        // Dynamicznie usuwamy znany prefiks, np. "/rss/channel/item/" lub "/feed/entry/"
+    
         let trimmed = info.xpath;
         let possiblePrefixes = ["/rss/channel/item/", "/feed/entry/"];
         for (let i = 0; i < possiblePrefixes.length; i++) {
@@ -359,7 +349,7 @@
                 break;
             }
         }
-        // Usuwamy namespace (np. "g:")
+   
         if (trimmed.indexOf(':') !== -1) {
             trimmed = trimmed.split(':')[1];
         }
@@ -391,9 +381,14 @@
         .catch(err => console.error(err));
     });
 
-    // Na koniec wyświetlamy tabelę mapowań
+
     renderMappingTable();
 </script>
+
+
+
+
+
 
 <style>
     /* Dwukolumnowy układ */
