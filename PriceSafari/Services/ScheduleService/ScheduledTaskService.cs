@@ -10,9 +10,8 @@ public class ScheduledTaskService : BackgroundService
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<ScheduledTaskService> _logger;
 
-    // Ostatnie sprawdzenie stanu urządzenia
+
     private DateTime _lastDeviceCheck = DateTime.MinValue;
-    // Interwał aktualizacji stanu urządzenia
     private readonly TimeSpan _deviceCheckInterval = TimeSpan.FromMinutes(10);
 
     public ScheduledTaskService(IServiceScopeFactory scopeFactory, ILogger<ScheduledTaskService> logger)
@@ -53,7 +52,7 @@ public class ScheduledTaskService : BackgroundService
                     var nowTime = DateTime.Now.TimeOfDay;
                     var today = DateTime.Today;
 
-                    // Wybór odpowiedniego planu na dany dzień
+                
                     DayDetail dayDetail = dayOfWeek switch
                     {
                         DayOfWeek.Monday => plan.Monday,
@@ -100,30 +99,40 @@ public class ScheduledTaskService : BackgroundService
                             _logger.LogInformation("Rozpoczynam wykonywanie zadania '{SessionName}' (StartTime: {StartTime}).",
                                 t.SessionName, t.StartTime);
 
+                            bool wasExecuted = false;
+
                             if (urlScalKey == "49276583" && t.UrlEnabled)
                             {
+                                wasExecuted = true;
                                 await RunUrlScalAsync(context, deviceName, t, stoppingToken);
                             }
                             if (cenCrawKey == "56981467" && t.CeneoEnabled)
                             {
+                                wasExecuted = true;
                                 await RunCeneoAsync(context, deviceName, t, stoppingToken);
                             }
                             if (gooCrawKey == "03713857" && t.GoogleEnabled)
                             {
+                                wasExecuted = true;
                                 await RunGoogleAsync(context, deviceName, t, stoppingToken);
                             }
                             if (baseScalKey == "34692471" && t.BaseEnabled)
                             {
+                                wasExecuted = true;
                                 await RunBaseScalAsync(context, deviceName, t, stoppingToken);
                             }
 
-                            // Oznaczamy zadanie jako uruchomione
-                            t.LastRunDate = DateTime.Now;
-                            context.ScheduleTasks.Update(t);
-                            await context.SaveChangesAsync(stoppingToken);
+                            // Oznaczamy zadanie jako wykonane *tylko* jeśli faktycznie coś się wykonało
+                            if (wasExecuted)
+                            {
+                                t.LastRunDate = DateTime.Now;
+                                context.ScheduleTasks.Update(t);
+                                await context.SaveChangesAsync(stoppingToken);
+                            }
 
                             // Opcjonalnie: krótkie opóźnienie między zadaniami
                             await Task.Delay(TimeSpan.FromSeconds(10), stoppingToken);
+
                         }
                     }
                 }

@@ -512,11 +512,11 @@
 
                 <div id="sortingButtons">
                     <div class="ProductCount" id="displayedProductCount"></div>
-
+@* 
                     <div id="priceChangeSummary" style="padding: 4px 8px; background-color: #f0f0f0; border-radius: 4px; font-size: 13px; margin-right: 8px; display: inline-block;">
                         Wybrane produkty: 0 | Podwyższone: 0 | Obniżone: 0
                         <button id="simulateButton" class="btn btn-sm btn-primary" style="margin-left: 10px;">Symuluj</button>
-                    </div>
+                    </div> *@
 
                     <button id="sortName">A-Z</button>
                     <button id="sortPrice">Cena</button>
@@ -539,8 +539,8 @@
 </div>
 
 
-<!-- Modal symulacji -->
-<div class="modal fade" id="simulationModal" tabindex="-1" role="dialog" aria-labelledby="simulationModalLabel" aria-hidden="true">
+
+@* <div class="modal fade" id="simulationModal" tabindex="-1" role="dialog" aria-labelledby="simulationModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg" role="document">
         <div class="modal-content" style="width:1500px;">
             <div class="modal-header">
@@ -550,7 +550,7 @@
                 </button>
             </div>
             <div class="modal-body" id="simulationModalBody">
-                <!-- Tutaj zostanie wygenerowana tabela z danymi -->
+               
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-dismiss="modal">Zamknij</button>
@@ -559,7 +559,7 @@
     </div>
 </div>
 
-
+ *@
 
 @section Scripts {
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
@@ -577,11 +577,11 @@
         var flags = @Html.Raw(JsonConvert.SerializeObject(ViewBag.Flags));
     </script>
     <script src="~/js/member/PriceHistory.js"></script>
-    <script src="~/js/member/PriceChange.js"></script>
+@*     <script src="~/js/member/PriceChange.js"></script> *@
     <script>
         $(document).ready(function () {
             var connection = new signalR.HubConnectionBuilder().withUrl("/scrapingHub").build();
-            var updateSuccessful = false; // Flaga sukcesu
+            var updateSuccessful = false; 
 
             connection.on("ReceiveProgressUpdate", function (processedCount, totalProducts, updatedCount, skippedCount) {
                 var percentage = Math.round((processedCount / totalProducts) * 100);
@@ -620,7 +620,7 @@
                         $('#updateStatusMessage').show().text('Aktualizacja zakończona. Zaktualizowano ceny dla ' + data.updatedCount + ' produktów. Sprawdzono ' + data.skippedCount + ' produktów.');
                         $('#cancelUpdatePrices').show();
                         $('#confirmUpdatePrices').prop('disabled', false);
-                        updateSuccessful = true; // Ustaw flagę sukcesu
+                        updateSuccessful = true; 
                     },
                     error: function () {
                         $('#updateProgress').hide();
