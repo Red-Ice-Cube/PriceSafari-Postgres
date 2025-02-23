@@ -179,7 +179,6 @@ namespace PriceSafari.Controllers.ManagerControllers
 
 
 
-
         [HttpPost]
         public async Task<IActionResult> SaveProductMapsFromFront([FromBody] List<ProductMapDto> productMaps)
         {
@@ -197,6 +196,12 @@ namespace PriceSafari.Controllers.ManagerControllers
 
             foreach (var pmDto in productMaps)
             {
+                // Przekształcamy ExternalId – pozostawiamy tylko cyfry
+                if (!string.IsNullOrEmpty(pmDto.ExternalId))
+                {
+                    pmDto.ExternalId = new string(pmDto.ExternalId.Where(c => char.IsDigit(c)).ToArray());
+                }
+
                 var found = existing.FirstOrDefault(x =>
                     (x.ExternalId == pmDto.ExternalId && !string.IsNullOrEmpty(pmDto.ExternalId))
                     || (x.Url == pmDto.Url && !string.IsNullOrEmpty(pmDto.Url))
@@ -233,6 +238,7 @@ namespace PriceSafari.Controllers.ManagerControllers
             await _context.SaveChangesAsync();
             return Json(new { success = true, message = $"Dodano {added}, zaktualizowano {updated}." });
         }
+
 
         public class ProductMapDto
         {
