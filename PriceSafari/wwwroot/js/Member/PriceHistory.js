@@ -1470,7 +1470,7 @@
             chartInstance = new Chart(ctx, {
                 type: 'doughnut',
                 data: {
-                    labels: ['Nieporównywalna', 'Zawyżona', 'Suboptymalna', 'Konkurencyjna', 'Strategiczna', 'Zaniżona'],
+                    labels: ['Solo', 'Zawyżona', 'Suboptymalna', 'Konkurencyjna', 'Strategiczna', 'Zaniżona'],
                     datasets: [{
                         data: chartData,
                         backgroundColor: [
@@ -1529,7 +1529,7 @@
             colorCounts[item.colorClass] = (colorCounts[item.colorClass] || 0) + 1;
         });
 
-        document.querySelector('label[for="prOnlyMeCheckbox"]').textContent = `Nieporównywalna (${colorCounts.prOnlyMe})`;
+        document.querySelector('label[for="prOnlyMeCheckbox"]').textContent = `Solo (${colorCounts.prOnlyMe})`;
         document.querySelector('label[for="prToHighCheckbox"]').textContent = `Zawyżona (${colorCounts.prToHigh})`;
         document.querySelector('label[for="prMidCheckbox"]').textContent = `Suboptymalna (${colorCounts.prMid})`;
         document.querySelector('label[for="prGoodCheckbox"]').textContent = `Konkurencyjna (${colorCounts.prGood})`;
