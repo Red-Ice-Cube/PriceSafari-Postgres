@@ -24,6 +24,61 @@
     let positionSlider;
     let offerSlider;
 
+    let currentPage = 1;
+    const itemsPerPage = 1000;
+
+    function resetPage() {
+        currentPage = 1;
+        window.scrollTo(0, 0);
+    }
+
+
+    function renderPaginationControls(totalItems) {
+        const totalPages = Math.ceil(totalItems / itemsPerPage);
+        const paginationContainer = document.getElementById('paginationContainer');
+        paginationContainer.innerHTML = '';
+
+        // Przycisk poprzedniej strony
+        const prevButton = document.createElement('button');
+        prevButton.textContent = 'Poprzednia';
+        prevButton.disabled = currentPage === 1;
+        prevButton.addEventListener('click', () => {
+            if (currentPage > 1) {
+                currentPage--;
+                filterPricesAndUpdateUI(false); // Nie resetujemy numeru strony
+            }
+        });
+
+        paginationContainer.appendChild(prevButton);
+
+        // Numeracja stron
+        for (let i = 1; i <= totalPages; i++) {
+            const pageButton = document.createElement('button');
+            pageButton.textContent = i;
+            if (i === currentPage) {
+                pageButton.classList.add('active');
+            }
+            pageButton.addEventListener('click', () => {
+                currentPage = i;
+                filterPricesAndUpdateUI(false); // nie resetujemy, bo to zmiana strony
+            });
+            paginationContainer.appendChild(pageButton);
+        }
+
+        // Przycisk następnej strony
+        const nextButton = document.createElement('button');
+        nextButton.textContent = 'Następna';
+        nextButton.disabled = currentPage === totalPages;
+        nextButton.addEventListener('click', () => {
+            if (currentPage < totalPages) {
+                currentPage++;
+                filterPricesAndUpdateUI(false); // Nie resetujemy numeru strony
+            }
+        });
+
+        paginationContainer.appendChild(nextButton);
+    }
+
     function debounce(func, wait) {
         let timeout;
         return function (...args) {
@@ -68,25 +123,19 @@
     const stepPriceInput = document.getElementById("stepPrice");
 
     price1Input.addEventListener("blur", () => {
-      
         enforceLimits(price1Input, 0.01, 100);
         if (parseFloat(stepPriceInput.value.replace(',', '.')) > parseFloat(price1Input.value.replace(',', '.'))) {
             stepPriceInput.value = price1Input.value;
         }
         enforceLimits(stepPriceInput, 0.01, parseFloat(price1Input.value.replace(',', '.')));
-       
     });
 
     price2Input.addEventListener("blur", () => {
-    
         enforceLimits(price2Input, 0.01, 100);
-       
     });
 
     stepPriceInput.addEventListener("blur", () => {
-      
         enforceLimits(stepPriceInput, 0.01, parseFloat(price1Input.value.replace(',', '.')));
-     
     });
 
     positionSlider.noUiSlider.on('update', function (values, handle) {
@@ -99,8 +148,6 @@
     positionSlider.noUiSlider.on('change', function () {
         filterPricesAndUpdateUI();
     });
-
-
 
     offerSlider = document.getElementById('offerRangeSlider');
     var offerRangeInput = document.getElementById('offerRange');
@@ -133,14 +180,30 @@
         filterPricesAndUpdateUI();
     });
 
+    function convertPriceValue(price, usePriceDifference) {
+        if (price.onlyMe) {
+            // Produkt nieporównywalny – nie modyfikujemy
+            return { valueToUse: null, colorClass: 'prOnlyMe' };
+        } else {
+            let valueToUse = usePriceDifference
+                ? (price.savings !== null ? price.savings : price.priceDifference)
+                : price.percentageDifference;
+            // Sprawdź, czy valueToUse ma wartość
+            if (valueToUse !== null && valueToUse !== undefined) {
+                valueToUse = parseFloat(valueToUse.toFixed(2));
+            }
+            const colorClass = getColorClass(valueToUse, price.isUniqueBestPrice, price.isSharedBestPrice);
+            return { valueToUse, colorClass };
+        }
+    }
+
     const updatePricesDebounced = debounce(function () {
         const usePriceDifference = document.getElementById('usePriceDifference').checked;
 
         allPrices.forEach(price => {
-            price.valueToUse = usePriceDifference
-                ? (price.savings !== null ? price.savings : price.priceDifference)
-                : price.percentageDifference;
-            price.colorClass = getColorClass(price.valueToUse, price.isUniqueBestPrice, price.isSharedBestPrice);
+            const result = convertPriceValue(price, usePriceDifference);
+            price.valueToUse = result.valueToUse;
+            price.colorClass = result.colorClass;
         });
 
         filterPricesAndUpdateUI();
@@ -187,7 +250,6 @@
     usePriceDifferenceCheckbox.addEventListener('change', function () {
         usePriceDifference = this.checked;
         updateUnits(usePriceDifference);
-        updatePricesDebounced();
     });
 
     function loadPrices() {
@@ -207,8 +269,6 @@
                 document.getElementById('usePriceDifference').checked = usePriceDifference;
                 updateUnits(usePriceDifference);
 
-
-
                 allPrices = response.prices.map(price => {
                     const isRejected = price.isRejected;
                     const onlyMe = price.onlyMe === true; // sprawdzamy onlyMe
@@ -218,7 +278,6 @@
                     if (onlyMe) {
                         // Jeśli onlyMe = true, ustawiamy nową kategorię prOnlyMe
                         colorClass = 'prOnlyMe';
-                        // Nie wykonujemy obliczeń, valueToUse = null
                     } else if (!isRejected) {
                         if (usePriceDifference) {
                             valueToUse = price.savings !== null ? price.savings : price.priceDifference;
@@ -251,7 +310,6 @@
                         marginClass = marginAmount >= 0 ? 'priceBox-diff-margin' : 'priceBox-diff-margin-minus';
                     }
 
-
                     return {
                         ...price,
                         isRejected: price.isRejected || false,
@@ -266,7 +324,6 @@
                         marginClass: marginClass
                     };
                 });
-
 
                 const storeCounts = allPrices.map(item => item.storeCount);
                 const maxStoreCount = Math.max(...storeCounts);
@@ -412,7 +469,6 @@
             filteredPrices.sort((a, b) => b.singleBestCheaperDiffPerc - a.singleBestCheaperDiffPerc);
         }
 
-
         if (selectedColors.length) {
             filteredPrices = filteredPrices.filter(item => selectedColors.includes(item.colorClass));
         }
@@ -445,23 +501,16 @@
     }
 
     function getColorClass(valueToUse, isUniqueBestPrice = false, isSharedBestPrice = false) {
-        if (isUniqueBestPrice && valueToUse <= setPrice1) {
-            return "prIdeal";
-        }
-        if (isUniqueBestPrice) {
-            return "prToLow";
-        }
         if (isSharedBestPrice) {
             return "prGood";
         }
-        if (valueToUse <= 0) {
-            return "prGood";
-        } else if (valueToUse < setPrice2) {
-            return "prMid";
-        } else {
-            return "prToHigh";
+        if (isUniqueBestPrice) {
+            return valueToUse <= setPrice1 ? "prIdeal" : "prToLow";
         }
+
+        return valueToUse < setPrice2 ? "prMid" : "prToHigh";
     }
+
     function highlightMatches(text, searchTerm) {
         if (!searchTerm) return text;
 
@@ -494,15 +543,17 @@
         return beforeMatch + `<span class="highlighted-text">` + matchText + `</span>` + afterMatch;
     }
 
-
-
     function renderPrices(data) {
         const container = document.getElementById('priceContainer');
         const currentProductSearchTerm = document.getElementById('productSearch').value.trim();
         const currentStoreSearchTerm = document.getElementById('storeSearch').value.trim();
         container.innerHTML = '';
 
-        data.forEach(item => {
+        const startIndex = (currentPage - 1) * itemsPerPage;
+        const endIndex = currentPage * itemsPerPage;
+        const paginatedData = data.slice(startIndex, endIndex);
+
+        paginatedData.forEach(item => {
             const isRejected = item.isRejected;
 
             const highlightedProductName = highlightMatches(item.productName, currentProductSearchTerm);
@@ -703,7 +754,6 @@
                 priceLine.appendChild(diffBox);
             }
 
-
             // Dodajemy priceLine do priceBoxLowestText
             priceBoxLowestText.appendChild(priceLine);
 
@@ -711,8 +761,6 @@
             const storeNameDiv = document.createElement('div');
             storeNameDiv.textContent = highlightedStoreName;
             priceBoxLowestText.appendChild(storeNameDiv);
-
-
 
             const priceBoxLowestDetails = document.createElement('div');
             priceBoxLowestDetails.className = 'price-box-column-text';
@@ -832,7 +880,6 @@
                     // OnlyMe: Jesteśmy jedynym sklepem, brak zmian cen
                     const diffClass = item.colorClass + ' ' + 'priceBox-diff-top';
                     priceBoxColumnInfo.innerHTML += '<div class="' + diffClass + '">Brak ofert konkurencji</div>';
-
                 } else if (item.colorClass === "prToLow" || item.colorClass === "prIdeal") {
                     if (myPrice != null && savings != null) {
                         const savingsValue = parseFloat(savings.replace(',', '.'));
@@ -1199,8 +1246,12 @@
                             } else {
                                 const percentageReduction = setStepPrice / 100;
                                 amountToSuggestedPrice2 = -myPrice * percentageReduction;
-                                suggestedPrice2 = myPrice * (1 - percentageReduction);
-                                percentageToSuggestedPrice2 = -setStepPrice;
+
+                                if (Math.abs(amountToSuggestedPrice2) < 0.01) {
+                                    amountToSuggestedPrice2 = -0.01;
+                                }
+                                suggestedPrice2 = myPrice + amountToSuggestedPrice2;
+                                percentageToSuggestedPrice2 = (amountToSuggestedPrice2 / myPrice) * 100;
                             }
 
                             amount2Formatted = (amountToSuggestedPrice2 >= 0 ? '+' : '') + amountToSuggestedPrice2.toLocaleString('pl-PL', {
@@ -1313,10 +1364,7 @@
             container.appendChild(box);
         });
 
-        const visibleProducts = document.querySelectorAll('.price-box:not([style*="display: none"])');
-        document.getElementById('displayedProductCount').textContent = visibleProducts.length;
-
-        const allIndexes = Array.from(visibleProducts).map(product => parseInt(product.dataset.index));
+        renderPaginationControls(data.length);
 
         const lazyLoadImages = document.querySelectorAll('.lazy-load');
         const timers = new Map();
@@ -1365,12 +1413,9 @@
         lazyLoadImages.forEach(img => {
             observer.observe(img);
         });
+
+        document.getElementById('displayedProductCount').textContent = data.length;
     }
-
-
-
-
-
 
     function getDeliveryClass(days) {
         if (days <= 1) return 'Availability1Day';
@@ -1468,7 +1513,6 @@
         }
     }
 
-
     const debouncedRenderChart = debounce(renderChart, 600);
 
     function updateColorCounts(data) {
@@ -1495,16 +1539,12 @@
 
 
 
-
-
-
-
-    function filterPricesAndUpdateUI() {
-
+    function filterPricesAndUpdateUI(resetPageFlag = true) {
+        if (resetPageFlag) {
+            resetPage();
+        }
         showLoading();
-
         setTimeout(() => {
-
             const currentProductSearchTerm = document.getElementById('productSearch').value.toLowerCase().replace(/\s+/g, '').trim();
             const currentStoreSearchTerm = document.getElementById('storeSearch').value.toLowerCase().replace(/\s+/g, '').trim();
 
@@ -1520,7 +1560,6 @@
 
                 return (sanitizedProductSearchTerm === '' || matchesProduct) && (sanitizedStoreSearchTerm === '' || matchesStore);
             });
-
 
             filteredPrices.sort((a, b) => {
                 const sanitizedProductNameA = a.productName.toLowerCase().replace(/[^a-zA-Z0-9\s/.-]/g, '').replace(/\s+/g, '');
@@ -1719,7 +1758,6 @@
             });
         });
 
-
     document.getElementById('bidFilter').addEventListener('change', function () {
         filterPricesAndUpdateUI();
     });
@@ -1728,9 +1766,7 @@
         filterPricesAndUpdateUI();
     });
 
-
     document.getElementById('sortName').addEventListener('click', function () {
-       
         if (sortingState.sortName === null) {
             sortingState.sortName = 'asc';
             this.innerHTML = 'A-Z ↑';
@@ -1749,7 +1785,6 @@
     });
 
     document.getElementById('sortPrice').addEventListener('click', function () {
-
         if (sortingState.sortPrice === null) {
             sortingState.sortPrice = 'asc';
             this.innerHTML = 'Cena ↑';
@@ -1768,7 +1803,6 @@
     });
 
     document.getElementById('sortRaiseAmount').addEventListener('click', function () {
-       
         if (sortingState.sortRaiseAmount === null) {
             sortingState.sortRaiseAmount = 'asc';
             this.innerHTML = 'Podnieś PLN ↑';
@@ -1787,7 +1821,6 @@
     });
 
     document.getElementById('sortRaisePercentage').addEventListener('click', function () {
-        
         if (sortingState.sortRaisePercentage === null) {
             sortingState.sortRaisePercentage = 'asc';
             this.innerHTML = 'Podnieś % ↑';
@@ -1806,7 +1839,6 @@
     });
 
     document.getElementById('sortLowerAmount').addEventListener('click', function () {
-     
         if (sortingState.sortLowerAmount === null) {
             sortingState.sortLowerAmount = 'asc';
             this.innerHTML = 'Obniż PLN ↑';
@@ -1825,7 +1857,6 @@
     });
 
     document.getElementById('sortLowerPercentage').addEventListener('click', function () {
-       
         if (sortingState.sortLowerPercentage === null) {
             sortingState.sortLowerPercentage = 'asc';
             this.innerHTML = 'Obniż % ↑';
@@ -1844,7 +1875,6 @@
     });
 
     document.getElementById('sortMarginAmount').addEventListener('click', function () {
-        
         if (sortingState.sortMarginAmount === null) {
             sortingState.sortMarginAmount = 'asc';
             this.innerHTML = 'Marża PLN ↑';
@@ -1863,7 +1893,6 @@
     });
 
     document.getElementById('sortMarginPercentage').addEventListener('click', function () {
-       
         if (sortingState.sortMarginPercentage === null) {
             sortingState.sortMarginPercentage = 'asc';
             this.innerHTML = 'Marża % ↑';
@@ -1882,33 +1911,32 @@
     });
 
     document.getElementById('usePriceDifference').addEventListener('change', function () {
-        const usePriceDifference = this.checked;
-
-        allPrices.forEach(price => {
-            price.valueToUse = usePriceDifference
-                ? (price.savings !== null ? price.savings : price.priceDifference)
-                : price.percentageDifference;
-            price.colorClass = getColorClass(price.valueToUse, price.isUniqueBestPrice, price.isSharedBestPrice);
-        });
-
-        filterPricesAndUpdateUI();
+        usePriceDifference = this.checked;
+        updateUnits(usePriceDifference);
+        /* updatePricesDebounced();*/
     });
 
     document.getElementById('storeSearch').addEventListener('input', debouncedFilterPrices);
 
     document.getElementById('price1').addEventListener('input', function () {
         setPrice1 = parseFloat(this.value);
-        updatePricesDebounced();
+        /*  updatePricesDebounced();*/
     });
 
     document.getElementById('price2').addEventListener('input', function () {
         setPrice2 = parseFloat(this.value);
-        updatePricesDebounced();
+        /*  updatePricesDebounced();*/
     });
     document.getElementById('stepPrice').addEventListener('input', function () {
         setStepPrice = parseFloat(this.value);
 
-        updatePricesDebounced();
+        /*   updatePricesDebounced();*/
+    });
+
+    document.getElementById('productSearch').addEventListener('input', function () {
+        currentPage = 1;
+        window.scrollTo(0, 0);
+        debouncedFilterPrices();
     });
 
     document.getElementById('sourceSelect').addEventListener('change', function () {
@@ -2053,8 +2081,6 @@
     loadStores();
     loadPrices();
 
-
-
     function showLoading() {
         document.getElementById("loadingOverlay").style.display = "flex";
     }
@@ -2062,8 +2088,4 @@
     function hideLoading() {
         document.getElementById("loadingOverlay").style.display = "none";
     }
-
-
-
-
 });

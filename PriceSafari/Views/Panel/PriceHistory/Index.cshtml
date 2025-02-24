@@ -273,7 +273,10 @@
     
 
 
-
+    #paginationContainer {
+        display: flex;
+        gap:4px;
+    }
 
 </style>
 
@@ -343,7 +346,7 @@
                         <input class="diffCheckBox" style="margin-top: 10px;" type="checkbox" id="usePriceDifference" />
 
                     </div>
-                    <button class="Button-Page-Small" style="margin-top: 2px;" id="savePriceValues">Zapisz</button>
+                    <button class="Button-Page-Small" style="margin-top: 2px;" id="savePriceValues">Przelicz</button>
                 </div>
 
                 <div class="filterBox">
@@ -521,6 +524,11 @@
                         Wybrane produkty: 0 | Podwyższone: 0 | Obniżone: 0
                         <button id="simulateButton" class="btn btn-sm btn-primary" style="margin-left: 10px;">Symuluj</button>
                     </div> *@
+
+
+
+                    <div id="paginationContainer"></div>
+
 
                     <button id="sortName">A-Z</button>
                     <button id="sortPrice">Cena</button>
