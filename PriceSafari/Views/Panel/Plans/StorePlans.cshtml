@@ -16,6 +16,7 @@
                     <thead>
                         <tr>
                             <th>Plan</th>
+                            <th>Źródło Danych</th>
                             <th>Sklep</th>
                             <th></th>
                             <th>Ilość produktów w planie</th>
@@ -39,39 +40,48 @@
                                 validationClass += " Validation-cancelled";
                             }
 
-                            // Określenie nazwy pliku graficznego
-                            string imageFileName;
-                            if (store.IsTestPlan) // Jeśli plan testowy, zawsze grafika Free.png
+                            // Określenie pliku graficznego planu:
+                            string planImageFile = "";
+                            if (store.IsTestPlan)
                             {
-                                imageFileName = "Free.png";
+                                planImageFile = "Free.png";
                             }
                             else
                             {
-                                // Dla innych planów wybieramy grafikę w zależności od ilości produktów
                                 if (store.ProductsToScrap <= 500)
-                                {
-                                    imageFileName = "Lite.png";
-                                }
+                                    planImageFile = "Lite.png";
                                 else if (store.ProductsToScrap <= 1000)
-                                {
-                                    imageFileName = "Basic.png";
-                                }
+                                    planImageFile = "Basic.png";
                                 else if (store.ProductsToScrap <= 4000)
-                                {
-                                    imageFileName = "Pro.png";
-                                }
+                                    planImageFile = "Pro.png";
                                 else if (store.ProductsToScrap <= 10000)
-                                {
-                                    imageFileName = "Ultimate.png";
-                                }
+                                    planImageFile = "Ultimate.png";
                                 else
-                                {
-                                    imageFileName = "Enterprise.png";
-                                }
+                                    planImageFile = "Enterprise.png";
                             }
                             <tr class="store-row" style="cursor:pointer;" data-url="@Url.Action("StorePayments", "Payment", new { storeId = store.StoreId })">
                                 <td>
-                                    <img src="~/images/@imageFileName" alt="@store.PlanName" style="height:22px;" />
+                                    <img src="~/images/@planImageFile" alt="@store.PlanName" style="height:22px;" />
+                                </td>
+                                <td>
+                                    @* Wyświetlanie ikon źródła danych *@
+                                    @if (store.Ceneo && store.GoogleShopping)
+                                    {
+                                        <img src="~/images/Ceneo.png" alt="Ceneo" style="height:30px;width:30px;" />
+                                        <img src="~/images/GoogleShopping.png" alt="Google Shopping" style="height:30px;width:30px;" />
+                                    }
+                                    else if (store.Ceneo)
+                                    {
+                                        <img src="~/images/Ceneo.png" alt="Ceneo" style="height:30px;width:30px;" />
+                                    }
+                                    else if (store.GoogleShopping)
+                                    {
+                                        <img src="~/images/GoogleShopping.png" alt="Google Shopping" style="height:30px;width:30px;" />
+                                    }
+                                    else
+                                    {
+                                        <span>Brak</span>
+                                    }
                                 </td>
                                 <td>
                                     <img src="@store.LogoUrl" class="img-container" alt="@store.StoreName" />
@@ -80,7 +90,7 @@
                                     @store.StoreName
                                 </td>
                                 <td>
-                                    Do @store.ProductsToScrap SKU
+                                    @store.ProductsToScrap Produktów
                                 </td>
                                 <td>
                                     <div class="@validationClass">@store.LeftScrapes Analiz</div>

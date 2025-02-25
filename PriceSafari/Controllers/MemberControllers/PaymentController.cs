@@ -22,8 +22,7 @@ namespace PriceSafari.Controllers.MemberControllers
             _userManager = userManager;
         }
 
-      
-        
+
         [HttpGet]
         public async Task<IActionResult> StorePlans()
         {
@@ -43,7 +42,6 @@ namespace PriceSafari.Controllers.MemberControllers
             {
                 var store = us.StoreClass;
                 var lastScrapeDate = store.ScrapHistories.OrderByDescending(sh => sh.Date).FirstOrDefault()?.Date;
-
                 var unpaidInvoiceExists = store.Invoices.Any(i => !i.IsPaid);
 
                 return new PaymentViewModel
@@ -54,14 +52,18 @@ namespace PriceSafari.Controllers.MemberControllers
                     PlanName = store.Plan?.PlanName ?? "Brak Planu",
                     PlanPrice = store.Plan?.NetPrice ?? 0,
                     IsTestPlan = store.Plan?.IsTestPlan ?? false,
-                    ProductsToScrap = store.ProductsToScrap ?? 0,               
-                    LeftScrapes = store.RemainingScrapes 
-
+                    ProductsToScrap = store.ProductsToScrap ?? 0,
+                    LeftScrapes = store.RemainingScrapes,
+                    // Nowe właściwości
+                    Ceneo = store.Plan?.Ceneo ?? false,
+                    GoogleShopping = store.Plan?.GoogleShopping ?? false,
+                    Info = store.Plan?.Info ?? string.Empty
                 };
             }).ToList();
 
             return View("~/Views/Panel/Plans/StorePlans.cshtml", storeViewModels);
         }
+
 
         // GET: Payment/StorePayments/5
         [HttpGet]

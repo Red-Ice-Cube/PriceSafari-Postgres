@@ -16,6 +16,8 @@
             <th>Cena Netto</th>
             <th>Produkty do Zeskrobania</th>
             <th>Plan Testowy</th>
+            <th>Źródło Danych</th>
+            <th>Informacje</th>
             <th>Akcje</th>
         </tr>
     </thead>
@@ -36,6 +38,26 @@
                         <span class="badge badge-secondary">Nie</span>
                     }
                 </td>
+                <td>
+                    @if (plan.Ceneo && plan.GoogleShopping)
+                    {
+                        <img src="~/images/Ceneo.png" alt="Ceneo" style="height:30px;width:30px;" />
+                        <img src="~/images/GoogleShopping.png" alt="Google Shopping" style="height:30px;width:30px;" />
+                    }
+                    else if (plan.Ceneo)
+                    {
+                        <img src="~/images/Ceneo.png" alt="Ceneo" style="height:30px;width:30px;" />
+                    }
+                    else if (plan.GoogleShopping)
+                    {
+                        <img src="~/images/GoogleShopping.png" alt="Google Shopping" style="height:30px;width:30px;" />
+                    }
+                    else
+                    {
+                        <span>Brak</span>
+                    }
+                </td>
+                <td>@plan.Info</td>
                 <td>
                     <a asp-action="Edit" asp-route-id="@plan.PlanId" class="btn btn-primary">Edytuj</a>
                     <a asp-action="Delete" asp-route-id="@plan.PlanId" class="btn btn-danger">Usuń</a>
