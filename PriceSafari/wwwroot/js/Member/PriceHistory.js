@@ -38,20 +38,21 @@
         const paginationContainer = document.getElementById('paginationContainer');
         paginationContainer.innerHTML = '';
 
-        // Przycisk poprzedniej strony
+       
         const prevButton = document.createElement('button');
         prevButton.textContent = 'Poprzednia';
         prevButton.disabled = currentPage === 1;
         prevButton.addEventListener('click', () => {
             if (currentPage > 1) {
                 currentPage--;
-                filterPricesAndUpdateUI(false); // Nie resetujemy numeru strony
+                filterPricesAndUpdateUI(false); 
+
             }
         });
 
         paginationContainer.appendChild(prevButton);
 
-        // Numeracja stron
+     
         for (let i = 1; i <= totalPages; i++) {
             const pageButton = document.createElement('button');
             pageButton.textContent = i;
@@ -60,19 +61,18 @@
             }
             pageButton.addEventListener('click', () => {
                 currentPage = i;
-                filterPricesAndUpdateUI(false); // nie resetujemy, bo to zmiana strony
+                filterPricesAndUpdateUI(false); 
             });
             paginationContainer.appendChild(pageButton);
         }
 
-        // Przycisk następnej strony
         const nextButton = document.createElement('button');
         nextButton.textContent = 'Następna';
         nextButton.disabled = currentPage === totalPages;
         nextButton.addEventListener('click', () => {
             if (currentPage < totalPages) {
                 currentPage++;
-                filterPricesAndUpdateUI(false); // Nie resetujemy numeru strony
+                filterPricesAndUpdateUI(false); 
             }
         });
 
@@ -182,13 +182,13 @@
 
     function convertPriceValue(price, usePriceDifference) {
         if (price.onlyMe) {
-            // Produkt nieporównywalny – nie modyfikujemy
+            
             return { valueToUse: null, colorClass: 'prOnlyMe' };
         } else {
             let valueToUse = usePriceDifference
                 ? (price.savings !== null ? price.savings : price.priceDifference)
                 : price.percentageDifference;
-            // Sprawdź, czy valueToUse ma wartość
+          
             if (valueToUse !== null && valueToUse !== undefined) {
                 valueToUse = parseFloat(valueToUse.toFixed(2));
             }
@@ -271,12 +271,12 @@
 
                 allPrices = response.prices.map(price => {
                     const isRejected = price.isRejected;
-                    const onlyMe = price.onlyMe === true; // sprawdzamy onlyMe
+                    const onlyMe = price.onlyMe === true; 
                     let valueToUse = null;
                     let colorClass = '';
 
                     if (onlyMe) {
-                        // Jeśli onlyMe = true, ustawiamy nową kategorię prOnlyMe
+                       
                         colorClass = 'prOnlyMe';
                     } else if (!isRejected) {
                         if (usePriceDifference) {
@@ -286,11 +286,11 @@
                         }
                         colorClass = getColorClass(valueToUse, price.isUniqueBestPrice, price.isSharedBestPrice);
                     } else {
-                        // isRejected
+                       
                         colorClass = 'prRejected';
                     }
 
-                    // Reszta właściwości pozostaje bez zmian
+                   
                     const marginPrice = price.marginPrice != null && !isNaN(price.marginPrice) ? parseFloat(price.marginPrice) : null;
                     const myPrice = price.myPrice != null && !isNaN(price.myPrice) ? parseFloat(price.myPrice) : null;
                     let marginAmount = null;
@@ -367,7 +367,7 @@
             })
 
             .finally(() => {
-                hideLoading(); // chowamy loader zawsze po zakończeniu
+                hideLoading(); 
             });
     }
 
@@ -510,38 +510,21 @@
 
         return valueToUse < setPrice2 ? "prMid" : "prToHigh";
     }
+    function highlightMatches(fullText, searchTerm) {
+        if (!searchTerm) return fullText;
 
-    function highlightMatches(text, searchTerm) {
-        if (!searchTerm) return text;
+        // Ucieczka metaznaków, by np. wpisanie "+" czy "?" przez użytkownika nie rozbijało RegExpa
+        const escapedTerm = searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-        const sanitizedSearchTerm = searchTerm.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
-        const sanitizedText = text.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+        // Tworzymy wyrażenie regularne, które wyszukuje wielokrotnie ('g') i bez rozróżniania wielkości liter ('i')
+        const regex = new RegExp(escapedTerm, 'gi');
 
-        const index = sanitizedText.indexOf(sanitizedSearchTerm);
-
-        if (index === -1) {
-            return text;
-        }
-
-        let sanitizedIndexToOriginalIndex = [];
-        let sanitizedIdx = 0;
-
-        for (let i = 0; i < text.length; i++) {
-            if (/[a-zA-Z0-9]/.test(text[i])) {
-                sanitizedIndexToOriginalIndex[sanitizedIdx] = i;
-                sanitizedIdx++;
-            }
-        }
-
-        const matchStart = sanitizedIndexToOriginalIndex[index];
-        const matchEnd = sanitizedIndexToOriginalIndex[index + sanitizedSearchTerm.length - 1];
-
-        const beforeMatch = text.substring(0, matchStart);
-        const matchText = text.substring(matchStart, matchEnd + 1);
-        const afterMatch = text.substring(matchEnd + 1);
-
-        return beforeMatch + `<span class="highlighted-text">` + matchText + `</span>` + afterMatch;
+        // Podmieniamy wszystkie wystąpienia na wersję z <span class="highlighted-text">
+        return fullText.replace(regex, (match) => {
+            return `<span class="highlighted-text">${match}</span>`;
+        });
     }
+
 
     function renderPrices(data) {
         const container = document.getElementById('priceContainer');
@@ -558,6 +541,7 @@
 
             const highlightedProductName = highlightMatches(item.productName, currentProductSearchTerm);
             const highlightedStoreName = highlightMatches(item.storeName, currentStoreSearchTerm);
+
             const isBidding = item.isBidding === "1";
             const deliveryClass = getDeliveryClass(item.delivery);
 
@@ -737,16 +721,16 @@
             }
             if (item.singleBestCheaperDiffPerc !== null && item.singleBestCheaperDiffPerc !== undefined) {
                 const diffBox = document.createElement('div');
-                diffBox.style.marginLeft = '4px'; // odstęp od poprzedniego elementu
+                diffBox.style.marginLeft = '4px'; 
 
-                // W zależności od wartości >30% czy <=30% ustawiamy inną klasę
+               
                 if (item.singleBestCheaperDiffPerc > 25) {
                     diffBox.className = 'singlePriceDiffBoxHigh';
                 } else {
                     diffBox.className = 'singlePriceDiffBox';
                 }
 
-                // Tworzymy element span na tekst
+             
                 const span = document.createElement('span');
                 span.textContent = item.singleBestCheaperDiffPerc.toFixed(2) + '%';
                 diffBox.appendChild(span);
@@ -754,12 +738,12 @@
                 priceLine.appendChild(diffBox);
             }
 
-            // Dodajemy priceLine do priceBoxLowestText
+         
             priceBoxLowestText.appendChild(priceLine);
 
-            // Pod ceną i boxami wyświetlamy nazwę sklepu
+         
             const storeNameDiv = document.createElement('div');
-            storeNameDiv.textContent = highlightedStoreName;
+            storeNameDiv.innerHTML = highlightedStoreName;
             priceBoxLowestText.appendChild(storeNameDiv);
 
             const priceBoxLowestDetails = document.createElement('div');

@@ -1486,6 +1486,9 @@ img.lazy-load-flex {
     align-self: stretch;
 }
 
+
+
+
 .Column {
     display: flex;
     flex-direction: column;
