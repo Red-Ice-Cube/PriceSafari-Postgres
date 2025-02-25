@@ -14,9 +14,13 @@ namespace PriceSafari.Models.ViewModels
         public int ScrapesPerInvoice { get; set; }
         public bool HasUnpaidInvoice { get; set; }
         public bool IsTestPlan { get; set; }
-
         public decimal? DiscountValue { get; set; }
         public List<InvoiceClass> Invoices { get; set; }
         public List<UserPaymentData> PaymentDataList { get; set; }
+
+        // Nowe pola
+        public bool Ceneo { get; set; }
+        public bool GoogleShopping { get; set; }
+        public string Info { get; set; }
     }
 }

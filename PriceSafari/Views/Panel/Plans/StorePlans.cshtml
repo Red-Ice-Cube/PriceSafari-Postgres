@@ -4,6 +4,24 @@
     Layout = "~/Views/Shared/_PanelLayout.cshtml";
 }
 
+@functions {
+    public string GetAnalysesText(int count)
+    {
+        if (count == 1)
+        {
+            return $"{count} analiza";
+        }
+        else if (count >= 2 && count <= 4)
+        {
+            return $"{count} analizy";
+        }
+        else
+        {
+            return $"{count} analiz";
+        }
+    }
+}
+
 <div class="Vert">
     <div class="Vert-full">
         <div class="Order-Container-Title">
@@ -16,11 +34,13 @@
                     <thead>
                         <tr>
                             <th>Plan</th>
-                            <th>Źródło Danych</th>
+                          
                             <th>Sklep</th>
                             <th></th>
                             <th>Ilość produktów w planie</th>
+                            <th>Źródło Danych</th>
                             <th>Pozostałe pakiety</th>
+                         
                         </tr>
                     </thead>
                     <tbody>
@@ -62,27 +82,12 @@
                             <tr class="store-row" style="cursor:pointer;" data-url="@Url.Action("StorePayments", "Payment", new { storeId = store.StoreId })">
                                 <td>
                                     <img src="~/images/@planImageFile" alt="@store.PlanName" style="height:22px;" />
-                                </td>
-                                <td>
-                                    @* Wyświetlanie ikon źródła danych *@
-                                    @if (store.Ceneo && store.GoogleShopping)
+                                    @if (store.IsTestPlan)
                                     {
-                                        <img src="~/images/Ceneo.png" alt="Ceneo" style="height:30px;width:30px;" />
-                                        <img src="~/images/GoogleShopping.png" alt="Google Shopping" style="height:30px;width:30px;" />
-                                    }
-                                    else if (store.Ceneo)
-                                    {
-                                        <img src="~/images/Ceneo.png" alt="Ceneo" style="height:30px;width:30px;" />
-                                    }
-                                    else if (store.GoogleShopping)
-                                    {
-                                        <img src="~/images/GoogleShopping.png" alt="Google Shopping" style="height:30px;width:30px;" />
-                                    }
-                                    else
-                                    {
-                                        <span>Brak</span>
+                                        <div class="Validation Validation-accepted" style="display:inline-block; margin-left:5px;">Plan Testowy</div>
                                     }
                                 </td>
+                               
                                 <td>
                                     <img src="@store.LogoUrl" class="img-container" alt="@store.StoreName" />
                                 </td>
@@ -90,11 +95,32 @@
                                     @store.StoreName
                                 </td>
                                 <td>
-                                    @store.ProductsToScrap Produktów
+                                   Do @store.ProductsToScrap SKU
                                 </td>
                                 <td>
-                                    <div class="@validationClass">@store.LeftScrapes Analiz</div>
+
+                                    @if (store.Ceneo && store.GoogleShopping)
+                                    {
+                                        <img src="~/images/Ceneo.png" alt="Ceneo" style="height:24px;width:24px;" />
+                                        <img src="~/images/GoogleShopping.png" alt="Google Shopping" style="height:24px;width:24px;" />
+                                    }
+                                    else if (store.Ceneo)
+                                    {
+                                        <img src="~/images/Ceneo.png" alt="Ceneo" style="height:24px;width:24px;" />
+                                    }
+                                    else if (store.GoogleShopping)
+                                    {
+                                        <img src="~/images/GoogleShopping.png" alt="Google Shopping" style="height:24px;width:24px;" />
+                                    }
+                                    else
+                                    {
+                                        <span>Brak</span>
+                                    }
                                 </td>
+                                <td>
+                                    <div class="@validationClass">@GetAnalysesText(store.LeftScrapes)</div>
+                                </td>
+                               
                             </tr>
                         }
                     </tbody>

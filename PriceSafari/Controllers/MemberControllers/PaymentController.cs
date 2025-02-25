@@ -64,8 +64,6 @@ namespace PriceSafari.Controllers.MemberControllers
             return View("~/Views/Panel/Plans/StorePlans.cshtml", storeViewModels);
         }
 
-
-        // GET: Payment/StorePayments/5
         [HttpGet]
         public async Task<IActionResult> StorePayments(int storeId)
         {
@@ -95,25 +93,31 @@ namespace PriceSafari.Controllers.MemberControllers
                 .Where(p => p.UserId == userId)
                 .ToListAsync();
 
-            // Przygotowanie modelu widoku
+            // Przygotowanie modelu widoku – wykorzystujemy nowe pola z planu (Ceneo, GoogleShopping, Info)
             var viewModel = new StorePaymentsViewModel
             {
                 StoreId = store.StoreId,
                 StoreName = store.StoreName,
                 LogoUrl = store.StoreLogoUrl,
                 PlanName = store.Plan?.PlanName ?? "Brak Planu",
-                IsTestPlan = store.Plan.IsTestPlan,
+                IsTestPlan = store.Plan?.IsTestPlan ?? false,
                 PlanPrice = store.Plan?.NetPrice ?? 0,
-                ProductsToScrap = store.Plan?.ProductsToScrap ?? 0,
+                // Jeśli plan istnieje, pobieramy ProductsToScrap z planu, w przeciwnym wypadku 0
+                ProductsToScrap = store.ProductsToScrap ?? 0,
                 ScrapesPerInvoice = store.Plan?.ScrapesPerInvoice ?? 0,
                 HasUnpaidInvoice = store.Invoices.Any(i => !i.IsPaid),
                 DiscountValue = store.DiscountPercentage,
                 Invoices = store.Invoices.OrderByDescending(i => i.IssueDate).ToList(),
-                PaymentDataList = paymentDataList
+                PaymentDataList = paymentDataList,
+                // Nowe pola:
+                Ceneo = store.Plan?.Ceneo ?? false,
+                GoogleShopping = store.Plan?.GoogleShopping ?? false,
+                Info = store.Plan?.Info ?? string.Empty
             };
 
             return View("~/Views/Panel/Plans/StorePayments.cshtml", viewModel);
         }
+
 
         [HttpPost]
         public async Task<IActionResult> SaveOrUpdatePaymentData(UserPaymentDataViewModel model)

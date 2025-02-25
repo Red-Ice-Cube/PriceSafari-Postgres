@@ -9,60 +9,143 @@
                 ContractResolver = new CamelCasePropertyNamesContractResolver()
             };
     var paymentDataListJson = JsonConvert.SerializeObject(Model.PaymentDataList, jsonSettings);
+
+    // Dobieramy plik graficzny planu na podstawie danych
+    string planImageFile = "";
+    if (Model.IsTestPlan)
+    {
+        planImageFile = "Free.png";
+    }
+    else
+    {
+        if (Model.ProductsToScrap <= 500)
+            planImageFile = "Lite.png";
+        else if (Model.ProductsToScrap <= 1000)
+            planImageFile = "Basic.png";
+        else if (Model.ProductsToScrap <= 4000)
+            planImageFile = "Pro.png";
+        else if (Model.ProductsToScrap <= 10000)
+            planImageFile = "Ultimate.png";
+        else
+            planImageFile = "Enterprise.png";
+    }
 }
 
 <style>
     .modal-split {
-        display:flex;
-        gap:32px;
-        width:100%;
+        display: flex;
+        gap: 32px;
+        width: 100%;
     }
 
     .modal-dialog {
-        max-width:900px;
+        max-width: 1200px;
     }
 
-    .modal-content{
-        width:100%;
+    .modal-content {
+        width: 100%;
     }
 
     .store-details-title {
-        font-size:22px;
-        font-weight:300;
-        margin-bottom:16px;
+        font-size: 22px;
+        font-weight: 300;
+        margin-bottom: 16px;
     }
 
     .space-100 {
         display: flex;
         justify-content: space-between;
-        width:100%;
+        width: 100%;
         margin-top: 16px;
         margin-bottom: 24px;
     }
 
 
+
+    .custom-info-table {
+        border-collapse: separate;
+        border-spacing: 0;
+        width: auto;
+        margin: 10px 0;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        overflow: hidden;
+    }
+
+        .custom-info-table th,
+        .custom-info-table td {
+            padding: 8px 12px;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .custom-info-table th {
+            background-color: #f9f9f9;
+            text-align: left;
+            font-weight: bold;
+        }
+
+        .custom-info-table tr:last-child td {
+            border-bottom: none;
+        }
 </style>
 
 <div class="Vert">
     <div class="Vert-full">
         <div class="store-details">
-            <img src="~/images/@($"{Model.PlanName}.png")" alt="@Model.PlanName" style="height:36px; margin-bottom:24px;" />
+            <img src="~/images/@planImageFile" alt="@Model.PlanName" style="height:36px; margin-bottom:24px;" />
+         
             <div class="store-details-title">Plan @Model.PlanName dla @Model.StoreName</div>
+                
+            <table class="custom-info-table">
+                <tr>
+                    <th>Maksymalna ilość produktów</th>
+                    <td>Do @Model.ProductsToScrap SKU</td>
+                </tr>
+                <tr>
+                    <th>Pakiet analiz</th>
+                    <td>@Model.ScrapesPerInvoice</td>
+                </tr>
+                <tr>
+                    <th>Dane historyczne</th>
+                    <td>30 analiz</td>
+                </tr>
+                <tr>
+                    <th>Źródło danych</th>
+                    <td>
+                        @if (Model.Ceneo && Model.GoogleShopping)
+                        {
+                            <img src="~/images/Ceneo.png" alt="Ceneo" style="height:18px;width:18px;" />
+                            <img src="~/images/GoogleShopping.png" alt="Google Shopping" style="height:18px;width:18px;" />
+                        }
+                        else if (Model.Ceneo)
+                        {
+                            <img src="~/images/Ceneo.png" alt="Ceneo" style="height:18px;width:18px;" />
+                        }
+                        else if (Model.GoogleShopping)
+                        {
+                            <img src="~/images/GoogleShopping.png" alt="Google Shopping" style="height:18px;width:18px;" />
+                        }
+                        else
+                        {
+                            <span>Brak</span>
+                        }
+                    </td>
+                </tr>
+                <tr>
+                    <th>Informacje</th>
+                    <td>@Model.Info</td>
+                </tr>
+              
+            </table>
 
             @if (Model.DiscountValue.HasValue && Model.DiscountValue.Value > 0)
             {
-                // Obliczenia: Wartość rabatu i cena po rabacie
                 var discountAmount = Model.PlanPrice * (Model.DiscountValue.Value / 100);
                 var discountedPrice = Model.PlanPrice - discountAmount;
-
                 <div style="display:flex; flex-direction:column; align-items:flex-start; margin-bottom:10px;">
                     <div>
-                        <p style="color: darkgreen; font-weight: bold;">
-                            @discountedPrice.ToString("C") <!-- Cena po rabacie -->
-                        </p>
-                        <p style="text-decoration: line-through; font-weight: normal; color: #222222;">
-                            @Model.PlanPrice.ToString("C") <!-- Oryginalna cena -->
-                        </p>
+                        <p style="color: darkgreen; font-weight: bold;">@discountedPrice.ToString("C")</p>
+                        <p style="text-decoration: line-through; font-weight: normal; color: #222222;">@Model.PlanPrice.ToString("C")</p>
                     </div>
                     <div style="font-weight:500; color: #222222; margin-top: 4px;">
                         Rabat: @Model.DiscountValue.Value.ToString("F2")%
@@ -73,15 +156,7 @@
             {
                 <p>Kwota: @Model.PlanPrice.ToString("C") Netto</p>
             }
-
-            <p>Maksymalna ilość produktów: @Model.ProductsToScrap</p>
-            <p>Pakiet analiz: @Model.ScrapesPerInvoice</p>
-            <p>Częstotliwość wykonywania analizy: 24h</p>
-            <p>Źródło danych: Ceneo, Google Shopping</p>
-         
         </div>
-
-
 
         <!-- Button to open modal -->
         <div>
@@ -101,7 +176,6 @@
             }
         </div>
 
-
         <!-- Modal for Generating Proforma -->
         <div class="modal fade" id="generateProformaModal" tabindex="-1" role="dialog" aria-labelledby="generateProformaModalLabel" aria-hidden="true">
             <div class="modal-dialog" role="document">
@@ -115,10 +189,9 @@
                     </div>
                     <!-- Modal Body -->
                     <div class="modal-split">
-                        <div class="modal-body" >
+                        <div class="modal-body">
                             <!-- Managing Billing Data -->
                             <div class="form-group">
-                        
                                 <select id="paymentDataSelect" class="form-control" style="margin-top:0px;">
                                     <option value="">Wybierz adres rozliczeniowy</option>
                                     @foreach (var data in Model.PaymentDataList)
@@ -130,23 +203,37 @@
                                     <div>
                                         <button type="button" class="Button-Page-Small-bl" id="addPaymentDataButton">+ Adres rozliczeniowy</button>
                                     </div>
-
                                     <div>
                                         <button type="button" class="Button-Page-Small" id="editPaymentDataButton" style="display:none;">Edytuj</button>
                                         <button type="button" class="Button-Page-Small-r" id="deletePaymentDataButton" style="display:none;">Usuń</button>
                                     </div>
-                             
-                                   
                                 </div>
                             </div>
 
-                            <!-- Display Billing Data Details -->
+                            <!-- Display Billing Data Details in a custom table -->
                             <div id="paymentDataDetails" style="display:none;">
-                                <p><strong>Nazwa firmy:</strong> <span id="companyName"></span></p>
-                                <p><strong>Adres:</strong> <span id="address"></span></p>
-                                <p><strong>Kod pocztowy:</strong> <span id="postalCode"></span></p>
-                                <p><strong>Miasto:</strong> <span id="city"></span></p>
-                                <p><strong>NIP:</strong> <span id="nip"></span></p>
+                                <table class="custom-info-table">
+                                    <tr>
+                                        <th>Nazwa firmy</th>
+                                        <td id="companyName"></td>
+                                    </tr>
+                                    <tr>
+                                        <th>Adres</th>
+                                        <td id="address"></td>
+                                    </tr>
+                                    <tr>
+                                        <th>Kod pocztowy</th>
+                                        <td id="postalCode"></td>
+                                    </tr>
+                                    <tr>
+                                        <th>Miasto</th>
+                                        <td id="city"></td>
+                                    </tr>
+                                    <tr>
+                                        <th>NIP</th>
+                                        <td id="nip"></td>
+                                    </tr>
+                                </table>
                             </div>
 
                             <!-- Form for Adding/Editing Billing Data -->
@@ -173,7 +260,6 @@
                                         <label for="NIP">NIP</label>
                                         <input type="text" class="form-control" id="NIP" name="NIP" required />
                                     </div>
-
                                     <div class="form-group">
                                         <label for="InvoiceAutoMail">E-mail do automatycznej wysyłki faktur (opcjonalny)</label>
                                         <input type="email" class="form-control" id="InvoiceAutoMail" name="InvoiceAutoMail" />
@@ -182,38 +268,25 @@
                                         <input type="checkbox" class="form-check-input" id="InvoiceAutoMailSend" name="InvoiceAutoMailSend" value="true" />
                                         <label class="form-check-label" for="InvoiceAutoMailSend">Automatyczna wysyłka faktur na e-mail</label>
                                     </div>
-
-
-
-
                                     <div style="margin-top:16px;">
                                         <button type="button" class="Button-Page-Small-bl" id="savePaymentDataButton">Zapisz dane</button>
                                         <button type="button" class="Button-Page-Small" id="cancelPaymentDataButton">Anuluj</button>
                                     </div>
-                                 
                                 </form>
                             </div>
-
                         </div>
                         <div class="modal-body">
-                            
                             <div class="store-details">
-                                <img src="~/images/@($"{Model.PlanName}.png")" alt="@Model.PlanName" style="height:36px; margin-bottom:24px;" />
+                                <img src="~/images/@planImageFile" alt="@Model.PlanName" style="height:36px; margin-bottom:24px;" />
                                 <div class="store-details-title">Plan @Model.PlanName dla @Model.StoreName</div>
                                 @if (Model.DiscountValue.HasValue && Model.DiscountValue.Value > 0)
                                 {
-                                    // Obliczenia: Wartość rabatu i cena po rabacie
                                     var discountAmount = Model.PlanPrice * (Model.DiscountValue.Value / 100);
                                     var discountedPrice = Model.PlanPrice - discountAmount;
-
                                     <div style="display:flex; flex-direction:column; align-items:flex-start; margin-bottom:10px;">
                                         <div>
-                                            <p style="color: darkgreen; font-weight: bold;">
-                                                @discountedPrice.ToString("C") <!-- Cena po rabacie -->
-                                            </p>
-                                            <p style="text-decoration: line-through; font-weight: normal; color: #222222;">
-                                                @Model.PlanPrice.ToString("C") <!-- Oryginalna cena -->
-                                            </p>
+                                            <p style="color: darkgreen; font-weight: bold;">@discountedPrice.ToString("C")</p>
+                                            <p style="text-decoration: line-through; font-weight: normal; color: #222222;">@Model.PlanPrice.ToString("C")</p>
                                         </div>
                                         <div style="font-weight:500; color: #222222; margin-top: 4px;">
                                             Rabat: @Model.DiscountValue.Value.ToString("F2")%
@@ -224,22 +297,52 @@
                                 {
                                     <p>Kwota: @Model.PlanPrice.ToString("C") Netto</p>
                                 }
-                                <p>Maksymalna ilość produktów: @Model.ProductsToScrap</p>
-                                <p>Pakiet analiz: @Model.ScrapesPerInvoice</p>
-                                <p>Częstotliwość wykonywania analizy: 24h</p>
-                                <p>Źródło danych: Ceneo, Google Shopping</p>
-                                <p>Dane historyczne: 30 analiz</p>
-
-
+                                <table class="custom-info-table">
+                                    <tr>
+                                        <th>Maksymalna ilość produktów</th>
+                                        <td>@Model.ProductsToScrap</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Pakiet analiz</th>
+                                        <td>@Model.ScrapesPerInvoice</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Dane historyczne</th>
+                                        <td>30 analiz</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Źródło danych</th>
+                                        <td>
+                                            @if (Model.Ceneo && Model.GoogleShopping)
+                                            {
+                                                <img src="~/images/Ceneo.png" alt="Ceneo" style="height:18px;width:18px;" />
+                                                <img src="~/images/GoogleShopping.png" alt="Google Shopping" style="height:18px;width:18px;" />
+                                            }
+                                            else if (Model.Ceneo)
+                                            {
+                                                <img src="~/images/Ceneo.png" alt="Ceneo" style="height:18px;width:18px;" />
+                                            }
+                                            else if (Model.GoogleShopping)
+                                            {
+                                                <img src="~/images/GoogleShopping.png" alt="Google Shopping" style="height:18px;width:18px;" />
+                                            }
+                                            else
+                                            {
+                                                <span>Brak</span>
+                                            }
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <th>Informacje</th>
+                                        <td>@Model.Info</td>
+                                    </tr>
+                                  
+                                </table>
                             </div>
-
-
                         </div>
                     </div>
-                    
                     <!-- Modal Footer -->
                     <div class="modal-footer">
-                        <!-- Form for Generating Proforma -->
                         <form id="generateProformaForm" method="post" asp-action="GenerateProforma">
                             <input type="hidden" name="storeId" value="@Model.StoreId" />
                             <input type="hidden" id="paymentDataId" name="paymentDataId" value="" />
@@ -250,6 +353,7 @@
                 </div>
             </div>
         </div>
+
         @if (Model.Invoices != null && Model.Invoices.Any())
         {
             <div class="Vert-table">
@@ -277,14 +381,8 @@
                                         var originalPrice = invoice.NetAmount + invoice.AppliedDiscountAmount;
                                         <div style="display:flex; flex-direction:column; align-items:flex-start;">
                                             <div>
-
-                                                <span style="color: darkgreen; font-weight: bold;">
-                                                    @invoice.NetAmount.ToString("C")
-                                                </span>
-                                                <span style="text-decoration: line-through; font-weight: normal; color: #222222; margin-left: 10px;">
-                                                    @originalPrice.ToString("C")
-                                                </span>
-                                               
+                                                <span style="color: darkgreen; font-weight: bold;">@invoice.NetAmount.ToString("C")</span>
+                                                <span style="text-decoration: line-through; font-weight: normal; color: #222222; margin-left: 10px;">@originalPrice.ToString("C")</span>
                                             </div>
                                             <div style="font-size:0.9em; color: #222222; margin-top: 4px;">
                                                 Rabat: @invoice.AppliedDiscountPercentage.ToString("F2")% (@invoice.AppliedDiscountAmount.ToString("C"))
@@ -321,16 +419,12 @@
         {
             <p>Brak historii faktur dla tego sklepu.</p>
         }
-
-
     </div>
 </div>
-
 
 @section Scripts {
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.bundle.min.js"></script>
-
     <script>
         $(document).ready(function () {
             var paymentDataList = @Html.Raw(paymentDataListJson);
@@ -379,7 +473,6 @@
                 $("#generateProformaButton").prop('disabled', false);
             }
 
-            // Funkcja do włączenia/wyłączenia checkboxa InvoiceAutoMailSend
             function toggleAutoMailSendCheckbox(emailValue) {
                 if (!emailValue || emailValue.trim() === "") {
                     $("#InvoiceAutoMailSend").prop("checked", false);
@@ -389,7 +482,6 @@
                 }
             }
 
-            // Funkcja wypełniająca dane wybranego adresu rozliczeniowego
             function populatePaymentData(paymentDataId) {
                 var data = paymentDataList.find(x => x.paymentDataId == paymentDataId);
                 if (data) {
@@ -398,7 +490,6 @@
                     $("#postalCode").text(data.postalCode);
                     $("#city").text(data.city);
                     $("#nip").text(data.nip);
-
                     showDetails();
                     hideForm();
                     enableGenerateProforma();
@@ -411,7 +502,6 @@
                 }
             }
 
-            // Reakcja na zmianę wybranego adresu rozliczeniowego
             $("#paymentDataSelect").change(function () {
                 var selectedValue = $(this).val();
                 if (selectedValue) {
@@ -424,7 +514,6 @@
                 }
             });
 
-            // Dodawanie nowego adresu rozliczeniowego
             $("#addPaymentDataButton").click(function () {
                 resetForm();
                 showForm();
@@ -432,7 +521,6 @@
                 disableGenerateProforma();
             });
 
-            // Edycja istniejącego adresu rozliczeniowego
             $("#editPaymentDataButton").click(function () {
                 var paymentDataId = $("#paymentDataId").val();
                 var data = paymentDataList.find(x => x.paymentDataId == paymentDataId);
@@ -440,7 +528,6 @@
                     showForm();
                     hideDetails();
                     disableGenerateProforma();
-
                     $("#PaymentDataId").val(data.paymentDataId);
                     $("#CompanyName").val(data.companyName);
                     $("#Address").val(data.address);
@@ -449,35 +536,28 @@
                     $("#NIP").val(data.nip);
                     $("#InvoiceAutoMail").val(data.invoiceAutoMail || '');
                     $("#InvoiceAutoMailSend").prop('checked', data.invoiceAutoMailSend);
-
                     toggleAutoMailSendCheckbox($("#InvoiceAutoMail").val());
                 } else {
-                    // Jeśli nie znaleziono danych - może zostały usunięte w międzyczasie:
                     alert("Nie można edytować - dane nie istnieją.");
                 }
             });
 
-            // Anulowanie dodawania/edycji adresu rozliczeniowego
             $("#cancelPaymentDataButton").click(function () {
                 hideForm();
                 var paymentDataId = $("#paymentDataId").val();
                 if (paymentDataId) {
-                    // Powrót do detali wybranego adresu
                     populatePaymentData(paymentDataId);
                 } else {
-                    // Brak wybranego adresu, wszystko puste
                     hideDetails();
                     clearDetailsFields();
                     disableGenerateProforma();
                 }
             });
 
-            // Reakcja na zmiany w polu email do automatycznej wysyłki
             $("#InvoiceAutoMail").on("input", function () {
                 toggleAutoMailSendCheckbox($(this).val());
             });
 
-            // Zapis adresu rozliczeniowego (dodawanie lub edycja)
             $("#savePaymentDataButton").click(function () {
                 var formData = $("#paymentDataForm").serialize();
                 $.ajax({
@@ -496,31 +576,17 @@
                                 invoiceAutoMail: response.paymentData.invoiceAutoMail,
                                 invoiceAutoMailSend: response.paymentData.invoiceAutoMailSend
                             };
-
-                            // Jeśli PaymentDataId jest null lub 0, to nowy wpis
-                            if (!newPaymentData.paymentDataId) {
-                                // Aby prawidłowo działało, PaymentDataId powinien być ustawiony po zapisie.
-                                // Jeżeli w kontrolerze jest problem i PaymentDataId nie jest zwracany,
-                                // można go pobrać z paymentData po SaveChanges().
-                                // Zakładam, że PaymentDataId jest ustawiany prawidłowo przez serwer.
-                                // W przeciwnym razie trzeba zwrócić PaymentDataId z serwera.
-                                alert("Brak PaymentDataId w odpowiedzi serwera. Sprawdź czy kontroler zwraca poprawnie PaymentDataId.");
-                            }
-
                             var existingData = paymentDataList.find(x => x.paymentDataId == newPaymentData.paymentDataId);
                             if (existingData) {
-                                // Edycja
                                 Object.assign(existingData, newPaymentData);
                                 $("#paymentDataSelect option[value='" + newPaymentData.paymentDataId + "']").text(newPaymentData.companyName);
                             } else {
-                                // Dodawanie nowego
                                 paymentDataList.push(newPaymentData);
                                 $("#paymentDataSelect").append($('<option>', {
                                     value: newPaymentData.paymentDataId,
                                     text: newPaymentData.companyName
                                 }));
                             }
-
                             $("#paymentDataSelect").val(newPaymentData.paymentDataId);
                             hideForm();
                             populatePaymentData(newPaymentData.paymentDataId);
@@ -543,7 +609,6 @@
                 });
             });
 
-            // Usuwanie adresu rozliczeniowego
             $("#deletePaymentDataButton").click(function () {
                 if (confirm("Czy na pewno chcesz usunąć te dane?")) {
                     var paymentDataId = $("#paymentDataId").val();
@@ -551,18 +616,14 @@
                         alert("Brak wybranego adresu do usunięcia.");
                         return;
                     }
-
                     $.ajax({
                         type: "POST",
                         url: "@Url.Action("DeletePaymentData", "Payment")",
                         data: { paymentDataId: paymentDataId },
                         success: function (response) {
                             if (response.success) {
-                                // Usuwamy z paymentDataList
                                 paymentDataList = paymentDataList.filter(x => x.paymentDataId != paymentDataId);
-                                // Usuwamy z dropdowna
                                 $("#paymentDataSelect option[value='" + paymentDataId + "']").remove();
-                                // Reset wyboru
                                 $("#paymentDataSelect").val('');
                                 hideDetails();
                                 clearDetailsFields();
@@ -585,4 +646,3 @@
         });
     </script>
 }
-
