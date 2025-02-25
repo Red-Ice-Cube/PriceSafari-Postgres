@@ -4,8 +4,6 @@
     Layout = "~/Views/Shared/_PanelLayout.cshtml";
 }
 
-
-
 <div class="Vert">
     <div class="Vert-full">
         <div class="Order-Container-Title">
@@ -20,36 +18,60 @@
                             <th>Plan</th>
                             <th>Sklep</th>
                             <th></th>
-                           
                             <th>Ilość produktów w planie</th>
                             <th>Pozostałe pakiety</th>
-                            
-                           
                         </tr>
                     </thead>
                     <tbody>
-                      @foreach (var store in Model)
+                        @foreach (var store in Model)
                         {
-                            
-                                string validationClass = "Validation";
-                                if (store.LeftScrapes > 10)
-                                {
-                                    validationClass += " Validation-accepted";
-                                }
-                                else if (store.LeftScrapes >= 5 && store.LeftScrapes <= 9)
-                                {
-                                    validationClass += " Validation-company";
-                                }
-                                else if (store.LeftScrapes >= 1 && store.LeftScrapes <= 4)
-                                {
-                                    validationClass += " Validation-cancelled";
-                                }
-                                
-                            
-                            <tr class="store-row" style="cursor:pointer;" data-url="@Url.Action("StorePayments", "Payment", new { storeId = store.StoreId })">
+                            string validationClass = "Validation";
+                            if (store.LeftScrapes > 10)
+                            {
+                                validationClass += " Validation-accepted";
+                            }
+                            else if (store.LeftScrapes >= 5 && store.LeftScrapes <= 9)
+                            {
+                                validationClass += " Validation-company";
+                            }
+                            else if (store.LeftScrapes >= 1 && store.LeftScrapes <= 4)
+                            {
+                                validationClass += " Validation-cancelled";
+                            }
 
+                            // Określenie nazwy pliku graficznego
+                            string imageFileName;
+                            if (store.IsTestPlan) // Jeśli plan testowy, zawsze grafika Free.png
+                            {
+                                imageFileName = "Free.png";
+                            }
+                            else
+                            {
+                                // Dla innych planów wybieramy grafikę w zależności od ilości produktów
+                                if (store.ProductsToScrap <= 500)
+                                {
+                                    imageFileName = "Lite.png";
+                                }
+                                else if (store.ProductsToScrap <= 1000)
+                                {
+                                    imageFileName = "Basic.png";
+                                }
+                                else if (store.ProductsToScrap <= 4000)
+                                {
+                                    imageFileName = "Pro.png";
+                                }
+                                else if (store.ProductsToScrap <= 10000)
+                                {
+                                    imageFileName = "Ultimate.png";
+                                }
+                                else
+                                {
+                                    imageFileName = "Enterprise.png";
+                                }
+                            }
+                            <tr class="store-row" style="cursor:pointer;" data-url="@Url.Action("StorePayments", "Payment", new { storeId = store.StoreId })">
                                 <td>
-                                    <img src="~/images/@($"{store.PlanName}.png")" alt="@store.PlanName" style="height:22px;" />
+                                    <img src="~/images/@imageFileName" alt="@store.PlanName" style="height:22px;" />
                                 </td>
                                 <td>
                                     <img src="@store.LogoUrl" class="img-container" alt="@store.StoreName" />
@@ -57,12 +79,11 @@
                                 <td>
                                     @store.StoreName
                                 </td>
-                               
                                 <td>
-                                    @store.ProductsToScrap Produktów
+                                    Do @store.ProductsToScrap SKU
                                 </td>
                                 <td>
-                                    <div class="@validationClass">@store.LeftScrapes Dni</div>
+                                    <div class="@validationClass">@store.LeftScrapes Analiz</div>
                                 </td>
                             </tr>
                         }

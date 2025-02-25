@@ -23,7 +23,7 @@ namespace PriceSafari.Controllers.MemberControllers
         }
 
       
-        // GET: Payment/StorePlans
+        
         [HttpGet]
         public async Task<IActionResult> StorePlans()
         {
@@ -53,7 +53,8 @@ namespace PriceSafari.Controllers.MemberControllers
                     LogoUrl = store.StoreLogoUrl,
                     PlanName = store.Plan?.PlanName ?? "Brak Planu",
                     PlanPrice = store.Plan?.NetPrice ?? 0,
-                    ProductsToScrap = store.Plan?.ProductsToScrap ?? 0,               
+                    IsTestPlan = store.Plan?.IsTestPlan ?? false,
+                    ProductsToScrap = store.ProductsToScrap ?? 0,               
                     LeftScrapes = store.RemainingScrapes 
 
                 };

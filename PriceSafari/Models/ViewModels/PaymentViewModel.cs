@@ -9,6 +9,8 @@
         public decimal PlanPrice { get; set; }
         public int ProductsToScrap { get; set; }
         public int LeftScrapes { get; set; }
+        public bool IsTestPlan { get; set; }
+
 
     }
 }
