@@ -395,6 +395,7 @@ namespace PriceSafari.Scrapers
             return (prices, log, rejectedProducts);
         }
 
+
         private async Task<string> GetStoreNameFromOfferNodeAsync(ElementHandle offerNode)
         {
             var storeName = await offerNode.QuerySelectorAsync("div.product-offer__store img") is ElementHandle imgElement
@@ -424,8 +425,15 @@ namespace PriceSafari.Scrapers
                 }
             }
 
+            // Dodaj np. tutaj
+            if (!string.IsNullOrEmpty(storeName))
+            {
+                storeName = storeName.ToLowerInvariant();
+            }
+
             return storeName;
         }
+
 
         private async Task<decimal?> GetPriceFromOfferNodeAsync(ElementHandle offerNode)
         {
