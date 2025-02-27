@@ -338,5 +338,36 @@ namespace PriceSafari.Controllers.ManagerControllers
             }
 
         }
+
+
+
+
+
+        [HttpPost]
+        public async Task<IActionResult> RemoveAllProductsForStore(int storeId)
+        {
+            try
+            {
+                // Pobieramy wszystkie produkty dla danego storeId
+                var productsToRemove = await _context.Products
+                    .Where(p => p.StoreId == storeId)
+                    .ToListAsync();
+
+                // Usuwamy z kontekstu
+                _context.Products.RemoveRange(productsToRemove);
+
+                // Zapisujemy
+                await _context.SaveChangesAsync();
+
+                TempData["SuccessMessage"] = $"Wszystkie produkty dla StoreId={storeId} zostały usunięte.";
+                return RedirectToAction("MappedProducts", new { storeId });
+            }
+            catch (Exception ex)
+            {
+                TempData["ErrorMessage"] = $"Błąd przy usuwaniu produktów dla StoreId={storeId}: {ex.Message}";
+                return RedirectToAction("MappedProducts", new { storeId });
+            }
+        }
+
     }
 }
