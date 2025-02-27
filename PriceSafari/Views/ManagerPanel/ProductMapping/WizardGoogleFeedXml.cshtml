@@ -78,9 +78,7 @@
 </div>
 
 <script>
-    //------------------------------------------------------------------
-    // 1) Zmienne i wczytanie existingMappings
-    //------------------------------------------------------------------
+
     let storeId = "@storeId";
     let existingMappingsJson = `@Html.Raw(existingMappingsJson)`;
     let existingMappings = [];
@@ -93,7 +91,7 @@
 
     console.log("Mapowania z bazy (Razor):", existingMappings);
 
-    // Obiekt mapowań: fieldName -> { xpath, nodeCount, firstValue }
+   
     let mappingForField = {
         "ExternalId": null,
         "Url": null,
@@ -102,7 +100,7 @@
         "GoogleExportedName": null
     };
 
-    // Inicjujemy mapowania z bazy
+
     existingMappings.forEach(m => {
         if(m.fieldName){
             mappingForField[m.fieldName] = {
@@ -116,9 +114,7 @@
     let xmlDoc = null;
     let proxyUrl = `/GoogleImportWizardXml/ProxyXml?storeId=${storeId}`;
 
-    //------------------------------------------------------------------
-    // 2) Pobieranie XML i tworzenie drzewka
-    //------------------------------------------------------------------
+ 
     fetch(proxyUrl)
       .then(resp => resp.text())
       .then(xmlStr => {
@@ -177,14 +173,14 @@
         return li;
     }
 
-    // Klik -> przypisanie mapowania dla wybranego pola
+  
     document.addEventListener("click", function(e){
         let el = e.target.closest(".xml-node");
         if (!el) return;
         let xPath = el.getAttribute("data-xpath");
         let selectedField = document.getElementById("fieldSelector").value;
 
-        // Usuwamy stare highlight dla wybranego pola
+  
         document.querySelectorAll(`.highlight-${selectedField}`)
                 .forEach(x => x.classList.remove(`highlight-${selectedField}`));
 
@@ -208,9 +204,7 @@
         renderMappingTable();
     });
 
-    //------------------------------------------------------------------
-    // 3) Wyświetlanie mapowań i highlightów
-    //------------------------------------------------------------------
+
     function applyExistingMappings() {
         for (let fieldName in mappingForField) {
             let info = mappingForField[fieldName];
@@ -264,9 +258,7 @@
         }
     }
 
-    //------------------------------------------------------------------
-    // 4) Zapisywanie mapowań w GoogleFieldMappings
-    //------------------------------------------------------------------
+
     document.getElementById("saveMapping").addEventListener("click", function(){
         let finalMappings = [];
         for (let fieldName in mappingForField) {
@@ -294,7 +286,7 @@
           .then(data => {
               console.log("Odebrano mapowania z bazy (reload):", data);
               clearAllHighlights();
-              // Resetujemy wartości tylko dla istniejących kluczy
+              
               Object.keys(mappingForField).forEach(f => mappingForField[f] = null);
               data.forEach(m => {
                   if(m.fieldName){
@@ -310,15 +302,12 @@
           .catch(err => console.error("Błąd getGoogleMappings:", err));
     });
 
-    //------------------------------------------------------------------
-    // 5) Wyciąganie productMaps (na froncie) i zapisywanie w bazie
-    //------------------------------------------------------------------
+
     document.getElementById("extractProducts").addEventListener("click", function(){
         if (!xmlDoc) {
             alert("Brak XML do parsowania");
             return;
         }
-        // Dynamiczny wybór elementów: jeśli <item> istnieje, używamy go; w przeciwnym razie szukamy <entry>
         let entries = xmlDoc.getElementsByTagName("item").length > 0
                       ? xmlDoc.getElementsByTagName("item")
                       : xmlDoc.getElementsByTagName("entry");
@@ -334,14 +323,18 @@
                 GoogleImage: getVal(entryNode, "GoogleImage"),
                 GoogleExportedName: getVal(entryNode, "GoogleExportedName")
             };
+
+
             // Czyszczenie linku – usuwamy wszystko od znaku "?" włącznie
-            if (pm.Url) {
-                let qIdx = pm.Url.indexOf('?');
-                if (qIdx !== -1) {
-                    pm.Url = pm.Url.substring(0, qIdx);
-                }
-            }
-            // Jeżeli pole GoogleEan jest puste, produkt nie zostanie dodany
+
+
+            // if (pm.Url) {
+            //     let qIdx = pm.Url.indexOf('?');
+            //     if (qIdx !== -1) {
+            //         pm.Url = pm.Url.substring(0, qIdx);
+            //     }
+            // }
+           
             if (!pm.GoogleEan || pm.GoogleEan.trim() === "") {
                 continue;
             }
@@ -352,11 +345,11 @@
             JSON.stringify(productMaps, null, 2);
     });
 
-    // Funkcja pobierająca wartość z elementu XML na podstawie mapowania
+  
     function getVal(entryNode, fieldName) {
         let info = mappingForField[fieldName];
         if (!info || !info.xpath) return null;
-        // Dynamicznie usuwamy znane prefiksy (np. dla RSS lub Atom)
+        
         let trimmed = info.xpath;
         let possiblePrefixes = ["/rss/channel/item/", "/feed/entry/"];
         for (let i = 0; i < possiblePrefixes.length; i++) {
@@ -365,7 +358,7 @@
                 break;
             }
         }
-        // Usuwamy ewentualny namespace, np. "g:"
+       
         if (trimmed.indexOf(':') !== -1) {
             trimmed = trimmed.split(':')[1];
         }
@@ -397,7 +390,7 @@
         .catch(err => console.error(err));
     });
 
-    // Na koniec wyświetlamy tabelę mapowań
+
     renderMappingTable();
 </script>
 
