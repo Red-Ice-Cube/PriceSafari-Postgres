@@ -27,6 +27,45 @@
     </button>
 </div>
 
+<!-- Element do wyświetlania liczby URL z parametrami -->
+<div id="urlParamsInfo" style="margin-bottom:10px; font-weight:bold;">
+    Liczba URL zawierających parametry: 0
+</div>
+
+<!-- Element do wyświetlania informacji o duplikatach -->
+<div id="duplicatesInfo" style="margin-bottom:10px; font-weight:bold;">
+    <!-- Informacja o unikatowych URL i kodach EAN pojawi się tutaj -->
+</div>
+
+<!-- Opcja usuwania duplikatów URL -->
+<div style="margin-bottom: 10px;">
+    <label>
+        <input type="checkbox" id="removeDuplicateUrls">
+        Usuń duplikaty URL (zostaw pierwszy wystąpienie)
+    </label>
+</div>
+
+<!-- Opcja usuwania duplikatów EAN -->
+<div style="margin-bottom: 10px;">
+    <label>
+        <input type="checkbox" id="removeDuplicateEans">
+        Usuń duplikaty EAN (zostaw pierwszy wystąpienie)
+    </label>
+</div>
+
+<!-- Nowy licznik finalnych węzłów po filtrach -->
+<div id="finalNodesInfo" style="margin-bottom:10px; font-weight:bold;">
+    Final nodes po filtrach: 0
+</div>
+
+<!-- Opcja czyszczenia parametrów URL -->
+<div style="margin-bottom: 10px;">
+    <label>
+        <input type="checkbox" id="cleanUrlParameters" checked>
+        Usuń parametry URL (usuwamy wszystko od znaku "?")
+    </label>
+</div>
+
 <!-- Kolejny panel z dropdown i przyciskami -->
 <div style="margin-bottom: 10px;">
     <label>Wybierz Pole: </label>
@@ -78,7 +117,6 @@
 </div>
 
 <script>
-
     let storeId = "@storeId";
     let existingMappingsJson = `@Html.Raw(existingMappingsJson)`;
     let existingMappings = [];
@@ -91,7 +129,6 @@
 
     console.log("Mapowania z bazy (Razor):", existingMappings);
 
-   
     let mappingForField = {
         "ExternalId": null,
         "Url": null,
@@ -99,7 +136,6 @@
         "GoogleImage": null,
         "GoogleExportedName": null
     };
-
 
     existingMappings.forEach(m => {
         if(m.fieldName){
@@ -114,7 +150,6 @@
     let xmlDoc = null;
     let proxyUrl = `/GoogleImportWizardXml/ProxyXml?storeId=${storeId}`;
 
- 
     fetch(proxyUrl)
       .then(resp => resp.text())
       .then(xmlStr => {
@@ -173,14 +208,12 @@
         return li;
     }
 
-  
     document.addEventListener("click", function(e){
         let el = e.target.closest(".xml-node");
         if (!el) return;
         let xPath = el.getAttribute("data-xpath");
         let selectedField = document.getElementById("fieldSelector").value;
 
-  
         document.querySelectorAll(`.highlight-${selectedField}`)
                 .forEach(x => x.classList.remove(`highlight-${selectedField}`));
 
@@ -203,7 +236,6 @@
         };
         renderMappingTable();
     });
-
 
     function applyExistingMappings() {
         for (let fieldName in mappingForField) {
@@ -258,7 +290,6 @@
         }
     }
 
-
     document.getElementById("saveMapping").addEventListener("click", function(){
         let finalMappings = [];
         for (let fieldName in mappingForField) {
@@ -286,7 +317,7 @@
           .then(data => {
               console.log("Odebrano mapowania z bazy (reload):", data);
               clearAllHighlights();
-              
+
               Object.keys(mappingForField).forEach(f => mappingForField[f] = null);
               data.forEach(m => {
                   if(m.fieldName){
@@ -302,8 +333,8 @@
           .catch(err => console.error("Błąd getGoogleMappings:", err));
     });
 
-
-    document.getElementById("extractProducts").addEventListener("click", function(){
+    // Funkcja ekstrakcji produktów z XML
+    function extractProductsFromXml() {
         if (!xmlDoc) {
             alert("Brak XML do parsowania");
             return;
@@ -312,6 +343,8 @@
                       ? xmlDoc.getElementsByTagName("item")
                       : xmlDoc.getElementsByTagName("entry");
         let productMaps = [];
+        let countUrlsWithParams = 0;
+        let removeParams = document.getElementById("cleanUrlParameters").checked;
 
         for (let i = 0; i < entries.length; i++) {
             let entryNode = entries[i];
@@ -324,32 +357,138 @@
                 GoogleExportedName: getVal(entryNode, "GoogleExportedName")
             };
 
+            // Czyszczenie linku – jeżeli URL zawiera parametry
+            if (pm.Url) {
+                let qIdx = pm.Url.indexOf('?');
+                if (qIdx !== -1) {
+                    countUrlsWithParams++;
+                    if (removeParams) {
+                        pm.Url = pm.Url.substring(0, qIdx);
+                    }
+                }
+            }
 
-            // Czyszczenie linku – usuwamy wszystko od znaku "?" włącznie
-
-
-            // if (pm.Url) {
-            //     let qIdx = pm.Url.indexOf('?');
-            //     if (qIdx !== -1) {
-            //         pm.Url = pm.Url.substring(0, qIdx);
-            //     }
-            // }
-           
             if (!pm.GoogleEan || pm.GoogleEan.trim() === "") {
                 continue;
             }
             productMaps.push(pm);
         }
         console.log("Wyciągnięto productMaps(front):", productMaps);
-        document.getElementById("productMapsPreview").textContent =
-            JSON.stringify(productMaps, null, 2);
+        console.log("Liczba URLi zawierających parametry:", countUrlsWithParams);
+        // Ustawienie poprawnego JSON w elemencie podglądu
+        let previewText = JSON.stringify(productMaps, null, 2);
+        document.getElementById("productMapsPreview").textContent = previewText;
+        // Aktualizacja informacji o liczbie URL z parametrami
+        document.getElementById("urlParamsInfo").textContent = "Liczba URL zawierających parametry: " + countUrlsWithParams;
+
+        // Jeśli zaznaczono opcję usunięcia duplikatów URL, wykonujemy deduplikację
+        if(document.getElementById("removeDuplicateUrls").checked) {
+            let seen = {};
+            let deduped = [];
+            productMaps.forEach(pm => {
+                if(pm.Url) {
+                    if (!seen[pm.Url]) {
+                        seen[pm.Url] = true;
+                        deduped.push(pm);
+                    }
+                } else {
+                    deduped.push(pm);
+                }
+            });
+            productMaps = deduped;
+            document.getElementById("productMapsPreview").textContent = JSON.stringify(productMaps, null, 2);
+        }
+        // Jeśli zaznaczono opcję usunięcia duplikatów EAN, wykonujemy deduplikację na podstawie GoogleEan
+        if(document.getElementById("removeDuplicateEans").checked) {
+            let seenEan = {};
+            let dedupedEan = [];
+            productMaps.forEach(pm => {
+                if(pm.GoogleEan) {
+                    if (!seenEan[pm.GoogleEan]) {
+                        seenEan[pm.GoogleEan] = true;
+                        dedupedEan.push(pm);
+                    }
+                } else {
+                    dedupedEan.push(pm);
+                }
+            });
+            productMaps = dedupedEan;
+            document.getElementById("productMapsPreview").textContent = JSON.stringify(productMaps, null, 2);
+        }
+        // Aktualizacja licznika finalnych węzłów po filtrach
+        document.getElementById("finalNodesInfo").textContent = "Final nodes po filtrach: " + productMaps.length;
+
+        // Sprawdzenie duplikatów URL i EAN (na podstawie finalnej listy)
+        checkDuplicates(productMaps);
+    }
+
+    // Funkcja sprawdzająca unikatowość URL-i i kodów EAN
+    function checkDuplicates(productMaps) {
+        let urlCounts = {};
+        let eanCounts = {};
+
+        productMaps.forEach(pm => {
+            if(pm.Url) {
+                urlCounts[pm.Url] = (urlCounts[pm.Url] || 0) + 1;
+            }
+            if(pm.GoogleEan) {
+                eanCounts[pm.GoogleEan] = (eanCounts[pm.GoogleEan] || 0) + 1;
+            }
+        });
+
+        let totalUniqueUrls = Object.keys(urlCounts).length;
+        let duplicateUrls = 0;
+        for(let key in urlCounts) {
+            if(urlCounts[key] > 1) {
+                duplicateUrls++;
+            }
+        }
+
+        let totalUniqueEans = Object.keys(eanCounts).length;
+        let duplicateEans = 0;
+        for(let key in eanCounts) {
+            if(eanCounts[key] > 1) {
+                duplicateEans++;
+            }
+        }
+
+        let urlMessage = `Unikalnych URL: ${totalUniqueUrls} `;
+        urlMessage += duplicateUrls > 0
+                      ? `<span style="color:red;">(Duplikatów: ${duplicateUrls})</span>`
+                      : `(Brak duplikatów)`;
+
+        let eanMessage = `Unikalnych kodów EAN: ${totalUniqueEans} `;
+        eanMessage += duplicateEans > 0
+                      ? `<span style="color:red;">(Duplikatów: ${duplicateEans})</span>`
+                      : `(Brak duplikatów)`;
+
+        document.getElementById("duplicatesInfo").innerHTML = urlMessage + "<br>" + eanMessage;
+    }
+
+    // Obsługa kliknięcia przycisku "Wyciągnij produkty z XML (FRONT)"
+    document.getElementById("extractProducts").addEventListener("click", function(){
+        extractProductsFromXml();
     });
 
-  
+    // Automatyczne przeładowanie przy zmianie stanu checkboxa czyszczenia URL
+    document.getElementById("cleanUrlParameters").addEventListener("change", function(){
+        extractProductsFromXml();
+    });
+
+    // Automatyczne przeładowanie przy zmianie stanu checkboxa usuwania duplikatów URL
+    document.getElementById("removeDuplicateUrls").addEventListener("change", function(){
+        extractProductsFromXml();
+    });
+
+    // Automatyczne przeładowanie przy zmianie stanu checkboxa usuwania duplikatów EAN
+    document.getElementById("removeDuplicateEans").addEventListener("change", function(){
+        extractProductsFromXml();
+    });
+
     function getVal(entryNode, fieldName) {
         let info = mappingForField[fieldName];
         if (!info || !info.xpath) return null;
-        
+
         let trimmed = info.xpath;
         let possiblePrefixes = ["/rss/channel/item/", "/feed/entry/"];
         for (let i = 0; i < possiblePrefixes.length; i++) {
@@ -358,7 +497,7 @@
                 break;
             }
         }
-       
+
         if (trimmed.indexOf(':') !== -1) {
             trimmed = trimmed.split(':')[1];
         }
@@ -389,7 +528,6 @@
         .then(d => alert("Zapisano: " + d.message))
         .catch(err => console.error(err));
     });
-
 
     renderMappingTable();
 </script>
