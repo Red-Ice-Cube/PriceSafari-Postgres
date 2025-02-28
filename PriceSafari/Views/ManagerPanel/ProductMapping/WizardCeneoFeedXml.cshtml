@@ -27,7 +27,34 @@
     </button>
 </div>
 
-<!-- Kolejny panel z dropdown i przyciskami -->
+<!-- Nowe elementy filtrów -->
+<div style="margin-bottom:10px; font-weight:bold;">
+    <div id="urlParamsInfo">Liczba URL zawierających parametry: 0</div>
+    <div id="duplicatesInfo">
+        <!-- Informacja o unikatowych URL i kodach EAN pojawi się tutaj -->
+    </div>
+    <div>
+        <label>
+            <input type="checkbox" id="cleanUrlParameters" checked>
+            Usuń parametry URL (wszystko od znaku "?")
+        </label>
+    </div>
+    <div>
+        <label>
+            <input type="checkbox" id="removeDuplicateUrls">
+            Usuń duplikaty URL (zostaw pierwsze wystąpienie)
+        </label>
+    </div>
+    <div>
+        <label>
+            <input type="checkbox" id="removeDuplicateEans">
+            Usuń duplikaty EAN (zostaw pierwsze wystąpienie)
+        </label>
+    </div>
+    <div id="finalNodesInfo">Final nodes po filtrach: 0</div>
+</div>
+
+<!-- Panel wyboru pola mapowania -->
 <div style="margin-bottom: 10px;">
     <label>Wybierz Pole: </label>
     <select id="fieldSelector">
@@ -37,12 +64,8 @@
         <option value="CeneoImage">CeneoImage</option>
         <option value="CeneoExportedName">CeneoExportedName</option>
     </select>
-    <button id="saveMapping" style="margin-left:10px;">
-        Zapisz Mapowanie
-    </button>
-    <button id="reloadMappings" style="margin-left:10px;">
-        Załaduj mapowania
-    </button>
+    <button id="saveMapping" style="margin-left:10px;">Zapisz Mapowanie</button>
+    <button id="reloadMappings" style="margin-left:10px;">Załaduj mapowania</button>
 </div>
 
 <!-- Dwukolumnowy layout -->
@@ -52,12 +75,9 @@
         <h4>Struktura XML</h4>
         <div id="xmlContainer"></div>
     </div>
-
     <!-- PRAWA kolumna: Tabela mapowań + Podgląd JSON -->
     <div style="flex: 1; border:1px solid #ccc; height:900px; overflow:auto; padding:5px;">
         <h4>Mapa Pól i Podgląd</h4>
-
-        <!-- Tabela mapowań -->
         <table id="mappingTable" border="1" cellpadding="5" style="border-collapse: collapse; width:100%;">
             <thead>
                 <tr>
@@ -69,14 +89,10 @@
             </thead>
             <tbody></tbody>
         </table>
-
-        <!-- Podgląd JSON (productMapsPreview) -->
-        <pre id="productMapsPreview"
-             style="border:1px solid #ccc; margin-top:10px; min-height:100px; padding:10px;">
+        <pre id="productMapsPreview" style="border:1px solid #ccc; margin-top:10px; min-height:100px; padding:10px;">
         </pre>
     </div>
 </div>
-
 
 <div id="ceneo-wizard-data"
      data-store-id="@storeId"

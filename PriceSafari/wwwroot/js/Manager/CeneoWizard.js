@@ -1,12 +1,10 @@
 ﻿//////////////////////////////
 // 1. Pobieranie parametrów //
 //////////////////////////////
-
 const ceneoDataEl = document.getElementById("ceneo-wizard-data");
 const storeId = parseInt(ceneoDataEl.getAttribute("data-store-id") || "0", 10);
 let existingMappingsJson = ceneoDataEl.getAttribute("data-existing-mappings") || "[]";
 let existingMappings = [];
-
 try {
     existingMappings = JSON.parse(existingMappingsJson);
 } catch {
@@ -37,7 +35,6 @@ let proxyUrl = `/CeneoImportWizardXml/ProxyXml?storeId=${storeId}`;
 //////////////////////////////
 // 2. Pobieranie XML       //
 //////////////////////////////
-
 fetch(proxyUrl)
     .then(resp => resp.text())
     .then(xmlStr => {
@@ -59,7 +56,6 @@ fetch(proxyUrl)
 //////////////////////////////
 // 3. Budowanie drzewa     //
 //////////////////////////////
-
 function buildXmlTree(node, parentPath) {
     let container = document.getElementById("xmlContainer");
     if (!parentPath && !container.querySelector("ul")) {
@@ -75,26 +71,22 @@ function buildXmlTree(node, parentPath) {
 /**
  * createLi(node, parentPath):
  * - Tworzy <li> z data-xpath (np. "/o/cat")
- * - Jeśli węzeł ma atrybut name="EAN", dopisuje [@name="EAN"]
- * - Jeśli brak dzieci, a jest textContent -> tworzy sub-węzeł "#value"
+ * - Jeśli węzeł ma atrybut name, dopisuje [@name="..."]
+ * - Jeśli brak dzieci, a jest tekst, tworzy sub-węzeł "#value"
  */
 function createLi(node, parentPath) {
     let li = document.createElement("li");
     li.classList.add("xml-node");
-
     let nodeName = node.nodeName;
     let nameAttr = node.getAttribute && node.getAttribute("name");
     if (nameAttr) {
         nodeName += `[@name="${nameAttr}"]`;
     }
-
-    let currentPath = parentPath ? (parentPath + "/" + nodeName) : ("/" + nodeName);
+    let currentPath = parentPath ? parentPath + "/" + nodeName : "/" + nodeName;
     li.setAttribute("data-xpath", currentPath);
-
     let b = document.createElement("b");
     b.innerText = node.nodeName + (nameAttr ? ` (name="${nameAttr}")` : "");
     li.appendChild(b);
-
     // Atrybuty
     if (node.attributes && node.attributes.length > 0) {
         let ulAttrs = document.createElement("ul");
@@ -103,34 +95,27 @@ function createLi(node, parentPath) {
             attrLi.classList.add("xml-node");
             let attrPath = currentPath + `/@${attr.name}`;
             attrLi.setAttribute("data-xpath", attrPath);
-
             let attrLabel = document.createElement("span");
             attrLabel.innerText = attr.value;
             attrLi.appendChild(attrLabel);
-
             ulAttrs.appendChild(attrLi);
         });
         li.appendChild(ulAttrs);
     }
-
-    // Jeżeli brak dzieci, ale jest tekst => #value
+    // Jeśli brak dzieci, ale jest tekst => #value
     let textVal = node.textContent.trim();
     if (node.children.length === 0 && textVal) {
         let ulVal = document.createElement("ul");
         let liVal = document.createElement("li");
         liVal.classList.add("xml-node");
-
         let valPath = currentPath + "/#value";
         liVal.setAttribute("data-xpath", valPath);
-
         let spanVal = document.createElement("span");
         spanVal.innerText = textVal;
         liVal.appendChild(spanVal);
-
         ulVal.appendChild(liVal);
         li.appendChild(ulVal);
     }
-
     if (node.children.length > 0) {
         let ul = document.createElement("ul");
         Array.from(node.children).forEach(child => {
@@ -138,28 +123,22 @@ function createLi(node, parentPath) {
         });
         li.appendChild(ul);
     }
-
     return li;
 }
 
 //////////////////////////////
 // 4. Klikanie w drzewie   //
 //////////////////////////////
-
 document.addEventListener("click", e => {
     let el = e.target.closest(".xml-node");
     if (!el) return;
-
     let selectedField = document.getElementById("fieldSelector").value;
     let xPath = el.getAttribute("data-xpath");
-
     // Usunięcie poprzednich highlightów
     document.querySelectorAll(`.highlight-${selectedField}`)
         .forEach(x => x.classList.remove(`highlight-${selectedField}`));
-
     let sameNodes = queryNodesByXPath(xPath);
     sameNodes.forEach(n => n.classList.add(`highlight-${selectedField}`));
-
     let count = sameNodes.length;
     let firstVal = "";
     if (count > 0) {
@@ -175,12 +154,10 @@ document.addEventListener("click", e => {
 //////////////////////////////
 // 5. querySelector z escapowaniem
 //////////////////////////////
-
 function queryNodesByXPath(xPathValue) {
     let esc = escapeForSelector(xPathValue);
     return document.querySelectorAll(`.xml-node[data-xpath="${esc}"]`);
 }
-
 function escapeForSelector(val) {
     return val.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
 }
@@ -188,12 +165,10 @@ function escapeForSelector(val) {
 //////////////////////////////
 // 6. Kolorowanie wg mapowań
 //////////////////////////////
-
 function applyExistingMappings() {
     for (let fieldName in mappingForField) {
         let info = mappingForField[fieldName];
         if (!info || !info.xpath) continue;
-
         let sameNodes = queryNodesByXPath(info.xpath);
         let count = sameNodes.length;
         let firstVal = "";
@@ -209,7 +184,6 @@ function applyExistingMappings() {
     }
     renderMappingTable();
 }
-
 function clearAllHighlights() {
     Object.keys(mappingForField).forEach(field => {
         document.querySelectorAll(`.highlight-${field}`)
@@ -220,7 +194,6 @@ function clearAllHighlights() {
 //////////////////////////////
 // 7. Render tabeli mapowań
 //////////////////////////////
-
 function renderMappingTable() {
     let tbody = document.getElementById("mappingTable").querySelector("tbody");
     tbody.innerHTML = "";
@@ -231,11 +204,11 @@ function renderMappingTable() {
             tr.innerHTML = `<td>${fieldName}</td><td>-</td><td>0</td><td>-</td>`;
         } else {
             tr.innerHTML = `
-                <td>${fieldName}</td>
-                <td>${info.xpath || "-"}</td>
-                <td>${info.nodeCount || 0}</td>
-                <td>${info.firstValue || "-"}</td>
-            `;
+                    <td>${fieldName}</td>
+                    <td>${info.xpath || "-"}</td>
+                    <td>${info.nodeCount || 0}</td>
+                    <td>${info.firstValue || "-"}</td>
+                `;
         }
         tbody.appendChild(tr);
     }
@@ -244,7 +217,6 @@ function renderMappingTable() {
 //////////////////////////////
 // 8. Zapis mapowania
 //////////////////////////////
-
 document.getElementById("saveMapping").addEventListener("click", () => {
     let finalMappings = [];
     for (let fieldName in mappingForField) {
@@ -262,7 +234,6 @@ document.getElementById("saveMapping").addEventListener("click", () => {
         .then(d => alert(d.message))
         .catch(err => console.error(err));
 });
-
 document.getElementById("reloadMappings").addEventListener("click", () => {
     fetch(`/CeneoImportWizardXml/GetCeneoMappings?storeId=${storeId}`)
         .then(r => r.json())
@@ -271,9 +242,7 @@ document.getElementById("reloadMappings").addEventListener("click", () => {
             Object.keys(mappingForField).forEach(f => mappingForField[f] = null);
             data.forEach(m => {
                 if (m.fieldName) {
-                    mappingForField[m.fieldName] = {
-                        xpath: m.localName, nodeCount: 0, firstValue: ""
-                    };
+                    mappingForField[m.fieldName] = { xpath: m.localName, nodeCount: 0, firstValue: "" };
                 }
             });
             applyExistingMappings();
@@ -284,23 +253,16 @@ document.getElementById("reloadMappings").addEventListener("click", () => {
 //////////////////////////////
 // 9. Wyciąganie produktów  //
 //////////////////////////////
-
 document.getElementById("extractProducts").addEventListener("click", () => {
     if (!xmlDoc) {
-        console.log("extractProducts: xmlDoc is null/undefined");
         alert("Brak XML do parsowania");
         return;
     }
-
+    // Dla Ceneo startujemy od węzłów <o>
     let entries = xmlDoc.getElementsByTagName("o");
-    console.log("extractProducts: found <o> nodes =", entries.length);
-
     let productMaps = [];
     for (let i = 0; i < entries.length; i++) {
         let en = entries[i];
-        console.log(`Entry #${i}, <o> with id=`, en.getAttribute("id"));
-
-        // Mapa dla jednego <o>
         let pm = {
             StoreId: storeId.toString(),
             ExternalId: getVal(en, "ExternalId"),
@@ -309,68 +271,96 @@ document.getElementById("extractProducts").addEventListener("click", () => {
             CeneoImage: getVal(en, "CeneoImage"),
             CeneoExportedName: getVal(en, "CeneoExportedName")
         };
-
-        console.log(`   Mapped data for entry #${i}:`, pm);
-
-        // Przykładowo odfiltrowujemy te, które nie mają EAN
+        // Pomijamy, jeśli brak EAN
         if (!pm.CeneoEan || !pm.CeneoEan.trim()) {
-            console.log(`   Skipping entry #${i}, EAN is empty ->`, pm.CeneoEan);
             continue;
         }
         productMaps.push(pm);
     }
+    // Wyświetlamy surowy JSON przed filtrami
+    document.getElementById("productMapsPreview").textContent = JSON.stringify(productMaps, null, 2);
 
-    console.log("productMaps(front):", productMaps);
-    document.getElementById("productMapsPreview").textContent =
-        JSON.stringify(productMaps, null, 2);
+    //////////////////////////////
+    // Filtrowanie i deduplikacja
+    //////////////////////////////
+    // Czyszczenie parametrów URL
+    let removeParams = document.getElementById("cleanUrlParameters").checked;
+    let countUrlsWithParams = 0;
+    productMaps.forEach(pm => {
+        if (pm.Url) {
+            let qIdx = pm.Url.indexOf('?');
+            if (qIdx !== -1) {
+                countUrlsWithParams++;
+                if (removeParams) {
+                    pm.Url = pm.Url.substring(0, qIdx);
+                }
+            }
+        }
+    });
+    document.getElementById("urlParamsInfo").textContent = "Liczba URL zawierających parametry: " + countUrlsWithParams;
+
+    // Dedupikacja URL (jeśli zaznaczono)
+    if (document.getElementById("removeDuplicateUrls").checked) {
+        let seen = {};
+        productMaps = productMaps.filter(pm => {
+            if (pm.Url) {
+                if (seen[pm.Url]) {
+                    return false;
+                } else {
+                    seen[pm.Url] = true;
+                    return true;
+                }
+            }
+            return true;
+        });
+    }
+    // Dedupikacja EAN (jeśli zaznaczono)
+    if (document.getElementById("removeDuplicateEans").checked) {
+        let seenEan = {};
+        productMaps = productMaps.filter(pm => {
+            if (pm.CeneoEan) {
+                if (seenEan[pm.CeneoEan]) {
+                    return false;
+                } else {
+                    seenEan[pm.CeneoEan] = true;
+                    return true;
+                }
+            }
+            return true;
+        });
+    }
+    // Aktualizacja licznika finalnych węzłów
+    document.getElementById("finalNodesInfo").textContent = "Final nodes po filtrach: " + productMaps.length;
+    // Aktualizacja podglądu JSON
+    document.getElementById("productMapsPreview").textContent = JSON.stringify(productMaps, null, 2);
+    // Sprawdzenie duplikatów (na finalnej liście)
+    checkDuplicates(productMaps);
 });
 
 //////////////////////////////
-//10. getVal (obsługa #value)
+// 10. getVal (obsługa #value)
 //////////////////////////////
-
 function getVal(entryNode, fieldName) {
     let info = mappingForField[fieldName];
-    if (!info || !info.xpath) {
-        console.log(`getVal: No mapping info for field=${fieldName}`);
-        return null;
-    }
-
+    if (!info || !info.xpath) return null;
     let path = info.xpath;
-    console.log(`getVal: field=${fieldName}, path=${path}`);
-
-    // Nowy fragment: usuwamy prefiksy "/offers" lub "/offers/o" 
-    // bo w extractProducts i tak startujemy od <o> 
+    // Usuwamy prefiksy "/offers" lub "/offers/o" – dla Ceneo startujemy od <o>
     if (path.startsWith("/offers/o")) {
         path = path.replace("/offers/o", "");
     } else if (path.startsWith("/offers")) {
         path = path.replace("/offers", "");
     }
-
-    // Jeśli ścieżka została pusta -> np. "/offers/o/@id" -> "/@id"
-    // Upewniamy się, że zaczyna się od "/"
     if (!path.startsWith("/")) {
         path = "/" + path;
     }
-
-    console.log(`getVal: after prefix removal => ${path}`);
-
     let segments = path.split("/").filter(Boolean);
     let currentNode = entryNode;
-
     for (let seg of segments) {
-        console.log(`  Segment="${seg}", currentNode=<${currentNode.localName} id=${currentNode.getAttribute("id")}>`);
-
         if (seg === "#value") {
-            let val = currentNode.textContent.trim();
-            console.log("  #value =>", val);
-            return val;
+            return currentNode.textContent.trim();
         }
         if (seg.startsWith("@")) {
-            let attrName = seg.slice(1);
-            let attrVal = currentNode.getAttribute(attrName);
-            console.log(`  @attribute => ${attrName} =`, attrVal);
-            return attrVal;
+            return currentNode.getAttribute(seg.slice(1));
         }
         let bracketPos = seg.indexOf('[@name="');
         if (bracketPos !== -1) {
@@ -378,40 +368,25 @@ function getVal(entryNode, fieldName) {
             let inside = seg.substring(bracketPos + 8);
             let endBracket = inside.indexOf('"]');
             let desiredName = inside.substring(0, endBracket);
-
-            console.log(`  Searching child <${baseName} name="${desiredName}"> among ${currentNode.children.length} children`);
-
             let child = Array.from(currentNode.children).find(ch =>
                 ch.localName === baseName && ch.getAttribute("name") === desiredName
             );
-            if (!child) {
-                console.log("    Not found => returning null");
-                return null;
-            }
+            if (!child) return null;
             currentNode = child;
         } else {
-            // zwykły segment, np. "attrs" czy "imgs"
-            console.log(`  Searching child <${seg}> among ${currentNode.children.length} children`);
             let child = Array.from(currentNode.children).find(ch =>
                 ch.localName === seg
             );
-            if (!child) {
-                console.log(`    Not found <${seg}> => returning null`);
-                return null;
-            }
+            if (!child) return null;
             currentNode = child;
         }
     }
-
-    let finalVal = currentNode.textContent.trim();
-    console.log("  end of path => textContent=", finalVal);
-    return finalVal;
+    return currentNode.textContent.trim();
 }
 
 //////////////////////////////
-//11. Zapis do bazy
+// 11. Zapis do bazy
 //////////////////////////////
-
 document.getElementById("saveProductMapsInDb").addEventListener("click", () => {
     let txt = document.getElementById("productMapsPreview").textContent.trim();
     if (!txt) {
@@ -435,5 +410,57 @@ document.getElementById("saveProductMapsInDb").addEventListener("click", () => {
         .catch(err => console.error(err));
 });
 
-// Na start: renderuj tabelę
+//////////////////////////////
+// 12. Funkcja sprawdzająca duplikaty
+//////////////////////////////
+function checkDuplicates(productMaps) {
+    let urlCounts = {};
+    let eanCounts = {};
+    productMaps.forEach(pm => {
+        if (pm.Url) {
+            urlCounts[pm.Url] = (urlCounts[pm.Url] || 0) + 1;
+        }
+        if (pm.CeneoEan) {
+            eanCounts[pm.CeneoEan] = (eanCounts[pm.CeneoEan] || 0) + 1;
+        }
+    });
+    let totalUniqueUrls = Object.keys(urlCounts).length;
+    let duplicateUrls = 0;
+    for (let key in urlCounts) {
+        if (urlCounts[key] > 1) {
+            duplicateUrls++;
+        }
+    }
+    let totalUniqueEans = Object.keys(eanCounts).length;
+    let duplicateEans = 0;
+    for (let key in eanCounts) {
+        if (eanCounts[key] > 1) {
+            duplicateEans++;
+        }
+    }
+    let urlMessage = `Unikalnych URL: ${totalUniqueUrls} `;
+    urlMessage += duplicateUrls > 0
+        ? `<span style="color:red;">(Duplikatów: ${duplicateUrls})</span>`
+        : `(Brak duplikatów)`;
+    let eanMessage = `Unikalnych kodów EAN: ${totalUniqueEans} `;
+    eanMessage += duplicateEans > 0
+        ? `<span style="color:red;">(Duplikatów: ${duplicateEans})</span>`
+        : `(Brak duplikatów)`;
+    document.getElementById("duplicatesInfo").innerHTML = urlMessage + "<br>" + eanMessage;
+}
+
+//////////////////////////////
+// 13. Obsługa zmian filtrów
+//////////////////////////////
+document.getElementById("cleanUrlParameters").addEventListener("change", () => {
+    document.getElementById("extractProducts").click();
+});
+document.getElementById("removeDuplicateUrls").addEventListener("change", () => {
+    document.getElementById("extractProducts").click();
+});
+document.getElementById("removeDuplicateEans").addEventListener("change", () => {
+    document.getElementById("extractProducts").click();
+});
+
+// Na starcie: renderuj tabelę mapowań
 renderMappingTable();
