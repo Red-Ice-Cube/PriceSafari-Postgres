@@ -16,6 +16,92 @@ public class GoogleScraperController : Controller
         _context = context;
     }
 
+    //[HttpPost]
+    //public async Task<IActionResult> StartScrapingForProducts(int storeId)
+    //{
+    //    var store = await _context.Stores.FindAsync(storeId);
+    //    if (store == null)
+    //    {
+    //        return NotFound();
+    //    }
+
+    //    var googleMiG = store.GoogleMiG;
+    //    if (string.IsNullOrEmpty(googleMiG))
+    //    {
+    //        return BadRequest("GoogleMiG is not set for this store.");
+    //    }
+
+    //    var scraper = new GoogleScraper();
+    //    await scraper.InitializeBrowserAsync();
+
+    //    // Pobierz wszystkie produkty z tego sklepu, które są OnGoogle i mają niepusty URL
+    //    var allProducts = await _context.Products
+    //        .Where(p => p.StoreId == storeId && p.OnGoogle && !string.IsNullOrEmpty(p.Url))
+    //        .ToListAsync();
+
+    //    if (!allProducts.Any())
+    //    {
+    //        Console.WriteLine("No products to process.");
+    //        await scraper.CloseBrowserAsync();
+    //        return Content("No products to process.");
+    //    }
+
+    //    // Słownik do szybkiego dostępu do produktów po URL
+    //    var productDict = allProducts.ToDictionary(p => p.Url, p => p);
+
+    //    // Lista wszystkich URL-i produktów do porównania
+    //    var allProductUrls = productDict.Keys.ToList();
+
+    //    // Lista produktów do przetworzenia (tylko te, które mają FoundOnGoogle == null)
+    //    var productsToProcess = allProducts.Where(p => p.FoundOnGoogle == null).ToList();
+
+    //    foreach (var product in productsToProcess)
+    //    {
+    //        try
+    //        {
+    //            await scraper.InitializeAndSearchAsync(product.ProductNameInStoreForGoogle, googleMiG);
+
+    //            var matchedUrls = await scraper.SearchForMatchingProductUrlsAsync(allProductUrls);
+
+    //            // Aktualizuj produkty na podstawie dopasowanych URL-i
+    //            foreach (var (matchedStoreUrl, googleProductUrl) in matchedUrls)
+    //            {
+    //                if (productDict.TryGetValue(matchedStoreUrl, out var matchedProduct))
+    //                {
+    //                    // Aktualizuj produkt niezależnie od jego poprzedniego statusu FoundOnGoogle
+    //                    matchedProduct.GoogleUrl = googleProductUrl;
+    //                    matchedProduct.FoundOnGoogle = true;
+    //                    Console.WriteLine($"Updated product: {matchedProduct.ProductName}, GoogleUrl: {matchedProduct.GoogleUrl}");
+
+    //                    _context.Products.Update(matchedProduct);
+    //                    await _context.SaveChangesAsync();
+    //                }
+    //            }
+
+    //            // Jeśli bieżący produkt nie został znaleziony w tym wyszukiwaniu
+    //            if (!matchedUrls.Any(m => m.storeUrl == product.Url))
+    //            {
+    //                product.FoundOnGoogle = false;
+    //                Console.WriteLine($"Product not found on Google: {product.ProductName}");
+    //                _context.Products.Update(product);
+    //                await _context.SaveChangesAsync();
+    //            }
+    //        }
+    //        catch (Exception ex)
+    //        {
+    //            Console.WriteLine($"Error processing product: {ex.Message}");
+    //        }
+    //    }
+
+    //    await scraper.CloseBrowserAsync();
+    //    return Content("Scraping completed.");
+    //}
+
+
+
+
+    //Nowa metoda losujaca randomowy next product
+
     [HttpPost]
     public async Task<IActionResult> StartScrapingForProducts(int storeId)
     {
@@ -34,41 +120,50 @@ public class GoogleScraperController : Controller
         var scraper = new GoogleScraper();
         await scraper.InitializeBrowserAsync();
 
-        // Pobierz wszystkie produkty z tego sklepu, które są OnGoogle i mają niepusty URL
-        var allProducts = await _context.Products
-            .Where(p => p.StoreId == storeId && p.OnGoogle && !string.IsNullOrEmpty(p.Url))
-            .ToListAsync();
-
-        if (!allProducts.Any())
+        // Pętla, która będzie działać, dopóki są produkty do przetworzenia
+        while (true)
         {
-            Console.WriteLine("No products to process.");
-            await scraper.CloseBrowserAsync();
-            return Content("No products to process.");
-        }
+            // Pobierz produkty, które są OnGoogle, mają niepusty URL i jeszcze nie były przetworzone (FoundOnGoogle == null)
+            var productsToProcess = await _context.Products
+                .Where(p => p.StoreId == storeId
+                         && p.OnGoogle
+                         && !string.IsNullOrEmpty(p.Url)
+                         && p.FoundOnGoogle == null)
+                .ToListAsync();
 
-        // Słownik do szybkiego dostępu do produktów po URL
-        var productDict = allProducts.ToDictionary(p => p.Url, p => p);
+            if (!productsToProcess.Any())
+            {
+                Console.WriteLine("No products left to process.");
+                break; // Kończymy pętlę, gdy nie ma już produktów do przetworzenia
+            }
 
-        // Lista wszystkich URL-i produktów do porównania
-        var allProductUrls = productDict.Keys.ToList();
+            // Wybieramy losowy produkt z aktualnej listy do przetwarzania
+            Random random = new Random();
+            var productToProcess = productsToProcess[random.Next(productsToProcess.Count)];
 
-        // Lista produktów do przetworzenia (tylko te, które mają FoundOnGoogle == null)
-        var productsToProcess = allProducts.Where(p => p.FoundOnGoogle == null).ToList();
+            // Pobieramy pełną listę produktów (wszystkich URL-i) dla porównania
+            var allProducts = await _context.Products
+                .Where(p => p.StoreId == storeId && p.OnGoogle && !string.IsNullOrEmpty(p.Url))
+                .ToListAsync();
 
-        foreach (var product in productsToProcess)
-        {
+            // Tworzymy słownik dla szybkiego dostępu po URL
+            var productDict = allProducts.ToDictionary(p => p.Url, p => p);
+            var allProductUrls = productDict.Keys.ToList();
+
             try
             {
-                await scraper.InitializeAndSearchAsync(product.ProductNameInStoreForGoogle, googleMiG);
+                // Wyszukujemy produkt na Google używając nazwy produktu
+                await scraper.InitializeAndSearchAsync(productToProcess.ProductNameInStoreForGoogle, googleMiG);
 
+                // Pobieramy listę dopasowanych URL-i
                 var matchedUrls = await scraper.SearchForMatchingProductUrlsAsync(allProductUrls);
 
-                // Aktualizuj produkty na podstawie dopasowanych URL-i
+                // Aktualizujemy produkty, które zostały znalezione
                 foreach (var (matchedStoreUrl, googleProductUrl) in matchedUrls)
                 {
                     if (productDict.TryGetValue(matchedStoreUrl, out var matchedProduct))
                     {
-                        // Aktualizuj produkt niezależnie od jego poprzedniego statusu FoundOnGoogle
+                        // Bez względu na poprzedni status, ustawiamy FoundOnGoogle na true i zapisujemy URL
                         matchedProduct.GoogleUrl = googleProductUrl;
                         matchedProduct.FoundOnGoogle = true;
                         Console.WriteLine($"Updated product: {matchedProduct.ProductName}, GoogleUrl: {matchedProduct.GoogleUrl}");
@@ -78,12 +173,12 @@ public class GoogleScraperController : Controller
                     }
                 }
 
-                // Jeśli bieżący produkt nie został znaleziony w tym wyszukiwaniu
-                if (!matchedUrls.Any(m => m.storeUrl == product.Url))
+                // Jeśli przetwarzany produkt nie został znaleziony, ustawiamy jego status na false
+                if (!matchedUrls.Any(m => m.storeUrl == productToProcess.Url))
                 {
-                    product.FoundOnGoogle = false;
-                    Console.WriteLine($"Product not found on Google: {product.ProductName}");
-                    _context.Products.Update(product);
+                    productToProcess.FoundOnGoogle = false;
+                    Console.WriteLine($"Product not found on Google: {productToProcess.ProductName}");
+                    _context.Products.Update(productToProcess);
                     await _context.SaveChangesAsync();
                 }
             }
@@ -94,8 +189,9 @@ public class GoogleScraperController : Controller
         }
 
         await scraper.CloseBrowserAsync();
-        return Content("Scraping completed.");
+        return Content("Scraping completed for all products.");
     }
+
 
 
 
