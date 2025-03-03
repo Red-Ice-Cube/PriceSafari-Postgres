@@ -269,6 +269,7 @@ namespace PriceSafari.Controllers.MemberControllers
                      !string.IsNullOrEmpty(competitorStore) &&
                      p.StoreName != null &&
                      p.StoreName.ToLower() == competitorStore.ToLower());
+                 ;
 
                  if (!string.IsNullOrEmpty(competitorStore) && (myPriceEntry == null || competitorPriceEntry == null))
                  {
