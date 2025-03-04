@@ -178,7 +178,6 @@ namespace PriceSafari.Controllers.ManagerControllers
 
 
 
-
         [HttpPost]
         public async Task<IActionResult> SaveProductMapsFromFront([FromBody] List<ProductMapDto> productMaps)
         {
@@ -196,12 +195,13 @@ namespace PriceSafari.Controllers.ManagerControllers
 
             foreach (var pmDto in productMaps)
             {
-                // Przekształcamy ExternalId – pozostawiamy tylko cyfry
+                // Możesz wyczyścić ExternalId z niedozwolonych znaków
                 if (!string.IsNullOrEmpty(pmDto.ExternalId))
                 {
                     pmDto.ExternalId = new string(pmDto.ExternalId.Where(c => char.IsDigit(c)).ToArray());
                 }
 
+                // Szukamy w already-existing mapach
                 var found = existing.FirstOrDefault(x =>
                     (x.ExternalId == pmDto.ExternalId && !string.IsNullOrEmpty(pmDto.ExternalId))
                     || (x.Url == pmDto.Url && !string.IsNullOrEmpty(pmDto.Url))
@@ -209,6 +209,7 @@ namespace PriceSafari.Controllers.ManagerControllers
 
                 if (found == null)
                 {
+                    // Tworzymy nowy ProductMap
                     var newMap = new ProductMap
                     {
                         StoreId = pmDto.StoreId,
@@ -216,19 +217,29 @@ namespace PriceSafari.Controllers.ManagerControllers
                         Url = pmDto.Url,
                         GoogleEan = pmDto.GoogleEan,
                         GoogleImage = pmDto.GoogleImage,
-                        GoogleExportedName = pmDto.GoogleExportedName
+                        GoogleExportedName = pmDto.GoogleExportedName,
+
+                        // NOWE:
+                        GoogleXMLPrice = pmDto.GoogleXMLPrice,
+                        GoogleDeliveryXMLPrice = pmDto.GoogleDeliveryXMLPrice
                     };
+
                     _context.ProductMaps.Add(newMap);
                     existing.Add(newMap);
                     added++;
                 }
                 else
                 {
+                    // Uaktualniamy istniejący
                     found.ExternalId = pmDto.ExternalId;
                     found.Url = pmDto.Url;
                     found.GoogleEan = pmDto.GoogleEan;
                     found.GoogleImage = pmDto.GoogleImage;
                     found.GoogleExportedName = pmDto.GoogleExportedName;
+
+                    // NOWE:
+                    found.GoogleXMLPrice = pmDto.GoogleXMLPrice;
+                    found.GoogleDeliveryXMLPrice = pmDto.GoogleDeliveryXMLPrice;
 
                     _context.ProductMaps.Update(found);
                     updated++;
@@ -240,6 +251,7 @@ namespace PriceSafari.Controllers.ManagerControllers
         }
 
 
+
         public class ProductMapDto
         {
             public int StoreId { get; set; }
@@ -248,6 +260,9 @@ namespace PriceSafari.Controllers.ManagerControllers
             public string GoogleEan { get; set; }
             public string GoogleImage { get; set; }
             public string GoogleExportedName { get; set; }
+
+            public decimal? GoogleXMLPrice { get; set; }
+            public decimal? GoogleDeliveryXMLPrice { get; set; }
         }
 
 
