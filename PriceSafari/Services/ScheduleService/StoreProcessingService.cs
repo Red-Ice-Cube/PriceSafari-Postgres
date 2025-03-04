@@ -235,6 +235,7 @@
 //    }
 //}
 
+
 using Microsoft.EntityFrameworkCore;
 using PriceSafari.Data;
 using PriceSafari.Models;
@@ -304,8 +305,8 @@ public class StoreProcessingService
         var priceHistories = new ConcurrentBag<PriceHistoryClass>();
         var updatedProducts = new ConcurrentBag<ProductClass>();
 
-        // NOWE: pamiętamy, dla których produktów użyliśmy fallbacku:
-        var fallbackUsedList = new ConcurrentBag<(string ProductName, decimal Price, decimal? ShippingCost)>();
+        // Pamiętamy, dla których produktów użyliśmy fallbacku:
+        var fallbackUsedList = new ConcurrentBag<(string ProductName, decimal Price, decimal? ShippingTotal)>();
 
         // 4) Równoległa pętla - przetwarzamy każdy produkt
         await Task.Run(() => Parallel.ForEach(products, product =>
@@ -324,7 +325,7 @@ public class StoreProcessingService
                 .Where(ph => ph.CoOfrClassId == coOfrId)
                 .ToList();
 
-            // Flaga -> czy znaleźliśmy jakąś ofertę należącą do naszego sklepu
+            // Flaga -> czy nasz sklep ma już cenę w Google/Ceneo
             bool hasStorePrice = false;
 
             // Czy produkt występuje w Ceneo i/lub Google
@@ -336,15 +337,13 @@ public class StoreProcessingService
             // --------------------------
             foreach (var coOfrPrice in coOfrPriceHistory)
             {
-                // Sprawdzamy oferty, jeśli nasz produkt jest w ceneo
                 if (inCeneoList && coOfrPrice.StoreName != null)
                 {
                     var priceValue = coOfrPrice.Price ?? 0;
-                    if (priceValue == 0) continue; // Pomijamy ofertę z ceną 0
+                    if (priceValue == 0) continue;
 
                     bool isOurStoreCeneo = storeNameVariants.Contains(coOfrPrice.StoreName.ToLower());
 
-                    // Tworzymy PriceHistory
                     var priceHistoryCeneo = new PriceHistoryClass
                     {
                         ProductId = product.ProductId,
@@ -380,65 +379,82 @@ public class StoreProcessingService
             // --------------------------
             // B) Sprawdzamy GOOGLE
             // --------------------------
-            bool foundGoogleScraperPrice = false;
+            int maxGooglePosition = 0;
+            bool foundOurStoreGoogle = false;
+
             foreach (var coOfrPrice in coOfrPriceHistory)
             {
                 if (inGoogleList && coOfrPrice.GoogleStoreName != null)
                 {
                     var googlePrice = coOfrPrice.GooglePrice ?? 0;
-                    if (googlePrice == 0) continue; // Pomijamy cenę 0
+                    if (googlePrice == 0) continue;
 
-                    // Interpretujemy GooglePriceWithDelivery:
-                    // np. jeśli GooglePrice == GooglePriceWithDelivery -> shipping = 0
-                    decimal? shippingCostNum = coOfrPrice.GooglePriceWithDelivery;
+                    decimal? shippingCostNum = null;
                     if (coOfrPrice.GooglePrice.HasValue && coOfrPrice.GooglePriceWithDelivery.HasValue)
                     {
+                        // Jeżeli GooglePrice == GooglePriceWithDelivery => shipping = 0
+                        // W przeciwnym wypadku shipping = googlePriceWithDelivery
+                        // (lub cokolwiek innego, zależnie od interpretacji)
                         shippingCostNum = coOfrPrice.GooglePrice.Value == coOfrPrice.GooglePriceWithDelivery.Value
                             ? 0
                             : coOfrPrice.GooglePriceWithDelivery;
                     }
-                    else
-                    {
-                        shippingCostNum = null;
-                    }
 
                     bool isOurStoreGoogle = storeNameVariants.Contains(coOfrPrice.GoogleStoreName.ToLower());
 
-                    // Tworzymy PriceHistory
+                    // Odczytujemy pozycję (GooglePosition)
+                    int? googlePos = int.TryParse(coOfrPrice.GooglePosition, out var gp) ? gp : (int?)null;
+                    if (googlePos.HasValue && googlePos.Value > maxGooglePosition)
+                    {
+                        maxGooglePosition = googlePos.Value;
+                    }
+
                     var priceHistoryGoogle = new PriceHistoryClass
                     {
                         ProductId = product.ProductId,
                         StoreName = isOurStoreGoogle ? canonicalStoreName : coOfrPrice.GoogleStoreName,
                         Price = googlePrice,
-                        Position = int.TryParse(coOfrPrice.GooglePosition, out var googlePosition)
-                                   ? googlePosition : (int?)null,
+                        Position = googlePos,
                         IsBidding = "Google",
                         ShippingCostNum = shippingCostNum,
                         ScrapHistory = scrapHistory,
-                        IsGoogle = true
+                        IsGoogle = true  // bo to cena z GoogleScrapera
                     };
                     priceHistories.Add(priceHistoryGoogle);
 
-                    foundGoogleScraperPrice = true;
                     if (isOurStoreGoogle)
                     {
+                        foundOurStoreGoogle = true;
                         hasStorePrice = true;
                     }
                 }
             }
 
             // --------------------------------------------------------
-            // C) FALLBACK do GoogleXMLPrice - jeśli włączone w Store
+            // C) FALLBACK do GoogleXMLPrice
             // --------------------------------------------------------
-            if (store.UseGoogleXMLFeedPrice
-                && inGoogleList
-                && !foundGoogleScraperPrice)
+            if (store.UseGoogleXMLFeedPrice && inGoogleList && !foundOurStoreGoogle)
             {
                 // Jeżeli produkt ma wypełnioną GoogleXMLPrice > 0
                 if (product.GoogleXMLPrice.HasValue && product.GoogleXMLPrice.Value > 0)
                 {
                     decimal fallbackPrice = product.GoogleXMLPrice.Value;
-                    decimal? shippingCost = product.GoogleDeliveryXMLPrice;
+                    decimal? shippingTotal = null;
+
+                    // Tworzymy łączną cenę = cena + dostawa
+                    // np. 500 + 20 = 520
+                    if (product.GoogleDeliveryXMLPrice.HasValue)
+                    {
+                        shippingTotal = fallbackPrice + product.GoogleDeliveryXMLPrice.Value;
+                    }
+                    else
+                    {
+                        // Może być 0, jeśli brak dostawy
+                        shippingTotal = fallbackPrice;
+                    }
+
+                    // Pozycja = maxGooglePosition + 1
+                    int fallbackPosition = maxGooglePosition + 1;
 
                     // Tworzymy PriceHistoryClass z feedu XML
                     var priceHistoryFromFeed = new PriceHistoryClass
@@ -446,22 +462,22 @@ public class StoreProcessingService
                         ProductId = product.ProductId,
                         StoreName = canonicalStoreName,  // Bo to nasz sklep
                         Price = fallbackPrice,
-                        Position = null,
-                        IsBidding = "GoogleFeed", // Dla odróżnienia od scrapera
-                        ShippingCostNum = shippingCost,
+                        Position = fallbackPosition,
+                        IsBidding = "GoogleFeed",
+                        // ShippingCostNum => w tym podejściu to łączny koszt
+                        ShippingCostNum = shippingTotal,
                         ScrapHistory = scrapHistory,
-                        IsGoogle = true
+                        IsGoogle = true // bo to też "google" (z feedu)
                     };
                     priceHistories.Add(priceHistoryFromFeed);
 
-                    // Dodajemy do listy fallbackUsedList, by zalogować później
+                    // Log do fallbackUsedList
                     fallbackUsedList.Add((
                         ProductName: product.ProductName ?? "(Brak nazwy)",
                         Price: fallbackPrice,
-                        ShippingCost: shippingCost
+                        ShippingTotal: shippingTotal
                     ));
 
-                    // Dzięki temu uznajemy, że mamy "store price"
                     hasStorePrice = true;
                 }
             }
@@ -513,7 +529,7 @@ public class StoreProcessingService
             {
                 Console.WriteLine($" - \"{fallbackItem.ProductName}\" " +
                                   $"Price={fallbackItem.Price}, " +
-                                  $"Shipping={(fallbackItem.ShippingCost.HasValue ? fallbackItem.ShippingCost.Value.ToString() : "null")}");
+                                  $"ShippingTotal={(fallbackItem.ShippingTotal.HasValue ? fallbackItem.ShippingTotal.Value.ToString() : "null")}");
             }
             Console.WriteLine();
         }
@@ -546,5 +562,3 @@ public class StoreProcessingService
         }
     }
 }
-
-
