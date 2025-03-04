@@ -75,6 +75,8 @@
         <option value="GoogleEan">GoogleEan</option>
         <option value="GoogleImage">GoogleImage</option>
         <option value="GoogleExportedName">GoogleExportedName</option>
+        <option value="GoogleXMLPrice">GoogleXMLPrice</option>
+        <option value="GoogleDeliveryXMLPrice">GoogleDeliveryXMLPrice</option>
     </select>
     <button id="saveMapping" style="margin-left:10px;">
         Zapisz Mapowanie
@@ -129,16 +131,19 @@
 
     console.log("Mapowania z bazy (Razor):", existingMappings);
 
+    // Pola, w tym nowe ceny
     let mappingForField = {
         "ExternalId": null,
         "Url": null,
         "GoogleEan": null,
         "GoogleImage": null,
-        "GoogleExportedName": null
+        "GoogleExportedName": null,
+        "GoogleXMLPrice": null,
+        "GoogleDeliveryXMLPrice": null
     };
 
     existingMappings.forEach(m => {
-        if(m.fieldName){
+        if (m.fieldName) {
             mappingForField[m.fieldName] = {
                 xpath: m.localName,
                 nodeCount: 0,
@@ -150,6 +155,9 @@
     let xmlDoc = null;
     let proxyUrl = `/GoogleImportWizardXml/ProxyXml?storeId=${storeId}`;
 
+    // ==================================
+    // 1. Pobieranie XML przez fetch
+    // ==================================
     fetch(proxyUrl)
       .then(resp => resp.text())
       .then(xmlStr => {
@@ -168,6 +176,9 @@
               "Błąd pobierania XML:\n" + err;
       });
 
+    // ==================================
+    // 2. Funkcje do budowy drzewa XML
+    // ==================================
     function buildXmlTree(node, parentPath) {
         let container = document.getElementById("xmlContainer");
         if (!parentPath && container.querySelector("ul") === null) {
@@ -208,6 +219,9 @@
         return li;
     }
 
+    // ==================================
+    // 3. Klik w węzeł = przypisanie Xpath
+    // ==================================
     document.addEventListener("click", function(e){
         let el = e.target.closest(".xml-node");
         if (!el) return;
@@ -237,6 +251,9 @@
         renderMappingTable();
     });
 
+    // ==================================
+    // 4. Przywracanie mapowań z bazy
+    // ==================================
     function applyExistingMappings() {
         for (let fieldName in mappingForField) {
             let info = mappingForField[fieldName];
@@ -264,6 +281,9 @@
         });
     }
 
+    // ==================================
+    // 5. Render mapowań w tabelce
+    // ==================================
     function renderMappingTable() {
         let tbody = document.getElementById("mappingTable").querySelector("tbody");
         tbody.innerHTML = "";
@@ -290,6 +310,9 @@
         }
     }
 
+    // ==================================
+    // 6. Zapis mapowań w bazie
+    // ==================================
     document.getElementById("saveMapping").addEventListener("click", function(){
         let finalMappings = [];
         for (let fieldName in mappingForField) {
@@ -311,6 +334,9 @@
         .catch(err => console.error(err));
     });
 
+    // ==================================
+    // 7. Ponowne wczytanie mapowań
+    // ==================================
     document.getElementById("reloadMappings").addEventListener("click", function(){
         fetch(`/GoogleImportWizardXml/GetGoogleMappings?storeId=${storeId}`)
           .then(r => r.json())
@@ -333,7 +359,22 @@
           .catch(err => console.error("Błąd getGoogleMappings:", err));
     });
 
-    // Funkcja ekstrakcji produktów z XML
+    // ==================================
+    // 8. Funkcja parsePrice - wyłuskuje liczbę z tekstu "Koszt 123,45 PLN" -> "123.45"
+    // ==================================
+    function parsePrice(value) {
+        if (!value) return null;
+        let match = value.match(/([\d]+([.,]\d+)?)/);
+        if (!match) return null;
+        let numericString = match[1].replace(',', '.');  // zamieniamy ewentualny przecinek na kropkę
+        let floatVal = parseFloat(numericString);
+        if (isNaN(floatVal)) return null;
+        return floatVal.toFixed(2); // zapisujemy jako "xx.xx"
+    }
+
+    // ==================================
+    // 9. Wyciąganie produktów z XML
+    // ==================================
     function extractProductsFromXml() {
         if (!xmlDoc) {
             alert("Brak XML do parsowania");
@@ -354,10 +395,14 @@
                 Url: getVal(entryNode, "Url"),
                 GoogleEan: getVal(entryNode, "GoogleEan"),
                 GoogleImage: getVal(entryNode, "GoogleImage"),
-                GoogleExportedName: getVal(entryNode, "GoogleExportedName")
+                GoogleExportedName: getVal(entryNode, "GoogleExportedName"),
+
+                // Dla cen wyłuskujemy liczbę z "xxx PLN" itp.
+                GoogleXMLPrice: parsePrice( getVal(entryNode, "GoogleXMLPrice") ),
+                GoogleDeliveryXMLPrice: parsePrice( getVal(entryNode, "GoogleDeliveryXMLPrice") )
             };
 
-            // Czyszczenie linku – jeżeli URL zawiera parametry
+            // Usuwanie parametrów z URL
             if (pm.Url) {
                 let qIdx = pm.Url.indexOf('?');
                 if (qIdx !== -1) {
@@ -368,21 +413,27 @@
                 }
             }
 
+            // Przykład: jeśli EAN jest pusty, pomijamy
             if (!pm.GoogleEan || pm.GoogleEan.trim() === "") {
                 continue;
             }
+
             productMaps.push(pm);
         }
+
         console.log("Wyciągnięto productMaps(front):", productMaps);
         console.log("Liczba URLi zawierających parametry:", countUrlsWithParams);
-        // Ustawienie poprawnego JSON w elemencie podglądu
+
+        // Ustawiamy JSON w polu podglądu
         let previewText = JSON.stringify(productMaps, null, 2);
         document.getElementById("productMapsPreview").textContent = previewText;
-        // Aktualizacja informacji o liczbie URL z parametrami
-        document.getElementById("urlParamsInfo").textContent = "Liczba URL zawierających parametry: " + countUrlsWithParams;
 
-        // Jeśli zaznaczono opcję usunięcia duplikatów URL, wykonujemy deduplikację
-        if(document.getElementById("removeDuplicateUrls").checked) {
+        // Informacja o parametrach URL
+        document.getElementById("urlParamsInfo").textContent =
+            "Liczba URL zawierających parametry: " + countUrlsWithParams;
+
+        // Ewentualna deduplikacja URL
+        if (document.getElementById("removeDuplicateUrls").checked) {
             let seen = {};
             let deduped = [];
             productMaps.forEach(pm => {
@@ -396,10 +447,12 @@
                 }
             });
             productMaps = deduped;
-            document.getElementById("productMapsPreview").textContent = JSON.stringify(productMaps, null, 2);
+            document.getElementById("productMapsPreview").textContent =
+                JSON.stringify(productMaps, null, 2);
         }
-        // Jeśli zaznaczono opcję usunięcia duplikatów EAN, wykonujemy deduplikację na podstawie GoogleEan
-        if(document.getElementById("removeDuplicateEans").checked) {
+
+        // Ewentualna deduplikacja EAN
+        if (document.getElementById("removeDuplicateEans").checked) {
             let seenEan = {};
             let dedupedEan = [];
             productMaps.forEach(pm => {
@@ -413,16 +466,21 @@
                 }
             });
             productMaps = dedupedEan;
-            document.getElementById("productMapsPreview").textContent = JSON.stringify(productMaps, null, 2);
+            document.getElementById("productMapsPreview").textContent =
+                JSON.stringify(productMaps, null, 2);
         }
-        // Aktualizacja licznika finalnych węzłów po filtrach
-        document.getElementById("finalNodesInfo").textContent = "Final nodes po filtrach: " + productMaps.length;
 
-        // Sprawdzenie duplikatów URL i EAN (na podstawie finalnej listy)
+        // Finalna liczba węzłów
+        document.getElementById("finalNodesInfo").textContent =
+            "Final nodes po filtrach: " + productMaps.length;
+
+        // Sprawdzamy duplikaty
         checkDuplicates(productMaps);
     }
 
-    // Funkcja sprawdzająca unikatowość URL-i i kodów EAN
+    // ==================================
+    // 10. Funkcja sprawdzająca duplikaty
+    // ==================================
     function checkDuplicates(productMaps) {
         let urlCounts = {};
         let eanCounts = {};
@@ -462,50 +520,79 @@
                       ? `<span style="color:red;">(Duplikatów: ${duplicateEans})</span>`
                       : `(Brak duplikatów)`;
 
-        document.getElementById("duplicatesInfo").innerHTML = urlMessage + "<br>" + eanMessage;
+        document.getElementById("duplicatesInfo").innerHTML =
+            urlMessage + "<br>" + eanMessage;
     }
 
-    // Obsługa kliknięcia przycisku "Wyciągnij produkty z XML (FRONT)"
+    // ==================================
+    // 11. Obsługa przycisków 'extractProducts' i checkboksów
+    // ==================================
     document.getElementById("extractProducts").addEventListener("click", function(){
         extractProductsFromXml();
     });
 
-    // Automatyczne przeładowanie przy zmianie stanu checkboxa czyszczenia URL
     document.getElementById("cleanUrlParameters").addEventListener("change", function(){
         extractProductsFromXml();
     });
 
-    // Automatyczne przeładowanie przy zmianie stanu checkboxa usuwania duplikatów URL
     document.getElementById("removeDuplicateUrls").addEventListener("change", function(){
         extractProductsFromXml();
     });
 
-    // Automatyczne przeładowanie przy zmianie stanu checkboxa usuwania duplikatów EAN
     document.getElementById("removeDuplicateEans").addEventListener("change", function(){
         extractProductsFromXml();
     });
 
+    // ==================================
+    // 12. Funkcja getVal -> obsługuje multi-level path
+    // ==================================
     function getVal(entryNode, fieldName) {
         let info = mappingForField[fieldName];
         if (!info || !info.xpath) return null;
 
-        let trimmed = info.xpath;
+        let path = info.xpath;
+
+        // Usuwamy najczęstsze prefiksy (np. "/rss/channel/item/")
         let possiblePrefixes = ["/rss/channel/item/", "/feed/entry/"];
         for (let i = 0; i < possiblePrefixes.length; i++) {
-            if (trimmed.indexOf(possiblePrefixes[i]) === 0) {
-                trimmed = trimmed.substring(possiblePrefixes[i].length);
+            if (path.startsWith(possiblePrefixes[i])) {
+                path = path.substring(possiblePrefixes[i].length);
                 break;
             }
         }
 
-        if (trimmed.indexOf(':') !== -1) {
-            trimmed = trimmed.split(':')[1];
+        // Usuwamy ewentualny leading slash
+        if (path.startsWith("/")) {
+            path = path.substring(1);
         }
-        let child = Array.from(entryNode.children)
-            .find(e => e.localName === trimmed);
-        return child ? child.textContent.trim() : null;
+
+        // Rozbijamy po slashach, żeby obsłużyć np. "g:shipping/g:price"
+        let segments = path.split('/');
+
+        // Schodzimy w dół węzłów
+        let currentNode = entryNode;
+        for (let seg of segments) {
+            // Jeśli np. "g:shipping", to po dwukropku zostaje "shipping"
+            if (seg.indexOf(':') !== -1) {
+                seg = seg.split(':')[1];
+            }
+            if (!seg) {
+                return null;
+            }
+            // Znajdujemy childa o localName == seg
+            let child = Array.from(currentNode.children).find(e => e.localName === seg);
+            if (!child) {
+                return null;
+            }
+            currentNode = child;
+        }
+        // Zwracamy textContent
+        return currentNode.textContent.trim();
     }
 
+    // ==================================
+    // 13. Zapis do bazy (przycisk "saveProductMapsInDb")
+    // ==================================
     document.getElementById("saveProductMapsInDb").addEventListener("click", function(){
         let txt = document.getElementById("productMapsPreview").textContent.trim();
         if (!txt) {
@@ -529,8 +616,11 @@
         .catch(err => console.error(err));
     });
 
+    // Na końcu - pierwsze wyrenderowanie tabeli mapowań
     renderMappingTable();
 </script>
+
+
 
 <style>
     /* Dwukolumnowy układ */
@@ -558,6 +648,15 @@
     .highlight-GoogleExportedName {
         background-color: rgba(255, 255, 0, 0.2);
     }
+
+    .highlight-GoogleXMLPrice {
+        background-color: rgba(255, 192, 203, 0.2); /* pastelowy róż */
+    }
+
+    .highlight-GoogleDeliveryXMLPrice {
+        background-color: rgba(255, 165, 0, 0.2); /* pastelowy pomarańcz */
+    }
+
 
     #mappingTable {
         width: 100%;

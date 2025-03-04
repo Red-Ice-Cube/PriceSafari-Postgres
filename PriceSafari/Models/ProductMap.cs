@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace PriceSafari.Models
 {
@@ -16,11 +17,16 @@ namespace PriceSafari.Models
 
         public string? ExportedName { get; set; }
 
-
-
         // Nowe pola dla danych z Google Shopping
         public string? GoogleEan { get; set; }
         public string? GoogleImage { get; set; }
-        public string? GoogleExportedName { get; set; } 
+        public string? GoogleExportedName { get; set; }
+
+        // NOWE pola cenowe (precyzja do 2 miejsc)
+        [Column(TypeName = "decimal(18, 2)")]
+        public decimal? GoogleXMLPrice { get; set; }
+
+        [Column(TypeName = "decimal(18, 2)")]
+        public decimal? GoogleDeliveryXMLPrice { get; set; }
     }
 }
