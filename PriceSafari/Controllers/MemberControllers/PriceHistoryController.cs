@@ -1538,41 +1538,6 @@ namespace PriceSafari.Controllers.MemberControllers
 
 
 
-        [HttpPost]
-        public async Task<IActionResult> UpdateExternalId(int productId, int? externalId)
-        {
-            var product = await _context.Products.FindAsync(productId);
-            if (product == null)
-            {
-                return NotFound();
-            }
-
-            product.ExternalId = externalId;
-
-
-            await _context.SaveChangesAsync();
-
-            return Ok();
-        }
-
-        [HttpPost]
-        public async Task<IActionResult> DeleteExternalId(int productId)
-        {
-            var product = await _context.Products.FindAsync(productId);
-            if (product == null)
-            {
-                return NotFound();
-            }
-
-            product.ExternalId = null;
-
-
-            await _context.SaveChangesAsync();
-
-            return Ok();
-        }
-
-
 
 
     }

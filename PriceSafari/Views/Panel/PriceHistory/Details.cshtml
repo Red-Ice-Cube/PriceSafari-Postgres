@@ -2,9 +2,6 @@
 
 @{
     Layout = "~/Views/Shared/_PanelLayout.cshtml";
-}
-@{
-    Layout = "~/Views/Shared/_PanelLayout.cshtml";
     ViewData["Title"] = "Szczegóły Cen";
 
     var scrapHistory = ViewBag.ScrapHistory as PriceSafari.Models.ScrapHistoryClass;
@@ -17,6 +14,11 @@
     var externalUrl = ViewBag.ExternalUrl as string;
     var img = ViewBag.Img as string;
     decimal basePrice = 0;
+
+    // Wyliczamy liczniki ofert
+    var totalOffers = Model.Count();
+    var googleOffers = Model.Count(x => x.IsGoogle == true);
+    var ceneoOffers = totalOffers - googleOffers;
 
     var myStorePrice = Model.FirstOrDefault(p => string.Equals(p.StoreName, storeName, StringComparison.OrdinalIgnoreCase));
     if (myStorePrice != null)
@@ -50,24 +52,42 @@
             <div style="display:flex; width:100%; gap:48px; margin-bottom:8px;">
                 @if (!string.IsNullOrEmpty(img))
                 {
-                    <div style="display:flex; ">
+                    <div style="display:flex;">
                         <img src="@img" style="height: 130px; width: 130px;" />
                     </div>
                 }
                 <div class="price-box-column-name" style="align-content:flex-end;">
                     <div class="store-section">
+                        <!-- Zawsze wyświetlamy sortowanie po cenie -->
                         <div class="form-check">
                             <input class="form-check-input sortFilter" type="radio" name="sortOption" id="sortPrice" value="price" checked>
                             <label class="form-check-label" for="sortPrice">Sortuj po cenie</label>
                         </div>
-                        <div class="form-check">
-                            <input class="form-check-input sortFilter" type="radio" name="sortOption" id="sortPosition" value="position">
-                            <label class="form-check-label" for="sortPosition">Sortuj po pozycji Ceneo</label>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input sortFilter" type="radio" name="sortOption" id="sortGooglePosition" value="googlePosition">
-                            <label class="form-check-label" for="sortGooglePosition">Sortuj po pozycji Google</label>
-                        </div>
+                        @if (googleOffers > 0 && ceneoOffers > 0)
+                        {
+                            <div class="form-check">
+                                <input class="form-check-input sortFilter" type="radio" name="sortOption" id="sortPosition" value="position">
+                                <label class="form-check-label" for="sortPosition">Sortuj po pozycji Ceneo</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input sortFilter" type="radio" name="sortOption" id="sortGooglePosition" value="googlePosition">
+                                <label class="form-check-label" for="sortGooglePosition">Sortuj po pozycji Google</label>
+                            </div>
+                        }
+                        else if (googleOffers == totalOffers)
+                        {
+                            <div class="form-check">
+                                <input class="form-check-input sortFilter" type="radio" name="sortOption" id="sortGooglePosition" value="googlePosition">
+                                <label class="form-check-label" for="sortGooglePosition">Sortuj po pozycji Google</label>
+                            </div>
+                        }
+                        else if (ceneoOffers == totalOffers)
+                        {
+                            <div class="form-check">
+                                <input class="form-check-input sortFilter" type="radio" name="sortOption" id="sortPosition" value="position">
+                                <label class="form-check-label" for="sortPosition">Sortuj po pozycji Ceneo</label>
+                            </div>
+                        }
                     </div>
                     <div style="margin-top: 16px;">
                         @if (!string.IsNullOrEmpty(googleUrl))
@@ -102,7 +122,8 @@
                 <thead>
                     <tr>
                         <th></th>
-                        <th>Sklep (@Model.Count())</th>
+                        <!-- Nadajemy id, by łatwo móc zmieniać tekst nagłówka -->
+                        <th id="storeHeader">Sklep (@totalOffers)</th>
                         <th>Cena</th>
                         <th>Różnica</th>
                         <th>Pozycja</th>
@@ -304,6 +325,7 @@
     </div>
 </div>
 
+<!-- Skrypty zewnętrzne -->
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -322,6 +344,7 @@
         // Pobieramy wszystkie wiersze tabeli
         const rows = Array.from(document.querySelectorAll(".price-row"));
         const observedStoreName = document.querySelector(".Vert").getAttribute("data-store-name").toLowerCase().trim();
+        const headerEl = document.getElementById("storeHeader");
 
         function highlightObservedStore() {
             rows.forEach(function (row) {
@@ -353,6 +376,8 @@
             });
             const tbody = document.querySelector("#priceTable tbody");
             rows.forEach(row => tbody.appendChild(row));
+            // Przy sortowaniu po cenie nagłówek pokazuje wszystkie oferty
+            headerEl.textContent = "Sklep (" + rows.length + ")";
             highlightObservedStore();
         }
 
@@ -370,6 +395,8 @@
             });
             const tbody = document.querySelector("#priceTable tbody");
             filteredRows.forEach(row => tbody.appendChild(row));
+            // Aktualizujemy nagłówek z liczbą ofert oraz adnotacją "Ceneo"
+            headerEl.textContent = "Sklep (" + filteredRows.length + " - Ceneo)";
             highlightObservedStore();
         }
 
@@ -387,6 +414,8 @@
             });
             const tbody = document.querySelector("#priceTable tbody");
             filteredRows.forEach(row => tbody.appendChild(row));
+            // Aktualizujemy nagłówek z liczbą ofert oraz adnotacją "Google"
+            headerEl.textContent = "Sklep (" + filteredRows.length + " - Google)";
             highlightObservedStore();
         }
 
@@ -402,8 +431,13 @@
 
         // Obsługa kliknięć w przyciski sortowania
         document.getElementById("sortPrice").addEventListener("click", handleSortChange);
-        document.getElementById("sortPosition").addEventListener("click", handleSortChange);
-        document.getElementById("sortGooglePosition").addEventListener("click", handleSortChange);
+        // Sprawdzamy, czy dany przycisk istnieje (może nie być, gdy mamy oferty tylko jednej kategorii)
+        if(document.getElementById("sortPosition")){
+            document.getElementById("sortPosition").addEventListener("click", handleSortChange);
+        }
+        if(document.getElementById("sortGooglePosition")){
+            document.getElementById("sortGooglePosition").addEventListener("click", handleSortChange);
+        }
 
         // Domyślne sortowanie po cenie
         sortRowsByPrice();
@@ -485,6 +519,29 @@
         });
     }
 </script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
