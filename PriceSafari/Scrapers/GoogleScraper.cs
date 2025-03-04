@@ -63,7 +63,7 @@ public class GoogleScraper
 
                 var encodedTitle = System.Web.HttpUtility.UrlEncode(title);
 
-                var url = $"https://www.google.com/search?tbm=shop&tbs=merchagg:{googleMiG}&q={encodedTitle}";
+                var url = $"https://www.google.com/search?gl=pl&tbm=shop&tbs=merchagg:{googleMiG}&q={encodedTitle}";
 
                 await _page.GoToAsync(url, new NavigationOptions { Timeout = 60000, WaitUntil = new[] { WaitUntilNavigation.Load } });
 
