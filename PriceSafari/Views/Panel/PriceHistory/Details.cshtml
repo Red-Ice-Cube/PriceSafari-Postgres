@@ -671,29 +671,35 @@
             const sortedStores = sortedData.map(item => item.store);
             const myStoreNormalized = myStore.toLowerCase().trim();
 
-            const barColors = sortedData.map(item => {
-                const storeNormalized = item.store.toLowerCase().trim();
-                if (storeNormalized === myStoreNormalized) {
-                    if (item.isBidding === "Google") {
-                        return 'rgba(72, 142, 255, 0.6)';
-                    } else {
-                        return 'rgba(255, 100, 0, 0.6)';
-                    }
+                   const barColors = sortedData.map(item => {
+            const storeNormalized = item.store.toLowerCase().trim();
+
+            // Jeśli to mój sklep (canonicalStore), wyróżnij
+            if (storeNormalized === myStoreNormalized) {
+                // Gdy isGoogle = true -> niebieski, w przeciwnym razie pomarańcz
+                if (item.isGoogle) {
+                    return 'rgba(72, 142, 255, 0.6)'; // niebieski
+                } else {
+                    return 'rgba(255, 100, 0, 0.6)'; // pomarańcz
                 }
-                return 'rgba(34, 34, 34, 0.4)';
+            }
+            // Pozostałe sklepy -> szary
+            return 'rgba(34, 34, 34, 0.4)';
             });
 
             const borderColors = sortedData.map(item => {
                 const storeNormalized = item.store.toLowerCase().trim();
+
                 if (storeNormalized === myStoreNormalized) {
-                    if (item.isBidding === "Google") {
-                        return 'rgba(72, 142, 255, 1)';
+                    if (item.isGoogle) {
+                        return 'rgba(72, 142, 255, 1)'; // niebieski obrys
                     } else {
-                        return 'rgba(255, 100, 0, 1)';
+                        return 'rgba(255, 100, 0, 1)'; // pomarańczowy obrys
                     }
                 }
-                return 'rgba(34, 34, 34, 1)';
+                return 'rgba(34, 34, 34, 1)'; // szary obrys
             });
+
 
             const ctx = document.getElementById('priceChart').getContext('2d');
             if (chart) {

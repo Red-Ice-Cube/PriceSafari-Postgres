@@ -1223,12 +1223,14 @@ namespace PriceSafari.Controllers.MemberControllers
                 .FirstOrDefaultAsync();
 
             var pricesDataJson = JsonConvert.SerializeObject(
-                prices.Select(p => new {
-                    store = p.StoreName,
-                    price = p.Price,
-                    isBidding = p.IsBidding
-                })
-            );
+                  prices.Select(p => new {
+                      store = p.StoreName,
+                      price = p.Price,
+                      isBidding = p.IsBidding,
+                      isGoogle = p.IsGoogle   // <-- DODANE pole
+                  })
+              );
+
 
             if (priceValues == null)
             {
