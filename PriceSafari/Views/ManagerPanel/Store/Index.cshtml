@@ -1,6 +1,4 @@
-﻿
-
-@model IEnumerable<PriceSafari.Models.StoreClass>
+﻿@model IEnumerable<PriceSafari.Models.StoreClass>
 
 @{
     ViewData["Title"] = "Lista Sklepów";
@@ -8,97 +6,222 @@
     var lastScrapDates = ViewBag.LastScrapDates as Dictionary<int, DateTime?>;
 }
 
+@functions {
+    // Przykładowa funkcja określająca plik graficzny planu
+    public string GetPlanImageFile(PriceSafari.Models.StoreClass store)
+    {
+        if (store.Plan == null)
+            return "NoPlan.png"; // np. ikonka "brak planu"
+
+        var plan = store.Plan;
+        if (plan.IsTestPlan)
+        {
+            return "Free.png";  // ikona planu testowego/darmowego
+        }
+        else
+        {
+            // Możesz dostosować do własnej logiki (np. w zależności od ProductsToScrap)
+            var products = store.ProductsToScrap ?? 0;
+            if (products <= 500)
+                return "Lite.png";
+            else if (products <= 1000)
+                return "Basic.png";
+            else if (products <= 4000)
+                return "Pro.png";
+            else if (products <= 10000)
+                return "Ultimate.png";
+            else
+                return "Enterprise.png";
+        }
+    }
+}
+
+
 <h2>Lista Sklepów</h2>
 
-<a asp-controller="PriceScraping" asp-action="GetUniqueScrapingUrls" class="btn btn-info">Unikalne URL do Scrapowania</a>
-<table class="table">
-    <thead>
+<a asp-controller="PriceScraping" asp-action="GetUniqueScrapingUrls" class="btn btn-info mb-3">
+    Unikalne URL do Scrapowania
+</a>
+
+<table class="table table-bordered table-hover">
+    <thead class="thead-dark">
         <tr>
-            <th>Nazwa Sklepu</th>
-            <th>Plan</th>
-            <th>Produkty w Planie</th>
-            <th>Aktywny</th>
-            <th>Pozostałe Zeskrobania</th>
-            <th>Profil Sklepu</th>
-            <th>Głębokość Kategorii</th>
-            <th>Akcje</th>
-            <th>Przydzielenie tablic</th>
-            <th>Postęp</th>
-            <th>Status</th>
-            <th>Usuń</th>
+            <th style="width: 25%">Sklep</th>
+            <th style="width: 15%">Parametry planu</th>
+            <th style="width: 20%">Akcje</th>
+            <th style="width: 10%">Ostatnie Scrapowanie</th>
+            <th style="width: 15%">Postęp</th>
+            <th style="width: 10%">Status</th>
+            <th style="width: 5%">Usuń</th>
         </tr>
     </thead>
     <tbody>
         @foreach (var store in Model)
         {
+            // Ustal plik graficzny planu:
+            var planImage = GetPlanImageFile(store);
+            var planName = store.Plan?.PlanName ?? "Brak Planu";
+
+            // Sprawdź, czy plan jest testowy:
+            bool isTestPlan = store.Plan?.IsTestPlan ?? false;
+
+            // Czy sklep jest aktywny?
+            bool isActive = store.IsActive; // bazuje na store.RemainingScrapes > 0
+
+            // Pozostałe zeskrobania
+            int remainingScrapes = store.RemainingScrapes;
+
+            // Ilość produktów w planie
+            int productsInPlan = store.Plan?.ProductsToScrap ?? 0;
+
             <tr>
-                <td>@store.StoreName</td>
-                <td>@store.Plan?.PlanName ?? "Brak Planu"</td>
-                <td>@store.Plan?.ProductsToScrap ?? 0</td>
+                <!-- 1) Nazwa sklepu + Plan -->
                 <td>
-                    @if (store.IsActive)
-                    {
-                        <span class="badge badge-success">Tak</span>
-                    }
-                    else
-                    {
-                        <span class="badge badge-secondary">Nie</span>
-                    }
+                    <div>
+                        <!-- Logo sklepu, jeżeli istnieje: -->
+                        @if (!string.IsNullOrEmpty(store.StoreLogoUrl))
+                        {
+                            <img src="@store.StoreLogoUrl" alt="@store.StoreName" style="max-height:30px; margin-right:5px;" />
+                        }
+
+                        <!-- Nazwa sklepu -->
+                        <strong>@store.StoreName</strong>
+                    </div>
+                    <div class="mt-1" style="font-size:0.9em;">
+                        <!-- Grafika planu -->
+                        <img src="~/images/@planImage" alt="@planName" style="height:20px; margin-right:5px;" />
+                        @planName
+                        @if (isTestPlan)
+                        {
+                            <span class="Validation Validation-accepted">Free</span>
+                        }
+                    </div>
                 </td>
-                <td>@store.RemainingScrapes</td>
-                <td>@store.StoreProfile</td>
+
+                <!-- 2) Parametry planu (ilość w planie, aktywność, pozostałe zeskrobania) -->
                 <td>
-                    <select class="category-depth-select" data-store-id="@store.StoreId">
-                        <option value="0">0</option>
-                        <option value="1">1</option>
-                        <option value="2">2</option>
-                        <option value="3">3</option>
-                    </select>
+                    <div>
+                        <strong>Ilość w planie:</strong> @productsInPlan
+                    </div>
+                    <div>
+                        <strong>Aktywny:</strong>
+                        @if (isActive)
+                        {
+                            <span style="color:green;">Tak</span>
+                        }
+                        else
+                        {
+                            <span style="color:red;">Nie</span>
+                        }
+                    </div>
+                    <div>
+                        <strong>Pozostałe Scrapowania:</strong> @remainingScrapes
+                    </div>
                 </td>
+
+                <!-- 3) Akcje (wszystkie przyciski) -->
                 <td>
-                    <a asp-controller="Store" asp-action="ScrapeProducts" asp-route-storeId="@store.StoreId" class="btn btn-primary scrape-button" data-store-id="@store.StoreId">Scrapuj Produkty</a>
-                    <a asp-controller="Store" asp-action="ProductList" asp-route-storeId="@store.StoreId" class="btn btn-secondary">Lista Produktów</a>
-                    <a asp-controller="GoogleScraper" asp-action="ProductList" asp-route-storeId="@store.StoreId" class="btn btn-secondary">Lista Produktów Google</a>
-                    <a asp-controller="Flags" asp-action="List" asp-route-storeId="@store.StoreId" class="btn btn-warning">Flagi</a>
-                    <a asp-controller="PriceScraping" asp-action="GetStoreProductsWithCoOfrIds" asp-route-storeId="@store.StoreId" class="btn btn-info">Produkty z CoOfr IDs</a>
-                    <a asp-controller="Store" asp-action="EditStore" asp-route-storeId="@store.StoreId" class="btn btn-info">Edytuj</a>
+                   
+                  
+
+                    <div class="mt-1">
+                        <select class="category-depth-select mb-1" data-store-id="@store.StoreId" style="width:auto;">
+                            <option value="0">0</option>
+                            <option value="1">1</option>
+                            <option value="2">2</option>
+                            <option value="3">3</option>
+                        </select>
+                        <a asp-controller="Store" asp-action="ScrapeProducts" asp-route-storeId="@store.StoreId"
+                           class="btn btn-sm btn-success scrape-button"
+                           data-store-id="@store.StoreId">
+                            Scrapuj Prd. Ceneo
+                        </a>
+                        <a asp-controller="Store" asp-action="ProductList" asp-route-storeId="@store.StoreId"
+                           class="btn btn-sm btn-secondary">
+                            Lista Prod.
+                        </a>
+                        <a asp-controller="GoogleScraper" asp-action="ProductList" asp-route-storeId="@store.StoreId"
+                           class="btn btn-sm btn-secondary">
+                            Google Prod.
+                        </a>
+                        <a asp-controller="Flags" asp-action="List" asp-route-storeId="@store.StoreId"
+                           class="btn btn-sm btn-warning">
+                            Flagi
+                        </a>
+                        <a asp-controller="PriceScraping" asp-action="GetStoreProductsWithCoOfrIds"
+                           asp-route-storeId="@store.StoreId" class="btn btn-sm btn-info">
+                            CoOfr IDs
+                        </a>
+                        <a asp-controller="Store" asp-action="EditStore" asp-route-storeId="@store.StoreId"
+                           class="btn btn-sm btn-info">
+                            Edytuj
+                        </a>
+                        <a asp-controller="PriceAnalysis" asp-action="Index" asp-route-storeId="@store.StoreId"
+                           class="btn btn-sm btn-dark">
+                            Analiza Cen
+                        </a>
+                    </div>
+
                 </td>
+
+                <!-- 4) Ostatnie Scrapowanie -->
                 <td>
-                    @if (lastScrapDates != null && lastScrapDates.ContainsKey(store.StoreId))
+                    @if (lastScrapDates != null && lastScrapDates.ContainsKey(store.StoreId) && lastScrapDates[store.StoreId].HasValue)
                     {
-                        @lastScrapDates[store.StoreId]?.ToString("yyyy-MM-dd HH:mm")
+                        var lastScrap = lastScrapDates[store.StoreId].Value;
+                        var timeDiff = DateTime.Now - lastScrap;
+                        // Obliczamy całkowitą liczbę godzin (uwzględniając dni)
+                        var hours = (int)timeDiff.TotalHours;
+                        var minutes = timeDiff.Minutes;
+                        <span>@lastScrap.ToString("yyyy-MM-dd HH:mm")</span>
+                        <br />
+                        <small>(@hours godzin, @minutes minut temu)</small>
                     }
                     else
                     {
                         <span>Brak danych</span>
                     }
                 </td>
+
+
+                <!-- 5) Postęp (progress bar) -->
                 <td>
-                    <div class="progress">
-                        <div class="progress-bar bg-success" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" id="progress-@store.StoreId" style="width: 0%;">0%</div>
+                    <div class="progress" style="height: 20px;">
+                        <div class="progress-bar bg-success"
+                             role="progressbar"
+                             aria-valuenow="0"
+                             aria-valuemin="0"
+                             aria-valuemax="100"
+                             id="progress-@store.StoreId"
+                             style="width: 0%;">
+                            0%
+                        </div>
                     </div>
                 </td>
-                <td id="status-@store.StoreId">Oczekiwanie</td>
+
+                <!-- 6) Status -->
+                <td id="status-@store.StoreId">
+                    Oczekiwanie
+                </td>
+
+                <!-- 7) Usuń -->
                 <td>
-                    <form asp-controller="Store" asp-action="DeleteStore" method="post" onsubmit="return confirm('Czy na pewno chcesz usunąć ten sklep?');">
+                    <form asp-controller="Store" asp-action="DeleteStore" method="post"
+                          onsubmit="return confirm('Czy na pewno chcesz usunąć ten sklep?');">
                         <input type="hidden" name="storeId" value="@store.StoreId" />
-                        <button type="submit" class="btn btn-danger">Usuń</button>
+                        <button type="submit" class="btn btn-sm btn-danger">
+                            Usuń
+                        </button>
                     </form>
                 </td>
-                <td>
-                    <a asp-controller="PriceAnalysis" asp-action="Index" asp-route-storeId="@store.StoreId" class="btn btn-info">
-                        Analiza zmian cen
-                    </a>
-
-                </td>
-              
             </tr>
         }
     </tbody>
 </table>
 
-
-<a asp-controller="Store" asp-action="CreateStore" class="btn btn-success">Dodaj Nowy Sklep</a>
+<a asp-controller="Store" asp-action="CreateStore" class="btn btn-success mt-3">
+    Dodaj Nowy Sklep
+</a>
 
 @section Scripts {
     <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/5.0.11/signalr.min.js"></script>
@@ -133,4 +256,3 @@
         });
     </script>
 }
-
