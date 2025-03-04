@@ -74,67 +74,87 @@ namespace PriceSafari.Controllers.ManagerControllers
         [HttpPost]
         public async Task<IActionResult> EditStore(StoreClass store)
         {
-            if (ModelState.IsValid)
+            // Sprawdź, czy model przesłany z formularza jest prawidłowy
+            if (!ModelState.IsValid)
             {
-                var existingStore = await _context.Stores.Include(s => s.Plan).FirstOrDefaultAsync(s => s.StoreId == store.StoreId);
-                if (existingStore == null)
-                {
-                    return NotFound();
-                }
+                // Jeśli nie, ponownie przygotuj listę planów i zwróć widok z błędami walidacji
+                var plans = await _context.Plans.ToListAsync();
+                ViewBag.Plans = new SelectList(plans, "PlanId", "PlanName", store.PlanId);
+                return View("~/Views/ManagerPanel/Store/EditStore.cshtml", store);
+            }
 
-                existingStore.StoreName = store.StoreName;
-                existingStore.StoreProfile = store.StoreProfile;
-                existingStore.StoreApiUrl = store.StoreApiUrl;
-                existingStore.StoreApiKey = store.StoreApiKey;
-                existingStore.StoreLogoUrl = store.StoreLogoUrl;
-                existingStore.ProductMapXmlUrl = store.ProductMapXmlUrl;
-                existingStore.ProductMapXmlUrlGoogle = store.ProductMapXmlUrlGoogle;
-            
-                existingStore.DiscountPercentage = store.DiscountPercentage;
-                existingStore.GoogleMiG = store.GoogleMiG;
+            // Pobierz istniejący sklep z bazy danych (wraz z planem)
+            var existingStore = await _context.Stores
+                .Include(s => s.Plan)
+                .FirstOrDefaultAsync(s => s.StoreId == store.StoreId);
 
-                // Check if the plan has changed
-                if (existingStore.PlanId != store.PlanId)
+            if (existingStore == null)
+                return NotFound();
+
+            // Ustaw aktualizowane pola
+            existingStore.StoreName = store.StoreName;
+            existingStore.StoreProfile = store.StoreProfile;
+            existingStore.StoreApiUrl = store.StoreApiUrl;
+            existingStore.StoreApiKey = store.StoreApiKey;
+            existingStore.StoreLogoUrl = store.StoreLogoUrl;
+            existingStore.ProductMapXmlUrl = store.ProductMapXmlUrl;
+            existingStore.ProductMapXmlUrlGoogle = store.ProductMapXmlUrlGoogle;
+            existingStore.GoogleMiG = store.GoogleMiG;
+            existingStore.DiscountPercentage = store.DiscountPercentage ?? 0;
+            existingStore.RemainingScrapes = store.RemainingScrapes;
+            existingStore.ProductsToScrap = store.ProductsToScrap;
+
+            // Nowe pola
+            existingStore.StoreNameGoogle = store.StoreNameGoogle;
+            existingStore.StoreNameCeneo = store.StoreNameCeneo;
+            existingStore.UseGoogleXMLFeedPrice = store.UseGoogleXMLFeedPrice;
+
+            // Jeśli zmieniono plan:
+            if (existingStore.PlanId != store.PlanId)
+            {
+                existingStore.PlanId = store.PlanId;
+                var newPlan = await _context.Plans.FindAsync(store.PlanId);
+
+                if (newPlan != null)
                 {
-                    existingStore.PlanId = store.PlanId;
-                    var newPlan = await _context.Plans.FindAsync(store.PlanId);
-                    if (newPlan != null)
+                    // Przypisz liczby produktów do scrapowania z planu
+                    existingStore.ProductsToScrap = newPlan.ProductsToScrap;
+
+                    // Jeśli plan jest darmowy lub testowy
+                    if (newPlan.NetPrice == 0 || newPlan.IsTestPlan)
                     {
-                        existingStore.ProductsToScrap = newPlan.ProductsToScrap;
+                        existingStore.RemainingScrapes = newPlan.ScrapesPerInvoice;
 
-                        // Check if the new plan is free or test plan
-                        if (newPlan.NetPrice == 0 || newPlan.IsTestPlan)
-                        {
-                            // Set RemainingScrapes based on the plan's ScrapesPerInvoice
-                            existingStore.RemainingScrapes = newPlan.ScrapesPerInvoice; // Assuming ScrapesPerInvoice represents the number of days or scrapes
+                        // Opcjonalnie oznaczamy niezapłacone faktury jako zapłacone
+                        var unpaidInvoices = await _context.Invoices
+                            .Where(i => i.StoreId == store.StoreId && !i.IsPaid)
+                            .ToListAsync();
 
-                            // Optionally, mark any unpaid invoices as paid (if applicable)
-                            var unpaidInvoices = await _context.Invoices.Where(i => i.StoreId == store.StoreId && !i.IsPaid).ToListAsync();
-                            foreach (var invoice in unpaidInvoices)
-                            {
-                                invoice.IsPaid = true;
-                            }
-                        }
-                        else
+                        foreach (var invoice in unpaidInvoices)
                         {
-                            // For paid plans, RemainingScrapes remains 0 until the invoice is paid
-                            existingStore.RemainingScrapes = 0;
+                            invoice.IsPaid = true;
                         }
                     }
                     else
                     {
-                        existingStore.ProductsToScrap = null;
+                        // W płatnych planach do momentu opłacenia ustawiamy 0
+                        existingStore.RemainingScrapes = 0;
                     }
                 }
-
-                await _context.SaveChangesAsync();
-                return RedirectToAction("Index");
+                else
+                {
+                    existingStore.ProductsToScrap = null;
+                }
             }
 
-            var plans = await _context.Plans.ToListAsync();
-            ViewBag.Plans = new SelectList(plans, "PlanId", "PlanName", store.PlanId);
-            return View("~/Views/ManagerPanel/Store/EditStore.cshtml", store);
+            // Zapis do bazy
+            await _context.SaveChangesAsync();
+
+            // Powrót do listy sklepów (lub innego widoku)
+            return RedirectToAction("Index");
         }
+
+
 
 
         [HttpGet]

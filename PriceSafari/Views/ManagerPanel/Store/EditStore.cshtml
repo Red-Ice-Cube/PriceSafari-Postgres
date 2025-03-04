@@ -7,85 +7,143 @@
 
 <h2>Edytuj Sklep</h2>
 
-<form asp-action="EditStore" method="post">
+<form asp-action="EditStore" method="post" class="mt-4">
     <input type="hidden" asp-for="StoreId" />
 
-    <div class="form-group">
-        <label asp-for="StoreName"></label>
-        <input asp-for="StoreName" class="form-control" />
-        <span asp-validation-for="StoreName" class="text-danger"></span>
+    <!-- Podstawowe dane sklepu -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h4>Dane podstawowe</h4>
+        </div>
+        <div class="card-body">
+            <div class="form-row">
+                <div class="col-md-6 mb-3">
+                    <label asp-for="StoreName" class="control-label">Nazwa sklepu</label>
+                    <input asp-for="StoreName" class="form-control" placeholder="Np. Akson" />
+                    <span asp-validation-for="StoreName" class="text-danger"></span>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label asp-for="StoreProfile" class="control-label">Profil sklepu CENEO</label>
+                    <input asp-for="StoreProfile" class="form-control" placeholder="Np. Sklep internetowy z elektroniką" />
+                    <span asp-validation-for="StoreProfile" class="text-danger"></span>
+                </div>
+            </div>
+        </div>
     </div>
 
-    <div class="form-group">
-        <label asp-for="StoreProfile"></label>
-        <input asp-for="StoreProfile" class="form-control" />
-        <span asp-validation-for="StoreProfile" class="text-danger"></span>
+    <!-- Konfiguracja API i integracji -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h4>Konfiguracja API i integracji</h4>
+        </div>
+        <div class="card-body">
+            <div class="form-row">
+                <div class="col-md-6 mb-3">
+                    <label asp-for="StoreApiUrl">URL API</label>
+                    <input asp-for="StoreApiUrl" class="form-control" placeholder="Adres bazowy API sklepu" />
+                    <span asp-validation-for="StoreApiUrl" class="text-danger"></span>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label asp-for="StoreApiKey">Klucz API</label>
+                    <input asp-for="StoreApiKey" class="form-control" placeholder="Klucz API sklepu" />
+                    <span asp-validation-for="StoreApiKey" class="text-danger"></span>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label asp-for="StoreLogoUrl">URL logo sklepu</label>
+                <input asp-for="StoreLogoUrl" class="form-control" placeholder="Link do logo sklepu" />
+                <span asp-validation-for="StoreLogoUrl" class="text-danger"></span>
+            </div>
+
+            <div class="form-row">
+                <div class="col-md-6 mb-3">
+                    <label asp-for="ProductMapXmlUrl">URL pliku XML (ceneo)</label>
+                    <input asp-for="ProductMapXmlUrl" class="form-control" placeholder="Adres do pliku XML z produktami" />
+                    <span asp-validation-for="ProductMapXmlUrl" class="text-danger"></span>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label asp-for="ProductMapXmlUrlGoogle">URL pliku XML (Google)</label>
+                    <input asp-for="ProductMapXmlUrlGoogle" class="form-control" placeholder="Adres do pliku XML dla Google" />
+                    <span asp-validation-for="ProductMapXmlUrlGoogle" class="text-danger"></span>
+                </div>
+            </div>
+        </div>
     </div>
 
-    <div class="form-group">
-        <label asp-for="StoreApiUrl"></label>
-        <input asp-for="StoreApiUrl" class="form-control" />
-        <span asp-validation-for="StoreApiUrl" class="text-danger"></span>
+    <!-- Integracje Google i Ceneo -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h4>Integracje Google i Ceneo</h4>
+        </div>
+        <div class="card-body">
+            <div class="form-row">
+                <div class="col-md-6 mb-3">
+                    <label asp-for="StoreNameGoogle">Nazwa sklepu w Google</label>
+                    <input asp-for="StoreNameGoogle" class="form-control" placeholder="Np. Akson" />
+                    <span asp-validation-for="StoreNameGoogle" class="text-danger"></span>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label asp-for="StoreNameCeneo">Nazwa sklepu w Ceneo</label>
+                    <input asp-for="StoreNameCeneo" class="form-control" placeholder="Np. akson.pl" />
+                    <span asp-validation-for="StoreNameCeneo" class="text-danger"></span>
+                </div>
+            </div>
+
+            <div class="form-group form-check">
+                <input asp-for="UseGoogleXMLFeedPrice" class="form-check-input" type="checkbox" />
+                <label asp-for="UseGoogleXMLFeedPrice" class="form-check-label">Import cen z Google XML (ostrzykiwanie produktów cenami z XML)</label>
+                <span asp-validation-for="UseGoogleXMLFeedPrice" class="text-danger"></span>
+            </div>
+        </div>
     </div>
 
-    <div class="form-group">
-        <label asp-for="StoreApiKey"></label>
-        <input asp-for="StoreApiKey" class="form-control" />
-        <span asp-validation-for="StoreApiKey" class="text-danger"></span>
+    <!-- Pozostałe ustawienia -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h4>Pozostałe ustawienia</h4>
+        </div>
+        <div class="card-body">
+            <div class="form-group">
+                <label asp-for="GoogleMiG">GoogleMiG</label>
+                <input asp-for="GoogleMiG" class="form-control" placeholder="Wpisz, jeśli korzystasz z GoogleMiG" />
+                <span asp-validation-for="GoogleMiG" class="text-danger"></span>
+            </div>
+
+            <div class="form-row">
+                <div class="col-md-6 mb-3">
+                    <label asp-for="DiscountPercentage">Procent rabatu (%)</label>
+                    <input asp-for="DiscountPercentage" class="form-control" type="number" step="0.01" />
+                    <span asp-validation-for="DiscountPercentage" class="text-danger"></span>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label asp-for="ProductsToScrap">Produkty do Zeskrobania</label>
+                    <input asp-for="ProductsToScrap" class="form-control" type="number" />
+                    <span asp-validation-for="ProductsToScrap" class="text-danger"></span>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="col-md-6 mb-3">
+                    <label asp-for="RemainingScrapes">Pozostała Ilość Zeskrobań</label>
+                    <input asp-for="RemainingScrapes" class="form-control" type="number" />
+                    <span asp-validation-for="RemainingScrapes" class="text-danger"></span>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label asp-for="PlanId">Plan</label>
+                    <select asp-for="PlanId" class="form-control" asp-items="ViewBag.Plans">
+                        <option value="">-- Wybierz Plan --</option>
+                    </select>
+                    <span asp-validation-for="PlanId" class="text-danger"></span>
+                </div>
+            </div>
+        </div>
     </div>
 
-    <div class="form-group">
-        <label asp-for="StoreLogoUrl"></label>
-        <input asp-for="StoreLogoUrl" class="form-control" />
-        <span asp-validation-for="StoreLogoUrl" class="text-danger"></span>
-    </div>
-
-    <div class="form-group">
-        <label asp-for="ProductMapXmlUrl"></label>
-        <input asp-for="ProductMapXmlUrl" class="form-control" />
-        <span asp-validation-for="ProductMapXmlUrl" class="text-danger"></span>
-    </div>
-
-    <div class="form-group">
-        <label asp-for="ProductMapXmlUrlGoogle"></label>
-        <input asp-for="ProductMapXmlUrlGoogle" class="form-control" />
-        <span asp-validation-for="ProductMapXmlUrlGoogle" class="text-danger"></span>
-    </div>
-
-    <div class="form-group">
-        <label asp-for="GoogleMiG"></label>
-        <input asp-for="GoogleMiG" class="form-control" />
-        <span asp-validation-for="GoogleMiG" class="text-danger"></span>
-    </div>
-
-    <div class="form-group">
-        <label asp-for="ProductsToScrap"></label>
-        <input asp-for="ProductsToScrap" class="form-control" type="number" />
-        <span asp-validation-for="ProductsToScrap" class="text-danger"></span>
-    </div>
-
-
-
-    <div class="form-group">
-        <label asp-for="PlanId">Plan</label>
-        <select asp-for="PlanId" class="form-control" asp-items="ViewBag.Plans">
-            <option value="">-- Wybierz Plan --</option>
-        </select>
-        <span asp-validation-for="PlanId" class="text-danger"></span>
-    </div>
-
-    <div class="form-group">
-        <label asp-for="DiscountPercentage"></label>
-        <input asp-for="DiscountPercentage" class="form-control" type="number" step="0.01" />
-        <span asp-validation-for="DiscountPercentage" class="text-danger"></span>
-    </div>
-
-
+    <!-- Przycisk zapisu -->
     <button type="submit" class="btn btn-primary">Zapisz</button>
 </form>
 
 @section Scripts {
-    @{
-        await Html.RenderPartialAsync("_ValidationScriptsPartial");
-    }
+    @await Html.PartialAsync("_ValidationScriptsPartial")
 }
