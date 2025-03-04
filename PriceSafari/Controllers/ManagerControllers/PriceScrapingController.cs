@@ -395,10 +395,10 @@ public class PriceScrapingController : Controller
     }
 
 
-
     [HttpPost]
-    public async Task<IActionResult> ClearRejectedAndScrapedProducts()
+    public async Task<IActionResult> ClearRejectedAndScrapedProductsCeneo()
     {
+        // Szukamy wpisów, które są jednocześnie zescrapowane i odrzucone w Ceneo
         var productsToReset = await _context.CoOfrs
             .Where(co => co.IsScraped && co.IsRejected)
             .ToListAsync();
@@ -417,4 +417,28 @@ public class PriceScrapingController : Controller
 
         return RedirectToAction("GetUniqueScrapingUrls");
     }
+
+    [HttpPost]
+    public async Task<IActionResult> ClearRejectedAndScrapedProductsGoogle()
+    {
+        // Analogicznie, ale dla Google
+        var productsToReset = await _context.CoOfrs
+            .Where(co => co.GoogleIsScraped && co.GoogleIsRejected)
+            .ToListAsync();
+
+        if (productsToReset.Any())
+        {
+            foreach (var product in productsToReset)
+            {
+                product.GoogleIsScraped = false;
+                product.GoogleIsRejected = false;
+            }
+
+            _context.CoOfrs.UpdateRange(productsToReset);
+            await _context.SaveChangesAsync();
+        }
+
+        return RedirectToAction("GetUniqueScrapingUrls");
+    }
+
 }

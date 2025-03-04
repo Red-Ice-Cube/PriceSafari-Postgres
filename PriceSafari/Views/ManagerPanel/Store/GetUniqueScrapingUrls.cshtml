@@ -85,9 +85,26 @@
 
             <button id="stopScrapingCeneoButton" class="Button-Page-Small-y">Przerwij scrapowanie Ceneo</button>
             <button id="stopScrapingGoogleButton" class="Button-Page-Small-y">Przerwij scrapowanie Google</button>
-            <form id="clearRejectedAndScrapedForm" asp-controller="PriceScraping" asp-action="ClearRejectedAndScrapedProducts" method="post">
-                <button type="submit" class="Button-Page-Small-o">Resetuj odrzucone statusy</button>
+           
+
+            <!-- Reset odrzuconych statusów Ceneo -->
+            <form id="clearRejectedAndScrapedFormCeneo"
+                  asp-controller="PriceScraping"
+                  asp-action="ClearRejectedAndScrapedProductsCeneo"
+                  method="post">
+                <button type="submit" class="Button-Page-Small-o">Resetuj odrzucone Ceneo</button>
             </form>
+
+            <!-- Reset odrzuconych statusów Google -->
+            <form id="clearRejectedAndScrapedFormGoogle"
+                  asp-controller="PriceScraping"
+                  asp-action="ClearRejectedAndScrapedProductsGoogle"
+                  method="post">
+                <button type="submit" class="Button-Page-Small-o">Resetuj odrzucone Google</button>
+            </form>
+
+
+
             <form asp-action="ClearCoOfrPriceHistories" asp-controller="PriceScraping" method="post">
                 <button type="submit" class="Button-Page-Small-r">Usuń zescrapowane dane</button>
             </form>
