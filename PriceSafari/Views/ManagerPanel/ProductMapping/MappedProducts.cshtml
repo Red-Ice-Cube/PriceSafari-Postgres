@@ -40,7 +40,18 @@
 <!-- Przycisk: Utwórz lub zaktualizuj produkty -->
 <form asp-action="CreateOrUpdateProductsFromProductMap" method="post">
     <input type="hidden" name="storeId" value="@storeId" />
-    <button type="submit" class="btn btn-primary">Utwórz lub zaktualizuj produkty</button>
+
+    <!-- Nowy checkbox: -->
+    <div class="form-group mt-2">
+        <label>
+            <input type="checkbox" name="addGooglePrices" value="true" />
+            Dodaj ceny Google (Price + Delivery)
+        </label>
+    </div>
+
+    <button type="submit" class="btn btn-primary">
+        Utwórz lub zaktualizuj produkty
+    </button>
 </form>
 
 <!-- Przycisk: Mapuj Produkty -->
@@ -61,6 +72,10 @@
                     <th>External ID (@externalIdCount)</th>
                     <th>Numer Katalogowy (@catalogNumberCount)</th>
                     <th>EAN (@eanCount)</th>
+
+                    <!-- NOWE: kolumny z feeda Google -->
+                    <th>Cena z Feed Google</th>
+                    <th>Dostawa z Feed Google</th>
                 </tr>
             </thead>
             <tbody>
@@ -90,6 +105,18 @@
                         <td>@product.ExternalId</td>
                         <td>@product.CatalogNumber</td>
                         <td>@product.Ean</td>
+
+                        <!-- NOWE: wypisanie cen z feeda Google, np. do 2 miejsc po przecinku -->
+                        <td>
+                            @(product.GoogleXMLPrice.HasValue
+                                ? product.GoogleXMLPrice.Value.ToString("F2")
+                                : "-")
+                        </td>
+                        <td>
+                            @(product.GoogleDeliveryXMLPrice.HasValue
+                                ? product.GoogleDeliveryXMLPrice.Value.ToString("F2")
+                                : "-")
+                        </td>
                     </tr>
                 }
             </tbody>

@@ -237,9 +237,8 @@ namespace PriceSafari.Controllers.ManagerControllers
         }
 
 
-
         [HttpPost]
-        public async Task<IActionResult> CreateOrUpdateProductsFromProductMap(int storeId)
+        public async Task<IActionResult> CreateOrUpdateProductsFromProductMap(int storeId, bool addGooglePrices)
         {
             // Pobierz wszystkie wpisy ProductMap dla danego sklepu
             var mappedProducts = await _context.ProductMaps
@@ -256,18 +255,19 @@ namespace PriceSafari.Controllers.ManagerControllers
                 int? externalId = int.TryParse(mappedProduct.ExternalId, out var extId) ? extId : (int?)null;
                 string url = mappedProduct.Url;
 
-                // Sprawdź, czy produkt już istnieje na podstawie ExternalId i Url
-                var existingProduct = existingProducts.FirstOrDefault(p => p.ExternalId == externalId && p.Url == url);
+                // Szukamy istniejącego produktu na podstawie ExternalId i/lub Url
+                var existingProduct = existingProducts
+                    .FirstOrDefault(p => p.ExternalId == externalId && p.Url == url);
 
                 if (existingProduct != null)
                 {
-                    // Aktualizuj istniejący produkt
-                    MapProductFields(existingProduct, mappedProduct);
+                    // Aktualizujemy istniejący produkt
+                    MapProductFields(existingProduct, mappedProduct, addGooglePrices);
                     _context.Products.Update(existingProduct);
                 }
                 else
                 {
-                    // Utwórz nowy produkt
+                    // Tworzymy nowy produkt
                     var newProduct = new ProductClass
                     {
                         StoreId = storeId,
@@ -275,8 +275,8 @@ namespace PriceSafari.Controllers.ManagerControllers
                         Url = url
                     };
 
-                    // Mapuj pola z mappedProduct
-                    MapProductFields(newProduct, mappedProduct);
+                    // Mapujemy pola z mappedProduct
+                    MapProductFields(newProduct, mappedProduct, addGooglePrices);
 
                     _context.Products.Add(newProduct);
                 }
@@ -288,9 +288,10 @@ namespace PriceSafari.Controllers.ManagerControllers
             return RedirectToAction("MappedProducts", new { storeId });
         }
 
+
         // Funkcja pomocnicza do mapowania pól produktu
-        private void MapProductFields(ProductClass product, ProductMap mappedProduct)
-        {
+        private void MapProductFields(ProductClass product, ProductMap mappedProduct, bool addGooglePrices)
+        {   
             // Ustaw ExternalId i Url (jeśli nie zostały już ustawione)
             if (!product.ExternalId.HasValue)
                 product.ExternalId = int.TryParse(mappedProduct.ExternalId, out var externalId) ? externalId : (int?)null;
@@ -335,6 +336,19 @@ namespace PriceSafari.Controllers.ManagerControllers
             else if (!string.IsNullOrEmpty(mappedProduct.MainUrl))
             {
                 product.MainUrl = mappedProduct.MainUrl;
+            }
+
+            if (addGooglePrices)
+            {
+                // Tylko jeżeli w ProductMap mamy cokolwiek
+                if (mappedProduct.GoogleXMLPrice.HasValue)
+                {
+                    product.GoogleXMLPrice = mappedProduct.GoogleXMLPrice;
+                }
+                if (mappedProduct.GoogleDeliveryXMLPrice.HasValue)
+                {
+                    product.GoogleDeliveryXMLPrice = mappedProduct.GoogleDeliveryXMLPrice;
+                }
             }
 
         }

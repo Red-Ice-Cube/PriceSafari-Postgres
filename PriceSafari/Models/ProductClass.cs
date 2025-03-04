@@ -86,6 +86,15 @@ namespace PriceSafari.Models
         public string? ExportedNameCeneo { get; set; }
         public decimal? MarginPrice { get; set; }
 
+
+
+        [Column(TypeName = "decimal(18, 2)")]
+        public decimal? GoogleXMLPrice { get; set; }
+
+        [Column(TypeName = "decimal(18, 2)")]
+        public decimal? GoogleDeliveryXMLPrice { get; set; }
+
+
         // Relacje
         public ICollection<PriceHistoryClass> PriceHistories { get; set; } = new List<PriceHistoryClass>();
         public ICollection<ProductFlag> ProductFlags { get; set; } = new List<ProductFlag>();

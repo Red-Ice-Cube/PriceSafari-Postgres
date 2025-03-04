@@ -16,15 +16,11 @@ namespace PriceSafari.Models
         public string? StoreLogoUrl { get; set; }
 
         public string? ProductMapXmlUrl { get; set; }
-
         public string? ProductMapXmlUrlGoogle { get; set; }
-
-        public string? GoogleMiG {  get; set; }
+        public string? GoogleMiG { get; set; }
 
         [Display(Name = "Produkty do Zeskrobania")]
         public int? ProductsToScrap { get; set; }
-
-       
 
         [Display(Name = "Plan")]
         public int? PlanId { get; set; }
@@ -38,18 +34,13 @@ namespace PriceSafari.Models
         [Display(Name = "Pozostała Ilość Zeskrobań")]
         public int RemainingScrapes { get; set; } = 0;
 
-        public bool IsActive
-        {
-            get
-            {
-                return RemainingScrapes > 0;
-            }
-        }
-
+        public bool IsActive => RemainingScrapes > 0;
 
         public string? StoreNameGoogle { get; set; }   // np. "Akson"
         public string? StoreNameCeneo { get; set; }    // np. "akson.pl"
 
+        // NOWE POLE - domyślnie false
+        public bool UseGoogleXMLFeedPrice { get; set; } = false;
 
         // Navigation properties
         public ICollection<ScrapHistoryClass> ScrapHistories { get; set; } = new List<ScrapHistoryClass>();
@@ -59,11 +50,7 @@ namespace PriceSafari.Models
         public ICollection<FlagsClass> Flags { get; set; } = new List<FlagsClass>();
         public ICollection<PriceSafariUserStore> UserStores { get; set; } = new List<PriceSafariUserStore>();
         public ICollection<PriceSafariReport> PriceSafariReports { get; set; } = new List<PriceSafariReport>();
-
         public ICollection<InvoiceClass> Invoices { get; set; } = new List<InvoiceClass>();
-        public ICollection<ScheduleTaskStore> ScheduleTaskStores { get; set; }
-            = new List<ScheduleTaskStore>();
-
-
+        public ICollection<ScheduleTaskStore> ScheduleTaskStores { get; set; } = new List<ScheduleTaskStore>();
     }
 }
