@@ -3440,6 +3440,8 @@ tr:last-child .sub-line {
     text-decoration: none;
     background: #e3e3e3;
     border: none;
+    width: 125px;
+    flex-wrap:nowrap;
 }
 
 .flags-container {
@@ -3467,6 +3469,11 @@ tr:last-child .sub-line {
     cursor: pointer;
     border: none;
 }
+
+.highlighted-text-yellow {
+    color: #F0D400;
+}
+
 
 .Bidding {
     border-radius: 4px;
@@ -3542,7 +3549,7 @@ tr:last-child .sub-line {
 .ApiBox {
     border-radius: 4px;
     padding: 2px 5px;
-    width: 98.81px;
+    width: 125px;
     display: inline-flex;
     align-items: center;
     justify-content: center;

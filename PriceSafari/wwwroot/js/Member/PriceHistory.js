@@ -31,7 +31,7 @@
         const worksheet = workbook.addWorksheet("Dane");
 
         
-        worksheet.addRow(["ID", "Nazwa Produktu", "EAN", "Ilość Ofert", "Kto Ma Najniższą Cenę?", "Najniższa Konkurencyjna Cena", "Twoja Cena"]);
+        worksheet.addRow(["ID", "Nazwa Produktu", "EAN", "Ilość ofert", "Najniższa Konkurencyjna Cena", "Twoja Cena"]);
 
       
         const fontRed = { color: { argb: "FFAA0000" } };   
@@ -46,7 +46,6 @@
                 item.productName || "",
                 item.ean || "",
                 item.storeCount || "",
-                item.storeName || "",
                 item.lowestPrice || "",
                 item.myPrice || ""
             ];
@@ -430,13 +429,23 @@
 
                 if (currentSearchTerm) {
                     filteredPrices = filteredPrices.filter(price => {
-                        const sanitizedInput = currentSearchTerm.replace(/[^a-zA-Z0-9\s.-]/g, '').trim();
-                        const sanitizedInputLowerCase = sanitizedInput.toLowerCase().replace(/\s+/g, '');
-                        const sanitizedProductName = (price.productName || '').toLowerCase().replace(/[^a-zA-Z0-9\s/.-]/g, '').replace(/\s+/g, '');
+                        // 1. Oczyszczamy "currentSearchTerm" do postaci bez spacji itp.
+                        const sanitizedInput = currentSearchTerm.replace(/[^a-zA-Z0-9\s.-]/g, '').trim().toLowerCase().replace(/\s+/g, '');
 
-                        return sanitizedProductName.includes(sanitizedInputLowerCase);
+                        // 2. Łączymy productName + ean w jeden string
+                        const productNamePlusEan = (price.productName || '') + ' ' + (price.ean || '');
+
+                        // 3. Także oczyszczamy
+                        const combinedLower = productNamePlusEan
+                            .toLowerCase()
+                            .replace(/[^a-zA-Z0-9\s/.-]/g, '')
+                            .replace(/\s+/g, '');
+
+                        // 4. Sprawdzamy, czy combinedLower zawiera sanitizedInput
+                        return combinedLower.includes(sanitizedInput);
                     });
                 }
+
 
                 filteredPrices = filterPricesByCategoryAndColorAndFlag(filteredPrices);
 
@@ -590,20 +599,7 @@
 
         return valueToUse < setPrice2 ? "prMid" : "prToHigh";
     }
-    function highlightMatches(fullText, searchTerm) {
-        if (!searchTerm) return fullText;
-
-        // Ucieczka metaznaków, by np. wpisanie "+" czy "?" przez użytkownika nie rozbijało RegExpa
-        const escapedTerm = searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-
-        // Tworzymy wyrażenie regularne, które wyszukuje wielokrotnie ('g') i bez rozróżniania wielkości liter ('i')
-        const regex = new RegExp(escapedTerm, 'gi');
-
-        // Podmieniamy wszystkie wystąpienia na wersję z <span class="highlighted-text">
-        return fullText.replace(regex, (match) => {
-            return `<span class="highlighted-text">${match}</span>`;
-        });
-    }
+   
 
 
     function renderPrices(data) {
@@ -678,7 +674,8 @@
             if (item.externalId) {
                 const apiBox = document.createElement('span');
                 apiBox.className = 'ApiBox';
-                apiBox.innerHTML = 'API ID ' + item.externalId;
+                const displayedEan = highlightMatches(item.ean || '', currentProductSearchTerm, 'highlighted-text-yellow');
+                apiBox.innerHTML = 'EAN ' + displayedEan;
                 priceBoxColumnCategory.appendChild(apiBox);
             }
 
@@ -1601,59 +1598,86 @@
         document.querySelector('label[for="prToLowCheckbox"]').textContent = `Zaniżona (${colorCounts.prToLow})`;
     }
 
-
-
     function filterPricesAndUpdateUI(resetPageFlag = true) {
         if (resetPageFlag) {
             resetPage();
         }
         showLoading();
+
         setTimeout(() => {
-            const currentProductSearchTerm = document.getElementById('productSearch').value.toLowerCase().replace(/\s+/g, '').trim();
-            const currentStoreSearchTerm = document.getElementById('storeSearch').value.toLowerCase().replace(/\s+/g, '').trim();
+            // 1. Zaczynamy od kopii wszystkich cen
+            let filteredPrices = [...allPrices];
 
-            const sanitizedProductSearchTerm = currentProductSearchTerm.replace(/[^a-zA-Z0-9\s/.-]/g, '').toLowerCase().replace(/\s+/g, '');
-            const sanitizedStoreSearchTerm = currentStoreSearchTerm.replace(/[^a-zA-Z0-9\s/.-]/g, '').toLowerCase().replace(/\s+/g, '');
+            // 2. Pobieramy wartości z pól wyszukiwania (surowe)
+            const productSearchRaw = document.getElementById('productSearch').value.trim();
+            const storeSearchRaw = document.getElementById('storeSearch').value.trim();
 
-            let filteredPrices = allPrices.filter(price => {
-                const productName = (price.productName || '').toLowerCase().replace(/[^a-zA-Z0-9\s/.-]/g, '').replace(/\s+/g, '');
-                const storeName = (price.storeName || '').toLowerCase().replace(/[^a-zA-Z0-9\s/.-]/g, '').replace(/\s+/g, '');
+            // 3. Jeśli wpisano tekst w wyszukiwarce produktu, filtrujemy ceny łącząc productName i ean
+            if (productSearchRaw) {
+                const sanitizedProductSearch = productSearchRaw
+                    .replace(/[^a-zA-Z0-9\s.-]/g, '')
+                    .toLowerCase()
+                    .replace(/\s+/g, '');
+                filteredPrices = filteredPrices.filter(price => {
+                    const combined = (price.productName || '') + ' ' + (price.ean || '');
+                    const combinedSanitized = combined
+                        .toLowerCase()
+                        .replace(/[^a-zA-Z0-9\s.-]/g, '')
+                        .replace(/\s+/g, '');
+                    return combinedSanitized.includes(sanitizedProductSearch);
+                });
+            }
 
-                const matchesProduct = productName.includes(sanitizedProductSearchTerm);
-                const matchesStore = storeName.includes(sanitizedStoreSearchTerm);
+            // 4. Jeśli wpisano tekst w wyszukiwarce sklepu, filtrujemy wg storeName
+            if (storeSearchRaw) {
+                const sanitizedStoreSearch = storeSearchRaw
+                    .replace(/[^a-zA-Z0-9\s.-]/g, '')
+                    .toLowerCase()
+                    .replace(/\s+/g, '');
+                filteredPrices = filteredPrices.filter(price => {
+                    const storeNameSanitized = (price.storeName || '')
+                        .toLowerCase()
+                        .replace(/[^a-zA-Z0-9\s.-]/g, '')
+                        .replace(/\s+/g, '');
+                    return storeNameSanitized.includes(sanitizedStoreSearch);
+                });
+            }
 
-                return (sanitizedProductSearchTerm === '' || matchesProduct) && (sanitizedStoreSearchTerm === '' || matchesStore);
-            });
+            // 5. Sortowanie trafień wyszukiwania dla produktu (łączone productName + ean)
+            const sanitizedProductSearchTerm = productSearchRaw
+                ? productSearchRaw.replace(/[^a-zA-Z0-9\s.-]/g, '').toLowerCase().replace(/\s+/g, '')
+                : '';
+            if (sanitizedProductSearchTerm !== '') {
+                filteredPrices.sort((a, b) => {
+                    const aCombined = ((a.productName || '') + ' ' + (a.ean || ''))
+                        .toLowerCase().replace(/[^a-zA-Z0-9\s.-]/g, '').replace(/\s+/g, '');
+                    const bCombined = ((b.productName || '') + ' ' + (b.ean || ''))
+                        .toLowerCase().replace(/[^a-zA-Z0-9\s.-]/g, '').replace(/\s+/g, '');
+                    const exactMatchIndexA = getExactMatchIndex(aCombined, sanitizedProductSearchTerm);
+                    const exactMatchIndexB = getExactMatchIndex(bCombined, sanitizedProductSearchTerm);
+                    if (exactMatchIndexA !== exactMatchIndexB) {
+                        return exactMatchIndexA - exactMatchIndexB;
+                    }
+                    const matchLengthA = getLongestMatchLength(aCombined, sanitizedProductSearchTerm);
+                    const matchLengthB = getLongestMatchLength(bCombined, sanitizedProductSearchTerm);
+                    if (matchLengthA !== matchLengthB) {
+                        return matchLengthB - matchLengthA;
+                    }
+                    return a.productName.localeCompare(b.productName);
+                });
+            }
 
-            filteredPrices.sort((a, b) => {
-                const sanitizedProductNameA = a.productName.toLowerCase().replace(/[^a-zA-Z0-9\s/.-]/g, '').replace(/\s+/g, '');
-                const sanitizedProductNameB = b.productName.toLowerCase().replace(/[^a-zA-Z0-9\s/.-]/g, '').replace(/\s+/g, '');
-
-                const exactMatchIndexA = getExactMatchIndex(sanitizedProductNameA, sanitizedProductSearchTerm);
-                const exactMatchIndexB = getExactMatchIndex(sanitizedProductNameB, sanitizedProductSearchTerm);
-
-                if (exactMatchIndexA !== exactMatchIndexB) {
-                    return exactMatchIndexA - exactMatchIndexB;
-                }
-
-                const matchLengthA = getLongestMatchLength(sanitizedProductNameA, sanitizedProductSearchTerm);
-                const matchLengthB = getLongestMatchLength(sanitizedProductNameB, sanitizedProductSearchTerm);
-
-                if (matchLengthA !== matchLengthB) {
-                    return matchLengthB - matchLengthA;
-                }
-
-                return a.productName.localeCompare(b.productName);
-            });
-
+            // 6. Pozostałe filtry (kategorie, kolory, flagi)
             filteredPrices = filterPricesByCategoryAndColorAndFlag(filteredPrices);
 
+            // 7. Filtrowanie produktów odrzuconych
             if (sortingState.showRejected) {
                 filteredPrices = filteredPrices.filter(item => item.isRejected);
             } else {
                 filteredPrices = filteredPrices.filter(item => !item.isRejected);
             }
 
+            // 8. Sortowanie wg ustawionych kryteriów
             if (sortingState.sortName !== null) {
                 if (sortingState.sortName === 'asc') {
                     filteredPrices.sort((a, b) => a.productName.localeCompare(b.productName));
@@ -1710,14 +1734,26 @@
                 }
             }
 
+            // 9. Aktualizacja widoku
             renderPrices(filteredPrices);
             debouncedRenderChart(filteredPrices);
             updateColorCounts(filteredPrices);
             updateFlagCounts(filteredPrices);
 
             hideLoading();
-        })
+        }, 0);
     }
+
+    // Nowa funkcja highlightMatches z opcjonalnym trzecim argumentem określającym klasę CSS
+    function highlightMatches(fullText, searchTerm, customClass) {
+        if (!searchTerm) return fullText;
+        const escapedTerm = searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const regex = new RegExp(escapedTerm, 'gi');
+        const cssClass = customClass || "highlighted-text";
+        return fullText.replace(regex, (match) => `<span class="${cssClass}">${match}</span>`);
+    }
+
+
 
     document.getElementById('showRejectedButton').addEventListener('click', function () {
         sortingState.showRejected = !sortingState.showRejected;
