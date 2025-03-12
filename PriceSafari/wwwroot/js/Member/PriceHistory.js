@@ -31,7 +31,7 @@
         const worksheet = workbook.addWorksheet("Dane");
 
         
-        worksheet.addRow(["ID", "Nazwa Produktu", "EAN", "Ilość ofert", "Najniższa Konkurencyjna Cena", "Twoja Cena"]);
+        worksheet.addRow(["ID", "Nazwa Produktu", "EAN", "Ilość Ofert", "Kto Ma Najniższą Cenę?", "Najniższa Konkurencyjna Cena", "Twoja Cena"]);
 
       
         const fontRed = { color: { argb: "FFAA0000" } };   
@@ -46,6 +46,7 @@
                 item.productName || "",
                 item.ean || "",
                 item.storeCount || "",
+                item.storeName || "",
                 item.lowestPrice || "",
                 item.myPrice || ""
             ];
