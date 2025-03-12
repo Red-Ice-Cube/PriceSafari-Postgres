@@ -24,6 +24,85 @@
     let positionSlider;
     let offerSlider;
 
+    function exportToExcelXLSX() {
+        
+        const workbook = new ExcelJS.Workbook();
+      
+        const worksheet = workbook.addWorksheet("Dane");
+
+        
+        worksheet.addRow(["ID", "Nazwa Produktu", "EAN", "Ilość ofert", "Najniższa Konkurencyjna Cena", "Twoja Cena"]);
+
+      
+        const fontRed = { color: { argb: "FFAA0000" } };   
+        const fontGreen = { color: { argb: "FF006400" } }; 
+        const fontGray = { color: { argb: "FF7E7E7E" } };  
+
+       
+        allPrices.forEach((item) => {
+            
+            const rowData = [
+                item.externalId || "",
+                item.productName || "",
+                item.ean || "",
+                item.storeCount || "",
+                item.lowestPrice || "",
+                item.myPrice || ""
+            ];
+
+         
+            const row = worksheet.addRow(rowData);
+
+       
+            const lowestPriceCell = row.getCell(5);
+            const myPriceCell = row.getCell(6);
+
+            const lowest = parseFloat(item.lowestPrice) || 0;
+            const mine = parseFloat(item.myPrice) || 0;
+
+           
+            if (lowest > 0 && mine > 0) {
+                if (mine < lowest) {
+                    
+                    lowestPriceCell.font = fontRed;
+                    myPriceCell.font = fontGreen;
+                } else if (mine > lowest) {
+                  
+                    lowestPriceCell.font = fontGreen;
+                    myPriceCell.font = fontRed;
+                } else {
+                   
+                    lowestPriceCell.font = fontGreen;
+                    myPriceCell.font = fontGreen;
+                }
+            } else {
+              
+                lowestPriceCell.font = fontGray;
+                myPriceCell.font = fontGray;
+            }
+        });
+
+        
+        workbook.xlsx.writeBuffer().then((buffer) => {
+            const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+            const fileName = `PriceSafari-${scrapDateJS}-${myStoreNameJS}.xlsx`;
+
+           
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.download = fileName;
+
+       
+            link.click();
+
+          
+            setTimeout(() => {
+                URL.revokeObjectURL(link.href);
+            }, 1000);
+        });
+    }
+
+
     let currentPage = 1;
     const itemsPerPage = 1000;
 
@@ -1928,6 +2007,11 @@
         loadPrices();
     });
 
+    const exportButton = document.getElementById("exportToExcelButton");
+    if (exportButton) {
+        exportButton.addEventListener("click", exportToExcelXLSX);
+    }
+
     document.getElementById('savePriceValues').addEventListener('click', function () {
         const price1 = parseFloat(document.getElementById('price1').value);
         const price2 = parseFloat(document.getElementById('price2').value);
@@ -2062,8 +2146,15 @@
         return flagsContainer;
     }
 
+
+
+
     loadStores();
     loadPrices();
+
+
+
+
 
     function showLoading() {
         document.getElementById("loadingOverlay").style.display = "flex";

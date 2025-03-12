@@ -73,9 +73,9 @@ public class GoogleScraper
                 {
                     Console.WriteLine("Natrafiono na stronę CAPTCHA. Oczekiwanie 15 sekund na rozwiązanie...");
                     await Task.Delay(15000);  
-                    currentUrl = _page.Url;   // ponownie pobierz URL
+                    currentUrl = _page.Url; 
 
-                    // Jeśli dalej jesteśmy na stronie /sorry/, to CAPTCHA nie została rozwiązana
+          
                     if (currentUrl.Contains("/sorry/"))
                     {
                         Console.WriteLine("CAPTCHA nie została rozwiązana. Restartowanie przeglądarki...");

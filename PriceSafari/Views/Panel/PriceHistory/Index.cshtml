@@ -12,6 +12,11 @@
     Layout = "~/Views/Shared/_PanelLayout.cshtml";
 }
 
+@{
+    var scrapDate = latestScrap?.Date.ToString("dd.MM.yyyy"); // np. 01.10.2023
+    var store = ViewBag.StoreName as string;                  // np. "GK-Concept.com sp. z o.o."
+}
+
 <style>
   
 
@@ -385,8 +390,7 @@
                         <div id="offerRangeSlider"></div>
                     </div>
 
-
-
+                   
 
                     <div class="Category-Container-Select">Ceneo - Twój sklep </div>
                     <div class="store-section">
@@ -493,6 +497,9 @@
                         </select>
                     </div>
                     <button class="Button-Page-Small" id="updatePricesButton">API</button>
+                    <button class="Button-Page-Small" id="exportToExcelButton">Eksportuj</button>
+
+
 
                     <div class="SimpleSpace">
                         <div class="SimpleHorizontal">
@@ -588,8 +595,20 @@
     <script>
         var flags = @Html.Raw(JsonConvert.SerializeObject(ViewBag.Flags));
     </script>
-    <script src="~/js/member/pricehistory.min.js"></script>
+    <script src="~/js/member/PriceHistory.js"></script>
+    <script>
+        
+        var scrapDateJS = "@scrapDate";
+        var myStoreNameJS = "@store";
+    </script>
+
 @*     <script src="~/js/member/PriceChange.js"></script> *@
+
+    <script src="https://cdn.jsdelivr.net/npm/exceljs@4.3.0/dist/exceljs.min.js"></script>
+
+
+
+
     <script>
         $(document).ready(function () {
             var connection = new signalR.HubConnectionBuilder().withUrl("/scrapingHub").build();
@@ -655,6 +674,7 @@
             });
         });
     </script>
+
 
 }
 
