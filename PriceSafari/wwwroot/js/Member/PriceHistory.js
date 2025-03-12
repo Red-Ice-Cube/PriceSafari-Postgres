@@ -25,22 +25,17 @@
     let offerSlider;
 
     function exportToExcelXLSX() {
-        
         const workbook = new ExcelJS.Workbook();
-      
+
         const worksheet = workbook.addWorksheet("Dane");
 
-        
         worksheet.addRow(["ID", "Nazwa Produktu", "EAN", "Ilość ofert", "Najniższa Konkurencyjna Cena", "Twoja Cena"]);
 
-      
-        const fontRed = { color: { argb: "FFAA0000" } };   
-        const fontGreen = { color: { argb: "FF006400" } }; 
-        const fontGray = { color: { argb: "FF7E7E7E" } };  
+        const fontRed = { color: { argb: "FFAA0000" } };
+        const fontGreen = { color: { argb: "FF006400" } };
+        const fontGray = { color: { argb: "FF7E7E7E" } };
 
-       
         allPrices.forEach((item) => {
-            
             const rowData = [
                 item.externalId || "",
                 item.productName || "",
@@ -50,58 +45,46 @@
                 item.myPrice || ""
             ];
 
-         
             const row = worksheet.addRow(rowData);
 
-       
             const lowestPriceCell = row.getCell(5);
             const myPriceCell = row.getCell(6);
 
             const lowest = parseFloat(item.lowestPrice) || 0;
             const mine = parseFloat(item.myPrice) || 0;
 
-           
             if (lowest > 0 && mine > 0) {
                 if (mine < lowest) {
-                    
                     lowestPriceCell.font = fontRed;
                     myPriceCell.font = fontGreen;
                 } else if (mine > lowest) {
-                  
                     lowestPriceCell.font = fontGreen;
                     myPriceCell.font = fontRed;
                 } else {
-                   
                     lowestPriceCell.font = fontGreen;
                     myPriceCell.font = fontGreen;
                 }
             } else {
-              
                 lowestPriceCell.font = fontGray;
                 myPriceCell.font = fontGray;
             }
         });
 
-        
         workbook.xlsx.writeBuffer().then((buffer) => {
             const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
             const fileName = `PriceSafari-${scrapDateJS}-${myStoreNameJS}.xlsx`;
 
-           
             const link = document.createElement("a");
             link.href = URL.createObjectURL(blob);
             link.download = fileName;
 
-       
             link.click();
 
-          
             setTimeout(() => {
                 URL.revokeObjectURL(link.href);
             }, 1000);
         });
     }
-
 
     let currentPage = 1;
     const itemsPerPage = 1000;
@@ -111,27 +94,23 @@
         window.scrollTo(0, 0);
     }
 
-
     function renderPaginationControls(totalItems) {
         const totalPages = Math.ceil(totalItems / itemsPerPage);
         const paginationContainer = document.getElementById('paginationContainer');
         paginationContainer.innerHTML = '';
 
-       
         const prevButton = document.createElement('button');
         prevButton.textContent = 'Poprzednia';
         prevButton.disabled = currentPage === 1;
         prevButton.addEventListener('click', () => {
             if (currentPage > 1) {
                 currentPage--;
-                filterPricesAndUpdateUI(false); 
-
+                filterPricesAndUpdateUI(false);
             }
         });
 
         paginationContainer.appendChild(prevButton);
 
-     
         for (let i = 1; i <= totalPages; i++) {
             const pageButton = document.createElement('button');
             pageButton.textContent = i;
@@ -140,7 +119,7 @@
             }
             pageButton.addEventListener('click', () => {
                 currentPage = i;
-                filterPricesAndUpdateUI(false); 
+                filterPricesAndUpdateUI(false);
             });
             paginationContainer.appendChild(pageButton);
         }
@@ -151,7 +130,7 @@
         nextButton.addEventListener('click', () => {
             if (currentPage < totalPages) {
                 currentPage++;
-                filterPricesAndUpdateUI(false); 
+                filterPricesAndUpdateUI(false);
             }
         });
 
@@ -261,13 +240,12 @@
 
     function convertPriceValue(price, usePriceDifference) {
         if (price.onlyMe) {
-            
             return { valueToUse: null, colorClass: 'prOnlyMe' };
         } else {
             let valueToUse = usePriceDifference
                 ? (price.savings !== null ? price.savings : price.priceDifference)
                 : price.percentageDifference;
-          
+
             if (valueToUse !== null && valueToUse !== undefined) {
                 valueToUse = parseFloat(valueToUse.toFixed(2));
             }
@@ -350,12 +328,11 @@
 
                 allPrices = response.prices.map(price => {
                     const isRejected = price.isRejected;
-                    const onlyMe = price.onlyMe === true; 
+                    const onlyMe = price.onlyMe === true;
                     let valueToUse = null;
                     let colorClass = '';
 
                     if (onlyMe) {
-                       
                         colorClass = 'prOnlyMe';
                     } else if (!isRejected) {
                         if (usePriceDifference) {
@@ -365,11 +342,9 @@
                         }
                         colorClass = getColorClass(valueToUse, price.isUniqueBestPrice, price.isSharedBestPrice);
                     } else {
-                       
                         colorClass = 'prRejected';
                     }
 
-                   
                     const marginPrice = price.marginPrice != null && !isNaN(price.marginPrice) ? parseFloat(price.marginPrice) : null;
                     const myPrice = price.myPrice != null && !isNaN(price.myPrice) ? parseFloat(price.myPrice) : null;
                     let marginAmount = null;
@@ -446,7 +421,6 @@
                     });
                 }
 
-
                 filteredPrices = filterPricesByCategoryAndColorAndFlag(filteredPrices);
 
                 renderPrices(filteredPrices);
@@ -456,7 +430,7 @@
             })
 
             .finally(() => {
-                hideLoading(); 
+                hideLoading();
             });
     }
 
@@ -599,8 +573,6 @@
 
         return valueToUse < setPrice2 ? "prMid" : "prToHigh";
     }
-   
-
 
     function renderPrices(data) {
         const container = document.getElementById('priceContainer');
@@ -798,16 +770,14 @@
             }
             if (item.singleBestCheaperDiffPerc !== null && item.singleBestCheaperDiffPerc !== undefined) {
                 const diffBox = document.createElement('div');
-                diffBox.style.marginLeft = '4px'; 
+                diffBox.style.marginLeft = '4px';
 
-               
                 if (item.singleBestCheaperDiffPerc > 25) {
                     diffBox.className = 'singlePriceDiffBoxHigh';
                 } else {
                     diffBox.className = 'singlePriceDiffBox';
                 }
 
-             
                 const span = document.createElement('span');
                 span.textContent = item.singleBestCheaperDiffPerc.toFixed(2) + '%';
                 diffBox.appendChild(span);
@@ -815,10 +785,8 @@
                 priceLine.appendChild(diffBox);
             }
 
-         
             priceBoxLowestText.appendChild(priceLine);
 
-         
             const storeNameDiv = document.createElement('div');
             storeNameDiv.innerHTML = highlightedStoreName;
             priceBoxLowestText.appendChild(storeNameDiv);
@@ -1753,8 +1721,6 @@
         return fullText.replace(regex, (match) => `<span class="${cssClass}">${match}</span>`);
     }
 
-
-
     document.getElementById('showRejectedButton').addEventListener('click', function () {
         sortingState.showRejected = !sortingState.showRejected;
         if (sortingState.showRejected) {
@@ -2183,15 +2149,8 @@
         return flagsContainer;
     }
 
-
-
-
     loadStores();
     loadPrices();
-
-
-
-
 
     function showLoading() {
         document.getElementById("loadingOverlay").style.display = "flex";
