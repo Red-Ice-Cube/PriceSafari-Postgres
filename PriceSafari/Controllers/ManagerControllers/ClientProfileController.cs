@@ -379,13 +379,42 @@ public class ClientProfileController : Controller
             ";
     }
 
+
     private string GetEmailContent2()
     {
         return @"
-        <p>To jest Mail #2 – nie używamy {ProductCount} tutaj.</p>
-        <p>Moja alternatywna treść nr 2.</p>
-        ...
-    ";
+            <p>Dzień dobry,</p>
+
+            <p>Monitorujemy ceny produktów na Google Shopping, Ceneo i Allegro.</p>
+
+            <p>Spojrzenie na cały rynek z jednego panelu pozwoli Państwu strategicznie zarządzać cenami własnych produktów, maksymalizować zyski i wyprzedzać konkurentów.</p>
+
+            <p>Dzięki śledzeniu cen, możemy szybko sprawdzić:</p>
+
+            <ul>
+                <li>Kto ma najlepszą cenę na danym produkcie?</li>
+                <li>Gdzie w rankingu cenowym znajduje się Państwa oferta?</li>
+                <li>Kto i gdzie promuje oferty?</li>
+                <li>Jak szeroka jest konkurencja?</li>
+                <li>Jaki czas wysyłki oferują poszczególni konkurenci?</li>
+                <li>Które ceny produktów można podnieść, aby maksymalizować zyski, wiedząc, że są najtańszymi ofertami na całym rynku?</li>
+                <li>Na jakich produktach wybrany konkurent zmienił wczoraj cenę?</li>
+            </ul>
+
+            <p>Panel PriceSafari z danymi jednej z zaprzyjaźnionych firm:</p>
+            <img src=""https://pricesafari.pl/mail/Panel_PriceSafari.png"" alt=""Panel_PriceSafari"" style=""width: 1400px; height: auto;"" />
+
+            <p>Rozkład cen:</p>
+            <img src=""https://pricesafari.pl/mail/Ranking_PriceSafari.png"" alt=""Ranking_PriceSafari"" style=""width: 1400px; height: auto;"" />
+
+            <p>Ceny w czasie:</p>
+            <img src=""https://pricesafari.pl/mail/Wykres_PriceSafari.png"" alt=""Wykres_PriceSafari"" style=""width: 1400px; height: auto;"" />
+
+          
+
+            <p>Zapraszamy do kontaktu. Oferujemy bezpłatne konto demo, na którym mogą Państwo przetestować nasz program na 1000 własnych produktach.</p>
+            <p><strong>Konto demo przygotujemy w kilka godzin.</strong></p>
+            ";
     }
 
     private string GetEmailContent3()

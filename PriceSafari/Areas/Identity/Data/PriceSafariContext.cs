@@ -4,7 +4,6 @@ using Microsoft.EntityFrameworkCore;
 using PriceSafari.Models.SchedulePlan;
 using PriceSafari.Models.ProductXML;
 
-
 namespace PriceSafari.Data
 {
     public class PriceSafariContext : IdentityDbContext<PriceSafariUser>
@@ -34,7 +33,6 @@ namespace PriceSafari.Data
         public DbSet<GoogleScrapingProduct> GoogleScrapingProducts { get; set; }
         public DbSet<PriceSafariReport> PriceSafariReports { get; set; }
         public DbSet<GlobalPriceReport> GlobalPriceReports { get; set; }
-        public DbSet<ScheduledTask> ScheduledTasks { get; set; }
         public DbSet<PlanClass> Plans { get; set; }
         public DbSet<InvoiceCounter> InvoiceCounters { get; set; }
 
@@ -49,9 +47,6 @@ namespace PriceSafari.Data
 
         public DbSet<GoogleFieldMapping> GoogleFieldMappings { get; set; }
         public DbSet<CeneoFieldMapping> CeneoFieldMappings { get; set; }
-
-
-
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -153,13 +148,11 @@ namespace PriceSafari.Data
                 .HasForeignKey<SchedulePlan>(sp => sp.TuesdayId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-
             modelBuilder.Entity<SchedulePlan>()
              .HasOne(sp => sp.Wednesday)
              .WithOne()
              .HasForeignKey<SchedulePlan>(sp => sp.WednesdayId)
              .OnDelete(DeleteBehavior.Restrict);
-
 
             modelBuilder.Entity<SchedulePlan>()
               .HasOne(sp => sp.Thursday)
@@ -173,23 +166,17 @@ namespace PriceSafari.Data
                .HasForeignKey<SchedulePlan>(sp => sp.FridayId)
                .OnDelete(DeleteBehavior.Restrict);
 
-
-
             modelBuilder.Entity<SchedulePlan>()
                .HasOne(sp => sp.Saturday)
                .WithOne()
                .HasForeignKey<SchedulePlan>(sp => sp.SaturdayId)
                .OnDelete(DeleteBehavior.Restrict);
 
-
-
             modelBuilder.Entity<SchedulePlan>()
                .HasOne(sp => sp.Sunday)
                .WithOne()
                .HasForeignKey<SchedulePlan>(sp => sp.SundayId)
                .OnDelete(DeleteBehavior.Restrict);
-
-
 
             // DayDetail -> ScheduleTask: w sumie to jest 1:N
             modelBuilder.Entity<ScheduleTask>()
@@ -210,7 +197,6 @@ namespace PriceSafari.Data
                 .WithMany(s => s.ScheduleTaskStores)
                 .HasForeignKey(sts => sts.StoreId)
                 .OnDelete(DeleteBehavior.Cascade);
-
         }
     }
 }
