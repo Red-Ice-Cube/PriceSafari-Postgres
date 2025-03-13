@@ -173,7 +173,30 @@
                         }
 
                         var colorClass = getColorClass(priceDifference, isUniqueBestPrice, isSharedBestPrice, savings);
-                        var shippingCost = item.ShippingCostNum == 0 ? "Free" : $"{item.ShippingCostNum - item.Price} PLN";
+                        var shippingCost = "";
+                        if (item.ShippingCostNum == null)
+                        {
+                            shippingCost = "Brak danych";
+                        }
+                        else if (item.ShippingCostNum == 0)
+                        {
+                            shippingCost = "Free";
+                        }
+                        else
+                        {
+                            
+                            if (item.IsGoogle)
+                            {
+                                var cost = item.ShippingCostNum - item.Price;
+                                shippingCost = cost <= 0 ? "Free" : $"{cost} PLN";
+                            }
+                           
+                            else
+                            {
+                                shippingCost = $"{item.ShippingCostNum} PLN";
+                            }
+                        }
+
 
                         string getAvailabilityClass(int? availabilityNum)
                         {

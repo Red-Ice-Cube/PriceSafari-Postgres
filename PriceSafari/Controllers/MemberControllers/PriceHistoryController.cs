@@ -423,8 +423,7 @@ namespace PriceSafari.Controllers.MemberControllers
                          int countStoresWithAbsoluteLowest = validPrices
                              .Count(x => x.Price.HasValue && x.Price.Value == absoluteLowestPrice);
 
-                         // 5. Jeżeli ta najniższa cena występuje tylko w jednym sklepie (i to nie jesteśmy my),
-                         //    to wtedy liczymy SingleBestCheaperDiff.
+                      
                          if (countStoresWithAbsoluteLowest == 1)
                          {
                              // Znajdź drugą najniższą cenę
