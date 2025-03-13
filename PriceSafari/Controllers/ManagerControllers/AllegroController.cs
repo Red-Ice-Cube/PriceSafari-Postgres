@@ -15,10 +15,6 @@ public class AllegroController : Controller
     private static readonly string AllegroAuthUrl = "https://allegro.pl/auth/oauth/token";
     private static readonly string AllegroApiUrl = "https://api.allegro.pl/offers/listing";
 
-    // Jeżeli używasz Sandboxa, byłoby:
-    // private static readonly string AllegroAuthUrl = "https://allegro.pl.allegrosandbox.pl/auth/oauth/token";
-    // private static readonly string AllegroApiUrl = "https://api.allegro.pl.allegrosandbox.pl/offers/listing";
-
     // Własne ID i Secret
     private static readonly string ClientId = "3af8adf76b094ff7902decd063367c3b";
     private static readonly string ClientSecret = "g5S0Yyv4j4rPCLiOnBw805UAozqX9DXKbmOkdjIl7aVQsZuRDgIeWdOUocwt6J4A";
@@ -34,7 +30,7 @@ public class AllegroController : Controller
     [HttpGet]
     public IActionResult Index()
     {
-        // Wyświetlanie widoku z formularzem EAN / przyciskiem "Zaloguj się"
+        // Wyświetlanie widoku z formularzem, np. input "phrase" / przycisk "Zaloguj się"
         return View("~/Views/ManagerPanel/Allegro/Index.cshtml");
     }
 
@@ -77,12 +73,13 @@ public class AllegroController : Controller
         }
     }
 
+    // Zamiast "ean" - param "phrase" (np. "Smartfon Samsung")
     [HttpPost]
-    public async Task<IActionResult> GetOffers(string ean)
+    public async Task<IActionResult> GetOffers(string phrase)
     {
-        if (string.IsNullOrEmpty(ean))
+        if (string.IsNullOrEmpty(phrase))
         {
-            ViewBag.Error = "Kod EAN nie może być pusty.";
+            ViewBag.Error = "Fraza nie może być pusta.";
             return View("~/Views/ManagerPanel/Allegro/Index.cshtml");
         }
 
@@ -101,19 +98,24 @@ public class AllegroController : Controller
             client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
             client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.allegro.public.v1+json"));
 
-            // Tworzymy URL z ean
-            var url = $"{AllegroApiUrl}?ean={ean}";
+            // Tworzymy URL z parametrem ?phrase=...
+            var url = $"{AllegroApiUrl}?phrase={System.Web.HttpUtility.UrlEncode(phrase)}";
+            // (UrlEncode - żeby obsłużyć spacje i znaki specjalne, np. "Smartfon Samsung S20")
+
             var response = await client.GetAsync(url);
 
+            // Jeżeli status nie jest OK (np. 403, 400, 500 itp.), logujemy zawartość:
             if (!response.IsSuccessStatusCode)
             {
-                ViewBag.Error = $"Błąd API Allegro: {response.StatusCode}";
+                var errorBody = await response.Content.ReadAsStringAsync();
+                ViewBag.Error = $"Błąd API Allegro: {response.StatusCode}\nTreść odpowiedzi: {errorBody}";
                 return View("~/Views/ManagerPanel/Allegro/Index.cshtml");
             }
 
             var jsonResponse = await response.Content.ReadAsStringAsync();
-            var result = JsonSerializer.Deserialize<AllegroOffersResponse>(jsonResponse,
-                           new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            var result = JsonSerializer.Deserialize<AllegroOffersResponse>(
+                jsonResponse,
+                new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
 
             // Tutaj w result?.Items?.Regular masz oferty
             return View("~/Views/ManagerPanel/Allegro/Index.cshtml", result?.Items?.Regular);
@@ -145,15 +147,20 @@ public class AllegroController : Controller
         };
 
         var response = await client.SendAsync(request);
+
         if (!response.IsSuccessStatusCode)
         {
-            throw new Exception($"Błąd pobierania tokena: {response.StatusCode}");
+            var errorContent = await response.Content.ReadAsStringAsync();
+            throw new Exception($"Błąd pobierania tokena: {response.StatusCode}. Odpowiedź Allegro: {errorContent}");
         }
 
         var jsonResponse = await response.Content.ReadAsStringAsync();
-        var tokenData = JsonSerializer.Deserialize<Dictionary<string, string>>(jsonResponse);
+        var tokenData = JsonSerializer.Deserialize<AllegroTokenResponse>(
+            jsonResponse,
+            new JsonSerializerOptions { PropertyNameCaseInsensitive = true }
+        );
 
-        // Token znajduje się w polu "access_token"
-        return tokenData["access_token"];
+        // Zwracamy właściwy access_token
+        return tokenData.Access_token;
     }
 }
