@@ -1,20 +1,28 @@
 ﻿@model IEnumerable<PriceSafari.Models.ProductMap>
+
 @{
     ViewData["Title"] = "Zmapowane Produkty";
     Layout = "~/Views/Shared/_PanelLayout.cshtml";
-    var storeProducts = ViewBag.StoreProducts as IEnumerable<PriceSafari.Models.ProductClass>;
+
+    // Produkty z bazy (ProductClass) wzięte z ViewBag
+    var storeProducts = ViewBag.StoreProducts as IEnumerable<PriceSafari.Models.ProductClass>
+                       ?? Enumerable.Empty<PriceSafari.Models.ProductClass>();
+
     var storeId = ViewBag.StoreId;
 
+    // Statystyki do nagłówków kolumn
     var imageCount = storeProducts.Count(p => !string.IsNullOrEmpty(p.MainUrl));
+    var googleImageCount = storeProducts.Count(p => !string.IsNullOrEmpty(p.ImgUrlGoogle));
     var productNameCount = storeProducts.Count(p => !string.IsNullOrEmpty(p.ProductName));
+    var productNameGoogleCount = storeProducts.Count(p => !string.IsNullOrEmpty(p.ProductNameInStoreForGoogle));
     var exportedNameCeneoCount = storeProducts.Count(p => !string.IsNullOrEmpty(p.ExportedNameCeneo));
-    var offerUrlCount = storeProducts.Count(p => !string.IsNullOrEmpty(p.OfferUrl));
+    var eanCount = storeProducts.Count(p => !string.IsNullOrEmpty(p.Ean));
+    var eanGoogleCount = storeProducts.Count(p => !string.IsNullOrEmpty(p.EanGoogle));
     var urlCount = storeProducts.Count(p => !string.IsNullOrEmpty(p.Url));
     var externalIdCount = storeProducts.Count(p => p.ExternalId.HasValue);
-    var catalogNumberCount = storeProducts.Count(p => !string.IsNullOrEmpty(p.CatalogNumber));
-    var eanCount = storeProducts.Count(p => !string.IsNullOrEmpty(p.Ean));
 }
 
+// Nagłówek
 <h2>Zmapowane Produkty dla sklepu @ViewBag.StoreName</h2>
 
 <!-- Przycisk do usuwania wszystkich produktów danego sklepu -->
@@ -38,88 +46,309 @@
 </form>
 
 <!-- Przycisk: Utwórz lub zaktualizuj produkty -->
-<form asp-action="CreateOrUpdateProductsFromProductMap" method="post">
+<form asp-action="CreateOrUpdateProductsFromProductMap" method="post" class="mt-3">
     <input type="hidden" name="storeId" value="@storeId" />
-
-    <!-- Nowy checkbox: -->
     <div class="form-group mt-2">
         <label>
             <input type="checkbox" name="addGooglePrices" value="true" />
             Dodaj ceny Google (Price + Delivery)
         </label>
     </div>
-
     <button type="submit" class="btn btn-primary">
         Utwórz lub zaktualizuj produkty
     </button>
 </form>
 
 <!-- Przycisk: Mapuj Produkty -->
-<form method="post" action="@Url.Action("MapProducts", "ProductMapping", new { storeId })">
+<form method="post" action="@Url.Action("MapProducts", "ProductMapping", new { storeId })" class="mt-3">
     <button type="submit" class="btn btn-primary">Mapuj Produkty</button>
 </form>
 
-<div class="row">
-    <div class="col-md-12 p-3">
-        <table class="table table-bordered">
-            <thead>
-                <tr>
-                    <th>Zdjęcie (@imageCount)</th>
-                    <th>Produkt (@productNameCount)</th>
-                    <th>Nazwa EXPORT CENEO (@exportedNameCeneoCount)</th>
-                    <th>ceneo URL (@offerUrlCount)</th>
-                    <th>URL (@urlCount)</th>
-                    <th>External ID (@externalIdCount)</th>
-                    <th>Numer Katalogowy (@catalogNumberCount)</th>
-                    <th>EAN (@eanCount)</th>
+<hr />
 
-                    <!-- NOWE: kolumny z feeda Google -->
-                    <th>Cena z Feed Google</th>
-                    <th>Dostawa z Feed Google</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach (var product in storeProducts)
-                {
-                    <tr>
-                        <td>
-                            @if (!string.IsNullOrEmpty(product.MainUrl))
-                            {
-                                <img src="@product.MainUrl" alt="@product.CatalogNumber" style="max-width: 100px;" />
-                            }
-                        </td>
-                        <td>@product.ProductName</td>
-                        <td>@product.ExportedNameCeneo</td>
-                        <td>
-                            @if (!string.IsNullOrEmpty(product.OfferUrl))
-                            {
-                                <a href="@product.OfferUrl" target="_blank">@product.OfferUrl</a>
-                            }
-                        </td>
-                        <td>
-                            @if (!string.IsNullOrEmpty(product.Url))
-                            {
-                                <a href="@product.Url" target="_blank">@product.Url</a>
-                            }
-                        </td>
-                        <td>@product.ExternalId</td>
-                        <td>@product.CatalogNumber</td>
-                        <td>@product.Ean</td>
-
-                        <!-- NOWE: wypisanie cen z feeda Google, np. do 2 miejsc po przecinku -->
-                        <td>
-                            @(product.GoogleXMLPrice.HasValue
-                                ? product.GoogleXMLPrice.Value.ToString("F2")
-                                : "-")
-                        </td>
-                        <td>
-                            @(product.GoogleDeliveryXMLPrice.HasValue
-                                ? product.GoogleDeliveryXMLPrice.Value.ToString("F2")
-                                : "-")
-                        </td>
-                    </tr>
-                }
-            </tbody>
-        </table>
-    </div>
+<!-- Panel filtrów (checkboxy) -->
+<div class="p-2 mb-3" style="border:1px solid #ccc;">
+    <h4>Filtry isScrapable / isRejected</h4>
+    <label class="mr-3">
+        <input type="checkbox" class="status-filter" data-status="active" />
+        Aktywny (isScrapable && !isRejected)
+    </label>
+    <label class="mr-3">
+        <input type="checkbox" class="status-filter" data-status="inactive" />
+        Nieaktywny (!isScrapable && !isRejected)
+    </label>
+    <label class="mr-3">
+        <input type="checkbox" class="status-filter" data-status="active-rejected" />
+        Odrzucony (isScrapable && isRejected)
+    </label>
+    <label class="mr-3">
+        <input type="checkbox" class="status-filter" data-status="inactive-rejected" />
+        Wyłączony (!isScrapable && isRejected)
+    </label>
 </div>
+
+<div class="p-2 mb-3" style="border:1px solid #ccc;">
+    <h4>Filtry platform (Google/Ceneo)</h4>
+    <label class="mr-3">
+        <input type="checkbox" class="platform-filter" data-platform="google" />
+        Google
+    </label>
+    <label class="mr-3">
+        <input type="checkbox" class="platform-filter" data-platform="ceneo" />
+        Ceneo
+    </label>
+    <label class="mr-3">
+        <input type="checkbox" class="platform-filter" data-platform="google-ceneo" />
+        Google &amp; Ceneo
+    </label>
+    <label class="mr-3">
+        <input type="checkbox" class="platform-filter" data-platform="not-found" />
+        Nie znalezione
+    </label>
+</div>
+
+<button id="remove-filtered" class="btn btn-danger mb-3">
+    Usuń odfiltrowane
+</button>
+
+<hr />
+
+<!-- Tabela produktów -->
+<table class="table table-bordered table-striped" id="product-table">
+    <thead>
+        <tr>
+            <th>Zdjęcie (Ceneo) (@imageCount)</th>
+            <th>Zdjęcie (Google) (@googleImageCount)</th>
+            <th>Nazwa (Ceneo) (@exportedNameCeneoCount)</th>
+            <th>Nazwa (Google) (@productNameGoogleCount)</th>
+            <th>EAN (Ceneo) (@eanCount)</th>
+            <th>EAN (Google) (@eanGoogleCount)</th>
+            <th>URL Produktu (@urlCount)</th>
+            <th>IsScrapable</th>
+            <th>IsRejected</th>
+            <th>External ID (@externalIdCount)</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var product in storeProducts)
+        {
+            // Określamy "platformCategory"
+            bool hasGoogle = !string.IsNullOrEmpty(product.GoogleUrl);
+            bool hasCeneo = !string.IsNullOrEmpty(product.OfferUrl);
+            string platformCategory;
+            if (hasGoogle && hasCeneo) platformCategory = "google-ceneo";
+            else if (hasGoogle) platformCategory = "google";
+            else if (hasCeneo) platformCategory = "ceneo";
+            else platformCategory = "not-found";
+
+            // Określamy "statusCategory"
+            string statusCategory;
+            if (product.IsScrapable && product.IsRejected) statusCategory = "active-rejected";
+            else if (product.IsScrapable && !product.IsRejected) statusCategory = "active";
+            else if (!product.IsScrapable && product.IsRejected) statusCategory = "inactive-rejected";
+            else statusCategory = "inactive";
+
+            <tr data-product-id="@product.ProductId"
+                data-platform="@platformCategory"
+                data-status="@statusCategory">
+                <td>
+                    @if (!string.IsNullOrEmpty(product.MainUrl))
+                    {
+                        <img src="@product.MainUrl" alt="CeneoImg" style="width:90px; height:90px; object-fit:contain;" />
+                    }
+                    else
+                    {
+                        <div style="width:90px; height:90px; background-color:#f7f7f7;">Brak</div>
+                    }
+                </td>
+                <td>
+                    @if (!string.IsNullOrEmpty(product.ImgUrlGoogle))
+                    {
+                        <img src="@product.ImgUrlGoogle" alt="GoogleImg" style="width:90px; height:90px; object-fit:contain;" />
+                    }
+                    else
+                    {
+                        <div style="width:90px; height:90px; background-color:#f7f7f7;">Brak</div>
+                    }
+                </td>
+                <td>
+                    @* "Nazwa (Ceneo)" – np. ExportedNameCeneo lub ProductName *@
+                    <div style="max-width:200px; white-space:normal;">
+                        @if (!string.IsNullOrEmpty(product.ExportedNameCeneo))
+                        {
+                            @product.ExportedNameCeneo
+                        }
+                        else
+                        {
+                            <span>(brak)</span>
+                        }
+                    </div>
+                </td>
+                <td>
+                    @* "Nazwa (Google)" – np. ProductNameInStoreForGoogle lub ProductName *@
+                    <div style="max-width:200px; white-space:normal;">
+                        @if (!string.IsNullOrEmpty(product.ProductNameInStoreForGoogle))
+                        {
+                            @product.ProductNameInStoreForGoogle
+                        }
+                        else
+                        {
+                            <span>(brak)</span>
+                        }
+                    </div>
+                </td>
+                <td>
+                    @if (!string.IsNullOrEmpty(product.Ean))
+                    {
+                        @product.Ean
+                    }
+                    else
+                    {
+                        <span>(brak)</span>
+                    }
+                </td>
+                <td>
+                    @if (!string.IsNullOrEmpty(product.EanGoogle))
+                    {
+                        @product.EanGoogle
+                    }
+                    else
+                    {
+                        <span>(brak)</span>
+                    }
+                </td>
+                <td>
+                    @if (!string.IsNullOrEmpty(product.Url))
+                    {
+                        <a href="@product.Url" target="_blank">Link</a>
+                    }
+                    else
+                    {
+                        <span>(brak)</span>
+                    }
+                </td>
+                <td>@product.IsScrapable</td>
+                <td>@product.IsRejected</td>
+                <td>
+                    @if (product.ExternalId.HasValue)
+                    {
+                        @product.ExternalId.Value
+                    }
+                    else
+                    {
+                        <span>(brak)</span>
+                    }
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@section Scripts {
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Checkboxy status
+            const statusCheckboxes = document.querySelectorAll('.status-filter');
+            // Checkboxy platform
+            const platformCheckboxes = document.querySelectorAll('.platform-filter');
+            // Przycisk "Usuń odfiltrowane"
+            const removeFilteredBtn = document.getElementById('remove-filtered');
+
+            // Funkcja filtrująca
+            function applyFilters() {
+                // Zbierz zaznaczone statusy
+                const selectedStatuses = Array.from(statusCheckboxes)
+                    .filter(ch => ch.checked)
+                    .map(ch => ch.getAttribute('data-status'));
+
+                // Zbierz zaznaczone platformy
+                const selectedPlatforms = Array.from(platformCheckboxes)
+                    .filter(ch => ch.checked)
+                    .map(ch => ch.getAttribute('data-platform'));
+
+                // Wszystkie wiersze
+                const rows = document.querySelectorAll('#product-table tbody tr');
+                let visibleCount = 0;
+
+                rows.forEach(row => {
+                    const rowStatus = row.getAttribute('data-status');    // active/inactive/active-rejected/inactive-rejected
+                    const rowPlatform = row.getAttribute('data-platform');// google/ceneo/google-ceneo/not-found
+
+                    // Czy pasuje do statusu
+                    let statusMatch = selectedStatuses.length === 0 || selectedStatuses.includes(rowStatus);
+
+                    // Czy pasuje do platformy
+                    let platformMatch = selectedPlatforms.length === 0 || selectedPlatforms.includes(rowPlatform);
+
+                    // Jeśli pasuje do obu filtrów -> widoczny
+                    if (statusMatch && platformMatch) {
+                        row.style.display = '';
+                        visibleCount++;
+                    } else {
+                        row.style.display = 'none';
+                    }
+                });
+
+                // Możesz tu np. wyświetlić liczbę widocznych:
+                // np. w jakimś <span id="visible-count"></span>
+                const countSpan = document.getElementById('visible-count');
+                if (countSpan) {
+                    countSpan.textContent = visibleCount.toString();
+                }
+            }
+
+            // Podpinamy eventy
+            statusCheckboxes.forEach(ch => ch.addEventListener('change', applyFilters));
+            platformCheckboxes.forEach(ch => ch.addEventListener('change', applyFilters));
+
+            // Usuwanie odfiltrowanych
+            removeFilteredBtn.addEventListener('click', () => {
+                // Znajdź wiersze widoczne
+                const rows = document.querySelectorAll('#product-table tbody tr');
+                const visibleIds = [];
+
+                rows.forEach(row => {
+                    if (row.style.display !== 'none') {
+                        const prodId = row.getAttribute('data-product-id');
+                        if (prodId) {
+                            visibleIds.push(parseInt(prodId));
+                        }
+                    }
+                });
+
+                if (visibleIds.length === 0) {
+                    alert("Brak widocznych produktów do usunięcia.");
+                    return;
+                }
+                if (!confirm("Czy na pewno usunąć " + visibleIds.length + " widocznych produktów?")) {
+                    return;
+                }
+
+                // Wywołanie RemoveSelectedProducts
+                fetch('@Url.Action("RemoveSelectedProducts", "ProductMapping")?storeId=' + @storeId, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(visibleIds)
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Skutecznie usunięto z bazy
+                        rows.forEach(row => {
+                            if (row.style.display !== 'none') {
+                                row.remove();
+                            }
+                        });
+                        alert("Usunięto widoczne produkty.");
+                    } else {
+                        alert("Błąd podczas usuwania: " + data.message);
+                    }
+                })
+                .catch(err => console.error(err));
+            });
+
+            // Inicjalne wywołanie filtrów (nic nie zaznaczone -> pokaż wszystko)
+            applyFilters();
+        });
+    </script>
+}

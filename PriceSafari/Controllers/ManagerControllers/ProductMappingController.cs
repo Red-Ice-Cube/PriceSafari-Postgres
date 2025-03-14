@@ -93,6 +93,39 @@ namespace PriceSafari.Controllers.ManagerControllers
         }
 
         [HttpPost]
+        public async Task<IActionResult> RemoveSelectedProducts(int storeId, [FromBody] List<int> productIds)
+        {
+            try
+            {
+                // 1) Pobranie wszystkich produktów do pamięci
+                var allStoreProducts = await _context.Products
+                    .Where(p => p.StoreId == storeId)
+                    .ToListAsync();
+
+                // 2) Filtrowanie w pamięci (LINQ to Objects)
+                var productsToRemove = allStoreProducts
+                    .Where(p => productIds.Contains(p.ProductId))
+                    .ToList();
+
+                // 3) Usunięcie z kontekstu EF
+                _context.Products.RemoveRange(productsToRemove);
+
+                // 4) Zapis
+                await _context.SaveChangesAsync();
+
+                return Json(new { success = true });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = ex.Message });
+            }
+        }
+
+
+
+
+
+        [HttpPost]
         public async Task<IActionResult> MapProducts(int storeId)
         {
             // Pobieramy produkty ze sklepu
