@@ -93,7 +93,7 @@
         if (hasImage) {
             modalContent += '<th></th>';
                         }
-        modalContent += '<th>Produkt</th><th>Cena aktualna</th><th>Nowa cena</th><th>Różnica</th>';
+        modalContent += '<th>Produkt</th><th>Cena aktualna</th><th>Nowa cena</th><th>Zmiana</th>';
         modalContent += '</tr></thead><tbody>';
 
         selectedPriceChanges.forEach(function (item) {
@@ -104,7 +104,7 @@
             var name = prodDetail ? prodDetail.productName : item.productName;
             var imageUrl = prodDetail ? prodDetail.imageUrl : "";
 
-            // ----- TUTAJ DODAJ -----
+           
             var simResult = simulationResults.find(x => x.productId == item.productId);
 
             // Jeśli chcesz pobierać EAN z simulationResults:
@@ -170,19 +170,19 @@
                     '</td>';
 
                 // Cena aktualna
-                modalContent += '<td>' +
+            modalContent += '<td style="font-size:16px;">' +
                     item.currentPrice.toFixed(2) + ' PLN<br />' +
                     '<small>' + googleDisplay + ceneoDisplay + '</small>' +
                     '</td>';
 
                 // Nowa cena
-                modalContent += '<td>' +
+            modalContent += '<td style="font-size:16px;">' +
                     item.newPrice.toFixed(2) + ' PLN<br />' +
                     '<small>' + googleNewDisplay + ceneoNewDisplay + '</small>' +
                     '</td>';
 
                 // Różnica
-                modalContent += '<td>' + arrow + ' ' + Math.abs(diff).toFixed(2) + ' PLN</td>';
+            modalContent += '<td style="font-size:16px;">' + arrow + ' ' + Math.abs(diff).toFixed(2) + ' PLN</td>';
 
                 modalContent += '</tr>';
                         });
