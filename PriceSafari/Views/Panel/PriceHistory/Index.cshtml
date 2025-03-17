@@ -367,9 +367,67 @@
     }
 
 
+    .priceChangeSummary {
+        display: inline-flex;
+        box-sizing: border-box;
+        align-items: center;
+        justify-content: center;
+     
+        color: #4e4e4e;
+        font-size: 13px;
+        gap: 10px;
+        flex-wrap:nowrap;
+      
+
+    }
+
+    .buttonsContainer {
+        display: flex;     
+        height: 34px;
+        margin-right: 12px;
+       
+ 
+    }
+
+
+    #simulateButton {
         
-        
-   </style>
+        color: #e3e3e3;
+        background: #323232;
+        border-radius:4px;
+        height: 34px;
+    }
+
+    .price-change-down {
+        display: inline-block;
+        background-color: rgb(227, 227, 227);
+        padding: 2px 4px;
+        border-radius: 4px;
+        height: 34px;
+        width:50px;
+        align-content:center;
+        justify-content:center;
+        text-align:center;
+        margin-left:10px;
+    }
+
+    .price-change-up {
+        display: inline-block;
+        background-color: rgb(227, 227, 227);
+        padding: 2px 4px;
+        border-radius: 4px;
+        height: 34px;
+        align-content: center;
+        justify-content: center;
+        text-align: center;
+        width: 50px;
+    }
+
+
+
+
+
+</style>
 
 <div class="Vert">
     <div class="Page-Box">
@@ -613,14 +671,10 @@
                 <div id="sortingButtons">
                     <div class="ProductCount" id="displayedProductCount"></div>
 
-                    <div id="priceChangeSummary" style="padding: 4px 8px; background-color: #f0f0f0; border-radius: 4px; font-size: 13px; margin-right: 8px; display: inline-block;">
-                        <div id="summaryText"></div>
-                        <button id="simulateButton" class="btn btn-sm btn-primary" style="margin-left: 10px;">Symuluj</button>
-                    </div>
-
-
 
                     <div id="paginationContainer"></div>
+
+                
 
 
                     <button id="sortName">A-Z</button>
@@ -635,6 +689,13 @@
                 </div>
 
 
+                <div class="buttonsContainer">
+                    <div id="priceChangeSummary" class="priceChangeSummary">
+                        <div id="summaryText"></div>
+                        <button id="simulateButton">Symuluj zmiany cen</button>
+                    </div>
+                
+                </div>
                 <div class="Vert-table">
                     <div id="priceContainer" class="price-container"></div>
                 </div>
