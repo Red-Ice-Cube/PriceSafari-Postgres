@@ -8,6 +8,7 @@ using PriceSafari.Data;
 using Microsoft.AspNetCore.Authorization;
 using PriceSafari.Scrapers;
 using Microsoft.AspNetCore.Mvc.Rendering;
+using Microsoft.Data.SqlClient;
 
 
 namespace PriceSafari.Controllers.ManagerControllers
@@ -225,63 +226,134 @@ namespace PriceSafari.Controllers.ManagerControllers
         }
 
 
+        //[HttpPost]
+        //public async Task<IActionResult> DeleteStore(int storeId)
+        //{
+        //    // Wczytujemy Store wraz ze wszystkimi powiązaniami, które chcemy usunąć
+        //    var store = await _context.Stores
+        //        .Include(s => s.Products)
+        //        .Include(s => s.Categories)
+        //        .Include(s => s.ScrapHistories)
+        //        .Include(s => s.PriceValues)
+        //        .Include(s => s.Flags)
+        //        .Include(s => s.UserStores)
+        //        .Include(s => s.PriceSafariReports)
+        //        .Include(s => s.Invoices)
+        //        .FirstOrDefaultAsync(s => s.StoreId == storeId);
+
+        //    if (store == null)
+        //    {
+        //        return NotFound();
+        //    }
+
+
+        //    _context.Products.RemoveRange(store.Products);
+
+
+        //    _context.Categories.RemoveRange(store.Categories);
+
+
+        //    _context.ScrapHistories.RemoveRange(store.ScrapHistories);
+
+
+        //    _context.PriceValues.RemoveRange(store.PriceValues);
+
+
+        //    store.Flags.Clear();
+
+
+
+        //    _context.UserStores.RemoveRange(store.UserStores);
+
+
+        //    _context.PriceSafariReports.RemoveRange(store.PriceSafariReports);
+
+
+        //    _context.Invoices.RemoveRange(store.Invoices);
+
+
+        //    _context.Stores.Remove(store);
+
+
+        //    await _context.SaveChangesAsync();
+
+        //    return RedirectToAction("Index");
+        //}
+
+
+
+
         [HttpPost]
         public async Task<IActionResult> DeleteStore(int storeId)
         {
-            // Wczytujemy Store wraz ze wszystkimi powiązaniami, które chcemy usunąć
-            var store = await _context.Stores
-                .Include(s => s.Products)
-                .Include(s => s.Categories)
-                .Include(s => s.ScrapHistories)
-                .Include(s => s.PriceValues)
-                .Include(s => s.Flags)
-                .Include(s => s.UserStores)
-                .Include(s => s.PriceSafariReports)
-                .Include(s => s.Invoices)
-                .FirstOrDefaultAsync(s => s.StoreId == storeId);
-
-            if (store == null)
+            // Na wypadek, gdyby store nie istniał
+            bool storeExists = await _context.Stores.AnyAsync(s => s.StoreId == storeId);
+            if (!storeExists)
             {
+                Console.WriteLine($"Próba usunięcia Store o ID={storeId}, ale nie znaleziono go w bazie.");
                 return NotFound();
             }
 
-            // 1. Usuwanie powiązanych encji, jeśli nie używasz kaskadowego usuwania w modelu/bazie:
+            // Na wszelki wypadek zwiększamy czas wykonywania poleceń (domyślnie 30 sekund).
+            // Jeśli 5 minut to nadal za mało, można jeszcze wydłużyć.
+            _context.Database.SetCommandTimeout(300);
 
-            // Produkty powiązane
-            _context.Products.RemoveRange(store.Products);
+            Console.WriteLine($"Rozpoczynam usuwanie Store o ID={storeId}...");
 
-            // Kategorie (jeśli faktycznie mają być usuwane)
-            // Uwaga: Czasem kategorie są wspólne dla wielu sklepów - wtedy ostrożnie
-            _context.Categories.RemoveRange(store.Categories);
+            // Rozpoczynamy transakcję
+            using var transaction = await _context.Database.BeginTransactionAsync();
 
-            // Historię scrapowania
-            _context.ScrapHistories.RemoveRange(store.ScrapHistories);
+            // Z chunk size = 100 (możesz dostosować w razie potrzeby)
+            int chunkSize = 100;
 
-            // Ceny (PriceValues) powiązane ze sklepem
-            _context.PriceValues.RemoveRange(store.PriceValues);
+            // Usuwanie z poszczególnych tabel
+            await DeleteInChunksAsync("Products", "StoreId", storeId, chunkSize);
+            await DeleteInChunksAsync("Categories", "StoreId", storeId, chunkSize);
+            await DeleteInChunksAsync("ScrapHistories", "StoreId", storeId, chunkSize);
+            await DeleteInChunksAsync("PriceValues", "StoreId", storeId, chunkSize);
+            await DeleteInChunksAsync("Flags", "StoreClassStoreId", storeId, chunkSize);
+            await DeleteInChunksAsync("UserStores", "StoreId", storeId, chunkSize);
+            await DeleteInChunksAsync("PriceSafariReports", "StoreId", storeId, chunkSize);
+            await DeleteInChunksAsync("Invoices", "StoreId", storeId, chunkSize);
 
-            // Flags – jeżeli jest to relacja many-to-many, czasem wystarczy:
-            store.Flags.Clear();
-            // Ale jeżeli chcesz usunąć same obiekty z tabeli Flags (co może być niewskazane, jeśli używane są w innych miejscach), wtedy:
-            // _context.Flags.RemoveRange(store.Flags);
+            // Na końcu usuwamy sam Store (zwykle jeden rekord)
+            int deletedStores = await _context.Database.ExecuteSqlRawAsync(
+                "DELETE FROM [Stores] WHERE StoreId = {0}",
+                storeId
+            );
+            Console.WriteLine($"Usunięto {deletedStores} rekord(ów) z tabeli [Stores].");
 
-            // UserStores (tabela łącząca)
-            _context.UserStores.RemoveRange(store.UserStores);
+            // Zatwierdzamy transakcję
+            await transaction.CommitAsync();
 
-            // Raporty
-            _context.PriceSafariReports.RemoveRange(store.PriceSafariReports);
-
-            // Faktury
-            _context.Invoices.RemoveRange(store.Invoices);
-
-            // 2. Na końcu usuwamy sam obiekt Store
-            _context.Stores.Remove(store);
-
-            // 3. Zapisujemy wszystko w jednym "strzale"
-            await _context.SaveChangesAsync();
+            Console.WriteLine($"Zakończono usuwanie Store o ID={storeId} wraz z powiązanymi danymi.");
 
             return RedirectToAction("Index");
         }
+
+        private async Task<int> DeleteInChunksAsync(string tableName, string whereColumn, int storeId, int chunkSize)
+        {
+            int totalDeleted = 0;
+            while (true)
+            {
+                // DELETE TOP(...) pozwala nam w każdej iteracji usunąć paczkę rekordów
+                int deleted = await _context.Database.ExecuteSqlRawAsync($@"
+            DELETE TOP({chunkSize})
+            FROM [{tableName}]
+            WHERE {whereColumn} = @storeId",
+                    new SqlParameter("@storeId", storeId)
+                );
+
+                totalDeleted += deleted;
+                Console.WriteLine($"[{tableName}] - usunięto {deleted} rekordów (łącznie {totalDeleted}).");
+
+                // Jeśli w tej iteracji nic nie skasowano, to znaczy, że wszystko już usunięte
+                if (deleted == 0)
+                    break;
+            }
+            return totalDeleted;
+        }
+
 
 
         [HttpGet]
