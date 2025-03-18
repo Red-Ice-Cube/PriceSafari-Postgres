@@ -900,6 +900,189 @@ namespace PriceSafari.Controllers.MemberControllers
 
 
 
+        //[HttpPost]
+        //public async Task<IActionResult> SimulatePriceChange([FromBody] List<SimulationItem> simulationItems)
+        //{
+        //    if (simulationItems == null || simulationItems.Count == 0)
+        //    {
+        //        return Json(new List<object>());
+        //    }
+
+        //    // Pobierz pierwszy produkt, żeby ustalić ID sklepu i jego nazwę
+        //    var firstProduct = await _context.Products
+        //        .Include(p => p.Store)
+        //        .FirstOrDefaultAsync(p => p.ProductId == simulationItems.First().ProductId);
+
+        //    if (firstProduct == null)
+        //    {
+        //        return NotFound("Produkt nie znaleziony.");
+        //    }
+
+        //    int storeId = firstProduct.StoreId;
+        //    string ourStoreName = firstProduct.Store != null ? firstProduct.Store.StoreName : "";
+
+        //    // Pobierz ostatnie scrapowanie dla sklepu
+        //    var latestScrap = await _context.ScrapHistories
+        //        .Where(sh => sh.StoreId == storeId)
+        //        .OrderByDescending(sh => sh.Date)
+        //        .Select(sh => new { sh.Id })
+        //        .FirstOrDefaultAsync();
+
+        //    if (latestScrap == null)
+        //    {
+        //        return BadRequest("Brak scrapowania dla sklepu.");
+        //    }
+
+        //    // Funkcja pomocnicza do obliczania rankingu
+        //    string CalculateRanking(List<decimal> prices, decimal price)
+        //    {
+        //        prices.Sort();
+        //        int firstIndex = prices.FindIndex(x => x == price);
+        //        int lastIndex = prices.FindLastIndex(x => x == price);
+        //        return (firstIndex == lastIndex)
+        //            ? (firstIndex + 1).ToString()
+        //            : $"{firstIndex + 1}-{lastIndex + 1}";
+        //    }
+
+        //    var simulationResults = new List<object>();
+
+        //    foreach (var sim in simulationItems)
+        //    {
+        //        // Pobieramy EAN dla danego produktu
+        //        var productData = await _context.Products
+        //            .Where(p => p.ProductId == sim.ProductId)
+        //            .Select(p => new
+        //            {
+        //                p.ProductId,
+        //                p.Ean
+        //            })
+        //            .FirstOrDefaultAsync();
+
+        //        if (productData == null)
+        //        {
+        //            // Jeśli brak produktu, można np. pominąć go w wynikach lub zwrócić info
+        //            continue;
+        //        }
+
+        //        // Pobieramy konkurencyjne ceny dla danego produktu z ostatniego scrapowania
+        //        var competitorPrices = await _context.PriceHistories
+        //            .Where(ph => ph.ProductId == sim.ProductId
+        //                      && ph.ScrapHistoryId == latestScrap.Id
+        //                      && ph.StoreName != ourStoreName)
+        //            .Select(ph => new
+        //            {
+        //                ph.Price,
+        //                ph.IsGoogle,
+        //                ph.StoreName
+        //            })
+        //            .ToListAsync();
+
+        //        // -- GOOGLE --
+        //        var googlePrices = competitorPrices
+        //            .Where(x => x.IsGoogle)
+        //            .Select(x => x.Price)
+        //            .ToList();
+
+        //        string currentGoogleRanking, newGoogleRanking;
+        //        int totalGoogleOffers = googlePrices.Count;
+        //        if (totalGoogleOffers > 0)
+        //        {
+        //            var currentGoogleList = new List<decimal>(googlePrices) { sim.CurrentPrice };
+        //            currentGoogleRanking = CalculateRanking(currentGoogleList, sim.CurrentPrice);
+
+        //            var newGoogleList = new List<decimal>(googlePrices) { sim.NewPrice };
+        //            newGoogleRanking = CalculateRanking(newGoogleList, sim.NewPrice);
+        //        }
+        //        else
+        //        {
+        //            currentGoogleRanking = newGoogleRanking = "-";
+        //        }
+
+        //        // -- CENEO --
+        //        var ceneoCompetitor = competitorPrices
+        //            .Where(x => !x.IsGoogle && !string.IsNullOrEmpty(x.StoreName))
+        //            .ToList();
+
+        //        var ceneoPrices = ceneoCompetitor.Select(x => x.Price).ToList();
+        //        string currentCeneoRanking, newCeneoRanking;
+        //        int totalCeneoOffers = ceneoPrices.Count;
+        //        if (totalCeneoOffers > 0)
+        //        {
+        //            var currentCeneoList = new List<decimal>(ceneoPrices) { sim.CurrentPrice };
+        //            currentCeneoRanking = CalculateRanking(currentCeneoList, sim.CurrentPrice);
+
+        //            var newCeneoList = new List<decimal>(ceneoPrices) { sim.NewPrice };
+        //            newCeneoRanking = CalculateRanking(newCeneoList, sim.NewPrice);
+        //        }
+        //        else
+        //        {
+        //            currentCeneoRanking = newCeneoRanking = "-";
+        //        }
+
+        //        // Przygotowujemy dodatkowe dane – oferty użyte do symulacji wraz z nazwami sklepów
+        //        // Google – obecna nasza oferta + oferty konkurencji
+        //        var googleCurrentOffers = competitorPrices
+        //            .Where(x => x.IsGoogle)
+        //            .Select(x => new { x.Price, x.StoreName })
+        //            .ToList();
+        //        googleCurrentOffers.Add(new { Price = sim.CurrentPrice, StoreName = ourStoreName });
+
+        //        var googleNewOffers = competitorPrices
+        //            .Where(x => x.IsGoogle)
+        //            .Select(x => new { x.Price, x.StoreName })
+        //            .ToList();
+        //        googleNewOffers.Add(new { Price = sim.NewPrice, StoreName = ourStoreName });
+
+        //        // Ceneo – obecna nasza oferta + oferty konkurencji
+        //        var ceneoCurrentOffers = ceneoCompetitor
+        //            .Select(x => new { x.Price, x.StoreName })
+        //            .ToList();
+        //        ceneoCurrentOffers.Add(new { Price = sim.CurrentPrice, StoreName = ourStoreName });
+
+        //        var ceneoNewOffers = ceneoCompetitor
+        //            .Select(x => new { x.Price, x.StoreName })
+        //            .ToList();
+        //        ceneoNewOffers.Add(new { Price = sim.NewPrice, StoreName = ourStoreName });
+
+        //        // Dodajemy wszystko do wyników
+        //        simulationResults.Add(new
+        //        {
+        //            productId = productData.ProductId,
+        //            ean = productData.Ean,  // <-- Nowe pole z EAN
+        //            currentGoogleRanking,
+        //            newGoogleRanking,
+        //            totalGoogleOffers = totalGoogleOffers > 0 ? totalGoogleOffers : (int?)null,
+        //            currentCeneoRanking,
+        //            newCeneoRanking,
+        //            totalCeneoOffers = totalCeneoOffers > 0 ? totalCeneoOffers : (int?)null,
+        //            googleCurrentOffers,
+        //            googleNewOffers,
+        //            ceneoCurrentOffers,
+        //            ceneoNewOffers
+        //        });
+        //    }
+
+        //    return Json(new
+        //    {
+        //        ourStoreName,
+        //        simulationResults
+        //    });
+        //}
+
+
+        //public class SimulationItem
+        //{
+        //    public int ProductId { get; set; }
+        //    public decimal CurrentPrice { get; set; }
+        //    public decimal NewPrice { get; set; }
+        //}
+
+
+
+
+
+
+
         [HttpPost]
         public async Task<IActionResult> SimulatePriceChange([FromBody] List<SimulationItem> simulationItems)
         {
@@ -916,6 +1099,12 @@ namespace PriceSafari.Controllers.MemberControllers
             if (firstProduct == null)
             {
                 return NotFound("Produkt nie znaleziony.");
+            }
+
+            // Sprawdź czy użytkownik ma dostęp do sklepu
+            if (!await UserHasAccessToStore(firstProduct.StoreId))
+            {
+                return Unauthorized("Brak dostępu do sklepu.");
             }
 
             int storeId = firstProduct.StoreId;
@@ -960,7 +1149,7 @@ namespace PriceSafari.Controllers.MemberControllers
 
                 if (productData == null)
                 {
-                    // Jeśli brak produktu, można np. pominąć go w wynikach lub zwrócić info
+                    // Pomiń produkt, którego nie znaleziono
                     continue;
                 }
 
@@ -977,7 +1166,7 @@ namespace PriceSafari.Controllers.MemberControllers
                     })
                     .ToListAsync();
 
-                // -- GOOGLE --
+                // --- GOOGLE ---
                 var googlePrices = competitorPrices
                     .Where(x => x.IsGoogle)
                     .Select(x => x.Price)
@@ -998,7 +1187,7 @@ namespace PriceSafari.Controllers.MemberControllers
                     currentGoogleRanking = newGoogleRanking = "-";
                 }
 
-                // -- CENEO --
+                // --- CENEO ---
                 var ceneoCompetitor = competitorPrices
                     .Where(x => !x.IsGoogle && !string.IsNullOrEmpty(x.StoreName))
                     .ToList();
@@ -1019,8 +1208,7 @@ namespace PriceSafari.Controllers.MemberControllers
                     currentCeneoRanking = newCeneoRanking = "-";
                 }
 
-                // Przygotowujemy dodatkowe dane – oferty użyte do symulacji wraz z nazwami sklepów
-                // Google – obecna nasza oferta + oferty konkurencji
+                // Przygotowanie dodatkowych danych ofert konkurencyjnych
                 var googleCurrentOffers = competitorPrices
                     .Where(x => x.IsGoogle)
                     .Select(x => new { x.Price, x.StoreName })
@@ -1033,7 +1221,6 @@ namespace PriceSafari.Controllers.MemberControllers
                     .ToList();
                 googleNewOffers.Add(new { Price = sim.NewPrice, StoreName = ourStoreName });
 
-                // Ceneo – obecna nasza oferta + oferty konkurencji
                 var ceneoCurrentOffers = ceneoCompetitor
                     .Select(x => new { x.Price, x.StoreName })
                     .ToList();
@@ -1044,11 +1231,10 @@ namespace PriceSafari.Controllers.MemberControllers
                     .ToList();
                 ceneoNewOffers.Add(new { Price = sim.NewPrice, StoreName = ourStoreName });
 
-                // Dodajemy wszystko do wyników
                 simulationResults.Add(new
                 {
                     productId = productData.ProductId,
-                    ean = productData.Ean,  // <-- Nowe pole z EAN
+                    ean = productData.Ean,  // nowe pole z EAN
                     currentGoogleRanking,
                     newGoogleRanking,
                     totalGoogleOffers = totalGoogleOffers > 0 ? totalGoogleOffers : (int?)null,
@@ -1069,20 +1255,14 @@ namespace PriceSafari.Controllers.MemberControllers
             });
         }
 
-
         public class SimulationItem
         {
             public int ProductId { get; set; }
             public decimal CurrentPrice { get; set; }
             public decimal NewPrice { get; set; }
+         
+            public int StoreId { get; set; }
         }
-
-
-
-
-
-
-
 
 
 

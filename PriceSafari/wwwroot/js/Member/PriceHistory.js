@@ -629,6 +629,7 @@
             box.className = 'price-box ' + item.colorClass;
             box.dataset.detailsUrl = '/PriceHistory/Details?scrapId=' + item.scrapId + '&productId=' + item.productId;
             box.dataset.productId = item.productId;
+            box.dataset.productName = item.productName; 
 
             // Kliknięcie w cały box – przejście do szczegółów
             box.addEventListener('click', function () {
@@ -894,59 +895,47 @@
             priceBoxColumnInfo.className = 'price-box-column-action';
             priceBoxColumnInfo.innerHTML = '';
 
-            /**
-             * Funkcja obsługująca kliknięcie w przycisk "Zmień cenę".
-             * Dodaje do symulacji i tworzy link "usuń".
-             * Dodatkowo: blokuje kolejne zmiany w ramach tego samego produktu,
-             * dopóki nie zostanie usunięta istniejąca zmiana.
-             */
+         
             function attachPriceChangeListener(button, suggestedPrice) {
                 button.addEventListener('click', function (e) {
                     e.stopPropagation();
                     const priceBox = this.closest('.price-box');
                     const productId = priceBox ? priceBox.dataset.productId : null;
+                    // Pobieramy productName z atrybutu
+                    const productName = priceBox ? priceBox.dataset.productName : "";
                     const currentPriceValue = myPrice; // zakładamy, że myPrice jest globalną zmienną
 
-                    // 1. Sprawdzamy, czy w tym priceBox (produkcie) jest już aktywna zmiana
                     if (priceBox.classList.contains('price-changed')) {
                         console.log("Zmiana ceny dla produktu " + productId + " jest już aktywna. Najpierw usuń obecną.");
                         return;
                     }
 
-                    // 2. Sprawdzamy, czy ten konkretny przycisk już jest aktywny
                     if (button.classList.contains('active')) {
                         return;
                     }
 
-                    console.log("PriceChange kliknięcie:", { productId, currentPrice: currentPriceValue, newPrice: suggestedPrice });
+                    console.log("PriceChange kliknięcie:", { productId, productName, currentPrice: currentPriceValue, newPrice: suggestedPrice });
                     const priceChangeEvent = new CustomEvent('priceBoxChange', {
-                        detail: { productId, currentPrice: currentPriceValue, newPrice: suggestedPrice }
+                        detail: { productId, productName, currentPrice: currentPriceValue, newPrice: suggestedPrice, storeId: storeId }
                     });
                     document.dispatchEvent(priceChangeEvent);
 
-                    // Oznaczamy box jako "price-changed", żeby zablokować kolejne zmiany
                     priceBox.classList.add('price-changed');
-
-                    // Zmieniamy wygląd przycisku po kliknięciu
                     button.classList.add('active');
                     button.style.backgroundColor = "#333333";
                     button.style.color = "#f5f5f5";
                     button.textContent = "Dodano ";
 
-                    // Dodajemy opcję usunięcia
                     const removeLink = document.createElement('span');
                     removeLink.textContent = " | usuń";
                     removeLink.style.textDecoration = "none";
                     removeLink.style.cursor = "pointer";
                     removeLink.addEventListener('click', function (ev) {
                         ev.stopPropagation();
-                        // Przywracamy pierwotny wygląd przycisku
                         button.classList.remove('active');
                         button.style.backgroundColor = "";
                         button.style.color = "";
                         button.textContent = "Zmień cenę";
-
-                        // Zdejmujemy blokadę z boxa
                         priceBox.classList.remove('price-changed');
 
                         const removeEvent = new CustomEvent('priceBoxChangeRemove', {
@@ -957,6 +946,7 @@
                     button.appendChild(removeLink);
                 });
             }
+
 
             // ------------------------------
             // Zachowujemy starą logikę linii
