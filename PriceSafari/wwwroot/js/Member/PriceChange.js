@@ -1,9 +1,8 @@
 ﻿document.addEventListener("DOMContentLoaded", function () {
-    // Inicjujemy tablicę zmian cen – próbujemy odczytać ją z localStorage
-    var selectedPriceChanges = [];
+    // Używamy unikalnego klucza dla danego sklepu
     const localStorageKey = 'selectedPriceChanges_' + storeId;
+    var selectedPriceChanges = [];
     const storedChanges = localStorage.getItem(localStorageKey);
-
     if (storedChanges) {
         try {
             selectedPriceChanges = JSON.parse(storedChanges);
@@ -24,12 +23,8 @@
         var summaryText = document.getElementById("summaryText");
         if (summaryText) {
             summaryText.innerHTML =
-                "<div class='price-change-up'>" +
-                "<span style='color: red;'>▲</span> " + increasedCount +
-                "</div>" +
-                "<div class='price-change-down'>" +
-                "<span style='color: green;'>▼</span> " + decreasedCount +
-                "</div>";
+                "<div class='price-change-up'><span style='color: red;'>▲</span> " + increasedCount + "</div>" +
+                "<div class='price-change-down'><span style='color: green;'>▼</span> " + decreasedCount + "</div>";
         }
 
         var simulateButton = document.getElementById("simulateButton");
@@ -39,16 +34,34 @@
         }
     }
 
-    // Funkcja pomocnicza zapisująca aktualny stan w localStorage
+    // Zapis do LS z użyciem unikalnego klucza
     function savePriceChanges() {
         localStorage.setItem(localStorageKey, JSON.stringify(selectedPriceChanges));
     }
 
+    // Funkcja czyszcząca wszystkie zmiany dla sklepu
+    function clearPriceChanges() {
+        selectedPriceChanges = [];
+        savePriceChanges();
+        updatePriceChangeSummary();
+        // Jeśli modal symulacji jest otwarty, można też wyczyścić jego zawartość
+        const tableContainer = document.getElementById("simulationModalBody");
+        if (tableContainer) {
+            tableContainer.innerHTML = "";
+        }
+    }
+
+    // Listener globalnego przycisku czyszczącego (upewnij się, że przycisk ma ID "clearChangesButton")
+    const clearChangesButton = document.getElementById("clearChangesButton");
+    if (clearChangesButton) {
+        clearChangesButton.addEventListener("click", function () {
+            clearPriceChanges();
+        });
+    }
 
     document.addEventListener('priceBoxChange', function (event) {
         const { productId, productName, currentPrice, newPrice } = event.detail;
         console.log("Dodano zmianę ceny:", { productId, productName, currentPrice, newPrice });
-
         var existingIndex = selectedPriceChanges.findIndex(function (item) {
             return item.productId === productId;
         });
@@ -64,7 +77,6 @@
     document.addEventListener('priceBoxChangeRemove', function (event) {
         const { productId } = event.detail;
         console.log("Usunięto zmianę ceny dla produktu:", productId);
-
         selectedPriceChanges = selectedPriceChanges.filter(function (item) {
             return item.productId !== productId;
         });
@@ -72,7 +84,6 @@
         updatePriceChangeSummary();
     });
 
-    // Przykład funkcji otwierającej modal symulacji, wykorzystującej dane z selectedPriceChanges
     function openSimulationModal() {
         var simulationData = selectedPriceChanges.map(function (item) {
             return {
@@ -82,7 +93,6 @@
                 StoreId: storeId  // Upewnij się, że zmienna storeId zawiera ID aktualnego sklepu
             };
         });
-
 
         // Pobieramy dane dodatkowe (np. EAN, obrazki) na podstawie ID produktów
         fetch('/PriceHistory/GetPriceChangeDetails?productIds=' +
@@ -111,7 +121,8 @@
                         if (hasImage) {
                             modalContent += '<th></th>';
                         }
-                        modalContent += '<th>Produkt</th><th>Cena aktualna</th><th>Nowa cena</th><th>Zmiana</th>';
+                        // Nagłówek: dodajemy kolumnę Akcja
+                        modalContent += '<th>Produkt</th><th>Cena aktualna</th><th>Nowa cena</th><th>Zmiana</th><th>Akcja</th>';
                         modalContent += '</tr></thead><tbody>';
 
                         selectedPriceChanges.forEach(function (item) {
@@ -130,7 +141,7 @@
                                 diff < 0 ? '<span style="color: green;">▼</span>' :
                                     '<span style="color: gray;">●</span>';
 
-                            // Przygotowujemy dodatkowe informacje (np. ranking)
+                            // Wyświetlamy informacje rankingowe dla Google i Ceneo
                             var googleDisplay = "";
                             if (simResult && simResult.totalGoogleOffers) {
                                 googleDisplay = '<span class="data-channel">' +
@@ -166,8 +177,7 @@
                             }
                             modalContent += '<td>' +
                                 '<span style="font-size:125%;">' + name + '</span>' +
-                                '<br />' +
-                                '<span>' + ean + '</span>' +
+                                '<br /><span>' + ean + '</span>' +
                                 '</td>';
                             modalContent += '<td style="font-size:16px;">' +
                                 item.currentPrice.toFixed(2) + ' PLN<br />' +
@@ -178,6 +188,10 @@
                                 '<small>' + googleNewDisplay + ceneoNewDisplay + '</small>' +
                                 '</td>';
                             modalContent += '<td style="font-size:16px;">' + arrow + ' ' + Math.abs(diff).toFixed(2) + ' PLN</td>';
+                            // Dodajemy kolumnę Akcja z przyciskiem "X"
+                            modalContent += '<td style="text-align:center;">' +
+                                '<button class="btn btn-danger btn-sm remove-change-btn" data-product-id="' + item.productId + '">X</button>' +
+                                '</td>';
                             modalContent += '</tr>';
                         });
 
@@ -187,6 +201,21 @@
                         if (tableContainer) {
                             tableContainer.innerHTML = modalContent;
                         }
+
+                        // Podpinamy event listener do przycisków usuwających
+                        document.querySelectorAll('.remove-change-btn').forEach(function (btn) {
+                            btn.addEventListener('click', function (e) {
+                                e.stopPropagation();
+                                var prodId = this.getAttribute('data-product-id');
+                                // Wywołujemy zdarzenie usunięcia dla danego produktu
+                                const removeEvent = new CustomEvent('priceBoxChangeRemove', {
+                                    detail: { productId: prodId }
+                                });
+                                document.dispatchEvent(removeEvent);
+                                // Po usunięciu, odświeżamy zawartość modalu
+                                openSimulationModal();
+                            });
+                        });
 
                         var simulationModal = document.getElementById("simulationModal");
                         simulationModal.style.display = 'block';
@@ -200,6 +229,7 @@
                 console.error("Błąd pobierania danych produktu:", err);
             });
     }
+
 
     var simulateButton = document.getElementById("simulateButton");
     if (simulateButton) {
