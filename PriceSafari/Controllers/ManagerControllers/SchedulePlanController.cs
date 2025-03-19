@@ -24,7 +24,9 @@ namespace PriceSafari.Controllers
         [HttpGet]
         public async Task<IActionResult> Index()
         {
+            // Najpierw próbujemy pobrać istniejący plan (ze wszystkimi powiązanymi danymi)
             var plan = await _context.SchedulePlans
+                .AsSplitQuery() // dzieli ładowanie Include’ów na kilka zapytań
                 .Include(sp => sp.Monday).ThenInclude(d => d.Tasks).ThenInclude(t => t.TaskStores).ThenInclude(ts => ts.Store)
                 .Include(sp => sp.Tuesday).ThenInclude(d => d.Tasks).ThenInclude(t => t.TaskStores).ThenInclude(ts => ts.Store)
                 .Include(sp => sp.Wednesday).ThenInclude(d => d.Tasks).ThenInclude(t => t.TaskStores).ThenInclude(ts => ts.Store)
@@ -34,9 +36,9 @@ namespace PriceSafari.Controllers
                 .Include(sp => sp.Sunday).ThenInclude(d => d.Tasks).ThenInclude(t => t.TaskStores).ThenInclude(ts => ts.Store)
                 .FirstOrDefaultAsync();
 
+            // Jeśli nie ma planu w bazie – tworzymy nowy
             if (plan == null)
             {
-                // Tworzymy nowy "pusty" plan wraz z 7 dniami
                 var newPlan = new SchedulePlan
                 {
                     Monday = new DayDetail(),
@@ -49,11 +51,23 @@ namespace PriceSafari.Controllers
                 };
 
                 _context.SchedulePlans.Add(newPlan);
-                await _context.SaveChangesAsync(); // zapis w bazie
+                await _context.SaveChangesAsync(); // Zapis do bazy
 
-                plan = newPlan; // przypisujemy utworzony plan
+                // Na nowo wczytujemy (tym razem już z ID) i wypełniamy powiązania,
+                // aby przekazać gotowy obiekt do widoku
+                plan = await _context.SchedulePlans
+                    .AsSplitQuery()
+                    .Include(sp => sp.Monday).ThenInclude(d => d.Tasks).ThenInclude(t => t.TaskStores).ThenInclude(ts => ts.Store)
+                    .Include(sp => sp.Tuesday).ThenInclude(d => d.Tasks).ThenInclude(t => t.TaskStores).ThenInclude(ts => ts.Store)
+                    .Include(sp => sp.Wednesday).ThenInclude(d => d.Tasks).ThenInclude(t => t.TaskStores).ThenInclude(ts => ts.Store)
+                    .Include(sp => sp.Thursday).ThenInclude(d => d.Tasks).ThenInclude(t => t.TaskStores).ThenInclude(ts => ts.Store)
+                    .Include(sp => sp.Friday).ThenInclude(d => d.Tasks).ThenInclude(t => t.TaskStores).ThenInclude(ts => ts.Store)
+                    .Include(sp => sp.Saturday).ThenInclude(d => d.Tasks).ThenInclude(t => t.TaskStores).ThenInclude(ts => ts.Store)
+                    .Include(sp => sp.Sunday).ThenInclude(d => d.Tasks).ThenInclude(t => t.TaskStores).ThenInclude(ts => ts.Store)
+                    .FirstOrDefaultAsync();
             }
 
+            // Zwracamy widok z załadowanym planem
             return View("~/Views/ManagerPanel/SchedulePlan/Index.cshtml", plan);
         }
 
