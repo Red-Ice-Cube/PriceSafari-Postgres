@@ -29,6 +29,18 @@
 
 
 
+    function showGlobalNotification(message) {
+        const notif = document.getElementById("globalNotification");
+        if (!notif) return;
+        notif.textContent = message;
+        notif.style.display = "block";
+        // Po 3 sekundach powiadomienie zniknie
+        setTimeout(() => {
+            notif.style.display = "none";
+        }, 3000);
+    }
+
+
     function exportToExcelXLSX() {
         const workbook = new ExcelJS.Workbook();
 
@@ -635,36 +647,39 @@
             priceBox.classList.add('price-changed');
         }
 
-        // Funkcja podpina listener do przycisku "Zmień cenę" i sprawdza, czy zmiana już istnieje
-        function attachPriceChangeListener(button, suggestedPrice, priceBox, productId, productName, currentPriceValue) {
+        // Zmodyfikowana funkcja attachPriceChangeListener
+        function attachPriceChangeListener(button, suggestedPrice, priceBox, productId, productName, currentPriceValue, item) {
+            // Upewniamy się, że 'item' jest zdefiniowane i ma kod EAN
+            if (!item || !item.ean || item.ean.trim() === "") {
+                button.disabled = true;
+                button.title = "Produkt musi mieć zmapowany kod EAN";
+                return; // Zakończ funkcję, bo nie chcemy podłączać listenera
+            }
+
             button.addEventListener('click', function (e) {
                 e.stopPropagation();
-
                 if (priceBox.classList.contains('price-changed') || button.classList.contains('active')) {
                     console.log("Zmiana ceny już aktywna dla produktu", productId);
                     return;
                 }
-
                 const priceChangeEvent = new CustomEvent('priceBoxChange', {
                     detail: { productId, productName, currentPrice: currentPriceValue, newPrice: suggestedPrice, storeId: storeId }
                 });
                 document.dispatchEvent(priceChangeEvent);
-
-                // Ustawiamy przycisk jako aktywny
                 activateChangeButton(button, priceBox, suggestedPrice);
             });
 
-            // Sprawdzamy, czy w zaktualizowanej zmiennej selectedPriceChanges (odczytanej z localStorage)
-            // istnieje wpis dla danego produktu i sugerowanej ceny.
+            // Sprawdzamy, czy zmiana już istnieje
             const existingChange = selectedPriceChanges.find(change =>
                 parseInt(change.productId) === parseInt(productId) &&
                 parseFloat(change.newPrice) === parseFloat(suggestedPrice)
             );
             if (existingChange) {
-                // Jeśli tak – ustawiamy przycisk jako aktywny
                 activateChangeButton(button, priceBox, suggestedPrice);
             }
         }
+
+
 
 
         paginatedData.forEach(item => {
@@ -1059,7 +1074,17 @@
                         const matchPriceBtn = document.createElement('button');
                         matchPriceBtn.className = 'simulate-change-btn';
                         matchPriceBtn.textContent = 'Zmień cenę';
-                        attachPriceChangeListener(matchPriceBtn, suggestedPrice1, box, item.productId, item.productName, myPrice);
+                        if (!item.ean || item.ean.trim() === "") {
+                            matchPriceBtn.addEventListener("click", function (e) {
+                                e.preventDefault();
+                                e.stopPropagation(); // zapobiega propagacji kliknięcia
+                                showGlobalNotification("Produkt musi mieć zmapowany kod EAN");
+                            });
+                        } else {
+                            attachPriceChangeListener(matchPriceBtn, suggestedPrice1, box, item.productId, item.productName, myPrice, item);
+                        }
+
+
                         matchPriceLine.appendChild(matchPriceBtn);
 
                         matchPriceBox.appendChild(matchPriceLine);
@@ -1089,7 +1114,16 @@
                         const strategicPriceBtn = document.createElement('button');
                         strategicPriceBtn.className = 'simulate-change-btn';
                         strategicPriceBtn.textContent = 'Zmień cenę';
-                        attachPriceChangeListener(strategicPriceBtn, suggestedPrice2, box, item.productId, item.productName, myPrice);
+                        if (!item.ean || item.ean.trim() === "") {
+                            strategicPriceBtn.addEventListener("click", function (e) {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                showGlobalNotification("Produkt musi mieć zmapowany kod EAN");
+                            });
+                        } else {
+                            attachPriceChangeListener(strategicPriceBtn, suggestedPrice2, box, item.productId, item.productName, myPrice, item);
+                        }
+
                         strategicPriceLine.appendChild(strategicPriceBtn);
 
                         strategicPriceBox.appendChild(strategicPriceLine);
@@ -1150,7 +1184,20 @@
                         const matchPriceBtn = document.createElement('button');
                         matchPriceBtn.className = 'simulate-change-btn';
                         matchPriceBtn.textContent = 'Zmień cenę';
-                        attachPriceChangeListener(matchPriceBtn, lowestPrice, box, item.productId, item.productName, myPrice);
+                      
+                      
+
+                
+                        if (!item.ean || item.ean.trim() === "") {
+                            matchPriceBtn.addEventListener("click", function (e) {
+                                e.preventDefault();
+                                e.stopPropagation(); // zapobiega propagacji kliknięcia
+                                showGlobalNotification("Produkt musi mieć zmapowany kod EAN");
+                            });
+                        } else {
+                            attachPriceChangeListener(matchPriceBtn, lowestPrice, box, item.productId, item.productName, myPrice, item);
+                        }
+
                         matchPriceLine.appendChild(matchPriceBtn);
 
                         matchPriceBox.appendChild(matchPriceLine);
@@ -1180,7 +1227,20 @@
                         const strategicPriceBtn = document.createElement('button');
                         strategicPriceBtn.className = 'simulate-change-btn';
                         strategicPriceBtn.textContent = 'Zmień cenę';
-                        attachPriceChangeListener(strategicPriceBtn, strategicPrice, box, item.productId, item.productName, myPrice);
+                    
+                      
+
+
+                        if (!item.ean || item.ean.trim() === "") {
+                            strategicPriceBtn.addEventListener("click", function (e) {
+                                e.preventDefault();
+                                e.stopPropagation(); // zapobiega propagacji kliknięcia
+                                showGlobalNotification("Produkt musi mieć zmapowany kod EAN");
+                            });
+                        } else {
+                            attachPriceChangeListener(strategicPriceBtn, strategicPrice, box, item.productId, item.productName, myPrice, item);
+                        }
+
                         strategicPriceLine.appendChild(strategicPriceBtn);
 
                         strategicPriceBox.appendChild(strategicPriceLine);
@@ -1241,7 +1301,20 @@
                         const matchPriceBtn = document.createElement('button');
                         matchPriceBtn.className = 'simulate-change-btn';
                         matchPriceBtn.textContent = 'Zmień cenę';
-                        attachPriceChangeListener(matchPriceBtn, lowestPrice, box, item.productId, item.productName, myPrice);
+                      
+                  
+
+                        if (!item.ean || item.ean.trim() === "") {
+                            matchPriceBtn.addEventListener("click", function (e) {
+                                e.preventDefault();
+                                e.stopPropagation(); // zapobiega propagacji kliknięcia
+                                showGlobalNotification("Produkt musi mieć zmapowany kod EAN");
+                            });
+                        } else {
+                            attachPriceChangeListener(matchPriceBtn, lowestPrice, box, item.productId, item.productName, myPrice, item);
+                        }
+
+
                         matchPriceLine.appendChild(matchPriceBtn);
 
                         matchPriceBox.appendChild(matchPriceLine);
@@ -1271,7 +1344,22 @@
                         const strategicPriceBtn = document.createElement('button');
                         strategicPriceBtn.className = 'simulate-change-btn';
                         strategicPriceBtn.textContent = 'Zmień cenę';
-                        attachPriceChangeListener(strategicPriceBtn, strategicPrice, box, item.productId, item.productName, myPrice);
+                   
+
+
+
+
+                        if (!item.ean || item.ean.trim() === "") {
+                            strategicPriceBtn.addEventListener("click", function (e) {
+                                e.preventDefault();
+                                e.stopPropagation(); // zapobiega propagacji kliknięcia
+                                showGlobalNotification("Produkt musi mieć zmapowany kod EAN");
+                            });
+                        } else {
+                            attachPriceChangeListener(strategicPriceBtn, strategicPrice, box, item.productId, item.productName, myPrice, item);
+                        }
+
+
                         strategicPriceLine.appendChild(strategicPriceBtn);
 
                         strategicPriceBox.appendChild(strategicPriceLine);
@@ -1358,7 +1446,18 @@
                         const matchPriceBtn = document.createElement('button');
                         matchPriceBtn.className = 'simulate-change-btn';
                         matchPriceBtn.textContent = 'Zmień cenę';
-                        attachPriceChangeListener(matchPriceBtn, suggestedPrice1, box, item.productId, item.productName, myPrice);
+                  
+                    
+
+                        if (!item.ean || item.ean.trim() === "") {
+                            matchPriceBtn.addEventListener("click", function (e) {
+                                e.preventDefault();
+                                e.stopPropagation(); // zapobiega propagacji kliknięcia
+                                showGlobalNotification("Produkt musi mieć zmapowany kod EAN");
+                            });
+                        } else {
+                            attachPriceChangeListener(matchPriceBtn, suggestedPrice1, box, item.productId, item.productName, myPrice, item);
+                        }
                         matchPriceLine.appendChild(matchPriceBtn);
 
                         matchPriceBox.appendChild(matchPriceLine);
@@ -1388,7 +1487,17 @@
                         const strategicPriceBtn = document.createElement('button');
                         strategicPriceBtn.className = 'simulate-change-btn';
                         strategicPriceBtn.textContent = 'Zmień cenę';
-                        attachPriceChangeListener(strategicPriceBtn, suggestedPrice2, box, item.productId, item.productName, myPrice);
+                  
+
+                        if (!item.ean || item.ean.trim() === "") {
+                            strategicPriceBtn.addEventListener("click", function (e) {
+                                e.preventDefault();
+                                e.stopPropagation(); // zapobiega propagacji kliknięcia
+                                showGlobalNotification("Produkt musi mieć zmapowany kod EAN");
+                            });
+                        } else {
+                            attachPriceChangeListener(strategicPriceBtn, suggestedPrice2, box, item.productId, item.productName, myPrice, item);
+                        }
                         strategicPriceLine.appendChild(strategicPriceBtn);
 
                         strategicPriceBox.appendChild(strategicPriceLine);
