@@ -3053,8 +3053,9 @@ tr:last-child .sub-line {
     margin-right: 5px;
     background: rgb(245, 245, 245);
     border: 1px solid #e3e3e3;
-    min-width:260px;
-    min-height:50px;
+    min-width: 260px;
+    min-height: 50px;
+   
 }
 
 .price-box-column-action {
