@@ -340,21 +340,75 @@ document.getElementById("extractProducts").addEventListener("click", () => {
 //////////////////////////////
 // 10. getVal (obsługa #value)
 //////////////////////////////
+//function getVal(entryNode, fieldName) {
+//    let info = mappingForField[fieldName];
+//    if (!info || !info.xpath) return null;
+//    let path = info.xpath;
+//    // Usuwamy prefiksy "/offers" lub "/offers/o" – dla Ceneo startujemy od <o>
+//    if (path.startsWith("/offers/o")) {
+//        path = path.replace("/offers/o", "");
+//    } else if (path.startsWith("/offers")) {
+//        path = path.replace("/offers", "");
+//    }
+//    if (!path.startsWith("/")) {
+//        path = "/" + path;
+//    }
+//    let segments = path.split("/").filter(Boolean);
+//    let currentNode = entryNode;
+//    for (let seg of segments) {
+//        if (seg === "#value") {
+//            return currentNode.textContent.trim();
+//        }
+//        if (seg.startsWith("@")) {
+//            return currentNode.getAttribute(seg.slice(1));
+//        }
+//        let bracketPos = seg.indexOf('[@name="');
+//        if (bracketPos !== -1) {
+//            let baseName = seg.substring(0, bracketPos);
+//            let inside = seg.substring(bracketPos + 8);
+//            let endBracket = inside.indexOf('"]');
+//            let desiredName = inside.substring(0, endBracket);
+//            let child = Array.from(currentNode.children).find(ch =>
+//                ch.localName === baseName && ch.getAttribute("name") === desiredName
+//            );
+//            if (!child) return null;
+//            currentNode = child;
+//        } else {
+//            let child = Array.from(currentNode.children).find(ch =>
+//                ch.localName === seg
+//            );
+//            if (!child) return null;
+//            currentNode = child;
+//        }
+//    }
+//    return currentNode.textContent.trim();
+//}
+
+
+
 function getVal(entryNode, fieldName) {
     let info = mappingForField[fieldName];
     if (!info || !info.xpath) return null;
     let path = info.xpath;
-    // Usuwamy prefiksy "/offers" lub "/offers/o" – dla Ceneo startujemy od <o>
+
+    // Usuń prefiksy związane ze strukturą XML, gdyż entryNode jest elementem <o>
     if (path.startsWith("/offers/o")) {
         path = path.replace("/offers/o", "");
+    } else if (path.startsWith("/offers/group")) {
+        // Usuń /offers/group[@name="..."]/o – dopasowanie do dowolnej wartości atrybutu name
+        path = path.replace(/\/offers\/group\[@name="[^"]+"\]\/o/, "");
     } else if (path.startsWith("/offers")) {
         path = path.replace("/offers", "");
     }
+
     if (!path.startsWith("/")) {
         path = "/" + path;
     }
+
+    // Podziel ścieżkę na segmenty
     let segments = path.split("/").filter(Boolean);
     let currentNode = entryNode;
+
     for (let seg of segments) {
         if (seg === "#value") {
             return currentNode.textContent.trim();
@@ -362,6 +416,7 @@ function getVal(entryNode, fieldName) {
         if (seg.startsWith("@")) {
             return currentNode.getAttribute(seg.slice(1));
         }
+        // Jeśli segment zawiera filtr według atrybutu name, np. a[@name="EAN"]
         let bracketPos = seg.indexOf('[@name="');
         if (bracketPos !== -1) {
             let baseName = seg.substring(0, bracketPos);
@@ -374,6 +429,7 @@ function getVal(entryNode, fieldName) {
             if (!child) return null;
             currentNode = child;
         } else {
+            // W przeciwnym razie szukamy dziecka o danej nazwie
             let child = Array.from(currentNode.children).find(ch =>
                 ch.localName === seg
             );
@@ -383,6 +439,10 @@ function getVal(entryNode, fieldName) {
     }
     return currentNode.textContent.trim();
 }
+
+
+
+
 
 //////////////////////////////
 // 11. Zapis do bazy
