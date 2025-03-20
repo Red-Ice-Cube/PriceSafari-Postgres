@@ -1270,5 +1270,59 @@ namespace PriceSafari.Controllers.MemberControllers
 
 
 
+
+
+
+
+
+
+        [HttpPost]
+        public async Task<IActionResult> SaveMarginSettings([FromBody] PriceMarginSettingsViewModel model)
+        {
+            if (model == null || model.StoreId <= 0)
+            {
+                return BadRequest("Invalid store ID or settings.");
+            }
+
+            if (!await UserHasAccessToStore(model.StoreId))
+            {
+                return BadRequest("Nie ma takiego sklepu.");
+            }
+
+            var priceValues = await _context.PriceValues
+                .FirstOrDefaultAsync(pv => pv.StoreId == model.StoreId);
+
+            if (priceValues == null)
+            {
+                priceValues = new PriceValueClass
+                {
+                    StoreId = model.StoreId,
+                    UseMarginForSimulation = model.UseMarginForSimulation,
+                    EnforceMinimalMargin = model.EnforceMinimalMargin,
+                    MinimalMarginPercent = model.MinimalMarginPercent
+                };
+                _context.PriceValues.Add(priceValues);
+            }
+            else
+            {
+                priceValues.UseMarginForSimulation = model.UseMarginForSimulation;
+                priceValues.EnforceMinimalMargin = model.EnforceMinimalMargin;
+                priceValues.MinimalMarginPercent = model.MinimalMarginPercent;
+                _context.PriceValues.Update(priceValues);
+            }
+
+            await _context.SaveChangesAsync();
+            return Json(new { success = true, message = "Ustawienia marży zostały zaktualizowane." });
+        }
+
+
+        public class PriceMarginSettingsViewModel
+        {
+            public int StoreId { get; set; }
+            public bool UseMarginForSimulation { get; set; }
+            public bool EnforceMinimalMargin { get; set; }
+            public decimal MinimalMarginPercent { get; set; }
+        }
+
     }
 }

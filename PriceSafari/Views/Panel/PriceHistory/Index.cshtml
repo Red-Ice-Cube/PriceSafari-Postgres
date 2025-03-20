@@ -704,6 +704,8 @@
                     <button id="openMassChangeModalBtn" class="btn btn-primary">
                         Masowa zmiana cen
                     </button>
+                    <button id="openMarginSettingsBtn" class="btn btn-info">Ustawienia</button>
+
                 </div>
                 <div class="Vert-table">
                     <div id="priceContainer" class="price-container"></div>
@@ -778,7 +780,54 @@
     </div>
 </div>
 
-
+<div class="modal fade" id="marginSettingsModal" tabindex="-1" role="dialog" aria-labelledby="marginSettingsModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+             
+                <div class="price-box-column-name" id="marginSettingsModalLabel">Konfiguracja symulacji cen</div>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Zamknij">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p style="margin-bottom:48px;">
+                    Ustawienia symulacji marżowej umożliwiają precyzyjne określenie, dla których produktów oraz w jaki sposób mają być modyfikowane ceny w oparciu o cenę zakupu. Jeśli chcesz, aby symulacja dotyczyła tylko produktów z określoną ceną zakupu, lub aby cena nie spadła poniżej ustalonego poziomu marży – skonfiguruj poniższe opcje.
+                </p>
+                <form id="marginSettingsForm">
+                    <div class="form-group" style="margin-bottom:24px;">
+                        <label for="useMarginForSimulationInput">
+                            Stosuj symulację tylko dla produktów posiadających cenę zakupu
+                        </label>
+                        <select class="form-control" id="useMarginForSimulationInput">
+                            <option value="true">Tak</option>
+                            <option value="false">Nie</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="margin-bottom:24px;">
+                        <label for="enforceMinimalMarginInput">
+                            Nie obniżaj ceny poniżej ceny zakupu
+                        </label>
+                        <select class="form-control" id="enforceMinimalMarginInput">
+                            <option value="true">Tak</option>
+                            <option value="false">Nie</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="margin-bottom:24px;">
+                        <label for="minimalMarginPercentInput">
+                            Minimalna marża (%) – minimalny procent, poniżej którego cena nie może spaść
+                        </label>
+                        <input type="number" class="form-control" id="minimalMarginPercentInput" step="0.01" value="0.00">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer" style="justify-content:space-between;">
+                <button type="button" class="Button-Page-Small" data-dismiss="modal">Anuluj</button>
+                <button type="button" class="Button-Page-Small-bl" id="saveMarginSettingsBtn">Zapisz ustawienia</button>
+            </div>
+        </div>
+    </div>
+</div>
 
 
 

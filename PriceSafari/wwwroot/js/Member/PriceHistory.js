@@ -6,6 +6,11 @@
     let setPrice2 = 2.00;
     let setStepPrice = 2.00;
     let usePriceDifference = document.getElementById('usePriceDifference').checked;
+    let marginSettings = {
+        useMarginForSimulation: true,
+        enforceMinimalMargin: true,
+        minimalMarginPercent: 0.00
+    };
     let selectedProductId = null;
     let competitorStore = "";
     let selectedFlags = new Set();
@@ -411,6 +416,11 @@
                 usePriceDifference = response.usePriceDiff;
                 document.getElementById('usePriceDifference').checked = usePriceDifference;
                 updateUnits(usePriceDifference);
+
+                // Ustawienia marży pobrane z backendu:
+                marginSettings.useMarginForSimulation = response.useMarginForSimulation;
+                marginSettings.enforceMinimalMargin = response.enforceMinimalMargin;
+                marginSettings.minimalMarginPercent = response.minimalMarginPercent;
 
                 allPrices = response.prices.map(price => {
                     const isRejected = price.isRejected;
@@ -1770,6 +1780,50 @@
     }
 
     const debouncedRenderChart = debounce(renderChart, 600);
+
+
+
+    document.getElementById('openMarginSettingsBtn').addEventListener('click', function () {
+        // Załóżmy, że globalny obiekt marginSettings zawiera pobrane ustawienia:
+        // { useMarginForSimulation: true, enforceMinimalMargin: true, minimalMarginPercent: 0.00 }
+        document.getElementById('useMarginForSimulationInput').value = marginSettings.useMarginForSimulation.toString();
+        document.getElementById('enforceMinimalMarginInput').value = marginSettings.enforceMinimalMargin.toString();
+        document.getElementById('minimalMarginPercentInput').value = marginSettings.minimalMarginPercent;
+
+        // Otwórz modal przy użyciu Bootstrapa/jQuery
+        $('#marginSettingsModal').modal('show');
+    });
+    document.getElementById('saveMarginSettingsBtn').addEventListener('click', function () {
+        const updatedMarginSettings = {
+            StoreId: storeId,  // zakładamy, że storeId jest globalnie zdefiniowane
+            UseMarginForSimulation: document.getElementById('useMarginForSimulationInput').value === 'true',
+            EnforceMinimalMargin: document.getElementById('enforceMinimalMarginInput').value === 'true',
+            MinimalMarginPercent: parseFloat(document.getElementById('minimalMarginPercentInput').value)
+        };
+
+        fetch('/PriceHistory/SaveMarginSettings', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(updatedMarginSettings)
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Zaktualizuj globalny obiekt marginSettings
+                    marginSettings = updatedMarginSettings;
+                    $('#marginSettingsModal').modal('hide');
+                    // Odśwież widok cen
+                    loadPrices();
+                } else {
+                    alert('Błąd zapisu ustawień: ' + data.message);
+                }
+            })
+            .catch(error => console.error('Błąd zapisu ustawień marży:', error));
+    });
+
+
 
     function updateColorCounts(data) {
         const colorCounts = {
