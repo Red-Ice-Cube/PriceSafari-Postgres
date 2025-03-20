@@ -108,30 +108,61 @@
         }, 500); 
     }
 
-
-
+    let globalNotificationTimeoutId;
+    let globalUpdateTimeoutId;
 
     function showGlobalNotification(message) {
         const notif = document.getElementById("globalNotification");
+        const update = document.getElementById("globalUpdate");
         if (!notif) return;
-        notif.innerHTML = message; // używamy innerHTML
-        notif.style.display = "block";
 
-        setTimeout(() => {
+        // Ukryj globalUpdate, jeśli jest wyświetlone i wyczyść timeout
+        if (update && update.style.display === "block") {
+            update.style.display = "none";
+            if (globalUpdateTimeoutId) {
+                clearTimeout(globalUpdateTimeoutId);
+                globalUpdateTimeoutId = null;
+            }
+        }
+
+        // Wyczyść poprzedni timeout dla globalNotification, jeśli istnieje
+        if (globalNotificationTimeoutId) {
+            clearTimeout(globalNotificationTimeoutId);
+        }
+
+        notif.innerHTML = message;
+        notif.style.display = "block";
+        globalNotificationTimeoutId = setTimeout(() => {
             notif.style.display = "none";
-        }, 7000);
+        }, 5000);
     }
 
     function showGlobalUpdate(message) {
         const notif = document.getElementById("globalUpdate");
+        const notification = document.getElementById("globalNotification");
         if (!notif) return;
-        notif.innerHTML = message; // używamy innerHTML
-        notif.style.display = "block";
 
-        setTimeout(() => {
+        // Ukryj globalNotification, jeśli jest wyświetlone i wyczyść timeout
+        if (notification && notification.style.display === "block") {
+            notification.style.display = "none";
+            if (globalNotificationTimeoutId) {
+                clearTimeout(globalNotificationTimeoutId);
+                globalNotificationTimeoutId = null;
+            }
+        }
+
+        // Wyczyść poprzedni timeout dla globalUpdate, jeśli istnieje
+        if (globalUpdateTimeoutId) {
+            clearTimeout(globalUpdateTimeoutId);
+        }
+
+        notif.innerHTML = message;
+        notif.style.display = "block";
+        globalUpdateTimeoutId = setTimeout(() => {
             notif.style.display = "none";
-        }, 7000);
+        }, 5000);
     }
+
 
 
 
@@ -1697,8 +1728,8 @@
                 productImage.dataset.src = item.imgUrl;
                 productImage.alt = item.productName;
                 productImage.className = 'lazy-load';
-                productImage.style.width = '110px';
-                productImage.style.height = '110px';
+                productImage.style.width = '114px';
+                productImage.style.height = '114px';
                 productImage.style.marginRight = '5px';
                 productImage.style.marginLeft = '5px';
                 productImage.style.backgroundColor = '#ffffff';

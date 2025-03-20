@@ -918,7 +918,6 @@ namespace PriceSafari.Controllers.MemberControllers
 
 
 
-
         [HttpPost]
         public async Task<IActionResult> SimulatePriceChange([FromBody] List<SimulationItem> simulationItems)
         {
@@ -965,13 +964,14 @@ namespace PriceSafari.Controllers.MemberControllers
                 .Distinct()
                 .ToList();
 
-            // 4) Pobieramy dane produktów (ProductId, Ean) - w paczkach
+            // 4) Pobieramy dane produktów (ProductId, Ean, MarginPrice) – modyfikacja: pobieramy także MarginPrice
             var productsData = await GetProductsInChunksAsync(productIds);
+            // Upewnij się, że metoda GetProductsInChunksAsync została zmodyfikowana, by zwracać również MarginPrice.
 
-            // 5) Pobieramy PriceHistories dla tych produktów i najnowszego scrapId - także w paczkach
+            // 5) Pobieramy PriceHistories dla tych produktów (dla najnowszego scrapId) – również w paczkach
             var allPriceHistories = await GetPriceHistoriesInChunksAsync(productIds, latestScrapId);
 
-            // Grupujemy PriceHistories wg ProductId (w pamięci)
+            // Grupujemy PriceHistories wg ProductId
             var priceHistoriesByProduct = allPriceHistories
                 .GroupBy(ph => ph.ProductId)
                 .ToDictionary(g => g.Key, g => g.ToList());
@@ -992,23 +992,21 @@ namespace PriceSafari.Controllers.MemberControllers
 
             var simulationResults = new List<object>();
 
-            // 6) Przechodzimy po każdym SimulationItem i generujemy wyniki w pamięci
+            // 6) Przechodzimy po każdym SimulationItem i generujemy wyniki
             foreach (var sim in simulationItems)
             {
-                // Szukamy w pobranych danych EAN-u dla produktu
+                // Szukamy danych produktu
                 var product = productsData.FirstOrDefault(p => p.ProductId == sim.ProductId);
                 if (product == null)
                 {
-                    // Brak takiego produktu w bazie
+                    // Brak produktu – pomijamy
                     continue;
                 }
 
-                // Szukamy PriceHistories (wszystkie oferty) dla danego produktu
+                // Szukamy PriceHistories dla danego produktu
                 priceHistoriesByProduct.TryGetValue(sim.ProductId, out var allRecordsForProduct);
-
                 if (allRecordsForProduct == null)
                 {
-                    // Brak scrapowania dla tego produktu
                     simulationResults.Add(new
                     {
                         productId = product.ProductId,
@@ -1022,148 +1020,126 @@ namespace PriceSafari.Controllers.MemberControllers
                         googleCurrentOffers = new List<object>(),
                         googleNewOffers = new List<object>(),
                         ceneoCurrentOffers = new List<object>(),
-                        ceneoNewOffers = new List<object>()
+                        ceneoNewOffers = new List<object>(),
+                        // Dla marży – brak danych
+                        currentMargin = (decimal?)null,
+                        newMargin = (decimal?)null,
+                        currentMarginValue = (decimal?)null,
+                        newMarginValue = (decimal?)null
                     });
                     continue;
                 }
 
-                // Sprawdzamy, czy nasz sklep w ogóle występuje w Google / Ceneo
-                bool weAreInGoogle = allRecordsForProduct.Any(ph =>
-                    ph.StoreName == ourStoreName && ph.IsGoogle
-                );
-                bool weAreInCeneo = allRecordsForProduct.Any(ph =>
-                    ph.StoreName == ourStoreName && !ph.IsGoogle
-                );
+                // Jeśli MarginPrice jest dostępne (nie null i różne od zera) – wyliczamy marżę
+                decimal? currentMargin = null;
+                decimal? newMargin = null;
+                decimal? currentMarginValue = null;
+                decimal? newMarginValue = null;
+                if (product.MarginPrice.HasValue && product.MarginPrice.Value != 0)
+                {
+                    currentMarginValue = sim.CurrentPrice - product.MarginPrice.Value;
+                    newMarginValue = sim.NewPrice - product.MarginPrice.Value;
+                    currentMargin = Math.Round((currentMarginValue.Value / product.MarginPrice.Value) * 100, 2);
+                    newMargin = Math.Round((newMarginValue.Value / product.MarginPrice.Value) * 100, 2);
 
-                // Konkurencja = storeName != ourStoreName
-                var competitorPrices = allRecordsForProduct
-                    .Where(ph => ph.StoreName != ourStoreName)
-                    .ToList();
+                }
 
-                // ================= GOOGLE =====================
-                var googleCompetitorPrices = competitorPrices
-                    .Where(x => x.IsGoogle)
-                    .Select(x => x.Price)
-                    .ToList();
+                // Ranking oraz dane konkurencji – jak wcześniej...
+                bool weAreInGoogle = allRecordsForProduct.Any(ph => ph.StoreName == ourStoreName && ph.IsGoogle);
+                bool weAreInCeneo = allRecordsForProduct.Any(ph => ph.StoreName == ourStoreName && !ph.IsGoogle);
 
+                var competitorPrices = allRecordsForProduct.Where(ph => ph.StoreName != ourStoreName).ToList();
+
+                // GOOGLE
+                var googleCompetitorPrices = competitorPrices.Where(x => x.IsGoogle).Select(x => x.Price).ToList();
                 var currentGoogleList = new List<decimal>(googleCompetitorPrices);
                 var newGoogleList = new List<decimal>(googleCompetitorPrices);
-
                 if (weAreInGoogle)
                 {
                     currentGoogleList.Add(sim.CurrentPrice);
                     newGoogleList.Add(sim.NewPrice);
                 }
-
                 int totalGoogleOffers = currentGoogleList.Count;
-                string currentGoogleRanking;
-                string newGoogleRanking;
-
+                string currentGoogleRanking, newGoogleRanking;
                 if (totalGoogleOffers == 0)
                 {
                     currentGoogleRanking = newGoogleRanking = "-";
                 }
                 else
                 {
-                    currentGoogleRanking = weAreInGoogle
-                        ? CalculateRanking(currentGoogleList, sim.CurrentPrice)
-                        : "-";
-                    newGoogleRanking = weAreInGoogle
-                        ? CalculateRanking(newGoogleList, sim.NewPrice)
-                        : "-";
+                    currentGoogleRanking = weAreInGoogle ? CalculateRanking(currentGoogleList, sim.CurrentPrice) : "-";
+                    newGoogleRanking = weAreInGoogle ? CalculateRanking(newGoogleList, sim.NewPrice) : "-";
                 }
-
-                var googleCurrentOffers = competitorPrices
-                    .Where(x => x.IsGoogle)
-                    .Select(x => new { x.Price, x.StoreName })
-                    .ToList();
+                var googleCurrentOffers = competitorPrices.Where(x => x.IsGoogle)
+                    .Select(x => new { x.Price, x.StoreName }).ToList();
                 if (weAreInGoogle)
                 {
                     googleCurrentOffers.Add(new { Price = sim.CurrentPrice, StoreName = ourStoreName });
                 }
-
-                var googleNewOffers = competitorPrices
-                    .Where(x => x.IsGoogle)
-                    .Select(x => new { x.Price, x.StoreName })
-                    .ToList();
+                var googleNewOffers = competitorPrices.Where(x => x.IsGoogle)
+                    .Select(x => new { x.Price, x.StoreName }).ToList();
                 if (weAreInGoogle)
                 {
                     googleNewOffers.Add(new { Price = sim.NewPrice, StoreName = ourStoreName });
                 }
 
-                // ================= CENEO =====================
-                var ceneoCompetitorPrices = competitorPrices
-                    .Where(x => !x.IsGoogle && !string.IsNullOrEmpty(x.StoreName))
-                    .Select(x => x.Price)
-                    .ToList();
-
+                // CENEO
+                var ceneoCompetitorPrices = competitorPrices.Where(x => !x.IsGoogle && !string.IsNullOrEmpty(x.StoreName))
+                    .Select(x => x.Price).ToList();
                 var currentCeneoList = new List<decimal>(ceneoCompetitorPrices);
                 var newCeneoList = new List<decimal>(ceneoCompetitorPrices);
-
                 if (weAreInCeneo)
                 {
                     currentCeneoList.Add(sim.CurrentPrice);
                     newCeneoList.Add(sim.NewPrice);
                 }
-
                 int totalCeneoOffers = currentCeneoList.Count;
                 string currentCeneoRanking, newCeneoRanking;
-
                 if (totalCeneoOffers == 0)
                 {
                     currentCeneoRanking = newCeneoRanking = "-";
                 }
                 else
                 {
-                    currentCeneoRanking = weAreInCeneo
-                        ? CalculateRanking(currentCeneoList, sim.CurrentPrice)
-                        : "-";
-                    newCeneoRanking = weAreInCeneo
-                        ? CalculateRanking(newCeneoList, sim.NewPrice)
-                        : "-";
+                    currentCeneoRanking = weAreInCeneo ? CalculateRanking(currentCeneoList, sim.CurrentPrice) : "-";
+                    newCeneoRanking = weAreInCeneo ? CalculateRanking(newCeneoList, sim.NewPrice) : "-";
                 }
-
-                var ceneoCompetitorRecords = competitorPrices
-                    .Where(x => !x.IsGoogle && !string.IsNullOrEmpty(x.StoreName))
-                    .Select(x => new { x.Price, x.StoreName })
-                    .ToList();
-
+                var ceneoCompetitorRecords = competitorPrices.Where(x => !x.IsGoogle && !string.IsNullOrEmpty(x.StoreName))
+                    .Select(x => new { x.Price, x.StoreName }).ToList();
                 var ceneoCurrentOffers = new List<object>(ceneoCompetitorRecords);
                 if (weAreInCeneo)
                 {
                     ceneoCurrentOffers.Add(new { Price = sim.CurrentPrice, StoreName = ourStoreName });
                 }
-
                 var ceneoNewOffers = new List<object>(ceneoCompetitorRecords);
                 if (weAreInCeneo)
                 {
                     ceneoNewOffers.Add(new { Price = sim.NewPrice, StoreName = ourStoreName });
                 }
 
-                // Tworzymy obiekt wynikowy
                 simulationResults.Add(new
                 {
                     productId = product.ProductId,
                     ean = product.Ean,
-
-                    // Google
                     currentGoogleRanking,
                     newGoogleRanking,
                     totalGoogleOffers = (totalGoogleOffers > 0 ? totalGoogleOffers : (int?)null),
-
-                    // Ceneo
                     currentCeneoRanking,
                     newCeneoRanking,
                     totalCeneoOffers = (totalCeneoOffers > 0 ? totalCeneoOffers : (int?)null),
-
                     googleCurrentOffers,
                     googleNewOffers,
                     ceneoCurrentOffers,
-                    ceneoNewOffers
+                    ceneoNewOffers,
+                    // Nowe pola dotyczące marży:
+                    currentMargin,          // procentowa marża przy aktualnej cenie
+                    newMargin,              // procentowa marża przy nowej cenie
+                    currentMarginValue,     // kwotowa różnica (aktualna cena - cena zakupu)
+                    newMarginValue          // kwotowa różnica (nowa cena - cena zakupu)
                 });
             }
 
-            // 7) Zwracamy JSON
+            // 7) Zwracamy JSON z naszymi wynikami
             return Json(new
             {
                 ourStoreName,
@@ -1172,11 +1148,6 @@ namespace PriceSafari.Controllers.MemberControllers
         }
 
 
-        private class ProductData
-        {
-            public int ProductId { get; set; }
-            public string Ean { get; set; }
-        }
 
 
         public class SimulationItem
@@ -1197,17 +1168,13 @@ namespace PriceSafari.Controllers.MemberControllers
             for (int i = 0; i < productIds.Count; i += CHUNK_SIZE)
             {
                 var subset = productIds.Skip(i).Take(CHUNK_SIZE).ToList();
-
                 if (subset.Count == 0)
                     continue;
-
-                // Budujemy "1,2,3,4"
                 var inClause = string.Join(",", subset);
 
-                // Składamy raw SQL
-                // Uwaga - TYLKO, jeśli subset nie jest pusty
+                // Dodajemy MarginPrice do selekcji
                 string sql = $@"
-            SELECT ProductId, Ean
+            SELECT ProductId, Ean, MarginPrice
             FROM Products
             WHERE ProductId IN ({inClause})
         ";
@@ -1217,7 +1184,8 @@ namespace PriceSafari.Controllers.MemberControllers
                     .Select(p => new ProductData
                     {
                         ProductId = p.ProductId,
-                        Ean = p.Ean
+                        Ean = p.Ean,
+                        MarginPrice = p.MarginPrice // nowa właściwość
                     })
                     .ToListAsync();
 
@@ -1226,6 +1194,14 @@ namespace PriceSafari.Controllers.MemberControllers
 
             return result;
         }
+
+        public class ProductData
+        {
+            public int ProductId { get; set; }
+            public string Ean { get; set; }
+            public decimal? MarginPrice { get; set; }  // dodajemy MarginPrice
+        }
+
 
 
         private async Task<List<(int ProductId, decimal Price, bool IsGoogle, string StoreName)>>
