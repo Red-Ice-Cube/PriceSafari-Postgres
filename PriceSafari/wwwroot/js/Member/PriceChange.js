@@ -77,12 +77,14 @@
     document.addEventListener('priceBoxChangeRemove', function (event) {
         const { productId } = event.detail;
         console.log("Usunięto zmianę ceny dla produktu:", productId);
+        // Konwertujemy oba productId do liczby przed porównaniem
         selectedPriceChanges = selectedPriceChanges.filter(function (item) {
-            return item.productId !== productId;
+            return parseInt(item.productId) !== parseInt(productId);
         });
         savePriceChanges();
         updatePriceChangeSummary();
     });
+
 
     function openSimulationModal() {
         var simulationData = selectedPriceChanges.map(function (item) {
