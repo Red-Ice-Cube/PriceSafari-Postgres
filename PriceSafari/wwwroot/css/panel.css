@@ -1217,6 +1217,8 @@ img.lazy-load-flex {
     gap: 8px;
     color: #4E4E4E;
     font-size: 14px;
+    gap: 10px;
+    min-height:34px;
     font-weight: 400;
     text-decoration: none;
     background: #e3e3e3;
@@ -1319,6 +1321,7 @@ img.lazy-load-flex {
     align-items: center;
     justify-content: center;
     border-radius: 4px;
+    gap:10px;
     background: #41C7C7;
     color: #fff;
     font-size: 14px;
@@ -1331,6 +1334,28 @@ img.lazy-load-flex {
         color: #fff;
         text-decoration: none;
         background: #004552;
+    }
+
+
+.Button-Page-Small-gr {
+    display: inline-flex;
+    padding: 6px 16px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    background: #08763F;
+    gap: 10px;
+    color: #fff;
+    font-size: 14px;
+    font-weight: 400;
+    text-decoration: none;
+    border: none;
+}
+
+    .Button-Page-Small-gr:hover {
+        color: #fff;
+        text-decoration: none;
+        background: #01A452;
     }
 
 .Button-Page-Small-o {
@@ -1649,7 +1674,7 @@ img.lazy-load-flex {
 .order-upper-box {
     display: flex;
     justify-content: flex-start;
-    gap: 16px;
+    gap: 6px;
     align-items: center;
     width: 100%;
 }

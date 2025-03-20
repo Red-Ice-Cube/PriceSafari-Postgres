@@ -22,7 +22,7 @@
 
     #sortingButtons {
         display: inline-flex;
-        gap: 10px;
+        gap: 6px;
         height:34px;
     }
 
@@ -281,6 +281,7 @@
     #paginationContainer {
         display: flex;
         gap:4px;
+
     }
 
 
@@ -405,7 +406,7 @@
      
         color: #4e4e4e;
         font-size: 13px;
-        gap: 10px;
+        gap: 6px;
         flex-wrap:nowrap;
       
 
@@ -438,7 +439,7 @@
         align-content:center;
         justify-content:center;
         text-align:center;
-        margin-left:10px;
+        margin-left:6px;
     }
 
     .price-change-up {
@@ -737,12 +738,13 @@
                 <div class="buttonsContainer">
                     <div id="priceChangeSummary" class="priceChangeSummary">
                         <div id="summaryText"></div>
-                        <button id="simulateButton">Symuluj zmiany cen</button>
+                        <button id="openMarginSettingsBtn" class="Button-Page-Small"><i class="fa fa-cog" aria-hidden="true"></i></button>
+                        <button id="openMassChangeModalBtn" class="Button-Page-Small">
+                            <i class="fa fa-cubes" aria-hidden="true"></i>
+                        </button>
+                        <button id="simulateButton">Symuluj</button>
                     </div>
-                    <button id="openMassChangeModalBtn" class="btn btn-primary">
-                        Masowa zmiana cen
-                    </button>
-                    <button id="openMarginSettingsBtn" class="Button-Page-Small"><i class="fa fa-cog" aria-hidden="true"></i></button>
+                 
 
                 </div>
                 <div class="Vert-table">
@@ -752,9 +754,7 @@
         </div>
     </div>
 </div>
-
-
-
+<!-- Modal do symulacji -->
 <div class="modal-sim fade" id="simulationModal" tabindex="-1" role="dialog" aria-labelledby="simulationModalLabel">
     <div class="modal-dialog-sim" role="document">
         <div class="modal-simulation">
@@ -767,18 +767,53 @@
             <div class="modal-body">
                 <div class="table-scroll" id="simulationModalBody"></div>
             </div>
-            <!-- Przykładowo w stopce modalu symulacji -->
             <div class="modal-footer">
-                <button type="button" id="clearChangesButton" class="btn btn-warning">Wyczyść zmiany</button>
-                <button type="button" class="btn btn-secondary" data-dismiss="modal">Zamknij</button>
-                <button id="exportToCsvButton">Eksportuj do CSV</button>
-                <button id="exportToExcelButton">Eksportuj do Excela</button>
+                <div style="display:flex; width:100%; justify-content:space-between;">
+                    <div style="display:inline-flex;">
+                        <button type="button" id="clearChangesButton" class="Button-Page-Small-r">Wyczyść zmiany</button>
+                    </div>   
+                    
+                    <div style="display:inline-flex; gap:10px;">
 
+                        <button id="exportToCsvButton" class="Button-Page-Small-bl"><i class="fa fa-file-code-o" aria-hidden="true"></i>Eksportuj do CSV</button>
+                        <button id="exportNewPriceToExcelButton" class="Button-Page-Small-gr"><i class="fa fa-file-excel-o" aria-hidden="true"></i>Eksportuj do Excela</button>
+                    </div>
+                 
+                </div>
+             
+            
+         
             </div>
-
         </div>
     </div>
 </div>
+
+<!-- Modal disclaimera przed eksportem -->
+<div class="modal fade" id="exportDisclaimerModal" tabindex="-1" role="dialog" aria-labelledby="exportDisclaimerModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content" style="width:460px;">
+            <div class="modal-header">
+                <div class="price-box-column-name" id="exportDisclaimerModalLabel">Ostrzeżenie</div>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Zamknij">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p>
+                    Nie ponosimy odpowiedzialności za możliwe błędne powiązania między produktami z programu PriceSafari
+                    a dostarczonym feedem XML. Prosimy sprawdzić przed eksportem danych dokładność powiązań 
+                    i wprowadzać zmiany na własną odpowiedzialność. Wyeksportowanie zmian nie wprowadza żadnych zmian odnośnie
+                    cen produktów w sklepie, dopóki użytkownik sam ich nie zaimportuje.
+                </p>
+            </div>
+            <div class="modal-footer" style="justify-content:space-between;">
+                <button type="button" class="Button-Page-Small-r" data-dismiss="modal">Anuluj</button>
+                <button type="button" class="Button-Page-Small-bl" id="disclaimerConfirmButton">Kontynuuj</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 
 <div class="modal fade" id="massChangeModal" tabindex="-1" role="dialog" aria-labelledby="massChangeModalLabel" aria-hidden="true">
     <div class="modal-dialog" role="document">

@@ -242,7 +242,7 @@
         paginationContainer.innerHTML = '';
 
         const prevButton = document.createElement('button');
-        prevButton.textContent = 'Poprzednia';
+        prevButton.innerHTML = '<i class="fa fa-chevron-circle-left" aria-hidden="true"></i>';
         prevButton.disabled = currentPage === 1;
         prevButton.addEventListener('click', () => {
             if (currentPage > 1) {
@@ -267,7 +267,7 @@
         }
 
         const nextButton = document.createElement('button');
-        nextButton.textContent = 'Następna';
+        nextButton.innerHTML = '<i class="fa fa-chevron-circle-right" aria-hidden="true"></i>';
         nextButton.disabled = currentPage === totalPages;
         nextButton.addEventListener('click', () => {
             if (currentPage < totalPages) {
