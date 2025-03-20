@@ -241,13 +241,16 @@
     }
 
     updatePriceChangeSummary();
-
     var closeButtons = document.querySelectorAll('#simulationModal .close, #simulationModal [data-dismiss="modal"]');
     closeButtons.forEach(function (btn) {
         btn.addEventListener('click', function () {
             var simulationModal = document.getElementById("simulationModal");
             simulationModal.style.display = 'none';
             simulationModal.classList.remove('show');
+            // Po zamknięciu modala odświeżamy widok cen
+            loadPrices();
         });
     });
+
+
 });

@@ -550,6 +550,9 @@
             .finally(() => {
                 hideLoading();
             });
+
+             window.loadPrices = loadPrices;
+
     }
 
     function updateFlagCounts(prices) {
