@@ -896,193 +896,6 @@ namespace PriceSafari.Controllers.MemberControllers
 
 
 
-
-
-
-
-        //[HttpPost]
-        //public async Task<IActionResult> SimulatePriceChange([FromBody] List<SimulationItem> simulationItems)
-        //{
-        //    if (simulationItems == null || simulationItems.Count == 0)
-        //    {
-        //        return Json(new List<object>());
-        //    }
-
-        //    // Pobierz pierwszy produkt, żeby ustalić ID sklepu i jego nazwę
-        //    var firstProduct = await _context.Products
-        //        .Include(p => p.Store)
-        //        .FirstOrDefaultAsync(p => p.ProductId == simulationItems.First().ProductId);
-
-        //    if (firstProduct == null)
-        //    {
-        //        return NotFound("Produkt nie znaleziony.");
-        //    }
-
-        //    int storeId = firstProduct.StoreId;
-        //    string ourStoreName = firstProduct.Store != null ? firstProduct.Store.StoreName : "";
-
-        //    // Pobierz ostatnie scrapowanie dla sklepu
-        //    var latestScrap = await _context.ScrapHistories
-        //        .Where(sh => sh.StoreId == storeId)
-        //        .OrderByDescending(sh => sh.Date)
-        //        .Select(sh => new { sh.Id })
-        //        .FirstOrDefaultAsync();
-
-        //    if (latestScrap == null)
-        //    {
-        //        return BadRequest("Brak scrapowania dla sklepu.");
-        //    }
-
-        //    // Funkcja pomocnicza do obliczania rankingu
-        //    string CalculateRanking(List<decimal> prices, decimal price)
-        //    {
-        //        prices.Sort();
-        //        int firstIndex = prices.FindIndex(x => x == price);
-        //        int lastIndex = prices.FindLastIndex(x => x == price);
-        //        return (firstIndex == lastIndex)
-        //            ? (firstIndex + 1).ToString()
-        //            : $"{firstIndex + 1}-{lastIndex + 1}";
-        //    }
-
-        //    var simulationResults = new List<object>();
-
-        //    foreach (var sim in simulationItems)
-        //    {
-        //        // Pobieramy EAN dla danego produktu
-        //        var productData = await _context.Products
-        //            .Where(p => p.ProductId == sim.ProductId)
-        //            .Select(p => new
-        //            {
-        //                p.ProductId,
-        //                p.Ean
-        //            })
-        //            .FirstOrDefaultAsync();
-
-        //        if (productData == null)
-        //        {
-        //            // Jeśli brak produktu, można np. pominąć go w wynikach lub zwrócić info
-        //            continue;
-        //        }
-
-        //        // Pobieramy konkurencyjne ceny dla danego produktu z ostatniego scrapowania
-        //        var competitorPrices = await _context.PriceHistories
-        //            .Where(ph => ph.ProductId == sim.ProductId
-        //                      && ph.ScrapHistoryId == latestScrap.Id
-        //                      && ph.StoreName != ourStoreName)
-        //            .Select(ph => new
-        //            {
-        //                ph.Price,
-        //                ph.IsGoogle,
-        //                ph.StoreName
-        //            })
-        //            .ToListAsync();
-
-        //        // -- GOOGLE --
-        //        var googlePrices = competitorPrices
-        //            .Where(x => x.IsGoogle)
-        //            .Select(x => x.Price)
-        //            .ToList();
-
-        //        string currentGoogleRanking, newGoogleRanking;
-        //        int totalGoogleOffers = googlePrices.Count;
-        //        if (totalGoogleOffers > 0)
-        //        {
-        //            var currentGoogleList = new List<decimal>(googlePrices) { sim.CurrentPrice };
-        //            currentGoogleRanking = CalculateRanking(currentGoogleList, sim.CurrentPrice);
-
-        //            var newGoogleList = new List<decimal>(googlePrices) { sim.NewPrice };
-        //            newGoogleRanking = CalculateRanking(newGoogleList, sim.NewPrice);
-        //        }
-        //        else
-        //        {
-        //            currentGoogleRanking = newGoogleRanking = "-";
-        //        }
-
-        //        // -- CENEO --
-        //        var ceneoCompetitor = competitorPrices
-        //            .Where(x => !x.IsGoogle && !string.IsNullOrEmpty(x.StoreName))
-        //            .ToList();
-
-        //        var ceneoPrices = ceneoCompetitor.Select(x => x.Price).ToList();
-        //        string currentCeneoRanking, newCeneoRanking;
-        //        int totalCeneoOffers = ceneoPrices.Count;
-        //        if (totalCeneoOffers > 0)
-        //        {
-        //            var currentCeneoList = new List<decimal>(ceneoPrices) { sim.CurrentPrice };
-        //            currentCeneoRanking = CalculateRanking(currentCeneoList, sim.CurrentPrice);
-
-        //            var newCeneoList = new List<decimal>(ceneoPrices) { sim.NewPrice };
-        //            newCeneoRanking = CalculateRanking(newCeneoList, sim.NewPrice);
-        //        }
-        //        else
-        //        {
-        //            currentCeneoRanking = newCeneoRanking = "-";
-        //        }
-
-        //        // Przygotowujemy dodatkowe dane – oferty użyte do symulacji wraz z nazwami sklepów
-        //        // Google – obecna nasza oferta + oferty konkurencji
-        //        var googleCurrentOffers = competitorPrices
-        //            .Where(x => x.IsGoogle)
-        //            .Select(x => new { x.Price, x.StoreName })
-        //            .ToList();
-        //        googleCurrentOffers.Add(new { Price = sim.CurrentPrice, StoreName = ourStoreName });
-
-        //        var googleNewOffers = competitorPrices
-        //            .Where(x => x.IsGoogle)
-        //            .Select(x => new { x.Price, x.StoreName })
-        //            .ToList();
-        //        googleNewOffers.Add(new { Price = sim.NewPrice, StoreName = ourStoreName });
-
-        //        // Ceneo – obecna nasza oferta + oferty konkurencji
-        //        var ceneoCurrentOffers = ceneoCompetitor
-        //            .Select(x => new { x.Price, x.StoreName })
-        //            .ToList();
-        //        ceneoCurrentOffers.Add(new { Price = sim.CurrentPrice, StoreName = ourStoreName });
-
-        //        var ceneoNewOffers = ceneoCompetitor
-        //            .Select(x => new { x.Price, x.StoreName })
-        //            .ToList();
-        //        ceneoNewOffers.Add(new { Price = sim.NewPrice, StoreName = ourStoreName });
-
-        //        // Dodajemy wszystko do wyników
-        //        simulationResults.Add(new
-        //        {
-        //            productId = productData.ProductId,
-        //            ean = productData.Ean,  // <-- Nowe pole z EAN
-        //            currentGoogleRanking,
-        //            newGoogleRanking,
-        //            totalGoogleOffers = totalGoogleOffers > 0 ? totalGoogleOffers : (int?)null,
-        //            currentCeneoRanking,
-        //            newCeneoRanking,
-        //            totalCeneoOffers = totalCeneoOffers > 0 ? totalCeneoOffers : (int?)null,
-        //            googleCurrentOffers,
-        //            googleNewOffers,
-        //            ceneoCurrentOffers,
-        //            ceneoNewOffers
-        //        });
-        //    }
-
-        //    return Json(new
-        //    {
-        //        ourStoreName,
-        //        simulationResults
-        //    });
-        //}
-
-
-        //public class SimulationItem
-        //{
-        //    public int ProductId { get; set; }
-        //    public decimal CurrentPrice { get; set; }
-        //    public decimal NewPrice { get; set; }
-        //}
-
-
-
-
-
-
-
         [HttpPost]
         public async Task<IActionResult> SimulatePriceChange([FromBody] List<SimulationItem> simulationItems)
         {
@@ -1091,26 +904,26 @@ namespace PriceSafari.Controllers.MemberControllers
                 return Json(new List<object>());
             }
 
-            // Pobierz pierwszy produkt, żeby ustalić ID sklepu i jego nazwę
+            // 1) Sprawdzamy pierwszy produkt, by ustalić sklep i dostęp użytkownika
+            int firstProductId = simulationItems.First().ProductId;
             var firstProduct = await _context.Products
                 .Include(p => p.Store)
-                .FirstOrDefaultAsync(p => p.ProductId == simulationItems.First().ProductId);
+                .FirstOrDefaultAsync(p => p.ProductId == firstProductId);
 
             if (firstProduct == null)
             {
                 return NotFound("Produkt nie znaleziony.");
             }
 
-            // Sprawdź czy użytkownik ma dostęp do sklepu
             if (!await UserHasAccessToStore(firstProduct.StoreId))
             {
                 return Unauthorized("Brak dostępu do sklepu.");
             }
 
             int storeId = firstProduct.StoreId;
-            string ourStoreName = firstProduct.Store != null ? firstProduct.Store.StoreName : "";
+            string ourStoreName = firstProduct.Store?.StoreName ?? "";
 
-            // Pobierz ostatnie scrapowanie dla sklepu
+            // 2) Pobieramy najnowsze scrapowanie
             var latestScrap = await _context.ScrapHistories
                 .Where(sh => sh.StoreId == storeId)
                 .OrderByDescending(sh => sh.Date)
@@ -1121,126 +934,205 @@ namespace PriceSafari.Controllers.MemberControllers
             {
                 return BadRequest("Brak scrapowania dla sklepu.");
             }
+            int latestScrapId = latestScrap.Id;
 
-            // Funkcja pomocnicza do obliczania rankingu
+            // 3) Zbieramy ID wszystkich produktów z simulationItems
+            var productIds = simulationItems
+                .Select(s => s.ProductId)
+                .Distinct()
+                .ToList();
+
+            // 4) Pobieramy dane produktów (ProductId, Ean) - w paczkach
+            var productsData = await GetProductsInChunksAsync(productIds);
+
+            // 5) Pobieramy PriceHistories dla tych produktów i najnowszego scrapId - także w paczkach
+            var allPriceHistories = await GetPriceHistoriesInChunksAsync(productIds, latestScrapId);
+
+            // Grupujemy PriceHistories wg ProductId (w pamięci)
+            var priceHistoriesByProduct = allPriceHistories
+                .GroupBy(ph => ph.ProductId)
+                .ToDictionary(g => g.Key, g => g.ToList());
+
+            // Pomocnicza funkcja do wyliczania rankingu
             string CalculateRanking(List<decimal> prices, decimal price)
             {
                 prices.Sort();
-                int firstIndex = prices.FindIndex(x => x == price);
-                int lastIndex = prices.FindLastIndex(x => x == price);
-                return (firstIndex == lastIndex)
-                    ? (firstIndex + 1).ToString()
-                    : $"{firstIndex + 1}-{lastIndex + 1}";
+                int firstIndex = prices.IndexOf(price);
+                int lastIndex = prices.LastIndexOf(price);
+                if (firstIndex == -1)
+                    return "-";
+                if (firstIndex == lastIndex)
+                    return (firstIndex + 1).ToString();
+                else
+                    return $"{firstIndex + 1}-{lastIndex + 1}";
             }
 
             var simulationResults = new List<object>();
 
+            // 6) Przechodzimy po każdym SimulationItem i generujemy wyniki w pamięci
             foreach (var sim in simulationItems)
             {
-                // Pobieramy EAN dla danego produktu
-                var productData = await _context.Products
-                    .Where(p => p.ProductId == sim.ProductId)
-                    .Select(p => new
-                    {
-                        p.ProductId,
-                        p.Ean
-                    })
-                    .FirstOrDefaultAsync();
-
-                if (productData == null)
+                // Szukamy w pobranych danych EAN-u dla produktu
+                var product = productsData.FirstOrDefault(p => p.ProductId == sim.ProductId);
+                if (product == null)
                 {
-                    // Pomiń produkt, którego nie znaleziono
+                    // Brak takiego produktu w bazie
                     continue;
                 }
 
-                // Pobieramy konkurencyjne ceny dla danego produktu z ostatniego scrapowania
-                var competitorPrices = await _context.PriceHistories
-                    .Where(ph => ph.ProductId == sim.ProductId
-                              && ph.ScrapHistoryId == latestScrap.Id
-                              && ph.StoreName != ourStoreName)
-                    .Select(ph => new
-                    {
-                        ph.Price,
-                        ph.IsGoogle,
-                        ph.StoreName
-                    })
-                    .ToListAsync();
+                // Szukamy PriceHistories (wszystkie oferty) dla danego produktu
+                priceHistoriesByProduct.TryGetValue(sim.ProductId, out var allRecordsForProduct);
 
-                // --- GOOGLE ---
-                var googlePrices = competitorPrices
+                if (allRecordsForProduct == null)
+                {
+                    // Brak scrapowania dla tego produktu
+                    simulationResults.Add(new
+                    {
+                        productId = product.ProductId,
+                        ean = product.Ean,
+                        currentGoogleRanking = "-",
+                        newGoogleRanking = "-",
+                        totalGoogleOffers = (int?)null,
+                        currentCeneoRanking = "-",
+                        newCeneoRanking = "-",
+                        totalCeneoOffers = (int?)null,
+                        googleCurrentOffers = new List<object>(),
+                        googleNewOffers = new List<object>(),
+                        ceneoCurrentOffers = new List<object>(),
+                        ceneoNewOffers = new List<object>()
+                    });
+                    continue;
+                }
+
+                // Sprawdzamy, czy nasz sklep w ogóle występuje w Google / Ceneo
+                bool weAreInGoogle = allRecordsForProduct.Any(ph =>
+                    ph.StoreName == ourStoreName && ph.IsGoogle
+                );
+                bool weAreInCeneo = allRecordsForProduct.Any(ph =>
+                    ph.StoreName == ourStoreName && !ph.IsGoogle
+                );
+
+                // Konkurencja = storeName != ourStoreName
+                var competitorPrices = allRecordsForProduct
+                    .Where(ph => ph.StoreName != ourStoreName)
+                    .ToList();
+
+                // ================= GOOGLE =====================
+                var googleCompetitorPrices = competitorPrices
                     .Where(x => x.IsGoogle)
                     .Select(x => x.Price)
                     .ToList();
 
-                string currentGoogleRanking, newGoogleRanking;
-                int totalGoogleOffers = googlePrices.Count;
-                if (totalGoogleOffers > 0)
-                {
-                    var currentGoogleList = new List<decimal>(googlePrices) { sim.CurrentPrice };
-                    currentGoogleRanking = CalculateRanking(currentGoogleList, sim.CurrentPrice);
+                var currentGoogleList = new List<decimal>(googleCompetitorPrices);
+                var newGoogleList = new List<decimal>(googleCompetitorPrices);
 
-                    var newGoogleList = new List<decimal>(googlePrices) { sim.NewPrice };
-                    newGoogleRanking = CalculateRanking(newGoogleList, sim.NewPrice);
+                if (weAreInGoogle)
+                {
+                    currentGoogleList.Add(sim.CurrentPrice);
+                    newGoogleList.Add(sim.NewPrice);
                 }
-                else
+
+                int totalGoogleOffers = currentGoogleList.Count;
+                string currentGoogleRanking;
+                string newGoogleRanking;
+
+                if (totalGoogleOffers == 0)
                 {
                     currentGoogleRanking = newGoogleRanking = "-";
                 }
-
-                // --- CENEO ---
-                var ceneoCompetitor = competitorPrices
-                    .Where(x => !x.IsGoogle && !string.IsNullOrEmpty(x.StoreName))
-                    .ToList();
-
-                var ceneoPrices = ceneoCompetitor.Select(x => x.Price).ToList();
-                string currentCeneoRanking, newCeneoRanking;
-                int totalCeneoOffers = ceneoPrices.Count;
-                if (totalCeneoOffers > 0)
-                {
-                    var currentCeneoList = new List<decimal>(ceneoPrices) { sim.CurrentPrice };
-                    currentCeneoRanking = CalculateRanking(currentCeneoList, sim.CurrentPrice);
-
-                    var newCeneoList = new List<decimal>(ceneoPrices) { sim.NewPrice };
-                    newCeneoRanking = CalculateRanking(newCeneoList, sim.NewPrice);
-                }
                 else
                 {
-                    currentCeneoRanking = newCeneoRanking = "-";
+                    currentGoogleRanking = weAreInGoogle
+                        ? CalculateRanking(currentGoogleList, sim.CurrentPrice)
+                        : "-";
+                    newGoogleRanking = weAreInGoogle
+                        ? CalculateRanking(newGoogleList, sim.NewPrice)
+                        : "-";
                 }
 
-                // Przygotowanie dodatkowych danych ofert konkurencyjnych
                 var googleCurrentOffers = competitorPrices
                     .Where(x => x.IsGoogle)
                     .Select(x => new { x.Price, x.StoreName })
                     .ToList();
-                googleCurrentOffers.Add(new { Price = sim.CurrentPrice, StoreName = ourStoreName });
+                if (weAreInGoogle)
+                {
+                    googleCurrentOffers.Add(new { Price = sim.CurrentPrice, StoreName = ourStoreName });
+                }
 
                 var googleNewOffers = competitorPrices
                     .Where(x => x.IsGoogle)
                     .Select(x => new { x.Price, x.StoreName })
                     .ToList();
-                googleNewOffers.Add(new { Price = sim.NewPrice, StoreName = ourStoreName });
+                if (weAreInGoogle)
+                {
+                    googleNewOffers.Add(new { Price = sim.NewPrice, StoreName = ourStoreName });
+                }
 
-                var ceneoCurrentOffers = ceneoCompetitor
+                // ================= CENEO =====================
+                var ceneoCompetitorPrices = competitorPrices
+                    .Where(x => !x.IsGoogle && !string.IsNullOrEmpty(x.StoreName))
+                    .Select(x => x.Price)
+                    .ToList();
+
+                var currentCeneoList = new List<decimal>(ceneoCompetitorPrices);
+                var newCeneoList = new List<decimal>(ceneoCompetitorPrices);
+
+                if (weAreInCeneo)
+                {
+                    currentCeneoList.Add(sim.CurrentPrice);
+                    newCeneoList.Add(sim.NewPrice);
+                }
+
+                int totalCeneoOffers = currentCeneoList.Count;
+                string currentCeneoRanking, newCeneoRanking;
+
+                if (totalCeneoOffers == 0)
+                {
+                    currentCeneoRanking = newCeneoRanking = "-";
+                }
+                else
+                {
+                    currentCeneoRanking = weAreInCeneo
+                        ? CalculateRanking(currentCeneoList, sim.CurrentPrice)
+                        : "-";
+                    newCeneoRanking = weAreInCeneo
+                        ? CalculateRanking(newCeneoList, sim.NewPrice)
+                        : "-";
+                }
+
+                var ceneoCompetitorRecords = competitorPrices
+                    .Where(x => !x.IsGoogle && !string.IsNullOrEmpty(x.StoreName))
                     .Select(x => new { x.Price, x.StoreName })
                     .ToList();
-                ceneoCurrentOffers.Add(new { Price = sim.CurrentPrice, StoreName = ourStoreName });
 
-                var ceneoNewOffers = ceneoCompetitor
-                    .Select(x => new { x.Price, x.StoreName })
-                    .ToList();
-                ceneoNewOffers.Add(new { Price = sim.NewPrice, StoreName = ourStoreName });
+                var ceneoCurrentOffers = new List<object>(ceneoCompetitorRecords);
+                if (weAreInCeneo)
+                {
+                    ceneoCurrentOffers.Add(new { Price = sim.CurrentPrice, StoreName = ourStoreName });
+                }
 
+                var ceneoNewOffers = new List<object>(ceneoCompetitorRecords);
+                if (weAreInCeneo)
+                {
+                    ceneoNewOffers.Add(new { Price = sim.NewPrice, StoreName = ourStoreName });
+                }
+
+                // Tworzymy obiekt wynikowy
                 simulationResults.Add(new
                 {
-                    productId = productData.ProductId,
-                    ean = productData.Ean,  // nowe pole z EAN
+                    productId = product.ProductId,
+                    ean = product.Ean,
+
+                    // Google
                     currentGoogleRanking,
                     newGoogleRanking,
-                    totalGoogleOffers = totalGoogleOffers > 0 ? totalGoogleOffers : (int?)null,
+                    totalGoogleOffers = (totalGoogleOffers > 0 ? totalGoogleOffers : (int?)null),
+
+                    // Ceneo
                     currentCeneoRanking,
                     newCeneoRanking,
-                    totalCeneoOffers = totalCeneoOffers > 0 ? totalCeneoOffers : (int?)null,
+                    totalCeneoOffers = (totalCeneoOffers > 0 ? totalCeneoOffers : (int?)null),
+
                     googleCurrentOffers,
                     googleNewOffers,
                     ceneoCurrentOffers,
@@ -1248,12 +1140,21 @@ namespace PriceSafari.Controllers.MemberControllers
                 });
             }
 
+            // 7) Zwracamy JSON
             return Json(new
             {
                 ourStoreName,
                 simulationResults
             });
         }
+
+
+        private class ProductData
+        {
+            public int ProductId { get; set; }
+            public string Ean { get; set; }
+        }
+
 
         public class SimulationItem
         {
@@ -1262,6 +1163,86 @@ namespace PriceSafari.Controllers.MemberControllers
             public decimal NewPrice { get; set; }
          
             public int StoreId { get; set; }
+        }
+
+        private const int CHUNK_SIZE = 200; // dostosuj w zależności od potrzeb
+
+        private async Task<List<ProductData>> GetProductsInChunksAsync(List<int> productIds)
+        {
+            var result = new List<ProductData>();
+
+            for (int i = 0; i < productIds.Count; i += CHUNK_SIZE)
+            {
+                var subset = productIds.Skip(i).Take(CHUNK_SIZE).ToList();
+
+                if (subset.Count == 0)
+                    continue;
+
+                // Budujemy "1,2,3,4"
+                var inClause = string.Join(",", subset);
+
+                // Składamy raw SQL
+                // Uwaga - TYLKO, jeśli subset nie jest pusty
+                string sql = $@"
+            SELECT ProductId, Ean
+            FROM Products
+            WHERE ProductId IN ({inClause})
+        ";
+
+                var partial = await _context.Products
+                    .FromSqlRaw(sql)
+                    .Select(p => new ProductData
+                    {
+                        ProductId = p.ProductId,
+                        Ean = p.Ean
+                    })
+                    .ToListAsync();
+
+                result.AddRange(partial);
+            }
+
+            return result;
+        }
+
+
+        private async Task<List<(int ProductId, decimal Price, bool IsGoogle, string StoreName)>>
+               GetPriceHistoriesInChunksAsync(List<int> productIds, int scrapId)
+        {
+            var result = new List<(int, decimal, bool, string)>();
+
+            for (int i = 0; i < productIds.Count; i += CHUNK_SIZE)
+            {
+                var subset = productIds.Skip(i).Take(CHUNK_SIZE).ToList();
+                if (subset.Count == 0)
+                    continue;
+
+                var inClause = string.Join(",", subset);
+
+                string sql = $@"
+            SELECT ProductId, Price, IsGoogle, StoreName
+            FROM PriceHistories
+            WHERE ScrapHistoryId = {scrapId}
+              AND ProductId IN ({inClause})
+        ";
+
+                // Wczytanie do obiektów anonimowych, potem do ValueTuple
+                var partial = await _context.PriceHistories
+                    .FromSqlRaw(sql)
+                    .Select(ph => new
+                    {
+                        ph.ProductId,
+                        ph.Price,
+                        ph.IsGoogle,
+                        ph.StoreName
+                    })
+                    .ToListAsync();
+
+                result.AddRange(
+                    partial.Select(x => (x.ProductId, x.Price, x.IsGoogle, x.StoreName))
+                );
+            }
+
+            return result;
         }
 
 

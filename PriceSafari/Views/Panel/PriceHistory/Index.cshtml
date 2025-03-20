@@ -700,7 +700,9 @@
                         <div id="summaryText"></div>
                         <button id="simulateButton">Symuluj zmiany cen</button>
                     </div>
-                
+                    <button id="openMassChangeModalBtn" class="btn btn-primary">
+                        Masowa zmiana cen
+                    </button>
                 </div>
                 <div class="Vert-table">
                     <div id="priceContainer" class="price-container"></div>
@@ -731,6 +733,21 @@
             </div>
 
         </div>
+    </div>
+</div>
+
+
+<div id="massChangeModal" class="modal">
+    <div class="modal-content">
+        <span class="closeMassChangeModal">&times;</span>
+        <h2>Masowa zmiana cen</h2>
+        <p>Wybierz, co chcesz zrobić dla wszystkich <strong>widocznych</strong> produktów:</p>
+        <button id="massMatchBtn" class="btn btn-info" style="margin-right: 10px;">
+            Masowo: Match (pierwszy przycisk)
+        </button>
+        <button id="massStrategicBtn" class="btn btn-success">
+            Masowo: Strategic (drugi przycisk)
+        </button>
     </div>
 </div>
 

@@ -27,6 +27,81 @@
     let positionSlider;
     let offerSlider;
 
+    // ======================================================
+    // MODAL do "Masowej zmiany cen"
+    // ======================================================
+    const openMassChangeModalBtn = document.getElementById('openMassChangeModalBtn');
+    const massChangeModal = document.getElementById('massChangeModal');
+    const closeMassChangeModalBtn = document.querySelector('.closeMassChangeModal');
+
+    openMassChangeModalBtn.addEventListener('click', function () {
+        massChangeModal.style.display = 'block';
+    });
+
+    closeMassChangeModalBtn.addEventListener('click', function () {
+        massChangeModal.style.display = 'none';
+    });
+
+    window.addEventListener('click', function (event) {
+        if (event.target === massChangeModal) {
+            massChangeModal.style.display = 'none';
+        }
+    });
+
+    // ======================================================
+    // PRZYCISKI MASOWEGO DODAWANIA:
+    //   - "match" (pierwszy przycisk w boxie)
+    //   - "strategic" (drugi przycisk w boxie)
+    // ======================================================
+    const massMatchBtn = document.getElementById('massMatchBtn');
+    const massStrategicBtn = document.getElementById('massStrategicBtn');
+
+    // Gdy klikniemy "Masowo: Match" => klikamy w pierwszy przycisk "simulate-change-btn"
+    massMatchBtn.addEventListener('click', function () {
+        applyMassChange('match');
+        massChangeModal.style.display = 'none';
+    });
+
+    // Gdy klikniemy "Masowo: Strategic" => klikamy w drugi przycisk "simulate-change-btn"
+    massStrategicBtn.addEventListener('click', function () {
+        applyMassChange('strategic');
+        massChangeModal.style.display = 'none';
+    });
+
+    // ======================================================
+    // FUNKCJA, KTÓRA MASOWO "KLIKA" W ISTNIEJĄCE PRZYCISKI
+    // ======================================================
+    function applyMassChange(changeType) {
+        // 1) Pobieramy wszystkie .price-box, które są w #priceContainer:
+        //    (tu są tylko produkty aktualnie wyrenderowane - czyli "widoczne")
+        const boxes = document.querySelectorAll('#priceContainer .price-box');
+
+        boxes.forEach(box => {
+            // Wewnątrz boxa mamy kolumny z przyciskami .simulate-change-btn
+            // W Twojej strukturze "pierwszy" => match, "drugi" => strategic
+            const buttons = box.querySelectorAll('.simulate-change-btn');
+            if (!buttons || buttons.length === 0) return; // brak jakichkolwiek przycisków (np. odrzucony produkt?)
+
+            // Teraz – w zależności od changeType – klikamy w 1. lub 2. przycisk
+            let targetButton;
+            if (changeType === 'match' && buttons[0]) {
+                targetButton = buttons[0]; // pierwszy
+            } else if (changeType === 'strategic' && buttons[1]) {
+                targetButton = buttons[1]; // drugi
+            }
+
+            // Jeśli np. nie ma drugiego przycisku, bo produkt "solo" 
+            // lub "odrzucony" – to pomijamy.
+            if (!targetButton) return;
+
+            // Wywołujemy programowo .click() => uruchamia się ten sam kod,
+            // co przy ręcznym kliknięciu.
+            targetButton.click();
+        });
+
+        // Możesz dodać globalne powiadomienie, np.:
+        showGlobalNotification("Zastosowano masową zmianę typu: " + changeType);
+    }
 
 
     function showGlobalNotification(message) {
