@@ -621,11 +621,12 @@
             button.classList.add('active');
             button.style.backgroundColor = "#333333";
             button.style.color = "#f5f5f5";
-            button.textContent = "Dodano ";
+            button.textContent = "Dodano |";
 
             // Dodajemy link do usuwania zmiany
             const removeLink = document.createElement('span');
-            removeLink.textContent = " | usuń";
+            removeLink.innerHTML = " <i class='fa fa-trash-o' style='font-size:16px; display:flex; color:white; margin-left:4px; margin-top:2px;'></i>";
+
             removeLink.style.textDecoration = "none";
             removeLink.style.cursor = "pointer";
             removeLink.addEventListener('click', function (ev) {
