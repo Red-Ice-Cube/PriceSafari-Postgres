@@ -323,6 +323,7 @@
     .modal-header,
     .modal-footer {
         flex-shrink: 0;
+
     }
 
     .modal-body {
@@ -736,20 +737,51 @@
     </div>
 </div>
 
+<div class="modal fade" id="massChangeModal" tabindex="-1" role="dialog" aria-labelledby="massChangeModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="price-box-column-name" id="massChangeModalLabel">Masowa zmiana cen</div>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p style="margin-bottom:36px;">
+                    Kliknięcie przycisku przeniesie wszystkie obecnie wyświetlone w widoku produkty do wybranej grupy cenowej. Przeniesione zostaną jedynie produkty, które posiadają przynajmniej jedną ofertę konkurencyjną oraz mają zmapowany kod EAN. Aby ograniczyć wyświetlaną grupę produktów, skorzystaj z filtrów.
+                </p>
 
-<div id="massChangeModal" class="modal">
-    <div class="modal-content">
-        <span class="closeMassChangeModal">&times;</span>
-        <h2>Masowa zmiana cen</h2>
-        <p>Wybierz, co chcesz zrobić dla wszystkich <strong>widocznych</strong> produktów:</p>
-        <button id="massMatchBtn" class="btn btn-info" style="margin-right: 10px;">
-            Masowo: Match (pierwszy przycisk)
-        </button>
-        <button id="massStrategicBtn" class="btn btn-success">
-            Masowo: Strategic (drugi przycisk)
-        </button>
+                <div style="display:flex; justify-content:space-between; margin-bottom:24px;">
+                    <div class="color-square-green" style="margin:0px;"></div>
+                    <p style="width:400px;">
+                        Cena konkurencyjna oznacza wyrównanie ceny do oferty innego lub kilku najtańszych konkurentów sprzedających ten produkt.
+                    </p>
+                </div>
+
+                <div style="display:flex; justify-content:space-between;">
+                    <div class="color-square-turquoise" style="margin:0px;"></div>
+                    <p style="width:400px;">
+                        Cena strategiczna oznacza, że Twoja oferta będzie najtańsza dla danego produktu oraz tańsza od konkurencji o określony krok cenowy.
+                    </p>
+                </div>
+            </div>
+
+            <div class="modal-footer" style="justify-content:center;">
+                <button id="massMatchBtn" class="Button-Page-Small" style="width:300px;">
+                    Przenieś do ceny konkurencyjnej →<div class="color-square-green" style="margin:0px;"></div>
+                </button>
+                <button id="massStrategicBtn" class="Button-Page-Small" style="width:300px;">
+                    Przenieś do ceny strategicznej →<div class="color-square-turquoise" style="margin:0px;"></div>
+                </button>
+            </div>
+        </div>
     </div>
 </div>
+
+
+
+
+
 
 <div id="globalNotification" style="
     display: none;
@@ -763,6 +795,24 @@
     padding: 10px;
     text-align: center;
    
+    border-radius: 10px;
+    z-index: 1000;
+">
+   
+</div>
+
+<div id="globalUpdate" style="
+    display: none;
+    position: fixed;
+    width: 500px;
+    top: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #006400;
+    color: white;
+    padding: 10px;
+    text-align: center;
+
     border-radius: 10px;
     z-index: 1000;
 ">

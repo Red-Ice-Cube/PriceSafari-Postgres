@@ -27,81 +27,62 @@
     let positionSlider;
     let offerSlider;
 
-    // ======================================================
-    // MODAL do "Masowej zmiany cen"
-    // ======================================================
     const openMassChangeModalBtn = document.getElementById('openMassChangeModalBtn');
     const massChangeModal = document.getElementById('massChangeModal');
-    const closeMassChangeModalBtn = document.querySelector('.closeMassChangeModal');
+    const closeMassChangeModalBtn = document.querySelector('#massChangeModal .close'); // zmieniony selektor
 
+    // Używając Bootstrapa i jQuery:
     openMassChangeModalBtn.addEventListener('click', function () {
-        massChangeModal.style.display = 'block';
+        $('#massChangeModal').modal('show');
     });
 
     closeMassChangeModalBtn.addEventListener('click', function () {
-        massChangeModal.style.display = 'none';
+        $('#massChangeModal').modal('hide');
     });
 
+    // Jeśli klikniemy poza modalem (Bootstrap automatycznie zamyka modal, ale jeśli chcesz samodzielnie):
     window.addEventListener('click', function (event) {
         if (event.target === massChangeModal) {
-            massChangeModal.style.display = 'none';
+            $('#massChangeModal').modal('hide');
         }
     });
 
-    // ======================================================
-    // PRZYCISKI MASOWEGO DODAWANIA:
-    //   - "match" (pierwszy przycisk w boxie)
-    //   - "strategic" (drugi przycisk w boxie)
-    // ======================================================
     const massMatchBtn = document.getElementById('massMatchBtn');
     const massStrategicBtn = document.getElementById('massStrategicBtn');
 
-    // Gdy klikniemy "Masowo: Match" => klikamy w pierwszy przycisk "simulate-change-btn"
     massMatchBtn.addEventListener('click', function () {
         applyMassChange('match');
-        massChangeModal.style.display = 'none';
+        $('#massChangeModal').modal('hide');
     });
 
-    // Gdy klikniemy "Masowo: Strategic" => klikamy w drugi przycisk "simulate-change-btn"
     massStrategicBtn.addEventListener('click', function () {
         applyMassChange('strategic');
-        massChangeModal.style.display = 'none';
+        $('#massChangeModal').modal('hide');
     });
 
-    // ======================================================
-    // FUNKCJA, KTÓRA MASOWO "KLIKA" W ISTNIEJĄCE PRZYCISKI
-    // ======================================================
     function applyMassChange(changeType) {
-        // 1) Pobieramy wszystkie .price-box, które są w #priceContainer:
-        //    (tu są tylko produkty aktualnie wyrenderowane - czyli "widoczne")
         const boxes = document.querySelectorAll('#priceContainer .price-box');
+        let count = 0; // licznik zmienionych produktów
 
         boxes.forEach(box => {
-            // Wewnątrz boxa mamy kolumny z przyciskami .simulate-change-btn
-            // W Twojej strukturze "pierwszy" => match, "drugi" => strategic
             const buttons = box.querySelectorAll('.simulate-change-btn');
-            if (!buttons || buttons.length === 0) return; // brak jakichkolwiek przycisków (np. odrzucony produkt?)
+            if (!buttons || buttons.length === 0) return;
 
-            // Teraz – w zależności od changeType – klikamy w 1. lub 2. przycisk
             let targetButton;
             if (changeType === 'match' && buttons[0]) {
-                targetButton = buttons[0]; // pierwszy
+                targetButton = buttons[0]; // pierwszy przycisk
             } else if (changeType === 'strategic' && buttons[1]) {
-                targetButton = buttons[1]; // drugi
+                targetButton = buttons[1]; // drugi przycisk
             }
 
-            // Jeśli np. nie ma drugiego przycisku, bo produkt "solo" 
-            // lub "odrzucony" – to pomijamy.
             if (!targetButton) return;
-
-            // Wywołujemy programowo .click() => uruchamia się ten sam kod,
-            // co przy ręcznym kliknięciu.
             targetButton.click();
+            count++;
         });
 
-        // Możesz dodać globalne powiadomienie, np.:
-        showGlobalNotification("Zastosowano masową zmianę typu: " + changeType);
+        showGlobalUpdate("Zastosowano masową zmianę. Dodano " + count + " SKU.");
     }
+
 
 
     function showGlobalNotification(message) {
@@ -109,10 +90,21 @@
         if (!notif) return;
         notif.textContent = message;
         notif.style.display = "block";
-        // Po 3 sekundach powiadomienie zniknie
+     
         setTimeout(() => {
             notif.style.display = "none";
-        }, 3000);
+        }, 4000);
+    }
+
+    function showGlobalUpdate(message) {
+        const notif = document.getElementById("globalUpdate");
+        if (!notif) return;
+        notif.textContent = message;
+        notif.style.display = "block";
+
+        setTimeout(() => {
+            notif.style.display = "none";
+        }, 4000);
     }
 
 
