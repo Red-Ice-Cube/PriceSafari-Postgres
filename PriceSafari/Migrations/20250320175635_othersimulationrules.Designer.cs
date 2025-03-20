@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using PriceSafari.Data;
 
@@ -11,9 +12,11 @@ using PriceSafari.Data;
 namespace PriceSafari.Migrations
 {
     [DbContext(typeof(PriceSafariContext))]
-    partial class PriceTrackerContextModelSnapshot : ModelSnapshot
+    [Migration("20250320175635_othersimulationrules")]
+    partial class othersimulationrules
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -806,10 +809,10 @@ namespace PriceSafari.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("PriceValueClassId"));
 
-                    b.Property<bool>("EnforceMinimalMargin")
+                    b.Property<bool?>("EnforceMinimalMargin")
                         .HasColumnType("bit");
 
-                    b.Property<decimal>("MinimalMarginPercent")
+                    b.Property<decimal?>("MinimalMarginPercent")
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<decimal>("PriceStep")
@@ -830,7 +833,7 @@ namespace PriceSafari.Migrations
                     b.Property<int>("StoreId")
                         .HasColumnType("int");
 
-                    b.Property<bool>("UseMarginForSimulation")
+                    b.Property<bool?>("UseMarginForSimulation")
                         .HasColumnType("bit");
 
                     b.Property<bool>("UsePriceDiff")

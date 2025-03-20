@@ -163,8 +163,27 @@ namespace PriceSafari.Controllers.MemberControllers
 
             var priceValues = await _context.PriceValues
                 .Where(pv => pv.StoreId == storeId)
-                .Select(pv => new { pv.SetPrice1, pv.SetPrice2, pv.PriceStep, pv.UsePriceDiff })
-                .FirstOrDefaultAsync() ?? new { SetPrice1 = 2.00m, SetPrice2 = 2.00m, PriceStep = 2.00m, UsePriceDiff = true };
+                .Select(pv => new
+                {
+                    pv.SetPrice1,
+                    pv.SetPrice2,
+                    pv.PriceStep,
+                    pv.UsePriceDiff,
+                    pv.UseMarginForSimulation,
+                    pv.EnforceMinimalMargin,
+                    pv.MinimalMarginPercent
+                })
+                .FirstOrDefaultAsync() ?? new
+                {
+                    SetPrice1 = 2.00m,
+                    SetPrice2 = 2.00m,
+                    PriceStep = 2.00m,
+                    UsePriceDiff = true,
+                    UseMarginForSimulation = true,
+                    EnforceMinimalMargin = true,
+                    MinimalMarginPercent = 0.00m
+                };
+
 
             var pricesQuery = from p in _context.Products
                               where p.StoreId == storeId && p.IsScrapable
@@ -501,8 +520,12 @@ namespace PriceSafari.Controllers.MemberControllers
                 setPrice1 = priceValues.SetPrice1,
                 setPrice2 = priceValues.SetPrice2,
                 stepPrice = priceValues.PriceStep,
-                usePriceDiff = priceValues.UsePriceDiff
+                usePriceDiff = priceValues.UsePriceDiff,
+                useMarginForSimulation = priceValues.UseMarginForSimulation,
+                enforceMinimalMargin = priceValues.EnforceMinimalMargin,
+                minimalMarginPercent = priceValues.MinimalMarginPercent
             });
+
 
 
         }

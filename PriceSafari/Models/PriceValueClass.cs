@@ -15,6 +15,15 @@
         public decimal SetSafariPrice2 { get; set; } = 2.00m;
         public bool UsePriceDiffSafari { get; set; } = true;
 
+
+
+
+     
+
+        public bool UseMarginForSimulation { get; set; } = true;
+        public bool EnforceMinimalMargin { get; set; } = true;
+        public decimal MinimalMarginPercent { get; set; } = 0.00m;
+
         public StoreClass Store { get; set; }
     }
 }
