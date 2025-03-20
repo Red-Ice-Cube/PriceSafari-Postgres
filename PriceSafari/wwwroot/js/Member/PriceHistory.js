@@ -64,11 +64,11 @@
         applyMassChange('strategic');
         $('#massChangeModal').modal('hide');
     });
-
     function applyMassChange(changeType) {
-        const boxes = document.querySelectorAll('#priceContainer .price-box');
-        let count = 0; // licznik zmienionych produktów
+    
+        const boxes = Array.from(document.querySelectorAll('#priceContainer .price-box'));
 
+        
         boxes.forEach(box => {
             const buttons = box.querySelectorAll('.simulate-change-btn');
             if (!buttons || buttons.length === 0) return;
@@ -81,36 +81,58 @@
             }
 
             if (!targetButton) return;
+            // Symulujemy kliknięcie przycisku
             targetButton.click();
-            count++;
         });
 
-        showGlobalUpdate("Zastosowano masową zmianę. Dodano " + count + " SKU.");
+        
+        setTimeout(() => {
+        
+            const updatedBoxes = Array.from(document.querySelectorAll('#priceContainer .price-box'));
+            let countAdded = 0;
+            let countRejected = 0;
+            updatedBoxes.forEach(box => {
+                // Jeśli w boxie pojawiła się klasa 'price-changed', uznajemy, że zmiana została dodana
+                if (box.classList.contains('price-changed')) {
+                    countAdded++;
+                } else {
+                    countRejected++;
+                }
+            });
+
+            showGlobalUpdate(
+                `<p style="margin-bottom:8px; font-size:16px; font-weight:bold;">Masowa zmiana zakończona!</p>
+             <p>Dodano: <strong>${countAdded}</strong> SKU</p>
+             <p>Odrzucono: <strong>${countRejected}</strong> SKU</p>`
+            );
+        }, 500); 
     }
+
 
 
 
     function showGlobalNotification(message) {
         const notif = document.getElementById("globalNotification");
         if (!notif) return;
-        notif.textContent = message;
+        notif.innerHTML = message; // używamy innerHTML
         notif.style.display = "block";
-     
+
         setTimeout(() => {
             notif.style.display = "none";
-        }, 4000);
+        }, 7000);
     }
 
     function showGlobalUpdate(message) {
         const notif = document.getElementById("globalUpdate");
         if (!notif) return;
-        notif.textContent = message;
+        notif.innerHTML = message; // używamy innerHTML
         notif.style.display = "block";
 
         setTimeout(() => {
             notif.style.display = "none";
-        }, 4000);
+        }, 7000);
     }
+
 
 
     function exportToExcelXLSX() {
@@ -725,29 +747,94 @@
             priceBox.classList.add('price-changed');
         }
 
-        // Zmodyfikowana funkcja attachPriceChangeListener
         function attachPriceChangeListener(button, suggestedPrice, priceBox, productId, productName, currentPriceValue, item) {
-            // Upewniamy się, że 'item' jest zdefiniowane i ma kod EAN
+            // Sprawdzenie, czy produkt ma zmapowany EAN
             if (!item || !item.ean || item.ean.trim() === "") {
                 button.disabled = true;
                 button.title = "Produkt musi mieć zmapowany kod EAN";
-                return; // Zakończ funkcję, bo nie chcemy podłączać listenera
+                return;
             }
 
             button.addEventListener('click', function (e) {
                 e.stopPropagation();
+
+                // Jeśli używamy symulacji z marżą, produkt musi mieć podaną cenę zakupu (marginPrice)
+                if (marginSettings.useMarginForSimulation) {
+                    if (item.marginPrice == null) {
+                        showGlobalNotification(
+                            `<p style="margin:8px 0; font-weight:bold;">Zmiana ceny nie została dodana</p>
+                     <p>Symulacja cenowa z marżą jest włączona – produkt musi posiadać cenę zakupu.</p>`
+                        );
+                        return;
+                    }
+                    // Obliczamy nową (symulowaną) marżę:
+                    // Marża = ((Nowa cena - cena zakupu) / cena zakupu) * 100
+                    let simulatedMargin = ((suggestedPrice - item.marginPrice) / item.marginPrice) * 100;
+                    simulatedMargin = parseFloat(simulatedMargin.toFixed(2));
+
+                    // Jeśli wymuszamy minimalną (lub maksymalną) marżę...
+                    if (marginSettings.enforceMinimalMargin) {
+                        if (simulatedMargin < 0) {
+                            showGlobalNotification(
+                                `<p style="margin:8px 0; font-weight:bold;">Zmiana ceny nie została dodana</p>
+                         <p>Nowa cena <strong>${suggestedPrice.toFixed(2)} PLN</strong> spowoduje ujemną marżę (Nowa marża: <strong>${simulatedMargin}%</strong>).</p>
+                         <p>Cena zakupu wynosi <strong>${item.marginPrice.toFixed(2)} PLN</strong>. Zmiana nie może zostać zastosowana.</p>`
+                            );
+                            return;
+                        }
+                        if (marginSettings.minimalMarginPercent > 0 && simulatedMargin < marginSettings.minimalMarginPercent) {
+                            showGlobalNotification(
+                                `<p style="margin:8px 0; font-weight:bold;">Zmiana ceny nie została dodana</p>
+                         <p>Nowa cena <strong>${suggestedPrice.toFixed(2)} PLN</strong> obniży marżę poniżej ustalonego minimum (<strong>${marginSettings.minimalMarginPercent}%</strong>).</p>
+                         <p>Nowa marża wynosi <strong>${simulatedMargin}%</strong>, a cena zakupu to <strong>${item.marginPrice.toFixed(2)} PLN</strong>.</p>`
+                            );
+                            return;
+                        }
+                        if (marginSettings.minimalMarginPercent < 0 && simulatedMargin > marginSettings.minimalMarginPercent) {
+                            showGlobalNotification(
+                                `<p style="margin:8px 0; font-weight:bold;">Zmiana ceny nie została dodana</p>
+                         <p>Nowa cena <strong>${suggestedPrice.toFixed(2)} PLN</strong> podniesie marżę powyżej dozwolonego poziomu (<strong>${marginSettings.minimalMarginPercent}%</strong>).</p>
+                         <p>Nowa marża wynosi <strong>${simulatedMargin}%</strong>.</p>`
+                            );
+                            return;
+                        }
+                    }
+                }
+
+                // Jeśli zmiana już jest aktywna – nie wykonujemy nic więcej
                 if (priceBox.classList.contains('price-changed') || button.classList.contains('active')) {
                     console.log("Zmiana ceny już aktywna dla produktu", productId);
                     return;
                 }
+
+                // Wysyłamy event zmiany ceny
                 const priceChangeEvent = new CustomEvent('priceBoxChange', {
                     detail: { productId, productName, currentPrice: currentPriceValue, newPrice: suggestedPrice, storeId: storeId }
                 });
                 document.dispatchEvent(priceChangeEvent);
                 activateChangeButton(button, priceBox, suggestedPrice);
+
+                // Budujemy rozbudowany komunikat sukcesu – informacje zaczynają się od nowej linii, z odstępami
+                let message = `<p style="margin-bottom:8px; font-size:16px; font-weight:bold;">Zmiana ceny dodana</p>`;
+                message += `<p style="margin:4px 0;"><strong>Produkt:</strong> ${productName}</p>`;
+                message += `<p style="margin:4px 0;"><strong>Nowa cena:</strong> ${suggestedPrice.toFixed(2)} PLN</p>`;
+                if (marginSettings.useMarginForSimulation) {
+                    let simulatedMargin = ((suggestedPrice - item.marginPrice) / item.marginPrice) * 100;
+                    simulatedMargin = parseFloat(simulatedMargin.toFixed(2));
+                    message += `<p style="margin:4px 0;"><strong>Nowa marża:</strong> ${simulatedMargin}%</p>`;
+                    message += `<p style="margin:4px 0;"><strong>Cena zakupu:</strong> ${item.marginPrice.toFixed(2)} PLN</p>`;
+                    if (marginSettings.enforceMinimalMargin) {
+                        if (marginSettings.minimalMarginPercent > 0) {
+                            message += `<p style="margin:4px 0;"><strong>Minimalna wymagana marża:</strong> ${marginSettings.minimalMarginPercent}%</p>`;
+                        } else if (marginSettings.minimalMarginPercent < 0) {
+                            message += `<p style="margin:4px 0;"><strong>Maksymalne obniżenie marży:</strong> ${marginSettings.minimalMarginPercent}%</p>`;
+                        }
+                    }
+                }
+                showGlobalUpdate(message);
             });
 
-            // Sprawdzamy, czy zmiana już istnieje
+            // Sprawdzamy, czy zmiana już istnieje (np. zapisana w localStorage) i aktywujemy ją, jeśli tak
             const existingChange = selectedPriceChanges.find(change =>
                 parseInt(change.productId) === parseInt(productId) &&
                 parseFloat(change.newPrice) === parseFloat(suggestedPrice)
@@ -756,6 +843,8 @@
                 activateChangeButton(button, priceBox, suggestedPrice);
             }
         }
+
+
 
 
 
