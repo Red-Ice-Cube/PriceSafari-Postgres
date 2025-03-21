@@ -498,6 +498,19 @@
             loadPrices();
         });
     });
+
+
+    document.querySelectorAll('#exportDisclaimerModal .close, #exportDisclaimerModal [data-dismiss="modal"]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            closeExportDisclaimer();
+        });
+    });
+
+    function closeExportDisclaimer() {
+        const disclaimerModal = document.getElementById("exportDisclaimerModal");
+        disclaimerModal.style.display = 'none';
+        disclaimerModal.classList.remove('show');
+    }
 });
 
 
