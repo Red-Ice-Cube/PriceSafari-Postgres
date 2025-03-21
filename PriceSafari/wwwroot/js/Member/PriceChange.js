@@ -11,18 +11,13 @@
         }
     }
 
-    // Zmienna globalna do zapamiętania, jaki typ eksportu wybrał użytkownik (csv czy excel)
+    
     let pendingExportType = null;
 
-    // Zmienna globalna do przechowania nazwy sklepu (ourStoreName) zwróconej z backendu
     let currentOurStoreName = storeId || "Sklep";
 
-    // Zmienna globalna do przechowania mapy EAN: kluczem jest productId (number), wartością – string z EAN
     let eanMapGlobal = {};
 
-    /**
-     * Funkcja pomocnicza do pobrania aktualnej daty w formacie YYYY-MM-DD
-     */
     function getCurrentDateString() {
         const d = new Date();
         // Da np. "2023-09-21"
@@ -52,25 +47,24 @@
         }
     }
 
-    // Zapis do LS z użyciem unikalnego klucza
+  
     function savePriceChanges() {
         localStorage.setItem(localStorageKey, JSON.stringify(selectedPriceChanges));
     }
 
-    // Funkcja czyszcząca wszystkie zmiany dla sklepu
+    
     function clearPriceChanges() {
         selectedPriceChanges = [];
         savePriceChanges();
         updatePriceChangeSummary();
 
-        // Jeśli modal symulacji jest otwarty, czyścimy jego zawartość
+      
         const tableContainer = document.getElementById("simulationModalBody");
         if (tableContainer) {
             tableContainer.innerHTML = "";
         }
     }
 
-    // Listener przycisku "Wyczyść zmiany" (upewnij się, że w HTML ma ID="clearChangesButton")
     const clearChangesButton = document.getElementById("clearChangesButton");
     if (clearChangesButton) {
         clearChangesButton.addEventListener("click", function () {
@@ -78,7 +72,7 @@
         });
     }
 
-    // Obsługa zdarzenia 'priceBoxChange' (dodanie lub aktualizacja zmiany ceny)
+  
     document.addEventListener('priceBoxChange', function (event) {
         const { productId, productName, currentPrice, newPrice } = event.detail;
         console.log("Dodano zmianę ceny:", { productId, productName, currentPrice, newPrice });
@@ -95,7 +89,7 @@
         updatePriceChangeSummary();
     });
 
-    // Obsługa zdarzenia 'priceBoxChangeRemove' (usunięcie zmiany)
+
     document.addEventListener('priceBoxChangeRemove', function (event) {
         const { productId } = event.detail;
         console.log("Usunięto zmianę ceny dla produktu:", productId);
@@ -107,20 +101,17 @@
         updatePriceChangeSummary();
     });
 
-    // -------------------------------
-    // Funkcja otwierająca modal z symulacją
-    // -------------------------------
+ 
     function openSimulationModal() {
         var simulationData = selectedPriceChanges.map(function (item) {
             return {
                 ProductId: item.productId,
                 CurrentPrice: item.currentPrice,
                 NewPrice: item.newPrice,
-                StoreId: storeId  // Upewnij się, że zmienna storeId zawiera ID aktualnego sklepu
+                StoreId: storeId  
             };
         });
 
-        // Pobieramy dane dodatkowe (zazwyczaj obrazki, nazwy) - raczej nie zwraca EAN
         fetch('/PriceHistory/GetPriceChangeDetails?productIds=' +
             encodeURIComponent(JSON.stringify(selectedPriceChanges.map(function (item) { return item.productId; })))
         )
@@ -134,7 +125,7 @@
                     return prod.imageUrl && prod.imageUrl.trim() !== "";
                 });
 
-                // Wywołujemy endpoint symulacji, który zwraca faktyczny ean w polu simulationResults
+             
                 fetch('/PriceHistory/SimulatePriceChange', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -372,9 +363,7 @@
             });
     }
 
-    // -------------------------------
-    // Modal disclaimera przed eksportem
-    // -------------------------------
+
     function showExportDisclaimer(type) {
         pendingExportType = type;
         const disclaimerModal = document.getElementById("exportDisclaimerModal");
@@ -400,19 +389,16 @@
         });
     }
 
-    // -------------------------------
-    // Eksport do CSV
-    // -------------------------------
+
     function exportToCsv() {
-        // Zamiast pobierać EAN z getPriceChangeDetails (który nie zwraca EAN),
-        // użyjemy eanMapGlobal wypełnionego w openSimulationModal
+     
 
         console.log("Eksport CSV - używamy eanMapGlobal:", eanMapGlobal);
 
         let csvContent = "EAN;Nowa cena\n";
         selectedPriceChanges.forEach(item => {
             const pid = parseInt(item.productId);
-            // EAN z globalnej mapy
+         
             const ean = eanMapGlobal[pid] || "";
             const newPrice = item.newPrice != null ? item.newPrice.toFixed(2) : "";
             console.log("CSV => PID:", pid, "EAN:", ean, "NowaCena:", newPrice);
@@ -434,20 +420,18 @@
         }, 1000);
     }
 
-    // -------------------------------
-    // Eksport do Excela (ExcelJS)
-    // -------------------------------
+    
     async function exportToExcelXLSX() {
         console.log("Eksport XLSX - używamy eanMapGlobal:", eanMapGlobal);
 
-        // Tworzymy workbook i arkusz
+       
         const workbook = new ExcelJS.Workbook();
         const worksheet = workbook.addWorksheet("Zmiany Cen");
 
-        // Nagłówek
+    
         worksheet.addRow(["EAN", "Nowa Cena"]);
 
-        // Uzupełniamy wiersze
+  
         selectedPriceChanges.forEach(item => {
             const pid = parseInt(item.productId);
             const ean = eanMapGlobal[pid] || "";
@@ -478,9 +462,7 @@
         }, 1000);
     }
 
-    // -------------------------------
-    // Podpinamy eventy do przycisków w modal-footer
-    // -------------------------------
+  
     var simulateButton = document.getElementById("simulateButton");
     if (simulateButton) {
         simulateButton.addEventListener("click", function () {
@@ -502,17 +484,17 @@
         });
     }
 
-    // Inicjalizacja - liczenie podsumowań itd.
+
     updatePriceChangeSummary();
 
-    // Zamknięcie modalu symulacji (np. klikając w .close, data-dismiss="modal", itp.)
+  
     var closeButtons = document.querySelectorAll('#simulationModal .close, #simulationModal [data-dismiss="modal"]');
     closeButtons.forEach(function (btn) {
         btn.addEventListener('click', function () {
             var simulationModal = document.getElementById("simulationModal");
             simulationModal.style.display = 'none';
             simulationModal.classList.remove('show');
-            // Po zamknięciu modala odświeżamy widok cen
+   
             loadPrices();
         });
     });

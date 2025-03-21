@@ -75,13 +75,13 @@
 
             let targetButton;
             if (changeType === 'match' && buttons[0]) {
-                targetButton = buttons[0]; // pierwszy przycisk
+                targetButton = buttons[0]; 
             } else if (changeType === 'strategic' && buttons[1]) {
-                targetButton = buttons[1]; // drugi przycisk
+                targetButton = buttons[1]; 
             }
 
             if (!targetButton) return;
-            // Symulujemy kliknięcie przycisku
+         
             targetButton.click();
         });
 
@@ -92,7 +92,7 @@
             let countAdded = 0;
             let countRejected = 0;
             updatedBoxes.forEach(box => {
-                // Jeśli w boxie pojawiła się klasa 'price-changed', uznajemy, że zmiana została dodana
+               
                 if (box.classList.contains('price-changed')) {
                     countAdded++;
                 } else {
@@ -553,19 +553,19 @@
 
                 if (currentSearchTerm) {
                     filteredPrices = filteredPrices.filter(price => {
-                        // 1. Oczyszczamy "currentSearchTerm" do postaci bez spacji itp.
+                     
                         const sanitizedInput = currentSearchTerm.replace(/[^a-zA-Z0-9\s.-]/g, '').trim().toLowerCase().replace(/\s+/g, '');
 
-                        // 2. Łączymy productName + ean w jeden string
+                        
                         const productNamePlusEan = (price.productName || '') + ' ' + (price.ean || '');
 
-                        // 3. Także oczyszczamy
+                       
                         const combinedLower = productNamePlusEan
                             .toLowerCase()
                             .replace(/[^a-zA-Z0-9\s/.-]/g, '')
                             .replace(/\s+/g, '');
 
-                        // 4. Sprawdzamy, czy combinedLower zawiera sanitizedInput
+                     
                         return combinedLower.includes(sanitizedInput);
                     });
                 }
@@ -674,13 +674,13 @@
         });
 
         if (suspiciouslyLowFilter) {
-            // a) zostawiamy TYLKO te oferty, gdzie singleBestCheaperDiffPerc > 25
+           
             filteredPrices = filteredPrices.filter(item =>
                 item.singleBestCheaperDiffPerc !== null &&
                 item.singleBestCheaperDiffPerc > 25
             );
 
-            // b) sortujemy je malejąco według singleBestCheaperDiffPerc
+         
             filteredPrices.sort((a, b) => b.singleBestCheaperDiffPerc - a.singleBestCheaperDiffPerc);
         }
 
@@ -726,7 +726,7 @@
         return valueToUse < setPrice2 ? "prMid" : "prToHigh";
     }
     function renderPrices(data) {
-        // Na początku funkcji odświeżamy dane o zmianach z localStorage
+       
         const storedChanges = localStorage.getItem('selectedPriceChanges_' + storeId);
         if (storedChanges) {
             try {
@@ -744,19 +744,18 @@
         const currentStoreSearchTerm = document.getElementById('storeSearch').value.trim();
         container.innerHTML = '';
 
-        // Paginacja – zakładamy, że currentPage i itemsPerPage są globalnie zdefiniowane
+     
         const startIndex = (currentPage - 1) * itemsPerPage;
         const endIndex = currentPage * itemsPerPage;
         const paginatedData = data.slice(startIndex, endIndex);
 
-        // Funkcja, która ustawia przycisk na "Dodano ..." i dodaje możliwość usunięcia zmiany
         function activateChangeButton(button, priceBox, newPrice) {
             button.classList.add('active');
             button.style.backgroundColor = "#333333";
             button.style.color = "#f5f5f5";
             button.textContent = "Dodano |";
 
-            // Dodajemy link do usuwania zmiany
+           
             const removeLink = document.createElement('span');
             removeLink.innerHTML = " <i class='fa fa-trash-o' style='font-size:16px; display:flex; color:white; margin-left:4px; margin-top:2px;'></i>";
 
@@ -771,7 +770,7 @@
                 priceBox.classList.remove('price-changed');
 
                 const productId = priceBox ? priceBox.dataset.productId : null;
-                // Wywołujemy event usuwania – PriceChange.js odbierze go i zaktualizuje localStorage
+              
                 const removeEvent = new CustomEvent('priceBoxChangeRemove', {
                     detail: { productId }
                 });
@@ -782,7 +781,7 @@
         }
 
         function attachPriceChangeListener(button, suggestedPrice, priceBox, productId, productName, currentPriceValue, item) {
-            // Sprawdzenie, czy produkt ma zmapowany EAN
+           
             if (!item || !item.ean || item.ean.trim() === "") {
                 button.disabled = true;
                 button.title = "Produkt musi mieć zmapowany kod EAN";
@@ -792,7 +791,7 @@
             button.addEventListener('click', function (e) {
                 e.stopPropagation();
 
-                // Jeśli używamy symulacji z marżą, produkt musi mieć podaną cenę zakupu (marginPrice)
+              
                 if (marginSettings.useMarginForSimulation) {
                     if (item.marginPrice == null) {
                         showGlobalNotification(
@@ -801,12 +800,11 @@
                         );
                         return;
                     }
-                    // Obliczamy nową (symulowaną) marżę:
-                    // Marża = ((Nowa cena - cena zakupu) / cena zakupu) * 100
+                
                     let simulatedMargin = ((suggestedPrice - item.marginPrice) / item.marginPrice) * 100;
                     simulatedMargin = parseFloat(simulatedMargin.toFixed(2));
 
-                    // Jeśli wymuszamy minimalną (lub maksymalną) marżę...
+          
                     if (marginSettings.enforceMinimalMargin) {
                         if (simulatedMargin < 0) {
                             showGlobalNotification(
@@ -835,20 +833,20 @@
                     }
                 }
 
-                // Jeśli zmiana już jest aktywna – nie wykonujemy nic więcej
+              
                 if (priceBox.classList.contains('price-changed') || button.classList.contains('active')) {
                     console.log("Zmiana ceny już aktywna dla produktu", productId);
                     return;
                 }
 
-                // Wysyłamy event zmiany ceny
+               
                 const priceChangeEvent = new CustomEvent('priceBoxChange', {
                     detail: { productId, productName, currentPrice: currentPriceValue, newPrice: suggestedPrice, storeId: storeId }
                 });
                 document.dispatchEvent(priceChangeEvent);
                 activateChangeButton(button, priceBox, suggestedPrice);
 
-                // Budujemy rozbudowany komunikat sukcesu – informacje zaczynają się od nowej linii, z odstępami
+            
                 let message = `<p style="margin-bottom:8px; font-size:16px; font-weight:bold;">Zmiana ceny dodana</p>`;
                 message += `<p style="margin:4px 0;"><strong>Produkt:</strong> ${productName}</p>`;
                 message += `<p style="margin:4px 0;"><strong>Nowa cena:</strong> ${suggestedPrice.toFixed(2)} PLN</p>`;
@@ -868,7 +866,7 @@
                 showGlobalUpdate(message);
             });
 
-            // Sprawdzamy, czy zmiana już istnieje (np. zapisana w localStorage) i aktywujemy ją, jeśli tak
+  
             const existingChange = selectedPriceChanges.find(change =>
                 parseInt(change.productId) === parseInt(productId) &&
                 parseFloat(change.newPrice) === parseFloat(suggestedPrice)

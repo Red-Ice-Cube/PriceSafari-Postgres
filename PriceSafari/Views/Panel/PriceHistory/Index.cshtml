@@ -13,12 +13,11 @@
 }
 
 @{
-    var scrapDate = latestScrap?.Date.ToString("dd.MM.yyyy"); // np. 01.10.2023
-    var store = ViewBag.StoreName as string;                  // np. "GK-Concept.com sp. z o.o."
+    var scrapDate = latestScrap?.Date.ToString("dd.MM.yyyy"); 
+    var store = ViewBag.StoreName as string;                  
 }
 
 <style>
-  
 
     #sortingButtons {
         display: inline-flex;
@@ -39,7 +38,7 @@
             cursor: pointer;
             transition: background-color 0.3s, color 0.3s;
             border-radius: 4px;
-       
+
         }
 
             #sortingButtons button.active {
@@ -58,8 +57,6 @@
                 cursor: pointer;
             }
 
-   
-
     .SimpleSpace {
         display: flex;
         justify-content: space-between;
@@ -70,7 +67,6 @@
         display: flex;
         gap: 8px;
     }
-
 
     .position-slider-container {
         margin-bottom: 10px;
@@ -85,14 +81,11 @@
             width: 100%;
         }
 
-   
     #positionRangeSlider {
-        width: 85%; 
+        width: 85%;
         margin-left:6px;
-        
-    
-    }
 
+    }
 
     #offerRangeSlider {
         width: 85%;
@@ -103,14 +96,13 @@
         margin-bottom: 10px;
     }
 
-
-    /* Zmniejszenie wysokości suwaka */
+  
     .noUi-target {
         height: 6px;
         border-radius: 2px !important;
     }
 
-    /* Dostosowanie kolorów suwaka */
+    
     .noUi-connect {
         background: rgba(34, 34, 34, .75) !important;
         max-height:8px;
@@ -123,9 +115,8 @@
     .noUi-touch-area {
         height: 100%;
         width: 100%;
- 
-    }
 
+    }
 
     .noUi-handle {
         border: 1px solid #D9D9D9;
@@ -134,7 +125,6 @@
         cursor: default;
         box-shadow: inset 0 0 1px #FFF, inset 0 1px 7px #EBEBEB, 0 3px 6px -3px #BBB;
     }
-
 
     .noUi-horizontal .noUi-handle {
         max-width: 14px;
@@ -146,12 +136,11 @@
     .noUi-handle:after, .noUi-handle:before {
         content: none !important;
         display: none !important;
-    
 
     }
 
     .noUi-base {
-        background: #ccc; /* Kolor tła suwaka */
+        background: #ccc; 
         max-height: 8px;
     }
 
@@ -167,25 +156,22 @@
         margin-left: 5px;
     }
 
-
     .price-action-line {
         display: flex;
         align-items: center;
-   
+
     }
 
     .arrow-down-red::before {
         content: '▼';
-        color: rgba(171, 37, 32, 0.7); /* Red color */
+        color: rgba(171, 37, 32, 0.7); 
         margin-right: 5px;
         font-size: 16px;
     }
 
-
-
     .arrow-up-black::before {
         content: '▲';
-        color: rgba(6, 6, 6, 0.7); /* Czarny kolor */
+        color: rgba(6, 6, 6, 0.7); 
         margin-right: 5px;
         font-size: 16px;
     }
@@ -197,7 +183,6 @@
         font-size: 16px;
     }
 
-
     .arrow-down-turquoise::before {
         content: '▼';
         color: rgba(0, 145, 123, 0.7);
@@ -205,10 +190,9 @@
         font-size: 16px;
     }
 
-
     .arrow-down-yellow::before {
         content: '▼';
-        color: rgba(224, 168, 66, 0.9); /* Yellow color */
+        color: rgba(224, 168, 66, 0.9); 
         margin-right: 5px;
         font-size: 16px;
     }
@@ -221,7 +205,6 @@
         margin-left: 14px;
     }
 
-
     .no-change-icon::before {
 
         content: '⬤';
@@ -229,7 +212,6 @@
         font-size: 16px;
         margin-right: 5px;
     }
-
 
     .no-change-icon-turquoise::before {
         content: '⬤';
@@ -244,7 +226,6 @@
         margin-right: 5px;
         font-size: 16px;
     }
-
 
     .color-square-turquoise {
         width: 16px;
@@ -263,7 +244,7 @@
         display: flex;
         align-items: center;
         margin-left:26px;
-        gap: 10px; /* Odstęp między elementami */
+        gap: 10px; 
         margin-top:4px;
     }
 
@@ -273,17 +254,11 @@
         display: inline;
     }
 
-
-
-    
-
-
     #paginationContainer {
         display: flex;
         gap:4px;
 
     }
-
 
     .modal-sim {
         display: none;
@@ -341,7 +316,6 @@
 
     }
 
-
         .table-scroll::-webkit-scrollbar {
         width: 12px;
         position: absolute;
@@ -373,18 +347,16 @@
         font-size:16px;
         margin-top: 12px;
         margin-bottom: 12px;
-   
-     
-    }
 
+    }
 
     .simulate-change-btn {
         display: flex;
         background-color: #e3e3e3;
         color: #333;
         border: 1px solid #e3e3e3;
-        align-items: center; /* wyśrodkowanie pionowe */
-        justify-content: center; /* wyśrodkowanie poziome */
+        align-items: center; 
+        justify-content: center; 
         border-radius: 4px;
         cursor: pointer;
         margin-left: 10px;
@@ -395,34 +367,28 @@
         width:106px;
     }
 
-
-
-
     .priceChangeSummary {
         display: inline-flex;
         box-sizing: border-box;
         align-items: center;
         justify-content: center;
-     
+
         color: #4e4e4e;
         font-size: 13px;
         gap: 6px;
         flex-wrap:nowrap;
-      
 
     }
 
     .buttonsContainer {
-        display: flex;     
+        display: flex;
         height: 34px;
         margin-right: 12px;
-       
- 
+
     }
 
-
     #simulateButton {
-        
+
         color: #e3e3e3;
         background: #323232;
         border-radius:4px;
@@ -454,24 +420,22 @@
         width: 50px;
     }
 
-
     .price-info-box {
-        display: flex; /* lub flex-direction: column; w zależności jak chcesz je ułożyć */
+        display: flex; 
         flex-direction: column;
         padding: 10px;
-     
+
         border-radius: 5px;
-        background: #fff; /* przykładowy kolor tła */
-     
+        background: #fff; 
+
         max-width:300px;
     }
 
     .price-info-item {
-        margin: 4px 0; /* odstęp między liniami w boxie */
+        margin: 4px 0; 
         font-size: 16px;
-       
-    }
 
+    }
 
 </style>
 
@@ -485,9 +449,6 @@
                 </div>
 
                 <div class="store-section">
-
-
-            
 
                     <div class="form-check">
                         <input class="form-check-input colorFilter" type="checkbox" id="prOnlyMeCheckbox" value="prOnlyMe">
@@ -517,7 +478,6 @@
                         <label class="form-check-label" for="prToLowCheckbox">Zaniżona </label>
                     </div>
 
-                   
                     <div class="price-range-settings">
                         <div class="color-circle prMid-circle"></div>
                         <label for="price2"></label>
@@ -570,7 +530,6 @@
                         <div id="positionRangeSlider"></div>
                     </div>
 
-
                     <div class="Category-Container-Select">Liczba ofert</div>
                     <div class="store-section">
                         <div class="offer-slider-container">
@@ -579,8 +538,6 @@
 
                         <div id="offerRangeSlider"></div>
                     </div>
-
-                   
 
                     <div class="Category-Container-Select">Ceneo - Twój sklep </div>
                     <div class="store-section">
@@ -633,10 +590,9 @@
                                     <input class="form-check-input externalPriceFilter" type="checkbox" id="suspiciouslyLowFilter" value="1">
                                     <label class="form-check-label" for="suspiciouslyLowFilter">Pow. 25% odchylenia</label>
                                 </div>
-                                
+
                             </div>
                         </div>
-
 
                         <div class="Category-Container-Select">Zmieniona cena</div>
                         <div class="store-section">
@@ -652,9 +608,6 @@
                             </div>
                         </div>
 
-
-
-
                     </div>
 
                 </div>
@@ -667,10 +620,8 @@
 
                     <input type="text" id="storeSearch" style="max-width:150px;" placeholder="Wyszukaj sklep">
 
-
-
                     <form id="filterForm">
-                        
+
                         <div style="display: inline-block;">
                             <select id="sourceSelect" name="source" class="DropDown" style="width:150px;">
                                 <option value="All">Wszystkie dane</option>
@@ -688,8 +639,6 @@
                     </div>
                     <button class="Button-Page-Small" id="updatePricesButton">API</button>
                     <button class="Button-Page-Small" id="exportToExcelButton">Eksportuj</button>
-
-
 
                     <div class="SimpleSpace">
                         <div class="SimpleHorizontal">
@@ -717,11 +666,7 @@
                 <div id="sortingButtons">
                     <div class="ProductCount" id="displayedProductCount"></div>
 
-
                     <div id="paginationContainer"></div>
-
-                
-
 
                     <button id="sortName">A-Z</button>
                     <button id="sortPrice">Cena</button>
@@ -734,7 +679,6 @@
                     <button id="showRejectedButton">Odrzucone</button>
                 </div>
 
-
                 <div class="buttonsContainer">
                     <div id="priceChangeSummary" class="priceChangeSummary">
                         <div id="summaryText"></div>
@@ -744,7 +688,6 @@
                         </button>
                         <button id="simulateButton">Symuluj</button>
                     </div>
-                 
 
                 </div>
                 <div class="Vert-table">
@@ -771,18 +714,16 @@
                 <div style="display:flex; width:100%; justify-content:space-between;">
                     <div style="display:inline-flex;">
                         <button type="button" id="clearChangesButton" class="Button-Page-Small-r">Wyczyść zmiany</button>
-                    </div>   
-                    
+                    </div>
+
                     <div style="display:inline-flex; gap:10px;">
 
                         <button id="exportToCsvButton" class="Button-Page-Small-bl"><i class="fa fa-file-code-o" aria-hidden="true"></i>Eksportuj do CSV</button>
                         <button id="exportNewPriceToExcelButton" class="Button-Page-Small-gr"><i class="fa fa-file-excel-o" aria-hidden="true"></i>Eksportuj do Excela</button>
                     </div>
-                 
+
                 </div>
-             
-            
-         
+
             </div>
         </div>
     </div>
@@ -801,7 +742,7 @@
             <div class="modal-body">
                 <p>
                     Nie ponosimy odpowiedzialności za możliwe błędne powiązania między produktami z programu PriceSafari
-                    a dostarczonym feedem XML. Prosimy sprawdzić przed eksportem danych dokładność powiązań 
+                    a dostarczonym feedem XML. Prosimy sprawdzić przed eksportem danych dokładność powiązań
                     i wprowadzać zmiany na własną odpowiedzialność. Wyeksportowanie zmian nie wprowadza żadnych zmian odnośnie
                     cen produktów w sklepie, dopóki użytkownik sam ich nie zaimportuje.
                 </p>
@@ -813,7 +754,6 @@
         </div>
     </div>
 </div>
-
 
 <div class="modal fade" id="massChangeModal" tabindex="-1" role="dialog" aria-labelledby="massChangeModalLabel" aria-hidden="true">
     <div class="modal-dialog" role="document">
@@ -832,7 +772,7 @@
                 <div style="display:flex; justify-content:space-between; margin-bottom:24px;">
                     <div class="color-square-green" style="margin:0px;"></div>
                     <p style="width:500px;">
-                        Cena konkurencyjna oznacza, że Twoja oferta zrówna się ceną z inną lub innymi najtańszymi ofertami. 
+                        Cena konkurencyjna oznacza, że Twoja oferta zrówna się ceną z inną lub innymi najtańszymi ofertami.
                     </p>
                 </div>
 
@@ -860,7 +800,7 @@
     <div class="modal-dialog" role="document">
         <div class="modal-content">
             <div class="modal-header">
-             
+
                 <div class="price-box-column-name" id="marginSettingsModalLabel">Konfiguracja symulacji cen</div>
                 <button type="button" class="close" data-dismiss="modal" aria-label="Zamknij">
                     <span aria-hidden="true">&times;</span>
@@ -905,9 +845,6 @@
     </div>
 </div>
 
-
-
-
 <div id="globalNotification" style="
     display: none;
     position: fixed;
@@ -919,11 +856,11 @@
     color: white;
     padding: 24px;
     text-align: left;
-   
+
     border-radius: 10px;
     z-index: 1000;
 ">
-   
+
 </div>
 
 <div id="globalUpdate" style="
@@ -944,10 +881,6 @@
     <!-- Treść powiadomienia -->
 </div>
 
-
-
-
-
 @section Scripts {
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
@@ -955,7 +888,6 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.6.1/nouislider.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/wnumb/1.2.0/wNumb.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
-
 
     <script src="https://cdn.jsdelivr.net/npm/exceljs@4.3.0/dist/exceljs.min.js"></script>
 
@@ -965,25 +897,18 @@
     <script>
         var flags = @Html.Raw(JsonConvert.SerializeObject(ViewBag.Flags));
     </script>
-    <script src="~/js/member/PriceChange.js"></script>
-    <script src="~/js/member/PriceHistory.js"></script>
+    <script src="~/js/member/PriceChange.min.js"></script>
+    <script src="~/js/member/pricehistory.min.js"></script>
     <script>
-        
+
         var scrapDateJS = "@scrapDate";
         var myStoreNameJS = "@store";
     </script>
 
-  
-
-
-
-
-
-
     <script>
         $(document).ready(function () {
             var connection = new signalR.HubConnectionBuilder().withUrl("/scrapingHub").build();
-            var updateSuccessful = false; 
+            var updateSuccessful = false;
 
             connection.on("ReceiveProgressUpdate", function (processedCount, totalProducts, updatedCount, skippedCount) {
                 var percentage = Math.round((processedCount / totalProducts) * 100);
@@ -1022,7 +947,7 @@
                         $('#updateStatusMessage').show().text('Aktualizacja zakończona. Zaktualizowano ceny dla ' + data.updatedCount + ' produktów. Sprawdzono ' + data.skippedCount + ' produktów.');
                         $('#cancelUpdatePrices').show();
                         $('#confirmUpdatePrices').prop('disabled', false);
-                        updateSuccessful = true; 
+                        updateSuccessful = true;
                     },
                     error: function () {
                         $('#updateProgress').hide();
@@ -1037,25 +962,19 @@
                 $('#updatePricesModal').modal('hide');
             });
 
-           
             $('#updatePricesModal').on('hidden.bs.modal', function () {
                 if (updateSuccessful) {
-                    location.reload(); 
+                    location.reload();
                 }
             });
         });
     </script>
 
-
 }
-
-
 
 <div id="loadingOverlay" class="loading-overlay" style="display: none;">
     <div class="loader"></div>
 </div>
-
-
 
 <div class="modal fade" id="updatePricesModal" tabindex="-1" role="dialog" aria-labelledby="updatePricesModalLabel" aria-hidden="true">
     <div class="modal-dialog" role="document">
