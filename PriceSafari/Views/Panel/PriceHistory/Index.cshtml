@@ -638,6 +638,13 @@
                             <option value="">Najlepsza cena</option>
                         </select>
                     </div>
+
+                 
+                    <!-- Gdzieś obok guzik -->
+                    <button type="button" onclick="openCompetitorsModal()">
+                        Pokaż sklepy konkurencyjne
+                    </button>
+
                     <button class="Button-Page-Small" id="updatePricesButton">API</button>
                     <button class="Button-Page-Small" id="exportToExcelButton">Eksportuj</button>
 
@@ -846,6 +853,86 @@
     </div>
 </div>
 
+
+<!-- Modal (Bootstrap) -->
+<div class="modal-sim fade" id="competitorModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog-sim" role="document">
+        <div class="modal-simulation">
+
+            <div class="modal-header">
+                <h5 class="modal-title">Konkurencyjne sklepy</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Zamknij">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+
+            <div class="modal-body">
+
+                <!-- Wybór źródła dla NASZEGO sklepu + przycisk do pobrania danych -->
+                <div style="margin-bottom: 10px;">
+                    <label for="ourSourceSelect">Wybierz, w jaki sposób traktować nasz sklep:</label>
+                    <select id="ourSourceSelect">
+                        <option value="All">Nasz Sklep (Wszystkie oferty)</option>
+                        <option value="Google">Nasz Sklep (tylko Google)</option>
+                        <option value="Ceneo">Nasz Sklep (tylko Ceneo)</option>
+                    </select>
+                    <button id="computeCompetitorsBtn" type="button">
+                        Oblicz
+                    </button>
+                </div>
+                <div style="display:flex; gap:150px;">
+                    <div>
+                        <div class="table-scroll">
+                            <table class="table-orders">
+                                <thead>
+                                    <tr>
+                                        <th>Sklep</th>
+                                        <th>Źródło</th>
+                                        <th>Wspólne produkty</th>
+                                        <th>Akcje</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="googleCompetitorsTableBody">
+                                    <!-- Wypełnimy dynamicznie w JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                       
+                    </div>
+
+                    <div>
+                        <!-- TABELA dla konkurentów (Ceneo) -->
+                        <div class="table-scroll">
+                            <table class="table-orders">
+                                <thead>
+                                    <tr>
+                                        <th>Sklep</th>
+                                        <th>Źródło</th>
+                                        <th>Wspólne produkty</th>
+                                        <th>Akcje</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="ceneoCompetitorsTableBody">
+                                    <!-- Wypełnimy dynamicznie w JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                       
+                    </div>
+                </div>
+                
+                
+
+                
+
+            </div>
+
+        </div>
+    </div>
+</div>
+
+
+
 <div id="globalNotification" style="
     display: none;
     position: fixed;
@@ -899,6 +986,7 @@
         var flags = @Html.Raw(JsonConvert.SerializeObject(ViewBag.Flags));
     </script>
     <script src="~/js/member/PriceChange.js"></script>
+    <script src="~/js/member/CompetitorModal.js"></script>
     <script src="~/js/member/PriceHistory.js"></script>
     <script>
 
@@ -970,6 +1058,7 @@
             });
         });
     </script>
+
 
 }
 

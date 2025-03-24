@@ -691,6 +691,97 @@ namespace PriceSafari.Controllers.MemberControllers
             return Json(stores);
         }
 
+        [HttpGet]
+        public async Task<IActionResult> GetCompetitorStoresData(int storeId, string ourSource = "All")
+        {
+            if (!await UserHasAccessToStore(storeId))
+            {
+                return Json(new { error = "Nie ma takiego sklepu" });
+            }
+
+            // Nazwa naszego sklepu
+            var storeName = await _context.Stores
+                .Where(s => s.StoreId == storeId)
+                .Select(s => s.StoreName)
+                .FirstOrDefaultAsync();
+
+            // Ostatni scrap
+            var latestScrap = await _context.ScrapHistories
+                .Where(sh => sh.StoreId == storeId)
+                .OrderByDescending(sh => sh.Date)
+                .Select(sh => new { sh.Id, sh.Date })
+                .FirstOrDefaultAsync();
+
+            if (latestScrap == null)
+            {
+                // Brak danych => pusty wynik
+                return Json(new { data = new List<object>() });
+            }
+
+            // Najpierw query "naszych wierszy"
+            var myPricesQuery = _context.PriceHistories
+                .Where(ph => ph.ScrapHistoryId == latestScrap.Id
+                          && ph.StoreName.ToLower() == storeName.ToLower());
+
+            // Filtr "ourSource"
+            switch (ourSource?.ToLower())
+            {
+                case "google":
+                    myPricesQuery = myPricesQuery.Where(ph => ph.IsGoogle == true);
+                    break;
+                case "ceneo":
+                    myPricesQuery = myPricesQuery.Where(ph => ph.IsGoogle == false || ph.IsGoogle == null);
+                    break;
+                case "all":
+                default:
+                    // Bez filtrowania
+                    break;
+            }
+
+            // **Pobieramy tylko unikalne** ID produktów, żeby nie podwajać w razie Google + Ceneo
+            var myProductIds = await myPricesQuery
+                .Select(ph => ph.ProductId)
+                .Distinct()           // klucz do uniknięcia dubli
+                .ToListAsync();
+
+            // Konkurencja: wiersze, gdzie StoreName != nasz
+            var competitorPrices = await _context.PriceHistories
+                .Where(ph => ph.ScrapHistoryId == latestScrap.Id
+                          && ph.StoreName.ToLower() != storeName.ToLower())
+                .ToListAsync();
+
+            // Grupujemy konkurencję po (StoreName.ToLower(), IsGoogle)
+            var competitors = competitorPrices
+                .GroupBy(ph => new { NormalizedName = ph.StoreName.ToLower(), IsGoogle = ph.IsGoogle })
+                .Select(g =>
+                {
+                    var storeNameInGroup = g.First().StoreName;
+                    bool isGoogle = g.Key.IsGoogle;
+
+                    // Zbiór ProductId w tej grupie konkurencji
+                    var competitorProductIds = g.Select(x => x.ProductId).Distinct();
+
+                    // Liczba wspólnych to przecięcie z "moimi" ProductId
+                    int commonProductsCount = myProductIds.Count(pid => competitorProductIds.Contains(pid));
+
+                    return new
+                    {
+                        StoreName = storeNameInGroup,
+                        DataSource = isGoogle ? "Google" : "Ceneo",
+                        CommonProductsCount = commonProductsCount
+                    };
+                })
+                // Przykładowy filtr, np. >= 10 wspólnych
+                .Where(c => c.CommonProductsCount >= 10)
+                .OrderByDescending(c => c.CommonProductsCount)
+                .ToList();
+
+            return Json(new { data = competitors });
+        }
+
+
+
+
         [HttpPost]
         public async Task<IActionResult> SavePriceValues([FromBody] PriceValuesViewModel model)
         {

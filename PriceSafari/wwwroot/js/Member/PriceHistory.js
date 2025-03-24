@@ -428,6 +428,13 @@
             .catch(error => console.error('Error fetching stores:', error));
     }
 
+
+
+
+
+
+
+
     const usePriceDifferenceCheckbox = document.getElementById('usePriceDifference');
 
     const unitLabel1 = document.getElementById('unitLabel1');
