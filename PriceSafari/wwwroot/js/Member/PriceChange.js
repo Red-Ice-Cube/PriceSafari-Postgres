@@ -7,7 +7,7 @@
         try {
             selectedPriceChanges = JSON.parse(storedChanges);
         } catch (err) {
-            console.error("Błąd parsowania danych z localStorage:", err);
+          
         }
     }
 
@@ -20,7 +20,6 @@
 
     function getCurrentDateString() {
         const d = new Date();
-        // Da np. "2023-09-21"
         return d.toISOString().split('T')[0];
     }
 
@@ -75,7 +74,7 @@
   
     document.addEventListener('priceBoxChange', function (event) {
         const { productId, productName, currentPrice, newPrice } = event.detail;
-        console.log("Dodano zmianę ceny:", { productId, productName, currentPrice, newPrice });
+    
 
         var existingIndex = selectedPriceChanges.findIndex(function (item) {
             return item.productId === productId;
@@ -92,7 +91,7 @@
 
     document.addEventListener('priceBoxChangeRemove', function (event) {
         const { productId } = event.detail;
-        console.log("Usunięto zmianę ceny dla produktu:", productId);
+      
 
         selectedPriceChanges = selectedPriceChanges.filter(function (item) {
             return parseInt(item.productId) !== parseInt(productId);
@@ -119,8 +118,7 @@
                 return response.json();
             })
             .then(function (productDetails) {
-                console.log("Pobrane productDetails:", productDetails);
-
+    
                 var hasImage = productDetails.some(function (prod) {
                     return prod.imageUrl && prod.imageUrl.trim() !== "";
                 });
@@ -135,29 +133,27 @@
                         return response.json();
                     })
                     .then(function (data) {
-                        // Jeżeli w odpowiedzi mamy ourStoreName, zapamiętujemy go globalnie
+                    
                         if (data.ourStoreName) {
                             currentOurStoreName = data.ourStoreName;
                         }
 
                         var simulationResults = data.simulationResults || [];
-                        console.log("Otrzymane simulationResults:", simulationResults);
-
-                        // Tworzymy sobie mapę EAN (globalną), by użyć jej przy eksporcie
+              
                         eanMapGlobal = {};
                         simulationResults.forEach(sim => {
                             const pid = parseInt(sim.productId);
                             const eanVal = sim.ean ? String(sim.ean) : "";
                             eanMapGlobal[pid] = eanVal;
-                            console.log("[openSimulationModal] Ustawiam eanMapGlobal[", pid, "] =", eanVal);
+                      
                         });
 
-                        // Budujemy tabelę w modalu
+                  
                         var modalContent = '<table class="table-orders"><thead><tr>';
                         if (hasImage) {
                             modalContent += '<th>Produkt</th>';
                         }
-                        modalContent += '<th></th>';  // Nazwa i EAN
+                        modalContent += '<th></th>';  
                         modalContent += '<th>Obecne</th>';
                         modalContent += '<th>Zmiana</th>';
                         modalContent += '<th>Po zmianie</th>';
@@ -165,19 +161,19 @@
                         modalContent += '</tr></thead><tbody>';
 
                         selectedPriceChanges.forEach(function (item) {
-                            // Szukamy w productDetails
+                        
                             var prodDetail = productDetails.find(function (x) {
                                 return parseInt(x.productId) === parseInt(item.productId);
                             });
                             var name = prodDetail ? prodDetail.productName : item.productName;
                             var imageUrl = prodDetail ? prodDetail.imageUrl : "";
 
-                            // Szukamy w simulationResults
+                       
                             var simResult = simulationResults.find(function (x) {
                                 return parseInt(x.productId) === parseInt(item.productId);
                             });
 
-                            // Upewniamy się, że EAN jest stringiem
+                        
                             let ean = "";
                             if (simResult && simResult.ean) {
                                 ean = String(simResult.ean);
@@ -185,8 +181,8 @@
                                 ean = String(prodDetail.ean);
                             }
 
-                            // LOGUJEMY info o EAN
-                            console.log("Product ID:", item.productId, " ==> EAN:", ean);
+                         
+                         
 
                             var diff = item.newPrice - item.currentPrice;
                             var arrow = diff > 0
@@ -195,7 +191,7 @@
                                     ? '<span style="color: green;">▼</span>'
                                     : '<span style="color: gray;">●</span>';
 
-                            // Rankingi dla Google i Ceneo (obecne)
+                        
                             var googleDisplay = "";
                             if (simResult && simResult.totalGoogleOffers) {
                                 googleDisplay = '<div class="price-info-item" style="padding: 4px 12px; background: rgb(245, 245, 245); border: 1px solid #e3e3e3; border-radius: 5px;">'
@@ -213,7 +209,7 @@
                                     + '</div>';
                             }
 
-                            // Rankingi dla Google i Ceneo (po zmianie)
+                          
                             var googleNewDisplay = "";
                             if (simResult && simResult.totalGoogleOffers) {
                                 googleNewDisplay = '<div class="price-info-item" style="padding: 4px 12px; background: rgb(245, 245, 245); border: 1px solid #e3e3e3; border-radius: 5px;">'
@@ -231,14 +227,13 @@
                                     + '</div>';
                             }
 
-                            // Przygotowanie bloku "Obecne"
+                           
                             let currentBlock = '<div class="price-info-box">';
                             currentBlock += '<div class="price-info-item" style="padding: 4px 12px; background: rgb(245, 245, 245); border: 1px solid #e3e3e3; border-radius: 5px;">'
                                 + 'Cena produktu | ' + item.currentPrice.toFixed(2) + ' PLN</div>';
                             if (googleDisplay) currentBlock += googleDisplay;
                             if (ceneoDisplay) currentBlock += ceneoDisplay;
 
-                            // Obecna marża
                             if (simResult && simResult.currentMargin != null && simResult.currentMarginValue != null) {
                                 let currMarginValue = parseFloat(simResult.currentMarginValue).toFixed(2);
                                 let currMarginPercentage = parseFloat(simResult.currentMargin).toFixed(2);
@@ -256,14 +251,14 @@
                             }
                             currentBlock += '</div>';
 
-                            // Przygotowanie bloku "Po zmianie"
+                      
                             let newBlock = '<div class="price-info-box">';
                             newBlock += '<div class="price-info-item" style="padding: 4px 12px; background: rgb(245, 245, 245); border: 1px solid #e3e3e3; border-radius: 5px;">'
                                 + 'Cena produktu | ' + item.newPrice.toFixed(2) + ' PLN</div>';
                             if (googleNewDisplay) newBlock += googleNewDisplay;
                             if (ceneoNewDisplay) newBlock += ceneoNewDisplay;
 
-                            // Nowa marża
+                         
                             if (simResult && simResult.newMargin != null && simResult.newMarginValue != null) {
                                 let newMarginValue = parseFloat(simResult.newMarginValue).toFixed(2);
                                 let newMarginPercentage = parseFloat(simResult.newMargin).toFixed(2);
@@ -281,7 +276,6 @@
                             }
                             newBlock += '</div>';
 
-                            // Generowanie wiersza tabeli
                             modalContent += '<tr>';
 
                             if (hasImage) {
@@ -303,23 +297,23 @@
                                 }
                             }
 
-                            // Nazwa produktu + EAN
+                           
                             modalContent += '<td>' +
                                 '<div class="price-info-item" style="font-size:125%;">' + name + '</div>' +
                                 (ean ? '<div class="price-info-item">EAN: ' + ean + '</div>' : '') +
                                 '</td>';
 
-                            // Obecne dane
+                       
                             modalContent += '<td>' + currentBlock + '</td>';
 
-                            // Zmiana
+                          
                             modalContent += '<td style="font-size:16px; white-space: nowrap;">' +
                                 arrow + ' ' + Math.abs(diff).toFixed(2) + ' PLN</td>';
 
-                            // Dane po zmianie
+                          
                             modalContent += '<td>' + newBlock + '</td>';
 
-                            // Przycisk usuwający
+                        
                             modalContent += '<td>' +
                                 '<button class="remove-change-btn" data-product-id="' + item.productId + '" style="background: none; border: none; padding: 5px; display: flex; align-items: center; margin-left:8px; justify-content: center;">' +
                                 '<i class="fa fa-trash-o" style="font-size: 19px; color: red;"></i>' +
@@ -336,7 +330,7 @@
                             tableContainer.innerHTML = modalContent;
                         }
 
-                        // Obsługa "Usuń"
+                     
                         document.querySelectorAll('.remove-change-btn').forEach(function (btn) {
                             btn.addEventListener('click', function (e) {
                                 e.stopPropagation();
@@ -349,13 +343,13 @@
                             });
                         });
 
-                        // Otwieramy modal
+                       
                         var simulationModal = document.getElementById("simulationModal");
                         simulationModal.style.display = 'block';
                         simulationModal.classList.add('show');
                     })
                     .catch(function (err) {
-                        console.error("Błąd symulacji zmian:", err);
+                     
                     });
             })
             .catch(function (err) {
@@ -389,23 +383,19 @@
         });
     }
 
-
     function exportToCsv() {
-     
+    
 
-        console.log("Eksport CSV - używamy eanMapGlobal:", eanMapGlobal);
-
-        let csvContent = "EAN;Nowa cena\n";
+        let csvContent = "EAN,Nowa cena\n";
         selectedPriceChanges.forEach(item => {
             const pid = parseInt(item.productId);
-         
             const ean = eanMapGlobal[pid] || "";
-            const newPrice = item.newPrice != null ? item.newPrice.toFixed(2) : "";
-            console.log("CSV => PID:", pid, "EAN:", ean, "NowaCena:", newPrice);
-            csvContent += `${ean};${newPrice}\n`;
+        
+            const eanText = ean ? `="${ean}"` : "";
+            const newPrice = item.newPrice != null ? item.newPrice.toFixed(2).replace('.', ',') : "";
+            csvContent += `${eanText},${newPrice}\n`;
         });
 
-        // Nazwa pliku
         const dateStr = getCurrentDateString();
         const fileName = `PriceSafari-${dateStr}-${currentOurStoreName}.csv`;
 
@@ -420,32 +410,32 @@
         }, 1000);
     }
 
+
     
     async function exportToExcelXLSX() {
-        console.log("Eksport XLSX - używamy eanMapGlobal:", eanMapGlobal);
+      
 
-       
         const workbook = new ExcelJS.Workbook();
         const worksheet = workbook.addWorksheet("Zmiany Cen");
 
-    
-        worksheet.addRow(["EAN", "Nowa Cena"]);
+     
+        worksheet.columns = [
+            { header: "EAN", key: "ean", width: 18, style: { numFmt: "@" } },
+            { header: "Nowa Cena", key: "newPrice", width: 15 }
+        ];
 
-  
         selectedPriceChanges.forEach(item => {
             const pid = parseInt(item.productId);
             const ean = eanMapGlobal[pid] || "";
-            const newPrice = item.newPrice != null ? item.newPrice.toFixed(2) : "";
-            console.log("XLSX => PID:", pid, "EAN:", ean, "NowaCena:", newPrice);
-            worksheet.addRow([ean, newPrice]);
+           
+            const eanStr = String(ean);
+         
+            const newPrice = item.newPrice != null ? item.newPrice.toFixed(2).replace('.', ',') : "";
+         
+            worksheet.addRow({ ean: eanStr, newPrice: newPrice });
         });
 
-        worksheet.columns = [
-            { key: "ean", width: 18 },
-            { key: "newPrice", width: 15 }
-        ];
-
-        // Nazwa pliku
+   
         const dateStr = getCurrentDateString();
         const fileName = `PriceSafari-${dateStr}-${currentOurStoreName}.xlsx`;
 
@@ -461,6 +451,7 @@
             URL.revokeObjectURL(link.href);
         }, 1000);
     }
+
 
   
     var simulateButton = document.getElementById("simulateButton");
