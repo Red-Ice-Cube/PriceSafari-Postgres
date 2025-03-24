@@ -779,6 +779,42 @@ namespace PriceSafari.Controllers.MemberControllers
             return Json(new { data = competitors });
         }
 
+        [HttpPost]
+        public async Task<IActionResult> SaveCompetitorPreset([FromBody] CompetitorPresetViewModel model)
+        {
+            if (!await UserHasAccessToStore(model.StoreId))
+            {
+                return BadRequest("Nie ma takiego sklepu lub brak dostępu.");
+            }
+
+            // Możesz np. zawsze tworzyć nowy preset, albo sprawdzać, czy już jest
+            // i aktualizować. Dla przykładu tworzę nowy:
+            var preset = new CompetitorPresetClass
+            {
+                StoreId = model.StoreId,
+                SourceGoogle = model.SourceGoogle,
+                SourceCeneo = model.SourceCeneo,
+                UseUnmarkedStores = model.UseUnmarkedStores
+            };
+
+            // Przepisujemy konkurentów
+            foreach (var c in model.Competitors)
+            {
+                var item = new CompetitorPresetItem
+                {
+                    StoreName = c.StoreName,
+                    IsGoogle = c.IsGoogle,
+                    UseCompetitor = c.UseCompetitor
+                };
+                preset.CompetitorItems.Add(item);
+            }
+
+            // Zapis do bazy
+            _context.CompetitorPresets.Add(preset); // zakładam, że dodałeś DbSet<CompetitorPresetClass> CompetitorPresets
+            await _context.SaveChangesAsync();
+
+            return Ok(new { success = true, presetId = preset.PresetId });
+        }
 
 
 

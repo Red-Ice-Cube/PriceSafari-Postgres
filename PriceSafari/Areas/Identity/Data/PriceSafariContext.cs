@@ -47,6 +47,9 @@ namespace PriceSafari.Data
 
         public DbSet<GoogleFieldMapping> GoogleFieldMappings { get; set; }
         public DbSet<CeneoFieldMapping> CeneoFieldMappings { get; set; }
+        public DbSet<CompetitorPresetClass> CompetitorPresets { get; set; }
+        public DbSet<CompetitorPresetItem> CompetitorPresetItems { get; set; }
+
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
