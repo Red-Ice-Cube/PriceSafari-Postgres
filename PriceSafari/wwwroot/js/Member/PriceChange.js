@@ -411,37 +411,28 @@
     }
 
 
-    
     async function exportToExcelXLSX() {
-      
-
         const workbook = new ExcelJS.Workbook();
         const worksheet = workbook.addWorksheet("Zmiany Cen");
 
-     
         worksheet.columns = [
             { header: "EAN", key: "ean", width: 18, style: { numFmt: "@" } },
-            { header: "Nowa Cena", key: "newPrice", width: 15 }
+            { header: "Nowa Cena", key: "newPrice", width: 15, style: { numFmt: '#,##0.00' } }
         ];
 
         selectedPriceChanges.forEach(item => {
             const pid = parseInt(item.productId);
             const ean = eanMapGlobal[pid] || "";
-           
             const eanStr = String(ean);
-         
-            const newPrice = item.newPrice != null ? item.newPrice.toFixed(2).replace('.', ',') : "";
-         
+            const newPrice = item.newPrice != null ? parseFloat(item.newPrice.toFixed(2)) : null;
             worksheet.addRow({ ean: eanStr, newPrice: newPrice });
         });
 
-   
         const dateStr = getCurrentDateString();
         const fileName = `PriceSafari-${dateStr}-${currentOurStoreName}.xlsx`;
 
         const buffer = await workbook.xlsx.writeBuffer();
         const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
-
         const link = document.createElement("a");
         link.href = URL.createObjectURL(blob);
         link.download = fileName;
