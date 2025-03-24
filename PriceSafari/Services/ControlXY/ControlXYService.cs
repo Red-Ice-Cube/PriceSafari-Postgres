@@ -105,12 +105,12 @@ namespace PriceSafari.Services.ControlXY
             Console.WriteLine("Klikam dwukrotnie lewym przyciskiem myszy...");
             mouse_event(MOUSEEVENTF_LEFTDOWN, 0, 0, 0, UIntPtr.Zero);
             mouse_event(MOUSEEVENTF_LEFTUP, 0, 0, 0, UIntPtr.Zero);
-            Thread.Sleep(100); // krótszy odstęp
+            Thread.Sleep(1527); // krótszy odstęp
             mouse_event(MOUSEEVENTF_LEFTDOWN, 0, 0, 0, UIntPtr.Zero);
             mouse_event(MOUSEEVENTF_LEFTUP, 0, 0, 0, UIntPtr.Zero);
 
             // Dodajemy 3-sekundową przerwę
-            Thread.Sleep(3000);
+            Thread.Sleep(4873);
 
             // 12. Trzecie kliknięcie lewym
             Console.WriteLine("Klikam trzeci raz lewym przyciskiem myszy (po 2s)...");

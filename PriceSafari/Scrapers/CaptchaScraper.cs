@@ -168,18 +168,22 @@ namespace PriceSafari.Scrapers
                 });
 
                 var currentUrl = _page.Url;
-
-                // Obsługa Captchy
-                while (currentUrl.Contains("/Captcha/Add"))
+                // Sprawdzamy, czy trafiliśmy na Captchę.
+                // Jeśli tak – przerywamy natychmiast (bez pętli).
+                if (currentUrl.Contains("/Captcha/Add", StringComparison.OrdinalIgnoreCase))
                 {
-                    Console.WriteLine("Captcha detected. Please solve it manually in the browser.");
-                    while (currentUrl.Contains("/Captcha/Add"))
-                    {
-                     
-                        await Task.Delay(150000);
-                        currentUrl = _page.Url;
-                    }
+                    // Możesz albo rzucać wyjątek:
+                    // throw new Exception("CAPTCHA_DETECTED");
+
+                    // Albo po prostu zwrócić pustą listę z komunikatem:
+                    var logMsg = "Captcha encountered at " + currentUrl;
+                    Console.WriteLine(logMsg);
+
+                    return (new List<(string, decimal, decimal?, int?, string, string?, string?)>(),
+                            logMsg,
+                            new List<(string Reason, string Url)> { ("Captcha", url) });
                 }
+
 
                 // Liczba wszystkich ofert
                 var totalOffersCount = await GetTotalOffersCountAsync();
