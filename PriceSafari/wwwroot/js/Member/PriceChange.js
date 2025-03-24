@@ -139,13 +139,15 @@
                         }
 
                         var simulationResults = data.simulationResults || [];
-              
+                        // Budujemy mapy dla EAN i External ID
                         eanMapGlobal = {};
+                        externalIdMapGlobal = {};
                         simulationResults.forEach(sim => {
                             const pid = parseInt(sim.productId);
                             const eanVal = sim.ean ? String(sim.ean) : "";
                             eanMapGlobal[pid] = eanVal;
-                      
+                            const extIdVal = sim.externalId ? String(sim.externalId) : "";
+                            externalIdMapGlobal[pid] = extIdVal;
                         });
 
                   
@@ -181,7 +183,14 @@
                                 ean = String(prodDetail.ean);
                             }
 
-                         
+                           
+                            let externalId = "";
+                            if (simResult && simResult.externalId) {
+                                externalId = String(simResult.externalId);
+                            } else if (prodDetail && prodDetail.externalId) {
+                                externalId = String(prodDetail.externalId);
+                            }
+
                          
 
                             var diff = item.newPrice - item.currentPrice;
@@ -297,10 +306,10 @@
                                 }
                             }
 
-                           
                             modalContent += '<td>' +
                                 '<div class="price-info-item" style="font-size:125%;">' + name + '</div>' +
                                 (ean ? '<div class="price-info-item">EAN: ' + ean + '</div>' : '') +
+                                (externalId ? '<div class="price-info-item">ID: ' + externalId + '</div>' : '') +
                                 '</td>';
 
                        
@@ -382,18 +391,17 @@
             }
         });
     }
-
     function exportToCsv() {
-    
-
-        let csvContent = "EAN,Nowa cena\n";
+        // Nagłówek CSV z kolumnami: ID, EAN, Nowa cena
+        let csvContent = "ID,EAN,Nowa cena\n";
         selectedPriceChanges.forEach(item => {
             const pid = parseInt(item.productId);
             const ean = eanMapGlobal[pid] || "";
-        
+            const extId = externalIdMapGlobal[pid] || "";
+            const extIdText = extId ? `="${extId}"` : "";
             const eanText = ean ? `="${ean}"` : "";
             const newPrice = item.newPrice != null ? item.newPrice.toFixed(2).replace('.', ',') : "";
-            csvContent += `${eanText},${newPrice}\n`;
+            csvContent += `${extIdText},${eanText},${newPrice}\n`;
         });
 
         const dateStr = getCurrentDateString();
@@ -410,12 +418,13 @@
         }, 1000);
     }
 
-
     async function exportToExcelXLSX() {
         const workbook = new ExcelJS.Workbook();
         const worksheet = workbook.addWorksheet("Zmiany Cen");
 
+        // Ustawiamy kolumny w kolejności: ID, EAN, Nowa Cena
         worksheet.columns = [
+            { header: "ID", key: "externalId", width: 18, style: { numFmt: "@" } },
             { header: "EAN", key: "ean", width: 18, style: { numFmt: "@" } },
             { header: "Nowa Cena", key: "newPrice", width: 15, style: { numFmt: '#,##0.00' } }
         ];
@@ -423,9 +432,11 @@
         selectedPriceChanges.forEach(item => {
             const pid = parseInt(item.productId);
             const ean = eanMapGlobal[pid] || "";
+            const extId = externalIdMapGlobal[pid] || "";
             const eanStr = String(ean);
+            const extIdStr = String(extId);
             const newPrice = item.newPrice != null ? parseFloat(item.newPrice.toFixed(2)) : null;
-            worksheet.addRow({ ean: eanStr, newPrice: newPrice });
+            worksheet.addRow({ externalId: extIdStr, ean: eanStr, newPrice: newPrice });
         });
 
         const dateStr = getCurrentDateString();

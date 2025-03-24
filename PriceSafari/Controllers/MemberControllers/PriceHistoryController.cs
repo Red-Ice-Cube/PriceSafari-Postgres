@@ -1269,6 +1269,7 @@ namespace PriceSafari.Controllers.MemberControllers
                     {
                         productId = product.ProductId,
                         ean = product.Ean,
+                        externalId = product.ExternalId,
                         currentGoogleRanking = "-",
                         newGoogleRanking = "-",
                         totalGoogleOffers = (int?)null,
@@ -1379,6 +1380,7 @@ namespace PriceSafari.Controllers.MemberControllers
                 {
                     productId = product.ProductId,
                     ean = product.Ean,
+                    externalId = product.ExternalId,
                     currentGoogleRanking,
                     newGoogleRanking,
                     totalGoogleOffers = (totalGoogleOffers > 0 ? totalGoogleOffers : (int?)null),
@@ -1422,17 +1424,16 @@ namespace PriceSafari.Controllers.MemberControllers
         private async Task<List<ProductData>> GetProductsInChunksAsync(List<int> productIds)
         {
             var result = new List<ProductData>();
-
             for (int i = 0; i < productIds.Count; i += CHUNK_SIZE)
             {
                 var subset = productIds.Skip(i).Take(CHUNK_SIZE).ToList();
-                if (subset.Count == 0)
-                    continue;
+                if (subset.Count == 0) continue;
+
                 var inClause = string.Join(",", subset);
 
-                // Dodajemy MarginPrice do selekcji
+                // Dodajemy ExternalId do selekcji
                 string sql = $@"
-            SELECT ProductId, Ean, MarginPrice
+            SELECT ProductId, Ean, MarginPrice, ExternalId
             FROM Products
             WHERE ProductId IN ({inClause})
         ";
@@ -1443,7 +1444,8 @@ namespace PriceSafari.Controllers.MemberControllers
                     {
                         ProductId = p.ProductId,
                         Ean = p.Ean,
-                        MarginPrice = p.MarginPrice // nowa właściwość
+                        MarginPrice = p.MarginPrice,
+                        ExternalId = p.ExternalId // <-- DODANE
                     })
                     .ToListAsync();
 
@@ -1453,12 +1455,15 @@ namespace PriceSafari.Controllers.MemberControllers
             return result;
         }
 
+
         public class ProductData
         {
             public int ProductId { get; set; }
             public string Ean { get; set; }
-            public decimal? MarginPrice { get; set; }  // dodajemy MarginPrice
+            public decimal? MarginPrice { get; set; }
+            public int? ExternalId { get; set; } // <-- DODANE
         }
+
 
 
 
