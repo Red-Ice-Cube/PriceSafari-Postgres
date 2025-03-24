@@ -323,7 +323,7 @@
     const stepPriceInput = document.getElementById("stepPrice");
 
     price1Input.addEventListener("blur", () => {
-        enforceLimits(price1Input, 0.01, 100);
+        enforceLimits(price1Input, 0.01);
         if (parseFloat(stepPriceInput.value.replace(',', '.')) > parseFloat(price1Input.value.replace(',', '.'))) {
             stepPriceInput.value = price1Input.value;
         }
@@ -331,7 +331,7 @@
     });
 
     price2Input.addEventListener("blur", () => {
-        enforceLimits(price2Input, 0.01, 100);
+        enforceLimits(price2Input, 0.01);
     });
 
     stepPriceInput.addEventListener("blur", () => {
@@ -725,6 +725,8 @@
 
         return valueToUse < setPrice2 ? "prMid" : "prToHigh";
     }
+
+
     function renderPrices(data) {
        
         const storedChanges = localStorage.getItem('selectedPriceChanges_' + storeId);
@@ -779,9 +781,8 @@
             button.appendChild(removeLink);
             priceBox.classList.add('price-changed');
         }
-
         function attachPriceChangeListener(button, suggestedPrice, priceBox, productId, productName, currentPriceValue, item) {
-           
+
             if (!item || !item.ean || item.ean.trim() === "") {
                 button.disabled = true;
                 button.title = "Produkt musi mieć zmapowany kod EAN";
@@ -791,8 +792,9 @@
             button.addEventListener('click', function (e) {
                 e.stopPropagation();
 
-              
+                // Jeśli włączona symulacja marży, sprawdzaj warunki
                 if (marginSettings.useMarginForSimulation) {
+                    // Musimy mieć cenę zakupu
                     if (item.marginPrice == null) {
                         showGlobalNotification(
                             `<p style="margin:8px 0; font-weight:bold;">Zmiana ceny nie została dodana</p>
@@ -800,60 +802,77 @@
                         );
                         return;
                     }
-                
-                    let simulatedMargin = ((suggestedPrice - item.marginPrice) / item.marginPrice) * 100;
-                    simulatedMargin = parseFloat(simulatedMargin.toFixed(2));
 
-          
+                    // (A) Obliczamy marżę aktualną (oldMargin) i proponowaną (newMargin)
+                    let oldMargin = ((currentPriceValue - item.marginPrice) / item.marginPrice) * 100;
+                    let newMargin = ((suggestedPrice - item.marginPrice) / item.marginPrice) * 100;
+                    oldMargin = parseFloat(oldMargin.toFixed(2));
+                    newMargin = parseFloat(newMargin.toFixed(2));
+
                     if (marginSettings.enforceMinimalMargin) {
-                        if (simulatedMargin < 0) {
-                            showGlobalNotification(
-                                `<p style="margin:8px 0; font-weight:bold;">Zmiana ceny nie została dodana</p>
-                         <p>Nowa cena <strong>${suggestedPrice.toFixed(2)} PLN</strong> spowoduje ujemną marżę (Nowa marża: <strong>${simulatedMargin}%</strong>).</p>
-                         <p>Cena zakupu wynosi <strong>${item.marginPrice.toFixed(2)} PLN</strong>. Zmiana nie może zostać zastosowana.</p>`
-                            );
-                            return;
+                        // (B) Sprawdzamy, czy nowa marża jest ujemna
+                        if (newMargin < 0) {
+                            // Jeśli stara też była ujemna i nowa jest "mniej ujemna" (większa) => POZWALAMY
+                            if (oldMargin < 0 && newMargin > oldMargin) {
+                                // OK, poprawiamy z np. -10% na -5%
+                            } else {
+                                // W przeciwnym wypadku blokujemy
+                                showGlobalNotification(
+                                    `<p style="margin:8px 0; font-weight:bold;">Zmiana ceny nie została dodana</p>
+                             <p>Nowa cena <strong>${suggestedPrice.toFixed(2)} PLN</strong> spowoduje ujemną marżę (nowa marża: <strong>${newMargin}%</strong>).</p>
+                             <p>Cena zakupu wynosi <strong>${item.marginPrice.toFixed(2)} PLN</strong>. Zmiana nie może zostać zastosowana.</p>`
+                                );
+                                return;
+                            }
                         }
-                        if (marginSettings.minimalMarginPercent > 0 && simulatedMargin < marginSettings.minimalMarginPercent) {
+
+                        // (C) Minimalna marża: np. minimalMarginPercent = 5% oznacza, że nowa marża nie może spaść poniżej 5%
+                        if (marginSettings.minimalMarginPercent > 0 && newMargin < marginSettings.minimalMarginPercent) {
                             showGlobalNotification(
                                 `<p style="margin:8px 0; font-weight:bold;">Zmiana ceny nie została dodana</p>
                          <p>Nowa cena <strong>${suggestedPrice.toFixed(2)} PLN</strong> obniży marżę poniżej ustalonego minimum (<strong>${marginSettings.minimalMarginPercent}%</strong>).</p>
-                         <p>Nowa marża wynosi <strong>${simulatedMargin}%</strong>, a cena zakupu to <strong>${item.marginPrice.toFixed(2)} PLN</strong>.</p>`
+                         <p>Nowa marża wynosi <strong>${newMargin}%</strong>, a cena zakupu to <strong>${item.marginPrice.toFixed(2)} PLN</strong>.</p>`
                             );
                             return;
                         }
-                        if (marginSettings.minimalMarginPercent < 0 && simulatedMargin > marginSettings.minimalMarginPercent) {
+
+                        // Jeśli minimalMarginPercent < 0 (np. -10%), a nowa marża jest WYŻSZA niż -10% (np. -5% => to de facto lepiej),
+                        // albo wręcz nowa marża przekracza 0%.  
+                        // Jeżeli chciałbyś to zablokować, zostaw dotychczasową logikę, np.:
+                        if (marginSettings.minimalMarginPercent < 0 && newMargin > marginSettings.minimalMarginPercent) {
                             showGlobalNotification(
                                 `<p style="margin:8px 0; font-weight:bold;">Zmiana ceny nie została dodana</p>
                          <p>Nowa cena <strong>${suggestedPrice.toFixed(2)} PLN</strong> podniesie marżę powyżej dozwolonego poziomu (<strong>${marginSettings.minimalMarginPercent}%</strong>).</p>
-                         <p>Nowa marża wynosi <strong>${simulatedMargin}%</strong>.</p>`
+                         <p>Nowa marża wynosi <strong>${newMargin}%</strong>.</p>`
                             );
                             return;
                         }
                     }
                 }
 
-              
+                // Jeśli już jest oznaczone jako zmienione - nic nie robimy
                 if (priceBox.classList.contains('price-changed') || button.classList.contains('active')) {
                     console.log("Zmiana ceny już aktywna dla produktu", productId);
                     return;
                 }
 
-               
+                // Wyrzucamy event i wizualnie oznaczamy box
                 const priceChangeEvent = new CustomEvent('priceBoxChange', {
                     detail: { productId, productName, currentPrice: currentPriceValue, newPrice: suggestedPrice, storeId: storeId }
                 });
                 document.dispatchEvent(priceChangeEvent);
+
                 activateChangeButton(button, priceBox, suggestedPrice);
 
-            
+                // Komunikat "dodano zmianę"
                 let message = `<p style="margin-bottom:8px; font-size:16px; font-weight:bold;">Zmiana ceny dodana</p>`;
                 message += `<p style="margin:4px 0;"><strong>Produkt:</strong> ${productName}</p>`;
                 message += `<p style="margin:4px 0;"><strong>Nowa cena:</strong> ${suggestedPrice.toFixed(2)} PLN</p>`;
+
                 if (marginSettings.useMarginForSimulation) {
-                    let simulatedMargin = ((suggestedPrice - item.marginPrice) / item.marginPrice) * 100;
-                    simulatedMargin = parseFloat(simulatedMargin.toFixed(2));
-                    message += `<p style="margin:4px 0;"><strong>Nowa marża:</strong> ${simulatedMargin}%</p>`;
+                    let finalMargin = ((suggestedPrice - item.marginPrice) / item.marginPrice) * 100;
+                    finalMargin = parseFloat(finalMargin.toFixed(2));
+                    message += `<p style="margin:4px 0;"><strong>Nowa marża:</strong> ${finalMargin}%</p>`;
                     message += `<p style="margin:4px 0;"><strong>Cena zakupu:</strong> ${item.marginPrice.toFixed(2)} PLN</p>`;
                     if (marginSettings.enforceMinimalMargin) {
                         if (marginSettings.minimalMarginPercent > 0) {
@@ -866,7 +885,7 @@
                 showGlobalUpdate(message);
             });
 
-  
+            // Przywracanie stanu "Dodano" jeśli już wcześniej była wybrana taka zmiana
             const existingChange = selectedPriceChanges.find(change =>
                 parseInt(change.productId) === parseInt(productId) &&
                 parseFloat(change.newPrice) === parseFloat(suggestedPrice)

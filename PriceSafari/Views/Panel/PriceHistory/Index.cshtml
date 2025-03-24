@@ -482,19 +482,19 @@
                     <div class="price-range-settings">
                         <div class="color-circle prMid-circle"></div>
                         <label for="price2"></label>
-                        <input type="number" id="price2" value="@ViewBag.SetPrice2" step="0.01" min="0.01" max="100">
+                        <input type="number" id="price2" value="@ViewBag.SetPrice2" step="0.01" min="0.01">
                         <span id="unitLabel2"></span>
                     </div>
                     <div class="price-range-settings">
                         <div class="color-circle prIdeal-circle"></div>
                         <label for="price1"></label>
-                        <input type="number" id="price1" value="@ViewBag.SetPrice1" step="0.01" min="0.01" max="100">
+                        <input type="number" id="price1" value="@ViewBag.SetPrice1" step="0.01" min="0.01">
                         <span id="unitLabel1"></span>
                     </div>
                     <div class="price-range-settings">
                         <div class="price-range-settings-stepPrice"></div>
                         <label for="stepPrice"></label>
-                        <input type="number" id="stepPrice" value="@ViewBag.PriceStep" step="0.01" min="0.01" max="100">
+                        <input type="number" id="stepPrice" value="@ViewBag.PriceStep" step="0.01" min="0.01" >
                         <span id="unitLabelStepPrice"></span>
                     </div>
 
@@ -898,8 +898,8 @@
     <script>
         var flags = @Html.Raw(JsonConvert.SerializeObject(ViewBag.Flags));
     </script>
-    <script src="~/js/member/PriceChange.min.js"></script>
-    <script src="~/js/member/pricehistory.min.js"></script>
+    <script src="~/js/member/PriceChange.js"></script>
+    <script src="~/js/member/PriceHistory.js"></script>
     <script>
 
         var scrapDateJS = "@scrapDate";
