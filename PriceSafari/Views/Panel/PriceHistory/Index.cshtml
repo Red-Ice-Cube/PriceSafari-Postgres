@@ -853,10 +853,9 @@
     </div>
 </div>
 
-
-<div class="modal fade" id="competitorModal" tabindex="-1" role="dialog">
-    <div class="modal-dialog" role="document">
-        <div class="modal-content">
+<div class="modal-sim fade" id="competitorModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog-sim" role="document">
+        <div class="modal-simulation">
 
             <div class="modal-header">
                 <h5 class="modal-title">Konkurencyjne sklepy</h5>
@@ -870,10 +869,7 @@
                 <!-- SEKCJA PRESET -->
                 <div style="margin-bottom: 20px;">
                     <label>Wybierz istniejący preset:</label>
-                    <select id="presetSelect">
-                        <!-- Wypełnisz w JS listą presetów z bazy -->
-                    </select>
-                    <button id="loadPresetBtn">Załaduj</button>
+                    <select id="presetSelect"></select>
                     <button id="addNewPresetBtn">Dodaj nowy preset</button>
                 </div>
 
@@ -887,62 +883,63 @@
                         Ustaw jako aktywny (NowInUse)
                     </label>
 
-                    <label for="useUnmarkedStoresCheckbox">
+                    <label>
                         <input type="checkbox" id="useUnmarkedStoresCheckbox" checked />
                         Używaj nieoznaczonych sklepów
                     </label>
+
+                    <div style="margin-top:10px;">
+                        <label for="sourceSelect">Źródło danych (nasz sklep):</label>
+                        <select id="sourceSelect">
+                            <option value="All">All (Google + Ceneo)</option>
+                            <option value="Google">Tylko Google</option>
+                            <option value="Ceneo">Tylko Ceneo</option>
+                        </select>
+                    </div>
+
+                    <button id="editPresetBtn" type="button">Zmień nazwę</button>
                 </div>
 
-                <!-- Wybór źródła dla NASZEGO sklepu + przycisk do pobrania danych -->
-                <div style="margin-bottom: 10px;">
-                    <label for="ourSourceSelect">Wybierz, w jaki sposób traktować nasz sklep:</label>
-                    <select id="ourSourceSelect">
-                        <option value="All">Nasz Sklep (Wszystkie oferty)</option>
-                        <option value="Google">Nasz Sklep (tylko Google)</option>
-                        <option value="Ceneo">Nasz Sklep (tylko Ceneo)</option>
-                    </select>
-                    <button id="computeCompetitorsBtn" type="button">
-                        Oblicz
-                    </button>
+                <div style="display:flex; gap:150px;">
+                    <div>
+                        <div class="table-scroll">
+                            <table class="table-orders">
+                                <thead>
+                                    <tr>
+                                        <th>Sklep</th>
+                                        <th>Źródło</th>
+                                        <th>Wspólne produkty</th>
+                                        <th>Akcje</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="googleCompetitorsTableBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div>
+                        <!-- TABELA dla konkurentów (Ceneo) -->
+                        <div class="table-scroll">
+                            <table class="table-orders">
+                                <thead>
+                                    <tr>
+                                        <th>Sklep</th>
+                                        <th>Źródło</th>
+                                        <th>Wspólne produkty</th>
+                                        <th>Akcje</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="ceneoCompetitorsTableBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
-
-                <!-- Tabela Google -->
-                <h4>Konkurenci (Google)</h4>
-                <table class="table">
-                    <thead>
-                        <tr>
-                            <th>Sklep</th>
-                            <th>Źródło</th>
-                            <th>Wspólne prod.</th>
-                            <th>Akcje</th>
-                            <th>W preset?</th>
-                        </tr>
-                    </thead>
-                    <tbody id="googleCompetitorsTableBody"></tbody>
-                </table>
-
-                <!-- Tabela Ceneo -->
-                <h4>Konkurenci (Ceneo)</h4>
-                <table class="table">
-                    <thead>
-                        <tr>
-                            <th>Sklep</th>
-                            <th>Źródło</th>
-                            <th>Wspólne prod.</th>
-                            <th>Akcje</th>
-                            <th>W preset?</th>
-                        </tr>
-                    </thead>
-                    <tbody id="ceneoCompetitorsTableBody"></tbody>
-                </table>
-
-                <!-- GUZIK ZAPISU PRESETU -->
-                <button id="savePresetBtn" type="button">Zapisz Preset</button>
 
             </div>
         </div>
     </div>
 </div>
+
 
 
 

@@ -2,320 +2,407 @@
  * CompetitorModal.js – obsługa modala z presetami
  *****************************************************/
 
-// 1) Otwarcie modala – wywołane np. onclick="openCompetitorsModal()"
-window.openCompetitorsModal = function () {
-    // Załaduj listę istniejących presetów i pokaż modal
-    loadPresetList();
-    $('#competitorModal').modal('show');
-};
+// OTWARCIE MODALA
+window.openCompetitorsModal = async function () {
+    const presets = await fetchPresets();
 
-// 2) Gdy DOM się załaduje, podpinamy eventy do przycisków:
-document.addEventListener('DOMContentLoaded', function () {
-
-    // a) Oblicz konkurentów (computeCompetitorsBtn)
-    const btnCompute = document.getElementById('computeCompetitorsBtn');
-    if (btnCompute) {
-        btnCompute.addEventListener('click', function () {
-            computeCompetitors();
-        });
-    }
-
-    // b) Dodaj nowy preset
-    const btnAddNewPreset = document.getElementById("addNewPresetBtn");
-    if (btnAddNewPreset) {
-        btnAddNewPreset.addEventListener("click", function () {
-            document.getElementById("newPresetSection").style.display = "block";
-            document.getElementById("presetNameInput").value = "";
-            document.getElementById("nowInUseCheckbox").checked = false;
-        });
-    }
-
-    // c) Załaduj wybrany preset
-    const btnLoadPreset = document.getElementById("loadPresetBtn");
-    if (btnLoadPreset) {
-        btnLoadPreset.addEventListener("click", function () {
-            loadSelectedPreset();
-        });
-    }
-
-    // d) Zapisanie preset-u
-    const btnSavePreset = document.getElementById("savePresetBtn");
-    if (btnSavePreset) {
-        btnSavePreset.addEventListener("click", function () {
-            savePreset();
-        });
-    }
-});
-
-/*****************************************************
- * Funkcja pobierająca listę istniejących presetów
- *****************************************************/
-function loadPresetList() {
-    // Załóżmy, że masz endpoint: GET /PriceHistory/GetPresets?storeId=...
-    const url = `/PriceHistory/GetPresets?storeId=${storeId}`;
-
-    fetch(url)
-        .then(r => r.json())
-        .then(list => {
-            const presetSelect = document.getElementById("presetSelect");
-            if (!presetSelect) return;
-            presetSelect.innerHTML = "";
-
-            const defaultOpt = document.createElement("option");
-            defaultOpt.value = "";
-            defaultOpt.textContent = "-- wybierz preset --";
-            presetSelect.appendChild(defaultOpt);
-
-            list.forEach(p => {
-                const opt = document.createElement("option");
-                opt.value = p.presetId;  // np. p.presetId
-                opt.textContent = p.presetName + (p.nowInUse ? " [aktywny]" : "");
-                presetSelect.appendChild(opt);
-            });
-        })
-        .catch(err => console.error("Błąd ładowania listy presetów:", err));
-}
-
-/*****************************************************
- * Funkcja wczytująca detale wybranego presetu
- *****************************************************/
-function loadSelectedPreset() {
     const presetSelect = document.getElementById("presetSelect");
     if (!presetSelect) return;
 
-    const presetId = presetSelect.value;
-    if (!presetId) {
-        alert("Nie wybrano presetu.");
-        return;
+    presetSelect.innerHTML = "";
+    // Bazowy
+    const baseOpt = document.createElement("option");
+    baseOpt.value = "BASE";
+    baseOpt.textContent = "(Widok bazowy)";
+    presetSelect.appendChild(baseOpt);
+
+    // Reszta presetów
+    presets.forEach(p => {
+        const opt = document.createElement("option");
+        opt.value = p.presetId;
+        opt.textContent = p.presetName + (p.nowInUse ? " [aktywny]" : "");
+        presetSelect.appendChild(opt);
+    });
+
+    // Czy któryś jest NowInUse?
+    const active = presets.find(x => x.nowInUse === true);
+    if (active) {
+        presetSelect.value = active.presetId;
+        await loadSelectedPreset();
+    } else {
+        // Bazowy widok
+        presetSelect.value = "BASE";
+        loadBaseView();
     }
 
-    // Endpoint np. /PriceHistory/GetPresetDetails?presetId=...
-    const url = `/PriceHistory/GetPresetDetails?presetId=${presetId}`;
+    $('#competitorModal').modal('show');
+};
 
+// POBRANIE LISTY PRESETÓW
+async function fetchPresets() {
+    const url = `/PriceHistory/GetPresets?storeId=${storeId}`;
+    try {
+        const resp = await fetch(url);
+        return await resp.json();
+    } catch (err) {
+        console.error("Błąd fetchPresets:", err);
+        return [];
+    }
+}
+
+// WIDOK BAZOWY
+function loadBaseView() {
+    window.currentPreset = {
+        presetId: null,
+        presetName: "(Widok bazowy)",
+        nowInUse: false,
+        sourceGoogle: true,    // Google + Ceneo
+        sourceCeneo: true,
+        useUnmarkedStores: true,
+        competitorItems: []
+    };
+
+    document.getElementById("newPresetSection").style.display = "none";
+    loadCompetitors("All"); // param "All"
+}
+
+// PRZEŁĄCZANIE <SELECT> PRESET
+document.addEventListener("DOMContentLoaded", function () {
+    const presetSelect = document.getElementById("presetSelect");
+    if (!presetSelect) return;
+    presetSelect.addEventListener("change", async function () {
+        if (this.value === "BASE") {
+            loadBaseView();
+        } else {
+            await loadSelectedPreset();
+        }
+    });
+});
+
+// WYCZYTANIE PRESETU Z SERWERA
+async function loadSelectedPreset() {
+    const presetSelect = document.getElementById("presetSelect");
+    if (!presetSelect) return;
+    const presetId = presetSelect.value;
+    if (!presetId || presetId === "BASE") {
+        loadBaseView();
+        return;
+    }
+    try {
+        const resp = await fetch(`/PriceHistory/GetPresetDetails?presetId=${presetId}`);
+        const preset = await resp.json();
+        if (!preset) {
+            console.warn("Brak presetu w odpowiedzi");
+            return;
+        }
+        window.currentPreset = preset;
+
+        document.getElementById("newPresetSection").style.display = "block";
+        document.getElementById("presetNameInput").value = preset.presetName || "";
+        document.getElementById("nowInUseCheckbox").checked = preset.nowInUse;
+        document.getElementById("useUnmarkedStoresCheckbox").checked = preset.useUnmarkedStores;
+
+        // Ustaw sourceSelect
+        let sourceVal = "All";
+        if (preset.sourceGoogle && !preset.sourceCeneo) sourceVal = "Google";
+        if (!preset.sourceGoogle && preset.sourceCeneo) sourceVal = "Ceneo";
+        document.getElementById("sourceSelect").value = sourceVal;
+
+        loadCompetitors(sourceVal);
+    } catch (err) {
+        console.error(err);
+    }
+}
+
+// ŁADOWANIE KONKURENTÓW
+function loadCompetitors(ourSource) {
+    const url = `/PriceHistory/GetCompetitorStoresData?storeId=${storeId}&ourSource=${ourSource}`;
     fetch(url)
         .then(r => r.json())
-        .then(preset => {
-            if (!preset) {
-                console.error("Brak preset-u w odpowiedzi");
+        .then(data => {
+            if (!data.data) {
+                console.warn("Brak data w liście konkurentów");
                 return;
             }
+            const googleData = data.data.filter(x => x.dataSource === "Google");
+            const ceneoData = data.data.filter(x => x.dataSource === "Ceneo");
 
-            // Zapisz globalnie – by móc z niego skorzystać:
-            window.currentPreset = preset;
+            const gBody = document.getElementById("googleCompetitorsTableBody");
+            const cBody = document.getElementById("ceneoCompetitorsTableBody");
+            if (gBody) gBody.innerHTML = "";
+            if (cBody) cBody.innerHTML = "";
 
-            // Ustaw polakom
-            document.getElementById("newPresetSection").style.display = "block";
-            document.getElementById("presetNameInput").value = preset.presetName || "";
-            document.getElementById("nowInUseCheckbox").checked = preset.nowInUse;
-            document.getElementById("useUnmarkedStoresCheckbox").checked = preset.useUnmarkedStores;
+            googleData.forEach(item => gBody.appendChild(createRow(item)));
+            ceneoData.forEach(item => cBody.appendChild(createRow(item)));
 
-            // Ustaw <select> ourSourceSelect w zależności od (preset.sourceGoogle, preset.sourceCeneo)
-            let ourSource = "All";
-            if (preset.sourceGoogle && !preset.sourceCeneo) ourSource = "Google";
-            if (!preset.sourceGoogle && preset.sourceCeneo) ourSource = "Ceneo";
-            document.getElementById("ourSourceSelect").value = ourSource;
-
-            // Po wczytaniu parametru – obliczamy konkurentów:
-            computeCompetitors();
+            markPresetCompetitors();
         })
-        .catch(err => console.error("Błąd ładowania detali preset-u:", err));
+        .catch(err => console.error(err));
 }
 
-/*****************************************************
- * Funkcja ładująca listę konkurentów z API
- *****************************************************/
-function computeCompetitors() {
-    const ourSource = document.getElementById("ourSourceSelect").value; // "All"/"Google"/"Ceneo"
-    const url = `/PriceHistory/GetCompetitorStoresData?storeId=${storeId}&ourSource=${ourSource}`;
-
-    fetch(url)
-        .then(response => response.json())
-        .then(result => {
-            if (!result.data) {
-                console.error("Brak danych konkurentów");
-                return;
-            }
-
-            // Podziel na Google/Ceneo
-            const googleData = result.data.filter(x => x.dataSource === "Google");
-            const ceneoData = result.data.filter(x => x.dataSource === "Ceneo");
-
-            // Czyścimy obie tabele
-            const googleTbody = document.getElementById("googleCompetitorsTableBody");
-            const ceneoTbody = document.getElementById("ceneoCompetitorsTableBody");
-            googleTbody.innerHTML = "";
-            ceneoTbody.innerHTML = "";
-
-            // Wypełniamy tabelę google
-            googleData.forEach(item => {
-                const row = createRow(item);
-                googleTbody.appendChild(row);
-            });
-
-            // Wypełniamy tabelę ceneo
-            ceneoData.forEach(item => {
-                const row = createRow(item);
-                ceneoTbody.appendChild(row);
-            });
-
-            // Jeśli załadowaliśmy wcześniej preset – zaznaczyć checkboxy
-            if (window.currentPreset && window.currentPreset.competitorItems) {
-                markPresetCompetitors();
-            }
-
-        })
-        .catch(err => console.error("Błąd podczas pobierania konkurentów:", err));
-}
-
-/*****************************************************
- * Tworzenie pojedynczego wiersza w tabeli
- *****************************************************/
+// TWORZENIE WIERSZA
 function createRow(item) {
     const tr = document.createElement("tr");
 
-    // 1) Sklep
-    const storeNameTd = document.createElement("td");
-    storeNameTd.textContent = item.storeName;
-    tr.appendChild(storeNameTd);
+    const tdStore = document.createElement("td");
+    tdStore.textContent = item.storeName;
+    tr.appendChild(tdStore);
 
-    // 2) Źródło
-    const sourceTd = document.createElement("td");
-    sourceTd.textContent = item.dataSource;
-    tr.appendChild(sourceTd);
+    const tdSource = document.createElement("td");
+    tdSource.textContent = item.dataSource;
+    tr.appendChild(tdSource);
 
-    // 3) Wspólne produkty
-    const commonCountTd = document.createElement("td");
-    commonCountTd.textContent = item.commonProductsCount;
-    tr.appendChild(commonCountTd);
+    const tdCommon = document.createElement("td");
+    tdCommon.textContent = item.commonProductsCount;
+    tr.appendChild(tdCommon);
 
-    // 4) Akcja: "Załaduj te ceny"
-    const actionTd = document.createElement("td");
-    const chooseBtn = document.createElement("button");
-    chooseBtn.textContent = "Załaduj te ceny";
-    chooseBtn.addEventListener("click", function () {
-        window.competitorStore = item.storeName;
-        // ewentualnie window.source = item.dataSource;
-
-        if (typeof loadPrices === "function") {
-            loadPrices();
-        } else {
-            console.error("Brak funkcji loadPrices!");
-        }
-
-        $('#competitorModal').modal('hide');
+    const tdAction = document.createElement("td");
+    const addBtn = document.createElement("button");
+    addBtn.textContent = "Dodaj";
+    addBtn.style.marginRight = "5px";
+    addBtn.addEventListener("click", () => {
+        setCompetitorStatus(item.storeName, item.dataSource === "Google", true);
     });
-    actionTd.appendChild(chooseBtn);
-    tr.appendChild(actionTd);
+    tdAction.appendChild(addBtn);
 
-    // 5) Kolumna: "W preset?"
-    const presetTd = document.createElement("td");
-    const presetCheckbox = document.createElement("input");
-    presetCheckbox.type = "checkbox";
-    presetCheckbox.checked = false; // domyślnie false
-    presetTd.appendChild(presetCheckbox);
-    tr.appendChild(presetTd);
+    const remBtn = document.createElement("button");
+    remBtn.textContent = "Usuń";
+    remBtn.addEventListener("click", () => {
+        setCompetitorStatus(item.storeName, item.dataSource === "Google", false);
+    });
+    tdAction.appendChild(remBtn);
 
-    // Zapisz dane do tr (ułatwia identyfikację)
+    tr.appendChild(tdAction);
+
     tr.dataset.storeName = item.storeName;
     tr.dataset.dataSource = item.dataSource; // "Google"/"Ceneo"
 
     return tr;
 }
 
-/*****************************************************
- * Zaznacza checkboxy wierszy na podstawie currentPreset
- *****************************************************/
-function markPresetCompetitors() {
-    const allRows = document.querySelectorAll("#googleCompetitorsTableBody tr, #ceneoCompetitorsTableBody tr");
-    if (!allRows) return;
-
-    window.currentPreset.competitorItems.forEach(ci => {
-        // ci.storeName, ci.isGoogle, ci.useCompetitor
-    });
-
-    allRows.forEach(tr => {
-        const storeName = tr.dataset.storeName;
-        const dataSource = tr.dataset.dataSource; // "Google"/"Ceneo"
-        const checkbox = tr.querySelector("input[type='checkbox']");
-
-        // Szukamy, czy jest w competitorItems
-        const match = window.currentPreset.competitorItems.find(ci => {
-            if (ci.storeName !== storeName) return false;
-            if (ci.isGoogle && dataSource !== "Google") return false;
-            if (!ci.isGoogle && dataSource !== "Ceneo") return false;
-            return true;
-        });
-        // Jeśli znaleźliśmy i match.useCompetitor == true, to zaznacz checkbox
-        if (match && match.useCompetitor && checkbox) {
-            checkbox.checked = true;
-        }
-    });
-}
-
-/*****************************************************
- * Zapisanie preset-u (SaveCompetitorPreset)
- *****************************************************/
-function savePreset() {
-    const presetName = document.getElementById("presetNameInput").value.trim();
-    const nowInUse = document.getElementById("nowInUseCheckbox").checked;
-    const useUnmarkedStores = document.getElementById("useUnmarkedStoresCheckbox").checked;
-
-    // google/ceneo?
-    let sourceGoogle = false;
-    let sourceCeneo = false;
-    const ourSource = document.getElementById("ourSourceSelect").value;
-    if (ourSource === "All") {
-        sourceGoogle = true;
-        sourceCeneo = true;
-    } else if (ourSource === "Google") {
-        sourceGoogle = true;
-        sourceCeneo = false;
-    } else if (ourSource === "Ceneo") {
-        sourceGoogle = false;
-        sourceCeneo = true;
+// DODAWANIE/USUWANIE SKLEPU
+function setCompetitorStatus(storeName, isGoogle, useCompetitor) {
+    if (!window.currentPreset || !window.currentPreset.presetId) {
+        alert("Widok bazowy – nie zapisujemy do bazy.");
+        return;
     }
-
-    // Zbieramy wiersze
-    const googleRows = document.querySelectorAll("#googleCompetitorsTableBody tr");
-    const ceneoRows = document.querySelectorAll("#ceneoCompetitorsTableBody tr");
-    const allRows = [...googleRows, ...ceneoRows];
-
-    const competitorItems = allRows.map(tr => {
-        const storeName = tr.dataset.storeName;
-        const dataSource = tr.dataset.dataSource; // "Google" / "Ceneo"
-        const checkbox = tr.querySelector("input[type='checkbox']");
-        const useCompetitor = checkbox ? checkbox.checked : false;
-        return {
-            storeName,
-            isGoogle: (dataSource === "Google"),
-            useCompetitor
-        };
-    });
-
     const payload = {
-        storeId: storeId,
-        presetName,
-        nowInUse,
-        sourceGoogle,
-        sourceCeneo,
-        useUnmarkedStores,
-        competitorItems
+        presetId: window.currentPreset.presetId,
+        storeName,
+        isGoogle,
+        useCompetitor
     };
-
-    fetch("/PriceHistory/SaveCompetitorPreset", {
+    fetch("/PriceHistory/UpdateCompetitorItem", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)
     })
         .then(r => r.json())
         .then(data => {
-            if (data.success) {
-                alert(`Zapisano preset ID=${data.presetId}`);
-                // odśwież listę presetów
-                loadPresetList();
-            } else {
-                alert("Błąd przy zapisie preset-u");
+            if (!data.success) {
+                alert("Błąd zapisu: " + (data.message || ""));
+                return;
             }
+            if (!window.currentPreset.competitorItems) {
+                window.currentPreset.competitorItems = [];
+            }
+            let item = window.currentPreset.competitorItems.find(ci => ci.storeName === storeName && ci.isGoogle === isGoogle);
+            if (!item) {
+                item = { storeName, isGoogle, useCompetitor };
+                window.currentPreset.competitorItems.push(item);
+            } else {
+                item.useCompetitor = useCompetitor;
+            }
+            refreshRowColor(storeName, isGoogle);
         })
-        .catch(err => console.error("Błąd zapisu preset-u:", err));
+        .catch(err => console.error(err));
 }
+
+// KOLORY
+function markPresetCompetitors() {
+    document.querySelectorAll("#googleCompetitorsTableBody tr").forEach(tr => {
+        refreshRowColor(tr.dataset.storeName, true);
+    });
+    document.querySelectorAll("#ceneoCompetitorsTableBody tr").forEach(tr => {
+        refreshRowColor(tr.dataset.storeName, false);
+    });
+}
+
+function refreshRowColor(storeName, isGoogle) {
+    const ds = isGoogle ? "Google" : "Ceneo";
+    const row = document.querySelector(`tr[data-store-name="${storeName}"][data-data-source="${ds}"]`);
+    if (!row) return;
+
+    let item = null;
+    if (window.currentPreset && window.currentPreset.competitorItems) {
+        item = window.currentPreset.competitorItems.find(ci => ci.storeName === storeName && ci.isGoogle === isGoogle);
+    }
+    const useUnmarked = window.currentPreset ? window.currentPreset.useUnmarkedStores : true;
+
+    if (item) {
+        row.style.backgroundColor = item.useCompetitor ? "green" : "darkred";  // ciemnozielony/czerwony
+    } else {
+        row.style.backgroundColor = useUnmarked ? "lightgreen" : "lightcoral"; // jasnozielony/czerwony
+    }
+}
+
+// useUnmarkedStores
+document.addEventListener("DOMContentLoaded", function () {
+    const chk = document.getElementById("useUnmarkedStoresCheckbox");
+    if (!chk) return;
+    chk.addEventListener("change", async function () {
+        if (!window.currentPreset) return;
+        if (!window.currentPreset.presetId) {
+            window.currentPreset.useUnmarkedStores = this.checked;
+            markPresetCompetitors();
+            return;
+        }
+        const payload = {
+            presetId: window.currentPreset.presetId,
+            useUnmarkedStores: this.checked
+        };
+        try {
+            const resp = await fetch("/PriceHistory/SetUseUnmarkedStores", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            });
+            const data = await resp.json();
+            if (!data.success) {
+                alert("Błąd zapisu useUnmarkedStores");
+                return;
+            }
+            window.currentPreset.useUnmarkedStores = this.checked;
+            markPresetCompetitors();
+        } catch (err) {
+            console.error(err);
+        }
+    });
+});
+
+// DODAWANIE NOWEGO PRESETU
+document.addEventListener("DOMContentLoaded", function () {
+    const btnNew = document.getElementById("addNewPresetBtn");
+    if (!btnNew) return;
+    btnNew.addEventListener("click", async function () {
+        const presetName = prompt("Podaj nazwę nowego presetu:", "");
+        if (!presetName) return;
+
+        const payload = {
+            storeId: storeId,
+            presetName,
+            nowInUse: false,
+            sourceGoogle: true,
+            sourceCeneo: true,
+            useUnmarkedStores: true,
+            competitorItems: []
+        };
+        try {
+            const resp = await fetch("/PriceHistory/SaveCompetitorPreset", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            });
+            const data = await resp.json();
+            if (data.success) {
+                alert(`Utworzono nowy preset ID=${data.presetId}`);
+                const newPresets = await fetchPresets();
+                const presetSelect = document.getElementById("presetSelect");
+                if (!presetSelect) return;
+
+                presetSelect.innerHTML = "";
+                const baseOpt = document.createElement("option");
+                baseOpt.value = "BASE";
+                baseOpt.textContent = "(Widok bazowy)";
+                presetSelect.appendChild(baseOpt);
+
+                newPresets.forEach(p => {
+                    const opt = document.createElement("option");
+                    opt.value = p.presetId;
+                    opt.textContent = p.presetName + (p.nowInUse ? " [aktywny]" : "");
+                    presetSelect.appendChild(opt);
+                });
+                presetSelect.value = data.presetId;
+                await loadSelectedPreset();
+            } else {
+                alert("Błąd tworzenia nowego presetu");
+            }
+        } catch (err) {
+            console.error(err);
+        }
+    });
+});
+
+// ZMIANA NAZWY I NOWINUSE
+document.addEventListener("DOMContentLoaded", function () {
+    const editBtn = document.getElementById("editPresetBtn");
+    if (!editBtn) return;
+
+    editBtn.addEventListener("click", async function () {
+        if (!window.currentPreset || !window.currentPreset.presetId) {
+            alert("Widok bazowy lub brak wybranego presetu");
+            return;
+        }
+        const nameInput = document.getElementById("presetNameInput");
+        const nowInUseCheckbox = document.getElementById("nowInUseCheckbox");
+        if (!nameInput || !nowInUseCheckbox) return;
+
+        const newName = nameInput.value.trim();
+        const newNowInUse = nowInUseCheckbox.checked;
+
+        // Twój endpoint do zmiany nazwy i NowInUse
+        // np. /PriceHistory/UpdatePresetName
+        const payload = {
+            presetId: window.currentPreset.presetId,
+            presetName: newName,
+            nowInUse: newNowInUse,
+            // ewentualnie sourceGoogle, sourceCeneo – jeśli chcesz je też tam zmieniać
+        };
+        try {
+            // ZMIENIŁEŚ NAZWA. UWAGA: Twój endpoint musi istnieć, bo tu robimy fetch:
+            const resp = await fetch("/PriceHistory/UpdatePresetName", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            });
+            if (!resp.ok) {
+                // np. 404 => brak akcji
+                throw new Error("Status " + resp.status);
+            }
+            const data = await resp.json();
+            if (!data.success) {
+                alert("Błąd zapisu nazwy/NowInUse");
+                return;
+            }
+            alert("Zmieniono nazwę presetu!");
+
+            // Odśwież local
+            window.currentPreset.presetName = newName;
+            window.currentPreset.nowInUse = newNowInUse;
+
+            // Odśwież listę w <select>
+            const updatedPresets = await fetchPresets();
+            const presetSelect = document.getElementById("presetSelect");
+            if (!presetSelect) return;
+            presetSelect.innerHTML = "";
+
+            const baseOpt = document.createElement("option");
+            baseOpt.value = "BASE";
+            baseOpt.textContent = "(Widok bazowy)";
+            presetSelect.appendChild(baseOpt);
+
+            updatedPresets.forEach(p => {
+                const opt = document.createElement("option");
+                opt.value = p.presetId;
+                opt.textContent = p.presetName + (p.nowInUse ? " [aktywny]" : "");
+                presetSelect.appendChild(opt);
+            });
+
+            // Ustaw zaktualizowany preset jako wybrany
+            presetSelect.value = window.currentPreset.presetId;
+        } catch (err) {
+            console.error("Błąd zapisu nazwy", err);
+            alert("Błąd zapisu nazwy lub endpoint /UpdatePresetName nie istnieje!");
+        }
+    });
+});
