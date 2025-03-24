@@ -134,7 +134,7 @@
         notif.style.display = "block";
         globalNotificationTimeoutId = setTimeout(() => {
             notif.style.display = "none";
-        }, 5000);
+        }, 4000);
     }
 
     function showGlobalUpdate(message) {
@@ -160,7 +160,7 @@
         notif.style.display = "block";
         globalUpdateTimeoutId = setTimeout(() => {
             notif.style.display = "none";
-        }, 5000);
+        }, 4000);
     }
 
 

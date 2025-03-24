@@ -51,7 +51,7 @@
                 color: #4e4e4e;
             }
 
-            #sortingButtons button.active:hover, {
+            #sortingButtons button.active:hover {
                 background-color: #323232;
                 color: #e3e3e3;
                 cursor: pointer;
@@ -646,7 +646,7 @@
                     </button> *@
 
                     <button class="Button-Page-Small" id="updatePricesButton">API</button>
-                    <button class="Button-Page-Small" id="exportToExcelButton">Eksportuj widok</button>
+                    <button class="Button-Page-Small" id="exportToExcelButton">Eksportuj</button>
 
                     <div class="SimpleSpace">
                         <div class="SimpleHorizontal">
@@ -994,11 +994,16 @@
     <script>
         var storeId = '@storeId';
     </script>
-    <script>
-        var flags = @Html.Raw(JsonConvert.SerializeObject(ViewBag.Flags));
+    <script type="text/javascript">
+        var flags = (function(){
+            return @Html.Raw(JsonConvert.SerializeObject(ViewBag.Flags));
+        })();
     </script>
+
+
+
     <script src="~/js/member/PriceChange.js"></script>
-    <script src="~/js/member/CompetitorModal.js"></script>
+@*     <script src="~/js/member/CompetitorModal.js"></script> *@
     <script src="~/js/member/PriceHistory.js"></script>
     <script>
 
