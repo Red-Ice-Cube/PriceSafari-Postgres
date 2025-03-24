@@ -639,11 +639,11 @@
                         </select>
                     </div>
 
-                 
-                    <!-- Gdzieś obok guzik -->
+         @*         
+                  
                     <button type="button" onclick="openCompetitorsModal()">
                         Pokaż sklepy konkurencyjne
-                    </button>
+                    </button> *@
 
                     <button class="Button-Page-Small" id="updatePricesButton">API</button>
                     <button class="Button-Page-Small" id="exportToExcelButton">Eksportuj</button>
@@ -873,7 +873,6 @@
                     <button id="addNewPresetBtn">Dodaj nowy preset</button>
                 </div>
 
-                <!-- SEKCJA USTAWIEŃ PRESETU -->
                 <div id="newPresetSection" style="display:none; margin-bottom: 20px;">
                     <label>Nazwa presetu:</label>
                     <input type="text" id="presetNameInput" placeholder="np. Moja konfiguracja #1" />
@@ -888,17 +887,22 @@
                         Używaj nieoznaczonych sklepów
                     </label>
 
+                    <!-- Usuwamy <select id="sourceSelect">, a wstawiamy 2 checkboksy -->
                     <div style="margin-top:10px;">
-                        <label for="sourceSelect">Źródło danych (nasz sklep):</label>
-                        <select id="sourceSelect">
-                            <option value="All">All (Google + Ceneo)</option>
-                            <option value="Google">Tylko Google</option>
-                            <option value="Ceneo">Tylko Ceneo</option>
-                        </select>
+                        <label>
+                            <input type="checkbox" id="googleCheckbox" />
+                            Google Shopping
+                        </label>
+
+                        <label style="margin-left: 20px;">
+                            <input type="checkbox" id="ceneoCheckbox" />
+                            Ceneo
+                        </label>
                     </div>
 
                     <button id="editPresetBtn" type="button">Zmień nazwę</button>
                 </div>
+
 
                 <div style="display:flex; gap:150px;">
                     <div>
@@ -918,7 +922,6 @@
                     </div>
 
                     <div>
-                        <!-- TABELA dla konkurentów (Ceneo) -->
                         <div class="table-scroll">
                             <table class="table-orders">
                                 <thead>
@@ -939,7 +942,6 @@
         </div>
     </div>
 </div>
-
 
 
 

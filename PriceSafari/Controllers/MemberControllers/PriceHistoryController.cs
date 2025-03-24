@@ -719,10 +719,64 @@ namespace PriceSafari.Controllers.MemberControllers
 
 
 
+        // 1) Lista dostępnych presetów (bez detali)
+        [HttpGet]
+        public async Task<IActionResult> GetPresets(int storeId)
+        {
+            // Sprawdź uprawnienia
+            if (!await UserHasAccessToStore(storeId))
+            {
+                return BadRequest("Nie ma takiego sklepu lub brak dostępu.");
+            }
 
+            var presets = await _context.CompetitorPresets
+                .Where(p => p.StoreId == storeId)
+                .Select(p => new
+                {
+                    p.PresetId,
+                    p.PresetName,
+                    p.NowInUse
+                })
+                .ToListAsync();
 
+            return Json(presets);
+        }
 
+        // 2) Szczegółowe dane wybranego presetu
+        [HttpGet]
+        public async Task<IActionResult> GetPresetDetails(int presetId)
+        {
+            var preset = await _context.CompetitorPresets
+                .Include(p => p.CompetitorItems)
+                .FirstOrDefaultAsync(p => p.PresetId == presetId);
 
+            if (preset == null)
+                return NotFound("Preset nie istnieje.");
+
+            if (!await UserHasAccessToStore(preset.StoreId))
+                return BadRequest("Brak dostępu do sklepu.");
+
+            var result = new
+            {
+                presetId = preset.PresetId,
+                presetName = preset.PresetName,
+                nowInUse = preset.NowInUse,
+                sourceGoogle = preset.SourceGoogle,
+                sourceCeneo = preset.SourceCeneo,
+                useUnmarkedStores = preset.UseUnmarkedStores,
+                competitorItems = preset.CompetitorItems
+                    .Select(ci => new
+                    {
+                        ci.StoreName,
+                        ci.IsGoogle,
+                        ci.UseCompetitor
+                    }).ToList()
+            };
+
+            return Json(result);
+        }
+
+        // 3) Dla załadowania danych o konkurencji w ostatnim scrapie (bez zmian):
         [HttpGet]
         public async Task<IActionResult> GetCompetitorStoresData(int storeId, string ourSource = "All")
         {
@@ -737,7 +791,6 @@ namespace PriceSafari.Controllers.MemberControllers
                 .Select(s => s.StoreName)
                 .FirstOrDefaultAsync();
 
-            // Ostatni scrap
             var latestScrap = await _context.ScrapHistories
                 .Where(sh => sh.StoreId == storeId)
                 .OrderByDescending(sh => sh.Date)
@@ -750,7 +803,6 @@ namespace PriceSafari.Controllers.MemberControllers
                 return Json(new { data = new List<object>() });
             }
 
-            // Najpierw query "naszych wierszy"
             var myPricesQuery = _context.PriceHistories
                 .Where(ph => ph.ScrapHistoryId == latestScrap.Id
                           && ph.StoreName.ToLower() == storeName.ToLower());
@@ -766,35 +818,34 @@ namespace PriceSafari.Controllers.MemberControllers
                     break;
                 case "all":
                 default:
-                    // Bez filtrowania
+                    // bez filtrowania
                     break;
             }
 
-            // **Pobieramy tylko unikalne** ID produktów, żeby nie podwajać w razie Google + Ceneo
             var myProductIds = await myPricesQuery
                 .Select(ph => ph.ProductId)
-                .Distinct()           // klucz do uniknięcia dubli
+                .Distinct()
                 .ToListAsync();
 
-            // Konkurencja: wiersze, gdzie StoreName != nasz
+            // Konkurencja
             var competitorPrices = await _context.PriceHistories
                 .Where(ph => ph.ScrapHistoryId == latestScrap.Id
                           && ph.StoreName.ToLower() != storeName.ToLower())
                 .ToListAsync();
 
-            // Grupujemy konkurencję po (StoreName.ToLower(), IsGoogle)
             var competitors = competitorPrices
-                .GroupBy(ph => new { NormalizedName = ph.StoreName.ToLower(), IsGoogle = ph.IsGoogle })
+                .GroupBy(ph => new { NormalizedName = ph.StoreName.ToLower(), ph.IsGoogle })
                 .Select(g =>
                 {
                     var storeNameInGroup = g.First().StoreName;
                     bool isGoogle = g.Key.IsGoogle;
 
-                    // Zbiór ProductId w tej grupie konkurencji
-                    var competitorProductIds = g.Select(x => x.ProductId).Distinct();
+                    var competitorProductIds = g
+                        .Select(x => x.ProductId)
+                        .Distinct();
 
-                    // Liczba wspólnych to przecięcie z "moimi" ProductId
-                    int commonProductsCount = myProductIds.Count(pid => competitorProductIds.Contains(pid));
+                    int commonProductsCount = myProductIds
+                        .Count(pid => competitorProductIds.Contains(pid));
 
                     return new
                     {
@@ -803,7 +854,6 @@ namespace PriceSafari.Controllers.MemberControllers
                         CommonProductsCount = commonProductsCount
                     };
                 })
-                // Przykładowy filtr, np. >= 10 wspólnych
                 .Where(c => c.CommonProductsCount >= 10)
                 .OrderByDescending(c => c.CommonProductsCount)
                 .ToList();
@@ -811,238 +861,88 @@ namespace PriceSafari.Controllers.MemberControllers
             return Json(new { data = competitors });
         }
 
-
-
-        public class UpdateCompetitorItemDto
-        {
-            public int PresetId { get; set; }
-            public string StoreName { get; set; }
-            public bool IsGoogle { get; set; }
-            public bool UseCompetitor { get; set; }
-        }
-
-
-        [HttpGet]
-        public async Task<IActionResult> GetPresets(int storeId)
-        {
-            if (!await UserHasAccessToStore(storeId))
-            {
-                return BadRequest("Nie ma takiego sklepu lub brak dostępu.");
-            }
-
-            // Wybieramy listę presetów (bez wczytywania CompetitorItems)
-            var presets = await _context.CompetitorPresets
-                .Where(p => p.StoreId == storeId)
-                .Select(p => new
-                {
-                    p.PresetId,
-                    p.PresetName,
-                    p.NowInUse
-                })
-                .ToListAsync();
-
-            return Json(presets);
-        }
-
-        [HttpGet]
-        public async Task<IActionResult> GetPresetDetails(int presetId)
-        {
-            var preset = await _context.CompetitorPresets
-                .Include(p => p.CompetitorItems)
-                .FirstOrDefaultAsync(p => p.PresetId == presetId);
-
-            if (preset == null)
-                return NotFound("Preset nie istnieje.");
-
-            // Ewentualnie sprawdzasz, czy user ma dostęp do StoreId = preset.StoreId
-            if (!await UserHasAccessToStore(preset.StoreId))
-                return BadRequest("Brak dostępu do sklepu.");
-
-            var result = new
-            {
-                presetId = preset.PresetId,
-                presetName = preset.PresetName,
-                nowInUse = preset.NowInUse,
-                sourceGoogle = preset.SourceGoogle,
-                sourceCeneo = preset.SourceCeneo,
-                useUnmarkedStores = preset.UseUnmarkedStores,
-                competitorItems = preset.CompetitorItems.Select(ci => new
-                {
-                    ci.StoreName,
-                    ci.IsGoogle,
-                    ci.UseCompetitor
-                }).ToList()
-            };
-
-            return Json(result);
-        }
-
+        // 4) Tworzenie **lub** aktualizacja Presetu w jednym endpoincie
+        //    (jeśli presetId=0 -> tworzymy, inaczej -> aktualizujemy)
         [HttpPost]
-        public async Task<IActionResult> UpdateCompetitorItem([FromBody] UpdateCompetitorItemDto model)
-        {
-            // 1) Znajdź preset w bazie
-            var preset = await _context.CompetitorPresets
-                .Include(p => p.CompetitorItems)
-                .FirstOrDefaultAsync(p => p.PresetId == model.PresetId);
-
-            if (preset == null)
-                return Json(new { success = false, message = "Preset nie istnieje." });
-
-            if (!await UserHasAccessToStore(preset.StoreId))
-                return Json(new { success = false, message = "Brak dostępu do sklepu." });
-
-            // 2) Znajdź item
-            var item = preset.CompetitorItems
-                .FirstOrDefault(ci =>
-                    ci.StoreName.Equals(model.StoreName, StringComparison.OrdinalIgnoreCase)
-                    && ci.IsGoogle == model.IsGoogle
-                );
-
-            if (item == null)
-            {
-                // Tworzymy nowy
-                item = new CompetitorPresetItem
-                {
-                    StoreName = model.StoreName,
-                    IsGoogle = model.IsGoogle,
-                    UseCompetitor = model.UseCompetitor
-                };
-                preset.CompetitorItems.Add(item);
-            }
-            else
-            {
-                // Aktualizujemy
-                item.UseCompetitor = model.UseCompetitor;
-            }
-
-            // 3) Zapis do bazy
-            await _context.SaveChangesAsync();
-
-            return Json(new { success = true });
-        }
-
-        public class SetUseUnmarkedStoresDto
-        {
-            public int PresetId { get; set; }
-            public bool UseUnmarkedStores { get; set; }
-        }
-
-        [HttpPost]
-        public async Task<IActionResult> SetUseUnmarkedStores([FromBody] SetUseUnmarkedStoresDto model)
-        {
-            var preset = await _context.CompetitorPresets.FirstOrDefaultAsync(p => p.PresetId == model.PresetId);
-            if (preset == null)
-                return Json(new { success = false, message = "Preset nie istnieje." });
-            if (!await UserHasAccessToStore(preset.StoreId))
-                return Json(new { success = false, message = "Brak dostępu do sklepu." });
-
-            preset.UseUnmarkedStores = model.UseUnmarkedStores;
-            await _context.SaveChangesAsync();
-
-            return Json(new { success = true });
-        }
-
-        [HttpPost]
-        public async Task<IActionResult> SaveCompetitorPreset([FromBody] CompetitorPresetViewModel model)
+        public async Task<IActionResult> SaveOrUpdatePreset([FromBody] CompetitorPresetViewModel model)
         {
             if (!await UserHasAccessToStore(model.StoreId))
             {
-                return BadRequest("Nie ma takiego sklepu lub brak dostępu.");
+                return BadRequest("Brak dostępu do sklepu.");
             }
 
-            // Wyłącz inne presety z NowInUse, jeśli ten jest True
+            // Gdy presetId == 0 -> tworzymy nowy
+            CompetitorPresetClass preset;
+            if (model.PresetId == 0)
+            {
+                preset = new CompetitorPresetClass
+                {
+                    StoreId = model.StoreId,
+                };
+                _context.CompetitorPresets.Add(preset);
+            }
+            else
+            {
+                preset = await _context.CompetitorPresets
+                    .Include(p => p.CompetitorItems)
+                    .FirstOrDefaultAsync(p => p.PresetId == model.PresetId);
+
+                if (preset == null)
+                    return BadRequest("Taki preset nie istnieje.");
+
+                if (preset.StoreId != model.StoreId)
+                    return BadRequest("Błędny storeId dla tego presetu.");
+            }
+
+            // Ustaw podstawowe pola
+            preset.PresetName = string.IsNullOrWhiteSpace(model.PresetName)
+                ? "No Name"
+                : model.PresetName.Trim();
+
+            // Jeśli nowInUse=true -> wyłącz w innych
             if (model.NowInUse)
             {
-                var otherPresets = await _context.CompetitorPresets
-                    .Where(p => p.StoreId == model.StoreId && p.NowInUse == true)
+                var others = await _context.CompetitorPresets
+                    .Where(p => p.StoreId == model.StoreId && p.PresetId != model.PresetId && p.NowInUse)
                     .ToListAsync();
-                foreach (var op in otherPresets)
-                {
-                    op.NowInUse = false;
-                }
+
+                foreach (var o in others)
+                    o.NowInUse = false;
             }
+            preset.NowInUse = model.NowInUse;
 
-            var preset = new CompetitorPresetClass
-            {
-                StoreId = model.StoreId,
-                PresetName = model.PresetName ?? "No Name",
-                NowInUse = model.NowInUse,
-                SourceGoogle = model.SourceGoogle,
-                SourceCeneo = model.SourceCeneo,
-                UseUnmarkedStores = model.UseUnmarkedStores
-            };
+            preset.SourceGoogle = model.SourceGoogle;
+            preset.SourceCeneo = model.SourceCeneo;
+            preset.UseUnmarkedStores = model.UseUnmarkedStores;
 
-            // TYLKO jeżeli chcesz od razu zapisać ewentualne competitorItems:
+            // Aktualizacja competitorItems (jeśli przesłane)
+            // Możesz ustawić tak, że jeśli CompetitorItems == null, to ignorujesz,
+            // a jeśli != null, to nadpisujesz.
             if (model.Competitors != null)
             {
+                // Czyścimy istniejące
+                preset.CompetitorItems.Clear();
+
+                // Dodajemy z requesta
                 foreach (var c in model.Competitors)
                 {
-                    var item = new CompetitorPresetItem
+                    preset.CompetitorItems.Add(new CompetitorPresetItem
                     {
                         StoreName = c.StoreName,
                         IsGoogle = c.IsGoogle,
                         UseCompetitor = c.UseCompetitor
-                    };
-                    preset.CompetitorItems.Add(item);
+                    });
                 }
             }
 
-            // Zapis do bazy
-            _context.CompetitorPresets.Add(preset);
             await _context.SaveChangesAsync();
 
-            return Ok(new { success = true, presetId = preset.PresetId });
-        }
-
-
-
-
-        public class UpdatePresetNameDto
-        {
-            public int PresetId { get; set; }
-            public string PresetName { get; set; }
-            public bool NowInUse { get; set; }
-        }
-
-        [HttpPost]
-        public async Task<IActionResult> UpdatePresetName([FromBody] UpdatePresetNameDto model)
-        {
-            var preset = await _context.CompetitorPresets.FindAsync(model.PresetId);
-            if (preset == null)
+            return Ok(new
             {
-                return Json(new { success = false, message = "Preset nie istnieje." });
-            }
-
-            // sprawdź uprawnienia
-            if (!await UserHasAccessToStore(preset.StoreId))
-            {
-                return Json(new { success = false, message = "Brak dostępu do sklepu." });
-            }
-
-            preset.PresetName = model.PresetName ?? "No Name";
-
-            if (model.NowInUse)
-            {
-                // wyłącz nowInUse w innych presetach
-                var others = await _context.CompetitorPresets
-                    .Where(p => p.StoreId == preset.StoreId && p.NowInUse == true && p.PresetId != model.PresetId)
-                    .ToListAsync();
-                foreach (var o in others)
-                    o.NowInUse = false;
-            }
-
-            preset.NowInUse = model.NowInUse;
-
-            await _context.SaveChangesAsync();
-
-            return Json(new { success = true });
+                success = true,
+                presetId = preset.PresetId
+            });
         }
-
-
-
-
-
-
 
 
 
