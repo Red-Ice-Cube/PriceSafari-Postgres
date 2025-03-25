@@ -31,23 +31,36 @@ async function refreshPresetDropdown() {
     const newPresets = await fetchPresets();
     const presetSelect = document.getElementById("presetSelect");
     if (!presetSelect) return;
+
     presetSelect.innerHTML = "";
+
+    // Dla opcji widoku bazowego – jeśli currentPreset jest widokiem bazowym (presetId === null),
+    // dodajemy dopisek [aktywny]
     const baseOpt = document.createElement("option");
     baseOpt.value = "BASE";
-    baseOpt.textContent = "(Widok bazowy)";
+    if (!window.currentPreset || window.currentPreset.presetId === null) {
+        baseOpt.textContent = "(Widok bazowy) [aktywny]";
+    } else {
+        baseOpt.textContent = "(Widok bazowy)";
+    }
     presetSelect.appendChild(baseOpt);
+
+    // Dodajemy pozostałe presety
     newPresets.forEach(p => {
         const opt = document.createElement("option");
         opt.value = p.presetId;
         opt.textContent = p.presetName + (p.nowInUse ? " [aktywny]" : "");
         presetSelect.appendChild(opt);
     });
+
+    // Ustawiamy wybraną wartość – jeśli currentPreset posiada presetId, ustawiamy go, w przeciwnym razie BASE
     if (window.currentPreset && window.currentPreset.presetId) {
         presetSelect.value = window.currentPreset.presetId;
     } else {
         presetSelect.value = "BASE";
     }
 }
+
 
 // Ustawienie listenera dla dropdowna (ustawiony raz przy DOMContentLoaded)
 document.addEventListener("DOMContentLoaded", () => {
@@ -100,12 +113,19 @@ async function deactivateAllPresets() {
     }
 }
 
-function loadBaseView() {
+async function isAnyCustomPresetActive() {
+    const presets = await fetchPresets();
+    return presets.some(p => p.nowInUse === true);
+}
+
+async function loadBaseView() {
+
+    const customActive = await isAnyCustomPresetActive();
     window.currentPreset = {
         presetId: null,
         storeId: storeId,
         presetName: "(Widok bazowy)",
-        nowInUse: true,
+        nowInUse: !customActive,
         sourceGoogle: true,
         sourceCeneo: true,
         useUnmarkedStores: true,
@@ -136,18 +156,24 @@ function loadBaseView() {
         activateBtn.id = "activatePresetBtn";
         newPresetSection.appendChild(activateBtn);
     }
-    activateBtn.textContent = "Aktywny (Bazowy)";
-    activateBtn.disabled = false;
-    activateBtn.onclick = async function () {
-        // Wywołujemy funkcję deaktywującą wszystkie customowe presety
-        await deactivateAllPresets();
-        // Ustawiamy widok bazowy jako aktywny
-        loadBaseView();
-        refreshPresetDropdown();
-    };
+    if (window.currentPreset.nowInUse) {
+        // Jeśli żaden customowy preset nie jest aktywny, widok bazowy jest aktywny
+        activateBtn.textContent = "Aktywny";
+        activateBtn.disabled = true;
+    } else {
+        // Jeśli którykolwiek customowy preset jest aktywny, przycisk bazowy pokazuje "Ustaw jako aktywny"
+        activateBtn.textContent = "Ustaw jako aktywny";
+        activateBtn.disabled = false;
+        activateBtn.onclick = async function () {
+            await deactivateAllPresets();  // wywołaj metodę, która dezaktywuje wszystkie customowe presety
+            await loadBaseView();
+            await refreshPresetDropdown();
+        };
+    }
 
     loadCompetitors("All");
 }
+
 
 // Ładuje szczegóły customowego presetu
 async function loadSelectedPreset(presetId) {
@@ -179,6 +205,8 @@ async function loadSelectedPreset(presetId) {
 
         document.getElementById("newPresetSection").style.display = "block";
         document.getElementById("presetNameInput").value = preset.presetName || "";
+        document.getElementById("presetNameInput").disabled = false;
+
 
         // Dynamiczny przycisk aktywacji dla customowego presetu
         let activateBtn = document.getElementById("activatePresetBtn");
@@ -203,9 +231,16 @@ async function loadSelectedPreset(presetId) {
 
         // Ustaw checkboxy źródeł – dla customowych widoków umożliwiamy zmianę
         const googleChk = document.getElementById("googleCheckbox");
-        if (googleChk) googleChk.checked = !!preset.sourceGoogle;
+        if (googleChk) {
+            googleChk.checked = !!preset.sourceGoogle;
+            googleChk.disabled = false; // umożliwiamy zmianę
+        }
         const ceneoChk = document.getElementById("ceneoCheckbox");
-        if (ceneoChk) ceneoChk.checked = !!preset.sourceCeneo;
+        if (ceneoChk) {
+            ceneoChk.checked = !!preset.sourceCeneo;
+            ceneoChk.disabled = false; // umożliwiamy zmianę
+        }
+
         // Dla customowego widoku umożliwiamy zmianę opcji "używaj nieoznaczonych sklepów"
         const useUnmarkedStoresCheckbox = document.getElementById("useUnmarkedStoresCheckbox");
         useUnmarkedStoresCheckbox.checked = window.currentPreset.useUnmarkedStores;
@@ -406,6 +441,33 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 });
+
+document.addEventListener("DOMContentLoaded", () => {
+    const googleChk = document.getElementById("googleCheckbox");
+    const ceneoChk = document.getElementById("ceneoCheckbox");
+    if (googleChk && ceneoChk) {
+        function onSourceChange() {
+            // Dla widoku bazowego checkboxy są zablokowane – nic nie zmieniamy
+            if (!window.currentPreset || window.currentPreset.presetId === null) {
+                const val = determineSourceVal(googleChk.checked, ceneoChk.checked);
+                loadCompetitors(val);
+                return;
+            }
+            // Dla customowych presetów aktualizujemy właściwości
+            window.currentPreset.sourceGoogle = googleChk.checked;
+            window.currentPreset.sourceCeneo = ceneoChk.checked;
+            // Zapisujemy zmiany, a następnie przeładowujemy dane sklepów wg nowego ustawienia źródła
+            saveOrUpdatePreset().then(() => {
+                const sourceVal = determineSourceVal(googleChk.checked, ceneoChk.checked);
+                loadCompetitors(sourceVal);
+            });
+        }
+        googleChk.addEventListener("change", onSourceChange);
+        ceneoChk.addEventListener("change", onSourceChange);
+    }
+});
+
+
 
 // Zapis lub aktualizacja presetu (tylko dla customowych widoków)
 async function saveOrUpdatePreset() {
