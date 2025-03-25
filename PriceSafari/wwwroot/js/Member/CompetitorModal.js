@@ -1,5 +1,17 @@
-﻿// Globalny obiekt widoku
+﻿
 window.currentPreset = null;
+
+
+
+function showLoading() {
+    document.getElementById("loadingOverlay").style.display = "flex";
+}
+
+function hideLoading() {
+    document.getElementById("loadingOverlay").style.display = "none";
+}
+
+
 
 window.openCompetitorsModal = async function () {
     await refreshPresetDropdown();
@@ -18,7 +30,9 @@ window.openCompetitorsModal = async function () {
         loadBaseView();
     }
 
-    $('#competitorModal').modal('show');
+    const competitorModal = document.getElementById("competitorModal");
+    competitorModal.style.display = 'block';
+    competitorModal.classList.add('show');
 };
 
 
@@ -85,21 +99,25 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    // Listener dla checkboxa "używaj nieoznaczonych sklepów"
     const useUnmarkedStoresCheckbox = document.getElementById("useUnmarkedStoresCheckbox");
     if (useUnmarkedStoresCheckbox) {
-        useUnmarkedStoresCheckbox.addEventListener("change", function () {
+        useUnmarkedStoresCheckbox.addEventListener("change", async function () {
             // Dla widoku bazowego – tylko odświeżamy UI
             if (!window.currentPreset || window.currentPreset.presetId === null) {
                 if (window.currentPreset) {
                     window.currentPreset.useUnmarkedStores = this.checked;
+                    showLoading();
                     markPresetCompetitors();
+                    hideLoading();
                 }
                 return;
             }
             // Dla customowych widoków: aktualizujemy wartość, zapisujemy i odświeżamy kolory
             window.currentPreset.useUnmarkedStores = this.checked;
-            saveOrUpdatePreset().then(() => markPresetCompetitors());
+            showLoading();
+            await saveOrUpdatePreset();
+            markPresetCompetitors();
+            hideLoading();
         });
     }
 });
@@ -127,91 +145,96 @@ async function isAnyCustomPresetActive() {
     const presets = await fetchPresets();
     return presets.some(p => p.nowInUse === true);
 }
+
+
+
 async function loadBaseView() {
-    // Sprawdzamy, czy istnieje jakikolwiek aktywny customowy preset
-    const customActive = await isAnyCustomPresetActive();
+    showLoading(); // Pokazujemy spinner
+    try {
+        const customActive = await isAnyCustomPresetActive();
 
-    // Jeśli customActive === true, oznacza to, że widok bazowy nie jest aktywny
-    window.currentPreset = {
-        presetId: null,
-        storeId: storeId,
-        presetName: "PriceSafari - Wszystkie Dane",
-        nowInUse: !customActive, // kluczowa zmiana – bazowy jest aktywny tylko, gdy nie ma aktywnych customów
-        sourceGoogle: true,
-        sourceCeneo: true,
-        useUnmarkedStores: true,
-        competitors: []
-    };
-
-    const newPresetSection = document.getElementById("newPresetSection");
-    newPresetSection.style.display = "block";
-
-    // Ukrywamy pole nazwy oraz przycisk edycji dla widoku bazowego
-    const presetNameInput = document.getElementById("presetNameInput");
-    if (presetNameInput) {
-        presetNameInput.style.display = "none";
-    }
-    const editBtn = document.getElementById("editPresetBtn");
-    if (editBtn) {
-        editBtn.style.display = "none";
-    }
-
-    const deleteBtn = document.getElementById("deletePresetBtn");
-    if (deleteBtn) {
-        deleteBtn.style.display = "none";
-    }
-
-    // Ustawiamy pozostałe elementy jako read-only
-    const googleCheckbox = document.getElementById("googleCheckbox");
-    googleCheckbox.checked = window.currentPreset.sourceGoogle;
-    googleCheckbox.disabled = true;
-
-    const ceneoCheckbox = document.getElementById("ceneoCheckbox");
-    ceneoCheckbox.checked = window.currentPreset.sourceCeneo;
-    ceneoCheckbox.disabled = true;
-
-    const useUnmarkedStoresCheckbox = document.getElementById("useUnmarkedStoresCheckbox");
-    useUnmarkedStoresCheckbox.checked = window.currentPreset.useUnmarkedStores;
-    useUnmarkedStoresCheckbox.disabled = true;
-
-    // Dynamiczny przycisk aktywacji dla widoku bazowego
-    let activateBtn = document.getElementById("activatePresetBtn");
-    if (!activateBtn) {
-        activateBtn = document.createElement("button");
-        activateBtn.id = "activatePresetBtn";
-        newPresetSection.appendChild(activateBtn);
-    }
-
-    // Jeśli widok bazowy jest aktywny (nowInUse: true), blokujemy przycisk i wyświetlamy "Aktywny"
-    // W przeciwnym razie – "Ustaw jako aktywny" (klikalny).
-    if (window.currentPreset.nowInUse) {
-        activateBtn.textContent = "Aktywny";
-        activateBtn.disabled = true;
-    } else {
-        activateBtn.textContent = "Ustaw jako aktywny";
-        activateBtn.disabled = false;
-        activateBtn.onclick = async function () {
-            // Deaktywujemy customowe presety
-            await deactivateAllPresets();
-            // Ładujemy ponownie widok bazowy (teraz będzie active)
-            await loadBaseView();
-            // Odświeżamy dropdown
-            await refreshPresetDropdown();
+        // Ustawiamy widok bazowy
+        window.currentPreset = {
+            presetId: null,
+            storeId: storeId,
+            presetName: "PriceSafari - Wszystkie Dane",
+            nowInUse: !customActive, // Bazowy aktywny tylko, gdy nie ma custom presetów
+            sourceGoogle: true,
+            sourceCeneo: true,
+            useUnmarkedStores: true,
+            competitors: []
         };
-    }
 
-    // Ładujemy sklepy (All)
-    loadCompetitors("All");
+        const newPresetSection = document.getElementById("newPresetSection");
+        newPresetSection.style.display = "block";
+
+        // Ukrywamy pola edycji dla widoku bazowego
+        const presetNameInput = document.getElementById("presetNameInput");
+        if (presetNameInput) {
+            presetNameInput.style.display = "none";
+        }
+        const editBtn = document.getElementById("editPresetBtn");
+        if (editBtn) {
+            editBtn.style.display = "none";
+        }
+        const deleteBtn = document.getElementById("deletePresetBtn");
+        if (deleteBtn) {
+            deleteBtn.style.display = "none";
+        }
+
+        // Ustawiamy elementy jako read-only
+        const googleCheckbox = document.getElementById("googleCheckbox");
+        googleCheckbox.checked = window.currentPreset.sourceGoogle;
+        googleCheckbox.disabled = true;
+        const ceneoCheckbox = document.getElementById("ceneoCheckbox");
+        ceneoCheckbox.checked = window.currentPreset.sourceCeneo;
+        ceneoCheckbox.disabled = true;
+        const useUnmarkedStoresCheckbox = document.getElementById("useUnmarkedStoresCheckbox");
+        useUnmarkedStoresCheckbox.checked = window.currentPreset.useUnmarkedStores;
+        useUnmarkedStoresCheckbox.disabled = true;
+
+        // Dynamiczny przycisk aktywacji dla widoku bazowego
+        let activateBtn = document.getElementById("activatePresetBtn");
+        if (!activateBtn) {
+            activateBtn = document.createElement("button");
+            activateBtn.id = "activatePresetBtn";
+            newPresetSection.appendChild(activateBtn);
+        }
+        if (window.currentPreset.nowInUse) {
+            activateBtn.textContent = "Aktywny";
+            activateBtn.disabled = true;
+        } else {
+            activateBtn.textContent = "Ustaw jako aktywny";
+            activateBtn.disabled = false;
+            activateBtn.onclick = async function () {
+                // Deaktywujemy customowe presety
+                await deactivateAllPresets();
+                // Ładujemy ponownie widok bazowy (teraz jako aktywny)
+                await loadBaseView();
+                // Odświeżamy dropdown
+                await refreshPresetDropdown();
+            };
+        }
+
+        // Ładujemy dane sklepów – zakładamy, że loadCompetitors jest asynchroniczna
+        await loadCompetitors("All");
+    } catch (err) {
+        console.error("loadBaseView error", err);
+    } finally {
+        hideLoading(); // Ukrywamy spinner po zakończeniu wszystkich operacji
+    }
 }
 
 
 async function loadSelectedPreset(presetId) {
+    showLoading();
     if (!presetId) {
         const presetSelect = document.getElementById("presetSelect");
         if (presetSelect) presetId = presetSelect.value;
     }
     if (!presetId || presetId === "BASE") {
-        loadBaseView();
+        await loadBaseView();
+        hideLoading();
         return;
     }
     try {
@@ -234,7 +257,7 @@ async function loadSelectedPreset(presetId) {
 
         document.getElementById("newPresetSection").style.display = "block";
 
-        // Pokazujemy pole nazwy i przycisk edycji dla customowego presetu
+        // Ustawianie pól formularza
         const presetNameInput = document.getElementById("presetNameInput");
         if (presetNameInput) {
             presetNameInput.style.display = "block";
@@ -246,7 +269,7 @@ async function loadSelectedPreset(presetId) {
             editBtn.style.display = "inline-block";
         }
 
-        // Dynamiczny przycisk aktywacji dla customowego presetu
+        // Konfiguracja przycisku aktywacji
         let activateBtn = document.getElementById("activatePresetBtn");
         if (!activateBtn) {
             activateBtn = document.createElement("button");
@@ -267,7 +290,7 @@ async function loadSelectedPreset(presetId) {
             };
         }
 
-        // Dodajemy przycisk "Usuń preset" (tylko dla customowych presetów)
+        // Konfiguracja przycisku usuwania (dla customowych presetów)
         let deleteBtn = document.getElementById("deletePresetBtn");
         if (!deleteBtn) {
             deleteBtn = document.createElement("button");
@@ -286,10 +309,9 @@ async function loadSelectedPreset(presetId) {
                     if (data.success) {
                         alert("Preset został usunięty.");
                         await refreshPresetDropdown();
-                        // Ustawiamy dropdown na widok bazowy
                         const presetSelect = document.getElementById("presetSelect");
                         presetSelect.value = "BASE";
-                        loadBaseView();
+                        await loadBaseView();
                     } else {
                         alert("Błąd usuwania presetu: " + (data.message || ""));
                     }
@@ -299,8 +321,7 @@ async function loadSelectedPreset(presetId) {
             }
         };
 
-
-        // Ustaw checkboxy źródeł – dla customowych widoków umożliwiamy zmianę
+        // Ustawienie checkboxów
         const googleChk = document.getElementById("googleCheckbox");
         if (googleChk) {
             googleChk.checked = !!preset.sourceGoogle;
@@ -311,17 +332,19 @@ async function loadSelectedPreset(presetId) {
             ceneoChk.checked = !!preset.sourceCeneo;
             ceneoChk.disabled = false;
         }
-        // Dla customowego widoku umożliwiamy zmianę opcji "używaj nieoznaczonych sklepów"
         const useUnmarkedStoresCheckbox = document.getElementById("useUnmarkedStoresCheckbox");
         useUnmarkedStoresCheckbox.checked = window.currentPreset.useUnmarkedStores;
         useUnmarkedStoresCheckbox.disabled = false;
 
         const sourceVal = determineSourceVal(!!preset.sourceGoogle, !!preset.sourceCeneo);
-        loadCompetitors(sourceVal);
+        await loadCompetitors(sourceVal);
     } catch (err) {
         console.error("loadSelectedPreset error", err);
+    } finally {
+        hideLoading();
     }
 }
+
 
 
 // Ustalanie filtra dla pobierania danych sklepów
@@ -332,31 +355,32 @@ function determineSourceVal(isGoogle, isCeneo) {
     return "All";
 }
 
-// Ładuje dane sklepów i wypełnia tabele
-function loadCompetitors(ourSource) {
-    const url = `/PriceHistory/GetCompetitorStoresData?storeId=${storeId}&ourSource=${ourSource}`;
-    fetch(url)
-        .then(r => r.json())
-        .then(data => {
-            if (!data.data) {
-                console.warn("Brak data");
-                return;
-            }
-            const googleData = data.data.filter(x => x.dataSource === "Google");
-            const ceneoData = data.data.filter(x => x.dataSource === "Ceneo");
+async function loadCompetitors(ourSource) {
+    try {
+        const url = `/PriceHistory/GetCompetitorStoresData?storeId=${storeId}&ourSource=${ourSource}`;
+        const response = await fetch(url);
+        const data = await response.json();
+        if (!data.data) {
+            console.warn("Brak data");
+            return;
+        }
+        const googleData = data.data.filter(x => x.dataSource === "Google");
+        const ceneoData = data.data.filter(x => x.dataSource === "Ceneo");
 
-            const gBody = document.getElementById("googleCompetitorsTableBody");
-            const cBody = document.getElementById("ceneoCompetitorsTableBody");
-            if (gBody) gBody.innerHTML = "";
-            if (cBody) cBody.innerHTML = "";
+        const gBody = document.getElementById("googleCompetitorsTableBody");
+        const cBody = document.getElementById("ceneoCompetitorsTableBody");
+        if (gBody) gBody.innerHTML = "";
+        if (cBody) cBody.innerHTML = "";
 
-            googleData.forEach(i => gBody.appendChild(createRow(i)));
-            ceneoData.forEach(i => cBody.appendChild(createRow(i)));
+        googleData.forEach(i => gBody.appendChild(createRow(i)));
+        ceneoData.forEach(i => cBody.appendChild(createRow(i)));
 
-            markPresetCompetitors();
-        })
-        .catch(err => console.error(err));
+        markPresetCompetitors();
+    } catch (err) {
+        console.error(err);
+    }
 }
+
 
 // Tworzy wiersz w tabeli z danymi o sklepie
 function createRow(item) {
@@ -456,14 +480,17 @@ function refreshRowColor(storeName, isGoogle) {
         row.style.backgroundColor = useUnmarked ? "lightgreen" : "lightcoral";
     }
 }
-
-// Dodanie nowego presetu
 document.addEventListener("DOMContentLoaded", () => {
     const btnNew = document.getElementById("addNewPresetBtn");
     if (!btnNew) return;
     btnNew.addEventListener("click", async function () {
-        const presetName = prompt("Podaj nazwę nowego presetu:", "");
+        let presetName = prompt("Podaj nazwę nowego presetu (max 40 znaków):", "");
         if (!presetName) return;
+        presetName = presetName.trim();
+        if (presetName.length > 40) {
+            presetName = presetName.substring(0, 40);
+            alert("Nazwa została przycięta do 40 znaków.");
+        }
         const newPreset = {
             presetId: 0,
             storeId: storeId,
@@ -495,6 +522,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 });
 
+
 // Aktualizacja nazwy presetu (customowych widoków)
 document.addEventListener("DOMContentLoaded", () => {
     const nameInput = document.getElementById("presetNameInput");
@@ -513,25 +541,28 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 });
 
+// Listener dla checkboxów źródeł: Google i Ceneo
 document.addEventListener("DOMContentLoaded", () => {
     const googleChk = document.getElementById("googleCheckbox");
     const ceneoChk = document.getElementById("ceneoCheckbox");
     if (googleChk && ceneoChk) {
-        function onSourceChange() {
-            // Dla widoku bazowego checkboxy są zablokowane – nic nie zmieniamy
+        async function onSourceChange() {
+            // Dla widoku bazowego – tylko zmieniamy dane konkurencji
             if (!window.currentPreset || window.currentPreset.presetId === null) {
                 const val = determineSourceVal(googleChk.checked, ceneoChk.checked);
-                loadCompetitors(val);
+                showLoading();
+                await loadCompetitors(val);
+                hideLoading();
                 return;
             }
-            // Dla customowych presetów aktualizujemy właściwości
+            // Dla customowych presetów aktualizujemy właściwości, zapisujemy i ładujemy konkurentów
             window.currentPreset.sourceGoogle = googleChk.checked;
             window.currentPreset.sourceCeneo = ceneoChk.checked;
-            // Zapisujemy zmiany, a następnie przeładowujemy dane sklepów wg nowego ustawienia źródła
-            saveOrUpdatePreset().then(() => {
-                const sourceVal = determineSourceVal(googleChk.checked, ceneoChk.checked);
-                loadCompetitors(sourceVal);
-            });
+            showLoading();
+            await saveOrUpdatePreset();
+            const sourceVal = determineSourceVal(googleChk.checked, ceneoChk.checked);
+            await loadCompetitors(sourceVal);
+            hideLoading();
         }
         googleChk.addEventListener("change", onSourceChange);
         ceneoChk.addEventListener("change", onSourceChange);
@@ -562,13 +593,44 @@ async function saveOrUpdatePreset() {
     }
 }
 
-// Obsługa przycisków zamykania modala
-var closeButtons = document.querySelectorAll('#competitorModal .close, #competitorModal [data-dismiss="modal"]');
-closeButtons.forEach(function (btn) {
-    btn.addEventListener('click', function () {
-        var competitorModal = document.getElementById("competitorModal");
-        competitorModal.style.display = 'none';
-        competitorModal.classList.remove('show');
-        loadPrices();
+
+
+
+
+document.addEventListener('click', function (event) {
+    const modal = document.getElementById('competitorModal');
+    if (modal.classList.contains('show')) {
+        const dialog = modal.querySelector('.modal-simulation');
+        if (!dialog.contains(event.target)) {
+            // Kliknieto w tło - zamykamy
+            modal.style.display = 'none';
+            modal.classList.remove('show');
+            loadPrices();
+        }
+    }
+});
+
+document.addEventListener('keydown', function (event) {
+    if (event.key === "Escape") {
+        const modal = document.getElementById('competitorModal');
+        if (modal.classList.contains('show')) {
+            modal.style.display = 'none';
+            modal.classList.remove('show');
+            loadPrices();
+        }
+    }
+});
+
+document.addEventListener("DOMContentLoaded", function () {
+    // Nasłuchujemy kliknięć na całym modalu i sprawdzamy, czy kliknięto element z atrybutem data-dismiss="modal"
+    const competitorModal = document.getElementById("competitorModal");
+    competitorModal.addEventListener("click", function (event) {
+        // Szukamy najbliższego elementu, który posiada data-dismiss="modal"
+        const closeBtn = event.target.closest("[data-dismiss='modal']");
+        if (closeBtn) {
+            competitorModal.style.display = "none";
+            competitorModal.classList.remove("show");
+            loadPrices();
+        }
     });
 });
