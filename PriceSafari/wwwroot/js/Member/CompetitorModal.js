@@ -25,8 +25,6 @@ async function fetchPresets() {
         return [];
     }
 }
-
-// Odświeża dropdown z listą presetów – przebudowuje opcje, listener ustawiony raz
 async function refreshPresetDropdown() {
     const newPresets = await fetchPresets();
     const presetSelect = document.getElementById("presetSelect");
@@ -34,14 +32,16 @@ async function refreshPresetDropdown() {
 
     presetSelect.innerHTML = "";
 
-    // Dla opcji widoku bazowego – jeśli currentPreset jest widokiem bazowym (presetId === null),
-    // dodajemy dopisek [aktywny]
+    // Sprawdzamy, czy istnieje jakikolwiek aktywny customowy preset
+    const anyActive = newPresets.some(p => p.nowInUse === true);
+
+    // Dla widoku bazowego w zależności od wyniku powyższego sprawdzenia
     const baseOpt = document.createElement("option");
     baseOpt.value = "BASE";
-    if (!window.currentPreset || window.currentPreset.presetId === null) {
-        baseOpt.textContent = "(Widok bazowy) [aktywny]";
+    if (!anyActive) {
+        baseOpt.textContent = "PriceSafari - Wszystkie Dane [aktywny]";
     } else {
-        baseOpt.textContent = "(Widok bazowy)";
+        baseOpt.textContent = "PriceSafari - Wszystkie Dane";
     }
     presetSelect.appendChild(baseOpt);
 
@@ -53,13 +53,15 @@ async function refreshPresetDropdown() {
         presetSelect.appendChild(opt);
     });
 
-    // Ustawiamy wybraną wartość – jeśli currentPreset posiada presetId, ustawiamy go, w przeciwnym razie BASE
+    // Ustawiamy wybraną wartość – jeśli currentPreset posiada presetId, ustawiamy go,
+    // w przeciwnym razie wybieramy "BASE".
     if (window.currentPreset && window.currentPreset.presetId) {
         presetSelect.value = window.currentPreset.presetId;
     } else {
         presetSelect.value = "BASE";
     }
 }
+
 
 
 // Ustawienie listenera dla dropdowna (ustawiony raz przy DOMContentLoaded)
@@ -117,15 +119,16 @@ async function isAnyCustomPresetActive() {
     const presets = await fetchPresets();
     return presets.some(p => p.nowInUse === true);
 }
-
 async function loadBaseView() {
-
+    // Sprawdzamy, czy istnieje jakikolwiek aktywny customowy preset
     const customActive = await isAnyCustomPresetActive();
+
+    // Jeśli customActive === true, oznacza to, że widok bazowy nie jest aktywny
     window.currentPreset = {
         presetId: null,
         storeId: storeId,
-        presetName: "(Widok bazowy)",
-        nowInUse: !customActive,
+        presetName: "PriceSafari - Wszystkie Dane",
+        nowInUse: !customActive, // kluczowa zmiana – bazowy jest aktywny tylko, gdy nie ma aktywnych customów
         sourceGoogle: true,
         sourceCeneo: true,
         useUnmarkedStores: true,
@@ -135,19 +138,28 @@ async function loadBaseView() {
     const newPresetSection = document.getElementById("newPresetSection");
     newPresetSection.style.display = "block";
 
+    // Ukrywamy pole nazwy oraz przycisk edycji dla widoku bazowego
     const presetNameInput = document.getElementById("presetNameInput");
-    presetNameInput.value = window.currentPreset.presetName;
-    presetNameInput.disabled = true;
+    if (presetNameInput) {
+        presetNameInput.style.display = "none";
+    }
+    const editBtn = document.getElementById("editPresetBtn");
+    if (editBtn) {
+        editBtn.style.display = "none";
+    }
 
+    // Ustawiamy pozostałe elementy jako read-only
     const googleCheckbox = document.getElementById("googleCheckbox");
     googleCheckbox.checked = window.currentPreset.sourceGoogle;
     googleCheckbox.disabled = true;
+
     const ceneoCheckbox = document.getElementById("ceneoCheckbox");
     ceneoCheckbox.checked = window.currentPreset.sourceCeneo;
     ceneoCheckbox.disabled = true;
+
     const useUnmarkedStoresCheckbox = document.getElementById("useUnmarkedStoresCheckbox");
     useUnmarkedStoresCheckbox.checked = window.currentPreset.useUnmarkedStores;
-    useUnmarkedStoresCheckbox.disabled = true; // dla widoku bazowego opcja jest stała
+    useUnmarkedStoresCheckbox.disabled = true;
 
     // Dynamiczny przycisk aktywacji dla widoku bazowego
     let activateBtn = document.getElementById("activatePresetBtn");
@@ -156,26 +168,29 @@ async function loadBaseView() {
         activateBtn.id = "activatePresetBtn";
         newPresetSection.appendChild(activateBtn);
     }
+
+    // Jeśli widok bazowy jest aktywny (nowInUse: true), blokujemy przycisk i wyświetlamy "Aktywny"
+    // W przeciwnym razie – "Ustaw jako aktywny" (klikalny).
     if (window.currentPreset.nowInUse) {
-        // Jeśli żaden customowy preset nie jest aktywny, widok bazowy jest aktywny
         activateBtn.textContent = "Aktywny";
         activateBtn.disabled = true;
     } else {
-        // Jeśli którykolwiek customowy preset jest aktywny, przycisk bazowy pokazuje "Ustaw jako aktywny"
         activateBtn.textContent = "Ustaw jako aktywny";
         activateBtn.disabled = false;
         activateBtn.onclick = async function () {
-            await deactivateAllPresets();  // wywołaj metodę, która dezaktywuje wszystkie customowe presety
+            // Deaktywujemy customowe presety
+            await deactivateAllPresets();
+            // Ładujemy ponownie widok bazowy (teraz będzie active)
             await loadBaseView();
+            // Odświeżamy dropdown
             await refreshPresetDropdown();
         };
     }
 
+    // Ładujemy sklepy (All)
     loadCompetitors("All");
 }
 
-
-// Ładuje szczegóły customowego presetu
 async function loadSelectedPreset(presetId) {
     if (!presetId) {
         const presetSelect = document.getElementById("presetSelect");
@@ -204,9 +219,18 @@ async function loadSelectedPreset(presetId) {
         };
 
         document.getElementById("newPresetSection").style.display = "block";
-        document.getElementById("presetNameInput").value = preset.presetName || "";
-        document.getElementById("presetNameInput").disabled = false;
 
+        // Przy customowym presecie pokazujemy pole nazwy oraz przycisk edycji
+        const presetNameInput = document.getElementById("presetNameInput");
+        if (presetNameInput) {
+            presetNameInput.style.display = "block";
+            presetNameInput.value = preset.presetName || "";
+            presetNameInput.disabled = false;
+        }
+        const editBtn = document.getElementById("editPresetBtn");
+        if (editBtn) {
+            editBtn.style.display = "inline-block";
+        }
 
         // Dynamiczny przycisk aktywacji dla customowego presetu
         let activateBtn = document.getElementById("activatePresetBtn");
@@ -233,14 +257,13 @@ async function loadSelectedPreset(presetId) {
         const googleChk = document.getElementById("googleCheckbox");
         if (googleChk) {
             googleChk.checked = !!preset.sourceGoogle;
-            googleChk.disabled = false; // umożliwiamy zmianę
+            googleChk.disabled = false;
         }
         const ceneoChk = document.getElementById("ceneoCheckbox");
         if (ceneoChk) {
             ceneoChk.checked = !!preset.sourceCeneo;
-            ceneoChk.disabled = false; // umożliwiamy zmianę
+            ceneoChk.disabled = false;
         }
-
         // Dla customowego widoku umożliwiamy zmianę opcji "używaj nieoznaczonych sklepów"
         const useUnmarkedStoresCheckbox = document.getElementById("useUnmarkedStoresCheckbox");
         useUnmarkedStoresCheckbox.checked = window.currentPreset.useUnmarkedStores;
@@ -342,7 +365,7 @@ function createRow(item) {
 // Dodaje lub usuwa sklep z listy competitorów i zapisuje zmiany
 function toggleCompetitorUsage(storeName, isGoogle, useCompetitor) {
     if (!window.currentPreset || !window.currentPreset.presetId) {
-        alert("Widok bazowy – nie zapisujemy do bazy.");
+        alert("Stwórz własny preset, aby wprowadzać zmiany.");
         return;
     }
     let comp = window.currentPreset.competitors.find(c =>
@@ -431,13 +454,13 @@ document.addEventListener("DOMContentLoaded", () => {
     if (editBtn) {
         editBtn.addEventListener("click", async function () {
             if (!window.currentPreset || !window.currentPreset.presetId) {
-                alert("Widok bazowy lub brak wybranego presetu");
+                alert("Nie można zmienić nazwy presetu.");
                 return;
             }
             window.currentPreset.presetName = nameInput.value.trim();
             await saveOrUpdatePreset();
             await refreshPresetDropdown();
-            alert("Zmieniono nazwę presetu!");
+            alert("Zmieniono nazwę presetu.");
         });
     }
 });
