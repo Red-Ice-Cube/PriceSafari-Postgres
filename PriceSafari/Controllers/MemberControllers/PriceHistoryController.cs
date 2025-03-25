@@ -443,7 +443,7 @@ namespace PriceSafari.Controllers.MemberControllers
         //                 int countStoresWithAbsoluteLowest = validPrices
         //                     .Count(x => x.Price.HasValue && x.Price.Value == absoluteLowestPrice);
 
-                      
+
         //                 if (countStoresWithAbsoluteLowest == 1)
         //                 {
         //                     // Znajdź drugą najniższą cenę
@@ -530,6 +530,570 @@ namespace PriceSafari.Controllers.MemberControllers
 
 
         //}
+
+
+        [HttpGet]
+        public async Task<IActionResult> GetPrices(
+    int? storeId,
+    string competitorStore = null,
+    string source = "All")
+        {
+            if (storeId == null)
+            {
+                return Json(new
+                {
+                    productCount = 0,
+                    priceCount = 0,
+                    myStoreName = "",
+                    prices = new List<object>(),
+                    missedProductsCount = 0,
+                    setPrice1 = 2.00m,
+                    setPrice2 = 2.00m
+                });
+            }
+
+            if (!await UserHasAccessToStore(storeId.Value))
+            {
+                return Json(new { error = "Nie ma takiego sklepu" });
+            }
+
+            // 1. Pobieramy najnowszą historię scrapu
+            var latestScrap = await _context.ScrapHistories
+                .Where(sh => sh.StoreId == storeId)
+                .OrderByDescending(sh => sh.Date)
+                .Select(sh => new { sh.Id, sh.Date })
+                .FirstOrDefaultAsync();
+
+            if (latestScrap == null)
+            {
+                return Json(new
+                {
+                    productCount = 0,
+                    priceCount = 0,
+                    myStoreName = "",
+                    prices = new List<object>(),
+                    missedProductsCount = 0,
+                    setPrice1 = 2.00m,
+                    setPrice2 = 2.00m
+                });
+            }
+
+            // 2. Nazwa naszego sklepu
+            var storeName = await _context.Stores
+                .Where(s => s.StoreId == storeId)
+                .Select(s => s.StoreName)
+                .FirstOrDefaultAsync();
+
+            // 3. Pobieramy ustawienia cenowe
+            var priceValues = await _context.PriceValues
+                .Where(pv => pv.StoreId == storeId)
+                .Select(pv => new
+                {
+                    pv.SetPrice1,
+                    pv.SetPrice2,
+                    pv.PriceStep,
+                    pv.UsePriceDiff,
+                    pv.UseMarginForSimulation,
+                    pv.EnforceMinimalMargin,
+                    pv.MinimalMarginPercent
+                })
+                .FirstOrDefaultAsync() ?? new
+                {
+                    SetPrice1 = 2.00m,
+                    SetPrice2 = 2.00m,
+                    PriceStep = 2.00m,
+                    UsePriceDiff = true,
+                    UseMarginForSimulation = true,
+                    EnforceMinimalMargin = true,
+                    MinimalMarginPercent = 0.00m
+                };
+
+            // 4. Budujemy podstawowe zapytanie do bazy (IsScrapable, najnowszy scrap).
+            //    Używamy klasy PriceRowDto, aby uniknąć problemów z anonimowymi typami.
+            var baseQuery = from p in _context.Products
+                            where p.StoreId == storeId && p.IsScrapable
+                            join ph in _context.PriceHistories
+                                .Where(ph => ph.ScrapHistoryId == latestScrap.Id)
+                                on p.ProductId equals ph.ProductId into phGroup
+                            from ph in phGroup.DefaultIfEmpty()
+                            select new PriceRowDto
+                            {
+                                ProductId = p.ProductId,
+                                ProductName = p.ProductName,
+                                Price = (ph != null ? ph.Price : (decimal?)null),
+                                StoreName = (ph != null ? ph.StoreName : null),
+                                ScrapHistoryId = (ph != null ? ph.ScrapHistoryId : (int?)null),
+                                Position = (ph != null ? ph.Position : (int?)null),
+                                IsBidding = ph != null ? ph.IsBidding : null,
+                                IsGoogle = (ph != null ? ph.IsGoogle : (bool?)null),
+                                AvailabilityNum = (ph != null ? ph.AvailabilityNum : (int?)null),
+                                IsRejected = p.IsRejected
+                            };
+
+            // 5. Czy mamy aktywny preset?
+            var activePreset = await _context.CompetitorPresets
+                .Include(x => x.CompetitorItems)
+                .FirstOrDefaultAsync(cp => cp.StoreId == storeId && cp.NowInUse);
+
+            if (activePreset != null)
+            {
+                // 6A. Jeśli jest preset -> w BAZIE filtrujemy Google/Ceneo wg preset (SourceGoogle, SourceCeneo).
+                if (!activePreset.SourceGoogle)
+                {
+                    // wykluczamy IsGoogle==true
+                    baseQuery = baseQuery.Where(p => p.IsGoogle != true);
+                }
+                if (!activePreset.SourceCeneo)
+                {
+                    // wykluczamy IsGoogle==false lub null
+                    baseQuery = baseQuery.Where(p => p.IsGoogle == true);
+                }
+            }
+            else
+            {
+                // 6B. Jeśli **brak** presetu -> filtrujemy po `source` jak w starym kodzie
+                if (!string.IsNullOrEmpty(source))
+                {
+                    switch (source.ToLower())
+                    {
+                        case "ceneo":
+                            // IsGoogle == false lub null
+                            baseQuery = baseQuery.Where(p => p.IsGoogle == false || p.IsGoogle == null);
+                            break;
+                        case "google":
+                            // IsGoogle == true
+                            baseQuery = baseQuery.Where(p => p.IsGoogle == true);
+                            break;
+                        case "all":
+                            // brak dodatkowego filtra
+                            break;
+                        default:
+                            return Json(new { error = "Invalid source parameter" });
+                    }
+                }
+
+                // Obsługujemy competitorStore tak, jak w starym kodzie,
+                // tzn. bierzemy oferty z nazwy naszego sklepu (storeName) LUB competitorStore
+                if (!string.IsNullOrEmpty(competitorStore))
+                {
+                    var storeNameLower = storeName.ToLower().Trim();
+                    var competitorNameLower = competitorStore.ToLower().Trim();
+
+                    baseQuery = baseQuery.Where(p =>
+                        (p.StoreName != null && p.StoreName.ToLower() == storeNameLower)
+                        || (p.StoreName != null && p.StoreName.ToLower() == competitorNameLower)
+                    );
+                }
+            }
+
+            // 7. Ściągamy dane do pamięci
+            var rawPrices = await baseQuery.ToListAsync(); // List<PriceRowDto>
+
+            // 8. Jeśli jest preset -> filtrujemy w pamięci wg UseCompetitor, UseUnmarkedStores
+            if (activePreset != null)
+            {
+                var competitorItemsDict = activePreset.CompetitorItems
+                    .GroupBy(ci => new {
+                        Store = ci.StoreName.ToLower().Trim(),
+                        Source = ci.IsGoogle // bool
+                    })
+                    .Select(g => g.First())
+                    .ToDictionary(
+                        x => new {
+                            Store = x.StoreName.ToLower().Trim(),
+                            Source = x.IsGoogle
+                        },
+                        x => x.UseCompetitor
+                    );
+
+                var storeNameLower = storeName.ToLower().Trim();
+                var filteredPrices = new List<PriceRowDto>();
+
+                foreach (var row in rawPrices)
+                {
+                    // Zawsze nasz sklep
+                    if (row.StoreName != null && row.StoreName.ToLower().Trim() == storeNameLower)
+                    {
+                        filteredPrices.Add(row);
+                        continue;
+                    }
+
+                    // Klucz do dictionary
+                    bool googleFlag = (row.IsGoogle == true);
+                    var key = new
+                    {
+                        Store = (row.StoreName ?? "").ToLower().Trim(),
+                        Source = googleFlag
+                    };
+
+                    if (competitorItemsDict.TryGetValue(key, out bool useCompetitor))
+                    {
+                        // Jeśli w presecie mamy zdefiniowane -> bierzemy tylko gdy useCompetitor = true
+                        if (useCompetitor) filteredPrices.Add(row);
+                    }
+                    else
+                    {
+                        // Nieopisany sklep: sprawdzamy UseUnmarkedStores
+                        if (activePreset.UseUnmarkedStores)
+                            filteredPrices.Add(row);
+                    }
+                }
+
+                rawPrices = filteredPrices;
+            }
+
+            // 9. Pobieramy flagi
+            var storeFlags = await _context.Flags
+                .Where(f => f.StoreId == storeId)
+                .ToListAsync();
+
+            var productFlagsDictionary = storeFlags
+                .SelectMany(flag => _context.ProductFlags
+                    .Where(pf => pf.FlagId == flag.FlagId)
+                    .Select(pf => new { pf.ProductId, pf.FlagId })
+                )
+                .GroupBy(pf => pf.ProductId)
+                .ToDictionary(
+                    g => g.Key,
+                    g => g.Select(pf => pf.FlagId).ToList()
+                );
+
+            // 10. Pobieramy info z external
+            var productsWithExternalInfo = await _context.Products
+                .Where(p => p.StoreId == storeId && p.ExternalId.HasValue)
+                .Select(p => new
+                {
+                    p.ProductId,
+                    p.ExternalId,
+                    p.ExternalPrice,
+                    p.MainUrl,
+                    p.MarginPrice,
+                    p.Ean
+                })
+                .ToListAsync();
+
+            var productExternalInfoDictionary = productsWithExternalInfo
+                .ToDictionary(
+                    p => p.ProductId,
+                    p => new
+                    {
+                        p.ExternalId,
+                        p.ExternalPrice,
+                        p.MainUrl,
+                        p.MarginPrice,
+                        p.Ean
+                    }
+                );
+
+            // 11. Liczymy finalne 'allPrices' (grupujemy i obliczamy bestPrice itd.)
+            var allPrices = rawPrices
+                .GroupBy(p => p.ProductId)
+                .Select(g =>
+                {
+                    var product = g.First();
+                    var storeCount = g
+                        .Select(x => x.StoreName)
+                        .Where(s => s != null)
+                        .Distinct()
+                        .Count();
+
+                    bool sourceGoogle = g.Any(x => x.IsGoogle == true);
+                    bool sourceCeneo = g.Any(x => x.IsGoogle == false);
+
+                    // "nasza" oferta
+                    var myPriceEntries = g.Where(x =>
+                        x.StoreName != null &&
+                        x.StoreName.ToLower() == storeName.ToLower()
+                    );
+                    var myPriceEntry = myPriceEntries
+                        .OrderByDescending(x => x.IsGoogle == false)
+                        .FirstOrDefault();
+
+                    // oferty z ceną
+                    var validPrices = g.Where(x => x.Price.HasValue).ToList();
+
+                    bool onlyMe = validPrices.Count() > 0 &&
+                                  validPrices.All(x =>
+                                      x.StoreName != null &&
+                                      x.StoreName.ToLower() == storeName.ToLower()
+                                  );
+
+                    // Najniższa
+                    var bestPriceEntry = validPrices
+                        .OrderBy(x => x.Price)
+                        .ThenBy(x => x.StoreName)
+                        .ThenByDescending(x => x.IsGoogle == false)
+                        .FirstOrDefault();
+
+                    decimal? bestPrice = bestPriceEntry?.Price;
+                    decimal? myPrice = myPriceEntry?.Price ?? bestPrice;
+                    decimal? priceDifference = null;
+                    decimal? percentageDifference = null;
+                    decimal? savings = null;
+                    bool isUniqueBestPrice = false;
+                    int? myPosition = myPriceEntry?.Position;
+                    int? myDelivery = myPriceEntry?.AvailabilityNum;
+                    bool isRejectedDueToZeroPrice = false;
+
+                    if (product.IsRejected || bestPrice == 0 || myPrice == 0)
+                    {
+                        percentageDifference = null;
+                        priceDifference = null;
+                        savings = null;
+                        isUniqueBestPrice = false;
+                        isRejectedDueToZeroPrice = true;
+                    }
+                    else if (bestPrice.HasValue && myPrice.HasValue)
+                    {
+                        var secondBestPrice = validPrices
+                            .Where(x => x.Price > myPrice)
+                            .OrderBy(x => x.Price)
+                            .FirstOrDefault()?.Price ?? myPrice;
+
+                        var bestPriceEntries = validPrices
+                            .Where(x => x.Price == bestPrice)
+                            .ToList();
+
+                        bool allBestFromMyStore = bestPriceEntries.All(x =>
+                            x.StoreName != null &&
+                            x.StoreName.ToLower() == storeName.ToLower()
+                        );
+
+                        if (myPrice == bestPrice)
+                        {
+                            if (allBestFromMyStore || bestPriceEntries.Count() == 1)
+                            {
+                                isUniqueBestPrice = true;
+                                if (secondBestPrice > myPrice)
+                                {
+                                    var secondBestPriceEntry = validPrices
+                                        .FirstOrDefault(x => x.Price == secondBestPrice);
+                                    if (secondBestPriceEntry != null)
+                                    {
+                                        bestPrice = secondBestPrice;
+                                        bestPriceEntry = secondBestPriceEntry;
+                                        savings = Math.Round(secondBestPrice.Value - myPrice.Value, 2);
+                                        percentageDifference = Math.Round(
+                                            (secondBestPrice.Value - myPrice.Value) / myPrice.Value * 100, 2
+                                        );
+                                        priceDifference = Math.Round(myPrice.Value - secondBestPrice.Value, 2);
+                                    }
+                                    else
+                                    {
+                                        savings = Math.Round(secondBestPrice.Value - bestPrice.Value, 2);
+                                        percentageDifference = Math.Round(
+                                            (secondBestPrice.Value - myPrice.Value) / myPrice.Value * 100, 2
+                                        );
+                                        priceDifference = Math.Round(myPrice.Value - bestPrice.Value, 2);
+                                    }
+                                }
+                                else
+                                {
+                                    savings = null;
+                                    percentageDifference = 0;
+                                    priceDifference = 0;
+                                }
+                            }
+                            else
+                            {
+                                // Remis z innym sklepem
+                                isUniqueBestPrice = false;
+                                savings = null;
+                                priceDifference = Math.Round(myPrice.Value - bestPrice.Value, 2);
+                                if (bestPrice.Value > 0)
+                                {
+                                    percentageDifference = Math.Round(
+                                        (myPrice.Value - bestPrice.Value) / bestPrice.Value * 100, 2
+                                    );
+                                }
+                            }
+                        }
+                        else
+                        {
+                            // My mamy wyższą cenę
+                            isUniqueBestPrice = false;
+                            priceDifference = Math.Round(myPrice.Value - bestPrice.Value, 2);
+                            if (bestPrice.Value > 0)
+                            {
+                                percentageDifference = Math.Round(
+                                    (myPrice.Value - bestPrice.Value) / bestPrice.Value * 100, 2
+                                );
+                            }
+                            savings = null;
+                        }
+
+                        var tiedBestPriceEntries = validPrices
+                            .Where(x => x.Price == bestPrice)
+                            .ToList();
+
+                        if (tiedBestPriceEntries.Count() > 1 &&
+                            tiedBestPriceEntries.Any(e => e.StoreName != null && e.StoreName.ToLower() == storeName.ToLower()))
+                        {
+                            var nonMyBest = tiedBestPriceEntries.FirstOrDefault(x => x.StoreName != null && x.StoreName.ToLower() != storeName.ToLower());
+                            if (nonMyBest != null)
+                            {
+                                bestPriceEntry = nonMyBest;
+                            }
+                        }
+                        
+                    }
+
+                    if (onlyMe)
+                    {
+                        isUniqueBestPrice = false;
+                    }
+
+                    productFlagsDictionary.TryGetValue(g.Key, out var flagIds);
+                    flagIds = flagIds ?? new List<int>();
+
+                    var finalBestPriceEntries = validPrices
+                        .Where(x => x.Price == bestPrice)
+                        .ToList();
+
+                    int externalBestPriceCount = finalBestPriceEntries.Count();
+                    if (myPrice < bestPrice)
+                    {
+                        externalBestPriceCount = 0;
+                    }
+
+                    // SingleBestCheaperDiff
+                    decimal? singleBestCheaperDiff = null;
+                    decimal? singleBestCheaperDiffPerc = null;
+
+                    decimal? absoluteLowestPrice = validPrices
+                        .Where(x => x.Price.HasValue)
+                        .Select(x => x.Price.Value)
+                        .DefaultIfEmpty(0m)
+                        .Min();
+
+                    if (myPrice.HasValue && myPrice.Value > 0 && absoluteLowestPrice > 0)
+                    {
+                        if (myPrice.Value > absoluteLowestPrice)
+                        {
+                            int countStoresWithAbsoluteLowest = validPrices
+                                .Count(x => x.Price.HasValue && x.Price.Value == absoluteLowestPrice);
+
+                            if (countStoresWithAbsoluteLowest == 1)
+                            {
+                                var secondLowestPrice = validPrices
+                                    .Where(x => x.Price.HasValue && x.Price.Value > absoluteLowestPrice)
+                                    .Select(x => x.Price.Value)
+                                    .OrderBy(x => x)
+                                    .FirstOrDefault();
+
+                                if (secondLowestPrice > 0)
+                                {
+                                    singleBestCheaperDiff = Math.Round(
+                                        secondLowestPrice - absoluteLowestPrice.Value, 2
+                                    );
+                                    var diffPercent = (
+                                        (secondLowestPrice - absoluteLowestPrice.Value)
+                                        / secondLowestPrice
+                                    ) * 100;
+                                    singleBestCheaperDiffPerc = Math.Round(diffPercent, 2);
+                                }
+                            }
+                        }
+                    }
+
+                    // Budujemy obiekt anonimowy
+                    return new
+                    {
+                        ProductId = product.ProductId,
+                        ProductName = product.ProductName,
+                        LowestPrice = bestPrice,
+                        StoreName = bestPriceEntry?.StoreName,
+                        MyPrice = myPriceEntry?.Price,
+                        ScrapId = bestPriceEntry?.ScrapHistoryId,
+                        PriceDifference = priceDifference,
+                        PercentageDifference = percentageDifference,
+                        Savings = savings,
+                        IsSharedBestPrice = (
+                            myPrice == bestPrice &&
+                            validPrices.Count(x => x.Price == bestPrice) > 1 &&
+                            !validPrices
+                                .Where(x => x.Price == bestPrice)
+                                .All(x =>
+                                    x.StoreName != null &&
+                                    x.StoreName.ToLower() == storeName.ToLower()
+                                )
+                        ),
+                        IsUniqueBestPrice = isUniqueBestPrice,
+                        OnlyMe = onlyMe,
+                        ExternalBestPriceCount = externalBestPriceCount,
+                        IsBidding = bestPriceEntry?.IsBidding,
+                        IsGoogle = bestPriceEntry?.IsGoogle,
+                        Position = bestPriceEntry?.Position,
+                        MyIsBidding = myPriceEntry?.IsBidding,
+                        MyIsGoogle = myPriceEntry?.IsGoogle,
+                        MyPosition = myPosition,
+                        FlagIds = flagIds,
+                        Delivery = bestPriceEntry?.AvailabilityNum,
+                        MyDelivery = myDelivery,
+                        ExternalId = productExternalInfoDictionary.ContainsKey(g.Key)
+                            ? productExternalInfoDictionary[g.Key].ExternalId
+                            : null,
+                        ExternalPrice = productExternalInfoDictionary.ContainsKey(g.Key)
+                            ? productExternalInfoDictionary[g.Key].ExternalPrice
+                            : null,
+                        MarginPrice = productExternalInfoDictionary.ContainsKey(g.Key)
+                            ? productExternalInfoDictionary[g.Key].MarginPrice
+                            : null,
+                        ImgUrl = productExternalInfoDictionary.ContainsKey(g.Key)
+                            ? productExternalInfoDictionary[g.Key].MainUrl
+                            : null,
+                        Ean = productExternalInfoDictionary.ContainsKey(g.Key)
+                            ? productExternalInfoDictionary[g.Key].Ean
+                            : null,
+                        IsRejected = product.IsRejected || isRejectedDueToZeroPrice,
+                        StoreCount = storeCount,
+                        SourceGoogle = sourceGoogle,
+                        SourceCeneo = sourceCeneo,
+                        SingleBestCheaperDiff = singleBestCheaperDiff,
+                        SingleBestCheaperDiffPerc = singleBestCheaperDiffPerc
+                    };
+                })
+                .Where(p => p != null)
+                .ToList();
+
+            var missedProductsCount = allPrices.Count(p => p.IsRejected);
+
+            // Zwracamy finalne dane
+           
+            return Json(new
+            {
+                productCount = allPrices.Count(),
+                priceCount = rawPrices.Count(),
+                myStoreName = storeName,
+                prices = allPrices,
+                missedProductsCount = missedProductsCount,
+                setPrice1 = priceValues.SetPrice1,
+                setPrice2 = priceValues.SetPrice2,
+                stepPrice = priceValues.PriceStep,
+                usePriceDiff = priceValues.UsePriceDiff,
+                useMarginForSimulation = priceValues.UseMarginForSimulation,
+                enforceMinimalMargin = priceValues.EnforceMinimalMargin,
+                minimalMarginPercent = priceValues.MinimalMarginPercent
+            });
+               
+        }
+
+  
+        public class PriceRowDto
+        {
+            public int ProductId { get; set; }
+            public string ProductName { get; set; }
+            public decimal? Price { get; set; }
+            public string StoreName { get; set; }
+            public int? ScrapHistoryId { get; set; }
+            public int? Position { get; set; }
+            public string IsBidding { get; set; }
+
+            public bool? IsGoogle { get; set; }
+            public int? AvailabilityNum { get; set; }
+            public bool IsRejected { get; set; }
+        }
+
 
 
 
@@ -663,61 +1227,6 @@ namespace PriceSafari.Controllers.MemberControllers
         {
             public decimal Price { get; set; }
         }
-
-
-
-        [HttpGet]
-        public async Task<IActionResult> GetStores(int? storeId)
-        {
-            if (storeId == null)
-            {
-                return Json(new List<string>());
-            }
-
-            if (!await UserHasAccessToStore(storeId.Value))
-            {
-                return Json(new List<string>());
-            }
-
-            var latestScrap = await _context.ScrapHistories
-                .Where(sh => sh.StoreId == storeId)
-                .OrderByDescending(sh => sh.Date)
-                .FirstOrDefaultAsync();
-
-            if (latestScrap == null)
-            {
-                return Json(new List<string>());
-            }
-
-            var stores = await _context.PriceHistories
-                .Where(ph => ph.ScrapHistoryId == latestScrap.Id)
-                .Select(ph => ph.StoreName)
-                .Distinct()
-                .ToListAsync();
-
-            return Json(stores);
-        }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -1587,6 +2096,12 @@ namespace PriceSafari.Controllers.MemberControllers
             public bool UseMarginForSimulation { get; set; }
             public bool EnforceMinimalMargin { get; set; }
             public decimal MinimalMarginPercent { get; set; }
+        }
+        // Replace the anonymous type declaration with a named type to ensure type consistency
+        public class CompetitorKey
+        {
+            public string Store { get; set; }
+            public bool Source { get; set; }
         }
 
     }

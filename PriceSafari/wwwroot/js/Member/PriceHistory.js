@@ -12,7 +12,6 @@
         minimalMarginPercent: 0.00
     };
     let selectedProductId = null;
-    let competitorStore = "";
     let selectedFlags = new Set();
    
     let sortingState = {
@@ -408,25 +407,7 @@
         filterPricesAndUpdateUI();
     }, 300);
 
-    function loadStores() {
-        fetch(`/PriceHistory/GetStores?storeId=${storeId}`)
-            .then(response => response.json())
-            .then(stores => {
-                const storeSelect = document.getElementById('competitorStoreSelect');
-                stores.forEach(store => {
-                    const option = document.createElement('option');
-                    option.value = store;
-                    option.text = store;
-                    storeSelect.appendChild(option);
-                });
-
-                storeSelect.addEventListener('change', function () {
-                    competitorStore = this.value;
-                    loadPrices();
-                });
-            })
-            .catch(error => console.error('Error fetching stores:', error));
-    }
+   
 
 
 
@@ -463,8 +444,8 @@
     function loadPrices() {
         showLoading();
 
-        const source = document.getElementById('sourceSelect').value;
-        fetch(`/PriceHistory/GetPrices?storeId=${storeId}&competitorStore=${encodeURIComponent(competitorStore)}&source=${encodeURIComponent(source)}`)
+      
+        fetch(`/PriceHistory/GetPrices?storeId=${storeId}`)
             .then(response => response.json())
             .then(response => {
                 myStoreName = response.myStoreName;
@@ -2433,11 +2414,7 @@
         debouncedFilterPrices();
     });
 
-    document.getElementById('sourceSelect').addEventListener('change', function () {
-        loadStores();
-        loadPrices();
-    });
-
+    
     const exportButton = document.getElementById("exportToExcelButton");
     if (exportButton) {
         exportButton.addEventListener("click", exportToExcelXLSX);
@@ -2577,7 +2554,7 @@
         return flagsContainer;
     }
 
-    loadStores();
+ 
     loadPrices();
 
     function showLoading() {
