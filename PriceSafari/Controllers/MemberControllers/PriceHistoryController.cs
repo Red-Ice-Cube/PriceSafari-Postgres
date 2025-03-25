@@ -1481,6 +1481,31 @@ namespace PriceSafari.Controllers.MemberControllers
             return Ok(new { success = true });
         }
 
+        [HttpPost]
+        public async Task<IActionResult> DeletePreset(int presetId)
+        {
+            // Pobierz preset wraz z powiązanymi elementami
+            var preset = await _context.CompetitorPresets
+                .Include(p => p.CompetitorItems)
+                .FirstOrDefaultAsync(p => p.PresetId == presetId);
+
+            if (preset == null)
+                return NotFound("Preset nie istnieje.");
+
+            // Sprawdź uprawnienia do sklepu, do którego należy preset
+            if (!await UserHasAccessToStore(preset.StoreId))
+                return BadRequest("Brak dostępu do sklepu.");
+
+            // Usuwamy powiązania – jeśli nie korzystamy z kaskadowego usuwania
+            _context.CompetitorPresetItems.RemoveRange(preset.CompetitorItems);
+
+            // Usuwamy główny rekord presetu
+            _context.CompetitorPresets.Remove(preset);
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new { success = true });
+        }
 
 
 

@@ -1,18 +1,26 @@
 ﻿// Globalny obiekt widoku
 window.currentPreset = null;
 
-// Otwarcie modala i ładowanie presetów
 window.openCompetitorsModal = async function () {
     await refreshPresetDropdown();
-    // Ustawienie widoku na podstawie wybranej opcji
     const presetSelect = document.getElementById("presetSelect");
-    if (presetSelect.value === "BASE") {
-        loadBaseView();
+
+    // Szukamy aktywnego customowego presetu
+    const activeOption = Array.from(presetSelect.options).find(opt =>
+        opt.value !== "BASE" && opt.textContent.includes("[aktywny]")
+    );
+
+    if (activeOption) {
+        presetSelect.value = activeOption.value;
+        await loadSelectedPreset(activeOption.value);
     } else {
-        await loadSelectedPreset(presetSelect.value);
+        presetSelect.value = "BASE";
+        loadBaseView();
     }
+
     $('#competitorModal').modal('show');
 };
+
 
 // Pobiera listę presetów z backendu
 async function fetchPresets() {
@@ -148,6 +156,11 @@ async function loadBaseView() {
         editBtn.style.display = "none";
     }
 
+    const deleteBtn = document.getElementById("deletePresetBtn");
+    if (deleteBtn) {
+        deleteBtn.style.display = "none";
+    }
+
     // Ustawiamy pozostałe elementy jako read-only
     const googleCheckbox = document.getElementById("googleCheckbox");
     googleCheckbox.checked = window.currentPreset.sourceGoogle;
@@ -191,6 +204,7 @@ async function loadBaseView() {
     loadCompetitors("All");
 }
 
+
 async function loadSelectedPreset(presetId) {
     if (!presetId) {
         const presetSelect = document.getElementById("presetSelect");
@@ -220,7 +234,7 @@ async function loadSelectedPreset(presetId) {
 
         document.getElementById("newPresetSection").style.display = "block";
 
-        // Przy customowym presecie pokazujemy pole nazwy oraz przycisk edycji
+        // Pokazujemy pole nazwy i przycisk edycji dla customowego presetu
         const presetNameInput = document.getElementById("presetNameInput");
         if (presetNameInput) {
             presetNameInput.style.display = "block";
@@ -253,6 +267,39 @@ async function loadSelectedPreset(presetId) {
             };
         }
 
+        // Dodajemy przycisk "Usuń preset" (tylko dla customowych presetów)
+        let deleteBtn = document.getElementById("deletePresetBtn");
+        if (!deleteBtn) {
+            deleteBtn = document.createElement("button");
+            deleteBtn.id = "deletePresetBtn";
+            deleteBtn.textContent = "Usuń preset";
+            document.getElementById("newPresetSection").appendChild(deleteBtn);
+        }
+        deleteBtn.style.display = "inline-block";
+        deleteBtn.onclick = async function () {
+            if (confirm("Czy na pewno chcesz usunąć ten preset?")) {
+                try {
+                    const resp = await fetch(`/PriceHistory/DeletePreset?presetId=${window.currentPreset.presetId}`, {
+                        method: "POST"
+                    });
+                    const data = await resp.json();
+                    if (data.success) {
+                        alert("Preset został usunięty.");
+                        await refreshPresetDropdown();
+                        // Ustawiamy dropdown na widok bazowy
+                        const presetSelect = document.getElementById("presetSelect");
+                        presetSelect.value = "BASE";
+                        loadBaseView();
+                    } else {
+                        alert("Błąd usuwania presetu: " + (data.message || ""));
+                    }
+                } catch (err) {
+                    console.error("deletePreset error", err);
+                }
+            }
+        };
+
+
         // Ustaw checkboxy źródeł – dla customowych widoków umożliwiamy zmianę
         const googleChk = document.getElementById("googleCheckbox");
         if (googleChk) {
@@ -275,6 +322,7 @@ async function loadSelectedPreset(presetId) {
         console.error("loadSelectedPreset error", err);
     }
 }
+
 
 // Ustalanie filtra dla pobierania danych sklepów
 function determineSourceVal(isGoogle, isCeneo) {
