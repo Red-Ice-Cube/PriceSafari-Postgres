@@ -1,7 +1,8 @@
-﻿
+﻿/*****************************************************
+ * CAŁY KOD JAVASCRIPT (z uwzględnionymi zmianami)
+ *****************************************************/
+
 window.currentPreset = null;
-
-
 
 function showLoading() {
     document.getElementById("loadingOverlay").style.display = "flex";
@@ -10,8 +11,6 @@ function showLoading() {
 function hideLoading() {
     document.getElementById("loadingOverlay").style.display = "none";
 }
-
-
 
 window.openCompetitorsModal = async function () {
     await refreshPresetDropdown();
@@ -35,7 +34,6 @@ window.openCompetitorsModal = async function () {
     competitorModal.classList.add('show');
 };
 
-
 // Pobiera listę presetów z backendu
 async function fetchPresets() {
     const url = `/PriceHistory/GetPresets?storeId=${storeId}`;
@@ -47,6 +45,7 @@ async function fetchPresets() {
         return [];
     }
 }
+
 async function refreshPresetDropdown() {
     const newPresets = await fetchPresets();
     const presetSelect = document.getElementById("presetSelect");
@@ -84,8 +83,6 @@ async function refreshPresetDropdown() {
     }
 }
 
-
-
 // Ustawienie listenera dla dropdowna (ustawiony raz przy DOMContentLoaded)
 document.addEventListener("DOMContentLoaded", () => {
     const presetSelect = document.getElementById("presetSelect");
@@ -122,13 +119,8 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 });
 
-
-
-
-
 async function deactivateAllPresets() {
     try {
-       
         const resp = await fetch(`/PriceHistory/DeactivateAllPresets?storeId=${storeId}`, {
             method: "POST"
         });
@@ -145,8 +137,6 @@ async function isAnyCustomPresetActive() {
     const presets = await fetchPresets();
     return presets.some(p => p.nowInUse === true);
 }
-
-
 
 async function loadBaseView() {
     showLoading(); // Pokazujemy spinner
@@ -216,15 +206,14 @@ async function loadBaseView() {
             };
         }
 
-        // Ładujemy dane sklepów – zakładamy, że loadCompetitors jest asynchroniczna
+    
         await loadCompetitors("All");
     } catch (err) {
         console.error("loadBaseView error", err);
     } finally {
-        hideLoading(); // Ukrywamy spinner po zakończeniu wszystkich operacji
+        hideLoading(); 
     }
 }
-
 
 async function loadSelectedPreset(presetId) {
     showLoading();
@@ -346,8 +335,6 @@ async function loadSelectedPreset(presetId) {
 }
 
 
-
-// Ustalanie filtra dla pobierania danych sklepów
 function determineSourceVal(isGoogle, isCeneo) {
     if (isGoogle && isCeneo) return "All";
     if (isGoogle) return "Google";
@@ -382,9 +369,12 @@ async function loadCompetitors(ourSource) {
 }
 
 
-// Tworzy wiersz w tabeli z danymi o sklepie
 function createRow(item) {
     const tr = document.createElement("tr");
+
+  
+    tr.dataset.originalStoreName = item.storeName;
+    tr.dataset.storeName = item.storeName; 
 
     const tdStore = document.createElement("td");
     tdStore.textContent = item.storeName;
@@ -411,6 +401,7 @@ function createRow(item) {
         tr.style.backgroundColor = "#cccccc";
         tdAction.textContent = "Niedostępne";
     } else {
+        // Przycisk "Dodaj"
         const addBtn = document.createElement("button");
         addBtn.textContent = "Dodaj";
         addBtn.style.marginRight = "5px";
@@ -419,12 +410,22 @@ function createRow(item) {
         });
         tdAction.appendChild(addBtn);
 
+        // Przycisk "Usuń"
         const remBtn = document.createElement("button");
         remBtn.textContent = "Usuń";
+        remBtn.style.marginRight = "5px";
         remBtn.addEventListener("click", () => {
             toggleCompetitorUsage(item.storeName, (item.dataSource === "Google"), false);
         });
         tdAction.appendChild(remBtn);
+
+        // ****** NOWY PRZYCISK "Oczyść" (reset) ******
+        const clearBtn = document.createElement("button");
+        clearBtn.textContent = "Oczyść";
+        clearBtn.addEventListener("click", () => {
+            clearCompetitorUsage(item.storeName, (item.dataSource === "Google"));
+        });
+        tdAction.appendChild(clearBtn);
     }
     tr.appendChild(tdAction);
 
@@ -448,6 +449,23 @@ function toggleCompetitorUsage(storeName, isGoogle, useCompetitor) {
         window.currentPreset.competitors.push(comp);
     } else {
         comp.useCompetitor = useCompetitor;
+    }
+    saveOrUpdatePreset();
+    refreshRowColor(storeName, isGoogle);
+}
+
+
+function clearCompetitorUsage(storeName, isGoogle) {
+    if (!window.currentPreset || !window.currentPreset.presetId) {
+        alert("Stwórz własny preset, aby wprowadzać zmiany.");
+        return;
+    }
+    const idx = window.currentPreset.competitors.findIndex(c =>
+        c.storeName.toLowerCase() === storeName.toLowerCase() && c.isGoogle === isGoogle
+    );
+    if (idx !== -1) {
+        // Usuwamy ten element z listy
+        window.currentPreset.competitors.splice(idx, 1);
     }
     saveOrUpdatePreset();
     refreshRowColor(storeName, isGoogle);
@@ -480,6 +498,7 @@ function refreshRowColor(storeName, isGoogle) {
         row.style.backgroundColor = useUnmarked ? "lightgreen" : "lightcoral";
     }
 }
+
 document.addEventListener("DOMContentLoaded", () => {
     const btnNew = document.getElementById("addNewPresetBtn");
     if (!btnNew) return;
@@ -521,7 +540,6 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 });
-
 
 // Aktualizacja nazwy presetu (customowych widoków)
 document.addEventListener("DOMContentLoaded", () => {
@@ -569,8 +587,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 });
 
-
-
 // Zapis lub aktualizacja presetu (tylko dla customowych widoków)
 async function saveOrUpdatePreset() {
     if (!window.currentPreset) return;
@@ -593,10 +609,53 @@ async function saveOrUpdatePreset() {
     }
 }
 
+/***********************************************
+ * Nowe funkcje do wyszukiwania i podświetlania
+ ***********************************************/
+function filterCompetitors(searchTerm) {
+    const allRows = document.querySelectorAll("#googleCompetitorsTableBody tr, #ceneoCompetitorsTableBody tr");
 
+    allRows.forEach(tr => {
+        const originalStoreName = tr.dataset.originalStoreName || "";
+        const storeNameLower = originalStoreName.toLowerCase();
+        const searchLower = searchTerm.toLowerCase();
 
+        const storeTd = tr.querySelector("td:nth-child(1)");
+        if (!storeTd) return; // bezpieczeństwo
 
+        // Sprawdzamy czy nazwa sklepu zawiera wpisany fragment
+        if (!searchTerm || storeNameLower.includes(searchLower)) {
+            // Pokazujemy wiersz
+            tr.style.display = "";
 
+            // Podmieniamy fragment dopasowanego tekstu na pogrubiony fioletowy
+            const highlighted = highlightTextCaseInsensitive(originalStoreName, searchTerm);
+            storeTd.innerHTML = highlighted;
+        } else {
+            // Ukrywamy wiersz
+            tr.style.display = "none";
+            // Można przywrócić oryginalny tekst, ale i tak wiersz jest niewidoczny
+            storeTd.textContent = originalStoreName;
+        }
+    });
+}
+
+function highlightTextCaseInsensitive(fullText, searchTerm) {
+    if (!searchTerm) return fullText; // Jeśli brak frazy, zwracamy oryginał
+
+    // Ucieczka znaków regex, aby wpis typu ".*" nie sypał nam wyrażeń
+    const escapedTerm = searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+    // Budujemy regex dopasowujący w sposób nieczuły na wielkość liter
+    const regex = new RegExp(`(${escapedTerm})`, 'gi');
+
+    // Zamieniamy każdą dopasowaną frazę na <span style="font-weight:bold; color:purple;">$1</span>
+    return fullText.replace(regex, '<span style="font-weight:bold; color:purple;">$1</span>');
+}
+
+/***********************************************
+ * Obsługa kliknięć / zamykania modala
+ ***********************************************/
 document.addEventListener('click', function (event) {
     const modal = document.getElementById('competitorModal');
     if (modal.classList.contains('show')) {
@@ -605,7 +664,7 @@ document.addEventListener('click', function (event) {
             // Kliknieto w tło - zamykamy
             modal.style.display = 'none';
             modal.classList.remove('show');
-            loadPrices();
+            loadPrices(); // Zakładamy, że masz gdzieś zdefiniowane loadPrices()
         }
     }
 });
@@ -622,10 +681,9 @@ document.addEventListener('keydown', function (event) {
 });
 
 document.addEventListener("DOMContentLoaded", function () {
-    // Nasłuchujemy kliknięć na całym modalu i sprawdzamy, czy kliknięto element z atrybutem data-dismiss="modal"
+    // Nasłuchujemy kliknięć na całym modalu i sprawdzamy, czy kliknięto element z data-dismiss='modal'
     const competitorModal = document.getElementById("competitorModal");
     competitorModal.addEventListener("click", function (event) {
-        // Szukamy najbliższego elementu, który posiada data-dismiss="modal"
         const closeBtn = event.target.closest("[data-dismiss='modal']");
         if (closeBtn) {
             competitorModal.style.display = "none";
@@ -633,4 +691,12 @@ document.addEventListener("DOMContentLoaded", function () {
             loadPrices();
         }
     });
+
+    // Nasłuch dla inputu wyszukiwania
+    const competitorSearchInput = document.getElementById("competitorSearchInput");
+    if (competitorSearchInput) {
+        competitorSearchInput.addEventListener("input", function () {
+            filterCompetitors(this.value);
+        });
+    }
 });
