@@ -854,15 +854,14 @@ namespace PriceSafari.Controllers.MemberControllers
                         CommonProductsCount = commonProductsCount
                     };
                 })
-                .Where(c => c.CommonProductsCount >= 10)
+                .Where(c => c.CommonProductsCount >= 1)
                 .OrderByDescending(c => c.CommonProductsCount)
                 .ToList();
 
             return Json(new { data = competitors });
         }
 
-        // 4) Tworzenie **lub** aktualizacja Presetu w jednym endpoincie
-        //    (jeśli presetId=0 -> tworzymy, inaczej -> aktualizujemy)
+     
         [HttpPost]
         public async Task<IActionResult> SaveOrUpdatePreset([FromBody] CompetitorPresetViewModel model)
         {
@@ -915,9 +914,6 @@ namespace PriceSafari.Controllers.MemberControllers
             preset.SourceCeneo = model.SourceCeneo;
             preset.UseUnmarkedStores = model.UseUnmarkedStores;
 
-            // Aktualizacja competitorItems (jeśli przesłane)
-            // Możesz ustawić tak, że jeśli CompetitorItems == null, to ignorujesz,
-            // a jeśli != null, to nadpisujesz.
             if (model.Competitors != null)
             {
                 // Czyścimy istniejące
@@ -945,6 +941,30 @@ namespace PriceSafari.Controllers.MemberControllers
         }
 
 
+        [HttpPost]
+        public async Task<IActionResult> DeactivateAllPresets(int storeId)
+        {
+            // Sprawdź uprawnienia do sklepu
+            if (!await UserHasAccessToStore(storeId))
+            {
+                return BadRequest("Brak dostępu do sklepu.");
+            }
+
+            // Pobierz wszystkie aktywne presety dla tego sklepu
+            var activePresets = await _context.CompetitorPresets
+                .Where(p => p.StoreId == storeId && p.NowInUse)
+                .ToListAsync();
+
+            // Ustaw flagę NowInUse na false dla każdego aktywnego presetu
+            foreach (var preset in activePresets)
+            {
+                preset.NowInUse = false;
+            }
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new { success = true });
+        }
 
 
 
