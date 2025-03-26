@@ -380,9 +380,7 @@ function createRow(item) {
     tdStore.textContent = item.storeName;
     tr.appendChild(tdStore);
 
-    const tdSource = document.createElement("td");
-    tdSource.textContent = item.dataSource;
-    tr.appendChild(tdSource);
+
 
     const tdCommon = document.createElement("td");
     tdCommon.textContent = item.commonProductsCount;
@@ -493,9 +491,9 @@ function refreshRowColor(storeName, isGoogle) {
     );
     const useUnmarked = window.currentPreset.useUnmarkedStores;
     if (item) {
-        row.style.backgroundColor = item.useCompetitor ? "green" : "darkred";
+        row.style.backgroundColor = item.useCompetitor ? "#7AD37A" : "#FC8686";
     } else {
-        row.style.backgroundColor = useUnmarked ? "lightgreen" : "lightcoral";
+        row.style.backgroundColor = useUnmarked ? "#D8FED8" : "#FFDDDD";
     }
 }
 
@@ -528,7 +526,7 @@ document.addEventListener("DOMContentLoaded", () => {
             });
             const data = await resp.json();
             if (data.success) {
-                alert(`Utworzono nowy preset ID=${data.presetId}`);
+                alert(`Utworzono nowy preset`);
                 await refreshPresetDropdown();
                 document.getElementById("presetSelect").value = data.presetId;
                 await loadSelectedPreset(data.presetId);
