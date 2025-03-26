@@ -82,7 +82,7 @@ async function refreshPresetDropdown() {
     }
 }
 
-// Ustawienie listenera dla dropdowna (ustawiony raz przy DOMContentLoaded)
+
 document.addEventListener("DOMContentLoaded", () => {
     const presetSelect = document.getElementById("presetSelect");
     if (presetSelect) {
@@ -171,7 +171,7 @@ async function loadBaseView() {
             deleteBtn.style.display = "none";
         }
 
-        // Ustawiamy elementy jako read-only
+     
         const googleCheckbox = document.getElementById("googleCheckbox");
         googleCheckbox.checked = window.currentPreset.sourceGoogle;
         googleCheckbox.disabled = true;
@@ -182,29 +182,41 @@ async function loadBaseView() {
         useUnmarkedStoresCheckbox.checked = window.currentPreset.useUnmarkedStores;
         useUnmarkedStoresCheckbox.disabled = true;
 
+
+        // Przygotowujemy / pobieramy button aktywacji
         let activateBtn = document.getElementById("activatePresetBtn");
         if (!activateBtn) {
             activateBtn = document.createElement("button");
             activateBtn.id = "activatePresetBtn";
-           
             document.getElementById("activateButtonContainer").appendChild(activateBtn);
         }
 
+        // Nadajemy podstawową klasę:
+        activateBtn.className = "Button-Page-Small";
+
+        // Jeśli preset jest aktywny:
         if (window.currentPreset.nowInUse) {
             activateBtn.textContent = "Aktywny";
             activateBtn.disabled = true;
+
+            // Dodajemy klasę z zielonym tłem:
+            activateBtn.classList.add("active-preset");
         } else {
+            // Jeśli nie jest aktywny, usuwamy klasę zielonego tła:
+            activateBtn.classList.remove("active-preset");
+
             activateBtn.textContent = "Ustaw jako aktywny";
             activateBtn.disabled = false;
+
+            // Onclick – dezaktywujemy wszystkie i ponownie ładujemy bazę
             activateBtn.onclick = async function () {
-              
                 await deactivateAllPresets();
-               
                 await loadBaseView();
-                
                 await refreshPresetDropdown();
             };
         }
+
+
 
     
         await loadCompetitors("All");
@@ -254,56 +266,109 @@ async function loadSelectedPreset(presetId) {
             presetNameInput.value = preset.presetName || "";
             presetNameInput.disabled = false;
         }
-
-        // Konfiguracja przycisku aktywacji – umieszczamy go w activateButtonContainer
+        // Przygotowujemy / pobieramy button aktywacji
         let activateBtn = document.getElementById("activatePresetBtn");
         if (!activateBtn) {
             activateBtn = document.createElement("button");
             activateBtn.id = "activatePresetBtn";
             document.getElementById("activateButtonContainer").appendChild(activateBtn);
         }
+
+        // Nadajemy tę samą podstawową klasę:
+        activateBtn.className = "Button-Page-Small";
+
         if (window.currentPreset.nowInUse) {
             activateBtn.textContent = "Aktywny";
             activateBtn.disabled = true;
+            // Dodajemy klasę z zielonym tłem
+            activateBtn.classList.add("active-preset");
         } else {
             activateBtn.textContent = "Ustaw jako aktywny";
             activateBtn.disabled = false;
+            // Usuwamy, gdyby wcześniej była
+            activateBtn.classList.remove("active-preset");
+
             activateBtn.onclick = function () {
                 window.currentPreset.nowInUse = true;
-                saveOrUpdatePreset().then(() => refreshPresetDropdown());
+                saveOrUpdatePreset().then(() => {
+                    refreshPresetDropdown();
+                });
                 activateBtn.textContent = "Aktywny";
                 activateBtn.disabled = true;
+                activateBtn.classList.add("active-preset");
             };
         }
 
-        // Konfiguracja przycisku "Zmień nazwę" – umieszczamy go w editButtonContainer
+
         let editBtn = document.getElementById("editPresetBtn");
-        if (!editBtn) {
+        if (editBtn) {
+            if (editBtn.parentElement.id !== "editButtonContainer") {
+                editBtn.parentElement.removeChild(editBtn);
+                document.getElementById("editButtonContainer").appendChild(editBtn);
+            }
+            // Ustawiamy zawartość, style i tooltip dla istniejącego przycisku
+            editBtn.innerHTML = '<i class="fas fa-pen" style="color:#4e4e4e; font-size:16px;"></i>';
+            editBtn.title = "Zmień nazwę presetu";
+            editBtn.style.border = "none";
+            editBtn.style.borderRadius = "4px";
+            editBtn.style.width = "33px";
+            editBtn.style.height = "33px";
+            editBtn.style.background = "#e3e3e3";
+
+            editBtn.style.cursor = "pointer";
+        } else {
+            // Tworzymy nowy przycisk z ustawieniami
             editBtn = document.createElement("button");
             editBtn.id = "editPresetBtn";
-            editBtn.textContent = "Zmień nazwę";
+            editBtn.innerHTML = '<i class="fas fa-pen" style="color:#4e4e4e; font-size:16px;"></i>';
+            editBtn.title = "Zmień nazwę presetu";
+            editBtn.style.border = "none";
+            editBtn.style.borderRadius = "4px";
+            editBtn.style.width = "33px";
+            editBtn.style.height = "33px";
+            editBtn.style.background = "#e3e3e3";
+    
+            editBtn.style.cursor = "pointer";
             document.getElementById("editButtonContainer").appendChild(editBtn);
         }
+
         editBtn.style.display = "inline-block";
         editBtn.onclick = async function () {
             if (!window.currentPreset || !window.currentPreset.presetId) {
                 alert("Nie można zmienić nazwy presetu.");
                 return;
             }
-            window.currentPreset.presetName = presetNameInput.value.trim();
-            await saveOrUpdatePreset();
-            await refreshPresetDropdown();
-            alert("Zmieniono nazwę presetu.");
+            // Wyświetlamy prompt z aktualną nazwą jako domyślną wartością
+            const newName = prompt("Podaj nową nazwę presetu:", window.currentPreset.presetName);
+            if (newName && newName.trim() !== "") {
+                window.currentPreset.presetName = newName.trim();
+                await saveOrUpdatePreset();
+                await refreshPresetDropdown();
+                alert("Zmieniono nazwę presetu.");
+            }
         };
+
+
+
 
         // Konfiguracja przycisku "Usuń preset" – umieszczamy go w deleteButtonContainer
         let deleteBtn = document.getElementById("deletePresetBtn");
         if (!deleteBtn) {
             deleteBtn = document.createElement("button");
             deleteBtn.id = "deletePresetBtn";
-            deleteBtn.textContent = "Usuń preset";
+            deleteBtn.innerHTML = '<i class="fa fa-trash" style="color:red; font-size:20px;"></i>';
+            deleteBtn.title = "Usuń preset";
+            deleteBtn.style.border = "none";
+            deleteBtn.style.borderRadius = "4px";
+            deleteBtn.style.width = "33px";
+            deleteBtn.style.height = "33px";
+            deleteBtn.style.background = "#e3e3e3";
+            deleteBtn.style.cursor = "pointer";
             document.getElementById("deleteButtonContainer").appendChild(deleteBtn);
         }
+
+
+
         deleteBtn.style.display = "inline-block";
         deleteBtn.onclick = async function () {
             if (confirm("Czy na pewno chcesz usunąć ten preset?")) {
@@ -327,7 +392,7 @@ async function loadSelectedPreset(presetId) {
             }
         };
 
-        // Ustawienie checkboxów
+       
         const googleChk = document.getElementById("googleCheckbox");
         if (googleChk) {
             googleChk.checked = !!preset.sourceGoogle;
@@ -561,9 +626,8 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 });
 
-// Aktualizacja nazwy presetu (customowych widoków)
+// Aktualizacja nazwy presetu (customowych widoków) – używamy prompt
 document.addEventListener("DOMContentLoaded", () => {
-    const nameInput = document.getElementById("presetNameInput");
     const editBtn = document.getElementById("editPresetBtn");
     if (editBtn) {
         editBtn.addEventListener("click", async function () {
@@ -571,7 +635,15 @@ document.addEventListener("DOMContentLoaded", () => {
                 alert("Nie można zmienić nazwy presetu.");
                 return;
             }
-            window.currentPreset.presetName = nameInput.value.trim();
+            // Wyświetlamy prompt z aktualną nazwą jako wartość domyślną
+            let presetName = prompt("Podaj nazwę nowego presetu (max 40 znaków):", window.currentPreset.presetName);
+            if (!presetName) return;
+            presetName = presetName.trim();
+            if (presetName.length > 40) {
+                presetName = presetName.substring(0, 40);
+                alert("Nazwa została przycięta do 40 znaków.");
+            }
+            window.currentPreset.presetName = presetName;
             await saveOrUpdatePreset();
             await refreshPresetDropdown();
             alert("Zmieniono nazwę presetu.");
