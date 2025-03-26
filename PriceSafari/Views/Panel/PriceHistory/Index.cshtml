@@ -438,6 +438,59 @@
 
     }
 
+
+
+    .filterCompetitors-true {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width:26px;
+        height:26px;
+        border: none;
+        background-color: rgb(122, 211, 122);
+
+        cursor: pointer;
+        border-radius: 4px;
+    }
+
+    .filterCompetitors-false {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 26px;
+        height: 26px;
+        border: none;
+        background-color: rgb(252, 134, 134);
+
+        cursor: pointer;
+        border-radius: 4px;
+    }
+
+
+    .filterCompetitors-back {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 26px;
+        height: 26px;
+        border: none;
+        background-color: #fff;
+
+        cursor: pointer;
+        border-radius: 4px;
+    }
+
+    .storeSearch {
+        border: 1px solid #ccc;
+        padding: 5px 12px;
+        border-radius: 4px;
+        outline: none;
+        box-sizing: border-box;
+        color: #4B4B4B;
+        font-size: 14px;
+        font-weight: 400;
+    }
+
 </style>
 
 <div class="Vert">
@@ -851,13 +904,16 @@
 
             <div class="modal-body">
 
-                <!-- SEKCJA PRESET -->
-                <div style="margin-bottom: 20px;">
-                    <label>Wybierz istniejący preset:</label>
-                    <select id="presetSelect"></select>
-                    <button id="addNewPresetBtn">Dodaj nowy preset</button>
+                <div style="display:flex; justify-content:space-between;">
+                    <div>
+           
+                        <select id="presetSelect" class="DropDown"></select>
+                        <span id="activateButtonContainer"></span>
+                        <span id="editButtonContainer"></span>
+                        <span id="deleteButtonContainer"></span>
+                    </div>
+                    <button id="addNewPresetBtn" class="Button-Page-Small-bl">Dodaj nowy preset</button>
                 </div>
-
                 <div id="newPresetSection" style="display:none; margin-bottom: 20px;">
 
                     <input type="text" id="presetNameInput" placeholder="Nazwa Presetu" maxlength="40" />
@@ -883,15 +939,15 @@
                     <button id="editPresetBtn" type="button">Zmień nazwę</button>
                 </div>
                 <div style="margin-bottom: 10px;">
-                    <label>Wyszukaj sklep:</label>
-                    <input type="text" id="competitorSearchInput" placeholder="Wpisz nazwę sklepu..." />
+                  
+                    <input type="text" id="competitorSearchInput" class="storeSearch" placeholder="Wyszukaj sklep" />
                 </div>
 
 
-                <div style="display:flex; gap:150px;">
+                <div style="display:flex; padding:24px; justify-content:space-between;">
                     <div>
                         <div class="table-scroll">
-                            <table class="table-orders">
+                            <table class="table-orders" style="width:600px;">
                                 <thead>
                                     <tr>
                                         <th><img src="/images/GoogleShopping.png" alt="Google Icon" style="width:17px; height:17px; margin-right:6px; margin-bottom:4px;">Sklepy Google</th>
@@ -907,7 +963,7 @@
 
                     <div>
                         <div class="table-scroll">
-                            <table class="table-orders">
+                            <table class="table-orders" style="width:600px;">
                                 <thead>
                                     <tr>
                                         <th><img src="/images/Ceneo.png" alt="Ceneo Icon" style="width:17px; height:17px; margin-right:4px; margin-bottom:4px;">Sklepy Ceneo</th>
