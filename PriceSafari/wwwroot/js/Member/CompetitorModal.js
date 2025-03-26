@@ -1,7 +1,4 @@
-﻿/*****************************************************
- * CAŁY KOD JAVASCRIPT (z uwzględnionymi zmianami)
- *****************************************************/
-
+﻿
 window.currentPreset = null;
 
 function showLoading() {
@@ -93,7 +90,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const useUnmarkedStoresCheckbox = document.getElementById("useUnmarkedStoresCheckbox");
     if (useUnmarkedStoresCheckbox) {
         useUnmarkedStoresCheckbox.addEventListener("change", async function () {
-            // Dla widoku bazowego – tylko odświeżamy UI
+          
             if (!window.currentPreset || window.currentPreset.presetId === null) {
                 if (window.currentPreset) {
                     window.currentPreset.useUnmarkedStores = this.checked;
@@ -103,7 +100,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
                 return;
             }
-            // Dla customowych widoków: aktualizujemy wartość, zapisujemy i odświeżamy kolory
+         
             window.currentPreset.useUnmarkedStores = this.checked;
             showLoading();
             await saveOrUpdatePreset();
@@ -151,7 +148,7 @@ async function loadBaseView() {
         const newPresetSection = document.getElementById("newPresetSection");
         newPresetSection.style.display = "block";
 
-        // Ukrywamy pola edycji dla widoku bazowego
+        
         const presetNameInput = document.getElementById("presetNameInput");
         if (presetNameInput) {
             presetNameInput.style.display = "none";
@@ -309,7 +306,7 @@ async function loadSelectedPreset(presetId) {
                 alert("Nie można zmienić nazwy presetu.");
                 return;
             }
-            // Wyświetlamy prompt z aktualną nazwą jako domyślną wartością
+        
             let newName = prompt("Podaj nową nazwę presetu (max 50 znaków):", window.currentPreset.presetName);
 
             if (newName && newName.trim() !== "") {
@@ -588,7 +585,6 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 });
 
-// Aktualizacja nazwy presetu (customowych widoków) – używamy prompt
 document.addEventListener("DOMContentLoaded", () => {
     const editBtn = document.getElementById("editPresetBtn");
     if (editBtn) {
@@ -612,13 +608,13 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 });
 
-// Listener dla checkboxów źródeł: Google i Ceneo
+
 document.addEventListener("DOMContentLoaded", () => {
     const googleChk = document.getElementById("googleCheckbox");
     const ceneoChk = document.getElementById("ceneoCheckbox");
     if (googleChk && ceneoChk) {
         async function onSourceChange() {
-            // Dla widoku bazowego – tylko zmieniamy dane konkurencji
+           
             if (!window.currentPreset || window.currentPreset.presetId === null) {
                 const val = determineSourceVal(googleChk.checked, ceneoChk.checked);
                 showLoading();
@@ -626,7 +622,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 hideLoading();
                 return;
             }
-            // Dla customowych presetów aktualizujemy właściwości, zapisujemy i ładujemy konkurentów
+       
             window.currentPreset.sourceGoogle = googleChk.checked;
             window.currentPreset.sourceCeneo = ceneoChk.checked;
             showLoading();
@@ -640,7 +636,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 });
 
-// Zapis lub aktualizacja presetu (tylko dla customowych widoków)
+
 async function saveOrUpdatePreset() {
     if (!window.currentPreset) return;
     if (!window.currentPreset.presetId) return;

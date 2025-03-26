@@ -2122,7 +2122,7 @@ namespace PriceSafari.Controllers.MemberControllers
             public bool EnforceMinimalMargin { get; set; }
             public decimal MinimalMarginPercent { get; set; }
         }
-        // Replace the anonymous type declaration with a named type to ensure type consistency
+     
         public class CompetitorKey
         {
             public string Store { get; set; }

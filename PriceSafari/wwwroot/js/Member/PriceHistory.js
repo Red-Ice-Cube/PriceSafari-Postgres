@@ -33,9 +33,9 @@
 
     const openMassChangeModalBtn = document.getElementById('openMassChangeModalBtn');
     const massChangeModal = document.getElementById('massChangeModal');
-    const closeMassChangeModalBtn = document.querySelector('#massChangeModal .close'); // zmieniony selektor
+    const closeMassChangeModalBtn = document.querySelector('#massChangeModal .close'); 
 
-    // Używając Bootstrapa i jQuery:
+
     openMassChangeModalBtn.addEventListener('click', function () {
         $('#massChangeModal').modal('show');
     });
@@ -44,7 +44,7 @@
         $('#massChangeModal').modal('hide');
     });
 
-    // Jeśli klikniemy poza modalem (Bootstrap automatycznie zamyka modal, ale jeśli chcesz samodzielnie):
+   
     window.addEventListener('click', function (event) {
         if (event.target === massChangeModal) {
             $('#massChangeModal').modal('hide');
@@ -115,7 +115,7 @@
         const update = document.getElementById("globalUpdate");
         if (!notif) return;
 
-        // Ukryj globalUpdate, jeśli jest wyświetlone i wyczyść timeout
+     
         if (update && update.style.display === "block") {
             update.style.display = "none";
             if (globalUpdateTimeoutId) {
@@ -124,7 +124,7 @@
             }
         }
 
-        // Wyczyść poprzedni timeout dla globalNotification, jeśli istnieje
+    
         if (globalNotificationTimeoutId) {
             clearTimeout(globalNotificationTimeoutId);
         }
@@ -141,7 +141,7 @@
         const notification = document.getElementById("globalNotification");
         if (!notif) return;
 
-        // Ukryj globalNotification, jeśli jest wyświetlone i wyczyść timeout
+      
         if (notification && notification.style.display === "block") {
             notification.style.display = "none";
             if (globalNotificationTimeoutId) {
@@ -150,7 +150,7 @@
             }
         }
 
-        // Wyczyść poprzedni timeout dla globalUpdate, jeśli istnieje
+  
         if (globalUpdateTimeoutId) {
             clearTimeout(globalUpdateTimeoutId);
         }
@@ -780,9 +780,8 @@
             button.addEventListener('click', function (e) {
                 e.stopPropagation();
 
-                // Jeśli włączona symulacja marży, sprawdzaj warunki
                 if (marginSettings.useMarginForSimulation) {
-                    // Musimy mieć cenę zakupu
+                  
                     if (item.marginPrice == null) {
                         showGlobalNotification(
                             `<p style="margin:8px 0; font-weight:bold;">Zmiana ceny nie została dodana</p>
@@ -791,20 +790,19 @@
                         return;
                     }
 
-                    // (A) Obliczamy marżę aktualną (oldMargin) i proponowaną (newMargin)
                     let oldMargin = ((currentPriceValue - item.marginPrice) / item.marginPrice) * 100;
                     let newMargin = ((suggestedPrice - item.marginPrice) / item.marginPrice) * 100;
                     oldMargin = parseFloat(oldMargin.toFixed(2));
                     newMargin = parseFloat(newMargin.toFixed(2));
 
                     if (marginSettings.enforceMinimalMargin) {
-                        // (B) Sprawdzamy, czy nowa marża jest ujemna
+                       
                         if (newMargin < 0) {
-                            // Jeśli stara też była ujemna i nowa jest "mniej ujemna" (większa) => POZWALAMY
+                        
                             if (oldMargin < 0 && newMargin > oldMargin) {
-                                // OK, poprawiamy z np. -10% na -5%
+                              
                             } else {
-                                // W przeciwnym wypadku blokujemy
+                              
                                 showGlobalNotification(
                                     `<p style="margin:8px 0; font-weight:bold;">Zmiana ceny nie została dodana</p>
                              <p>Nowa cena <strong>${suggestedPrice.toFixed(2)} PLN</strong> spowoduje ujemną marżę (nowa marża: <strong>${newMargin}%</strong>).</p>
@@ -814,7 +812,6 @@
                             }
                         }
 
-                        // (C) Minimalna marża: np. minimalMarginPercent = 5% oznacza, że nowa marża nie może spaść poniżej 5%
                         if (marginSettings.minimalMarginPercent > 0 && newMargin < marginSettings.minimalMarginPercent) {
                             showGlobalNotification(
                                 `<p style="margin:8px 0; font-weight:bold;">Zmiana ceny nie została dodana</p>
@@ -824,9 +821,7 @@
                             return;
                         }
 
-                        // Jeśli minimalMarginPercent < 0 (np. -10%), a nowa marża jest WYŻSZA niż -10% (np. -5% => to de facto lepiej),
-                        // albo wręcz nowa marża przekracza 0%.  
-                        // Jeżeli chciałbyś to zablokować, zostaw dotychczasową logikę, np.:
+                      
                         if (marginSettings.minimalMarginPercent < 0 && newMargin > marginSettings.minimalMarginPercent) {
                             showGlobalNotification(
                                 `<p style="margin:8px 0; font-weight:bold;">Zmiana ceny nie została dodana</p>
@@ -838,13 +833,13 @@
                     }
                 }
 
-                // Jeśli już jest oznaczone jako zmienione - nic nie robimy
+          
                 if (priceBox.classList.contains('price-changed') || button.classList.contains('active')) {
                     console.log("Zmiana ceny już aktywna dla produktu", productId);
                     return;
                 }
 
-                // Wyrzucamy event i wizualnie oznaczamy box
+             
                 const priceChangeEvent = new CustomEvent('priceBoxChange', {
                     detail: { productId, productName, currentPrice: currentPriceValue, newPrice: suggestedPrice, storeId: storeId }
                 });
@@ -852,7 +847,7 @@
 
                 activateChangeButton(button, priceBox, suggestedPrice);
 
-                // Komunikat "dodano zmianę"
+           
                 let message = `<p style="margin-bottom:8px; font-size:16px; font-weight:bold;">Zmiana ceny dodana</p>`;
                 message += `<p style="margin:4px 0;"><strong>Produkt:</strong> ${productName}</p>`;
                 message += `<p style="margin:4px 0;"><strong>Nowa cena:</strong> ${suggestedPrice.toFixed(2)} PLN</p>`;
@@ -873,7 +868,7 @@
                 showGlobalUpdate(message);
             });
 
-            // Przywracanie stanu "Dodano" jeśli już wcześniej była wybrana taka zmiana
+      
             const existingChange = selectedPriceChanges.find(change =>
                 parseInt(change.productId) === parseInt(productId) &&
                 parseFloat(change.newPrice) === parseFloat(suggestedPrice)
@@ -925,14 +920,14 @@
                 lowestPrice = item.lowestPrice != null ? parseFloat(item.lowestPrice) : null;
             }
 
-            // Główny kontener produktu
+       
             const box = document.createElement('div');
             box.className = 'price-box ' + item.colorClass;
             box.dataset.detailsUrl = '/PriceHistory/Details?scrapId=' + item.scrapId + '&productId=' + item.productId;
             box.dataset.productId = item.productId;
             box.dataset.productName = item.productName;
 
-            // Kliknięcie w cały box – przejście do szczegółów
+      
             box.addEventListener('click', function () {
                 window.open(this.dataset.detailsUrl, '_blank');
             });
@@ -947,7 +942,6 @@
             const priceBoxColumnCategory = document.createElement('div');
             priceBoxColumnCategory.className = 'price-box-column-category';
 
-            // W wersji ulepszonej zamiast API ID wyświetlamy EAN – z dodatkowym podświetleniem
             if (item.externalId) {
                 const apiBox = document.createElement('span');
                 apiBox.className = 'ApiBox';
@@ -964,7 +958,7 @@
             assignFlagButton.innerHTML = '+ Przypisz flagi';
             assignFlagButton.style.pointerEvents = 'auto';
 
-            // Obsługa przypisywania flag
+         
             assignFlagButton.addEventListener('click', function (event) {
                 event.stopPropagation();
                 selectedProductId = this.dataset.productId;
@@ -1001,7 +995,7 @@
 
             externalInfoContainer.appendChild(priceBoxColumnStoreCount);
 
-            // Wyświetlanie ceny zakupu / marży
+            
             if (marginPrice != null) {
                 const formattedMarginPrice = marginPrice.toLocaleString('pl-PL', {
                     minimumFractionDigits: 2,
@@ -1055,7 +1049,7 @@
             priceSpan.textContent = item.lowestPrice.toFixed(2) + ' PLN';
             priceLine.appendChild(priceSpan);
 
-            // ★ TOP
+          
             if (typeof item.externalBestPriceCount !== 'undefined' && item.externalBestPriceCount !== null) {
                 if (item.externalBestPriceCount === 1) {
                     const uniqueBox = document.createElement('div');
@@ -1071,7 +1065,7 @@
                     priceLine.appendChild(shareBox);
                 }
             }
-            // singleBestCheaperDiffPerc
+         
             if (item.singleBestCheaperDiffPerc !== null && item.singleBestCheaperDiffPerc !== undefined) {
                 const diffBox = document.createElement('div');
                 diffBox.style.marginLeft = '4px';
@@ -1084,7 +1078,7 @@
 
             priceBoxLowestText.appendChild(priceLine);
 
-            // Nazwa sklepu (lowest)
+          
             const storeNameDiv = document.createElement('div');
             storeNameDiv.innerHTML = highlightedStoreName;
             priceBoxLowestText.appendChild(storeNameDiv);
@@ -1110,7 +1104,7 @@
             priceBoxColumnLowestPrice.appendChild(priceBoxLowestText);
             priceBoxColumnLowestPrice.appendChild(priceBoxLowestDetails);
 
-            // Nasza cena
+     
             const priceBoxColumnMyPrice = document.createElement('div');
             priceBoxColumnMyPrice.className = 'price-box-column';
 
@@ -1198,16 +1192,13 @@
 
 
 
-            // ------------------------------
-            // Zachowujemy starą logikę linii
-            // ------------------------------
             if (!isRejected) {
-                // SOLO
+              
                 if (item.colorClass === "prOnlyMe") {
                     const diffClass = item.colorClass + ' ' + 'priceBox-diff-top';
                     priceBoxColumnInfo.innerHTML += '<div class="' + diffClass + '">Brak ofert konkurencji</div>';
 
-                    // ZANIŻONA / IDEALNA
+                
                 } else if (item.colorClass === "prToLow" || item.colorClass === "prIdeal") {
                     if (myPrice != null && savings != null) {
                         const savingsValue = parseFloat(savings.replace(',', '.'));
@@ -1276,14 +1267,14 @@
                         matchPriceLine.appendChild(newPriceText);
                         matchPriceLine.appendChild(colorSquare);
 
-                        // Dodajemy przycisk "Zmień cenę"
+                     
                         const matchPriceBtn = document.createElement('button');
                         matchPriceBtn.className = 'simulate-change-btn';
                         matchPriceBtn.textContent = 'Zmień cenę';
                         if (!item.ean || item.ean.trim() === "") {
                             matchPriceBtn.addEventListener("click", function (e) {
                                 e.preventDefault();
-                                e.stopPropagation(); // zapobiega propagacji kliknięcia
+                                e.stopPropagation(); 
                                 showGlobalNotification("Produkt musi mieć zmapowany kod EAN");
                             });
                         } else {
@@ -1295,7 +1286,7 @@
 
                         matchPriceBox.appendChild(matchPriceLine);
 
-                        // Druga linia (strategicPriceLine)
+                      
                         const strategicPriceBox = document.createElement('div');
                         strategicPriceBox.className = 'price-box-column';
 
@@ -1316,7 +1307,7 @@
                         strategicPriceLine.appendChild(newPriceText2);
                         strategicPriceLine.appendChild(colorSquare2);
 
-                        // Drugi przycisk "Zmień cenę"
+                    
                         const strategicPriceBtn = document.createElement('button');
                         strategicPriceBtn.className = 'simulate-change-btn';
                         strategicPriceBtn.textContent = 'Zmień cenę';
@@ -1342,7 +1333,7 @@
                         priceBoxColumnInfo.innerHTML += '<div class="' + diffClass + '">Podnieś: N/A</div>';
                     }
 
-                    // SUBOPTYMALNA
+              
                 } else if (item.colorClass === "prMid") {
                     if (myPrice != null && lowestPrice != null) {
                         const amountToMatchLowestPrice = myPrice - lowestPrice;
@@ -1365,7 +1356,7 @@
                         const percentageBeatFormatted = '(-' + percentageToBeatLowestPrice.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%)';
                         const newSuggestedPriceBeat = strategicPrice.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' PLN';
 
-                        // Pierwsza linia
+                       
                         const matchPriceBox = document.createElement('div');
                         matchPriceBox.className = 'price-box-column';
 
@@ -1386,7 +1377,7 @@
                         matchPriceLine.appendChild(newPriceText);
                         matchPriceLine.appendChild(colorSquare);
 
-                        // Przycisk "Zmień cenę"
+                       
                         const matchPriceBtn = document.createElement('button');
                         matchPriceBtn.className = 'simulate-change-btn';
                         matchPriceBtn.textContent = 'Zmień cenę';
@@ -1397,7 +1388,7 @@
                         if (!item.ean || item.ean.trim() === "") {
                             matchPriceBtn.addEventListener("click", function (e) {
                                 e.preventDefault();
-                                e.stopPropagation(); // zapobiega propagacji kliknięcia
+                                e.stopPropagation();
                                 showGlobalNotification("Produkt musi mieć zmapowany kod EAN");
                             });
                         } else {
@@ -1408,7 +1399,7 @@
 
                         matchPriceBox.appendChild(matchPriceLine);
 
-                        // Druga linia
+                     
                         const strategicPriceBox = document.createElement('div');
                         strategicPriceBox.className = 'price-box-column';
 
@@ -1429,7 +1420,7 @@
                         strategicPriceLine.appendChild(newPriceText2);
                         strategicPriceLine.appendChild(colorSquare2);
 
-                        // Przycisk "Zmień cenę"
+                       
                         const strategicPriceBtn = document.createElement('button');
                         strategicPriceBtn.className = 'simulate-change-btn';
                         strategicPriceBtn.textContent = 'Zmień cenę';
@@ -1440,7 +1431,7 @@
                         if (!item.ean || item.ean.trim() === "") {
                             strategicPriceBtn.addEventListener("click", function (e) {
                                 e.preventDefault();
-                                e.stopPropagation(); // zapobiega propagacji kliknięcia
+                                e.stopPropagation(); 
                                 showGlobalNotification("Produkt musi mieć zmapowany kod EAN");
                             });
                         } else {
@@ -1912,13 +1903,12 @@
 
 
     document.getElementById('openMarginSettingsBtn').addEventListener('click', function () {
-        // Załóżmy, że globalny obiekt marginSettings zawiera pobrane ustawienia:
-        // { useMarginForSimulation: true, enforceMinimalMargin: true, minimalMarginPercent: 0.00 }
+   
         document.getElementById('useMarginForSimulationInput').value = marginSettings.useMarginForSimulation.toString();
         document.getElementById('enforceMinimalMarginInput').value = marginSettings.enforceMinimalMargin.toString();
         document.getElementById('minimalMarginPercentInput').value = marginSettings.minimalMarginPercent;
 
-        // Otwórz modal przy użyciu Bootstrapa/jQuery
+      
         $('#marginSettingsModal').modal('show');
     });
     document.getElementById('saveMarginSettingsBtn').addEventListener('click', function () {
@@ -1982,14 +1972,14 @@
         showLoading();
 
         setTimeout(() => {
-            // 1. Zaczynamy od kopii wszystkich cen
+   
             let filteredPrices = [...allPrices];
 
-            // 2. Pobieramy wartości z pól wyszukiwania (surowe)
+         
             const productSearchRaw = document.getElementById('productSearch').value.trim();
             const storeSearchRaw = document.getElementById('storeSearch').value.trim();
 
-            // 3. Jeśli wpisano tekst w wyszukiwarce produktu, filtrujemy ceny łącząc productName i ean
+         
             if (productSearchRaw) {
                 const sanitizedProductSearch = productSearchRaw
                     .replace(/[^a-zA-Z0-9\s.-]/g, '')
@@ -2005,7 +1995,7 @@
                 });
             }
 
-            // 4. Jeśli wpisano tekst w wyszukiwarce sklepu, filtrujemy wg storeName
+      
             if (storeSearchRaw) {
                 const sanitizedStoreSearch = storeSearchRaw
                     .replace(/[^a-zA-Z0-9\s.-]/g, '')
@@ -2020,7 +2010,7 @@
                 });
             }
 
-            // 5. Sortowanie trafień wyszukiwania dla produktu (łączone productName + ean)
+      
             const sanitizedProductSearchTerm = productSearchRaw
                 ? productSearchRaw.replace(/[^a-zA-Z0-9\s.-]/g, '').toLowerCase().replace(/\s+/g, '')
                 : '';
@@ -2044,17 +2034,16 @@
                 });
             }
 
-            // 6. Pozostałe filtry (kategorie, kolory, flagi)
             filteredPrices = filterPricesByCategoryAndColorAndFlag(filteredPrices);
 
-            // 7. Filtrowanie produktów odrzuconych
+         
             if (sortingState.showRejected) {
                 filteredPrices = filteredPrices.filter(item => item.isRejected);
             } else {
                 filteredPrices = filteredPrices.filter(item => !item.isRejected);
             }
 
-            // 8. Sortowanie wg ustawionych kryteriów
+           
             if (sortingState.sortName !== null) {
                 if (sortingState.sortName === 'asc') {
                     filteredPrices.sort((a, b) => a.productName.localeCompare(b.productName));
@@ -2388,24 +2377,23 @@
     document.getElementById('usePriceDifference').addEventListener('change', function () {
         usePriceDifference = this.checked;
         updateUnits(usePriceDifference);
-        /* updatePricesDebounced();*/
+      
     });
 
     document.getElementById('storeSearch').addEventListener('input', debouncedFilterPrices);
 
     document.getElementById('price1').addEventListener('input', function () {
         setPrice1 = parseFloat(this.value);
-        /*  updatePricesDebounced();*/
+     
     });
 
     document.getElementById('price2').addEventListener('input', function () {
         setPrice2 = parseFloat(this.value);
-        /*  updatePricesDebounced();*/
+      
     });
     document.getElementById('stepPrice').addEventListener('input', function () {
         setStepPrice = parseFloat(this.value);
 
-        /*   updatePricesDebounced();*/
     });
 
     document.getElementById('productSearch').addEventListener('input', function () {
