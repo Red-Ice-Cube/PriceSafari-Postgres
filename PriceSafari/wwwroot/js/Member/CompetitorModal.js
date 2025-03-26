@@ -16,7 +16,6 @@ window.openCompetitorsModal = async function () {
     await refreshPresetDropdown();
     const presetSelect = document.getElementById("presetSelect");
 
- 
     const activeOption = Array.from(presetSelect.options).find(opt =>
         opt.value !== "BASE" && opt.textContent.includes("[aktywny]")
     );
@@ -53,10 +52,8 @@ async function refreshPresetDropdown() {
 
     presetSelect.innerHTML = "";
 
-   
     const anyActive = newPresets.some(p => p.nowInUse === true);
 
-  
     const baseOpt = document.createElement("option");
     baseOpt.value = "BASE";
     if (!anyActive) {
@@ -66,7 +63,6 @@ async function refreshPresetDropdown() {
     }
     presetSelect.appendChild(baseOpt);
 
-  
     newPresets.forEach(p => {
         const opt = document.createElement("option");
         opt.value = p.presetId;
@@ -74,7 +70,6 @@ async function refreshPresetDropdown() {
         presetSelect.appendChild(opt);
     });
 
-   
     if (window.currentPreset && window.currentPreset.presetId) {
         presetSelect.value = window.currentPreset.presetId;
     } else {
@@ -138,16 +133,15 @@ async function isAnyCustomPresetActive() {
 }
 
 async function loadBaseView() {
-    showLoading(); // Pokazujemy spinner
+    showLoading();
     try {
         const customActive = await isAnyCustomPresetActive();
 
-     
         window.currentPreset = {
             presetId: null,
             storeId: storeId,
             presetName: "PriceSafari - Wszystkie Dane",
-            nowInUse: !customActive, 
+            nowInUse: !customActive,
             sourceGoogle: true,
             sourceCeneo: true,
             useUnmarkedStores: true,
@@ -171,7 +165,6 @@ async function loadBaseView() {
             deleteBtn.style.display = "none";
         }
 
-     
         const googleCheckbox = document.getElementById("googleCheckbox");
         googleCheckbox.checked = window.currentPreset.sourceGoogle;
         googleCheckbox.disabled = true;
@@ -182,8 +175,6 @@ async function loadBaseView() {
         useUnmarkedStoresCheckbox.checked = window.currentPreset.useUnmarkedStores;
         useUnmarkedStoresCheckbox.disabled = true;
 
-
-        // Przygotowujemy / pobieramy button aktywacji
         let activateBtn = document.getElementById("activatePresetBtn");
         if (!activateBtn) {
             activateBtn = document.createElement("button");
@@ -191,24 +182,17 @@ async function loadBaseView() {
             document.getElementById("activateButtonContainer").appendChild(activateBtn);
         }
 
-        // Nadajemy podstawową klasę:
         activateBtn.className = "Button-Page-Small";
 
-        // Jeśli preset jest aktywny:
         if (window.currentPreset.nowInUse) {
             activateBtn.textContent = "Aktywny";
             activateBtn.disabled = true;
-
-            // Dodajemy klasę z zielonym tłem:
             activateBtn.classList.add("active-preset");
         } else {
-            // Jeśli nie jest aktywny, usuwamy klasę zielonego tła:
             activateBtn.classList.remove("active-preset");
-
             activateBtn.textContent = "Ustaw jako aktywny";
             activateBtn.disabled = false;
 
-            // Onclick – dezaktywujemy wszystkie i ponownie ładujemy bazę
             activateBtn.onclick = async function () {
                 await deactivateAllPresets();
                 await loadBaseView();
@@ -216,17 +200,13 @@ async function loadBaseView() {
             };
         }
 
-
-
-    
         await loadCompetitors("All");
     } catch (err) {
         console.error("loadBaseView error", err);
     } finally {
-        hideLoading(); 
+        hideLoading();
     }
 }
-
 
 async function loadSelectedPreset(presetId) {
     showLoading();
@@ -259,14 +239,13 @@ async function loadSelectedPreset(presetId) {
 
         document.getElementById("newPresetSection").style.display = "block";
 
-        // Ustawianie pól formularza
         const presetNameInput = document.getElementById("presetNameInput");
         if (presetNameInput) {
             presetNameInput.style.display = "block";
             presetNameInput.value = preset.presetName || "";
             presetNameInput.disabled = false;
         }
-        // Przygotowujemy / pobieramy button aktywacji
+
         let activateBtn = document.getElementById("activatePresetBtn");
         if (!activateBtn) {
             activateBtn = document.createElement("button");
@@ -274,18 +253,15 @@ async function loadSelectedPreset(presetId) {
             document.getElementById("activateButtonContainer").appendChild(activateBtn);
         }
 
-        // Nadajemy tę samą podstawową klasę:
         activateBtn.className = "Button-Page-Small";
 
         if (window.currentPreset.nowInUse) {
             activateBtn.textContent = "Aktywny";
             activateBtn.disabled = true;
-            // Dodajemy klasę z zielonym tłem
             activateBtn.classList.add("active-preset");
         } else {
             activateBtn.textContent = "Ustaw jako aktywny";
             activateBtn.disabled = false;
-            // Usuwamy, gdyby wcześniej była
             activateBtn.classList.remove("active-preset");
 
             activateBtn.onclick = function () {
@@ -299,14 +275,12 @@ async function loadSelectedPreset(presetId) {
             };
         }
 
-
         let editBtn = document.getElementById("editPresetBtn");
         if (editBtn) {
             if (editBtn.parentElement.id !== "editButtonContainer") {
                 editBtn.parentElement.removeChild(editBtn);
                 document.getElementById("editButtonContainer").appendChild(editBtn);
             }
-            // Ustawiamy zawartość, style i tooltip dla istniejącego przycisku
             editBtn.innerHTML = '<i class="fas fa-pen" style="color:#4e4e4e; font-size:16px;"></i>';
             editBtn.title = "Zmień nazwę presetu";
             editBtn.style.border = "none";
@@ -314,10 +288,8 @@ async function loadSelectedPreset(presetId) {
             editBtn.style.width = "33px";
             editBtn.style.height = "33px";
             editBtn.style.background = "#e3e3e3";
-
             editBtn.style.cursor = "pointer";
         } else {
-            // Tworzymy nowy przycisk z ustawieniami
             editBtn = document.createElement("button");
             editBtn.id = "editPresetBtn";
             editBtn.innerHTML = '<i class="fas fa-pen" style="color:#4e4e4e; font-size:16px;"></i>';
@@ -327,7 +299,6 @@ async function loadSelectedPreset(presetId) {
             editBtn.style.width = "33px";
             editBtn.style.height = "33px";
             editBtn.style.background = "#e3e3e3";
-    
             editBtn.style.cursor = "pointer";
             document.getElementById("editButtonContainer").appendChild(editBtn);
         }
@@ -339,9 +310,16 @@ async function loadSelectedPreset(presetId) {
                 return;
             }
             // Wyświetlamy prompt z aktualną nazwą jako domyślną wartością
-            const newName = prompt("Podaj nową nazwę presetu:", window.currentPreset.presetName);
+            let newName = prompt("Podaj nową nazwę presetu (max 50 znaków):", window.currentPreset.presetName);
+
             if (newName && newName.trim() !== "") {
-                window.currentPreset.presetName = newName.trim();
+                newName = newName.trim();
+                if (newName.length > 50) {
+                    newName = newName.substring(0, 50);
+                    alert("Nazwa została przycięta do 50 znaków.");
+                }
+
+                window.currentPreset.presetName = newName;
                 await saveOrUpdatePreset();
                 await refreshPresetDropdown();
                 alert("Zmieniono nazwę presetu.");
@@ -349,9 +327,6 @@ async function loadSelectedPreset(presetId) {
         };
 
 
-
-
-        // Konfiguracja przycisku "Usuń preset" – umieszczamy go w deleteButtonContainer
         let deleteBtn = document.getElementById("deletePresetBtn");
         if (!deleteBtn) {
             deleteBtn = document.createElement("button");
@@ -366,8 +341,6 @@ async function loadSelectedPreset(presetId) {
             deleteBtn.style.cursor = "pointer";
             document.getElementById("deleteButtonContainer").appendChild(deleteBtn);
         }
-
-
 
         deleteBtn.style.display = "inline-block";
         deleteBtn.onclick = async function () {
@@ -392,7 +365,6 @@ async function loadSelectedPreset(presetId) {
             }
         };
 
-       
         const googleChk = document.getElementById("googleCheckbox");
         if (googleChk) {
             googleChk.checked = !!preset.sourceGoogle;
@@ -415,7 +387,6 @@ async function loadSelectedPreset(presetId) {
         hideLoading();
     }
 }
-
 
 
 function determineSourceVal(isGoogle, isCeneo) {
@@ -455,15 +426,12 @@ async function loadCompetitors(ourSource) {
 function createRow(item) {
     const tr = document.createElement("tr");
 
-  
     tr.dataset.originalStoreName = item.storeName;
-    tr.dataset.storeName = item.storeName; 
+    tr.dataset.storeName = item.storeName;
 
     const tdStore = document.createElement("td");
     tdStore.textContent = item.storeName;
     tr.appendChild(tdStore);
-
-
 
     const tdCommon = document.createElement("td");
     tdCommon.textContent = item.commonProductsCount;
@@ -482,9 +450,8 @@ function createRow(item) {
         tr.style.backgroundColor = "#cccccc";
         tdAction.textContent = "Niedostępne";
     } else {
-        // Przycisk "Dodaj" z ikoną tick
         const addBtn = document.createElement("button");
-        addBtn.classList.add("filterCompetitors-true"); // dodajemy klasę CSS
+        addBtn.classList.add("filterCompetitors-true");
         addBtn.style.marginRight = "5px";
         addBtn.addEventListener("click", () => {
             toggleCompetitorUsage(item.storeName, (item.dataSource === "Google"), true);
@@ -492,7 +459,6 @@ function createRow(item) {
         addBtn.innerHTML = '<i class="fas fa-check"></i>';
         tdAction.appendChild(addBtn);
 
-        // Przycisk "Usuń" z ikoną X
         const remBtn = document.createElement("button");
         remBtn.classList.add("filterCompetitors-false");
         remBtn.style.marginRight = "5px";
@@ -502,7 +468,6 @@ function createRow(item) {
         remBtn.innerHTML = '<i class="fas fa-times"></i>';
         tdAction.appendChild(remBtn);
 
-        // Przycisk "Oczyść" z ikoną strzałki cofania
         const clearBtn = document.createElement("button");
         clearBtn.classList.add("filterCompetitors-back");
         clearBtn.addEventListener("click", () => {
@@ -520,7 +485,6 @@ function createRow(item) {
     return tr;
 }
 
-// Dodaje lub usuwa sklep z listy competitorów i zapisuje zmiany
 function toggleCompetitorUsage(storeName, isGoogle, useCompetitor) {
     if (!window.currentPreset || !window.currentPreset.presetId) {
         alert("Stwórz własny preset, aby wprowadzać zmiany.");
@@ -539,7 +503,6 @@ function toggleCompetitorUsage(storeName, isGoogle, useCompetitor) {
     refreshRowColor(storeName, isGoogle);
 }
 
-
 function clearCompetitorUsage(storeName, isGoogle) {
     if (!window.currentPreset || !window.currentPreset.presetId) {
         alert("Stwórz własny preset, aby wprowadzać zmiany.");
@@ -549,7 +512,6 @@ function clearCompetitorUsage(storeName, isGoogle) {
         c.storeName.toLowerCase() === storeName.toLowerCase() && c.isGoogle === isGoogle
     );
     if (idx !== -1) {
-        // Usuwamy ten element z listy
         window.currentPreset.competitors.splice(idx, 1);
     }
     saveOrUpdatePreset();
@@ -588,12 +550,12 @@ document.addEventListener("DOMContentLoaded", () => {
     const btnNew = document.getElementById("addNewPresetBtn");
     if (!btnNew) return;
     btnNew.addEventListener("click", async function () {
-        let presetName = prompt("Podaj nazwę nowego presetu (max 40 znaków):", "");
+        let presetName = prompt("Podaj nazwę nowego presetu (max 50 znaków):", "");
         if (!presetName) return;
         presetName = presetName.trim();
-        if (presetName.length > 40) {
-            presetName = presetName.substring(0, 40);
-            alert("Nazwa została przycięta do 40 znaków.");
+        if (presetName.length > 50) {
+            presetName = presetName.substring(0, 50);
+            alert("Nazwa została przycięta do 50 znaków.");
         }
         const newPreset = {
             presetId: 0,
@@ -635,13 +597,12 @@ document.addEventListener("DOMContentLoaded", () => {
                 alert("Nie można zmienić nazwy presetu.");
                 return;
             }
-            // Wyświetlamy prompt z aktualną nazwą jako wartość domyślną
-            let presetName = prompt("Podaj nazwę nowego presetu (max 40 znaków):", window.currentPreset.presetName);
+            let presetName = prompt("Podaj nazwę nowego presetu (max 50 znaków):", window.currentPreset.presetName);
             if (!presetName) return;
             presetName = presetName.trim();
-            if (presetName.length > 40) {
-                presetName = presetName.substring(0, 40);
-                alert("Nazwa została przycięta do 40 znaków.");
+            if (presetName.length > 50) {
+                presetName = presetName.substring(0, 50);
+                alert("Nazwa została przycięta do 50 znaków.");
             }
             window.currentPreset.presetName = presetName;
             await saveOrUpdatePreset();
@@ -682,7 +643,7 @@ document.addEventListener("DOMContentLoaded", () => {
 // Zapis lub aktualizacja presetu (tylko dla customowych widoków)
 async function saveOrUpdatePreset() {
     if (!window.currentPreset) return;
-    if (!window.currentPreset.presetId) return; // widoki bazowe nie są zapisywane
+    if (!window.currentPreset.presetId) return;
     try {
         const resp = await fetch("/PriceHistory/SaveOrUpdatePreset", {
             method: "POST",
@@ -711,33 +672,23 @@ function filterCompetitors(searchTerm) {
         const searchLower = searchTerm.toLowerCase();
 
         const storeTd = tr.querySelector("td:nth-child(1)");
-        if (!storeTd) return; 
+        if (!storeTd) return;
 
-        // Sprawdzamy czy nazwa sklepu zawiera wpisany fragment
         if (!searchTerm || storeNameLower.includes(searchLower)) {
-            // Pokazujemy wiersz
             tr.style.display = "";
-
-            // Podmieniamy fragment dopasowanego tekstu na pogrubiony fioletowy
             const highlighted = highlightTextCaseInsensitive(originalStoreName, searchTerm);
             storeTd.innerHTML = highlighted;
         } else {
-            // Ukrywamy wiersz
             tr.style.display = "none";
-            // Można przywrócić oryginalny tekst, ale i tak wiersz jest niewidoczny
             storeTd.textContent = originalStoreName;
         }
     });
 }
 
 function highlightTextCaseInsensitive(fullText, searchTerm) {
-    if (!searchTerm) return fullText; 
-
+    if (!searchTerm) return fullText;
     const escapedTerm = searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-
-
     const regex = new RegExp(`(${escapedTerm})`, 'gi');
-
     return fullText.replace(regex, '<span style="font-weight:bold; color:yellow;">$1</span>');
 }
 
@@ -746,10 +697,9 @@ document.addEventListener('click', function (event) {
     if (modal.classList.contains('show')) {
         const dialog = modal.querySelector('.modal-simulation');
         if (!dialog.contains(event.target)) {
-      
             modal.style.display = 'none';
             modal.classList.remove('show');
-            loadPrices(); 
+            loadPrices();
         }
     }
 });
@@ -766,7 +716,6 @@ document.addEventListener('keydown', function (event) {
 });
 
 document.addEventListener("DOMContentLoaded", function () {
-  
     const competitorModal = document.getElementById("competitorModal");
     competitorModal.addEventListener("click", function (event) {
         const closeBtn = event.target.closest("[data-dismiss='modal']");
@@ -777,7 +726,6 @@ document.addEventListener("DOMContentLoaded", function () {
         }
     });
 
-   
     const competitorSearchInput = document.getElementById("competitorSearchInput");
     if (competitorSearchInput) {
         competitorSearchInput.addEventListener("input", function () {
