@@ -106,37 +106,55 @@ public class ScheduledTaskService : BackgroundService
                             // 4) Uruchamianie zadań
                             foreach (var t in tasksToRun)
                             {
-                                _logger.LogInformation(
-                                    "Rozpoczynam wykonywanie zadania '{SessionName}' (StartTime: {StartTime}).",
-                                    t.SessionName, t.StartTime);
+             
+                                bool canRunAnything =
+                                    (t.UrlEnabled && urlScalKey == "49276583") ||
+                                    (t.CeneoEnabled && cenCrawKey == "56981467") ||
+                                    (t.GoogleEnabled && gooCrawKey == "03713857") ||
+                                    (t.BaseEnabled && baseScalKey == "34692471");
 
-                                // USTAWIAMY LastRunDate = teraz, od razu
-                                // (tak aby kolejne sprawdzenie nie uruchomiło zadania ponownie).
+                                if (!canRunAnything)
+                                {
+                             
+                                    _logger.LogInformation(
+                                        "Urządzenie '{DeviceName}' nie ma odpowiednich kluczy, aby wykonać zadanie '{SessionName}'. Pomijam.",
+                                        deviceName, t.SessionName);
+
+                                    continue; // przeskakujemy do następnego zadania
+                                }
+
+                              
+
+                                _logger.LogInformation(
+                                    "Rozpoczynam wykonywanie zadania '{SessionName}' (StartTime: {StartTime}) na urządzeniu '{DeviceName}'.",
+                                    t.SessionName, t.StartTime, deviceName);
+
                                 t.LastRunDate = DateTime.Now;
                                 context.ScheduleTasks.Update(t);
                                 await context.SaveChangesAsync(stoppingToken);
 
-                                // Teraz wykonujemy poszczególne operacje (tylko jeśli dany klucz środowiskowy i flaga są włączone)
-                                if (urlScalKey == "49276583" && t.UrlEnabled)
+                                // Teraz uruchamiasz TYLKO te subtaski, do których urządzenie posiada klucz i które są włączone:
+                                if (t.UrlEnabled && urlScalKey == "49276583")
                                 {
                                     await RunUrlScalAsync(context, deviceName, t, stoppingToken);
                                 }
-                                if (cenCrawKey == "56981467" && t.CeneoEnabled)
+                                if (t.CeneoEnabled && cenCrawKey == "56981467")
                                 {
                                     await RunCeneoAsync(context, deviceName, t, stoppingToken);
                                 }
-                                if (gooCrawKey == "03713857" && t.GoogleEnabled)
+                                if (t.GoogleEnabled && gooCrawKey == "03713857")
                                 {
                                     await RunGoogleAsync(context, deviceName, t, stoppingToken);
                                 }
-                                if (baseScalKey == "34692471" && t.BaseEnabled)
+                                if (t.BaseEnabled && baseScalKey == "34692471")
                                 {
                                     await RunBaseScalAsync(context, deviceName, t, stoppingToken);
                                 }
 
-                                // Opcjonalne opóźnienie między zadaniami
+                                // Opcjonalne opóźnienie między zadaniami (żeby nie lecieć "wszystko naraz")
                                 await Task.Delay(TimeSpan.FromSeconds(10), stoppingToken);
                             }
+
                         }
                     }
                 }
