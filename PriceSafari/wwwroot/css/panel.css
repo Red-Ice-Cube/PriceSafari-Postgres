@@ -2291,6 +2291,7 @@ tr:last-child .sub-line {
     box-shadow: none;
     border: 1px solid #222222;
     margin-right: 8px;
+    cursor:pointer;
 }
 
     .form-check-input:focus {
@@ -2414,11 +2415,11 @@ tr:last-child .sub-line {
 
 .form-check {
     display: flex;
-    align-items: center;
     padding: 0px 0px 0px 24px;
     color: #000;
     font-size: 14px;
     font-weight: 400;
+    
 }
 
 .Vert-Top {
@@ -2942,16 +2943,22 @@ tr:last-child .sub-line {
     font-size: 15px;
 }
 
-.flagFilter {
+.flagFilterExclude {
     outline: none;
     background-color: white;
     border: 2px solid gray;
     border-radius: 4px;
     width: 16px;
     height: 16px;
+
 }
 
-.flagCheckbox {
+    .flagFilterExclude:checked {
+        background-color: rgba(255, 0, 0, 0.7);
+        border: 2px solid rgba(255, 0, 0, 1);
+    }
+
+.flagFilterInclude {
     outline: none;
     background-color: white;
     border: 2px solid gray;
@@ -3479,6 +3486,12 @@ tr:last-child .sub-line {
     flex-grow: 1;
     gap:4px;
     padding-right:4px;
+}
+
+
+.flag-filter-group {
+    display:flex;
+    justify-content:flex-start;
 }
 
 .close {
