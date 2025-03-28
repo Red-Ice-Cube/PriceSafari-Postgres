@@ -1,7 +1,4 @@
 ﻿
-// NOWA METODA USTAWIAJACA WAS EXECUTED NA POCZATEK, 
-
-
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using PriceSafari.Data;

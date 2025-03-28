@@ -458,10 +458,17 @@
                 document.getElementById('usePriceDifference').checked = usePriceDifference;
                 updateUnits(usePriceDifference);
 
-                // Ustawienia marży pobrane z backendu:
                 marginSettings.useMarginForSimulation = response.useMarginForSimulation;
                 marginSettings.enforceMinimalMargin = response.enforceMinimalMargin;
                 marginSettings.minimalMarginPercent = response.minimalMarginPercent;
+
+                if (response.presetName) {
+                    if (response.presetName === 'PriceSafari') {
+                        document.getElementById('presetButton').textContent = 'Presety - Widok standardowy PriceSafari';
+                    } else {
+                        document.getElementById('presetButton').textContent = 'Presety - ' + response.presetName;
+                    }
+                }
 
                 allPrices = response.prices.map(price => {
                     const isRejected = price.isRejected;

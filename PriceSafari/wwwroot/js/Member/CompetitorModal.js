@@ -54,9 +54,9 @@ async function refreshPresetDropdown() {
     const baseOpt = document.createElement("option");
     baseOpt.value = "BASE";
     if (!anyActive) {
-        baseOpt.textContent = "PriceSafari - Wszystkie Dane [aktywny]";
+        baseOpt.textContent = "Widok standardowy PriceSafari [aktywny]";
     } else {
-        baseOpt.textContent = "PriceSafari - Wszystkie Dane";
+        baseOpt.textContent = "Widok standardowy PriceSafari";
     }
     presetSelect.appendChild(baseOpt);
 
@@ -137,7 +137,7 @@ async function loadBaseView() {
         window.currentPreset = {
             presetId: null,
             storeId: storeId,
-            presetName: "PriceSafari - Wszystkie Dane",
+            presetName: "Widok standardowy PriceSafari",
             nowInUse: !customActive,
             sourceGoogle: true,
             sourceCeneo: true,
