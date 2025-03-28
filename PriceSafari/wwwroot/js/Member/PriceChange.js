@@ -325,7 +325,7 @@
                         
                             modalContent += '<td>' +
                                 '<button class="remove-change-btn" data-product-id="' + item.productId + '" style="background: none; border: none; padding: 5px; display: flex; align-items: center; margin-left:8px; justify-content: center;">' +
-                                '<i class="fa fa-trash-o" style="font-size: 19px; color: red;"></i>' +
+                                '<i class="fa fa-trash" style="font-size: 19px; color: red;"></i>' +
                                 '</button>' +
                                 '</td>';
 

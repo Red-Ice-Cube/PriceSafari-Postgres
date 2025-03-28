@@ -863,7 +863,7 @@
 
            
             const removeLink = document.createElement('span');
-            removeLink.innerHTML = " <i class='fa fa-trash-o' style='font-size:16px; display:flex; color:white; margin-left:4px; margin-top:2px;'></i>";
+            removeLink.innerHTML = " <i class='fa fa-trash' style='font-size:14px; display:flex; color:white; margin-left:4px; margin-top:3px;'></i>";
 
             removeLink.style.textDecoration = "none";
             removeLink.style.cursor = "pointer";
@@ -1975,11 +1975,11 @@
                     datasets: [{
                         data: chartData,
                         backgroundColor: [
-                            'rgba(180, 180, 180, 0.8)', // kolor dla prOnlyMe
+                            'rgba(180, 180, 180, 0.8)', 
                             'rgba(171, 37, 32, 0.8)',
                             'rgba(224, 168, 66, 0.8)',
                             'rgba(117, 152, 112, 0.8)',
-                            'rgba(0, 145, 123, 0.8)',
+                            'rgba(13, 110, 253, 0.8)',
                             'rgba(6, 6, 6, 0.8)'
                         ],
                         borderColor: [
@@ -1987,7 +1987,7 @@
                             'rgba(171, 37, 32, 1)',
                             'rgba(224, 168, 66, 1)',
                             'rgba(117, 152, 112, 1)',
-                            'rgba(0, 145, 123, 1)',
+                            'rgba(13, 110, 253, 1)',
                             'rgba(6, 6, 6, 1)'
                         ],
                         borderWidth: 1

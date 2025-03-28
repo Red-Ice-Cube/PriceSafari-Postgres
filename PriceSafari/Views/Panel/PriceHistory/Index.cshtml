@@ -176,14 +176,14 @@
 
     .arrow-up-turquoise::before {
         content: '▲';
-        color: rgba(0, 145, 123, 0.7);
+        color: rgba(13, 110, 253, 0.7);
         margin-right: 5px;
         font-size: 16px;
     }
 
     .arrow-down-turquoise::before {
         content: '▼';
-        color: rgba(0, 145, 123, 0.7);
+        color: rgba(13, 110, 253, 0.7);
         margin-right: 5px;
         font-size: 16px;
     }
@@ -213,7 +213,7 @@
 
     .no-change-icon-turquoise::before {
         content: '⬤';
-        color: rgba(0, 145, 123, 0.7);
+        color: rgba(13, 110, 253, 0.7);
         font-size: 16px;
         margin-right: 5px;
     }
@@ -229,9 +229,16 @@
         width: 16px;
         height: 24px;
         border-radius:4px;
-        background-color: rgba(0, 145, 123, 0.7);
+        background-color: rgba(13, 110, 253, 0.7);
         display: inline-block;
         margin-left: 14px;
+    }
+
+    .color-square-turquoise::before {
+        content: '⮯';
+        color: #fff;
+        font-size: 18px;
+            margin-left: 2px;
     }
 
     .price-box-column span {
@@ -363,7 +370,14 @@
         margin-top: -10px;
         margin-bottom: -10px;
         margin-right: -10px;
-        width:106px;
+        width:100px;
+        opacity: 0.85;
+    }
+
+    .simulate-change-btn:hover {
+   
+        opacity: 1;
+  
     }
 
     .priceChangeSummary {
@@ -764,8 +778,8 @@
 
                     <div style="display:inline-flex; gap:10px;">
 
-                        <button id="exportToCsvButton" class="Button-Page-Small-bl"><i class="fa fa-file-code-o" aria-hidden="true"></i>Eksportuj do CSV</button>
-                        <button id="exportNewPriceToExcelButton" class="Button-Page-Small-gr"><i class="fa fa-file-excel-o" aria-hidden="true"></i>Eksportuj do Excela</button>
+                        <button id="exportToCsvButton" class="Button-Page-Small-bl"><i class="fa-solid fa-file-csv"></i>Eksportuj do CSV</button>
+                        <button id="exportNewPriceToExcelButton" class="Button-Page-Small-gr"><i class="fas fa-file-excel"></i>Eksportuj do Excela</button>
                     </div>
 
                 </div>

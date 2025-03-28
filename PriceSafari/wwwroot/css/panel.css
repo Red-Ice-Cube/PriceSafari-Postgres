@@ -197,7 +197,7 @@ p {
     display: flex;
     padding: 24px;
     width: 100%;
-    min-width: 1460px;
+    min-width: 1490px;
     overflow:clip;
     height: 97vh;
     flex-direction: column;
@@ -2997,8 +2997,8 @@ tr:last-child .sub-line {
     }
 
     .colorFilter:checked#prIdealCheckbox {
-        background-color: rgba(0, 145, 123, 0.7);
-        border: 2px solid rgba(0, 145, 123, 1);
+        background-color: rgba(13, 110, 253, 0.7);
+        border: 2px solid rgba(13, 110, 253, 1);
     }
 
 
@@ -3210,8 +3210,7 @@ tr:last-child .sub-line {
 }
 
 .prIdeal .color-bar {
-    background-color: rgba(0, 145, 123, 0.7);
-
+    background-color: rgba(13, 110, 253, 0.7);
 }
 
 .prGray .color-bar {
@@ -3477,6 +3476,7 @@ tr:last-child .sub-line {
     width: 125px;
     height:33px;
     flex-wrap:nowrap;
+    white-space:nowrap;
 }
 
 .flags-container {
@@ -3709,7 +3709,7 @@ tr:last-child .sub-line {
     }
 
     .price-range-settings .prIdeal-circle {
-        background-color: rgba(0, 145, 123, 0.7);
+        background-color: rgba(13, 110, 253, 0.7);
     }
 
     .price-range-settings .prMid-circle {
@@ -3734,7 +3734,7 @@ tr:last-child .sub-line {
     color: #fff;
     font-size: 18px;
     margin-left: 3px;
-    background-color: #0d6efd;
+    background-color: rgba(13, 110, 253, 0.7);
     min-width: 16px;
     max-width: 16px;
     height: 24px;
