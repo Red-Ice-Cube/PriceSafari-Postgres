@@ -197,7 +197,8 @@ p {
     display: flex;
     padding: 24px;
     width: 100%;
-    min-width: 1380px;
+    min-width: 1460px;
+    overflow:clip;
     height: 97vh;
     flex-direction: column;
     align-items: flex-start;
@@ -3467,14 +3468,14 @@ tr:last-child .sub-line {
     background: #e3e3e3;
     border: none;
     width: 125px;
+    height:33px;
     flex-wrap:nowrap;
 }
 
 .flags-container {
     display: flex;
-    flex-wrap: wrap; /* Pozwala na zawijanie elementów do następnego wiersza */
+    flex-wrap: wrap; 
     justify-content: flex-end;
-    align-items: flex-end;
     flex-grow: 1;
     gap:4px;
     padding-right:4px;
