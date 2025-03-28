@@ -696,8 +696,8 @@
                     </button>
 
 
-                    <button class="Button-Page-Small" id="updatePricesButton">API</button>
-                    <button class="Button-Page-Small" id="exportToExcelButton">Eksportuj</button>
+        
+                    <button class="Button-Page-Small" style="white-space: nowrap;" id="exportToExcelButton"><i class="fa-solid fa-floppy-disk" style="margin-top:2px;"></i>Eksportuj widok</button>
 
                     <div class="SimpleSpace" style="justify-content:flex-end;">
 
@@ -1144,7 +1144,8 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/5.0.9/signalr.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.6.1/nouislider.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/wnumb/1.2.0/wNumb.min.js"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+
 
     <script src="https://cdn.jsdelivr.net/npm/exceljs@4.3.0/dist/exceljs.min.js"></script>
 
@@ -1165,105 +1166,10 @@
         var scrapDateJS = "@scrapDate";
         var myStoreNameJS = "@store";
     </script>
-
-    <script>
-        $(document).ready(function () {
-            var connection = new signalR.HubConnectionBuilder().withUrl("/scrapingHub").build();
-            var updateSuccessful = false;
-
-            connection.on("ReceiveProgressUpdate", function (processedCount, totalProducts, updatedCount, skippedCount) {
-                var percentage = Math.round((processedCount / totalProducts) * 100);
-                var progressBarInner = document.getElementById("progressBarInner");
-                var progressText = document.getElementById("progressText");
-
-                progressBarInner.style.width = percentage + "%";
-                progressBarInner.innerHTML = percentage + "%";
-                progressText.innerHTML = `Wykryto aktualizację ceny dla ${updatedCount}/${totalProducts} produktów. Sprawdzono ${skippedCount} produktów.`;
-            });
-
-            connection.start().then(function () {
-                console.log("SignalR connected.");
-            }).catch(function (err) {
-                return console.error(err.toString());
-            });
-
-            $('#updatePricesButton').on('click', function () {
-                $('#updatePricesModal').modal('show');
-            });
-
-            $('#confirmUpdatePrices').on('click', function () {
-                $('#updateStatusMessage').hide();
-                $('#updateProgress').show();
-                $('#cancelUpdatePrices').hide();
-                $('#confirmUpdatePrices').prop('disabled', true);
-
-                $.ajax({
-                    url: '@Url.Action("UpdatePricesFromExternalStore", "PriceHistory")',
-                    type: 'POST',
-                    data: {
-                        storeId: storeId
-                    },
-                    success: function (data) {
-                        $('#updateProgress').hide();
-                        $('#updateStatusMessage').show().text('Aktualizacja zakończona. Zaktualizowano ceny dla ' + data.updatedCount + ' produktów. Sprawdzono ' + data.skippedCount + ' produktów.');
-                        $('#cancelUpdatePrices').show();
-                        $('#confirmUpdatePrices').prop('disabled', false);
-                        updateSuccessful = true;
-                    },
-                    error: function () {
-                        $('#updateProgress').hide();
-                        $('#updateStatusMessage').show().text('Twój sklep nie jest połączony po API.');
-                        $('#cancelUpdatePrices').show();
-                        $('#confirmUpdatePrices').prop('disabled', false);
-                    }
-                });
-            });
-
-            $('#cancelUpdatePrices').on('click', function () {
-                $('#updatePricesModal').modal('hide');
-            });
-
-            $('#updatePricesModal').on('hidden.bs.modal', function () {
-                if (updateSuccessful) {
-                    location.reload();
-                }
-            });
-        });
-    </script>
-
 }
 
 <div id="loadingOverlay" class="loading-overlay" style="display: none;">
     <div class="loader"></div>
-</div>
-
-<div class="modal fade" id="updatePricesModal" tabindex="-1" role="dialog" aria-labelledby="updatePricesModalLabel" aria-hidden="true">
-    <div class="modal-dialog" role="document">
-        <div class="modal-content">
-            <div class="modal-header">
-                <div class="price-box-column-name" id="updatePricesModalLabel">Aktualizuj Ceny API</div>
-                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                    <span aria-hidden="true">&times;</span>
-                </button>
-            </div>
-            <div class="modal-body">
-                <p id="updateStatusMessage">Czy na pewno chcesz zaktualizować ceny produktów ze zewnętrznego sklepu?</p>
-                <div id="updateProgress" style="display: none;">
-                    <p>Proszę czekać, trwa aktualizacja...</p>
-                    <div class="progress">
-                        <div id="progressBarInner" class="progress-bar" role="progressbar" style="width: 0%; background-color: #202430;">
-                            0%
-                        </div>
-                    </div>
-                    <p id="progressText"></p>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="Button-Page-Small-r" id="cancelUpdatePrices" data-dismiss="modal">Zamknij</button>
-                <button type="button" class="Button-Page-Small-b" id="confirmUpdatePrices">Aktualizuj Ceny API</button>
-            </div>
-        </div>
-    </div>
 </div>
 
 <div id="flagModal" class="modal">
