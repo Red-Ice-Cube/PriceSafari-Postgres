@@ -367,17 +367,14 @@ public class ClientProfileController : Controller
              <br>
              <img src=""https://pricesafari.pl/mail/Presety_PriceSafari.png"" alt=""Wykres_PriceSafari"" style=""width: 1400px; height: auto;"" />
               <br>
-            <br>
-            <br>
+           
+          
             
             <p>Do programu możemy zaimportować ceny zakupu towarów oraz skonfigurować wiele funkcji, które pozwalają precyzyjnie zarządzać zmianami cen w naszych ofertach. </p>  <p> Przykładowo, możemy ustawić minimalną marżę na poziomie 8%, przeprowadzić symulację cenową dla wybranej grupy produktów, a następnie wyeksportować nowe ceny do pliku CSV lub XLSX. </p>  <p> Potem wystarczy już tylko zaimportować je do sklepu internetowego i obserwować, jak rośnie sprzedaż – a cały proces, zamiast zajmować godziny żmudnej pracy, trwa dosłownie kilka minut.</p>
            <br>
             <img src=""https://pricesafari.pl/mail/CoPilot_PriceSafari.png"" alt=""Wykres_PriceSafari"" style=""width: 1400px; height: auto;"" />
 
 
-   <br>
-            <br>
-            <br>
           
             <p>Oferujemy bezpłatne konto demo, na którym mogą Państwo przetestować nasz program na 1000 własnych produktów. Wystarczy przesłać feed produktowy z Państwa sklepu zawierający produkty, które mamy monitorować.  </p>  <p>Na tej podstawie przygotujemy konto, a podczas krótkiego spotkania online pokażemy, jak korzystać z Panelu PriceSafari w praktyce i przekażemy dostępy do konta.</p>
             <p>Jeśli są Państwo zainteresowani, prosimy o odpowiedź na tego maila – za Państwa zgodą z przyjemnością prześlemy szczegółową ofertę oraz przygotujemy darmowe konto demo.</p>
@@ -392,7 +389,7 @@ public class ClientProfileController : Controller
 
             <p>Monitorujemy ceny produktów na Google Shopping i Ceneo.</p>
             <p>Spojrzenie na cały rynek z jednego panelu pozwoli Państwu strategicznie zarządzać cenami własnych produktów, maksymalizować zyski i wyprzedzać konkurentów.</p>
-   
+            <p>Na samym Ceneo zaindeksowaliśmy <strong>{ProductCount}</strong> produktów dostępnych w Państwa sklepie, które moglibyśmy zacząć monitorować.</p>
             <br>
             <p>Dzięki śledzeniu cen, możemy szybko sprawdzić:</p>
 
@@ -431,17 +428,13 @@ public class ClientProfileController : Controller
              <br>
              <img src=""https://pricesafari.pl/mail/Presety_PriceSafari.png"" alt=""Wykres_PriceSafari"" style=""width: 1400px; height: auto;"" />
               <br>
-            <br>
-            <br>
+          
             
             <p>Do programu możemy zaimportować ceny zakupu towarów oraz skonfigurować wiele funkcji, które pozwalają precyzyjnie zarządzać zmianami cen w naszych ofertach. </p>  <p> Przykładowo, możemy ustawić minimalną marżę na poziomie 8%, przeprowadzić symulację cenową dla wybranej grupy produktów, a następnie wyeksportować nowe ceny do pliku CSV lub XLSX. </p>  <p> Potem wystarczy już tylko zaimportować je do sklepu internetowego i obserwować, jak rośnie sprzedaż – a cały proces, zamiast zajmować godziny żmudnej pracy, trwa dosłownie kilka minut.</p>
            <br>
             <img src=""https://pricesafari.pl/mail/CoPilot_PriceSafari.png"" alt=""Wykres_PriceSafari"" style=""width: 1400px; height: auto;"" />
 
 
-   <br>
-            <br>
-            <br>
           
             <p>Oferujemy bezpłatne konto demo, na którym mogą Państwo przetestować nasz program na 1000 własnych produktów. Wystarczy przesłać feed produktowy z Państwa sklepu zawierający produkty, które mamy monitorować.  </p>  <p>Na tej podstawie przygotujemy konto, a podczas krótkiego spotkania online pokażemy, jak korzystać z Panelu PriceSafari w praktyce i przekażemy dostępy do konta.</p>
             <p>Jeśli są Państwo zainteresowani, prosimy o odpowiedź na tego maila – za Państwa zgodą z przyjemnością prześlemy szczegółową ofertę oraz przygotujemy darmowe konto demo.</p>
