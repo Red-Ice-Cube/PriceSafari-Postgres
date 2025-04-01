@@ -326,10 +326,10 @@ public class ClientProfileController : Controller
         return @"
             <p>Dzień dobry,</p>
 
-            <p>Monitorujemy ceny produktów na Google Shopping, Ceneo i Allegro.</p>
-
+            <p>Monitorujemy ceny produktów na Google Shopping i Ceneo.</p>
+            <p>Spojrzenie na cały rynek z jednego panelu pozwoli Państwu strategicznie zarządzać cenami własnych produktów, maksymalizować zyski i wyprzedzać konkurentów.</p>
             <p>Na samym Ceneo zaindeksowaliśmy <strong>{ProductCount}</strong> produktów dostępnych w Państwa sklepie, które moglibyśmy zacząć monitorować.</p>
-
+            <br>
             <p>Dzięki śledzeniu cen, możemy szybko sprawdzić:</p>
 
             <ul>
@@ -342,40 +342,45 @@ public class ClientProfileController : Controller
                 <li>Na jakich produktach wybrany konkurent zmienił wczoraj cenę?</li>
             </ul>
 
-            <p>Panel PriceSafari z danymi jednej z zaprzyjaźnionych firm:</p>
+            <p>Funkcja Co-Pilota cenowego pozwala masowo wprowdzać zmiany, symulować wyniki i eksportować nowe ceny dla setek produktów kilkoma kliknięciami.</p><br>
+
+            <p>Panel PriceSafari prezentuje aktualną sytuację rynkową ofert z Państwa sklepu na tle konkurencji.</p> <p>Dzięki zaawansowanym filtrom można precyzyjnie wybrać kanały oraz sklepy, z którymi chcą Państwo konkurować cenowo – i wykluczyć te, z którymi nie.</p>
+            <br>
             <img src=""https://pricesafari.pl/mail/Panel_PriceSafari.png"" alt=""Panel_PriceSafari"" style=""width: 1400px; height: auto;"" />
-
-            <p>Rozkład cen:</p>
+            <br>
+            <br>
+            <br>
+            <p>Po kliknięciu w wybrany produkt, uzyskujemy podgląd wszystkich sklepów sprzedających dokładnie ten sam produkt w Polsce.</p><p> Możemy sprawdzić, kto oferuje najniższą cenę, jakie są koszty dostawy oraz dostępność towaru.</p><p> Dodatkowo zobaczymy, jak nasza oferta wypada na tle konkurencji – w zależności od źródła danych, takiego jak Ceneo czy Google Shopping.</p>
+            
+            <br>
             <img src=""https://pricesafari.pl/mail/Ranking_PriceSafari.png"" alt=""Ranking_PriceSafari"" style=""width: 1400px; height: auto;"" />
-
-            <p>Ceny w czasie:</p>
+            <br>
+            <br>
+            <br>
+            <p>Od momentu rozpoczęcia analizy cenowej zaczynamy gromadzić dane o cenach i zapisywać historię 30 ostatnich analiz. </p>  <p>Dzięki temu można śledzić, jak zmieniała się cena oraz dostępność danego produktu w czasie.  </p><p> Pozwala to m.in. sprawdzić, którzy z konkurentów modyfikują ceny w weekendy.</p>
+            <br>
             <img src=""https://pricesafari.pl/mail/Wykres_PriceSafari.png"" alt=""Wykres_PriceSafari"" style=""width: 1400px; height: auto;"" />
+               <br>
+            <br>
+            <br>
+            <p>PriceSafari umożliwia tworzenie zaawansowanych presetów widoków z danymi, dopasowanych do konkretnych potrzeb. </p>  <p>Czasami nie chcemy konkurować z własnym sklepem czy np. z Amazonem – dlatego możemy łatwo wykluczyć wybrane źródła danych i skupić się tylko na tych konkurentach, którzy naprawdę nas interesują.</p>
+             <br>
+             <img src=""https://pricesafari.pl/mail/Presety_PriceSafari.png"" alt=""Wykres_PriceSafari"" style=""width: 1400px; height: auto;"" />
+              <br>
+            <br>
+            <br>
+            
+            <p>Do programu możemy zaimportować ceny zakupu towarów oraz skonfigurować wiele funkcji, które pozwalają precyzyjnie zarządzać zmianami cen w naszych ofertach. </p>  <p> Przykładowo, możemy ustawić minimalną marżę na poziomie 8%, przeprowadzić symulację cenową dla wybranej grupy produktów, a następnie wyeksportować nowe ceny do pliku CSV lub XLSX. </p>  <p> Potem wystarczy już tylko zaimportować je do sklepu internetowego i obserwować, jak rośnie sprzedaż – a cały proces, zamiast zajmować godziny żmudnej pracy, trwa dosłownie kilka minut.</p>
+           <br>
+            <img src=""https://pricesafari.pl/mail/CoPilot_PriceSafari.png"" alt=""Wykres_PriceSafari"" style=""width: 1400px; height: auto;"" />
 
-            <p><strong>Raporty cenowe w Europie</strong></p>
-            <p>
-                Posiadamy też oczywiście możliwość śledzenia ofert na googlu w 16 krajach w EU. 
-                Zbieramy wtedy dane ze wszystkich porównywarek cenowych takich jak Zbozi.cz, Heureca.cz czy Idealo i Allegro. 
-                Jest to już inna część programu, gdzie nie zbieramy cen każdego dnia tylko robimy taki raport na zlecenie dla wybranych produktów i rynków.
-                Nasi klienci wykorzystują takie raporty głównie przed składaniem zamówień u dystrybutorów, ponieważ widać wtedy od razu, czy oferowane ceny są dobre. 
-                Zdarzają się często takie przypadki, że np. w Rumunii czy w Czechach możemy znaleźć produkt w o wiele niższej cenie, 
-                co może posłużyć jako podstawa do dalszych negocjacji czy zamówienia towaru zza granicy.
-            </p>
-            <p>
-                Raporty to nie pliki excel (jak w konkurencyjnych rozwiązaniach), tylko panel, który automatycznie przelicza ceny 
-                z różnych walut po kursach NBP na PLN.
-            </p>
 
-            <img src=""https://pricesafari.pl/mail/Eu_PriceSafari.png"" alt=""Eu_PriceSafari"" style=""width: 1400px; height: auto;"" />
-
-            <p>
-                Raporty można też wykorzystać w drugą stronę i przeanalizować np. czeski rynek, odkryć na jakich produktach jesteśmy 
-                tańsi o 30% od najtańszego Czecha i wejść z ofertą na Allegro.cz.
-            </p>
-            <img src=""https://pricesafari.pl/mail/Czechy_PriceSafari.png"" alt=""Czechy_PriceSafari"" style=""width: 1400px; height: auto;"" />
-            <img src=""https://pricesafari.pl/mail/Produkt_Czechy_PriceSafari.png"" alt=""Produkt_Czechy_PriceSafari"" style=""width: 1400px; height: auto;"" />
-
-            <p>Zapraszamy do kontaktu. Oferujemy bezpłatne konto demo, na którym mogą Państwo przetestować nasz program na 500 własnych produktach.</p>
-            <p><strong>Konto demo przygotujemy w kilka godzin.</strong></p>
+   <br>
+            <br>
+            <br>
+          
+            <p>Oferujemy bezpłatne konto demo, na którym mogą Państwo przetestować nasz program na 1000 własnych produktów. Wystarczy przesłać feed produktowy z Państwa sklepu zawierający produkty, które mamy monitorować.  </p>  <p>Na tej podstawie przygotujemy konto, a podczas krótkiego spotkania online pokażemy, jak korzystać z Panelu PriceSafari w praktyce i przekażemy dostępy do konta.</p>
+            <p>Jeśli są Państwo zainteresowani, prosimy o odpowiedź na tego maila – za Państwa zgodą z przyjemnością prześlemy szczegółową ofertę oraz przygotujemy darmowe konto demo.</p>
             ";
     }
 
@@ -385,10 +390,10 @@ public class ClientProfileController : Controller
         return @"
             <p>Dzień dobry,</p>
 
-            <p>Monitorujemy ceny produktów na Google Shopping, Ceneo i Allegro.</p>
-
+            <p>Monitorujemy ceny produktów na Google Shopping i Ceneo.</p>
             <p>Spojrzenie na cały rynek z jednego panelu pozwoli Państwu strategicznie zarządzać cenami własnych produktów, maksymalizować zyski i wyprzedzać konkurentów.</p>
-
+   
+            <br>
             <p>Dzięki śledzeniu cen, możemy szybko sprawdzić:</p>
 
             <ul>
@@ -401,19 +406,45 @@ public class ClientProfileController : Controller
                 <li>Na jakich produktach wybrany konkurent zmienił wczoraj cenę?</li>
             </ul>
 
-            <p>Panel PriceSafari z danymi jednej z zaprzyjaźnionych firm:</p>
+            <p>Funkcja Co-Pilota cenowego pozwala masowo wprowdzać zmiany, symulować wyniki i eksportować nowe ceny dla setek produktów kilkoma kliknięciami.</p><br>
+
+            <p>Panel PriceSafari prezentuje aktualną sytuację rynkową ofert z Państwa sklepu na tle konkurencji.</p> <p>Dzięki zaawansowanym filtrom można precyzyjnie wybrać kanały oraz sklepy, z którymi chcą Państwo konkurować cenowo – i wykluczyć te, z którymi nie.</p>
+            <br>
             <img src=""https://pricesafari.pl/mail/Panel_PriceSafari.png"" alt=""Panel_PriceSafari"" style=""width: 1400px; height: auto;"" />
-
-            <p>Rozkład cen:</p>
+            <br>
+            <br>
+            <br>
+            <p>Po kliknięciu w wybrany produkt, uzyskujemy podgląd wszystkich sklepów sprzedających dokładnie ten sam produkt w Polsce.</p><p> Możemy sprawdzić, kto oferuje najniższą cenę, jakie są koszty dostawy oraz dostępność towaru.</p><p> Dodatkowo zobaczymy, jak nasza oferta wypada na tle konkurencji – w zależności od źródła danych, takiego jak Ceneo czy Google Shopping.</p>
+            
+            <br>
             <img src=""https://pricesafari.pl/mail/Ranking_PriceSafari.png"" alt=""Ranking_PriceSafari"" style=""width: 1400px; height: auto;"" />
-
-            <p>Ceny w czasie:</p>
+            <br>
+            <br>
+            <br>
+            <p>Od momentu rozpoczęcia analizy cenowej zaczynamy gromadzić dane o cenach i zapisywać historię 30 ostatnich analiz. </p>  <p>Dzięki temu można śledzić, jak zmieniała się cena oraz dostępność danego produktu w czasie.  </p><p> Pozwala to m.in. sprawdzić, którzy z konkurentów modyfikują ceny w weekendy.</p>
+            <br>
             <img src=""https://pricesafari.pl/mail/Wykres_PriceSafari.png"" alt=""Wykres_PriceSafari"" style=""width: 1400px; height: auto;"" />
+               <br>
+            <br>
+            <br>
+            <p>PriceSafari umożliwia tworzenie zaawansowanych presetów widoków z danymi, dopasowanych do konkretnych potrzeb. </p>  <p>Czasami nie chcemy konkurować z własnym sklepem czy np. z Amazonem – dlatego możemy łatwo wykluczyć wybrane źródła danych i skupić się tylko na tych konkurentach, którzy naprawdę nas interesują.</p>
+             <br>
+             <img src=""https://pricesafari.pl/mail/Presety_PriceSafari.png"" alt=""Wykres_PriceSafari"" style=""width: 1400px; height: auto;"" />
+              <br>
+            <br>
+            <br>
+            
+            <p>Do programu możemy zaimportować ceny zakupu towarów oraz skonfigurować wiele funkcji, które pozwalają precyzyjnie zarządzać zmianami cen w naszych ofertach. </p>  <p> Przykładowo, możemy ustawić minimalną marżę na poziomie 8%, przeprowadzić symulację cenową dla wybranej grupy produktów, a następnie wyeksportować nowe ceny do pliku CSV lub XLSX. </p>  <p> Potem wystarczy już tylko zaimportować je do sklepu internetowego i obserwować, jak rośnie sprzedaż – a cały proces, zamiast zajmować godziny żmudnej pracy, trwa dosłownie kilka minut.</p>
+           <br>
+            <img src=""https://pricesafari.pl/mail/CoPilot_PriceSafari.png"" alt=""Wykres_PriceSafari"" style=""width: 1400px; height: auto;"" />
 
+
+   <br>
+            <br>
+            <br>
           
-
-            <p>Zapraszamy do kontaktu. Oferujemy bezpłatne konto demo, na którym mogą Państwo przetestować nasz program na 1000 własnych produktach.</p>
-            <p><strong>Konto demo przygotujemy w kilka godzin.</strong></p>
+            <p>Oferujemy bezpłatne konto demo, na którym mogą Państwo przetestować nasz program na 1000 własnych produktów. Wystarczy przesłać feed produktowy z Państwa sklepu zawierający produkty, które mamy monitorować.  </p>  <p>Na tej podstawie przygotujemy konto, a podczas krótkiego spotkania online pokażemy, jak korzystać z Panelu PriceSafari w praktyce i przekażemy dostępy do konta.</p>
+            <p>Jeśli są Państwo zainteresowani, prosimy o odpowiedź na tego maila – za Państwa zgodą z przyjemnością prześlemy szczegółową ofertę oraz przygotujemy darmowe konto demo.</p>
             ";
     }
 
