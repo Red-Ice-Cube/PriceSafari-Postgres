@@ -349,8 +349,8 @@ public class ClientProfileController : Controller
                     height: auto;
                 }
             </style>
-        </head>
-        <body>
+            </head>
+            <body>
 
             <p>Dzień dobry,</p>
 
@@ -449,14 +449,14 @@ public class ClientProfileController : Controller
                     height: auto;
                 }
             </style>
-        </head>
-        <body>
+            </head>
+            <body>
 
             <p>Dzień dobry,</p>
 
             <p>Monitorujemy ceny produktów na Google Shopping i Ceneo.</p>
             <p>Spojrzenie na cały rynek z jednego panelu pozwoli Państwu strategicznie zarządzać cenami własnych produktów, maksymalizować zyski i wyprzedzać konkurentów.</p>
-            <p>Na samym Ceneo zaindeksowaliśmy <strong>{ProductCount}</strong> produktów dostępnych w Państwa sklepie, które moglibyśmy zacząć monitorować.</p>
+           
             <br>
             <p>Dzięki śledzeniu cen, możemy szybko sprawdzić:</p>
 
