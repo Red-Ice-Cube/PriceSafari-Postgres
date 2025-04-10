@@ -61,7 +61,7 @@
                         <img src="~/images/Menu-hide-bone.svg" alt="Menu" style="width: 24px; height: 24px;" />
                     </button>
                 </div>
-            
+
             </div>
             <div class="Sidebar-box-container">
                 <div class="Sidebar-box-item-left">
@@ -70,7 +70,7 @@
                         <a class="nav-link" asp-controller="Payment" asp-action="StorePlans">Plan</a>
                     </div>
                 </div>
-              
+
             </div>
         </div>
         <div class="Menu">
@@ -150,13 +150,9 @@
                     <img src="~/images/Link-bone.svg" alt="Panel Icon" class="menu-icon" />Generuj raporty
                 </div>
 
-
                 <div class="@(controllerName == "Plan" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "Plan")'">
                     <img src="~/images/MoneyIn-bone.svg" alt="Panel Icon" class="menu-icon" />Plany
                 </div>
-
-
-
 
                 <div class="@(controllerName == "Invoice" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "Invoice")'">
                     <img src="~/images/MoneyIn-bone.svg" alt="Panel Icon" class="menu-icon" />Faktury
@@ -260,17 +256,14 @@
                     <img src="~/images/Link-bone.svg" alt="Panel Icon" class="menu-icon" />
                 </div>
 
-
                 <div class="@(controllerName == "Plan" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "Plan")'">
                     <img src="~/images/MoneyIn-bone.svg" alt="Panel Icon" class="menu-icon" />
                 </div>
-
 
                 <div class="@(controllerName == "Invoice" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "Invoice")'">
                     <img src="~/images/MoneyIn-bone.svg" alt="Panel Icon" class="menu-icon" />
                 </div>
             }
-
 
             @if (isManager)
             {

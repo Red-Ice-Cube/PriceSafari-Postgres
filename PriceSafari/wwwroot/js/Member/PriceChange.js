@@ -1,5 +1,5 @@
 ﻿document.addEventListener("DOMContentLoaded", function () {
-    // Używamy unikalnego klucza dla danego sklepu
+  
     const localStorageKey = 'selectedPriceChanges_' + storeId;
     var selectedPriceChanges = [];
     const storedChanges = localStorage.getItem(localStorageKey);
@@ -102,6 +102,7 @@
 
  
     function openSimulationModal() {
+        showLoading();
         var simulationData = selectedPriceChanges.map(function (item) {
             return {
                 ProductId: item.productId,
@@ -363,6 +364,9 @@
             })
             .catch(function (err) {
                 console.error("Błąd pobierania danych produktu:", err);
+            })
+            .finally(function () {
+                hideLoading();
             });
     }
 
@@ -392,7 +396,7 @@
         });
     }
     function exportToCsv() {
-        // Nagłówek CSV z kolumnami: ID, EAN, Nowa cena
+        
         let csvContent = "ID,EAN,Nowa cena\n";
         selectedPriceChanges.forEach(item => {
             const pid = parseInt(item.productId);
@@ -505,10 +509,4 @@
         disclaimerModal.classList.remove('show');
     }
 });
-
-
-
-
-
-
 
