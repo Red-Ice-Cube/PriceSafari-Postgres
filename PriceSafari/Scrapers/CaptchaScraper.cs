@@ -172,10 +172,7 @@ namespace PriceSafari.Scrapers
                 // Jeśli tak – przerywamy natychmiast (bez pętli).
                 if (currentUrl.Contains("/Captcha/Add", StringComparison.OrdinalIgnoreCase))
                 {
-                    // Możesz albo rzucać wyjątek:
-                    // throw new Exception("CAPTCHA_DETECTED");
-
-                    // Albo po prostu zwrócić pustą listę z komunikatem:
+                
                     var logMsg = "Captcha encountered at " + currentUrl;
                     Console.WriteLine(logMsg);
 
@@ -220,8 +217,6 @@ namespace PriceSafari.Scrapers
                         }
                     }
 
-                    // Jeśli wciąż mamy mniej ofert, a totalOffersCount > 15, 
-                    // wchodzimy na fastestDeliveryUrl
                     if (priceResults.Count < totalOffersCount)
                     {
                         var fastestDeliveryUrl = $"{url};0282-1;02516.htm";
@@ -247,8 +242,6 @@ namespace PriceSafari.Scrapers
                         }
                     }
 
-                    // 3) Jeżeli mamy powyżej 15 ofert, to sprawdzajmy szczegółowe linki sklepów,
-                    //    ale tylko wtedy, jeśli rzeczywiście czegoś brakuje
                     var foundStoreNames = priceResults.Select(p => p.storeName).Distinct().ToList();
                     var desiredStores = storeNames.Zip(storeProfiles, (name, profile) => new { StoreName = name, StoreProfile = profile }).ToList();
                     var notFoundStores = desiredStores.Where(ds => !foundStoreNames.Contains(ds.StoreName)).ToList();

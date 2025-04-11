@@ -190,14 +190,12 @@ public class PriceScrapingController : Controller
 
         if (productsToReset.Any())
         {
-            // Pobieramy identyfikatory tych produktów.
+           
             var productIds = productsToReset.Select(co => co.Id).ToList();
 
-            // Pobieramy wszystkie rekordy historii do pamięci.
             var allHistories = await _context.CoOfrPriceHistories.ToListAsync();
 
-            // Lokalnie filtrujemy rekordy historii, wybierając tylko te, które dotyczą produktów z productIds 
-            // oraz mają ustawione GoogleStoreName (czyli dane z Google).
+            
             var historiesToRemove = allHistories
                 .Where(ph => productIds.Contains(ph.CoOfrClassId) && ph.GoogleStoreName != null)
                 .ToList();
