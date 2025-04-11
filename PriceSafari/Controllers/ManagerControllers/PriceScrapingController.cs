@@ -139,14 +139,91 @@ public class PriceScrapingController : Controller
     }
 
     [HttpPost]
-    public async Task<IActionResult> ClearCoOfrPriceHistories()
+    public async Task<IActionResult> ClearCoOfrPriceHistoriesCeneo()
     {
-        await _context.Database.ExecuteSqlRawAsync("TRUNCATE TABLE CoOfrPriceHistories");
+        // Pobieramy wszystkie encje CoOfrs – teraz nie ograniczamy ich do IsScraped,
+        // ponieważ chcemy operować na wszystkich przekazanych produktach.
+        var productsToReset = await _context.CoOfrs.ToListAsync();
 
-        await _context.Database.ExecuteSqlRawAsync("UPDATE CoOfrs SET IsScraped = 0, ScrapingMethod = NULL, PricesCount = 0");
+        if (productsToReset.Any())
+        {
+            // Pobieramy listę ID wszystkich CoOfrs, których chcemy wyczyścić historię
+            var productIds = productsToReset.Select(co => co.Id).ToList();
+
+            // Pobieramy wszystkie rekordy historii do pamięci (całą tabelę)
+            var allHistories = await _context.CoOfrPriceHistories.ToListAsync();
+
+            // Lokalnie filtrujemy rekordy historii,
+            // pozostawiając tylko te, które dotyczą danego produktu i mają ustawione ExportedName (czyli dane z Ceneo)
+            var historiesToRemove = allHistories
+                .Where(ph => productIds.Contains(ph.CoOfrClassId) && ph.ExportedName != null)
+                .ToList();
+
+            if (historiesToRemove.Any())
+            {
+                _context.CoOfrPriceHistories.RemoveRange(historiesToRemove);
+            }
+
+            // Resetujemy statusy dla wszystkich pobranych encji CoOfrs
+            foreach (var product in productsToReset)
+            {
+                product.IsScraped = false;
+                product.IsRejected = false;
+                product.PricesCount = 0;
+            }
+
+            _context.CoOfrs.UpdateRange(productsToReset);
+            await _context.SaveChangesAsync();
+        }
 
         return RedirectToAction("GetUniqueScrapingUrls");
     }
+
+
+    [HttpPost]
+    public async Task<IActionResult> ClearCoOfrPriceHistoriesGoogle()
+    {
+        // Pobieramy wszystkie produkty, które mają ustawiony status GoogleIsScraped.
+        var productsToReset = await _context.CoOfrs
+            .Where(co => co.GoogleIsScraped)
+            .ToListAsync();
+
+        if (productsToReset.Any())
+        {
+            // Pobieramy identyfikatory tych produktów.
+            var productIds = productsToReset.Select(co => co.Id).ToList();
+
+            // Pobieramy wszystkie rekordy historii do pamięci.
+            var allHistories = await _context.CoOfrPriceHistories.ToListAsync();
+
+            // Lokalnie filtrujemy rekordy historii, wybierając tylko te, które dotyczą produktów z productIds 
+            // oraz mają ustawione GoogleStoreName (czyli dane z Google).
+            var historiesToRemove = allHistories
+                .Where(ph => productIds.Contains(ph.CoOfrClassId) && ph.GoogleStoreName != null)
+                .ToList();
+
+            if (historiesToRemove.Any())
+            {
+                _context.CoOfrPriceHistories.RemoveRange(historiesToRemove);
+            }
+
+            // Resetujemy statusy dla pobranych produktów.
+            foreach (var product in productsToReset)
+            {
+                product.GoogleIsScraped = false;
+                product.GoogleIsRejected = false;
+                product.GooglePricesCount = 0;
+            }
+
+            _context.CoOfrs.UpdateRange(productsToReset);
+            await _context.SaveChangesAsync();
+        }
+
+        return RedirectToAction("GetUniqueScrapingUrls");
+    }
+
+
+
 
     private void ResetCancellationToken()
     {

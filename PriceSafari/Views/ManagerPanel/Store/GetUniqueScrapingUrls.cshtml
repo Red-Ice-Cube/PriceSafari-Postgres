@@ -103,10 +103,12 @@
                 <button type="submit" class="Button-Page-Small-o">Resetuj odrzucone Google</button>
             </form>
 
+            <form asp-action="ClearCoOfrPriceHistoriesCeneo" asp-controller="PriceScraping" method="post" style="display: inline-block;">
+                <button type="submit" class="Button-Page-Small-r">Usuń dane Ceneo</button>
+            </form>
 
-
-            <form asp-action="ClearCoOfrPriceHistories" asp-controller="PriceScraping" method="post">
-                <button type="submit" class="Button-Page-Small-r">Usuń zescrapowane dane</button>
+            <form asp-action="ClearCoOfrPriceHistoriesGoogle" asp-controller="PriceScraping" method="post" style="display: inline-block;">
+                <button type="submit" class="Button-Page-Small-r">Usuń dane Google</button>
             </form>
         </div>
 
