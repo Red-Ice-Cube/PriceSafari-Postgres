@@ -1,6 +1,4 @@
-﻿//////////////////////////////
-// 1. Pobieranie parametrów //
-//////////////////////////////
+﻿
 const ceneoDataEl = document.getElementById("ceneo-wizard-data");
 const storeId = parseInt(ceneoDataEl.getAttribute("data-store-id") || "0", 10);
 let existingMappingsJson = ceneoDataEl.getAttribute("data-existing-mappings") || "[]";
@@ -32,9 +30,7 @@ existingMappings.forEach(m => {
 let xmlDoc = null;
 let proxyUrl = `/CeneoImportWizardXml/ProxyXml?storeId=${storeId}`;
 
-//////////////////////////////
-// 2. Pobieranie XML       //
-//////////////////////////////
+
 fetch(proxyUrl)
     .then(resp => resp.text())
     .then(xmlStr => {
@@ -53,9 +49,7 @@ fetch(proxyUrl)
             "Błąd pobierania XML:\n" + err;
     });
 
-//////////////////////////////
-// 3. Budowanie drzewa     //
-//////////////////////////////
+
 function buildXmlTree(node, parentPath) {
     let container = document.getElementById("xmlContainer");
     if (!parentPath && !container.querySelector("ul")) {
@@ -68,12 +62,7 @@ function buildXmlTree(node, parentPath) {
     }
 }
 
-/**
- * createLi(node, parentPath):
- * - Tworzy <li> z data-xpath (np. "/o/cat")
- * - Jeśli węzeł ma atrybut name, dopisuje [@name="..."]
- * - Jeśli brak dzieci, a jest tekst, tworzy sub-węzeł "#value"
- */
+
 function createLi(node, parentPath) {
     let li = document.createElement("li");
     li.classList.add("xml-node");
@@ -126,9 +115,7 @@ function createLi(node, parentPath) {
     return li;
 }
 
-//////////////////////////////
-// 4. Klikanie w drzewie   //
-//////////////////////////////
+
 document.addEventListener("click", e => {
     let el = e.target.closest(".xml-node");
     if (!el) return;
@@ -151,9 +138,7 @@ document.addEventListener("click", e => {
     renderMappingTable();
 });
 
-//////////////////////////////
-// 5. querySelector z escapowaniem
-//////////////////////////////
+
 function queryNodesByXPath(xPathValue) {
     let esc = escapeForSelector(xPathValue);
     return document.querySelectorAll(`.xml-node[data-xpath="${esc}"]`);
@@ -162,9 +147,7 @@ function escapeForSelector(val) {
     return val.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
 }
 
-//////////////////////////////
-// 6. Kolorowanie wg mapowań
-//////////////////////////////
+
 function applyExistingMappings() {
     for (let fieldName in mappingForField) {
         let info = mappingForField[fieldName];
@@ -191,9 +174,7 @@ function clearAllHighlights() {
     });
 }
 
-//////////////////////////////
-// 7. Render tabeli mapowań
-//////////////////////////////
+
 function renderMappingTable() {
     let tbody = document.getElementById("mappingTable").querySelector("tbody");
     tbody.innerHTML = "";
@@ -214,9 +195,7 @@ function renderMappingTable() {
     }
 }
 
-//////////////////////////////
-// 8. Zapis mapowania
-//////////////////////////////
+
 document.getElementById("saveMapping").addEventListener("click", () => {
     let finalMappings = [];
     for (let fieldName in mappingForField) {
@@ -250,9 +229,6 @@ document.getElementById("reloadMappings").addEventListener("click", () => {
         .catch(err => console.error("Błąd getCeneoMappings:", err));
 });
 
-//////////////////////////////
-// 9. Wyciąganie produktów  //
-//////////////////////////////
 document.getElementById("extractProducts").addEventListener("click", () => {
     if (!xmlDoc) {
         alert("Brak XML do parsowania");
@@ -280,10 +256,7 @@ document.getElementById("extractProducts").addEventListener("click", () => {
     // Wyświetlamy surowy JSON przed filtrami
     document.getElementById("productMapsPreview").textContent = JSON.stringify(productMaps, null, 2);
 
-    //////////////////////////////
-    // Filtrowanie i deduplikacja
-    //////////////////////////////
-    // Czyszczenie parametrów URL
+  
     let removeParams = document.getElementById("cleanUrlParameters").checked;
     let countUrlsWithParams = 0;
     productMaps.forEach(pm => {
@@ -337,52 +310,7 @@ document.getElementById("extractProducts").addEventListener("click", () => {
     checkDuplicates(productMaps);
 });
 
-//////////////////////////////
-// 10. getVal (obsługa #value)
-//////////////////////////////
-//function getVal(entryNode, fieldName) {
-//    let info = mappingForField[fieldName];
-//    if (!info || !info.xpath) return null;
-//    let path = info.xpath;
-//    // Usuwamy prefiksy "/offers" lub "/offers/o" – dla Ceneo startujemy od <o>
-//    if (path.startsWith("/offers/o")) {
-//        path = path.replace("/offers/o", "");
-//    } else if (path.startsWith("/offers")) {
-//        path = path.replace("/offers", "");
-//    }
-//    if (!path.startsWith("/")) {
-//        path = "/" + path;
-//    }
-//    let segments = path.split("/").filter(Boolean);
-//    let currentNode = entryNode;
-//    for (let seg of segments) {
-//        if (seg === "#value") {
-//            return currentNode.textContent.trim();
-//        }
-//        if (seg.startsWith("@")) {
-//            return currentNode.getAttribute(seg.slice(1));
-//        }
-//        let bracketPos = seg.indexOf('[@name="');
-//        if (bracketPos !== -1) {
-//            let baseName = seg.substring(0, bracketPos);
-//            let inside = seg.substring(bracketPos + 8);
-//            let endBracket = inside.indexOf('"]');
-//            let desiredName = inside.substring(0, endBracket);
-//            let child = Array.from(currentNode.children).find(ch =>
-//                ch.localName === baseName && ch.getAttribute("name") === desiredName
-//            );
-//            if (!child) return null;
-//            currentNode = child;
-//        } else {
-//            let child = Array.from(currentNode.children).find(ch =>
-//                ch.localName === seg
-//            );
-//            if (!child) return null;
-//            currentNode = child;
-//        }
-//    }
-//    return currentNode.textContent.trim();
-//}
+
 
 
 
@@ -442,11 +370,6 @@ function getVal(entryNode, fieldName) {
 
 
 
-
-
-//////////////////////////////
-// 11. Zapis do bazy
-//////////////////////////////
 document.getElementById("saveProductMapsInDb").addEventListener("click", () => {
     let txt = document.getElementById("productMapsPreview").textContent.trim();
     if (!txt) {
@@ -470,9 +393,7 @@ document.getElementById("saveProductMapsInDb").addEventListener("click", () => {
         .catch(err => console.error(err));
 });
 
-//////////////////////////////
-// 12. Funkcja sprawdzająca duplikaty
-//////////////////////////////
+
 function checkDuplicates(productMaps) {
     let urlCounts = {};
     let eanCounts = {};
@@ -509,9 +430,7 @@ function checkDuplicates(productMaps) {
     document.getElementById("duplicatesInfo").innerHTML = urlMessage + "<br>" + eanMessage;
 }
 
-//////////////////////////////
-// 13. Obsługa zmian filtrów
-//////////////////////////////
+
 document.getElementById("cleanUrlParameters").addEventListener("change", () => {
     document.getElementById("extractProducts").click();
 });
@@ -522,5 +441,5 @@ document.getElementById("removeDuplicateEans").addEventListener("change", () => 
     document.getElementById("extractProducts").click();
 });
 
-// Na starcie: renderuj tabelę mapowań
+
 renderMappingTable();
