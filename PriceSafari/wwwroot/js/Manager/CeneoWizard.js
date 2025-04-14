@@ -76,7 +76,7 @@ function createLi(node, parentPath) {
     let b = document.createElement("b");
     b.innerText = node.nodeName + (nameAttr ? ` (name="${nameAttr}")` : "");
     li.appendChild(b);
-    // Atrybuty
+
     if (node.attributes && node.attributes.length > 0) {
         let ulAttrs = document.createElement("ul");
         Array.from(node.attributes).forEach(attr => {
@@ -91,7 +91,7 @@ function createLi(node, parentPath) {
         });
         li.appendChild(ulAttrs);
     }
-    // Jeśli brak dzieci, ale jest tekst => #value
+  
     let textVal = node.textContent.trim();
     if (node.children.length === 0 && textVal) {
         let ulVal = document.createElement("ul");
@@ -121,7 +121,7 @@ document.addEventListener("click", e => {
     if (!el) return;
     let selectedField = document.getElementById("fieldSelector").value;
     let xPath = el.getAttribute("data-xpath");
-    // Usunięcie poprzednich highlightów
+
     document.querySelectorAll(`.highlight-${selectedField}`)
         .forEach(x => x.classList.remove(`highlight-${selectedField}`));
     let sameNodes = queryNodesByXPath(xPath);
@@ -234,8 +234,14 @@ document.getElementById("extractProducts").addEventListener("click", () => {
         alert("Brak XML do parsowania");
         return;
     }
-    // Nowa zmienna: czy pomijamy produkty bez EAN?
+
+   
     let onlyEanProducts = document.getElementById("onlyEanProducts").checked;
+
+
+    let entries = xmlDoc.getElementsByTagName("o");
+  
+    let productMaps = [];
 
     for (let i = 0; i < entries.length; i++) {
         let en = entries[i];
@@ -248,7 +254,7 @@ document.getElementById("extractProducts").addEventListener("click", () => {
             CeneoExportedName: getVal(en, "CeneoExportedName")
         };
 
-        // Jeśli "onlyEanProducts" = true, a EAN jest pusty, to pomijamy
+
         if (onlyEanProducts && (!pm.CeneoEan || !pm.CeneoEan.trim())) {
             continue;
         }
@@ -256,7 +262,7 @@ document.getElementById("extractProducts").addEventListener("click", () => {
         productMaps.push(pm);
     }
 
-    // Wyświetlamy surowy JSON przed filtrami
+
     document.getElementById("productMapsPreview").textContent = JSON.stringify(productMaps, null, 2);
 
   
@@ -275,7 +281,6 @@ document.getElementById("extractProducts").addEventListener("click", () => {
     });
     document.getElementById("urlParamsInfo").textContent = "Liczba URL zawierających parametry: " + countUrlsWithParams;
 
-    // Dedupikacja URL (jeśli zaznaczono)
     if (document.getElementById("removeDuplicateUrls").checked) {
         let seen = {};
         productMaps = productMaps.filter(pm => {
@@ -290,7 +295,7 @@ document.getElementById("extractProducts").addEventListener("click", () => {
             return true;
         });
     }
-    // Dedupikacja EAN (jeśli zaznaczono)
+  
     if (document.getElementById("removeDuplicateEans").checked) {
         let seenEan = {};
         productMaps = productMaps.filter(pm => {
@@ -305,11 +310,11 @@ document.getElementById("extractProducts").addEventListener("click", () => {
             return true;
         });
     }
-    // Aktualizacja licznika finalnych węzłów
+   
     document.getElementById("finalNodesInfo").textContent = "Final nodes po filtrach: " + productMaps.length;
-    // Aktualizacja podglądu JSON
+ 
     document.getElementById("productMapsPreview").textContent = JSON.stringify(productMaps, null, 2);
-    // Sprawdzenie duplikatów (na finalnej liście)
+   
     checkDuplicates(productMaps);
 });
 
@@ -322,11 +327,11 @@ function getVal(entryNode, fieldName) {
     if (!info || !info.xpath) return null;
     let path = info.xpath;
 
-    // Usuń prefiksy związane ze strukturą XML, gdyż entryNode jest elementem <o>
+  
     if (path.startsWith("/offers/o")) {
         path = path.replace("/offers/o", "");
     } else if (path.startsWith("/offers/group")) {
-        // Usuń /offers/group[@name="..."]/o – dopasowanie do dowolnej wartości atrybutu name
+    
         path = path.replace(/\/offers\/group\[@name="[^"]+"\]\/o/, "");
     } else if (path.startsWith("/offers")) {
         path = path.replace("/offers", "");
@@ -336,7 +341,7 @@ function getVal(entryNode, fieldName) {
         path = "/" + path;
     }
 
-    // Podziel ścieżkę na segmenty
+   
     let segments = path.split("/").filter(Boolean);
     let currentNode = entryNode;
 
@@ -347,7 +352,7 @@ function getVal(entryNode, fieldName) {
         if (seg.startsWith("@")) {
             return currentNode.getAttribute(seg.slice(1));
         }
-        // Jeśli segment zawiera filtr według atrybutu name, np. a[@name="EAN"]
+   
         let bracketPos = seg.indexOf('[@name="');
         if (bracketPos !== -1) {
             let baseName = seg.substring(0, bracketPos);
@@ -360,7 +365,7 @@ function getVal(entryNode, fieldName) {
             if (!child) return null;
             currentNode = child;
         } else {
-            // W przeciwnym razie szukamy dziecka o danej nazwie
+  
             let child = Array.from(currentNode.children).find(ch =>
                 ch.localName === seg
             );
