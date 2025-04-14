@@ -235,12 +235,30 @@ document.getElementById("extractProducts").addEventListener("click", () => {
         return;
     }
 
-   
+    // Sprawdźmy, co faktycznie mamy w pliku XML
+    const oCount = xmlDoc.getElementsByTagName("o").length;
+    const itemCount = xmlDoc.getElementsByTagName("item").length;
+    const entryCount = xmlDoc.getElementsByTagName("entry").length;
+    let entries = [];
+
+    // Priorytetowo - typowa struktura ceneo <o>:
+    if (oCount > 0) {
+        entries = xmlDoc.getElementsByTagName("o");
+    }
+    // Albo <item> (często w feedzie typu RSS)
+    else if (itemCount > 0) {
+        entries = xmlDoc.getElementsByTagName("item");
+    }
+    // Albo <entry>
+    else if (entryCount > 0) {
+        entries = xmlDoc.getElementsByTagName("entry");
+    }
+    else {
+        alert("Nie rozpoznano węzłów <o>, <item> ani <entry> w tym XML!");
+        return;
+    }
+
     let onlyEanProducts = document.getElementById("onlyEanProducts").checked;
-
-
-    let entries = xmlDoc.getElementsByTagName("o");
-  
     let productMaps = [];
 
     for (let i = 0; i < entries.length; i++) {
@@ -254,11 +272,9 @@ document.getElementById("extractProducts").addEventListener("click", () => {
             CeneoExportedName: getVal(en, "CeneoExportedName")
         };
 
-
         if (onlyEanProducts && (!pm.CeneoEan || !pm.CeneoEan.trim())) {
             continue;
         }
-
         productMaps.push(pm);
     }
 
@@ -321,27 +337,39 @@ document.getElementById("extractProducts").addEventListener("click", () => {
 
 
 
-
 function getVal(entryNode, fieldName) {
     let info = mappingForField[fieldName];
     if (!info || !info.xpath) return null;
+
     let path = info.xpath;
 
-  
-    if (path.startsWith("/offers/o")) {
-        path = path.replace("/offers/o", "");
-    } else if (path.startsWith("/offers/group")) {
-    
-        path = path.replace(/\/offers\/group\[@name="[^"]+"\]\/o/, "");
-    } else if (path.startsWith("/offers")) {
-        path = path.replace("/offers", "");
+    // Możliwe prefixy, bo plik może mieć strukturę /offers/o (Ceneo) lub /rss/channel/item (RSS)
+    let possiblePrefixes = [
+        "/offers/o",
+        "/offers/group", // ewentualnie
+        "/offers",
+        "/rss/channel/item",
+        "/feed/entry"
+    ];
+
+    for (let prefix of possiblePrefixes) {
+        if (path.startsWith(prefix)) {
+            // Dla "/offers/group[@name=..." /o" musisz ewentualnie regexowo zastąpić,
+            // ale na początek można zrobić replace
+            if (prefix === "/offers/group") {
+                path = path.replace(/\/offers\/group\[@name="[^"]+"\]\/o/, "");
+            } else {
+                // Zwykły replace prefixu
+                path = path.replace(prefix, "");
+            }
+            break;
+        }
     }
 
     if (!path.startsWith("/")) {
         path = "/" + path;
     }
 
-   
     let segments = path.split("/").filter(Boolean);
     let currentNode = entryNode;
 
@@ -352,7 +380,8 @@ function getVal(entryNode, fieldName) {
         if (seg.startsWith("@")) {
             return currentNode.getAttribute(seg.slice(1));
         }
-   
+
+        // Obsługa filtru a[@name="EAN"]
         let bracketPos = seg.indexOf('[@name="');
         if (bracketPos !== -1) {
             let baseName = seg.substring(0, bracketPos);
@@ -365,7 +394,10 @@ function getVal(entryNode, fieldName) {
             if (!child) return null;
             currentNode = child;
         } else {
-  
+            // Możesz dodać obsługę dwukropka "g:id" -> "id"
+            if (seg.indexOf(':') !== -1) {
+                seg = seg.split(':')[1];
+            }
             let child = Array.from(currentNode.children).find(ch =>
                 ch.localName === seg
             );
@@ -375,6 +407,7 @@ function getVal(entryNode, fieldName) {
     }
     return currentNode.textContent.trim();
 }
+
 
 
 

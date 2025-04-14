@@ -71,8 +71,8 @@ public class GoogleScraper
                 var currentUrl = _page.Url;
                 if (currentUrl.Contains("/sorry/"))
                 {
-                    Console.WriteLine("Natrafiono na stronę CAPTCHA. Oczekiwanie 15 sekund na rozwiązanie...");
-                    await Task.Delay(15000);  
+                    Console.WriteLine("Natrafiono na stronę CAPTCHA. Oczekiwanie 18 sekund na rozwiązanie...");
+                    await Task.Delay(18000);  
                     currentUrl = _page.Url; 
 
           
