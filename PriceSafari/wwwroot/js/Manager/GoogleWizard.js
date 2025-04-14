@@ -1,12 +1,11 @@
 ﻿const googleDataEl = document.getElementById("google-wizard-data");
 
-// Odczytujemy storeId (z parsowaniem do liczby)
 const storeId = parseInt(googleDataEl.getAttribute("data-store-id") || "0", 10);
 
-// Odczytujemy JSON mapowań
+
 let existingMappingsJson = googleDataEl.getAttribute("data-existing-mappings") || "[]";
 
-// Parsujemy JSON
+
 let existingMappings = [];
 try {
     existingMappings = JSON.parse(existingMappingsJson);
@@ -15,7 +14,6 @@ try {
     existingMappings = [];
 }
 
-// Pola, w tym nowe ceny
 let mappingForField = {
     "ExternalId": null,
     "Url": null,
@@ -39,9 +37,7 @@ existingMappings.forEach(m => {
 let xmlDoc = null;
 let proxyUrl = `/GoogleImportWizardXml/ProxyXml?storeId=${storeId}`;
 
-// ==================================
-// 1. Pobieranie XML przez fetch
-// ==================================
+
 fetch(proxyUrl)
     .then(resp => resp.text())
     .then(xmlStr => {
@@ -52,9 +48,9 @@ fetch(proxyUrl)
                 "Błąd parsowania XML:\n" + xmlDoc.documentElement.textContent;
             return;
         }
-        // Budujemy drzewo w stylu Ceneo (rekurencyjnie)
+       
         buildXmlTree(xmlDoc.documentElement, "");
-        // Nakładamy istniejące mapowania z bazy
+     
         applyExistingMappings();
     })
     .catch(err => {
@@ -62,9 +58,7 @@ fetch(proxyUrl)
             "Błąd pobierania XML:\n" + err;
     });
 
-// ==================================
-// 2. Funkcje do budowy DRZEWA XML (na wzór Ceneo)
-// ==================================
+
 function buildXmlTree(node, parentPath) {
     let container = document.getElementById("xmlContainer");
     if (!parentPath && !container.querySelector("ul")) {
@@ -81,30 +75,30 @@ function createLi(node, parentPath) {
     let li = document.createElement("li");
     li.classList.add("xml-node");
 
-    // Nazwa + ewentualny atrybut name
+  
     let nodeName = node.nodeName;
     let nameAttr = node.getAttribute && node.getAttribute("name");
     if (nameAttr) {
         nodeName += `[@name="${nameAttr}"]`;
     }
 
-    // Budujemy pełny XPath
+  
     let currentPath = parentPath
         ? parentPath + "/" + nodeName
         : "/" + nodeName;
 
     li.setAttribute("data-xpath", currentPath);
 
-    // Nagłówek węzła
+   
     let b = document.createElement("b");
     b.innerText = node.nodeName + (nameAttr ? ` (name="${nameAttr}")` : "");
     li.appendChild(b);
 
-    // Atrybuty (oprócz name, bo wyżej już obsłużyliśmy)
+  
     if (node.attributes && node.attributes.length > 0) {
         let ulAttrs = document.createElement("ul");
         Array.from(node.attributes).forEach(attr => {
-            // Pomijamy atrybut "name", bo poszedł wyżej
+          
             if (attr.name === "name") return;
 
             let attrLi = document.createElement("li");
@@ -123,7 +117,7 @@ function createLi(node, parentPath) {
         }
     }
 
-    // Jeśli brak dzieci, ale jest tekst => #value
+ 
     let textVal = node.textContent.trim();
     if (node.children.length === 0 && textVal) {
         let ulVal = document.createElement("ul");
@@ -140,7 +134,7 @@ function createLi(node, parentPath) {
         li.appendChild(ulVal);
     }
 
-    // Rekurencja: dzieci
+   
     if (node.children.length > 0) {
         let ul = document.createElement("ul");
         Array.from(node.children).forEach(child => {
@@ -152,24 +146,22 @@ function createLi(node, parentPath) {
     return li;
 }
 
-// ==================================
-// 3. Klik w węzeł = przypisanie Xpath
-// ==================================
+
 document.addEventListener("click", function (e) {
     let el = e.target.closest(".xml-node");
     if (!el) return;
     let xPath = el.getAttribute("data-xpath");
     let selectedField = document.getElementById("fieldSelector").value;
 
-    // Czyścimy stare highlighty dla tego pola
+ 
     document.querySelectorAll(`.highlight-${selectedField}`)
         .forEach(x => x.classList.remove(`highlight-${selectedField}`));
 
-    // Zaznaczamy nowe
+
     let sameNodes = document.querySelectorAll(`.xml-node[data-xpath='${xPath}']`);
     sameNodes.forEach(n => n.classList.add(`highlight-${selectedField}`));
 
-    // Wyliczamy ile węzłów oraz pierwszy tekst
+   
     let count = sameNodes.length;
     let firstVal = "";
     if (count > 0) {
@@ -179,7 +171,6 @@ document.addEventListener("click", function (e) {
         }
     }
 
-    // Zapis do naszego obiektu
     mappingForField[selectedField] = {
         xpath: xPath,
         nodeCount: count,
@@ -188,9 +179,7 @@ document.addEventListener("click", function (e) {
     renderMappingTable();
 });
 
-// ==================================
-// 4. Przywracanie mapowań z bazy
-// ==================================
+
 function applyExistingMappings() {
     for (let fieldName in mappingForField) {
         let info = mappingForField[fieldName];
@@ -219,9 +208,7 @@ function clearAllHighlights() {
     });
 }
 
-// ==================================
-// 5. Render mapowań w tabelce
-// ==================================
+
 function renderMappingTable() {
     let tbody = document.getElementById("mappingTable").querySelector("tbody");
     tbody.innerHTML = "";
@@ -248,9 +235,7 @@ function renderMappingTable() {
     }
 }
 
-// ==================================
-// 6. Zapis mapowań w bazie
-// ==================================
+
 document.getElementById("saveMapping").addEventListener("click", function () {
     let finalMappings = [];
     for (let fieldName in mappingForField) {
@@ -272,9 +257,7 @@ document.getElementById("saveMapping").addEventListener("click", function () {
         .catch(err => console.error(err));
 });
 
-// ==================================
-// 7. Ponowne wczytanie mapowań
-// ==================================
+
 document.getElementById("reloadMappings").addEventListener("click", function () {
     fetch(`/GoogleImportWizardXml/GetGoogleMappings?storeId=${storeId}`)
         .then(r => r.json())
@@ -297,9 +280,7 @@ document.getElementById("reloadMappings").addEventListener("click", function () 
         .catch(err => console.error("Błąd getGoogleMappings:", err));
 });
 
-// ==================================
-// 8. Funkcja parsePrice - wyłuskuje liczbę z tekstu "Koszt 123,45 PLN" -> "123.45"
-// ==================================
+
 function parsePrice(value) {
     if (!value) return null;
     let match = value.match(/([\d]+([.,]\d+)?)/);
@@ -307,12 +288,9 @@ function parsePrice(value) {
     let numericString = match[1].replace(',', '.');
     let floatVal = parseFloat(numericString);
     if (isNaN(floatVal)) return null;
-    return floatVal.toFixed(2); // "xx.xx"
+    return floatVal.toFixed(2); 
 }
 
-// ==================================
-// 9. Wyciąganie produktów z XML
-// ==================================
 function extractProductsFromXml() {
     if (!xmlDoc) {
         alert("Brak XML do parsowania");
@@ -321,6 +299,10 @@ function extractProductsFromXml() {
     let entries = xmlDoc.getElementsByTagName("item").length > 0
         ? xmlDoc.getElementsByTagName("item")
         : xmlDoc.getElementsByTagName("entry");
+
+ 
+    let onlyEanProducts = document.getElementById("onlyEanProducts").checked;
+
     let productMaps = [];
     let countUrlsWithParams = 0;
     let removeParams = document.getElementById("cleanUrlParameters").checked;
@@ -338,7 +320,12 @@ function extractProductsFromXml() {
             GoogleDeliveryXMLPrice: parsePrice(getVal(entryNode, "GoogleDeliveryXMLPrice"))
         };
 
-        // Usuwanie parametrów z URL
+     
+        if (onlyEanProducts && (!pm.GoogleEan || !pm.GoogleEan.trim())) {
+            continue;
+        }
+
+     
         if (pm.Url) {
             let qIdx = pm.Url.indexOf('?');
             if (qIdx !== -1) {
@@ -349,26 +336,22 @@ function extractProductsFromXml() {
             }
         }
 
-        // Przykład: jeśli EAN jest pusty, pomijamy
-        if (!pm.GoogleEan || pm.GoogleEan.trim() === "") {
-            continue;
-        }
-
         productMaps.push(pm);
     }
 
+  
     console.log("Wyciągnięto productMaps(front):", productMaps);
     console.log("Liczba URLi zawierających parametry:", countUrlsWithParams);
 
-    // Ustawiamy JSON w polu podglądu
+   
     let previewText = JSON.stringify(productMaps, null, 2);
     document.getElementById("productMapsPreview").textContent = previewText;
 
-    // Informacja o parametrach URL
+
     document.getElementById("urlParamsInfo").textContent =
         "Liczba URL zawierających parametry: " + countUrlsWithParams;
 
-    // Ewentualna deduplikacja URL
+ 
     if (document.getElementById("removeDuplicateUrls").checked) {
         let seen = {};
         let deduped = [];
@@ -387,7 +370,7 @@ function extractProductsFromXml() {
             JSON.stringify(productMaps, null, 2);
     }
 
-    // Ewentualna deduplikacja EAN
+  
     if (document.getElementById("removeDuplicateEans").checked) {
         let seenEan = {};
         let dedupedEan = [];
@@ -406,17 +389,15 @@ function extractProductsFromXml() {
             JSON.stringify(productMaps, null, 2);
     }
 
-    // Finalna liczba węzłów
+
     document.getElementById("finalNodesInfo").textContent =
         "Final nodes po filtrach: " + productMaps.length;
 
-    // Sprawdzamy duplikaty
+  
     checkDuplicates(productMaps);
 }
 
-// ==================================
-// 10. Funkcja sprawdzająca duplikaty
-// ==================================
+
 function checkDuplicates(productMaps) {
     let urlCounts = {};
     let eanCounts = {};
@@ -460,9 +441,7 @@ function checkDuplicates(productMaps) {
         urlMessage + "<br>" + eanMessage;
 }
 
-// ==================================
-// 11. Obsługa przycisków 'extractProducts' i checkboksów
-// ==================================
+
 document.getElementById("extractProducts").addEventListener("click", function () {
     extractProductsFromXml();
 });
@@ -479,16 +458,14 @@ document.getElementById("removeDuplicateEans").addEventListener("change", functi
     extractProductsFromXml();
 });
 
-// ==================================
-// 12. Funkcja getVal -> obsługuje multi-level path
-// ==================================
+
 function getVal(entryNode, fieldName) {
     let info = mappingForField[fieldName];
     if (!info || !info.xpath) return null;
 
     let path = info.xpath;
 
-    // Usuwamy najczęstsze prefiksy (np. "/rss/channel/item/")
+ 
     let possiblePrefixes = ["/rss/channel/item/", "/feed/entry/"];
     for (let i = 0; i < possiblePrefixes.length; i++) {
         if (path.startsWith(possiblePrefixes[i])) {
@@ -500,12 +477,12 @@ function getVal(entryNode, fieldName) {
         path = path.substring(1);
     }
 
-    // Rozbijamy po slashach, żeby obsłużyć np. "g:shipping/g:price"
+  
     let segments = path.split('/');
 
     let currentNode = entryNode;
     for (let seg of segments) {
-        // Obsługujemy np. "g:shipping" -> "shipping"
+     
         if (seg.indexOf(':') !== -1) {
             seg = seg.split(':')[1];
         }
@@ -544,5 +521,4 @@ document.getElementById("saveProductMapsInDb").addEventListener("click", functio
         .catch(err => console.error(err));
 });
 
-// Pierwsze wyrenderowanie tabeli mapowań
 renderMappingTable();
