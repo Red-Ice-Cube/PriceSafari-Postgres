@@ -234,9 +234,9 @@ document.getElementById("extractProducts").addEventListener("click", () => {
         alert("Brak XML do parsowania");
         return;
     }
-    // Dla Ceneo startujemy od węzłów <o>
-    let entries = xmlDoc.getElementsByTagName("o");
-    let productMaps = [];
+    // Nowa zmienna: czy pomijamy produkty bez EAN?
+    let onlyEanProducts = document.getElementById("onlyEanProducts").checked;
+
     for (let i = 0; i < entries.length; i++) {
         let en = entries[i];
         let pm = {
@@ -247,12 +247,15 @@ document.getElementById("extractProducts").addEventListener("click", () => {
             CeneoImage: getVal(en, "CeneoImage"),
             CeneoExportedName: getVal(en, "CeneoExportedName")
         };
-        // Pomijamy, jeśli brak EAN
-        if (!pm.CeneoEan || !pm.CeneoEan.trim()) {
+
+        // Jeśli "onlyEanProducts" = true, a EAN jest pusty, to pomijamy
+        if (onlyEanProducts && (!pm.CeneoEan || !pm.CeneoEan.trim())) {
             continue;
         }
+
         productMaps.push(pm);
     }
+
     // Wyświetlamy surowy JSON przed filtrami
     document.getElementById("productMapsPreview").textContent = JSON.stringify(productMaps, null, 2);
 
