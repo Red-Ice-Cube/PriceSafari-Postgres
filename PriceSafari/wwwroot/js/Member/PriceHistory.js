@@ -896,19 +896,28 @@
             button.appendChild(removeLink);
             priceBox.classList.add('price-changed');
         }
-        function attachPriceChangeListener(button, suggestedPrice, priceBox, productId, productName, currentPriceValue, item) {
+       
 
-            if (!item || !item.ean || item.ean.trim() === "") {
+        function attachPriceChangeListener(button, suggestedPrice, priceBox, productId, productName, currentPriceValue, item) {
+         
+            const useEan = marginSettings.useEanForSimulation; 
+         
+            const requiredField = useEan ? item.ean : item.externalId;
+          
+            const requiredLabel = useEan ? "EAN" : "ID";
+
+            if (!requiredField || requiredField.toString().trim() === "") {
+             
                 button.disabled = true;
-                button.title = "Produkt musi mieć zmapowany kod EAN";
+                button.title = `Produkt musi mieć zmapowany ${requiredLabel}`;
                 return;
             }
 
             button.addEventListener('click', function (e) {
                 e.stopPropagation();
 
+            
                 if (marginSettings.useMarginForSimulation) {
-                  
                     if (item.marginPrice == null) {
                         showGlobalNotification(
                             `<p style="margin:8px 0; font-weight:bold;">Zmiana ceny nie została dodana</p>
@@ -923,13 +932,10 @@
                     newMargin = parseFloat(newMargin.toFixed(2));
 
                     if (marginSettings.enforceMinimalMargin) {
-                       
                         if (newMargin < 0) {
-                        
                             if (oldMargin < 0 && newMargin > oldMargin) {
-                              
+                          
                             } else {
-                              
                                 showGlobalNotification(
                                     `<p style="margin:8px 0; font-weight:bold;">Zmiana ceny nie została dodana</p>
                              <p>Nowa cena <strong>${suggestedPrice.toFixed(2)} PLN</strong> spowoduje ujemną marżę (nowa marża: <strong>${newMargin}%</strong>).</p>
@@ -948,7 +954,6 @@
                             return;
                         }
 
-                      
                         if (marginSettings.minimalMarginPercent < 0 && newMargin > marginSettings.minimalMarginPercent) {
                             showGlobalNotification(
                                 `<p style="margin:8px 0; font-weight:bold;">Zmiana ceny nie została dodana</p>
@@ -966,7 +971,7 @@
                     return;
                 }
 
-             
+           
                 const priceChangeEvent = new CustomEvent('priceBoxChange', {
                     detail: { productId, productName, currentPrice: currentPriceValue, newPrice: suggestedPrice, storeId: storeId }
                 });
@@ -974,11 +979,12 @@
 
                 activateChangeButton(button, priceBox, suggestedPrice);
 
-           
+             
                 let message = `<p style="margin-bottom:8px; font-size:16px; font-weight:bold;">Zmiana ceny dodana</p>`;
                 message += `<p style="margin:4px 0;"><strong>Produkt:</strong> ${productName}</p>`;
                 message += `<p style="margin:4px 0;"><strong>Nowa cena:</strong> ${suggestedPrice.toFixed(2)} PLN</p>`;
 
+              
                 if (marginSettings.useMarginForSimulation) {
                     let finalMargin = ((suggestedPrice - item.marginPrice) / item.marginPrice) * 100;
                     finalMargin = parseFloat(finalMargin.toFixed(2));
@@ -992,10 +998,11 @@
                         }
                     }
                 }
+
                 showGlobalUpdate(message);
             });
 
-      
+          
             const existingChange = selectedPriceChanges.find(change =>
                 parseInt(change.productId) === parseInt(productId) &&
                 parseFloat(change.newPrice) === parseFloat(suggestedPrice)
@@ -1004,9 +1011,6 @@
                 activateChangeButton(button, priceBox, suggestedPrice);
             }
         }
-
-
-
 
 
 
@@ -1341,7 +1345,8 @@
             priceBoxColumnInfo.className = 'price-box-column-action';
             priceBoxColumnInfo.innerHTML = '';
 
-
+            const requiredField = marginSettings.useEanForSimulation ? item.ean : item.externalId;
+            const requiredLabel = marginSettings.useEanForSimulation ? "kod EAN" : "ID";
 
             if (!isRejected) {
               
@@ -1422,15 +1427,19 @@
                         const matchPriceBtn = document.createElement('button');
                         matchPriceBtn.className = 'simulate-change-btn';
                         matchPriceBtn.textContent = 'Zmień cenę';
-                        if (!item.ean || item.ean.trim() === "") {
+
+              
+
+                        if (!requiredField || requiredField.toString().trim() === "") {
                             matchPriceBtn.addEventListener("click", function (e) {
                                 e.preventDefault();
-                                e.stopPropagation(); 
-                                showGlobalNotification("Produkt musi mieć zmapowany kod EAN");
+                                e.stopPropagation();
+                                showGlobalNotification(`Produkt musi mieć zmapowany ${requiredLabel}`);
                             });
                         } else {
                             attachPriceChangeListener(matchPriceBtn, suggestedPrice1, box, item.productId, item.productName, myPrice, item);
                         }
+
 
 
                         matchPriceLine.appendChild(matchPriceBtn);
@@ -1462,11 +1471,14 @@
                         const strategicPriceBtn = document.createElement('button');
                         strategicPriceBtn.className = 'simulate-change-btn';
                         strategicPriceBtn.textContent = 'Zmień cenę';
-                        if (!item.ean || item.ean.trim() === "") {
+                  
+                 
+
+                        if (!requiredField || requiredField.toString().trim() === "") {
                             strategicPriceBtn.addEventListener("click", function (e) {
                                 e.preventDefault();
                                 e.stopPropagation();
-                                showGlobalNotification("Produkt musi mieć zmapowany kod EAN");
+                                showGlobalNotification(`Produkt musi mieć zmapowany ${requiredLabel}`);
                             });
                         } else {
                             attachPriceChangeListener(strategicPriceBtn, suggestedPrice2, box, item.productId, item.productName, myPrice, item);
@@ -1532,19 +1544,19 @@
                         const matchPriceBtn = document.createElement('button');
                         matchPriceBtn.className = 'simulate-change-btn';
                         matchPriceBtn.textContent = 'Zmień cenę';
-                      
-                      
 
-                
-                        if (!item.ean || item.ean.trim() === "") {
+                        if (!requiredField || requiredField.toString().trim() === "") {
                             matchPriceBtn.addEventListener("click", function (e) {
                                 e.preventDefault();
                                 e.stopPropagation();
-                                showGlobalNotification("Produkt musi mieć zmapowany kod EAN");
+                                showGlobalNotification(`Produkt musi mieć zmapowany ${requiredLabel}`);
                             });
                         } else {
                             attachPriceChangeListener(matchPriceBtn, lowestPrice, box, item.productId, item.productName, myPrice, item);
                         }
+                      
+
+                
 
                         matchPriceLine.appendChild(matchPriceBtn);
 
@@ -1576,18 +1588,17 @@
                         strategicPriceBtn.className = 'simulate-change-btn';
                         strategicPriceBtn.textContent = 'Zmień cenę';
                     
-                      
-
-
-                        if (!item.ean || item.ean.trim() === "") {
+                        if (!requiredField || requiredField.toString().trim() === "") {
                             strategicPriceBtn.addEventListener("click", function (e) {
                                 e.preventDefault();
-                                e.stopPropagation(); 
-                                showGlobalNotification("Produkt musi mieć zmapowany kod EAN");
+                                e.stopPropagation();
+                                showGlobalNotification(`Produkt musi mieć zmapowany ${requiredLabel}`);
                             });
                         } else {
                             attachPriceChangeListener(strategicPriceBtn, strategicPrice, box, item.productId, item.productName, myPrice, item);
                         }
+
+
 
                         strategicPriceLine.appendChild(strategicPriceBtn);
 
@@ -1652,22 +1663,25 @@
                       
                   
 
-                        if (!item.ean || item.ean.trim() === "") {
+                      
+
+                        if (!requiredField || requiredField.toString().trim() === "") {
                             matchPriceBtn.addEventListener("click", function (e) {
                                 e.preventDefault();
-                                e.stopPropagation(); // zapobiega propagacji kliknięcia
-                                showGlobalNotification("Produkt musi mieć zmapowany kod EAN");
+                                e.stopPropagation();
+                                showGlobalNotification(`Produkt musi mieć zmapowany ${requiredLabel}`);
                             });
                         } else {
                             attachPriceChangeListener(matchPriceBtn, lowestPrice, box, item.productId, item.productName, myPrice, item);
                         }
 
 
+
                         matchPriceLine.appendChild(matchPriceBtn);
 
                         matchPriceBox.appendChild(matchPriceLine);
 
-                        // Druga linia
+                    
                         const strategicPriceBox = document.createElement('div');
                         strategicPriceBox.className = 'price-box-column';
 
@@ -1688,24 +1702,22 @@
                         strategicPriceLine.appendChild(newPriceText2);
                         strategicPriceLine.appendChild(colorSquare2);
 
-                        // Przycisk "Zmień cenę"
                         const strategicPriceBtn = document.createElement('button');
                         strategicPriceBtn.className = 'simulate-change-btn';
                         strategicPriceBtn.textContent = 'Zmień cenę';
-                   
 
 
 
-
-                        if (!item.ean || item.ean.trim() === "") {
+                        if (!requiredField || requiredField.toString().trim() === "") {
                             strategicPriceBtn.addEventListener("click", function (e) {
                                 e.preventDefault();
-                                e.stopPropagation(); // zapobiega propagacji kliknięcia
-                                showGlobalNotification("Produkt musi mieć zmapowany kod EAN");
+                                e.stopPropagation();
+                                showGlobalNotification(`Produkt musi mieć zmapowany ${requiredLabel}`);
                             });
                         } else {
                             attachPriceChangeListener(strategicPriceBtn, strategicPrice, box, item.productId, item.productName, myPrice, item);
                         }
+
 
 
                         strategicPriceLine.appendChild(strategicPriceBtn);
@@ -1769,7 +1781,7 @@
                             colorSquare2Class = 'color-square-turquoise';
                         }
 
-                        // Pierwsza linia
+                   
                         const matchPriceBox = document.createElement('div');
                         matchPriceBox.className = 'price-box-column';
 
@@ -1790,22 +1802,27 @@
                         matchPriceLine.appendChild(newPriceText);
                         matchPriceLine.appendChild(colorSquare);
 
-                        // Przycisk "Zmień cenę"
+                    
                         const matchPriceBtn = document.createElement('button');
                         matchPriceBtn.className = 'simulate-change-btn';
                         matchPriceBtn.textContent = 'Zmień cenę';
                   
                     
 
-                        if (!item.ean || item.ean.trim() === "") {
+                  
+
+
+                        if (!requiredField || requiredField.toString().trim() === "") {
                             matchPriceBtn.addEventListener("click", function (e) {
                                 e.preventDefault();
-                                e.stopPropagation(); // zapobiega propagacji kliknięcia
-                                showGlobalNotification("Produkt musi mieć zmapowany kod EAN");
+                                e.stopPropagation();
+                                showGlobalNotification(`Produkt musi mieć zmapowany ${requiredLabel}`);
                             });
                         } else {
                             attachPriceChangeListener(matchPriceBtn, suggestedPrice1, box, item.productId, item.productName, myPrice, item);
                         }
+
+
                         matchPriceLine.appendChild(matchPriceBtn);
 
                         matchPriceBox.appendChild(matchPriceLine);
@@ -1837,11 +1854,11 @@
                         strategicPriceBtn.textContent = 'Zmień cenę';
                   
 
-                        if (!item.ean || item.ean.trim() === "") {
+                        if (!requiredField || requiredField.toString().trim() === "") {
                             strategicPriceBtn.addEventListener("click", function (e) {
                                 e.preventDefault();
-                                e.stopPropagation(); // zapobiega propagacji kliknięcia
-                                showGlobalNotification("Produkt musi mieć zmapowany kod EAN");
+                                e.stopPropagation();
+                                showGlobalNotification(`Produkt musi mieć zmapowany ${requiredLabel}`);
                             });
                         } else {
                             attachPriceChangeListener(strategicPriceBtn, suggestedPrice2, box, item.productId, item.productName, myPrice, item);
