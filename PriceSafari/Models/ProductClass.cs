@@ -14,25 +14,20 @@ namespace PriceSafari.Models
         public int StoreId { get; set; }
         public StoreClass Store { get; set; }
 
-        // Podstawowe pola
+     
         public string ProductName { get; set; }
         public string? Category { get; set; }
 
-        // Kiedy produkt został dodany do systemu:
+       
         public DateTime AddedDate { get; set; } = DateTime.UtcNow;
-        // ^ Możesz użyć DateTime.Now, zależnie od tego czy chcesz UTC czy lokalny czas.
-
-        // ----------------
-        // Ceneo
-        // ----------------
+    
         private string? offerUrl;
         public string? OfferUrl
         {
             get => offerUrl;
             set
             {
-                // Gdy przypiszemy nową, niepustą wartość do OfferUrl,
-                // i FoundOnCeneoDate jest jeszcze puste, ustawimy datę.
+         
                 offerUrl = value;
                 if (!string.IsNullOrEmpty(value) && FoundOnCeneoDate == null)
                 {
@@ -41,12 +36,10 @@ namespace PriceSafari.Models
             }
         }
 
-        // Data, kiedy faktycznie potwierdziliśmy obecność w Ceneo:
+ 
         public DateTime? FoundOnCeneoDate { get; set; }
 
-        // ----------------
-        // Google
-        // ----------------
+
         private bool? foundOnGoogle;
         public bool? FoundOnGoogle
         {
@@ -54,8 +47,7 @@ namespace PriceSafari.Models
             set
             {
                 foundOnGoogle = value;
-                // Gdy ustawiamy `FoundOnGoogle` na true
-                // i jeszcze nie mamy daty, ustaw ją:
+        
                 if (value == true && FoundOnGoogleDate == null)
                 {
                     FoundOnGoogleDate = DateTime.UtcNow;
@@ -63,10 +55,10 @@ namespace PriceSafari.Models
             }
         }
 
-        // Kiedy faktycznie potwierdzono obecność w Google
+
         public DateTime? FoundOnGoogleDate { get; set; }
 
-        // GoogleShoping Block
+
         public bool OnGoogle { get; set; } = false;
         public string? Url { get; set; }
         public string? GoogleUrl { get; set; }
@@ -74,7 +66,7 @@ namespace PriceSafari.Models
         public string? EanGoogle { get; set; }
         public string? ImgUrlGoogle { get; set; }
 
-        // Pozostałe pola
+ 
         public int? ExternalId { get; set; }
         public string? CatalogNumber { get; set; }
         public string? Ean { get; set; }

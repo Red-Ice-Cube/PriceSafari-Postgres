@@ -7,6 +7,7 @@
     let setStepPrice = 2.00;
     let usePriceDifference = document.getElementById('usePriceDifference').checked;
     let marginSettings = {
+        useEanForSimulation: true,
         useMarginForSimulation: true,
         enforceMinimalMargin: true,
         minimalMarginPercent: 0.00
@@ -463,6 +464,7 @@
                 marginSettings.useMarginForSimulation = response.useMarginForSimulation;
                 marginSettings.enforceMinimalMargin = response.enforceMinimalMargin;
                 marginSettings.minimalMarginPercent = response.minimalMarginPercent;
+                marginSettings.useEanForSimulation = response.useEanForSimulation;
 
                 if (response.presetName) {
                     if (response.presetName === 'PriceSafari') {
@@ -601,7 +603,7 @@
         const flagContainer = document.getElementById('flagContainer');
         flagContainer.innerHTML = '';
 
-        // Tworzymy listę flag (zwykłych)
+    
         flags.forEach(flag => {
             const count = flagCounts[flag.FlagId] || 0;
             const includeChecked = selectedFlagsInclude.has(String(flag.FlagId)) ? 'checked' : '';
@@ -638,7 +640,6 @@
             flagContainer.innerHTML += flagElement;
         });
 
-        // Tworzymy "Brak flagi" analogicznie do zwykłych wpisów
         const includeCheckedNoFlag = selectedFlagsInclude.has('noFlag') ? 'checked' : '';
         const excludeCheckedNoFlag = selectedFlagsExclude.has('noFlag') ? 'checked' : '';
 
@@ -669,19 +670,17 @@
     `;
         flagContainer.innerHTML += noFlagElement;
 
-        // Obsługa eventów: jeśli zaznaczamy "include", odznaczamy ewentualny "exclude" i odwrotnie
+    
         document.querySelectorAll('.flagFilterInclude').forEach(checkbox => {
             checkbox.addEventListener('change', function () {
                 const flagValue = this.value;
 
                 if (this.checked) {
-                    // ODZNACZAMY exclude, jeśli było zaznaczone
                     const excludeCheckbox = document.getElementById(`flagCheckboxExclude_${flagValue}`);
                     if (excludeCheckbox && excludeCheckbox.checked) {
                         excludeCheckbox.checked = false;
                         selectedFlagsExclude.delete(flagValue);
                     }
-                    // Dodajemy do includes
                     selectedFlagsInclude.add(flagValue);
                 } else {
                     selectedFlagsInclude.delete(flagValue);
@@ -696,13 +695,12 @@
                 const flagValue = this.value;
 
                 if (this.checked) {
-                    // ODZNACZAMY include, jeśli było zaznaczone
+                    
                     const includeCheckbox = document.getElementById(`flagCheckboxInclude_${flagValue}`);
                     if (includeCheckbox && includeCheckbox.checked) {
                         includeCheckbox.checked = false;
                         selectedFlagsInclude.delete(flagValue);
                     }
-                    // Dodajemy do excludes
                     selectedFlagsExclude.add(flagValue);
                 } else {
                     selectedFlagsExclude.delete(flagValue);
@@ -766,16 +764,15 @@
             filteredPrices = filteredPrices.filter(item => selectedColors.includes(item.colorClass));
         }
 
-        // Najpierw wykluczenie
+       
         if (selectedFlagsExclude.size > 0) {
             filteredPrices = filteredPrices.filter(item => {
-                // Jeżeli w "exclude" jest "noFlag", to odrzucamy produkty bez flag
+               
                 if (selectedFlagsExclude.has('noFlag') && item.flagIds.length === 0) {
                     return false;
                 }
-                // Odrzucamy produkty, które mają dowolną z wykluczonych flag
                 for (const excl of selectedFlagsExclude) {
-                    // pomijamy 'noFlag', bo już sprawdziliśmy
+                
                     if (excl !== 'noFlag' && item.flagIds.includes(parseInt(excl))) {
                         return false;
                     }
@@ -784,15 +781,14 @@
             });
         }
 
-        // Następnie uwzględnienie (inkluzja)
+    
         if (selectedFlagsInclude.size > 0) {
             filteredPrices = filteredPrices.filter(item => {
-                // jeśli w "include" jest 'noFlag' i produkt nie ma żadnej flagi:
+             
                 if (selectedFlagsInclude.has('noFlag') && item.flagIds.length === 0) {
                     return true;
                 }
-                // w pozostałych przypadkach sprawdzamy, czy item ma przynajmniej jedną z flag
-                // zaznaczonych do "pokazania"
+              
                 return item.flagIds.some(fid => selectedFlagsInclude.has(fid.toString()));
             });
         }
@@ -854,6 +850,8 @@
         const startIndex = (currentPage - 1) * itemsPerPage;
         const endIndex = currentPage * itemsPerPage;
         const paginatedData = data.slice(startIndex, endIndex);
+
+        const useEanOrId = marginSettings.useEanForSimulation;
 
         function activateChangeButton(button, priceBox, newPrice) {
             button.classList.add('active');
@@ -2019,7 +2017,8 @@
 
 
     document.getElementById('openMarginSettingsBtn').addEventListener('click', function () {
-   
+
+        document.getElementById('useEanForSimulationInput').value = marginSettings.useEanForSimulation.toString();
         document.getElementById('useMarginForSimulationInput').value = marginSettings.useMarginForSimulation.toString();
         document.getElementById('enforceMinimalMarginInput').value = marginSettings.enforceMinimalMargin.toString();
         document.getElementById('minimalMarginPercentInput').value = marginSettings.minimalMarginPercent;
@@ -2029,7 +2028,8 @@
     });
     document.getElementById('saveMarginSettingsBtn').addEventListener('click', function () {
         const updatedMarginSettings = {
-            StoreId: storeId,  // zakładamy, że storeId jest globalnie zdefiniowane
+            StoreId: storeId,  
+            useEanForSimulation: document.getElementById('useEanForSimulationInput').value === 'true',
             UseMarginForSimulation: document.getElementById('useMarginForSimulationInput').value === 'true',
             EnforceMinimalMargin: document.getElementById('enforceMinimalMarginInput').value === 'true',
             MinimalMarginPercent: parseFloat(document.getElementById('minimalMarginPercentInput').value)

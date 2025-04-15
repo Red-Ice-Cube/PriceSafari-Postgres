@@ -170,6 +170,7 @@ namespace PriceSafari.Controllers.MemberControllers
                     pv.SetPrice2,
                     pv.PriceStep,
                     pv.UsePriceDiff,
+                    pv.UseEanForSimulation,
                     pv.UseMarginForSimulation,
                     pv.EnforceMinimalMargin,
                     pv.MinimalMarginPercent
@@ -180,7 +181,8 @@ namespace PriceSafari.Controllers.MemberControllers
                     SetPrice2 = 2.00m,
                     PriceStep = 2.00m,
                     UsePriceDiff = true,
-                    UseMarginForSimulation = true,
+                    UseEanForSimulation = true,
+                    UseMarginForSimulation = true,          
                     EnforceMinimalMargin = true,
                     MinimalMarginPercent = 0.00m
                 };
@@ -625,6 +627,7 @@ namespace PriceSafari.Controllers.MemberControllers
                 useMarginForSimulation = priceValues.UseMarginForSimulation,
                 enforceMinimalMargin = priceValues.EnforceMinimalMargin,
                 minimalMarginPercent = priceValues.MinimalMarginPercent,
+                useEanForSimulation = priceValues.UseEanForSimulation,
 
                 presetName = activePresetName ?? "PriceSafari"
 
@@ -1505,11 +1508,10 @@ namespace PriceSafari.Controllers.MemberControllers
                     googleNewOffers,
                     ceneoCurrentOffers,
                     ceneoNewOffers,
-                    // Nowe pola dotyczące marży:
-                    currentMargin,          // procentowa marża przy aktualnej cenie
-                    newMargin,              // procentowa marża przy nowej cenie
-                    currentMarginValue,     // kwotowa różnica (aktualna cena - cena zakupu)
-                    newMarginValue          // kwotowa różnica (nowa cena - cena zakupu)
+                    currentMargin,         
+                    newMargin,              
+                    currentMarginValue,     
+                    newMarginValue         
                 });
             }
 
@@ -1650,6 +1652,7 @@ namespace PriceSafari.Controllers.MemberControllers
                 priceValues = new PriceValueClass
                 {
                     StoreId = model.StoreId,
+                    UseEanForSimulation = model.UseEanForSimulation,
                     UseMarginForSimulation = model.UseMarginForSimulation,
                     EnforceMinimalMargin = model.EnforceMinimalMargin,
                     MinimalMarginPercent = model.MinimalMarginPercent
@@ -1658,6 +1661,7 @@ namespace PriceSafari.Controllers.MemberControllers
             }
             else
             {
+                priceValues.UseEanForSimulation = model.UseEanForSimulation;
                 priceValues.UseMarginForSimulation = model.UseMarginForSimulation;
                 priceValues.EnforceMinimalMargin = model.EnforceMinimalMargin;
                 priceValues.MinimalMarginPercent = model.MinimalMarginPercent;
@@ -1672,6 +1676,7 @@ namespace PriceSafari.Controllers.MemberControllers
         public class PriceMarginSettingsViewModel
         {
             public int StoreId { get; set; }
+            public bool UseEanForSimulation { get; set; }
             public bool UseMarginForSimulation { get; set; }
             public bool EnforceMinimalMargin { get; set; }
             public decimal MinimalMarginPercent { get; set; }

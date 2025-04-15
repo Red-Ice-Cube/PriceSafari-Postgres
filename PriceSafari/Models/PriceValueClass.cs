@@ -18,9 +18,10 @@
 
 
 
-     
 
+        public bool UseEanForSimulation { get; set; } = true;
         public bool UseMarginForSimulation { get; set; } = true;
+
         public bool EnforceMinimalMargin { get; set; } = true;
         public decimal MinimalMarginPercent { get; set; } = 0.00m;
 

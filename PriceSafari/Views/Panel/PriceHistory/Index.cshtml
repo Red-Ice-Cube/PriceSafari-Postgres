@@ -873,6 +873,16 @@
                     Ustawienia symulacji marżowej umożliwiają precyzyjne określenie, dla których produktów oraz w jaki sposób mają być modyfikowane ceny w oparciu o cenę zakupu. Jeśli chcesz, aby symulacja dotyczyła tylko produktów z określoną ceną zakupu, lub aby cena nie spadła poniżej ustalonego poziomu marży – skonfiguruj poniższe opcje.
                 </p>
                 <form id="marginSettingsForm">
+
+                    <div class="form-group" style="margin-bottom:24px;">
+                        <label for="useEanForSimulation">
+                            Element nawigacyjny dla produktów
+                        </label>
+                        <select class="form-control" id="useEanForSimulation">
+                            <option value="true">EAN</option>
+                            <option value="false">ID</option>
+                        </select>
+                    </div>
                     <div class="form-group" style="margin-bottom:24px;">
                         <label for="useMarginForSimulationInput">
                             Stosuj symulację tylko dla produktów posiadających cenę zakupu
