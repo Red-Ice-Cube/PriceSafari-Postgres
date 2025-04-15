@@ -552,22 +552,35 @@
 
                 if (currentSearchTerm) {
                     filteredPrices = filteredPrices.filter(price => {
-                     
-                        const sanitizedInput = currentSearchTerm.replace(/[^a-zA-Z0-9\s.-]/g, '').trim().toLowerCase().replace(/\s+/g, '');
+                        const sanitizedInput = currentSearchTerm
+                            .replace(/[^a-zA-Z0-9\s.-]/g, '')
+                            .trim()
+                            .toLowerCase()
+                            .replace(/\s+/g, '');
 
-                        
-                        const productNamePlusEan = (price.productName || '') + ' ' + (price.ean || '');
+                   
+                        let eanOrId;
+                        if (marginSettings.useEanForSimulation) {
+                    
+                            eanOrId = price.ean || '';
+                        } else {
+                    
+                            eanOrId = price.externalId ? price.externalId.toString() : '';
+                        }
 
-                       
-                        const combinedLower = productNamePlusEan
+                
+                        const productNamePlusCode = (price.productName || '') + ' ' + eanOrId;
+
+                 
+                        const combinedLower = productNamePlusCode
                             .toLowerCase()
                             .replace(/[^a-zA-Z0-9\s/.-]/g, '')
                             .replace(/\s+/g, '');
 
-                     
                         return combinedLower.includes(sanitizedInput);
                     });
                 }
+
 
                 filteredPrices = filterPricesByCategoryAndColorAndFlag(filteredPrices);
 
@@ -851,7 +864,7 @@
         const endIndex = currentPage * itemsPerPage;
         const paginatedData = data.slice(startIndex, endIndex);
 
-        const useEanOrId = marginSettings.useEanForSimulation;
+      
 
         function activateChangeButton(button, priceBox, newPrice) {
             button.classList.add('active');
@@ -1052,17 +1065,41 @@
             const priceBoxColumnName = document.createElement('div');
             priceBoxColumnName.className = 'price-box-column-name';
             priceBoxColumnName.innerHTML = highlightedProductName;
-
+            
             const priceBoxColumnCategory = document.createElement('div');
             priceBoxColumnCategory.className = 'price-box-column-category';
 
-            if (item.externalId) {
-                const apiBox = document.createElement('span');
-                apiBox.className = 'ApiBox';
-                const displayedEan = highlightMatches(item.ean || '', currentProductSearchTerm, 'highlighted-text-yellow');
-                apiBox.innerHTML = 'EAN ' + displayedEan;
-                priceBoxColumnCategory.appendChild(apiBox);
+           
+            const useEanOrId = marginSettings.useEanForSimulation;
+
+          
+            const apiBox = document.createElement('span');
+            apiBox.className = 'ApiBox';
+
+        
+            if (useEanOrId) {
+              
+                if (item.ean && item.ean.trim() !== "") {
+                   
+                    const displayedEan = highlightMatches(item.ean, currentProductSearchTerm, 'highlighted-text-yellow');
+                    apiBox.innerHTML = 'EAN ' + displayedEan;
+                } else {
+                    apiBox.innerHTML = 'Brak EAN';
+                }
+            } else {
+               
+                if (item.externalId) {
+                 
+                    const displayedId = highlightMatches(item.externalId.toString(), currentProductSearchTerm, 'highlighted-text-yellow');
+                    apiBox.innerHTML = 'ID ' + displayedId;
+                } else {
+                    apiBox.innerHTML = 'Brak ID';
+                }
             }
+
+            // 5) Dodajesz do kontenera
+            priceBoxColumnCategory.appendChild(apiBox);
+
 
             const flagsContainer = createFlagsContainer(item);
 
@@ -2095,14 +2132,25 @@
             const productSearchRaw = document.getElementById('productSearch').value.trim();
             const storeSearchRaw = document.getElementById('storeSearch').value.trim();
 
-         
             if (productSearchRaw) {
                 const sanitizedProductSearch = productSearchRaw
                     .replace(/[^a-zA-Z0-9\s.-]/g, '')
                     .toLowerCase()
                     .replace(/\s+/g, '');
+
                 filteredPrices = filteredPrices.filter(price => {
-                    const combined = (price.productName || '') + ' ' + (price.ean || '');
+                 
+                    let eanOrId;
+                    if (marginSettings.useEanForSimulation) {
+                        eanOrId = price.ean || '';
+                    } else {
+                        eanOrId = price.externalId ? price.externalId.toString() : '';
+                    }
+
+                   
+                    const combined = (price.productName || '') + ' ' + eanOrId;
+
+                    
                     const combinedSanitized = combined
                         .toLowerCase()
                         .replace(/[^a-zA-Z0-9\s.-]/g, '')
@@ -2110,6 +2158,7 @@
                     return combinedSanitized.includes(sanitizedProductSearch);
                 });
             }
+
 
       
             if (storeSearchRaw) {
