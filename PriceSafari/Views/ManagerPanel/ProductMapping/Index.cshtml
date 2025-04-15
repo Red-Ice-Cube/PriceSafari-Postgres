@@ -4,94 +4,90 @@
     Layout = "~/Views/Shared/_PanelLayout.cshtml";
 }
 
-<h2>Import Produktów z XML</h2>
+<style>
+    /* Dodaj do pliku CSS lub w nagłówku widoku */
+    .limited-width {
+        max-width: 300px; /* Maksymalna szerokość kolumny */
+        white-space: normal; /* Pozwala na wielowierszowość */
+        overflow-wrap: break-word; /* Zawijanie wyrazów w razie długich ciągów bez spacji */
+        word-wrap: break-word; /* Zgodność z niektórymi starszymi przeglądarkami */
+    }
+</style>
 
-<form asp-action="TruncateProductMaps" method="post">
-    <button type="submit" class="btn btn-danger">Usuń wszystkie pobrane dane z XMLi</button>
-</form>
-
-<table class="table">
-    <thead>
-        <tr>
-            <th>Nazwa Sklepu</th>
-            <th>URL do mapowania produktów</th>
-            <th>Akcje</th>
-        </tr>
-    </thead>
-    <tbody>
-        @foreach (var store in Model)
-        {
-            <tr>
-                <td>@store.StoreName</td>
-                <td>@store.ProductMapXmlUrl</td>
-                <td>@store.ProductMapXmlUrlGoogle</td>
-                <td>
-                    @if (!string.IsNullOrEmpty(store.ProductMapXmlUrl))
-                    {
-                        <form asp-action="ImportProductsFromXml" method="post" style="display:inline;">
-                            <input type="hidden" name="storeId" value="@store.StoreId" />
-                            <button type="submit" class="btn btn-primary">Importuj Produkty</button>
-                        </form>
-                        <a asp-action="MappedProducts" asp-route-storeId="@store.StoreId" class="btn btn-secondary">Pokaż Zmapowane Produkty</a>
-                        <a asp-action="ProductXml" asp-route-storeId="@store.StoreId" class="btn btn-info">Pokaż Produkty XML</a>
-
-
-       
-
-
-                       
-                    }
-                    else
-                    {
-                        <span>Brak URL do mapowania produktów</span>
-                    }
-                </td>
-
-
-                <td>
-                    @if (!string.IsNullOrEmpty(store.ProductMapXmlUrl))
-                    {
-
-
-
-
-                        <a asp-controller="CeneoImportWizardXml"
-                           asp-action="ShowCeneoFeedXml"
-                           asp-route-storeId="@store.StoreId"
-                           class="btn btn-warning">
-                            Wizard - CENEO
-                        </a>
-
-
-                    }
-                    else
-                    {
-                        <span>Brak URL do mapowania z Ceneo</span>
-                    }
-                </td>
-                <td>
-                    @if (!string.IsNullOrEmpty(store.ProductMapXmlUrlGoogle))
-                    {
-         
-
-                        <a asp-controller="GoogleImportWizardXml"
-                           asp-action="ShowGoogleFeedXml"
-                           asp-route-storeId="@store.StoreId"
-                           class="btn btn-info">
-                            Wizard - GOOGLE
-                        </a>
-
-                  
-
-
-                    }
-                    else
-                    {
-                        <span>Brak URL do mapowania z Google Shopping</span>
-                    }
-                </td>
-         
-            </tr>
-        }
-    </tbody>
-</table>
+<div class="Page-Box">
+    <div class="Page-Box-Container">
+        <div class="Horizontal">
+            <div class="product-upper-box">
+                <form asp-action="TruncateProductMaps" method="post">
+                    <button type="submit" class="btn btn-danger">Usuń wszystkie pobrane dane z XMLi</button>
+                </form>
+            </div>
+            <div class="Vert-table">
+                <table class="table-orders">
+                    <thead>
+                        <tr>
+                            <th>Nazwa Sklepu</th>
+                            <th>URL Ceneo XML</th>
+                            <th>URL Google XML</th>
+                            <th>Akcje</th>
+                            <th>Wizard Ceneo</th>
+                            <th>Wizard Google</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var store in Model)
+                        {
+                            <tr>
+                                <td>@store.StoreName</td>
+                                <!-- Dodajemy klasę "limited-width" do komórek z URLami -->
+                                <td class="limited-width">@store.ProductMapXmlUrl</td>
+                                <td class="limited-width">@store.ProductMapXmlUrlGoogle</td>
+                                <td>
+                                    @if (!string.IsNullOrEmpty(store.ProductMapXmlUrl))
+                                    {
+                                        <a asp-action="MappedProducts" asp-route-storeId="@store.StoreId" class="btn btn-secondary">Pokaż Zmapowane Produkty</a>
+                                        <a asp-action="ProductXml" asp-route-storeId="@store.StoreId" class="btn btn-info">Pokaż Produkty XML</a>
+                                    }
+                                    else
+                                    {
+                                        <span>Brak URL do mapowania produktów</span>
+                                    }
+                                </td>
+                                <td>
+                                    @if (!string.IsNullOrEmpty(store.ProductMapXmlUrl))
+                                    {
+                                        <a asp-controller="CeneoImportWizardXml"
+                                           asp-action="ShowCeneoFeedXml"
+                                           asp-route-storeId="@store.StoreId"
+                                           class="btn btn-warning">
+                                            Wizard - CENEO
+                                        </a>
+                                    }
+                                    else
+                                    {
+                                        <span>Brak URL do mapowania z Ceneo</span>
+                                    }
+                                </td>
+                                <td>
+                                    @if (!string.IsNullOrEmpty(store.ProductMapXmlUrlGoogle))
+                                    {
+                                        <a asp-controller="GoogleImportWizardXml"
+                                           asp-action="ShowGoogleFeedXml"
+                                           asp-route-storeId="@store.StoreId"
+                                           class="btn btn-info">
+                                            Wizard - GOOGLE
+                                        </a>
+                                    }
+                                    else
+                                    {
+                                        <span>Brak URL do mapowania z Google Shopping</span>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
