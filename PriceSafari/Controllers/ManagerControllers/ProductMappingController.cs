@@ -69,28 +69,160 @@ namespace PriceSafari.Controllers.ManagerControllers
             }
         }
 
-        public async Task<IActionResult> MappedProducts(int storeId)
+
+
+
+
+        public async Task<IActionResult> MappedProducts(int storeId, bool onlyMismatch = false)
         {
+            // 1) Pobieramy sklep
             var store = await _context.Stores.FindAsync(storeId);
             if (store == null)
+                return NotFound("Sklep nie znaleziony.");
+
+            // 2) Nazwa sklepu -> myStoreName
+            string storeName = store.StoreName ?? "";
+            string myStoreName = storeName.ToLower();
+
+            // 3) Najnowszy scrap
+            var latestScrap = await _context.ScrapHistories
+                .Where(sh => sh.StoreId == storeId)
+                .OrderByDescending(sh => sh.Date)
+                .FirstOrDefaultAsync();
+
+            if (latestScrap == null)
             {
-                return NotFound();
+                ViewBag.StoreName = store.StoreName;
+                ViewBag.StoreId = storeId;
+                return View("~/Views/ManagerPanel/ProductMapping/MappedProducts.cshtml", new List<MappedProductViewModel>());
             }
 
-            var mappedProducts = await _context.ProductMaps
+            // 4) Products + PriceHistories
+            var products = await _context.Products
                 .Where(p => p.StoreId == storeId)
+                .Include(p => p.PriceHistories)
                 .ToListAsync();
 
-            var storeProducts = await _context.Products
-                .Where(p => p.StoreId == storeId)
-                .ToListAsync();
+            // 5) Pętla po produktach
+            var vmList = new List<MappedProductViewModel>();
 
+            foreach (var product in products)
+            {
+                // A) Filtrujemy PriceHistories – najnowszy scrap + dopasowanie storeName
+                var relevantHistories = product.PriceHistories
+                    .Where(ph => ph.ScrapHistoryId == latestScrap.Id)
+                    .Where(ph => (ph.StoreName ?? "").ToLower() == myStoreName)
+                    .ToList();
+
+                // B) Wybieramy Google i Ceneo
+                var googleHistory = relevantHistories
+                    .Where(ph => ph.IsGoogle)
+                    .OrderByDescending(ph => ph.Id)
+                    .FirstOrDefault();
+
+                var ceneoHistory = relevantHistories
+                    .Where(ph => !ph.IsGoogle)
+                    .OrderByDescending(ph => ph.Id)
+                    .FirstOrDefault();
+
+                decimal? googlePrice = googleHistory?.Price;
+                decimal? ceneoPrice = ceneoHistory?.Price;
+                decimal? diff = null;
+                if (googlePrice.HasValue && ceneoPrice.HasValue)
+                    diff = googlePrice.Value - ceneoPrice.Value;
+
+                // C) Składamy MappedProductViewModel
+                var vm = new MappedProductViewModel
+                {
+                    ProductId = product.ProductId,
+                    ProductName = product.ProductName,
+                    ExternalId = product.ExternalId,
+                    Url = product.Url,
+                    UrlCeneo = product.OfferUrl,
+                    UrlGoogle = product.GoogleUrl,
+                    IsScrapable = product.IsScrapable,
+                    IsRejected = product.IsRejected,
+
+                    HasGoogle = !string.IsNullOrEmpty(product.GoogleUrl),
+                    HasCeneo = !string.IsNullOrEmpty(product.OfferUrl),
+
+                    MainUrlCeneo = product.MainUrl,
+                    MainUrlGoogle = product.ImgUrlGoogle,
+
+                    NameCeneo = product.ExportedNameCeneo,
+                    NameGoogle = product.ProductNameInStoreForGoogle,
+
+                    EanCeneo = product.Ean,
+                    EanGoogle = product.EanGoogle,
+
+                    LastGooglePrice = googlePrice,
+                    LastCeneoPrice = ceneoPrice,
+                    PriceDifference = diff,
+                    ScrapId = latestScrap.Id
+                };
+
+                vmList.Add(vm);
+            }
+
+            // 6) Filtr onlyMismatch
+            if (onlyMismatch)
+            {
+                vmList = vmList
+                    .Where(vm => vm.LastGooglePrice.HasValue && vm.LastCeneoPrice.HasValue
+                                 && vm.LastGooglePrice.Value != vm.LastCeneoPrice.Value)
+                    .ToList();
+            }
+
+            // 7) Widok
             ViewBag.StoreName = store.StoreName;
-            ViewBag.StoreProducts = storeProducts;
             ViewBag.StoreId = storeId;
-
-            return View("~/Views/ManagerPanel/ProductMapping/MappedProducts.cshtml", mappedProducts);
+            return View("~/Views/ManagerPanel/ProductMapping/MappedProducts.cshtml", vmList);
         }
+
+
+
+        public class MappedProductViewModel
+        {
+            public int ProductId { get; set; }
+            public string ProductName { get; set; }
+            public int? ExternalId { get; set; }
+            public string Url { get; set; }
+
+            public string UrlCeneo { get; set; }
+            public string UrlGoogle { get; set; }
+
+            public bool IsScrapable { get; set; }
+            public bool IsRejected { get; set; }
+
+            // Informacja, czy produkt ma dane z Google i Ceneo
+            public bool HasGoogle { get; set; }
+            public bool HasCeneo { get; set; }
+
+            // Zdjęcia
+            public string MainUrlCeneo { get; set; }
+            public string MainUrlGoogle { get; set; }
+
+            // Nazwy – z różnych źródeł, jeśli chcesz je wyświetlać
+            public string NameCeneo { get; set; }
+            public string NameGoogle { get; set; }
+
+            // EAN-y
+            public string EanCeneo { get; set; }
+            public string EanGoogle { get; set; }
+
+            // Ceny (ostatnie z danego scrapu)
+            public decimal? LastGooglePrice { get; set; }
+            public decimal? LastCeneoPrice { get; set; }
+
+            // Różnica (Google - Ceneo)
+            public decimal? PriceDifference { get; set; }
+
+            // Do linkowania – ScrapId, z którego pochodzą ceny
+            public int ScrapId { get; set; }
+        }
+
+
+
 
         [HttpPost]
         public async Task<IActionResult> RemoveSelectedProducts(int storeId, [FromBody] List<int> productIds)
@@ -337,7 +469,7 @@ namespace PriceSafari.Controllers.ManagerControllers
             {
                 product.ProductName = mappedProduct.GoogleExportedName;
                 product.ProductNameInStoreForGoogle = mappedProduct.GoogleExportedName;
-                product.ExportedNameCeneo = mappedProduct.ExportedName; // Jeśli chcesz również zachować nazwę z Ceneo
+                product.ExportedNameCeneo = mappedProduct.ExportedName;
             }
             else if (!string.IsNullOrEmpty(mappedProduct.ExportedName))
             {

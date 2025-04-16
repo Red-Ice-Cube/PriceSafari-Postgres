@@ -1,29 +1,40 @@
-﻿@model IEnumerable<PriceSafari.Models.ProductMap>
+﻿@using PriceSafari.Controllers.ManagerControllers  <!-- o ile tam jest klasa MappedProductViewModel -->
+@model IEnumerable<PriceSafari.Controllers.ManagerControllers.ProductMappingController.MappedProductViewModel>
 
 @{
     ViewData["Title"] = "Zmapowane Produkty";
     Layout = "~/Views/Shared/_PanelLayout.cshtml";
 
-    // Produkty z bazy (ProductClass) wzięte z ViewBag
-    var storeProducts = ViewBag.StoreProducts as IEnumerable<PriceSafari.Models.ProductClass>
-                       ?? Enumerable.Empty<PriceSafari.Models.ProductClass>();
+    var storeId = ViewBag.StoreId ?? 0;
+    var storeName = ViewBag.StoreName as string ?? "(brak nazwy sklepu)";
 
-    var storeId = ViewBag.StoreId;
+    // Możesz zrobić statystyki oparte o Model
+    // Na przykład zliczyć ile ma Google, ile Ceneo, itp.:
+    var totalCount = Model.Count();
+    var googleCount = Model.Count(p => p.HasGoogle);
+    var ceneoCount = Model.Count(p => p.HasCeneo);
+    var googleCeneoCount = Model.Count(p => p.HasGoogle && p.HasCeneo);
+    var notFoundCount = Model.Count(p => !p.HasGoogle && !p.HasCeneo);
 
-    // Statystyki do nagłówków kolumn
-    var imageCount = storeProducts.Count(p => !string.IsNullOrEmpty(p.MainUrl));
-    var googleImageCount = storeProducts.Count(p => !string.IsNullOrEmpty(p.ImgUrlGoogle));
-    var productNameCount = storeProducts.Count(p => !string.IsNullOrEmpty(p.ProductName));
-    var productNameGoogleCount = storeProducts.Count(p => !string.IsNullOrEmpty(p.ProductNameInStoreForGoogle));
-    var exportedNameCeneoCount = storeProducts.Count(p => !string.IsNullOrEmpty(p.ExportedNameCeneo));
-    var eanCount = storeProducts.Count(p => !string.IsNullOrEmpty(p.Ean));
-    var eanGoogleCount = storeProducts.Count(p => !string.IsNullOrEmpty(p.EanGoogle));
-    var urlCount = storeProducts.Count(p => !string.IsNullOrEmpty(p.Url));
-    var externalIdCount = storeProducts.Count(p => p.ExternalId.HasValue);
+    // Podobnie można policzyć, ile ma np. MainUrlCeneo, MainUrlGoogle etc.
+    var ceneoImgCount = Model.Count(p => !string.IsNullOrEmpty(p.MainUrlCeneo));
+    var googleImgCount = Model.Count(p => !string.IsNullOrEmpty(p.MainUrlGoogle));
+    var ceneoNameCount = Model.Count(p => !string.IsNullOrEmpty(p.NameCeneo));
+    var googleNameCount = Model.Count(p => !string.IsNullOrEmpty(p.NameGoogle));
+    var ceneoEanCount = Model.Count(p => !string.IsNullOrEmpty(p.EanCeneo));
+    var googleEanCount = Model.Count(p => !string.IsNullOrEmpty(p.EanGoogle));
+    var urlCount = Model.Count(p => !string.IsNullOrEmpty(p.Url));
+    var externalIdCount = Model.Count(p => p.ExternalId.HasValue);
 }
 
-// Nagłówek
-<h2>Zmapowane Produkty dla sklepu @ViewBag.StoreName</h2>
+<h2>Zmapowane Produkty dla sklepu @storeName</h2>
+<p>
+    Łącznie: @totalCount<br />
+    - tylko Google: @googleCount<br />
+    - tylko Ceneo: @ceneoCount<br />
+    - oba (Google+Ceneo): @googleCeneoCount<br />
+    - brak: @notFoundCount
+</p>
 
 <!-- Przycisk do usuwania wszystkich produktów danego sklepu -->
 <form asp-action="RemoveAllProductsForStore"
@@ -36,7 +47,7 @@
     </button>
 </form>
 
-<!-- Przycisk do usuwania słowa z nazw produktów -->
+<!-- Przycisk do usuwania słowa z nazw produktów (zostawiony przykładowo) -->
 <form asp-action="RemoveWordFromProductNamesCeneo" method="post" class="mt-3">
     <div class="form-group">
         <label for="wordToRemove">Słowo do usunięcia z nazw produktów:</label>
@@ -117,24 +128,30 @@
 <table class="table table-bordered table-striped" id="product-table">
     <thead>
         <tr>
-            <th>Zdjęcie (Ceneo) (@imageCount)</th>
-            <th>Zdjęcie (Google) (@googleImageCount)</th>
-            <th>Nazwa (Ceneo) (@exportedNameCeneoCount)</th>
-            <th>Nazwa (Google) (@productNameGoogleCount)</th>
-            <th>EAN (Ceneo) (@eanCount)</th>
-            <th>EAN (Google) (@eanGoogleCount)</th>
+            <th>Zdjęcie (Ceneo) (@ceneoImgCount)</th>
+            <th>Zdjęcie (Google) (@googleImgCount)</th>
+            <th>Nazwa (Ceneo) (@ceneoNameCount)</th>
+            <th>Nazwa (Google) (@googleNameCount)</th>
+            <th>EAN (Ceneo) (@ceneoEanCount)</th>
+            <th>EAN (Google) (@googleEanCount)</th>
             <th>URL Produktu (@urlCount)</th>
+            <th>URL Ceneo </th>
+            <th>URL Google </th>
             <th>IsScrapable</th>
             <th>IsRejected</th>
             <th>External ID (@externalIdCount)</th>
+            <!-- Kolumny dot. cen (opcjonalne) -->
+            <th>Cena Google</th>
+            <th>Cena Ceneo</th>
+            <th>Różnica (G - C)</th>
         </tr>
     </thead>
     <tbody>
-        @foreach (var product in storeProducts)
+        @foreach (var productVm in Model)
         {
             // Określamy "platformCategory"
-            bool hasGoogle = !string.IsNullOrEmpty(product.GoogleUrl);
-            bool hasCeneo = !string.IsNullOrEmpty(product.OfferUrl);
+            bool hasGoogle = productVm.HasGoogle; // bo w VM już mamy to policzone
+            bool hasCeneo = productVm.HasCeneo;
             string platformCategory;
             if (hasGoogle && hasCeneo) platformCategory = "google-ceneo";
             else if (hasGoogle) platformCategory = "google";
@@ -143,18 +160,18 @@
 
             // Określamy "statusCategory"
             string statusCategory;
-            if (product.IsScrapable && product.IsRejected) statusCategory = "active-rejected";
-            else if (product.IsScrapable && !product.IsRejected) statusCategory = "active";
-            else if (!product.IsScrapable && product.IsRejected) statusCategory = "inactive-rejected";
+            if (productVm.IsScrapable && productVm.IsRejected) statusCategory = "active-rejected";
+            else if (productVm.IsScrapable && !productVm.IsRejected) statusCategory = "active";
+            else if (!productVm.IsScrapable && productVm.IsRejected) statusCategory = "inactive-rejected";
             else statusCategory = "inactive";
 
-            <tr data-product-id="@product.ProductId"
+            <tr data-product-id="@productVm.ProductId"
                 data-platform="@platformCategory"
                 data-status="@statusCategory">
                 <td>
-                    @if (!string.IsNullOrEmpty(product.MainUrl))
+                    @if (!string.IsNullOrEmpty(productVm.MainUrlCeneo))
                     {
-                        <img src="@product.MainUrl" alt="CeneoImg" style="width:90px; height:90px; object-fit:contain;" />
+                        <img src="@productVm.MainUrlCeneo" alt="CeneoImg" style="width:90px; height:90px; object-fit:contain;" />
                     }
                     else
                     {
@@ -162,9 +179,9 @@
                     }
                 </td>
                 <td>
-                    @if (!string.IsNullOrEmpty(product.ImgUrlGoogle))
+                    @if (!string.IsNullOrEmpty(productVm.MainUrlGoogle))
                     {
-                        <img src="@product.ImgUrlGoogle" alt="GoogleImg" style="width:90px; height:90px; object-fit:contain;" />
+                        <img src="@productVm.MainUrlGoogle" alt="GoogleImg" style="width:90px; height:90px; object-fit:contain;" />
                     }
                     else
                     {
@@ -172,11 +189,10 @@
                     }
                 </td>
                 <td>
-                    @* "Nazwa (Ceneo)" – np. ExportedNameCeneo lub ProductName *@
                     <div style="max-width:200px; white-space:normal;">
-                        @if (!string.IsNullOrEmpty(product.ExportedNameCeneo))
+                        @if (!string.IsNullOrEmpty(productVm.NameCeneo))
                         {
-                            @product.ExportedNameCeneo
+                            @productVm.NameCeneo
                         }
                         else
                         {
@@ -185,11 +201,10 @@
                     </div>
                 </td>
                 <td>
-                    @* "Nazwa (Google)" – np. ProductNameInStoreForGoogle lub ProductName *@
                     <div style="max-width:200px; white-space:normal;">
-                        @if (!string.IsNullOrEmpty(product.ProductNameInStoreForGoogle))
+                        @if (!string.IsNullOrEmpty(productVm.NameGoogle))
                         {
-                            @product.ProductNameInStoreForGoogle
+                            @productVm.NameGoogle
                         }
                         else
                         {
@@ -198,9 +213,9 @@
                     </div>
                 </td>
                 <td>
-                    @if (!string.IsNullOrEmpty(product.Ean))
+                    @if (!string.IsNullOrEmpty(productVm.EanCeneo))
                     {
-                        @product.Ean
+                        @productVm.EanCeneo
                     }
                     else
                     {
@@ -208,9 +223,9 @@
                     }
                 </td>
                 <td>
-                    @if (!string.IsNullOrEmpty(product.EanGoogle))
+                    @if (!string.IsNullOrEmpty(productVm.EanGoogle))
                     {
-                        @product.EanGoogle
+                        @productVm.EanGoogle
                     }
                     else
                     {
@@ -218,26 +233,83 @@
                     }
                 </td>
                 <td>
-                    @if (!string.IsNullOrEmpty(product.Url))
+                    @if (!string.IsNullOrEmpty(productVm.Url))
                     {
-                        <a href="@product.Url" target="_blank">Link</a>
+                        <a href="@productVm.Url" target="_blank">Link</a>
                     }
                     else
                     {
                         <span>(brak)</span>
                     }
                 </td>
-                <td>@product.IsScrapable</td>
-                <td>@product.IsRejected</td>
-                <td>
-                    @if (product.ExternalId.HasValue)
+                 <td>
+                    @if (!string.IsNullOrEmpty(productVm.UrlCeneo))
                     {
-                        @product.ExternalId.Value
+                        <a href="@productVm.UrlCeneo" target="_blank">Link</a>
                     }
                     else
                     {
                         <span>(brak)</span>
                     }
+                </td>
+                <td>
+                    @if (!string.IsNullOrEmpty(productVm.UrlGoogle))
+                    {
+                        <a href="@productVm.UrlGoogle" target="_blank">Link</a>
+                    }
+                    else
+                    {
+                        <span>(brak)</span>
+                    }
+                </td>
+                <td>@productVm.IsScrapable</td>
+                <td>@productVm.IsRejected</td>
+                <td>
+                    @if (productVm.ExternalId.HasValue)
+                    {
+                        @productVm.ExternalId
+                    }
+                    else
+                    {
+                        <span>(brak)</span>
+                    }
+                </td>
+                <!-- Kolumny z cenami, jeśli chcesz je wyświetlać -->
+                <td>
+                    @if (productVm.LastGooglePrice.HasValue)
+                    {
+                        @productVm.LastGooglePrice.Value.ToString("F2")
+                    }
+                    else
+                    {
+                        <span>(brak)</span>
+                    }
+                </td>
+                <td>
+                    @if (productVm.LastCeneoPrice.HasValue)
+                    {
+                        @productVm.LastCeneoPrice.Value.ToString("F2")
+                    }
+                    else
+                    {
+                        <span>(brak)</span>
+                    }
+                </td>
+                <td>
+                    @if (productVm.PriceDifference.HasValue)
+                    {
+                        @productVm.PriceDifference.Value.ToString("F2")
+                    }
+                    else
+                    {
+                        <span>(brak)</span>
+                    }
+                </td>
+                <td>
+                    <a href="/PriceHistory/Details?productId=@productVm.ProductId&amp;scrapId=@productVm.ScrapId" target="_blank">
+                        Szczegóły
+                    </a>
+
                 </td>
             </tr>
         }
@@ -275,10 +347,10 @@
                     const rowPlatform = row.getAttribute('data-platform');// google/ceneo/google-ceneo/not-found
 
                     // Czy pasuje do statusu
-                    let statusMatch = selectedStatuses.length === 0 || selectedStatuses.includes(rowStatus);
+                    let statusMatch = (selectedStatuses.length === 0 || selectedStatuses.includes(rowStatus));
 
                     // Czy pasuje do platformy
-                    let platformMatch = selectedPlatforms.length === 0 || selectedPlatforms.includes(rowPlatform);
+                    let platformMatch = (selectedPlatforms.length === 0 || selectedPlatforms.includes(rowPlatform));
 
                     // Jeśli pasuje do obu filtrów -> widoczny
                     if (statusMatch && platformMatch) {
@@ -290,14 +362,13 @@
                 });
 
                 // Możesz tu np. wyświetlić liczbę widocznych:
-                // np. w jakimś <span id="visible-count"></span>
                 const countSpan = document.getElementById('visible-count');
                 if (countSpan) {
                     countSpan.textContent = visibleCount.toString();
                 }
             }
 
-            // Podpinamy eventy
+            // Podpinamy eventy na checkboxy
             statusCheckboxes.forEach(ch => ch.addEventListener('change', applyFilters));
             platformCheckboxes.forEach(ch => ch.addEventListener('change', applyFilters));
 

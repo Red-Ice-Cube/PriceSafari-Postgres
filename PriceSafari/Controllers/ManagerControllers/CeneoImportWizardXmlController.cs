@@ -146,8 +146,6 @@ namespace PriceSafari.Controllers.ManagerControllers
 
 
 
-
-
         [HttpPost]
         public async Task<IActionResult> SaveProductMapsFromFront([FromBody] List<ProductMapDto> productMaps)
         {
@@ -165,34 +163,40 @@ namespace PriceSafari.Controllers.ManagerControllers
 
             foreach (var pmDto in productMaps)
             {
-                // Przekształcamy ExternalId - pozostawiamy tylko cyfry, np. "MCPL48" -> "48"
+                // Oczyszczanie ExternalId, by zostały tylko cyfry
                 if (!string.IsNullOrEmpty(pmDto.ExternalId))
                 {
                     pmDto.ExternalId = new string(pmDto.ExternalId.Where(c => char.IsDigit(c)).ToArray());
                 }
 
+                // Tylko jeśli URL i ExternalId są identyczne
                 var found = existing.FirstOrDefault(x =>
-                    (x.ExternalId == pmDto.ExternalId && !string.IsNullOrEmpty(pmDto.ExternalId))
-                    || (x.Url == pmDto.Url && !string.IsNullOrEmpty(pmDto.Url))
+                    x.Url == pmDto.Url
+                    && x.ExternalId == pmDto.ExternalId
                 );
 
                 if (found == null)
                 {
+                    // Nowy wpis
                     var newMap = new ProductMap
                     {
                         StoreId = pmDto.StoreId,
                         ExternalId = pmDto.ExternalId,
                         Url = pmDto.Url,
+
+                        // Pola Ceneo
                         Ean = pmDto.CeneoEan,
                         MainUrl = pmDto.CeneoImage,
                         ExportedName = pmDto.CeneoExportedName
                     };
+
                     _context.ProductMaps.Add(newMap);
                     existing.Add(newMap);
                     added++;
                 }
                 else
                 {
+                    // Aktualizacja 
                     found.ExternalId = pmDto.ExternalId;
                     found.Url = pmDto.Url;
                     found.Ean = pmDto.CeneoEan;
@@ -207,6 +211,7 @@ namespace PriceSafari.Controllers.ManagerControllers
             await _context.SaveChangesAsync();
             return Json(new { success = true, message = $"Dodano {added}, zaktualizowano {updated}." });
         }
+
 
 
         public class ProductMapDto

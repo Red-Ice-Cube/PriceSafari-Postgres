@@ -177,7 +177,6 @@ namespace PriceSafari.Controllers.ManagerControllers
 
 
 
-
         [HttpPost]
         public async Task<IActionResult> SaveProductMapsFromFront([FromBody] List<ProductMapDto> productMaps)
         {
@@ -195,21 +194,21 @@ namespace PriceSafari.Controllers.ManagerControllers
 
             foreach (var pmDto in productMaps)
             {
-                // Możesz wyczyścić ExternalId z niedozwolonych znaków
+                // Wyczyszczenie ExternalId z niedozwolonych znaków (zostawiamy cyfry)
                 if (!string.IsNullOrEmpty(pmDto.ExternalId))
                 {
                     pmDto.ExternalId = new string(pmDto.ExternalId.Where(c => char.IsDigit(c)).ToArray());
                 }
 
-                // Szukamy w already-existing mapach
+                // Nowy - 1 do 1 (URL i ExternalId muszą się zgadzać)
                 var found = existing.FirstOrDefault(x =>
-                    (x.ExternalId == pmDto.ExternalId && !string.IsNullOrEmpty(pmDto.ExternalId))
-                    || (x.Url == pmDto.Url && !string.IsNullOrEmpty(pmDto.Url))
+                    x.Url == pmDto.Url
+                    && x.ExternalId == pmDto.ExternalId
                 );
 
                 if (found == null)
                 {
-                    // Tworzymy nowy ProductMap
+                    // Nie ma takiego produktu -> tworzymy nowy
                     var newMap = new ProductMap
                     {
                         StoreId = pmDto.StoreId,
@@ -219,7 +218,7 @@ namespace PriceSafari.Controllers.ManagerControllers
                         GoogleImage = pmDto.GoogleImage,
                         GoogleExportedName = pmDto.GoogleExportedName,
 
-                        // NOWE:
+                        // Pola GoogleXMLPrice, GoogleDeliveryXMLPrice
                         GoogleXMLPrice = pmDto.GoogleXMLPrice,
                         GoogleDeliveryXMLPrice = pmDto.GoogleDeliveryXMLPrice
                     };
@@ -230,14 +229,13 @@ namespace PriceSafari.Controllers.ManagerControllers
                 }
                 else
                 {
-                    // Uaktualniamy istniejący
+                    // Aktualizujemy istniejący wpis
                     found.ExternalId = pmDto.ExternalId;
                     found.Url = pmDto.Url;
                     found.GoogleEan = pmDto.GoogleEan;
                     found.GoogleImage = pmDto.GoogleImage;
                     found.GoogleExportedName = pmDto.GoogleExportedName;
 
-                    // NOWE:
                     found.GoogleXMLPrice = pmDto.GoogleXMLPrice;
                     found.GoogleDeliveryXMLPrice = pmDto.GoogleDeliveryXMLPrice;
 
@@ -249,6 +247,7 @@ namespace PriceSafari.Controllers.ManagerControllers
             await _context.SaveChangesAsync();
             return Json(new { success = true, message = $"Dodano {added}, zaktualizowano {updated}." });
         }
+
 
 
 

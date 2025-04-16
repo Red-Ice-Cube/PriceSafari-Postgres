@@ -19,13 +19,7 @@ namespace PriceSafari.Controllers.ManagerControllers
             _context = context;
         }
 
-        /// <summary>
-        /// Widok zbiorczy – dla danego sklepu pokazuje, ile produktów danego dnia miało cenę podniesioną i obniżoną.
-        /// Jeśli danego dnia nie było zmian, dzień i tak jest wyświetlony z zerowymi wartościami.
-        /// Produkty, dla których w obrębie jednego dnia występują rozbieżne ceny (więcej niż jedna unikalna wartość)
-        /// nie są brane pod uwagę przy obliczaniu zmian, ale zapisywane są w liście AmbiguousProducts.
-        /// </summary>
-        /// <param name="storeId">Identyfikator sklepu</param>
+      
         public async Task<IActionResult> Index(int? storeId)
         {
             if (storeId == null)
@@ -113,9 +107,7 @@ namespace PriceSafari.Controllers.ManagerControllers
                 }
             }
 
-            // 5. Dla każdego produktu wyznaczamy efektywną cenę dla każdego dnia
-            //    Grupujemy wpisy dla danego produktu wg daty i sprawdzamy, czy w obrębie dnia występuje jedna cena.
-            //    Jeśli dla danego dnia pojawia się więcej niż jedna unikalna cena, traktujemy to jako sytuację ambiguous.
+      
             var priceChangeDetails = new List<PriceChangeDetail>();
             foreach (var productGroup in extendedRecords.GroupBy(r => r.ProductId))
             {
