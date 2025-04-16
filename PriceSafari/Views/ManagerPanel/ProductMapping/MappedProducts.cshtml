@@ -8,15 +8,13 @@
     var storeId = ViewBag.StoreId ?? 0;
     var storeName = ViewBag.StoreName as string ?? "(brak nazwy sklepu)";
 
-    // Możesz zrobić statystyki oparte o Model
-    // Na przykład zliczyć ile ma Google, ile Ceneo, itp.:
+    // Przykładowe statystyki
     var totalCount = Model.Count();
     var googleCount = Model.Count(p => p.HasGoogle);
     var ceneoCount = Model.Count(p => p.HasCeneo);
     var googleCeneoCount = Model.Count(p => p.HasGoogle && p.HasCeneo);
     var notFoundCount = Model.Count(p => !p.HasGoogle && !p.HasCeneo);
 
-    // Podobnie można policzyć, ile ma np. MainUrlCeneo, MainUrlGoogle etc.
     var ceneoImgCount = Model.Count(p => !string.IsNullOrEmpty(p.MainUrlCeneo));
     var googleImgCount = Model.Count(p => !string.IsNullOrEmpty(p.MainUrlGoogle));
     var ceneoNameCount = Model.Count(p => !string.IsNullOrEmpty(p.NameCeneo));
@@ -32,22 +30,18 @@
     Łącznie: @totalCount<br />
     - tylko Google: @googleCount<br />
     - tylko Ceneo: @ceneoCount<br />
-    - oba (Google+Ceneo): @googleCeneoCount<br />
+    - oba (Google + Ceneo): @googleCeneoCount<br />
     - brak: @notFoundCount
 </p>
 
-<!-- Przycisk do usuwania wszystkich produktów danego sklepu -->
-<form asp-action="RemoveAllProductsForStore"
-      asp-controller="ProductMapping"
-      method="post"
-      class="mt-3">
+<!-- Przykładowe formularze (usuwanie produktów, itp.) -->
+<form asp-action="RemoveAllProductsForStore" asp-controller="ProductMapping" method="post" class="mt-3">
     <input type="hidden" name="storeId" value="@storeId" />
     <button type="submit" class="btn btn-danger">
         Usuń wszystkie produkty tego sklepu
     </button>
 </form>
 
-<!-- Przycisk do usuwania słowa z nazw produktów (zostawiony przykładowo) -->
 <form asp-action="RemoveWordFromProductNamesCeneo" method="post" class="mt-3">
     <div class="form-group">
         <label for="wordToRemove">Słowo do usunięcia z nazw produktów:</label>
@@ -56,7 +50,6 @@
     <button type="submit" class="btn btn-danger">Usuń słowo z nazw produktów</button>
 </form>
 
-<!-- Przycisk: Utwórz lub zaktualizuj produkty -->
 <form asp-action="CreateOrUpdateProductsFromProductMap" method="post" class="mt-3">
     <input type="hidden" name="storeId" value="@storeId" />
     <div class="form-group mt-2">
@@ -70,14 +63,13 @@
     </button>
 </form>
 
-<!-- Przycisk: Mapuj Produkty -->
 <form method="post" action="@Url.Action("MapProducts", "ProductMapping", new { storeId })" class="mt-3">
     <button type="submit" class="btn btn-primary">Mapuj Produkty</button>
 </form>
 
 <hr />
 
-<!-- Panel filtrów (checkboxy) -->
+<!-- Filtry status -->
 <div class="p-2 mb-3" style="border:1px solid #ccc;">
     <h4>Filtry isScrapable / isRejected</h4>
     <label class="mr-3">
@@ -98,6 +90,7 @@
     </label>
 </div>
 
+<!-- Filtry platform -->
 <div class="p-2 mb-3" style="border:1px solid #ccc;">
     <h4>Filtry platform (Google/Ceneo)</h4>
     <label class="mr-3">
@@ -118,6 +111,15 @@
     </label>
 </div>
 
+<!-- Nowy filtr: różnica w cenie != 0 -->
+<div class="p-2 mb-3" style="border:1px solid #ccc;">
+    <h4>Filtr różnicy w cenie</h4>
+    <label>
+        <input type="checkbox" id="show-differences" />
+        Pokaż tylko produkty, gdzie różnica w cenie (G - C) jest różna od zera
+    </label>
+</div>
+
 <button id="remove-filtered" class="btn btn-danger mb-3">
     Usuń odfiltrowane
 </button>
@@ -135,12 +137,11 @@
             <th>EAN (Ceneo) (@ceneoEanCount)</th>
             <th>EAN (Google) (@googleEanCount)</th>
             <th>URL Produktu (@urlCount)</th>
-            <th>URL Ceneo </th>
-            <th>URL Google </th>
+            <th>URL Ceneo</th>
+            <th>URL Google</th>
             <th>IsScrapable</th>
             <th>IsRejected</th>
             <th>External ID (@externalIdCount)</th>
-            <!-- Kolumny dot. cen (opcjonalne) -->
             <th>Cena Google</th>
             <th>Cena Ceneo</th>
             <th>Różnica (G - C)</th>
@@ -149,25 +150,32 @@
     <tbody>
         @foreach (var productVm in Model)
         {
-            // Określamy "platformCategory"
-            bool hasGoogle = productVm.HasGoogle; // bo w VM już mamy to policzone
+            bool hasGoogle = productVm.HasGoogle;
             bool hasCeneo = productVm.HasCeneo;
+
+            // Kategoria platformy
             string platformCategory;
             if (hasGoogle && hasCeneo) platformCategory = "google-ceneo";
             else if (hasGoogle) platformCategory = "google";
             else if (hasCeneo) platformCategory = "ceneo";
             else platformCategory = "not-found";
 
-            // Określamy "statusCategory"
+            // Kategoria statusu
             string statusCategory;
             if (productVm.IsScrapable && productVm.IsRejected) statusCategory = "active-rejected";
             else if (productVm.IsScrapable && !productVm.IsRejected) statusCategory = "active";
             else if (!productVm.IsScrapable && productVm.IsRejected) statusCategory = "inactive-rejected";
             else statusCategory = "inactive";
 
+            // Dla nowego filtra w JS odczytujemy PriceDifference i umieszczamy w atrybucie data-diff
+            string diffValue = productVm.PriceDifference.HasValue
+            ? productVm.PriceDifference.Value.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture)
+            : "";
+
             <tr data-product-id="@productVm.ProductId"
                 data-platform="@platformCategory"
-                data-status="@statusCategory">
+                data-status="@statusCategory"
+                data-diff="@diffValue">
                 <td>
                     @if (!string.IsNullOrEmpty(productVm.MainUrlCeneo))
                     {
@@ -242,7 +250,7 @@
                         <span>(brak)</span>
                     }
                 </td>
-                 <td>
+                <td>
                     @if (!string.IsNullOrEmpty(productVm.UrlCeneo))
                     {
                         <a href="@productVm.UrlCeneo" target="_blank">Link</a>
@@ -274,7 +282,6 @@
                         <span>(brak)</span>
                     }
                 </td>
-                <!-- Kolumny z cenami, jeśli chcesz je wyświetlać -->
                 <td>
                     @if (productVm.LastGooglePrice.HasValue)
                     {
@@ -309,7 +316,6 @@
                     <a href="/PriceHistory/Details?productId=@productVm.ProductId&amp;scrapId=@productVm.ScrapId" target="_blank">
                         Szczegóły
                     </a>
-
                 </td>
             </tr>
         }
@@ -323,37 +329,53 @@
             const statusCheckboxes = document.querySelectorAll('.status-filter');
             // Checkboxy platform
             const platformCheckboxes = document.querySelectorAll('.platform-filter');
+            // Checkbox "Pokaż tylko różnice w cenie"
+            const showDifferencesCheckbox = document.getElementById('show-differences');
             // Przycisk "Usuń odfiltrowane"
             const removeFilteredBtn = document.getElementById('remove-filtered');
 
-            // Funkcja filtrująca
             function applyFilters() {
-                // Zbierz zaznaczone statusy
+                // 1) Zbierz zaznaczone statusy
                 const selectedStatuses = Array.from(statusCheckboxes)
                     .filter(ch => ch.checked)
                     .map(ch => ch.getAttribute('data-status'));
 
-                // Zbierz zaznaczone platformy
+                // 2) Zbierz zaznaczone platformy
                 const selectedPlatforms = Array.from(platformCheckboxes)
                     .filter(ch => ch.checked)
                     .map(ch => ch.getAttribute('data-platform'));
 
-                // Wszystkie wiersze
+                // 3) Czy chcemy pokazywać tylko niezerowe różnice
+                const showDifferences = showDifferencesCheckbox.checked;
+
+                // 4) Przelatujemy przez wszystkie wiersze
                 const rows = document.querySelectorAll('#product-table tbody tr');
                 let visibleCount = 0;
 
                 rows.forEach(row => {
-                    const rowStatus = row.getAttribute('data-status');    // active/inactive/active-rejected/inactive-rejected
-                    const rowPlatform = row.getAttribute('data-platform');// google/ceneo/google-ceneo/not-found
+                    const rowStatus = row.getAttribute('data-status');
+                    const rowPlatform = row.getAttribute('data-platform');
+                    // Wartość data-diff
+                    const diffStr = row.getAttribute('data-diff');
 
-                    // Czy pasuje do statusu
+                    // A) Filtr isScrapable/isRejected
                     let statusMatch = (selectedStatuses.length === 0 || selectedStatuses.includes(rowStatus));
 
-                    // Czy pasuje do platformy
+                    // B) Filtr platformy
                     let platformMatch = (selectedPlatforms.length === 0 || selectedPlatforms.includes(rowPlatform));
 
-                    // Jeśli pasuje do obu filtrów -> widoczny
-                    if (statusMatch && platformMatch) {
+                    // C) Filtr różnicy w cenie
+                    let differenceMatch = true;
+                    if (showDifferences) {
+                        // parseFloat
+                        let diff = parseFloat(diffStr);
+                        if (isNaN(diff) || diff === 0) {
+                            differenceMatch = false;
+                        }
+                    }
+
+                    // Jeśli wszystkie trzy filtry "match" -> wiersz widoczny
+                    if (statusMatch && platformMatch && differenceMatch) {
                         row.style.display = '';
                         visibleCount++;
                     } else {
@@ -361,20 +383,20 @@
                     }
                 });
 
-                // Możesz tu np. wyświetlić liczbę widocznych:
+                // Wyświetlamy liczbę widocznych (opcjonalne)
                 const countSpan = document.getElementById('visible-count');
                 if (countSpan) {
                     countSpan.textContent = visibleCount.toString();
                 }
             }
 
-            // Podpinamy eventy na checkboxy
+            // Podpinamy eventy
             statusCheckboxes.forEach(ch => ch.addEventListener('change', applyFilters));
             platformCheckboxes.forEach(ch => ch.addEventListener('change', applyFilters));
+            showDifferencesCheckbox.addEventListener('change', applyFilters);
 
             // Usuwanie odfiltrowanych
             removeFilteredBtn.addEventListener('click', () => {
-                // Znajdź wiersze widoczne
                 const rows = document.querySelectorAll('#product-table tbody tr');
                 const visibleIds = [];
 
@@ -395,7 +417,6 @@
                     return;
                 }
 
-                // Wywołanie RemoveSelectedProducts
                 fetch('@Url.Action("RemoveSelectedProducts", "ProductMapping")?storeId=' + @storeId, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -404,7 +425,6 @@
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
-                        // Skutecznie usunięto z bazy
                         rows.forEach(row => {
                             if (row.style.display !== 'none') {
                                 row.remove();
@@ -418,7 +438,7 @@
                 .catch(err => console.error(err));
             });
 
-            // Inicjalne wywołanie filtrów (nic nie zaznaczone -> pokaż wszystko)
+            // Inicjalne wywołanie
             applyFilters();
         });
     </script>
