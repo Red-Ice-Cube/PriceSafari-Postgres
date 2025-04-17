@@ -1,4 +1,80 @@
-﻿@model IEnumerable<PriceSafari.Controllers.MemberControllers.DashboardController.DashboardDailyPriceChangeGroup>
+﻿@{
+    ViewData["Title"] = "Analiza zmian cen – podsumowanie";
+    Layout = "~/Views/Shared/_PanelLayout.cshtml";
+}
+
+
+<style>
+    /* wiersz ze szczegółami – początkowo ukryty */
+    .details-row {
+        overflow: hidden;
+        height: 0;
+        transition: height .3s ease, opacity .3s ease;
+        opacity: 0;
+    }
+
+        /* kiedy JS doda klasę .open – animacja slide‑down */
+        .details-row.open {
+            opacity: 1;
+        }
+
+    /* kursor „rączka” na wierszu-kliku */
+    .table-orders tbody tr.parent-row {
+        cursor: pointer;
+    }
+
+</style>
+
+<!-- Przekazujemy do JS tylko STORE_ID i STORE_NAME -->
+<script>const STORE_ID = @ViewBag.StoreId;</script>
+
+<div class="Vert">
+    <div class="Date">
+        <div class="Order-Container-Title">Analiza cen @ViewBag.StoreName</div>
+        <div class="Select-Line">
+            <button class="dateShortcut" data-count="7">7</button>
+            <button class="dateShortcut" data-count="14">14</button>
+            <button class="dateShortcut active" data-count="30">30</button>
+        </div>
+    </div>
+</div>
+
+<div class="Vert">
+    <div class="Charts-Bar-a" style="max-height:350px;">
+        <div class="Charts-Box-Bar-a">
+            <canvas id="priceAnaliseChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<div class="Vert">
+    <div class="Vert-full">
+        <table class="table-orders">
+            <thead>
+                <tr>
+                    <th>Data</th>
+                    <th>Obniżeń</th>
+                    <th>Podwyżek</th>
+                    <th>Szczegóły</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- <-- tutaj JS wstawi wiersze -->
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="~/js/member/PriceDashboard.js"></script>
+
+
+
+
+
+
+
+@* @model IEnumerable<PriceSafari.Controllers.MemberControllers.DashboardController.DashboardDailyPriceChangeGroup>
 @{
   
     var chartData = Model.OrderBy(m => m.Date).Select(m => new
@@ -203,4 +279,4 @@
 
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="~/js/member/PriceDashboard.js"></script>
+<script src="~/js/member/PriceDashboard.js"></script> *@
