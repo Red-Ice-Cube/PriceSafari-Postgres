@@ -287,5 +287,57 @@ namespace PriceSafari.Controllers.ManagerControllers
 
             return Json(affiliatesData);
         }
+
+
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> HardDeleteUser(string codePAR)
+        {
+            if (string.IsNullOrWhiteSpace(codePAR))
+                return NotFound();
+
+            // tylko Admin może trwale usuwać
+            var currentUser = await _userManager.GetUserAsync(User);
+            if (!await _userManager.IsInRoleAsync(currentUser, "Admin"))
+                return Forbid();
+
+            // pobieramy użytkownika wraz z podstawowymi nawigacjami
+            var user = await _context.Users
+                .Include(u => u.AffiliateVerification)
+                // .Include(… inne kolekcje powiązane …)
+                .FirstOrDefaultAsync(u => u.CodePAR == codePAR);
+
+            if (user == null)
+                return NotFound("Nie znaleziono użytkownika.");
+
+            using var transaction = await _context.Database.BeginTransactionAsync();
+            try
+            {
+                
+                var deleteResult = await _userManager.DeleteAsync(user);
+                if (!deleteResult.Succeeded)
+                {
+                    foreach (var err in deleteResult.Errors)
+                        ModelState.AddModelError(string.Empty, err.Description);
+
+                    await transaction.RollbackAsync();
+                    return View("Error", new ErrorViewModel
+                    {
+                        RequestId = "Błąd podczas usuwania użytkownika."
+                    });
+                }
+
+                await transaction.CommitAsync();
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                return View("Error", new ErrorViewModel { RequestId = ex.Message });
+            }
+
+            // wracamy do listy kont
+            return RedirectToAction(nameof(Accounts));
+        }
     }
 }

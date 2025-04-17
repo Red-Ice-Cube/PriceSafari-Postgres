@@ -1,13 +1,10 @@
 ﻿@model PriceSafari.Models.ManagerViewModels.ManagerAffiliateViewModel
 
-
 @{
     Layout = "~/Views/Shared/_PanelLayout.cshtml";
 }
 
-
 <div class="Page-Box">
-
 
     <div class="Page-Box-Container">
         <div class="Page-Box-Category">
@@ -26,13 +23,11 @@
                     {
                         <a href="@Url.Action("CreateUser", "UserManagement")" class="Button-Page-Small">Dodaj użytkownika</a>
                     }
-                    
+
                 </div>
                 <div class="order-search-box">
                     <input type="text" id="accountSearch" placeholder="Wyszukaj użytkownika">
                 </div>
-
-
 
             </div>
             <div class="Vert-table">
@@ -47,7 +42,7 @@
                             <th scope="col">Logowania</th>
                             <th scope="col">Ostatnie logowanie</th>
                             <th scope="col">Uprawnienia</th>
-                            <th scope="col">E-mail</th> 
+                            <th scope="col">E-mail</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -61,7 +56,7 @@
                                     @affiliate.CodePAR
                                 </td>
                                 <td>
-                                    @(affiliate.Status ? "Aktywny" : "Usunięty")
+                                    @(affiliate.Status ? "Aktywny" : "Zablokowany")
                                 </td>
                                 <td>
                                     @(affiliate.Verification ? "Zatwierdzony" : "Czeka na weryfikację")
@@ -90,9 +85,9 @@
                                         @affiliate.Role
                                     }
                                 </td>
-                            
+
                                 <td>
-                                    @(affiliate.EmailConfirmed ? "Potwierdzony" : "Niepotwierdzony") <!-- Nowe pole -->
+                                    @(affiliate.EmailConfirmed ? "Potwierdzony" : "Niepotwierdzony")
                                 </td>
                             </tr>
                         }
@@ -101,14 +96,9 @@
             </div>
         </div>
 
-
     </div>
 
-
 </div>
-
-
-
 
 <script>
     $(document).ready(function () {
@@ -134,10 +124,8 @@
 
         });
 
-
         document.getElementById('accountsCount').innerText = accountsCount;
     }
-
 
     window.onload = calculateAccounts;
 </script>
@@ -147,7 +135,7 @@
         document.querySelectorAll('.table-orders tr[data-codepar]').forEach(row => {
             row.addEventListener('click', function () {
                 var codePAR = this.getAttribute('data-codepar');
-                window.location.href = '/ManagerAffiliate/UserProfile?codePAR=' + codePAR; 
+                window.location.href = '/ManagerAffiliate/UserProfile?codePAR=' + codePAR;
             });
         });
     });
