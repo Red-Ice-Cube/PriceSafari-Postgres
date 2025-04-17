@@ -14,12 +14,12 @@ namespace PriceSafari.Controllers.MemberControllers
     public class ChanelController : Controller
     {
         private readonly PriceSafariContext _context;
-        private readonly UserManager<PriceSafariUser> _userManager;
+   
 
-        public ChanelController(PriceSafariContext context, UserManager<PriceSafariUser> userManager)
+        public ChanelController(PriceSafariContext context)
         {
             _context = context;
-            _userManager = userManager;
+     
         }
 
         [HttpGet]

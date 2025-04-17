@@ -84,8 +84,12 @@
                     <img src="~/images/MoneyIn-bone.svg" alt="Panel Icon" class="menu-icon" />Ceny
                 </div>
 
+                <div class="@(controllerName == "Dashboard" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "Dashboard")'">
+                    <img src="~/images/Campaigns-bone.svg" alt="Panel Icon" class="menu-icon" />Analiza
+                </div>
+
                 <div class="@(controllerName == "Product" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("StoreList", "Product")'">
-                    <img src="~/images/Campaigns-bone.svg" alt="Panel Icon" class="menu-icon" />Produkty
+                    <img src="~/images/Product-bone.svg" alt="Panel Icon" class="menu-icon" />Produkty
                 </div>
 
                 <div class="@(controllerName == "Competitors" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "Competitors")'">
@@ -195,8 +199,12 @@
                     <img src="~/images/MoneyIn-bone.svg" alt="Panel Icon" class="menu-icon" />
                 </div>
 
-                <div class="@(controllerName == "Product" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("StoreList", "Product")'">
+                <div class="@(controllerName == "Dashboard" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "Dashboard")'">
                     <img src="~/images/Campaigns-bone.svg" alt="Panel Icon" class="menu-icon" />
+                </div>
+
+                <div class="@(controllerName == "Product" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("StoreList", "Product")'">
+                    <img src="~/images/Product-bone.svg" alt="Panel Icon" class="menu-icon" />
                 </div>
 
                 <div class="@(controllerName == "Competitors" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "Competitors")'">

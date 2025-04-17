@@ -8,11 +8,11 @@ using System.Security.Claims;
 namespace PriceSafari.Controllers.MemberControllers
 {
     [Authorize(Roles = "Admin, Member")]
-    public class DashboardPriceAnalysisController : Controller
+    public class DashboardController : Controller
     {
         private readonly PriceSafariContext _context;
 
-        public DashboardPriceAnalysisController(PriceSafariContext context)
+        public DashboardController(PriceSafariContext context)
         {
             _context = context;
         }
