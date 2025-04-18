@@ -93,15 +93,29 @@ function buildTable(rows) {
     const tb = document.querySelector(".table-price tbody");
     tb.innerHTML = "";
 
+    // Pełne nazwy dni po polsku, indeksy 0=NDZ, 1=PON, ..., 6=SB
+    const fullDayNames = [
+        "Nd.",
+        "Pon.",
+        "Wt.",
+        "Śrd.",
+        "Czw.",
+        "Pt.",
+        "Sbt."
+    ];
+
     rows.forEach((r, i) => {
         const detailId = `detail_${i}`;
-        const weekend = ["Sat", "Sun", "sob.", "niedz."].includes(r.day);
-        const dayBg = weekend ? "#FFC0CB" : "#D3D3D3";
+
+        // Z parsowaniem daty do JS Date, żeby poznać dzień tygodnia
+        const dateObj = new Date(r.date);
+        const dayIndex = dateObj.getDay(); // 0 = niedziela, 6 = sobota
+        const fullDay = fullDayNames[dayIndex];
+        const isWeekend = (dayIndex === 0 || dayIndex === 6);
 
         // helper do renderowania jednej komórki z obrazkiem + nazwą
         const renderNameCell = d => {
             const url = d.productImage || "";
-            // jeśli url nie istnieje, to <img> nie zostanie wstrzyknięte
             return `
                 <td>
                   <div style="
@@ -134,12 +148,12 @@ function buildTable(rows) {
             ? r.loweredDetails.map(d => `
                 <tr>
                   ${renderNameCell(d)}
-                  <td>${d.oldPrice.toFixed(2)}</td>
-                  <td>${d.newPrice.toFixed(2)}</td>
-                  <td style="color:green;">${d.priceDifference.toFixed(2)}</td>
+                  <td>${d.oldPrice.toFixed(2)} PLN</td>
+                  <td>${d.newPrice.toFixed(2)} PLN</td>
+                  <td style="color:green;">${d.priceDifference.toFixed(2)} PLN</td>
                 </tr>
             `).join("")
-            : `<tr><td colspan="4" class="text-center">Brak obniżek cen</td></tr>`;
+            : ``;
 
         const loweredTable = `
             <table class="table table-sm inner-table">
@@ -148,7 +162,7 @@ function buildTable(rows) {
                   <th>Produkt</th>
                   <th>Poprzednia cena</th>
                   <th>Nowa cena</th>
-                  <th>Różnica</th>
+                  <th>Zmiana ceny</th>
                 </tr>
               </thead>
               <tbody>
@@ -161,12 +175,12 @@ function buildTable(rows) {
             ? r.raisedDetails.map(d => `
                 <tr>
                   ${renderNameCell(d)}
-                  <td>${d.oldPrice.toFixed(2)}</td>
-                  <td>${d.newPrice.toFixed(2)}</td>
-                  <td style="color:red;">+${d.priceDifference.toFixed(2)}</td>
+                  <td>${d.oldPrice.toFixed(2)} PLN</td>
+                  <td>${d.newPrice.toFixed(2)} PLN</td>
+                  <td style="color:red;">+${d.priceDifference.toFixed(2)} PLN</td>
                 </tr>
             `).join("")
-            : `<tr><td colspan="4" class="text-center">Brak podwyżek cen</td></tr>`;
+            : ``;
 
         const raisedTable = `
             <table class="table table-sm inner-table">
@@ -175,7 +189,7 @@ function buildTable(rows) {
                   <th>Produkt</th>
                   <th>Poprzednia cena</th>
                   <th>Nowa cena</th>
-                  <th>Różnica</th>
+                  <th>Zmiana ceny</th>
                 </tr>
               </thead>
               <tbody>
@@ -187,8 +201,8 @@ function buildTable(rows) {
         tb.insertAdjacentHTML("beforeend", `
 <tr class="parent-row" data-target="${detailId}">
   <td>
+    <div class="${isWeekend ? "weekend-box" : "week-box"}">${fullDay}</div>
     ${r.date}
-    <span style="background:${dayBg};padding:2px 5px;">${r.day}</span>
   </td>
   <td>${r.lowered}</td>
   <td>${r.raised}</td>
@@ -197,10 +211,10 @@ function buildTable(rows) {
   <td colspan="4" class="p-0">
      <div class="details-content">
        <div class="row details-inner-row">
-         <div class="col-md-6" style="margin-left:12px;">
+         <div class="col-md-6" style="margin-left:152px;  margin-top:5px;">
            ${loweredTable}
          </div>
-         <div class="col-md-6" style="margin-right:12px;">
+         <div class="col-md-6" style="margin-right:12px; margin-left:5px; margin-top:5px;">
            ${raisedTable}
          </div>
        </div>
