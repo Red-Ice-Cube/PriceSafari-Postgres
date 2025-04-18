@@ -84,7 +84,11 @@ function drawChart(data) {
         }
     });
 }
-/* ════════════════  TABELA  ════════════════ */
+
+
+
+
+
 function buildTable(rows) {
     const tb = document.querySelector(".table-price tbody");
     tb.innerHTML = "";
@@ -94,50 +98,110 @@ function buildTable(rows) {
         const weekend = ["Sat", "Sun", "sob.", "niedz."].includes(r.day);
         const dayBg = weekend ? "#FFC0CB" : "#D3D3D3";
 
+        // helper do renderowania jednej komórki z obrazkiem + nazwą
+        const renderNameCell = d => {
+            const url = d.productImage || "";
+            // jeśli url nie istnieje, to <img> nie zostanie wstrzyknięte
+            return `
+                <td>
+                  <div style="
+                        width:70px;
+                        height:70px;
+                        background:#fff;
+                        display:inline-block;
+                        overflow:hidden;
+                        vertical-align:middle;
+                        margin-right:8px;
+                        border:1px solid #ddd;
+                        ">
+                    ${url
+                    ? `<img src="${url}"
+                                style="width:100%;height:100%;object-fit:cover;"
+                                onerror="this.style.display='none';" />`
+                    : ``
+                }
+                  </div>
+                  <a href="/PriceHistory/Details?productId=${d.productId}&scrapId=${d.scrapId}"
+                     target="_blank">
+                    ${d.productName}
+                  </a>
+                </td>`;
+        };
+
         /* --- wiersze obniżek --- */
         const loweredRows = r.loweredDetails.length
             ? r.loweredDetails.map(d => `
-                    <tr>
-                      <td><a href="/PriceHistory/Details?productId=${d.productId}&scrapId=${d.scrapId}" target="_blank">${d.productName}</a></td>
-                      <td>${d.oldPrice.toFixed(2)}</td>
-                      <td>${d.newPrice.toFixed(2)}</td>
-                      <td style="color:green;">${d.priceDifference.toFixed(2)}</td>
-                    </tr>`).join("")
+                <tr>
+                  ${renderNameCell(d)}
+                  <td>${d.oldPrice.toFixed(2)}</td>
+                  <td>${d.newPrice.toFixed(2)}</td>
+                  <td style="color:green;">${d.priceDifference.toFixed(2)}</td>
+                </tr>
+            `).join("")
             : `<tr><td colspan="4" class="text-center">Brak obniżek cen</td></tr>`;
 
-        const loweredTable = `<table class="table table-sm inner-table"><thead>
-                 <tr><th>Obniżki cen</th><th>Poprzednia cena</th><th>Nowa cena</th><th>Różnica</th></tr>
-             </thead><tbody>${loweredRows}</tbody></table>`;
+        const loweredTable = `
+            <table class="table table-sm inner-table">
+              <thead>
+                <tr>
+                  <th>Produkt</th>
+                  <th>Poprzednia cena</th>
+                  <th>Nowa cena</th>
+                  <th>Różnica</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${loweredRows}
+              </tbody>
+            </table>`;
 
         /* --- wiersze podwyżek --- */
         const raisedRows = r.raisedDetails.length
             ? r.raisedDetails.map(d => `
-                    <tr>
-                      <td><a href="/PriceHistory/Details?productId=${d.productId}&scrapId=${d.scrapId}" target="_blank">${d.productName}</a></td>
-                      <td>${d.oldPrice.toFixed(2)}</td>
-                      <td>${d.newPrice.toFixed(2)}</td>
-                      <td style="color:red;">+${d.priceDifference.toFixed(2)}</td>
-                    </tr>`).join("")
+                <tr>
+                  ${renderNameCell(d)}
+                  <td>${d.oldPrice.toFixed(2)}</td>
+                  <td>${d.newPrice.toFixed(2)}</td>
+                  <td style="color:red;">+${d.priceDifference.toFixed(2)}</td>
+                </tr>
+            `).join("")
             : `<tr><td colspan="4" class="text-center">Brak podwyżek cen</td></tr>`;
 
-        const raisedTable = `<table class="table table-sm inner-table"><thead>
-                 <tr><th>Podwyżki cen</th><th>Poprzednia cena</th><th>Nowa cena</th><th>Różnica</th></tr>
-             </thead><tbody>${raisedRows}</tbody></table>`;
+        const raisedTable = `
+            <table class="table table-sm inner-table">
+              <thead>
+                <tr>
+                  <th>Produkt</th>
+                  <th>Poprzednia cena</th>
+                  <th>Nowa cena</th>
+                  <th>Różnica</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${raisedRows}
+              </tbody>
+            </table>`;
 
         /* --- wiersze tabeli głównej --- */
         tb.insertAdjacentHTML("beforeend", `
 <tr class="parent-row" data-target="${detailId}">
-  <td>${r.date}<span style="background:${dayBg};padding:2px 5px;">${r.day}</span></td>
+  <td>
+    ${r.date}
+    <span style="background:${dayBg};padding:2px 5px;">${r.day}</span>
+  </td>
   <td>${r.lowered}</td>
   <td>${r.raised}</td>
-
 </tr>
 <tr id="${detailId}" class="details-row">
   <td colspan="4" class="p-0">
      <div class="details-content">
        <div class="row details-inner-row">
-         <div class="col-md-6">${loweredTable}</div>
-         <div class="col-md-6">${raisedTable}</div>
+         <div class="col-md-6" style="margin-left:12px;">
+           ${loweredTable}
+         </div>
+         <div class="col-md-6" style="margin-right:12px;">
+           ${raisedTable}
+         </div>
        </div>
      </div>
   </td>
@@ -149,6 +213,9 @@ function buildTable(rows) {
         tr.addEventListener("click", () => toggleRowSmooth(tr.dataset.target));
     });
 }
+
+
+
 
 /* ════════════════  ANIMACJA WYIERSZY  ════════════════ */
 function toggleRowSmooth(id) {
