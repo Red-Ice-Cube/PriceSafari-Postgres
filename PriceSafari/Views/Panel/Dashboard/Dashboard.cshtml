@@ -3,14 +3,12 @@
     Layout = "~/Views/Shared/_PanelLayout.cshtml";
 }
 
-
 <style>
-    
-    .details-row { 
+
+    .details-row {
         display: table-row;
     }
 
-    /* nowy blok, który faktycznie się zwija */
     .details-content {
         overflow: hidden;
         max-height: 0;
@@ -18,37 +16,178 @@
         transition:.3s ease, opacity .3s ease;
     }
 
-    /* po rozwinięciu */
     .details-row.open .details-content {
         opacity: 1;
     }
 
     .details-inner-row {
-        display: flex; 
-    
+        display: flex;
+
         flex-wrap: nowrap;
-       
+
     }
 
     .table {
         margin-bottom:0px;
     }
 
-
     .details-inner-row > .col-md-6 {
         flex: 1 1 0;
-        min-width: 0; 
+        min-width: 0;
     }
 
     .inner-table td a {
         display: inline-block;
-        max-width: 100%;    
+        max-width: 100%;
         text-overflow: ellipsis;
+    }
+
+    .table-price {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+        .table-price thead {
+            background: #222;
+        }
+
+            .table-price thead th {
+                position: sticky;
+                top: 0;
+                z-index: 5;
+                background: #222;
+                color: #fff;
+                padding: 12px 16px;
+                font-size: 16px;
+                font-weight: 400;
+                white-space: nowrap;
+            }
+
+                .table-price thead th:first-child {
+                    border-top-left-radius: 4px;
+                    border-bottom-left-radius: 4px;
+                }
+
+                .table-price thead th:last-child {
+                    border-top-right-radius: 4px;
+                    border-bottom-right-radius: 4px;
+                }
+
+        .table-price tbody tr {
+            border-bottom: 0.5px solid #eee;
+        }
+
+        .table-price td,
+        .table-price th {
+            padding: 8px 16px;
+            text-align: left;
+            color: #222222;
+            font-size: 14px;
+            font-weight: 400;
+        }
+
+        .table-price tbody tr:hover {
+
+            background: #F9F9F9;
+        }
+
+    .details-row {
+        display: table-row;
+    }
+
+    .details-content {
+        overflow: hidden;
+        max-height: 0;
+        opacity: 0;
+        transition: .3s ease, opacity .3s ease;
+    }
+
+    .details-row.open .details-content {
+        opacity: 1;
+    }
+
+    .details-inner-row {
+        display: flex;
+        flex-wrap: nowrap;
+    }
+
+        .details-inner-row > .col-md-6 {
+            flex: 1 1 0;
+            min-width: 0;
+        }
+
+    .table {
+        margin-bottom: 0;
+    }
+
+    .col-md-6 {
+        padding: 0;
+    }
+
+    .inner-table {
+        width: 100%;
+        table-layout: auto;
+    }
+
+        .inner-table td:first-child {
+            display: flex;
+            align-items: center;
+            padding: 6px 12px;
+            white-space: normal;
+        }
+
+            .inner-table td:first-child a {
+                flex: 1;
+                display: -webkit-box;
+                -webkit-box-orient: vertical;
+                -webkit-line-clamp: 2;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                text-decoration:none;
+                line-height:1.2em;
+                color: #222222;
+                max-height: calc(1.2em * 2);
+            }
+
+            .inner-table td:first-child a:hover {
+                    color: #41C7C7;
+                    cursor:pointer;
+
+            }
+
+        .inner-table th:not(:first-child),
+        .inner-table td:not(:first-child) {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+    .table-price .details-content .inner-table thead th {
+        background: #D5D5D5;
+        border-radius: 0;
+        font-weight: 500;
+        color: #000;
+        font-size: 14px;
+        border-bottom: none;
+        position: static;
+        z-index: auto;
+    }
+
+    .table-price .details-content .inner-table td,
+    .table-price .details-content .inner-table th {
+        padding: 6px 12px;
+        font-size: 14px;
+    }
+
+    .table-price tbody tr.parent-row.active {
+        background: #D5D5D5;
+    }
+    .col-md-6 {
+        padding: 0px;
     }
 
 </style>
 
-<!-- Przekazujemy do JS tylko STORE_ID i STORE_NAME -->
 <script>const STORE_ID = @ViewBag.StoreId;</script>
 
 <div class="Vert">
@@ -79,19 +218,17 @@
                         <th>Data</th>
                         <th>Obniżki cen</th>
                         <th>Podwyżki cen</th>
-                     
+
                     </tr>
                 </thead>
                 <tbody>
-                 
+
                 </tbody>
             </table>
         </div>
-       
+
     </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="~/js/member/PriceDashboard.js"></script>
-
-

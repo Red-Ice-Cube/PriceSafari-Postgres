@@ -105,13 +105,14 @@ function buildTable(rows) {
             return `
                 <td>
                   <div style="
-                        width:70px;
-                        height:70px;
-                        background:#fff;
-                        display:inline-block;
-                        overflow:hidden;
-                        vertical-align:middle;
-                        margin-right:8px;
+                        width: 64px;
+                        height: 64px;
+                        padding:4px;
+                        border-radius:4px;
+                        object-fit: cover;
+                        flex-shrink: 0;
+                        background: #fff;
+                        margin-right: 8px;
                         border:1px solid #ddd;
                         ">
                     ${url
