@@ -5,23 +5,31 @@
 
 
 <style>
-    /* wiersz ze szczegółami – początkowo ukryty */
-    .details-row {
+    
+    .details-row { 
+        display: table-row;
+    }
+
+    /* nowy blok, który faktycznie się zwija */
+    .details-content {
         overflow: hidden;
-        height: 0;
-        transition: height .3s ease, opacity .3s ease;
+        max-height: 0;
         opacity: 0;
+        transition:.3s ease, opacity .3s ease;
     }
 
-        /* kiedy JS doda klasę .open – animacja slide‑down */
-        .details-row.open {
-            opacity: 1;
-        }
-
-    /* kursor „rączka” na wierszu-kliku */
-    .table-orders tbody tr.parent-row {
-        cursor: pointer;
+    /* po rozwinięciu */
+    .details-row.open .details-content {
+        opacity: 1;
     }
+
+    .details-inner-row {
+        display: flex; 
+    
+        flex-wrap: nowrap;
+       
+    }
+
 
 </style>
 
@@ -49,19 +57,22 @@
 
 <div class="Vert">
     <div class="Vert-full">
-        <table class="table-orders">
-            <thead>
-                <tr>
-                    <th>Data</th>
-                    <th>Obniżeń</th>
-                    <th>Podwyżek</th>
-                    <th>Szczegóły</th>
-                </tr>
-            </thead>
-            <tbody>
-                <!-- <-- tutaj JS wstawi wiersze -->
-            </tbody>
-        </table>
+        <div class="Vert-table">
+            <table class="table-price">
+                <thead>
+                    <tr>
+                        <th>Data</th>
+                        <th>Obniżki cen</th>
+                        <th>Podwyżki cen</th>
+                     
+                    </tr>
+                </thead>
+                <tbody>
+                 
+                </tbody>
+            </table>
+        </div>
+       
     </div>
 </div>
 
@@ -69,214 +80,3 @@
 <script src="~/js/member/PriceDashboard.js"></script>
 
 
-
-
-
-
-
-@* @model IEnumerable<PriceSafari.Controllers.MemberControllers.DashboardController.DashboardDailyPriceChangeGroup>
-@{
-  
-    var chartData = Model.OrderBy(m => m.Date).Select(m => new
-    {
-        date = m.Date.ToString("yyyy-MM-dd"),
-        day = m.Date.ToString("ddd"),
-        raised = m.PriceRaisedCount,
-        lowered = m.PriceLoweredCount
-    });
-    var chartJson = System.Text.Json.JsonSerializer.Serialize(chartData);
-}
-@{
-    ViewData["Title"] = "Analiza zmian cen – podsumowanie";
-    Layout = "~/Views/Shared/_PanelLayout.cshtml";
-}
-
-
-<div class="Vert">
-    <div class="Date">
-        <div class="Order-Container-Title">
-            Analiza cen @ViewBag.StoreName
-        </div>
-        <div class="Select-Line">
-
-            <button type="button" class="dateShortcut" data-range="date7">7</button>
-            <button type="button" class="dateShortcut" data-range="date14">14</button>
-            <button type="button" class="dateShortcut" data-range="date30">30</button>
-         
-        </div>
-
-
-    </div>
-</div>
-
-<div class="Vert">
-    <div class="Charts-Bar-a" style="max-height:350px;">
-        <div class="Select-Line">
-
-         
-
-
-        </div>
-        <div class="Charts-Box-Bar-a">
-
-            <canvas id="priceAnaliseChart"></canvas>
-
-
-        </div>
-    </div>
-    
-
-</div>
-
-
-
-<div class="Vert">
-
-
-
-    <div class="Vert-full">
-      
-
-     
-     
-        <table class="table-orders">
-            <thead>
-                <tr>
-                    <th>Data</th>
-                    <th>Liczba&nbsp;obniżeń</th>
-                    <th>Liczba&nbsp;podwyżek</th>
-                    <th>Szczegóły</th>
-                </tr>
-            </thead>
-            <tbody>
-                @if (!Model.Any())
-                {
-                    <tr>
-                        <td colspan="4">Brak danych do wyświetlenia.</td>
-                    </tr>
-                }
-                else
-                {
-                    var index = 0;
-                    foreach (var group in Model)
-                    {
-                        string detailDivId = "details_" + index;
-
-                        /* Kolor dnia tygodnia */
-                        var dayName = group.Date.ToString("ddd");
-                        var dayStyle = (group.Date.DayOfWeek == DayOfWeek.Saturday || group.Date.DayOfWeek == DayOfWeek.Sunday)
-                        ? "background-color:#FFC0CB;padding:2px 5px;"
-                        : "background-color:#D3D3D3;padding:2px 5px;";
-
-                        <tr>
-                            <td>
-                                @group.Date.ToString("yyyy-MM-dd")
-                                <span style="@dayStyle">@dayName</span>
-                            </td>
-                            <td>@group.PriceLoweredCount</td>
-                            <td>@group.PriceRaisedCount</td>
-                            <td>
-                                <button type="button"
-                                        class="btn btn-sm btn-primary"
-                                        onclick="toggleDetails('@detailDivId')">
-                                    Rozwiń szczegóły
-                                </button>
-                            </td>
-                        </tr>
-
-                    
-                        <tr id="@detailDivId" style="display:none;">
-                            <td colspan="4">
-                                <div class="row">
-                                  
-                                    <div class="col-md-6">
-                                        <h4>Obniżki</h4>
-                                        @if (!group.LoweredDetails.Any())
-                                        {
-                                            <p>Brak obniżeń w tym dniu.</p>
-                                        }
-                                        else
-                                        {
-                                            <table class="table-orders">
-                                                <thead>
-                                                    <tr>
-                                                        <th>Produkt</th>
-                                                        <th>Cena&nbsp;poprzednia</th>
-                                                        <th>Cena&nbsp;nowa</th>
-                                                        <th>Różnica</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    @foreach (var item in group.LoweredDetails)
-                                                    {
-                                                        <tr>
-                                                            <td>
-                                                                <a href="/PriceHistory/Details?productId=@item.ProductId&scrapId=@item.ScrapId" target="_blank">
-                                                                    @item.ProductName
-                                                                </a>
-                                                            </td>
-                                                            <td>@item.OldPrice</td>
-                                                            <td>@item.NewPrice</td>
-                                                            <td style="color:green;">@item.PriceDifference</td>
-                                                        </tr>
-                                                    }
-                                                </tbody>
-                                            </table>
-                                        }
-                                    </div>
-
-                                    <!-- PODWYŻKI -->
-                                    <div class="col-md-6">
-                                        <h4>Podwyżki</h4>
-                                        @if (!group.RaisedDetails.Any())
-                                        {
-                                            <p>Brak podwyżek w tym dniu.</p>
-                                        }
-                                        else
-                                        {
-                                            <table class="table table-sm">
-                                                <thead>
-                                                    <tr>
-                                                        <th>Produkt</th>
-                                                        <th>Cena&nbsp;poprzednia</th>
-                                                        <th>Cena&nbsp;nowa</th>
-                                                        <th>Różnica</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    @foreach (var item in group.RaisedDetails)
-                                                    {
-                                                        <tr>
-                                                            <td>
-                                                                <a href="/PriceHistory/Details?productId=@item.ProductId&scrapId=@item.ScrapId" target="_blank">
-                                                                    @item.ProductName
-                                                                </a>
-                                                            </td>
-                                                            <td>@item.OldPrice</td>
-                                                            <td>@item.NewPrice</td>
-                                                            <td style="color:red;">+@item.PriceDifference</td>
-                                                        </tr>
-                                                    }
-                                                </tbody>
-                                            </table>
-                                        }
-                                    </div>
-                                </div>
-                            </td>
-                        </tr>
-
-                        index++;
-                    }
-                }
-            </tbody>
-        </table>
-    </div>
-</div>
-
-<script id="chart-data" type="application/json">
-    @Html.Raw(chartJson)
-</script>
-
-
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="~/js/member/PriceDashboard.js"></script> *@
