@@ -93,46 +93,36 @@ function buildTable(rows) {
     const tb = document.querySelector(".table-price tbody");
     tb.innerHTML = "";
 
-    // Pełne nazwy dni po polsku, indeksy 0=NDZ, 1=PON, ..., 6=SB
     const fullDayNames = [
-        "Nd.",
-        "Pon.",
-        "Wt.",
-        "Śrd.",
-        "Czw.",
-        "Pt.",
-        "Sbt."
+        "Nd.", "Pon.", "Wt.", "Śrd.", "Czw.", "Pt.", "Sbt."
     ];
 
     rows.forEach((r, i) => {
         const detailId = `detail_${i}`;
-
-        // Z parsowaniem daty do JS Date, żeby poznać dzień tygodnia
         const dateObj = new Date(r.date);
-        const dayIndex = dateObj.getDay(); // 0 = niedziela, 6 = sobota
+        const dayIndex = dateObj.getDay();
         const fullDay = fullDayNames[dayIndex];
         const isWeekend = (dayIndex === 0 || dayIndex === 6);
 
-        // helper do renderowania jednej komórki z obrazkiem + nazwą
         const renderNameCell = d => {
             const url = d.productImage || "";
             return `
                 <td>
                   <div style="
-                        width: 64px;
-                        height: 64px;
-                        padding:4px;
-                        border-radius:4px;
-                        object-fit: cover;
-                        flex-shrink: 0;
-                        background: #fff;
-                        margin-right: 8px;
-                        border:1px solid #ddd;
-                        ">
+                           width: 64px;
+                           height: 64px;
+                           padding:4px;
+                           border-radius:4px;
+                           object-fit: cover;
+                           flex-shrink: 0;
+                           background: #fff;
+                           margin-right: 8px;
+                           border:1px solid #ddd;
+                           ">
                     ${url
                     ? `<img src="${url}"
-                                style="width:100%;height:100%;object-fit:cover;"
-                                onerror="this.style.display='none';" />`
+                                   style="width:100%;height:100%;object-fit:cover;"
+                                   onerror="this.style.display='none';" />`
                     : ``
                 }
                   </div>
@@ -143,7 +133,6 @@ function buildTable(rows) {
                 </td>`;
         };
 
-        /* --- wiersze obniżek --- */
         const loweredRows = r.loweredDetails.length
             ? r.loweredDetails.map(d => `
                 <tr>
@@ -159,18 +148,17 @@ function buildTable(rows) {
             <table class="table table-sm inner-table">
               <thead>
                 <tr>
-                  <th>Produkt</th>
+                  <th>Produkt <span class="text-success font-weight-normal">(Obniżki: ${r.lowered})</span></th>
                   <th>Poprzednia cena</th>
                   <th>Nowa cena</th>
                   <th>Zmiana ceny</th>
                 </tr>
               </thead>
               <tbody>
-                ${loweredRows}
+                ${loweredRows || '<tr><td colspan="4" class="text-center text-muted py-3">Brak obniżek tego dnia</td></tr>'}
               </tbody>
             </table>`;
 
-        /* --- wiersze podwyżek --- */
         const raisedRows = r.raisedDetails.length
             ? r.raisedDetails.map(d => `
                 <tr>
@@ -186,35 +174,55 @@ function buildTable(rows) {
             <table class="table table-sm inner-table">
               <thead>
                 <tr>
-                  <th>Produkt</th>
+                  <th>Produkt <span class="text-danger font-weight-normal">(Podwyżki: ${r.raised})</span></th>
                   <th>Poprzednia cena</th>
                   <th>Nowa cena</th>
                   <th>Zmiana ceny</th>
                 </tr>
               </thead>
               <tbody>
-                ${raisedRows}
+                ${raisedRows || '<tr><td colspan="4" class="text-center text-muted py-3">Brak podwyżek tego dnia</td></tr>'}
               </tbody>
             </table>`;
 
-        /* --- wiersze tabeli głównej --- */
+        let loweredCellContent = '';
+        let raisedCellContent = '';
+
+        const downArrow = '<span style="color: green;">&#9660;</span>';
+        const upArrow = '<span style="color: red;">&#9650;</span>';
+        const grayCircle = '<span style="color: gray;">&#9679;</span>';
+
+      
+        if (r.lowered > 0) {
+            loweredCellContent = `${downArrow} ${r.lowered}`;
+        } else {
+            loweredCellContent = `${grayCircle} 0`; 
+        }
+
+
+        if (r.raised > 0) {
+            raisedCellContent = `${upArrow} ${r.raised}`;
+        } else {
+            raisedCellContent = `${grayCircle} 0`; 
+        }
+
         tb.insertAdjacentHTML("beforeend", `
-<tr class="parent-row" data-target="${detailId}">
+<tr class="parent-row" data-target="${detailId}" style="cursor: pointer;">
   <td>
     <div class="${isWeekend ? "weekend-box" : "week-box"}">${fullDay}</div>
     ${r.date}
   </td>
-  <td>${r.lowered}</td>
-  <td>${r.raised}</td>
+  <td class="text-start">${loweredCellContent}</td>
+  <td class="text-start">${raisedCellContent}</td>
 </tr>
 <tr id="${detailId}" class="details-row">
-  <td colspan="4" class="p-0">
+  <td colspan="3" class="p-0" style="border: none;">
      <div class="details-content">
-       <div class="row details-inner-row">
-         <div class="col-md-6" style="margin-left:152px;  margin-top:5px;">
+       <div class="row no-gutters details-inner-row">
+         <div class="col-md-6" style="padding: 6px 3px 6px 12px;">
            ${loweredTable}
          </div>
-         <div class="col-md-6" style="margin-right:12px; margin-left:5px; margin-top:5px;">
+         <div class="col-md-6" style="padding: 6px 12px 6px 3px;">
            ${raisedTable}
          </div>
        </div>
@@ -223,11 +231,13 @@ function buildTable(rows) {
 </tr>`);
     });
 
-    /* jedno wspólne zdarzenie */
     tb.querySelectorAll("tr.parent-row").forEach(tr => {
         tr.addEventListener("click", () => toggleRowSmooth(tr.dataset.target));
     });
 }
+
+
+
 
 
 
