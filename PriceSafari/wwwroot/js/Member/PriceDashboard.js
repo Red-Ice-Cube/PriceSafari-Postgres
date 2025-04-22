@@ -1,4 +1,35 @@
 ﻿
+const hub = new signalR.HubConnectionBuilder()
+    .withUrl("/dashboardProgressHub")
+    .build();
+
+let hubConnectionId = null;
+
+hub.start()
+    .then(() => hub.invoke("GetConnectionId"))
+    .then(id => { hubConnectionId = id; load(30); })   // pierwotne pierwsze ładowanie
+    .catch(err => console.error(err));
+
+/* ---- 2.1  obsługa postępu z huba ---- */
+hub.on("ReceiveProgress", (_msg, percent) => {          // _msg ignorujemy
+    document.getElementById("progressBar").style.width = percent + "%";
+    document.getElementById("progressText").innerText = `Ładowanie… ${percent}%`;
+
+    if (percent === 100) setTimeout(hideLoadingOverlay, 800);
+});
+
+/* ---- 2.2  pokaż nakładkę ---- */
+function showLoadingOverlay() {
+    document.getElementById("progressBar").style.width = "0%";
+    document.getElementById("progressText").innerText = "Ładowanie… 0%";
+    document.getElementById("loadingOverlay").style.display = "block";
+}
+
+function hideLoadingOverlay() {
+    document.getElementById("loadingOverlay").style.display = "none";
+}
+
+
 function mapDayFull(d) {
     return {
         Mon: "Poniedziałek", Tue: "Wtorek", Wed: "Środa", Thu: "Czwartek",
@@ -130,7 +161,7 @@ function buildTable(rows) {
                      target="_blank">
                     ${d.productName}
                   </a>
-                </td>`;
+            </td>`;
         };
 
         const loweredRows = r.loweredDetails.length
@@ -145,7 +176,7 @@ function buildTable(rows) {
             : ``;
 
         const loweredTable = `
-            <table class="table table-sm inner-table">
+        <table class="table table-sm inner-table">
               <thead>
                 <tr>
                   <th>Produkt <span class="text-success font-weight-normal">(Obniżki: ${r.lowered})</span></th>
@@ -157,7 +188,7 @@ function buildTable(rows) {
               <tbody>
                 ${loweredRows || '<tr><td colspan="4" class="text-center text-muted py-3">Brak obniżek tego dnia</td></tr>'}
               </tbody>
-            </table>`;
+        </table>`;
 
         const raisedRows = r.raisedDetails.length
             ? r.raisedDetails.map(d => `
@@ -171,7 +202,7 @@ function buildTable(rows) {
             : ``;
 
         const raisedTable = `
-            <table class="table table-sm inner-table">
+        <table class="table table-sm inner-table">
               <thead>
                 <tr>
                   <th>Produkt <span class="text-danger font-weight-normal">(Podwyżki: ${r.raised})</span></th>
@@ -183,7 +214,7 @@ function buildTable(rows) {
               <tbody>
                 ${raisedRows || '<tr><td colspan="4" class="text-center text-muted py-3">Brak podwyżek tego dnia</td></tr>'}
               </tbody>
-            </table>`;
+        </table>`;
 
         let loweredCellContent = '';
         let raisedCellContent = '';
@@ -207,28 +238,28 @@ function buildTable(rows) {
         }
 
         tb.insertAdjacentHTML("beforeend", `
-<tr class="parent-row" data-target="${detailId}" style="cursor: pointer;">
-  <td>
-    <div class="${isWeekend ? "weekend-box" : "week-box"}">${fullDay}</div>
-    ${r.date}
-  </td>
-  <td class="text-start">${loweredCellContent}</td>
-  <td class="text-start">${raisedCellContent}</td>
-</tr>
-<tr id="${detailId}" class="details-row">
-  <td colspan="3" class="p-0" style="border: none;">
-     <div class="details-content">
-       <div class="row no-gutters details-inner-row">
-         <div class="col-md-6" style="padding: 6px 3px 6px 12px;">
-           ${loweredTable}
-         </div>
-         <div class="col-md-6" style="padding: 6px 12px 6px 3px;">
-           ${raisedTable}
-         </div>
-       </div>
-     </div>
-  </td>
-</tr>`);
+        <tr class="parent-row" data-target="${detailId}" style="cursor: pointer;">
+          <td>
+            <div class="${isWeekend ? "weekend-box" : "week-box"}">${fullDay}</div>
+            ${r.date}
+          </td>
+          <td class="text-start">${loweredCellContent}</td>
+          <td class="text-start">${raisedCellContent}</td>
+        </tr>
+        <tr id="${detailId}" class="details-row">
+          <td colspan="3" class="p-0" style="border: none;">
+             <div class="details-content">
+               <div class="row no-gutters details-inner-row">
+                 <div class="col-md-6" style="padding: 6px 3px 6px 12px;">
+                   ${loweredTable}
+                 </div>
+                 <div class="col-md-6" style="padding: 6px 12px 6px 3px;">
+                   ${raisedTable}
+                 </div>
+               </div>
+             </div>
+          </td>
+        </tr>`);
     });
 
     tb.querySelectorAll("tr.parent-row").forEach(tr => {
@@ -240,9 +271,6 @@ function buildTable(rows) {
 
 
 
-
-
-/* ════════════════  ANIMACJA WYIERSZY  ════════════════ */
 function toggleRowSmooth(id) {
     if (openedId && openedId !== id) closeRow(openedId);
     if (openedId === id) { closeRow(id); openedId = null; return; }
@@ -267,7 +295,7 @@ function closeRow(id) {
     const parentRow = document.querySelector(`tr.parent-row[data-target="${id}"]`);
     const contentBox = row.querySelector('.details-content');
 
-    // usuń podświetlenie od razu
+
     parentRow.classList.remove('active');
 
     contentBox.style.maxHeight = contentBox.scrollHeight + 'px';
@@ -284,15 +312,24 @@ function closeRow(id) {
 
 
 async function load(count) {
-    const res = await fetch(`/Dashboard/GetDashboardData?storeId=${STORE_ID}&scraps=${count}`);
-    if (!res.ok) { console.error("fetch error"); return; }
+    if (!hubConnectionId) return;       
+
+    showLoadingOverlay("Ładowanie danych…");
+
+    const res = await fetch(
+        `/Dashboard/GetDashboardData?storeId=${STORE_ID}&scraps=${count}&connectionId=${hubConnectionId}`
+    );
+    if (!res.ok) { console.error("fetch error"); hideLoadingOverlay(); return; }
+
     const data = await res.json();
     drawChart(data);
     buildTable(data);
+
+  
+    setTimeout(hideLoadingOverlay, 200);
 }
 
-document.addEventListener("DOMContentLoaded", () => {
-    load(30);                                        
+document.addEventListener("DOMContentLoaded", () => {                                    
     document.querySelectorAll(".dateShortcut").forEach(btn => {
         btn.addEventListener("click", () => {
             document.querySelectorAll(".dateShortcut").forEach(b => b.classList.remove("active"));

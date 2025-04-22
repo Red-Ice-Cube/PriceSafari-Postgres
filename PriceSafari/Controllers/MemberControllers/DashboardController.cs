@@ -1,8 +1,10 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using PriceSafari.Data;
 using PriceSafari.Models.ViewModels;
+using PriceSafari.SignalIR;
 using System.Security.Claims;
 
 namespace PriceSafari.Controllers.MemberControllers
@@ -11,7 +13,13 @@ namespace PriceSafari.Controllers.MemberControllers
     public class DashboardController : Controller
     {
         private readonly PriceSafariContext _context;
-        public DashboardController(PriceSafariContext context) => _context = context;
+        private readonly IHubContext<DashboardProgressHub> _hub;
+        public DashboardController(PriceSafariContext ctx,
+                                   IHubContext<DashboardProgressHub> hub)
+        {
+            _context = ctx;
+            _hub = hub;
+        }
 
 
         [HttpGet]
@@ -42,7 +50,7 @@ namespace PriceSafari.Controllers.MemberControllers
             return View("~/Views/Panel/Dashboard/Index.cshtml", storeDetails);
         }
 
-        // 2) Pusty HTML Dashboard
+        
         public async Task<IActionResult> Dashboard(int storeId)
         {
             var store = await _context.Stores.FindAsync(storeId);
@@ -53,10 +61,35 @@ namespace PriceSafari.Controllers.MemberControllers
             return View("~/Views/Panel/Dashboard/Dashboard.cshtml");
         }
 
+
         [HttpGet]
-        public async Task<IActionResult> GetDashboardData(int storeId, int scraps = 30)
+        public async Task<IActionResult> GetDashboardData(
+                int storeId,
+                int scraps = 30,
+                string connectionId = null)        
         {
-            /* 1. sklep -------------------------------------------------------- */
+
+            int step = 0;
+         
+            int totalSteps = scraps + 5;   
+                                          
+
+            async Task Progress(string msg)
+            {
+                if (string.IsNullOrEmpty(connectionId)) return;
+
+                step++;
+                int pct = step * 100 / totalSteps;
+                if (pct > 100) pct = 100;         
+
+                await _hub.Clients.Client(connectionId)
+                          .SendAsync("ReceiveProgress", msg, pct);
+            }
+
+
+
+            await Progress("Pobieram dane sklepu…");
+
             var store = await _context.Stores
                                       .Where(s => s.StoreId == storeId)
                                       .Select(s => new { s.StoreName })
@@ -64,7 +97,8 @@ namespace PriceSafari.Controllers.MemberControllers
             if (store is null) return NotFound();
             string storeNameLower = store.StoreName.ToLower();
 
-            /* 2. pobieramy N+1 scrapów (potrzebny jest 1 wcześniejszy) -------- */
+            await Progress($"Pobieram {scraps + 1} scrapów…");
+
             int take = scraps + 1;
             var allScraps = await _context.ScrapHistories
                 .Where(sh => sh.StoreId == storeId)
@@ -73,14 +107,15 @@ namespace PriceSafari.Controllers.MemberControllers
                 .Select(sh => new { sh.Id, sh.Date })
                 .ToListAsync();
 
-            // rosnąco po dacie
             allScraps = allScraps.OrderBy(s => s.Date).ToList();
             var displayScraps = allScraps.Skip(1).ToList();
 
-            /* 3. zbieramy wszystkie wiersze cen wraz z URL obrazka --------------- */
+            /* ------------------------------------------------------------------ */
             var priceRows = new List<PriceRow>();
-            foreach (var s in allScraps)
+            for (int i = 0; i < allScraps.Count; i++)
             {
+                var s = allScraps[i];
+
                 var rows = await _context.PriceHistories
                     .AsNoTracking()
                     .Where(ph => ph.ScrapHistoryId == s.Id
@@ -89,7 +124,7 @@ namespace PriceSafari.Controllers.MemberControllers
                     {
                         ProductId = ph.ProductId,
                         ProductName = ph.Product.ProductName,
-                        ProductImage = ph.Product.MainUrl,   // ← tu pobieramy URL
+                        ProductImage = ph.Product.MainUrl,
                         OldPrice = ph.Price,
                         ScrapId = ph.ScrapHistoryId,
                         Date = s.Date.Date
@@ -97,15 +132,18 @@ namespace PriceSafari.Controllers.MemberControllers
                     .ToListAsync();
 
                 priceRows.AddRange(rows);
+
+                await Progress($"Analizuję scrap {i + 1}/{allScraps.Count}…");
             }
 
-            /* 4. przygotowujemy kubełki na dni, które będziemy pokazywać -------- */
+            /* ------------------------------------------------------------------ */
+            await Progress("Agreguję wyniki…");
+
             var buckets = displayScraps
                 .Select(s => s.Date.Date)
                 .Distinct()
                 .ToDictionary(d => d, d => new DayBucket(d));
 
-            /* 5. analizujemy zmiany cen i od razu przypisujemy URL ------------- */
             foreach (var prodGrp in priceRows.GroupBy(r => r.ProductId))
             {
                 var byDay = prodGrp
@@ -116,7 +154,7 @@ namespace PriceSafari.Controllers.MemberControllers
                         Date = g.Key,
                         Prices = g.Select(x => x.OldPrice).Distinct().OrderBy(p => p).ToList(),
                         ProductName = g.First().ProductName,
-                        ProductImage = g.First().ProductImage,  // ← URL z PriceRow
+                        ProductImage = g.First().ProductImage,
                         ScrapId = g.First().ScrapId
                     });
 
@@ -133,7 +171,7 @@ namespace PriceSafari.Controllers.MemberControllers
                             Date = day.Date,
                             ProductId = prodGrp.Key,
                             ProductName = day.ProductName,
-                            ProductImage = day.ProductImage,   // ← tu trafia do detalu
+                            ProductImage = day.ProductImage,
                             OldPrice = prev.Value,
                             NewPrice = now,
                             PriceDifference = now - prev.Value,
@@ -148,7 +186,9 @@ namespace PriceSafari.Controllers.MemberControllers
                 }
             }
 
-            /* 6. serializujemy wynik do JSON ---------------------------------- */
+            /* ------------------------------------------------------------------ */
+            await Progress("Finalizuję odpowiedź…");
+
             var result = buckets.Values
                 .OrderBy(b => b.Date)
                 .Select(b => new
@@ -165,12 +205,11 @@ namespace PriceSafari.Controllers.MemberControllers
         }
 
 
-        // ————— Pomocnicze klasy użyte w kontrolerze —————
         private sealed class PriceRow
         {
             public int ProductId { get; set; }
             public string ProductName { get; set; }
-            public string ProductImage { get; set; }   // ← dodane
+            public string ProductImage { get; set; }  
             public decimal OldPrice { get; set; }
             public int ScrapId { get; set; }
             public DateTime Date { get; set; }
@@ -181,7 +220,7 @@ namespace PriceSafari.Controllers.MemberControllers
             public DateTime Date { get; set; }
             public int ProductId { get; set; }
             public string ProductName { get; set; }
-            public string ProductImage { get; set; }   // ← dodane
+            public string ProductImage { get; set; }  
             public decimal OldPrice { get; set; }
             public decimal NewPrice { get; set; }
             public decimal PriceDifference { get; set; }

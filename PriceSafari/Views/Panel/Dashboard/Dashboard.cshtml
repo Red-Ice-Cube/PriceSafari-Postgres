@@ -269,5 +269,30 @@
     </div>
 </div>
 
+
+<div id="loadingOverlay"
+     style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:999">
+    <div style="position:absolute;top:50%;left:50%;
+              transform:translate(-50%,-50%);
+              width:400px;background:#fff;border-radius:8px;padding:24px">
+        <!-- stały napis -->
+        <p class="mb-2" style="font-weight:500">Wczytywanie analizy…</p>
+
+        <!-- pasek -->
+        <div id="progressBarContainer"
+             style="height:16px;background:#ddd;border-radius:4px;overflow:hidden;margin-block:12px">
+            <div id="progressBar"
+                 style="height:100%;width:0;background:#202430;transition:width .2s"></div>
+        </div>
+
+        <!-- zmienne procenty -->
+        <p id="progressText">Ładowanie… 0%</p>
+    </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/5.0.9/signalr.min.js"></script>
+
+
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="~/js/member/PriceDashboard.js"></script>
+

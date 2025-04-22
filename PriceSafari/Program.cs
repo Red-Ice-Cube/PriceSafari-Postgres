@@ -10,6 +10,7 @@ using PriceSafari.Scrapers;
 using PriceSafari.Services.ControlXY;
 using PriceSafari.Services.ScheduleService;
 using PriceSafari.Models.SchedulePlan;
+using PriceSafari.SignalIR;
 
 
 
@@ -138,6 +139,7 @@ public class Program
     
         app.MapHub<ScrapingHub>("/scrapingHub");
         app.MapHub<ReportProgressHub>("/reportProgressHub");
+        app.MapHub<DashboardProgressHub>("/dashboardProgressHub");
 
         await app.RunAsync();
     }
