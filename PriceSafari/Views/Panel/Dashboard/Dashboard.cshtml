@@ -7,7 +7,7 @@
 
     .week-box {
         display: flex;
-        width:50px;
+        width:80px;
         padding: 4px 12px;
         align-items: center;
         justify-content: center;
@@ -23,7 +23,7 @@
 
     .weekend-box {
         display: flex;
-        width: 50px;
+        width: 80px;
         padding: 4px 12px;
         align-items: center;
         justify-content: center;
@@ -225,6 +225,10 @@
         padding: 0px;
     }
 
+
+
+
+
 </style>
 
 <script>const STORE_ID = @ViewBag.StoreId;</script>
@@ -232,7 +236,7 @@
 <div class="Vert">
     <div class="Date">
         <div class="Order-Container-Title">Analiza cen @ViewBag.StoreName</div>
-        <div class="Select-Line">
+        <div class="Select-Line" style="gap:2px;">
             <button class="dateShortcut" data-count="7">7</button>
             <button class="dateShortcut" data-count="14">14</button>
             <button class="dateShortcut active" data-count="30">30</button>

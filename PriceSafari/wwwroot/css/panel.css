@@ -710,9 +710,10 @@ p {
 
 .dateShortcut {
     display: flex;
-    padding: 0px;
+    padding: 4px 12px;
     align-items: center;
-    gap: 10px;
+    justify-content: center;
+    border-radius: 8px;
     color: #4E4E4E;
     font-size: 16px;
     font-weight: 400;
@@ -720,6 +721,11 @@ p {
     background: transparent;
     cursor: pointer;
 }
+
+    .dateShortcut.active {
+        background: #323232;
+        color: #e3e3e3;
+    }
 
 .ProductCount {
     display: flex;

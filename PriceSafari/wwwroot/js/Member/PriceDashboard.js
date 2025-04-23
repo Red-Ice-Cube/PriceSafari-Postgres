@@ -121,6 +121,7 @@ function drawChart(data) {
 
 
 function buildTable(rows) {
+    const rowsDesc = [...rows].reverse();
     const tb = document.querySelector(".table-price tbody");
     tb.innerHTML = "";
 
@@ -128,7 +129,7 @@ function buildTable(rows) {
         "Nd.", "Pon.", "Wt.", "Śrd.", "Czw.", "Pt.", "Sbt."
     ];
 
-    rows.forEach((r, i) => {
+    rowsDesc.forEach((r, i) => {
         const detailId = `detail_${i}`;
         const dateObj = new Date(r.date);
         const dayIndex = dateObj.getDay();

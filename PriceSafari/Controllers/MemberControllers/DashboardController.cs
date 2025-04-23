@@ -110,7 +110,7 @@ namespace PriceSafari.Controllers.MemberControllers
             allScraps = allScraps.OrderBy(s => s.Date).ToList();
             var displayScraps = allScraps.Skip(1).ToList();
 
-            /* ------------------------------------------------------------------ */
+           
             var priceRows = new List<PriceRow>();
             for (int i = 0; i < allScraps.Count; i++)
             {
@@ -136,7 +136,7 @@ namespace PriceSafari.Controllers.MemberControllers
                 await Progress($"Analizuję scrap {i + 1}/{allScraps.Count}…");
             }
 
-            /* ------------------------------------------------------------------ */
+            
             await Progress("Agreguję wyniki…");
 
             var buckets = displayScraps
@@ -186,7 +186,7 @@ namespace PriceSafari.Controllers.MemberControllers
                 }
             }
 
-            /* ------------------------------------------------------------------ */
+         
             await Progress("Finalizuję odpowiedź…");
 
             var result = buckets.Values
