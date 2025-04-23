@@ -1,14 +1,15 @@
-﻿@using PriceSafari.Controllers.ManagerControllers  <!-- o ile tam jest klasa MappedProductViewModel -->
+﻿@using PriceSafari.Controllers.ManagerControllers
 @model IEnumerable<PriceSafari.Controllers.ManagerControllers.ProductMappingController.MappedProductViewModel>
+@using System.Globalization
 
 @{
     ViewData["Title"] = "Zmapowane Produkty";
     Layout = "~/Views/Shared/_PanelLayout.cshtml";
 
     var storeId = ViewBag.StoreId ?? 0;
-    var storeName = ViewBag.StoreName as string ?? "(brak nazwy sklepu)";
+    var storeName = ViewBag.StoreName as string ?? "(Brak nazwy sklepu)";
+    var onlyGoogleXmlMismatch = ViewBag.OnlyGoogleXmlMismatch as bool? ?? false; // To może być używane do wstępnego zaznaczenia checkboxa
 
-    // Przykładowe statystyki
     var totalCount = Model.Count();
     var googleCount = Model.Count(p => p.HasGoogle);
     var ceneoCount = Model.Count(p => p.HasCeneo);
@@ -23,422 +24,508 @@
     var googleEanCount = Model.Count(p => !string.IsNullOrEmpty(p.EanGoogle));
     var urlCount = Model.Count(p => !string.IsNullOrEmpty(p.Url));
     var externalIdCount = Model.Count(p => p.ExternalId.HasValue);
+    var googleXmlPriceCount = Model.Count(p => p.GoogleXMLPrice.HasValue);
+    var ceneoXmlPriceCount = Model.Count(p => p.CeneoXMLPrice.HasValue);
+    var googleScrapPriceCount = Model.Count(p => p.LastGooglePrice.HasValue);
+    var ceneoScrapPriceCount = Model.Count(p => p.LastCeneoPrice.HasValue);
+
+    // Statystyki dla nowych różnic (opcjonalnie, dla informacji)
+    var ceneoScrapXmlMismatchCount = Model.Count(p => p.LastCeneoPrice.HasValue && p.CeneoXMLPrice.HasValue && p.LastCeneoPrice.Value != p.CeneoXMLPrice.Value);
+    var xmlPricesMismatchCount = Model.Count(p => p.GoogleXMLPrice.HasValue && p.CeneoXMLPrice.HasValue && p.GoogleXMLPrice.Value != p.CeneoXMLPrice.Value);
+    var eanMismatchCount = Model.Count(p => !string.IsNullOrEmpty(p.EanGoogle) && !string.IsNullOrEmpty(p.EanCeneo) && p.EanGoogle != p.EanCeneo);
 }
 
-<h2>Zmapowane Produkty dla sklepu @storeName</h2>
-<p>
-    Łącznie: @totalCount<br />
-    - tylko Google: @googleCount<br />
-    - tylko Ceneo: @ceneoCount<br />
-    - oba (Google + Ceneo): @googleCeneoCount<br />
-    - brak: @notFoundCount
-</p>
+<div class="container-fluid">
+    <h2 class="mt-4">Zmapowane Produkty dla sklepu: <span class="text-primary">@storeName</span></h2>
 
-<!-- Przykładowe formularze (usuwanie produktów, itp.) -->
-<form asp-action="RemoveAllProductsForStore" asp-controller="ProductMapping" method="post" class="mt-3">
-    <input type="hidden" name="storeId" value="@storeId" />
-    <button type="submit" class="btn btn-danger">
-        Usuń wszystkie produkty tego sklepu
-    </button>
-</form>
-
-<form asp-action="RemoveWordFromProductNamesCeneo" method="post" class="mt-3">
-    <div class="form-group">
-        <label for="wordToRemove">Słowo do usunięcia z nazw produktów:</label>
-        <input type="text" class="form-control" id="wordToRemove" name="wordToRemove" placeholder="Wpisz słowo" required>
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-chart-bar me-1"></i>
+            Statystyki Produktów
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <ul>
+                        <li>Łącznie produktów: <strong>@totalCount</strong></li>
+                        <li>Znalezione w Google: @googleCount (@(totalCount > 0 ? (googleCount * 100.0 / totalCount).ToString("F1") : "0.0")%)</li>
+                        <li>Znalezione w Ceneo: @ceneoCount (@(totalCount > 0 ? (ceneoCount * 100.0 / totalCount).ToString("F1") : "0.0")%)</li>
+                        <li>Znalezione w obu: @googleCeneoCount (@(totalCount > 0 ? (googleCeneoCount * 100.0 / totalCount).ToString("F1") : "0.0")%)</li>
+                        <li>Nie znalezione nigdzie: @notFoundCount (@(totalCount > 0 ? (notFoundCount * 100.0 / totalCount).ToString("F1") : "0.0")%)</li>
+                    </ul>
+                </div>
+                <div class="col-md-6">
+                    <ul>
+                        <li>Z ceną G (Scrap): @googleScrapPriceCount</li>
+                        <li>Z ceną C (Scrap): @ceneoScrapPriceCount</li>
+                        <li>Z ceną G (XML): @googleXmlPriceCount</li>
+                        <li>Z ceną C (XML): @ceneoXmlPriceCount</li>
+                        <li>Z External ID: @externalIdCount</li>
+                        <li><small>(Różnica EAN G<>C: @eanMismatchCount)</small></li> @* Opcjonalna statystyka *@
+                    </ul>
+                </div>
+            </div>
+        </div>
     </div>
-    <button type="submit" class="btn btn-danger">Usuń słowo z nazw produktów</button>
-</form>
 
-<form asp-action="CreateOrUpdateProductsFromProductMap" method="post" class="mt-3">
-    <input type="hidden" name="storeId" value="@storeId" />
-    <div class="form-group mt-2">
-        <label>
-            <input type="checkbox" name="addGooglePrices" value="true" />
-            Dodaj ceny Google (Price + Delivery)
-        </label>
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-cogs me-1"></i>
+            Akcje dla Sklepu
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    <form asp-action="CreateOrUpdateProductsFromProductMap" method="post">
+                        <input type="hidden" name="storeId" value="@storeId" />
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="checkbox" name="addGooglePrices" value="true" id="addGooglePricesCheck" />
+                            <label class="form-check-label" for="addGooglePricesCheck">
+                                Dodaj ceny Google (Price + Delivery) z XML
+                            </label>
+                        </div>
+                        <button type="submit" class="btn btn-success w-100">
+                            <i class="fas fa-sync-alt me-1"></i> Utwórz / Zaktualizuj produkty z XML Map
+                        </button>
+                    </form>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <form method="post" action="@Url.Action("MapProducts", "ProductMapping", new { storeId })">
+                        <button type="submit" class="btn btn-info w-100">
+                            <i class="fas fa-link me-1"></i> Mapuj Produkty (połącz istniejące)
+                        </button>
+                    </form>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <form asp-action="RemoveAllProductsForStore" asp-controller="ProductMapping" method="post" onsubmit="return confirm('Czy NA PEWNO usunąć WSZYSTKIE produkty dla sklepu @storeName? Tej operacji NIE MOŻNA cofnąć!');">
+                        <input type="hidden" name="storeId" value="@storeId" />
+                        <button type="submit" class="btn btn-danger w-100">
+                            <i class="fas fa-trash-alt me-1"></i> Usuń WSZYSTKIE produkty sklepu
+                        </button>
+                    </form>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-8">
+                    <form asp-action="RemoveWordFromProductNamesCeneo" method="post" class="form-inline-group">
+                        <div class="form-group flex-grow-1">
+                            <label for="wordToRemove" class="visually-hidden">Słowo do usunięcia</label>
+                            <input type="text" class="form-control" id="wordToRemove" name="wordToRemove" placeholder="Słowo do usunięcia z nazw Ceneo" required>
+                        </div>
+                        <button type="submit" class="btn btn-warning">
+                            <i class="fas fa-cut me-1"></i> Usuń słowo z nazw Ceneo
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
     </div>
-    <button type="submit" class="btn btn-primary">
-        Utwórz lub zaktualizuj produkty
-    </button>
-</form>
 
-<form method="post" action="@Url.Action("MapProducts", "ProductMapping", new { storeId })" class="mt-3">
-    <button type="submit" class="btn btn-primary">Mapuj Produkty</button>
-</form>
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-filter me-1"></i>
+            Filtry Wyświetlania
+        </div>
+        <div class="card-body">
+            <div class="filter-section">
+                <h5>Filtry statusu (Scrapable / Rejected)</h5>
+                <div class="form-check form-check-inline">
+                    <input class="form-check-input status-filter" type="checkbox" id="statusActive" data-status="active">
+                    <label class="form-check-label" for="statusActive">Aktywny</label>
+                </div>
+                <div class="form-check form-check-inline">
+                    <input class="form-check-input status-filter" type="checkbox" id="statusInactive" data-status="inactive">
+                    <label class="form-check-label" for="statusInactive">Nieaktywny</label>
+                </div>
+                <div class="form-check form-check-inline">
+                    <input class="form-check-input status-filter" type="checkbox" id="statusActiveRejected" data-status="active-rejected">
+                    <label class="form-check-label" for="statusActiveRejected">Aktywny-Odrzucony</label>
+                </div>
+                <div class="form-check form-check-inline">
+                    <input class="form-check-input status-filter" type="checkbox" id="statusInactiveRejected" data-status="inactive-rejected">
+                    <label class="form-check-label" for="statusInactiveRejected">Nieaktywny-Odrzucony</label>
+                </div>
+            </div>
 
-<hr />
+            <div class="filter-section">
+                <h5>Filtry platformy (Google / Ceneo)</h5>
+                <div class="form-check form-check-inline">
+                    <input class="form-check-input platform-filter" type="checkbox" id="platformGoogle" data-platform="google">
+                    <label class="form-check-label" for="platformGoogle">Tylko Google</label>
+                </div>
+                <div class="form-check form-check-inline">
+                    <input class="form-check-input platform-filter" type="checkbox" id="platformCeneo" data-platform="ceneo">
+                    <label class="form-check-label" for="platformCeneo">Tylko Ceneo</label>
+                </div>
+                <div class="form-check form-check-inline">
+                    <input class="form-check-input platform-filter" type="checkbox" id="platformBoth" data-platform="google-ceneo">
+                    <label class="form-check-label" for="platformBoth">Google & Ceneo</label>
+                </div>
+                <div class="form-check form-check-inline">
+                    <input class="form-check-input platform-filter" type="checkbox" id="platformNone" data-platform="not-found">
+                    <label class="form-check-label" for="platformNone">Nie znalezione</label>
+                </div>
+            </div>
 
-<!-- Filtry status -->
-<div class="p-2 mb-3" style="border:1px solid #ccc;">
-    <h4>Filtry isScrapable / isRejected</h4>
-    <label class="mr-3">
-        <input type="checkbox" class="status-filter" data-status="active" />
-        Aktywny (isScrapable && !isRejected)
-    </label>
-    <label class="mr-3">
-        <input type="checkbox" class="status-filter" data-status="inactive" />
-        Nieaktywny (!isScrapable && !isRejected)
-    </label>
-    <label class="mr-3">
-        <input type="checkbox" class="status-filter" data-status="active-rejected" />
-        Odrzucony (isScrapable && isRejected)
-    </label>
-    <label class="mr-3">
-        <input type="checkbox" class="status-filter" data-status="inactive-rejected" />
-        Wyłączony (!isScrapable && isRejected)
-    </label>
-</div>
-
-<!-- Filtry platform -->
-<div class="p-2 mb-3" style="border:1px solid #ccc;">
-    <h4>Filtry platform (Google/Ceneo)</h4>
-    <label class="mr-3">
-        <input type="checkbox" class="platform-filter" data-platform="google" />
-        Google
-    </label>
-    <label class="mr-3">
-        <input type="checkbox" class="platform-filter" data-platform="ceneo" />
-        Ceneo
-    </label>
-    <label class="mr-3">
-        <input type="checkbox" class="platform-filter" data-platform="google-ceneo" />
-        Google &amp; Ceneo
-    </label>
-    <label class="mr-3">
-        <input type="checkbox" class="platform-filter" data-platform="not-found" />
-        Nie znalezione
-    </label>
-</div>
-
-<!-- Nowy filtr: różnica w cenie != 0 -->
-<div class="p-2 mb-3" style="border:1px solid #ccc;">
-    <h4>Filtr różnicy w cenie</h4>
-    <label>
-        <input type="checkbox" id="show-differences" />
-        Pokaż tylko produkty, gdzie różnica w cenie (G - C) jest różna od zera
-    </label>
-</div>
-
-<button id="remove-filtered" class="btn btn-danger mb-3">
-    Usuń odfiltrowane
-</button>
-
-<hr />
-
-<!-- Tabela produktów -->
-<table class="table table-bordered table-striped" id="product-table">
-    <thead>
-        <tr>
-            <th>Zdjęcie (Ceneo) (@ceneoImgCount)</th>
-            <th>Zdjęcie (Google) (@googleImgCount)</th>
-            <th>Nazwa (Ceneo) (@ceneoNameCount)</th>
-            <th>Nazwa (Google) (@googleNameCount)</th>
-            <th>EAN (Ceneo) (@ceneoEanCount)</th>
-            <th>EAN (Google) (@googleEanCount)</th>
-            <th>URL Produktu (@urlCount)</th>
-            <th>URL Ceneo</th>
-            <th>URL Google</th>
-            <th>IsScrapable</th>
-            <th>IsRejected</th>
-            <th>External ID (@externalIdCount)</th>
-            <th>Cena Google</th>
-            <th>Cena Ceneo</th>
-            <th>Różnica (G - C)</th>
-        </tr>
-    </thead>
-    <tbody>
-        @foreach (var productVm in Model)
-        {
-            bool hasGoogle = productVm.HasGoogle;
-            bool hasCeneo = productVm.HasCeneo;
-
-            // Kategoria platformy
-            string platformCategory;
-            if (hasGoogle && hasCeneo) platformCategory = "google-ceneo";
-            else if (hasGoogle) platformCategory = "google";
-            else if (hasCeneo) platformCategory = "ceneo";
-            else platformCategory = "not-found";
-
-            // Kategoria statusu
-            string statusCategory;
-            if (productVm.IsScrapable && productVm.IsRejected) statusCategory = "active-rejected";
-            else if (productVm.IsScrapable && !productVm.IsRejected) statusCategory = "active";
-            else if (!productVm.IsScrapable && productVm.IsRejected) statusCategory = "inactive-rejected";
-            else statusCategory = "inactive";
-
-            // Dla nowego filtra w JS odczytujemy PriceDifference i umieszczamy w atrybucie data-diff
-            string diffValue = productVm.PriceDifference.HasValue
-            ? productVm.PriceDifference.Value.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture)
-            : "";
-
-            <tr data-product-id="@productVm.ProductId"
-                data-platform="@platformCategory"
-                data-status="@statusCategory"
-                data-diff="@diffValue">
-                <td>
-                    @if (!string.IsNullOrEmpty(productVm.MainUrlCeneo))
-                    {
-                        <img src="@productVm.MainUrlCeneo" alt="CeneoImg" style="width:90px; height:90px; object-fit:contain;" />
-                    }
-                    else
-                    {
-                        <div style="width:90px; height:90px; background-color:#f7f7f7;">Brak</div>
-                    }
-                </td>
-                <td>
-                    @if (!string.IsNullOrEmpty(productVm.MainUrlGoogle))
-                    {
-                        <img src="@productVm.MainUrlGoogle" alt="GoogleImg" style="width:90px; height:90px; object-fit:contain;" />
-                    }
-                    else
-                    {
-                        <div style="width:90px; height:90px; background-color:#f7f7f7;">Brak</div>
-                    }
-                </td>
-                <td>
-                    <div style="max-width:200px; white-space:normal;">
-                        @if (!string.IsNullOrEmpty(productVm.NameCeneo))
-                        {
-                            @productVm.NameCeneo
-                        }
-                        else
-                        {
-                            <span>(brak)</span>
-                        }
+            <div class="filter-section">
+                <h5>Filtry różnic (Ceny / EAN)</h5>
+                <div class="row">
+                    <div class="col-md-6 col-lg-4">
+                        <div class="form-check">
+                            <input class="form-check-input mismatch-filter" type="checkbox" id="show-gc-scrap-mismatch">
+                            <label class="form-check-label" for="show-gc-scrap-mismatch">Pokaż różnice G(Scrap) &ne; C(Scrap)</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input mismatch-filter" type="checkbox" id="show-google-scrap-xml-mismatch" @(onlyGoogleXmlMismatch ? "checked" : "")>
+                            <label class="form-check-label" for="show-google-scrap-xml-mismatch">Pokaż różnice G(Scrap) &ne; G(XML)</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input mismatch-filter" type="checkbox" id="show-ceneo-scrap-xml-mismatch">
+                            <label class="form-check-label" for="show-ceneo-scrap-xml-mismatch">Pokaż różnice C(Scrap) &ne; C(XML)</label>
+                        </div>
                     </div>
-                </td>
-                <td>
-                    <div style="max-width:200px; white-space:normal;">
-                        @if (!string.IsNullOrEmpty(productVm.NameGoogle))
-                        {
-                            @productVm.NameGoogle
-                        }
-                        else
-                        {
-                            <span>(brak)</span>
-                        }
+                    <div class="col-md-6 col-lg-4">
+                        <div class="form-check">
+                            <input class="form-check-input mismatch-filter" type="checkbox" id="show-xml-prices-mismatch">
+                            <label class="form-check-label" for="show-xml-prices-mismatch">Pokaż różnice G(XML) &ne; C(XML)</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input mismatch-filter" type="checkbox" id="show-ean-mismatch">
+                            <label class="form-check-label" for="show-ean-mismatch">Pokaż różnice EAN(G) &ne; EAN(C)</label>
+                        </div>
                     </div>
-                </td>
-                <td>
-                    @if (!string.IsNullOrEmpty(productVm.EanCeneo))
+                </div>
+            </div>
+            <div class="mt-3">
+                <button id="remove-filtered" class="btn btn-warning">
+                    <i class="fas fa-eraser me-1"></i> Usuń widoczne (wg filtrów)
+                </button>
+                <span id="visible-count" class="ms-3 text-muted"></span>
+            </div>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-table me-1"></i>
+            Lista Zmapowanych Produktów (<span id="table-visible-count">@totalCount</span> widocznych)
+        </div>
+        <div class="card-body table-responsive">
+            <table class="table table-bordered table-striped table-hover" id="product-table" style="width: 100%;">
+                <thead class="table-light">
+                    <tr>
+                        <th>Zdj.(C) <small>(@ceneoImgCount)</small></th>
+                        <th>Zdj.(G) <small>(@googleImgCount)</small></th>
+                        <th>Nazwa (Ceneo) <small>(@ceneoNameCount)</small></th>
+                        <th>Nazwa (Google) <small>(@googleNameCount)</small></th>
+                        <th>EAN (C) <small>(@ceneoEanCount)</small></th>
+                        <th>EAN (G) <small>(@googleEanCount)</small></th>
+                        <th>URL Prod <small>(@urlCount)</small></th>
+                        <th>URL Ceneo</th>
+                        <th>URL Google</th>
+                        <th>Scrap?</th>
+                        <th>Reject?</th>
+                        <th class="id-cell">Ext.ID <small>(@externalIdCount)</small></th>
+                        <th class="price-cell">Cena G(Scrap)</th>
+                        <th class="price-cell">Cena C(Scrap)</th>
+                        <th class="diff-cell">Różn. (G-C)</th>
+                        <th class="price-cell">Cena G(XML) <small>(@googleXmlPriceCount)</small></th>
+                        <th class="price-cell">Cena C(XML) <small>(@ceneoXmlPriceCount)</small></th>
+                        <th>Akcje</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (!Model.Any())
                     {
-                        @productVm.EanCeneo
+                        <tr>
+                            <td colspan="18" class="text-center text-muted">Brak zmapowanych produktów dla tego sklepu. Użyj akcji powyżej lub kreatorów importu.</td>
+                        </tr>
                     }
-                    else
+                    @foreach (var productVm in Model)
                     {
-                        <span>(brak)</span>
+                        bool hasGoogle = productVm.HasGoogle;
+                        bool hasCeneo = productVm.HasCeneo;
+
+                        string platformCategory = (hasGoogle && hasCeneo) ? "google-ceneo" : hasGoogle ? "google" : hasCeneo ? "ceneo" : "not-found";
+                        string statusCategory = (productVm.IsScrapable && productVm.IsRejected) ? "active-rejected" : (productVm.IsScrapable && !productVm.IsRejected) ? "active" : (!productVm.IsScrapable && productVm.IsRejected) ? "inactive-rejected" : "inactive";
+
+                        // Kalkulacja dla istniejących i nowych atrybutów data-*
+                        bool gcScrapMismatch = productVm.PriceDifference.HasValue && productVm.PriceDifference != 0;
+                        bool googleScrapXmlMismatch = productVm.LastGooglePrice.HasValue && productVm.GoogleXMLPrice.HasValue && productVm.LastGooglePrice.Value != productVm.GoogleXMLPrice.Value;
+                        // NOWE kalkulacje
+                        bool ceneoScrapXmlMismatch = productVm.LastCeneoPrice.HasValue && productVm.CeneoXMLPrice.HasValue && productVm.LastCeneoPrice.Value != productVm.CeneoXMLPrice.Value;
+                        bool xmlPricesMismatch = productVm.GoogleXMLPrice.HasValue && productVm.CeneoXMLPrice.HasValue && productVm.GoogleXMLPrice.Value != productVm.CeneoXMLPrice.Value;
+                        bool eanMismatch = !string.IsNullOrEmpty(productVm.EanGoogle) && !string.IsNullOrEmpty(productVm.EanCeneo) && productVm.EanGoogle != productVm.EanCeneo;
+
+                        // Dodawanie klas CSS dla wizualnego wyróżnienia (opcjonalne)
+                        string rowClass = "";
+                        if (gcScrapMismatch) rowClass += " gc-scrap-mismatch";
+                        if (googleScrapXmlMismatch) rowClass += " google-scrap-xml-mismatch";
+                        if (ceneoScrapXmlMismatch) rowClass += " ceneo-scrap-xml-mismatch"; // Nowa klasa
+                        if (xmlPricesMismatch) rowClass += " xml-prices-mismatch";      // Nowa klasa
+                        if (eanMismatch) rowClass += " ean-mismatch";               // Nowa klasa
+
+                        <tr data-product-id="@productVm.ProductId"
+                            data-platform="@platformCategory"
+                            data-status="@statusCategory"
+                            data-gc-scrap-mismatch="@(gcScrapMismatch.ToString().ToLower())"
+                            data-google-scrap-xml-mismatch="@(googleScrapXmlMismatch.ToString().ToLower())"
+                            data-ceneo-scrap-xml-mismatch="@(ceneoScrapXmlMismatch.ToString().ToLower())" @* NOWY atrybut *@
+                            data-xml-prices-mismatch="@(xmlPricesMismatch.ToString().ToLower())" @* NOWY atrybut *@
+                            data-ean-mismatch="@(eanMismatch.ToString().ToLower())" @* NOWY atrybut *@
+                            class="@rowClass.Trim()">
+                            @* Trim() usuwa ewentualny wiodący spacja *@
+                            <td>
+                                @if (!string.IsNullOrEmpty(productVm.MainUrlCeneo))
+                                {
+                                    <img src="@productVm.MainUrlCeneo" alt="Ceneo" loading="lazy" />
+                                }
+                                else
+                                {
+                                    <span class="img-placeholder">Brak</span>
+                                }
+                            </td>
+                            <td>
+                                @if (!string.IsNullOrEmpty(productVm.MainUrlGoogle))
+                                {
+                                    <img src="@productVm.MainUrlGoogle" alt="Google" loading="lazy" />
+                                }
+                                else
+                                {
+                                    <span class="img-placeholder">Brak</span>
+                                }
+                            </td>
+                            <td class="name-cell">@(productVm.NameCeneo ?? "(brak)")</td>
+                            <td class="name-cell">@(productVm.NameGoogle ?? "(brak)")</td>
+                            @* Dodanie klasy dla EAN mismatch - wizualne wyróżnienie *@
+                            <td class="@(eanMismatch ? "ean-mismatch-cell text-danger fw-bold" : "")">@(productVm.EanCeneo ?? "(brak)")</td>
+                            <td class="@(eanMismatch ? "ean-mismatch-cell text-danger fw-bold" : "")">@(productVm.EanGoogle ?? "(brak)")</td>
+                            <td>
+                                @if (!string.IsNullOrEmpty(productVm.Url))
+                                {
+                                    <a href="@productVm.Url" target="_blank" title="@productVm.Url"><i class="fas fa-external-link-alt"></i></a>
+                                }
+                                else
+                                {
+                                    <span>-</span>
+                                }
+                            </td>
+                            <td>
+                                @if (!string.IsNullOrEmpty(productVm.UrlCeneo))
+                                {
+                                    <a href="@productVm.UrlCeneo" target="_blank" title="@productVm.UrlCeneo"><i class="fas fa-external-link-alt"></i></a>
+                                }
+                                else
+                                {
+                                    <span>-</span>
+                                }
+                            </td>
+                            <td>
+                                @if (!string.IsNullOrEmpty(productVm.UrlGoogle))
+                                {
+                                    <a href="@productVm.UrlGoogle" target="_blank" title="@productVm.UrlGoogle"><i class="fas fa-external-link-alt"></i></a>
+                                }
+                                else
+                                {
+                                    <span>-</span>
+                                }
+                            </td>
+                            <td><input class="form-check-input" type="checkbox" checked="@productVm.IsScrapable" disabled /></td>
+                            <td><input class="form-check-input" type="checkbox" checked="@productVm.IsRejected" disabled /></td>
+                            <td class="id-cell">@(productVm.ExternalId.HasValue ? productVm.ExternalId.Value.ToString() : "-")</td>
+                            <td class="price-cell @(gcScrapMismatch ? "text-warning fw-bold" : "")">@(productVm.LastGooglePrice.HasValue ? productVm.LastGooglePrice.Value.ToString("C2", new CultureInfo("pl-PL")) : "-")</td>
+                            <td class="price-cell @(gcScrapMismatch ? "text-warning fw-bold" : "")">@(productVm.LastCeneoPrice.HasValue ? productVm.LastCeneoPrice.Value.ToString("C2", new CultureInfo("pl-PL")) : "-")</td>
+                            <td class="diff-cell @(gcScrapMismatch ? "fw-bold" : "")">@(productVm.PriceDifference.HasValue ? productVm.PriceDifference.Value.ToString("C2", new CultureInfo("pl-PL")) : "-")</td>
+                            <td class="price-cell @(googleScrapXmlMismatch ? "text-danger fw-bold" : "") @(xmlPricesMismatch ? "text-info fw-bold" : "")">@(productVm.GoogleXMLPrice.HasValue ? productVm.GoogleXMLPrice.Value.ToString("C2", new CultureInfo("pl-PL")) : "-")</td>
+                            <td class="price-cell @(ceneoScrapXmlMismatch ? "text-danger fw-bold" : "") @(xmlPricesMismatch ? "text-info fw-bold" : "")">@(productVm.CeneoXMLPrice.HasValue ? productVm.CeneoXMLPrice.Value.ToString("C2", new CultureInfo("pl-PL")) : "-")</td>
+                            <td class="action-link">
+                                <a href="/PriceHistory/Details?productId=@productVm.ProductId&scrapId=@productVm.ScrapId" target="_blank" class="btn btn-sm btn-outline-info" title="Szczegóły historii cen">
+                                    <i class="fas fa-history"></i>
+                                </a>
+                            </td>
+                        </tr>
                     }
-                </td>
-                <td>
-                    @if (!string.IsNullOrEmpty(productVm.EanGoogle))
-                    {
-                        @productVm.EanGoogle
-                    }
-                    else
-                    {
-                        <span>(brak)</span>
-                    }
-                </td>
-                <td>
-                    @if (!string.IsNullOrEmpty(productVm.Url))
-                    {
-                        <a href="@productVm.Url" target="_blank">Link</a>
-                    }
-                    else
-                    {
-                        <span>(brak)</span>
-                    }
-                </td>
-                <td>
-                    @if (!string.IsNullOrEmpty(productVm.UrlCeneo))
-                    {
-                        <a href="@productVm.UrlCeneo" target="_blank">Link</a>
-                    }
-                    else
-                    {
-                        <span>(brak)</span>
-                    }
-                </td>
-                <td>
-                    @if (!string.IsNullOrEmpty(productVm.UrlGoogle))
-                    {
-                        <a href="@productVm.UrlGoogle" target="_blank">Link</a>
-                    }
-                    else
-                    {
-                        <span>(brak)</span>
-                    }
-                </td>
-                <td>@productVm.IsScrapable</td>
-                <td>@productVm.IsRejected</td>
-                <td>
-                    @if (productVm.ExternalId.HasValue)
-                    {
-                        @productVm.ExternalId
-                    }
-                    else
-                    {
-                        <span>(brak)</span>
-                    }
-                </td>
-                <td>
-                    @if (productVm.LastGooglePrice.HasValue)
-                    {
-                        @productVm.LastGooglePrice.Value.ToString("F2")
-                    }
-                    else
-                    {
-                        <span>(brak)</span>
-                    }
-                </td>
-                <td>
-                    @if (productVm.LastCeneoPrice.HasValue)
-                    {
-                        @productVm.LastCeneoPrice.Value.ToString("F2")
-                    }
-                    else
-                    {
-                        <span>(brak)</span>
-                    }
-                </td>
-                <td>
-                    @if (productVm.PriceDifference.HasValue)
-                    {
-                        @productVm.PriceDifference.Value.ToString("F2")
-                    }
-                    else
-                    {
-                        <span>(brak)</span>
-                    }
-                </td>
-                <td>
-                    <a href="/PriceHistory/Details?productId=@productVm.ProductId&amp;scrapId=@productVm.ScrapId" target="_blank">
-                        Szczegóły
-                    </a>
-                </td>
-            </tr>
-        }
-    </tbody>
-</table>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
 
 @section Scripts {
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            // Checkboxy status
+
             const statusCheckboxes = document.querySelectorAll('.status-filter');
-            // Checkboxy platform
             const platformCheckboxes = document.querySelectorAll('.platform-filter');
-            // Checkbox "Pokaż tylko różnice w cenie"
-            const showDifferencesCheckbox = document.getElementById('show-differences');
-            // Przycisk "Usuń odfiltrowane"
+            // Checkboxy różnic - ZMIENIONO selektory i ID
+            const showGcScrapMismatchCheckbox = document.getElementById('show-gc-scrap-mismatch');
+            const showGoogleScrapXmlMismatchCheckbox = document.getElementById('show-google-scrap-xml-mismatch');
+            const showCeneoScrapXmlMismatchCheckbox = document.getElementById('show-ceneo-scrap-xml-mismatch'); // NOWY
+            const showXmlPricesMismatchCheckbox = document.getElementById('show-xml-prices-mismatch');       // NOWY
+            const showEanMismatchCheckbox = document.getElementById('show-ean-mismatch');                 // NOWY
+
             const removeFilteredBtn = document.getElementById('remove-filtered');
+            const tableRows = document.querySelectorAll('#product-table tbody tr');
+            const visibleCountSpan = document.getElementById('visible-count');
+            const tableVisibleCountSpan = document.getElementById('table-visible-count');
 
             function applyFilters() {
-                // 1) Zbierz zaznaczone statusy
+                // Odczyt stanów checkboxów
                 const selectedStatuses = Array.from(statusCheckboxes)
-                    .filter(ch => ch.checked)
-                    .map(ch => ch.getAttribute('data-status'));
-
-                // 2) Zbierz zaznaczone platformy
+                    .filter(ch => ch.checked).map(ch => ch.dataset.status);
                 const selectedPlatforms = Array.from(platformCheckboxes)
-                    .filter(ch => ch.checked)
-                    .map(ch => ch.getAttribute('data-platform'));
+                    .filter(ch => ch.checked).map(ch => ch.dataset.platform);
 
-                // 3) Czy chcemy pokazywać tylko niezerowe różnice
-                const showDifferences = showDifferencesCheckbox.checked;
+                const showGcScrapMismatch = showGcScrapMismatchCheckbox?.checked ?? false;
+                const showGoogleScrapXmlMismatch = showGoogleScrapXmlMismatchCheckbox?.checked ?? false;
+                const showCeneoScrapXmlMismatch = showCeneoScrapXmlMismatchCheckbox?.checked ?? false; // NOWY
+                const showXmlPricesMismatch = showXmlPricesMismatchCheckbox?.checked ?? false;       // NOWY
+                const showEanMismatch = showEanMismatchCheckbox?.checked ?? false;                 // NOWY
 
-                // 4) Przelatujemy przez wszystkie wiersze
-                const rows = document.querySelectorAll('#product-table tbody tr');
-                let visibleCount = 0;
+                let visibleRowCount = 0;
 
-                rows.forEach(row => {
-                    const rowStatus = row.getAttribute('data-status');
-                    const rowPlatform = row.getAttribute('data-platform');
-                    // Wartość data-diff
-                    const diffStr = row.getAttribute('data-diff');
+                tableRows.forEach(row => {
+                    if (row.children.length < 2) return; // Pomiń wiersz 'Brak produktów...'
 
-                    // A) Filtr isScrapable/isRejected
-                    let statusMatch = (selectedStatuses.length === 0 || selectedStatuses.includes(rowStatus));
+                    // Odczyt danych z atrybutów data-* wiersza
+                    const rowStatus = row.dataset.status;
+                    const rowPlatform = row.dataset.platform;
+                    const gcScrapMismatchStr = row.dataset.gcScrapMismatch;
+                    const googleScrapXmlMismatchStr = row.dataset.googleScrapXmlMismatch;
+                    const ceneoScrapXmlMismatchStr = row.dataset.ceneoScrapXmlMismatch; // NOWY
+                    const xmlPricesMismatchStr = row.dataset.xmlPricesMismatch;      // NOWY
+                    const eanMismatchStr = row.dataset.eanMismatch;               // NOWY
 
-                    // B) Filtr platformy
-                    let platformMatch = (selectedPlatforms.length === 0 || selectedPlatforms.includes(rowPlatform));
+                    // Sprawdzenie dopasowania do filtrów
+                    const statusMatch = selectedStatuses.length === 0 || selectedStatuses.includes(rowStatus);
+                    const platformMatch = selectedPlatforms.length === 0 || selectedPlatforms.includes(rowPlatform);
 
-                    // C) Filtr różnicy w cenie
-                    let differenceMatch = true;
-                    if (showDifferences) {
-                        // parseFloat
-                        let diff = parseFloat(diffStr);
-                        if (isNaN(diff) || diff === 0) {
-                            differenceMatch = false;
-                        }
+                    let gcScrapMismatchMatch = true;
+                    if (showGcScrapMismatch) {
+                        gcScrapMismatchMatch = gcScrapMismatchStr === 'true';
                     }
 
-                    // Jeśli wszystkie trzy filtry "match" -> wiersz widoczny
-                    if (statusMatch && platformMatch && differenceMatch) {
+                    let googleScrapXmlMismatchMatch = true;
+                    if (showGoogleScrapXmlMismatch) {
+                        googleScrapXmlMismatchMatch = googleScrapXmlMismatchStr === 'true';
+                    }
+
+                    // NOWE warunki dopasowania
+                    let ceneoScrapXmlMismatchMatch = true;
+                    if (showCeneoScrapXmlMismatch) {
+                        ceneoScrapXmlMismatchMatch = ceneoScrapXmlMismatchStr === 'true';
+                    }
+
+                    let xmlPricesMismatchMatch = true;
+                    if (showXmlPricesMismatch) {
+                        xmlPricesMismatchMatch = xmlPricesMismatchStr === 'true';
+                    }
+
+                    let eanMismatchMatch = true;
+                    if (showEanMismatch) {
+                        eanMismatchMatch = eanMismatchStr === 'true';
+                    }
+
+                    // Końcowe sprawdzenie - wiersz jest widoczny, jeśli spełnia WSZYSTKIE aktywne filtry
+                    if (statusMatch &&
+                        platformMatch &&
+                        gcScrapMismatchMatch &&
+                        googleScrapXmlMismatchMatch &&
+                        ceneoScrapXmlMismatchMatch &&   // NOWY
+                        xmlPricesMismatchMatch &&       // NOWY
+                        eanMismatchMatch) {             // NOWY
                         row.style.display = '';
-                        visibleCount++;
+                        visibleRowCount++;
                     } else {
                         row.style.display = 'none';
                     }
                 });
 
-                // Wyświetlamy liczbę widocznych (opcjonalne)
-                const countSpan = document.getElementById('visible-count');
-                if (countSpan) {
-                    countSpan.textContent = visibleCount.toString();
+                // Aktualizacja liczników widocznych wierszy
+                if (visibleCountSpan) {
+                    visibleCountSpan.textContent = `(${visibleRowCount} widocznych)`;
+                }
+                 if (tableVisibleCountSpan) {
+                    tableVisibleCountSpan.textContent = visibleRowCount.toString();
                 }
             }
 
-            // Podpinamy eventy
+            // Dodanie nasłuchiwania na zmiany checkboxów
             statusCheckboxes.forEach(ch => ch.addEventListener('change', applyFilters));
             platformCheckboxes.forEach(ch => ch.addEventListener('change', applyFilters));
-            showDifferencesCheckbox.addEventListener('change', applyFilters);
+            // Nasłuchiwanie dla filtrów różnic
+            if(showGcScrapMismatchCheckbox) showGcScrapMismatchCheckbox.addEventListener('change', applyFilters);
+            if(showGoogleScrapXmlMismatchCheckbox) showGoogleScrapXmlMismatchCheckbox.addEventListener('change', applyFilters);
+            if(showCeneoScrapXmlMismatchCheckbox) showCeneoScrapXmlMismatchCheckbox.addEventListener('change', applyFilters); // NOWY
+            if(showXmlPricesMismatchCheckbox) showXmlPricesMismatchCheckbox.addEventListener('change', applyFilters);       // NOWY
+            if(showEanMismatchCheckbox) showEanMismatchCheckbox.addEventListener('change', applyFilters);                 // NOWY
 
-            // Usuwanie odfiltrowanych
-            removeFilteredBtn.addEventListener('click', () => {
-                const rows = document.querySelectorAll('#product-table tbody tr');
-                const visibleIds = [];
 
-                rows.forEach(row => {
-                    if (row.style.display !== 'none') {
-                        const prodId = row.getAttribute('data-product-id');
-                        if (prodId) {
-                            visibleIds.push(parseInt(prodId));
+            // Logika przycisku "Usuń widoczne" (bez zmian, ale upewnij się, że działa poprawnie)
+            if (removeFilteredBtn) {
+                removeFilteredBtn.addEventListener('click', () => {
+                    const visibleIds = [];
+                    tableRows.forEach(row => {
+                        // Upewnij się, że to prawdziwy wiersz danych i jest widoczny
+                        if (row.style.display !== 'none' && row.dataset.productId) {
+                             visibleIds.push(parseInt(row.dataset.productId, 10));
                         }
+                    });
+
+                    if (visibleIds.length === 0) {
+                        alert("Brak widocznych produktów do usunięcia (zastosuj inne filtry lub brak produktów).");
+                        return;
                     }
+
+                    // Użyj storeName z ViewBag dla lepszego komunikatu
+                    if (!confirm(`Czy na pewno usunąć ${visibleIds.length} widocznych produktów ze sklepu "${storeName}"? Tej operacji nie można cofnąć.`)) {
+                        return;
+                    }
+
+                    const removeUrl = `@Url.Action("RemoveSelectedProducts", "ProductMapping")?storeId=${storeId}`;
+                    console.log("Wysyłanie żądania usunięcia do:", removeUrl);
+                    console.log("ID do usunięcia:", visibleIds);
+
+                    fetch(removeUrl, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            // Dodaj nagłówek RequestVerificationToken, jeśli używasz Antiforgery
+                            // 'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value
+                        },
+                        body: JSON.stringify(visibleIds)
+                    })
+                    .then(async response => {
+                        const isJson = response.headers.get('content-type')?.includes('application/json');
+                        const data = isJson ? await response.json() : null;
+
+                        if (!response.ok) {
+                            const error = (data && data.message) || response.statusText || "Unknown error";
+                            throw new Error(error);
+                        }
+
+                        if (data && data.success) {
+                            alert(`Usunięto ${visibleIds.length} produktów.`);
+                            // Usuń wiersze z tabeli po stronie klienta
+                            tableRows.forEach(row => {
+                                if (row.dataset.productId && visibleIds.includes(parseInt(row.dataset.productId, 10))) {
+                                    row.remove();
+                                }
+                            });
+                             // Zaktualizuj liczniki po usunięciu
+                            applyFilters();
+                        } else {
+                             alert("Błąd podczas usuwania produktów: " + (data ? data.message : "Brak wiadomości o błędzie."));
+                        }
+                    })
+                    .catch(err => {
+                         console.error("Błąd fetch podczas usuwania:", err);
+                         alert(`Wystąpił błąd komunikacji z serwerem: ${err.message}`);
+                    });
                 });
+            }
 
-                if (visibleIds.length === 0) {
-                    alert("Brak widocznych produktów do usunięcia.");
-                    return;
-                }
-                if (!confirm("Czy na pewno usunąć " + visibleIds.length + " widocznych produktów?")) {
-                    return;
-                }
-
-                fetch('@Url.Action("RemoveSelectedProducts", "ProductMapping")?storeId=' + @storeId, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(visibleIds)
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        rows.forEach(row => {
-                            if (row.style.display !== 'none') {
-                                row.remove();
-                            }
-                        });
-                        alert("Usunięto widoczne produkty.");
-                    } else {
-                        alert("Błąd podczas usuwania: " + data.message);
-                    }
-                })
-                .catch(err => console.error(err));
-            });
-
-            // Inicjalne wywołanie
+            // Zastosuj filtry przy pierwszym załadowaniu strony
             applyFilters();
         });
     </script>

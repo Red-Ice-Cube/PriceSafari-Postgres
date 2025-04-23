@@ -11,7 +11,6 @@
      data-existing-mappings='@Html.Raw(existingMappingsJson)'>
 </div>
 
-<!-- Górny panel z przyciskami -->
 <div style="margin-bottom: 10px;">
     <form asp-action="ClearGoogleMappings"
           asp-controller="GoogleImportWizardXml"
@@ -32,17 +31,13 @@
     </button>
 </div>
 
-<!-- Element do wyświetlania liczby URL z parametrami -->
 <div id="urlParamsInfo" style="margin-bottom:10px; font-weight:bold;">
     Liczba URL zawierających parametry: 0
 </div>
 
-<!-- Element do wyświetlania informacji o duplikatach -->
 <div id="duplicatesInfo" style="margin-bottom:10px; font-weight:bold;">
-    <!-- Informacja o unikatowych URL i kodach EAN pojawi się tutaj -->
 </div>
 
-<!-- Opcja usuwania duplikatów URL -->
 <div style="margin-bottom: 10px;">
     <label>
         <input type="checkbox" id="removeDuplicateUrls">
@@ -50,7 +45,6 @@
     </label>
 </div>
 
-<!-- Opcja usuwania duplikatów EAN -->
 <div style="margin-bottom: 10px;">
     <label>
         <input type="checkbox" id="removeDuplicateEans">
@@ -64,12 +58,10 @@
     </label>
 </div>
 
-<!-- Nowy licznik finalnych węzłów po filtrach -->
 <div id="finalNodesInfo" style="margin-bottom:10px; font-weight:bold;">
     Final nodes po filtrach: 0
 </div>
 
-<!-- Opcja czyszczenia parametrów URL -->
 <div style="margin-bottom: 10px;">
     <label>
         <input type="checkbox" id="cleanUrlParameters" checked>
@@ -77,7 +69,6 @@
     </label>
 </div>
 
-<!-- Kolejny panel z dropdown i przyciskami -->
 <div style="margin-bottom: 10px;">
     <label>Wybierz Pole: </label>
     <select id="fieldSelector">
@@ -97,19 +88,16 @@
     </button>
 </div>
 
-<!-- Dwukolumnowy layout -->
 <div style="display: flex; gap: 10px; width:100%;">
-    <!-- LEWA kolumna: drzewo XML -->
+
     <div style="flex: 1; border:1px solid #ccc; height:900px; overflow:auto; padding:5px;">
         <h4>Struktura XML</h4>
         <div id="xmlContainer"></div>
     </div>
 
-    <!-- PRAWA kolumna: Tabela mapowań + Podgląd JSON -->
     <div style="flex: 1; border:1px solid #ccc; height:900px; overflow:auto; padding:5px;">
         <h4>Mapa Pól i Podgląd</h4>
 
-        <!-- Tabela mapowań -->
         <table id="mappingTable" border="1" cellpadding="5" style="border-collapse: collapse; width:100%;">
             <thead>
                 <tr>
@@ -122,7 +110,6 @@
             <tbody></tbody>
         </table>
 
-        <!-- Podgląd JSON (productMapsPreview) -->
         <pre id="productMapsPreview"
              style="border:1px solid #ccc; margin-top:10px; min-height:100px; padding:10px;">
         </pre>
@@ -131,9 +118,8 @@
 
 <script src="~/js/Manager/GoogleWizard.js"></script>
 
-
 <style>
-    /* Dwukolumnowy układ */
+
     .xml-node {
         cursor: pointer;
         margin: 3px 0;
@@ -160,13 +146,12 @@
     }
 
     .highlight-GoogleXMLPrice {
-        background-color: rgba(255, 192, 203, 0.2); /* pastelowy róż */
+        background-color: rgba(255, 192, 203, 0.2);
     }
 
     .highlight-GoogleDeliveryXMLPrice {
-        background-color: rgba(255, 165, 0, 0.2); /* pastelowy pomarańcz */
+        background-color: rgba(255, 165, 0, 0.2);
     }
-
 
     #mappingTable {
         width: 100%;

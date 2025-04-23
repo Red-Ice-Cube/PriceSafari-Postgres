@@ -10,13 +10,13 @@
 
 .btn:focus, .btn:active:focus, .btn-link.nav-link:focus, .form-control:focus, .form-check-input:focus {
     box-shadow: 0 0 0 0.1rem white, 0 0 0 0.25rem #41C7C7;
-    color: inherit !important; 
-}
-.nav-link, .nav-link:focus, .nav-link:active {
-    color: #fff !important; 
-    text-decoration: none; 
+    color: inherit !important;
 }
 
+.nav-link, .nav-link:focus, .nav-link:active {
+    color: #fff !important;
+    text-decoration: none;
+}
 
 html {
     position: relative;
@@ -47,7 +47,6 @@ body {
         text-decoration: none;
         color: #41C7C7 !important;
     }
-
 
 body {
     display: flex;
@@ -198,7 +197,7 @@ p {
     padding: 24px;
     width: 100%;
     min-width: 1490px;
-    overflow:clip;
+    overflow: clip;
     height: 97vh;
     flex-direction: column;
     align-items: flex-start;
@@ -239,7 +238,6 @@ p {
     align-items: center;
     gap: 10px;
     align-self: stretch;
-
 }
 
 .Category-Box-Title {
@@ -739,17 +737,16 @@ p {
     border-radius: 4px;
 }
 
-
 .ProductCount-g {
     display: flex;
     align-items: center;
     justify-content: center;
     padding: 2px 12px;
-    width: 64px;   
+    width: 64px;
     background-color: rgba(25, 135, 84, 1);
     font-size: 13px;
-    font-weight:500;
-    color:#fff;
+    font-weight: 500;
+    color: #fff;
     border-radius: 4px;
 }
 
@@ -766,23 +763,20 @@ p {
     border-radius: 4px;
 }
 
-
 .lazy-load {
-    width:1px;
+    width: 1px;
     height: 110px;
-    background-color: #ffffff; 
+    background-color: #ffffff;
     display: block;
 }
 
 img.lazy-load {
-    visibility: hidden; 
+    visibility: hidden;
 }
 
     img.lazy-load.loaded {
-        visibility: visible; 
+        visibility: visible;
     }
-
-
 
 .lazy-load-flex {
     width: 84px;
@@ -798,8 +792,6 @@ img.lazy-load-flex {
     img.lazy-load-flex.loaded {
         visibility: visible;
     }
-
-
 
 .agregationShortcut {
     display: flex;
@@ -1198,10 +1190,6 @@ img.lazy-load-flex {
     background-color: rgba(0, 145, 123, 0.15);
 }
 
-
-
-
-
 .p-category {
     color: #282828;
     font-size: 12px;
@@ -1226,7 +1214,7 @@ img.lazy-load-flex {
     color: #4E4E4E;
     font-size: 14px;
     gap: 10px;
-    min-height:34px;
+    min-height: 34px;
     font-weight: 400;
     text-decoration: none;
     background: #e3e3e3;
@@ -1301,7 +1289,6 @@ img.lazy-load-flex {
         background: #b60000;
     }
 
-
 .Button-Page-Small-y {
     display: inline-flex;
     padding: 6px 16px;
@@ -1322,14 +1309,13 @@ img.lazy-load-flex {
         background: #d9a600;
     }
 
-
 .Button-Page-Small-bl {
     display: inline-flex;
     padding: 6px 16px;
     align-items: center;
     justify-content: center;
     border-radius: 4px;
-    gap:10px;
+    gap: 10px;
     background: #41C7C7;
     color: #fff;
     font-size: 14px;
@@ -1343,7 +1329,6 @@ img.lazy-load-flex {
         text-decoration: none;
         background: #004552;
     }
-
 
 .Button-Page-Small-gr {
     display: inline-flex;
@@ -1519,9 +1504,6 @@ img.lazy-load-flex {
     align-self: stretch;
 }
 
-
-
-
 .Column {
     display: flex;
     flex-direction: column;
@@ -1533,7 +1515,6 @@ img.lazy-load-flex {
     display: flex;
     align-self: stretch;
     justify-content: space-between;
-
     width: 100%;
     gap: 16px;
     flex: 1;
@@ -2177,7 +2158,6 @@ tr:last-child .sub-line {
         border-color: #41C7C7;
     }
 
-
 #accountSearch {
     border: 1px solid #ccc;
     padding: 5px 12px;
@@ -2189,9 +2169,9 @@ tr:last-child .sub-line {
     height: 33px;
 }
 
-    #productSearch:focus {
-        border-color: #41C7C7;
-    }
+#productSearch:focus {
+    border-color: #41C7C7;
+}
 
 #storeSearch {
     border: 1px solid #ccc;
@@ -2204,9 +2184,9 @@ tr:last-child .sub-line {
     font-weight: 400;
 }
 
-    #accountSearch:focus {
-        border-color: #41C7C7;
-    }
+#accountSearch:focus {
+    border-color: #41C7C7;
+}
 
 .sort-icon {
     cursor: pointer;
@@ -2298,7 +2278,7 @@ tr:last-child .sub-line {
     box-shadow: none;
     border: 1px solid #222222;
     margin-right: 8px;
-    cursor:pointer;
+    cursor: pointer;
 }
 
     .form-check-input:focus {
@@ -2379,7 +2359,7 @@ tr:last-child .sub-line {
     font-size: 15px;
     font-weight: 500;
     margin-top: 20px;
-    margin-right:8px;
+    margin-right: 8px;
     margin-bottom: 8px;
 }
 
@@ -2426,7 +2406,6 @@ tr:last-child .sub-line {
     color: #000;
     font-size: 14px;
     font-weight: 400;
-    
 }
 
 .Vert-Top {
@@ -2957,7 +2936,6 @@ tr:last-child .sub-line {
     border-radius: 4px;
     width: 16px;
     height: 16px;
-
 }
 
     .flagFilterExclude:checked {
@@ -3008,7 +2986,6 @@ tr:last-child .sub-line {
         border: 2px solid rgba(13, 110, 253, 1);
     }
 
-
     .colorFilter:checked#prOnlyMeCheckbox {
         background-color: rgba(180, 180, 180, 0.7);
         border: 2px solid rgba(180, 180, 180, 1);
@@ -3052,9 +3029,7 @@ tr:last-child .sub-line {
     display: flex;
     flex-wrap: wrap;
     gap: 16px;
-
 }
-
 
 .price-box {
     border: 1px solid #ccc;
@@ -3067,15 +3042,12 @@ tr:last-child .sub-line {
     cursor: pointer;
     box-sizing: border-box;
     transition: border 0.3s ease, box-shadow 0.3s ease;
-
 }
 
     .price-box:hover {
-        border: 1px solid #000; 
-       
+        border: 1px solid #000;
         background: #fff;
     }
-
 
 .price-box-data {
     display: flex;
@@ -3085,7 +3057,7 @@ tr:last-child .sub-line {
 .price-box-column {
     display: flex;
     flex-direction: column;
-    justify-content: space-between; /* Elementy będą rozłożone maksymalnie */
+    justify-content: space-between;
     gap: 4px;
     padding: 10px;
     border-radius: 4px;
@@ -3095,7 +3067,6 @@ tr:last-child .sub-line {
     border: 1px solid #e3e3e3;
     min-width: 260px;
     min-height: 50px;
-   
 }
 
 .price-box-column-action {
@@ -3104,21 +3075,20 @@ tr:last-child .sub-line {
     align-items: flex-start;
     gap: 10px;
     min-width: 240px;
-
 }
+
 .price-box-column-api {
     display: flex;
-    flex-direction: column; /* Ustawienie elementów pionowo */
-    gap: 4px; /* Przestrzeń między elementami */
-    align-items: flex-start; /* Wyrównanie elementów do lewej */
+    flex-direction: column;
+    gap: 4px;
+    align-items: flex-start;
     padding: 4px 12px;
     height: 56px;
     border-radius: 4px;
-    background: rgba(34, 34, 34, 0.75); 
-    border: solid 1px rgba(16, 16, 16, 1); 
-    box-sizing: border-box; 
+    background: rgba(34, 34, 34, 0.75);
+    border: solid 1px rgba(16, 16, 16, 1);
+    box-sizing: border-box;
 }
-
 
 .price-box-column-line {
     width: 1px;
@@ -3149,22 +3119,21 @@ tr:last-child .sub-line {
     font-weight: 400;
     font-size: 16px;
     width: 100%;
-    justify-content:flex-end;
+    justify-content: flex-end;
 }
-
 
 .data-channel {
     display: flex;
     align-items: center;
     justify-content: flex-start;
-    gap:4px;
+    gap: 4px;
 }
 
 .price-box-column span {
-    margin-right:0px !important;
+    margin-right: 0px !important;
 }
 
-    .price-box-column-offers {
+.price-box-column-offers {
     display: flex;
     border-radius: 4px;
     padding: 4px 10px;
@@ -3182,8 +3151,7 @@ tr:last-child .sub-line {
 .price-box-column-text {
     font-size: 15px;
     font-weight: 400;
-    min-width:160px;
-
+    min-width: 160px;
 }
 
 .price-box-column-text-api {
@@ -3196,8 +3164,8 @@ tr:last-child .sub-line {
     width: 16px;
     height: 100%;
     min-height: 30px;
-    margin-right:5px;
-    border-radius:4px;
+    margin-right: 5px;
+    border-radius: 4px;
 }
 
 .prGood .color-bar {
@@ -3256,8 +3224,6 @@ tr:last-child .sub-line {
     color: #AB2520 !important;
 }
 
-
-
 .uniqueBestPriceBox {
     display: flex;
     border-radius: 4px;
@@ -3286,7 +3252,6 @@ tr:last-child .sub-line {
     background: #A5A5A5;
 }
 
-
 .singlePriceDiffBox {
     display: flex;
     border-radius: 4px;
@@ -3301,25 +3266,20 @@ tr:last-child .sub-line {
     background: #A5A5A5;
 }
 
-
-
 .singlePriceDiffBoxHigh {
     display: flex;
-    align-items: center; 
+    align-items: center;
     align-self: center;
-    justify-content: center; 
+    justify-content: center;
     border-radius: 4px;
-    height: 20.5px; 
-    padding: 0 8px; 
-    font-size: 11px; 
-    font-weight: 500; 
-    color: #fff; 
+    height: 20.5px;
+    padding: 0 8px;
+    font-size: 11px;
+    font-weight: 500;
+    color: #fff;
     background: #C50000;
-    box-sizing: border-box; 
+    box-sizing: border-box;
 }
-
-
-
 
 .priceBox-diff-up-margin {
     display: flex;
@@ -3370,11 +3330,8 @@ tr:last-child .sub-line {
     border: 1px solid rgba(0, 145, 123, 0.80);
     background: rgba(0, 145, 123, 0.20);
     color: rgba(0, 145, 123, 1) !important;
-    min-width:260px;
+    min-width: 260px;
 }
-
-
-
 
 .priceBox-diff {
     display: flex;
@@ -3385,9 +3342,7 @@ tr:last-child .sub-line {
     gap: 4px;
     font-size: 14px;
     font-weight: 400;
-  
 }
-
 
 .prMid .priceBox-diff {
     border: 1px solid rgba(224, 168, 66, 0.80);
@@ -3395,13 +3350,11 @@ tr:last-child .sub-line {
     color: rgba(224, 168, 66, 1) !important;
 }
 
-
 .prIdeal .priceBox-diff {
     border: 1px solid rgba(0, 145, 123, 0.80);
     background: rgba(0, 145, 123, 0.20);
     color: rgba(0, 145, 123, 1) !important;
 }
-
 
 .prToHigh .priceBox-diff {
     border: 1px solid rgba(171, 37, 32, 0.80);
@@ -3432,7 +3385,7 @@ tr:last-child .sub-line {
     border: 1px solid rgba(171, 37, 32, 0.80);
     background: rgba(171, 37, 32, 0.20);
     color: rgba(171, 37, 32, 1) !important;
-    min-width:260px;
+    min-width: 260px;
 }
 
 .priceBox-diff-top {
@@ -3447,7 +3400,6 @@ tr:last-child .sub-line {
     color: rgba(117, 152, 112, 1) !important;
 }
 
-
 .side-chart-box {
     width: 140px;
     height: 140px;
@@ -3461,11 +3413,11 @@ tr:last-child .sub-line {
     border-radius: 4px;
     padding: 2px 6px;
     display: inline-flex;
-    height:33px;
+    height: 33px;
     align-items: center;
     justify-content: center;
     font-weight: 500;
-    font-size:14px;
+    font-size: 14px;
 }
 
 .assign-flag-button {
@@ -3481,24 +3433,23 @@ tr:last-child .sub-line {
     background: #e3e3e3;
     border: none;
     width: 125px;
-    height:33px;
-    flex-wrap:nowrap;
-    white-space:nowrap;
+    height: 33px;
+    flex-wrap: nowrap;
+    white-space: nowrap;
 }
 
 .flags-container {
     display: flex;
-    flex-wrap: wrap; 
+    flex-wrap: wrap;
     justify-content: flex-end;
     flex-grow: 1;
-    gap:4px;
-    padding-right:4px;
+    gap: 4px;
+    padding-right: 4px;
 }
 
-
 .flag-filter-group {
-    display:flex;
-    justify-content:flex-start;
+    display: flex;
+    justify-content: flex-start;
 }
 
 .close {
@@ -3520,7 +3471,6 @@ tr:last-child .sub-line {
 .highlighted-text-yellow {
     color: #F0D400;
 }
-
 
 .Bidding {
     border-radius: 4px;
@@ -3654,7 +3604,7 @@ tr:last-child .sub-line {
 
 .filterBox {
     display: flex;
-    width:100%;
+    width: 100%;
     padding: 10px 0;
     flex-direction: column;
     overflow-y: auto;
@@ -3731,8 +3681,6 @@ tr:last-child .sub-line {
         background-color: rgba(171, 37, 32, 0.7);
     }
 
-
-
 .price-range-settings-stepPrice::before {
     display: flex;
     padding-left: 2px;
@@ -3748,7 +3696,6 @@ tr:last-child .sub-line {
     border-radius: 4px;
     display: inline-block;
 }
-
 
 .store-section {
     display: flex;
@@ -3793,32 +3740,27 @@ tr:last-child .sub-line {
         color: #e3e3e3;
     }
 
-
-
-
-
 .loading-overlay {
     position: fixed;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    background-color: rgba(0,0,0,0.35); 
+    background-color: rgba(0,0,0,0.35);
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 9999; 
+    z-index: 9999;
 }
 
 .loader {
     width: 80px;
     height: 80px;
-    border: 5px solid white; /* szary obwód */
-    border-top: 5px solid #222; /* czarna górna część */
+    border: 5px solid white;
+    border-top: 5px solid #222;
     border-radius: 50%;
     animation: spin 1s linear infinite;
 }
-
 
 @keyframes spin {
     0% {
@@ -3828,4 +3770,159 @@ tr:last-child .sub-line {
     100% {
         transform: rotate(360deg);
     }
+}
+
+.filter-section {
+    border: 1px solid #e0e0e0;
+    border-radius: 5px;
+    padding: 15px;
+    margin-bottom: 15px;
+    background-color: #f9f9f9;
+}
+
+    .filter-section h5 {
+        margin-top: 0;
+        margin-bottom: 10px;
+        border-bottom: 1px solid #ddd;
+        padding-bottom: 5px;
+    }
+
+    .filter-section label {
+        margin-right: 15px;
+        font-weight: normal;
+    }
+
+#product-table th {
+    vertical-align: middle;
+    background-color: #f2f2f2;
+    font-size: 0.9rem;
+    white-space: nowrap;
+}
+
+#product-table td {
+    vertical-align: middle;
+    font-size: 0.85rem;
+}
+
+#product-table img {
+    max-width: 70px;
+    max-height: 70px;
+    object-fit: contain;
+}
+
+.img-placeholder {
+    width: 70px;
+    height: 70px;
+    background-color: #f0f0f0;
+    text-align: center;
+    line-height: 70px;
+    font-size: 11px;
+    color: #aaa;
+    display: inline-block;
+}
+
+.name-cell {
+    max-width: 220px;
+    white-space: normal;
+}
+
+.price-cell, .diff-cell, .id-cell {
+    text-align: right;
+    white-space: nowrap;
+}
+
+.google-price-mismatch {
+    background-color: #fff3cd;
+}
+
+.gc-price-mismatch {
+}
+
+.action-link {
+    white-space: nowrap;
+}
+
+.form-inline-group {
+    display: flex;
+    align-items: flex-end;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.google-scrap-xml-mismatch td:nth-child(16) {
+}
+
+.ceneo-scrap-xml-mismatch td:nth-child(17) {
+}
+
+.gc-scrap-mismatch td:nth-child(13),
+.gc-scrap-mismatch td:nth-child(14) {
+}
+
+.xml-prices-mismatch td:nth-child(16),
+.xml-prices-mismatch td:nth-child(17) {
+}
+
+.ean-mismatch td:nth-child(5),
+.ean-mismatch td:nth-child(6) {
+    font-weight: bold;
+}
+
+.ean-mismatch-cell {
+}
+
+.img-placeholder {
+    display: inline-block;
+    width: 50px;
+    height: 50px;
+    line-height: 50px;
+    text-align: center;
+    background-color: #eee;
+    color: #aaa;
+    font-size: 0.8em;
+    border: 1px solid #ddd;
+}
+
+#product-table img {
+    max-width: 50px;
+    max-height: 50px;
+    display: block;
+    margin: auto;
+}
+
+.name-cell {
+    max-width: 150px;
+}
+
+.price-cell, .diff-cell, .id-cell {
+    min-width: 70px;
+    text-align: right;
+}
+
+.action-link {
+    min-width: 60px;
+    text-align: center;
+}
+
+th small {
+    font-weight: normal;
+    font-size: 0.8em;
+    color: #555;
+}
+
+.filter-section {
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid #eee;
+}
+
+    .filter-section:last-child {
+        border-bottom: none;
+        margin-bottom: 0;
+        padding-bottom: 0;
+    }
+
+.form-inline-group {
+    display: flex;
+    gap: 0.5rem;
 }

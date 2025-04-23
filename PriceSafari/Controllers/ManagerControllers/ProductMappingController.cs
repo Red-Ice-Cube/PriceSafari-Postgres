@@ -46,16 +46,12 @@ namespace PriceSafari.Controllers.ManagerControllers
             return View("~/Views/ManagerPanel/ProductMapping/ProductXml.cshtml", mappedProducts);
         }
 
-    
-
-
-
         [HttpPost]
         public async Task<IActionResult> TruncateProductMaps()
         {
             try
             {
-                // Truncate Table jest szybki, ale nie działa z tabelami powiązanymi z kluczami obcymi
+
                 await _context.Database.ExecuteSqlRawAsync("TRUNCATE TABLE ProductMaps");
 
                 TempData["SuccessMessage"] = "Wszystkie wpisy w tabeli ProductMaps zostały pomyślnie usunięte.";
@@ -63,230 +59,153 @@ namespace PriceSafari.Controllers.ManagerControllers
             }
             catch (Exception ex)
             {
-                // Zwraca wiadomość o błędzie
+
                 TempData["ErrorMessage"] = $"Wystąpił błąd podczas usuwania raportów: {ex.Message}";
                 return RedirectToAction("Index");
             }
         }
 
-
-
-
-
-        //public async Task<IActionResult> MappedProducts(int storeId, bool onlyMismatch = false)
-        //{
-        //    // 1) Pobieramy sklep
-        //    var store = await _context.Stores.FindAsync(storeId);
-        //    if (store == null)
-        //        return NotFound("Sklep nie znaleziony.");
-
-        //    // 2) Nazwa sklepu -> myStoreName
-        //    string storeName = store.StoreName ?? "";
-        //    string myStoreName = storeName.ToLower();
-
-        //    // 3) Najnowszy scrap
-        //    var latestScrap = await _context.ScrapHistories
-        //        .Where(sh => sh.StoreId == storeId)
-        //        .OrderByDescending(sh => sh.Date)
-        //        .FirstOrDefaultAsync();
-
-        //    if (latestScrap == null)
-        //    {
-        //        ViewBag.StoreName = store.StoreName;
-        //        ViewBag.StoreId = storeId;
-        //        return View("~/Views/ManagerPanel/ProductMapping/MappedProducts.cshtml", new List<MappedProductViewModel>());
-        //    }
-
-        //    // 4) Products + PriceHistories
-        //    var products = await _context.Products
-        //        .Where(p => p.StoreId == storeId)
-        //        .Include(p => p.PriceHistories)
-        //        .ToListAsync();
-
-        //    // 5) Pętla po produktach
-        //    var vmList = new List<MappedProductViewModel>();
-
-        //    foreach (var product in products)
-        //    {
-        //        // A) Filtrujemy PriceHistories – najnowszy scrap + dopasowanie storeName
-        //        var relevantHistories = product.PriceHistories
-        //            .Where(ph => ph.ScrapHistoryId == latestScrap.Id)
-        //            .Where(ph => (ph.StoreName ?? "").ToLower() == myStoreName)
-        //            .ToList();
-
-        //        // B) Wybieramy Google i Ceneo
-        //        var googleHistory = relevantHistories
-        //            .Where(ph => ph.IsGoogle)
-        //            .OrderByDescending(ph => ph.Id)
-        //            .FirstOrDefault();
-
-        //        var ceneoHistory = relevantHistories
-        //            .Where(ph => !ph.IsGoogle)
-        //            .OrderByDescending(ph => ph.Id)
-        //            .FirstOrDefault();
-
-        //        decimal? googlePrice = googleHistory?.Price;
-        //        decimal? ceneoPrice = ceneoHistory?.Price;
-        //        decimal? diff = null;
-        //        if (googlePrice.HasValue && ceneoPrice.HasValue)
-        //            diff = googlePrice.Value - ceneoPrice.Value;
-
-        //        // C) Składamy MappedProductViewModel
-        //        var vm = new MappedProductViewModel
-        //        {
-        //            ProductId = product.ProductId,
-        //            ProductName = product.ProductName,
-        //            ExternalId = product.ExternalId,
-        //            Url = product.Url,
-        //            UrlCeneo = product.OfferUrl,
-        //            UrlGoogle = product.GoogleUrl,
-        //            IsScrapable = product.IsScrapable,
-        //            IsRejected = product.IsRejected,
-
-        //            HasGoogle = !string.IsNullOrEmpty(product.GoogleUrl),
-        //            HasCeneo = !string.IsNullOrEmpty(product.OfferUrl),
-
-        //            MainUrlCeneo = product.MainUrl,
-        //            MainUrlGoogle = product.ImgUrlGoogle,
-
-        //            NameCeneo = product.ExportedNameCeneo,
-        //            NameGoogle = product.ProductNameInStoreForGoogle,
-
-        //            EanCeneo = product.Ean,
-        //            EanGoogle = product.EanGoogle,
-
-        //            LastGooglePrice = googlePrice,
-        //            LastCeneoPrice = ceneoPrice,
-        //            PriceDifference = diff,
-        //            ScrapId = latestScrap.Id
-        //        };
-
-        //        vmList.Add(vm);
-        //    }
-
-        //    // 6) Filtr onlyMismatch
-        //    if (onlyMismatch)
-        //    {
-        //        vmList = vmList
-        //            .Where(vm => vm.LastGooglePrice.HasValue && vm.LastCeneoPrice.HasValue
-        //                         && vm.LastGooglePrice.Value != vm.LastCeneoPrice.Value)
-        //            .ToList();
-        //    }
-
-        //    // 7) Widok
-        //    ViewBag.StoreName = store.StoreName;
-        //    ViewBag.StoreId = storeId;
-        //    return View("~/Views/ManagerPanel/ProductMapping/MappedProducts.cshtml", vmList);
-        //}
-
-        public async Task<IActionResult> MappedProducts(int storeId, bool onlyMismatch = false)
+        public async Task<IActionResult> MappedProducts(int storeId, bool onlyMismatch = false, bool onlyGoogleXmlMismatch = false)
         {
-       
+
             var store = await _context.Stores.FindAsync(storeId);
             if (store == null)
                 return NotFound("Sklep nie znaleziony.");
 
-          
-            string storeName = store.StoreName ?? "";
-            string myStoreName = storeName.ToLower();
+            string storeNameLower = store.StoreName?.ToLower() ?? "";
 
-      
             var latestScrap = await _context.ScrapHistories
                 .Where(sh => sh.StoreId == storeId)
                 .OrderByDescending(sh => sh.Date)
+                .Select(sh => new { sh.Id })
                 .FirstOrDefaultAsync();
 
-            var products = await _context.Products
+            int latestScrapId = latestScrap?.Id ?? 0;
+            var priceLookup = new Dictionary<int, ProductPrices>();
+
+            if (latestScrapId > 0)
+            {
+
+                var priceHistoriesForScrap = await _context.PriceHistories
+                    .Where(ph => ph.ScrapHistoryId == latestScrapId)
+
+                    .Select(ph => new
+                    {
+                        ph.ProductId,
+                        ph.Price,
+                        ph.IsGoogle,
+                        ph.StoreName,
+                        ph.Id
+                    })
+                    .ToListAsync();
+
+                priceLookup = priceHistoriesForScrap
+               .Where(ph => (ph.StoreName ?? "").ToLower() == storeNameLower)
+               .GroupBy(ph => ph.ProductId)
+               .ToDictionary(
+                   g => g.Key,
+                   g => new ProductPrices
+                   {
+
+                       GooglePrice = g.Where(ph => ph.IsGoogle)
+                                      .OrderByDescending(ph => ph.Id)
+                                      .Select(ph => (decimal?)ph.Price)
+                                      .FirstOrDefault(),
+
+                       CeneoPrice = g.Where(ph => !ph.IsGoogle)
+                                     .OrderByDescending(ph => ph.Id)
+                                     .Select(ph => (decimal?)ph.Price)
+                                     .FirstOrDefault()
+                   }
+               );
+            }
+
+            var productsData = await _context.Products
                 .Where(p => p.StoreId == storeId)
-   
-                .Include(p => p.PriceHistories)
+                .Select(p => new
+                {
+                    p.ProductId,
+                    p.ProductName,
+                    p.ExternalId,
+                    p.Url,
+                    p.OfferUrl,
+                    p.GoogleUrl,
+                    p.IsScrapable,
+                    p.IsRejected,
+                    p.MainUrl,
+                    p.ImgUrlGoogle,
+                    p.ExportedNameCeneo,
+                    p.ProductNameInStoreForGoogle,
+                    p.Ean,
+                    p.EanGoogle,
+                    p.GoogleXMLPrice,
+                    p.CeneoXMLPrice
+                })
                 .ToListAsync();
 
             var vmList = new List<MappedProductViewModel>();
 
-            foreach (var product in products)
+            foreach (var pData in productsData)
             {
-                decimal? googlePrice = null; 
-                decimal? ceneoPrice = null;  
-                decimal? diff = null;      
-                int scrapId = 0;         
 
-              
-                if (latestScrap != null)
+                var prices = priceLookup.TryGetValue(pData.ProductId, out var foundPrices) ? foundPrices : new ProductPrices();
+                var googlePrice = prices.GooglePrice;
+                var ceneoPrice = prices.CeneoPrice;
+                decimal? diff = (googlePrice.HasValue && ceneoPrice.HasValue) ? googlePrice.Value - ceneoPrice.Value : (decimal?)null;
+
+                bool satisfiesMismatch = !onlyMismatch
+                    || (googlePrice.HasValue && ceneoPrice.HasValue
+                        && googlePrice.Value != ceneoPrice.Value);
+
+                bool satisfiesGoogleXmlMismatch = !onlyGoogleXmlMismatch
+                    || (googlePrice.HasValue && pData.GoogleXMLPrice.HasValue
+                        && googlePrice.Value != pData.GoogleXMLPrice.Value);
+
+                if (!satisfiesMismatch || !satisfiesGoogleXmlMismatch)
                 {
-                    scrapId = latestScrap.Id; 
-
-           
-                    var relevantHistories = product.PriceHistories
-                        .Where(ph => ph.ScrapHistoryId == latestScrap.Id) 
-                        .Where(ph => (ph.StoreName ?? "").ToLower() == myStoreName)
-                        .ToList(); 
-
-               
-                    var googleHistory = relevantHistories
-                        .Where(ph => ph.IsGoogle)
-                        .OrderByDescending(ph => ph.Id) 
-                        .FirstOrDefault();
-
-                    var ceneoHistory = relevantHistories
-                        .Where(ph => !ph.IsGoogle)
-                        .OrderByDescending(ph => ph.Id) 
-                        .FirstOrDefault();
-
-                    googlePrice = googleHistory?.Price;
-                    ceneoPrice = ceneoHistory?.Price;
-
-                    if (googlePrice.HasValue && ceneoPrice.HasValue)
-                        diff = googlePrice.Value - ceneoPrice.Value;
+                    continue;
                 }
 
-               
                 var vm = new MappedProductViewModel
                 {
-                    ProductId = product.ProductId,
-                    ProductName = product.ProductName,
-                    ExternalId = product.ExternalId,
-                    Url = product.Url,
-                    UrlCeneo = product.OfferUrl,
-                    UrlGoogle = product.GoogleUrl,
-                    IsScrapable = product.IsScrapable,
-                    IsRejected = product.IsRejected,
-
-                    HasGoogle = !string.IsNullOrEmpty(product.GoogleUrl),
-                    HasCeneo = !string.IsNullOrEmpty(product.OfferUrl),
-
-                    MainUrlCeneo = product.MainUrl,
-                    MainUrlGoogle = product.ImgUrlGoogle,
-
-                    NameCeneo = product.ExportedNameCeneo,
-                    NameGoogle = product.ProductNameInStoreForGoogle,
-
-                    EanCeneo = product.Ean,
-                    EanGoogle = product.EanGoogle,
-
-                
+                    ProductId = pData.ProductId,
+                    ProductName = pData.ProductName,
+                    ExternalId = pData.ExternalId,
+                    Url = pData.Url,
+                    UrlCeneo = pData.OfferUrl,
+                    UrlGoogle = pData.GoogleUrl,
+                    IsScrapable = pData.IsScrapable,
+                    IsRejected = pData.IsRejected,
+                    HasGoogle = !string.IsNullOrEmpty(pData.GoogleUrl),
+                    HasCeneo = !string.IsNullOrEmpty(pData.OfferUrl),
+                    MainUrlCeneo = pData.MainUrl,
+                    MainUrlGoogle = pData.ImgUrlGoogle,
+                    NameCeneo = pData.ExportedNameCeneo,
+                    NameGoogle = pData.ProductNameInStoreForGoogle,
+                    EanCeneo = pData.Ean,
+                    EanGoogle = pData.EanGoogle,
                     LastGooglePrice = googlePrice,
                     LastCeneoPrice = ceneoPrice,
+                    GoogleXMLPrice = pData.GoogleXMLPrice,
+                    CeneoXMLPrice = pData.CeneoXMLPrice,
                     PriceDifference = diff,
-                    ScrapId = scrapId 
+                    ScrapId = latestScrapId
                 };
-
                 vmList.Add(vm);
             }
 
-            // 6) Filtr onlyMismatch - działa poprawnie, bo sprawdza HasValue na cenach
-            if (onlyMismatch)
-            {
-                vmList = vmList
-                    .Where(vm => vm.LastGooglePrice.HasValue && vm.LastCeneoPrice.HasValue
-                                 && vm.LastGooglePrice.Value != vm.LastCeneoPrice.Value)
-                    .ToList();
-            }
-
-            // 7) Widok
             ViewBag.StoreName = store.StoreName;
             ViewBag.StoreId = storeId;
+            ViewBag.OnlyMismatch = onlyMismatch;
+            ViewBag.OnlyGoogleXmlMismatch = onlyGoogleXmlMismatch;
+
             return View("~/Views/ManagerPanel/ProductMapping/MappedProducts.cshtml", vmList);
+        }
+
+        private class ProductPrices
+        {
+            public decimal? GooglePrice { get; set; }
+            public decimal? CeneoPrice { get; set; }
         }
 
         public class MappedProductViewModel
@@ -295,62 +214,42 @@ namespace PriceSafari.Controllers.ManagerControllers
             public string ProductName { get; set; }
             public int? ExternalId { get; set; }
             public string Url { get; set; }
-
             public string UrlCeneo { get; set; }
             public string UrlGoogle { get; set; }
-
             public bool IsScrapable { get; set; }
             public bool IsRejected { get; set; }
-
-            // Informacja, czy produkt ma dane z Google i Ceneo
             public bool HasGoogle { get; set; }
             public bool HasCeneo { get; set; }
-
-            // Zdjęcia
             public string MainUrlCeneo { get; set; }
             public string MainUrlGoogle { get; set; }
-
-            // Nazwy – z różnych źródeł, jeśli chcesz je wyświetlać
             public string NameCeneo { get; set; }
             public string NameGoogle { get; set; }
-
-            // EAN-y
             public string EanCeneo { get; set; }
             public string EanGoogle { get; set; }
-
-            // Ceny (ostatnie z danego scrapu)
             public decimal? LastGooglePrice { get; set; }
             public decimal? LastCeneoPrice { get; set; }
-
-            // Różnica (Google - Ceneo)
+            public decimal? GoogleXMLPrice { get; set; }
+            public decimal? CeneoXMLPrice { get; set; }
             public decimal? PriceDifference { get; set; }
-
-            // Do linkowania – ScrapId, z którego pochodzą ceny
             public int ScrapId { get; set; }
         }
-
-
-
 
         [HttpPost]
         public async Task<IActionResult> RemoveSelectedProducts(int storeId, [FromBody] List<int> productIds)
         {
             try
             {
-                // 1) Pobranie wszystkich produktów do pamięci
+
                 var allStoreProducts = await _context.Products
                     .Where(p => p.StoreId == storeId)
                     .ToListAsync();
 
-                // 2) Filtrowanie w pamięci (LINQ to Objects)
                 var productsToRemove = allStoreProducts
                     .Where(p => productIds.Contains(p.ProductId))
                     .ToList();
 
-                // 3) Usunięcie z kontekstu EF
                 _context.Products.RemoveRange(productsToRemove);
 
-                // 4) Zapis
                 await _context.SaveChangesAsync();
 
                 return Json(new { success = true });
@@ -361,19 +260,14 @@ namespace PriceSafari.Controllers.ManagerControllers
             }
         }
 
-
-
-
-
         [HttpPost]
         public async Task<IActionResult> MapProducts(int storeId)
         {
-            // Pobieramy produkty ze sklepu
+
             var storeProducts = await _context.Products
                 .Where(p => p.StoreId == storeId && !string.IsNullOrEmpty(p.ExportedNameCeneo))
                 .ToListAsync();
 
-            // Grupujemy produkty według oczyszczonej nazwy z Ceneo
             var groupedProducts = storeProducts
                 .GroupBy(p => SimplifyName(p.ExportedNameCeneo))
                 .ToList();
@@ -384,26 +278,23 @@ namespace PriceSafari.Controllers.ManagerControllers
 
                 if (productsInGroup.Count > 1)
                 {
-                    // Jeśli mamy więcej niż jeden produkt w grupie, dokonujemy scalenia
+
                     var mainProduct = productsInGroup.First();
 
                     for (int i = 1; i < productsInGroup.Count; i++)
                     {
                         var duplicateProduct = productsInGroup[i];
 
-                        // Łączymy dane z duplikatu do głównego produktu
                         MergeProductData(mainProduct, duplicateProduct);
 
-                        // Usuwamy duplikat z kontekstu bazy danych
                         _context.Products.Remove(duplicateProduct);
                     }
 
-                    // Aktualizujemy główny produkt w bazie danych
                     _context.Products.Update(mainProduct);
                 }
                 else
                 {
-                    // Jeśli jest tylko jeden produkt w grupie, nie musimy nic robić
+
                     continue;
                 }
             }
@@ -413,26 +304,17 @@ namespace PriceSafari.Controllers.ManagerControllers
             return RedirectToAction("MappedProducts", new { storeId });
         }
 
-
-        // Funkcja do uproszczania nazw poprzez usunięcie zbędnych znaków i standaryzację
         private string SimplifyName(string name)
         {
             if (string.IsNullOrWhiteSpace(name))
                 return string.Empty;
 
-            // Usuwamy niepożądane znaki i konwertujemy na wielkie litery
             var simplifiedName = Regex.Replace(name, @"[^\w]", "").ToUpperInvariant();
             return simplifiedName;
         }
 
-
-
-
-
-        // Funkcja do łączenia danych z duplikatu do głównego produktu
         private void MergeProductData(ProductClass mainProduct, ProductClass duplicateProduct)
         {
-            // Jeśli główny produkt nie ma wartości w polu, a duplikat ma, to kopiujemy dane
 
             if (string.IsNullOrEmpty(mainProduct.ProductName) && !string.IsNullOrEmpty(duplicateProduct.ProductName))
                 mainProduct.ProductName = duplicateProduct.ProductName;
@@ -467,7 +349,6 @@ namespace PriceSafari.Controllers.ManagerControllers
             if (string.IsNullOrEmpty(mainProduct.ExportedNameCeneo) && !string.IsNullOrEmpty(duplicateProduct.ExportedNameCeneo))
                 mainProduct.ExportedNameCeneo = duplicateProduct.ExportedNameCeneo;
 
-            // Google Shopping fields
             if (string.IsNullOrEmpty(mainProduct.Url) && !string.IsNullOrEmpty(duplicateProduct.Url))
                 mainProduct.Url = duplicateProduct.Url;
 
@@ -486,11 +367,9 @@ namespace PriceSafari.Controllers.ManagerControllers
             if (!mainProduct.FoundOnGoogle.HasValue && duplicateProduct.FoundOnGoogle.HasValue)
                 mainProduct.FoundOnGoogle = duplicateProduct.FoundOnGoogle;
 
-            // Marża
             if (!mainProduct.MarginPrice.HasValue && duplicateProduct.MarginPrice.HasValue)
                 mainProduct.MarginPrice = duplicateProduct.MarginPrice;
 
-            // Łączymy historię cen
             foreach (var priceHistory in duplicateProduct.PriceHistories)
             {
                 if (!mainProduct.PriceHistories.Contains(priceHistory))
@@ -499,7 +378,6 @@ namespace PriceSafari.Controllers.ManagerControllers
                 }
             }
 
-            // Łączymy flagi produktu
             foreach (var productFlag in duplicateProduct.ProductFlags)
             {
                 if (!mainProduct.ProductFlags.Contains(productFlag))
@@ -509,16 +387,14 @@ namespace PriceSafari.Controllers.ManagerControllers
             }
         }
 
-
         [HttpPost]
         public async Task<IActionResult> CreateOrUpdateProductsFromProductMap(int storeId, bool addGooglePrices)
         {
-            // Pobierz wszystkie wpisy ProductMap dla danego sklepu
+
             var mappedProducts = await _context.ProductMaps
                 .Where(p => p.StoreId == storeId)
                 .ToListAsync();
 
-            // Pobierz istniejące produkty dla sklepu
             var existingProducts = await _context.Products
                 .Where(p => p.StoreId == storeId)
                 .ToListAsync();
@@ -528,19 +404,18 @@ namespace PriceSafari.Controllers.ManagerControllers
                 int? externalId = int.TryParse(mappedProduct.ExternalId, out var extId) ? extId : (int?)null;
                 string url = mappedProduct.Url;
 
-                // Szukamy istniejącego produktu na podstawie ExternalId i/lub Url
                 var existingProduct = existingProducts
                     .FirstOrDefault(p => p.ExternalId == externalId && p.Url == url);
 
                 if (existingProduct != null)
                 {
-                    // Aktualizujemy istniejący produkt
+
                     MapProductFields(existingProduct, mappedProduct, addGooglePrices);
                     _context.Products.Update(existingProduct);
                 }
                 else
                 {
-                    // Tworzymy nowy produkt
+
                     var newProduct = new ProductClass
                     {
                         StoreId = storeId,
@@ -548,7 +423,6 @@ namespace PriceSafari.Controllers.ManagerControllers
                         Url = url
                     };
 
-                    // Mapujemy pola z mappedProduct
                     MapProductFields(newProduct, mappedProduct, addGooglePrices);
 
                     _context.Products.Add(newProduct);
@@ -561,89 +435,126 @@ namespace PriceSafari.Controllers.ManagerControllers
             return RedirectToAction("MappedProducts", new { storeId });
         }
 
-
-        // Funkcja pomocnicza do mapowania pól produktu
         private void MapProductFields(ProductClass product, ProductMap mappedProduct, bool addGooglePrices)
-        {   
-            // Ustaw ExternalId i Url (jeśli nie zostały już ustawione)
-            if (!product.ExternalId.HasValue)
-                product.ExternalId = int.TryParse(mappedProduct.ExternalId, out var externalId) ? externalId : (int?)null;
+        {
+            // --- Istniejące mapowania (bez zmian) ---
 
+            // Upewnij się, że ExternalId jest przypisany tylko raz (np. przy tworzeniu)
+            // lub jeśli w produkcie docelowym jest null
+            if (!product.ExternalId.HasValue && int.TryParse(mappedProduct.ExternalId, out var externalId))
+            {
+                product.ExternalId = externalId;
+            }
+
+            // Uzupełnij URL, jeśli jest pusty w produkcie docelowym
             if (string.IsNullOrEmpty(product.Url))
+            {
                 product.Url = mappedProduct.Url;
+            }
 
-            // Mapuj nazwę produktu z Google lub Ceneo, w zależności od dostępności
+            // Mapowanie nazw (z preferencją dla Google, ale zachowując Ceneo)
             if (!string.IsNullOrEmpty(mappedProduct.GoogleExportedName))
             {
-                product.ProductName = mappedProduct.GoogleExportedName;
-                product.ProductNameInStoreForGoogle = mappedProduct.GoogleExportedName;
-                product.ExportedNameCeneo = mappedProduct.ExportedName;
+                // Użyj nazwy Google jako głównej i specyficznej dla Google
+                if (string.IsNullOrEmpty(product.ProductName)) // Aktualizuj tylko jeśli puste
+                    product.ProductName = mappedProduct.GoogleExportedName;
+                if (string.IsNullOrEmpty(product.ProductNameInStoreForGoogle)) // Aktualizuj tylko jeśli puste
+                    product.ProductNameInStoreForGoogle = mappedProduct.GoogleExportedName;
+
+                // Jeśli nazwa Ceneo z mapy istnieje, zapisz ją w polu Ceneo
+                if (!string.IsNullOrEmpty(mappedProduct.ExportedName) && string.IsNullOrEmpty(product.ExportedNameCeneo)) // Aktualizuj tylko jeśli puste
+                {
+                    product.ExportedNameCeneo = mappedProduct.ExportedName;
+                }
             }
             else if (!string.IsNullOrEmpty(mappedProduct.ExportedName))
             {
-                product.ProductName = mappedProduct.ExportedName;
-                product.ExportedNameCeneo = mappedProduct.ExportedName;
+                // Jeśli nie ma nazwy Google, użyj nazwy Ceneo jako głównej i specyficznej dla Ceneo
+                if (string.IsNullOrEmpty(product.ProductName)) // Aktualizuj tylko jeśli puste
+                    product.ProductName = mappedProduct.ExportedName;
+                if (string.IsNullOrEmpty(product.ExportedNameCeneo)) // Aktualizuj tylko jeśli puste
+                    product.ExportedNameCeneo = mappedProduct.ExportedName;
             }
             else
             {
-                product.ProductName = "Brak nazwy produktu";
+                // Domyślna nazwa, jeśli obie są puste w mapie i główna jest pusta w produkcie
+                if (string.IsNullOrEmpty(product.ProductName))
+                    product.ProductName = "Brak nazwy produktu";
             }
 
-            // Mapuj EAN z Google lub Ceneo
+            // Mapowanie EAN (z preferencją dla Google)
             if (!string.IsNullOrEmpty(mappedProduct.GoogleEan))
             {
-                product.EanGoogle = mappedProduct.GoogleEan;
-                product.Ean = mappedProduct.GoogleEan; // Jeśli chcesz, aby EAN główny był z Google
+                if (string.IsNullOrEmpty(product.EanGoogle)) // Aktualizuj tylko jeśli puste
+                    product.EanGoogle = mappedProduct.GoogleEan;
+                if (string.IsNullOrEmpty(product.Ean)) // Aktualizuj główny EAN tylko jeśli pusty
+                    product.Ean = mappedProduct.GoogleEan;
             }
             else if (!string.IsNullOrEmpty(mappedProduct.Ean))
             {
-                product.Ean = mappedProduct.Ean;
+                if (string.IsNullOrEmpty(product.Ean)) // Aktualizuj główny EAN tylko jeśli pusty
+                    product.Ean = mappedProduct.Ean;
             }
 
-            // Mapuj MainUrl i ImgUrlGoogle
+            // Mapowanie obrazka (z preferencją dla Google)
             if (!string.IsNullOrEmpty(mappedProduct.GoogleImage))
             {
-                product.ImgUrlGoogle = mappedProduct.GoogleImage;
-                product.MainUrl = mappedProduct.GoogleImage; // Jeśli chcesz, aby główne zdjęcie było z Google
+                if (string.IsNullOrEmpty(product.ImgUrlGoogle)) // Aktualizuj tylko jeśli puste
+                    product.ImgUrlGoogle = mappedProduct.GoogleImage;
+                if (string.IsNullOrEmpty(product.MainUrl)) // Aktualizuj główny URL obrazka tylko jeśli pusty
+                    product.MainUrl = mappedProduct.GoogleImage;
             }
             else if (!string.IsNullOrEmpty(mappedProduct.MainUrl))
             {
-                product.MainUrl = mappedProduct.MainUrl;
+                if (string.IsNullOrEmpty(product.MainUrl)) // Aktualizuj główny URL obrazka tylko jeśli pusty
+                    product.MainUrl = mappedProduct.MainUrl;
             }
 
+            // --- Mapowanie cen Google z XML (warunkowe) ---
             if (addGooglePrices)
             {
-                // Tylko jeżeli w ProductMap mamy cokolwiek
+                // Przypisz cenę Google z XML, jeśli istnieje w mapie
                 if (mappedProduct.GoogleXMLPrice.HasValue)
                 {
                     product.GoogleXMLPrice = mappedProduct.GoogleXMLPrice;
                 }
+                // Przypisz cenę dostawy Google z XML, jeśli istnieje w mapie
                 if (mappedProduct.GoogleDeliveryXMLPrice.HasValue)
                 {
                     product.GoogleDeliveryXMLPrice = mappedProduct.GoogleDeliveryXMLPrice;
                 }
             }
 
+            // --- NOWE: Mapowanie cen Ceneo z XML (bezwarunkowe, ale sprawdza HasValue) ---
+
+            // Przypisz cenę Ceneo z XML, jeśli istnieje w mapie
+            if (mappedProduct.CeneoXMLPrice.HasValue)
+            {
+                product.CeneoXMLPrice = mappedProduct.CeneoXMLPrice;
+            }
+            // Przypisz cenę dostawy Ceneo z XML, jeśli istnieje w mapie
+            if (mappedProduct.CeneoDeliveryXMLPrice.HasValue)
+            {
+                product.CeneoDeliveryXMLPrice = mappedProduct.CeneoDeliveryXMLPrice;
+            }
+
+            // UWAGA: Możesz chcieć dodać logikę aktualizacji innych pól, np. IsScrapable, IsRejected,
+            // w zależności od tego, czy dane z ProductMap mają nadpisywać istniejące wartości w ProductClass.
+            // Obecna logika głównie uzupełnia brakujące dane, z wyjątkiem cen XML.
         }
-
-
-
-
 
         [HttpPost]
         public async Task<IActionResult> RemoveAllProductsForStore(int storeId)
         {
             try
             {
-                // Pobieramy wszystkie produkty dla danego storeId
+
                 var productsToRemove = await _context.Products
                     .Where(p => p.StoreId == storeId)
                     .ToListAsync();
 
-                // Usuwamy z kontekstu
                 _context.Products.RemoveRange(productsToRemove);
 
-                // Zapisujemy
                 await _context.SaveChangesAsync();
 
                 TempData["SuccessMessage"] = $"Wszystkie produkty dla StoreId={storeId} zostały usunięte.";
@@ -655,6 +566,5 @@ namespace PriceSafari.Controllers.ManagerControllers
                 return RedirectToAction("MappedProducts", new { storeId });
             }
         }
-
     }
 }

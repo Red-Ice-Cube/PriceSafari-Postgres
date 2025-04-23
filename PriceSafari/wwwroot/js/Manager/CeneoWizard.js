@@ -1,61 +1,55 @@
-﻿// Pobranie danych inicjalizacyjnych z atrybutów HTML
-const ceneoDataEl = document.getElementById("ceneo-wizard-data");
+﻿const ceneoDataEl = document.getElementById("ceneo-wizard-data");
 const storeId = parseInt(ceneoDataEl.getAttribute("data-store-id") || "0", 10);
 let existingMappingsJson = ceneoDataEl.getAttribute("data-existing-mappings") || "[]";
 let existingMappings = [];
 try {
-    // Parsowanie istniejących mapowań przekazanych z backendu
+
     existingMappings = JSON.parse(existingMappingsJson);
 } catch (e) {
     console.error("Błąd parsowania existingMappingsJson:", e);
-    existingMappings = []; // Użyj pustej tablicy w razie błędu
+    existingMappings = [];
 }
 
-// --- ZMIANA: Dodanie pól cenowych Ceneo ---
-// Obiekt przechowujący aktualne mapowania XPath dla każdego pola
 let mappingForField = {
     ExternalId: null,
     Url: null,
     CeneoEan: null,
     CeneoImage: null,
     CeneoExportedName: null,
-    CeneoXMLPrice: null,         // Nowe pole dla ceny z XML Ceneo
-    CeneoDeliveryXMLPrice: null // Nowe pole dla ceny z dostawą z XML Ceneo
+    CeneoXMLPrice: null,
+    CeneoDeliveryXMLPrice: null
 };
-// --- KONIEC ZMIANY ---
 
-// Aplikowanie istniejących mapowań pobranych z bazy danych
 existingMappings.forEach(m => {
-    // Sprawdzenie, czy pole z bazy danych istnieje w naszym obiekcie `mappingForField`
+
     if (m.fieldName && mappingForField.hasOwnProperty(m.fieldName)) {
         mappingForField[m.fieldName] = {
-            xpath: m.localName,   // Zapisanie XPath
-            nodeCount: 0,         // Licznik węzłów zostanie zaktualizowany później
-            firstValue: ""        // Pierwsza znaleziona wartość zostanie zaktualizowana później
+            xpath: m.localName,
+            nodeCount: 0,
+            firstValue: ""
         };
     }
 });
 
-let xmlDoc = null; // Zmienna przechowująca sparsowany dokument XML
-// Konstrukcja URL do proxy pobierającego XML dla danego sklepu
+let xmlDoc = null;
+
 let proxyUrl = `/CeneoImportWizardXml/ProxyXml?storeId=${storeId}`;
 
-// Pobranie i sparsowanie pliku XML
 fetch(proxyUrl)
     .then(resp => {
         if (!resp.ok) {
-            // Rzucenie błędu jeśli odpowiedź serwera nie jest OK (np. 404, 500)
+
             throw new Error(`Błąd HTTP ${resp.status}: ${resp.statusText}`);
         }
-        return resp.text(); // Odczytanie odpowiedzi jako tekst
+        return resp.text();
     })
     .then(xmlStr => {
         let parser = new DOMParser();
-        xmlDoc = parser.parseFromString(xmlStr, "application/xml"); // Parsowanie XML
-        // Sprawdzenie, czy wystąpił błąd parsowania
+        xmlDoc = parser.parseFromString(xmlStr, "application/xml");
+
         if (xmlDoc.documentElement.nodeName === "parsererror" || xmlDoc.getElementsByTagName("parsererror").length > 0) {
             let errorMsg = "Błąd parsowania XML:\n";
-            // Próba uzyskania bardziej szczegółowego błędu
+
             const parserError = xmlDoc.getElementsByTagName("parsererror")[0];
             if (parserError) {
                 errorMsg += parserError.textContent;
@@ -63,73 +57,68 @@ fetch(proxyUrl)
                 errorMsg += xmlDoc.documentElement.textContent;
             }
             document.getElementById("xmlContainer").innerText = errorMsg;
-            xmlDoc = null; // Zresetuj xmlDoc w razie błędu parsowania
+            xmlDoc = null;
             return;
         }
-        // Jeśli parsowanie się powiodło, zbuduj drzewo XML w UI
+
         buildXmlTree(xmlDoc.documentElement, "");
-        // Zastosuj i podświetl istniejące mapowania na nowo zbudowanym drzewie
+
         applyExistingMappings();
     })
     .catch(err => {
-        // Obsługa błędów sieciowych lub błędów rzuconych z `resp.ok`
+
         document.getElementById("xmlContainer").innerText =
             "Błąd pobierania lub parsowania XML:\n" + err;
         console.error("Błąd fetch/parse XML:", err);
     });
 
-// Rekursywna funkcja budująca wizualne drzewo XML w kontenerze #xmlContainer
 function buildXmlTree(node, parentPath) {
     let container = document.getElementById("xmlContainer");
-    // Jeśli to korzeń i nie ma jeszcze listy `ul`, stwórz ją
+
     if (!parentPath && !container.querySelector("ul")) {
         let ulRoot = document.createElement("ul");
-        ulRoot.appendChild(createLi(node, parentPath)); // Stwórz element listy dla korzenia
+        ulRoot.appendChild(createLi(node, parentPath));
         container.appendChild(ulRoot);
     } else {
-        // Jeśli to nie korzeń, znajdź listę `ul` i dodaj element `li`
+
         let rootUl = container.querySelector("ul");
         rootUl.appendChild(createLi(node, parentPath));
     }
 }
 
-// Funkcja tworząca element `li` reprezentujący węzeł XML
 function createLi(node, parentPath) {
     let li = document.createElement("li");
-    li.classList.add("xml-node"); // Klasa dla styli CSS
+    li.classList.add("xml-node");
 
-    let nodeName = node.nodeName; // Nazwa węzła (np. 'o', 'name', 'a')
-    // Sprawdzenie, czy węzeł ma atrybut 'name' (częste w Ceneo np. <a name="EAN">)
+    let nodeName = node.nodeName;
+
     let nameAttr = node.getAttribute && node.getAttribute("name");
     if (nameAttr) {
-        // Dodanie predykatu atrybutu do nazwy dla XPath
+
         nodeName += `[@name="${nameAttr}"]`;
     }
-    // Budowanie pełnej ścieżki XPath do bieżącego węzła
-    let currentPath = parentPath ? parentPath + "/" + nodeName : "/" + nodeName;
-    li.setAttribute("data-xpath", currentPath); // Zapisanie XPath jako atrybut data
 
-    // Wyświetlenie nazwy węzła
+    let currentPath = parentPath ? parentPath + "/" + nodeName : "/" + nodeName;
+    li.setAttribute("data-xpath", currentPath);
+
     let b = document.createElement("b");
     b.innerText = node.nodeName + (nameAttr ? ` (name="${nameAttr}")` : "");
     li.appendChild(b);
 
-    // Wyświetlanie atrybutów węzła (jeśli istnieją i nie są atrybutem 'name')
     if (node.attributes && node.attributes.length > 0) {
         let ulAttrs = document.createElement("ul");
         Array.from(node.attributes).forEach(attr => {
-            // Pomijamy atrybut 'name', bo jest już częścią nazwy węzła w XPath
+
             if (attr.name === "name" && nameAttr) return;
 
             let attrLi = document.createElement("li");
-            attrLi.classList.add("xml-node", "xml-attribute"); // Klasy dla styli
-            // Ścieżka XPath do atrybutu
+            attrLi.classList.add("xml-node", "xml-attribute");
+
             let attrPath = currentPath + `/@${attr.name}`;
             attrLi.setAttribute("data-xpath", attrPath);
 
-            // Wyświetlenie nazwy i wartości atrybutu
             let attrLabel = document.createElement("span");
-            // Użycie innerHTML, aby można było dodać style lub inną strukturę
+
             attrLabel.innerHTML = `<i style="color: gray;">@${attr.name}:</i> ${attr.value}`;
             attrLi.appendChild(attrLabel);
             ulAttrs.appendChild(attrLi);
@@ -139,31 +128,27 @@ function createLi(node, parentPath) {
         }
     }
 
-    // Wyświetlanie wartości tekstowej węzła (jeśli nie ma dzieci i tekst nie jest pusty)
     let textVal = node.textContent.trim();
-    // Sprawdzamy czy węzeł zawiera *tylko* tekst (node.children.length === 0)
-    // oraz czy ten tekst nie pochodzi z konkatenacji tekstów dzieci (porównujemy z node.innerHTML)
-    // Uproszczone sprawdzenie: jeśli nie ma dzieci i textVal istnieje.
+
     if (node.children.length === 0 && textVal) {
         let ulVal = document.createElement("ul");
         let liVal = document.createElement("li");
-        liVal.classList.add("xml-node", "xml-value"); // Klasy dla styli
-        // Specjalna ścieżka dla wartości tekstowej (można pominąć '#value' w getVal)
+        liVal.classList.add("xml-node", "xml-value");
+
         let valPath = currentPath + "/#value";
         liVal.setAttribute("data-xpath", valPath);
 
         let spanVal = document.createElement("span");
-        spanVal.innerText = `: ${textVal}`; // Wyświetlenie wartości
+        spanVal.innerText = `: ${textVal}`;
         liVal.appendChild(spanVal);
         ulVal.appendChild(liVal);
         li.appendChild(ulVal);
     }
 
-    // Rekursywne wywołanie dla dzieci węzła
     if (node.children.length > 0) {
         let ul = document.createElement("ul");
         Array.from(node.children).forEach(child => {
-            // Przekazanie bieżącej ścieżki jako ścieżki rodzica
+
             ul.appendChild(createLi(child, currentPath));
         });
         li.appendChild(ul);
@@ -171,75 +156,65 @@ function createLi(node, parentPath) {
     return li;
 }
 
-// Globalny listener kliknięć na dokumencie do obsługi wybierania węzłów XML
 document.addEventListener("click", e => {
-    // Znalezienie najbliższego klikniętego elementu z klasą .xml-node
-    let el = e.target.closest(".xml-node");
-    if (!el) return; // Jeśli kliknięto poza węzłem XML, zakończ
 
-    // Pobranie aktualnie wybranego pola do mapowania z dropdowna
+    let el = e.target.closest(".xml-node");
+    if (!el) return;
+
     let selectedField = document.getElementById("fieldSelector").value;
-    // Pobranie XPath klikniętego węzła
+
     let xPath = el.getAttribute("data-xpath");
 
-    // Usunięcie poprzedniego podświetlenia dla danego pola
     document.querySelectorAll(`.highlight-${selectedField}`)
         .forEach(x => x.classList.remove(`highlight-${selectedField}`));
 
-    // Znalezienie wszystkich węzłów w drzewie UI pasujących do XPath
     let sameNodes = queryNodesByXPath(xPath);
-    // Podświetlenie znalezionych węzłów
+
     sameNodes.forEach(n => n.classList.add(`highlight-${selectedField}`));
 
-    // Aktualizacja informacji o mapowaniu dla wybranego pola
     let count = sameNodes.length;
     let firstVal = "";
     if (count > 0) {
-        // Próba pobrania wyświetlanej wartości z pierwszego pasującego węzła
-        // Szukamy elementu span wewnątrz węzła (może zawierać wartość lub nazwę atrybutu)
+
         let sp = sameNodes[0].querySelector("span");
         if (sp) {
-            // Proste czyszczenie - usunięcie ewentualnego ': ' na początku
+
             firstVal = sp.innerText.replace(/^(\s*:\s*)/, "").trim();
-            // Jeśli to atrybut, może zawierać HTML - pobierzmy textContent
+
             if (sameNodes[0].classList.contains('xml-attribute')) {
                 firstVal = sp.textContent.replace(/^(\s*@\w+:\s*)/, "").trim();
             }
         }
     }
-    // Zapisanie informacji o mapowaniu w obiekcie `mappingForField`
+
     mappingForField[selectedField] = { xpath: xPath, nodeCount: count, firstValue: firstVal };
-    // Odświeżenie tabeli z mapowaniami
+
     renderMappingTable();
 });
 
-// Funkcja pomocnicza do znajdowania węzłów w drzewie UI na podstawie XPath
-// Używa atrybutu data-xpath, więc nie jest to prawdziwy ewaluator XPath
 function queryNodesByXPath(xPathValue) {
-    // Eskapowanie znaków specjalnych dla selektora CSS
+
     let esc = escapeForSelector(xPathValue);
     return document.querySelectorAll(`.xml-node[data-xpath="${esc}"]`);
 }
-// Funkcja pomocnicza do eskapowania znaków dla selektora CSS
+
 function escapeForSelector(val) {
     if (!val) return "";
-    // Podwójny backslash dla backslasha, backslash dla cudzysłowu
+
     return val.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
 }
 
-// Funkcja stosująca istniejące mapowania (podświetla węzły i aktualizuje tabelę)
 function applyExistingMappings() {
     for (let fieldName in mappingForField) {
         let info = mappingForField[fieldName];
-        // Sprawdzenie, czy dla danego pola istnieje zapisane mapowanie XPath
+
         if (!info || !info.xpath) continue;
 
-        // Znalezienie pasujących węzłów w UI
         let sameNodes = queryNodesByXPath(info.xpath);
         let count = sameNodes.length;
         let firstVal = "";
         if (count > 0) {
-            // Próba pobrania wartości z pierwszego węzła (podobnie jak w listenerze click)
+
             let sp = sameNodes[0].querySelector("span");
             if (sp) {
                 firstVal = sp.innerText.replace(/^(\s*:\s*)/, "").trim();
@@ -248,17 +223,16 @@ function applyExistingMappings() {
                 }
             }
         }
-        // Aktualizacja licznika i pierwszej wartości w obiekcie mapowania
+
         info.nodeCount = count;
         info.firstValue = firstVal;
-        // Podświetlenie znalezionych węzłów
+
         sameNodes.forEach(n => n.classList.add(`highlight-${fieldName}`));
     }
-    // Odświeżenie tabeli mapowań
+
     renderMappingTable();
 }
 
-// Funkcja usuwająca wszystkie podświetlenia ze wszystkich węzłów
 function clearAllHighlights() {
     Object.keys(mappingForField).forEach(field => {
         document.querySelectorAll(`.highlight-${field}`)
@@ -266,19 +240,18 @@ function clearAllHighlights() {
     });
 }
 
-// Funkcja renderująca tabelę podsumowującą aktualne mapowania
 function renderMappingTable() {
     let tbody = document.getElementById("mappingTable").querySelector("tbody");
-    tbody.innerHTML = ""; // Wyczyszczenie tabeli
-    // Iteracja przez wszystkie pola możliwe do zmapowania
+    tbody.innerHTML = "";
+
     for (let fieldName in mappingForField) {
-        let info = mappingForField[fieldName]; // Pobranie informacji o mapowaniu dla pola
-        let tr = document.createElement("tr"); // Stworzenie wiersza tabeli
-        // Jeśli dla pola nie ma mapowania (info jest null lub nie ma xpath)
+        let info = mappingForField[fieldName];
+        let tr = document.createElement("tr");
+
         if (!info || !info.xpath) {
             tr.innerHTML = `<td>${fieldName}</td><td>-</td><td>0</td><td>-</td>`;
         } else {
-            // Jeśli jest mapowanie, wypełnij komórki danymi
+
             tr.innerHTML = `
                 <td>${fieldName}</td>
                 <td>${info.xpath || "-"}</td>
@@ -286,70 +259,96 @@ function renderMappingTable() {
                 <td>${info.firstValue || "-"}</td>
             `;
         }
-        tbody.appendChild(tr); // Dodanie wiersza do tabeli
+        tbody.appendChild(tr);
     }
 }
 
-// --- DODANA FUNKCJA PARSEPRICE ---
-// Funkcja do parsowania wartości tekstowej na liczbę dziesiętną (decimal)
 function parsePrice(value) {
-    if (value === null || value === undefined || value === '') return null; // Jawne sprawdzenie null/undefined/pusty string
-    // Użyj bardziej odpornego regexa:
-    // - opcjonalny znak +/- na początku
-    // - cyfry, mogą być rozdzielone spacjami lub kropkami (jako tysiące)
-    // - opcjonalny separator dziesiętny (przecinek lub kropka)
-    // - cyfry po separatorze
-    // - ignoruje symbole walut na końcu (np. zł, PLN, EUR)
-    let match = String(value).match(/^[+-]?([\d.,\s]+)/); // Pobierz część liczbową z początku
-    if (!match) return null; // Jeśli nic nie pasuje
+    // 1. Sprawdzenie podstawowe
+    if (value === null || value === undefined || value === '') return null;
 
-    // Usuń spacje i kropki (tysiące), zamień przecinek na kropkę (dziesiętne)
-    let numericString = match[1].replace(/\s/g, '').replace(/\./g, '').replace(',', '.');
+    // 2. Konwersja na string i czyszczenie podstawowe
+    let strValue = String(value).trim();
 
-    // Sprawdź, czy ostatnia kropka jest separatorem dziesiętnym, jeśli były inne kropki
-    const lastDotIndex = numericString.lastIndexOf('.');
-    if (lastDotIndex !== -1) {
-        const firstDotIndex = numericString.indexOf('.');
-        // Jeśli jest więcej niż jedna kropka, a ostatnia nie jest na końcu po 2 cyfrach, coś jest źle
-        // Prostsze podejście: zakładamy, że ostatni separator (kropka lub przecinek w oryginale) jest dziesiętny
-        // Kod powyżej już zamienił przecinek na kropkę i usunął inne kropki
+    // 3. Ekstrakcja części numerycznej (bardziej odporna na np. symbole walut)
+    // Próbuje znaleźć ciąg cyfr, dopuszczając jeden separator (kropkę lub przecinek) dziesiętny.
+    // Ignoruje początkowe i końcowe znaki nienumeryczne (np. "PLN 1.234,56 zł" -> "1.234,56")
+    let match = strValue.match(/^[^\d-]*?([+-]?\s?[\d.,\s]+(?:\.\d+)?(?:,\d+)?)[^\d.,]*?$/);
+
+    // Fallback do prostszego regexu, jeśli pierwszy zawiedzie
+    if (!match) {
+        match = strValue.match(/^[+-]?([\d.,\s]+)/);
     }
 
+    // Jeśli nadal brak dopasowania, zwróć null
+    if (!match || !match[1]) {
+        console.warn(`parsePrice: Nie udało się wyekstrahować części numerycznej z '${value}'`);
+        return null;
+    }
 
-    let floatVal = parseFloat(numericString); // Sparsuj na liczbę zmiennoprzecinkową
-    if (isNaN(floatVal)) return null; // Jeśli wynik nie jest liczbą, zwróć null
+    let numericString = match[1].trim(); // Wyekstrahowana część numeryczna
 
-    // Zwróć jako string z dwoma miejscami po przecinku - bezpieczniejsze dla decimal na backendzie
-    // Backend powinien umieć sparsować string "123.45" na decimal.
-    // Można też zwrócić liczbę: return floatVal; ale trzeba uważać na precyzję float.
+    // 4. Identyfikacja separatorów
+    const lastDotIndex = numericString.lastIndexOf('.');
+    const lastCommaIndex = numericString.lastIndexOf(',');
+
+    let decimalSeparator = '.'; // Domyślnie zakładamy kropkę jako separator dziesiętny
+    let thousandSeparatorRegex = /[,]/g; // Domyślnie usuwamy przecinki (jako separatory tysięcy)
+
+    if (lastCommaIndex > lastDotIndex) {
+        // Ostatni jest przecinek - traktujemy go jako dziesiętny
+        decimalSeparator = ',';
+        thousandSeparatorRegex = /[.]/g; // Kropki muszą być separatorami tysięcy
+    } else if (lastDotIndex > lastCommaIndex) {
+        // Ostatnia jest kropka - traktujemy ją jako dziesiętną
+        decimalSeparator = '.';
+        thousandSeparatorRegex = /[,]/g; // Przecinki muszą być separatorami tysięcy
+    }
+    // Przypadki z tylko jednym rodzajem separatora lub brakiem są pośrednio obsługiwane przez domyślne wartości
+
+    // 5. Czyszczenie finalne
+    // Usuń spacje (często używane jako separator tysięcy)
+    numericString = numericString.replace(/\s/g, '');
+    // Usuń zidentyfikowane separatory tysięcy
+    numericString = numericString.replace(thousandSeparatorRegex, '');
+    // Zamień zidentyfikowany separator dziesiętny (jeśli był przecinkiem) na kropkę
+    if (decimalSeparator === ',') {
+        numericString = numericString.replace(',', '.');
+    }
+
+    // 6. Parsowanie i formatowanie
+    let floatVal = parseFloat(numericString);
+    if (isNaN(floatVal)) {
+        console.warn(`parsePrice: Nie udało się sparsować '${numericString}' (po czyszczeniu z '${value}')`);
+        return null;
+    }
+
+    // Zwróć jako string sformatowany do 2 miejsc po przecinku
     return floatVal.toFixed(2);
 }
-// --- KONIEC DODANEJ FUNKCJI ---
 
-
-// Listener dla przycisku "Zapisz Mapowania XPath"
 document.getElementById("saveMapping").addEventListener("click", () => {
     let finalMappings = [];
-    // Zebranie tylko tych pól, które mają zdefiniowane mapowanie XPath
+
     for (let fieldName in mappingForField) {
         let info = mappingForField[fieldName];
         if (info && info.xpath) {
-            // Format danych zgodny z oczekiwaniami endpointu backendowego
+
             finalMappings.push({ fieldName: fieldName, localName: info.xpath });
         }
     }
-    // Wysłanie mapowań do backendu
-    fetch(`/CeneoImportWizardXml/SaveCeneoMappings?storeId=${storeId}`, { // Endpoint dla Ceneo
+
+    fetch(`/CeneoImportWizardXml/SaveCeneoMappings?storeId=${storeId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(finalMappings) // Wysłanie danych jako JSON
+        body: JSON.stringify(finalMappings)
     })
-        .then(r => r.json()) // Odczytanie odpowiedzi jako JSON
+        .then(r => r.json())
         .then(d => {
-            if (d.success !== undefined) { // Sprawdź czy odpowiedź ma pole success
-                alert(d.message); // Wyświetl komunikat z backendu
+            if (d.success !== undefined) {
+                alert(d.message);
             } else {
-                // Jeśli format odpowiedzi jest inny, np. tylko tekst
+
                 alert(d);
             }
         })
@@ -359,23 +358,21 @@ document.getElementById("saveMapping").addEventListener("click", () => {
         });
 });
 
-// Listener dla przycisku "Odśwież Mapowania z Bazy"
 document.getElementById("reloadMappings").addEventListener("click", () => {
-    fetch(`/CeneoImportWizardXml/GetCeneoMappings?storeId=${storeId}`) // Endpoint dla Ceneo
+    fetch(`/CeneoImportWizardXml/GetCeneoMappings?storeId=${storeId}`)
         .then(r => r.json())
         .then(data => {
             console.log("Odebrano mapowania z bazy (reload):", data);
-            clearAllHighlights(); // Usunięcie starych podświetleń
+            clearAllHighlights();
 
-            // Zresetowanie obiektu mapowań
             Object.keys(mappingForField).forEach(f => mappingForField[f] = null);
-            // Wczytanie nowo pobranych mapowań
+
             data.forEach(m => {
                 if (m.fieldName && mappingForField.hasOwnProperty(m.fieldName)) {
                     mappingForField[m.fieldName] = { xpath: m.localName, nodeCount: 0, firstValue: "" };
                 }
             });
-            // Zastosowanie i podświetlenie nowych mapowań
+
             applyExistingMappings();
         })
         .catch(err => {
@@ -384,19 +381,15 @@ document.getElementById("reloadMappings").addEventListener("click", () => {
         });
 });
 
-
-// --- ZMIANA: Zaktualizowana funkcja extractProductsFromXml ---
-// Listener dla przycisku "Wyciągnij Produkty z XML"
 document.getElementById("extractProducts").addEventListener("click", () => {
-    // Sprawdzenie, czy XML został poprawnie załadowany
+
     if (!xmlDoc) {
         alert("Brak XML do parsowania. Sprawdź, czy plik został poprawnie załadowany.");
         return;
     }
 
-    // Próba automatycznego wykrycia głównego tagu produktu
     let entries = [];
-    const possibleProductTags = ["o", "item", "entry", "produkt", "product"]; // Lista możliwych tagów
+    const possibleProductTags = ["o", "item", "entry", "produkt", "product"];
     let detectedTag = null;
 
     for (const tag of possibleProductTags) {
@@ -405,7 +398,7 @@ document.getElementById("extractProducts").addEventListener("click", () => {
             entries = nodes;
             detectedTag = tag;
             console.log(`Wykryto tag produktu: <${detectedTag}> (${entries.length} elementów)`);
-            break; // Znaleziono pierwszy pasujący tag, użyj go
+            break;
         }
     }
 
@@ -414,87 +407,79 @@ document.getElementById("extractProducts").addEventListener("click", () => {
         return;
     }
 
-    // Odczytanie opcji filtrowania z checkboxów
     const onlyEanProducts = document.getElementById("onlyEanProducts")?.checked ?? false;
     const removeParams = document.getElementById("cleanUrlParameters")?.checked ?? false;
     const removeDuplicateUrls = document.getElementById("removeDuplicateUrls")?.checked ?? false;
     const removeDuplicateEans = document.getElementById("removeDuplicateEans")?.checked ?? false;
 
-    let productMaps = []; // Tablica na wyekstrahowane dane produktów
-    let countUrlsWithParams = 0; // Licznik URL-i z parametrami
+    let productMaps = [];
+    let countUrlsWithParams = 0;
 
-    // Iteracja przez znalezione węzły produktów
     for (let i = 0; i < entries.length; i++) {
-        let entryNode = entries[i]; // Bieżący węzeł produktu
-        // Stworzenie obiektu DTO dla produktu
+        let entryNode = entries[i];
+
         let pm = {
-            StoreId: storeId, // Konwersja na string dla spójności, backend sparsuje
+            StoreId: storeId,
             ExternalId: getVal(entryNode, "ExternalId"),
             Url: getVal(entryNode, "Url"),
             CeneoEan: getVal(entryNode, "CeneoEan"),
             CeneoImage: getVal(entryNode, "CeneoImage"),
             CeneoExportedName: getVal(entryNode, "CeneoExportedName"),
-            // --- DODANE: Pobranie i sparsowanie cen ---
+
             CeneoXMLPrice: parsePrice(getVal(entryNode, "CeneoXMLPrice")),
             CeneoDeliveryXMLPrice: parsePrice(getVal(entryNode, "CeneoDeliveryXMLPrice"))
-            // --- KONIEC DODAWANIA ---
+
         };
 
-        // Opcjonalne filtrowanie: tylko produkty z EAN
         if (onlyEanProducts && (!pm.CeneoEan || !pm.CeneoEan.trim())) {
-            continue; // Pomiń produkt, jeśli nie ma EAN
+            continue;
         }
 
-        // Opcjonalne czyszczenie parametrów URL
         if (pm.Url) {
             let qIdx = pm.Url.indexOf('?');
             if (qIdx !== -1) {
-                countUrlsWithParams++; // Zlicz URL z parametrami
+                countUrlsWithParams++;
                 if (removeParams) {
-                    pm.Url = pm.Url.substring(0, qIdx); // Usuń parametry
+                    pm.Url = pm.Url.substring(0, qIdx);
                 }
             }
         }
-        productMaps.push(pm); // Dodaj przetworzony produkt do listy
+        productMaps.push(pm);
     }
 
     console.log("Surowe productMaps (przed deduplikacją):", productMaps);
 
-    // Opcjonalna deduplikacja po URL
     if (removeDuplicateUrls) {
         let seenUrls = new Set();
         productMaps = productMaps.filter(pm => {
-            if (!pm.Url || !pm.Url.trim()) return true; // Zachowaj produkty bez URL? (do decyzji)
+            if (!pm.Url || !pm.Url.trim()) return true;
             if (seenUrls.has(pm.Url)) {
-                return false; // URL już widziany, odrzuć duplikat
+                return false;
             }
-            seenUrls.add(pm.Url); // Dodaj nowy URL do zbioru widzianych
-            return true; // Zachowaj ten produkt
+            seenUrls.add(pm.Url);
+            return true;
         });
     }
 
-    // Opcjonalna deduplikacja po EAN
     if (removeDuplicateEans) {
         let seenEans = new Set();
         productMaps = productMaps.filter(pm => {
-            if (!pm.CeneoEan || !pm.CeneoEan.trim()) return true; // Zachowaj produkty bez EAN? (do decyzji)
+            if (!pm.CeneoEan || !pm.CeneoEan.trim()) return true;
             if (seenEans.has(pm.CeneoEan)) {
-                return false; // EAN już widziany, odrzuć duplikat
+                return false;
             }
-            seenEans.add(pm.CeneoEan); // Dodaj nowy EAN do zbioru widzianych
-            return true; // Zachowaj ten produkt
+            seenEans.add(pm.CeneoEan);
+            return true;
         });
     }
 
     console.log("Finalne productMaps (po filtrach i deduplikacji):", productMaps);
 
-    // Wyświetlenie podglądu JSON w textarea
     const previewElement = document.getElementById("productMapsPreview");
     if (previewElement) {
-        previewElement.textContent = JSON.stringify(productMaps, null, 2); // Formatowany JSON
+        previewElement.textContent = JSON.stringify(productMaps, null, 2);
     }
 
-    // Wyświetlenie statystyk
     const urlParamsInfo = document.getElementById("urlParamsInfo");
     if (urlParamsInfo) {
         urlParamsInfo.textContent = "Liczba URL zawierających parametry: " + countUrlsWithParams;
@@ -504,105 +489,194 @@ document.getElementById("extractProducts").addEventListener("click", () => {
         finalNodesInfo.textContent = "Finalna liczba produktów po filtrach: " + productMaps.length;
     }
 
-    // Sprawdzenie i wyświetlenie informacji o duplikatach (po ewentualnej deduplikacji)
     checkDuplicates(productMaps);
 });
-// --- KONIEC ZMIANY ---
 
-
-// --- ZMIANA: Zaktualizowana funkcja getVal ---
-// Funkcja pobierająca wartość z węzła XML na podstawie nazwy pola i zmapowanego XPath
 function getVal(entryNode, fieldName) {
-    const info = mappingForField[fieldName]; // Pobierz info o mapowaniu dla danego pola
-    if (!info || !info.xpath) return null; // Jeśli brak mapowania, zwróć null
+    const info = mappingForField[fieldName];
+    if (!info || !info.xpath) {
+        // console.log(`Brak mapowania dla pola: ${fieldName}`);
+        return null;
+    }
 
-    let path = info.xpath; // XPath z mapowania
+    let absolutePath = info.xpath; // np. /offers/o/name/#value lub /offers/o/@url lub /rss/channel/item/g:id/#value
+    // console.log(`Pole: ${fieldName}, Węzeł: ${entryNode.nodeName}, Ścieżka absolutna: ${absolutePath}`);
 
-    // --- Bardziej elastyczne usuwanie prefiksu ścieżki bazowej ---
-    // Zakładamy, że `entryNode` to główny węzeł produktu (np. <o>, <item>)
-    // Chcemy uzyskać ścieżkę *względną* do tego węzła.
-    const entryNodePath = "/" + entryNode.nodeName.toLowerCase(); // np. "/o", "/item"
+    if (!entryNode || !entryNode.nodeName) {
+        console.error("getVal: Nieprawidłowy entryNode");
+        return null;
+    }
 
-    // Znajdź ścieżkę do rodzica entryNode (jeśli istnieje)
-    let parentPath = "";
-    let current = entryNode.parentNode;
-    while (current && current.nodeType === Node.ELEMENT_NODE) {
-        // Prosty sposób - może być niedokładny przy złożonych strukturach
-        parentPath = "/" + current.nodeName.toLowerCase() + parentPath;
+    // --- Logika do znalezienia ścieżki względnej ---
+    let entryNodePathSegments = [];
+    let current = entryNode;
+    // Idź w górę drzewa od entryNode, aż do korzenia dokumentu (lub gdy parentNode nie jest elementem)
+    while (current && current.nodeType === Node.ELEMENT_NODE && current !== xmlDoc.documentElement.parentNode) {
+        let segment = current.nodeName;
+        // Dodaj predykat [@name="..."] jeśli istnieje, bo jest częścią ścieżki generowanej przez UI
+        let nameAttr = current.getAttribute && current.getAttribute("name");
+        if (nameAttr) {
+            // Upewnij się, że escape'ujesz wartość atrybutu, jeśli może zawierać cudzysłowy
+            segment += `[@name="${nameAttr.replace(/"/g, '\\"')}"]`;
+        }
+        entryNodePathSegments.unshift(segment); // Dodaj na początek tablicy
         current = current.parentNode;
     }
-    // Pełna ścieżka bazowa do entryNode (przybliżona)
-    const basePath = parentPath + entryNodePath; // np. "/rss/channel/item", "/offers/o"
+    // Zbuduj pełną ścieżkę absolutną do entryNode
+    let entryNodeAbsolutePath = entryNodePathSegments.length > 0 ? "/" + entryNodePathSegments.join("/") : "";
+    // console.log(`Obliczona ścieżka do entryNode: ${entryNodeAbsolutePath}`);
 
-    // Jeśli XPath z mapowania zaczyna się od tej ścieżki bazowej, usuń ją
-    if (path.toLowerCase().startsWith(basePath)) {
-        // Długość może być inna z powodu predykatów [@name='...']
-        // Znajdź rzeczywisty punkt startowy ścieżki względnej
-        const relativePathStart = path.toLowerCase().indexOf(entryNodePath) + entryNodePath.length;
-        path = path.substring(relativePathStart);
+    let relativePath = "";
+
+    // Normalizuj ścieżki dla porównania (małe litery, usuń końcowe /#value)
+    let normalizedAbsolutePath = absolutePath.toLowerCase().replace(/\/#value$/, '');
+    let normalizedEntryNodePath = entryNodeAbsolutePath.toLowerCase();
+
+    // Przypadek 1: Ścieżka mapowania wskazuje na element potomny lub jego wartość tekstową
+    // np. absolutePath = /offers/o/name/#value, entryNodeAbsolutePath = /offers/o
+    // np. absolutePath = /rss/channel/item/g:id/#value, entryNodeAbsolutePath = /rss/channel/item
+    if (normalizedAbsolutePath.startsWith(normalizedEntryNodePath + '/')) {
+        // +1 aby usunąć wiodący '/' po ścieżce węzła
+        relativePath = absolutePath.substring(entryNodeAbsolutePath.length + 1);
+        // console.log(`Przypadek 1: Ścieżka względna potomka: ${relativePath}`);
     }
-    // Jeśli ścieżka z mapowania nie zaczyna się od basePath, ale zaczyna się od "/",
-    // może to być błąd mapowania lub ścieżka do atrybutu węzła nadrzędnego.
-    // Usuwamy wiodący "/" aby traktować ją jako względną od entryNode.
-    else if (path.startsWith("/")) {
-        path = path.substring(1);
+    // Przypadek 2: Ścieżka mapowania wskazuje na atrybut samego entryNode
+    // np. absolutePath = /offers/o/@url, entryNodeAbsolutePath = /offers/o
+    else if (normalizedAbsolutePath.startsWith(normalizedEntryNodePath + '/@')) {
+        let lastSlashIndex = absolutePath.lastIndexOf('/');
+        if (lastSlashIndex > -1 && absolutePath.substring(lastSlashIndex + 1).startsWith('@')) {
+            relativePath = absolutePath.substring(lastSlashIndex + 1); // Powinno być "@url"
+            // console.log(`Przypadek 2: Ścieżka względna atrybutu entryNode: ${relativePath}`);
+        }
     }
-    // Jeśli ścieżka nie zaczyna się od "/", zakładamy, że jest już względna.
+    // Przypadek 3: Czasami ścieżka może nie zawierać pełnego drzewa, jeśli XML jest prosty
+    // lub jeśli ścieżka została jakoś inaczej wygenerowana. Spróbuj znaleźć ostatni segment pasujący do entryNode.
+    else if (absolutePath.includes('/' + entryNode.nodeName + '/')) {
+        let lastNodeNameIndex = absolutePath.lastIndexOf('/' + entryNode.nodeName + '/');
+        if (lastNodeNameIndex !== -1) {
+            relativePath = absolutePath.substring(lastNodeNameIndex + entryNode.nodeName.length + 2); // +2 za oba '/'
+            // console.log(`Przypadek 3 (fallback): Ścieżka względna po ostatnim segmencie: ${relativePath}`);
+        }
+    }
+    // Przypadek 4: Atrybut węzła, ale ścieżka nie zawierała /@
+    else if (normalizedAbsolutePath === normalizedEntryNodePath && absolutePath.includes('@')) {
+        let lastSlashIndex = absolutePath.lastIndexOf('/');
+        if (lastSlashIndex > -1 && absolutePath.substring(lastSlashIndex + 1).startsWith('@')) {
+            relativePath = absolutePath.substring(lastSlashIndex + 1);
+            // console.log(`Przypadek 4: Ścieżka względna atrybutu (alternatywnie): ${relativePath}`);
+        }
+    }
 
-    // --- Koniec usuwania prefiksu ---
 
-    let currentNode = entryNode; // Zaczynamy od głównego węzła produktu
-    const segments = path.split('/').filter(Boolean); // Podziel ścieżkę na segmenty, usuń puste
+    if (!relativePath) {
+        console.warn(`Nie można ustalić ścieżki względnej. Pole: ${fieldName}, AbsPath: ${absolutePath}, EntryNodePath: ${entryNodeAbsolutePath}`);
+        // Można spróbować założyć, że zapisana ścieżka *jest* już względna (mało prawdopodobne z UI)
+        // relativePath = absolutePath.startsWith('/') ? absolutePath.substring(1) : absolutePath;
+        return null; // Bezpieczniej zwrócić null
+    }
+
+    // --- Koniec nowej logiki ---
+
+    let path = relativePath; // Użyj ustalonej ścieżki względnej
+
+    let currentNode = entryNode;
+    // Rozbij ścieżkę względną na segmenty, usuwając puste (np. z //)
+    const segments = path.split('/').filter(Boolean);
+    // console.log(`Przetwarzanie segmentów:`, segments);
 
     for (let i = 0; i < segments.length; i++) {
         let seg = segments[i];
 
-        // Przypadek końcowy: wartość tekstowa (#value)
+        if (!currentNode) {
+            // console.log(`Zgubiono węzeł podczas przetwarzania segmentu: ${seg}`);
+            return null; // Stop if we lost the node
+        }
+
+        // Jeśli segment to '#value', zwróć zawartość tekstową *aktualnego* węzła
         if (seg === '#value') {
-            // Zwróć zawartość tekstową bieżącego węzła
-            return currentNode.textContent ? currentNode.textContent.trim() : null;
+            // Upewnij się, że currentNode to element lub tekst (chociaż tekst rzadko by tu dotarł)
+            if (currentNode.nodeType === Node.ELEMENT_NODE || currentNode.nodeType === Node.TEXT_NODE) {
+                // console.log(`Zwracanie textContent dla ${currentNode.nodeName}: ${currentNode.textContent?.trim()}`);
+                return currentNode.textContent ? currentNode.textContent.trim() : null;
+            } else {
+                // console.log(`#value napotkane dla węzła typu ${currentNode.nodeType}`);
+                return null; // Nie można pobrać textContent z czegoś innego
+            }
         }
 
-        // Przypadek końcowy: atrybut (@attrName)
+        // Jeśli segment zaczyna się od '@', to jest to atrybut
         if (seg.startsWith('@')) {
-            const attrName = seg.substring(1); // Nazwa atrybutu
-            return currentNode.getAttribute(attrName); // Zwróć wartość atrybutu
+            const attrName = seg.substring(1);
+            // Upewnij się, że currentNode jest elementem przed pobraniem atrybutu
+            if (currentNode.nodeType !== Node.ELEMENT_NODE) {
+                // console.log(`Próba pobrania atrybutu '${attrName}' z węzła niebędącego elementem (typ: ${currentNode.nodeType})`);
+                return null;
+            }
+            let attrValue = currentNode.getAttribute(attrName);
+            // console.log(`Pobieranie atrybutu '${attrName}' z ${currentNode.nodeName}: ${attrValue}`);
+            // Zwróć wartość atrybutu (może być null, jeśli atrybut nie istnieje)
+            // Jeśli to ostatni segment, zwracamy wartość. Jeśli nie, to błąd w ścieżce (nie można nawigować dalej z atrybutu)
+            if (i === segments.length - 1) {
+                return attrValue;
+            } else {
+                console.error(`Błąd ścieżki: próba nawigacji dalej po atrybucie '${attrName}'`);
+                return null;
+            }
         }
 
-        // Nawigacja do następnego węzła potomnego
-
-        // Obsługa predykatu [@name="..."] (np. a[@name="EAN"])
+        // W przeciwnym razie segment musi być nazwą elementu (ewentualnie z predykatem [@name="..."])
         const bracketPos = seg.indexOf('[@name="');
         let child = null;
-        if (bracketPos !== -1) {
-            const baseName = seg.substring(0, bracketPos); // Nazwa tagu (np. 'a')
-            const inside = seg.substring(bracketPos + 8);
-            const endBracket = inside.indexOf('"]');
-            if (endBracket === -1) return null; // Błędny format predykatu
-            const desiredName = inside.substring(0, endBracket); // Wartość atrybutu name
+        let baseName = seg; // Nazwa tagu do znalezienia
+        let desiredNameAttr = null; // Wartość atrybutu 'name', jeśli jest predykat
 
-            // Znajdź dziecko o pasującym tagu i atrybucie name
-            child = Array.from(currentNode.children).find(ch =>
-                ch.localName === baseName && ch.getAttribute("name") === desiredName
-            );
-        } else {
-            // Standardowe szukanie dziecka po nazwie tagu (ignorując przestrzeń nazw)
-            const tagName = seg.includes(':') ? seg.split(':')[1] : seg; // np. g:id -> id
-            child = Array.from(currentNode.children).find(ch => ch.localName === tagName);
+        if (bracketPos !== -1) {
+            baseName = seg.substring(0, bracketPos);
+            const inside = seg.substring(bracketPos + 8); // Długość '[@name="'
+            const endBracket = inside.indexOf('"]');
+            if (endBracket === -1) {
+                console.error(`Niepoprawny format segmentu z predykatem: ${seg}`);
+                return null; // Malformed segment
+            }
+            desiredNameAttr = inside.substring(0, endBracket);
         }
 
-        if (!child) return null; // Nie znaleziono pasującego dziecka, ścieżka nie istnieje
-        currentNode = child; // Przejdź do znalezionego dziecka
+        // Znajdź pasujące dziecko elementu currentNode
+        // Użyj children i nodeName - działa dobrze z i bez przestrzeni nazw
+        child = Array.from(currentNode.children).find(ch => {
+            // Porównaj nodeName (uwzględnia prefix np. 'g:id')
+            if (ch.nodeName === baseName) {
+                if (desiredNameAttr !== null) {
+                    // Jeśli jest predykat [@name="..."], sprawdź atrybut 'name' dziecka
+                    return ch.getAttribute("name") === desiredNameAttr;
+                } else {
+                    // Brak predykatu, wystarczy dopasowanie nazwy tagu
+                    return true;
+                }
+            }
+            return false; // Nazwa tagu nie pasuje
+        });
+
+        if (!child) {
+            // console.log(`Segment (dziecko) nie znaleziony: '${seg}' wewnątrz ${currentNode.nodeName}`);
+            return null; // Segment (dziecko) nie znaleziony
+        }
+        // console.log(`Znaleziono segment '${seg}', przechodzę do ${child.nodeName}`);
+        currentNode = child; // Przejdź do znalezionego dziecka na potrzeby następnego segmentu
     }
 
-    // Jeśli pętla się zakończyła, oznacza to, że ścieżka wskazywała na element (a nie atrybut/#value)
-    // Zwracamy zawartość tekstową tego ostatniego elementu
-    return currentNode.textContent ? currentNode.textContent.trim() : null;
+    // Jeśli pętla zakończyła się normalnie, oznacza to, że ostatni segment wybrał element.
+    // Zwróć jego zawartość tekstową, chyba że ścieżka kończyła się na atrybucie (co zostało obsłużone wcześniej).
+    if (!segments[segments.length - 1]?.startsWith('@')) {
+        // console.log(`Zwracanie textContent końcowego elementu ${currentNode.nodeName}: ${currentNode.textContent?.trim()}`);
+        return currentNode.textContent ? currentNode.textContent.trim() : null;
+    } else {
+        // Teoretycznie nie powinno się tu zdarzyć, jeśli logika atrybutów jest poprawna
+        console.warn("Ścieżka zakończyła się atrybutem, ale wartość nie została zwrócona wcześniej?");
+        return null;
+    }
 }
-// --- KONIEC ZMIANY ---
 
-
-// Listener dla przycisku "Zapisz Wyciągnięte Produkty w Bazie"
 document.getElementById("saveProductMapsInDb").addEventListener("click", () => {
     const previewElement = document.getElementById("productMapsPreview");
     if (!previewElement) {
@@ -616,7 +690,7 @@ document.getElementById("saveProductMapsInDb").addEventListener("click", () => {
     }
     let productMaps;
     try {
-        productMaps = JSON.parse(txt); // Sparsuj JSON z podglądu
+        productMaps = JSON.parse(txt);
     } catch (e) {
         alert("Błędny format JSON w podglądzie productMapsPreview!");
         console.error("Błąd parsowania JSON:", e, "\nTekst:", txt);
@@ -630,15 +704,14 @@ document.getElementById("saveProductMapsInDb").addEventListener("click", () => {
 
     console.log("Wysyłanie productMaps do zapisu:", productMaps);
 
-    // Wysłanie danych do endpointu backendowego Ceneo
     fetch("/CeneoImportWizardXml/SaveProductMapsFromFront", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(productMaps) // Wyślij sparsowane dane
+        body: JSON.stringify(productMaps)
     })
-        .then(r => r.json()) // Oczekujemy odpowiedzi JSON
+        .then(r => r.json())
         .then(d => {
-            // Wyświetl komunikat sukcesu lub błędu z backendu
+
             if (d.success !== undefined) {
                 alert((d.success ? "Sukces: " : "Błąd: ") + d.message);
             } else {
@@ -652,7 +725,6 @@ document.getElementById("saveProductMapsInDb").addEventListener("click", () => {
         });
 });
 
-// Funkcja sprawdzająca duplikaty URL i EAN w finalnej liście produktów
 function checkDuplicates(productMaps) {
     if (!Array.isArray(productMaps)) {
         console.error("checkDuplicates: wejście nie jest tablicą");
@@ -663,7 +735,6 @@ function checkDuplicates(productMaps) {
     let productsWithoutUrl = 0;
     let productsWithoutEan = 0;
 
-    // Zlicz wystąpienia każdego URL i EAN
     productMaps.forEach(pm => {
         if (pm.Url && pm.Url.trim()) {
             urlCounts[pm.Url] = (urlCounts[pm.Url] || 0) + 1;
@@ -677,14 +748,11 @@ function checkDuplicates(productMaps) {
         }
     });
 
-    // Oblicz liczbę unikalnych i zduplikowanych URL/EAN
     const totalUniqueUrls = Object.keys(urlCounts).length;
     const duplicateUrlsCount = Object.values(urlCounts).filter(count => count > 1).length;
 
-    const totalUniqueEans = Object.keys(eanCounts).length;
     const duplicateEansCount = Object.values(eanCounts).filter(count => count > 1).length;
 
-    // Przygotuj komunikaty
     let urlMessage = `Unikalnych URL: ${totalUniqueUrls}`;
     if (duplicateUrlsCount > 0) {
         urlMessage += ` <span style="color:red;">(Znaleziono ${duplicateUrlsCount} zduplikowanych wartości URL)</span>`;
@@ -705,19 +773,16 @@ function checkDuplicates(productMaps) {
         eanMessage += ` | Produktów bez EAN: ${productsWithoutEan}`;
     }
 
-
-    // Wyświetl informacje w odpowiednim elemencie HTML
     const duplicatesInfoElement = document.getElementById("duplicatesInfo");
     if (duplicatesInfoElement) {
         duplicatesInfoElement.innerHTML = urlMessage + "<br>" + eanMessage;
     }
 }
 
-// Listenery dla checkboxów - automatycznie uruchamiają ekstrakcję po zmianie
 const cleanUrlCheckbox = document.getElementById("cleanUrlParameters");
 if (cleanUrlCheckbox) {
     cleanUrlCheckbox.addEventListener("change", () => {
-        // Symuluj kliknięcie przycisku ekstrakcji, aby odświeżyć podgląd
+
         document.getElementById("extractProducts")?.click();
     });
 }
@@ -740,6 +805,4 @@ if (onlyEanCheckbox) {
     });
 }
 
-
-// Inicjalne renderowanie tabeli mapowań po załadowaniu strony
 renderMappingTable();
