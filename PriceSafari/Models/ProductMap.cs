@@ -28,5 +28,12 @@ namespace PriceSafari.Models
 
         [Column(TypeName = "decimal(18, 2)")]
         public decimal? GoogleDeliveryXMLPrice { get; set; }
+
+        // NOWE pola cenowe (precyzja do 2 miejsc)
+        [Column(TypeName = "decimal(18, 2)")]
+        public decimal? CeneoXMLPrice { get; set; }
+
+        [Column(TypeName = "decimal(18, 2)")]
+        public decimal? CeneoDeliveryXMLPrice { get; set; }
     }
 }

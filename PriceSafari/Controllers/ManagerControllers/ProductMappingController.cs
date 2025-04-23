@@ -73,65 +73,174 @@ namespace PriceSafari.Controllers.ManagerControllers
 
 
 
+        //public async Task<IActionResult> MappedProducts(int storeId, bool onlyMismatch = false)
+        //{
+        //    // 1) Pobieramy sklep
+        //    var store = await _context.Stores.FindAsync(storeId);
+        //    if (store == null)
+        //        return NotFound("Sklep nie znaleziony.");
+
+        //    // 2) Nazwa sklepu -> myStoreName
+        //    string storeName = store.StoreName ?? "";
+        //    string myStoreName = storeName.ToLower();
+
+        //    // 3) Najnowszy scrap
+        //    var latestScrap = await _context.ScrapHistories
+        //        .Where(sh => sh.StoreId == storeId)
+        //        .OrderByDescending(sh => sh.Date)
+        //        .FirstOrDefaultAsync();
+
+        //    if (latestScrap == null)
+        //    {
+        //        ViewBag.StoreName = store.StoreName;
+        //        ViewBag.StoreId = storeId;
+        //        return View("~/Views/ManagerPanel/ProductMapping/MappedProducts.cshtml", new List<MappedProductViewModel>());
+        //    }
+
+        //    // 4) Products + PriceHistories
+        //    var products = await _context.Products
+        //        .Where(p => p.StoreId == storeId)
+        //        .Include(p => p.PriceHistories)
+        //        .ToListAsync();
+
+        //    // 5) Pętla po produktach
+        //    var vmList = new List<MappedProductViewModel>();
+
+        //    foreach (var product in products)
+        //    {
+        //        // A) Filtrujemy PriceHistories – najnowszy scrap + dopasowanie storeName
+        //        var relevantHistories = product.PriceHistories
+        //            .Where(ph => ph.ScrapHistoryId == latestScrap.Id)
+        //            .Where(ph => (ph.StoreName ?? "").ToLower() == myStoreName)
+        //            .ToList();
+
+        //        // B) Wybieramy Google i Ceneo
+        //        var googleHistory = relevantHistories
+        //            .Where(ph => ph.IsGoogle)
+        //            .OrderByDescending(ph => ph.Id)
+        //            .FirstOrDefault();
+
+        //        var ceneoHistory = relevantHistories
+        //            .Where(ph => !ph.IsGoogle)
+        //            .OrderByDescending(ph => ph.Id)
+        //            .FirstOrDefault();
+
+        //        decimal? googlePrice = googleHistory?.Price;
+        //        decimal? ceneoPrice = ceneoHistory?.Price;
+        //        decimal? diff = null;
+        //        if (googlePrice.HasValue && ceneoPrice.HasValue)
+        //            diff = googlePrice.Value - ceneoPrice.Value;
+
+        //        // C) Składamy MappedProductViewModel
+        //        var vm = new MappedProductViewModel
+        //        {
+        //            ProductId = product.ProductId,
+        //            ProductName = product.ProductName,
+        //            ExternalId = product.ExternalId,
+        //            Url = product.Url,
+        //            UrlCeneo = product.OfferUrl,
+        //            UrlGoogle = product.GoogleUrl,
+        //            IsScrapable = product.IsScrapable,
+        //            IsRejected = product.IsRejected,
+
+        //            HasGoogle = !string.IsNullOrEmpty(product.GoogleUrl),
+        //            HasCeneo = !string.IsNullOrEmpty(product.OfferUrl),
+
+        //            MainUrlCeneo = product.MainUrl,
+        //            MainUrlGoogle = product.ImgUrlGoogle,
+
+        //            NameCeneo = product.ExportedNameCeneo,
+        //            NameGoogle = product.ProductNameInStoreForGoogle,
+
+        //            EanCeneo = product.Ean,
+        //            EanGoogle = product.EanGoogle,
+
+        //            LastGooglePrice = googlePrice,
+        //            LastCeneoPrice = ceneoPrice,
+        //            PriceDifference = diff,
+        //            ScrapId = latestScrap.Id
+        //        };
+
+        //        vmList.Add(vm);
+        //    }
+
+        //    // 6) Filtr onlyMismatch
+        //    if (onlyMismatch)
+        //    {
+        //        vmList = vmList
+        //            .Where(vm => vm.LastGooglePrice.HasValue && vm.LastCeneoPrice.HasValue
+        //                         && vm.LastGooglePrice.Value != vm.LastCeneoPrice.Value)
+        //            .ToList();
+        //    }
+
+        //    // 7) Widok
+        //    ViewBag.StoreName = store.StoreName;
+        //    ViewBag.StoreId = storeId;
+        //    return View("~/Views/ManagerPanel/ProductMapping/MappedProducts.cshtml", vmList);
+        //}
+
         public async Task<IActionResult> MappedProducts(int storeId, bool onlyMismatch = false)
         {
-            // 1) Pobieramy sklep
+       
             var store = await _context.Stores.FindAsync(storeId);
             if (store == null)
                 return NotFound("Sklep nie znaleziony.");
 
-            // 2) Nazwa sklepu -> myStoreName
+          
             string storeName = store.StoreName ?? "";
             string myStoreName = storeName.ToLower();
 
-            // 3) Najnowszy scrap
+      
             var latestScrap = await _context.ScrapHistories
                 .Where(sh => sh.StoreId == storeId)
                 .OrderByDescending(sh => sh.Date)
                 .FirstOrDefaultAsync();
 
-            if (latestScrap == null)
-            {
-                ViewBag.StoreName = store.StoreName;
-                ViewBag.StoreId = storeId;
-                return View("~/Views/ManagerPanel/ProductMapping/MappedProducts.cshtml", new List<MappedProductViewModel>());
-            }
-
-            // 4) Products + PriceHistories
             var products = await _context.Products
                 .Where(p => p.StoreId == storeId)
+   
                 .Include(p => p.PriceHistories)
                 .ToListAsync();
 
-            // 5) Pętla po produktach
             var vmList = new List<MappedProductViewModel>();
 
             foreach (var product in products)
             {
-                // A) Filtrujemy PriceHistories – najnowszy scrap + dopasowanie storeName
-                var relevantHistories = product.PriceHistories
-                    .Where(ph => ph.ScrapHistoryId == latestScrap.Id)
-                    .Where(ph => (ph.StoreName ?? "").ToLower() == myStoreName)
-                    .ToList();
+                decimal? googlePrice = null; 
+                decimal? ceneoPrice = null;  
+                decimal? diff = null;      
+                int scrapId = 0;         
 
-                // B) Wybieramy Google i Ceneo
-                var googleHistory = relevantHistories
-                    .Where(ph => ph.IsGoogle)
-                    .OrderByDescending(ph => ph.Id)
-                    .FirstOrDefault();
+              
+                if (latestScrap != null)
+                {
+                    scrapId = latestScrap.Id; 
 
-                var ceneoHistory = relevantHistories
-                    .Where(ph => !ph.IsGoogle)
-                    .OrderByDescending(ph => ph.Id)
-                    .FirstOrDefault();
+           
+                    var relevantHistories = product.PriceHistories
+                        .Where(ph => ph.ScrapHistoryId == latestScrap.Id) 
+                        .Where(ph => (ph.StoreName ?? "").ToLower() == myStoreName)
+                        .ToList(); 
 
-                decimal? googlePrice = googleHistory?.Price;
-                decimal? ceneoPrice = ceneoHistory?.Price;
-                decimal? diff = null;
-                if (googlePrice.HasValue && ceneoPrice.HasValue)
-                    diff = googlePrice.Value - ceneoPrice.Value;
+               
+                    var googleHistory = relevantHistories
+                        .Where(ph => ph.IsGoogle)
+                        .OrderByDescending(ph => ph.Id) 
+                        .FirstOrDefault();
 
-                // C) Składamy MappedProductViewModel
+                    var ceneoHistory = relevantHistories
+                        .Where(ph => !ph.IsGoogle)
+                        .OrderByDescending(ph => ph.Id) 
+                        .FirstOrDefault();
+
+                    googlePrice = googleHistory?.Price;
+                    ceneoPrice = ceneoHistory?.Price;
+
+                    if (googlePrice.HasValue && ceneoPrice.HasValue)
+                        diff = googlePrice.Value - ceneoPrice.Value;
+                }
+
+               
                 var vm = new MappedProductViewModel
                 {
                     ProductId = product.ProductId,
@@ -155,16 +264,17 @@ namespace PriceSafari.Controllers.ManagerControllers
                     EanCeneo = product.Ean,
                     EanGoogle = product.EanGoogle,
 
+                
                     LastGooglePrice = googlePrice,
                     LastCeneoPrice = ceneoPrice,
                     PriceDifference = diff,
-                    ScrapId = latestScrap.Id
+                    ScrapId = scrapId 
                 };
 
                 vmList.Add(vm);
             }
 
-            // 6) Filtr onlyMismatch
+            // 6) Filtr onlyMismatch - działa poprawnie, bo sprawdza HasValue na cenach
             if (onlyMismatch)
             {
                 vmList = vmList
@@ -178,8 +288,6 @@ namespace PriceSafari.Controllers.ManagerControllers
             ViewBag.StoreId = storeId;
             return View("~/Views/ManagerPanel/ProductMapping/MappedProducts.cshtml", vmList);
         }
-
-
 
         public class MappedProductViewModel
         {
