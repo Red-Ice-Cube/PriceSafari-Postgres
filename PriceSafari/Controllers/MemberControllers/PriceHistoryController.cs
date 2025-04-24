@@ -1270,6 +1270,63 @@ namespace PriceSafari.Controllers.MemberControllers
             return View("~/Views/Panel/PriceHistory/PriceTrend.cshtml", product);
         }
 
+        //[HttpGet]
+        //public async Task<IActionResult> GetPriceTrendData(int productId)
+        //{
+        //    var product = await _context.Products.FindAsync(productId);
+        //    if (product == null)
+        //        return NotFound(new { Error = "Nie znaleziono produktu." });
+
+        //    if (!await UserHasAccessToStore(product.StoreId))
+        //        return Unauthorized(new { Error = "Nie ma takiego sklepu." });
+
+        //    var allScraps = await _context.ScrapHistories
+        //        .Where(sh => sh.StoreId == product.StoreId)
+        //        .ToListAsync();
+
+        //    var lastScraps = allScraps
+        //        .OrderByDescending(sh => sh.Date)
+        //        .Take(30)
+        //        .OrderBy(sh => sh.Date)
+        //        .ToList();
+
+        //    var scrapIds = lastScraps.Select(sh => sh.Id).ToList();
+
+        //    var allPriceHistoriesForProduct = await _context.PriceHistories
+        //        .Where(ph => ph.ProductId == productId)
+        //        .ToListAsync();
+
+        //    var relevantPriceHistories = allPriceHistoriesForProduct
+        //        .Where(ph => scrapIds.Contains(ph.ScrapHistoryId))
+        //        .ToList();
+
+        //    // Tutaj zmiana: ScrapDate jako string "yyyy-MM-dd"
+        //    // DODAJEMY pole: Source = (ph.IsGoogle == true) ? "google" : "ceneo"
+        //    var timelineData = lastScraps.Select(scrap => new
+        //    {
+        //        ScrapDate = scrap.Date.ToString("yyyy-MM-dd"), // tylko data, bez czasu
+        //        PricesByStore = relevantPriceHistories
+        //            .Where(ph => ph.ScrapHistoryId == scrap.Id)
+        //            .Select(ph => new
+        //            {
+        //                ph.StoreName,
+        //                ph.Price,
+        //                // Nowe pole - skąd pochodzi oferta
+        //                Source = (ph.IsGoogle == true) ? "google" : "ceneo"
+        //            })
+        //            .ToList()
+        //    })
+        //    .ToList();
+
+        //    return Json(new
+        //    {
+        //        ProductName = product.ProductName,
+        //        TimelineData = timelineData
+        //    });
+        //}
+
+
+
         [HttpGet]
         public async Task<IActionResult> GetPriceTrendData(int productId)
         {
@@ -1277,46 +1334,156 @@ namespace PriceSafari.Controllers.MemberControllers
             if (product == null)
                 return NotFound(new { Error = "Nie znaleziono produktu." });
 
-            if (!await UserHasAccessToStore(product.StoreId))
-                return Unauthorized(new { Error = "Nie ma takiego sklepu." });
+            var storeId = product.StoreId; // Pobieramy StoreId
 
-            var allScraps = await _context.ScrapHistories
-                .Where(sh => sh.StoreId == product.StoreId)
-                .ToListAsync();
+            if (!await UserHasAccessToStore(storeId))
+                return Unauthorized(new { Error = "Brak dostępu do sklepu." });
 
-            var lastScraps = allScraps
+            // --- Logika presetu i nazwy sklepu ---
+            var storeName = await _context.Stores
+                .Where(s => s.StoreId == storeId)
+                .Select(s => s.StoreName)
+                .FirstOrDefaultAsync();
+
+            if (string.IsNullOrEmpty(storeName))
+            {
+                return BadRequest(new { Error = "Nie można zidentyfikować nazwy sklepu." });
+            }
+
+            var activePreset = await _context.CompetitorPresets
+                .Include(x => x.CompetitorItems) // Dołączamy elementy presetu
+                .FirstOrDefaultAsync(cp => cp.StoreId == storeId && cp.NowInUse);
+            // --- Koniec logiki presetu ---
+
+
+            // Pobieramy OSTATNIE 30 scrapów (bez zmian)
+            var lastScraps = await _context.ScrapHistories
+                .Where(sh => sh.StoreId == storeId)
                 .OrderByDescending(sh => sh.Date)
                 .Take(30)
-                .OrderBy(sh => sh.Date)
-                .ToList();
+                .OrderBy(sh => sh.Date) // Upewniamy się, że są chronologicznie dla osi czasu
+                .ToListAsync();
 
             var scrapIds = lastScraps.Select(sh => sh.Id).ToList();
 
-            var allPriceHistoriesForProduct = await _context.PriceHistories
-                .Where(ph => ph.ProductId == productId)
-                .ToListAsync();
+            if (!scrapIds.Any())
+            {
+                return Json(new
+                {
+                    ProductName = product.ProductName,
+                    TimelineData = new List<object>()
+                });
+            }
 
-            var relevantPriceHistories = allPriceHistoriesForProduct
+            // === POCZĄTEK ZMIAN ===
+
+            // 1. Budujemy zapytanie DO BAZY DANYCH - ale BEZ filtra scrapIds.Contains()
+            IQueryable<PriceHistoryClass> baseQuery = _context.PriceHistories
+                .Where(ph => ph.ProductId == productId) // Tylko dla tego produktu
+                .Where(ph => ph.Price > 0);          // Cena musi być większa od 0
+
+            // 2. Filtrujemy W BAZIE wg presetu (SourceGoogle / SourceCeneo) - jeśli jest aktywny
+            if (activePreset != null)
+            {
+                if (!activePreset.SourceGoogle)
+                {
+                    baseQuery = baseQuery.Where(ph => ph.IsGoogle != true); // Wyklucz Google
+                }
+                if (!activePreset.SourceCeneo)
+                {
+                    // Zakładamy, że IsGoogle==true oznacza tylko Google, a reszta to Ceneo/inne
+                    baseQuery = baseQuery.Where(ph => ph.IsGoogle == true); // Wyklucz Ceneo/inne (zostaw Google)
+                                                                            // Upewnij się, że logika IsGoogle jest poprawna!
+                }
+            }
+
+            // 3. Pobieramy potencjalnie szerszy zestaw danych z bazy
+            var allPotentialHistories = await baseQuery.ToListAsync();
+
+            // 4. TERAZ filtrujemy w PAMIĘCI aplikacji po liście scrapIds
+            var rawFilteredHistories = allPotentialHistories
                 .Where(ph => scrapIds.Contains(ph.ScrapHistoryId))
                 .ToList();
 
-            // Tutaj zmiana: ScrapDate jako string "yyyy-MM-dd"
-            // DODAJEMY pole: Source = (ph.IsGoogle == true) ? "google" : "ceneo"
+            // === KONIEC ZMIAN ===
+
+
+            // --- Filtrowanie w PAMIĘCI wg presetu (UseCompetitor / UseUnmarkedStores) ---
+            // Ta część działa na `rawFilteredHistories` i pozostaje bez zmian
+            List<PriceHistoryClass> finalFilteredHistories;
+
+            if (activePreset != null)
+            {
+                var competitorItemsDict = activePreset.CompetitorItems
+                    .GroupBy(ci => new { Store = ci.StoreName.ToLower().Trim(), Source = ci.IsGoogle })
+                    .Select(g => g.First()) // Bierzemy pierwszy w razie duplikatów (StoreName + Source)
+                    .ToDictionary(
+                        x => new { Store = x.StoreName.ToLower().Trim(), Source = x.IsGoogle },
+                        x => x.UseCompetitor
+                    );
+
+                var storeNameLower = storeName.ToLower().Trim();
+                finalFilteredHistories = new List<PriceHistoryClass>();
+
+                foreach (var priceEntry in rawFilteredHistories) // Iterujemy po już przefiltrowanych po scrapId danych
+                {
+                    // Zawsze bierzemy nasz sklep
+                    // Sprawdzenie StoreName != null jest ważne
+                    if (priceEntry.StoreName != null &&
+                        priceEntry.StoreName.ToLower().Trim() == storeNameLower)
+                    {
+                        finalFilteredHistories.Add(priceEntry);
+                        continue; // Przejdź do następnego wpisu
+                    }
+
+                    // Sprawdzamy konkurentów wg presetu
+                    bool googleFlag = (priceEntry.IsGoogle == true); // Użyj IsGoogle bezpośrednio
+                                                                     // Obsługa potencjalnego nulla w StoreName
+                    var key = new { Store = (priceEntry.StoreName ?? "").ToLower().Trim(), Source = googleFlag };
+
+                    if (competitorItemsDict.TryGetValue(key, out bool useCompetitor))
+                    {
+                        // Znaleziono wpis w presecie
+                        if (useCompetitor)
+                        {
+                            finalFilteredHistories.Add(priceEntry);
+                        }
+                    }
+                    else
+                    {
+                        // Nie znaleziono wpisu w presecie - użyj flagi UseUnmarkedStores
+                        if (activePreset.UseUnmarkedStores)
+                        {
+                            finalFilteredHistories.Add(priceEntry);
+                        }
+                    }
+                }
+            }
+            else
+            {
+                // Brak presetu - bierzemy wszystko, co przeszło przez filtry DB (productId, Price > 0)
+                // i filtr scrapIds w pamięci
+                finalFilteredHistories = rawFilteredHistories;
+            }
+            // --- Koniec filtrowania w pamięci ---
+
+
+            // Budujemy dane dla osi czasu, używając PRZEFILTROWANEJ listy 'finalFilteredHistories'
+            // Ta część pozostaje bez zmian
             var timelineData = lastScraps.Select(scrap => new
             {
-                ScrapDate = scrap.Date.ToString("yyyy-MM-dd"), // tylko data, bez czasu
-                PricesByStore = relevantPriceHistories
-                    .Where(ph => ph.ScrapHistoryId == scrap.Id)
+                ScrapDate = scrap.Date.ToString("yyyy-MM-dd"), // tylko data
+                PricesByStore = finalFilteredHistories // Używamy ostatecznie przefiltrowanej listy
+                    .Where(ph => ph.ScrapHistoryId == scrap.Id) // Wybieramy dane dla TEGO scrapa
                     .Select(ph => new
                     {
                         ph.StoreName,
                         ph.Price,
-                        // Nowe pole - skąd pochodzi oferta
-                        Source = (ph.IsGoogle == true) ? "google" : "ceneo"
+                        Source = (ph.IsGoogle == true) ? "google" : "ceneo" // Zachowujemy pole Source
                     })
-                    .ToList()
+                    .ToList() // Tworzymy listę cen dla danego dnia
             })
-            .ToList();
+            .ToList(); // Tworzymy listę dni z cenami
 
             return Json(new
             {
