@@ -312,7 +312,6 @@ namespace PriceSafari.Controllers.ManagerControllers
             var simplifiedName = Regex.Replace(name, @"[^\w]", "").ToUpperInvariant();
             return simplifiedName;
         }
-
         private void MergeProductData(ProductClass mainProduct, ProductClass duplicateProduct)
         {
 
@@ -340,12 +339,6 @@ namespace PriceSafari.Controllers.ManagerControllers
             if (!mainProduct.ExternalPrice.HasValue && duplicateProduct.ExternalPrice.HasValue)
                 mainProduct.ExternalPrice = duplicateProduct.ExternalPrice;
 
-            if (mainProduct.IsScrapable != duplicateProduct.IsScrapable)
-                mainProduct.IsScrapable = mainProduct.IsScrapable || duplicateProduct.IsScrapable;
-
-            if (mainProduct.IsRejected != duplicateProduct.IsRejected)
-                mainProduct.IsRejected = mainProduct.IsRejected && duplicateProduct.IsRejected;
-
             if (string.IsNullOrEmpty(mainProduct.ExportedNameCeneo) && !string.IsNullOrEmpty(duplicateProduct.ExportedNameCeneo))
                 mainProduct.ExportedNameCeneo = duplicateProduct.ExportedNameCeneo;
 
@@ -367,21 +360,45 @@ namespace PriceSafari.Controllers.ManagerControllers
             if (!mainProduct.FoundOnGoogle.HasValue && duplicateProduct.FoundOnGoogle.HasValue)
                 mainProduct.FoundOnGoogle = duplicateProduct.FoundOnGoogle;
 
+            if (!mainProduct.IsScrapable && duplicateProduct.IsScrapable)
+                mainProduct.IsScrapable = true;
+
+            if (!mainProduct.IsRejected && duplicateProduct.IsRejected)
+                mainProduct.IsRejected = true;
+
             if (!mainProduct.MarginPrice.HasValue && duplicateProduct.MarginPrice.HasValue)
                 mainProduct.MarginPrice = duplicateProduct.MarginPrice;
 
-            foreach (var priceHistory in duplicateProduct.PriceHistories)
+            if (!mainProduct.CeneoXMLPrice.HasValue && duplicateProduct.CeneoXMLPrice.HasValue)
+                mainProduct.CeneoXMLPrice = duplicateProduct.CeneoXMLPrice;
+
+            if (!mainProduct.CeneoDeliveryXMLPrice.HasValue && duplicateProduct.CeneoDeliveryXMLPrice.HasValue)
+                mainProduct.CeneoDeliveryXMLPrice = duplicateProduct.CeneoDeliveryXMLPrice;
+
+            if (!mainProduct.GoogleXMLPrice.HasValue && duplicateProduct.GoogleXMLPrice.HasValue)
+                mainProduct.GoogleXMLPrice = duplicateProduct.GoogleXMLPrice;
+
+            if (!mainProduct.GoogleDeliveryXMLPrice.HasValue && duplicateProduct.GoogleDeliveryXMLPrice.HasValue)
+                mainProduct.GoogleDeliveryXMLPrice = duplicateProduct.GoogleDeliveryXMLPrice;
+
+            mainProduct.PriceHistories ??= new List<PriceHistoryClass>();
+            foreach (var priceHistory in duplicateProduct.PriceHistories ?? Enumerable.Empty<PriceHistoryClass>())
             {
+
                 if (!mainProduct.PriceHistories.Contains(priceHistory))
                 {
+
                     mainProduct.PriceHistories.Add(priceHistory);
                 }
             }
 
-            foreach (var productFlag in duplicateProduct.ProductFlags)
+            mainProduct.ProductFlags ??= new List<ProductFlag>();
+            foreach (var productFlag in duplicateProduct.ProductFlags ?? Enumerable.Empty<ProductFlag>())
             {
+
                 if (!mainProduct.ProductFlags.Contains(productFlag))
                 {
+
                     mainProduct.ProductFlags.Add(productFlag);
                 }
             }
@@ -437,110 +454,95 @@ namespace PriceSafari.Controllers.ManagerControllers
 
         private void MapProductFields(ProductClass product, ProductMap mappedProduct, bool addGooglePrices)
         {
-            // --- Istniejące mapowania (bez zmian) ---
 
-            // Upewnij się, że ExternalId jest przypisany tylko raz (np. przy tworzeniu)
-            // lub jeśli w produkcie docelowym jest null
             if (!product.ExternalId.HasValue && int.TryParse(mappedProduct.ExternalId, out var externalId))
             {
                 product.ExternalId = externalId;
             }
 
-            // Uzupełnij URL, jeśli jest pusty w produkcie docelowym
             if (string.IsNullOrEmpty(product.Url))
             {
                 product.Url = mappedProduct.Url;
             }
 
-            // Mapowanie nazw (z preferencją dla Google, ale zachowując Ceneo)
             if (!string.IsNullOrEmpty(mappedProduct.GoogleExportedName))
             {
-                // Użyj nazwy Google jako głównej i specyficznej dla Google
-                if (string.IsNullOrEmpty(product.ProductName)) // Aktualizuj tylko jeśli puste
+
+                if (string.IsNullOrEmpty(product.ProductName))
                     product.ProductName = mappedProduct.GoogleExportedName;
-                if (string.IsNullOrEmpty(product.ProductNameInStoreForGoogle)) // Aktualizuj tylko jeśli puste
+                if (string.IsNullOrEmpty(product.ProductNameInStoreForGoogle))
                     product.ProductNameInStoreForGoogle = mappedProduct.GoogleExportedName;
 
-                // Jeśli nazwa Ceneo z mapy istnieje, zapisz ją w polu Ceneo
-                if (!string.IsNullOrEmpty(mappedProduct.ExportedName) && string.IsNullOrEmpty(product.ExportedNameCeneo)) // Aktualizuj tylko jeśli puste
+                if (!string.IsNullOrEmpty(mappedProduct.ExportedName) && string.IsNullOrEmpty(product.ExportedNameCeneo))
                 {
                     product.ExportedNameCeneo = mappedProduct.ExportedName;
                 }
             }
             else if (!string.IsNullOrEmpty(mappedProduct.ExportedName))
             {
-                // Jeśli nie ma nazwy Google, użyj nazwy Ceneo jako głównej i specyficznej dla Ceneo
-                if (string.IsNullOrEmpty(product.ProductName)) // Aktualizuj tylko jeśli puste
+
+                if (string.IsNullOrEmpty(product.ProductName))
                     product.ProductName = mappedProduct.ExportedName;
-                if (string.IsNullOrEmpty(product.ExportedNameCeneo)) // Aktualizuj tylko jeśli puste
+                if (string.IsNullOrEmpty(product.ExportedNameCeneo))
                     product.ExportedNameCeneo = mappedProduct.ExportedName;
             }
             else
             {
-                // Domyślna nazwa, jeśli obie są puste w mapie i główna jest pusta w produkcie
+
                 if (string.IsNullOrEmpty(product.ProductName))
                     product.ProductName = "Brak nazwy produktu";
             }
 
-            // Mapowanie EAN (z preferencją dla Google)
             if (!string.IsNullOrEmpty(mappedProduct.GoogleEan))
             {
-                if (string.IsNullOrEmpty(product.EanGoogle)) // Aktualizuj tylko jeśli puste
+                if (string.IsNullOrEmpty(product.EanGoogle))
                     product.EanGoogle = mappedProduct.GoogleEan;
-                if (string.IsNullOrEmpty(product.Ean)) // Aktualizuj główny EAN tylko jeśli pusty
+                if (string.IsNullOrEmpty(product.Ean))
                     product.Ean = mappedProduct.GoogleEan;
             }
             else if (!string.IsNullOrEmpty(mappedProduct.Ean))
             {
-                if (string.IsNullOrEmpty(product.Ean)) // Aktualizuj główny EAN tylko jeśli pusty
+                if (string.IsNullOrEmpty(product.Ean))
                     product.Ean = mappedProduct.Ean;
             }
 
-            // Mapowanie obrazka (z preferencją dla Google)
             if (!string.IsNullOrEmpty(mappedProduct.GoogleImage))
             {
-                if (string.IsNullOrEmpty(product.ImgUrlGoogle)) // Aktualizuj tylko jeśli puste
+                if (string.IsNullOrEmpty(product.ImgUrlGoogle))
                     product.ImgUrlGoogle = mappedProduct.GoogleImage;
-                if (string.IsNullOrEmpty(product.MainUrl)) // Aktualizuj główny URL obrazka tylko jeśli pusty
+                if (string.IsNullOrEmpty(product.MainUrl))
                     product.MainUrl = mappedProduct.GoogleImage;
             }
             else if (!string.IsNullOrEmpty(mappedProduct.MainUrl))
             {
-                if (string.IsNullOrEmpty(product.MainUrl)) // Aktualizuj główny URL obrazka tylko jeśli pusty
+                if (string.IsNullOrEmpty(product.MainUrl))
                     product.MainUrl = mappedProduct.MainUrl;
             }
 
-            // --- Mapowanie cen Google z XML (warunkowe) ---
             if (addGooglePrices)
             {
-                // Przypisz cenę Google z XML, jeśli istnieje w mapie
+
                 if (mappedProduct.GoogleXMLPrice.HasValue)
                 {
                     product.GoogleXMLPrice = mappedProduct.GoogleXMLPrice;
                 }
-                // Przypisz cenę dostawy Google z XML, jeśli istnieje w mapie
+
                 if (mappedProduct.GoogleDeliveryXMLPrice.HasValue)
                 {
                     product.GoogleDeliveryXMLPrice = mappedProduct.GoogleDeliveryXMLPrice;
                 }
             }
 
-            // --- NOWE: Mapowanie cen Ceneo z XML (bezwarunkowe, ale sprawdza HasValue) ---
-
-            // Przypisz cenę Ceneo z XML, jeśli istnieje w mapie
             if (mappedProduct.CeneoXMLPrice.HasValue)
             {
                 product.CeneoXMLPrice = mappedProduct.CeneoXMLPrice;
             }
-            // Przypisz cenę dostawy Ceneo z XML, jeśli istnieje w mapie
+
             if (mappedProduct.CeneoDeliveryXMLPrice.HasValue)
             {
                 product.CeneoDeliveryXMLPrice = mappedProduct.CeneoDeliveryXMLPrice;
             }
 
-            // UWAGA: Możesz chcieć dodać logikę aktualizacji innych pól, np. IsScrapable, IsRejected,
-            // w zależności od tego, czy dane z ProductMap mają nadpisywać istniejące wartości w ProductClass.
-            // Obecna logika głównie uzupełnia brakujące dane, z wyjątkiem cen XML.
         }
 
         [HttpPost]

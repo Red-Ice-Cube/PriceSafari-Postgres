@@ -1,16 +1,12 @@
-﻿using ChartJs.Blazor.ChartJS.Common.Enums;
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
 using PriceSafari.Data;
 using PriceSafari.Models;
 using PriceSafari.ViewModels;
-using System.Net.Http.Headers;
 using System.Security.Claims;
-using System.Xml.Linq;
 using Microsoft.AspNetCore.SignalR;
 using PriceSafari.Hubs;
 using PriceSafari.Models.ViewModels;
@@ -88,9 +84,6 @@ namespace PriceSafari.Controllers.MemberControllers
                 .Select(sn => sn.StoreLogoUrl)
                 .FirstOrDefaultAsync();
 
-
-       
-
             var scrapedproducts = await _context.Products
                 .Where(p => p.StoreId == storeId && p.IsScrapable)
                 .CountAsync();
@@ -102,16 +95,12 @@ namespace PriceSafari.Controllers.MemberControllers
             ViewBag.LatestScrap = latestScrap;
             ViewBag.StoreId = storeId;
             ViewBag.StoreName = storeName;
-            ViewBag.StoreLogo = storeLogo;          
+            ViewBag.StoreLogo = storeLogo;
             ViewBag.Flags = flags;
             ViewBag.ScrapedProducts = scrapedproducts;
 
             return View("~/Views/Panel/PriceHistory/Index.cshtml");
         }
-
-
-
-
 
         [HttpGet]
         public async Task<IActionResult> GetPrices(int? storeId)
@@ -135,7 +124,6 @@ namespace PriceSafari.Controllers.MemberControllers
                 return Json(new { error = "Nie ma takiego sklepu" });
             }
 
-            // 1. Pobieramy najnowszą historię scrapu
             var latestScrap = await _context.ScrapHistories
                 .Where(sh => sh.StoreId == storeId)
                 .OrderByDescending(sh => sh.Date)
@@ -156,13 +144,11 @@ namespace PriceSafari.Controllers.MemberControllers
                 });
             }
 
-            // 2. Nazwa naszego sklepu
             var storeName = await _context.Stores
                 .Where(s => s.StoreId == storeId)
                 .Select(s => s.StoreName)
                 .FirstOrDefaultAsync();
 
-            // 3. Pobieramy ustawienia cenowe
             var priceValues = await _context.PriceValues
                 .Where(pv => pv.StoreId == storeId)
                 .Select(pv => new
@@ -183,12 +169,11 @@ namespace PriceSafari.Controllers.MemberControllers
                     PriceStep = 2.00m,
                     UsePriceDiff = true,
                     UseEanForSimulation = true,
-                    UseMarginForSimulation = true,          
+                    UseMarginForSimulation = true,
                     EnforceMinimalMargin = true,
                     MinimalMarginPercent = 0.00m
                 };
 
-            // 4. Podstawowe zapytanie (wszyscy scrapowalni w ostatnim scrapie)
             var baseQuery = from p in _context.Products
                             where p.StoreId == storeId && p.IsScrapable
                             join ph in _context.PriceHistories
@@ -209,7 +194,6 @@ namespace PriceSafari.Controllers.MemberControllers
                                 IsRejected = p.IsRejected
                             };
 
-            // 5. Sprawdzamy, czy istnieje aktywny preset
             var activePreset = await _context.CompetitorPresets
                 .Include(x => x.CompetitorItems)
                 .FirstOrDefaultAsync(cp => cp.StoreId == storeId && cp.NowInUse);
@@ -218,16 +202,14 @@ namespace PriceSafari.Controllers.MemberControllers
 
             if (activePreset != null)
             {
-                // a) Nazwa preset-u
+
                 activePresetName = activePreset.PresetName;
 
-                // b) Filtrujemy w BAZIE: Google / Ceneo
-                //    (jeśli w presecie SourceGoogle = false -> wykluczamy Google)
                 if (!activePreset.SourceGoogle)
                 {
                     baseQuery = baseQuery.Where(p => p.IsGoogle != true);
                 }
-                //    (jeśli w presecie SourceCeneo = false -> wykluczamy Ceneo)
+
                 if (!activePreset.SourceCeneo)
                 {
                     baseQuery = baseQuery.Where(p => p.IsGoogle == true);
@@ -235,20 +217,17 @@ namespace PriceSafari.Controllers.MemberControllers
             }
             else
             {
-                // Jeśli brak presetu -> bierzemy wszystko
-                // (żadnego dodatkowego filtra, bo user prosił "brak preset = bierz wszystko")
+
             }
 
-            // 6. Pobieramy surowe dane z bazy
-            var rawPrices = await baseQuery.ToListAsync(); // List<PriceRowDto>
+            var rawPrices = await baseQuery.ToListAsync();
 
-            // 7. Jeśli jest preset -> filtrujemy w pamięci wg UseCompetitor, UseUnmarkedStores
             if (activePreset != null)
             {
                 var competitorItemsDict = activePreset.CompetitorItems
                     .GroupBy(ci => new {
                         Store = ci.StoreName.ToLower().Trim(),
-                        Source = ci.IsGoogle // bool
+                        Source = ci.IsGoogle
                     })
                     .Select(g => g.First())
                     .ToDictionary(
@@ -264,7 +243,7 @@ namespace PriceSafari.Controllers.MemberControllers
 
                 foreach (var row in rawPrices)
                 {
-                    // Zawsze bierzemy nasz sklep
+
                     if (row.StoreName != null &&
                         row.StoreName.ToLower().Trim() == storeNameLower)
                     {
@@ -272,7 +251,6 @@ namespace PriceSafari.Controllers.MemberControllers
                         continue;
                     }
 
-                    // Klucz do dictionary
                     bool googleFlag = (row.IsGoogle == true);
                     var key = new
                     {
@@ -282,12 +260,12 @@ namespace PriceSafari.Controllers.MemberControllers
 
                     if (competitorItemsDict.TryGetValue(key, out bool useCompetitor))
                     {
-                        // Jeśli w presecie mamy zdefiniowane -> bierzemy tylko gdy useCompetitor = true
+
                         if (useCompetitor) filteredPrices.Add(row);
                     }
                     else
                     {
-                        // Sklep nieopisany w presecie -> sprawdzamy UseUnmarkedStores
+
                         if (activePreset.UseUnmarkedStores)
                             filteredPrices.Add(row);
                     }
@@ -296,7 +274,6 @@ namespace PriceSafari.Controllers.MemberControllers
                 rawPrices = filteredPrices;
             }
 
-            // 9. Pobieramy flagi
             var storeFlags = await _context.Flags
                 .Where(f => f.StoreId == storeId)
                 .ToListAsync();
@@ -312,7 +289,6 @@ namespace PriceSafari.Controllers.MemberControllers
                     g => g.Select(pf => pf.FlagId).ToList()
                 );
 
-            // 10. Pobieramy info z external
             var productsWithExternalInfo = await _context.Products
                 .Where(p => p.StoreId == storeId && p.ExternalId.HasValue)
                 .Select(p => new
@@ -339,7 +315,6 @@ namespace PriceSafari.Controllers.MemberControllers
                     }
                 );
 
-            // 11. Liczymy finalne 'allPrices' (grupujemy i obliczamy bestPrice itd.)
             var allPrices = rawPrices
                 .GroupBy(p => p.ProductId)
                 .Select(g =>
@@ -354,7 +329,6 @@ namespace PriceSafari.Controllers.MemberControllers
                     bool sourceGoogle = g.Any(x => x.IsGoogle == true);
                     bool sourceCeneo = g.Any(x => x.IsGoogle == false);
 
-                    // "nasza" oferta
                     var myPriceEntries = g.Where(x =>
                         x.StoreName != null &&
                         x.StoreName.ToLower() == storeName.ToLower()
@@ -363,7 +337,6 @@ namespace PriceSafari.Controllers.MemberControllers
                         .OrderByDescending(x => x.IsGoogle == false)
                         .FirstOrDefault();
 
-                    // oferty z ceną
                     var validPrices = g.Where(x => x.Price.HasValue).ToList();
 
                     bool onlyMe = validPrices.Count() > 0 &&
@@ -372,7 +345,6 @@ namespace PriceSafari.Controllers.MemberControllers
                                       x.StoreName.ToLower() == storeName.ToLower()
                                   );
 
-                    // Najniższa
                     var bestPriceEntry = validPrices
                         .OrderBy(x => x.Price)
                         .ThenBy(x => x.StoreName)
@@ -450,7 +422,7 @@ namespace PriceSafari.Controllers.MemberControllers
                             }
                             else
                             {
-                                // Remis z innym sklepem
+
                                 isUniqueBestPrice = false;
                                 savings = null;
                                 priceDifference = Math.Round(myPrice.Value - bestPrice.Value, 2);
@@ -464,7 +436,7 @@ namespace PriceSafari.Controllers.MemberControllers
                         }
                         else
                         {
-                            // My mamy wyższą cenę
+
                             isUniqueBestPrice = false;
                             priceDifference = Math.Round(myPrice.Value - bestPrice.Value, 2);
                             if (bestPrice.Value > 0)
@@ -489,7 +461,7 @@ namespace PriceSafari.Controllers.MemberControllers
                                 bestPriceEntry = nonMyBest;
                             }
                         }
-                        
+
                     }
 
                     if (onlyMe)
@@ -510,7 +482,6 @@ namespace PriceSafari.Controllers.MemberControllers
                         externalBestPriceCount = 0;
                     }
 
-                    // SingleBestCheaperDiff
                     decimal? singleBestCheaperDiff = null;
                     decimal? singleBestCheaperDiffPerc = null;
 
@@ -550,7 +521,6 @@ namespace PriceSafari.Controllers.MemberControllers
                         }
                     }
 
-                    // Budujemy obiekt anonimowy
                     return new
                     {
                         ProductId = product.ProductId,
@@ -612,8 +582,6 @@ namespace PriceSafari.Controllers.MemberControllers
 
             var missedProductsCount = allPrices.Count(p => p.IsRejected);
 
-            // Zwracamy finalne dane
-           
             return Json(new
             {
                 productCount = allPrices.Count(),
@@ -633,10 +601,9 @@ namespace PriceSafari.Controllers.MemberControllers
                 presetName = activePresetName ?? "PriceSafari"
 
             });
-               
+
         }
 
-  
         public class PriceRowDto
         {
             public int ProductId { get; set; }
@@ -652,20 +619,10 @@ namespace PriceSafari.Controllers.MemberControllers
             public bool IsRejected { get; set; }
         }
 
-
-
-
-
-
-
-
-
-
-        // 1) Lista dostępnych presetów (bez detali)
         [HttpGet]
         public async Task<IActionResult> GetPresets(int storeId)
         {
-            // Sprawdź uprawnienia
+
             if (!await UserHasAccessToStore(storeId))
             {
                 return BadRequest("Nie ma takiego sklepu lub brak dostępu.");
@@ -684,7 +641,6 @@ namespace PriceSafari.Controllers.MemberControllers
             return Json(presets);
         }
 
-        // 2) Szczegółowe dane wybranego presetu
         [HttpGet]
         public async Task<IActionResult> GetPresetDetails(int presetId)
         {
@@ -718,7 +674,6 @@ namespace PriceSafari.Controllers.MemberControllers
             return Json(result);
         }
 
-        // 3) Dla załadowania danych o konkurencji w ostatnim scrapie (bez zmian):
         [HttpGet]
         public async Task<IActionResult> GetCompetitorStoresData(int storeId, string ourSource = "All")
         {
@@ -727,7 +682,6 @@ namespace PriceSafari.Controllers.MemberControllers
                 return Json(new { error = "Nie ma takiego sklepu" });
             }
 
-            // Nazwa naszego sklepu
             var storeName = await _context.Stores
                 .Where(s => s.StoreId == storeId)
                 .Select(s => s.StoreName)
@@ -741,7 +695,7 @@ namespace PriceSafari.Controllers.MemberControllers
 
             if (latestScrap == null)
             {
-                // Brak danych => pusty wynik
+
                 return Json(new { data = new List<object>() });
             }
 
@@ -749,7 +703,6 @@ namespace PriceSafari.Controllers.MemberControllers
                 .Where(ph => ph.ScrapHistoryId == latestScrap.Id
                           && ph.StoreName.ToLower() == storeName.ToLower());
 
-            // Filtr "ourSource"
             switch (ourSource?.ToLower())
             {
                 case "google":
@@ -760,7 +713,7 @@ namespace PriceSafari.Controllers.MemberControllers
                     break;
                 case "all":
                 default:
-                    // bez filtrowania
+
                     break;
             }
 
@@ -769,7 +722,6 @@ namespace PriceSafari.Controllers.MemberControllers
                 .Distinct()
                 .ToListAsync();
 
-            // Konkurencja
             var competitorPrices = await _context.PriceHistories
                 .Where(ph => ph.ScrapHistoryId == latestScrap.Id
                           && ph.StoreName.ToLower() != storeName.ToLower())
@@ -803,7 +755,6 @@ namespace PriceSafari.Controllers.MemberControllers
             return Json(new { data = competitors });
         }
 
-     
         [HttpPost]
         public async Task<IActionResult> SaveOrUpdatePreset([FromBody] CompetitorPresetViewModel model)
         {
@@ -812,7 +763,6 @@ namespace PriceSafari.Controllers.MemberControllers
                 return BadRequest("Brak dostępu do sklepu.");
             }
 
-            // Gdy presetId == 0 -> tworzymy nowy
             CompetitorPresetClass preset;
             if (model.PresetId == 0)
             {
@@ -835,12 +785,10 @@ namespace PriceSafari.Controllers.MemberControllers
                     return BadRequest("Błędny storeId dla tego presetu.");
             }
 
-            // Ustaw podstawowe pola
             preset.PresetName = string.IsNullOrWhiteSpace(model.PresetName)
                 ? "No Name"
                 : model.PresetName.Trim();
 
-            // Jeśli nowInUse=true -> wyłącz w innych
             if (model.NowInUse)
             {
                 var others = await _context.CompetitorPresets
@@ -858,10 +806,9 @@ namespace PriceSafari.Controllers.MemberControllers
 
             if (model.Competitors != null)
             {
-                // Czyścimy istniejące
+
                 preset.CompetitorItems.Clear();
 
-                // Dodajemy z requesta
                 foreach (var c in model.Competitors)
                 {
                     preset.CompetitorItems.Add(new CompetitorPresetItem
@@ -882,22 +829,19 @@ namespace PriceSafari.Controllers.MemberControllers
             });
         }
 
-
         [HttpPost]
         public async Task<IActionResult> DeactivateAllPresets(int storeId)
         {
-            // Sprawdź uprawnienia do sklepu
+
             if (!await UserHasAccessToStore(storeId))
             {
                 return BadRequest("Brak dostępu do sklepu.");
             }
 
-            // Pobierz wszystkie aktywne presety dla tego sklepu
             var activePresets = await _context.CompetitorPresets
                 .Where(p => p.StoreId == storeId && p.NowInUse)
                 .ToListAsync();
 
-            // Ustaw flagę NowInUse na false dla każdego aktywnego presetu
             foreach (var preset in activePresets)
             {
                 preset.NowInUse = false;
@@ -911,7 +855,7 @@ namespace PriceSafari.Controllers.MemberControllers
         [HttpPost]
         public async Task<IActionResult> DeletePreset(int presetId)
         {
-            // Pobierz preset wraz z powiązanymi elementami
+
             var preset = await _context.CompetitorPresets
                 .Include(p => p.CompetitorItems)
                 .FirstOrDefaultAsync(p => p.PresetId == presetId);
@@ -919,22 +863,17 @@ namespace PriceSafari.Controllers.MemberControllers
             if (preset == null)
                 return NotFound("Preset nie istnieje.");
 
-            // Sprawdź uprawnienia do sklepu, do którego należy preset
             if (!await UserHasAccessToStore(preset.StoreId))
                 return BadRequest("Brak dostępu do sklepu.");
 
-            // Usuwamy powiązania – jeśli nie korzystamy z kaskadowego usuwania
             _context.CompetitorPresetItems.RemoveRange(preset.CompetitorItems);
 
-            // Usuwamy główny rekord presetu
             _context.CompetitorPresets.Remove(preset);
 
             await _context.SaveChangesAsync();
 
             return Ok(new { success = true });
         }
-
-
 
         [HttpPost]
         public async Task<IActionResult> SavePriceValues([FromBody] PriceValuesViewModel model)
@@ -961,7 +900,7 @@ namespace PriceSafari.Controllers.MemberControllers
                     SetPrice1 = model.SetPrice1,
                     SetPrice2 = model.SetPrice2,
                     PriceStep = model.PriceStep,
-                    UsePriceDiff = model.usePriceDiff // Używamy 'UsePriceDiff'
+                    UsePriceDiff = model.usePriceDiff
                 };
                 _context.PriceValues.Add(priceValues);
             }
@@ -970,15 +909,13 @@ namespace PriceSafari.Controllers.MemberControllers
                 priceValues.SetPrice1 = model.SetPrice1;
                 priceValues.SetPrice2 = model.SetPrice2;
                 priceValues.PriceStep = model.PriceStep;
-                priceValues.UsePriceDiff = model.usePriceDiff; // Używamy 'UsePriceDiff'
+                priceValues.UsePriceDiff = model.usePriceDiff;
                 _context.PriceValues.Update(priceValues);
             }
 
             await _context.SaveChangesAsync();
             return Json(new { success = true, message = "Price values updated successfully." });
         }
-
-
 
         public async Task<IActionResult> Details(int scrapId, int productId)
         {
@@ -988,14 +925,13 @@ namespace PriceSafari.Controllers.MemberControllers
                 return NotFound("Nie znaleziono historii scrapowania.");
             }
 
-            var storeId = scrapHistory.StoreId; // Pobieramy StoreId
+            var storeId = scrapHistory.StoreId;
 
             if (!await UserHasAccessToStore(storeId))
             {
                 return Content("Brak dostępu do sklepu lub sklep nie istnieje.");
             }
 
-            // Pobieramy nazwę naszego sklepu (potrzebna do filtrowania w pamięci)
             var storeName = await _context.Stores
                 .Where(s => s.StoreId == storeId)
                 .Select(s => s.StoreName)
@@ -1003,68 +939,55 @@ namespace PriceSafari.Controllers.MemberControllers
 
             if (string.IsNullOrEmpty(storeName))
             {
-                // Obsługa błędu - sklep o danym ID nie ma nazwy? Lub StoreId jest niepoprawne.
+
                 return Content("Nie można zidentyfikować nazwy sklepu.");
             }
 
-            // --- Logika sprawdzania presetu ---
             var activePreset = await _context.CompetitorPresets
-                .Include(x => x.CompetitorItems) // Ważne: dołączamy elementy presetu
+                .Include(x => x.CompetitorItems)
                 .FirstOrDefaultAsync(cp => cp.StoreId == storeId && cp.NowInUse);
-
 
             string activePresetName = null;
 
-            // 1. Zaczynamy od podstawowego IQueryable i stosujemy pierwszy Where
             IQueryable<PriceHistoryClass> query = _context.PriceHistories
                 .Where(ph => ph.ScrapHistoryId == scrapId && ph.ProductId == productId);
 
             if (activePreset != null)
             {
-                activePresetName = activePreset.PresetName; // Zapisujemy nazwę na później
+                activePresetName = activePreset.PresetName;
 
-                // 2. Warunkowo dodajemy kolejne filtry Where
                 if (!activePreset.SourceGoogle)
                 {
-                    // Przypisujemy wynik Where z powrotem do query (typ IQueryable jest zachowany)
-                    query = query.Where(ph => ph.IsGoogle != true); // Wyklucz Google (zostaw Ceneo/null)
+
+                    query = query.Where(ph => ph.IsGoogle != true);
                 }
                 if (!activePreset.SourceCeneo)
                 {
-                    // Zakładając, że IsGoogle == true to Google, a IsGoogle == false/null to Ceneo/inne
-                    // Przypisujemy wynik Where z powrotem do query
-                    query = query.Where(ph => ph.IsGoogle == true); // Wyklucz Ceneo/inne (zostaw Google)
-                    // WAŻNE: Jeszcze raz sprawdź, czy ta logika IsGoogle jest poprawna dla Ceneo/Google.
-                    // Jeśli IsGoogle==false oznacza Ceneo, to warunek powinien być inny, np.:
-                    // query = query.Where(ph => ph.IsGoogle == true || ph.IsGoogle == null);
-                    // Trzymam się jednak kodu z GetPrices dla spójności - popraw jeśli trzeba.
+
+                    query = query.Where(ph => ph.IsGoogle == true);
+
                 }
             }
-            // Jeśli brak presetu, query pozostaje z tylko pierwszym Where.
 
-            // 3. Dopiero teraz, po wszystkich Where, dodajemy Include
-            //    Nie musimy przypisywać wyniku do nowej zmiennej, jeśli od razu wywołujemy ToListAsync
             var rawPrices = await query.Include(ph => ph.Product).ToListAsync();
 
-            // --- Filtrowanie w PAMIĘCI (jeśli jest preset) ---
-            List<PriceHistoryClass> filteredPrices; // Używamy poprawnej nazwy klasy
-
+            List<PriceHistoryClass> filteredPrices;
 
             if (activePreset != null)
             {
-                // Tworzymy słownik do szybkiego sprawdzania ustawień dla konkurentów
+
                 var competitorItemsDict = activePreset.CompetitorItems
                         .GroupBy(ci => new {
                             Store = ci.StoreName.ToLower().Trim(),
-                            Source = ci.IsGoogle // bool
+                            Source = ci.IsGoogle
                         })
-                        .Select(g => g.First()) // Bierzemy pierwszy w razie duplikatów
+                        .Select(g => g.First())
                         .ToDictionary(
                             x => new {
                                 Store = x.StoreName.ToLower().Trim(),
                                 Source = x.IsGoogle
                             },
-                            x => x.UseCompetitor // Wartość: bool (czy używać tego konkurenta)
+                            x => x.UseCompetitor
                         );
 
                 var storeNameLower = storeName.ToLower().Trim();
@@ -1072,7 +995,7 @@ namespace PriceSafari.Controllers.MemberControllers
 
                 foreach (var priceEntry in rawPrices)
                 {
-                    // Zawsze bierzemy nasz sklep
+
                     if (priceEntry.StoreName != null &&
                         priceEntry.StoreName.ToLower().Trim() == storeNameLower)
                     {
@@ -1080,7 +1003,6 @@ namespace PriceSafari.Controllers.MemberControllers
                         continue;
                     }
 
-                    // Klucz do słownika dla bieżącego wpisu ceny
                     bool googleFlag = (priceEntry.IsGoogle == true);
                     var key = new
                     {
@@ -1090,7 +1012,7 @@ namespace PriceSafari.Controllers.MemberControllers
 
                     if (competitorItemsDict.TryGetValue(key, out bool useCompetitor))
                     {
-                        // Sklep znaleziony w presecie -> bierzemy tylko jeśli useCompetitor = true
+
                         if (useCompetitor)
                         {
                             filteredPrices.Add(priceEntry);
@@ -1098,7 +1020,7 @@ namespace PriceSafari.Controllers.MemberControllers
                     }
                     else
                     {
-                        // Sklep nieopisany w presecie -> sprawdzamy flagę UseUnmarkedStores
+
                         if (activePreset.UseUnmarkedStores)
                         {
                             filteredPrices.Add(priceEntry);
@@ -1108,47 +1030,39 @@ namespace PriceSafari.Controllers.MemberControllers
             }
             else
             {
-                // Jeśli nie ma aktywnego presetu, bierzemy wszystkie pobrane ceny
+
                 filteredPrices = rawPrices;
             }
 
-            // --- Koniec logiki filtrowania presetem ---
-
-            // Sortujemy ostateczną (przefiltrowaną) listę
-            // Najpierw sortujemy po cenie, a w przypadku remisu po nazwie sklepu, potem preferujemy Ceneo (IsGoogle=false)
             var prices = filteredPrices
                             .OrderBy(p => p.Price)
                             .ThenBy(p => p.StoreName)
-                            .ThenByDescending(p => p.IsGoogle == false) // Preferuje Ceneo/inne przy remisie ceny i nazwy
+                            .ThenByDescending(p => p.IsGoogle == false)
                             .ToList();
 
-            // Sprawdzamy, czy po filtrowaniu coś zostało i czy mamy dane produktu
-            var product = prices.FirstOrDefault()?.Product; // Pobieramy produkt z pierwszego wpisu (jeśli istnieje)
-                                                            // Alternatywnie, pobierz produkt osobno, jeśli `prices` może być puste
+            var product = prices.FirstOrDefault()?.Product;
+
             if (product == null && prices.Any())
             {
-                // Jeśli lista cen nie jest pusta, ale nie udało się pobrać produktu przez Include
+
                 product = await _context.Products.FindAsync(productId);
             }
             else if (!prices.Any())
             {
-                // Jeśli lista cen jest pusta (np. przez filtr), pobierzmy produkt, żeby chociaż wyświetlić jego dane
+
                 product = await _context.Products.FindAsync(productId);
                 if (product == null)
                 {
                     return NotFound("Nie znaleziono produktu.");
                 }
-                // W tym wypadku lista `prices` będzie pusta
+
             }
 
-
-            // Pobieramy PriceValues (tak jak było)
             var priceValues = await _context.PriceValues
                 .Where(pv => pv.StoreId == storeId)
                 .Select(pv => new { pv.SetPrice1, pv.SetPrice2 })
-                .FirstOrDefaultAsync() ?? new { SetPrice1 = 2.00m, SetPrice2 = 2.00m }; // Domyślne wartości
+                .FirstOrDefaultAsync() ?? new { SetPrice1 = 2.00m, SetPrice2 = 2.00m };
 
-            // Serializujemy PRZEFILTROWANE ceny do JSON dla widoku/JS
             var pricesDataJson = JsonConvert.SerializeObject(
                     prices.Select(p => new {
                         store = p.StoreName,
@@ -1158,12 +1072,11 @@ namespace PriceSafari.Controllers.MemberControllers
                     })
               );
 
-            // Ustawiamy ViewBag (tak jak było, ale używamy przefiltrowanych danych tam, gdzie to ma sens)
             ViewBag.ScrapHistory = scrapHistory;
             ViewBag.ProductName = product.ProductName;
             ViewBag.Url = product.OfferUrl;
             ViewBag.GoogleUrl = product.GoogleUrl;
-            ViewBag.StoreName = storeName; // Nazwa naszego sklepu
+            ViewBag.StoreName = storeName;
             ViewBag.SetPrice1 = priceValues.SetPrice1;
             ViewBag.SetPrice2 = priceValues.SetPrice2;
             ViewBag.ProductId = productId;
@@ -1173,88 +1086,12 @@ namespace PriceSafari.Controllers.MemberControllers
             ViewBag.Ean = product.Ean;
             ViewBag.CatalogNum = product.CatalogNumber;
             ViewBag.ExternalUrl = product.Url;
-            ViewBag.ApiId = product.ExternalId; // Zduplikowane? Może być ExternalId
-            ViewBag.PricesDataJson = pricesDataJson; // Przekazujemy przefiltrowane dane JSON
-            ViewBag.ActivePresetName = activePresetName; // Opcjonalnie: przekaż nazwę aktywnego presetu
+            ViewBag.ApiId = product.ExternalId;
+            ViewBag.PricesDataJson = pricesDataJson;
+            ViewBag.ActivePresetName = activePresetName;
 
-            // Zwracamy widok z PRZEFILTROWANĄ listą cen
             return View("~/Views/Panel/PriceHistory/Details.cshtml", prices);
         }
-
-
-
-        //public async Task<IActionResult> Details(int scrapId, int productId)
-        //{
-        //    var scrapHistory = await _context.ScrapHistories.FindAsync(scrapId);
-        //    if (scrapHistory == null)
-        //    {
-        //        return NotFound();
-        //    }
-
-        //    if (!await UserHasAccessToStore(scrapHistory.StoreId))
-        //    {
-        //        return Content("Nie ma takiego sklepu");
-        //    }
-        //    var prices = await _context.PriceHistories
-        //        .Where(ph => ph.ScrapHistoryId == scrapId && ph.ProductId == productId)
-        //        .Include(ph => ph.Product)
-        //        .ToListAsync();
-
-        //    // Najpierw sortujemy po cenie, a w przypadku remisu po nazwie sklepu
-        //    prices = prices.OrderBy(p => p.Price)
-        //                   .ThenBy(p => p.StoreName)
-        //                    .ThenByDescending(p => p.IsGoogle == false)
-        //                   .ToList();
-
-
-
-
-        //    var product = await _context.Products.FindAsync(productId);
-        //    if (product == null)
-        //    {
-        //        return NotFound();
-        //    }
-
-        //    var priceValues = await _context.PriceValues
-        //        .Where(pv => pv.StoreId == scrapHistory.StoreId)
-        //        .Select(pv => new { pv.SetPrice1, pv.SetPrice2 })
-        //        .FirstOrDefaultAsync();
-
-        //    var pricesDataJson = JsonConvert.SerializeObject(
-        //          prices.Select(p => new {
-        //              store = p.StoreName,
-        //              price = p.Price,
-        //              isBidding = p.IsBidding,
-        //              isGoogle = p.IsGoogle   // <-- DODANE pole
-        //          })
-        //      );
-
-
-        //    if (priceValues == null)
-        //    {
-        //        priceValues = new { SetPrice1 = 2.00m, SetPrice2 = 2.00m };
-        //    }
-
-        //    ViewBag.ScrapHistory = scrapHistory;
-        //    ViewBag.ProductName = product.ProductName;
-        //    ViewBag.Url = product.OfferUrl;
-        //    ViewBag.GoogleUrl = product.GoogleUrl;
-        //    ViewBag.StoreName = (await _context.Stores.FindAsync(scrapHistory.StoreId))?.StoreName;
-        //    ViewBag.SetPrice1 = priceValues.SetPrice1;
-        //    ViewBag.SetPrice2 = priceValues.SetPrice2;
-        //    ViewBag.ProductId = productId;
-        //    ViewBag.ExternalId = product.ExternalId;
-        //    ViewBag.ExternalPrice = product.ExternalPrice;
-        //    ViewBag.Img = product.MainUrl;
-        //    ViewBag.Ean = product.Ean;
-        //    ViewBag.CatalogNum = product.CatalogNumber;
-        //    ViewBag.ExternalUrl = product.Url;
-        //    ViewBag.ApiId = product.ExternalId;
-        //    ViewBag.PricesDataJson = pricesDataJson;
-
-        //    return View("~/Views/Panel/PriceHistory/Details.cshtml", prices);
-        //}
-
 
         [HttpGet]
         public async Task<IActionResult> PriceTrend(int productId)
@@ -1266,66 +1103,8 @@ namespace PriceSafari.Controllers.MemberControllers
             if (!await UserHasAccessToStore(product.StoreId))
                 return Content("Nie ma takiego sklepu");
 
-            // Zwracamy widok z obiektem 'product'
             return View("~/Views/Panel/PriceHistory/PriceTrend.cshtml", product);
         }
-
-        //[HttpGet]
-        //public async Task<IActionResult> GetPriceTrendData(int productId)
-        //{
-        //    var product = await _context.Products.FindAsync(productId);
-        //    if (product == null)
-        //        return NotFound(new { Error = "Nie znaleziono produktu." });
-
-        //    if (!await UserHasAccessToStore(product.StoreId))
-        //        return Unauthorized(new { Error = "Nie ma takiego sklepu." });
-
-        //    var allScraps = await _context.ScrapHistories
-        //        .Where(sh => sh.StoreId == product.StoreId)
-        //        .ToListAsync();
-
-        //    var lastScraps = allScraps
-        //        .OrderByDescending(sh => sh.Date)
-        //        .Take(30)
-        //        .OrderBy(sh => sh.Date)
-        //        .ToList();
-
-        //    var scrapIds = lastScraps.Select(sh => sh.Id).ToList();
-
-        //    var allPriceHistoriesForProduct = await _context.PriceHistories
-        //        .Where(ph => ph.ProductId == productId)
-        //        .ToListAsync();
-
-        //    var relevantPriceHistories = allPriceHistoriesForProduct
-        //        .Where(ph => scrapIds.Contains(ph.ScrapHistoryId))
-        //        .ToList();
-
-        //    // Tutaj zmiana: ScrapDate jako string "yyyy-MM-dd"
-        //    // DODAJEMY pole: Source = (ph.IsGoogle == true) ? "google" : "ceneo"
-        //    var timelineData = lastScraps.Select(scrap => new
-        //    {
-        //        ScrapDate = scrap.Date.ToString("yyyy-MM-dd"), // tylko data, bez czasu
-        //        PricesByStore = relevantPriceHistories
-        //            .Where(ph => ph.ScrapHistoryId == scrap.Id)
-        //            .Select(ph => new
-        //            {
-        //                ph.StoreName,
-        //                ph.Price,
-        //                // Nowe pole - skąd pochodzi oferta
-        //                Source = (ph.IsGoogle == true) ? "google" : "ceneo"
-        //            })
-        //            .ToList()
-        //    })
-        //    .ToList();
-
-        //    return Json(new
-        //    {
-        //        ProductName = product.ProductName,
-        //        TimelineData = timelineData
-        //    });
-        //}
-
-
 
         [HttpGet]
         public async Task<IActionResult> GetPriceTrendData(int productId)
@@ -1334,12 +1113,11 @@ namespace PriceSafari.Controllers.MemberControllers
             if (product == null)
                 return NotFound(new { Error = "Nie znaleziono produktu." });
 
-            var storeId = product.StoreId; // Pobieramy StoreId
+            var storeId = product.StoreId;
 
             if (!await UserHasAccessToStore(storeId))
                 return Unauthorized(new { Error = "Brak dostępu do sklepu." });
 
-            // --- Logika presetu i nazwy sklepu ---
             var storeName = await _context.Stores
                 .Where(s => s.StoreId == storeId)
                 .Select(s => s.StoreName)
@@ -1351,17 +1129,14 @@ namespace PriceSafari.Controllers.MemberControllers
             }
 
             var activePreset = await _context.CompetitorPresets
-                .Include(x => x.CompetitorItems) // Dołączamy elementy presetu
+                .Include(x => x.CompetitorItems)
                 .FirstOrDefaultAsync(cp => cp.StoreId == storeId && cp.NowInUse);
-            // --- Koniec logiki presetu ---
 
-
-            // Pobieramy OSTATNIE 30 scrapów (bez zmian)
             var lastScraps = await _context.ScrapHistories
                 .Where(sh => sh.StoreId == storeId)
                 .OrderByDescending(sh => sh.Date)
                 .Take(30)
-                .OrderBy(sh => sh.Date) // Upewniamy się, że są chronologicznie dla osi czasu
+                .OrderBy(sh => sh.Date)
                 .ToListAsync();
 
             var scrapIds = lastScraps.Select(sh => sh.Id).ToList();
@@ -1375,48 +1150,37 @@ namespace PriceSafari.Controllers.MemberControllers
                 });
             }
 
-            // === POCZĄTEK ZMIAN ===
-
-            // 1. Budujemy zapytanie DO BAZY DANYCH - ale BEZ filtra scrapIds.Contains()
             IQueryable<PriceHistoryClass> baseQuery = _context.PriceHistories
-                .Where(ph => ph.ProductId == productId) // Tylko dla tego produktu
-                .Where(ph => ph.Price > 0);          // Cena musi być większa od 0
+                .Where(ph => ph.ProductId == productId)
+                .Where(ph => ph.Price > 0);
 
-            // 2. Filtrujemy W BAZIE wg presetu (SourceGoogle / SourceCeneo) - jeśli jest aktywny
             if (activePreset != null)
             {
                 if (!activePreset.SourceGoogle)
                 {
-                    baseQuery = baseQuery.Where(ph => ph.IsGoogle != true); // Wyklucz Google
+                    baseQuery = baseQuery.Where(ph => ph.IsGoogle != true);
                 }
                 if (!activePreset.SourceCeneo)
                 {
-                    // Zakładamy, że IsGoogle==true oznacza tylko Google, a reszta to Ceneo/inne
-                    baseQuery = baseQuery.Where(ph => ph.IsGoogle == true); // Wyklucz Ceneo/inne (zostaw Google)
-                                                                            // Upewnij się, że logika IsGoogle jest poprawna!
+
+                    baseQuery = baseQuery.Where(ph => ph.IsGoogle == true);
+
                 }
             }
 
-            // 3. Pobieramy potencjalnie szerszy zestaw danych z bazy
             var allPotentialHistories = await baseQuery.ToListAsync();
 
-            // 4. TERAZ filtrujemy w PAMIĘCI aplikacji po liście scrapIds
             var rawFilteredHistories = allPotentialHistories
                 .Where(ph => scrapIds.Contains(ph.ScrapHistoryId))
                 .ToList();
 
-            // === KONIEC ZMIAN ===
-
-
-            // --- Filtrowanie w PAMIĘCI wg presetu (UseCompetitor / UseUnmarkedStores) ---
-            // Ta część działa na `rawFilteredHistories` i pozostaje bez zmian
             List<PriceHistoryClass> finalFilteredHistories;
 
             if (activePreset != null)
             {
                 var competitorItemsDict = activePreset.CompetitorItems
                     .GroupBy(ci => new { Store = ci.StoreName.ToLower().Trim(), Source = ci.IsGoogle })
-                    .Select(g => g.First()) // Bierzemy pierwszy w razie duplikatów (StoreName + Source)
+                    .Select(g => g.First())
                     .ToDictionary(
                         x => new { Store = x.StoreName.ToLower().Trim(), Source = x.IsGoogle },
                         x => x.UseCompetitor
@@ -1425,25 +1189,23 @@ namespace PriceSafari.Controllers.MemberControllers
                 var storeNameLower = storeName.ToLower().Trim();
                 finalFilteredHistories = new List<PriceHistoryClass>();
 
-                foreach (var priceEntry in rawFilteredHistories) // Iterujemy po już przefiltrowanych po scrapId danych
+                foreach (var priceEntry in rawFilteredHistories)
                 {
-                    // Zawsze bierzemy nasz sklep
-                    // Sprawdzenie StoreName != null jest ważne
+
                     if (priceEntry.StoreName != null &&
                         priceEntry.StoreName.ToLower().Trim() == storeNameLower)
                     {
                         finalFilteredHistories.Add(priceEntry);
-                        continue; // Przejdź do następnego wpisu
+                        continue;
                     }
 
-                    // Sprawdzamy konkurentów wg presetu
-                    bool googleFlag = (priceEntry.IsGoogle == true); // Użyj IsGoogle bezpośrednio
-                                                                     // Obsługa potencjalnego nulla w StoreName
+                    bool googleFlag = (priceEntry.IsGoogle == true);
+
                     var key = new { Store = (priceEntry.StoreName ?? "").ToLower().Trim(), Source = googleFlag };
 
                     if (competitorItemsDict.TryGetValue(key, out bool useCompetitor))
                     {
-                        // Znaleziono wpis w presecie
+
                         if (useCompetitor)
                         {
                             finalFilteredHistories.Add(priceEntry);
@@ -1451,7 +1213,7 @@ namespace PriceSafari.Controllers.MemberControllers
                     }
                     else
                     {
-                        // Nie znaleziono wpisu w presecie - użyj flagi UseUnmarkedStores
+
                         if (activePreset.UseUnmarkedStores)
                         {
                             finalFilteredHistories.Add(priceEntry);
@@ -1461,29 +1223,24 @@ namespace PriceSafari.Controllers.MemberControllers
             }
             else
             {
-                // Brak presetu - bierzemy wszystko, co przeszło przez filtry DB (productId, Price > 0)
-                // i filtr scrapIds w pamięci
+
                 finalFilteredHistories = rawFilteredHistories;
             }
-            // --- Koniec filtrowania w pamięci ---
 
-
-            // Budujemy dane dla osi czasu, używając PRZEFILTROWANEJ listy 'finalFilteredHistories'
-            // Ta część pozostaje bez zmian
             var timelineData = lastScraps.Select(scrap => new
             {
-                ScrapDate = scrap.Date.ToString("yyyy-MM-dd"), // tylko data
-                PricesByStore = finalFilteredHistories // Używamy ostatecznie przefiltrowanej listy
-                    .Where(ph => ph.ScrapHistoryId == scrap.Id) // Wybieramy dane dla TEGO scrapa
+                ScrapDate = scrap.Date.ToString("yyyy-MM-dd"),
+                PricesByStore = finalFilteredHistories
+                    .Where(ph => ph.ScrapHistoryId == scrap.Id)
                     .Select(ph => new
                     {
                         ph.StoreName,
                         ph.Price,
-                        Source = (ph.IsGoogle == true) ? "google" : "ceneo" // Zachowujemy pole Source
+                        Source = (ph.IsGoogle == true) ? "google" : "ceneo"
                     })
-                    .ToList() // Tworzymy listę cen dla danego dnia
+                    .ToList()
             })
-            .ToList(); // Tworzymy listę dni z cenami
+            .ToList();
 
             return Json(new
             {
@@ -1491,7 +1248,6 @@ namespace PriceSafari.Controllers.MemberControllers
                 TimelineData = timelineData
             });
         }
-
 
         [HttpGet]
         public IActionResult GetPriceChangeDetails(string productIds)
@@ -1532,8 +1288,6 @@ namespace PriceSafari.Controllers.MemberControllers
             return Json(products);
         }
 
-
-
         [HttpPost]
         public async Task<IActionResult> SimulatePriceChange([FromBody] List<SimulationItem> simulationItems)
         {
@@ -1542,7 +1296,6 @@ namespace PriceSafari.Controllers.MemberControllers
                 return Json(new List<object>());
             }
 
-            // 1) Sprawdzamy pierwszy produkt, by ustalić sklep i dostęp użytkownika
             int firstProductId = simulationItems.First().ProductId;
             var firstProduct = await _context.Products
                 .Include(p => p.Store)
@@ -1561,7 +1314,6 @@ namespace PriceSafari.Controllers.MemberControllers
             int storeId = firstProduct.StoreId;
             string ourStoreName = firstProduct.Store?.StoreName ?? "";
 
-            // 2) Pobieramy najnowsze scrapowanie
             var latestScrap = await _context.ScrapHistories
                 .Where(sh => sh.StoreId == storeId)
                 .OrderByDescending(sh => sh.Date)
@@ -1574,25 +1326,19 @@ namespace PriceSafari.Controllers.MemberControllers
             }
             int latestScrapId = latestScrap.Id;
 
-            // 3) Zbieramy ID wszystkich produktów z simulationItems
             var productIds = simulationItems
                 .Select(s => s.ProductId)
                 .Distinct()
                 .ToList();
 
-            // 4) Pobieramy dane produktów (ProductId, Ean, MarginPrice) – modyfikacja: pobieramy także MarginPrice
             var productsData = await GetProductsInChunksAsync(productIds);
-            // Upewnij się, że metoda GetProductsInChunksAsync została zmodyfikowana, by zwracać również MarginPrice.
 
-            // 5) Pobieramy PriceHistories dla tych produktów (dla najnowszego scrapId) – również w paczkach
             var allPriceHistories = await GetPriceHistoriesInChunksAsync(productIds, latestScrapId);
 
-            // Grupujemy PriceHistories wg ProductId
             var priceHistoriesByProduct = allPriceHistories
                 .GroupBy(ph => ph.ProductId)
                 .ToDictionary(g => g.Key, g => g.ToList());
 
-            // Pomocnicza funkcja do wyliczania rankingu
             string CalculateRanking(List<decimal> prices, decimal price)
             {
                 prices.Sort();
@@ -1608,18 +1354,16 @@ namespace PriceSafari.Controllers.MemberControllers
 
             var simulationResults = new List<object>();
 
-            // 6) Przechodzimy po każdym SimulationItem i generujemy wyniki
             foreach (var sim in simulationItems)
             {
-                // Szukamy danych produktu
+
                 var product = productsData.FirstOrDefault(p => p.ProductId == sim.ProductId);
                 if (product == null)
                 {
-                    // Brak produktu – pomijamy
+
                     continue;
                 }
 
-                // Szukamy PriceHistories dla danego produktu
                 priceHistoriesByProduct.TryGetValue(sim.ProductId, out var allRecordsForProduct);
                 if (allRecordsForProduct == null)
                 {
@@ -1638,7 +1382,7 @@ namespace PriceSafari.Controllers.MemberControllers
                         googleNewOffers = new List<object>(),
                         ceneoCurrentOffers = new List<object>(),
                         ceneoNewOffers = new List<object>(),
-                        // Dla marży – brak danych
+
                         currentMargin = (decimal?)null,
                         newMargin = (decimal?)null,
                         currentMarginValue = (decimal?)null,
@@ -1647,7 +1391,6 @@ namespace PriceSafari.Controllers.MemberControllers
                     continue;
                 }
 
-                // Jeśli MarginPrice jest dostępne (nie null i różne od zera) – wyliczamy marżę
                 decimal? currentMargin = null;
                 decimal? newMargin = null;
                 decimal? currentMarginValue = null;
@@ -1661,13 +1404,11 @@ namespace PriceSafari.Controllers.MemberControllers
 
                 }
 
-                // Ranking oraz dane konkurencji – jak wcześniej...
                 bool weAreInGoogle = allRecordsForProduct.Any(ph => ph.StoreName == ourStoreName && ph.IsGoogle);
                 bool weAreInCeneo = allRecordsForProduct.Any(ph => ph.StoreName == ourStoreName && !ph.IsGoogle);
 
                 var competitorPrices = allRecordsForProduct.Where(ph => ph.StoreName != ourStoreName).ToList();
 
-                // GOOGLE
                 var googleCompetitorPrices = competitorPrices.Where(x => x.IsGoogle).Select(x => x.Price).ToList();
                 var currentGoogleList = new List<decimal>(googleCompetitorPrices);
                 var newGoogleList = new List<decimal>(googleCompetitorPrices);
@@ -1700,7 +1441,6 @@ namespace PriceSafari.Controllers.MemberControllers
                     googleNewOffers.Add(new { Price = sim.NewPrice, StoreName = ourStoreName });
                 }
 
-                // CENEO
                 var ceneoCompetitorPrices = competitorPrices.Where(x => !x.IsGoogle && !string.IsNullOrEmpty(x.StoreName))
                     .Select(x => x.Price).ToList();
                 var currentCeneoList = new List<decimal>(ceneoCompetitorPrices);
@@ -1749,14 +1489,13 @@ namespace PriceSafari.Controllers.MemberControllers
                     googleNewOffers,
                     ceneoCurrentOffers,
                     ceneoNewOffers,
-                    currentMargin,         
-                    newMargin,              
-                    currentMarginValue,     
-                    newMarginValue         
+                    currentMargin,
+                    newMargin,
+                    currentMarginValue,
+                    newMarginValue
                 });
             }
 
-            // 7) Zwracamy JSON z naszymi wynikami
             return Json(new
             {
                 ourStoreName,
@@ -1764,19 +1503,16 @@ namespace PriceSafari.Controllers.MemberControllers
             });
         }
 
-
-
-
         public class SimulationItem
         {
             public int ProductId { get; set; }
             public decimal CurrentPrice { get; set; }
             public decimal NewPrice { get; set; }
-         
+
             public int StoreId { get; set; }
         }
 
-        private const int CHUNK_SIZE = 200; // dostosuj w zależności od potrzeb
+        private const int CHUNK_SIZE = 200;
 
         private async Task<List<ProductData>> GetProductsInChunksAsync(List<int> productIds)
         {
@@ -1788,7 +1524,6 @@ namespace PriceSafari.Controllers.MemberControllers
 
                 var inClause = string.Join(",", subset);
 
-                // Dodajemy ExternalId do selekcji
                 string sql = $@"
             SELECT ProductId, Ean, MarginPrice, ExternalId
             FROM Products
@@ -1802,7 +1537,7 @@ namespace PriceSafari.Controllers.MemberControllers
                         ProductId = p.ProductId,
                         Ean = p.Ean,
                         MarginPrice = p.MarginPrice,
-                        ExternalId = p.ExternalId // <-- DODANE
+                        ExternalId = p.ExternalId
                     })
                     .ToListAsync();
 
@@ -1812,17 +1547,13 @@ namespace PriceSafari.Controllers.MemberControllers
             return result;
         }
 
-
         public class ProductData
         {
             public int ProductId { get; set; }
             public string Ean { get; set; }
             public decimal? MarginPrice { get; set; }
-            public int? ExternalId { get; set; } // <-- DODANE
+            public int? ExternalId { get; set; }
         }
-
-
-
 
         private async Task<List<(int ProductId, decimal Price, bool IsGoogle, string StoreName)>>
                GetPriceHistoriesInChunksAsync(List<int> productIds, int scrapId)
@@ -1844,7 +1575,6 @@ namespace PriceSafari.Controllers.MemberControllers
               AND ProductId IN ({inClause})
         ";
 
-                // Wczytanie do obiektów anonimowych, potem do ValueTuple
                 var partial = await _context.PriceHistories
                     .FromSqlRaw(sql)
                     .Select(ph => new
@@ -1863,14 +1593,6 @@ namespace PriceSafari.Controllers.MemberControllers
 
             return result;
         }
-
-
-
-
-
-
-
-
 
         [HttpPost]
         public async Task<IActionResult> SaveMarginSettings([FromBody] PriceMarginSettingsViewModel model)
@@ -1913,7 +1635,6 @@ namespace PriceSafari.Controllers.MemberControllers
             return Json(new { success = true, message = "Ustawienia marży zostały zaktualizowane." });
         }
 
-
         public class PriceMarginSettingsViewModel
         {
             public int StoreId { get; set; }
@@ -1922,7 +1643,7 @@ namespace PriceSafari.Controllers.MemberControllers
             public bool EnforceMinimalMargin { get; set; }
             public decimal MinimalMarginPercent { get; set; }
         }
-     
+
         public class CompetitorKey
         {
             public string Store { get; set; }
