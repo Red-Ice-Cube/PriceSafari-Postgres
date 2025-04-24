@@ -8,7 +8,7 @@
 
     var storeId = ViewBag.StoreId ?? 0;
     var storeName = ViewBag.StoreName as string ?? "(Brak nazwy sklepu)";
-    var onlyGoogleXmlMismatch = ViewBag.OnlyGoogleXmlMismatch as bool? ?? false; // To może być używane do wstępnego zaznaczenia checkboxa
+    var onlyGoogleXmlMismatch = ViewBag.OnlyGoogleXmlMismatch as bool? ?? false;
 
     var totalCount = Model.Count();
     var googleCount = Model.Count(p => p.HasGoogle);
@@ -29,7 +29,6 @@
     var googleScrapPriceCount = Model.Count(p => p.LastGooglePrice.HasValue);
     var ceneoScrapPriceCount = Model.Count(p => p.LastCeneoPrice.HasValue);
 
-    // Statystyki dla nowych różnic (opcjonalnie, dla informacji)
     var ceneoScrapXmlMismatchCount = Model.Count(p => p.LastCeneoPrice.HasValue && p.CeneoXMLPrice.HasValue && p.LastCeneoPrice.Value != p.CeneoXMLPrice.Value);
     var xmlPricesMismatchCount = Model.Count(p => p.GoogleXMLPrice.HasValue && p.CeneoXMLPrice.HasValue && p.GoogleXMLPrice.Value != p.CeneoXMLPrice.Value);
     var eanMismatchCount = Model.Count(p => !string.IsNullOrEmpty(p.EanGoogle) && !string.IsNullOrEmpty(p.EanCeneo) && p.EanGoogle != p.EanCeneo);
@@ -249,21 +248,19 @@
                         string platformCategory = (hasGoogle && hasCeneo) ? "google-ceneo" : hasGoogle ? "google" : hasCeneo ? "ceneo" : "not-found";
                         string statusCategory = (productVm.IsScrapable && productVm.IsRejected) ? "active-rejected" : (productVm.IsScrapable && !productVm.IsRejected) ? "active" : (!productVm.IsScrapable && productVm.IsRejected) ? "inactive-rejected" : "inactive";
 
-                        // Kalkulacja dla istniejących i nowych atrybutów data-*
                         bool gcScrapMismatch = productVm.PriceDifference.HasValue && productVm.PriceDifference != 0;
                         bool googleScrapXmlMismatch = productVm.LastGooglePrice.HasValue && productVm.GoogleXMLPrice.HasValue && productVm.LastGooglePrice.Value != productVm.GoogleXMLPrice.Value;
-                        // NOWE kalkulacje
+
                         bool ceneoScrapXmlMismatch = productVm.LastCeneoPrice.HasValue && productVm.CeneoXMLPrice.HasValue && productVm.LastCeneoPrice.Value != productVm.CeneoXMLPrice.Value;
                         bool xmlPricesMismatch = productVm.GoogleXMLPrice.HasValue && productVm.CeneoXMLPrice.HasValue && productVm.GoogleXMLPrice.Value != productVm.CeneoXMLPrice.Value;
                         bool eanMismatch = !string.IsNullOrEmpty(productVm.EanGoogle) && !string.IsNullOrEmpty(productVm.EanCeneo) && productVm.EanGoogle != productVm.EanCeneo;
 
-                        // Dodawanie klas CSS dla wizualnego wyróżnienia (opcjonalne)
                         string rowClass = "";
                         if (gcScrapMismatch) rowClass += " gc-scrap-mismatch";
                         if (googleScrapXmlMismatch) rowClass += " google-scrap-xml-mismatch";
-                        if (ceneoScrapXmlMismatch) rowClass += " ceneo-scrap-xml-mismatch"; // Nowa klasa
-                        if (xmlPricesMismatch) rowClass += " xml-prices-mismatch";      // Nowa klasa
-                        if (eanMismatch) rowClass += " ean-mismatch";               // Nowa klasa
+                        if (ceneoScrapXmlMismatch) rowClass += " ceneo-scrap-xml-mismatch";
+                        if (xmlPricesMismatch) rowClass += " xml-prices-mismatch";
+                        if (eanMismatch) rowClass += " ean-mismatch";
 
                         <tr data-product-id="@productVm.ProductId"
                             data-platform="@platformCategory"
@@ -353,16 +350,22 @@
 
 @section Scripts {
     <script>
+
+      
+
         document.addEventListener('DOMContentLoaded', () => {
+
+            const storeNameForJs = @Json.Serialize(storeName);
+            const currentStoreId = @Json.Serialize(storeId);
 
             const statusCheckboxes = document.querySelectorAll('.status-filter');
             const platformCheckboxes = document.querySelectorAll('.platform-filter');
-            // Checkboxy różnic - ZMIENIONO selektory i ID
+
             const showGcScrapMismatchCheckbox = document.getElementById('show-gc-scrap-mismatch');
             const showGoogleScrapXmlMismatchCheckbox = document.getElementById('show-google-scrap-xml-mismatch');
-            const showCeneoScrapXmlMismatchCheckbox = document.getElementById('show-ceneo-scrap-xml-mismatch'); // NOWY
-            const showXmlPricesMismatchCheckbox = document.getElementById('show-xml-prices-mismatch');       // NOWY
-            const showEanMismatchCheckbox = document.getElementById('show-ean-mismatch');                 // NOWY
+            const showCeneoScrapXmlMismatchCheckbox = document.getElementById('show-ceneo-scrap-xml-mismatch');
+            const showXmlPricesMismatchCheckbox = document.getElementById('show-xml-prices-mismatch');
+            const showEanMismatchCheckbox = document.getElementById('show-ean-mismatch');
 
             const removeFilteredBtn = document.getElementById('remove-filtered');
             const tableRows = document.querySelectorAll('#product-table tbody tr');
@@ -370,7 +373,7 @@
             const tableVisibleCountSpan = document.getElementById('table-visible-count');
 
             function applyFilters() {
-                // Odczyt stanów checkboxów
+
                 const selectedStatuses = Array.from(statusCheckboxes)
                     .filter(ch => ch.checked).map(ch => ch.dataset.status);
                 const selectedPlatforms = Array.from(platformCheckboxes)
@@ -378,25 +381,23 @@
 
                 const showGcScrapMismatch = showGcScrapMismatchCheckbox?.checked ?? false;
                 const showGoogleScrapXmlMismatch = showGoogleScrapXmlMismatchCheckbox?.checked ?? false;
-                const showCeneoScrapXmlMismatch = showCeneoScrapXmlMismatchCheckbox?.checked ?? false; // NOWY
-                const showXmlPricesMismatch = showXmlPricesMismatchCheckbox?.checked ?? false;       // NOWY
-                const showEanMismatch = showEanMismatchCheckbox?.checked ?? false;                 // NOWY
+                const showCeneoScrapXmlMismatch = showCeneoScrapXmlMismatchCheckbox?.checked ?? false;
+                const showXmlPricesMismatch = showXmlPricesMismatchCheckbox?.checked ?? false;
+                const showEanMismatch = showEanMismatchCheckbox?.checked ?? false;
 
                 let visibleRowCount = 0;
 
                 tableRows.forEach(row => {
-                    if (row.children.length < 2) return; // Pomiń wiersz 'Brak produktów...'
+                    if (row.children.length < 2) return;
 
-                    // Odczyt danych z atrybutów data-* wiersza
                     const rowStatus = row.dataset.status;
                     const rowPlatform = row.dataset.platform;
                     const gcScrapMismatchStr = row.dataset.gcScrapMismatch;
                     const googleScrapXmlMismatchStr = row.dataset.googleScrapXmlMismatch;
-                    const ceneoScrapXmlMismatchStr = row.dataset.ceneoScrapXmlMismatch; // NOWY
-                    const xmlPricesMismatchStr = row.dataset.xmlPricesMismatch;      // NOWY
-                    const eanMismatchStr = row.dataset.eanMismatch;               // NOWY
+                    const ceneoScrapXmlMismatchStr = row.dataset.ceneoScrapXmlMismatch;
+                    const xmlPricesMismatchStr = row.dataset.xmlPricesMismatch;
+                    const eanMismatchStr = row.dataset.eanMismatch;
 
-                    // Sprawdzenie dopasowania do filtrów
                     const statusMatch = selectedStatuses.length === 0 || selectedStatuses.includes(rowStatus);
                     const platformMatch = selectedPlatforms.length === 0 || selectedPlatforms.includes(rowPlatform);
 
@@ -410,7 +411,6 @@
                         googleScrapXmlMismatchMatch = googleScrapXmlMismatchStr === 'true';
                     }
 
-                    // NOWE warunki dopasowania
                     let ceneoScrapXmlMismatchMatch = true;
                     if (showCeneoScrapXmlMismatch) {
                         ceneoScrapXmlMismatchMatch = ceneoScrapXmlMismatchStr === 'true';
@@ -426,14 +426,13 @@
                         eanMismatchMatch = eanMismatchStr === 'true';
                     }
 
-                    // Końcowe sprawdzenie - wiersz jest widoczny, jeśli spełnia WSZYSTKIE aktywne filtry
                     if (statusMatch &&
                         platformMatch &&
                         gcScrapMismatchMatch &&
                         googleScrapXmlMismatchMatch &&
-                        ceneoScrapXmlMismatchMatch &&   // NOWY
-                        xmlPricesMismatchMatch &&       // NOWY
-                        eanMismatchMatch) {             // NOWY
+                        ceneoScrapXmlMismatchMatch &&
+                        xmlPricesMismatchMatch &&
+                        eanMismatchMatch) {
                         row.style.display = '';
                         visibleRowCount++;
                     } else {
@@ -441,7 +440,6 @@
                     }
                 });
 
-                // Aktualizacja liczników widocznych wierszy
                 if (visibleCountSpan) {
                     visibleCountSpan.textContent = `(${visibleRowCount} widocznych)`;
                 }
@@ -450,25 +448,21 @@
                 }
             }
 
-            // Dodanie nasłuchiwania na zmiany checkboxów
             statusCheckboxes.forEach(ch => ch.addEventListener('change', applyFilters));
             platformCheckboxes.forEach(ch => ch.addEventListener('change', applyFilters));
-            // Nasłuchiwanie dla filtrów różnic
+
             if(showGcScrapMismatchCheckbox) showGcScrapMismatchCheckbox.addEventListener('change', applyFilters);
             if(showGoogleScrapXmlMismatchCheckbox) showGoogleScrapXmlMismatchCheckbox.addEventListener('change', applyFilters);
-            if(showCeneoScrapXmlMismatchCheckbox) showCeneoScrapXmlMismatchCheckbox.addEventListener('change', applyFilters); // NOWY
-            if(showXmlPricesMismatchCheckbox) showXmlPricesMismatchCheckbox.addEventListener('change', applyFilters);       // NOWY
-            if(showEanMismatchCheckbox) showEanMismatchCheckbox.addEventListener('change', applyFilters);                 // NOWY
+            if(showCeneoScrapXmlMismatchCheckbox) showCeneoScrapXmlMismatchCheckbox.addEventListener('change', applyFilters);
+            if(showXmlPricesMismatchCheckbox) showXmlPricesMismatchCheckbox.addEventListener('change', applyFilters);
+            if(showEanMismatchCheckbox) showEanMismatchCheckbox.addEventListener('change', applyFilters);
 
-
-            // Logika przycisku "Usuń widoczne" (bez zmian, ale upewnij się, że działa poprawnie)
-            if (removeFilteredBtn) {
+         if (removeFilteredBtn) {
                 removeFilteredBtn.addEventListener('click', () => {
                     const visibleIds = [];
                     tableRows.forEach(row => {
-                        // Upewnij się, że to prawdziwy wiersz danych i jest widoczny
                         if (row.style.display !== 'none' && row.dataset.productId) {
-                             visibleIds.push(parseInt(row.dataset.productId, 10));
+                            visibleIds.push(parseInt(row.dataset.productId, 10));
                         }
                     });
 
@@ -477,12 +471,15 @@
                         return;
                     }
 
-                    // Użyj storeName z ViewBag dla lepszego komunikatu
-                    if (!confirm(`Czy na pewno usunąć ${visibleIds.length} widocznych produktów ze sklepu "${storeName}"? Tej operacji nie można cofnąć.`)) {
+                    // Użyj zdefiniowanej wcześniej zmiennej JavaScript storeNameForJs
+                    if (!confirm(`Czy na pewno usunąć ${visibleIds.length} widocznych produktów ze sklepu ${storeNameForJs}? Tej operacji nie można cofnąć.`)) {
                         return;
                     }
 
-                    const removeUrl = `@Url.Action("RemoveSelectedProducts", "ProductMapping")?storeId=${storeId}`;
+                    // Pobierz storeId również z C#
+                    const currentStoreId = @Json.Serialize(storeId);
+                    const removeUrl = `@Url.Action("RemoveSelectedProducts", "ProductMapping")?storeId=${currentStoreId}`; // Użyj currentStoreId
+
                     console.log("Wysyłanie żądania usunięcia do:", removeUrl);
                     console.log("ID do usunięcia:", visibleIds);
 
@@ -490,7 +487,7 @@
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
-                            // Dodaj nagłówek RequestVerificationToken, jeśli używasz Antiforgery
+                            // Pamiętaj o dodaniu nagłówka dla Request Verification Token, jeśli używasz ochrony Antiforgery
                             // 'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value
                         },
                         body: JSON.stringify(visibleIds)
@@ -506,13 +503,13 @@
 
                         if (data && data.success) {
                             alert(`Usunięto ${visibleIds.length} produktów.`);
-                            // Usuń wiersze z tabeli po stronie klienta
+
                             tableRows.forEach(row => {
                                 if (row.dataset.productId && visibleIds.includes(parseInt(row.dataset.productId, 10))) {
                                     row.remove();
                                 }
                             });
-                             // Zaktualizuj liczniki po usunięciu
+
                             applyFilters();
                         } else {
                              alert("Błąd podczas usuwania produktów: " + (data ? data.message : "Brak wiadomości o błędzie."));
@@ -525,7 +522,6 @@
                 });
             }
 
-            // Zastosuj filtry przy pierwszym załadowaniu strony
             applyFilters();
         });
     </script>
