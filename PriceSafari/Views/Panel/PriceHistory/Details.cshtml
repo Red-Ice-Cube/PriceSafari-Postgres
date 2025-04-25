@@ -55,7 +55,7 @@
                     <div style="display:flex;">
                         <img src="@img" style="height: 130px; width: 130px;" />
                     </div>
-                }
+               }
               
            
                    
@@ -93,7 +93,7 @@
                             </div>
                         }
                     </div>
-                    <div style="margin-top: 16px;">
+                    <div style="margin-top: 16px; display:flex; justify-content:center; gap:6px;" >
                         <button type="button" class="Button-Page-Small" style="white-space: nowrap;" id="presetButton" onclick="openCompetitorsModal()">
 
                             @if (!string.IsNullOrEmpty(ViewBag.ActivePresetName))
@@ -107,26 +107,26 @@
                             {
 
                                 <span id="activePresetDisplay">
-                                    Presety - Widok standardowy PriceSafari
+                                    Presety - Widok PriceSafari
                                 </span>
                             }
                         </button>
                         @if (!string.IsNullOrEmpty(googleUrl))
                         {
-                            <a href="@googleUrl" class="Button-Page-Small-bl" target="_blank">
-                                Google
+                            <a href="@googleUrl" class="Button-Page-Small" target="_blank">
+                                <img src="~/images/GoogleShopping.png" alt="Channel Icon" style="width:18px; height:18px;" /> Google
                             </a>
                         }
                         @if (!string.IsNullOrEmpty(url))
                         {
-                            <a href="@url" class="Button-Page-Small-o" target="_blank">
-                                Ceneo
+                            <a href="@url" class="Button-Page-Small" target="_blank">
+                                <img src="~/images/Ceneo.png" alt="Channel Icon" style="width:18px; height:18px;" /> Ceneo
                             </a>
                         }
                         @if (!string.IsNullOrEmpty(externalUrl))
                         {
                             <a href="@externalUrl" class="Button-Page-Small" target="_blank">
-                                Twoja strona
+                                <img src="~/images/Click-b.svg" alt="Channel Icon" style="width:20px; height:20px;" /> Strona
                             </a>
                         }
                     </div>
