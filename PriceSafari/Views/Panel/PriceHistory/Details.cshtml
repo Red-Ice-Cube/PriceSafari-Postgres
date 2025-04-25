@@ -365,6 +365,28 @@
                 <!-- Tutaj JavaScript wstawia tabelkę z danymi -->
             </div>
         </div>
+
+
+        
+        @* <div id="trendChartContainer" style="display: flex; flex-wrap: wrap;">
+            <div class="chart-column" style="flex: 1; min-width: 500px;">
+                <div class="chart-container">
+                    <div id="trendChart" style="width: 100%; height:100%;"></div>
+                </div>
+                <div class="range-container" style="margin-top:10px;">
+                    <label for="grayAlphaRange" style="font-size: 0.8em; margin-right: 5px;">Przezroczystość nieaktywnych:</label>
+                    <input type="range"
+                           id="grayAlphaRange"
+                           min="0"
+                           max="0.6"
+                           step="0.01"
+                           value="0.3">
+                </div>
+            </div>
+            <div id="customTrendTooltip" >
+             
+            </div>
+        </div> *@
     </div>
 </div>
 
@@ -554,6 +576,7 @@
 <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
 <script>
 
     Chart.register(window['chartjs-plugin-annotation']);
@@ -751,6 +774,521 @@
         });
     }
 </script>
+
+@* <script>
+    let productId = @ViewBag.ProductId;
+    let myStoreLower = "@storeName".toLowerCase().trim();
+    let lastHoverParams = null; // <-- ZMIANA: Dodano zmienną globalną
+
+    let highlightedStores = [];
+    let storeColorMap = {};
+    let lastHighlightedStore = null;
+
+    const highlightColors = [
+        'rgba(54, 162, 235, 1)',
+        'rgba(255, 128, 0, 1)',
+        'rgba(153, 102, 255, 1)',
+        'rgba(100, 200, 100, 1)',
+        'rgba(255, 51, 153, 1)',
+        'rgba(255, 204, 0, 1)'
+    ];
+    const myStoreColor = 'rgba(197, 0, 0, 1)';
+    const defaultGrayColor = 'rgba(128, 128, 128, {alpha})';
+
+    let defaultGrayAlpha = 0.3;
+    let echartsTrendChart = null;
+    let currentTimelineData = null;
+    let currentChartOptions = null;
+    const defaultCustomTooltipContent = 'Najedź na punkt na wykresie...';
+
+    // Funkcja do aktualizacji zawartości panelu bocznego (#customTrendTooltip)
+    function updateCustomTooltipPanel(htmlContent) {
+        const panelDiv = document.getElementById('customTrendTooltip');
+        if (panelDiv) {
+            panelDiv.innerHTML = htmlContent || defaultCustomTooltipContent;
+        } else {
+            console.error("Element '#customTrendTooltip' not found!");
+        }
+    }
+
+    function findNextFreeColorIndex() {
+        for (let i = 0; i < highlightColors.length; i++) {
+            let used = Object.values(storeColorMap).includes(i);
+            if (!used) return i;
+        }
+        return null;
+    }
+
+    function getSeriesStyleAndZ(storeNameLower) {
+        const isMyStore = storeNameLower === myStoreLower;
+        const isHighlighted = highlightedStores.includes(storeNameLower);
+        const isLastHighlighted = storeNameLower === lastHighlightedStore;
+        const colorIndex = storeColorMap[storeNameLower];
+
+        let color = defaultGrayColor.replace('{alpha}', defaultGrayAlpha);
+        let lineWidth = 2;
+        let z = 1;
+
+        if (isMyStore) {
+            color = myStoreColor;
+            lineWidth = 2.5;
+            z = 3;
+        }
+
+        if (isHighlighted && colorIndex !== undefined && colorIndex !== null) {
+            color = highlightColors[colorIndex];
+            lineWidth = 2.5;
+             if (!isMyStore) {
+                 z = 2;
+             }
+        }
+
+        if (isLastHighlighted && colorIndex !== undefined && colorIndex !== null) {
+            color = highlightColors[colorIndex];
+            lineWidth = 3.5;
+            z = 4;
+        } else if (isMyStore && !isHighlighted) {
+             // Styl już ustawiony
+        }
+
+        return {
+            lineStyle: { color: color, width: lineWidth },
+            itemStyle: { color: color },
+            z: z
+        };
+    }
+
+    // <-- ZMIANA: Wyodrębniona funkcja do generowania HTML panelu -->
+    function generateTooltipPanelHtml(params) {
+        if (!params || params.length === 0) {
+            return null; // Zwróć null, jeśli brak danych
+        }
+
+        const date = params[0].axisValueLabel;
+        let items = [];
+        params.forEach(param => {
+            const priceVal = param.data.value;
+            const sourceVal = param.data.source;
+            const storeName = param.seriesName;
+
+            if (priceVal !== null && priceVal !== undefined) {
+                const storeLower = storeName.toLowerCase().trim();
+                const currentSeriesStyle = getSeriesStyleAndZ(storeLower); // Pobierz aktualny styl
+
+                items.push({
+                    storeName: storeName,
+                    price: priceVal,
+                    source: sourceVal,
+                    isHighlighted: highlightedStores.includes(storeLower),
+                    isMyStore: (storeLower === myStoreLower),
+                    isLastHighlighted: (storeLower === lastHighlightedStore),
+                    colorIndex: storeColorMap[storeLower],
+                    markerColor: currentSeriesStyle.itemStyle.color // Użyj aktualnego koloru markera
+                });
+            }
+        });
+
+        // <-- ZMIANA: Sortowanie zawsze po cenie -->
+        items.sort((a, b) => {
+            if (a.price !== b.price) {
+                return a.price - b.price; // Niższa cena pierwsza
+            }
+            return a.storeName.localeCompare(b.storeName); // Alfabetycznie przy równej cenie
+        });
+        // <-- KONIEC ZMIANY: Sortowanie -->
+
+        let panelHtml = `<div style="font-weight:bold; margin-bottom:4px;">Data: ${date}</div>`;
+        if (items.length > 0) {
+            panelHtml += `<table style="width:100%; border-collapse:collapse; font-size: 0.85rem;">`;
+            items.forEach(item => {
+                let colorText = 'rgba(50, 50, 50, 1)'; // Domyślny kolor tekstu
+                let fontWeight = 'normal';
+                const storeLower = item.storeName.toLowerCase().trim();
+
+                // Ustalanie STYLU tekstu na podstawie statusu (nie wpływa na sortowanie)
+                if (storeLower === myStoreLower) {
+                    colorText = myStoreColor;
+                    fontWeight = 'bold';
+                } else if (highlightedStores.includes(storeLower) && item.colorIndex != null) {
+                    colorText = highlightColors[item.colorIndex];
+                    fontWeight = 'bold';
+                     // Można dodać dodatkowe pogrubienie dla ostatnio klikniętego
+                     // if(storeLower === lastHighlightedStore) { fontWeight = 'bolder'; }
+                }
+
+                let displayName = item.storeName;
+                if (displayName.length > 30) displayName = displayName.substring(0, 27) + '...';
+
+                let iconHtml = (item.source === 'google')
+                    ? `<img src="/images/GoogleShopping.png" alt="G" style="width:14px;height:14px;margin-right:4px; vertical-align: middle;" title="Google Shopping" />`
+                    : `<img src="/images/Ceneo.png" alt="C" style="width:14px;height:14px;margin-right:4px; vertical-align: middle;" title="Ceneo" />`;
+
+                const escapedStoreName = item.storeName.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+
+                panelHtml += `
+                    <tr style="border-bottom:1px solid #eee; cursor:pointer;"
+                        onclick="event.stopPropagation(); toggleStoreHighlight('${escapedStoreName}');">
+                        <td style="padding: 3px 2px; color:${colorText}; font-weight:${fontWeight}; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${item.storeName}">
+                            <span style="display:inline-block;margin-right:5px;border-radius:10px;width:10px;height:10px;background-color:${item.markerColor}; vertical-align: middle;"></span>
+                            ${iconHtml}${displayName}
+                        </td>
+                        <td style="padding: 3px 2px; text-align:right; color:${colorText}; font-weight:${fontWeight}; white-space:nowrap;">
+                            ${item.price.toFixed(2)} PLN
+                        </td>
+                    </tr>
+                `;
+            });
+            panelHtml += `</table>`;
+        } else {
+            panelHtml += `<div style="color: #666; font-style: italic;">Brak danych dla tej daty.</div>`;
+        }
+        return panelHtml;
+    }
+    // <-- KONIEC ZMIANY: Funkcja generateTooltipPanelHtml -->
+
+
+    function prepareEchartsSeries(timelineData, allDates, allStores) {
+        let priceMap = {};
+         timelineData.forEach(entry => {
+             let date = entry.scrapDate;
+             if (!priceMap[date]) priceMap[date] = {};
+             entry.pricesByStore.forEach(ps => {
+                 priceMap[date][ps.storeName] = { price: ps.price, source: ps.source };
+             });
+         });
+
+        return allStores.map(store => {
+            const storeLower = store.toLowerCase().trim();
+            const styleAndZ = getSeriesStyleAndZ(storeLower);
+
+            const data = allDates.map(date => {
+                const storeData = priceMap[date]?.[store];
+                const price = (storeData && storeData.price !== null && storeData.price !== undefined) ? storeData.price : null;
+                const source = (storeData && storeData.source !== null && storeData.source !== undefined) ? storeData.source : null;
+
+                return {
+                    value: price,
+                    source: source,
+                    storeName: store
+                };
+            });
+
+            return {
+                name: store,
+                type: 'line',
+                data: data,
+                connectNulls: false,
+                showSymbol: false,
+                emphasis: {
+                    focus: 'series',
+                     lineStyle: {
+                         width: styleAndZ.lineStyle.width + 1
+                     }
+                },
+                symbolSize: 4,
+                lineStyle: styleAndZ.lineStyle,
+                itemStyle: styleAndZ.itemStyle,
+                z: styleAndZ.z
+            };
+        });
+    }
+
+    function drawEchartsTrendChart(timelineData) {
+        currentTimelineData = timelineData;
+
+        const chartDom = document.getElementById('trendChart');
+        if (!chartDom) {
+            console.error("ECharts container 'trendChart' not found!");
+            return;
+        }
+
+        if (echartsTrendChart) {
+            echartsTrendChart.dispose();
+            echartsTrendChart = null;
+        }
+
+        echartsTrendChart = echarts.init(chartDom);
+
+        let allDatesSet = new Set();
+        timelineData.forEach(item => allDatesSet.add(item.scrapDate));
+        let allDates = Array.from(allDatesSet).sort();
+
+        let allStoresSet = new Set();
+        timelineData.forEach(item => {
+            item.pricesByStore.forEach(ps => allStoresSet.add(ps.storeName));
+        });
+        let allStores = Array.from(allStoresSet).sort((a, b) => {
+             const aLower = a.toLowerCase().trim();
+             const bLower = b.toLowerCase().trim();
+             if (aLower === myStoreLower) return -1;
+             if (bLower === myStoreLower) return 1;
+             return a.localeCompare(b);
+        });
+
+
+        let globalMinPrice = Number.POSITIVE_INFINITY;
+        let globalMaxPrice = Number.NEGATIVE_INFINITY;
+        timelineData.forEach(entry => {
+            entry.pricesByStore.forEach(ps => {
+                if (ps.price !== null && ps.price < globalMinPrice) globalMinPrice = ps.price;
+                if (ps.price !== null && ps.price > globalMaxPrice) globalMaxPrice = ps.price;
+            });
+        });
+
+        if (!isFinite(globalMinPrice)) globalMinPrice = 0;
+        if (!isFinite(globalMaxPrice) || globalMaxPrice <= globalMinPrice) {
+             globalMaxPrice = globalMinPrice + 100;
+        } else {
+             const padding = (globalMaxPrice - globalMinPrice) * 0.05;
+             globalMinPrice = Math.max(0, globalMinPrice - padding);
+             globalMaxPrice = globalMaxPrice + padding;
+        }
+
+        const seriesData = prepareEchartsSeries(timelineData, allDates, allStores);
+
+        currentChartOptions = {
+            tooltip: {
+                trigger: 'axis',
+                axisPointer: {
+                    type: 'cross',
+                    label: { backgroundColor: '#6a7985' }
+                },
+                // <-- ZMIANA: Uproszczony formatter -->
+                formatter: function (params) {
+                    lastHoverParams = params; // Zapisz ostatnie parametry najechania
+
+                    // Wygeneruj HTML za pomocą nowej funkcji
+                    const panelHtml = generateTooltipPanelHtml(params);
+
+                    // Zaktualizuj panel boczny (jeśli HTML został wygenerowany)
+                    if (panelHtml !== null) {
+                        updateCustomTooltipPanel(panelHtml);
+                    } else {
+                        updateCustomTooltipPanel(null); // Wyczyść, jeśli brak danych
+                    }
+
+                    // Zwróć pusty string, aby ukryć domyślny tooltip ECharts
+                    return '';
+                }
+                 // <-- KONIEC ZMIANY: Formatter -->
+            },
+            xAxis: {
+                type: 'category',
+                data: allDates,
+                boundaryGap: false
+            },
+            yAxis: {
+                type: 'value',
+                min: globalMinPrice,
+                max: globalMaxPrice,
+                axisLabel: {
+                    formatter: '{value} PLN'
+                },
+                scale: true
+            },
+            grid: {
+                left: '3%',
+                right: '4%',
+                bottom: '3%',
+                containLabel: true
+            },
+            series: seriesData,
+             animationEasing: 'quadraticInOut',
+             animationDuration: 600
+        };
+
+        echartsTrendChart.setOption(currentChartOptions);
+
+        echartsTrendChart.on('mouseout', function () {
+            // updateCustomTooltipPanel(null); // Opcjonalnie czyść panel
+        });
+
+        window.addEventListener('resize', () => {
+            if (echartsTrendChart) {
+                echartsTrendChart.resize();
+            }
+        });
+
+        updateCustomTooltipPanel(null); // Inicjalizacja panelu
+    }
+
+    function toggleStoreHighlight(storeName) {
+        if (!echartsTrendChart || !currentTimelineData) {
+            console.warn("Chart not ready or no data to toggle highlight.");
+            return;
+        }
+        let sLower = storeName.toLowerCase().trim();
+        let idx = highlightedStores.indexOf(sLower);
+
+        if (idx >= 0) { // Odznaczanie
+            highlightedStores.splice(idx, 1);
+            delete storeColorMap[sLower];
+            if (lastHighlightedStore === sLower) {
+                 lastHighlightedStore = highlightedStores.length > 0 ? highlightedStores[highlightedStores.length - 1] : null;
+            }
+        } else { // Zaznaczanie
+            if (sLower === myStoreLower) {
+                 console.log("Kliknięto własny sklep - brak dodatkowego podświetlenia.");
+                 lastHighlightedStore = sLower;
+            } else if (highlightedStores.length >= highlightColors.length) {
+                 alert(`Możesz zaznaczyć maks. ${highlightColors.length} sklepów do porównania (oprócz Twojego)!`);
+                 return;
+            } else {
+                 let cIndex = findNextFreeColorIndex();
+                 if (cIndex === null) {
+                     alert("Brak wolnych kolorów do podświetlenia!");
+                     return;
+                 }
+                 if (!highlightedStores.includes(sLower)) {
+                     highlightedStores.push(sLower);
+                 }
+                 storeColorMap[sLower] = cIndex;
+                 lastHighlightedStore = sLower;
+            }
+        }
+
+        updateEchartsStylesAndZ(); // Aktualizuje style linii na wykresie
+
+        // <-- ZMIANA: Wymuszenie aktualizacji panelu bocznego -->
+        if (lastHoverParams) {
+            // Wygeneruj nowy HTML dla panelu, używając zapisanych parametrów
+            // ale z uwzględnieniem ZAKTUALIZOWANEGO stanu podświetlenia
+            const updatedPanelHtml = generateTooltipPanelHtml(lastHoverParams);
+            if (updatedPanelHtml) {
+                 updateCustomTooltipPanel(updatedPanelHtml);
+            }
+        }
+        // <-- KONIEC ZMIANY: Aktualizacja panelu -->
+    }
+
+
+    function updateEchartsStylesAndZ() {
+         if (!echartsTrendChart || !currentChartOptions) return;
+
+         const updatedSeries = currentChartOptions.series.map(series => {
+             const storeLower = series.name.toLowerCase().trim();
+             const styleAndZ = getSeriesStyleAndZ(storeLower);
+
+             return {
+                 ...series,
+                 lineStyle: styleAndZ.lineStyle,
+                 itemStyle: styleAndZ.itemStyle,
+                 emphasis: {
+                      focus: 'series',
+                      lineStyle: {
+                          width: styleAndZ.lineStyle.width + 1
+                      }
+                 },
+                 z: styleAndZ.z
+             };
+         });
+
+         echartsTrendChart.setOption({
+             series: updatedSeries
+         });
+
+         // Nie ma już potrzeby ręcznego odświeżania tooltipa tutaj,
+         // bo robi to teraz funkcja toggleStoreHighlight
+    }
+
+    document.addEventListener("DOMContentLoaded", function () {
+        const $showTableBtn = $('#showTableBtn');
+        const $showChartBtn = $('#showChartBtn');
+        const $tableContainer = $('#priceTableContainer');
+        const $chartContainer = $('#trendChartContainer');
+        const $customTooltipPanel = $('#customTrendTooltip');
+
+        $showTableBtn.on('click', function () {
+            $chartContainer.hide();
+            $customTooltipPanel.hide();
+            $tableContainer.show();
+            $showTableBtn.removeClass('button-inactive').addClass('button-active');
+            $showChartBtn.removeClass('button-active').addClass('button-inactive');
+        });
+
+        $showChartBtn.on('click', function () {
+            $tableContainer.hide();
+            $chartContainer.show();
+            $customTooltipPanel.show();
+            $showChartBtn.removeClass('button-inactive').addClass('button-active');
+            $showTableBtn.removeClass('button-active').addClass('button-inactive');
+
+            if ($chartContainer.is(':visible')) {
+                 if (!echartsTrendChart && currentTimelineData) {
+                     if (document.getElementById('trendChart')) {
+                          drawEchartsTrendChart(currentTimelineData);
+                     } else {
+                          console.error("Target div 'trendChart' not found when trying to redraw.");
+                     }
+                 } else if (!echartsTrendChart) {
+                      if (document.getElementById('trendChart')) {
+                          loadTrendDataAndDrawEcharts();
+                      } else {
+                          console.error("Target div 'trendChart' not found on initial load.");
+                      }
+                 } else {
+                     echartsTrendChart.resize();
+                 }
+            }
+        });
+
+
+        const grayAlphaRange = document.getElementById("grayAlphaRange");
+        if (grayAlphaRange) {
+            grayAlphaRange.addEventListener("input", function (e) {
+                defaultGrayAlpha = parseFloat(e.target.value);
+                updateEchartsStylesAndZ(); // Aktualizuj wykres
+                 // Odśwież panel boczny, jeśli ostatnie parametry są dostępne
+                 if (lastHoverParams) {
+                    const updatedPanelHtml = generateTooltipPanelHtml(lastHoverParams);
+                    if (updatedPanelHtml) {
+                         updateCustomTooltipPanel(updatedPanelHtml);
+                    }
+                 }
+            });
+        }
+
+         // Ustawienie początkowego stanu (Tabela aktywna)
+         $showTableBtn.click();
+
+    });
+
+    function loadTrendDataAndDrawEcharts() {
+         if ($('#trendChartContainer').is(':visible')) {
+              $('#loadingOverlay').show();
+         }
+
+        $.ajax({
+            url: '@Url.Action("GetPriceTrendData", "PriceHistory")',
+            type: 'GET',
+            data: { productId: productId },
+            success: function(response) {
+                if (response && response.timelineData && Array.isArray(response.timelineData)) {
+                     currentTimelineData = response.timelineData;
+                     if ($('#trendChartContainer').is(':visible') && document.getElementById('trendChart')) {
+                          drawEchartsTrendChart(currentTimelineData);
+                     } else {
+                          console.log("Chart container not visible, data stored for later drawing.");
+                     }
+                } else {
+                     alert("Otrzymano nieprawidłowy format danych trendu.");
+                     console.error("Invalid timeline data received:", response);
+                     updateCustomTooltipPanel('<div style="color:red;">Błąd ładowania danych.</div>');
+                }
+            },
+            error: function(jqXHR, textStatus, errorThrown) {
+                alert("Błąd pobierania danych trendu: " + errorThrown);
+                console.error("AJAX Error:", textStatus, errorThrown);
+                 updateCustomTooltipPanel('<div style="color:red;">Błąd ładowania danych.</div>');
+            },
+            complete: function() {
+                 $('#loadingOverlay').hide();
+            }
+        });
+    }
+</script> *@
+
+
 
 <script>
 
