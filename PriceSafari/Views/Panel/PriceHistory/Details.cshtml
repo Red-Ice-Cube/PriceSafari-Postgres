@@ -43,6 +43,7 @@
         </div>
 
         <div class="form-check-orders" style="margin-bottom:16px;">
+         
             <div>
                 <p><strong>Wykonano:</strong> @scrapHistory?.Date.ToString("dd.MM.yyyy")</p>
             </div>
@@ -55,9 +56,10 @@
                         <img src="@img" style="height: 130px; width: 130px;" />
                     </div>
                 }
-                <button type="button" class="Button-Page-Small" style="white-space: nowrap;" id="presetButton" onclick="openCompetitorsModal()">
-                    Presety
-                </button>
+              
+           
+                   
+              
                 <div class="price-box-column-name" style="align-content:flex-end;">
                     <div class="store-section">
                         <!-- Zawsze wyświetlamy sortowanie po cenie -->
@@ -92,6 +94,23 @@
                         }
                     </div>
                     <div style="margin-top: 16px;">
+                        <button type="button" class="Button-Page-Small" style="white-space: nowrap;" id="presetButton" onclick="openCompetitorsModal()">
+
+                            @if (!string.IsNullOrEmpty(ViewBag.ActivePresetName))
+                            {
+
+                                <span id="activePresetDisplay">
+                                    Presety - @ViewBag.ActivePresetName
+                                </span>
+                            }
+                            else
+                            {
+
+                                <span id="activePresetDisplay">
+                                    Presety - Widok standardowy PriceSafari
+                                </span>
+                            }
+                        </button>
                         @if (!string.IsNullOrEmpty(googleUrl))
                         {
                             <a href="@googleUrl" class="Button-Page-Small-bl" target="_blank">
@@ -349,7 +368,6 @@
     </div>
 </div>
 
-
 <div class="modal-sim fade" id="competitorModal" tabindex="-1" role="dialog">
     <div class="modal-dialog-sim" role="document">
         <div class="modal-simulation">
@@ -531,7 +549,6 @@
     </div>
 </div>
 
-
 <!-- Skrypty zewnętrzne -->
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
@@ -543,8 +560,8 @@
 </script>
 
 <script>
-     var priceHistoryPageContext = 'details';
-        var storeId = '@storeId';
+    var priceHistoryPageContext = 'details';
+       var storeId = '@storeId';
 </script>
 <script src="~/js/member/CompetitorModal.js"></script>
 
@@ -734,7 +751,6 @@
         });
     }
 </script>
-
 
 <script>
 
@@ -1158,9 +1174,6 @@
         });
 
           if (chart && chart.data && chart.data.datasets) {
-
-
-  
 
     }
 

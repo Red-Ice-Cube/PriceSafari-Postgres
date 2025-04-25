@@ -1,5 +1,4 @@
-﻿
-window.currentPreset = null;
+﻿window.currentPreset = null;
 
 function showLoading() {
     document.getElementById("loadingOverlay").style.display = "flex";
@@ -29,7 +28,6 @@ window.openCompetitorsModal = async function () {
     competitorModal.style.display = 'block';
     competitorModal.classList.add('show');
 };
-
 
 async function fetchPresets() {
     const url = `/PriceHistory/GetPresets?storeId=${storeId}`;
@@ -74,7 +72,6 @@ async function refreshPresetDropdown() {
     }
 }
 
-
 document.addEventListener("DOMContentLoaded", () => {
     const presetSelect = document.getElementById("presetSelect");
     if (presetSelect) {
@@ -90,7 +87,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const useUnmarkedStoresCheckbox = document.getElementById("useUnmarkedStoresCheckbox");
     if (useUnmarkedStoresCheckbox) {
         useUnmarkedStoresCheckbox.addEventListener("change", async function () {
-          
+
             if (!window.currentPreset || window.currentPreset.presetId === null) {
                 if (window.currentPreset) {
                     window.currentPreset.useUnmarkedStores = this.checked;
@@ -100,7 +97,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
                 return;
             }
-         
+
             window.currentPreset.useUnmarkedStores = this.checked;
             showLoading();
             await saveOrUpdatePreset();
@@ -148,7 +145,6 @@ async function loadBaseView() {
         const newPresetSection = document.getElementById("newPresetSection");
         newPresetSection.style.display = "block";
 
-        
         const presetNameInput = document.getElementById("presetNameInput");
         if (presetNameInput) {
             presetNameInput.style.display = "none";
@@ -306,7 +302,7 @@ async function loadSelectedPreset(presetId) {
                 alert("Nie można zmienić nazwy presetu.");
                 return;
             }
-        
+
             let newName = prompt("Podaj nową nazwę presetu (max 50 znaków):", window.currentPreset.presetName);
 
             if (newName && newName.trim() !== "") {
@@ -322,7 +318,6 @@ async function loadSelectedPreset(presetId) {
                 alert("Zmieniono nazwę presetu.");
             }
         };
-
 
         let deleteBtn = document.getElementById("deletePresetBtn");
         if (!deleteBtn) {
@@ -385,7 +380,6 @@ async function loadSelectedPreset(presetId) {
     }
 }
 
-
 function determineSourceVal(isGoogle, isCeneo) {
     if (isGoogle && isCeneo) return "All";
     if (isGoogle) return "Google";
@@ -418,7 +412,6 @@ async function loadCompetitors(ourSource) {
         console.error(err);
     }
 }
-
 
 function createRow(item) {
     const tr = document.createElement("tr");
@@ -608,13 +601,12 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 });
 
-
 document.addEventListener("DOMContentLoaded", () => {
     const googleChk = document.getElementById("googleCheckbox");
     const ceneoChk = document.getElementById("ceneoCheckbox");
     if (googleChk && ceneoChk) {
         async function onSourceChange() {
-           
+
             if (!window.currentPreset || window.currentPreset.presetId === null) {
                 const val = determineSourceVal(googleChk.checked, ceneoChk.checked);
                 showLoading();
@@ -622,7 +614,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 hideLoading();
                 return;
             }
-       
+
             window.currentPreset.sourceGoogle = googleChk.checked;
             window.currentPreset.sourceCeneo = ceneoChk.checked;
             showLoading();
@@ -635,7 +627,6 @@ document.addEventListener("DOMContentLoaded", () => {
         ceneoChk.addEventListener("change", onSourceChange);
     }
 });
-
 
 async function saveOrUpdatePreset() {
     if (!window.currentPreset) return;
@@ -657,7 +648,6 @@ async function saveOrUpdatePreset() {
         alert("Błąd zapisu (SaveOrUpdatePreset). Sprawdź konsolę.");
     }
 }
-
 
 function filterCompetitors(searchTerm) {
     const allRows = document.querySelectorAll("#googleCompetitorsTableBody tr, #ceneoCompetitorsTableBody tr");
@@ -690,27 +680,26 @@ function highlightTextCaseInsensitive(fullText, searchTerm) {
 
 document.addEventListener('click', function (event) {
     const modal = document.getElementById('competitorModal');
-    // Sprawdź, czy modal istnieje i jest widoczny
+
     if (modal && modal.classList.contains('show')) {
         const dialog = modal.querySelector('.modal-simulation');
-        // Sprawdź, czy dialog istnieje i czy kliknięcie było poza nim
+
         if (dialog && !dialog.contains(event.target)) {
             modal.style.display = 'none';
             modal.classList.remove('show');
 
-            // --- ZMODYFIKOWANA LOGIKA ZAMYKANIA ---
             if (typeof priceHistoryPageContext !== 'undefined') {
                 if (priceHistoryPageContext === 'index' && typeof loadPrices === 'function') {
                     console.log("Closing modal on Index page, calling loadPrices().");
-                    loadPrices(); // Wywołaj tylko jeśli funkcja istnieje
+                    loadPrices();
                 } else if (priceHistoryPageContext === 'details') {
                     console.log("Closing modal on Details page, reloading.");
-                    window.location.reload(); // Przeładuj stronę Details
+                    window.location.reload();
                 }
             } else {
                 console.warn("priceHistoryPageContext is not defined.");
             }
-            // --- KONIEC MODYFIKACJI ---
+
         }
     }
 });
@@ -718,55 +707,51 @@ document.addEventListener('click', function (event) {
 document.addEventListener('keydown', function (event) {
     if (event.key === "Escape") {
         const modal = document.getElementById('competitorModal');
-        // Sprawdź, czy modal istnieje i jest widoczny
+
         if (modal && modal.classList.contains('show')) {
             modal.style.display = 'none';
             modal.classList.remove('show');
 
-            // --- ZMODYFIKOWANA LOGIKA ZAMYKANIA ---
             if (typeof priceHistoryPageContext !== 'undefined') {
                 if (priceHistoryPageContext === 'index' && typeof loadPrices === 'function') {
                     console.log("Closing modal on Index page (ESC), calling loadPrices().");
-                    loadPrices(); // Wywołaj tylko jeśli funkcja istnieje
+                    loadPrices();
                 } else if (priceHistoryPageContext === 'details') {
                     console.log("Closing modal on Details page (ESC), reloading.");
-                    window.location.reload(); // Przeładuj stronę Details
+                    window.location.reload();
                 }
             } else {
                 console.warn("priceHistoryPageContext is not defined.");
             }
-            // --- KONIEC MODYFIKACJI ---
+
         }
     }
 });
 
 document.addEventListener("DOMContentLoaded", function () {
-    // ... (reszta kodu w DOMContentLoaded) ...
 
     const competitorModal = document.getElementById("competitorModal");
-    if (competitorModal) { // Sprawdź, czy modal istnieje
+    if (competitorModal) {
         competitorModal.addEventListener("click", function (event) {
             const closeBtn = event.target.closest("[data-dismiss='modal']");
             if (closeBtn) {
                 competitorModal.style.display = "none";
                 competitorModal.classList.remove("show");
 
-                // --- ZMODYFIKOWANA LOGIKA ZAMYKANIA ---
                 if (typeof priceHistoryPageContext !== 'undefined') {
                     if (priceHistoryPageContext === 'index' && typeof loadPrices === 'function') {
                         console.log("Closing modal on Index page (button), calling loadPrices().");
-                        loadPrices(); // Wywołaj tylko jeśli funkcja istnieje
+                        loadPrices();
                     } else if (priceHistoryPageContext === 'details') {
                         console.log("Closing modal on Details page (button), reloading.");
-                        window.location.reload(); // Przeładuj stronę Details
+                        window.location.reload();
                     }
                 } else {
-                     console.warn("priceHistoryPageContext is not defined.");
+                    console.warn("priceHistoryPageContext is not defined.");
                 }
-                // --- KONIEC MODYFIKACJI ---
+
             }
         });
     }
 
-    // ... (reszta kodu w DOMContentLoaded) ...
 });
