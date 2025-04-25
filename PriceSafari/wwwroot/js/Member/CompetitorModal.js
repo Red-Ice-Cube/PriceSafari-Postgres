@@ -690,12 +690,27 @@ function highlightTextCaseInsensitive(fullText, searchTerm) {
 
 document.addEventListener('click', function (event) {
     const modal = document.getElementById('competitorModal');
-    if (modal.classList.contains('show')) {
+    // Sprawdź, czy modal istnieje i jest widoczny
+    if (modal && modal.classList.contains('show')) {
         const dialog = modal.querySelector('.modal-simulation');
-        if (!dialog.contains(event.target)) {
+        // Sprawdź, czy dialog istnieje i czy kliknięcie było poza nim
+        if (dialog && !dialog.contains(event.target)) {
             modal.style.display = 'none';
             modal.classList.remove('show');
-            loadPrices();
+
+            // --- ZMODYFIKOWANA LOGIKA ZAMYKANIA ---
+            if (typeof priceHistoryPageContext !== 'undefined') {
+                if (priceHistoryPageContext === 'index' && typeof loadPrices === 'function') {
+                    console.log("Closing modal on Index page, calling loadPrices().");
+                    loadPrices(); // Wywołaj tylko jeśli funkcja istnieje
+                } else if (priceHistoryPageContext === 'details') {
+                    console.log("Closing modal on Details page, reloading.");
+                    window.location.reload(); // Przeładuj stronę Details
+                }
+            } else {
+                console.warn("priceHistoryPageContext is not defined.");
+            }
+            // --- KONIEC MODYFIKACJI ---
         }
     }
 });
@@ -703,29 +718,55 @@ document.addEventListener('click', function (event) {
 document.addEventListener('keydown', function (event) {
     if (event.key === "Escape") {
         const modal = document.getElementById('competitorModal');
-        if (modal.classList.contains('show')) {
+        // Sprawdź, czy modal istnieje i jest widoczny
+        if (modal && modal.classList.contains('show')) {
             modal.style.display = 'none';
             modal.classList.remove('show');
-            loadPrices();
+
+            // --- ZMODYFIKOWANA LOGIKA ZAMYKANIA ---
+            if (typeof priceHistoryPageContext !== 'undefined') {
+                if (priceHistoryPageContext === 'index' && typeof loadPrices === 'function') {
+                    console.log("Closing modal on Index page (ESC), calling loadPrices().");
+                    loadPrices(); // Wywołaj tylko jeśli funkcja istnieje
+                } else if (priceHistoryPageContext === 'details') {
+                    console.log("Closing modal on Details page (ESC), reloading.");
+                    window.location.reload(); // Przeładuj stronę Details
+                }
+            } else {
+                console.warn("priceHistoryPageContext is not defined.");
+            }
+            // --- KONIEC MODYFIKACJI ---
         }
     }
 });
 
 document.addEventListener("DOMContentLoaded", function () {
-    const competitorModal = document.getElementById("competitorModal");
-    competitorModal.addEventListener("click", function (event) {
-        const closeBtn = event.target.closest("[data-dismiss='modal']");
-        if (closeBtn) {
-            competitorModal.style.display = "none";
-            competitorModal.classList.remove("show");
-            loadPrices();
-        }
-    });
+    // ... (reszta kodu w DOMContentLoaded) ...
 
-    const competitorSearchInput = document.getElementById("competitorSearchInput");
-    if (competitorSearchInput) {
-        competitorSearchInput.addEventListener("input", function () {
-            filterCompetitors(this.value);
+    const competitorModal = document.getElementById("competitorModal");
+    if (competitorModal) { // Sprawdź, czy modal istnieje
+        competitorModal.addEventListener("click", function (event) {
+            const closeBtn = event.target.closest("[data-dismiss='modal']");
+            if (closeBtn) {
+                competitorModal.style.display = "none";
+                competitorModal.classList.remove("show");
+
+                // --- ZMODYFIKOWANA LOGIKA ZAMYKANIA ---
+                if (typeof priceHistoryPageContext !== 'undefined') {
+                    if (priceHistoryPageContext === 'index' && typeof loadPrices === 'function') {
+                        console.log("Closing modal on Index page (button), calling loadPrices().");
+                        loadPrices(); // Wywołaj tylko jeśli funkcja istnieje
+                    } else if (priceHistoryPageContext === 'details') {
+                        console.log("Closing modal on Details page (button), reloading.");
+                        window.location.reload(); // Przeładuj stronę Details
+                    }
+                } else {
+                     console.warn("priceHistoryPageContext is not defined.");
+                }
+                // --- KONIEC MODYFIKACJI ---
+            }
         });
     }
+
+    // ... (reszta kodu w DOMContentLoaded) ...
 });

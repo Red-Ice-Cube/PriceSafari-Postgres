@@ -1075,6 +1075,7 @@ namespace PriceSafari.Controllers.MemberControllers
             ViewBag.ScrapHistory = scrapHistory;
             ViewBag.ProductName = product.ProductName;
             ViewBag.Url = product.OfferUrl;
+            ViewBag.StoreId = storeId;
             ViewBag.GoogleUrl = product.GoogleUrl;
             ViewBag.StoreName = storeName;
             ViewBag.SetPrice1 = priceValues.SetPrice1;
