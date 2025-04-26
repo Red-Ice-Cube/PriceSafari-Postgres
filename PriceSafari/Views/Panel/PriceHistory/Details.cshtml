@@ -770,6 +770,11 @@
     }
 </script>
 
+
+
+
+
+
 <script>
     let productId = @ViewBag.ProductId;
     let myStoreLower = "@storeName".toLowerCase().trim();
@@ -1056,51 +1061,62 @@
     return panelHtml;
     }
 
-    function prepareEchartsSeries(dataByInstance, allDates, allInstances) {
+       function prepareEchartsSeries(dataByInstance, allDates, allInstances) {
 
         return allInstances.map(instanceId => {
             const [storeName, source] = instanceId.split('|');
             const storeLower = storeName.toLowerCase().trim();
-
             const styleAndZ = getSeriesStyleAndZ(storeLower);
-
             const data = allDates.map(date => {
                 const price = dataByInstance[instanceId]?.[date] ?? null;
-                return {
-                    value: price,
-                    source: source,
-                    storeName: storeName
-                };
+                return { value: price, source: source, storeName: storeName };
             });
 
             return {
-
                 name: storeName,
-
                 _instanceId: instanceId,
                 _source: source,
-
                 type: 'line',
                 data: data,
                 connectNulls: false,
-                showSymbol: true,
-                       symbolSize: 4,
                 smooth: 0.25,
-                emphasis: {
-                    focus: 'series',
-                     lineStyle: {
-                         width: styleAndZ.lineStyle.width > 0 ? styleAndZ.lineStyle.width + 1 : 0
-                     }
-                },
-                symbolSize: 4,
 
+                // === ZMIANA 1: Ukryj symbole DOMYŚLNIE ===
+                showSymbol: false,
+                // Usuwamy funkcję symbolSize, bo punkty są globalnie ukryte na starcie
+                // symbolSize: function(...) {...},
+
+                emphasis: {
+                    focus: 'series', // Nadal podświetlaj całą serię
+
+                    // === ZMIANA 2: Pokaż symbole tylko w stanie emphasis ===
+                    showSymbol: true,
+
+                    // === ZMIANA 3: Nadaj DUŻY rozmiar pojawiającym się symbolom ===
+                    symbolSize: 18, // Eksperymentuj z rozmiarem, np. 10, 12, 14
+
+                    // Opcjonalnie: Styl dla pojawiających się symboli (np. pełna widoczność, obwódka)
+                    itemStyle: {
+                        color: styleAndZ.itemStyle.color, // Użyj koloru serii
+                        opacity: 1, // Pełna widoczność
+                        borderColor: 'rgba(255, 255, 255, 0.7)', // Jasna obwódka dla kontrastu
+                        borderWidth: 1
+                    },
+
+                    // Opcjonalnie: Możesz nadal lekko pogrubiać linię
+                    lineStyle: {
+                        width: Math.max(4, (styleAndZ.lineStyle.width || 2) * 1.5) // Np. min 4px lub 1.5x oryginał
+                    }
+                    // scale: true, // Można pozwolić na domyślne skalowanie lub polegać tylko na symbolSize
+                },
+
+                // Style bazowe (głównie dla linii, bo punktów nie widać)
                 lineStyle: styleAndZ.lineStyle,
-                itemStyle: styleAndZ.itemStyle,
+                // itemStyle: styleAndZ.itemStyle, // Mniej istotne, bo showSymbol: false
                 z: styleAndZ.z
             };
         });
     }
-
     function drawEchartsTrendChart(timelineData) {
         currentTimelineData = timelineData;
 
@@ -1207,6 +1223,17 @@
             xAxis: {
                 type: 'category',
                 data: allDates,
+
+            splitLine: {
+                show: true,
+                lineStyle: {
+
+                    color: '#E8E8E8',
+                    type: 'dashed',
+                    width: 1,
+                     opacity: 1.0
+                }
+            },
                 boundaryGap: false
             },
                 yAxis: {
@@ -1230,7 +1257,7 @@
                     color: '#E8E8E8',
                     type: 'dashed',
                     width: 1,
-                     opacity: 0.0
+                     opacity: 1.0
                 }
             }
 
