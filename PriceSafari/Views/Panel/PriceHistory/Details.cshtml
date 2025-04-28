@@ -856,15 +856,20 @@
     let lastHighlightedStore = null;
     let hiddenStores = [];
 
-    const highlightColors = [
-        'rgba(54, 162, 235, 1)',
+     const highlightColors = [
         'rgba(255, 128, 0, 1)',
+        'rgba(76, 175, 80, 1)',
         'rgba(153, 102, 255, 1)',
-        'rgba(100, 200, 100, 1)',
-        'rgba(255, 51, 153, 1)',
-        'rgba(255, 204, 0, 1)'
+        'rgba(244, 67, 54, 1)',
+        'rgba(0, 150, 136, 1)',
+        'rgba(255, 193, 7, 1)',
+        'rgba(0, 188, 212, 1)',
+        'rgba(139, 195, 74, 1)',
+        'rgba(121, 85, 72, 1)',
+        'rgba(233, 30, 99, 1)'
     ];
-    const myStoreColor = 'rgba(197, 0, 0, 1)';
+
+    const myStoreColor = 'rgba(54, 162, 235, 1)';
     const defaultGrayColor = 'rgba(128, 128, 128, {alpha})';
 
         const UNIFORM_LINE_WIDTH = 2.3;
@@ -1230,6 +1235,32 @@
         });
     });
 
+    const chartContainerElement = document.getElementById('trendChartContainer');
+
+    if (chartContainerElement && typeof ResizeObserver !== 'undefined') {
+        const resizeObserver = new ResizeObserver(entries => {
+
+            if (echartsTrendChart && $('#trendChartContainer').is(':visible')) {
+                 console.log('ResizeObserver detected container resize, resizing ECharts.');
+
+                 echartsTrendChart.resize({
+                    animation: {
+                        duration: 200,
+                        easing: 'quadraticInOut'
+                    }
+                 });
+            }
+        });
+
+        resizeObserver.observe(chartContainerElement);
+
+    } else if (!chartContainerElement) {
+
+    }
+     else {
+
+    }
+
     let allDates = Array.from(allDatesSet).sort();
     let allInstances = Array.from(allInstancesSet);
 
@@ -1487,7 +1518,7 @@
                  console.log("Kliknięto własny sklep - brak dodatkowego podświetlenia.");
                  lastHighlightedStore = sLower;
             } else if (highlightedStores.length >= highlightColors.length) {
-                 alert(`Możesz zaznaczyć maks. ${highlightColors.length} sklepów do porównania (oprócz Twojego)!`);
+                 alert(`Możesz zaznaczyć maks. ${highlightColors.length} sklepów do porównania `);
                  return;
             } else {
                  let cIndex = findNextFreeColorIndex();
