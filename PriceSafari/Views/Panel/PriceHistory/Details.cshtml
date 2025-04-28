@@ -227,13 +227,13 @@
             </div>
         </div>
 
-        <!-- 1. Kontener z TABELĄ (domyślnie widoczny) -->
+
         <div id="priceTableContainer" class="Vert-table" style="display: block;">
             <table class="table-orders" id="priceTable">
                 <thead>
                     <tr>
                         <th></th>
-                        <!-- Nadajemy id, by łatwo móc zmieniać tekst nagłówka -->
+                      
                         <th id="storeHeader">Sklep (@totalOffers)</th>
                         <th>Cena</th>
                         <th>Różnica</th>
@@ -1085,7 +1085,7 @@
              }
 
             let displayName = item.storeName;
-            if (displayName.length > 30) displayName = displayName.substring(0, 27) + '...';
+            if (displayName.length > 23) displayName = displayName.substring(0, 20) + '...';
 
             let iconHtml = (item.source === 'google')
                  ? `<img src="/images/GoogleShopping.png" alt="G" style="width:14px;height:14px;margin-right:4px; vertical-align: middle;" title="Google Shopping" />`
@@ -1168,7 +1168,7 @@
                 type: 'line',
                 data: data,
                 connectNulls: false,
-                smooth: 0.25,
+                smooth: 0.30,
 
                 showSymbol: showSymbolDefault,
                 symbol: 'circle',
