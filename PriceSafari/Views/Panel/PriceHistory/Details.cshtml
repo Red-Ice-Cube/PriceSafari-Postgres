@@ -26,6 +26,99 @@
     }
 }
 
+<style>
+
+    .price-trend-section {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 20px;
+        margin-top: 25px;
+    }
+
+    .price-trend__main-panel {
+        flex: 1;
+        min-width: 480px;
+        display: flex;
+        flex-direction: column;
+        height: 65vh;
+    }
+
+    .price-trend__chart-area {
+        width: 100%;
+        flex-grow: 1;
+        min-height: 300px;
+        position: relative;
+        margin-bottom: 10px;
+    }
+
+    .price-trend__controls {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 5px;
+        align-self: center;
+        justify-self: center;
+        width: 93%;
+        box-sizing: border-box;
+        flex-shrink: 0;
+    }
+
+    .price-trend__alpha-slider-wrapper {
+        flex-grow: 1;
+        margin-right: 20px;
+        display: flex;
+        align-items: center;
+        max-width: 300px;
+    }
+
+        .price-trend__alpha-slider-wrapper input[type=range] {
+            width: 100%;
+            cursor: pointer;
+            height: 8px;
+            background: #e0e0e0;
+            border-radius: 5px;
+            outline: none;
+            opacity: 0.8;
+            transition: opacity .2s;
+        }
+
+            .price-trend__alpha-slider-wrapper input[type=range]:hover {
+                opacity: 1;
+            }
+
+            .price-trend__alpha-slider-wrapper input[type=range]::-webkit-slider-thumb {
+                -webkit-appearance: none;
+                appearance: none;
+                width: 18px;
+                height: 18px;
+                background: #444;
+                border-radius: 50%;
+                cursor: pointer;
+            }
+
+            .price-trend__alpha-slider-wrapper input[type=range]::-moz-range-thumb {
+                width: 18px;
+                height: 18px;
+                background: #444;
+                border-radius: 50%;
+                cursor: pointer;
+                border: none;
+            }
+
+    #exportExcelBtn {
+        white-space: nowrap;
+        flex-shrink: 0;
+    }
+
+    .price-trend__tooltip-panel {
+        flex-basis: 340px;
+        flex-shrink: 0;
+        border-left: 1px solid #e0e0e0;
+        padding-left: 20px;
+        overflow-y: auto;
+    }
+</style>
+
 <div class="Vert" data-store-name="@storeName">
     <div class="Page-Box">
         <div style="display:flex; width:100%; justify-content:space-between;">
@@ -343,43 +436,27 @@
                 </tbody>
             </table>
         </div>
-        <!-- Kontener WYKRESU + TOOLTIPA -->
-        @*         <div id="trendChartContainer">
-            <div class="chart-column">
-                <div class="chart-container">
-                    <canvas id="trendChart"></canvas>
-                </div>
-                <div class="range-container" style="margin-top:10px;">
-                    <input type="range"
-                           id="grayAlphaRange"
-                           min="0"
-                           max="0.6"
-                           step="0.01"
-                           value="0.3">
-                </div>
-            </div>
-            <div id="customTrendTooltip">
-                <!-- Tutaj JavaScript wstawia tabelkę z danymi -->
-            </div>
-        </div>
- *@
 
-        <div id="trendChartContainer" style="display: flex; flex-wrap: wrap;">
-            <div class="chart-column" style="flex: 1; min-width: 500px;">
-                <div class="chart-container" style="max-width: 99%;">
-                    <div id="trendChart" style="width: 100%; height:100%;"></div>
+        <div id="trendChartContainer" class="price-trend-section">
+            <div class="price-trend__main-panel">
+                <div class="price-trend__chart-area">
+                    <div id="trendChart" style="width: 100%; height: 100%;"></div>
                 </div>
-                <div class="range-container" style="margin-top:10px;">
-
-                    <input type="range"
-                           id="grayAlphaRange"
-                           min="0"
-                           max="0.6"
-                           step="0.01"
-                           value="0.3">
+                <div class="price-trend__controls">
+                    <div class="price-trend__alpha-slider-wrapper">
+                        <input type="range"
+                               id="grayAlphaRange"
+                               min="0"
+                               max="0.6"
+                               step="0.01"
+                               value="0.3">
+                    </div>
+                    <button type="button" id="exportExcelBtn" class="Button-Page-Small" title="Eksportuj dane historii cen do pliku Excel">
+                        <i class="fas fa-file-excel" style="margin-right: 5px;"></i> Excel
+                    </button>
                 </div>
             </div>
-            <div id="customTrendTooltip">
+            <div id="customTrendTooltip" class="price-trend__tooltip-panel">
             </div>
         </div>
     </div>
@@ -566,14 +643,13 @@
     </div>
 </div>
 
-<!-- Skrypty zewnętrzne -->
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
 <script>
-
     Chart.register(window['chartjs-plugin-annotation']);
 </script>
 
@@ -770,10 +846,6 @@
     }
 </script>
 
-
-
-
-
 <script>
     let productId = @ViewBag.ProductId;
     let myStoreLower = "@storeName".toLowerCase().trim();
@@ -795,7 +867,7 @@
     const myStoreColor = 'rgba(197, 0, 0, 1)';
     const defaultGrayColor = 'rgba(128, 128, 128, {alpha})';
 
-        const UNIFORM_LINE_WIDTH = 2.3; // Wybierz stałą szerokość dla stanu normalnego
+        const UNIFORM_LINE_WIDTH = 2.3;
     const UNIFORM_EMPHASIS_LINE_WIDTH = 2.3;
 
     let defaultGrayAlpha = 0.3;
@@ -913,34 +985,33 @@
         function getSeriesStyleAndZ(storeNameLower) {
         if (hiddenStores.includes(storeNameLower)) {
             return {
-                lineStyle: { color: 'transparent', width: 0 }, // Ukryte linie nadal mają szerokość 0
+                lineStyle: { color: 'transparent', width: 0 },
                 itemStyle: { color: 'transparent' },
                 z: 0
             };
         }
         const isMyStore = storeNameLower === myStoreLower;
         const isHighlighted = highlightedStores.includes(storeNameLower);
-        const isLastHighlighted = storeNameLower === lastHighlightedStore; // Zachowaj dla Z-index
+        const isLastHighlighted = storeNameLower === lastHighlightedStore;
         const colorIndex = storeColorMap[storeNameLower];
 
         let color = defaultGrayColor.replace('{alpha}', defaultGrayAlpha);
-        let z = 1; // Z-index dla rysowania na wierzchu
+        let z = 1;
 
         if (isMyStore) {
             color = myStoreColor;
-            z = 3; // Mój sklep na wierzchu
+            z = 3;
         } else if (isHighlighted && colorIndex !== undefined && colorIndex !== null) {
             color = highlightColors[colorIndex];
-            z = 2; // Podświetlone pod moim sklepem
+            z = 2;
         }
 
-        // Opcjonalnie: Dodatkowo wynieś ostatnio kliknięty na sam wierzch
         if (isLastHighlighted) {
             z = 4;
         }
 
         return {
-            // Zawsze używaj stałej szerokości dla stanu normalnego
+
             lineStyle: { color: color, width: UNIFORM_LINE_WIDTH },
             itemStyle: { color: color },
             z: z
@@ -1103,12 +1174,12 @@
         symbolSize: symbolSizeEmphasis,
         lineStyle: {
             width: UNIFORM_EMPHASIS_LINE_WIDTH
-     
+
         },
         itemStyle: {
-            // POPRAWKA: Bezpośrednio przypisz kolor ze stanu normalnego
+
             color: initialStyleAndZ.itemStyle.color,
-            borderColor: 'rgba(255, 255, 255, 0.7)', // Możesz zostawić lub dostosować obramowanie
+            borderColor: 'rgba(255, 255, 255, 0.7)',
             borderWidth: 1,
             opacity: 1
         }
@@ -1444,67 +1515,60 @@
 
     }
 
-
-
     function updateEchartsStylesAndZ() {
         if (!echartsTrendChart || !currentChartOptions || !currentChartOptions.series) return;
 
         const updatedSeries = currentChartOptions.series.map(series => {
             const storeLower = series.name.toLowerCase().trim();
-            const styleAndZ = getSeriesStyleAndZ(storeLower); // Pobierz aktualny poprawny styl (normalny)
+            const styleAndZ = getSeriesStyleAndZ(storeLower);
 
             const currentEmphasis = series.emphasis || {};
-            const currentEmphasisItemStyle = currentEmphasis.itemStyle || {}; // Pobierz istniejący itemStyle z emphasis
-            const currentEmphasisLineStyle = currentEmphasis.lineStyle || {}; // Pobierz istniejący lineStyle z emphasis
+            const currentEmphasisItemStyle = currentEmphasis.itemStyle || {};
+            const currentEmphasisLineStyle = currentEmphasis.lineStyle || {};
 
-            // *** Logowanie może tu zostać, jeśli potrzebujesz ***
             const DEBUG_STORE_NAME = "NAZWA_SKLEPU_Z_JEDNYM_PUNKTEM";
             if (series.name === DEBUG_STORE_NAME) {
                  console.log(`[${series.name}] Emphasis PRZED aktualizacją:`, JSON.stringify(currentEmphasis));
                  console.log(`[${series.name}] Styl normalny (itemStyle.color):`, styleAndZ.itemStyle.color);
             }
 
-            // Tworzenie nowego obiektu emphasis z AKTUALNYM kolorem
             const newEmphasis = {
-                ...currentEmphasis, // Skopiuj bazowe ustawienia emphasis (np. focus, symbolSize)
+                ...currentEmphasis,
                 lineStyle: {
-                    ...currentEmphasisLineStyle, // Skopiuj inne ustawienia lineStyle
-                    width: UNIFORM_EMPHASIS_LINE_WIDTH // Ustaw/zaktualizuj szerokość linii
+                    ...currentEmphasisLineStyle,
+                    width: UNIFORM_EMPHASIS_LINE_WIDTH
                 },
                 itemStyle: {
-                    ...currentEmphasisItemStyle, // Skopiuj inne ustawienia itemStyle (np. borderColor, borderWidth)
-                    color: styleAndZ.itemStyle.color, // <<< KLUCZOWA ZMIANA: Ustaw poprawny, aktualny kolor!
-                    opacity: 1 // Upewnij się, że jest w pełni widoczny
+                    ...currentEmphasisItemStyle,
+                    color: styleAndZ.itemStyle.color,
+                    opacity: 1
                 }
             };
 
-            // *** Drugie logowanie ***
              if (series.name === DEBUG_STORE_NAME) {
                  console.log(`[${series.name}] Emphasis PO aktualizacji (przed setOption):`, JSON.stringify(newEmphasis));
              }
 
-            // Zwróć zaktualizowaną konfigurację serii
             return {
-                ...series, // Zachowaj inne właściwości serii (name, type, data, etc.)
-                lineStyle: styleAndZ.lineStyle, // Zastosuj aktualny styl normalny linii
-                itemStyle: styleAndZ.itemStyle, // Zastosuj aktualny styl normalny punktu
-                emphasis: newEmphasis,          // Zastosuj zaktualizowany styl emphasis
-                z: styleAndZ.z                  // Zastosuj aktualny z-index
+                ...series,
+                lineStyle: styleAndZ.lineStyle,
+                itemStyle: styleAndZ.itemStyle,
+                emphasis: newEmphasis,
+                z: styleAndZ.z
             };
         });
 
-        // Zastosuj zmiany w wykresie
-        currentChartOptions.series = updatedSeries; // Zapisz zaktualizowane serie w opcjach (na wszelki wypadek)
+        currentChartOptions.series = updatedSeries;
 
         console.log("Aktualizowanie opcji wykresu...");
         echartsTrendChart.setOption({
-            series: updatedSeries // Przekaż tylko zaktualizowane serie do setOption
+            series: updatedSeries
         });
         console.log("Opcje wykresu zaktualizowane.");
     }
 
-
     document.addEventListener("DOMContentLoaded", function () {
+         const $exportExcelBtn = $('#exportExcelBtn');
         const $showTableBtn = $('#showTableBtn');
         const $showChartBtn = $('#showChartBtn');
         const $tableContainer = $('#priceTableContainer');
@@ -1544,6 +1608,18 @@
                  }
             }
         });
+
+    if ($exportExcelBtn.length) {
+        $exportExcelBtn.on('click', function() {
+
+            if (!currentTimelineData) {
+                alert("Dane historii cen nie zostały jeszcze załadowane. Proszę najpierw kliknąć przycisk 'Wykres'.");
+
+            } else {
+                exportChartDataToExcel();
+            }
+        });
+    }
 
         const grayAlphaRange = document.getElementById("grayAlphaRange");
         if (grayAlphaRange) {
@@ -1597,4 +1673,256 @@
             }
         });
     }
+
+    function rgbaToHex(rgba) {
+
+        if (typeof rgba !== 'string' || !rgba.toLowerCase().startsWith('rgba')) {
+            return null;
+        }
+        const parts = rgba.substring(rgba.indexOf('(') + 1, rgba.lastIndexOf(')')).split(/,\s*/);
+        if (parts.length < 3) {
+            return null;
+        }
+        try {
+            const r = parseInt(parts[0], 10);
+            const g = parseInt(parts[1], 10);
+            const b = parseInt(parts[2], 10);
+            if (isNaN(r) || isNaN(g) || isNaN(b) || r < 0 || r > 255 || g < 0 || g > 255 || b < 0 || b > 255) {
+                return null;
+            }
+            const toHex = c => ('0' + c.toString(16)).slice(-2);
+            const hex = `#${toHex(r)}${toHex(g)}${toHex(b)}`.toUpperCase();
+
+            return hex;
+        } catch (e) {
+            return null;
+        }
+    }
+
+    function getExcelColorForStoreWithInfo(storeKey, currentStoreInfo) {
+
+        if (!currentStoreInfo || !storeKey || !currentStoreInfo[storeKey]) {
+
+            return null;
+        }
+
+        const name = currentStoreInfo[storeKey].name;
+        const storeLower = name.toLowerCase().trim();
+
+        let colorToConvert = null;
+
+        const isMy = (typeof myStoreLower !== 'undefined' && storeLower === myStoreLower);
+
+        if (isMy && typeof myStoreColor !== 'undefined') {
+            colorToConvert = myStoreColor;
+
+        }
+
+        const isHighlighted = (typeof highlightedStores !== 'undefined' && Array.isArray(highlightedStores) && highlightedStores.includes(storeLower));
+
+         if (!isMy && isHighlighted) {
+            if (typeof storeColorMap !== 'undefined' && typeof highlightColors !== 'undefined' && Array.isArray(highlightColors)) {
+                const colorIndex = storeColorMap[storeLower];
+
+                if (colorIndex !== undefined && colorIndex !== null && colorIndex < highlightColors.length) {
+                    colorToConvert = highlightColors[colorIndex];
+
+                } else {
+
+                }
+            } else {
+
+            }
+        }
+
+        if (colorToConvert) {
+            const hexColor = rgbaToHex(colorToConvert);
+
+            return hexColor;
+        }
+
+        return null;
+    }
+
+    async function exportChartDataToExcel() {
+        console.log("==============================================");
+        console.log("Rozpoczynanie eksportu do Excel używając ExcelJS (uwzględniając zoom)...");
+
+        if (!currentTimelineData || currentTimelineData.length === 0) {
+            alert("Brak danych historii cen do wyeksportowania. Najpierw załaduj widok wykresu.");
+            console.warn("Brak danych w currentTimelineData do eksportu.");
+            return;
+        }
+        if (!echartsTrendChart) {
+            alert("Instancja wykresu nie jest dostępna. Najpierw załaduj widok wykresu.");
+            console.warn("Instancja echartsTrendChart nie znaleziona.");
+            return;
+        }
+         if (typeof hiddenStores === 'undefined' || !Array.isArray(hiddenStores)) {
+            console.warn("Zmienna hiddenStores nie jest zdefiniowana jako tablica. Eksportowane będą wszystkie dane.");
+        }
+
+        const allDates = new Set();
+        const storeData = {};
+        const localStoreInfo = {};
+
+        currentTimelineData.forEach(entry => {
+            const date = entry.scrapDate;
+            allDates.add(date);
+            entry.pricesByStore.forEach(ps => {
+                if (ps.price !== null && ps.price !== undefined && ps.storeName && ps.source) {
+                    const storeKey = `${ps.storeName}|${ps.source}`;
+                    const storeLower = ps.storeName.toLowerCase().trim();
+                    let isHidden = (typeof hiddenStores !== 'undefined' && Array.isArray(hiddenStores) && hiddenStores.includes(storeLower));
+                    if (!isHidden) {
+                        if (!storeData[storeKey]) {
+                            storeData[storeKey] = {};
+                            localStoreInfo[storeKey] = { name: ps.storeName, source: ps.source };
+                        }
+                        storeData[storeKey][date] = ps.price;
+                    }
+                }
+            });
+        });
+
+        const sortedDates = Array.from(allDates).sort();
+
+        console.log("Odczytywanie aktualnego zakresu zoomu z wykresu...");
+        const option = echartsTrendChart.getOption();
+        let zoomStartIndex = 0;
+        let zoomEndIndex = sortedDates.length - 1;
+        let dateRangeAvailable = false;
+
+        if (option && option.dataZoom && Array.isArray(option.dataZoom) && option.dataZoom.length > 0) {
+
+            const dataZoomConfig = option.dataZoom.find(dz => dz.xAxisIndex === 0 || typeof dz.xAxisIndex === 'undefined');
+
+            if (dataZoomConfig && typeof dataZoomConfig.start !== 'undefined' && typeof dataZoomConfig.end !== 'undefined') {
+                 const totalDates = sortedDates.length;
+
+                 zoomStartIndex = Math.floor(totalDates * (dataZoomConfig.start / 100));
+
+                 zoomEndIndex = Math.ceil(totalDates * (dataZoomConfig.end / 100)) - 1;
+
+                 zoomStartIndex = Math.max(0, zoomStartIndex);
+                 zoomEndIndex = Math.min(totalDates - 1, zoomEndIndex);
+                 if(zoomStartIndex > zoomEndIndex && totalDates > 0) {
+                     zoomEndIndex = zoomStartIndex;
+                     console.warn("Obliczony startIndex był większy niż endIndex, skorygowano.");
+                 }
+
+                 console.log(`Zoom wykryty: start=${dataZoomConfig.start}%, end=${dataZoomConfig.end}%. Obliczone indeksy [${zoomStartIndex}, ${zoomEndIndex}] w tablicy ${totalDates} dat.`);
+                 dateRangeAvailable = true;
+            } else {
+                 console.warn("Nie można odczytać wartości 'start'/'end' z konfiguracji dataZoom.");
+            }
+        } else {
+            console.warn("Nie znaleziono konfiguracji dataZoom w opcjach wykresu.");
+        }
+
+        const filteredDates = sortedDates.slice(zoomStartIndex, zoomEndIndex + 1);
+
+        if (filteredDates.length === 0 && sortedDates.length > 0) {
+            alert("Brak danych w wybranym zakresie dat na wykresie do wyeksportowania.");
+            console.warn("Tablica dat po filtracji jest pusta.");
+            return;
+        } else if(filteredDates.length === 0 && sortedDates.length === 0) {
+             alert("Brak jakichkolwiek danych historycznych do wyeksportowania.");
+             console.warn("Brak jakichkolwiek dat do przetworzenia.");
+             return;
+        }
+        console.log(`Eksportowany zakres dat: ${filteredDates.length} dni, od ${filteredDates[0]} do ${filteredDates[filteredDates.length - 1]}`);
+
+        const sortedStoreKeys = Object.keys(storeData).sort((a, b) => {
+
+             if (!localStoreInfo[a] || !localStoreInfo[b]) return 0;
+            const nameA = localStoreInfo[a].name.toLowerCase();
+            const nameB = localStoreInfo[b].name.toLowerCase();
+            if (nameA < nameB) return -1;
+            if (nameA > nameB) return 1;
+            const sourceA = localStoreInfo[a].source.toLowerCase();
+            const sourceB = localStoreInfo[b].source.toLowerCase();
+            if (sourceA < sourceB) return -1;
+            if (sourceA > sourceB) return 1;
+            return 0;
+        });
+
+         if (sortedStoreKeys.length === 0) {
+            alert("Brak widocznych danych sklepów do wyeksportowania (mogły zostać ukryte).");
+            console.warn("Brak kluczy sklepów do eksportu po odfiltrowaniu ukrytych sklepów.");
+            return;
+        }
+        console.log(`Przygotowano ${sortedStoreKeys.length} wierszy danych (sklepów).`);
+
+        try {
+            console.log("Tworzenie skoroszytu ExcelJS...");
+            const workbook = new ExcelJS.Workbook();
+            const worksheet = workbook.addWorksheet("Historia Cen (Przestawiona)");
+
+            console.log("Definiowanie kolumn dla przefiltrowanych dat...");
+            const columns = [
+                { header: 'Sklep', key: 'store', width: 35 },
+                { header: 'Źródło', key: 'source', width: 10 }
+            ];
+            filteredDates.forEach(date => {
+                columns.push({
+                    header: date,
+                    key: date,
+                    width: 12,
+                    style: { numFmt: '#,##0.00', alignment: { horizontal: 'right' } }
+                });
+            });
+            worksheet.columns = columns;
+            console.log(`Zdefiniowano ${columns.length} kolumn.`);
+
+            console.log("Dodawanie wierszy i aplikowanie stylów...");
+            let stylesAppliedCount = 0;
+            sortedStoreKeys.forEach(storeKey => {
+                const info = localStoreInfo[storeKey];
+                const prices = storeData[storeKey];
+                const rowData = { store: info.name, source: info.source };
+
+                filteredDates.forEach(date => {
+                    rowData[date] = prices[date] !== undefined ? prices[date] : null;
+                });
+
+                const row = worksheet.addRow(rowData);
+                const hexColor = getExcelColorForStoreWithInfo(storeKey, localStoreInfo);
+
+                if (hexColor) {
+                    stylesAppliedCount++;
+                    const excelJsFillStyle = { type: 'pattern', pattern:'solid', fgColor:{ argb:'FF' + hexColor.substring(1) } };
+                    row.eachCell({ includeEmpty: true }, function(cell) { cell.fill = excelJsFillStyle; });
+                }
+            });
+            console.log(`Style kolorów tła zaaplikowane dla ${stylesAppliedCount} wierszy.`);
+
+            console.log("Generowanie bufora pliku Excel...");
+            const buffer = await workbook.xlsx.writeBuffer();
+            const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+
+            const productNameJs = @Html.Raw(Json.Serialize(ViewBag.ProductName ?? "Produkt"));
+            const productNameSafe = productNameJs.replace(/[^a-z0-9_]/gi, '_').substring(0, 50);
+            const startDate = filteredDates[0];
+            const endDate = filteredDates[filteredDates.length - 1];
+
+            const fileName = `PriceSafari_${productNameSafe}_historia_${startDate}_do_${endDate}.xlsx`;
+            console.log("Generowanie linku do pobrania pliku:", fileName);
+
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.download = fileName;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            setTimeout(() => { URL.revokeObjectURL(link.href); }, 100);
+
+            console.log("Pobieranie pliku zainicjowane przez ExcelJS.");
+
+        } catch (error) {
+            console.error("Błąd podczas generowania pliku Excel za pomocą ExcelJS:", error);
+            alert("Wystąpił błąd podczas tworzenia pliku Excel...");
+        }
+    }
+
 </script>
