@@ -366,7 +366,7 @@
 
         <div id="trendChartContainer" style="display: flex; flex-wrap: wrap;">
             <div class="chart-column" style="flex: 1; min-width: 500px;">
-                <div class="chart-container">
+                <div class="chart-container" style="max-width: 99%;">
                     <div id="trendChart" style="width: 100%; height:100%;"></div>
                 </div>
                 <div class="range-container" style="margin-top:10px;">
@@ -1061,16 +1061,39 @@
     return panelHtml;
     }
 
-       function prepareEchartsSeries(dataByInstance, allDates, allInstances) {
+        function prepareEchartsSeries(dataByInstance, allDates, allInstances) {
+        const SINGLE_POINT_SIZE = 10; // Rozmiar dla pojedynczego punktu (możesz dostosować)
+        const MULTI_POINT_EMPHASIS_SIZE = 12; // Rozmiar punktu przy najechaniu dla serii z wieloma punktami (możesz dostosować)
+        const SINGLE_POINT_EMPHASIS_SIZE = 14; // Rozmiar pojedynczego punktu przy najechaniu (możesz dostosować)
 
         return allInstances.map(instanceId => {
             const [storeName, source] = instanceId.split('|');
             const storeLower = storeName.toLowerCase().trim();
             const styleAndZ = getSeriesStyleAndZ(storeLower);
+
+            let validDataPointsCount = 0;
             const data = allDates.map(date => {
                 const price = dataByInstance[instanceId]?.[date] ?? null;
+                if (price !== null && price !== undefined) {
+                    validDataPointsCount++;
+                }
                 return { value: price, source: source, storeName: storeName };
             });
+
+            // --- START ZMIAN ---
+            let showSymbolDefault = false;
+            let symbolSizeDefault = 6; // Domyślny, mały rozmiar (gdy symbol jest ukryty lub jest ich wiele)
+            let symbolSizeEmphasis = MULTI_POINT_EMPHASIS_SIZE; // Domyślny rozmiar przy najechaniu
+
+            if (validDataPointsCount === 1) {
+                // Jeśli jest tylko jeden punkt danych dla tej serii
+                showSymbolDefault = true;      // Pokaż symbol domyślnie
+                symbolSizeDefault = SINGLE_POINT_SIZE; // Ustaw większy rozmiar domyślny
+                symbolSizeEmphasis = SINGLE_POINT_EMPHASIS_SIZE; // Opcjonalnie: jeszcze większy przy najechaniu
+            }
+            // Dla serii z 0 lub >1 punktami, showSymbolDefault pozostaje false (symbole pojawią się przy emphasis)
+
+            // --- KONIEC ZMIAN ---
 
             return {
                 name: storeName,
@@ -1081,38 +1104,37 @@
                 connectNulls: false,
                 smooth: 0.25,
 
-                // === ZMIANA 1: Ukryj symbole DOMYŚLNIE ===
-                showSymbol: false,
-                // Usuwamy funkcję symbolSize, bo punkty są globalnie ukryte na starcie
-                // symbolSize: function(...) {...},
+                // --- ZASTOSOWANIE ZMIAN ---
+                showSymbol: showSymbolDefault, // Czy pokazywać symbole domyślnie
+                symbol: 'circle',             // Kształt symbolu (można zmienić np. na 'rect', 'triangle')
+                symbolSize: symbolSizeDefault,  // Domyślny rozmiar symbolu
 
                 emphasis: {
-                    focus: 'series', // Nadal podświetlaj całą serię
-
-                    // === ZMIANA 2: Pokaż symbole tylko w stanie emphasis ===
-                    showSymbol: true,
-
-                    // === ZMIANA 3: Nadaj DUŻY rozmiar pojawiającym się symbolom ===
-                    symbolSize: 18, // Eksperymentuj z rozmiarem, np. 10, 12, 14
-
-                    // Opcjonalnie: Styl dla pojawiających się symboli (np. pełna widoczność, obwódka)
+                    focus: 'series',
+                    // Pokaż symbole w stanie emphasis (jeśli były ukryte)
+                    // Dla pojedynczych punktów, które już są widoczne, ten styl je powiększy/wyróżni
                     itemStyle: {
-                        color: styleAndZ.itemStyle.color, // Użyj koloru serii
-                        opacity: 1, // Pełna widoczność
-                        borderColor: 'rgba(255, 255, 255, 0.7)', // Jasna obwódka dla kontrastu
-                        borderWidth: 1
+                        // Użyj koloru serii, ale może z lekką obwódką dla lepszej widoczności
+                        color: styleAndZ.itemStyle.color,
+                        borderColor: 'rgba(255, 255, 255, 0.7)',
+                        borderWidth: 1,
+                        opacity: 1, // Pełna widoczność przy najechaniu
                     },
-
-                    // Opcjonalnie: Możesz nadal lekko pogrubiać linię
+                    // Zastosuj odpowiedni rozmiar symbolu przy najechaniu
+                    symbolSize: symbolSizeEmphasis,
+                     // Możesz dostosować pogrubienie linii przy najechaniu
                     lineStyle: {
-                        width: Math.max(4, (styleAndZ.lineStyle.width || 2) * 1.5) // Np. min 4px lub 1.5x oryginał
+                         width: Math.max(4, (styleAndZ.lineStyle.width || 2) * 1.5)
                     }
-                    // scale: true, // Można pozwolić na domyślne skalowanie lub polegać tylko na symbolSize
+                    // Nie potrzebujemy już tutaj showSymbol: true, bo albo jest już true, albo chcemy tylko emphasis
                 },
+                // --- KONIEC ZASTOSOWANIA ZMIAN ---
 
-                // Style bazowe (głównie dla linii, bo punktów nie widać)
+                // Style bazowe (głównie dla linii i domyślnych symboli, jeśli są widoczne)
                 lineStyle: styleAndZ.lineStyle,
-                // itemStyle: styleAndZ.itemStyle, // Mniej istotne, bo showSymbol: false
+                itemStyle: { // Styl dla domyślnie widocznych symboli
+                     color: styleAndZ.itemStyle.color // Użyj koloru serii
+                },
                 z: styleAndZ.z
             };
         });
@@ -1145,11 +1167,8 @@
                 const storeName = ps.storeName;
                 const source = ps.source;
                 const price = ps.price;
-
                 const instanceId = `${storeName}|${source}`;
-
                 allInstancesSet.add(instanceId);
-
                 if (!dataByInstance[instanceId]) {
                     dataByInstance[instanceId] = {};
                 }
@@ -1166,13 +1185,10 @@
         const [nameB, sourceB] = b.split('|');
         const nameALower = nameA.toLowerCase().trim();
         const nameBLower = nameB.toLowerCase().trim();
-
         if (nameALower === myStoreLower && nameBLower !== myStoreLower) return -1;
         if (nameBLower === myStoreLower && nameALower !== myStoreLower) return 1;
-
         const nameCompare = nameA.localeCompare(nameB);
         if (nameCompare !== 0) return nameCompare;
-
         return sourceA.localeCompare(sourceB);
     });
 
@@ -1194,84 +1210,141 @@
          globalMaxPrice = globalMaxPrice + padding;
      }
 
+
     const seriesData = prepareEchartsSeries(dataByInstance, allDates, allInstances);
 
-        currentChartOptions = {
-            tooltip: {
-                trigger: 'axis',
-                axisPointer: {
-                    type: 'cross',
-                    snap: true,
-                    label: { backgroundColor: '#6a7985' }
-                },
-
-                formatter: function (params) {
-                    lastHoverParams = params;
-
-                    const panelHtml = generateTooltipPanelHtml(params);
-
-                    if (panelHtml !== null) {
-                        updateCustomTooltipPanel(panelHtml);
-                    } else {
-                        updateCustomTooltipPanel(null);
-                    }
-
-                    return '';
-                }
-
+    currentChartOptions = {
+        tooltip: {
+            trigger: 'axis',
+            axisPointer: {
+                type: 'cross',
+                snap: true,
+                label: { backgroundColor: '#6a7985' }
             },
-            xAxis: {
-                type: 'category',
-                data: allDates,
-
+            // Używamy niestandardowego panelu, więc formatter zwraca pusty string
+            formatter: function (params) {
+                lastHoverParams = params; // Zapisz parametry dla panelu
+                const panelHtml = generateTooltipPanelHtml(params);
+                updateCustomTooltipPanel(panelHtml || defaultCustomTooltipContent); // Aktualizuj panel
+                return ''; // Zwróć pusty string, aby domyślny tooltip się nie pokazywał
+            },
+            // Ważne: Zostawiamy tooltip włączony, aby 'axisPointer' działał i generował zdarzenia
+        },
+        xAxis: {
+            type: 'category',
+            data: allDates,
             splitLine: {
                 show: true,
                 lineStyle: {
-
                     color: '#E8E8E8',
                     type: 'dashed',
                     width: 1,
-                     opacity: 1.0
+                    opacity: 1.0
                 }
             },
-                boundaryGap: false
-            },
-                yAxis: {
+            boundaryGap: false
+        },
+            yAxis: {
             type: 'value',
             min: globalMinPrice,
             max: globalMaxPrice,
             axisLabel: {
-                 show: false,
-                 formatter: function (value) {  }
+                 show: false, // Ukrywamy etykiety osi Y
+                 formatter: function (value) { /* Pusta funkcja */ }
             },
-            scale: true,
+            scale: true, // Pozwala osi Y na automatyczne skalowanie przy zoomowaniu
             axisPointer: {
                 show: true,
                 snap: true
             },
-
             splitLine: {
                 show: true,
                 lineStyle: {
-
                     color: '#E8E8E8',
                     type: 'dashed',
                     width: 1,
-                     opacity: 1.0
+                    opacity: 1.0
                 }
             }
-
         },
-            grid: {
-                left: '3%',
-                right: '4%',
-                bottom: '3%',
-                containLabel: true
+        grid: {
+            left: '3%',
+            right: '4%',
+            // --- ZMIANA: Zwiększamy dolny margines, aby zrobić miejsce na dataZoom ---
+            bottom: '80px', // Możesz dostosować tę wartość (np. '15%' lub konkretna liczba pikseli)
+            containLabel: true
+        },
+        series: seriesData,
+        animationEasing: 'quadraticInOut',
+        animationDuration: 600,
+
+
+    dataZoom: [
+        {
+            type: 'slider',
+            xAxisIndex: 0,
+            start: 0,
+            end: 100,
+            bottom: '10px',
+            height: 25,
+            showDetail: true,
+            realtime: true,
+            filterMode: 'filter',
+
+            // --- Style bazowe (szare) ---
+            backgroundColor: 'rgba(240, 240, 240, 0.6)',
+            borderColor: '#cccccc',
+            fillerColor: 'rgba(180, 180, 180, 0.4)',
+            handleStyle: {
+                color: '#a7a7a7',
+                borderColor: '#747474',
+                borderWidth: 1
             },
-            series: seriesData,
-             animationEasing: 'quadraticInOut',
-             animationDuration: 600
-        };
+            dataBackground: {
+                lineStyle: { color: 'transparent' },
+                areaStyle: { color: '#ebebeb' }
+            },
+            selectedDataBackground: {
+                lineStyle: { color: 'transparent' },
+                areaStyle: { color: '#dcdcdc' }
+            },
+
+            showMoveHandle: false, // Nadal próbujemy go formalnie ukryć
+
+            // --- START: Dodany styl domyślny dla uchwytu przesuwania ---
+            moveHandleIcon: 'none', // Ukrywamy też domyślną ikonę w stanie bazowym
+            moveHandleStyle: {
+                color: 'transparent', // Ustawiamy tło na przezroczyste domyślnie
+                opacity: 0            // Dodatkowe zabezpieczenie - pełna przezroczystość
+            },
+            // --- KONIEC: Dodany styl domyślny dla uchwytu przesuwania ---
+
+
+            // --- Style dla stanu emphasis (po najechaniu - pozostają jak były) ---
+            emphasis: {
+                fillerColor: 'rgba(180, 180, 180, 0.6)', // Filler po najechaniu
+                handleStyle: {                         // Uchwyty pionowe po najechaniu
+                    color: '#747474',
+                    borderColor: '#505050'
+                },
+                moveHandleStyle: {                     // Uchwyt przesuwania po najechaniu (już był przezroczysty)
+                    color: 'transparent',
+                    opacity: 0
+                }
+            }
+            // --- Koniec stylów emphasis ---
+        },
+        {
+            type: 'inside', // Konfiguracja 'inside' bez zmian
+            xAxisIndex: 0,
+            start: 0,
+            end: 100,
+            zoomOnMouseWheel: true,
+            moveOnMouseMove: true,
+            preventDefaultMouseMove: true
+        }
+    ]
+    };
 
         echartsTrendChart.setOption(currentChartOptions);
 
