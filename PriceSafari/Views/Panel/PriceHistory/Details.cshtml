@@ -774,7 +774,6 @@
 
 
 
-
 <script>
     let productId = @ViewBag.ProductId;
     let myStoreLower = "@storeName".toLowerCase().trim();
@@ -795,6 +794,9 @@
     ];
     const myStoreColor = 'rgba(197, 0, 0, 1)';
     const defaultGrayColor = 'rgba(128, 128, 128, {alpha})';
+
+        const UNIFORM_LINE_WIDTH = 2.3; // Wybierz stałą szerokość dla stanu normalnego
+    const UNIFORM_EMPHASIS_LINE_WIDTH = 2.3;
 
     let defaultGrayAlpha = 0.3;
     let echartsTrendChart = null;
@@ -908,48 +910,38 @@
        }
     }
 
-    function getSeriesStyleAndZ(storeNameLower) {
-
-          if (hiddenStores.includes(storeNameLower)) {
-        return {
-            lineStyle: { color: 'transparent', width: 0 },
-            itemStyle: { color: 'transparent' },
-            z: 0
-        };
-    }
+        function getSeriesStyleAndZ(storeNameLower) {
+        if (hiddenStores.includes(storeNameLower)) {
+            return {
+                lineStyle: { color: 'transparent', width: 0 }, // Ukryte linie nadal mają szerokość 0
+                itemStyle: { color: 'transparent' },
+                z: 0
+            };
+        }
         const isMyStore = storeNameLower === myStoreLower;
         const isHighlighted = highlightedStores.includes(storeNameLower);
-        const isLastHighlighted = storeNameLower === lastHighlightedStore;
+        const isLastHighlighted = storeNameLower === lastHighlightedStore; // Zachowaj dla Z-index
         const colorIndex = storeColorMap[storeNameLower];
 
         let color = defaultGrayColor.replace('{alpha}', defaultGrayAlpha);
-        let lineWidth = 2;
-        let z = 1;
+        let z = 1; // Z-index dla rysowania na wierzchu
 
         if (isMyStore) {
             color = myStoreColor;
-            lineWidth = 2.5;
-            z = 3;
+            z = 3; // Mój sklep na wierzchu
+        } else if (isHighlighted && colorIndex !== undefined && colorIndex !== null) {
+            color = highlightColors[colorIndex];
+            z = 2; // Podświetlone pod moim sklepem
         }
 
-        if (isHighlighted && colorIndex !== undefined && colorIndex !== null) {
-            color = highlightColors[colorIndex];
-            lineWidth = 2.5;
-             if (!isMyStore) {
-                 z = 2;
-             }
-        }
-
-        if (isLastHighlighted && colorIndex !== undefined && colorIndex !== null) {
-            color = highlightColors[colorIndex];
-            lineWidth = 3.5;
+        // Opcjonalnie: Dodatkowo wynieś ostatnio kliknięty na sam wierzch
+        if (isLastHighlighted) {
             z = 4;
-        } else if (isMyStore && !isHighlighted) {
-
         }
 
         return {
-            lineStyle: { color: color, width: lineWidth },
+            // Zawsze używaj stałej szerokości dla stanu normalnego
+            lineStyle: { color: color, width: UNIFORM_LINE_WIDTH },
             itemStyle: { color: color },
             z: z
         };
@@ -1061,17 +1053,20 @@
     return panelHtml;
     }
 
-        function prepareEchartsSeries(dataByInstance, allDates, allInstances) {
-        const SINGLE_POINT_SIZE = 10; // Rozmiar dla pojedynczego punktu (możesz dostosować)
-        const MULTI_POINT_EMPHASIS_SIZE = 12; // Rozmiar punktu przy najechaniu dla serii z wieloma punktami (możesz dostosować)
-        const SINGLE_POINT_EMPHASIS_SIZE = 14; // Rozmiar pojedynczego punktu przy najechaniu (możesz dostosować)
+       function prepareEchartsSeries(dataByInstance, allDates, allInstances) {
+
+        const SINGLE_POINT_SIZE = 10;
+        const MULTI_POINT_EMPHASIS_SIZE = 12;
+        const SINGLE_POINT_EMPHASIS_SIZE = 14;
 
         return allInstances.map(instanceId => {
             const [storeName, source] = instanceId.split('|');
             const storeLower = storeName.toLowerCase().trim();
-            const styleAndZ = getSeriesStyleAndZ(storeLower);
+
+            const initialStyleAndZ = getSeriesStyleAndZ(storeLower);
 
             let validDataPointsCount = 0;
+
             const data = allDates.map(date => {
                 const price = dataByInstance[instanceId]?.[date] ?? null;
                 if (price !== null && price !== undefined) {
@@ -1080,20 +1075,15 @@
                 return { value: price, source: source, storeName: storeName };
             });
 
-            // --- START ZMIAN ---
             let showSymbolDefault = false;
-            let symbolSizeDefault = 6; // Domyślny, mały rozmiar (gdy symbol jest ukryty lub jest ich wiele)
-            let symbolSizeEmphasis = MULTI_POINT_EMPHASIS_SIZE; // Domyślny rozmiar przy najechaniu
+            let symbolSizeDefault = 6;
+            let symbolSizeEmphasis = MULTI_POINT_EMPHASIS_SIZE;
 
             if (validDataPointsCount === 1) {
-                // Jeśli jest tylko jeden punkt danych dla tej serii
-                showSymbolDefault = true;      // Pokaż symbol domyślnie
-                symbolSizeDefault = SINGLE_POINT_SIZE; // Ustaw większy rozmiar domyślny
-                symbolSizeEmphasis = SINGLE_POINT_EMPHASIS_SIZE; // Opcjonalnie: jeszcze większy przy najechaniu
+                showSymbolDefault = true;
+                symbolSizeDefault = SINGLE_POINT_SIZE;
+                symbolSizeEmphasis = SINGLE_POINT_EMPHASIS_SIZE;
             }
-            // Dla serii z 0 lub >1 punktami, showSymbolDefault pozostaje false (symbole pojawią się przy emphasis)
-
-            // --- KONIEC ZMIAN ---
 
             return {
                 name: storeName,
@@ -1104,38 +1094,30 @@
                 connectNulls: false,
                 smooth: 0.25,
 
-                // --- ZASTOSOWANIE ZMIAN ---
-                showSymbol: showSymbolDefault, // Czy pokazywać symbole domyślnie
-                symbol: 'circle',             // Kształt symbolu (można zmienić np. na 'rect', 'triangle')
-                symbolSize: symbolSizeDefault,  // Domyślny rozmiar symbolu
+                showSymbol: showSymbolDefault,
+                symbol: 'circle',
+                symbolSize: symbolSizeDefault,
 
-                emphasis: {
-                    focus: 'series',
-                    // Pokaż symbole w stanie emphasis (jeśli były ukryte)
-                    // Dla pojedynczych punktów, które już są widoczne, ten styl je powiększy/wyróżni
-                    itemStyle: {
-                        // Użyj koloru serii, ale może z lekką obwódką dla lepszej widoczności
-                        color: styleAndZ.itemStyle.color,
-                        borderColor: 'rgba(255, 255, 255, 0.7)',
-                        borderWidth: 1,
-                        opacity: 1, // Pełna widoczność przy najechaniu
-                    },
-                    // Zastosuj odpowiedni rozmiar symbolu przy najechaniu
-                    symbolSize: symbolSizeEmphasis,
-                     // Możesz dostosować pogrubienie linii przy najechaniu
-                    lineStyle: {
-                         width: Math.max(4, (styleAndZ.lineStyle.width || 2) * 1.5)
-                    }
-                    // Nie potrzebujemy już tutaj showSymbol: true, bo albo jest już true, albo chcemy tylko emphasis
-                },
-                // --- KONIEC ZASTOSOWANIA ZMIAN ---
-
-                // Style bazowe (głównie dla linii i domyślnych symboli, jeśli są widoczne)
-                lineStyle: styleAndZ.lineStyle,
-                itemStyle: { // Styl dla domyślnie widocznych symboli
-                     color: styleAndZ.itemStyle.color // Użyj koloru serii
-                },
-                z: styleAndZ.z
+               emphasis: {
+        focus: 'series',
+        symbolSize: symbolSizeEmphasis,
+        lineStyle: {
+            width: UNIFORM_EMPHASIS_LINE_WIDTH
+     
+        },
+        itemStyle: {
+            // POPRAWKA: Bezpośrednio przypisz kolor ze stanu normalnego
+            color: initialStyleAndZ.itemStyle.color,
+            borderColor: 'rgba(255, 255, 255, 0.7)', // Możesz zostawić lub dostosować obramowanie
+            borderWidth: 1,
+            opacity: 1
+        }
+    },
+    lineStyle: initialStyleAndZ.lineStyle,
+    itemStyle: {
+        color: initialStyleAndZ.itemStyle.color
+    },
+    z: initialStyleAndZ.z
             };
         });
     }
@@ -1210,8 +1192,31 @@
          globalMaxPrice = globalMaxPrice + padding;
      }
 
-
     const seriesData = prepareEchartsSeries(dataByInstance, allDates, allInstances);
+
+    const polishMonths = [
+        'sty', 'lut', 'mar', 'kwi', 'maj', 'cze',
+        'lip', 'sie', 'wrz', 'paź', 'lis', 'gru'
+    ];
+
+    function formatDateToPolishDM(dateString) {
+        try {
+
+            const parts = dateString.split('-');
+            if (parts.length === 3) {
+                const day = parseInt(parts[2], 10);
+                const monthIndex = parseInt(parts[1], 10) - 1;
+                if (!isNaN(day) && monthIndex >= 0 && monthIndex < 12) {
+                    return `${day} ${polishMonths[monthIndex]}`;
+                }
+            }
+
+            return dateString;
+        } catch (e) {
+            console.error("Error formatting date:", dateString, e);
+            return dateString;
+        }
+    }
 
     currentChartOptions = {
         tooltip: {
@@ -1221,14 +1226,14 @@
                 snap: true,
                 label: { backgroundColor: '#6a7985' }
             },
-            // Używamy niestandardowego panelu, więc formatter zwraca pusty string
+
             formatter: function (params) {
-                lastHoverParams = params; // Zapisz parametry dla panelu
+                lastHoverParams = params;
                 const panelHtml = generateTooltipPanelHtml(params);
-                updateCustomTooltipPanel(panelHtml || defaultCustomTooltipContent); // Aktualizuj panel
-                return ''; // Zwróć pusty string, aby domyślny tooltip się nie pokazywał
+                updateCustomTooltipPanel(panelHtml || defaultCustomTooltipContent);
+                return '';
             },
-            // Ważne: Zostawiamy tooltip włączony, aby 'axisPointer' działał i generował zdarzenia
+
         },
         xAxis: {
             type: 'category',
@@ -1242,17 +1247,29 @@
                     opacity: 1.0
                 }
             },
-            boundaryGap: false
+            boundaryGap: false,
+              axisLabel: {
+
+                formatter: function (value) {
+
+                    return formatDateToPolishDM(value);
+                },
+
+                fontSize: 11,
+                color: '#666'
+
+            }
+
         },
             yAxis: {
             type: 'value',
             min: globalMinPrice,
             max: globalMaxPrice,
             axisLabel: {
-                 show: false, // Ukrywamy etykiety osi Y
-                 formatter: function (value) { /* Pusta funkcja */ }
+                 show: false,
+                 formatter: function (value) {  }
             },
-            scale: true, // Pozwala osi Y na automatyczne skalowanie przy zoomowaniu
+            scale: true,
             axisPointer: {
                 show: true,
                 snap: true
@@ -1270,14 +1287,13 @@
         grid: {
             left: '3%',
             right: '4%',
-            // --- ZMIANA: Zwiększamy dolny margines, aby zrobić miejsce na dataZoom ---
-            bottom: '80px', // Możesz dostosować tę wartość (np. '15%' lub konkretna liczba pikseli)
+
+            bottom: '80px',
             containLabel: true
         },
         series: seriesData,
         animationEasing: 'quadraticInOut',
         animationDuration: 600,
-
 
     dataZoom: [
         {
@@ -1291,7 +1307,6 @@
             realtime: true,
             filterMode: 'filter',
 
-            // --- Style bazowe (szare) ---
             backgroundColor: 'rgba(240, 240, 240, 0.6)',
             borderColor: '#cccccc',
             fillerColor: 'rgba(180, 180, 180, 0.4)',
@@ -1309,33 +1324,46 @@
                 areaStyle: { color: '#dcdcdc' }
             },
 
-            showMoveHandle: false, // Nadal próbujemy go formalnie ukryć
+            showMoveHandle: false,
 
-            // --- START: Dodany styl domyślny dla uchwytu przesuwania ---
-            moveHandleIcon: 'none', // Ukrywamy też domyślną ikonę w stanie bazowym
+            moveHandleIcon: 'none',
             moveHandleStyle: {
-                color: 'transparent', // Ustawiamy tło na przezroczyste domyślnie
-                opacity: 0            // Dodatkowe zabezpieczenie - pełna przezroczystość
+                color: 'transparent',
+                opacity: 0
             },
-            // --- KONIEC: Dodany styl domyślny dla uchwytu przesuwania ---
 
-
-            // --- Style dla stanu emphasis (po najechaniu - pozostają jak były) ---
             emphasis: {
-                fillerColor: 'rgba(180, 180, 180, 0.6)', // Filler po najechaniu
-                handleStyle: {                         // Uchwyty pionowe po najechaniu
+                fillerColor: 'rgba(180, 180, 180, 0.6)',
+                handleStyle: {
                     color: '#747474',
                     borderColor: '#505050'
                 },
-                moveHandleStyle: {                     // Uchwyt przesuwania po najechaniu (już był przezroczysty)
+                moveHandleStyle: {
                     color: 'transparent',
                     opacity: 0
                 }
-            }
-            // --- Koniec stylów emphasis ---
+            },
+             labelFormatter: function (value) {
+
+                    let dateStr = '';
+
+                    if (typeof value === 'number' && value >= 0 && value < allDates.length) {
+
+                        dateStr = allDates[value];
+                    } else if (typeof value === 'string') {
+
+                         dateStr = value;
+                    } else {
+
+                         return '';
+                    }
+
+                    return formatDateToPolishDM(dateStr);
+                }
+
         },
         {
-            type: 'inside', // Konfiguracja 'inside' bez zmian
+            type: 'inside',
             xAxisIndex: 0,
             start: 0,
             end: 100,
@@ -1416,32 +1444,65 @@
 
     }
 
+
+
     function updateEchartsStylesAndZ() {
-         if (!echartsTrendChart || !currentChartOptions) return;
+        if (!echartsTrendChart || !currentChartOptions || !currentChartOptions.series) return;
 
-         const updatedSeries = currentChartOptions.series.map(series => {
-             const storeLower = series.name.toLowerCase().trim();
-             const styleAndZ = getSeriesStyleAndZ(storeLower);
+        const updatedSeries = currentChartOptions.series.map(series => {
+            const storeLower = series.name.toLowerCase().trim();
+            const styleAndZ = getSeriesStyleAndZ(storeLower); // Pobierz aktualny poprawny styl (normalny)
 
-             return {
-                 ...series,
-                 lineStyle: styleAndZ.lineStyle,
-                 itemStyle: styleAndZ.itemStyle,
-                 emphasis: {
-                      focus: 'series',
-                      lineStyle: {
-                          width: styleAndZ.lineStyle.width + 1
-                      }
-                 },
-                 z: styleAndZ.z
-             };
-         });
+            const currentEmphasis = series.emphasis || {};
+            const currentEmphasisItemStyle = currentEmphasis.itemStyle || {}; // Pobierz istniejący itemStyle z emphasis
+            const currentEmphasisLineStyle = currentEmphasis.lineStyle || {}; // Pobierz istniejący lineStyle z emphasis
 
-         echartsTrendChart.setOption({
-             series: updatedSeries
-         });
+            // *** Logowanie może tu zostać, jeśli potrzebujesz ***
+            const DEBUG_STORE_NAME = "NAZWA_SKLEPU_Z_JEDNYM_PUNKTEM";
+            if (series.name === DEBUG_STORE_NAME) {
+                 console.log(`[${series.name}] Emphasis PRZED aktualizacją:`, JSON.stringify(currentEmphasis));
+                 console.log(`[${series.name}] Styl normalny (itemStyle.color):`, styleAndZ.itemStyle.color);
+            }
 
+            // Tworzenie nowego obiektu emphasis z AKTUALNYM kolorem
+            const newEmphasis = {
+                ...currentEmphasis, // Skopiuj bazowe ustawienia emphasis (np. focus, symbolSize)
+                lineStyle: {
+                    ...currentEmphasisLineStyle, // Skopiuj inne ustawienia lineStyle
+                    width: UNIFORM_EMPHASIS_LINE_WIDTH // Ustaw/zaktualizuj szerokość linii
+                },
+                itemStyle: {
+                    ...currentEmphasisItemStyle, // Skopiuj inne ustawienia itemStyle (np. borderColor, borderWidth)
+                    color: styleAndZ.itemStyle.color, // <<< KLUCZOWA ZMIANA: Ustaw poprawny, aktualny kolor!
+                    opacity: 1 // Upewnij się, że jest w pełni widoczny
+                }
+            };
+
+            // *** Drugie logowanie ***
+             if (series.name === DEBUG_STORE_NAME) {
+                 console.log(`[${series.name}] Emphasis PO aktualizacji (przed setOption):`, JSON.stringify(newEmphasis));
+             }
+
+            // Zwróć zaktualizowaną konfigurację serii
+            return {
+                ...series, // Zachowaj inne właściwości serii (name, type, data, etc.)
+                lineStyle: styleAndZ.lineStyle, // Zastosuj aktualny styl normalny linii
+                itemStyle: styleAndZ.itemStyle, // Zastosuj aktualny styl normalny punktu
+                emphasis: newEmphasis,          // Zastosuj zaktualizowany styl emphasis
+                z: styleAndZ.z                  // Zastosuj aktualny z-index
+            };
+        });
+
+        // Zastosuj zmiany w wykresie
+        currentChartOptions.series = updatedSeries; // Zapisz zaktualizowane serie w opcjach (na wszelki wypadek)
+
+        console.log("Aktualizowanie opcji wykresu...");
+        echartsTrendChart.setOption({
+            series: updatedSeries // Przekaż tylko zaktualizowane serie do setOption
+        });
+        console.log("Opcje wykresu zaktualizowane.");
     }
+
 
     document.addEventListener("DOMContentLoaded", function () {
         const $showTableBtn = $('#showTableBtn');
@@ -1537,537 +1598,3 @@
         });
     }
 </script>
-
-@* 
-
-<script>
-
-    let productId = @ViewBag.ProductId;
-    let myStoreLower = "@storeName".toLowerCase().trim();
-
-    let highlightedStores = [];
-    let storeColorMap = {};
-    let lastHighlightedStore = null;
-
-    const highlightColors = [
-        'rgba(54, 162, 235, 1)',
-        'rgba(255, 128, 0, 1)',
-        'rgba(153, 102, 255, 1)',
-        'rgba(100, 200, 100, 1)',
-        'rgba(255, 51, 153, 1)',
-        'rgba(255, 204, 0, 1)'
-    ];
-
-    let defaultGrayAlpha = 0.3;
-    window.trendChartRef = null;
-    window.currentTooltipDate = null;
-
-    document.addEventListener("DOMContentLoaded", function () {
-        const $showTableBtn = $('#showTableBtn');
-        const $showChartBtn = $('#showChartBtn');
-        const $tableContainer = $('#priceTableContainer');
-        const $chartContainer = $('#trendChartContainer');
-
-        $chartContainer.hide();
-
-        $showTableBtn.on('click', function () {
-            $chartContainer.hide();
-            $tableContainer.show();
-            $showTableBtn.removeClass('button-inactive').addClass('button-active');
-            $showChartBtn.removeClass('button-active').addClass('button-inactive');
-        });
-
-        $showChartBtn.on('click', function () {
-            $tableContainer.hide();
-            $chartContainer.show();
-            $showChartBtn.removeClass('button-inactive').addClass('button-active');
-            $showTableBtn.removeClass('button-active').addClass('button-inactive');
-
-            if (!window.trendChartRef) {
-                loadTrendDataAndDrawChart();
-            } else {
-
-            }
-        });
-
-        const grayAlphaRange = document.getElementById("grayAlphaRange");
-        if (grayAlphaRange) {
-            grayAlphaRange.addEventListener("input", function (e) {
-                defaultGrayAlpha = parseFloat(e.target.value);
-
-                updateHighlightedLines();
-            });
-        }
-
-        $('#showOnlyMyStoreBtn').on('click', function () {  });
-        $('#showAllStoresBtn').on('click', function () {  });
-    });
-
-    function loadTrendDataAndDrawChart() {
-
-        $.ajax({
-            url: '@Url.Action("GetPriceTrendData", "PriceHistory")',
-            type: 'GET',
-            data: { productId: productId },
-            success: function(response) {
-
-                if (response && response.timelineData) {
-                      drawTrendChart(response.timelineData);
-                } else {
-
-                      alert("Błąd formatu danych trendu!");
-                }
-            },
-            error: function(jqXHR, textStatus, errorThrown) {
-
-                alert("Błąd pobierania danych trendu!");
-            }
-        });
-    }
-
-    function drawTrendChart(timelineData) {
-
-        const ctx = document.getElementById("trendChart").getContext("2d");
-
-        let allDatesSet = new Set();
-        timelineData.forEach(item => allDatesSet.add(item.scrapDate));
-        let allDates = Array.from(allDatesSet).sort();
-
-        let allStoresSet = new Set();
-        timelineData.forEach(item => {
-            item.pricesByStore.forEach(ps => allStoresSet.add(ps.storeName));
-        });
-        let allStores = Array.from(allStoresSet);
-
-        let priceMap = {};
-        timelineData.forEach(entry => {
-            let date = entry.scrapDate;
-            if (!priceMap[date]) priceMap[date] = {};
-            entry.pricesByStore.forEach(ps => {
-                priceMap[date][ps.storeName] = { price: ps.price, source: ps.source };
-            });
-        });
-
-        let globalMinPrice = Number.POSITIVE_INFINITY;
-        let globalMaxPrice = Number.NEGATIVE_INFINITY;
-        timelineData.forEach(entry => {
-            entry.pricesByStore.forEach(ps => {
-                if (ps.price !== null && ps.price < globalMinPrice) globalMinPrice = ps.price;
-                if (ps.price !== null && ps.price > globalMaxPrice) globalMaxPrice = ps.price;
-            });
-        });
-        if (!isFinite(globalMinPrice)) globalMinPrice = 0;
-        if (!isFinite(globalMaxPrice) || globalMaxPrice === globalMinPrice) globalMaxPrice = globalMinPrice + 100;
-
-        let datasets = allStores.map(store => {
-            let dataArray = [];
-            let sourceArray = [];
-            let pointRadii = [];
-            let pointHoverRadii = [];
-            const storeLower = store.toLowerCase().trim();
-
-            allDates.forEach((date) => {
-                const obj = priceMap[date]?.[store];
-                const price = (obj && obj.price !== null && obj.price !== undefined) ? obj.price : null;
-                const source = (obj && obj.source !== null && obj.source !== undefined) ? obj.source : null;
-                dataArray.push(price);
-                sourceArray.push(source);
-            });
-
-            const defaultPointRadius = 3;
-            const hoverPointRadius = 3;
-            for (let i = 0; i < dataArray.length; i++) {
-                const currentPoint = dataArray[i];
-                const prevPoint = (i > 0) ? dataArray[i - 1] : null;
-                const nextPoint = (i < dataArray.length - 1) ? dataArray[i + 1] : null;
-                let isTrulyIsolated = false;
-                if (currentPoint !== null) {
-                    const noPrevConnection = (i === 0 || prevPoint === null);
-                    const noNextConnection = (i === dataArray.length - 1 || nextPoint === null);
-                    isTrulyIsolated = noPrevConnection && noNextConnection;
-                }
-                pointRadii.push(isTrulyIsolated ? defaultPointRadius : 0);
-                pointHoverRadii.push(isTrulyIsolated ? hoverPointRadius : 0);
-            }
-
-            let initialBorderColor = `rgba(128,128,128,${defaultGrayAlpha})`;
-            let initialPointColor = initialBorderColor;
-            let initialBorderWidth = 2;
-            if (storeLower === myStoreLower) {
-                initialBorderColor = 'rgba(197,0,0,1)';
-                initialPointColor = initialBorderColor;
-                initialBorderWidth = 2.5;
-            }
-
-            return {
-                label: store,
-                data: dataArray,
-                sourceByIndex: sourceArray,
-                borderColor: initialBorderColor,
-                borderWidth: initialBorderWidth,
-                fill: false,
-                spanGaps: false,
-                pointRadius: pointRadii,
-                pointHoverRadius: pointHoverRadii,
-                pointBackgroundColor: initialPointColor,
-                pointBorderColor: initialPointColor,
-                customPointRadii: pointRadii,
-                customPointHoverRadii: pointHoverRadii,
-                tension: 0.0,
-                cubicInterpolationMode: 'monotone'
-            };
-        });
-
-        datasets.sort((a, b) => {
-            const priorityA = getStorePriority(a.label);
-            const priorityB = getStorePriority(b.label);
-            return priorityA - priorityB;
-        });
-
-       if (window.trendChartRef instanceof Chart) {
-
-           window.trendChartRef.destroy();
-           window.trendChartRef = null;
-       }
-
-        window.trendChartRef = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: allDates,
-                datasets: datasets
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                animation: { duration: 600, easing: 'easeInOutQuad' },
-                scales: {
-                    x: { type: 'category', title: { display: false }, grid: { display: true, color: 'rgba(0,0,0,0.06)' } },
-                    y: {
-                        suggestedMin: globalMinPrice,
-                        suggestedMax: globalMaxPrice,
-                        grid: { display: true, color: 'rgba(0,0,0,0.06)' },
-                        ticks: { callback: function(value) { return value + ' PLN'; } }
-                    }
-                },
-                onHover: function(e) { e.native.target.style.cursor = 'crosshair'; },
-                onClick: function(evt, elements, chart) {
-                     if (!chart.data.labels || !chart.data.labels.length) return;
-                     const canvasPos = Chart.helpers.getRelativePosition(evt, chart);
-                     const xScale = chart.scales.x;
-                     const labels = chart.data.labels;
-                     let floatIndex = xScale.getValueForPixel(canvasPos.x);
-                     let nearestIndex = Math.round(floatIndex);
-                     nearestIndex = Math.max(0, Math.min(labels.length - 1, nearestIndex));
-                     let xLabel = labels[nearestIndex];
-                     if (!xLabel) return;
-
-                     if (chart.config.options.plugins.annotation?.annotations?.crosshairLine) {
-                         chart.config.options.plugins.annotation.annotations.crosshairLine.value = nearestIndex;
-                         chart.update('none');
-                         refreshCustomTooltip(chart, xLabel);
-                     }
-                },
-                interaction: { mode: 'index', intersect: false, axis: 'x' },
-                plugins: {
-                    legend: { display: false },
-                    tooltip: { enabled: false, external: externalTooltipHandler },
-                    annotation: {
-                        annotations: {
-                            crosshairLine: {
-                                type: 'line',
-                                mode: 'vertical',
-                                scaleID: 'x',
-                                value: null,
-                                borderColor: 'rgba(80,80,80,0.7)',
-                                borderWidth: 2,
-                                borderDash: [4,2],
-                                hitRadius: 8,
-                                draggable: true,
-                                adjustScaleRange: false,
-                                display: (ctx) => ctx.chart.config.options.plugins.annotation.annotations.crosshairLine.value != null,
-                                enter: (ctx) => { ctx.chart.canvas.style.cursor = 'ew-resize'; },
-                                leave: (ctx) => { ctx.chart.canvas.style.cursor = 'crosshair'; },
-                                drag: function({chart, element}) {
-                                     const labels = chart.data.labels;
-                                     let nearestIndex = Math.round(element.value);
-                                     nearestIndex = Math.max(0, Math.min(labels.length - 1, nearestIndex));
-                                     let xLabel = labels[nearestIndex];
-                                     if(xLabel) {
-                                          refreshCustomTooltip(chart, xLabel);
-                                     }
-                                },
-
-                            }
-                        }
-                    }
-                }
-            }
-        });
-
-        const defaultXValue = allDates[allDates.length - 1] || null;
-        if (window.trendChartRef && defaultXValue) {
-            let idxDefault = window.trendChartRef.data.labels.indexOf(defaultXValue);
-            if (idxDefault < 0 && window.trendChartRef.data.labels.length > 0) {
-                idxDefault = window.trendChartRef.data.labels.length - 1;
-            }
-
-            if (idxDefault >= 0) {
-                if (window.trendChartRef.config.options.plugins.annotation?.annotations?.crosshairLine) {
-                    window.trendChartRef.config.options.plugins.annotation.annotations.crosshairLine.value = idxDefault;
-
-                    window.trendChartRef.update('none');
-                    refreshCustomTooltip(window.trendChartRef, window.trendChartRef.data.labels[idxDefault]);
-
-                } else {
-
-                }
-            }
-        }
-
-         updateHighlightedLines();
-    }
-
-    function findNextFreeColorIndex() {
-        for (let i = 0; i < highlightColors.length; i++) {
-            let used = Object.values(storeColorMap).includes(i);
-            if (!used) return i;
-        }
-        return null;
-    }
-
-    function getStorePriority(datasetLabel) {
-        const storeLower = datasetLabel.toLowerCase().trim();
-        const isOurStore = (storeLower === myStoreLower);
-        const isHighlighted = highlightedStores.includes(storeLower);
-        const isLastHighlighted = (storeLower === lastHighlightedStore);
-
-        if (isLastHighlighted) {
-             return 4;
-        }
-        if (isOurStore) {
-            return 3;
-        }
-        if (isHighlighted) {
-            return 2;
-        }
-        return 1;
-    }
-
-    function sortDatasetsForDrawing(chart) {
-        if (!chart || !chart.data || !chart.data.datasets) {
-
-            return;
-        }
-        chart.data.datasets.sort((a, b) => {
-            const priorityA = getStorePriority(a.label);
-            const priorityB = getStorePriority(b.label);
-            return priorityA - priorityB;
-        });
-    }
-
-    function toggleStoreHighlight(storeName) {
-        if (!window.trendChartRef) {
-
-             return;
-        }
-        let sLower = storeName.toLowerCase().trim();
-        let idx = highlightedStores.indexOf(sLower);
-
-        if (idx >= 0) {
-
-            highlightedStores.splice(idx, 1);
-            delete storeColorMap[sLower];
-
-            if (lastHighlightedStore === sLower) {
-                lastHighlightedStore = highlightedStores.length > 0 ? highlightedStores[highlightedStores.length - 1] : null;
-
-            }
-        } else {
-
-            if (highlightedStores.length >= highlightColors.length) {
-                alert(`Możesz zaznaczyć maks. ${highlightColors.length} sklepów do porównania!`);
-                return;
-            }
-            let cIndex = findNextFreeColorIndex();
-            if (cIndex === null) {
-                alert("Brak wolnych kolorów!");
-                return;
-            }
-            if (!highlightedStores.includes(sLower)) {
-                 highlightedStores.push(sLower);
-            }
-            storeColorMap[sLower] = cIndex;
-            lastHighlightedStore = sLower;
-
-        }
-
-        sortDatasetsForDrawing(window.trendChartRef);
-
-        updateHighlightedLines();
-
-        if (window.currentTooltipDate) {
-            refreshCustomTooltip(window.trendChartRef, window.currentTooltipDate);
-        }
-    }
-
-    function updateHighlightedLines() {
-        if (!window.trendChartRef) return;
-        let chart = window.trendChartRef;
-
-        chart.data.datasets.forEach(ds => {
-
-             if (!ds.customPointRadii || !ds.customPointHoverRadii) {
-
-                 ds.pointRadius = 0;
-                 ds.pointHoverRadius = 0;
-             } else {
-                  ds.pointRadius = ds.customPointRadii;
-                  ds.pointHoverRadius = ds.customPointHoverRadii;
-             }
-
-            let storeLower = ds.label.toLowerCase().trim();
-            let cIndex = storeColorMap[storeLower];
-            let isHighlighted = highlightedStores.includes(storeLower);
-            let isOurStore = (storeLower === myStoreLower);
-            let isLastHighlighted = (storeLower === lastHighlightedStore);
-
-            let newBorderColor;
-            let newPointColor;
-    let newBorderWidth;
-
-        if (isLastHighlighted && cIndex != null) {
-
-            newBorderColor = highlightColors[cIndex];
-            newBorderWidth = 4.0;
-        } else if (isOurStore) {
-
-            newBorderColor = 'rgba(197,0,0,1)';
-            newBorderWidth = 4.0;
-        } else if (isHighlighted && cIndex != null) {
-
-            newBorderColor = highlightColors[cIndex];
-            newBorderWidth = 4.0;
-        } else {
-
-            newBorderColor = `rgba(128,128,128,${defaultGrayAlpha})`;
-            newBorderWidth = 2;
-        }
-
-            newPointColor = newBorderColor;
-
-            ds.borderColor = newBorderColor;
-            ds.borderWidth = newBorderWidth;
-            ds.pointBackgroundColor = newPointColor;
-            ds.pointBorderColor = newPointColor;
-        });
-
-          if (chart && chart.data && chart.data.datasets) {
-
-    }
-
-            chart.update('none');
-    setTimeout(() => {
-
-        if (window.trendChartRef) {
-             chart.update('none');
-        }
-    }, 0);
-    }
-
-    function refreshCustomTooltip(chart, xLabel) {
-        window.currentTooltipDate = xLabel;
-
-        const tooltipEl = document.getElementById('customTrendTooltip');
-        if (!tooltipEl) return;
-
-        const labels = chart.data.labels;
-        const dataIndex = labels.indexOf(xLabel);
-        if (dataIndex < 0) {
-             tooltipEl.style.display = 'none';
-             return;
-        }
-
-        let items = [];
-
-        chart.data.datasets.forEach(ds => {
-            if (ds.hidden) return;
-            const priceVal = ds.data[dataIndex];
-            const sourceVal = ds.sourceByIndex ? ds.sourceByIndex[dataIndex] : null;
-
-            if (priceVal !== null && priceVal !== undefined) {
-                items.push({
-                    storeName: ds.label,
-                    price: priceVal,
-                    source: sourceVal,
-
-                    isHighlighted: highlightedStores.includes(ds.label.toLowerCase().trim()),
-                    isMyStore: (ds.label.toLowerCase().trim() === myStoreLower),
-                    isLastHighlighted: (ds.label.toLowerCase().trim() === lastHighlightedStore),
-                    colorIndex: storeColorMap[ds.label.toLowerCase().trim()]
-                });
-            }
-        });
-
-        items.sort((a, b) => {
-            if (a.price !== b.price) return a.price - b.price;
-            return a.storeName.localeCompare(b.storeName);
-        });
-
-        let html = `<div style="font-weight:bold; margin-bottom:4px;">Data: ${xLabel}</div>`;
-        if (items.length > 0) {
-             html += `<table style="width:100%; border-collapse:collapse; font-size: 0.85rem;">`;
-             items.forEach(item => {
-                 let colorText = 'black';
-                 let fontWeight = 'normal';
-                 let bgColor = 'transparent';
-
-                 if (item.isLastHighlighted && item.colorIndex != null) {
-                     colorText = highlightColors[item.colorIndex];
-                     fontWeight = 'bold';
-
-                 } else if (item.isMyStore) {
-                     colorText = 'rgba(197, 0, 0, 1)';
-                     fontWeight = 'bold';
-
-                 } else if (item.isHighlighted && item.colorIndex != null) {
-                     colorText = highlightColors[item.colorIndex];
-
-                 }
-
-                 let displayName = item.storeName;
-                 if (displayName.length > 35) displayName = displayName.substring(0, 32) + '...';
-
-                 let iconHtml = (item.source === 'google')
-                     ? `<img src="/images/GoogleShopping.png" alt="G" style="width:14px;height:14px;margin-right:4px; vertical-align: middle;" />`
-                     : `<img src="/images/Ceneo.png" alt="C" style="width:14px;height:14px;margin-right:4px; vertical-align: middle;" />`;
-
-                 html += `
-                     <tr style="border-bottom:1px solid #eee; cursor:pointer; background-color: ${bgColor};"
-                         onclick="event.stopPropagation(); toggleStoreHighlight('${item.storeName.replace(/'/g, "\\'")}')">
-                         <td style="padding: 3px 2px; color:${colorText}; font-weight:${fontWeight}; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
-                             ${iconHtml}${displayName}
-                         </td>
-                         <td style="padding: 3px 2px; text-align:right; color:${colorText}; font-weight:${fontWeight}; white-space:nowrap;">
-                             ${item.price.toFixed(2)} PLN
-                         </td>
-                     </tr>
-                 `;
-             });
-             html += `</table>`;
-        } else {
-             html += `<div style="color: #666; font-style: italic;">Brak danych dla tej daty.</div>`;
-        }
-
-        tooltipEl.innerHTML = html;
-        tooltipEl.style.display = 'block';
-    }
-
-    function externalTooltipHandler(context) {
-        const { chart, tooltip } = context;
-
-         if (tooltip.opacity === 0) {
-
-         }
-    }
-
-</script> *@
