@@ -1,10 +1,9 @@
 ﻿const googleDataEl = document.getElementById("google-wizard-data");
 
 const storeId = parseInt(googleDataEl.getAttribute("data-store-id") || "0", 10);
-
+const xmlContainer = document.getElementById("xmlContainer");
 
 let existingMappingsJson = googleDataEl.getAttribute("data-existing-mappings") || "[]";
-
 
 let existingMappings = [];
 try {
@@ -37,27 +36,50 @@ existingMappings.forEach(m => {
 let xmlDoc = null;
 let proxyUrl = `/GoogleImportWizardXml/ProxyXml?storeId=${storeId}`;
 
+function processXmlString(xmlStr, sourceDescription) {
+    console.log(`--- Rozpoczynanie przetwarzania XML ${sourceDescription} ---`);
 
-fetch(proxyUrl)
-    .then(resp => resp.text())
-    .then(xmlStr => {
-        let parser = new DOMParser();
-        xmlDoc = parser.parseFromString(xmlStr, "application/xml");
-        if (xmlDoc.documentElement.nodeName === "parsererror") {
-            document.getElementById("xmlContainer").innerText =
-                "Błąd parsowania XML:\n" + xmlDoc.documentElement.textContent;
-            return;
+    if (xmlContainer) {
+        xmlContainer.innerHTML = `<i>Parsowanie XML (${sourceDescription})...</i>`;
+    } else {
+        console.error("Nie znaleziono elementu xmlContainer!");
+        return;
+    }
+
+    if (!xmlStr || xmlStr.trim().length === 0) {
+        console.error(`Błąd: Otrzymano pusty ciąg XML z ${sourceDescription}.`);
+        xmlContainer.innerText = `Błąd: Otrzymano pusty ciąg XML z ${sourceDescription}.`;
+        return;
+    }
+
+    let parser = new DOMParser();
+    xmlDoc = parser.parseFromString(xmlStr, "application/xml");
+
+    if (!xmlDoc || xmlDoc.documentElement.nodeName === "parsererror") {
+        let errorContent = xmlDoc && xmlDoc.documentElement ? xmlDoc.documentElement.textContent : "Nieznany błąd parsera";
+        console.error(`Błąd parsowania XML z ${sourceDescription}:`, errorContent);
+        xmlContainer.innerText =
+            `Błąd parsowania XML (${sourceDescription}):\n` + errorContent +
+            "\n\nSprawdź konsolę (F12) po więcej szczegółów. Spróbuj wczytać plik lokalny, jeśli problem dotyczy ładowania sieciowego.";
+        return;
+    }
+
+    console.log(`XML z ${sourceDescription} sparsowany pomyślnie.`);
+    xmlContainer.innerHTML = '';
+    try {
+
+        if (xmlDoc.documentElement) {
+            buildXmlTree(xmlDoc.documentElement, "");
+            applyExistingMappings();
+            renderMappingTable();
+        } else {
+            throw new Error("Dokument XML nie zawiera elementu głównego.");
         }
-       
-        buildXmlTree(xmlDoc.documentElement, "");
-     
-        applyExistingMappings();
-    })
-    .catch(err => {
-        document.getElementById("xmlContainer").innerText =
-            "Błąd pobierania XML:\n" + err;
-    });
-
+    } catch (e) {
+        console.error(`Błąd podczas budowania drzewa lub stosowania mapowań z ${sourceDescription}:`, e);
+        xmlContainer.innerText = `Wystąpił błąd podczas wizualizacji XML lub stosowania mapowań z ${sourceDescription}: ${e.message}. Sprawdź konsolę (F12).`;
+    }
+}
 
 function buildXmlTree(node, parentPath) {
     let container = document.getElementById("xmlContainer");
@@ -75,30 +97,26 @@ function createLi(node, parentPath) {
     let li = document.createElement("li");
     li.classList.add("xml-node");
 
-  
     let nodeName = node.nodeName;
     let nameAttr = node.getAttribute && node.getAttribute("name");
     if (nameAttr) {
         nodeName += `[@name="${nameAttr}"]`;
     }
 
-  
     let currentPath = parentPath
         ? parentPath + "/" + nodeName
         : "/" + nodeName;
 
     li.setAttribute("data-xpath", currentPath);
 
-   
     let b = document.createElement("b");
     b.innerText = node.nodeName + (nameAttr ? ` (name="${nameAttr}")` : "");
     li.appendChild(b);
 
-  
     if (node.attributes && node.attributes.length > 0) {
         let ulAttrs = document.createElement("ul");
         Array.from(node.attributes).forEach(attr => {
-          
+
             if (attr.name === "name") return;
 
             let attrLi = document.createElement("li");
@@ -117,7 +135,6 @@ function createLi(node, parentPath) {
         }
     }
 
- 
     let textVal = node.textContent.trim();
     if (node.children.length === 0 && textVal) {
         let ulVal = document.createElement("ul");
@@ -134,7 +151,6 @@ function createLi(node, parentPath) {
         li.appendChild(ulVal);
     }
 
-   
     if (node.children.length > 0) {
         let ul = document.createElement("ul");
         Array.from(node.children).forEach(child => {
@@ -146,22 +162,18 @@ function createLi(node, parentPath) {
     return li;
 }
 
-
 document.addEventListener("click", function (e) {
     let el = e.target.closest(".xml-node");
     if (!el) return;
     let xPath = el.getAttribute("data-xpath");
     let selectedField = document.getElementById("fieldSelector").value;
 
- 
     document.querySelectorAll(`.highlight-${selectedField}`)
         .forEach(x => x.classList.remove(`highlight-${selectedField}`));
-
 
     let sameNodes = document.querySelectorAll(`.xml-node[data-xpath='${xPath}']`);
     sameNodes.forEach(n => n.classList.add(`highlight-${selectedField}`));
 
-   
     let count = sameNodes.length;
     let firstVal = "";
     if (count > 0) {
@@ -178,7 +190,6 @@ document.addEventListener("click", function (e) {
     };
     renderMappingTable();
 });
-
 
 function applyExistingMappings() {
     for (let fieldName in mappingForField) {
@@ -208,6 +219,95 @@ function clearAllHighlights() {
     });
 }
 
+function loadFromNetwork() {
+    console.log(`Próba załadowania XML z sieci: ${proxyUrl}`);
+    if (xmlContainer) {
+        xmlContainer.innerHTML = `<i>Ładowanie XML z sieci: ${proxyUrl}...</i>`;
+    }
+
+    fetch(proxyUrl)
+        .then(resp => {
+
+            if (!resp.ok) {
+
+                throw new Error(`Błąd sieci: ${resp.status} ${resp.statusText}`);
+            }
+            console.log("Status sieci:", resp.status);
+            console.log("Typ zawartości z sieci:", resp.headers.get('Content-Type'));
+            return resp.text();
+        })
+        .then(xmlStr => {
+            console.log("--- Surowy tekst z sieci (pierwsze 1000 znaków) ---");
+            console.log(xmlStr ? xmlStr.substring(0, 1000) : "[Pusta odpowiedź]");
+            console.log("--- Koniec podglądu surowego tekstu ---");
+
+            let startIndex = xmlStr ? xmlStr.indexOf('<') : -1;
+            let cleanedXmlStr = xmlStr;
+
+            if (startIndex === -1) {
+
+                throw new Error("Odpowiedź z sieci nie zawiera znaku '<'. Nieprawidłowy format.");
+            }
+            if (startIndex > 0) {
+
+                console.warn(`Czyszczenie odpowiedzi sieciowej: Usunięto ${startIndex} znaków z początku.`);
+                cleanedXmlStr = xmlStr.substring(startIndex);
+            } else {
+
+                if (cleanedXmlStr && cleanedXmlStr.charCodeAt(0) === 65279) {
+                    console.warn("Czyszczenie odpowiedzi sieciowej: Usunięto znak BOM z początku.");
+                    cleanedXmlStr = cleanedXmlStr.substring(1);
+                }
+            }
+
+            processXmlString(cleanedXmlStr, `Sieć (${proxyUrl})`);
+        })
+        .catch(err => {
+
+            console.error("Błąd podczas ładowania lub wstępnego przetwarzania XML z sieci:", err);
+            if (xmlContainer) {
+                xmlContainer.innerText = `Wystąpił błąd podczas ładowania danych z sieci:\n${err.message}\n\nMożesz spróbować wczytać dane z zapisanego pliku lokalnego.`;
+            }
+        });
+}
+
+const processButton = document.getElementById('processXmlButton');
+if (processButton) {
+    processButton.addEventListener('click', () => {
+        const fileInput = document.getElementById('xmlFileInput');
+
+        if (!fileInput) {
+            alert('Błąd: Nie znaleziono elementu do wyboru pliku (xmlFileInput).');
+            return;
+        }
+
+        if (fileInput.files.length === 0) {
+            alert('Najpierw wybierz plik XML/TXT.');
+            return;
+        }
+        const file = fileInput.files[0];
+        const reader = new FileReader();
+
+        reader.onload = function (event) {
+
+            processXmlString(event.target.result, `Plik (${file.name})`);
+        };
+
+        reader.onerror = function (event) {
+            console.error("Błąd odczytu pliku lokalnego:", event.target.error);
+            if (xmlContainer) {
+                xmlContainer.innerText = 'Błąd odczytu pliku lokalnego: ' + event.target.error;
+            }
+        };
+
+        if (xmlContainer) {
+            xmlContainer.innerHTML = `<i>Wczytywanie pliku lokalnego: ${file.name}...</i>`;
+        }
+        reader.readAsText(file);
+    });
+} else {
+    console.warn("Nie znaleziono przycisku 'processXmlButton'. Ładowanie z pliku nie będzie działać.");
+}
 
 function renderMappingTable() {
     let tbody = document.getElementById("mappingTable").querySelector("tbody");
@@ -235,7 +335,6 @@ function renderMappingTable() {
     }
 }
 
-
 document.getElementById("saveMapping").addEventListener("click", function () {
     let finalMappings = [];
     for (let fieldName in mappingForField) {
@@ -256,7 +355,6 @@ document.getElementById("saveMapping").addEventListener("click", function () {
         .then(d => alert(d.message))
         .catch(err => console.error(err));
 });
-
 
 document.getElementById("reloadMappings").addEventListener("click", function () {
     fetch(`/GoogleImportWizardXml/GetGoogleMappings?storeId=${storeId}`)
@@ -280,7 +378,6 @@ document.getElementById("reloadMappings").addEventListener("click", function () 
         .catch(err => console.error("Błąd getGoogleMappings:", err));
 });
 
-
 function parsePrice(value) {
     if (!value) return null;
     let match = value.match(/([\d]+([.,]\d+)?)/);
@@ -288,7 +385,7 @@ function parsePrice(value) {
     let numericString = match[1].replace(',', '.');
     let floatVal = parseFloat(numericString);
     if (isNaN(floatVal)) return null;
-    return floatVal.toFixed(2); 
+    return floatVal.toFixed(2);
 }
 
 function extractProductsFromXml() {
@@ -300,7 +397,6 @@ function extractProductsFromXml() {
         ? xmlDoc.getElementsByTagName("item")
         : xmlDoc.getElementsByTagName("entry");
 
- 
     let onlyEanProducts = document.getElementById("onlyEanProducts").checked;
 
     let productMaps = [];
@@ -320,12 +416,10 @@ function extractProductsFromXml() {
             GoogleDeliveryXMLPrice: parsePrice(getVal(entryNode, "GoogleDeliveryXMLPrice"))
         };
 
-     
         if (onlyEanProducts && (!pm.GoogleEan || !pm.GoogleEan.trim())) {
             continue;
         }
 
-     
         if (pm.Url) {
             let qIdx = pm.Url.indexOf('?');
             if (qIdx !== -1) {
@@ -339,19 +433,15 @@ function extractProductsFromXml() {
         productMaps.push(pm);
     }
 
-  
     console.log("Wyciągnięto productMaps(front):", productMaps);
     console.log("Liczba URLi zawierających parametry:", countUrlsWithParams);
 
-   
     let previewText = JSON.stringify(productMaps, null, 2);
     document.getElementById("productMapsPreview").textContent = previewText;
-
 
     document.getElementById("urlParamsInfo").textContent =
         "Liczba URL zawierających parametry: " + countUrlsWithParams;
 
- 
     if (document.getElementById("removeDuplicateUrls").checked) {
         let seen = {};
         let deduped = [];
@@ -370,7 +460,6 @@ function extractProductsFromXml() {
             JSON.stringify(productMaps, null, 2);
     }
 
-  
     if (document.getElementById("removeDuplicateEans").checked) {
         let seenEan = {};
         let dedupedEan = [];
@@ -389,14 +478,11 @@ function extractProductsFromXml() {
             JSON.stringify(productMaps, null, 2);
     }
 
-
     document.getElementById("finalNodesInfo").textContent =
         "Final nodes po filtrach: " + productMaps.length;
 
-  
     checkDuplicates(productMaps);
 }
-
 
 function checkDuplicates(productMaps) {
     let urlCounts = {};
@@ -441,7 +527,6 @@ function checkDuplicates(productMaps) {
         urlMessage + "<br>" + eanMessage;
 }
 
-
 document.getElementById("extractProducts").addEventListener("click", function () {
     extractProductsFromXml();
 });
@@ -458,14 +543,12 @@ document.getElementById("removeDuplicateEans").addEventListener("change", functi
     extractProductsFromXml();
 });
 
-
 function getVal(entryNode, fieldName) {
     let info = mappingForField[fieldName];
     if (!info || !info.xpath) return null;
 
     let path = info.xpath;
 
- 
     let possiblePrefixes = ["/rss/channel/item/", "/feed/entry/"];
     for (let i = 0; i < possiblePrefixes.length; i++) {
         if (path.startsWith(possiblePrefixes[i])) {
@@ -477,12 +560,11 @@ function getVal(entryNode, fieldName) {
         path = path.substring(1);
     }
 
-  
     let segments = path.split('/');
 
     let currentNode = entryNode;
     for (let seg of segments) {
-     
+
         if (seg.indexOf(':') !== -1) {
             seg = seg.split(':')[1];
         }
@@ -496,7 +578,6 @@ function getVal(entryNode, fieldName) {
     }
     return currentNode.textContent.trim();
 }
-
 
 document.getElementById("saveProductMapsInDb").addEventListener("click", function () {
     let txt = document.getElementById("productMapsPreview").textContent.trim();
@@ -522,3 +603,5 @@ document.getElementById("saveProductMapsInDb").addEventListener("click", functio
 });
 
 renderMappingTable();
+
+loadFromNetwork();
