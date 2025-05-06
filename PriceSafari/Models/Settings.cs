@@ -23,6 +23,10 @@ namespace PriceSafari.Models
         public bool ControlXY { get; set; } = false;
 
 
+        //nowy bool do rozijania ofert z googla 
+        public bool ExpandAndCompareGoogleOffers { get; set; } = true;
+
+
         public Settings()
         {
 

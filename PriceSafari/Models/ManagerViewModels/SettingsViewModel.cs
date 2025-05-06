@@ -13,6 +13,7 @@
         public bool Style { get; set; }
 
         public bool ControlXY { get; set; }
+        public bool ExpandAndCompareGoogleOffers { get; set; } = true;
     }
 
     public class EditVerificationRequiredViewModel
@@ -33,5 +34,7 @@
         public bool GetCeneoName { get; set; }
 
         public bool ControlXY { get; set; }
+
+        public bool ExpandAndCompareGoogleOffers { get; set; } = true;
     }
 }

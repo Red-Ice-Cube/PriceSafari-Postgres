@@ -39,7 +39,8 @@ namespace PriceSafari.Controllers.ManagerControllers
                 JS = settings.JavaScript,
                 Style = settings.Styles,
                 GetCeneoName = settings.GetCeneoName,   
-                ControlXY = settings.ControlXY
+                ControlXY = settings.ControlXY,
+                ExpandAndCompareGoogleOffers = settings.ExpandAndCompareGoogleOffers
             };
 
             return View("~/Views/ManagerPanel/Settings/Index.cshtml", viewModel);
@@ -65,7 +66,8 @@ namespace PriceSafari.Controllers.ManagerControllers
                 JS = settings.JavaScript,
                 Style = settings.Styles,
                 GetCeneoName = settings.GetCeneoName,
-                ControlXY = settings.ControlXY  
+                ControlXY = settings.ControlXY,
+                ExpandAndCompareGoogleOffers = settings.ExpandAndCompareGoogleOffers
             };
 
             return View("~/Views/ManagerPanel/Settings/EditSpeedSettings.cshtml", viewModel);
@@ -92,6 +94,7 @@ namespace PriceSafari.Controllers.ManagerControllers
                 settings.JavaScript = viewModel.JS;
                 settings.GetCeneoName = viewModel.GetCeneoName;
                 settings.ControlXY = viewModel.ControlXY;
+                settings.ExpandAndCompareGoogleOffers = viewModel.ExpandAndCompareGoogleOffers;
                 _context.Update(settings);
                 await _context.SaveChangesAsync();
 
