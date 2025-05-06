@@ -64,6 +64,7 @@ namespace PriceSafari.Controllers
             if (store == null) return NotFound();
 
             ViewBag.StoreName = store.StoreName;
+            ViewBag.ProductCount = store.ProductsToScrap;
             ViewBag.StoreId = storeId;
 
             return View("~/Views/Panel/Product/ProductList.cshtml");
