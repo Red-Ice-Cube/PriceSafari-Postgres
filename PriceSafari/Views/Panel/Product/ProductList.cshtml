@@ -1,7 +1,6 @@
 ﻿@{
     ViewData["Title"] = "Lista Produktów";
     Layout = "~/Views/Shared/_PanelLayout.cshtml";
-
 }
 
 <style>
@@ -9,6 +8,7 @@
         display: inline-flex;
         padding: 2px 5px;
         border-radius: 4px;
+        width: 90px;
         align-items: center;
         justify-content: center;
         background: rgba(128, 0, 128, 0.3);
@@ -16,7 +16,6 @@
         font-size: 14px;
         font-weight: 500;
         color: rgba(128, 0, 128, 1);
-
     }
 
     .StatusBoxProduct-2 {
@@ -25,6 +24,7 @@
         border-radius: 4px;
         align-items: center;
         justify-content: center;
+        width: 90px;
         background: rgba(14, 126, 135, 0.3);
         border: solid 2px rgba(14, 126, 135, 1);
         font-size: 14px;
@@ -37,6 +37,7 @@
         padding: 2px 5px;
         border-radius: 4px;
         align-items: center;
+        width: 90px;
         justify-content: center;
         background: rgba(238, 17, 17, 0.3);
         border: solid 2px rgba(238, 17, 17, 1);
@@ -50,6 +51,7 @@
         padding: 2px 5px;
         border-radius: 4px;
         align-items: center;
+        width: 90px;
         justify-content: center;
         background: rgba(128, 128, 128, 0.3);
         border: solid 2px rgba(128, 128, 128, 1);
@@ -62,7 +64,7 @@
         appearance: none;
         width: 44px;
         height: 44px;
-        background-color: red; /* Unchecked state background */
+        background-color: red;
         border: 2px solid black;
         border-radius: 24px;
         position: relative;
@@ -77,13 +79,12 @@
             transform: translate(-50%, -50%);
             width: 40px;
             height: 40px;
-            background-color: green; /* Inner circle when checked */
+            background-color: green;
             border-radius: 24px;
         }
 
-        /* Style for disabled checkbox */
         .scrapable-checkbox:disabled {
-            background-color: #555555; /* Dark gray outer circle */
+            background-color: #555555;
             cursor: not-allowed;
         }
 
@@ -95,10 +96,9 @@
                 transform: translate(-50%, -50%);
                 width: 40px;
                 height: 40px;
-                background-color: #555555; /* Dark gray inner circle */
+                background-color: #555555;
                 border-radius: 24px;
             }
-
 
     .dates-vertical p {
         margin: 0;
@@ -106,7 +106,22 @@
         font-size: 0.9em;
     }
 
+    .dot {
+        height: 12px;
+        width: 12px;
+        border-radius: 50%;
+        display: inline-block;
+        margin-right: 8px;
+        vertical-align: middle;
+    }
 
+    .green-dot {
+        background-color: green;
+    }
+
+    .red-dot {
+        background-color: red;
+    }
 </style>
 
 <div class="Vert">
@@ -121,18 +136,20 @@
                     <div>
                         <strong>Przypisano: </strong><span id="scrapable-count"></span>
                     </div>
-
                 </div>
             </div>
 
             <div>
-
-                <button type="button" class="Button-Page-Small-bl" id="uploadMarginsButton">
+                <button type="button" class="Button-Page-Small-gr" id="uploadMarginsButton">
                     Wgraj Marże
                 </button>
-                <button id="select-all" class="Button-Page-Small-b">Zaznacz wszystkie</button>
-                <button id="deselect-all" class="Button-Page-Small-r">Odznacz wszystkie</button>
-                <select id="categoryDropdown" class="DropDown">
+                <button id="select-all" class="Button-Page-Small">
+                    <span class="dot green-dot"></span>Zaznacz wszystkie widoczne
+                </button>
+                <button id="deselect-all" class="Button-Page-Small">
+                    <span class="dot red-dot"></span>Odznacz wszystkie widoczne
+                </button>
+                <select id="categoryDropdown" class="DropDown" style="width:150px;">
                     <option value="all">Wszystkie</option>
                 </select>
                 <input type="text" id="productSearch" placeholder="Wyszukaj produkt" />
@@ -150,32 +167,29 @@
                         </div>
                     }
                 </div>
-
             </div>
         </div>
 
-        <div class="price-box-space">
-
-                <div class="store-section">
-
-                    <div class="form-check">
-                        <input class="form-check-input status-filter" type="checkbox" id="active" value="active" data-status="active" >
-                        <label class="form-check-label" for="active">Aktywny (<span id="count-active">0</span>) </label>
-                    </div>
-                    <div class="form-check">
-                        <input class="form-check-input status-filter" type="checkbox" id="inactive" value="inactive" data-status="inactive" >
-                        <label class="form-check-label" for="inactive">Nieaktywny (<span id="count-inactive">0</span>) </label>
-                    </div>
-
-                    <div class="form-check">
-                        <input class="form-check-input status-filter" type="checkbox" id="active-rejected" value="active-rejected" data-status="active-rejected" >
-                        <label class="form-check-label" for="active-rejected">Odrzucony (<span id="count-active-rejected">0</span>) </label>
-                    </div>
-                    <div class="form-check">
-                        <input class="form-check-input status-filter" type="checkbox" id="inactive-rejected" value="inactive-rejected" data-status="inactive-rejected" >
-                        <label class="form-check-label" for="inactive-rejected">Wyłączony (<span id="count-inactive-rejected">0</span>) </label>
-                    </div>
+        <div class="price-box-space" style="justify-content:flex-start;">
+            <div class="store-section">
+                <div class="form-check">
+                    <input class="form-check-input status-filter" type="checkbox" id="active" value="active" data-status="active">
+                    <label class="form-check-label" for="active">Aktywny (<span id="count-active">0</span>) </label>
                 </div>
+                <div class="form-check">
+                    <input class="form-check-input status-filter" type="checkbox" id="active-rejected" value="active-rejected" data-status="active-rejected">
+                    <label class="form-check-label" for="active-rejected">Odrzucony (<span id="count-active-rejected">0</span>) </label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input status-filter" type="checkbox" id="inactive" value="inactive" data-status="inactive">
+                    <label class="form-check-label" for="inactive">Nieaktywny (<span id="count-inactive">0</span>) </label>
+                </div>
+
+                <div class="form-check">
+                    <input class="form-check-input status-filter" type="checkbox" id="inactive-rejected" value="inactive-rejected" data-status="inactive-rejected">
+                    <label class="form-check-label" for="inactive-rejected">Wyłączony (<span id="count-inactive-rejected">0</span>) </label>
+                </div>
+            </div>
 
             <div class="store-section">
                 <div class="form-check">
@@ -188,7 +202,7 @@
                 </div>
                 <div class="form-check">
                     <input class="form-check-input status-filter" type="checkbox" id="google-ceneo" value="google-ceneo" data-status="google-ceneo">
-                    <label class="form-check-label" for="google-ceneo">Google&Ceneo (<span id="count-google-ceneo">0</span>)</label>
+                    <label class="form-check-label" for="google-ceneo">Google i Ceneo (<span id="count-google-ceneo">0</span>)</label>
                 </div>
                 <div class="form-check">
                     <input class="form-check-input status-filter" type="checkbox" id="not-found" value="not-found" data-status="not-found">
@@ -203,23 +217,20 @@
                     <tr>
                         <th>Produkt (<span id="displayed-count"></span>)</th>
                         <th></th>
-                        <th>Ean</th>
+                        <th>EAN/GTIN</th>
                         <th>Cena zakupu</th>
                         <th>Oferta</th>
-                        <th>@ViewBag.StoreName</th>
-                        <th>Scrapować</th>
+                        <th>Monitoring</th>
                         <th>Status</th>
-                        <th>Daty</th>
+
                     </tr>
                 </thead>
-
                 <tbody id="product-list">
                 </tbody>
             </table>
         </div>
     </div>
 </div>
-
 
 <div class="modal fade" id="uploadMarginsModal" tabindex="-1" role="dialog" aria-labelledby="uploadMarginsModalLabel" aria-hidden="true">
     <div class="modal-dialog" role="document">
@@ -249,7 +260,6 @@
                         <input type="file" name="uploadedFile" id="uploadedFile" class="form-control" accept=".xls,.xlsx,.csv,.xml" required />
                     </div>
                 </div>
-
                 <div class="modal-footer">
                     <button type="submit" class="Button-Page-Small-b">Wgraj Marże</button>
                     <button type="button" class="Button-Page-Small" data-dismiss="modal">Anuluj</button>
@@ -263,7 +273,7 @@
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
     <script>
-                  document.addEventListener('DOMContentLoaded', function () {
+        document.addEventListener('DOMContentLoaded', function () {
             var storeId = @ViewBag.StoreId;
             var selectAllButton = document.getElementById('select-all');
             var deselectAllButton = document.getElementById('deselect-all');
@@ -273,10 +283,11 @@
             var lastScrollPosition = 0;
             var selectedCategory = 'all';
 
-            // Definiujemy platformStatuses globalnie
             var platformStatuses = ['google', 'ceneo', 'google-ceneo', 'not-found'];
 
-            // Funkcja pomocnicza do określenia statusu platformy
+            const storeNameFromViewBag = '@(ViewBag.StoreName ?? "Oferta Sklepu")';
+            const storeNameForButton = decodeHTML(storeNameFromViewBag);
+
             function getProductPlatformStatus(product) {
                 var hasGoogle = product.googleUrl && product.googleUrl.trim() !== '';
                 var hasCeneo = product.offerUrl && product.offerUrl.trim() !== '';
@@ -290,18 +301,17 @@
                 };
             }
 
-                    function formatDate(dateString) {
-            if (!dateString) return ""; // null lub undefined
-            const d = new Date(dateString);
-            if (isNaN(d.getTime())) return ""; // jeśli niepoprawna data
-            // Zwróć np. dd-MM-yyyy HH:mm
-            const day = String(d.getDate()).padStart(2, '0');
-            const month = String(d.getMonth() + 1).padStart(2, '0');
-            const year = d.getFullYear();
-            const hours = String(d.getHours()).padStart(2, '0');
-            const minutes = String(d.getMinutes()).padStart(2, '0');
-            return `${day}-${month}-${year} ${hours}:${minutes}`;
-        }
+            function formatDate(dateString) {
+                if (!dateString) return "";
+                const d = new Date(dateString);
+                if (isNaN(d.getTime())) return "";
+                const day = String(d.getDate()).padStart(2, '0');
+                const month = String(d.getMonth() + 1).padStart(2, '0');
+                const year = d.getFullYear();
+                const hours = String(d.getHours()).padStart(2, '0');
+                const minutes = String(d.getMinutes()).padStart(2, '0');
+                return `${day}-${month}-${year} ${hours}:${minutes}`;
+            }
 
             function saveState() {
                 lastScrollPosition = window.scrollY;
@@ -360,7 +370,6 @@
             }
 
             function updateCounters(products) {
-                // Liczniki istniejących statusów
                 var activeRejectedCount = allProducts.filter(p => p.isScrapable && p.isRejected).length;
                 var activeCount = allProducts.filter(p => p.isScrapable && !p.isRejected).length;
                 var inactiveRejectedCount = allProducts.filter(p => !p.isScrapable && p.isRejected).length;
@@ -375,26 +384,10 @@
                 document.getElementById('scrapable-count').textContent = scrapableCount;
                 document.getElementById('total-products').textContent = allProducts.length;
 
-                // Nowe liczniki
-                var googleCount = allProducts.filter(p => {
-                    var status = getProductPlatformStatus(p);
-                    return status.hasGoogle;
-                }).length;
-
-                var ceneoCount = allProducts.filter(p => {
-                    var status = getProductPlatformStatus(p);
-                    return status.hasCeneo;
-                }).length;
-
-                var googleCeneoCount = allProducts.filter(p => {
-                    var status = getProductPlatformStatus(p);
-                    return status.hasBoth;
-                }).length;
-
-                var notFoundCount = allProducts.filter(p => {
-                    var platformStatus = getProductPlatformStatus(p);
-                    return platformStatus.notFound;
-                }).length;
+                var googleCount = allProducts.filter(p => getProductPlatformStatus(p).hasGoogle).length;
+                var ceneoCount = allProducts.filter(p => getProductPlatformStatus(p).hasCeneo).length;
+                var googleCeneoCount = allProducts.filter(p => getProductPlatformStatus(p).hasBoth).length;
+                var notFoundCount = allProducts.filter(p => getProductPlatformStatus(p).notFound).length;
 
                 document.getElementById('count-google').textContent = googleCount;
                 document.getElementById('count-ceneo').textContent = ceneoCount;
@@ -409,95 +402,86 @@
                 return text.replace(regex, '<span style="color: #9400D3; font-weight: 600;">$1</span>');
             }
 
-                    function renderProducts(products, searchTerm = "") {
-            var tbody = document.getElementById('product-list');
-            tbody.innerHTML = '';
-            products.forEach(function (product) {
-                var row = document.createElement('tr');
-                row.classList.add('product-row');
-                row.setAttribute('data-scrapable', product.isScrapable);
-                row.setAttribute('data-rejected', product.isRejected);
+           function renderProducts(products, searchTerm = "") {
+                var tbody = document.getElementById('product-list');
+                tbody.innerHTML = '';
+                products.forEach(function (product) {
+                    var row = document.createElement('tr');
+                    row.classList.add('product-row');
+                    row.setAttribute('data-scrapable', product.isScrapable);
+                    row.setAttribute('data-rejected', product.isRejected);
 
-                // Determine if the product is "Not Found"
-                var platformStatus = getProductPlatformStatus(product);
-                var isNotFound = platformStatus.notFound;
+                    var platformStatus = getProductPlatformStatus(product);
+                    var isNotFound = platformStatus.notFound;
 
-                var highlightedProductName = highlightMatches(product.productName, searchTerm);
-                var category = product.category || '';
-                var offerUrlButton = product.offerUrl ? `<a href="${product.offerUrl}" class="Button-Page-Small" target="_blank">Ceneo</a>` : '';
-                var googleUrlButton = product.googleUrl ? `<a href="${product.googleUrl}" class="Button-Page-Small" target="_blank">Google</a>` : '';
-                var urlButton = product.url ? `<a href="${product.url}" class="Button-Page-Small" target="_blank">Strona</a>` : '';
+                    var highlightedProductName = highlightMatches(product.productName, searchTerm);
+                    var category = product.category || '';
 
-                var ean = product.ean || '';
-                var marginPrice = product.marginPrice || '';
-                var imageUrl = product.mainUrl || '';
-                var imageCell = imageUrl ? `<img src="${imageUrl}" style="width: 90px; height: 90px; object-fit: contain; background-color: white;" />` : `<div style="width: 90px; height: 90px;"></div>`;
+                    var offerUrlButton = product.offerUrl ? `<a href="${product.offerUrl}" class="Button-Page-Small" style="width: 150px;" target="_blank">Ceneo</a>` : '';
+                    var googleUrlButton = product.googleUrl ? `<a href="${product.googleUrl}" class="Button-Page-Small" style="width: 150px;" target="_blank">Google</a>` : '';
+                    var storeSpecificOfferButton = product.url ? `<a href="${product.url}" class="Button-Page-Small" style="width: 150px;" target="_blank">${storeNameForButton}</a>` : '';
 
-                 var addedDateFormatted = formatDate(product.addedDate);
-                var foundOnGoogleDateFormatted = formatDate(product.foundOnGoogleDate);
-                var foundOnCeneoDateFormatted = formatDate(product.foundOnCeneoDate);
+                    var ean = product.ean || '';
 
+                    var purchasePriceDisplay;
+                    if (product.marginPrice && product.marginPrice.toString().trim() !== '') {
+                        purchasePriceDisplay = `${product.marginPrice} PLN`;
+                    } else {
+                        purchasePriceDisplay = 'Brak';
+                    }
 
-                var statusBoxClass = "";
-                var statusText = "";
+                    var imageUrl = product.mainUrl || '';
+                    var imageCell = imageUrl ? `<img src="${imageUrl}" style="width: 90px; height: 90px; object-fit: contain; background-color: white;" />` : `<div style="width: 90px; height: 90px;"></div>`;
 
-                if (product.isScrapable && product.isRejected) {
-                    statusBoxClass = "StatusBoxProduct-1";
-                    statusText = "Odrzucony";
-                } else if (product.isScrapable) {
-                    statusBoxClass = "StatusBoxProduct-2";
-                    statusText = "Aktywny";
-                } else if (product.isRejected) {
-                    statusBoxClass = "StatusBoxProduct-3";
-                    statusText = "Wyłączony";
-                } else {
-                    statusBoxClass = "StatusBoxProduct-4";
-                    statusText = "Nieaktywny";
-                }
+                    var addedDateFormatted = formatDate(product.addedDate);
+                    var foundOnGoogleDateFormatted = formatDate(product.foundOnGoogleDate);
+                    var foundOnCeneoDateFormatted = formatDate(product.foundOnCeneoDate);
 
-                // Modify the checkbox input
-               var datesCell = `
-            <div class="dates-vertical">
-                <p><strong>Dodany:</strong> ${addedDateFormatted || "-"}</p>
-                <p><strong>Google:</strong> ${foundOnGoogleDateFormatted || "-"}</p>
-                <p><strong>Ceneo:</strong> ${foundOnCeneoDateFormatted || "-"}</p>
-            </div>
-        `;
+                    var statusBoxClass = "";
+                    var statusText = "";
 
-        row.innerHTML = `
-            <td><p>${highlightedProductName}</p><p>${category}</p></td>
-            <td>${imageCell}</td>
-            <td>${ean}</td>
-            <td>${marginPrice} PLN</td>
-            <td>
-                <div class="store-section" style="gap:4px;">
-                    ${offerUrlButton}${googleUrlButton}
-                </div>
-            </td>
-            <td>${urlButton}</td>
-            <td>
-                <input type="checkbox" class="scrapable-checkbox" data-product-id="${product.productId}"
-                    ${product.isScrapable ? "checked" : ""}
-                    ${isNotFound ? "disabled" : ""} />
-            </td>
-            <td><div class="${statusBoxClass}">${statusText}</div></td>
-            <!-- Nowe TD na daty -->
-            <td>${datesCell}</td>
-        `;
+                    if (product.isScrapable && product.isRejected) {
+                        statusBoxClass = "StatusBoxProduct-1";
+                        statusText = "Odrzucony";
+                    } else if (product.isScrapable) {
+                        statusBoxClass = "StatusBoxProduct-2";
+                        statusText = "Aktywny";
+                    } else if (product.isRejected) {
+                        statusBoxClass = "StatusBoxProduct-3";
+                        statusText = "Wyłączony";
+                    } else {
+                        statusBoxClass = "StatusBoxProduct-4";
+                        statusText = "Nieaktywny";
+                    }
 
-                // Only add the event listener if the checkbox is not disabled
-                if (!isNotFound) {
-                    row.querySelector('.scrapable-checkbox').addEventListener('change', function () {
-                        saveState();
-                        var productId = this.getAttribute('data-product-id');
+                    row.innerHTML = `
+                        <td><p>${highlightedProductName}</p><p>${category}</p></td>
+                        <td>${imageCell}</td>
+                        <td>${ean}</td>
+                        <td>${purchasePriceDisplay}</td>
+                        <td>
+                            <div style="display: flex; flex-direction: column; align-items: flex-start; gap: 5px;">
+                                ${offerUrlButton}
+                                ${googleUrlButton}
+                                ${storeSpecificOfferButton}
+                            </div>
+                        </td>
+                        <td>
+                            <input type="checkbox" class="scrapable-checkbox" data-product-id="${product.productId}"
+                                ${product.isScrapable ? "checked" : ""}
+                                ${isNotFound ? "disabled" : ""} />
+                        </td>
+                        <td><div class="${statusBoxClass}">${statusText}</div></td>`;
 
-                        fetch('@Url.Action("UpdateScrapableProduct", "Product")?storeId=' + storeId, {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json'
-                            },
-                            body: JSON.stringify(productId)
-                        })
+                    if (!isNotFound) {
+                        row.querySelector('.scrapable-checkbox').addEventListener('change', function () {
+                            saveState();
+                            var productId = this.getAttribute('data-product-id');
+                            fetch('@Url.Action("UpdateScrapableProduct", "Product")?storeId=' + storeId, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(productId)
+                            })
                             .then(response => response.json())
                             .then(data => {
                                 if (!data.success) {
@@ -510,15 +494,13 @@
                             .catch(error => {
                                 console.error('There was a problem with your fetch operation:', error);
                             });
-                    });
-                }
-
-                tbody.appendChild(row);
-            });
-            document.getElementById('displayed-count').textContent = products.length;
-            window.scrollTo(0, lastScrollPosition);
-        }
-
+                        });
+                    }
+                    tbody.appendChild(row);
+                });
+                document.getElementById('displayed-count').textContent = products.length;
+                window.scrollTo(0, lastScrollPosition);
+            }
 
             function filterRows() {
                 var selectedStatuses = Array.from(document.querySelectorAll('.status-filter:checked'))
@@ -528,11 +510,9 @@
                 var filteredProducts = filterProductsByName(allProducts, searchTerm);
 
                 var existingStatuses = ['active', 'inactive', 'active-rejected', 'inactive-rejected'];
-
                 var selectedExistingStatuses = selectedStatuses.filter(status => existingStatuses.includes(status));
                 var selectedPlatformStatuses = selectedStatuses.filter(status => platformStatuses.includes(status));
 
-                // Filtrujemy po istniejących statusach
                 if (selectedExistingStatuses.length > 0) {
                     filteredProducts = filteredProducts.filter(product => {
                         var productStatus = getProductStatus(product);
@@ -540,38 +520,28 @@
                     });
                 }
 
-                // Filtrujemy po statusach platform
                 if (selectedPlatformStatuses.length > 0) {
                     filteredProducts = filteredProducts.filter(product => {
                         var platformStatus = getProductPlatformStatus(product);
+                        if (selectedPlatformStatuses.includes('not-found')) return platformStatus.notFound;
+                        if (selectedPlatformStatuses.includes('google-ceneo')) return platformStatus.hasBoth;
 
-                        // 'Nie znalezione' i 'Google&Ceneo' są wzajemnie wykluczające z innymi
-                        if (selectedPlatformStatuses.includes('not-found')) {
-                            return platformStatus.notFound;
-                        }
-
-                        if (selectedPlatformStatuses.includes('google-ceneo')) {
-                            return platformStatus.hasBoth;
-                        }
-
-                        // 'Google' i 'Ceneo' mogą być zaznaczone razem
                         var includeProduct = false;
-                        if (selectedPlatformStatuses.includes('google')) {
-                            if (platformStatus.hasGoogle) {
-                                includeProduct = true;
-                            }
-                        }
-                        if (selectedPlatformStatuses.includes('ceneo')) {
-                            if (platformStatus.hasCeneo) {
-                                includeProduct = true;
-                            }
+                        if (selectedPlatformStatuses.includes('google') && platformStatus.hasGoogle) includeProduct = true;
+                        if (selectedPlatformStatuses.includes('ceneo') && platformStatus.hasCeneo) includeProduct = true;
+
+                        if(selectedPlatformStatuses.includes('google') && selectedPlatformStatuses.includes('ceneo')){
+
+                        } else if (selectedPlatformStatuses.includes('google')) {
+                            return platformStatus.hasGoogle;
+                        } else if (selectedPlatformStatuses.includes('ceneo')) {
+                            return platformStatus.hasCeneo;
                         }
                         return includeProduct;
+
                     });
                 }
-
                 filteredProducts = filterProductsByCategory(filteredProducts, selectedCategory);
-
                 renderProducts(filteredProducts, searchTerm);
                 updateCounters(filteredProducts);
             }
@@ -581,7 +551,6 @@
                     .then(response => response.json())
                     .then(data => {
                         allProducts = data;
-
                         var categoriesWithCount = allProducts.reduce((acc, product) => {
                             let category = product.category || "Inne";
                             let categoryObj = acc.find(cat => cat.name === category);
@@ -592,7 +561,6 @@
                             }
                             return acc;
                         }, []);
-
                         populateCategoryDropdown(categoriesWithCount);
                         updateCounters(allProducts);
                         filterRows();
@@ -602,20 +570,17 @@
                     });
             }
 
-            // Event listeners dla checkboxów
             document.querySelectorAll('.status-filter').forEach(function (checkbox) {
                 checkbox.addEventListener('change', function () {
                     if ((this.id === 'not-found' || this.id === 'google-ceneo') && this.checked) {
-                        // Odznaczamy inne platformowe checkboxy
-                        platformStatuses.forEach(function (status) {
-                            if (status !== this.id) {
-                                document.getElementById(status).checked = false;
+                        platformStatuses.forEach(function (statusId) {
+                            if (statusId !== this.id && document.getElementById(statusId)) {
+                                document.getElementById(statusId).checked = false;
                             }
                         }.bind(this));
                     } else if (this.checked && (this.id === 'google' || this.id === 'ceneo')) {
-                        // Odznaczamy 'Nie znalezione' i 'Google&Ceneo' jeśli zaznaczone są 'Google' lub 'Ceneo'
-                        document.getElementById('not-found').checked = false;
-                        document.getElementById('google-ceneo').checked = false;
+                        if(document.getElementById('not-found')) document.getElementById('not-found').checked = false;
+                        if(document.getElementById('google-ceneo')) document.getElementById('google-ceneo').checked = false;
                     }
                     filterRows();
                 });
@@ -627,24 +592,20 @@
                 filterRows();
             });
 
-               // Select All Button Event Listener
-        selectAllButton.addEventListener('click', function () {
-            var productIds = [];
-            // Select only enabled checkboxes
-            document.querySelectorAll('.scrapable-checkbox').forEach(function (checkbox) {
-                if (!checkbox.disabled && !checkbox.checked) {
-                    checkbox.checked = true;
-                    productIds.push(parseInt(checkbox.getAttribute('data-product-id')));
-                }
-            });
-            if (productIds.length > 0) {
-                fetch('@Url.Action("UpdateMultipleScrapableProducts", "Product")?storeId=' + storeId, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(productIds)
-                })
+            selectAllButton.addEventListener('click', function () {
+                var productIds = [];
+                document.querySelectorAll('.scrapable-checkbox').forEach(function (checkbox) {
+                    if (!checkbox.disabled && !checkbox.checked) {
+                        checkbox.checked = true;
+                        productIds.push(parseInt(checkbox.getAttribute('data-product-id')));
+                    }
+                });
+                if (productIds.length > 0) {
+                    fetch('@Url.Action("UpdateMultipleScrapableProducts", "Product")?storeId=' + storeId, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(productIds)
+                    })
                     .then(response => response.json())
                     .then(data => {
                         if (data.success) {
@@ -656,25 +617,21 @@
                     .catch(error => {
                         console.error('Problem z operacją fetch:', error);
                     });
-            }
-        });
-
-        // Deselect All Button Event Listener
-        deselectAllButton.addEventListener('click', function () {
-            var productIds = [];
-            // Select only enabled checkboxes that are currently checked
-            document.querySelectorAll('.scrapable-checkbox:checked:not(:disabled)').forEach(function (checkbox) {
-                checkbox.checked = false;
-                productIds.push(parseInt(checkbox.getAttribute('data-product-id')));
+                }
             });
-            if (productIds.length > 0) {
-                fetch('@Url.Action("ResetMultipleScrapableProducts", "Product")?storeId=' + storeId, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(productIds)
-                })
+
+            deselectAllButton.addEventListener('click', function () {
+                var productIds = [];
+                document.querySelectorAll('.scrapable-checkbox:checked:not(:disabled)').forEach(function (checkbox) {
+                    checkbox.checked = false;
+                    productIds.push(parseInt(checkbox.getAttribute('data-product-id')));
+                });
+                if (productIds.length > 0) {
+                    fetch('@Url.Action("ResetMultipleScrapableProducts", "Product")?storeId=' + storeId, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(productIds)
+                    })
                     .then(response => response.json())
                     .then(data => {
                         if (data.success) {
@@ -686,14 +643,11 @@
                     .catch(error => {
                         console.error('Problem z operacją fetch:', error);
                     });
-            }
-        });
-
+                }
+            });
 
             fetchProducts();
         });
-
-
     </script>
     <script>
         $(document).ready(function () {
