@@ -273,22 +273,31 @@ public class GoogleMainPriceScraper
                 Console.WriteLine("Skipping processing of hidden/expanded offers as ExpandAndCompareGoogleOffers is false.");
             }
 
-            // Logika paginacji
-            var paginationNextButtonSelector = "#sh-fp__pagination-button-wrapper nav > a[aria-label='Następna strona'], #sh-fp__pagination-button-wrapper nav > a[aria-label='Next page']"; // Uogólniony selektor
-            var nextPageButton = await _page.QuerySelectorAsync(paginationNextButtonSelector);
-
-            if (nextPageButton != null)
+            // Logika paginacji (przywrócona ze starszej wersji)
+            var paginationElement = await _page.QuerySelectorAsync("#sh-fp__pagination-button-wrapper");
+            if (paginationElement != null)
             {
-                // Sprawdzenie, czy przycisk nie jest wyłączony (np. przez atrybut disabled lub specyficzną klasę)
-                // PuppeteerSharp nie ma bezpośredniej metody IsDisabled(), trzeba by to sprawdzić przez JavaScript lub atrybuty
-                // Dla uproszczenia zakładamy, że jeśli istnieje, to jest klikalny, chyba że logika strony jest inna.
-                Console.WriteLine("Next page button found.");
-                currentPage++;
-                // hasNextPage pozostaje true, pętla while zdecyduje czy kontynuować (currentPage < 3)
+                var nextPageElement = await paginationElement.QuerySelectorAsync("a.internal-link[data-url*='start']");
+                if (nextPageElement != null)
+                {
+                    currentPage++;
+                    Console.WriteLine($"Moving to next page (old logic): {currentPage}");
+                    // W starej logice nie było jawnego ustawiania hasNextPage = true tutaj,
+                    // ponieważ pętla while (hasNextPage && ...) dbała o to.
+                    // Jeśli jednak nextPageElement jest znaleziony, to znaczy, że jest następna strona.
+                    // Domyślnie hasNextPage powinno być true na początku iteracji, jeśli nie doszliśmy do końca.
+                    // Dla pewności, jeśli nextPageElement jest znaleziony, można jawnie ustawić:
+                    hasNextPage = true; // Upewniamy się, że jest ustawione na true
+                }
+                else
+                {
+                    Console.WriteLine("No next page link found with old logic (a.internal-link[data-url*='start']).");
+                    hasNextPage = false;
+                }
             }
             else
             {
-                Console.WriteLine("No next page button found or end of pagination.");
+                Console.WriteLine("Pagination element #sh-fp__pagination-button-wrapper not found (old logic).");
                 hasNextPage = false;
             }
         }
@@ -310,28 +319,46 @@ public class GoogleMainPriceScraper
         if (string.IsNullOrWhiteSpace(priceText)) return 0;
         try
         {
-            // Usuń wszystko co nie jest cyfrą, przecinkiem, kropką lub spacją (dla bezpieczeństwa)
+            // 1. Usuń symbole walut i wszystko, co nie jest cyfrą, przecinkiem, kropką lub białym znakiem.
             var sanitizedPriceText = Regex.Replace(priceText, @"[^\d\s,.]", "");
-            // Zamień przecinek na kropkę jako separator dziesiętny, usuń spacje (tysięcy)
-            var normalizedPriceText = sanitizedPriceText.Replace(",", ".").Replace(" ", "");
 
-            // Usuń ewentualne wielokrotne kropki, zostawiając tylko ostatnią (najbardziej prawdopodobny separator dziesiętny)
-            int lastDotIndex = normalizedPriceText.LastIndexOf('.');
+            // 2. Znormalizuj separator dziesiętny (przecinek na kropkę).
+            var textWithDot = sanitizedPriceText.Replace(",", ".");
+
+            // 3. Usuń WSZYSTKIE białe znaki (w tym twarde spacje, tabulatory itp.).
+            //    Regex.Replace z @"\s+" usunie wszystkie wystąpienia jednego lub więcej białych znaków.
+            var noSpacesText = Regex.Replace(textWithDot, @"\s+", "");
+            // Dla "984,00 zł" (gdzie spacja przed zł mogła być twarda):
+            // sanitizedPriceText = "984,00\u00A0"
+            // textWithDot = "984.00\u00A0"
+            // noSpacesText = "984.00" (wszystkie białe znaki usunięte)
+
+            string finalPriceToParse = noSpacesText;
+
+            // 4. Logika obsługi wielokrotnych kropek (np. "1.234.56" jeśli kropka była separatorem tysięcy).
+            //    Zakłada, że OSTATNIA kropka jest separatorem dziesiętnym.
+            int lastDotIndex = noSpacesText.LastIndexOf('.');
             if (lastDotIndex != -1)
             {
-                string integerPart = normalizedPriceText.Substring(0, lastDotIndex).Replace(".", "");
-                string decimalPart = normalizedPriceText.Substring(lastDotIndex + 1);
-                normalizedPriceText = $"{integerPart}.{decimalPart}";
+                // Sprawdź, czy są inne kropki PRZED ostatnią.
+                if (noSpacesText.IndexOf('.') < lastDotIndex)
+                {
+                    string integerPart = noSpacesText.Substring(0, lastDotIndex).Replace(".", ""); // Usuń kropki z części całkowitej
+                    string decimalPart = noSpacesText.Substring(lastDotIndex + 1);
+                    finalPriceToParse = $"{integerPart}.{decimalPart}"; // Zrekonstruuj, np. "1234.56"
+                }
+                // Jeśli jest tylko jedna kropka (np. "984.00"), finalPriceToParse pozostaje noSpacesText.
             }
+            // W tym momencie finalPriceToParse powinien być czystą liczbą, np. "984.00" lub "1234.56".
 
-
-            if (decimal.TryParse(normalizedPriceText, NumberStyles.Any, CultureInfo.InvariantCulture, out decimal priceDecimal))
+            if (decimal.TryParse(finalPriceToParse, NumberStyles.Any, CultureInfo.InvariantCulture, out decimal priceDecimal))
             {
                 return priceDecimal;
             }
             else
             {
-                Console.WriteLine($"Failed to parse price: '{priceText}' (normalized to: '{normalizedPriceText}')");
+                // Ulepszone logowanie, aby zobaczyć etapy transformacji
+                Console.WriteLine($"Failed to parse price. Original: '{priceText}' | Sanitized: '{sanitizedPriceText}' | WithDot: '{textWithDot}' | NoSpaces: '{noSpacesText}' | FinalToParse: '{finalPriceToParse}'");
             }
         }
         catch (Exception ex)
@@ -439,11 +466,11 @@ public class GoogleMainPriceScraper
 
 //        try
 //        {
-//            while (hasNextPage && currentPage < 3)
-//            {
-//                string paginatedUrl = currentPage == 0
-//                    ? productOffersUrl
-//                    : $"{googleOfferUrl}/offers?prds=cid:{productId},cond:1,start:{currentPage * 20}&gl=pl&hl=pl";
+//while (hasNextPage && currentPage < 3)
+//{
+//    string paginatedUrl = currentPage == 0
+//        ? productOffersUrl
+//        : $"{googleOfferUrl}/offers?prds=cid:{productId},cond:1,start:{currentPage * 20}&gl=pl&hl=pl";
 
 //                await _page.GoToAsync(paginatedUrl, new NavigationOptions { WaitUntil = new[] { WaitUntilNavigation.Networkidle2 } });
 //                //await Task.Delay(600);
