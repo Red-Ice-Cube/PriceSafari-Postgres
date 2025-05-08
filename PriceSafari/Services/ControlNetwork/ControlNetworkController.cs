@@ -1,24 +1,33 @@
 ﻿using System;
-using System.Collections.Generic; // Dodaj ten using dla List<string>
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging; // Upewnij się, że masz ten using
+// Microsoft.AspNetCore.Mvc nie jest już potrzebny, chyba że używasz typów z niego w inny sposób
 
-namespace PriceSafari.Services.ControlNetwork
+namespace PriceSafari.Services.ControlNetwork // Możesz zostawić lub uprościć namespace
 {
-    [ApiController]
-    [Route("api/[controller]")]
-    public class ControlNetworkController : ControllerBase
+    public interface INetworkControlService // Opcjonalnie: Dodaj interfejs dla lepszych praktyk DI
     {
-        private readonly ILogger<ControlNetworkController> _logger;
-        public static event EventHandler NetworkDisabled;
+        Task<bool> TriggerNetworkDisableAndResetAsync();
+        event EventHandler NetworkResetCompleted; // Zmieniona nazwa eventu dla jasności
+    }
 
-        public ControlNetworkController(ILogger<ControlNetworkController> logger)
-            => _logger = logger;
+    public class NetworkControlService : INetworkControlService
+    {
+        private readonly ILogger<NetworkControlService> _logger;
+        // Event, który może być wywołany po zakończeniu resetu (włączając opóźnienie)
+        public event EventHandler NetworkResetCompleted; // Zmieniona nazwa z NetworkDisabled
 
-        private async Task<IActionResult> ExecuteDisableAsync()
+        public NetworkControlService(ILogger<NetworkControlService> logger)
         {
+            _logger = logger;
+        }
+
+        // Główna publiczna metoda
+        public async Task<bool> TriggerNetworkDisableAndResetAsync()
+        {
+            _logger.LogInformation(">>> TriggerNetworkDisableAndResetAsync called.");
             // Lista interfejsów VPN Avasta, które chcemy spróbować wyłączyć
             var targetInterfaceNames = new List<string>
             {
@@ -53,67 +62,43 @@ namespace PriceSafari.Services.ControlNetwork
                             string errorMsg = $"Nie udało się wystartować procesu netsh dla interfejsu '{interfaceName}'.";
                             _logger.LogError(errorMsg);
                             errors.Add(errorMsg);
-                            continue; // Przejdź do następnego interfejsu
+                            continue;
                         }
-
-                        proc.WaitForExit(); // Poczekaj na zakończenie procesu
-
+                        proc.WaitForExit();
                         _logger.LogInformation($"Proces netsh dla '{interfaceName}' zakończony. Kod wyjścia: {proc.ExitCode}");
-
                         if (proc.ExitCode == 0)
                         {
-                            _logger.LogInformation($"Interfejs '{interfaceName}' został pomyślnie wyłączony (lub był już wyłączony).");
+                            _logger.LogInformation($"Interfejs '{interfaceName}' został pomyślnie wyłączony.");
                             anySuccess = true;
                         }
                         else
                         {
-                            // netsh może zwrócić błąd, jeśli interfejs nie istnieje.
-                            // Można by to specyficznie obsłużyć, jeśli znamy kod błędu dla "nie znaleziono interfejsu".
-                            // Na razie traktujemy każdy niezerowy kod jako potencjalny problem.
-                            string errorMsg = $"Polecenie netsh dla interfejsu '{interfaceName}' nie powiodło się. Kod błędu: {proc.ExitCode}.";
-                            _logger.LogWarning(errorMsg); // Logujemy jako ostrzeżenie, bo np. brak interfejsu nie jest krytyczny
+                            string errorMsg = $"Polecenie netsh dla '{interfaceName}' nie powiodło się. Kod błędu: {proc.ExitCode}.";
+                            _logger.LogWarning(errorMsg);
                             errors.Add(errorMsg);
                         }
                     }
                 }
                 catch (Exception ex)
                 {
-                    // Ten wyjątek może być np. Win32Exception jeśli użytkownik anuluje monit UAC.
                     string errorMsg = $"Wystąpił wyjątek podczas próby wyłączenia interfejsu '{interfaceName}': {ex.Message}";
                     _logger.LogError(ex, errorMsg);
                     errors.Add(errorMsg);
                 }
             }
 
-            if (!anySuccess && errors.Count == targetInterfaceNames.Count) // Jeśli żadna operacja się nie powiodła i dla każdej był błąd
+            if (!anySuccess && errors.Count == targetInterfaceNames.Count)
             {
                 _logger.LogError("Nie udało się pomyślnie wykonać operacji netsh dla żadnego z docelowych interfejsów.");
-                return StatusCode(500, "Nie udało się wyłączyć żadnego z docelowych interfejsów. Szczegóły w logach: " + string.Join("; ", errors));
+                return false; // Zwróć false jeśli całkowita porażka
             }
 
-            // Jeśli przynajmniej jedna operacja się udała lub nie było krytycznych błędów uniemożliwiających start procesu
             _logger.LogInformation("Zakończono próby wyłączania interfejsów. Oczekiwanie 30 sekund...");
-            await Task.Delay(TimeSpan.FromSeconds(30));
-            _logger.LogInformation("Zakończono oczekiwanie. Wywoływanie eventu NetworkDisabled.");
-            NetworkDisabled?.Invoke(this, EventArgs.Empty);
+            await Task.Delay(TimeSpan.FromSeconds(30)); // Czas oczekiwania po wyłączeniu
+            _logger.LogInformation("Zakończono oczekiwanie. Wywoływanie eventu NetworkResetCompleted.");
+            NetworkResetCompleted?.Invoke(this, EventArgs.Empty); // Wywołaj event
 
-            // Zwracamy sukces, nawet jeśli niektóre interfejsy nie zostały znalezione, ale przynajmniej jedna operacja 'disable' mogła się powieść.
-            // Możesz dostosować logikę zwracanego komunikatu w oparciu o `anySuccess` i zawartość `errors`.
-            string finalMessage = anySuccess ? "Przynajmniej jeden interfejs VPN został wyłączony. Odczekano i zgłoszono." : "Nie udało się potwierdzić wyłączenia żadnego interfejsu, ale proces został wykonany. Odczekano i zgłoszono.";
-            if (errors.Count > 0 && anySuccess)
-            {
-                finalMessage += " Wystąpiły problemy z niektórymi interfejsami: " + string.Join("; ", errors);
-            }
-
-            return Ok(new { success = true, message = finalMessage, details = errors });
+            return true; // Zwróć true, jeśli przynajmniej częściowo się udało
         }
-
-        [HttpPost("disable")]
-        public Task<IActionResult> DisableNetworkPost()
-            => ExecuteDisableAsync();
-
-        [HttpGet("disable")] // Dla testów z przeglądarki
-        public Task<IActionResult> DisableNetworkGet()
-            => ExecuteDisableAsync();
     }
 }
