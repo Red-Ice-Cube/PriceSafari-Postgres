@@ -78,10 +78,14 @@ public class Program
 
         app.UseHttpsRedirection();
         app.UseStaticFiles();
+
         app.UseRouting();
 
-        app.UseAuthorization();
+        app.UseAuthentication(); // Potem uwierzytelnianie
+        app.UseAuthorization();  // Nastêpnie autoryzacja
         app.UseSession();
+
+        app.MapControllers();
 
         app.MapControllerRoute(
               name: "default",
