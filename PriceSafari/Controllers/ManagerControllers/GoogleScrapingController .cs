@@ -226,16 +226,32 @@ namespace PriceSafari.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> ClearPreparedProducts()
         {
+            try
+            {
             
-            await _context.Database.ExecuteSqlRawAsync("DELETE FROM GoogleScrapingProducts");
+                await DeleteTableInBatchesAsync("PriceData");
+                await DeleteTableInBatchesAsync("GoogleScrapingProducts");
+            }
+            catch (Microsoft.Data.SqlClient.SqlException ex)
+            {
+                throw;
+            }
 
-      
-            await _context.Database.ExecuteSqlRawAsync("DELETE FROM PriceData");
-
-           
             return RedirectToAction("PreparedProducts");
         }
 
+        private async Task DeleteTableInBatchesAsync(string tableName, int batchSize = 10000) 
+        {
+            int rowsAffectedThisBatch;
+            do
+            {
+
+                string sql = $"DELETE TOP ({batchSize}) FROM [{tableName}]";
+                rowsAffectedThisBatch = await _context.Database.ExecuteSqlRawAsync(sql);
+
+
+            } while (rowsAffectedThisBatch == batchSize); 
+        }
 
         [HttpPost]
         public async Task<IActionResult> ResetScrapingStatus(int productId)
