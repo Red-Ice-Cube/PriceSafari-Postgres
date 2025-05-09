@@ -17,8 +17,8 @@ namespace PriceSafari.Models
      
         public string ProductName { get; set; }
         public string? Category { get; set; }
+        public string? Producer { get; set; }
 
-       
         public DateTime AddedDate { get; set; } = DateTime.UtcNow;
     
         private string? offerUrl;

@@ -22,6 +22,8 @@ namespace PriceSafari.Models
         public string? GoogleImage { get; set; }
         public string? GoogleExportedName { get; set; }
 
+       
+
         // NOWE pola cenowe (precyzja do 2 miejsc)
         [Column(TypeName = "decimal(18, 2)")]
         public decimal? GoogleXMLPrice { get; set; }
@@ -35,5 +37,8 @@ namespace PriceSafari.Models
 
         [Column(TypeName = "decimal(18, 2)")]
         public decimal? CeneoDeliveryXMLPrice { get; set; }
+
+        public string? GoogleExportedProducer { get; set; }
+        public string? CeneoExportedProducer { get; set; }
     }
 }
