@@ -302,7 +302,7 @@ public class ScheduledTaskService : BackgroundService
                 switch (resultDto.Result)
                 {
                     case GoogleScraperService.GoogleScrapingResult.Success:
-                        finishedGoogleLog.Comment += $" | Sukces. Zmielono: {resultDto.TotalScraped} produktów, odrzucono: {resultDto.TotalRejected}.";
+                        finishedGoogleLog.Comment += $" | Sukces. Zmielono: {resultDto.TotalScraped} produktów, odrzucono: {resultDto.TotalRejected}. Napotkano CAPCHE: {resultDto.CaptchaResets} razy.";
                         break;
                     case GoogleScraperService.GoogleScrapingResult.NoProductsToScrape:
                         finishedGoogleLog.Comment += " | Brak produktów do scrapowania.";
