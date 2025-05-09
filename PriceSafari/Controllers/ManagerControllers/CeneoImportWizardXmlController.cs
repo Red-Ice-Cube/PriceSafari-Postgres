@@ -156,9 +156,7 @@ namespace PriceSafari.Controllers.ManagerControllers
             }
 
             int storeId = productMaps[0].StoreId;
-            // WAŻNE: Upewnij się, że klasa ProductMap (model bazy danych) również ma pola
-            // CeneoXMLPrice i CeneoDeliveryXMLPrice typu decimal?
-            // Jeśli nie, dodaj je i utwórz migrację.
+
             var existing = await _context.ProductMaps
                 .Where(pm => pm.StoreId == storeId)
                 .ToListAsync();
@@ -192,6 +190,7 @@ namespace PriceSafari.Controllers.ManagerControllers
                         Ean = pmDto.CeneoEan,
                         MainUrl = pmDto.CeneoImage,
                         ExportedName = pmDto.CeneoExportedName,
+                        CeneoExportedProducer = pmDto.CeneoExportedProducer,
 
                         // --- DODANE POLA CENOWE ---
                         CeneoXMLPrice = pmDto.CeneoXMLPrice,
@@ -211,10 +210,11 @@ namespace PriceSafari.Controllers.ManagerControllers
                     found.Ean = pmDto.CeneoEan;
                     found.MainUrl = pmDto.CeneoImage;
                     found.ExportedName = pmDto.CeneoExportedName;
+                    found.ExportedName = pmDto.CeneoExportedName;
 
                     // --- DODANE POLA CENOWE ---
                     found.CeneoXMLPrice = pmDto.CeneoXMLPrice;
-                    found.CeneoDeliveryXMLPrice = pmDto.CeneoDeliveryXMLPrice;
+                    found.CeneoExportedProducer = pmDto.CeneoExportedProducer;
                     // --- KONIEC DODANYCH PÓL CENOWYCH ---
 
                     _context.ProductMaps.Update(found);
@@ -235,7 +235,11 @@ namespace PriceSafari.Controllers.ManagerControllers
             public string Url { get; set; }
             public string CeneoEan { get; set; }
             public string CeneoImage { get; set; }
+            
             public string CeneoExportedName { get; set; }
+
+            public string? CeneoExportedProducer { get; set; }
+
             public decimal? CeneoXMLPrice { get; set; }
             public decimal? CeneoDeliveryXMLPrice { get; set; }
         }

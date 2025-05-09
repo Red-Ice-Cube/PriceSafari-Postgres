@@ -16,6 +16,7 @@ let mappingForField = {
     CeneoEan: null,
     CeneoImage: null,
     CeneoExportedName: null,
+    CeneoExportedProducer: null,
     CeneoXMLPrice: null,
     CeneoDeliveryXMLPrice: null
 };
@@ -425,6 +426,7 @@ document.getElementById("extractProducts").addEventListener("click", () => {
             CeneoEan: getVal(entryNode, "CeneoEan"),
             CeneoImage: getVal(entryNode, "CeneoImage"),
             CeneoExportedName: getVal(entryNode, "CeneoExportedName"),
+            CeneoExportedProducer: getVal(entryNode, "CeneoExportedProducer"),
 
             CeneoXMLPrice: parsePrice(getVal(entryNode, "CeneoXMLPrice")),
             CeneoDeliveryXMLPrice: parsePrice(getVal(entryNode, "CeneoDeliveryXMLPrice"))

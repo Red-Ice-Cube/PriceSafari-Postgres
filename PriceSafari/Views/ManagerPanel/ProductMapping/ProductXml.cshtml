@@ -21,6 +21,8 @@
             <th>Nazwa Export (Google)</th>
             <th>EAN (Ceneo)</th>
             <th>EAN (Google)</th>
+            <th>Producent (Ceneo)</th>
+            <th>Producent (Google)</th>
             <th>URL Produktu</th>
             <th>External ID</th>
         </tr>
@@ -53,6 +55,8 @@
                 <td>@product.GoogleExportedName</td>          
                 <td>@product.Ean</td>
                 <td>@product.GoogleEan</td>
+                <td>@product.CeneoExportedProducer</td>
+                <td>@product.GoogleExportedProducer</td>
                 <td><a href="@product.Url" target="_blank">@product.Url</a></td>
                 <td>@product.ExternalId</td>
             </tr>

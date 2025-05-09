@@ -68,15 +68,16 @@
 <div style="margin-bottom: 10px;">
     <label>Wybierz Pole: </label>
     <select id="fieldSelector">
-        <option value="ExternalId">ExternalId</option>
-        <option value="Url">Url</option>
-        <option value="CeneoEan">CeneoEan</option>
-        <option value="CeneoImage">CeneoImage</option>
-        <option value="CeneoExportedName">CeneoExportedName</option>
+        <option value="ExternalId">ID z sklepu</option>
+        <option value="Url">Url oferty Ceneo</option>
+        <option value="CeneoEan">EAN Ceneo</option>
+        <option value="CeneoImage">URL Obrazu</option>
+        <option value="CeneoExportedName">Nazwa produktu</option>
+        <option value="CeneoExportedProducer">Nazwa producenta</option>
         <option value="CeneoXMLPrice">Cena XML (Ceneo)</option>
         <option value="CeneoDeliveryXMLPrice">Dostawa cena XML (Ceneo)</option>
     </select>
-    </select>
+
     <button id="saveMapping" style="margin-left:10px;">Zapisz Mapowanie</button>
     <button id="reloadMappings" style="margin-left:10px;">Załaduj mapowania</button>
 </div>
@@ -136,12 +137,16 @@
         background-color: rgba(255, 255, 0, 0.2);
     }
 
+    .highlight-CeneoExportedProducer {
+        background-color: rgba(17, 205, 255, 0.1);
+    }
+
     .highlight-CeneoXMLPrice {
-        background-color: rgba(255, 192, 203, 0.2); /* pastelowy róż */
+        background-color: rgba(255, 192, 203, 0.2);
     }
 
     .highlight-CeneoDeliveryXMLPrice {
-        background-color: rgba(255, 165, 0, 0.2); /* pastelowy pomarańcz */
+        background-color: rgba(255, 165, 0, 0.2); 
     }
 
     #mappingTable {
