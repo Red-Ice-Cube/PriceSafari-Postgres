@@ -81,13 +81,14 @@
 <div style="margin-bottom: 10px;">
     <label>Wybierz Pole: </label>
     <select id="fieldSelector">
-        <option value="ExternalId">ExternalId</option>
-        <option value="Url">Url</option>
-        <option value="GoogleEan">GoogleEan</option>
-        <option value="GoogleImage">GoogleImage</option>
-        <option value="GoogleExportedName">GoogleExportedName</option>
-        <option value="GoogleXMLPrice">GoogleXMLPrice</option>
-        <option value="GoogleDeliveryXMLPrice">GoogleDeliveryXMLPrice</option>
+        <option value="ExternalId">ID</option>
+        <option value="Url">URL produktu</option>
+        <option value="GoogleEan">EAN</option>
+        <option value="GoogleImage">URL Obrazu</option>
+        <option value="GoogleExportedName">Nazwa produktu</option>
+        <option value="GoogleExportedProducer">Nazwa producenta</option>
+        <option value="GoogleXMLPrice">Eksportowana Cena (Google)</option>
+        <option value="GoogleDeliveryXMLPrice">Eksportowana Cena z dostawa (Google)</option>
     </select>
     <button id="saveMapping" style="margin-left:10px;">
         Zapisz Mapowanie
@@ -152,6 +153,10 @@
 
     .highlight-GoogleExportedName {
         background-color: rgba(255, 255, 0, 0.2);
+    }
+
+    .highlight-GoogleExportedProducer {
+        background-color: rgba(17, 205, 255, 0.1);
     }
 
     .highlight-GoogleXMLPrice {

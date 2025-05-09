@@ -19,6 +19,7 @@ let mappingForField = {
     "GoogleEan": null,
     "GoogleImage": null,
     "GoogleExportedName": null,
+    "GoogleExportedProducer": null,
     "GoogleXMLPrice": null,
     "GoogleDeliveryXMLPrice": null
 };
@@ -412,6 +413,7 @@ function extractProductsFromXml() {
             GoogleEan: getVal(entryNode, "GoogleEan"),
             GoogleImage: getVal(entryNode, "GoogleImage"),
             GoogleExportedName: getVal(entryNode, "GoogleExportedName"),
+            GoogleExportedProducer: getVal(entryNode, "GoogleExportedProducer"),
             GoogleXMLPrice: parsePrice(getVal(entryNode, "GoogleXMLPrice")),
             GoogleDeliveryXMLPrice: parsePrice(getVal(entryNode, "GoogleDeliveryXMLPrice"))
         };

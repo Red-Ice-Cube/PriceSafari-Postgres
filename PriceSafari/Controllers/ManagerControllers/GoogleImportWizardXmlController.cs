@@ -217,6 +217,7 @@ namespace PriceSafari.Controllers.ManagerControllers
                         GoogleEan = pmDto.GoogleEan,
                         GoogleImage = pmDto.GoogleImage,
                         GoogleExportedName = pmDto.GoogleExportedName,
+                        GoogleExportedProducer = pmDto.GoogleExportedProducer,
 
                         // Pola GoogleXMLPrice, GoogleDeliveryXMLPrice
                         GoogleXMLPrice = pmDto.GoogleXMLPrice,
@@ -229,12 +230,13 @@ namespace PriceSafari.Controllers.ManagerControllers
                 }
                 else
                 {
-                    // Aktualizujemy istniejący wpis
+                   
                     found.ExternalId = pmDto.ExternalId;
                     found.Url = pmDto.Url;
                     found.GoogleEan = pmDto.GoogleEan;
                     found.GoogleImage = pmDto.GoogleImage;
                     found.GoogleExportedName = pmDto.GoogleExportedName;
+                    found.GoogleExportedProducer = pmDto.GoogleExportedProducer;
 
                     found.GoogleXMLPrice = pmDto.GoogleXMLPrice;
                     found.GoogleDeliveryXMLPrice = pmDto.GoogleDeliveryXMLPrice;
@@ -259,7 +261,7 @@ namespace PriceSafari.Controllers.ManagerControllers
             public string GoogleEan { get; set; }
             public string GoogleImage { get; set; }
             public string GoogleExportedName { get; set; }
-
+            public string? GoogleExportedProducer { get; set; }
             public decimal? GoogleXMLPrice { get; set; }
             public decimal? GoogleDeliveryXMLPrice { get; set; }
         }
