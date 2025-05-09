@@ -543,6 +543,23 @@ namespace PriceSafari.Controllers.ManagerControllers
                 product.CeneoDeliveryXMLPrice = mappedProduct.CeneoDeliveryXMLPrice;
             }
 
+            string? producerToSet = null;
+
+            if (!string.IsNullOrEmpty(mappedProduct.GoogleExportedProducer))
+            {
+                producerToSet = mappedProduct.GoogleExportedProducer;
+            }
+            else if (!string.IsNullOrEmpty(mappedProduct.CeneoExportedProducer))
+            {
+                producerToSet = mappedProduct.CeneoExportedProducer;
+            }
+
+
+            if (!string.IsNullOrEmpty(producerToSet))
+            {
+                product.Producer = producerToSet;
+            }
+
         }
 
         [HttpPost]

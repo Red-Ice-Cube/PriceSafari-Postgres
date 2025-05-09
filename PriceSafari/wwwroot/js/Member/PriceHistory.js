@@ -16,7 +16,6 @@
     let selectedFlagsInclude = new Set();
     let selectedFlagsExclude = new Set();
 
-   
     let sortingState = {
         sortName: null,
         sortPrice: null,
@@ -29,15 +28,12 @@
         showRejected: null
     };
 
-
-
     let positionSlider;
     let offerSlider;
 
     const openMassChangeModalBtn = document.getElementById('openMassChangeModalBtn');
     const massChangeModal = document.getElementById('massChangeModal');
-    const closeMassChangeModalBtn = document.querySelector('#massChangeModal .close'); 
-
+    const closeMassChangeModalBtn = document.querySelector('#massChangeModal .close');
 
     openMassChangeModalBtn.addEventListener('click', function () {
         $('#massChangeModal').modal('show');
@@ -47,7 +43,6 @@
         $('#massChangeModal').modal('hide');
     });
 
-   
     window.addEventListener('click', function (event) {
         if (event.target === massChangeModal) {
             $('#massChangeModal').modal('hide');
@@ -67,34 +62,32 @@
         $('#massChangeModal').modal('hide');
     });
     function applyMassChange(changeType) {
-    
+
         const boxes = Array.from(document.querySelectorAll('#priceContainer .price-box'));
 
-        
         boxes.forEach(box => {
             const buttons = box.querySelectorAll('.simulate-change-btn');
             if (!buttons || buttons.length === 0) return;
 
             let targetButton;
             if (changeType === 'match' && buttons[0]) {
-                targetButton = buttons[0]; 
+                targetButton = buttons[0];
             } else if (changeType === 'strategic' && buttons[1]) {
-                targetButton = buttons[1]; 
+                targetButton = buttons[1];
             }
 
             if (!targetButton) return;
-         
+
             targetButton.click();
         });
 
-        
         setTimeout(() => {
-        
+
             const updatedBoxes = Array.from(document.querySelectorAll('#priceContainer .price-box'));
             let countAdded = 0;
             let countRejected = 0;
             updatedBoxes.forEach(box => {
-               
+
                 if (box.classList.contains('price-changed')) {
                     countAdded++;
                 } else {
@@ -107,7 +100,7 @@
              <p>Dodano: <strong>${countAdded}</strong> SKU</p>
              <p>Odrzucono: <strong>${countRejected}</strong> SKU</p>`
             );
-        }, 500); 
+        }, 500);
     }
 
     let globalNotificationTimeoutId;
@@ -118,7 +111,6 @@
         const update = document.getElementById("globalUpdate");
         if (!notif) return;
 
-     
         if (update && update.style.display === "block") {
             update.style.display = "none";
             if (globalUpdateTimeoutId) {
@@ -127,7 +119,6 @@
             }
         }
 
-    
         if (globalNotificationTimeoutId) {
             clearTimeout(globalNotificationTimeoutId);
         }
@@ -144,7 +135,6 @@
         const notification = document.getElementById("globalNotification");
         if (!notif) return;
 
-      
         if (notification && notification.style.display === "block") {
             notification.style.display = "none";
             if (globalNotificationTimeoutId) {
@@ -153,7 +143,6 @@
             }
         }
 
-  
         if (globalUpdateTimeoutId) {
             clearTimeout(globalUpdateTimeoutId);
         }
@@ -164,9 +153,6 @@
             notif.style.display = "none";
         }, 4000);
     }
-
-
-
 
     function exportToExcelXLSX() {
         const workbook = new ExcelJS.Workbook();
@@ -410,15 +396,6 @@
         filterPricesAndUpdateUI();
     }, 300);
 
-   
-
-
-
-
-
-
-
-
     const usePriceDifferenceCheckbox = document.getElementById('usePriceDifference');
 
     const unitLabel1 = document.getElementById('unitLabel1');
@@ -442,12 +419,33 @@
         updateUnits(usePriceDifference);
     });
 
+    function populateProducerFilter() {
+        const dropdown = document.getElementById('producerFilterDropdown');
 
+        const counts = allPrices.reduce((map, item) => {
+            if (item.producer) {
+                map[item.producer] = (map[item.producer] || 0) + 1;
+            }
+            return map;
+        }, {});
+
+        const producers = Object.keys(counts).sort((a, b) => a.localeCompare(b));
+
+        dropdown.innerHTML = '<option value="">Wszystkie marki</option>';
+
+        producers.forEach(prod => {
+            const opt = document.createElement('option');
+            opt.value = prod;
+            opt.textContent = `${prod} (${counts[prod]})`;
+            dropdown.appendChild(opt);
+        });
+
+        dropdown.addEventListener('change', filterPricesAndUpdateUI);
+    }
 
     function loadPrices() {
         showLoading();
 
-      
         fetch(`/PriceHistory/GetPrices?storeId=${storeId}`)
             .then(response => response.json())
             .then(response => {
@@ -558,20 +556,17 @@
                             .toLowerCase()
                             .replace(/\s+/g, '');
 
-                   
                         let eanOrId;
                         if (marginSettings.useEanForSimulation) {
-                    
+
                             eanOrId = price.ean || '';
                         } else {
-                    
+
                             eanOrId = price.externalId ? price.externalId.toString() : '';
                         }
 
-                
                         const productNamePlusCode = (price.productName || '') + ' ' + eanOrId;
 
-                 
                         const combinedLower = productNamePlusCode
                             .toLowerCase()
                             .replace(/[^a-zA-Z0-9\s/.-]/g, '')
@@ -581,20 +576,20 @@
                     });
                 }
 
-
                 filteredPrices = filterPricesByCategoryAndColorAndFlag(filteredPrices);
 
                 renderPrices(filteredPrices);
                 debouncedRenderChart(filteredPrices);
                 updateColorCounts(filteredPrices);
                 updateMarginSortButtonsVisibility();
+                populateProducerFilter();
             })
 
             .finally(() => {
                 hideLoading();
             });
 
-             window.loadPrices = loadPrices;
+        window.loadPrices = loadPrices;
 
     }
     function updateFlagCounts(prices) {
@@ -616,7 +611,6 @@
         const flagContainer = document.getElementById('flagContainer');
         flagContainer.innerHTML = '';
 
-    
         flags.forEach(flag => {
             const count = flagCounts[flag.FlagId] || 0;
             const includeChecked = selectedFlagsInclude.has(String(flag.FlagId)) ? 'checked' : '';
@@ -683,7 +677,6 @@
     `;
         flagContainer.innerHTML += noFlagElement;
 
-    
         document.querySelectorAll('.flagFilterInclude').forEach(checkbox => {
             checkbox.addEventListener('change', function () {
                 const flagValue = this.value;
@@ -708,7 +701,7 @@
                 const flagValue = this.value;
 
                 if (this.checked) {
-                    
+
                     const includeCheckbox = document.getElementById(`flagCheckboxInclude_${flagValue}`);
                     if (includeCheckbox && includeCheckbox.checked) {
                         includeCheckbox.checked = false;
@@ -723,8 +716,6 @@
             });
         });
     }
-
-
 
     function filterPricesByCategoryAndColorAndFlag(data) {
         const selectedColors = Array.from(document.querySelectorAll('.colorFilter:checked')).map(checkbox => checkbox.value);
@@ -763,13 +754,12 @@
         });
 
         if (suspiciouslyLowFilter) {
-           
+
             filteredPrices = filteredPrices.filter(item =>
                 item.singleBestCheaperDiffPerc !== null &&
                 item.singleBestCheaperDiffPerc > 25
             );
 
-         
             filteredPrices.sort((a, b) => b.singleBestCheaperDiffPerc - a.singleBestCheaperDiffPerc);
         }
 
@@ -777,15 +767,14 @@
             filteredPrices = filteredPrices.filter(item => selectedColors.includes(item.colorClass));
         }
 
-       
         if (selectedFlagsExclude.size > 0) {
             filteredPrices = filteredPrices.filter(item => {
-               
+
                 if (selectedFlagsExclude.has('noFlag') && item.flagIds.length === 0) {
                     return false;
                 }
                 for (const excl of selectedFlagsExclude) {
-                
+
                     if (excl !== 'noFlag' && item.flagIds.includes(parseInt(excl))) {
                         return false;
                     }
@@ -794,18 +783,16 @@
             });
         }
 
-    
         if (selectedFlagsInclude.size > 0) {
             filteredPrices = filteredPrices.filter(item => {
-             
+
                 if (selectedFlagsInclude.has('noFlag') && item.flagIds.length === 0) {
                     return true;
                 }
-              
+
                 return item.flagIds.some(fid => selectedFlagsInclude.has(fid.toString()));
             });
         }
-
 
         if (selectedBid) {
             filteredPrices = filteredPrices.filter(item => item.myIsBidding === "1");
@@ -839,9 +826,8 @@
         return valueToUse < setPrice2 ? "prMid" : "prToHigh";
     }
 
-
     function renderPrices(data) {
-       
+
         const storedChanges = localStorage.getItem('selectedPriceChanges_' + storeId);
         if (storedChanges) {
             try {
@@ -859,12 +845,9 @@
         const currentStoreSearchTerm = document.getElementById('storeSearch').value.trim();
         container.innerHTML = '';
 
-     
         const startIndex = (currentPage - 1) * itemsPerPage;
         const endIndex = currentPage * itemsPerPage;
         const paginatedData = data.slice(startIndex, endIndex);
-
-      
 
         function activateChangeButton(button, priceBox, newPrice) {
             button.classList.add('active');
@@ -872,7 +855,6 @@
             button.style.color = "#f5f5f5";
             button.textContent = "Dodano |";
 
-           
             const removeLink = document.createElement('span');
             removeLink.innerHTML = " <i class='fa fa-trash' style='font-size:14px; display:flex; color:white; margin-left:4px; margin-top:3px;'></i>";
 
@@ -887,7 +869,7 @@
                 priceBox.classList.remove('price-changed');
 
                 const productId = priceBox ? priceBox.dataset.productId : null;
-              
+
                 const removeEvent = new CustomEvent('priceBoxChangeRemove', {
                     detail: { productId }
                 });
@@ -896,18 +878,17 @@
             button.appendChild(removeLink);
             priceBox.classList.add('price-changed');
         }
-       
 
         function attachPriceChangeListener(button, suggestedPrice, priceBox, productId, productName, currentPriceValue, item) {
-         
-            const useEan = marginSettings.useEanForSimulation; 
-         
+
+            const useEan = marginSettings.useEanForSimulation;
+
             const requiredField = useEan ? item.ean : item.externalId;
-          
+
             const requiredLabel = useEan ? "EAN" : "ID";
 
             if (!requiredField || requiredField.toString().trim() === "") {
-             
+
                 button.disabled = true;
                 button.title = `Produkt musi mieć zmapowany ${requiredLabel}`;
                 return;
@@ -916,7 +897,6 @@
             button.addEventListener('click', function (e) {
                 e.stopPropagation();
 
-            
                 if (marginSettings.useMarginForSimulation) {
                     if (item.marginPrice == null) {
                         showGlobalNotification(
@@ -934,7 +914,7 @@
                     if (marginSettings.enforceMinimalMargin) {
                         if (newMargin < 0) {
                             if (oldMargin < 0 && newMargin > oldMargin) {
-                          
+
                             } else {
                                 showGlobalNotification(
                                     `<p style="margin:8px 0; font-weight:bold;">Zmiana ceny nie została dodana</p>
@@ -965,13 +945,11 @@
                     }
                 }
 
-          
                 if (priceBox.classList.contains('price-changed') || button.classList.contains('active')) {
                     console.log("Zmiana ceny już aktywna dla produktu", productId);
                     return;
                 }
 
-           
                 const priceChangeEvent = new CustomEvent('priceBoxChange', {
                     detail: { productId, productName, currentPrice: currentPriceValue, newPrice: suggestedPrice, storeId: storeId }
                 });
@@ -979,12 +957,10 @@
 
                 activateChangeButton(button, priceBox, suggestedPrice);
 
-             
                 let message = `<p style="margin-bottom:8px; font-size:16px; font-weight:bold;">Zmiana ceny dodana</p>`;
                 message += `<p style="margin:4px 0;"><strong>Produkt:</strong> ${productName}</p>`;
                 message += `<p style="margin:4px 0;"><strong>Nowa cena:</strong> ${suggestedPrice.toFixed(2)} PLN</p>`;
 
-              
                 if (marginSettings.useMarginForSimulation) {
                     let finalMargin = ((suggestedPrice - item.marginPrice) / item.marginPrice) * 100;
                     finalMargin = parseFloat(finalMargin.toFixed(2));
@@ -1002,7 +978,6 @@
                 showGlobalUpdate(message);
             });
 
-          
             const existingChange = selectedPriceChanges.find(change =>
                 parseInt(change.productId) === parseInt(productId) &&
                 parseFloat(change.newPrice) === parseFloat(suggestedPrice)
@@ -1011,8 +986,6 @@
                 activateChangeButton(button, priceBox, suggestedPrice);
             }
         }
-
-
 
         paginatedData.forEach(item => {
             const isRejected = item.isRejected;
@@ -1051,14 +1024,12 @@
                 lowestPrice = item.lowestPrice != null ? parseFloat(item.lowestPrice) : null;
             }
 
-       
             const box = document.createElement('div');
             box.className = 'price-box ' + item.colorClass;
             box.dataset.detailsUrl = '/PriceHistory/Details?scrapId=' + item.scrapId + '&productId=' + item.productId;
             box.dataset.productId = item.productId;
             box.dataset.productName = item.productName;
 
-      
             box.addEventListener('click', function () {
                 window.open(this.dataset.detailsUrl, '_blank');
             });
@@ -1069,31 +1040,28 @@
             const priceBoxColumnName = document.createElement('div');
             priceBoxColumnName.className = 'price-box-column-name';
             priceBoxColumnName.innerHTML = highlightedProductName;
-            
+
             const priceBoxColumnCategory = document.createElement('div');
             priceBoxColumnCategory.className = 'price-box-column-category';
 
-           
             const useEanOrId = marginSettings.useEanForSimulation;
 
-          
             const apiBox = document.createElement('span');
             apiBox.className = 'ApiBox';
 
-        
             if (useEanOrId) {
-              
+
                 if (item.ean && item.ean.trim() !== "") {
-                   
+
                     const displayedEan = highlightMatches(item.ean, currentProductSearchTerm, 'highlighted-text-yellow');
                     apiBox.innerHTML = 'EAN ' + displayedEan;
                 } else {
                     apiBox.innerHTML = 'Brak EAN';
                 }
             } else {
-               
+
                 if (item.externalId) {
-                 
+
                     const displayedId = highlightMatches(item.externalId.toString(), currentProductSearchTerm, 'highlighted-text-yellow');
                     apiBox.innerHTML = 'ID ' + displayedId;
                 } else {
@@ -1101,9 +1069,7 @@
                 }
             }
 
-            // 5) Dodajesz do kontenera
             priceBoxColumnCategory.appendChild(apiBox);
-
 
             const flagsContainer = createFlagsContainer(item);
 
@@ -1113,7 +1079,6 @@
             assignFlagButton.innerHTML = '+ Przypisz flagi';
             assignFlagButton.style.pointerEvents = 'auto';
 
-         
             assignFlagButton.addEventListener('click', function (event) {
                 event.stopPropagation();
                 selectedProductId = this.dataset.productId;
@@ -1150,7 +1115,6 @@
 
             externalInfoContainer.appendChild(priceBoxColumnStoreCount);
 
-            
             if (marginPrice != null) {
                 const formattedMarginPrice = marginPrice.toLocaleString('pl-PL', {
                     minimumFractionDigits: 2,
@@ -1204,7 +1168,6 @@
             priceSpan.textContent = item.lowestPrice.toFixed(2) + ' PLN';
             priceLine.appendChild(priceSpan);
 
-          
             if (typeof item.externalBestPriceCount !== 'undefined' && item.externalBestPriceCount !== null) {
                 if (item.externalBestPriceCount === 1) {
                     const uniqueBox = document.createElement('div');
@@ -1220,7 +1183,7 @@
                     priceLine.appendChild(shareBox);
                 }
             }
-         
+
             if (item.singleBestCheaperDiffPerc !== null && item.singleBestCheaperDiffPerc !== undefined) {
                 const diffBox = document.createElement('div');
                 diffBox.style.marginLeft = '4px';
@@ -1233,7 +1196,6 @@
 
             priceBoxLowestText.appendChild(priceLine);
 
-          
             const storeNameDiv = document.createElement('div');
             storeNameDiv.innerHTML = highlightedStoreName;
             priceBoxLowestText.appendChild(storeNameDiv);
@@ -1259,7 +1221,6 @@
             priceBoxColumnLowestPrice.appendChild(priceBoxLowestText);
             priceBoxColumnLowestPrice.appendChild(priceBoxLowestDetails);
 
-     
             const priceBoxColumnMyPrice = document.createElement('div');
             priceBoxColumnMyPrice.className = 'price-box-column';
 
@@ -1349,12 +1310,11 @@
             const requiredLabel = marginSettings.useEanForSimulation ? "kod EAN" : "ID";
 
             if (!isRejected) {
-              
+
                 if (item.colorClass === "prOnlyMe") {
                     const diffClass = item.colorClass + ' ' + 'priceBox-diff-top';
                     priceBoxColumnInfo.innerHTML += '<div class="' + diffClass + '">Brak ofert konkurencji</div>';
 
-                
                 } else if (item.colorClass === "prToLow" || item.colorClass === "prIdeal") {
                     if (myPrice != null && savings != null) {
                         const savingsValue = parseFloat(savings.replace(',', '.'));
@@ -1402,7 +1362,6 @@
                         const percentage2Formatted = '(' + (percentageToSuggestedPrice2 >= 0 ? '+' : '') + percentageToSuggestedPrice2.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%)';
                         const newSuggestedPrice2Formatted = suggestedPrice2.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' PLN';
 
-                        // Pierwsza linia (matchPriceLine)
                         const matchPriceBox = document.createElement('div');
                         matchPriceBox.className = 'price-box-column';
 
@@ -1423,12 +1382,9 @@
                         matchPriceLine.appendChild(newPriceText);
                         matchPriceLine.appendChild(colorSquare);
 
-                     
                         const matchPriceBtn = document.createElement('button');
                         matchPriceBtn.className = 'simulate-change-btn';
                         matchPriceBtn.textContent = 'Zmień cenę';
-
-              
 
                         if (!requiredField || requiredField.toString().trim() === "") {
                             matchPriceBtn.addEventListener("click", function (e) {
@@ -1440,13 +1396,10 @@
                             attachPriceChangeListener(matchPriceBtn, suggestedPrice1, box, item.productId, item.productName, myPrice, item);
                         }
 
-
-
                         matchPriceLine.appendChild(matchPriceBtn);
 
                         matchPriceBox.appendChild(matchPriceLine);
 
-                      
                         const strategicPriceBox = document.createElement('div');
                         strategicPriceBox.className = 'price-box-column';
 
@@ -1467,12 +1420,9 @@
                         strategicPriceLine.appendChild(newPriceText2);
                         strategicPriceLine.appendChild(colorSquare2);
 
-                    
                         const strategicPriceBtn = document.createElement('button');
                         strategicPriceBtn.className = 'simulate-change-btn';
                         strategicPriceBtn.textContent = 'Zmień cenę';
-                  
-                 
 
                         if (!requiredField || requiredField.toString().trim() === "") {
                             strategicPriceBtn.addEventListener("click", function (e) {
@@ -1496,7 +1446,6 @@
                         priceBoxColumnInfo.innerHTML += '<div class="' + diffClass + '">Podnieś: N/A</div>';
                     }
 
-              
                 } else if (item.colorClass === "prMid") {
                     if (myPrice != null && lowestPrice != null) {
                         const amountToMatchLowestPrice = myPrice - lowestPrice;
@@ -1519,7 +1468,6 @@
                         const percentageBeatFormatted = '(-' + percentageToBeatLowestPrice.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%)';
                         const newSuggestedPriceBeat = strategicPrice.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' PLN';
 
-                       
                         const matchPriceBox = document.createElement('div');
                         matchPriceBox.className = 'price-box-column';
 
@@ -1540,7 +1488,6 @@
                         matchPriceLine.appendChild(newPriceText);
                         matchPriceLine.appendChild(colorSquare);
 
-                       
                         const matchPriceBtn = document.createElement('button');
                         matchPriceBtn.className = 'simulate-change-btn';
                         matchPriceBtn.textContent = 'Zmień cenę';
@@ -1554,15 +1501,11 @@
                         } else {
                             attachPriceChangeListener(matchPriceBtn, lowestPrice, box, item.productId, item.productName, myPrice, item);
                         }
-                      
-
-                
 
                         matchPriceLine.appendChild(matchPriceBtn);
 
                         matchPriceBox.appendChild(matchPriceLine);
 
-                     
                         const strategicPriceBox = document.createElement('div');
                         strategicPriceBox.className = 'price-box-column';
 
@@ -1583,11 +1526,10 @@
                         strategicPriceLine.appendChild(newPriceText2);
                         strategicPriceLine.appendChild(colorSquare2);
 
-                       
                         const strategicPriceBtn = document.createElement('button');
                         strategicPriceBtn.className = 'simulate-change-btn';
                         strategicPriceBtn.textContent = 'Zmień cenę';
-                    
+
                         if (!requiredField || requiredField.toString().trim() === "") {
                             strategicPriceBtn.addEventListener("click", function (e) {
                                 e.preventDefault();
@@ -1597,8 +1539,6 @@
                         } else {
                             attachPriceChangeListener(strategicPriceBtn, strategicPrice, box, item.productId, item.productName, myPrice, item);
                         }
-
-
 
                         strategicPriceLine.appendChild(strategicPriceBtn);
 
@@ -1612,7 +1552,6 @@
                         priceBoxColumnInfo.innerHTML += '<div class="' + diffClass + '">Obniż: N/A</div>';
                     }
 
-                    // ZAWYŻONA
                 } else if (item.colorClass === "prToHigh") {
                     if (myPrice != null && lowestPrice != null) {
                         const amountToMatchLowestPrice = myPrice - lowestPrice;
@@ -1635,7 +1574,6 @@
                         const percentageBeatFormatted = '(-' + percentageToBeatLowestPrice.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%)';
                         const newSuggestedPriceBeat = strategicPrice.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' PLN';
 
-                        // Pierwsza linia
                         const matchPriceBox = document.createElement('div');
                         matchPriceBox.className = 'price-box-column';
 
@@ -1656,14 +1594,9 @@
                         matchPriceLine.appendChild(newPriceText);
                         matchPriceLine.appendChild(colorSquare);
 
-                        // Przycisk "Zmień cenę"
                         const matchPriceBtn = document.createElement('button');
                         matchPriceBtn.className = 'simulate-change-btn';
                         matchPriceBtn.textContent = 'Zmień cenę';
-                      
-                  
-
-                      
 
                         if (!requiredField || requiredField.toString().trim() === "") {
                             matchPriceBtn.addEventListener("click", function (e) {
@@ -1675,13 +1608,10 @@
                             attachPriceChangeListener(matchPriceBtn, lowestPrice, box, item.productId, item.productName, myPrice, item);
                         }
 
-
-
                         matchPriceLine.appendChild(matchPriceBtn);
 
                         matchPriceBox.appendChild(matchPriceLine);
 
-                    
                         const strategicPriceBox = document.createElement('div');
                         strategicPriceBox.className = 'price-box-column';
 
@@ -1706,8 +1636,6 @@
                         strategicPriceBtn.className = 'simulate-change-btn';
                         strategicPriceBtn.textContent = 'Zmień cenę';
 
-
-
                         if (!requiredField || requiredField.toString().trim() === "") {
                             strategicPriceBtn.addEventListener("click", function (e) {
                                 e.preventDefault();
@@ -1717,8 +1645,6 @@
                         } else {
                             attachPriceChangeListener(strategicPriceBtn, strategicPrice, box, item.productId, item.productName, myPrice, item);
                         }
-
-
 
                         strategicPriceLine.appendChild(strategicPriceBtn);
 
@@ -1732,7 +1658,6 @@
                         priceBoxColumnInfo.innerHTML += '<div class="' + diffClass + '">Obniż: N/A</div>';
                     }
 
-                    // KONKURENCYJNA
                 } else if (item.colorClass === "prGood") {
                     if (myPrice != null) {
                         const amountToSuggestedPrice1 = 0;
@@ -1781,7 +1706,6 @@
                             colorSquare2Class = 'color-square-turquoise';
                         }
 
-                   
                         const matchPriceBox = document.createElement('div');
                         matchPriceBox.className = 'price-box-column';
 
@@ -1802,15 +1726,9 @@
                         matchPriceLine.appendChild(newPriceText);
                         matchPriceLine.appendChild(colorSquare);
 
-                    
                         const matchPriceBtn = document.createElement('button');
                         matchPriceBtn.className = 'simulate-change-btn';
                         matchPriceBtn.textContent = 'Zmień cenę';
-                  
-                    
-
-                  
-
 
                         if (!requiredField || requiredField.toString().trim() === "") {
                             matchPriceBtn.addEventListener("click", function (e) {
@@ -1822,12 +1740,10 @@
                             attachPriceChangeListener(matchPriceBtn, suggestedPrice1, box, item.productId, item.productName, myPrice, item);
                         }
 
-
                         matchPriceLine.appendChild(matchPriceBtn);
 
                         matchPriceBox.appendChild(matchPriceLine);
 
-                        // Druga linia
                         const strategicPriceBox = document.createElement('div');
                         strategicPriceBox.className = 'price-box-column';
 
@@ -1848,11 +1764,9 @@
                         strategicPriceLine.appendChild(newPriceText2);
                         strategicPriceLine.appendChild(colorSquare2);
 
-                        // Przycisk "Zmień cenę"
                         const strategicPriceBtn = document.createElement('button');
                         strategicPriceBtn.className = 'simulate-change-btn';
                         strategicPriceBtn.textContent = 'Zmień cenę';
-                  
 
                         if (!requiredField || requiredField.toString().trim() === "") {
                             strategicPriceBtn.addEventListener("click", function (e) {
@@ -1876,7 +1790,7 @@
                     }
 
                 } else {
-                    // Produkt odrzucony
+
                     priceBoxColumnInfo.innerHTML += '<div class="rejected-product">Produkt odrzucony</div>';
                 }
 
@@ -1884,7 +1798,6 @@
                 priceBoxColumnInfo.innerHTML += '<div class="rejected-product">Produkt odrzucony</div>';
             }
 
-            // Dodajemy colorBar i ewentualnie obrazek
             priceBoxData.appendChild(colorBar);
 
             if (item.imgUrl) {
@@ -1919,7 +1832,6 @@
 
         renderPaginationControls(data.length);
 
-        // Lazy-load obrazków
         const lazyLoadImages = document.querySelectorAll('.lazy-load');
         const timers = new Map();
 
@@ -1964,11 +1876,8 @@
 
         lazyLoadImages.forEach(img => { observer.observe(img); });
 
-        // Liczba wyświetlonych produktów
         document.getElementById('displayedProductCount').textContent = data.length;
     }
-
-
 
     function getDeliveryClass(days) {
         if (days <= 1) return 'Availability1Day';
@@ -2027,7 +1936,7 @@
                     datasets: [{
                         data: chartData,
                         backgroundColor: [
-                            'rgba(180, 180, 180, 0.8)', 
+                            'rgba(180, 180, 180, 0.8)',
                             'rgba(171, 37, 32, 0.8)',
                             'rgba(224, 168, 66, 0.8)',
                             'rgba(117, 152, 112, 0.8)',
@@ -2068,8 +1977,6 @@
 
     const debouncedRenderChart = debounce(renderChart, 600);
 
-
-
     document.getElementById('openMarginSettingsBtn').addEventListener('click', function () {
 
         document.getElementById('useEanForSimulationInput').value = marginSettings.useEanForSimulation.toString();
@@ -2077,12 +1984,11 @@
         document.getElementById('enforceMinimalMarginInput').value = marginSettings.enforceMinimalMargin.toString();
         document.getElementById('minimalMarginPercentInput').value = marginSettings.minimalMarginPercent;
 
-      
         $('#marginSettingsModal').modal('show');
     });
     document.getElementById('saveMarginSettingsBtn').addEventListener('click', function () {
         const updatedMarginSettings = {
-            StoreId: storeId,  
+            StoreId: storeId,
             useEanForSimulation: document.getElementById('useEanForSimulationInput').value === 'true',
             UseMarginForSimulation: document.getElementById('useMarginForSimulationInput').value === 'true',
             EnforceMinimalMargin: document.getElementById('enforceMinimalMarginInput').value === 'true',
@@ -2099,10 +2005,10 @@
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    // Zaktualizuj globalny obiekt marginSettings
+
                     marginSettings = updatedMarginSettings;
                     $('#marginSettingsModal').modal('hide');
-                    // Odśwież widok cen
+
                     loadPrices();
                 } else {
                     alert('Błąd zapisu ustawień: ' + data.message);
@@ -2110,8 +2016,6 @@
             })
             .catch(error => console.error('Błąd zapisu ustawień marży:', error));
     });
-
-
 
     function updateColorCounts(data) {
         const colorCounts = {
@@ -2142,10 +2046,9 @@
         showLoading();
 
         setTimeout(() => {
-   
+
             let filteredPrices = [...allPrices];
 
-         
             const productSearchRaw = document.getElementById('productSearch').value.trim();
             const storeSearchRaw = document.getElementById('storeSearch').value.trim();
 
@@ -2156,7 +2059,7 @@
                     .replace(/\s+/g, '');
 
                 filteredPrices = filteredPrices.filter(price => {
-                 
+
                     let eanOrId;
                     if (marginSettings.useEanForSimulation) {
                         eanOrId = price.ean || '';
@@ -2164,10 +2067,8 @@
                         eanOrId = price.externalId ? price.externalId.toString() : '';
                     }
 
-                   
                     const combined = (price.productName || '') + ' ' + eanOrId;
 
-                    
                     const combinedSanitized = combined
                         .toLowerCase()
                         .replace(/[^a-zA-Z0-9\s.-]/g, '')
@@ -2176,8 +2077,6 @@
                 });
             }
 
-
-      
             if (storeSearchRaw) {
                 const sanitizedStoreSearch = storeSearchRaw
                     .replace(/[^a-zA-Z0-9\s.-]/g, '')
@@ -2192,7 +2091,6 @@
                 });
             }
 
-      
             const sanitizedProductSearchTerm = productSearchRaw
                 ? productSearchRaw.replace(/[^a-zA-Z0-9\s.-]/g, '').toLowerCase().replace(/\s+/g, '')
                 : '';
@@ -2218,14 +2116,12 @@
 
             filteredPrices = filterPricesByCategoryAndColorAndFlag(filteredPrices);
 
-         
             if (sortingState.showRejected) {
                 filteredPrices = filteredPrices.filter(item => item.isRejected);
             } else {
                 filteredPrices = filteredPrices.filter(item => !item.isRejected);
             }
 
-           
             if (sortingState.sortName !== null) {
                 if (sortingState.sortName === 'asc') {
                     filteredPrices.sort((a, b) => a.productName.localeCompare(b.productName));
@@ -2282,7 +2178,14 @@
                 }
             }
 
-            // 9. Aktualizacja widoku
+            const selectedProducer = document.getElementById('producerFilterDropdown').value;
+            if (selectedProducer) {
+                filteredPrices = filteredPrices.filter(item =>
+
+                    item.producer === selectedProducer
+                );
+            }
+
             renderPrices(filteredPrices);
             debouncedRenderChart(filteredPrices);
             updateColorCounts(filteredPrices);
@@ -2292,7 +2195,6 @@
         }, 0);
     }
 
-    // Nowa funkcja highlightMatches z opcjonalnym trzecim argumentem określającym klasę CSS
     function highlightMatches(fullText, searchTerm, customClass) {
         if (!searchTerm) return fullText;
         const escapedTerm = searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -2399,7 +2301,7 @@
     document.querySelectorAll('.colorFilter, .flagFilter, .positionFilter, .deliveryFilterMyStore, .deliveryFilterCompetitor, .externalPriceFilter')
         .forEach(function (checkbox) {
             checkbox.addEventListener('change', function () {
-                showLoading(); // <-- pokaż loader
+                showLoading();
                 filterPricesAndUpdateUI();
             });
         });
@@ -2559,19 +2461,19 @@
     document.getElementById('usePriceDifference').addEventListener('change', function () {
         usePriceDifference = this.checked;
         updateUnits(usePriceDifference);
-      
+
     });
 
     document.getElementById('storeSearch').addEventListener('input', debouncedFilterPrices);
 
     document.getElementById('price1').addEventListener('input', function () {
         setPrice1 = parseFloat(this.value);
-     
+
     });
 
     document.getElementById('price2').addEventListener('input', function () {
         setPrice2 = parseFloat(this.value);
-      
+
     });
     document.getElementById('stepPrice').addEventListener('input', function () {
         setStepPrice = parseFloat(this.value);
@@ -2584,7 +2486,6 @@
         debouncedFilterPrices();
     });
 
-    
     const exportButton = document.getElementById("exportToExcelButton");
     if (exportButton) {
         exportButton.addEventListener("click", exportToExcelXLSX);
@@ -2724,7 +2625,6 @@
         return flagsContainer;
     }
 
- 
     loadPrices();
 
     function showLoading() {
@@ -2735,6 +2635,3 @@
         document.getElementById("loadingOverlay").style.display = "none";
     }
 });
-
-
-
