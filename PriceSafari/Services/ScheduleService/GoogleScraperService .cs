@@ -22,7 +22,7 @@ namespace PriceSafari.Services.ScheduleService
         private readonly INetworkControlService _networkControlService;
 
         // do synchronizacji i limitowania automatycznych resetów
-        private const int MAX_CONSECUTIVE_CAPTCHA_RESETS = 3;
+        private const int MAX_CONSECUTIVE_CAPTCHA_RESETS = 10;
 
         public GoogleScraperService(
             PriceSafariContext context,
@@ -53,13 +53,15 @@ namespace PriceSafari.Services.ScheduleService
             string? Message
         );
 
+
+        // W PriceSafari.Services.ScheduleService.GoogleScraperService.cs
+
         public async Task<GoogleScrapingDto> StartScraping()
         {
-            // 1. Pobranie ustawień
-            var settings = await _context.Settings.FirstOrDefaultAsync();
+            var settings = await _context.Settings.FirstOrDefaultAsync(); // Rozważ użycie _scopeFactory, jeśli _context ma krótki cykl życia
             if (settings == null)
             {
-                Console.WriteLine("Settings not found in the database.");
+                Console.WriteLine("Settings not found in the database."); // Użyj ILogger
                 return new GoogleScrapingDto(
                     GoogleScrapingResult.SettingsNotFound,
                     0, 0, 0,
@@ -67,75 +69,102 @@ namespace PriceSafari.Services.ScheduleService
                 );
             }
 
-            // 2. Lista produktów do scrapowania
-            var coOfrsToScrape = await _context.CoOfrs
-                .Where(c => !string.IsNullOrEmpty(c.GoogleOfferUrl) && !c.GoogleIsScraped)
-                .ToListAsync();
-
-            if (!coOfrsToScrape.Any())
-            {
-                Console.WriteLine("No products found to scrape.");
-                return new GoogleScrapingDto(
-                    GoogleScrapingResult.NoProductsToScrape,
-                    0, 0, 0,
-                    "No products to scrape."
-                );
-            }
-
-            Console.WriteLine($"Found {coOfrsToScrape.Count} products to scrape (Google).");
-
-            // 3. Sygnal Start
-            await _hubContext.Clients.All.SendAsync("ReceiveProgressUpdate", 0, coOfrsToScrape.Count, 0, 0);
-
-            // 4. Inicjalizacja liczników
-            int totalScraped = 0;
-            int totalRejected = 0;
+            int totalScrapedOverall = 0;
+            int totalRejectedOverall = 0;
             int captchaResetCount = 0;
             var stopwatch = Stopwatch.StartNew();
 
-            // 5. Pętla próby scrapowania z retry po CAPTCHA
             for (int attempt = 0; attempt <= MAX_CONSECUTIVE_CAPTCHA_RESETS; attempt++)
             {
-                // wykonaj run ze wspólną logiką, zwracając czy wykryto CAPTCHA
-                bool captchaDetected = await PerformScrapingLogicInternalAsyncWithCaptchaFlag(
-                    coOfrsToScrape,
+                List<CoOfrClass> coOfrsToScrapeThisAttempt;
+                using (var scope = _scopeFactory.CreateScope())
+                {
+                    var scopedContext = scope.ServiceProvider.GetRequiredService<PriceSafariContext>();
+                    coOfrsToScrapeThisAttempt = await scopedContext.CoOfrs
+                        .Where(c => !string.IsNullOrEmpty(c.GoogleOfferUrl) && !c.GoogleIsScraped)
+                        .ToListAsync();
+                }
+
+                if (!coOfrsToScrapeThisAttempt.Any())
+                {
+                    // Użyj ILogger zamiast Console.WriteLine
+                    Console.WriteLine($"[GoogleService] Attempt {attempt + 1}: No products left to scrape for Google.");
+                    if (attempt == 0)
+                    {
+                        return new GoogleScrapingDto(
+                            GoogleScrapingResult.NoProductsToScrape,
+                            totalScrapedOverall, totalRejectedOverall, captchaResetCount,
+                            "No Google products to scrape initially."
+                        );
+                    }
+                    else
+                    {
+                        return new GoogleScrapingDto(
+                            GoogleScrapingResult.Success,
+                            totalScrapedOverall, totalRejectedOverall, captchaResetCount,
+                            "All Google products scraped successfully after retries."
+                        );
+                    }
+                }
+
+                // Użyj ILogger
+                Console.WriteLine($"[GoogleService] Attempt {attempt + 1}: Found {coOfrsToScrapeThisAttempt.Count} products to scrape.");
+                // Rozważ, czy ten ProgressUpdate jest potrzebny tutaj, czy wystarczą te z PerformScrapingLogicInternalAsyncWithCaptchaFlag
+                // oraz ReceiveGeneralMessage
+                await _hubContext.Clients.All.SendAsync("ReceiveGeneralMessage", $"Google: Rozpoczynam próbę {attempt + 1} z {coOfrsToScrapeThisAttempt.Count} produktami.", CancellationToken.None);
+
+
+                // ----- POCZĄTEK POPRAWKI -----
+                // Usunięto pierwsze, nadmiarowe wywołanie. Pozostaje tylko jedno, poprawne wywołanie:
+                bool captchaDetectedActual = await PerformScrapingLogicInternalAsyncWithCaptchaFlag(
+                    coOfrsToScrapeThisAttempt,
                     settings,
                     stopwatch,
-                    (scrapedDelta, rejectedDelta) =>
+                    (deltaScraped, deltaRejected) => // Callback aktualizujący liczniki globalne
                     {
-                        Interlocked.Add(ref totalScraped, scrapedDelta);
-                        Interlocked.Add(ref totalRejected, rejectedDelta);
-                    });
+                        Interlocked.Add(ref totalScrapedOverall, deltaScraped);
+                        Interlocked.Add(ref totalRejectedOverall, deltaRejected);
+                    }
+                );
+                // ----- KONIEC POPRAWKI -----
 
-                if (!captchaDetected)
+                if (!captchaDetectedActual)
                 {
-                    // zakończono bez CAPTCHA
+                    // Użyj ILogger
+                    Console.WriteLine($"[GoogleService] Attempt {attempt + 1}: No CAPTCHA. Overall scraped: {totalScrapedOverall}, rejected: {totalRejectedOverall}.");
+                    await _hubContext.Clients.All.SendAsync("ReceiveGeneralMessage", $"Google: Scrapowanie zakończone pomyślnie w próbie {attempt + 1}. Całkowicie zebrano: {totalScrapedOverall}, odrzucono: {totalRejectedOverall}.", CancellationToken.None);
                     return new GoogleScrapingDto(
                         GoogleScrapingResult.Success,
-                        totalScraped,
-                        totalRejected,
-                        captchaResetCount,
-                        $"Scraping done: {totalScraped} scraped, {totalRejected} rejected, {captchaResetCount} resets."
+                        totalScrapedOverall,
+                        totalRejectedOverall,
+                        captchaResetCount, // Liczba resetów, które wystąpiły PRZED tym udanym przebiegiem
+                        $"Google: Scrapowanie zakończone. Zebrano: {totalScrapedOverall}, odrzucono: {totalRejectedOverall}. Resetów CAPTCHA: {captchaResetCount}."
                     );
                 }
 
-                // jeżeli wykryto CAPTCHA i przekroczono próby
-                if (attempt == MAX_CONSECUTIVE_CAPTCHA_RESETS)
+                // Wykryto CAPTCHA w tym przebiegu
+                captchaResetCount++;
+                // Użyj ILogger
+                Console.WriteLine($"[GoogleService] Attempt {attempt + 1}: CAPTCHA detected. Reset count: {captchaResetCount}.");
+
+                if (attempt == MAX_CONSECUTIVE_CAPTCHA_RESETS) // Sprawdź, czy to była ostatnia dozwolona próba
                 {
-                    captchaResetCount++;
+                    // Użyj ILogger
+                    Console.WriteLine($"[GoogleService] Attempt {attempt + 1}: CAPTCHA persisted after max ({captchaResetCount}) resets.");
+                    await _hubContext.Clients.All.SendAsync("ReceiveGeneralMessage", $"Google: CAPTCHA utrzymuje się po {captchaResetCount} próbach resetu (maksimum). Wymagana ręczna interwencja. Zebrano: {totalScrapedOverall}, odrzucono: {totalRejectedOverall}.", CancellationToken.None);
                     return new GoogleScrapingDto(
                         GoogleScrapingResult.CaptchaDetected,
-                        totalScraped,
-                        totalRejected,
+                        totalScrapedOverall,
+                        totalRejectedOverall,
                         captchaResetCount,
-                        $"CAPTCHA still after {captchaResetCount} resets – manual intervention required."
+                        $"Google: CAPTCHA utrzymuje się po {captchaResetCount} próbach resetu. Wymagana ręczna interwencja. W tej sesji zebrano: {totalScrapedOverall}, Odrzucono: {totalRejectedOverall}."
                     );
                 }
 
-                // inny przypadek: CAPTCHA wykryto, ale można jeszcze próbować
-                captchaResetCount++;
-
-                // 6. Reset sieci i Delay przed kolejną próbą
+                // Logika resetu sieci, jeśli wykryto CAPTCHA i dozwolone są kolejne próby
+                // Użyj ILogger
+                Console.WriteLine($"[GoogleService] Attempt {attempt + 1}: Attempting network reset ({captchaResetCount}/{MAX_CONSECUTIVE_CAPTCHA_RESETS}).");
+                await _hubContext.Clients.All.SendAsync("ReceiveGeneralMessage", $"Google: Wykryto CAPTCHA (Próba {attempt + 1}, Reset {captchaResetCount}/{MAX_CONSECUTIVE_CAPTCHA_RESETS}). Próba resetu sieci...", CancellationToken.None);
                 bool resetOk = false;
                 try
                 {
@@ -143,47 +172,53 @@ namespace PriceSafari.Services.ScheduleService
                 }
                 catch (Exception ex)
                 {
-                    await _hubContext.Clients.All.SendAsync(
-                        "ReceiveGeneralMessage",
-                        $"Google: błąd podczas resetu sieci (próba {attempt + 1}): {ex.Message}",
-                        CancellationToken.None);
+                    // Użyj ILogger
+                    Console.WriteLine($"[GoogleService] Attempt {attempt + 1}: Error during network reset ({captchaResetCount}): {ex.Message}");
+                    await _hubContext.Clients.All.SendAsync("ReceiveGeneralMessage", $"Google: Błąd podczas resetu sieci (Próba {attempt + 1}, Reset {captchaResetCount}): {ex.Message}", CancellationToken.None);
                 }
 
                 await _hubContext.Clients.All.SendAsync(
                     "ReceiveGeneralMessage",
                     resetOk
-                        ? $"Google: network reset succeeded, retrying scraping (#{attempt + 1})..."
-                        : $"Google: network reset FAILED on attempt #{attempt + 1}, retrying anyway...",
+                        ? $"Google: Reset sieci udany (Próba {attempt + 1}, Reset {captchaResetCount}). Ponawiam scrapowanie (następna próba: {attempt + 2})..."
+                        : $"Google: Reset sieci NIEUDANY (Próba {attempt + 1}, Reset {captchaResetCount}). Mimo to ponawiam scrapowanie (następna próba: {attempt + 2})...",
                     CancellationToken.None);
 
-                await Task.Delay(TimeSpan.FromSeconds(10));
+                await Task.Delay(TimeSpan.FromSeconds(10), CancellationToken.None); // Rozważ przekazanie CancellationToken z `RunGoogleAsync` jeśli scrapowanie ma być anulowalne
             }
 
-            // tu nie powinno nigdy wejść
+            // Ten punkt jest osiągany, jeśli pętla zakończy wszystkie iteracje (MAX_CONSECUTIVE_CAPTCHA_RESETS + 1)
+            // Oznacza to, że CAPTCHA wystąpiła w ostatniej dozwolonej próbie,
+            // a warunek `if (attempt == MAX_CONSECUTIVE_CAPTCHA_RESETS)` wewnątrz pętli już obsłużył ten przypadek i zwrócił wynik.
+            // Ten return jest więc awaryjny.
+            // Użyj ILogger
+            Console.WriteLine($"[GoogleService] Exited loop unexpectedly after {captchaResetCount} resets. Overall scraped: {totalScrapedOverall}, rejected: {totalRejectedOverall}.");
             return new GoogleScrapingDto(
-                GoogleScrapingResult.Error,
-                totalScraped,
-                totalRejected,
+                GoogleScrapingResult.Error, // Lub CaptchaDetected, jeśli captchaResetCount > 0
+                totalScrapedOverall,
+                totalRejectedOverall,
                 captchaResetCount,
-                "Unexpected exit from scraping loop."
+                captchaResetCount > 0 ? $"Google: Scrapowanie zatrzymane po {captchaResetCount} resetach CAPTCHA i wyczerpaniu prób." : "Google: Nieoczekiwane zakończenie pętli scrapowania."
             );
         }
 
         private async Task<bool> PerformScrapingLogicInternalAsyncWithCaptchaFlag(
-            List<CoOfrClass> coOfrsToScrape,
+            List<CoOfrClass> coOfrsForThisRun, // Zmieniono nazwę dla jasności
             Settings settings,
-            Stopwatch stopwatch,
-            Action<int, int> progressCallback)
+            Stopwatch overallStopwatch,
+            Action<int, int> accumulateProgressCallback) // Nazwa callbacku zmieniona dla jasności
         {
             bool captchaDetectedInThisRun = false;
-
-            int scrapedCountThisRun = 0;
-            int rejectedCountThisRun = 0;
+        
+            int processedInThisSpecificRun = 0;
+            int rejectedInThisSpecificRun = 0;
 
             int maxConcurrent = settings.SemophoreGoogle > 0 ? settings.SemophoreGoogle : 1;
             var semaphore = new SemaphoreSlim(maxConcurrent, maxConcurrent);
             var tasks = new List<Task>();
-            var queue = new Queue<CoOfrClass>(coOfrsToScrape);
+            // Użyj przekazanej listy dla tego uruchomienia
+            var queue = new Queue<CoOfrClass>(coOfrsForThisRun);
+
 
             for (int i = 0; i < maxConcurrent; i++)
             {
@@ -196,12 +231,15 @@ namespace PriceSafari.Services.ScheduleService
                     {
                         while (true)
                         {
+                            if (captchaDetectedInThisRun) break;
+
                             CoOfrClass item = null;
                             lock (queue)
+                            {
                                 if (queue.Count > 0)
                                     item = queue.Dequeue();
-                            if (item == null)
-                                break;
+                            }
+                            if (item == null) break;
 
                             try
                             {
@@ -209,46 +247,57 @@ namespace PriceSafari.Services.ScheduleService
                                 var db = scope.ServiceProvider.GetRequiredService<PriceSafariContext>();
 
                                 var prices = await scraper.ScrapePricesAsync(item.GoogleOfferUrl);
+
+                                var trackedItem = await db.CoOfrs.FindAsync(item.Id);
+                                if (trackedItem == null)
+                                {
+                                    Interlocked.Increment(ref processedInThisSpecificRun);
+                                    // Log error or decide how to handle
+                                    continue;
+                                }
+
                                 if (prices.Any())
                                 {
-                                    foreach (var p in prices)
-                                        p.CoOfrClassId = item.Id;
+                                    foreach (var p in prices) p.CoOfrClassId = trackedItem.Id;
                                     db.CoOfrPriceHistories.AddRange(prices);
-                                    item.GoogleIsScraped = true;
-                                    item.GooglePricesCount = prices.Count;
-
-                                    scrapedCountThisRun++;
-                                    progressCallback(1, 0);
+                                    trackedItem.GoogleIsScraped = true;
+                                    trackedItem.GoogleIsRejected = false;
+                                    trackedItem.GooglePricesCount = prices.Count;
+                                    accumulateProgressCallback(1, 0); // Aktualizuj liczniki globalne
                                 }
                                 else
                                 {
-                                    item.GoogleIsScraped = true;
-                                    item.GoogleIsRejected = true;
-                                    item.GooglePricesCount = 0;
-
-                                    rejectedCountThisRun++;
-                                    progressCallback(0, 1);
+                                    trackedItem.GoogleIsScraped = true;
+                                    trackedItem.GoogleIsRejected = true;
+                                    trackedItem.GooglePricesCount = 0;
+                                    accumulateProgressCallback(0, 1); // Aktualizuj liczniki globalne
+                                    Interlocked.Increment(ref rejectedInThisSpecificRun);
                                 }
-
-                                db.CoOfrs.Update(item);
+                                // db.CoOfrs.Update(trackedItem); // Niepotrzebne jeśli FindAsync śledzi
                                 await db.SaveChangesAsync();
+                                Interlocked.Increment(ref processedInThisSpecificRun);
 
-                                double elapsed = stopwatch.Elapsed.TotalSeconds;
+
+                                double elapsed = overallStopwatch.Elapsed.TotalSeconds;
+                             
                                 await _hubContext.Clients.All.SendAsync(
                                     "ReceiveProgressUpdate",
-                                    scrapedCountThisRun + rejectedCountThisRun,
-                                    coOfrsToScrape.Count,
+                                    processedInThisSpecificRun,
+                                    coOfrsForThisRun.Count,
                                     elapsed,
-                                    rejectedCountThisRun);
+                                    rejectedInThisSpecificRun // Odrzucone tylko w tym przebiegu
+                                );
+                             
                             }
                             catch (CaptchaDetectedException)
                             {
                                 captchaDetectedInThisRun = true;
                                 break;
                             }
-                            catch
+                            catch (Exception ex)
                             {
-                                // log or ignore
+                                Console.WriteLine($"Google: Error scraping item {item?.Id} in service: {ex.Message}"); // Lub ILogger
+                                                                                                                       
                             }
                         }
                     }
