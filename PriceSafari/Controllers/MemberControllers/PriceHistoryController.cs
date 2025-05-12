@@ -1253,35 +1253,19 @@ namespace PriceSafari.Controllers.MemberControllers
             });
         }
 
-        [HttpGet]
-        public IActionResult GetPriceChangeDetails(string productIds)
-        {
-            if (string.IsNullOrEmpty(productIds))
-            {
-                return Json(new List<object>());
-            }
 
-            List<int> productIdList;
-            try
-            {
-                productIds = productIds.Trim();
-                if (productIds.StartsWith("[") && productIds.EndsWith("]"))
-                {
-                    productIds = productIds.Substring(1, productIds.Length - 2);
-                }
-                productIdList = productIds.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries)
-                    .Select(s => int.Parse(s.Trim(' ', '"')))
-                    .ToList();
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Błąd parsowania productIds: {productIds}", productIds);
+
+
+
+
+        [HttpPost]
+        public IActionResult GetPriceChangeDetails([FromBody] List<int> productIds)
+        {
+            if (productIds == null || productIds.Count == 0)
                 return Json(new List<object>());
-            }
 
             var products = _context.Products
-                .AsEnumerable()
-                .Where(p => productIdList.Contains(p.ProductId))
+                .Where(p => productIds.Contains(p.ProductId))
                 .Select(p => new {
                     productId = p.ProductId,
                     productName = p.ProductName,
@@ -1291,6 +1275,7 @@ namespace PriceSafari.Controllers.MemberControllers
 
             return Json(products);
         }
+
 
         [HttpPost]
         public async Task<IActionResult> SimulatePriceChange([FromBody] List<SimulationItem> simulationItems)
@@ -1515,6 +1500,15 @@ namespace PriceSafari.Controllers.MemberControllers
 
             public int StoreId { get; set; }
         }
+
+
+
+
+
+
+
+
+
 
         private const int CHUNK_SIZE = 200;
 

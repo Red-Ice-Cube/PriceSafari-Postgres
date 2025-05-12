@@ -371,9 +371,12 @@
             };
         });
 
-        fetch('/PriceHistory/GetPriceChangeDetails?productIds=' +
-            encodeURIComponent(JSON.stringify(selectedPriceChanges.map(function (item) { return item.productId; })))
-        )
+        fetch('/PriceHistory/GetPriceChangeDetails', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ productIds: selectedPriceChanges.map(i => i.productId) })
+        })
+
             .then(function (response) {
                 return response.json();
             })
