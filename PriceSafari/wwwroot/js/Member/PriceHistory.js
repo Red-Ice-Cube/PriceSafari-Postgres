@@ -706,11 +706,12 @@
 
                 filteredPrices = filterPricesByCategoryAndColorAndFlag(filteredPrices);
 
-                renderPrices(filteredPrices);
+             
                 debouncedRenderChart(filteredPrices);
                 updateColorCounts(filteredPrices);
                 updateMarginSortButtonsVisibility();
                 populateProducerFilter();
+                filterPricesAndUpdateUI();
             })
 
             .finally(() => {

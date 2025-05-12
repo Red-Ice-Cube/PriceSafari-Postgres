@@ -322,20 +322,20 @@
         let block = '<div class="price-info-box">';
         block += `
             <div class="price-info-item" style="padding: 4px 12px; background: #f5f5f5; border: 1px solid #e3e3e3; border-radius: 5px;">
-                Cena produktu | ${price.toFixed(2)} PLN
+                Cena oferty | ${price.toFixed(2)} PLN
             </div>`;
 
         if (googleRank && googleOffers) {
             block += `
             <div class="price-info-item" style="padding: 4px 12px; background: #f5f5f5; border: 1px solid #e3e3e3; border-radius: 5px;">
-                Pozycja cenowa | <img src="/images/GoogleShopping.png" alt="Google Icon" style="width:16px; height:16px;" />
+                Poz. cenowa | <img src="/images/GoogleShopping.png" alt="Google Icon" style="width:16px; height:16px;" />
                 ${googleRank} / ${googleOffers}
             </div>`;
         }
         if (ceneoRank && ceneoOffers) {
             block += `
             <div class="price-info-item" style="padding: 4px 12px; background: #f5f5f5; border: 1px solid #e3e3e3; border-radius: 5px;">
-                Pozycja cenowa | <img src="/images/Ceneo.png" alt="Ceneo Icon" style="width:16px; height:16px;" />
+                Poz. cenowa | <img src="/images/Ceneo.png" alt="Ceneo Icon" style="width:16px; height:16px;" />
                 ${ceneoRank} / ${ceneoOffers}
             </div>`;
         }
@@ -596,7 +596,7 @@
                     <button class="remove-change-btn"
                         data-product-id="${row.productId}"
                         style="background: none; border: none; padding: 5px; display: flex; align-items: center; margin-left:8px; justify-content: center;">
-                        <i class="fa fa-trash" style="font-size: 19px; color: red;"></i>
+                        <i class="fa fa-trash" style="font-size: 19px; color: rgb(51, 51, 51);"></i>
                     </button>
                 </td>
             </tr>`;

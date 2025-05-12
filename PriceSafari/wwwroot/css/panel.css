@@ -4473,7 +4473,7 @@ small {
     padding: 2px 4px;
     border-radius: 4px;
     height: 34px;
-    width: 50px;
+    width: 60px;
     align-content: center;
     justify-content: center;
     text-align: center;
@@ -4489,7 +4489,7 @@ small {
     align-content: center;
     justify-content: center;
     text-align: center;
-    width: 50px;
+    width: 60px;
 }
 
 .price-info-box {
@@ -4498,6 +4498,7 @@ small {
     padding: 10px;
     border-radius: 5px;
     background: #fff;
+    min-width: 270px;
     max-width: 300px;
 }
 
