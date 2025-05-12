@@ -61,6 +61,85 @@
         applyMassChange('strategic');
         $('#massChangeModal').modal('hide');
     });
+
+    if (typeof storeId !== 'undefined') { // Upewnij się, że storeId jest dostępne
+        restoreSortingState();
+    } else {
+        console.warn("storeId nie jest zdefiniowane podczas próby odtworzenia stanu sortowania.");
+       
+    }
+    function updateSortButtonVisuals() {
+        Object.keys(sortingState).forEach(key => {
+            const stateValue = sortingState[key];
+            const button = document.getElementById(key); // Zakładamy, że ID przycisku = klucz w sortingState
+
+            if (button && stateValue !== null && stateValue !== false) { // Sprawdzamy też false dla showRejected
+                button.classList.add('active');
+                // Ustaw odpowiedni tekst/ikonę na podstawie stanu (asc/desc)
+                switch (key) {
+                    case 'sortName':
+                        button.innerHTML = stateValue === 'asc' ? 'A-Z ↑' : 'A-Z ↓';
+                        break;
+                    case 'sortPrice':
+                        button.innerHTML = stateValue === 'asc' ? 'Cena ↑' : 'Cena ↓';
+                        break;
+                    case 'sortRaiseAmount':
+                        button.innerHTML = stateValue === 'asc' ? 'Podnieś PLN ↑' : 'Podnieś PLN ↓';
+                        break;
+                    case 'sortRaisePercentage':
+                        button.innerHTML = stateValue === 'asc' ? 'Podnieś % ↑' : 'Podnieś % ↓';
+                        break;
+                    case 'sortLowerAmount':
+                        button.innerHTML = stateValue === 'asc' ? 'Obniż PLN ↑' : 'Obniż PLN ↓';
+                        break;
+                    case 'sortLowerPercentage':
+                        button.innerHTML = stateValue === 'asc' ? 'Obniż % ↑' : 'Obniż % ↓';
+                        break;
+                    case 'sortMarginAmount':
+                        button.innerHTML = stateValue === 'asc' ? 'Marża PLN ↑' : 'Marża PLN ↓';
+                        break;
+                    case 'sortMarginPercentage':
+                        button.innerHTML = stateValue === 'asc' ? 'Marża % ↑' : 'Marża % ↓';
+                        break;
+                    case 'showRejected':
+                        // Dla showRejected nie zmieniamy tekstu, tylko klasę 'active'
+                        // (co już robi dodanie klasy powyżej)
+                        if (!stateValue) button.classList.remove('active'); // Upewnij się, że jest nieaktywny, jeśli stateValue to false
+                        break;
+                    // Domyślnie nie rób nic dla nieznanych kluczy
+                }
+            } else if (button && key !== 'showRejected') { // Resetuj wygląd nieaktywnych przycisków (poza showRejected)
+                button.classList.remove('active');
+                button.innerHTML = getDefaultButtonLabel(key); // Użyj istniejącej funkcji pomocniczej
+            } else if (button && key === 'showRejected') { // Resetuj wygląd showRejected, jeśli nie jest aktywny
+                button.classList.remove('active');
+            }
+        });
+    }
+
+    function restoreSortingState() {
+        // Odczytaj stan z localStorage, używając tego samego klucza co przy zapisie
+        const storedStateJSON = localStorage.getItem('priceHistorySortingState_' + storeId);
+        if (storedStateJSON) {
+            try {
+                const restoredState = JSON.parse(storedStateJSON);
+                // Zaktualizuj bieżący obiekt sortingState odczytanymi wartościami
+                // Użycie spread operatora (...) zapewnia, że domyślne wartości
+                // zostaną zachowane, jeśli w localStorage czegoś brakuje.
+                sortingState = { ...sortingState, ...restoredState };
+
+                // Zaktualizuj wygląd przycisków, aby pasował do odtworzonego stanu
+                updateSortButtonVisuals();
+
+            } catch (e) {
+                console.error("Błąd parsowania stanu sortowania z localStorage:", e);
+                // Opcjonalnie: usuń błędne dane z localStorage
+                localStorage.removeItem('priceHistorySortingState_' + storeId);
+            }
+        }
+    }
+
+
     function applyMassChange(changeType) {
 
         const boxes = Array.from(document.querySelectorAll('#priceContainer .price-box'));
@@ -2378,6 +2457,8 @@
             this.classList.remove('active');
         }
         resetSortingStates('sortName');
+
+        localStorage.setItem('priceHistorySortingState_' + storeId, JSON.stringify(sortingState));
         filterPricesAndUpdateUI();
     });
 
@@ -2396,6 +2477,7 @@
             this.classList.remove('active');
         }
         resetSortingStates('sortPrice');
+        localStorage.setItem('priceHistorySortingState_' + storeId, JSON.stringify(sortingState));
         filterPricesAndUpdateUI();
     });
 
@@ -2414,6 +2496,7 @@
             this.classList.remove('active');
         }
         resetSortingStates('sortRaiseAmount');
+        localStorage.setItem('priceHistorySortingState_' + storeId, JSON.stringify(sortingState));
         filterPricesAndUpdateUI();
     });
 
@@ -2432,6 +2515,7 @@
             this.classList.remove('active');
         }
         resetSortingStates('sortRaisePercentage');
+        localStorage.setItem('priceHistorySortingState_' + storeId, JSON.stringify(sortingState));
         filterPricesAndUpdateUI();
     });
 
@@ -2450,6 +2534,7 @@
             this.classList.remove('active');
         }
         resetSortingStates('sortLowerAmount');
+        localStorage.setItem('priceHistorySortingState_' + storeId, JSON.stringify(sortingState));
         filterPricesAndUpdateUI();
     });
 
@@ -2468,6 +2553,7 @@
             this.classList.remove('active');
         }
         resetSortingStates('sortLowerPercentage');
+        localStorage.setItem('priceHistorySortingState_' + storeId, JSON.stringify(sortingState));
         filterPricesAndUpdateUI();
     });
 
@@ -2486,6 +2572,7 @@
             this.classList.remove('active');
         }
         resetSortingStates('sortMarginAmount');
+        localStorage.setItem('priceHistorySortingState_' + storeId, JSON.stringify(sortingState));
         filterPricesAndUpdateUI();
     });
 
@@ -2504,6 +2591,7 @@
             this.classList.remove('active');
         }
         resetSortingStates('sortMarginPercentage');
+        localStorage.setItem('priceHistorySortingState_' + storeId, JSON.stringify(sortingState));
         filterPricesAndUpdateUI();
     });
 
