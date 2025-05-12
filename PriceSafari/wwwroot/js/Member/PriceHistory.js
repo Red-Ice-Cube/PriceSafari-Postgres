@@ -370,17 +370,42 @@
 
     function convertPriceValue(price, usePriceDifference) {
         if (price.onlyMe) {
+            // Zwracamy displayValueToUse jako `valueToUse`
             return { valueToUse: null, colorClass: 'prOnlyMe' };
         } else {
-            let valueToUse = usePriceDifference
-                ? (price.savings !== null ? price.savings : price.priceDifference)
-                : price.percentageDifference;
+            let valueForColorCalculation;
+            let displayValueToUse; // Wartość do wyświetlania (i przekazania jako `valueToUse` z tej funkcji)
 
-            if (valueToUse !== null && valueToUse !== undefined) {
-                valueToUse = parseFloat(valueToUse.toFixed(2));
+            if (usePriceDifference) {
+                valueForColorCalculation = (price.savings !== null ? price.savings : price.priceDifference);
+                displayValueToUse = valueForColorCalculation;
+            } else {
+                // Do wyświetlania zawsze używaj oryginalnego price.percentageDifference
+                displayValueToUse = price.percentageDifference;
+
+                // Do logiki getColorClass, jeśli nasza cena jest wyższa i nie jest najlepszą ofertą
+                if (price.myPrice && price.lowestPrice && parseFloat(price.myPrice) > parseFloat(price.lowestPrice) && !price.isUniqueBestPrice && !price.isSharedBestPrice) {
+                    valueForColorCalculation = ((parseFloat(price.myPrice) - parseFloat(price.lowestPrice)) / parseFloat(price.myPrice)) * 100;
+                } else {
+                    // Dla savings (gdy nasza cena jest niższa) lub równych cen,
+                    // price.percentageDifference jest odpowiednie dla logiki z setPrice1.
+                    valueForColorCalculation = price.percentageDifference;
+                }
             }
-            const colorClass = getColorClass(valueToUse, price.isUniqueBestPrice, price.isSharedBestPrice);
-            return { valueToUse, colorClass };
+
+            // Zaokrąglenie
+            if (valueForColorCalculation !== null && valueForColorCalculation !== undefined) {
+                valueForColorCalculation = parseFloat(valueForColorCalculation.toFixed(2));
+            }
+            if (displayValueToUse !== null && displayValueToUse !== undefined) {
+                displayValueToUse = parseFloat(displayValueToUse.toFixed(2));
+            }
+
+            const colorClass = getColorClass(valueForColorCalculation, price.isUniqueBestPrice, price.isSharedBestPrice);
+            // Funkcja zwraca `displayValueToUse` jako `valueToUse`, ponieważ ta wartość jest używana
+            // do aktualizacji `price.valueToUse` w `updatePricesDebounced`.
+            // `colorClass` jest już obliczona na podstawie poprawionej logiki.
+            return { valueToUse: displayValueToUse, colorClass };
         }
     }
 
@@ -475,20 +500,44 @@
                 allPrices = response.prices.map(price => {
                     const isRejected = price.isRejected;
                     const onlyMe = price.onlyMe === true;
-                    let valueToUse = null;
-                    let colorClass = '';
+                    let valueToUseForColorCalculation; // Zmienna dla logiki getColorClass
+                    let displayValueToUse;             // Zmienna dla price.valueToUse (do wyświetlania i sortowania)
 
                     if (onlyMe) {
                         colorClass = 'prOnlyMe';
+                        valueToUseForColorCalculation = null; // lub odpowiednia wartość, jeśli potrzebna
+                        displayValueToUse = null;
                     } else if (!isRejected) {
-                        if (usePriceDifference) {
-                            valueToUse = price.savings !== null ? price.savings : price.priceDifference;
-                        } else {
-                            valueToUse = price.percentageDifference;
+                        if (usePriceDifference) { // Tryb różnicy kwotowej
+                            valueToUseForColorCalculation = (price.savings !== null ? price.savings : price.priceDifference);
+                            displayValueToUse = valueToUseForColorCalculation;
+                        } else { // Tryb różnicy procentowej
+                            displayValueToUse = price.percentageDifference; // Do wyświetlania zawsze oryginalna różnica % (względem ceny konkurenta)
+
+                            // Logika dla getColorClass, gdy nasza cena jest wyższa i nie jest najlepszą ofertą
+                            if (price.myPrice && price.lowestPrice && parseFloat(price.myPrice) > parseFloat(price.lowestPrice) && !price.isUniqueBestPrice && !price.isSharedBestPrice) {
+                                // Oblicz procent, o który musimy obniżyć NASZĄ cenę
+                                valueToUseForColorCalculation = ((parseFloat(price.myPrice) - parseFloat(price.lowestPrice)) / parseFloat(price.myPrice)) * 100;
+                            } else {
+                                // W innych przypadkach (np. gdy nasza cena jest niższa - savings, lub równa)
+                                // użyj oryginalnego percentageDifference, które jest odpowiednie dla logiki isUniqueBestPrice i setPrice1
+                                valueToUseForColorCalculation = price.percentageDifference;
+                            }
                         }
-                        colorClass = getColorClass(valueToUse, price.isUniqueBestPrice, price.isSharedBestPrice);
+
+                        // Zaokrąglenie wartości
+                        if (valueToUseForColorCalculation !== null && typeof valueToUseForColorCalculation !== 'undefined') {
+                            valueToUseForColorCalculation = parseFloat(valueToUseForColorCalculation.toFixed(2));
+                        }
+                        if (displayValueToUse !== null && typeof displayValueToUse !== 'undefined') {
+                            displayValueToUse = parseFloat(displayValueToUse.toFixed(2));
+                        }
+
+                        colorClass = getColorClass(valueToUseForColorCalculation, price.isUniqueBestPrice, price.isSharedBestPrice);
                     } else {
                         colorClass = 'prRejected';
+                        valueToUseForColorCalculation = null;
+                        displayValueToUse = null;
                     }
 
                     const marginPrice = price.marginPrice != null && !isNaN(price.marginPrice) ? parseFloat(price.marginPrice) : null;
@@ -514,7 +563,7 @@
                         ...price,
                         isRejected: price.isRejected || false,
                         onlyMe: onlyMe,
-                        valueToUse: onlyMe ? null : valueToUse,
+                        valueToUse: onlyMe ? null : displayValueToUse, 
                         colorClass: colorClass,
                         marginPrice: marginPrice,
                         myPrice: myPrice,
