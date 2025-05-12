@@ -16,10 +16,11 @@ namespace PriceSafari.Controllers
     public class ProductController : Controller
     {
         private readonly PriceSafariContext _context;
-
-        public ProductController(PriceSafariContext context)
+        private readonly ILogger<ProductController> _logger;
+        public ProductController(PriceSafariContext context, ILogger<ProductController> logger)
         {
             _context = context;
+            _logger = logger;
         }
 
         [HttpGet]
@@ -251,98 +252,110 @@ namespace PriceSafari.Controllers
 
 
 
-        //Dodawnie wgrywania marzy
+
+
+
+
+
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> SetMargins(int storeId, IFormFile uploadedFile)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            _logger.LogInformation("Wywołanie SetMargins: StoreId={StoreId}, UserId={UserId}, FileName={FileName}, FileSize={FileSize}",
+                                    storeId, userId, uploadedFile?.FileName, uploadedFile?.Length);
 
-            // Sprawdzenie dostępu użytkownika do sklepu
+            // 1) Sprawdzenie dostępu
             var userStore = await _context.UserStores
                 .FirstOrDefaultAsync(us => us.UserId == userId && us.StoreId == storeId);
-
             if (userStore == null)
             {
+                _logger.LogWarning("Brak dostępu użytkownika {UserId} do sklepu {StoreId}", userId, storeId);
                 return Forbid();
             }
 
             var store = await _context.Stores.FindAsync(storeId);
             if (store == null)
             {
+                _logger.LogWarning("Nie znaleziono sklepu o ID {StoreId}", storeId);
                 return NotFound();
             }
 
-            // Sprawdzanie, czy plik został przesłany
+            // 2) Walidacja pliku
             if (uploadedFile == null || uploadedFile.Length == 0)
             {
+                _logger.LogWarning("Brak pliku w requestcie lub plik pusty");
                 TempData["ErrorMessage"] = "Proszę wgrać poprawny plik Excel.";
                 return RedirectToAction("ProductList", new { storeId });
             }
-
-            // Sprawdzanie rozmiaru pliku (limit do 10MB)
             if (uploadedFile.Length > 10 * 1024 * 1024)
             {
+                _logger.LogWarning("Przekroczony rozmiar pliku: {Size} bajtów", uploadedFile.Length);
                 TempData["ErrorMessage"] = "Wielkość pliku nie może przekraczać 10 MB.";
                 return RedirectToAction("ProductList", new { storeId });
             }
-
-            // Sprawdzanie rozszerzenia pliku
-            var allowedExtensions = new[] { ".xls", ".xlsx" };
-            var extension = Path.GetExtension(uploadedFile.FileName).ToLower();
-            if (!allowedExtensions.Contains(extension))
+            var ext = Path.GetExtension(uploadedFile.FileName).ToLowerInvariant();
+            if (ext != ".xls" && ext != ".xlsx")
             {
-                TempData["ErrorMessage"] = "Niewspierany format pliku. Proszę wgrać plik Excel (.xls lub .xlsx).";
+                _logger.LogWarning("Niewspierane rozszerzenie pliku: {Ext}", ext);
+                TempData["ErrorMessage"] = "Niewspierany format pliku. Proszę .xls lub .xlsx.";
                 return RedirectToAction("ProductList", new { storeId });
             }
-
-            // Sprawdzanie typu MIME
-            var allowedMimeTypes = new[] { "application/vnd.ms-excel", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" };
-            if (!allowedMimeTypes.Contains(uploadedFile.ContentType))
+            var mime = uploadedFile.ContentType;
+            if (mime != "application/vnd.ms-excel" &&
+                mime != "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
             {
-                TempData["ErrorMessage"] = "Niewspierany typ pliku. Proszę wgrać plik Excel.";
+                _logger.LogWarning("Niewspierany typ MIME: {Mime}", mime);
+                TempData["ErrorMessage"] = "Niewspierany typ pliku. Proszę Excel.";
                 return RedirectToAction("ProductList", new { storeId });
             }
 
             try
             {
-                // Parsowanie i przetwarzanie pliku Excel
+                _logger.LogInformation("Rozpoczynam parsowanie pliku Excel");
                 var marginData = await ParseExcelFile(uploadedFile);
                 if (marginData == null || !marginData.Any())
                 {
+                    _logger.LogWarning("Plik nie zawiera poprawnych danych marż");
                     TempData["ErrorMessage"] = "Plik nie zawiera poprawnych danych.";
                     return RedirectToAction("ProductList", new { storeId });
                 }
+                _logger.LogInformation("Pobrano {Count} wpisów marż z pliku", marginData.Count);
 
-                // Aktualizacja marży produktów
+                // 3) Aktualizacja marż w bazie
                 var products = await _context.Products
                     .Where(p => p.StoreId == storeId && !string.IsNullOrEmpty(p.Ean))
                     .ToListAsync();
+                _logger.LogInformation("Znaleziono {Count} produktów do potencjalnej aktualizacji", products.Count);
 
                 int updatedCount = 0;
-                foreach (var product in products)
+                foreach (var prod in products)
                 {
-                    if (marginData.TryGetValue(product.Ean, out decimal margin))
+                    if (marginData.TryGetValue(prod.Ean, out var m))
                     {
-                        product.MarginPrice = margin;
+                        _logger.LogInformation("Aktualizuję produkt EAN={Ean} marża={Margin}", prod.Ean, m);
+                        prod.MarginPrice = m;
                         updatedCount++;
                     }
                 }
 
                 await _context.SaveChangesAsync();
+                _logger.LogInformation("Zaktualizowano marże dla {UpdatedCount} produktów", updatedCount);
 
                 TempData["SuccessMessage"] = $"Marże zostały zaktualizowane dla {updatedCount} produktów.";
                 return RedirectToAction("ProductList", new { storeId });
             }
             catch (Exception ex)
             {
-                // Obsługa wyjątków
+                _logger.LogError(ex, "Błąd podczas SetMargins");
                 TempData["ErrorMessage"] = $"Wystąpił błąd: {ex.Message}";
                 return RedirectToAction("ProductList", new { storeId });
             }
         }
 
-        // Funkcja parsująca plik Excel
+        // ------------------------------------------------------------
+        // Parsowanie arkusza Excel, zwraca słownik EAN→marża
+        // ------------------------------------------------------------
         private async Task<Dictionary<string, decimal>> ParseExcelFile(IFormFile file)
         {
             var marginData = new Dictionary<string, decimal>();
@@ -352,91 +365,179 @@ namespace PriceSafari.Controllers
                 await file.CopyToAsync(stream);
                 stream.Position = 0;
 
-                IWorkbook workbook;
-                var extension = Path.GetExtension(file.FileName).ToLower();
+                var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
+                _logger.LogInformation("Ładowanie skoroszytu, rozszerzenie: {Ext}", extension);
 
-                if (extension == ".xls")
+                IWorkbook workbook = extension switch
                 {
-                    workbook = new HSSFWorkbook(stream); // Obsługa plików .xls
-                }
-                else if (extension == ".xlsx")
+                    ".xls" => new HSSFWorkbook(stream),
+                    ".xlsx" => new XSSFWorkbook(stream),
+                    _ => null
+                };
+                if (workbook == null)
                 {
-                    workbook = new XSSFWorkbook(stream); // Obsługa plików .xlsx
+                    _logger.LogError("Nie udało się załadować skoroszytu");
+                    return null;
                 }
-                else
-                {
-                    return null; // Niewspierany format
-                }
+                _logger.LogInformation("Skoroszyt załadowany: {Type}", workbook.GetType().Name);
 
+                var evaluator = workbook.GetCreationHelper().CreateFormulaEvaluator();
                 var sheet = workbook.GetSheetAt(0);
                 if (sheet == null)
+                {
+                    _logger.LogError("Brak arkusza w skoroszycie");
                     return null;
+                }
+                _logger.LogInformation("Odczyt arkusza: {SheetName}", sheet.SheetName);
 
-                var eanHeaders = new[] { "EAN", "KOD EAN" };
-                var cenaHeaders = new[] { "CENA", "PRICE" };
-
-                int eanColumnIndex = -1;
-                int cenaColumnIndex = -1;
+                // nagłówki
+                var eanHeaders = new[] { "EAN", "KODEAN" };
+                var priceHeaders = new[] { "CENA", "PRICE" };
+                int eanCol = -1, priceCol = -1;
 
                 var headerRow = sheet.GetRow(0);
                 if (headerRow == null)
-                    return null;
-
-                for (int i = headerRow.FirstCellNum; i < headerRow.LastCellNum; i++)
                 {
-                    var cell = headerRow.GetCell(i);
-                    if (cell != null)
-                    {
-                        var headerText = cell.ToString().Trim().ToUpperInvariant();
-                        if (eanHeaders.Contains(headerText))
-                        {
-                            eanColumnIndex = i;
-                        }
-                        else if (cenaHeaders.Contains(headerText))
-                        {
-                            cenaColumnIndex = i;
-                        }
-                    }
-                }
-
-                if (eanColumnIndex == -1 || cenaColumnIndex == -1)
-                {
+                    _logger.LogError("Brak wiersza nagłówkowego");
                     return null;
                 }
 
-                for (int rowIndex = 1; rowIndex <= sheet.LastRowNum; rowIndex++)
+                for (int c = headerRow.FirstCellNum; c < headerRow.LastCellNum; c++)
                 {
-                    var row = sheet.GetRow(rowIndex);
-                    if (row == null)
+                    var cell = headerRow.GetCell(c);
+                    var txt = GetCellValue(cell, evaluator)?
+                                 .Trim()
+                                 .ToUpperInvariant()
+                                 .Replace(" ", "");
+                    if (eanHeaders.Contains(txt)) eanCol = c;
+                    if (priceHeaders.Contains(txt)) priceCol = c;
+                }
+                _logger.LogInformation("Znalezione kolumny — EAN: {EanCol}, CENA: {PriceCol}", eanCol, priceCol);
+
+                if (eanCol < 0 || priceCol < 0)
+                {
+                    _logger.LogError("Nie znaleziono wymaganych kolumn w nagłówku");
+                    return null;
+                }
+
+                // pętla po wierszach danych
+                for (int r = 1; r <= sheet.LastRowNum; r++)
+                {
+                    var row = sheet.GetRow(r);
+                    if (row == null) continue;
+
+                    var eCell = row.GetCell(eanCol);
+                    var pCell = row.GetCell(priceCol);
+
+                    var ean = GetCellValue(eCell, evaluator)?.Trim();
+                    var priceText = GetCellValue(pCell, evaluator)?.Trim();
+
+                    if (string.IsNullOrWhiteSpace(ean) || string.IsNullOrWhiteSpace(priceText))
                         continue;
 
-                    var eanCell = row.GetCell(eanColumnIndex);
-                    var cenaCell = row.GetCell(cenaColumnIndex);
+                    _logger.LogDebug("Wiersz {Row}: EAN={Ean}, Cena surowa='{PriceText}'", r, ean, priceText);
 
-                    var ean = eanCell?.ToString().Trim();
-                    var cenaText = cenaCell?.ToString().Trim();
-
-                    if (string.IsNullOrEmpty(ean) || string.IsNullOrEmpty(cenaText))
-                        continue;
-
-                    // Weryfikacja, czy dane są poprawne liczbowo
-                    cenaText = cenaText.Replace(',', '.');
-                    if (decimal.TryParse(cenaText, NumberStyles.Any, CultureInfo.InvariantCulture, out decimal margin))
+                    priceText = priceText.Replace(",", ".");
+                    if (decimal.TryParse(priceText,
+                                         NumberStyles.Any,
+                                         CultureInfo.InvariantCulture,
+                                         out var mVal))
                     {
+                        _logger.LogDebug("Parsowanie OK: marża={Margin} dla EAN={Ean}", mVal, ean);
                         if (!marginData.ContainsKey(ean))
-                        {
-                            marginData.Add(ean, margin);
-                        }
+                            marginData.Add(ean, mVal);
+                        else
+                            _logger.LogWarning("Duplikat EAN: {Ean}, pomijam drugi wpis", ean);
+                    }
+                    else
+                    {
+                        _logger.LogWarning("Nie udało się sparsować ceny '{PriceText}' w wierszu {Row}", priceText, r);
                     }
                 }
             }
 
-            return marginData;
+            _logger.LogInformation("Zakończono parsowanie, znaleziono {Count} marż", marginData.Count);
+            return marginData.Count > 0 ? marginData : null;
         }
 
+        // ------------------------------------------------------------
+        // Pomocnicza: odczyt dowolnej komórki (z formułą lub prostego typu),
+        // z obsługą odwołań zewnętrznych (np. [marza-safari.xlsx]…)
+        // ------------------------------------------------------------
+        private string GetCellValue(ICell cell, IFormulaEvaluator evaluator)
+        {
+            if (cell == null) return null;
 
+            // 1) Komórka-formuła odwołująca się do zewnętrznego pliku?
+            if (cell.CellType == CellType.Formula &&
+                !string.IsNullOrEmpty(cell.CellFormula) &&
+                cell.CellFormula.Contains("["))
+            {
+                // pomijamy Evaluate(), bierzemy ostatni wynik
+                _logger.LogDebug("Formula external reference detected ('{Formula}'), using cached result.", cell.CellFormula);
+                return cell.CachedFormulaResultType switch
+                {
+                    CellType.Numeric => cell.NumericCellValue.ToString(CultureInfo.InvariantCulture),
+                    CellType.String => cell.StringCellValue,
+                    CellType.Boolean => cell.BooleanCellValue.ToString(),
+                    _ => null
+                };
+            }
 
+            try
+            {
+                if (cell.CellType == CellType.Formula)
+                {
+                    // normalna formuła wewnętrzna
+                    var eval = evaluator.Evaluate(cell);
+                    if (eval != null)
+                    {
+                        return eval.CellType switch
+                        {
+                            CellType.Numeric => eval.NumberValue.ToString(CultureInfo.InvariantCulture),
+                            CellType.String => eval.StringValue,
+                            CellType.Boolean => eval.BooleanValue.ToString(),
+                            _ => null
+                        };
+                    }
 
+                    // jeśli Evaluate zwróciło null — fallback
+                    _logger.LogDebug("Evaluate zwróciło null dla formuły '{Formula}', używam cached.", cell.CellFormula);
+                    return cell.CachedFormulaResultType switch
+                    {
+                        CellType.Numeric => cell.NumericCellValue.ToString(CultureInfo.InvariantCulture),
+                        CellType.String => cell.StringCellValue,
+                        CellType.Boolean => cell.BooleanCellValue.ToString(),
+                        _ => null
+                    };
+                }
+
+                // proste typy
+                return cell.CellType switch
+                {
+                    CellType.Numeric => cell.NumericCellValue.ToString(CultureInfo.InvariantCulture),
+                    CellType.String => cell.StringCellValue,
+                    CellType.Boolean => cell.BooleanCellValue.ToString(),
+                    _ => cell.ToString()
+                };
+            }
+            catch (Exception ex)
+            {
+                // logujemy tylko na DEBUG, bo np. inne formuły też mogą czasem zawieźć
+                _logger.LogDebug(ex, "Błąd Evaluate() dla komórki formuły '{Formula}', używam cached.", cell.CellFormula);
+                if (cell.CellType == CellType.Formula)
+                {
+                    return cell.CachedFormulaResultType switch
+                    {
+                        CellType.Numeric => cell.NumericCellValue.ToString(CultureInfo.InvariantCulture),
+                        CellType.String => cell.StringCellValue,
+                        CellType.Boolean => cell.BooleanCellValue.ToString(),
+                        _ => null
+                    };
+                }
+                return null;
+            }
+        }
 
     }
 }

@@ -243,7 +243,7 @@
 <div class="modal fade" id="uploadMarginsModal" tabindex="-1" role="dialog" aria-labelledby="uploadMarginsModalLabel" aria-hidden="true">
     <div class="modal-dialog" role="document">
         <div class="modal-content">
-            <form asp-action="SetMargins" asp-controller="Product" asp-route-storeId="@ViewBag.StoreId" method="post" enctype="multipart/form-data">
+            <form asp-action="SetMargins" asp-controller="Product" asp-route-storeId="@ViewBag.StoreId" method="post" enctype="multipart/form-data" id="uploadMarginsForm">
                 <div class="modal-header">
                     <h5 class="modal-title" id="uploadMarginsModalLabel">Wgraj Marże</h5>
                     <button type="button" class="close" data-dismiss="modal" aria-label="Zamknij">
@@ -269,7 +269,7 @@
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="submit" class="Button-Page-Small-b">Wgraj Marże</button>
+                    <button type="submit" class="Button-Page-Small-b" id="submitUploadMarginsButton">Wgraj Marże</button>
                     <button type="button" class="Button-Page-Small" data-dismiss="modal">Anuluj</button>
                 </div>
             </form>
@@ -657,11 +657,87 @@
             fetchProducts();
         });
     </script>
+
     <script>
-        $(document).ready(function () {
-            $('#uploadMarginsButton').on('click', function () {
-                $('#uploadMarginsModal').modal('show');
-            });
+
+
+        document.addEventListener('DOMContentLoaded', function () {
+            const uploadMarginsModal = document.getElementById('uploadMarginsModal');
+            const uploadMarginsForm = document.getElementById('uploadMarginsForm');
+            const uploadedFileField = document.getElementById('uploadedFile');
+            const submitUploadButton = document.getElementById('submitUploadMarginsButton');
+            const uploadClientError = document.getElementById('uploadClientError');
+            const originalButtonText = submitUploadButton ? submitUploadButton.innerHTML : 'Wgraj Marże';
+
+            // Logika otwierania modala (już istnieje w Twoim głównym skrypcie, ale upewnij się, że działa)
+            const uploadMarginsButton = document.getElementById('uploadMarginsButton'); // Przycisk na stronie
+            if (uploadMarginsButton && uploadMarginsModal) {
+                uploadMarginsButton.addEventListener('click', function () {
+                    // Resetuj stan modala przed pokazaniem
+                    if (uploadMarginsForm) uploadMarginsForm.reset();
+                    if (uploadClientError) uploadClientError.style.display = 'none';
+                    if (submitUploadButton) {
+                        submitUploadButton.disabled = false;
+                        submitUploadButton.innerHTML = originalButtonText;
+                    }
+                    $('#uploadMarginsModal').modal('show'); // Użycie jQuery do pokazania modala Bootstrap
+                });
+            }
+
+            if (uploadMarginsForm && uploadedFileField && submitUploadButton && uploadClientError) {
+                uploadMarginsForm.addEventListener('submit', function (event) {
+                    uploadClientError.style.display = 'none';
+                    uploadClientError.textContent = '';
+
+                    // 1. Walidacja czy plik został wybrany
+                    if (!uploadedFileField.files || uploadedFileField.files.length === 0) {
+                        event.preventDefault(); // Zatrzymaj wysyłanie formularza
+                        uploadClientError.textContent = 'Proszę wybrać plik.';
+                        uploadClientError.style.display = 'block';
+                        return;
+                    }
+
+                    // 2. Walidacja rozszerzenia pliku
+                    const fileName = uploadedFileField.files[0].name;
+                    const fileSize = uploadedFileField.files[0].size;
+                    const allowedExtensions = /(\.xls|\.xlsx)$/i;
+                    const maxFileSize = 10 * 1024 * 1024; // 10 MB (tak jak na backendzie)
+
+                    if (!allowedExtensions.exec(fileName)) {
+                        event.preventDefault();
+                        uploadClientError.textContent = 'Niewspierany format pliku. Proszę wgrać plik Excel (.xls lub .xlsx).';
+                        uploadClientError.style.display = 'block';
+                        uploadedFileField.value = ''; // Wyczyść pole pliku
+                        return;
+                    }
+
+                    if (fileSize > maxFileSize) {
+                        event.preventDefault();
+                        uploadClientError.textContent = 'Wielkość pliku nie może przekraczać 10 MB.';
+                        uploadClientError.style.display = 'block';
+                        uploadedFileField.value = ''; // Wyczyść pole pliku
+                        return;
+                    }
+
+                    // 3. Pokaż spinner i zablokuj przycisk (jeśli walidacja przeszła)
+                    submitUploadButton.disabled = true;
+                    submitUploadButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Wgrywanie...';
+
+                });
+            }
+
+            // Opcjonalnie: Resetowanie stanu przycisku i błędów, jeśli modal zostanie zamknięty inaczej niż przez submit
+            // (np. przez kliknięcie "Anuluj" lub "x")
+            if (uploadMarginsModal) {
+                $(uploadMarginsModal).on('hidden.bs.modal', function () {
+                    if (uploadClientError) uploadClientError.style.display = 'none';
+                    if (submitUploadButton) {
+                        submitUploadButton.disabled = false;
+                        submitUploadButton.innerHTML = originalButtonText;
+                    }
+                    // Formularz jest resetowany przy otwieraniu, więc tutaj nie trzeba, chyba że jest specyficzny przypadek.
+                });
+            }
         });
     </script>
 }
