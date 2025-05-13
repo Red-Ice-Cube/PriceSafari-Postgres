@@ -1,7 +1,7 @@
 ﻿document.addEventListener("DOMContentLoaded", function () {
 
     function getColorForScore(score) {
- 
+
         const hue = (score / 100) * 120;
         return `hsl(${hue}, 70%, 45%)`;
     }
@@ -10,13 +10,12 @@
         const color = getColorForScore(score);
         const percentage = score;
 
-     
         const roundedScore = Math.round(score);
 
         return `
         <div style="display: inline-block; margin: 8px 8px 0 0; text-align: center; vertical-align: middle;">
             <div style="position: relative; display: inline-block; width: 80px; height: 80px;">
-        
+
                 <div style="
                     width: 80px;
                     height: 80px;
@@ -24,7 +23,7 @@
                     border: 1px solid #e3e3e3;
                     background: conic-gradient(${color} 0% ${percentage}%, #fff ${percentage}% 100%);
                 "></div>
-             
+
                 <div style="
                     position: absolute;
                     top: 10px;
@@ -35,7 +34,7 @@
                     border: 1px solid #e3e3e3;
                     border-radius: 50%;
                 "></div>
-            
+
                 <div style="
                     position: absolute;
                     top: 50%;
@@ -57,8 +56,6 @@
     `;
     }
 
-
-
     const localStorageKey = 'selectedPriceChanges_' + storeId;
     var selectedPriceChanges = [];
     const storedChanges = localStorage.getItem(localStorageKey);
@@ -66,7 +63,7 @@
         try {
             selectedPriceChanges = JSON.parse(storedChanges);
         } catch (err) {
-   
+
         }
     }
 
@@ -76,7 +73,6 @@
     let eanMapGlobal = {};
     let externalIdMapGlobal = {};
 
-
     let originalRowsData = [];
 
     function getCurrentDateString() {
@@ -84,7 +80,6 @@
         return d.toISOString().split('T')[0];
     }
 
- 
     function updatePriceChangeSummary() {
         var increasedCount = selectedPriceChanges.filter(function (item) {
             return item.newPrice > item.currentPrice;
@@ -108,11 +103,9 @@
         }
     }
 
-
     function savePriceChanges() {
         localStorage.setItem(localStorageKey, JSON.stringify(selectedPriceChanges));
     }
-
 
     function clearPriceChanges() {
         selectedPriceChanges = [];
@@ -131,7 +124,6 @@
         });
     }
 
-   
     document.addEventListener('priceBoxChange', function (event) {
         const { productId, productName, currentPrice, newPrice } = event.detail;
         var existingIndex = selectedPriceChanges.findIndex(function (item) {
@@ -155,7 +147,6 @@
         updatePriceChangeSummary();
     });
 
-
     function showLoading() {
         document.getElementById("loadingOverlay").style.display = "flex";
     }
@@ -164,12 +155,11 @@
     }
 
     function parseRankingString(rankStr) {
-       
+
         if (!rankStr) {
             return { rank: null, isRange: false, rangeSize: 1 };
         }
 
-     
         const slashIndex = rankStr.indexOf("/");
         let relevantPart = (slashIndex !== -1)
             ? rankStr.substring(0, slashIndex).trim()
@@ -191,7 +181,7 @@
                 }
             }
         } else {
-           
+
             const val = parseFloat(relevantPart);
             if (!isNaN(val)) {
                 rankVal = val;
@@ -217,7 +207,6 @@
             };
         }
 
-     
         let googleOldData = simResult.currentGoogleRanking
             ? parseRankingString(String(simResult.currentGoogleRanking))
             : { rank: null, isRange: false, rangeSize: 1 };
@@ -238,7 +227,6 @@
 
         let totalC = simResult.totalCeneoOffers ? parseInt(simResult.totalCeneoOffers, 10) : 0;
 
-      
         let googleGained = 0;
         if (googleOldData.rank !== null && googleNewData.rank !== null && totalG > 0) {
             const diff = googleOldData.rank - googleNewData.rank;
@@ -256,11 +244,10 @@
             costFrac = cost / item.currentPrice;
         }
 
-        
         function getPlaceBonus(rankRounded) {
-            if (rankRounded === 1) return 0.5;  
-            if (rankRounded === 2) return 0.2;  
-            if (rankRounded === 3) return 0.1; 
+            if (rankRounded === 1) return 0.5;
+            if (rankRounded === 2) return 0.2;
+            if (rankRounded === 3) return 0.1;
             return 0;
         }
 
@@ -271,28 +258,22 @@
             let gainedPos = oldRankData.rank - newRankData.rank;
             if (gainedPos <= 0) return null;
 
-           
             let jumpFrac = gainedPos * Math.log10(totalOffers + 1);
 
-      
             let rankRounded = Math.round(newRankData.rank);
             let placeBonus = getPlaceBonus(rankRounded);
 
-        
             if (newRankData.isRange && newRankData.rangeSize > 1) {
                 placeBonus *= 0.4;
             }
 
-          
             let effectiveCostFrac = (costFrac < 0.000001) ? 0.000001 : costFrac;
 
-         
-            let costFracPower = 0.5; 
+            let costFracPower = 0.5;
             let costFracAdjusted = Math.pow(effectiveCostFrac, costFracPower);
-            let offset = 0.0001; 
+            let offset = 0.0001;
             let raw = (jumpFrac + placeBonus) / (costFracAdjusted + offset);
 
-         
             let channelLogScale = 35;
             let val = Math.log10(raw + 1) * channelLogScale;
 
@@ -301,8 +282,6 @@
             return val;
         }
 
-
-   
         const googleFinalScore = channelScore(googleOldData, googleNewData, totalG);
         const ceneoFinalScore = channelScore(ceneoOldData, ceneoNewData, totalC);
 
@@ -316,8 +295,6 @@
         };
     }
 
-
-   
     function buildPriceBlock(price, marginPercent, marginValue, googleRank, googleOffers, ceneoRank, ceneoOffers) {
         let block = '<div class="price-info-box">';
         block += `
@@ -359,7 +336,6 @@
         return block;
     }
 
-    // Otwieramy okno symulacji
     function openSimulationModal() {
         showLoading();
         var simulationData = selectedPriceChanges.map(function (item) {
@@ -453,7 +429,6 @@
                         externalId = String(prodDetail.externalId);
                     }
 
-                    // --- Obliczamy różnicę dla kolumny "Zmiana" ---
                     let diff = item.newPrice - item.currentPrice;
                     let arrow = diff > 0
                         ? '<span style="color: red;">▲</span>'
@@ -461,14 +436,11 @@
                             ? '<span style="color: green;">▼</span>'
                             : '<span style="color: gray;">●</span>';
 
-                    // Wyliczenie % zmiany
                     let diffPercent = 0;
                     if (item.currentPrice > 0) {
                         diffPercent = (diff / item.currentPrice) * 100;
                     }
 
-
-                    // Bloki "Obecne" i "Po zmianie"
                     let currentBlock = buildPriceBlock(
                         item.currentPrice,
                         simResult && simResult.currentMargin,
@@ -488,18 +460,14 @@
                         simResult && simResult.totalCeneoOffers
                     );
 
-          
                     let opp = computeOpportunityScore(item, simResult);
                     let googleScore = (opp.googleFinalScore != null) ? opp.googleFinalScore : 0;
                     let ceneoScore = (opp.ceneoFinalScore != null) ? opp.ceneoFinalScore : 0;
                     let bestScore = Math.max(googleScore, ceneoScore);
 
-
                     let effectDetails = "";
                     if (diff < 0) {
-                        // Sprawdzamy, czy jest to sytuacja "Wyrównanie do kroku cenowego"
-                        // Zakładamy, że jeśli nie ma score (bo nie ma zmiany pozycji), a cena spadła, to jest to ten przypadek.
-                        // Możesz dodać bardziej precyzyjny warunek, jeśli masz dostęp do informacji o "kroku cenowym" w tym miejscu.
+
                         const isPriceStepAdjustment = (opp.googleGained === 0 && opp.ceneoGained === 0) && (opp.googleFinalScore == null && opp.ceneoFinalScore == null);
 
                         if (isPriceStepAdjustment) {
@@ -514,7 +482,7 @@
                             if (opp.ceneoFinalScore != null) {
                                 effectDetails += createDonutChart(opp.ceneoFinalScore, "/images/Ceneo.png");
                             }
-                            // Jeśli oba score są null, ale nie jest to "wyrównanie" (np. inna logika), można dodać domyślny komunikat
+
                             if (opp.googleFinalScore == null && opp.ceneoFinalScore == null && !isPriceStepAdjustment) {
                                 effectDetails += `<div>
                                   <span style="color: green; font-weight: 400; font-size: 16px;">▼</span>
@@ -522,12 +490,12 @@
                                 </div>`;
                             }
                         }
-                    } else if (diff > 0) { // Jawnie sprawdzamy czy diff > 0 dla podwyżki
+                    } else if (diff > 0) {
                         effectDetails += `<div>
                                   <span style="color: red; font-weight: 400; font-size: 16px;">▲</span>
                                   <span style="color: #222222; font-weight: 400; font-size: 16px;"> Podwyżka ceny</span>
                                 </div>`;
-                    } else { // diff === 0
+                    } else {
                         effectDetails += `<div>
                                   <span style="color: gray; font-weight: 400; font-size: 16px;">●</span>
                                   <span style="color: #222222; font-weight: 400; font-size: 16px;"> Bez zmian</span>
@@ -546,9 +514,10 @@
                         arrow,
                         currentBlock,
                         newBlock,
-                        finalScore: bestScore, 
+                        finalScore: bestScore,
                         effectDetails,
-                        productId: item.productId
+                        productId: item.productId,
+                        scrapId: globalLatestScrapId
                     });
                 });
 
@@ -566,7 +535,6 @@
                 hideLoading();
             });
     }
-
 
     function renderRows(rows) {
         const tbody = document.getElementById("simulationTbody");
@@ -599,8 +567,18 @@
 
             html += `<tr>
                 ${imageCell}
-                <td>
-                    <div class="price-info-item" style="font-size:125%;">${row.productName}</div>
+                 <td>
+               <a
+  href="/PriceHistory/Details?scrapId=${row.scrapId}&productId=${row.productId}"
+  target="_blank"
+  rel="noopener noreferrer"
+  style="text-decoration: none; color: inherit;"
+>
+  <div class="price-info-item" style="font-size:125%;">
+    ${row.productName}
+  </div>
+</a>
+
                     ${eanInfo}
                     ${extIdInfo}
                 </td>
@@ -626,21 +604,45 @@
 
         tbody.innerHTML = html;
 
-        // Obsługa usuwania wierszy
         document.querySelectorAll('.remove-change-btn').forEach(btn => {
             btn.addEventListener('click', function (e) {
                 e.stopPropagation();
                 var prodId = this.getAttribute('data-product-id');
+                const productIdToRemove = parseInt(prodId);
+
+                selectedPriceChanges = selectedPriceChanges.filter(function (item) {
+                    return parseInt(item.productId) !== productIdToRemove;
+                });
+                savePriceChanges();
+
+                updatePriceChangeSummary();
+
+                originalRowsData = originalRowsData.filter(function (rowItem) {
+                    return parseInt(rowItem.productId) !== productIdToRemove;
+                });
+
+                const rowElement = this.closest('tr');
+                if (rowElement) {
+                    rowElement.remove();
+                }
+
+                if (selectedPriceChanges.length === 0) {
+                    const tableContainer = document.getElementById("simulationModalBody");
+                    const simulationTable = document.getElementById("simulationTable");
+                    if (tableContainer && simulationTable) {
+                        simulationTable.remove();
+                        tableContainer.innerHTML = '<p style="text-align: center; padding: 20px; font-size: 16px;">Brak produktów do symulacji.</p>';
+                    }
+                }
+
                 const removeEvent = new CustomEvent('priceBoxChangeRemove', {
                     detail: { productId: prodId }
                 });
                 document.dispatchEvent(removeEvent);
-                openSimulationModal();
+
             });
         });
     }
-
-
 
     const bestScoreBtn = document.getElementById("bestScoreButton");
     if (bestScoreBtn) {
@@ -651,7 +653,6 @@
             renderRows(sorted);
         });
     }
-
 
     function showExportDisclaimer(type) {
         pendingExportType = type;
@@ -739,7 +740,6 @@
         }, 1000);
     }
 
-   
     var simulateButton = document.getElementById("simulateButton");
     if (simulateButton) {
         simulateButton.addEventListener("click", function () {
@@ -763,7 +763,6 @@
 
     updatePriceChangeSummary();
 
-   
     var closeButtons = document.querySelectorAll('#simulationModal .close, #simulationModal [data-dismiss="modal"]');
     closeButtons.forEach(function (btn) {
         btn.addEventListener('click', function () {
@@ -771,7 +770,12 @@
             simulationModal.style.display = 'none';
             simulationModal.classList.remove('show');
 
-            loadPrices();
+            if (typeof window.refreshPriceBoxStates === 'function') {
+                window.refreshPriceBoxStates();
+            } else {
+                console.warn("Funkcja refreshPriceBoxStates nie została znaleziona. Rozważam fallback do loadPrices().");
+
+            }
         });
     });
 

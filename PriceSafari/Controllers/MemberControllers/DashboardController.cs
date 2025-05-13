@@ -65,7 +65,7 @@ namespace PriceSafari.Controllers.MemberControllers
         [HttpGet]
         public async Task<IActionResult> GetDashboardData(
                 int storeId,
-                int scraps = 30,
+                int scraps = 7,
                 string connectionId = null)        
         {
 

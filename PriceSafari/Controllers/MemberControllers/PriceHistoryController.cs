@@ -96,6 +96,7 @@ namespace PriceSafari.Controllers.MemberControllers
             ViewBag.StoreId = storeId;
             ViewBag.StoreName = storeName;
             ViewBag.StoreLogo = storeLogo;
+            ViewBag.ScrapId = latestScrap.Id;
             ViewBag.Flags = flags;
             ViewBag.ScrapedProducts = scrapedproducts;
 

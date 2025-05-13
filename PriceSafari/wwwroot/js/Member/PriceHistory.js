@@ -298,6 +298,52 @@
         window.scrollTo(0, 0);
     }
 
+    function refreshPriceBoxStates() {
+        const storedChangesJSON = localStorage.getItem('selectedPriceChanges_' + storeId);
+        let activeChangesProductIds = new Set();
+
+        if (storedChangesJSON) {
+            try {
+                const parsedChanges = JSON.parse(storedChangesJSON);
+                parsedChanges.forEach(change => activeChangesProductIds.add(String(change.productId)));
+            } catch (err) {
+                console.error("Błąd parsowania selectedPriceChanges w refreshPriceBoxStates:", err);
+
+            }
+        }
+
+        const allPriceBoxes = document.querySelectorAll('#priceContainer .price-box');
+
+        allPriceBoxes.forEach(priceBox => {
+            const productId = priceBox.dataset.productId;
+            if (!productId) return;
+
+            const isProductStillTrackedForChange = activeChangesProductIds.has(String(productId));
+
+            if (priceBox.classList.contains('price-changed') && !isProductStillTrackedForChange) {
+
+                priceBox.classList.remove('price-changed');
+
+                const activeButtons = priceBox.querySelectorAll('.simulate-change-btn.active');
+                activeButtons.forEach(button => {
+                    button.classList.remove('active');
+                    button.style.backgroundColor = "";
+                    button.style.color = "";
+
+                    while (button.firstChild) {
+                        button.removeChild(button.firstChild);
+                    }
+                    button.textContent = button.dataset.originalText || "Zmień cenę";
+                });
+            } else if (!priceBox.classList.contains('price-changed') && isProductStillTrackedForChange) {
+
+            }
+        });
+
+    }
+
+    window.refreshPriceBoxStates = refreshPriceBoxStates;
+
     function renderPaginationControls(totalItems) {
         const totalPages = Math.ceil(totalItems / itemsPerPage);
         const paginationContainer = document.getElementById('paginationContainer');
@@ -1520,6 +1566,7 @@
                         const matchPriceBtn = document.createElement('button');
                         matchPriceBtn.className = 'simulate-change-btn';
                         matchPriceBtn.textContent = 'Zmień cenę';
+                        matchPriceBtn.dataset.originalText = 'Zmień cenę';
 
                         if (!requiredField || requiredField.toString().trim() === "") {
                             matchPriceBtn.addEventListener("click", function (e) {
@@ -1558,6 +1605,7 @@
                         const strategicPriceBtn = document.createElement('button');
                         strategicPriceBtn.className = 'simulate-change-btn';
                         strategicPriceBtn.textContent = 'Zmień cenę';
+                        strategicPriceBtn.dataset.originalText = 'Zmień cenę';
 
                         if (!requiredField || requiredField.toString().trim() === "") {
                             strategicPriceBtn.addEventListener("click", function (e) {
@@ -1626,6 +1674,7 @@
                         const matchPriceBtn = document.createElement('button');
                         matchPriceBtn.className = 'simulate-change-btn';
                         matchPriceBtn.textContent = 'Zmień cenę';
+                        matchPriceBtn.dataset.originalText = 'Zmień cenę';
 
                         if (!requiredField || requiredField.toString().trim() === "") {
                             matchPriceBtn.addEventListener("click", function (e) {
@@ -1664,6 +1713,7 @@
                         const strategicPriceBtn = document.createElement('button');
                         strategicPriceBtn.className = 'simulate-change-btn';
                         strategicPriceBtn.textContent = 'Zmień cenę';
+                        strategicPriceBtn.dataset.originalText = 'Zmień cenę';
 
                         if (!requiredField || requiredField.toString().trim() === "") {
                             strategicPriceBtn.addEventListener("click", function (e) {
@@ -1732,7 +1782,7 @@
                         const matchPriceBtn = document.createElement('button');
                         matchPriceBtn.className = 'simulate-change-btn';
                         matchPriceBtn.textContent = 'Zmień cenę';
-
+                        matchPriceBtn.dataset.originalText = 'Zmień cenę';
                         if (!requiredField || requiredField.toString().trim() === "") {
                             matchPriceBtn.addEventListener("click", function (e) {
                                 e.preventDefault();
@@ -1770,6 +1820,7 @@
                         const strategicPriceBtn = document.createElement('button');
                         strategicPriceBtn.className = 'simulate-change-btn';
                         strategicPriceBtn.textContent = 'Zmień cenę';
+                        strategicPriceBtn.dataset.originalText = 'Zmień cenę';
 
                         if (!requiredField || requiredField.toString().trim() === "") {
                             strategicPriceBtn.addEventListener("click", function (e) {
@@ -1864,6 +1915,7 @@
                         const matchPriceBtn = document.createElement('button');
                         matchPriceBtn.className = 'simulate-change-btn';
                         matchPriceBtn.textContent = 'Zmień cenę';
+                        matchPriceBtn.dataset.originalText = 'Zmień cenę';
 
                         if (!requiredField || requiredField.toString().trim() === "") {
                             matchPriceBtn.addEventListener("click", function (e) {
@@ -1902,6 +1954,7 @@
                         const strategicPriceBtn = document.createElement('button');
                         strategicPriceBtn.className = 'simulate-change-btn';
                         strategicPriceBtn.textContent = 'Zmień cenę';
+                        strategicPriceBtn.dataset.originalText = 'Zmień cenę';
 
                         if (!requiredField || requiredField.toString().trim() === "") {
                             strategicPriceBtn.addEventListener("click", function (e) {

@@ -5,6 +5,7 @@
     var latestScrap = ViewBag.LatestScrap as PriceSafari.Models.ScrapHistoryClass;
     var storeId = ViewBag.StoreId;
     var storeLogo = ViewBag.StoreLogo;
+    var scrapId = ViewBag.ScrapId;
     var flags = ViewBag.Flags as List<PriceSafari.Models.FlagsClass>;
 }
 
@@ -690,6 +691,7 @@
         })();
         var scrapDateJS = "@scrapDate";
         var myStoreNameJS = "@store";
+        var globalLatestScrapId = "@scrapId";
     </script>
 
     <script src="~/js/member/PriceChange.js"></script>

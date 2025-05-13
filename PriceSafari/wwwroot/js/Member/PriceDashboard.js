@@ -1,5 +1,4 @@
-﻿
-const hub = new signalR.HubConnectionBuilder()
+﻿const hub = new signalR.HubConnectionBuilder()
     .withUrl("/dashboardProgressHub")
     .build();
 
@@ -7,18 +6,16 @@ let hubConnectionId = null;
 
 hub.start()
     .then(() => hub.invoke("GetConnectionId"))
-    .then(id => { hubConnectionId = id; load(30); })   // pierwotne pierwsze ładowanie
+    .then(id => { hubConnectionId = id; load(7); })
     .catch(err => console.error(err));
 
-/* ---- 2.1  obsługa postępu z huba ---- */
-hub.on("ReceiveProgress", (_msg, percent) => {          // _msg ignorujemy
+hub.on("ReceiveProgress", (_msg, percent) => {
     document.getElementById("progressBar").style.width = percent + "%";
     document.getElementById("progressText").innerText = `Ładowanie… ${percent}%`;
 
     if (percent === 100) setTimeout(hideLoadingOverlay, 800);
 });
 
-/* ---- 2.2  pokaż nakładkę ---- */
 function showLoadingOverlay() {
     document.getElementById("progressBar").style.width = "0%";
     document.getElementById("progressText").innerText = "Ładowanie… 0%";
@@ -29,7 +26,6 @@ function hideLoadingOverlay() {
     document.getElementById("loadingOverlay").style.display = "none";
 }
 
-
 function mapDayFull(d) {
     return {
         Mon: "Poniedziałek", Tue: "Wtorek", Wed: "Środa", Thu: "Czwartek",
@@ -39,23 +35,21 @@ function mapDayFull(d) {
     }[d] || d;
 }
 
-
-let chart;                
-let tooltipDates = [];    
-let tooltipDays = [];  
-let openedId = null;    
-
+let chart;
+let tooltipDates = [];
+let tooltipDays = [];
+let openedId = null;
 
 function drawChart(data) {
     tooltipDates = data.map(r => r.date);
     tooltipDays = data.map(r => r.day);
 
     const ctx = document.getElementById("priceAnaliseChart").getContext("2d");
-    const labels = data.map(r => r.date.slice(5)); 
+    const labels = data.map(r => r.date.slice(5));
     const lowered = data.map(r => -r.lowered);
     const raised = data.map(r => r.raised);
 
-    if (chart) {                   
+    if (chart) {
         chart.data.labels = labels;
         chart.data.datasets[0].data = lowered;
         chart.data.datasets[1].data = raised;
@@ -115,10 +109,6 @@ function drawChart(data) {
         }
     });
 }
-
-
-
-
 
 function buildTable(rows) {
     const rowsDesc = [...rows].reverse();
@@ -224,18 +214,16 @@ function buildTable(rows) {
         const upArrow = '<span style="color: red;">&#9650;</span>';
         const grayCircle = '<span style="color: gray;">&#9679;</span>';
 
-      
         if (r.lowered > 0) {
             loweredCellContent = `${downArrow} ${r.lowered}`;
         } else {
-            loweredCellContent = `${grayCircle} 0`; 
+            loweredCellContent = `${grayCircle} 0`;
         }
-
 
         if (r.raised > 0) {
             raisedCellContent = `${upArrow} ${r.raised}`;
         } else {
-            raisedCellContent = `${grayCircle} 0`; 
+            raisedCellContent = `${grayCircle} 0`;
         }
 
         tb.insertAdjacentHTML("beforeend", `
@@ -268,10 +256,6 @@ function buildTable(rows) {
     });
 }
 
-
-
-
-
 function toggleRowSmooth(id) {
     if (openedId && openedId !== id) closeRow(openedId);
     if (openedId === id) { closeRow(id); openedId = null; return; }
@@ -296,7 +280,6 @@ function closeRow(id) {
     const parentRow = document.querySelector(`tr.parent-row[data-target="${id}"]`);
     const contentBox = row.querySelector('.details-content');
 
-
     parentRow.classList.remove('active');
 
     contentBox.style.maxHeight = contentBox.scrollHeight + 'px';
@@ -311,9 +294,8 @@ function closeRow(id) {
     });
 }
 
-
 async function load(count) {
-    if (!hubConnectionId) return;       
+    if (!hubConnectionId) return;
 
     showLoadingOverlay("Ładowanie danych…");
 
@@ -326,11 +308,10 @@ async function load(count) {
     drawChart(data);
     buildTable(data);
 
-  
     setTimeout(hideLoadingOverlay, 200);
 }
 
-document.addEventListener("DOMContentLoaded", () => {                                    
+document.addEventListener("DOMContentLoaded", () => {
     document.querySelectorAll(".dateShortcut").forEach(btn => {
         btn.addEventListener("click", () => {
             document.querySelectorAll(".dateShortcut").forEach(b => b.classList.remove("active"));
