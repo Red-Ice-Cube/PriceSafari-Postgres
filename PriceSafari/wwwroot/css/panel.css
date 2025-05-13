@@ -3682,19 +3682,20 @@ tr:last-child .sub-line {
     }
 
 .price-range-settings-stepPrice::before {
-    display: flex;
-    padding-left: 2px;
-    padding-bottom: 2px;
-    content: '⮯';
+    display: inline-block;
+    content: '\f309';
+    font-family: "Font Awesome 6 Free";
+    font-weight: 800;
+    font-size: 12px;
     color: #fff;
-    font-size: 18px;
-    margin-left: 3px;
     background-color: rgba(13, 110, 253, 0.7);
     min-width: 16px;
     max-width: 16px;
     height: 24px;
     border-radius: 4px;
-    display: inline-block;
+    margin-left: 3px;
+    text-align: center;
+    line-height: 24px;
 }
 
 .store-section {
@@ -4094,7 +4095,6 @@ th small {
         border-radius: 5px;
     }
 
-
 #sortingButtons {
     display: inline-flex;
     gap: 6px;
@@ -4297,19 +4297,24 @@ th small {
 }
 
 .color-square-turquoise {
-    width: 16px;
-    height: 24px;
-    border-radius: 4px;
-    background-color: rgba(13, 110, 253, 0.7);
     display: inline-block;
     margin-left: 14px;
+    vertical-align: middle;
 }
 
     .color-square-turquoise::before {
-        content: '⮯';
+        content: '\f309';
+        font-family: "Font Awesome 6 Free";
+        font-weight: 900;
+        font-size: 12px;
         color: #fff;
-        font-size: 18px;
-        margin-left: 2px;
+        display: inline-block;
+        width: 16px;
+        height: 24px;
+        background-color: rgba(13, 110, 253, 0.7);
+        border-radius: 4px;
+        text-align: center;
+        line-height: 24px;
     }
 
 .price-box-column span {

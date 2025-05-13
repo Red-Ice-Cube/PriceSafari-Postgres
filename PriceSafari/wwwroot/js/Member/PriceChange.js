@@ -569,15 +569,15 @@
                 ${imageCell}
                  <td>
                <a
-  href="/PriceHistory/Details?scrapId=${row.scrapId}&productId=${row.productId}"
-  target="_blank"
-  rel="noopener noreferrer"
-  style="text-decoration: none; color: inherit;"
->
-  <div class="price-info-item" style="font-size:125%;">
-    ${row.productName}
-  </div>
-</a>
+                  href="/PriceHistory/Details?scrapId=${row.scrapId}&productId=${row.productId}"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="simulationProductTitle"
+                >
+                  <div class="price-info-item" style="font-size:125%;">
+                    ${row.productName}
+                  </div>
+                </a>
 
                     ${eanInfo}
                     ${extIdInfo}

@@ -1,13 +1,12 @@
 ﻿using PriceSafari.Models;
 using PuppeteerSharp;
-using System; // Dla EventArgs i Exception
+using System;
 using System.Globalization;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 using System.Linq;
 
-// Definicja wyjątku dla CAPTCHA
 public class CaptchaDetectedException : Exception
 {
     public CaptchaDetectedException(string message) : base(message) { }
@@ -19,20 +18,19 @@ public class GoogleMainPriceScraper
     private Page _page;
     private bool _expandAndCompareGoogleOffersSetting;
 
-    // Zdarzenie do sygnalizowania wykrycia CAPTCHA
     public event EventHandler CaptchaDetected;
 
     protected virtual void OnCaptchaDetected(string url)
     {
         CaptchaDetected?.Invoke(this, EventArgs.Empty);
-        // Rzucenie wyjątku jest bardziej bezpośrednim sposobem przerwania operacji w scraperze
+
         throw new CaptchaDetectedException($"CAPTCHA page detected at {url}");
     }
 
     public async Task InitializeAsync(Settings settings)
     {
         var browserFetcher = new BrowserFetcher();
-        await browserFetcher.DownloadAsync(); // Rozważ pobieranie tylko jeśli nie istnieje
+        await browserFetcher.DownloadAsync();
 
         _browser = (Browser)await Puppeteer.LaunchAsync(new LaunchOptions
         {
@@ -65,12 +63,11 @@ public class GoogleMainPriceScraper
         }
 
         await _page.GoToAsync(url, options);
-        //await Task.Delay(600); // Można usunąć lub dostosować, Networkidle2 powinno wystarczyć
 
         if (_page.Url.Contains("google.com/sorry/", StringComparison.OrdinalIgnoreCase))
         {
             Console.WriteLine($"CAPTCHA detected! Current URL: {_page.Url}");
-            OnCaptchaDetected(_page.Url); // Wywołaj zdarzenie i rzuć wyjątek
+            OnCaptchaDetected(_page.Url);
         }
     }
 
@@ -83,7 +80,7 @@ public class GoogleMainPriceScraper
         if (string.IsNullOrEmpty(productId))
         {
             Console.WriteLine($"Product ID not found in URL: {googleOfferUrl}. Skipping.");
-            return scrapedData; // Zwróć pustą listę, jeśli ID produktu jest nieprawidłowe
+            return scrapedData;
         }
 
         string productOffersUrl = $"{googleOfferUrl}/offers?prds=cid:{productId},cond:1&gl=pl&hl=pl";
@@ -91,11 +88,7 @@ public class GoogleMainPriceScraper
         int currentPage = 0;
         int positionCounter = 1;
 
-        // Usunięto blok try-catch dla CaptchaDetectedException, aby propagował się wyżej
-        // Inne wyjątki nadal mogą być tutaj łapane, jeśli jest taka potrzeba,
-        // ale dla CAPTCHA chcemy, aby kontroler go obsłużył.
-
-        while (hasNextPage && currentPage < 3) // Ograniczenie do 3 stron
+        while (hasNextPage && currentPage < 3)
         {
             string paginatedUrl = currentPage == 0
                 ? productOffersUrl
@@ -103,8 +96,6 @@ public class GoogleMainPriceScraper
 
             Console.WriteLine($"Navigating to page {currentPage + 1}: {paginatedUrl}");
             await NavigateAndCheckCaptchaAsync(paginatedUrl, new NavigationOptions { WaitUntil = new[] { WaitUntilNavigation.Networkidle2 } });
-
-            // Usunięto drugie, redundantne wywołanie GoToAsync
 
             if (_expandAndCompareGoogleOffersSetting)
             {
@@ -117,7 +108,7 @@ public class GoogleMainPriceScraper
                         try
                         {
                             await button.ClickAsync();
-                            await Task.Delay(500); // Czas na załadowanie
+                            await Task.Delay(500);
                         }
                         catch (Exception ex)
                         {
@@ -140,18 +131,17 @@ public class GoogleMainPriceScraper
             var offersCountOnPage = offerRows.Length;
             Console.WriteLine($"Found {offersCountOnPage} offers on current page.");
 
-            if (offersCountOnPage == 0 && currentPage > 0) // Jeśli nie ma ofert na kolejnej stronie (poza pierwszą)
+            if (offersCountOnPage == 0 && currentPage > 0)
             {
                 Console.WriteLine("No offers found on this page, likely end of results.");
-                hasNextPage = false; // Prawdopodobnie koniec stron
-                continue; // Przejdź do następnej iteracji pętli (sprawdzi hasNextPage)
+                hasNextPage = false;
+                continue;
             }
-            if (offersCountOnPage == 0 && currentPage == 0) // Jeśli brak ofert na pierwszej stronie
+            if (offersCountOnPage == 0 && currentPage == 0)
             {
                 Console.WriteLine("No offers found on the first page. Product might have no offers.");
-                break; // Przerwij, jeśli pierwsza strona jest pusta
+                break;
             }
-
 
             for (int i = 1; i <= offersCountOnPage; i++)
             {
@@ -178,7 +168,7 @@ public class GoogleMainPriceScraper
 
                     var priceDecimal = ExtractPrice(priceText);
                     var priceWithDeliveryDecimal = ExtractPrice(priceWithDeliveryText);
-                    var currentPositionInPage = positionCounter++; // Użyj globalnego licznika pozycji
+                    var currentPositionInPage = positionCounter++;
 
                     var offer = new CoOfrPriceHistoryClass
                     {
@@ -211,11 +201,11 @@ public class GoogleMainPriceScraper
                 if (hiddenOfferRows.Any())
                 {
                     Console.WriteLine($"Found {hiddenOfferRows.Length} hidden/expanded offer rows.");
-                    foreach (var hiddenRowElement in hiddenOfferRows) // Użyj foreach dla czytelności
+                    foreach (var hiddenRowElement in hiddenOfferRows)
                     {
-                        var hiddenStoreNameSelector = "td:nth-child(1) > div._-ez > a"; // Może wymagać dostosowania
+                        var hiddenStoreNameSelector = "td:nth-child(1) > div._-ez > a";
                         var hiddenPriceSelector = "td:nth-child(4) > span";
-                        var hiddenPriceWithDeliverySelector = "td:nth-child(5) > div"; // Bardziej ogólny
+                        var hiddenPriceWithDeliverySelector = "td:nth-child(5) > div";
 
                         var hiddenStoreNameElement = await hiddenRowElement.QuerySelectorAsync(hiddenStoreNameSelector);
                         if (hiddenStoreNameElement != null)
@@ -236,8 +226,8 @@ public class GoogleMainPriceScraper
 
                             var hiddenPriceDecimal = ExtractPrice(hiddenPriceText);
                             var hiddenPriceWithDeliveryDecimal = ExtractPrice(hiddenPriceWithDeliveryText);
-                            // Pozycja dla ukrytych ofert może być kontynuacją lub specjalnie oznaczona
-                            var currentHiddenPosition = positionCounter++; // Kontynuuj numerację pozycji
+
+                            var currentHiddenPosition = positionCounter++;
 
                             var offer = new CoOfrPriceHistoryClass
                             {
@@ -273,7 +263,6 @@ public class GoogleMainPriceScraper
                 Console.WriteLine("Skipping processing of hidden/expanded offers as ExpandAndCompareGoogleOffers is false.");
             }
 
-            // Logika paginacji (przywrócona ze starszej wersji)
             var paginationElement = await _page.QuerySelectorAsync("#sh-fp__pagination-button-wrapper");
             if (paginationElement != null)
             {
@@ -282,12 +271,8 @@ public class GoogleMainPriceScraper
                 {
                     currentPage++;
                     Console.WriteLine($"Moving to next page (old logic): {currentPage}");
-                    // W starej logice nie było jawnego ustawiania hasNextPage = true tutaj,
-                    // ponieważ pętla while (hasNextPage && ...) dbała o to.
-                    // Jeśli jednak nextPageElement jest znaleziony, to znaczy, że jest następna strona.
-                    // Domyślnie hasNextPage powinno być true na początku iteracji, jeśli nie doszliśmy do końca.
-                    // Dla pewności, jeśli nextPageElement jest znaleziony, można jawnie ustawić:
-                    hasNextPage = true; // Upewniamy się, że jest ustawione na true
+
+                    hasNextPage = true;
                 }
                 else
                 {
@@ -319,37 +304,27 @@ public class GoogleMainPriceScraper
         if (string.IsNullOrWhiteSpace(priceText)) return 0;
         try
         {
-            // 1. Usuń symbole walut i wszystko, co nie jest cyfrą, przecinkiem, kropką lub białym znakiem.
+
             var sanitizedPriceText = Regex.Replace(priceText, @"[^\d\s,.]", "");
 
-            // 2. Znormalizuj separator dziesiętny (przecinek na kropkę).
             var textWithDot = sanitizedPriceText.Replace(",", ".");
 
-            // 3. Usuń WSZYSTKIE białe znaki (w tym twarde spacje, tabulatory itp.).
-            //    Regex.Replace z @"\s+" usunie wszystkie wystąpienia jednego lub więcej białych znaków.
             var noSpacesText = Regex.Replace(textWithDot, @"\s+", "");
-            // Dla "984,00 zł" (gdzie spacja przed zł mogła być twarda):
-            // sanitizedPriceText = "984,00\u00A0"
-            // textWithDot = "984.00\u00A0"
-            // noSpacesText = "984.00" (wszystkie białe znaki usunięte)
 
             string finalPriceToParse = noSpacesText;
 
-            // 4. Logika obsługi wielokrotnych kropek (np. "1.234.56" jeśli kropka była separatorem tysięcy).
-            //    Zakłada, że OSTATNIA kropka jest separatorem dziesiętnym.
             int lastDotIndex = noSpacesText.LastIndexOf('.');
             if (lastDotIndex != -1)
             {
-                // Sprawdź, czy są inne kropki PRZED ostatnią.
+
                 if (noSpacesText.IndexOf('.') < lastDotIndex)
                 {
-                    string integerPart = noSpacesText.Substring(0, lastDotIndex).Replace(".", ""); // Usuń kropki z części całkowitej
+                    string integerPart = noSpacesText.Substring(0, lastDotIndex).Replace(".", "");
                     string decimalPart = noSpacesText.Substring(lastDotIndex + 1);
-                    finalPriceToParse = $"{integerPart}.{decimalPart}"; // Zrekonstruuj, np. "1234.56"
+                    finalPriceToParse = $"{integerPart}.{decimalPart}";
                 }
-                // Jeśli jest tylko jedna kropka (np. "984.00"), finalPriceToParse pozostaje noSpacesText.
+
             }
-            // W tym momencie finalPriceToParse powinien być czystą liczbą, np. "984.00" lub "1234.56".
 
             if (decimal.TryParse(finalPriceToParse, NumberStyles.Any, CultureInfo.InvariantCulture, out decimal priceDecimal))
             {
@@ -357,7 +332,7 @@ public class GoogleMainPriceScraper
             }
             else
             {
-                // Ulepszone logowanie, aby zobaczyć etapy transformacji
+
                 Console.WriteLine($"Failed to parse price. Original: '{priceText}' | Sanitized: '{sanitizedPriceText}' | WithDot: '{textWithDot}' | NoSpaces: '{noSpacesText}' | FinalToParse: '{finalPriceToParse}'");
             }
         }
