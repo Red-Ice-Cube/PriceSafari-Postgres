@@ -497,19 +497,41 @@
 
                     let effectDetails = "";
                     if (diff < 0) {
-       
-                        if (opp.googleFinalScore != null) {
-                            effectDetails += createDonutChart(opp.googleFinalScore, "/images/GoogleShopping.png");
-                        }
-                        if (opp.ceneoFinalScore != null) {
-                            effectDetails += createDonutChart(opp.ceneoFinalScore, "/images/Ceneo.png");
-                        }
-                    } else {
-                        effectDetails += `<div>
-                          <span style="color: red; font-weight: 400; font-size: 16px;">▲</span>
-                          <span style="color: #222222; font-weight: 400; font-size: 16px;"> Podwyżka</span>
-                        </div>`;
+                        // Sprawdzamy, czy jest to sytuacja "Wyrównanie do kroku cenowego"
+                        // Zakładamy, że jeśli nie ma score (bo nie ma zmiany pozycji), a cena spadła, to jest to ten przypadek.
+                        // Możesz dodać bardziej precyzyjny warunek, jeśli masz dostęp do informacji o "kroku cenowym" w tym miejscu.
+                        const isPriceStepAdjustment = (opp.googleGained === 0 && opp.ceneoGained === 0) && (opp.googleFinalScore == null && opp.ceneoFinalScore == null);
 
+                        if (isPriceStepAdjustment) {
+                            effectDetails += `<div>
+                                  <span style="color: green; font-weight: 400; font-size: 16px;">▼</span>
+                                  <span style="color: #222222; font-weight: 400; font-size: 16px;"> Obniżka krk. ceno.</span>
+                                </div>`;
+                        } else {
+                            if (opp.googleFinalScore != null) {
+                                effectDetails += createDonutChart(opp.googleFinalScore, "/images/GoogleShopping.png");
+                            }
+                            if (opp.ceneoFinalScore != null) {
+                                effectDetails += createDonutChart(opp.ceneoFinalScore, "/images/Ceneo.png");
+                            }
+                            // Jeśli oba score są null, ale nie jest to "wyrównanie" (np. inna logika), można dodać domyślny komunikat
+                            if (opp.googleFinalScore == null && opp.ceneoFinalScore == null && !isPriceStepAdjustment) {
+                                effectDetails += `<div>
+                                  <span style="color: green; font-weight: 400; font-size: 16px;">▼</span>
+                                  <span style="color: #222222; font-weight: 400; font-size: 16px;"> Obniżka</span>
+                                </div>`;
+                            }
+                        }
+                    } else if (diff > 0) { // Jawnie sprawdzamy czy diff > 0 dla podwyżki
+                        effectDetails += `<div>
+                                  <span style="color: red; font-weight: 400; font-size: 16px;">▲</span>
+                                  <span style="color: #222222; font-weight: 400; font-size: 16px;"> Podwyżka ceny</span>
+                                </div>`;
+                    } else { // diff === 0
+                        effectDetails += `<div>
+                                  <span style="color: gray; font-weight: 400; font-size: 16px;">●</span>
+                                  <span style="color: #222222; font-weight: 400; font-size: 16px;"> Bez zmian</span>
+                                </div>`;
                     }
 
                     rowsData.push({

@@ -62,20 +62,20 @@
         $('#massChangeModal').modal('hide');
     });
 
-    if (typeof storeId !== 'undefined') { // Upewnij się, że storeId jest dostępne
+    if (typeof storeId !== 'undefined') {
         restoreSortingState();
     } else {
         console.warn("storeId nie jest zdefiniowane podczas próby odtworzenia stanu sortowania.");
-       
+
     }
     function updateSortButtonVisuals() {
         Object.keys(sortingState).forEach(key => {
             const stateValue = sortingState[key];
-            const button = document.getElementById(key); // Zakładamy, że ID przycisku = klucz w sortingState
+            const button = document.getElementById(key);
 
-            if (button && stateValue !== null && stateValue !== false) { // Sprawdzamy też false dla showRejected
+            if (button && stateValue !== null && stateValue !== false) {
                 button.classList.add('active');
-                // Ustaw odpowiedni tekst/ikonę na podstawie stanu (asc/desc)
+
                 switch (key) {
                     case 'sortName':
                         button.innerHTML = stateValue === 'asc' ? 'A-Z ↑' : 'A-Z ↓';
@@ -102,43 +102,38 @@
                         button.innerHTML = stateValue === 'asc' ? 'Marża % ↑' : 'Marża % ↓';
                         break;
                     case 'showRejected':
-                        // Dla showRejected nie zmieniamy tekstu, tylko klasę 'active'
-                        // (co już robi dodanie klasy powyżej)
-                        if (!stateValue) button.classList.remove('active'); // Upewnij się, że jest nieaktywny, jeśli stateValue to false
+
+                        if (!stateValue) button.classList.remove('active');
                         break;
-                    // Domyślnie nie rób nic dla nieznanych kluczy
+
                 }
-            } else if (button && key !== 'showRejected') { // Resetuj wygląd nieaktywnych przycisków (poza showRejected)
+            } else if (button && key !== 'showRejected') {
                 button.classList.remove('active');
-                button.innerHTML = getDefaultButtonLabel(key); // Użyj istniejącej funkcji pomocniczej
-            } else if (button && key === 'showRejected') { // Resetuj wygląd showRejected, jeśli nie jest aktywny
+                button.innerHTML = getDefaultButtonLabel(key);
+            } else if (button && key === 'showRejected') {
                 button.classList.remove('active');
             }
         });
     }
 
     function restoreSortingState() {
-        // Odczytaj stan z localStorage, używając tego samego klucza co przy zapisie
+
         const storedStateJSON = localStorage.getItem('priceHistorySortingState_' + storeId);
         if (storedStateJSON) {
             try {
                 const restoredState = JSON.parse(storedStateJSON);
-                // Zaktualizuj bieżący obiekt sortingState odczytanymi wartościami
-                // Użycie spread operatora (...) zapewnia, że domyślne wartości
-                // zostaną zachowane, jeśli w localStorage czegoś brakuje.
+
                 sortingState = { ...sortingState, ...restoredState };
 
-                // Zaktualizuj wygląd przycisków, aby pasował do odtworzonego stanu
                 updateSortButtonVisuals();
 
             } catch (e) {
                 console.error("Błąd parsowania stanu sortowania z localStorage:", e);
-                // Opcjonalnie: usuń błędne dane z localStorage
+
                 localStorage.removeItem('priceHistorySortingState_' + storeId);
             }
         }
     }
-
 
     function applyMassChange(changeType) {
 
@@ -449,30 +444,27 @@
 
     function convertPriceValue(price, usePriceDifference) {
         if (price.onlyMe) {
-            // Zwracamy displayValueToUse jako `valueToUse`
+
             return { valueToUse: null, colorClass: 'prOnlyMe' };
         } else {
             let valueForColorCalculation;
-            let displayValueToUse; // Wartość do wyświetlania (i przekazania jako `valueToUse` z tej funkcji)
+            let displayValueToUse;
 
             if (usePriceDifference) {
                 valueForColorCalculation = (price.savings !== null ? price.savings : price.priceDifference);
                 displayValueToUse = valueForColorCalculation;
             } else {
-                // Do wyświetlania zawsze używaj oryginalnego price.percentageDifference
+
                 displayValueToUse = price.percentageDifference;
 
-                // Do logiki getColorClass, jeśli nasza cena jest wyższa i nie jest najlepszą ofertą
                 if (price.myPrice && price.lowestPrice && parseFloat(price.myPrice) > parseFloat(price.lowestPrice) && !price.isUniqueBestPrice && !price.isSharedBestPrice) {
                     valueForColorCalculation = ((parseFloat(price.myPrice) - parseFloat(price.lowestPrice)) / parseFloat(price.myPrice)) * 100;
                 } else {
-                    // Dla savings (gdy nasza cena jest niższa) lub równych cen,
-                    // price.percentageDifference jest odpowiednie dla logiki z setPrice1.
+
                     valueForColorCalculation = price.percentageDifference;
                 }
             }
 
-            // Zaokrąglenie
             if (valueForColorCalculation !== null && valueForColorCalculation !== undefined) {
                 valueForColorCalculation = parseFloat(valueForColorCalculation.toFixed(2));
             }
@@ -481,9 +473,7 @@
             }
 
             const colorClass = getColorClass(valueForColorCalculation, price.isUniqueBestPrice, price.isSharedBestPrice);
-            // Funkcja zwraca `displayValueToUse` jako `valueToUse`, ponieważ ta wartość jest używana
-            // do aktualizacji `price.valueToUse` w `updatePricesDebounced`.
-            // `colorClass` jest już obliczona na podstawie poprawionej logiki.
+
             return { valueToUse: displayValueToUse, colorClass };
         }
     }
@@ -579,32 +569,29 @@
                 allPrices = response.prices.map(price => {
                     const isRejected = price.isRejected;
                     const onlyMe = price.onlyMe === true;
-                    let valueToUseForColorCalculation; // Zmienna dla logiki getColorClass
-                    let displayValueToUse;             // Zmienna dla price.valueToUse (do wyświetlania i sortowania)
+                    let valueToUseForColorCalculation;
+                    let displayValueToUse;
 
                     if (onlyMe) {
                         colorClass = 'prOnlyMe';
-                        valueToUseForColorCalculation = null; // lub odpowiednia wartość, jeśli potrzebna
+                        valueToUseForColorCalculation = null;
                         displayValueToUse = null;
                     } else if (!isRejected) {
-                        if (usePriceDifference) { // Tryb różnicy kwotowej
+                        if (usePriceDifference) {
                             valueToUseForColorCalculation = (price.savings !== null ? price.savings : price.priceDifference);
                             displayValueToUse = valueToUseForColorCalculation;
-                        } else { // Tryb różnicy procentowej
-                            displayValueToUse = price.percentageDifference; // Do wyświetlania zawsze oryginalna różnica % (względem ceny konkurenta)
+                        } else {
+                            displayValueToUse = price.percentageDifference;
 
-                            // Logika dla getColorClass, gdy nasza cena jest wyższa i nie jest najlepszą ofertą
                             if (price.myPrice && price.lowestPrice && parseFloat(price.myPrice) > parseFloat(price.lowestPrice) && !price.isUniqueBestPrice && !price.isSharedBestPrice) {
-                                // Oblicz procent, o który musimy obniżyć NASZĄ cenę
+
                                 valueToUseForColorCalculation = ((parseFloat(price.myPrice) - parseFloat(price.lowestPrice)) / parseFloat(price.myPrice)) * 100;
                             } else {
-                                // W innych przypadkach (np. gdy nasza cena jest niższa - savings, lub równa)
-                                // użyj oryginalnego percentageDifference, które jest odpowiednie dla logiki isUniqueBestPrice i setPrice1
+
                                 valueToUseForColorCalculation = price.percentageDifference;
                             }
                         }
 
-                        // Zaokrąglenie wartości
                         if (valueToUseForColorCalculation !== null && typeof valueToUseForColorCalculation !== 'undefined') {
                             valueToUseForColorCalculation = parseFloat(valueToUseForColorCalculation.toFixed(2));
                         }
@@ -642,7 +629,7 @@
                         ...price,
                         isRejected: price.isRejected || false,
                         onlyMe: onlyMe,
-                        valueToUse: onlyMe ? null : displayValueToUse, 
+                        valueToUse: onlyMe ? null : displayValueToUse,
                         colorClass: colorClass,
                         marginPrice: marginPrice,
                         myPrice: myPrice,
@@ -706,7 +693,6 @@
 
                 filteredPrices = filterPricesByCategoryAndColorAndFlag(filteredPrices);
 
-             
                 debouncedRenderChart(filteredPrices);
                 updateColorCounts(filteredPrices);
                 updateMarginSortButtonsVisibility();
@@ -1030,7 +1016,7 @@
                     if (item.marginPrice == null) {
                         showGlobalNotification(
                             `<p style="margin:8px 0; font-weight:bold;">Zmiana ceny nie została dodana</p>
-                     <p>Symulacja cenowa z marżą jest włączona – produkt musi posiadać cenę zakupu.</p>`
+                         <p>Symulacja cenowa z marżą jest włączona – produkt musi posiadać cenę zakupu.</p>`
                         );
                         return;
                     }
@@ -1040,34 +1026,54 @@
                     oldMargin = parseFloat(oldMargin.toFixed(2));
                     newMargin = parseFloat(newMargin.toFixed(2));
 
-                    if (marginSettings.enforceMinimalMargin) {
-                        if (newMargin < 0) {
-                            if (oldMargin < 0 && newMargin > oldMargin) {
+                    if (marginSettings.minimalMarginPercent > 0) {
+                        if (newMargin < marginSettings.minimalMarginPercent) {
+
+                            if (newMargin > oldMargin && oldMargin < marginSettings.minimalMarginPercent) {
 
                             } else {
+
+                                let reason = "";
+                                if (oldMargin >= marginSettings.minimalMarginPercent) {
+
+                                    reason = `Zmiana obniża marżę z <strong>${oldMargin}%</strong> (która spełniała minimum) do <strong>${newMargin}%</strong>, czyli poniżej wymaganego progu <strong>${marginSettings.minimalMarginPercent}%</strong>.`;
+                                } else if (newMargin <= oldMargin) {
+
+                                    reason = `Nowa marża (<strong>${newMargin}%</strong>) jest poniżej wymaganego minimum (<strong>${marginSettings.minimalMarginPercent}%</strong>) i nie stanowi poprawy (lub jest pogorszeniem) poprzedniej, już niskiej marży (<strong>${oldMargin}%</strong>).`;
+                                } else {
+
+                                    reason = `Nowa marża (<strong>${newMargin}%</strong>) jest poniżej wymaganego minimum (<strong>${marginSettings.minimalMarginPercent}%</strong>), a warunki poprawy nie zostały spełnione (poprzednia marża: <strong>${oldMargin}%</strong>).`;
+                                }
+
                                 showGlobalNotification(
                                     `<p style="margin:8px 0; font-weight:bold;">Zmiana ceny nie została dodana</p>
-                             <p>Nowa cena <strong>${suggestedPrice.toFixed(2)} PLN</strong> spowoduje ujemną marżę (nowa marża: <strong>${newMargin}%</strong>).</p>
-                             <p>Cena zakupu wynosi <strong>${item.marginPrice.toFixed(2)} PLN</strong>. Zmiana nie może zostać zastosowana.</p>`
+                                 <p>${reason}</p>
+                                 <p>Cena zakupu wynosi <strong>${item.marginPrice.toFixed(2)} PLN</strong>.</p>`
+                                );
+                                return;
+                            }
+                        }
+                    }
+
+                    if (marginSettings.enforceMinimalMargin) {
+
+                        if (newMargin < 0) {
+
+                            if (!(oldMargin < 0 && newMargin > oldMargin)) {
+                                showGlobalNotification(
+                                    `<p style="margin:8px 0; font-weight:bold;">Zmiana ceny nie została dodana</p>
+                                 <p>Nowa cena <strong>${suggestedPrice.toFixed(2)} PLN</strong> spowoduje ujemną marżę (nowa marża: <strong>${newMargin}%</strong>).</p>
+                                 <p>Cena zakupu wynosi <strong>${item.marginPrice.toFixed(2)} PLN</strong>. Zmiana nie może zostać zastosowana.</p>`
                                 );
                                 return;
                             }
                         }
 
-                        if (marginSettings.minimalMarginPercent > 0 && newMargin < marginSettings.minimalMarginPercent) {
-                            showGlobalNotification(
-                                `<p style="margin:8px 0; font-weight:bold;">Zmiana ceny nie została dodana</p>
-                         <p>Nowa cena <strong>${suggestedPrice.toFixed(2)} PLN</strong> obniży marżę poniżej ustalonego minimum (<strong>${marginSettings.minimalMarginPercent}%</strong>).</p>
-                         <p>Nowa marża wynosi <strong>${newMargin}%</strong>, a cena zakupu to <strong>${item.marginPrice.toFixed(2)} PLN</strong>.</p>`
-                            );
-                            return;
-                        }
-
                         if (marginSettings.minimalMarginPercent < 0 && newMargin > marginSettings.minimalMarginPercent) {
                             showGlobalNotification(
                                 `<p style="margin:8px 0; font-weight:bold;">Zmiana ceny nie została dodana</p>
-                         <p>Nowa cena <strong>${suggestedPrice.toFixed(2)} PLN</strong> podniesie marżę powyżej dozwolonego poziomu (<strong>${marginSettings.minimalMarginPercent}%</strong>).</p>
-                         <p>Nowa marża wynosi <strong>${newMargin}%</strong>.</p>`
+                             <p>Nowa cena <strong>${suggestedPrice.toFixed(2)} PLN</strong> ustawi marżę (<strong>${newMargin}%</strong>), która jest powyżej dopuszczalnego progu straty (<strong>${marginSettings.minimalMarginPercent}%</strong>).</p>
+                             <p>Nowa marża wynosi <strong>${newMargin}%</strong>.</p>`
                             );
                             return;
                         }
