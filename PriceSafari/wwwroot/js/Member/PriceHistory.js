@@ -1344,26 +1344,34 @@
 
             const priceLine = document.createElement('div');
             priceLine.style.display = 'flex';
+            priceLine.style.alignItems = 'center'; // Dodaj to dla lepszego wyrównania
 
-            const priceSpan = document.createElement('div');
+            const priceSpan = document.createElement('span');
             priceSpan.style.fontWeight = '500';
             priceSpan.style.fontSize = '17px';
             priceSpan.textContent = item.lowestPrice.toFixed(2) + ' PLN';
-            priceLine.appendChild(priceSpan);
+
+            priceLine.appendChild(priceSpan); // <--- Najpierw dodaj cenę
+
+            const lowestPriceIndicator = createDeliveryIndicator(item.bestPriceIncludesDelivery); // Utwórz wskaźnik
+            if (lowestPriceIndicator) {
+                priceLine.appendChild(lowestPriceIndicator); // <--- Potem dodaj wskaźnik
+            }
 
             if (typeof item.externalBestPriceCount !== 'undefined' && item.externalBestPriceCount !== null) {
+                // Zaktualizuj dodawanie TOP/percentage do priceLine, aby były po cenie i wskaźniku
                 if (item.externalBestPriceCount === 1) {
                     const uniqueBox = document.createElement('div');
                     uniqueBox.className = 'uniqueBestPriceBox';
                     uniqueBox.textContent = '★ TOP';
                     uniqueBox.style.marginLeft = '8px';
-                    priceLine.appendChild(uniqueBox);
+                    priceLine.appendChild(uniqueBox); // Dodaj do priceLine
                 } else if (item.externalBestPriceCount > 1) {
                     const shareBox = document.createElement('div');
                     shareBox.className = 'shareBestPriceBox';
                     shareBox.textContent = item.externalBestPriceCount + ' TOP';
                     shareBox.style.marginLeft = '8px';
-                    priceLine.appendChild(shareBox);
+                    priceLine.appendChild(shareBox); // Dodaj do priceLine
                 }
             }
 
@@ -1374,7 +1382,7 @@
                 const spanDiff = document.createElement('span');
                 spanDiff.textContent = item.singleBestCheaperDiffPerc.toFixed(2) + '%';
                 diffBox.appendChild(spanDiff);
-                priceLine.appendChild(diffBox);
+                priceLine.appendChild(diffBox); // Dodaj do priceLine
             }
 
             priceBoxLowestText.appendChild(priceLine);
@@ -1411,7 +1419,11 @@
                 const priceBoxMyText = document.createElement('div');
                 priceBoxMyText.className = 'price-box-column-text';
 
+                // Utworzenie wskaźnika dostawy (zrobimy to raz, niezależnie od externalPrice)
+                const myPriceIndicator = createDeliveryIndicator(item.myPriceIncludesDelivery);
+
                 if (item.externalPrice !== null) {
+                    // --- Początek bloku externalPrice !== null ---
                     const externalPriceDifference = (item.externalPrice - myPrice).toFixed(2);
                     const isPriceDecrease = item.externalPrice < myPrice;
 
@@ -1433,7 +1445,7 @@
                     priceChangeContainer.appendChild(storeName);
                     priceChangeContainer.appendChild(priceDifferenceElem);
 
-                    const priceContainer = document.createElement('div');
+                    const priceContainer = document.createElement('div'); // Ten div zawiera starą i nową cenę
                     priceContainer.style.display = 'flex';
                     priceContainer.style.justifyContent = 'space-between';
                     priceContainer.style.alignItems = 'center';
@@ -1451,13 +1463,43 @@
                     priceContainer.appendChild(oldPrice);
                     priceContainer.appendChild(newPrice);
 
+                    // Dodaj wskaźnik dostawy PO kontenerze cen (starą i nową)
+                    if (myPriceIndicator) {
+                        priceContainer.appendChild(myPriceIndicator);
+                    }
+
+
                     priceBoxMyText.appendChild(priceContainer);
                     priceBoxMyText.appendChild(priceChangeContainer);
+                    // --- Koniec bloku externalPrice !== null ---
+
                 } else {
-                    priceBoxMyText.innerHTML =
-                        '<span style="font-weight: 500; font-size:17px;">' + myPrice.toFixed(2) + ' PLN</span><br>' + myStoreName;
+                    // --- Początek bloku externalPrice === null (refaktoryzacja z innerHTML + wskaźnik) ---
+                    const myPriceLine = document.createElement('div'); // Kontener dla ceny i wskaźnika
+                    myPriceLine.style.display = 'flex';
+                    myPriceLine.style.alignItems = 'center'; // Wyśrodkuj elementy w linii
+
+                    const myPriceSpan = document.createElement('span'); // Element dla samej ceny
+                    myPriceSpan.style.fontWeight = '500';
+                    myPriceSpan.style.fontSize = '17px';
+                    myPriceSpan.textContent = myPrice.toFixed(2) + ' PLN';
+
+                    myPriceLine.appendChild(myPriceSpan); // Dodaj cenę do linii
+
+                    // Dodaj wskaźnik dostawy PO cenie w tej samej linii
+                    if (myPriceIndicator) {
+                        myPriceLine.appendChild(myPriceIndicator);
+                    }
+
+                    const storeNameDiv = document.createElement('div'); // Element dla nazwy sklepu
+                    storeNameDiv.textContent = myStoreName;
+
+                    priceBoxMyText.appendChild(myPriceLine); // Dodaj linię z ceną i wskaźnikiem
+                    priceBoxMyText.appendChild(storeNameDiv); // Dodaj nazwę sklepu
+                    // --- Koniec bloku externalPrice === null ---
                 }
 
+                // --- Początek bloku priceBoxMyDetails (pozostaje bez zmian) ---
                 const priceBoxMyDetails = document.createElement('div');
                 priceBoxMyDetails.className = 'price-box-column-text';
                 priceBoxMyDetails.innerHTML =
@@ -1478,11 +1520,14 @@
 
                 priceBoxColumnMyPrice.appendChild(priceBoxMyText);
                 priceBoxColumnMyPrice.appendChild(priceBoxMyDetails);
+                // --- Koniec bloku priceBoxMyDetails ---
             } else {
+                // --- Początek bloku gdy myPrice jest null lub isRejected ---
                 const priceBoxMyText = document.createElement('div');
                 priceBoxMyText.className = 'price-box-column-text';
                 priceBoxMyText.innerHTML = '<span style="font-weight: 500;">Brak ceny</span><br>' + myStoreName;
                 priceBoxColumnMyPrice.appendChild(priceBoxMyText);
+                // --- Koniec bloku gdy myPrice jest null lub isRejected ---
             }
 
             const priceBoxColumnInfo = document.createElement('div');
@@ -2075,6 +2120,27 @@
         if (days <= 7) return 'Availability7Days';
         return 'Availability14Days';
     }
+
+
+
+
+    function createDeliveryIndicator(includesDelivery) {
+        if (includesDelivery === null || includesDelivery === undefined) {
+            return null; // Nic nie dodajemy, jeśli dane są null/undefined
+        }
+
+        const indicator = document.createElement('span');
+        indicator.className = 'delivery-indicator'; // Klasa bazowa
+        if (includesDelivery === true) {
+            indicator.classList.add('delivery-included-green'); // Klasa dla zielonego
+            indicator.title = "Cena zawiera dostawę";
+        } else { // includesDelivery === false
+            indicator.classList.add('delivery-not-included-red'); // Klasa dla czerwonego
+            indicator.title = "Cena nie zawiera dostawy";
+        }
+        return indicator;
+    }
+
 
     function hexToRgba(hex, alpha) {
         let r = 0, g = 0, b = 0;
