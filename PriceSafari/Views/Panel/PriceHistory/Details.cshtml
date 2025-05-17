@@ -284,7 +284,7 @@
                         }
 
                         var colorClass = getColorClass(priceDifference, isUniqueBestPrice, isSharedBestPrice, savings);
-                        var shippingCost = "";
+                        var shippingCost = ""; // Zmienna do przechowywania tekstu wyświetlanego w tabeli
                         if (item.ShippingCostNum == null)
                         {
                             shippingCost = "Brak danych";
@@ -293,19 +293,9 @@
                         {
                             shippingCost = "Free";
                         }
-                        else
+                        else // Gdy ShippingCostNum > 0 (teraz już wiemy, że to koszt wysyłki)
                         {
-
-                            if (item.IsGoogle)
-                            {
-                                var cost = item.ShippingCostNum - item.Price;
-                                shippingCost = cost <= 0 ? "Free" : $"{cost} PLN";
-                            }
-
-                            else
-                            {
-                                shippingCost = $"{item.ShippingCostNum} PLN";
-                            }
+                            shippingCost = $"{item.ShippingCostNum} PLN"; // <--- TERAZ ZAWSZE WYŚWIETLAMY WARTOSĆ BEZPOŚREDNIO
                         }
 
                         string getAvailabilityClass(int? availabilityNum)

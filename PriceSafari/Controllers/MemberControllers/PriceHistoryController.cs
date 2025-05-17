@@ -229,24 +229,36 @@ namespace PriceSafari.Controllers.MemberControllers
 
             var rawPrices = await baseQuery.ToListAsync();
 
-            // DODAJ TEN BLOK KODU
-            // Sprawdzamy flagę UsePriceWithDelivery pobraną wcześniej
             if (priceValues.UsePriceWithDelivery)
             {
-                // Iterujemy przez pobrane dane i modyfikujemy ceny
+                // Jeśli opcja "używaj ceny z dostawą" jest włączona
                 foreach (var row in rawPrices)
                 {
-                    // Sprawdzamy, czy cena produktu i koszt dostawy mają wartość
+                    // Warunek: Cena z dostawą jest uwzględniona, JEŚLI ShippingCostNum MA WARTOŚĆ (0 lub > 0).
+                    // Jeśli ShippingCostNum ma wartość (0 lub > 0).
+                    // Jeśli ShippingCostNum jest null, nie dodajemy do ceny, a flaga będzie false dla tego wpisu.
+                    // Uwaga: PriceRowDto NIE POSIADA już pola PriceIncludesDelivery w Twoim zmodyfikowanym kodzie,
+                    // więc usunę to ustawienie stąd. Sama modyfikacja Price jest wystarczająca na tym etapie.
+                    // Flagi BestPriceIncludesDelivery i MyPriceIncludesDelivery obliczymy później na podstawie ShippingCostNum
+                    // wybranych wpisów (bestPriceEntry i myPriceEntry).
+
+                    // Jeśli ShippingCostNum ma wartość ORAZ mamy cenę bazową, dodajemy koszt dostawy
                     if (row.Price.HasValue && row.ShippingCostNum.HasValue)
                     {
-                        // Dodajemy koszt dostawy do ceny produktu
+                        // Dodajemy koszt dostawy do ceny, modyfikując cenę w DTO.
                         row.Price = row.Price.Value + row.ShippingCostNum.Value;
                     }
-                    // Opcjonalnie: możesz dodać logikę, jak traktować przypadki, gdzie ShippingCostNum jest null.
-                    // Obecnie, jeśli ShippingCostNum jest null, cena pozostaje bez zmian.
+                    // Jeśli ShippingCostNum jest null, row.Price pozostaje ceną bazową.
                 }
             }
-            // KONIEC BLOKU KODU
+            else
+            {
+                // Jeśli opcja "używaj ceny z dostawą" jest wyłączona
+                // Ceny w DTO już są cenami bazowymi z zapytania LINQ.
+                // Na tym etapie nie robimy nic z polami Price ani ShippingCostNum,
+                // a finalne flagi BestPriceIncludesDelivery i MyPriceIncludesDelivery ustawimy na null.
+            }
+
 
 
             if (activePreset != null)
@@ -377,6 +389,19 @@ namespace PriceSafari.Controllers.MemberControllers
                         .ThenBy(x => x.StoreName)
                         .ThenByDescending(x => x.IsGoogle == false)
                         .FirstOrDefault();
+
+                    bool? bestPriceIncludesDeliveryFlag = null;
+                    bool? myPriceIncludesDeliveryFlag = null;
+
+                    if (priceValues.UsePriceWithDelivery)
+                    {
+                        // Jeśli opcja "używaj ceny z dostawą" jest WŁĄCZONA dla sklepu:
+                        // Flaga dla najlepszej ceny: true, jeśli ShippingCostNum dla wybranego wpisu najlepszej ceny (bestPriceEntry) NIE JEST NULL.
+                        bestPriceIncludesDeliveryFlag = bestPriceEntry?.ShippingCostNum.HasValue;
+
+                        // Flaga dla ceny ze sklepu: true, jeśli ShippingCostNum dla wybranego wpisu mojego sklepu (myPriceEntry) NIE JEST NULL.
+                        myPriceIncludesDeliveryFlag = myPriceEntry?.ShippingCostNum.HasValue;
+                    }
 
                     decimal? bestPrice = bestPriceEntry?.Price;
                     decimal? myPrice = myPriceEntry?.Price ?? bestPrice;
@@ -602,7 +627,9 @@ namespace PriceSafari.Controllers.MemberControllers
                         SourceGoogle = sourceGoogle,
                         SourceCeneo = sourceCeneo,
                         SingleBestCheaperDiff = singleBestCheaperDiff,
-                        SingleBestCheaperDiffPerc = singleBestCheaperDiffPerc
+                        SingleBestCheaperDiffPerc = singleBestCheaperDiffPerc,
+                        BestPriceIncludesDelivery = bestPriceIncludesDeliveryFlag,
+                        MyPriceIncludesDelivery = myPriceIncludesDeliveryFlag,
                     };
                 })
                 .Where(p => p != null)
@@ -626,6 +653,7 @@ namespace PriceSafari.Controllers.MemberControllers
                 minimalMarginPercent = priceValues.MinimalMarginPercent,
                 useEanForSimulation = priceValues.UseEanForSimulation,
                 usePriceWithDelivery = priceValues.UsePriceWithDelivery,
+            
 
                 presetName = activePresetName ?? "PriceSafari"
 
@@ -648,6 +676,7 @@ namespace PriceSafari.Controllers.MemberControllers
             public int? AvailabilityNum { get; set; }
             public bool IsRejected { get; set; }
             public decimal? ShippingCostNum { get; set; }
+         
         }
 
         [HttpGet]

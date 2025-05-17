@@ -156,14 +156,17 @@ public class StoreProcessingService
                     var googlePrice = coOfrPrice.GooglePrice ?? 0;
                     if (googlePrice == 0)
                         continue;
-
-                    decimal? shippingCostNum = null;
-                    if (coOfrPrice.GooglePrice.HasValue && coOfrPrice.GooglePriceWithDelivery.HasValue)
+                    decimal? shippingCostNum = null; // Domyślnie null (koszt nieznany)
+                    if (coOfrPrice.GooglePrice.HasValue && coOfrPrice.GooglePriceWithDelivery.HasValue)
                     {
-                        shippingCostNum = coOfrPrice.GooglePrice.Value == coOfrPrice.GooglePriceWithDelivery.Value
-                            ? 0
-                            : coOfrPrice.GooglePriceWithDelivery;
+                        decimal basePrice = coOfrPrice.GooglePrice.Value;
+                        decimal priceWithDelivery = coOfrPrice.GooglePriceWithDelivery.Value;
+
+                        // Jeśli cena z dostawą jest większa niż bazowa, koszt to różnica.
+                        // Jeśli cena z dostawą jest równa lub mniejsza niż bazowa (darmowa wysyłka lub błąd danych), koszt to 0.
+                        shippingCostNum = Math.Max(0, priceWithDelivery - basePrice);
                     }
+                    // Jeśli GooglePrice lub GooglePriceWithDelivery było null, shippingCostNum pozostaje null.
 
                     bool isOurStoreGoogle = storeNameVariants.Contains(coOfrPrice.GoogleStoreName.ToLower());
                     int? googlePos = int.TryParse(coOfrPrice.GooglePosition, out var gp) ? gp : (int?)null;
@@ -196,40 +199,45 @@ public class StoreProcessingService
             // --------------------------
             // C) FALLBACK GoogleXMLPrice
             // --------------------------
+            // --------------------------
+            // C) FALLBACK GoogleXMLPrice
+            // --------------------------
+            // Ta sekcja jest uruchamiana TYLKO jeśli produkt jest na liście Google CoOfr
+            // ORAZ sklep używa fallbacku z feedu ORAZ nie znaleziono oferty własnego sklepu w skrapowanych danych Google.
             if (store.UseGoogleXMLFeedPrice && inGoogleList && !foundOurStoreGoogle)
             {
+                // Używamy ceny bazowej z feedu
                 if (product.GoogleXMLPrice.HasValue && product.GoogleXMLPrice.Value > 0)
                 {
                     decimal fallbackPrice = product.GoogleXMLPrice.Value;
-                    decimal? shippingTotal = null;
-                    if (product.GoogleDeliveryXMLPrice.HasValue)
-                    {
-                        shippingTotal = fallbackPrice + product.GoogleDeliveryXMLPrice.Value;
-                    }
-                    else
-                    {
-                        shippingTotal = fallbackPrice;
-                    }
 
+                    // --- ZMIANA LOGIKI DLA SHIPPINGCOSTNUM DLA FALLBACKU Z FEEDU XML ---
+                    // Koszt wysyłki z feedu to po prostu wartość z GoogleDeliveryXMLPrice.
+                    // Jeśli GoogleDeliveryXMLPrice jest null, oznacza to brak informacji o koszcie dostawy z feedu.
+                    decimal? fallbackShippingCost = product.GoogleDeliveryXMLPrice;
+                    // --------------------------------------------------------------------
+
+                    // Pozycja fallbacku jest pozycją za ostatnią znalezioną w skrapowanych danych Google
                     int fallbackPosition = maxGooglePosition + 1;
+
                     var priceHistoryFromFeed = new PriceHistoryClass
                     {
                         ProductId = product.ProductId,
                         StoreName = canonicalStoreName,
-                        Price = fallbackPrice,
+                        Price = fallbackPrice, // Cena bazowa produktu z feedu
                         Position = fallbackPosition,
-                        IsBidding = "GoogleFeed",
-                        ShippingCostNum = shippingTotal,
+                        IsBidding = "GoogleFeed", // Typ "IsBidding" powinien być stringiem lub odpowiednim enumem
+                        ShippingCostNum = fallbackShippingCost, // <--- TERAZ PRZECHOWUJE SAM KOSZT DOSTAWY Z FEEDU (LUB NULL)
                         ScrapHistory = scrapHistory,
                         IsGoogle = true
                     };
                     priceHistoriesBag.Add(priceHistoryFromFeed);
 
-                    fallbackUsedList.Add((product.ProductName ?? "(Brak nazwy)", fallbackPrice, shippingTotal));
-                    hasStorePrice = true;
+                    // Logowanie użycia fallbacku - logujemy cenę bazową i obliczony koszt dostawy
+                    fallbackUsedList.Add((product.ProductName ?? "(Brak nazwy)", fallbackPrice, fallbackShippingCost));
+                    hasStorePrice = true; // Oznaczamy, że znaleziono cenę (z feedu)
                 }
             }
-
             // --------------------------
             // D) Odrzucanie / przywracanie
             // --------------------------
