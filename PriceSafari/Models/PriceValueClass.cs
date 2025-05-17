@@ -17,7 +17,7 @@
 
 
 
-
+        public bool UsePriceWithDelivery { get; set; } = false;
 
         public bool UseEanForSimulation { get; set; } = true;
         public bool UseMarginForSimulation { get; set; } = true;

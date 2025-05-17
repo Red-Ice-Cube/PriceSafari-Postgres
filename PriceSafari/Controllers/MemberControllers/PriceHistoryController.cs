@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.SignalR;
 using PriceSafari.Hubs;
 using PriceSafari.Models.ViewModels;
 using AngleSharp.Dom;
+using NPOI.SS.Formula.Functions;
 
 namespace PriceSafari.Controllers.MemberControllers
 {
@@ -161,7 +162,8 @@ namespace PriceSafari.Controllers.MemberControllers
                     pv.UseEanForSimulation,
                     pv.UseMarginForSimulation,
                     pv.EnforceMinimalMargin,
-                    pv.MinimalMarginPercent
+                    pv.MinimalMarginPercent,
+                    pv.UsePriceWithDelivery,
                 })
                 .FirstOrDefaultAsync() ?? new
                 {
@@ -172,7 +174,8 @@ namespace PriceSafari.Controllers.MemberControllers
                     UseEanForSimulation = true,
                     UseMarginForSimulation = true,
                     EnforceMinimalMargin = true,
-                    MinimalMarginPercent = 0.00m
+                    MinimalMarginPercent = 0.00m,
+                    UsePriceWithDelivery = false,
                 };
 
             var baseQuery = from p in _context.Products
@@ -193,7 +196,9 @@ namespace PriceSafari.Controllers.MemberControllers
                                 IsBidding = ph != null ? ph.IsBidding : null,
                                 IsGoogle = (ph != null ? ph.IsGoogle : (bool?)null),
                                 AvailabilityNum = (ph != null ? ph.AvailabilityNum : (int?)null),
-                                IsRejected = p.IsRejected
+                                IsRejected = p.IsRejected,
+   
+                                ShippingCostNum = (ph != null ? ph.ShippingCostNum : (decimal?)null)
                             };
 
             var activePreset = await _context.CompetitorPresets
@@ -223,6 +228,26 @@ namespace PriceSafari.Controllers.MemberControllers
             }
 
             var rawPrices = await baseQuery.ToListAsync();
+
+            // DODAJ TEN BLOK KODU
+            // Sprawdzamy flagę UsePriceWithDelivery pobraną wcześniej
+            if (priceValues.UsePriceWithDelivery)
+            {
+                // Iterujemy przez pobrane dane i modyfikujemy ceny
+                foreach (var row in rawPrices)
+                {
+                    // Sprawdzamy, czy cena produktu i koszt dostawy mają wartość
+                    if (row.Price.HasValue && row.ShippingCostNum.HasValue)
+                    {
+                        // Dodajemy koszt dostawy do ceny produktu
+                        row.Price = row.Price.Value + row.ShippingCostNum.Value;
+                    }
+                    // Opcjonalnie: możesz dodać logikę, jak traktować przypadki, gdzie ShippingCostNum jest null.
+                    // Obecnie, jeśli ShippingCostNum jest null, cena pozostaje bez zmian.
+                }
+            }
+            // KONIEC BLOKU KODU
+
 
             if (activePreset != null)
             {
@@ -600,6 +625,7 @@ namespace PriceSafari.Controllers.MemberControllers
                 enforceMinimalMargin = priceValues.EnforceMinimalMargin,
                 minimalMarginPercent = priceValues.MinimalMarginPercent,
                 useEanForSimulation = priceValues.UseEanForSimulation,
+                usePriceWithDelivery = priceValues.UsePriceWithDelivery,
 
                 presetName = activePresetName ?? "PriceSafari"
 
@@ -621,6 +647,7 @@ namespace PriceSafari.Controllers.MemberControllers
             public bool? IsGoogle { get; set; }
             public int? AvailabilityNum { get; set; }
             public bool IsRejected { get; set; }
+            public decimal? ShippingCostNum { get; set; }
         }
 
         [HttpGet]
@@ -1615,6 +1642,7 @@ namespace PriceSafari.Controllers.MemberControllers
                 {
                     StoreId = model.StoreId,
                     UseEanForSimulation = model.UseEanForSimulation,
+                    UsePriceWithDelivery = model.UsePriceWithDelivery,
                     UseMarginForSimulation = model.UseMarginForSimulation,
                     EnforceMinimalMargin = model.EnforceMinimalMargin,
                     MinimalMarginPercent = model.MinimalMarginPercent
@@ -1625,6 +1653,7 @@ namespace PriceSafari.Controllers.MemberControllers
             {
                 priceValues.UseEanForSimulation = model.UseEanForSimulation;
                 priceValues.UseMarginForSimulation = model.UseMarginForSimulation;
+                priceValues.UsePriceWithDelivery = model.UsePriceWithDelivery;
                 priceValues.EnforceMinimalMargin = model.EnforceMinimalMargin;
                 priceValues.MinimalMarginPercent = model.MinimalMarginPercent;
                 _context.PriceValues.Update(priceValues);
@@ -1638,6 +1667,7 @@ namespace PriceSafari.Controllers.MemberControllers
         {
             public int StoreId { get; set; }
             public bool UseEanForSimulation { get; set; }
+            public bool UsePriceWithDelivery { get; set; }
             public bool UseMarginForSimulation { get; set; }
             public bool EnforceMinimalMargin { get; set; }
             public decimal MinimalMarginPercent { get; set; }

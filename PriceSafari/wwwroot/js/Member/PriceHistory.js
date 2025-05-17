@@ -9,6 +9,7 @@
     let marginSettings = {
         useEanForSimulation: true,
         useMarginForSimulation: true,
+        usePriceWithDelivery: true,
         enforceMinimalMargin: true,
         minimalMarginPercent: 0.00
     };
@@ -603,6 +604,7 @@
                 marginSettings.enforceMinimalMargin = response.enforceMinimalMargin;
                 marginSettings.minimalMarginPercent = response.minimalMarginPercent;
                 marginSettings.useEanForSimulation = response.useEanForSimulation;
+                marginSettings.usePriceWithDelivery = response.usePriceWithDelivery;
 
                 if (response.presetName) {
                     if (response.presetName === 'PriceSafari') {
@@ -2169,6 +2171,7 @@
 
         document.getElementById('useEanForSimulationInput').value = marginSettings.useEanForSimulation.toString();
         document.getElementById('useMarginForSimulationInput').value = marginSettings.useMarginForSimulation.toString();
+        document.getElementById('usePriceWithDeliveryInput').value = marginSettings.usePriceWithDelivery.toString();
         document.getElementById('enforceMinimalMarginInput').value = marginSettings.enforceMinimalMargin.toString();
         document.getElementById('minimalMarginPercentInput').value = marginSettings.minimalMarginPercent;
 
@@ -2179,6 +2182,7 @@
             StoreId: storeId,
             useEanForSimulation: document.getElementById('useEanForSimulationInput').value === 'true',
             UseMarginForSimulation: document.getElementById('useMarginForSimulationInput').value === 'true',
+            UsePriceWithDelivery: document.getElementById('usePriceWithDeliveryInput').value === 'true',
             EnforceMinimalMargin: document.getElementById('enforceMinimalMarginInput').value === 'true',
             MinimalMarginPercent: parseFloat(document.getElementById('minimalMarginPercentInput').value)
         };
