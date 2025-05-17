@@ -32,21 +32,37 @@
     }
 
     .delivery-indicator {
-        display: inline-block;
-        width: 12px; /* Możesz dostosować rozmiar */
-        height: 12px; /* Możesz dostosować rozmiar */
-        margin-left: 5px; /* Odstęp od ceny */
-        margin-right: 2px; /* Odstęp od kolejnego elementu */
-        border-radius: 3px; /* Delikatnie zaokrąglone rogi */
-        vertical-align: middle; /* Wyrównanie do środka tekstu */
+                display: inline-block; /* Zachowane zgodnie z życzeniem */
+               padding-left:8px;
+               padding-right:8px;
+            
+                height: 20.5px; /* Podana wysokość */
+                line-height: 18.5px; /* DODANE: Ustawia wysokość linii tekstu, co centruje pionowo zawartość inline */
+                margin-left: 5px;
+        /* Zakładam, że brakujący margin-right 2px powinien być zachowany */
+        margin-right: 2px;
+                border-radius: 3px; /* Delikatnie zaokrąglone rogi */
+        vertical-align: middle; /* Zachowane, pomaga w wyrównaniu całego elementu w linii */
+        box-sizing: border-box; /* DODANE: Upewnia się, że paddingi nie zwiększają rozmiaru elementu poza 20.5px */
+
     }
 
-    .delivery-included-green {
-        background-color: #28a745; /* Zielony kolor */
+        /* Styl dla samej ikony ciężarówki wewnątrz wskaźnika */
+        .delivery-indicator i.fa-truck {
+            color: white; /* Kolor biały dla ciężarówki */
+            font-size: 14px; /* Możesz dostosować rozmiar ikony */
+            /* Ikona jest elementem inline, więc line-height i text-align rodzica ją wyśrodkują */
+        }
+
+
+        .delivery-included-green {
+                background-color: #28a745; /* Zielony kolor */
+
     }
 
-    .delivery-not-included-red {
-        background-color: #dc3545; /* Czerwony kolor */
+        .delivery-not-included-red {
+                background-color: #dc3545; /* Czerwony kolor */
+
     }
 
 </style>

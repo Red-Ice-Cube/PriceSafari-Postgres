@@ -1364,7 +1364,7 @@
                     const uniqueBox = document.createElement('div');
                     uniqueBox.className = 'uniqueBestPriceBox';
                     uniqueBox.textContent = '★ TOP';
-                    uniqueBox.style.marginLeft = '8px';
+                    uniqueBox.style.marginLeft = '4px';
                     priceLine.appendChild(uniqueBox); // Dodaj do priceLine
                 } else if (item.externalBestPriceCount > 1) {
                     const shareBox = document.createElement('div');
@@ -2138,9 +2138,17 @@
             indicator.classList.add('delivery-not-included-red'); // Klasa dla czerwonego
             indicator.title = "Cena nie zawiera dostawy";
         }
+
+        // Dodaj ikonę ciężarówki Font Awesome
+        const truckIcon = document.createElement('i');
+        truckIcon.className = 'fa fa-truck'; // Klasa Font Awesome dla ciężarówki
+        truckIcon.style.color = 'white'; // Ustaw kolor ikony na biały
+        truckIcon.style.fontSize = '11px'; // Możesz dostosować rozmiar ikony w kwadracie
+
+        indicator.appendChild(truckIcon); // Dodaj ikonę do spanu wskaźnika
+
         return indicator;
     }
-
 
     function hexToRgba(hex, alpha) {
         let r = 0, g = 0, b = 0;
