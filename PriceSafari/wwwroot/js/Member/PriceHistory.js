@@ -1370,7 +1370,7 @@
                     const shareBox = document.createElement('div');
                     shareBox.className = 'shareBestPriceBox';
                     shareBox.textContent = item.externalBestPriceCount + ' TOP';
-                    shareBox.style.marginLeft = '8px';
+                    shareBox.style.marginLeft = '4px';
                     priceLine.appendChild(shareBox); // Dodaj do priceLine
                 }
             }
@@ -2143,7 +2143,7 @@
         const truckIcon = document.createElement('i');
         truckIcon.className = 'fa fa-truck'; // Klasa Font Awesome dla ciężarówki
         truckIcon.style.color = 'white'; // Ustaw kolor ikony na biały
-        truckIcon.style.fontSize = '11px'; // Możesz dostosować rozmiar ikony w kwadracie
+        truckIcon.style.fontSize = '10px'; // Możesz dostosować rozmiar ikony w kwadracie
 
         indicator.appendChild(truckIcon); // Dodaj ikonę do spanu wskaźnika
 

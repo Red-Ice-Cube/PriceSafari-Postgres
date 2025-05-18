@@ -1334,6 +1334,221 @@ namespace PriceSafari.Controllers.MemberControllers
         }
 
 
+        //[HttpPost]
+        //public async Task<IActionResult> SimulatePriceChange([FromBody] List<SimulationItem> simulationItems)
+        //{
+        //    if (simulationItems == null || simulationItems.Count == 0)
+        //    {
+        //        return Json(new List<object>());
+        //    }
+
+        //    int firstProductId = simulationItems.First().ProductId;
+        //    var firstProduct = await _context.Products
+        //        .Include(p => p.Store)
+        //        .FirstOrDefaultAsync(p => p.ProductId == firstProductId);
+
+        //    if (firstProduct == null)
+        //    {
+        //        return NotFound("Produkt nie znaleziony.");
+        //    }
+
+        //    if (!await UserHasAccessToStore(firstProduct.StoreId))
+        //    {
+        //        return Unauthorized("Brak dostępu do sklepu.");
+        //    }
+
+        //    int storeId = firstProduct.StoreId;
+        //    string ourStoreName = firstProduct.Store?.StoreName ?? "";
+
+        //    var latestScrap = await _context.ScrapHistories
+        //        .Where(sh => sh.StoreId == storeId)
+        //        .OrderByDescending(sh => sh.Date)
+        //        .Select(sh => new { sh.Id })
+        //        .FirstOrDefaultAsync();
+
+        //    if (latestScrap == null)
+        //    {
+        //        return BadRequest("Brak scrapowania dla sklepu.");
+        //    }
+        //    int latestScrapId = latestScrap.Id;
+
+        //    var productIds = simulationItems
+        //        .Select(s => s.ProductId)
+        //        .Distinct()
+        //        .ToList();
+
+        //    var productsData = await GetProductsInChunksAsync(productIds);
+
+        //    var allPriceHistories = await GetPriceHistoriesInChunksAsync(productIds, latestScrapId);
+
+        //    var priceHistoriesByProduct = allPriceHistories
+        //        .GroupBy(ph => ph.ProductId)
+        //        .ToDictionary(g => g.Key, g => g.ToList());
+
+        //    string CalculateRanking(List<decimal> prices, decimal price)
+        //    {
+        //        prices.Sort();
+        //        int firstIndex = prices.IndexOf(price);
+        //        int lastIndex = prices.LastIndexOf(price);
+        //        if (firstIndex == -1)
+        //            return "-";
+        //        if (firstIndex == lastIndex)
+        //            return (firstIndex + 1).ToString();
+        //        else
+        //            return $"{firstIndex + 1}-{lastIndex + 1}";
+        //    }
+
+        //    var simulationResults = new List<object>();
+
+        //    foreach (var sim in simulationItems)
+        //    {
+
+        //        var product = productsData.FirstOrDefault(p => p.ProductId == sim.ProductId);
+        //        if (product == null)
+        //        {
+
+        //            continue;
+        //        }
+
+        //        priceHistoriesByProduct.TryGetValue(sim.ProductId, out var allRecordsForProduct);
+        //        if (allRecordsForProduct == null)
+        //        {
+        //            simulationResults.Add(new
+        //            {
+        //                productId = product.ProductId,
+        //                ean = product.Ean,
+        //                externalId = product.ExternalId,
+        //                currentGoogleRanking = "-",
+        //                newGoogleRanking = "-",
+        //                totalGoogleOffers = (int?)null,
+        //                currentCeneoRanking = "-",
+        //                newCeneoRanking = "-",
+        //                totalCeneoOffers = (int?)null,
+        //                googleCurrentOffers = new List<object>(),
+        //                googleNewOffers = new List<object>(),
+        //                ceneoCurrentOffers = new List<object>(),
+        //                ceneoNewOffers = new List<object>(),
+
+        //                currentMargin = (decimal?)null,
+        //                newMargin = (decimal?)null,
+        //                currentMarginValue = (decimal?)null,
+        //                newMarginValue = (decimal?)null
+        //            });
+        //            continue;
+        //        }
+
+        //        decimal? currentMargin = null;
+        //        decimal? newMargin = null;
+        //        decimal? currentMarginValue = null;
+        //        decimal? newMarginValue = null;
+        //        if (product.MarginPrice.HasValue && product.MarginPrice.Value != 0)
+        //        {
+        //            currentMarginValue = sim.CurrentPrice - product.MarginPrice.Value;
+        //            newMarginValue = sim.NewPrice - product.MarginPrice.Value;
+        //            currentMargin = Math.Round((currentMarginValue.Value / product.MarginPrice.Value) * 100, 2);
+        //            newMargin = Math.Round((newMarginValue.Value / product.MarginPrice.Value) * 100, 2);
+
+        //        }
+
+        //        bool weAreInGoogle = allRecordsForProduct.Any(ph => ph.StoreName == ourStoreName && ph.IsGoogle);
+        //        bool weAreInCeneo = allRecordsForProduct.Any(ph => ph.StoreName == ourStoreName && !ph.IsGoogle);
+
+        //        var competitorPrices = allRecordsForProduct.Where(ph => ph.StoreName != ourStoreName).ToList();
+
+        //        var googleCompetitorPrices = competitorPrices.Where(x => x.IsGoogle).Select(x => x.Price).ToList();
+        //        var currentGoogleList = new List<decimal>(googleCompetitorPrices);
+        //        var newGoogleList = new List<decimal>(googleCompetitorPrices);
+        //        if (weAreInGoogle)
+        //        {
+        //            currentGoogleList.Add(sim.CurrentPrice);
+        //            newGoogleList.Add(sim.NewPrice);
+        //        }
+        //        int totalGoogleOffers = currentGoogleList.Count;
+        //        string currentGoogleRanking, newGoogleRanking;
+        //        if (totalGoogleOffers == 0)
+        //        {
+        //            currentGoogleRanking = newGoogleRanking = "-";
+        //        }
+        //        else
+        //        {
+        //            currentGoogleRanking = weAreInGoogle ? CalculateRanking(currentGoogleList, sim.CurrentPrice) : "-";
+        //            newGoogleRanking = weAreInGoogle ? CalculateRanking(newGoogleList, sim.NewPrice) : "-";
+        //        }
+        //        var googleCurrentOffers = competitorPrices.Where(x => x.IsGoogle)
+        //            .Select(x => new { x.Price, x.StoreName }).ToList();
+        //        if (weAreInGoogle)
+        //        {
+        //            googleCurrentOffers.Add(new { Price = sim.CurrentPrice, StoreName = ourStoreName });
+        //        }
+        //        var googleNewOffers = competitorPrices.Where(x => x.IsGoogle)
+        //            .Select(x => new { x.Price, x.StoreName }).ToList();
+        //        if (weAreInGoogle)
+        //        {
+        //            googleNewOffers.Add(new { Price = sim.NewPrice, StoreName = ourStoreName });
+        //        }
+
+        //        var ceneoCompetitorPrices = competitorPrices.Where(x => !x.IsGoogle && !string.IsNullOrEmpty(x.StoreName))
+        //            .Select(x => x.Price).ToList();
+        //        var currentCeneoList = new List<decimal>(ceneoCompetitorPrices);
+        //        var newCeneoList = new List<decimal>(ceneoCompetitorPrices);
+        //        if (weAreInCeneo)
+        //        {
+        //            currentCeneoList.Add(sim.CurrentPrice);
+        //            newCeneoList.Add(sim.NewPrice);
+        //        }
+        //        int totalCeneoOffers = currentCeneoList.Count;
+        //        string currentCeneoRanking, newCeneoRanking;
+        //        if (totalCeneoOffers == 0)
+        //        {
+        //            currentCeneoRanking = newCeneoRanking = "-";
+        //        }
+        //        else
+        //        {
+        //            currentCeneoRanking = weAreInCeneo ? CalculateRanking(currentCeneoList, sim.CurrentPrice) : "-";
+        //            newCeneoRanking = weAreInCeneo ? CalculateRanking(newCeneoList, sim.NewPrice) : "-";
+        //        }
+        //        var ceneoCompetitorRecords = competitorPrices.Where(x => !x.IsGoogle && !string.IsNullOrEmpty(x.StoreName))
+        //            .Select(x => new { x.Price, x.StoreName }).ToList();
+        //        var ceneoCurrentOffers = new List<object>(ceneoCompetitorRecords);
+        //        if (weAreInCeneo)
+        //        {
+        //            ceneoCurrentOffers.Add(new { Price = sim.CurrentPrice, StoreName = ourStoreName });
+        //        }
+        //        var ceneoNewOffers = new List<object>(ceneoCompetitorRecords);
+        //        if (weAreInCeneo)
+        //        {
+        //            ceneoNewOffers.Add(new { Price = sim.NewPrice, StoreName = ourStoreName });
+        //        }
+
+        //        simulationResults.Add(new
+        //        {
+        //            productId = product.ProductId,
+        //            ean = product.Ean,
+        //            externalId = product.ExternalId,
+        //            currentGoogleRanking,
+        //            newGoogleRanking,
+        //            totalGoogleOffers = (totalGoogleOffers > 0 ? totalGoogleOffers : (int?)null),
+        //            currentCeneoRanking,
+        //            newCeneoRanking,
+        //            totalCeneoOffers = (totalCeneoOffers > 0 ? totalCeneoOffers : (int?)null),
+        //            googleCurrentOffers,
+        //            googleNewOffers,
+        //            ceneoCurrentOffers,
+        //            ceneoNewOffers,
+        //            currentMargin,
+        //            newMargin,
+        //            currentMarginValue,
+        //            newMarginValue
+        //        });
+        //    }
+
+        //    return Json(new
+        //    {
+        //        ourStoreName,
+        //        simulationResults
+        //    });
+        //}
+
         [HttpPost]
         public async Task<IActionResult> SimulatePriceChange([FromBody] List<SimulationItem> simulationItems)
         {
@@ -1344,8 +1559,8 @@ namespace PriceSafari.Controllers.MemberControllers
 
             int firstProductId = simulationItems.First().ProductId;
             var firstProduct = await _context.Products
-                .Include(p => p.Store)
-                .FirstOrDefaultAsync(p => p.ProductId == firstProductId);
+              .Include(p => p.Store)
+              .FirstOrDefaultAsync(p => p.ProductId == firstProductId);
 
             if (firstProduct == null)
             {
@@ -1360,11 +1575,21 @@ namespace PriceSafari.Controllers.MemberControllers
             int storeId = firstProduct.StoreId;
             string ourStoreName = firstProduct.Store?.StoreName ?? "";
 
-            var latestScrap = await _context.ScrapHistories
-                .Where(sh => sh.StoreId == storeId)
-                .OrderByDescending(sh => sh.Date)
-                .Select(sh => new { sh.Id })
-                .FirstOrDefaultAsync();
+            // 1. Pobieramy ustawienia PriceValues dla sklepu
+            var priceValues = await _context.PriceValues
+        .Where(pv => pv.StoreId == storeId)
+        .Select(pv => new
+        {
+            pv.UsePriceWithDelivery,
+            // Potencjalnie inne potrzebne ustawienia w przyszłości
+        })
+        .FirstOrDefaultAsync() ?? new { UsePriceWithDelivery = false }; // Domyślna wartość
+
+            var latestScrap = await _context.ScrapHistories
+        .Where(sh => sh.StoreId == storeId)
+        .OrderByDescending(sh => sh.Date)
+        .Select(sh => new { sh.Id })
+        .FirstOrDefaultAsync();
 
             if (latestScrap == null)
             {
@@ -1373,19 +1598,20 @@ namespace PriceSafari.Controllers.MemberControllers
             int latestScrapId = latestScrap.Id;
 
             var productIds = simulationItems
-                .Select(s => s.ProductId)
-                .Distinct()
-                .ToList();
+              .Select(s => s.ProductId)
+              .Distinct()
+              .ToList();
 
             var productsData = await GetProductsInChunksAsync(productIds);
 
             var allPriceHistories = await GetPriceHistoriesInChunksAsync(productIds, latestScrapId);
 
             var priceHistoriesByProduct = allPriceHistories
-                .GroupBy(ph => ph.ProductId)
-                .ToDictionary(g => g.Key, g => g.ToList());
+              .GroupBy(ph => ph.ProductId)
+              .ToDictionary(g => g.Key, g => g.ToList());
 
-            string CalculateRanking(List<decimal> prices, decimal price)
+            // Metoda pomocnicza do obliczania rankingu
+            string CalculateRanking(List<decimal> prices, decimal price)
             {
                 prices.Sort();
                 int firstIndex = prices.IndexOf(price);
@@ -1402,18 +1628,18 @@ namespace PriceSafari.Controllers.MemberControllers
 
             foreach (var sim in simulationItems)
             {
-
                 var product = productsData.FirstOrDefault(p => p.ProductId == sim.ProductId);
                 if (product == null)
                 {
-
-                    continue;
+                    // Obsługa błędu - produkt nie znaleziony
+                    continue;
                 }
 
                 priceHistoriesByProduct.TryGetValue(sim.ProductId, out var allRecordsForProduct);
                 if (allRecordsForProduct == null)
                 {
-                    simulationResults.Add(new
+                    // Obsługa braku danych scrapowania dla produktu
+                    simulationResults.Add(new
                     {
                         productId = product.ProductId,
                         ean = product.Ean,
@@ -1437,88 +1663,149 @@ namespace PriceSafari.Controllers.MemberControllers
                     continue;
                 }
 
-                decimal? currentMargin = null;
+                // Znajdujemy wpis dla naszego sklepu z najnowszego scrapu, aby pobrać koszt dostawy
+                // (może być potrzebny np. dla wyliczenia marży na cenie bazowej, jeśli taka jest potrzeba,
+                // lub do wyświetlenia w UI, ale NIE DO DODAWANIA PONOWNIE do effective price dla rankingu)
+                var ourStoreRecord = allRecordsForProduct.FirstOrDefault(ph => ph.StoreName == ourStoreName);
+                decimal? ourStoreShippingCost = ourStoreRecord.ShippingCostNum; // Używamy ?. dla bezpieczeństwa
+
+                // Określamy "efektywną" cenę naszego sklepu dla obecnej i nowej ceny.
+                // Zgodnie z założeniem: sim.CurrentPrice / sim.NewPrice JUŻ ZAWIERA koszt dostawy,
+                // jeśli opcja UsePriceWithDelivery jest włączona po stronie klienta/wysyłającego dane.
+                // NIE dodajemy go ponownie tutaj. Nasza cena efektywna to po prostu cena przesłana z UI.
+                decimal effectiveCurrentPrice = sim.CurrentPrice; // Używamy ceny przesłanej przez UI
+                decimal effectiveNewPrice = sim.NewPrice;        // Używamy ceny przesłanej przez UI
+
+                // *** USUNIĘTO LUB ZAKOMENTOWANO BLOK IF, KTÓRY PODWÓJNIE DODAWAŁ WYSYŁKĘ DO NASZEJ CENY ***
+                // if (priceValues.UsePriceWithDelivery && ourStoreShippingCost.HasValue)
+                // {
+                //     effectiveCurrentPrice = sim.CurrentPrice + ourStoreShippingCost.Value;
+                //     effectiveNewPrice = sim.NewPrice + ourStoreShippingCost.Value;
+                // }
+                // ***************************************************************************************
+
+
+                decimal? currentMargin = null;
                 decimal? newMargin = null;
                 decimal? currentMarginValue = null;
                 decimal? newMarginValue = null;
-                if (product.MarginPrice.HasValue && product.MarginPrice.Value != 0)
+                // UWAGA: Zgodnie z poprzednim komentarzem i nowym założeniem o sim.CurrentPrice,
+                // marża jest liczona od ceny przesłanej z UI (która MOŻE zawierać wysyłkę).
+                // Jeśli marża powinna być ZAWSZE od ceny BAZOWEJ, ten fragment też wymaga modyfikacji.
+                // Obecnie liczymy od effective price przesłanej z UI.
+                if (product.MarginPrice.HasValue && product.MarginPrice.Value != 0)
                 {
                     currentMarginValue = sim.CurrentPrice - product.MarginPrice.Value;
                     newMarginValue = sim.NewPrice - product.MarginPrice.Value;
-                    currentMargin = Math.Round((currentMarginValue.Value / product.MarginPrice.Value) * 100, 2);
-                    newMargin = Math.Round((newMarginValue.Value / product.MarginPrice.Value) * 100, 2);
-
+                    // Sprawdzenie, czy MarginPrice nie jest 0, zanim wykonamy dzielenie
+                    if (product.MarginPrice.Value != 0)
+                    {
+                        currentMargin = Math.Round((currentMarginValue.Value / product.MarginPrice.Value) * 100, 2);
+                        newMargin = Math.Round((newMarginValue.Value / product.MarginPrice.Value) * 100, 2);
+                    }
                 }
+
 
                 bool weAreInGoogle = allRecordsForProduct.Any(ph => ph.StoreName == ourStoreName && ph.IsGoogle);
                 bool weAreInCeneo = allRecordsForProduct.Any(ph => ph.StoreName == ourStoreName && !ph.IsGoogle);
 
                 var competitorPrices = allRecordsForProduct.Where(ph => ph.StoreName != ourStoreName).ToList();
 
-                var googleCompetitorPrices = competitorPrices.Where(x => x.IsGoogle).Select(x => x.Price).ToList();
-                var currentGoogleList = new List<decimal>(googleCompetitorPrices);
-                var newGoogleList = new List<decimal>(googleCompetitorPrices);
+                // Obliczanie rankingów dla Google
+                // Logika obliczania effective price dla KONKURENTÓW pozostaje bez zmian.
+                var googleCompetitorEffectivePrices = competitorPrices
+          .Where(x => x.IsGoogle)
+          .Select(x => priceValues.UsePriceWithDelivery && x.ShippingCostNum.HasValue ? x.Price + x.ShippingCostNum.Value : x.Price)
+          .ToList();
+
+                var currentGoogleList = new List<decimal>(googleCompetitorEffectivePrices);
+                var newGoogleList = new List<decimal>(googleCompetitorEffectivePrices);
+
                 if (weAreInGoogle)
                 {
-                    currentGoogleList.Add(sim.CurrentPrice);
-                    newGoogleList.Add(sim.NewPrice);
-                }
-                int totalGoogleOffers = currentGoogleList.Count;
-                string currentGoogleRanking, newGoogleRanking;
+                    currentGoogleList.Add(effectiveCurrentPrice); // Dodajemy naszą (teraz poprawną) efektywną cenę
+                    newGoogleList.Add(effectiveNewPrice);       // Dodajemy naszą (teraz poprawną) efektywną cenę
+                }
+
+                int totalGoogleOffers = currentGoogleList.Count; // Liczba ofert w rankingu (wraz z naszą, jeśli jesteśmy)
+                string currentGoogleRanking, newGoogleRanking;
                 if (totalGoogleOffers == 0)
                 {
                     currentGoogleRanking = newGoogleRanking = "-";
                 }
                 else
                 {
-                    currentGoogleRanking = weAreInGoogle ? CalculateRanking(currentGoogleList, sim.CurrentPrice) : "-";
-                    newGoogleRanking = weAreInGoogle ? CalculateRanking(newGoogleList, sim.NewPrice) : "-";
-                }
-                var googleCurrentOffers = competitorPrices.Where(x => x.IsGoogle)
-                    .Select(x => new { x.Price, x.StoreName }).ToList();
-                if (weAreInGoogle)
-                {
-                    googleCurrentOffers.Add(new { Price = sim.CurrentPrice, StoreName = ourStoreName });
-                }
-                var googleNewOffers = competitorPrices.Where(x => x.IsGoogle)
-                    .Select(x => new { x.Price, x.StoreName }).ToList();
-                if (weAreInGoogle)
-                {
-                    googleNewOffers.Add(new { Price = sim.NewPrice, StoreName = ourStoreName });
+                    // Obliczamy ranking używając efektywnych cen (naszej i konkurentów)
+                    currentGoogleRanking = weAreInGoogle ? CalculateRanking(currentGoogleList, effectiveCurrentPrice) : "-";
+                    newGoogleRanking = weAreInGoogle ? CalculateRanking(newGoogleList, effectiveNewPrice) : "-";
                 }
 
-                var ceneoCompetitorPrices = competitorPrices.Where(x => !x.IsGoogle && !string.IsNullOrEmpty(x.StoreName))
-                    .Select(x => x.Price).ToList();
-                var currentCeneoList = new List<decimal>(ceneoCompetitorPrices);
-                var newCeneoList = new List<decimal>(ceneoCompetitorPrices);
+                // Listy ofert do wyświetlenia - pokazujemy ceny użyte do rankingu (czyli efektywne, jeśli opcja włączona)
+                // Logika tworzenia tych list również używa effective price dla nas i konkurentów, więc jest poprawna.
+                var googleCurrentOffers = competitorPrices.Where(x => x.IsGoogle)
+          .Select(x => new { Price = priceValues.UsePriceWithDelivery && x.ShippingCostNum.HasValue ? x.Price + x.ShippingCostNum.Value : x.Price, x.StoreName }).ToList();
+                if (weAreInGoogle)
+                {
+                    googleCurrentOffers.Add(new { Price = effectiveCurrentPrice, StoreName = ourStoreName });
+                }
+                var googleNewOffers = competitorPrices.Where(x => x.IsGoogle)
+                  .Select(x => new { Price = priceValues.UsePriceWithDelivery && x.ShippingCostNum.HasValue ? x.Price + x.ShippingCostNum.Value : x.Price, x.StoreName }).ToList();
+                if (weAreInGoogle)
+                {
+                    googleNewOffers.Add(new { Price = effectiveNewPrice, StoreName = ourStoreName });
+                }
+                // Sortujemy listy ofert po cenie, żeby były bardziej czytelne
+                googleCurrentOffers = googleCurrentOffers.OrderBy(x => x.Price).ToList();
+                googleNewOffers = googleNewOffers.OrderBy(x => x.Price).ToList();
+
+
+                // Obliczanie rankingów dla Ceneo (analogicznie do Google)
+                // Logika obliczania effective price dla KONKURENTÓW pozostaje bez zmian.
+                var ceneoCompetitorEffectivePrices = competitorPrices
+          .Where(x => !x.IsGoogle && !string.IsNullOrEmpty(x.StoreName))
+          .Select(x => priceValues.UsePriceWithDelivery && x.ShippingCostNum.HasValue ? x.Price + x.ShippingCostNum.Value : x.Price)
+          .ToList();
+
+                var currentCeneoList = new List<decimal>(ceneoCompetitorEffectivePrices);
+                var newCeneoList = new List<decimal>(ceneoCompetitorEffectivePrices);
+
                 if (weAreInCeneo)
                 {
-                    currentCeneoList.Add(sim.CurrentPrice);
-                    newCeneoList.Add(sim.NewPrice);
-                }
-                int totalCeneoOffers = currentCeneoList.Count;
-                string currentCeneoRanking, newCeneoRanking;
+                    currentCeneoList.Add(effectiveCurrentPrice); // Dodajemy naszą (teraz poprawną) efektywną cenę
+                    newCeneoList.Add(effectiveNewPrice);       // Dodajemy naszą (teraz poprawną) efektywną cenę
+                }
+
+                int totalCeneoOffers = currentCeneoList.Count; // Liczba ofert w rankingu (wraz z naszą, jeśli jesteśmy)
+                string currentCeneoRanking, newCeneoRanking;
                 if (totalCeneoOffers == 0)
                 {
                     currentCeneoRanking = newCeneoRanking = "-";
                 }
                 else
                 {
-                    currentCeneoRanking = weAreInCeneo ? CalculateRanking(currentCeneoList, sim.CurrentPrice) : "-";
-                    newCeneoRanking = weAreInCeneo ? CalculateRanking(newCeneoList, sim.NewPrice) : "-";
+                    // Obliczamy ranking używając efektywnych cen (naszej i konkurentów)
+                    currentCeneoRanking = weAreInCeneo ? CalculateRanking(currentCeneoList, effectiveCurrentPrice) : "-";
+                    newCeneoRanking = weAreInCeneo ? CalculateRanking(newCeneoList, effectiveNewPrice) : "-";
                 }
-                var ceneoCompetitorRecords = competitorPrices.Where(x => !x.IsGoogle && !string.IsNullOrEmpty(x.StoreName))
-                    .Select(x => new { x.Price, x.StoreName }).ToList();
+
+                // Listy ofert do wyświetlenia - pokazujemy ceny użyte do rankingu (czyli efektywne, jeśli opcja włączona)
+                // Logika tworzenia tych list również używa effective price dla nas i konkurentów, więc jest poprawna.
+                var ceneoCompetitorRecords = competitorPrices.Where(x => !x.IsGoogle && !string.IsNullOrEmpty(x.StoreName))
+          .Select(x => new { Price = priceValues.UsePriceWithDelivery && x.ShippingCostNum.HasValue ? x.Price + x.ShippingCostNum.Value : x.Price, x.StoreName }).ToList();
                 var ceneoCurrentOffers = new List<object>(ceneoCompetitorRecords);
                 if (weAreInCeneo)
                 {
-                    ceneoCurrentOffers.Add(new { Price = sim.CurrentPrice, StoreName = ourStoreName });
+                    ceneoCurrentOffers.Add(new { Price = effectiveCurrentPrice, StoreName = ourStoreName });
                 }
                 var ceneoNewOffers = new List<object>(ceneoCompetitorRecords);
                 if (weAreInCeneo)
                 {
-                    ceneoNewOffers.Add(new { Price = sim.NewPrice, StoreName = ourStoreName });
+                    ceneoNewOffers.Add(new { Price = effectiveNewPrice, StoreName = ourStoreName });
                 }
+                // Sortujemy listy ofert po cenie
+                ceneoCurrentOffers = ceneoCurrentOffers.OrderBy(x => ((dynamic)x).Price).ToList(); // Trzeba rzutować na dynamic ze względu na List<object>
+                ceneoNewOffers = ceneoNewOffers.OrderBy(x => ((dynamic)x).Price).ToList();
+
 
                 simulationResults.Add(new
                 {
@@ -1531,11 +1818,11 @@ namespace PriceSafari.Controllers.MemberControllers
                     currentCeneoRanking,
                     newCeneoRanking,
                     totalCeneoOffers = (totalCeneoOffers > 0 ? totalCeneoOffers : (int?)null),
-                    googleCurrentOffers,
-                    googleNewOffers,
-                    ceneoCurrentOffers,
-                    ceneoNewOffers,
-                    currentMargin,
+                    googleCurrentOffers, // Te listy teraz zawierają ceny z uwzględnieniem dostawy jeśli opcja włączona
+                    googleNewOffers,     // Te listy teraz zawierają ceny z uwzględnieniem dostawy jeśli opcja włączona
+                    ceneoCurrentOffers,  // Te listy teraz zawierają ceny z uwzględnieniem dostawy jeśli opcja włączona
+                    ceneoNewOffers,      // Te listy teraz zawierają ceny z uwzględnieniem dostawy jeśli opcja włączona
+                    currentMargin,
                     newMargin,
                     currentMarginValue,
                     newMarginValue
@@ -1545,8 +1832,9 @@ namespace PriceSafari.Controllers.MemberControllers
             return Json(new
             {
                 ourStoreName,
-                simulationResults
-            });
+                simulationResults,
+                usePriceWithDelivery = priceValues.UsePriceWithDelivery // Możesz zwrócić tę flagę w odpowiedzi, jeśli frontend jej potrzebuje
+            });
         }
 
         public class SimulationItem
@@ -1610,10 +1898,50 @@ namespace PriceSafari.Controllers.MemberControllers
             public int? ExternalId { get; set; }
         }
 
-        private async Task<List<(int ProductId, decimal Price, bool IsGoogle, string StoreName)>>
-               GetPriceHistoriesInChunksAsync(List<int> productIds, int scrapId)
+        //private async Task<List<(int ProductId, decimal Price, bool IsGoogle, string StoreName)>>
+        //       GetPriceHistoriesInChunksAsync(List<int> productIds, int scrapId)
+        //{
+        //    var result = new List<(int, decimal, bool, string)>();
+
+        //    for (int i = 0; i < productIds.Count; i += CHUNK_SIZE)
+        //    {
+        //        var subset = productIds.Skip(i).Take(CHUNK_SIZE).ToList();
+        //        if (subset.Count == 0)
+        //            continue;
+
+        //        var inClause = string.Join(",", subset);
+
+        //        string sql = $@"
+        //    SELECT ProductId, Price, IsGoogle, StoreName
+        //    FROM PriceHistories
+        //    WHERE ScrapHistoryId = {scrapId}
+        //      AND ProductId IN ({inClause})
+        //";
+
+        //        var partial = await _context.PriceHistories
+        //            .FromSqlRaw(sql)
+        //            .Select(ph => new
+        //            {
+        //                ph.ProductId,
+        //                ph.Price,
+        //                ph.IsGoogle,
+        //                ph.StoreName
+        //            })
+        //            .ToListAsync();
+
+        //        result.AddRange(
+        //            partial.Select(x => (x.ProductId, x.Price, x.IsGoogle, x.StoreName))
+        //        );
+        //    }
+
+        //    return result;
+        //}
+
+
+        private async Task<List<(int ProductId, decimal Price, bool IsGoogle, string StoreName, decimal? ShippingCostNum)>>
+        GetPriceHistoriesInChunksAsync(List<int> productIds, int scrapId)
         {
-            var result = new List<(int, decimal, bool, string)>();
+            var result = new List<(int, decimal, bool, string, decimal?)>(); // Dodajemy decimal? do krotki
 
             for (int i = 0; i < productIds.Count; i += CHUNK_SIZE)
             {
@@ -1624,7 +1952,7 @@ namespace PriceSafari.Controllers.MemberControllers
                 var inClause = string.Join(",", subset);
 
                 string sql = $@"
-            SELECT ProductId, Price, IsGoogle, StoreName
+            SELECT ProductId, Price, IsGoogle, StoreName, ShippingCostNum -- Dodajemy ShippingCostNum do SELECT
             FROM PriceHistories
             WHERE ScrapHistoryId = {scrapId}
               AND ProductId IN ({inClause})
@@ -1632,17 +1960,19 @@ namespace PriceSafari.Controllers.MemberControllers
 
                 var partial = await _context.PriceHistories
                     .FromSqlRaw(sql)
-                    .Select(ph => new
+                    .Select(ph => new // Nadal tworzymy typ anonimowy, ale teraz z ShippingCostNum
                     {
                         ph.ProductId,
                         ph.Price,
                         ph.IsGoogle,
-                        ph.StoreName
+                        ph.StoreName,
+                        ph.ShippingCostNum // Dodajemy ShippingCostNum tutaj
                     })
                     .ToListAsync();
 
                 result.AddRange(
-                    partial.Select(x => (x.ProductId, x.Price, x.IsGoogle, x.StoreName))
+                    // Dodajemy ShippingCostNum do krotki podczas konwersji
+                    partial.Select(x => (x.ProductId, x.Price, x.IsGoogle, x.StoreName, x.ShippingCostNum))
                 );
             }
 

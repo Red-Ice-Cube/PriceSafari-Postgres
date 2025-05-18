@@ -37,11 +37,11 @@
                padding-right:8px;
             
                 height: 20.5px; /* Podana wysokość */
-                line-height: 18.5px; /* DODANE: Ustawia wysokość linii tekstu, co centruje pionowo zawartość inline */
+                line-height: 17.5px; /* DODANE: Ustawia wysokość linii tekstu, co centruje pionowo zawartość inline */
                 margin-left: 5px;
         /* Zakładam, że brakujący margin-right 2px powinien być zachowany */
         margin-right: 2px;
-                border-radius: 3px; /* Delikatnie zaokrąglone rogi */
+                border-radius: 4px; /* Delikatnie zaokrąglone rogi */
         vertical-align: middle; /* Zachowane, pomaga w wyrównaniu całego elementu w linii */
         box-sizing: border-box; /* DODANE: Upewnia się, że paddingi nie zwiększają rozmiaru elementu poza 20.5px */
 
@@ -423,46 +423,50 @@
                     Ustawienia symulacji marżowej umożliwiają precyzyjne określenie, dla których produktów oraz w jaki sposób mają być modyfikowane ceny w oparciu o cenę zakupu. Jeśli chcesz, aby symulacja dotyczyła tylko produktów z określoną ceną zakupu, lub aby cena nie spadła poniżej ustalonego poziomu marży – skonfiguruj poniższe opcje.
                 </p>
                 <form id="marginSettingsForm">
-
-                    <div class="form-group" style="margin-bottom:24px;">
-                        <label for="useEanForSimulation">
-                            Element nawigacyjny dla produktów
-                        </label>
-                        <select class="form-control" id="useEanForSimulationInput">
-                            <option value="true">EAN</option>
-                            <option value="false">ID</option>
-                        </select>
+                    <div style="display:flex; gap:6px; justify-content: space-between;">
+                        <div class="form-group" style="margin-bottom:24px; width:250px;">
+                            <label for="useEanForSimulation">
+                                Element nawigacyjny dla produktów
+                            </label>
+                            <select class="form-control" id="useEanForSimulationInput">
+                                <option value="true">EAN</option>
+                                <option value="false">ID</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="margin-bottom:24px;  width:250px;">
+                            <label for="useMarginForSimulationInput">
+                                Symuluj tylko produkty posiadające cenę zakupu
+                            </label>
+                            <select class="form-control" id="useMarginForSimulationInput">
+                                <option value="true">Tak</option>
+                                <option value="false">Nie</option>
+                            </select>
+                        </div>
                     </div>
-                    <div class="form-group" style="margin-bottom:24px;">
-                        <label for="useMarginForSimulationInput">
-                            Stosuj symulację tylko dla produktów posiadających cenę zakupu
-                        </label>
-                        <select class="form-control" id="useMarginForSimulationInput">
-                            <option value="true">Tak</option>
-                            <option value="false">Nie</option>
-                        </select>
+                    <div style="display:flex; gap:6px; justify-content: space-between;">
+                        <div class="form-group" style="margin-bottom:24px; width:250px;">
+                            <label for="usePriceWithDeliveryInput">
+                                Uwzględniaj koszt wysyłki w cenie produktu
+                            </label>
+                            <select class="form-control" id="usePriceWithDeliveryInput">
+                                <option value="true">Tak</option>
+                                <option value="false">Nie</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="margin-bottom:24px; width:250px;">
+                            <label for="enforceMinimalMarginInput">
+                                Zablokuj możliwość opuszczenia ceny, poniżej ceny zakupu
+                            </label>
+                            <select class="form-control" id="enforceMinimalMarginInput">
+                                <option value="true">Tak</option>
+                                <option value="false">Nie</option>
+                            </select>
+                        </div>
                     </div>
-                    <div class="form-group" style="margin-bottom:24px;">
-                        <label for="usePriceWithDeliveryInput">
-                            Uwzględniaj cene z wysyłką
-                        </label>
-                        <select class="form-control" id="usePriceWithDeliveryInput">
-                            <option value="true">Tak</option>
-                            <option value="false">Nie</option>
-                        </select>
-                    </div>
-                    <div class="form-group" style="margin-bottom:24px;">
-                        <label for="enforceMinimalMarginInput">
-                            Zablokuj możliwość opuszczenia ceny, poniżej ceny zakupu
-                        </label>
-                        <select class="form-control" id="enforceMinimalMarginInput">
-                            <option value="true">Tak</option>
-                            <option value="false">Nie</option>
-                        </select>
-                    </div>
+                 
                     <div class="form-group" style="margin-bottom:24px;">
                         <label for="minimalMarginPercentInput">
-                            Minimalna marża (%) – minimalny procent, poniżej którego cena nie może spaść
+                            Minimalna marża (%) – procent, poniżej którego cena nie może spaść
                         </label>
                         <input type="number" class="form-control" id="minimalMarginPercentInput" step="0.01" value="0.00">
                     </div>
