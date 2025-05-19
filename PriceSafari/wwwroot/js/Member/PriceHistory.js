@@ -1344,34 +1344,29 @@
 
             const priceLine = document.createElement('div');
             priceLine.style.display = 'flex';
-            priceLine.style.alignItems = 'center'; // Dodaj to dla lepszego wyrównania
+            priceLine.style.alignItems = 'center';
 
             const priceSpan = document.createElement('span');
             priceSpan.style.fontWeight = '500';
             priceSpan.style.fontSize = '17px';
             priceSpan.textContent = item.lowestPrice.toFixed(2) + ' PLN';
 
-            priceLine.appendChild(priceSpan); // <--- Najpierw dodaj cenę
-
-            const lowestPriceIndicator = createDeliveryIndicator(item.bestPriceIncludesDelivery); // Utwórz wskaźnik
-            if (lowestPriceIndicator) {
-                priceLine.appendChild(lowestPriceIndicator); // <--- Potem dodaj wskaźnik
-            }
+            priceLine.appendChild(priceSpan);
 
             if (typeof item.externalBestPriceCount !== 'undefined' && item.externalBestPriceCount !== null) {
-                // Zaktualizuj dodawanie TOP/percentage do priceLine, aby były po cenie i wskaźniku
+
                 if (item.externalBestPriceCount === 1) {
                     const uniqueBox = document.createElement('div');
                     uniqueBox.className = 'uniqueBestPriceBox';
                     uniqueBox.textContent = '★ TOP';
                     uniqueBox.style.marginLeft = '4px';
-                    priceLine.appendChild(uniqueBox); // Dodaj do priceLine
+                    priceLine.appendChild(uniqueBox);
                 } else if (item.externalBestPriceCount > 1) {
                     const shareBox = document.createElement('div');
                     shareBox.className = 'shareBestPriceBox';
                     shareBox.textContent = item.externalBestPriceCount + ' TOP';
                     shareBox.style.marginLeft = '4px';
-                    priceLine.appendChild(shareBox); // Dodaj do priceLine
+                    priceLine.appendChild(shareBox);
                 }
             }
 
@@ -1382,10 +1377,21 @@
                 const spanDiff = document.createElement('span');
                 spanDiff.textContent = item.singleBestCheaperDiffPerc.toFixed(2) + '%';
                 diffBox.appendChild(spanDiff);
-                priceLine.appendChild(diffBox); // Dodaj do priceLine
+                priceLine.appendChild(diffBox);
             }
 
             priceBoxLowestText.appendChild(priceLine);
+
+            if (marginSettings.usePriceWithDelivery) {
+                const lowestPriceDeliveryInfo = createDeliveryInfoDisplay(
+                    item.lowestPrice,
+                    item.bestPriceDeliveryCost,
+                    item.bestPriceIncludesDelivery
+                );
+                if (lowestPriceDeliveryInfo) {
+                    priceBoxLowestText.insertBefore(lowestPriceDeliveryInfo, priceBoxLowestText.children[1]);
+                }
+            }
 
             const storeNameDiv = document.createElement('div');
             storeNameDiv.innerHTML = highlightedStoreName;
@@ -1419,11 +1425,8 @@
                 const priceBoxMyText = document.createElement('div');
                 priceBoxMyText.className = 'price-box-column-text';
 
-                // Utworzenie wskaźnika dostawy (zrobimy to raz, niezależnie od externalPrice)
-                const myPriceIndicator = createDeliveryIndicator(item.myPriceIncludesDelivery);
-
                 if (item.externalPrice !== null) {
-                    // --- Początek bloku externalPrice !== null ---
+
                     const externalPriceDifference = (item.externalPrice - myPrice).toFixed(2);
                     const isPriceDecrease = item.externalPrice < myPrice;
 
@@ -1445,7 +1448,7 @@
                     priceChangeContainer.appendChild(storeName);
                     priceChangeContainer.appendChild(priceDifferenceElem);
 
-                    const priceContainer = document.createElement('div'); // Ten div zawiera starą i nową cenę
+                    const priceContainer = document.createElement('div');
                     priceContainer.style.display = 'flex';
                     priceContainer.style.justifyContent = 'space-between';
                     priceContainer.style.alignItems = 'center';
@@ -1463,43 +1466,51 @@
                     priceContainer.appendChild(oldPrice);
                     priceContainer.appendChild(newPrice);
 
-                    // Dodaj wskaźnik dostawy PO kontenerze cen (starą i nową)
-                    if (myPriceIndicator) {
-                        priceContainer.appendChild(myPriceIndicator);
-                    }
-
-
                     priceBoxMyText.appendChild(priceContainer);
                     priceBoxMyText.appendChild(priceChangeContainer);
-                    // --- Koniec bloku externalPrice !== null ---
+
+                    if (marginSettings.usePriceWithDelivery) {
+                        const myPriceDeliveryInfo = createDeliveryInfoDisplay(
+                            myPrice,
+                            item.myPriceDeliveryCost,
+                            item.myPriceIncludesDelivery
+                        );
+                        if (myPriceDeliveryInfo) {
+                            priceBoxMyText.insertBefore(myPriceDeliveryInfo, priceBoxMyText.children[1]);
+                        }
+                    }
 
                 } else {
-                    // --- Początek bloku externalPrice === null (refaktoryzacja z innerHTML + wskaźnik) ---
-                    const myPriceLine = document.createElement('div'); // Kontener dla ceny i wskaźnika
-                    myPriceLine.style.display = 'flex';
-                    myPriceLine.style.alignItems = 'center'; // Wyśrodkuj elementy w linii
 
-                    const myPriceSpan = document.createElement('span'); // Element dla samej ceny
+                    const myPriceLine = document.createElement('div');
+                    myPriceLine.style.display = 'flex';
+                    myPriceLine.style.alignItems = 'center';
+
+                    const myPriceSpan = document.createElement('span');
                     myPriceSpan.style.fontWeight = '500';
                     myPriceSpan.style.fontSize = '17px';
                     myPriceSpan.textContent = myPrice.toFixed(2) + ' PLN';
 
-                    myPriceLine.appendChild(myPriceSpan); // Dodaj cenę do linii
+                    myPriceLine.appendChild(myPriceSpan);
 
-                    // Dodaj wskaźnik dostawy PO cenie w tej samej linii
-                    if (myPriceIndicator) {
-                        myPriceLine.appendChild(myPriceIndicator);
-                    }
-
-                    const storeNameDiv = document.createElement('div'); // Element dla nazwy sklepu
+                    const storeNameDiv = document.createElement('div');
                     storeNameDiv.textContent = myStoreName;
 
-                    priceBoxMyText.appendChild(myPriceLine); // Dodaj linię z ceną i wskaźnikiem
-                    priceBoxMyText.appendChild(storeNameDiv); // Dodaj nazwę sklepu
-                    // --- Koniec bloku externalPrice === null ---
+                    priceBoxMyText.appendChild(myPriceLine);
+                    if (marginSettings.usePriceWithDelivery) {
+                        const myPriceDeliveryInfo = createDeliveryInfoDisplay(
+                            myPrice,
+                            item.myPriceDeliveryCost,
+                            item.myPriceIncludesDelivery
+                        );
+                        if (myPriceDeliveryInfo) {
+                            priceBoxMyText.insertBefore(myPriceDeliveryInfo, priceBoxMyText.children[1]);
+                        }
+                    }
+
+                    priceBoxMyText.appendChild(storeNameDiv);
                 }
 
-                // --- Początek bloku priceBoxMyDetails (pozostaje bez zmian) ---
                 const priceBoxMyDetails = document.createElement('div');
                 priceBoxMyDetails.className = 'price-box-column-text';
                 priceBoxMyDetails.innerHTML =
@@ -1520,14 +1531,14 @@
 
                 priceBoxColumnMyPrice.appendChild(priceBoxMyText);
                 priceBoxColumnMyPrice.appendChild(priceBoxMyDetails);
-                // --- Koniec bloku priceBoxMyDetails ---
+
             } else {
-                // --- Początek bloku gdy myPrice jest null lub isRejected ---
+
                 const priceBoxMyText = document.createElement('div');
                 priceBoxMyText.className = 'price-box-column-text';
                 priceBoxMyText.innerHTML = '<span style="font-weight: 500;">Brak ceny</span><br>' + myStoreName;
                 priceBoxColumnMyPrice.appendChild(priceBoxMyText);
-                // --- Koniec bloku gdy myPrice jest null lub isRejected ---
+
             }
 
             const priceBoxColumnInfo = document.createElement('div');
@@ -2121,33 +2132,51 @@
         return 'Availability14Days';
     }
 
+    function createDeliveryInfoDisplay(totalPrice, deliveryCost, includesDelivery) {
 
-
-
-    function createDeliveryIndicator(includesDelivery) {
-        if (includesDelivery === null || includesDelivery === undefined) {
-            return null; // Nic nie dodajemy, jeśli dane są null/undefined
+        if (totalPrice === null || totalPrice === undefined) {
+            return null;
         }
 
-        const indicator = document.createElement('span');
-        indicator.className = 'delivery-indicator'; // Klasa bazowa
-        if (includesDelivery === true) {
-            indicator.classList.add('delivery-included-green'); // Klasa dla zielonego
-            indicator.title = "Cena zawiera dostawę";
-        } else { // includesDelivery === false
-            indicator.classList.add('delivery-not-included-red'); // Klasa dla czerwonego
-            indicator.title = "Cena nie zawiera dostawy";
-        }
+        const numericTotalPrice = parseFloat(totalPrice);
 
-        // Dodaj ikonę ciężarówki Font Awesome
+        let deliveryKnown = deliveryCost !== null && deliveryCost !== undefined && !isNaN(parseFloat(deliveryCost));
+        let numericDeliveryCost = deliveryKnown ? parseFloat(deliveryCost) : 0;
+
+        const truckColor = includesDelivery === true ? '#21a73e' : '#f44336';
+
+        let truckTooltip = includesDelivery === true
+            ? "Cena zawiera dostawę"
+            : "Cena NIE zawiera dostawy";
+
+        const infoContainer = document.createElement('div');
+        infoContainer.className = 'delivery-info-line';
+
         const truckIcon = document.createElement('i');
-        truckIcon.className = 'fa fa-truck'; // Klasa Font Awesome dla ciężarówki
-        truckIcon.style.color = 'white'; // Ustaw kolor ikony na biały
-        truckIcon.style.fontSize = '10px'; // Możesz dostosować rozmiar ikony w kwadracie
+        truckIcon.className = 'fa fa-truck';
+        truckIcon.style.marginRight = '4px';
+        truckIcon.style.marginLeft = '1px';
+        truckIcon.style.fontSize = '12px';
+        truckIcon.title = truckTooltip;
+        truckIcon.style.color = truckColor;
 
-        indicator.appendChild(truckIcon); // Dodaj ikonę do spanu wskaźnika
+        const priceText = document.createElement('span');
+        priceText.style.fontSize = '12px';
+        priceText.style.color = '#555';
 
-        return indicator;
+        if (deliveryKnown) {
+
+            const basePrice = numericTotalPrice - numericDeliveryCost;
+            priceText.textContent = `${basePrice.toFixed(2)} PLN | ${numericDeliveryCost.toFixed(2)} PLN`;
+        } else {
+
+            priceText.textContent = `${numericTotalPrice.toFixed(2)} PLN | Brak danych o wysyłce`;
+        }
+
+        infoContainer.appendChild(truckIcon);
+        infoContainer.appendChild(priceText);
+
+        return infoContainer;
     }
 
     function hexToRgba(hex, alpha) {
@@ -2253,16 +2282,14 @@
     });
 
     document.getElementById('saveMarginSettingsBtn').addEventListener('click', function () {
-        // Capture the CURRENT setting before reading the new one from the input
-        // We access the global marginSettings variable which holds the state before the modal was opened/changed
+
         const oldUsePriceWithDeliverySetting = marginSettings.usePriceWithDelivery;
 
-        // Read the NEW settings from the modal inputs
         const updatedMarginSettings = {
             StoreId: storeId,
             useEanForSimulation: document.getElementById('useEanForSimulationInput').value === 'true',
             UseMarginForSimulation: document.getElementById('useMarginForSimulationInput').value === 'true',
-            // Get the NEW value directly from the select input
+
             UsePriceWithDelivery: document.getElementById('usePriceWithDeliveryInput').value === 'true',
             EnforceMinimalMargin: document.getElementById('enforceMinimalMarginInput').value === 'true',
             MinimalMarginPercent: parseFloat(document.getElementById('minimalMarginPercentInput').value)
@@ -2278,36 +2305,30 @@
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    // Check if the usePriceWithDelivery setting has changed
+
                     if (oldUsePriceWithDeliverySetting !== updatedMarginSettings.UsePriceWithDelivery) {
-                        // If it changed, clear the saved price changes from localStorage
+
                         localStorage.removeItem('selectedPriceChanges_' + storeId);
-                        // Also clear the local variable `selectedPriceChanges`
+
                         if (typeof selectedPriceChanges !== 'undefined') {
                             selectedPriceChanges = [];
                             console.log("Zmiany symulacji cenowej usunięte z Local Storage i pamięci, ponieważ zmieniono ustawienie 'Uwzględniaj koszt wysyłki'. Przeładowuję stronę.");
                         }
 
-                        // Pokaż powiadomienie i przeładuj stronę po krótkiej chwili
                         showGlobalUpdate('<p style="margin-bottom:8px; font-size:16px; font-weight:bold;">Ustawienia zapisane</p><p>Zmiana opcji "Uwzględniaj koszt wysyłki" spowodowała usunięcie wprowadzonych zmian symulacji cenowej. Przeładowuję stronę...</p>');
 
-                        // *** ZASTĄP loadPrices() PEŁNYM PRZEŁADOWANIEM STRONY ***
                         setTimeout(function () {
-                            window.location.reload(); // Przeładowanie strony
-                        }, 2000); // Opóźnienie 2 sekundy, żeby użytkownik zobaczył komunikat
-                        // ******************************************************
+                            window.location.reload();
+                        }, 2000);
 
                     } else {
-                        // If the setting didn't change, just show a standard success message and reload data
+
                         showGlobalUpdate('<p style="margin-bottom:8px; font-size:16px; font-weight:bold;">Ustawienia zapisane</p>');
 
-                        // Update the global settings variable with the new values
                         marginSettings = updatedMarginSettings;
 
-                        // Hide the modal after successful save
                         $('#marginSettingsModal').modal('hide');
 
-                        // Reload/re-filter prices as before (local changes persist if not cleared)
                         loadPrices();
                     }
                 } else {

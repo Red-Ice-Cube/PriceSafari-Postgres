@@ -622,6 +622,8 @@ namespace PriceSafari.Controllers.MemberControllers
                         SingleBestCheaperDiffPerc = singleBestCheaperDiffPerc,
                         BestPriceIncludesDelivery = bestPriceIncludesDeliveryFlag,
                         MyPriceIncludesDelivery = myPriceIncludesDeliveryFlag,
+                        BestPriceDeliveryCost = priceValues.UsePriceWithDelivery ? bestPriceEntry?.ShippingCostNum : null,
+                        MyPriceDeliveryCost = priceValues.UsePriceWithDelivery ? myPriceEntry?.ShippingCostNum : null
                     };
                 })
                 .Where(p => p != null)
