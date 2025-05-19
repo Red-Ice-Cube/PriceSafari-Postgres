@@ -225,9 +225,9 @@
                                 <div class="price-box-data">
                                     <div class="color-bar @colorClass" style="margin-right:16px; min-height:110px; max-height:110px;"></div>
 
-                                    @if (!string.IsNullOrEmpty(item.Product.MainUrl))
+                                    @if (!string.IsNullOrEmpty(item.MainUrl))
                                     {
-                                        <img data-src="@item.Product.MainUrl" alt="@item.ProductName" class="product-image lazy-load" style="width: 110px;
+                                        <img data-src="@item.MainUrl" alt="@item.ProductName" class="product-image lazy-load" style="width: 110px;
                                         height: 110px;
                                         margin-right: 5px;
                                         margin-left: 5px;
