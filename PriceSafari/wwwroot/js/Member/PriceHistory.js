@@ -2251,11 +2251,18 @@
 
         $('#marginSettingsModal').modal('show');
     });
+
     document.getElementById('saveMarginSettingsBtn').addEventListener('click', function () {
+        // Capture the CURRENT setting before reading the new one from the input
+        // We access the global marginSettings variable which holds the state before the modal was opened/changed
+        const oldUsePriceWithDeliverySetting = marginSettings.usePriceWithDelivery;
+
+        // Read the NEW settings from the modal inputs
         const updatedMarginSettings = {
             StoreId: storeId,
             useEanForSimulation: document.getElementById('useEanForSimulationInput').value === 'true',
             UseMarginForSimulation: document.getElementById('useMarginForSimulationInput').value === 'true',
+            // Get the NEW value directly from the select input
             UsePriceWithDelivery: document.getElementById('usePriceWithDeliveryInput').value === 'true',
             EnforceMinimalMargin: document.getElementById('enforceMinimalMarginInput').value === 'true',
             MinimalMarginPercent: parseFloat(document.getElementById('minimalMarginPercentInput').value)
@@ -2271,18 +2278,47 @@
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
+                    // Check if the usePriceWithDelivery setting has changed
+                    if (oldUsePriceWithDeliverySetting !== updatedMarginSettings.UsePriceWithDelivery) {
+                        // If it changed, clear the saved price changes from localStorage
+                        localStorage.removeItem('selectedPriceChanges_' + storeId);
+                        // Also clear the local variable `selectedPriceChanges`
+                        if (typeof selectedPriceChanges !== 'undefined') {
+                            selectedPriceChanges = [];
+                            console.log("Zmiany symulacji cenowej usunięte z Local Storage i pamięci, ponieważ zmieniono ustawienie 'Uwzględniaj koszt wysyłki'. Przeładowuję stronę.");
+                        }
 
-                    marginSettings = updatedMarginSettings;
-                    $('#marginSettingsModal').modal('hide');
+                        // Pokaż powiadomienie i przeładuj stronę po krótkiej chwili
+                        showGlobalUpdate('<p style="margin-bottom:8px; font-size:16px; font-weight:bold;">Ustawienia zapisane</p><p>Zmiana opcji "Uwzględniaj koszt wysyłki" spowodowała usunięcie wprowadzonych zmian symulacji cenowej. Przeładowuję stronę...</p>');
 
-                    loadPrices();
+                        // *** ZASTĄP loadPrices() PEŁNYM PRZEŁADOWANIEM STRONY ***
+                        setTimeout(function () {
+                            window.location.reload(); // Przeładowanie strony
+                        }, 2000); // Opóźnienie 2 sekundy, żeby użytkownik zobaczył komunikat
+                        // ******************************************************
+
+                    } else {
+                        // If the setting didn't change, just show a standard success message and reload data
+                        showGlobalUpdate('<p style="margin-bottom:8px; font-size:16px; font-weight:bold;">Ustawienia zapisane</p>');
+
+                        // Update the global settings variable with the new values
+                        marginSettings = updatedMarginSettings;
+
+                        // Hide the modal after successful save
+                        $('#marginSettingsModal').modal('hide');
+
+                        // Reload/re-filter prices as before (local changes persist if not cleared)
+                        loadPrices();
+                    }
                 } else {
                     alert('Błąd zapisu ustawień: ' + data.message);
                 }
             })
-            .catch(error => console.error('Błąd zapisu ustawień marży:', error));
+            .catch(error => {
+                console.error('Błąd zapisu ustawień marży:', error);
+                showGlobalNotification('<p style="margin-bottom:8px; font-weight:bold;">Błąd zapisu ustawień</p><p>Wystąpił błąd podczas zapisywania ustawień marży.</p>');
+            });
     });
-
     function updateColorCounts(data) {
         const colorCounts = {
             prOnlyMe: 0,

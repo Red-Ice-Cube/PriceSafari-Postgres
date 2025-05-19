@@ -92,7 +92,7 @@
         var summaryText = document.getElementById("summaryText");
         if (summaryText) {
             summaryText.innerHTML =
-                "<div class='price-change-up' style='display: inline-block; margin-right: 10px;'><span style='color: red;'>▲</span> " + increasedCount + "</div>" +
+                "<div class='price-change-up' style='display: inline-block;'><span style='color: red;'>▲</span> " + increasedCount + "</div>" +
                 "<div class='price-change-down' style='display: inline-block;'><span style='color: green;'>▼</span> " + decreasedCount + "</div>";
         }
 
