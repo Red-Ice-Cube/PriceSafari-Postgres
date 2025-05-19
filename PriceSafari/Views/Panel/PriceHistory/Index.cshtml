@@ -21,48 +21,39 @@
 <style>
 
     .simulationProductTitle {
-        text-decoration:none;
+        text-decoration: none;
         color: #222222;
-
     }
 
-    .simulationProductTitle:hover {
+        .simulationProductTitle:hover {
             color: #41C7C7;
             cursor: pointer;
-    }
-
-    .delivery-indicator {
-                display: inline-block; /* Zachowane zgodnie z życzeniem */
-               padding-left:8px;
-               padding-right:8px;
-            
-                height: 20.5px; /* Podana wysokość */
-                line-height: 17.5px; /* DODANE: Ustawia wysokość linii tekstu, co centruje pionowo zawartość inline */
-                margin-left: 5px;
-        /* Zakładam, że brakujący margin-right 2px powinien być zachowany */
-        margin-right: 2px;
-                border-radius: 4px; /* Delikatnie zaokrąglone rogi */
-        vertical-align: middle; /* Zachowane, pomaga w wyrównaniu całego elementu w linii */
-        box-sizing: border-box; /* DODANE: Upewnia się, że paddingi nie zwiększają rozmiaru elementu poza 20.5px */
-
-    }
-
-        /* Styl dla samej ikony ciężarówki wewnątrz wskaźnika */
-        .delivery-indicator i.fa-truck {
-            color: white; /* Kolor biały dla ciężarówki */
-            font-size: 14px; /* Możesz dostosować rozmiar ikony */
-            /* Ikona jest elementem inline, więc line-height i text-align rodzica ją wyśrodkują */
         }
 
-
-        .delivery-included-green {
-                background-color: #28a745; /* Zielony kolor */
-
+    .delivery-indicator {
+        display: inline-block;
+        padding-left: 8px;
+        padding-right: 8px;
+        height: 20.5px;
+        line-height: 17.5px;
+        margin-left: 5px;
+        margin-right: 2px;
+        border-radius: 4px;
+        vertical-align: middle;
+        box-sizing: border-box;
     }
 
-        .delivery-not-included-red {
-                background-color: #dc3545; /* Czerwony kolor */
+        .delivery-indicator i.fa-truck {
+            color: white;
+            font-size: 14px;
+        }
 
+    .delivery-included-green {
+        background-color: #28a745;
+    }
+
+    .delivery-not-included-red {
+        background-color: #dc3545;
     }
 
 </style>
@@ -121,7 +112,7 @@
                     <div class="price-range-settings">
                         <div class="price-range-settings-stepPrice"></div>
                         <label for="stepPrice"></label>
-                        <input type="number" id="stepPrice" value="@ViewBag.PriceStep" step="0.01" min="0.01" >
+                        <input type="number" id="stepPrice" value="@ViewBag.PriceStep" step="0.01" min="0.01">
                         <span id="unitLabelStepPrice"></span>
                     </div>
 
@@ -134,7 +125,7 @@
 
                 <div class="filterBox">
 
-                    <div class="Category-Container-Select" style="margin-top:-2px;">Flagi  <a asp-controller="Flags" asp-action="List" asp-route-storeId="@ViewBag.StoreId" class="link-line">+ Dodaj Flage</a></div>
+                    <div class="Category-Container-Select" style="margin-top:-2px;">Flagi <a asp-controller="Flags" asp-action="List" asp-route-storeId="@ViewBag.StoreId" class="link-line">+ Dodaj Flage</a></div>
                     <div class="store-section" id="flagContainer">
                     </div>
 
@@ -248,19 +239,14 @@
 
                     <input type="text" id="storeSearch" style="max-width:150px;" placeholder="Wyszukaj sklep">
 
-
                     <select id="producerFilterDropdown" class="DropDown" style="max-width:150px;">
                         <option value="">Wszystkie marki</option>
-                        </select>
-             
+                    </select>
 
                     <button type="button" class="Button-Page-Small" style="white-space: nowrap;" id="presetButton" onclick="openCompetitorsModal()">
                         Presety
                     </button>
 
-
-
-        
                     <button class="Button-Page-Small" style="white-space: nowrap;" id="exportToExcelButton"><i class="fa-solid fa-floppy-disk" style="margin-top:2px;"></i>Eksportuj widok</button>
 
                     <div class="SimpleSpace" style="justify-content:flex-end;">
@@ -269,7 +255,6 @@
                             <i class="fa fa-info-circle"></i>
                         </button>
                     </div>
-
 
                 </div>
 
@@ -307,13 +292,11 @@
         </div>
     </div>
 </div>
-<!-- Modal do symulacji -->
 <div class="modal-sim fade" id="simulationModal" tabindex="-1" role="dialog" aria-labelledby="simulationModalLabel">
     <div class="modal-dialog-sim" role="document">
         <div class="modal-simulation">
             <div class="modal-header" style="border:none;">
                 <div class="price-box-column-name" id="simulationModalLabel">Symuluj ceny</div>
-
 
                 <button type="button" class="close" data-dismiss="modal" aria-label="Zamknij">
                     <span aria-hidden="true">&times;</span>
@@ -341,7 +324,6 @@
     </div>
 </div>
 
-<!-- Modal disclaimera przed eksportem -->
 <div class="modal fade" id="exportDisclaimerModal" tabindex="-1" role="dialog" aria-labelledby="exportDisclaimerModalLabel" aria-hidden="true">
     <div class="modal-dialog" role="document">
         <div class="modal-content" style="width:460px;">
@@ -366,6 +348,37 @@
         </div>
     </div>
 </div>
+
+@* --- START: NOWY MODAL DISCLAIMERA DLA WYSYŁKI --- *@
+<div class="modal fade" id="deliveryDisclaimerModal" tabindex="-1" role="dialog" aria-labelledby="deliveryDisclaimerModalLabel" aria-hidden="true" style="z-index: 8555;">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content" style="width:460px;">
+            <div class="modal-header">
+                <div class="price-box-column-name" id="deliveryDisclaimerModalLabel">Ważna informacja</div>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Zamknij">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p>
+                    Włączenie opcji "Uwzględniaj koszt wysyłki w cenie produktu" może znacząco wpłynąć na wyniki symulacji cen.
+                    System będzie porównywał ceny produktów wraz z kosztem wysyłki, co może prowadzić do innych sugestii cenowych niż przy porównaniu samych cen produktów.
+                    <br /><br />
+                    Pamiętaj, że koszt wysyłki jest wartością szacunkową i może się różnić w zależności od gabarytów, wagi produktu oraz wybranej metody dostawy przez klienta.
+                    Symulacja z kosztem wysyłki jest przybliżona i służy celom poglądowym.
+                    <br /><br />
+                    [Tutaj możesz dodać swoją, bardziej szczegółową informację o konsekwencjach]
+                </p>
+            </div>
+            <div class="modal-footer" style="justify-content:space-between;">
+                <button type="button" class="Button-Page-Small-r" data-dismiss="modal" id="deliveryDisclaimerCancelButton">Anuluj</button>
+                <button type="button" class="Button-Page-Small-bl" id="deliveryDisclaimerConfirmButton">Kontynuuj</button>
+            </div>
+        </div>
+    </div>
+</div>
+@* --- END: NOWY MODAL DISCLAIMERA DLA WYSYŁKI --- *@
+
 
 <div class="modal fade" id="massChangeModal" tabindex="-1" role="dialog" aria-labelledby="massChangeModalLabel" aria-hidden="true">
     <div class="modal-dialog" role="document">
@@ -448,10 +461,12 @@
                             <label for="usePriceWithDeliveryInput">
                                 Uwzględniaj koszt wysyłki w cenie produktu
                             </label>
+                            @* --- TEN SELECT BĘDZIE OBSŁUGIWANY PRZEZ JS DLA DISCLAIMERA --- *@
                             <select class="form-control" id="usePriceWithDeliveryInput">
                                 <option value="true">Tak</option>
                                 <option value="false">Nie</option>
                             </select>
+                            @* ------------------------------------------------------------ *@
                         </div>
                         <div class="form-group" style="margin-bottom:24px; width:250px;">
                             <label for="enforceMinimalMarginInput">
@@ -463,7 +478,7 @@
                             </select>
                         </div>
                     </div>
-                 
+
                     <div class="form-group" style="margin-bottom:24px;">
                         <label for="minimalMarginPercentInput">
                             Minimalna marża (%) – procent, poniżej którego cena nie może spaść
@@ -486,7 +501,7 @@
 
             <div class="modal-header">
 
-                    <div class="price-box-column-name">Presety</div>
+                <div class="price-box-column-name">Presety</div>
 
                 <div style="display:flex; gap:10px;">
 
@@ -566,7 +581,7 @@
                             <div style="display:flex; margin-bottom:12px; font-size:15px;">
                                 <div class="filterCompetitors-true" style="margin-right:8px;"><i class="fas fa-check"></i></div>
                                 <p>
-                                   Kliknij aby wyświetlać dany sklep.
+                                    Kliknij aby wyświetlać dany sklep.
                                 </p>
                             </div>
                             <div style="display:flex; margin-bottom:12px; font-size:15px;">
@@ -593,22 +608,22 @@
 
                     </div>
                     <div style="display: flex;
-            flex-wrap: nowrap;
-            gap: 24px;
-            width: 100%;
-            align-items: stretch;
-            justify-content: space-between;">
+           flex-wrap: nowrap;
+           gap: 24px;
+           width: 100%;
+           align-items: stretch;
+           justify-content: space-between;">
 
                         <div style="flex: 1;">
                             <div class="table-scroll"
                                  style="max-height: 80vh;
-                    min-height: 80vh;
-                    overflow: auto;">
+                   min-height: 80vh;
+                   overflow: auto;">
                                 <table class="table-orders"
                                        style="width: 100%;
-                          min-width: 500px;
-                          white-space: nowrap;
-                          table-layout: auto;">
+                      min-width: 500px;
+                      white-space: nowrap;
+                      table-layout: auto;">
                                     <thead>
                                         <tr>
                                             <th>
@@ -629,13 +644,13 @@
                         <div style="flex: 1;">
                             <div class="table-scroll"
                                  style="max-height: 80vh;
-                    min-height: 80vh;
-                    overflow: auto;">
+                   min-height: 80vh;
+                   overflow: auto;">
                                 <table class="table-orders"
                                        style="width: 100%;
-                          min-width: 500px;
-                          white-space: nowrap;
-                          table-layout: auto;">
+                      min-width: 500px;
+                      white-space: nowrap;
+                      table-layout: auto;">
                                     <thead>
                                         <tr>
                                             <th>
@@ -661,8 +676,6 @@
     </div>
 </div>
 
-
-<!-- Modal z informacjami -->
 <div class="modal fade" id="infoModal" tabindex="-1" role="dialog" aria-labelledby="infoModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-sm" role="document">
         <div class="modal-content" style="width:auto;">
@@ -673,23 +686,20 @@
                 </button>
             </div>
             <div class="modal-body" style="gap:10px;">
-    
-              
-                
-                        <div class="form-check-orders">
-                            <div>
-                                 <p><strong>Wykonanie analizy:</strong> @latestScrap?.Date.ToString("dd.MM.yyyy")</p>
-                                <p><strong>Ilość produktów:</strong> @ViewBag.ScrapedProducts</p>
-                            <p><strong>Ilość zebranych cen:</strong> <span id="totalPriceCount">0</span></p>
-                            <p><strong>Ilość produktów odrzuconych:</strong> <span id="missedProductsCount">0</span></p>
-                            </div>
-                        </div>
-                   
+
+                <div class="form-check-orders">
+                    <div>
+                        <p><strong>Wykonanie analizy:</strong> @latestScrap?.Date.ToString("dd.MM.yyyy")</p>
+                        <p><strong>Ilość produktów:</strong> @ViewBag.ScrapedProducts</p>
+                        <p><strong>Ilość zebranych cen:</strong> <span id="totalPriceCount">0</span></p>
+                        <p><strong>Ilość produktów odrzuconych:</strong> <span id="missedProductsCount">0</span></p>
+                    </div>
+                </div>
+
             </div>
         </div>
     </div>
 </div>
-
 
 <div id="globalNotification" style="
     display: none;
@@ -706,7 +716,6 @@
     border-radius: 10px;
     z-index: 1000;
 ">
-
 </div>
 
 <div id="globalUpdate" style="
@@ -724,7 +733,6 @@
     border-radius: 10px;
     z-index: 1000;
 ">
-
 </div>
 
 @section Scripts {
@@ -735,11 +743,10 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/wnumb/1.2.0/wNumb.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
 
-
     <script src="https://cdn.jsdelivr.net/npm/exceljs@4.3.0/dist/exceljs.min.js"></script>
 
     <script>
-        var priceHistoryPageContext = 'index'; 
+        var priceHistoryPageContext = 'index';
         var storeId = '@storeId';
         var flags = (function(){
             return @Html.Raw(JsonConvert.SerializeObject(ViewBag.Flags));
@@ -747,34 +754,86 @@
         var scrapDateJS = "@scrapDate";
         var myStoreNameJS = "@store";
         var globalLatestScrapId = "@scrapId";
+
+        // --- NOWY KOD JS DLA DISCLAIMERA WYSYŁKI ---
+        $(document).ready(function () {
+            var $usePriceWithDeliveryInput = $('#usePriceWithDeliveryInput');
+            var $deliveryDisclaimerModal = $('#deliveryDisclaimerModal');
+            var $deliveryDisclaimerConfirmButton = $('#deliveryDisclaimerConfirmButton');
+            var $deliveryDisclaimerCancelButton = $('#deliveryDisclaimerCancelButton');
+            var originalDeliverySetting = $usePriceWithDeliveryInput.val(); // Zapamiętaj początkowe ustawienie
+
+            $usePriceWithDeliveryInput.on('change', function () {
+                var selectedValue = $(this).val();
+
+                if (selectedValue === 'true' && originalDeliverySetting === 'false') {
+                    // Użytkownik próbuje włączyć opcję
+                    // Cofnij zmianę na chwilę, pokaż modal
+                    $(this).val('false');
+                    $deliveryDisclaimerModal.modal('show');
+                } else {
+                    // Użytkownik wyłącza opcję lub była już włączona, nie rób nic specjalnego
+                    originalDeliverySetting = selectedValue; // Zaktualizuj stan
+                }
+            });
+
+            // Obsługa przycisku "Kontynuuj" w modal disclaimera
+            $deliveryDisclaimerConfirmButton.on('click', function () {
+                // Zastosuj zmianę w selekcie ustawień
+                $usePriceWithDeliveryInput.val('true');
+                originalDeliverySetting = 'true'; // Zaktualizuj stan
+                $deliveryDisclaimerModal.modal('hide'); // Zamknij modal disclaimera
+            });
+
+            // Obsługa przycisku "Anuluj" i zamknięcia modala disclaimera
+            $deliveryDisclaimerCancelButton.on('click', function () {
+                // Select już jest ustawiony na 'false' przez handler 'change'
+                $deliveryDisclaimerModal.modal('hide'); // Zamknij modal disclaimera
+            });
+
+             // Dodatkowa obsługa zamknięcia modala disclaimera przyciskiem X
+            $deliveryDisclaimerModal.on('hidden.bs.modal', function () {
+                 // Upewnij się, że select wraca do 'false' jeśli modal został zamknięty bez potwierdzenia
+                 if ($usePriceWithDeliveryInput.val() === 'true' && originalDeliverySetting === 'false') {
+                     $usePriceWithDeliveryInput.val('false');
+                 }
+            });
+
+             // Zapamiętaj stan przy otwarciu modala ustawień, żeby poprawnie działało cofanie
+            $('#marginSettingsModal').on('show.bs.modal', function() {
+                 originalDeliverySetting = $usePriceWithDeliveryInput.val();
+            });
+
+        });
+        // --- KONIEC NOWEGO KODU JS ---
+
     </script>
 
     <script src="~/js/member/PriceChange.js"></script>
     <script src="~/js/member/CompetitorModal.js"></script>
     <script src="~/js/member/PriceHistory.js"></script>
 
-
-<div id="loadingOverlay" class="loading-overlay" style="display: none;">
-    <div class="loader"></div>
-</div>
-
-<div id="flagModal" class="modal">
-    <div class="modal-content">
-        <div class="price-box-space">
-            <div class="price-box-column-name">Przypisz flagi do produktu</div>
-
-        </div>
-        <div id="flagCheckboxes">
-            @if (flags != null)
-            {
-                @foreach (var flag in flags)
-                {
-                    <label><input type="checkbox" class="form-check-input flagCheckbox" value="@flag.FlagId"> @flag.FlagName</label>
-                    <br />
-                }
-            }
-        </div>
-        <button class="Button-Page-Small" id="saveFlagsButton">Zapisz</button>
+    <div id="loadingOverlay" class="loading-overlay" style="display: none;">
+        <div class="loader"></div>
     </div>
-</div>
+
+    <div id="flagModal" class="modal">
+        <div class="modal-content">
+            <div class="price-box-space">
+                <div class="price-box-column-name">Przypisz flagi do produktu</div>
+
+            </div>
+            <div id="flagCheckboxes">
+                @if (flags != null)
+                {
+                    @foreach (var flag in flags)
+                    {
+                        <label><input type="checkbox" class="form-check-input flagCheckbox" value="@flag.FlagId"> @flag.FlagName</label>
+                        <br />
+                    }
+                }
+            </div>
+            <button class="Button-Page-Small" id="saveFlagsButton">Zapisz</button>
+        </div>
+    </div>
 }
