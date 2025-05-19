@@ -349,25 +349,39 @@
     </div>
 </div>
 
-@* --- START: NOWY MODAL DISCLAIMERA DLA WYSYŁKI --- *@
 <div class="modal fade" id="deliveryDisclaimerModal" tabindex="-1" role="dialog" aria-labelledby="deliveryDisclaimerModalLabel" aria-hidden="true" style="z-index: 8555;">
-    <div class="modal-dialog" role="document">
-        <div class="modal-content" style="width:460px; margin: 25% auto;">
+    <div class="modal-dialog" style="max-width:1000px;" role="document">
+        <div class="modal-content" style="width:800px; margin: 5% auto;">
             <div class="modal-header">
-                <div class="price-box-column-name" id="deliveryDisclaimerModalLabel">Ważna informacja</div>
+                <div class="price-box-column-name" id="deliveryDisclaimerModalLabel">Uwaga dotycząca symulacji cen z kosztem wysyłki</div>
                 <button type="button" class="close" data-dismiss="modal" aria-label="Zamknij">
                     <span aria-hidden="true">&times;</span>
                 </button>
             </div>
             <div class="modal-body">
-                <p>
-                    Włączenie opcji "Uwzględniaj koszt wysyłki w cenie produktu" może znacząco wpłynąć na wyniki symulacji cen.
-                    System będzie porównywał ceny produktów wraz z kosztem wysyłki, co może prowadzić do innych sugestii cenowych niż przy porównaniu samych cen produktów.
+                <p style="font-size: 14px; line-height: 1.6;">
+
+                    Włączenie opcji "Uwzględniaj koszt wysyłki w cenie produktu" może znacząco wpłynąć na wyniki symulacji cenowej. System będzie porównywał ceny produktów wraz z kosztem wysyłki, co może prowadzić do odmiennych sugestii cenowych niż w przypadku porównania samych cen bazowych produktów.
                     <br /><br />
-                    Pamiętaj, że koszt wysyłki jest wartością szacunkową i może się różnić w zależności od gabarytów, wagi produktu oraz wybranej metody dostawy przez klienta.
-                    Symulacja z kosztem wysyłki jest przybliżona i służy celom poglądowym.
+                    Pamiętaj, że podany koszt wysyłki może się różnić w zależności od gabarytów, wagi produktu oraz wybranej metody dostawy przez klienta.
                     <br /><br />
-                    [Tutaj możesz dodać swoją, bardziej szczegółową informację o konsekwencjach]
+                    Jeżeli chcesz wykorzystywać ceny wraz z kosztem wysyłki, upewnij się, że konkurenci, których wybrano podczas tworzenia presetu, podają prawdziwe dane dotyczące cen wysyłki do wybranych kanałów, takich jak Google Shopping i Ceneo. Zdarza się, że ceny wysyłki są podawane błędnie lub nie są podawane wcale. Model wykorzysta również ceny wysyłki z Twojego sklepu, które zostały zebrane z ofert.
+                    <br /><br />
+                    <span style="font-weight: bold; display: flex; align-items: center; margin-bottom: 5px;">
+                        <i class="fa fa-truck" style="color: #21a73e; font-size: 18px; margin-right: 8px;"></i>
+                        Zielona ikona ciężarówki:
+                    </span>
+                    Oznacza, że dany sklep podał cenę wysyłki, a jej koszt wynosi 0,00 PLN lub jest wyższą, określoną kwotą.
+                    <br />
+                    <span style="font-weight: bold; display: flex; align-items: center; margin-top: 10px; margin-bottom: 5px;">
+                        <i class="fa fa-truck" style="color: #f44336; font-size: 18px; margin-right: 8px;"></i>
+                        Czerwona ikona ciężarówki:
+                    </span>
+                    Oznacza, że dany sklep nie podał kosztów dostawy dla wybranego produktu lub dane są niekompletne.
+                    <br /><br />
+                    W przypadku, gdy w źródłach danych używasz zarówno danych z Ceneo, jak i Google Shopping, pierwszeństwo w danych dotyczących wysyłki będą miały dane z Ceneo. Oznacza to, że jeśli Twój sklep posiada dane z obu tych źródeł dla danego produktu, a ceny za dostawę są różne (np. z powodu błędnego podania), wykorzystane zostaną dane z Ceneo.
+                    <br /><br />
+                    <strong style="color: #d9534f;">Zmiana tej opcji spowoduje usunięcie wszystkich danych z obecnej symulacji cenowej i konieczność ponownego przeliczenia.</strong>
                 </p>
             </div>
             <div class="modal-footer" style="justify-content:space-between;">
@@ -377,12 +391,10 @@
         </div>
     </div>
 </div>
-@* --- END: NOWY MODAL DISCLAIMERA DLA WYSYŁKI --- *@
-
 
 <div class="modal fade" id="massChangeModal" tabindex="-1" role="dialog" aria-labelledby="massChangeModalLabel" aria-hidden="true">
     <div class="modal-dialog" role="document">
-        <div class="modal-content" >
+        <div class="modal-content">
             <div class="modal-header">
                 <div class="price-box-column-name" id="massChangeModalLabel">Masowa zmiana cen</div>
                 <button type="button" class="close" data-dismiss="modal" aria-label="Close">
@@ -461,12 +473,12 @@
                             <label for="usePriceWithDeliveryInput">
                                 Uwzględniaj koszt wysyłki w cenie produktu
                             </label>
-                            @* --- TEN SELECT BĘDZIE OBSŁUGIWANY PRZEZ JS DLA DISCLAIMERA --- *@
+
                             <select class="form-control" id="usePriceWithDeliveryInput">
                                 <option value="true">Tak</option>
                                 <option value="false">Nie</option>
                             </select>
-                            @* ------------------------------------------------------------ *@
+
                         </div>
                         <div class="form-group" style="margin-bottom:24px; width:250px;">
                             <label for="enforceMinimalMarginInput">
@@ -755,63 +767,56 @@
         var myStoreNameJS = "@store";
         var globalLatestScrapId = "@scrapId";
 
-        // --- NOWY KOD JS DLA DISCLAIMERA WYSYŁKI ---
         $(document).ready(function () {
             var $usePriceWithDeliveryInput = $('#usePriceWithDeliveryInput');
             var $deliveryDisclaimerModal = $('#deliveryDisclaimerModal');
             var $deliveryDisclaimerConfirmButton = $('#deliveryDisclaimerConfirmButton');
             var $deliveryDisclaimerCancelButton = $('#deliveryDisclaimerCancelButton');
-            var originalDeliverySetting = $usePriceWithDeliveryInput.val(); // Zapamiętaj początkowe ustawienie
+            var originalDeliverySetting = $usePriceWithDeliveryInput.val();
 
             $usePriceWithDeliveryInput.on('change', function () {
                 var selectedValue = $(this).val();
 
                 if (selectedValue === 'true' && originalDeliverySetting === 'false') {
-                    // Użytkownik próbuje włączyć opcję
-                    // Cofnij zmianę na chwilę, pokaż modal
+
                     $(this).val('false');
                     $deliveryDisclaimerModal.modal('show');
                 } else {
-                    // Użytkownik wyłącza opcję lub była już włączona, nie rób nic specjalnego
-                    originalDeliverySetting = selectedValue; // Zaktualizuj stan
+
+                    originalDeliverySetting = selectedValue;
                 }
             });
 
-            // Obsługa przycisku "Kontynuuj" w modal disclaimera
             $deliveryDisclaimerConfirmButton.on('click', function () {
-                // Zastosuj zmianę w selekcie ustawień
+
                 $usePriceWithDeliveryInput.val('true');
-                originalDeliverySetting = 'true'; // Zaktualizuj stan
-                $deliveryDisclaimerModal.modal('hide'); // Zamknij modal disclaimera
+                originalDeliverySetting = 'true';
+                $deliveryDisclaimerModal.modal('hide');
             });
 
-            // Obsługa przycisku "Anuluj" i zamknięcia modala disclaimera
             $deliveryDisclaimerCancelButton.on('click', function () {
-                // Select już jest ustawiony na 'false' przez handler 'change'
-                $deliveryDisclaimerModal.modal('hide'); // Zamknij modal disclaimera
+
+                $deliveryDisclaimerModal.modal('hide');
             });
 
-             // Dodatkowa obsługa zamknięcia modala disclaimera przyciskiem X
             $deliveryDisclaimerModal.on('hidden.bs.modal', function () {
-                 // Upewnij się, że select wraca do 'false' jeśli modal został zamknięty bez potwierdzenia
+
                  if ($usePriceWithDeliveryInput.val() === 'true' && originalDeliverySetting === 'false') {
                      $usePriceWithDeliveryInput.val('false');
                  }
             });
 
-             // Zapamiętaj stan przy otwarciu modala ustawień, żeby poprawnie działało cofanie
             $('#marginSettingsModal').on('show.bs.modal', function() {
                  originalDeliverySetting = $usePriceWithDeliveryInput.val();
             });
 
         });
-        // --- KONIEC NOWEGO KODU JS ---
 
     </script>
 
-    <script src="~/js/member/PriceChange.js"></script>
+    <script src="~/js/member/PriceChange.min.js"></script>
     <script src="~/js/member/CompetitorModal.js"></script>
-    <script src="~/js/member/PriceHistory.js"></script>
+    <script src="~/js/member/pricehistory.min.js"></script>
 
     <div id="loadingOverlay" class="loading-overlay" style="display: none;">
         <div class="loader"></div>

@@ -662,7 +662,15 @@
                     let marginClass = '';
 
                     if (!isRejected && marginPrice != null && myPrice != null) {
-                        marginAmount = myPrice - marginPrice;
+                        let priceForMarginCalculation = myPrice;
+
+                        if (marginSettings.usePriceWithDelivery && price.myPriceIncludesDelivery) {
+
+                            const myDeliveryCost = price.myPriceDeliveryCost != null && !isNaN(parseFloat(price.myPriceDeliveryCost)) ? parseFloat(price.myPriceDeliveryCost) : 0;
+                            priceForMarginCalculation = myPrice - myDeliveryCost;
+                        }
+
+                        marginAmount = priceForMarginCalculation - marginPrice;
                         if (marginPrice !== 0) {
                             marginPercentage = (marginAmount / marginPrice) * 100;
                         } else {
@@ -1064,39 +1072,113 @@
                     if (item.marginPrice == null) {
                         showGlobalNotification(
                             `<p style="margin:8px 0; font-weight:bold;">Zmiana ceny nie została dodana</p>
-                         <p>Symulacja cenowa z marżą jest włączona – produkt musi posiadać cenę zakupu.</p>`
+                         <p>Symulacja cenowa z marżą jest włączona – produkt musi posiadać cenę zakupu.</p>`
                         );
                         return;
                     }
 
-                    let oldMargin = ((currentPriceValue - item.marginPrice) / item.marginPrice) * 100;
-                    let newMargin = ((suggestedPrice - item.marginPrice) / item.marginPrice) * 100;
+                    let oldPriceForMarginCalculation = currentPriceValue;
+                    if (marginSettings.usePriceWithDelivery && item.myPriceIncludesDelivery) {
+                        const oldDeliveryCost = item.myPriceDeliveryCost != null && !isNaN(parseFloat(item.myPriceDeliveryCost)) ? parseFloat(item.myPriceDeliveryCost) : 0;
+                        oldPriceForMarginCalculation = currentPriceValue - oldDeliveryCost;
+                    }
+
+                    let newPriceForMarginCalculation = suggestedPrice;
+
+                    if (marginSettings.usePriceWithDelivery && item.myPriceIncludesDelivery) {
+
+                        const myDeliveryCost = item.myPriceDeliveryCost != null && !isNaN(parseFloat(item.myPriceDeliveryCost)) ? parseFloat(item.myPriceDeliveryCost) : 0;
+                        newPriceForMarginCalculation = suggestedPrice - myDeliveryCost;
+                    }
+
+                    let oldMargin = ((oldPriceForMarginCalculation - item.marginPrice) / item.marginPrice) * 100;
+                    let newMargin = ((newPriceForMarginCalculation - item.marginPrice) / item.marginPrice) * 100;
                     oldMargin = parseFloat(oldMargin.toFixed(2));
                     newMargin = parseFloat(newMargin.toFixed(2));
 
-                    if (marginSettings.minimalMarginPercent > 0) {
-                        if (newMargin < marginSettings.minimalMarginPercent) {
+                    if (marginSettings.useMarginForSimulation) {
+                        if (item.marginPrice == null) {
+                            showGlobalNotification(
+                                `<p style="margin:8px 0; font-weight:bold;">Zmiana ceny nie została dodana</p>
+                         <p>Symulacja cenowa z marżą jest włączona – produkt musi posiadać cenę zakupu.</p>`
+                            );
+                            return;
+                        }
 
-                            if (newMargin > oldMargin && oldMargin < marginSettings.minimalMarginPercent) {
+                        let oldPriceForMarginCalculation = currentPriceValue;
+                        if (marginSettings.usePriceWithDelivery && item.myPriceIncludesDelivery) {
+                            const oldDeliveryCost = item.myPriceDeliveryCost != null && !isNaN(parseFloat(item.myPriceDeliveryCost)) ? parseFloat(item.myPriceDeliveryCost) : 0;
+                            oldPriceForMarginCalculation = currentPriceValue - oldDeliveryCost;
+                        }
 
-                            } else {
+                        let newPriceForMarginCalculation = suggestedPrice;
 
-                                let reason = "";
-                                if (oldMargin >= marginSettings.minimalMarginPercent) {
+                        if (marginSettings.usePriceWithDelivery && item.myPriceIncludesDelivery) {
+                            const myDeliveryCost = item.myPriceDeliveryCost != null && !isNaN(parseFloat(item.myPriceDeliveryCost)) ? parseFloat(item.myPriceDeliveryCost) : 0;
+                            newPriceForMarginCalculation = suggestedPrice - myDeliveryCost;
+                        }
 
-                                    reason = `Zmiana obniża marżę z <strong>${oldMargin}%</strong> (która spełniała minimum) do <strong>${newMargin}%</strong>, czyli poniżej wymaganego progu <strong>${marginSettings.minimalMarginPercent}%</strong>.`;
-                                } else if (newMargin <= oldMargin) {
+                        let oldMargin = ((oldPriceForMarginCalculation - item.marginPrice) / item.marginPrice) * 100;
+                        let newMargin = ((newPriceForMarginCalculation - item.marginPrice) / item.marginPrice) * 100;
+                        oldMargin = parseFloat(oldMargin.toFixed(2));
+                        newMargin = parseFloat(newMargin.toFixed(2));
 
-                                    reason = `Nowa marża (<strong>${newMargin}%</strong>) jest poniżej wymaganego minimum (<strong>${marginSettings.minimalMarginPercent}%</strong>) i nie stanowi poprawy (lub jest pogorszeniem) poprzedniej, już niskiej marży (<strong>${oldMargin}%</strong>).`;
+                        let suggestedPriceDisplay = suggestedPrice.toFixed(2) + ' PLN';
+                        if (marginSettings.usePriceWithDelivery && item.myPriceIncludesDelivery) {
+                            const myDeliveryCost = item.myPriceDeliveryCost != null && !isNaN(parseFloat(item.myPriceDeliveryCost)) ? parseFloat(item.myPriceDeliveryCost) : 0;
+                            const actualProductPrice = suggestedPrice - myDeliveryCost;
+                            suggestedPriceDisplay = `${suggestedPrice.toFixed(2)} PLN (z dostawą) | ${actualProductPrice.toFixed(2)} PLN (bez dostawy)`;
+                        }
+
+                        if (marginSettings.minimalMarginPercent > 0) {
+                            if (newMargin < marginSettings.minimalMarginPercent) {
+
+                                if (newMargin > oldMargin && oldMargin < marginSettings.minimalMarginPercent) {
+
                                 } else {
 
-                                    reason = `Nowa marża (<strong>${newMargin}%</strong>) jest poniżej wymaganego minimum (<strong>${marginSettings.minimalMarginPercent}%</strong>), a warunki poprawy nie zostały spełnione (poprzednia marża: <strong>${oldMargin}%</strong>).`;
-                                }
+                                    let reason = "";
+                                    if (oldMargin >= marginSettings.minimalMarginPercent) {
 
+                                        reason = `Zmiana obniża marżę z <strong>${oldMargin}%</strong> (która spełniała minimum) do <strong>${newMargin}%</strong>, czyli poniżej wymaganego progu <strong>${marginSettings.minimalMarginPercent}%</strong>.`;
+                                    } else if (newMargin <= oldMargin) {
+
+                                        reason = `Nowa marża (<strong>${newMargin}%</strong>) jest poniżej wymaganego minimum (<strong>${marginSettings.minimalMarginPercent}%</strong>) i nie stanowi poprawy (lub jest pogorszeniem) poprzedniej, już niskiej marży (<strong>${oldMargin}%</strong>).`;
+                                    } else {
+
+                                        reason = `Nowa marża (<strong>${newMargin}%</strong>) jest poniżej wymaganego minimum (<strong>${marginSettings.minimalMarginPercent}%</strong>), a warunki poprawy nie zostały spełnione (poprzednia marża: <strong>${oldMargin}%</strong>).`;
+                                    }
+
+                                    showGlobalNotification(
+                                        `<p style="margin:8px 0; font-weight:bold;">Zmiana ceny nie została dodana</p>
+                                 <p>${reason}</p>
+                                 <p>Cena zakupu wynosi <strong>${item.marginPrice.toFixed(2)} PLN</strong>.</p>
+                                   <p>Sugerowana cena: <strong>${suggestedPriceDisplay}</strong>.</p>`
+                                    );
+                                    return;
+                                }
+                            }
+                        }
+
+                        if (marginSettings.enforceMinimalMargin) {
+
+                            if (newMargin < 0) {
+
+                                if (!(oldMargin < 0 && newMargin > oldMargin)) {
+                                    showGlobalNotification(
+                                        `<p style="margin:8px 0; font-weight:bold;">Zmiana ceny nie została dodana</p>
+                                 <p>Nowa cena <strong>${suggestedPriceDisplay}</strong> spowoduje ujemną marżę (nowa marża: <strong>${newMargin}%</strong>).</p>
+                                 <p>Cena zakupu wynosi <strong>${item.marginPrice.toFixed(2)} PLN</strong>. Zmiana nie może zostać zastosowana.</p>`
+                                    );
+                                    return;
+                                }
+                            }
+
+                            if (marginSettings.minimalMarginPercent < 0 && newMargin > marginSettings.minimalMarginPercent) {
                                 showGlobalNotification(
                                     `<p style="margin:8px 0; font-weight:bold;">Zmiana ceny nie została dodana</p>
-                                 <p>${reason}</p>
-                                 <p>Cena zakupu wynosi <strong>${item.marginPrice.toFixed(2)} PLN</strong>.</p>`
+                             <p>Nowa cena <strong>${suggestedPriceDisplay}</strong> ustawi marżę (<strong>${newMargin}%</strong>), która jest powyżej dopuszczalnego progu straty (<strong>${marginSettings.minimalMarginPercent}%</strong>).</p>
+                             <p>Nowa marża wynosi <strong>${newMargin}%</strong>.</p>`
                                 );
                                 return;
                             }
@@ -1139,13 +1221,33 @@
                 document.dispatchEvent(priceChangeEvent);
 
                 activateChangeButton(button, priceBox, suggestedPrice);
-
                 let message = `<p style="margin-bottom:8px; font-size:16px; font-weight:bold;">Zmiana ceny dodana</p>`;
                 message += `<p style="margin:4px 0;"><strong>Produkt:</strong> ${productName}</p>`;
-                message += `<p style="margin:4px 0;"><strong>Nowa cena:</strong> ${suggestedPrice.toFixed(2)} PLN</p>`;
+
+                let displayPriceLabel = "Nowa cena";
+                let newPriceWithoutDelivery = suggestedPrice;
+
+                if (marginSettings.usePriceWithDelivery && item.myPriceIncludesDelivery) {
+                    displayPriceLabel = "Nowa cena (z dostawą)";
+                    const myDeliveryCost = item.myPriceDeliveryCost != null && !isNaN(parseFloat(item.myPriceDeliveryCost)) ? parseFloat(item.myPriceDeliveryCost) : 0;
+                    newPriceWithoutDelivery = suggestedPrice - myDeliveryCost;
+                }
+
+                message += `<p style="margin:4px 0;"><strong>${displayPriceLabel}:</strong> ${suggestedPrice.toFixed(2)} PLN</p>`;
+
+                if (marginSettings.usePriceWithDelivery && item.myPriceIncludesDelivery) {
+                    message += `<p style="margin:4px 0;"><strong>Nowa cena (bez dostawy):</strong> ${newPriceWithoutDelivery.toFixed(2)} PLN</p>`;
+                }
 
                 if (marginSettings.useMarginForSimulation) {
-                    let finalMargin = ((suggestedPrice - item.marginPrice) / item.marginPrice) * 100;
+                    let finalPriceForMarginCalculation = suggestedPrice;
+
+                    if (marginSettings.usePriceWithDelivery && item.myPriceIncludesDelivery) {
+                        const myDeliveryCost = item.myPriceDeliveryCost != null && !isNaN(parseFloat(item.myPriceDeliveryCost)) ? parseFloat(item.myPriceDeliveryCost) : 0;
+                        finalPriceForMarginCalculation = suggestedPrice - myDeliveryCost;
+                    }
+
+                    let finalMargin = ((finalPriceForMarginCalculation - item.marginPrice) / item.marginPrice) * 100;
                     finalMargin = parseFloat(finalMargin.toFixed(2));
                     message += `<p style="margin:4px 0;"><strong>Nowa marża:</strong> ${finalMargin}%</p>`;
                     message += `<p style="margin:4px 0;"><strong>Cena zakupu:</strong> ${item.marginPrice.toFixed(2)} PLN</p>`;
@@ -2143,9 +2245,11 @@
         let deliveryKnown = deliveryCost !== null && deliveryCost !== undefined && !isNaN(parseFloat(deliveryCost));
         let numericDeliveryCost = deliveryKnown ? parseFloat(deliveryCost) : 0;
 
-        const truckColor = includesDelivery === true ? '#21a73e' : '#f44336';
+        const truckColor = (includesDelivery === true && deliveryKnown)
+            ? '#21a73e'
+            : '#f44336';
 
-        let truckTooltip = includesDelivery === true
+        let truckTooltip = (includesDelivery === true && deliveryKnown)
             ? "Cena zawiera dostawę"
             : "Cena NIE zawiera dostawy";
 
