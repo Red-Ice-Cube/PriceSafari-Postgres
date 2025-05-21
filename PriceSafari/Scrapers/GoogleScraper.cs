@@ -53,30 +53,24 @@ public class GoogleScraper
 
         _browser = await Puppeteer.LaunchAsync(new LaunchOptions
         {
-            Headless = false, // Zgodnie z oryginalnym kodem, można zmienić na true dla środowisk bez UI
+            Headless = false, 
             Args = new[]
             {
-                "--no-sandbox",
-                "--disable-setuid-sandbox",
-                "--disable-gpu",
-                "--disable-blink-features=AutomationControlled",
-                "--disable-software-rasterizer",
-                "--disable-extensions",
-                "--disable-dev-shm-usage",
-                "--disable-features=IsolateOrigins,site-per-process",
-                "--disable-infobars",
-                "--use-gl=swiftshader",
-                "--disable-webgl",
-                "--ignore-gpu-blocklist"
+              "--no-sandbox",
+                    "--disable-setuid-sandbox",
+                    "--disable-gpu",
+                    "--disable-blink-features=AutomationControlled",
+                    "--disable-software-rasterizer",
+                    "--disable-extensions",
+                    "--disable-dev-shm-usage",
+                    "--disable-features=IsolateOrigins,site-per-process",
+                    "--disable-infobars"
+                   
             }
         });
 
         _page = await _browser.NewPageAsync();
-        await _page.SetViewportAsync(new ViewPortOptions { Width = 1920, Height = 1080 });
-        await _page.SetExtraHttpHeadersAsync(new Dictionary<string, string>
-        {
-            { "Accept-Language", "pl-PL,pl;q=0.9,en-US;q=0.8,en;q=0.7" }
-        });
+    
     }
 
     public async Task<ScraperResult<List<string>>> SearchInitialProductCIDsAsync(string title, int maxCIDsToExtract = 10)
@@ -123,14 +117,14 @@ public class GoogleScraper
             // Czekanie na pojawienie się boksów produktów
             try
             {
-                 await _page.WaitForSelectorAsync("div.sh-dgr__content", new WaitForSelectorOptions { Timeout = 10000 }); // Zaktualizowany selektor i timeout
+                 await _page.WaitForSelectorAsync("div.sh-dgr__content", new WaitForSelectorOptions { Timeout = 100 }); // Zaktualizowany selektor i timeout
             }
             catch (WaitTaskTimeoutException)
             {
                  // Próba z alternatywnym selektorem, jeśli pierwszy zawiedzie
                 try
                 {
-                    await _page.WaitForSelectorAsync("div.MtXiu", new WaitForSelectorOptions { Timeout = 5000 });
+                    await _page.WaitForSelectorAsync("div.MtXiu", new WaitForSelectorOptions { Timeout = 500 });
                 }
                 catch (WaitTaskTimeoutException ex)
                 {
@@ -219,7 +213,7 @@ public class GoogleScraper
                 await InitializeBrowserAsync();
             }
 
-            var url = $"https://www.google.com/shopping/product/{cid}/offers";
+            var url = $"https://www.google.com/shopping/product/{cid}/offers?prds=cid:{cid},cond:1&gl=pl&hl=pl";
             await _page.GoToAsync(url, new NavigationOptions
             {
                 Timeout = 60000,
@@ -243,8 +237,6 @@ public class GoogleScraper
                 await Task.Delay(1000);
             }
 
-            Console.WriteLine("Strona ofert produktu Google Shopping załadowana pomyślnie.");
-            Console.WriteLine("Na stronie /offers nie ma potrzeby klikania 'Więcej sklepów'.");
 
             return ScraperResult<bool>.Success(true);
         }
@@ -259,7 +251,7 @@ public class GoogleScraper
     public async Task<ScraperResult<List<string>>> ExtractStoreOffersAsync(IPage page)
     {
         var storeUrls = new List<string>();
-        Console.WriteLine("Rozpoczynanie ekstrakcji URL-i sklepów z bieżącej strony ofert...");
+  
         IsCaptchaEncountered = false;
 
         try
@@ -275,7 +267,7 @@ public class GoogleScraper
             // Czekanie na selektor linków ofert
             try
             {
-                 await page.WaitForSelectorAsync("a.sh-osd__seller-link", new WaitForSelectorOptions { Timeout = 1000 }); // Zaktualizowany selektor i dłuższy timeout
+                 await page.WaitForSelectorAsync("a.sh-osd__seller-link", new WaitForSelectorOptions { Timeout = 500 }); // Zaktualizowany selektor i dłuższy timeout
             }
             catch(WaitTaskTimeoutException)
             {

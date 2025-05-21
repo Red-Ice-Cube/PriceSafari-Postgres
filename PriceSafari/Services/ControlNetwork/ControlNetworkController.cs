@@ -93,8 +93,8 @@ namespace PriceSafari.Services.ControlNetwork // Możesz zostawić lub uprości�
                 return false; // Zwróć false jeśli całkowita porażka
             }
 
-            _logger.LogInformation("Zakończono próby wyłączania interfejsów. Oczekiwanie 30 sekund...");
-            await Task.Delay(TimeSpan.FromSeconds(30)); // Czas oczekiwania po wyłączeniu
+            _logger.LogInformation("Zakończono próby wyłączania interfejsów. Oczekiwanie 15 sekund...");
+            await Task.Delay(TimeSpan.FromSeconds(15)); // Czas oczekiwania po wyłączeniu
             _logger.LogInformation("Zakończono oczekiwanie. Wywoływanie eventu NetworkResetCompleted.");
             NetworkResetCompleted?.Invoke(this, EventArgs.Empty); // Wywołaj event
 
