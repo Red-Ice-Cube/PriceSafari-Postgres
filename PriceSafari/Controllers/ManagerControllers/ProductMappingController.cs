@@ -9,6 +9,7 @@ using System.Xml.Linq;
 using System.Net.Http;
 using System.Text.RegularExpressions;
 using PriceSafari.Models.ProductXML;
+using System.Diagnostics;
 
 namespace PriceSafari.Controllers.ManagerControllers
 {
@@ -403,6 +404,170 @@ namespace PriceSafari.Controllers.ManagerControllers
                 }
             }
         }
+
+
+
+        [HttpPost]
+        [ValidateAntiForgeryToken] // Dodaj dla bezpieczeństwa, jeśli formularz będzie go generował
+        public async Task<IActionResult> UpdateEansFromProductMap(int storeId)
+        {
+            if (storeId <= 0)
+            {
+                TempData["ErrorMessage"] = "Nieprawidłowy identyfikator sklepu.";
+                return RedirectToAction("Index");
+            }
+
+            var store = await _context.Stores.FindAsync(storeId);
+            if (store == null)
+            {
+                TempData["ErrorMessage"] = $"Sklep o ID {storeId} nie został znaleziony.";
+                return RedirectToAction("Index");
+            }
+
+            var productMaps = await _context.ProductMaps
+                .Where(pm => pm.StoreId == storeId)
+                .ToListAsync();
+
+            if (!productMaps.Any())
+            {
+                TempData["InfoMessage"] = "Brak zmapowanych produktów (ProductMap) dla tego sklepu. Nie można zaktualizować EANów.";
+                return RedirectToAction("MappedProducts", new { storeId });
+            }
+
+            var existingDbProducts = await _context.Products
+                .Where(p => p.StoreId == storeId)
+                .ToListAsync();
+
+            if (!existingDbProducts.Any())
+            {
+                TempData["InfoMessage"] = "Brak produktów w bazie danych dla tego sklepu. Nie można zaktualizować EANów.";
+                return RedirectToAction("MappedProducts", new { storeId });
+            }
+
+            int updatedCount = 0;
+            var updateLog = new List<string>();
+            var notFoundInDbLog = new List<string>();
+
+            foreach (var mappedProduct in productMaps)
+            {
+                // Próba sparsowania ExternalId z ProductMap
+                int? mappedExternalId = null;
+                if (!string.IsNullOrEmpty(mappedProduct.ExternalId) && int.TryParse(mappedProduct.ExternalId, out var extId))
+                {
+                    mappedExternalId = extId;
+                }
+                string mappedUrl = mappedProduct.Url; // Zakładamy, że URL jest kluczowym elementem do dopasowania
+
+                // Znajdź istniejący produkt. Logika dopasowania jest kluczowa.
+                // Rozważ różne scenariusze:
+                // 1. Dopasowanie po ExternalId ORAZ URL (najbardziej precyzyjne, jeśli oba są wiarygodne)
+                // 2. Dopasowanie po samym URL (jeśli ExternalId może być pusty lub niepewny)
+                // 3. Dopasowanie po samym ExternalId (jeśli URL może się zmieniać, a ExternalId jest unikalny)
+                // Poniżej przykład z priorytetem dla ExternalId + URL, potem sam URL. Dostosuj do swoich potrzeb.
+
+                ProductClass? dbProductToUpdate = null;
+
+                if (mappedExternalId.HasValue && !string.IsNullOrWhiteSpace(mappedUrl))
+                {
+                    dbProductToUpdate = existingDbProducts.FirstOrDefault(p => p.ExternalId == mappedExternalId && p.Url == mappedUrl);
+                }
+
+                if (dbProductToUpdate == null && !string.IsNullOrWhiteSpace(mappedUrl)) // Jeśli nie znaleziono, spróbuj po samym URL
+                {
+                    // Uważaj na duplikaty URL, jeśli nie są unikalne!
+                    // Możesz chcieć wybrać pierwszy lub dodać logikę obsługi wielu dopasowań.
+                    var potentialMatchesByUrl = existingDbProducts.Where(p => p.Url == mappedUrl).ToList();
+                    if (potentialMatchesByUrl.Count == 1)
+                    {
+                        dbProductToUpdate = potentialMatchesByUrl.First();
+                    }
+                    else if (potentialMatchesByUrl.Count > 1)
+                    {
+                        // Logika obsługi wielu produktów z tym samym URL, np. pomiń lub wybierz na podstawie innego kryterium
+                        updateLog.Add($"OSTRZEŻENIE: Znaleziono {potentialMatchesByUrl.Count} produktów w DB z URL '{mappedUrl}' dla ProductMap ID: {mappedProduct.ProductMapId}. Pomijam aktualizację EAN dla tego wpisu mapy.");
+                        continue;
+                    }
+                }
+            
+
+
+                if (dbProductToUpdate != null)
+                {
+                    bool eanWasUpdated = false;
+                    string originalEan = dbProductToUpdate.Ean ?? "brak";
+                    string originalEanGoogle = dbProductToUpdate.EanGoogle ?? "brak";
+                    string newEanSource = "";
+
+                    // Priorytet dla EAN z Google (z ProductMap)
+                    if (!string.IsNullOrWhiteSpace(mappedProduct.GoogleEan))
+                    {
+                        if (dbProductToUpdate.EanGoogle != mappedProduct.GoogleEan)
+                        {
+                            dbProductToUpdate.EanGoogle = mappedProduct.GoogleEan;
+                            eanWasUpdated = true;
+                            newEanSource += "EanGoogle (map)";
+                        }
+                        // Jeśli główny EAN jest pusty LUB chcesz nadpisać go EANem Google
+                        if (string.IsNullOrWhiteSpace(dbProductToUpdate.Ean) || dbProductToUpdate.Ean != mappedProduct.GoogleEan)
+                        {
+                            if (dbProductToUpdate.Ean != mappedProduct.GoogleEan) // Sprawdź, by nie logować tej samej zmiany
+                            {
+                                dbProductToUpdate.Ean = mappedProduct.GoogleEan;
+                                eanWasUpdated = true;
+                                newEanSource = string.IsNullOrEmpty(newEanSource) ? "Ean (z GoogleEan map)" : newEanSource + ", Ean (z GoogleEan map)";
+                            }
+                        }
+                    }
+                    // Jeśli EAN Google nie był dostępny w mapie lub nie zaktualizował głównego EANu, użyj EAN (Ceneo) z mapy
+                    else if (!string.IsNullOrWhiteSpace(mappedProduct.Ean))
+                    {
+                        if (dbProductToUpdate.Ean != mappedProduct.Ean)
+                        {
+                            dbProductToUpdate.Ean = mappedProduct.Ean;
+                            eanWasUpdated = true;
+                            newEanSource = "Ean (map)";
+                        }
+                 
+                    }
+
+                    if (eanWasUpdated)
+                    {
+                        _context.Products.Update(dbProductToUpdate);
+                        updatedCount++;
+                        updateLog.Add($"Produkt ID: {dbProductToUpdate.ProductId} (Nazwa: {dbProductToUpdate.ProductName?.Substring(0, Math.Min(30, dbProductToUpdate.ProductName.Length))}...): " +
+                                      $"EAN z '{originalEan}' na '{dbProductToUpdate.Ean}', EanGoogle z '{originalEanGoogle}' na '{dbProductToUpdate.EanGoogle}'. Źródło: {newEanSource}.");
+                    }
+                }
+                else
+                {
+                    notFoundInDbLog.Add($"ProductMap ID: {mappedProduct.ProductMapId} (ExtID: {mappedProduct.ExternalId ?? "brak"}, URL: {mappedProduct.Url ?? "brak"}, NazwaMapy: {mappedProduct.ExportedName ?? mappedProduct.GoogleExportedName ?? "brak"}) nie znalazł dopasowania w produktach bazodanowych.");
+                }
+            }
+
+            if (updatedCount > 0)
+            {
+                await _context.SaveChangesAsync();
+                TempData["SuccessMessage"] = $"Pomyślnie zaktualizowano EANy dla {updatedCount} produktów.";
+                if (updateLog.Any()) TempData["UpdateDetailsLog"] = string.Join("<br>", updateLog); // Do wyświetlenia w widoku
+            }
+            else
+            {
+                TempData["InfoMessage"] = "Nie znaleziono produktów do aktualizacji EAN lub EANy były już poprawne.";
+            }
+
+            if (notFoundInDbLog.Any())
+            {
+                TempData["NotFoundInDbLog"] = string.Join("<br>", notFoundInDbLog);
+                Debug.WriteLine("Produkty z ProductMap nieznalezione w bazie danych:");
+                foreach (var log in notFoundInDbLog) Debug.WriteLine(log);
+            }
+            Debug.WriteLine("Log aktualizacji EAN:");
+            foreach (var log in updateLog) Debug.WriteLine(log);
+
+
+            return RedirectToAction("MappedProducts", new { storeId });
+        }
+    
 
         [HttpPost]
         public async Task<IActionResult> CreateOrUpdateProductsFromProductMap(int storeId, bool addGooglePrices)

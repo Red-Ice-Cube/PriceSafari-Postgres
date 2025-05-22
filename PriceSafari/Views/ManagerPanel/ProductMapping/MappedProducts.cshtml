@@ -96,6 +96,15 @@
                     </form>
                 </div>
                 <div class="col-md-4 mb-3">
+                    <form asp-action="UpdateEansFromProductMap" method="post" onsubmit="return confirm('Czy na pewno chcesz zaktualizować EANy dla produktów w sklepie \'@storeName\' na podstawie danych z ProductMap XML? Ta operacja może nadpisać istniejące EANy w bazie danych.');">
+                        @Html.AntiForgeryToken() 
+                        <input type="hidden" name="storeId" value="@storeId" />
+                        <button type="submit" class="btn btn-warning w-100">
+                            <i class="fas fa-barcode me-1"></i> Aktualizuj EANy z XML Map
+                        </button>
+                    </form>
+                </div>
+                <div class="col-md-4 mb-3">
                     <form asp-action="RemoveAllProductsForStore" asp-controller="ProductMapping" method="post" onsubmit="return confirm('Czy NA PEWNO usunąć WSZYSTKIE produkty dla sklepu @storeName? Tej operacji NIE MOŻNA cofnąć!');">
                         <input type="hidden" name="storeId" value="@storeId" />
                         <button type="submit" class="btn btn-danger w-100">
