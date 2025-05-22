@@ -2,22 +2,21 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Logging; // Upewnij się, że masz ten using
-// Microsoft.AspNetCore.Mvc nie jest już potrzebny, chyba że używasz typów z niego w inny sposób
+using Microsoft.Extensions.Logging; 
 
-namespace PriceSafari.Services.ControlNetwork // Możesz zostawić lub uprościć namespace
+
+namespace PriceSafari.Services.ControlNetwork 
 {
-    public interface INetworkControlService // Opcjonalnie: Dodaj interfejs dla lepszych praktyk DI
+    public interface INetworkControlService 
     {
         Task<bool> TriggerNetworkDisableAndResetAsync();
-        event EventHandler NetworkResetCompleted; // Zmieniona nazwa eventu dla jasności
+        event EventHandler NetworkResetCompleted; 
     }
 
     public class NetworkControlService : INetworkControlService
     {
         private readonly ILogger<NetworkControlService> _logger;
-        // Event, który może być wywołany po zakończeniu resetu (włączając opóźnienie)
-        public event EventHandler NetworkResetCompleted; // Zmieniona nazwa z NetworkDisabled
+        public event EventHandler NetworkResetCompleted; 
 
         public NetworkControlService(ILogger<NetworkControlService> logger)
         {
@@ -28,11 +27,11 @@ namespace PriceSafari.Services.ControlNetwork // Możesz zostawić lub uprości�
         public async Task<bool> TriggerNetworkDisableAndResetAsync()
         {
             _logger.LogInformation(">>> TriggerNetworkDisableAndResetAsync called.");
-            // Lista interfejsów VPN Avasta, które chcemy spróbować wyłączyć
             var targetInterfaceNames = new List<string>
             {
                 "Avast SecureLine VPN",
                 "Avast SecureLine VPN WireGuard"
+      
             };
 
             _logger.LogInformation(">>> Rozpoczęto próbę wyłączenia interfejsów VPN Avasta.");
@@ -94,11 +93,11 @@ namespace PriceSafari.Services.ControlNetwork // Możesz zostawić lub uprości�
             }
 
             _logger.LogInformation("Zakończono próby wyłączania interfejsów. Oczekiwanie 15 sekund...");
-            await Task.Delay(TimeSpan.FromSeconds(15)); // Czas oczekiwania po wyłączeniu
+            await Task.Delay(TimeSpan.FromSeconds(15)); 
             _logger.LogInformation("Zakończono oczekiwanie. Wywoływanie eventu NetworkResetCompleted.");
-            NetworkResetCompleted?.Invoke(this, EventArgs.Empty); // Wywołaj event
+            NetworkResetCompleted?.Invoke(this, EventArgs.Empty); 
 
-            return true; // Zwróć true, jeśli przynajmniej częściowo się udało
+            return true; 
         }
     }
 }
