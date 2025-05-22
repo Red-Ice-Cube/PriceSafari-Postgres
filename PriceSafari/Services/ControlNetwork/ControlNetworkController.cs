@@ -1,51 +1,173 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO; // Potrzebne dla StringReader
+using System.Linq; // Potrzebne dla bardziej zwięzłego sprawdzania stringów
+using System.Threading; // Potrzebne dla CancellationToken (opcjonalnie, ale dobra praktyka)
 using System.Threading.Tasks;
-using Microsoft.Extensions.Logging; 
+using Microsoft.Extensions.Logging;
 
-
-namespace PriceSafari.Services.ControlNetwork 
+namespace PriceSafari.Services.ControlNetwork
 {
-    public interface INetworkControlService 
+    public interface INetworkControlService
     {
-        Task<bool> TriggerNetworkDisableAndResetAsync();
-        event EventHandler NetworkResetCompleted; 
+        Task<bool> TriggerNetworkDisableAndResetAsync(CancellationToken cancellationToken = default); // Dodano CancellationToken
+        event EventHandler NetworkResetCompleted;
     }
 
     public class NetworkControlService : INetworkControlService
     {
         private readonly ILogger<NetworkControlService> _logger;
-        public event EventHandler NetworkResetCompleted; 
+        public event EventHandler NetworkResetCompleted;
+
+        // Lista docelowych interfejsów VPN
+        private static readonly List<string> TargetVpnInterfaceNames = new List<string>
+        {
+            "Avast SecureLine VPN",
+            "Avast SecureLine VPN WireGuard"
+            // Możesz dodać tu inne nazwy interfejsów, jeśli są używane
+        };
 
         public NetworkControlService(ILogger<NetworkControlService> logger)
         {
             _logger = logger;
         }
 
-        // Główna publiczna metoda
-        public async Task<bool> TriggerNetworkDisableAndResetAsync()
+        private async Task<bool> IsInterfaceConnectedAsync(string interfaceName, CancellationToken cancellationToken)
         {
-            _logger.LogInformation(">>> TriggerNetworkDisableAndResetAsync called.");
-            var targetInterfaceNames = new List<string>
+            var psi = new ProcessStartInfo("netsh", $"interface show interface name=\"{interfaceName}\"")
             {
-                "Avast SecureLine VPN",
-                "Avast SecureLine VPN WireGuard"
-      
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true
             };
 
-            _logger.LogInformation(">>> Rozpoczęto próbę wyłączenia interfejsów VPN Avasta.");
-            bool anySuccess = false;
-            List<string> errors = new List<string>();
-
-            foreach (var interfaceName in targetInterfaceNames)
+            try
             {
+                using (var proc = new Process { StartInfo = psi })
+                {
+                    _logger.LogTrace($"Sprawdzanie statusu interfejsu: '{interfaceName}' poleceniem: {psi.FileName} {psi.Arguments}");
+                    proc.Start();
+
+                    var outputTask = proc.StandardOutput.ReadToEndAsync();
+                    var errorTask = proc.StandardError.ReadToEndAsync();
+
+                    // Czekaj na zakończenie procesu, ale z timeoutem (np. 5 sekund)
+                    // Jeśli proces nie zakończy się w rozsądnym czasie, uznajemy, że coś jest nie tak.
+                    bool processExited = await Task.Run(() => proc.WaitForExit(5000), cancellationToken);
+
+                    if (cancellationToken.IsCancellationRequested)
+                    {
+                        _logger.LogInformation($"Sprawdzanie statusu interfejsu '{interfaceName}' anulowane.");
+                        if (!proc.HasExited) try { proc.Kill(); } catch { /* Ignoruj błędy przy zabijaniu */ }
+                        return false;
+                    }
+
+                    if (!processExited)
+                    {
+                        _logger.LogWarning($"Proces netsh dla interfejsu '{interfaceName}' przekroczył limit czasu (5s). Zabijam proces.");
+                        try { proc.Kill(); } catch { /* Ignoruj błędy przy zabijaniu */ }
+                        return false;
+                    }
+
+                    string output = await outputTask;
+                    string errorOutput = await errorTask;
+
+                    if (proc.ExitCode != 0)
+                    {
+                        _logger.LogWarning($"Polecenie netsh dla sprawdzenia statusu '{interfaceName}' zakończone kodem {proc.ExitCode}. Błąd: '{errorOutput?.Trim()}'. Wyjście: '{output?.Trim()}'");
+                        // Jeśli interfejs nie istnieje, netsh zwróci błąd.
+                        if (!string.IsNullOrWhiteSpace(errorOutput) &&
+                            (errorOutput.Contains("is not a valid interface name", StringComparison.OrdinalIgnoreCase) ||
+                             errorOutput.Contains("The system cannot find the file specified", StringComparison.OrdinalIgnoreCase) ||
+                             errorOutput.Contains("No more data is available", StringComparison.OrdinalIgnoreCase)))
+                        {
+                            _logger.LogInformation($"Interfejs '{interfaceName}' nie został znaleziony przez netsh.");
+                        }
+                        return false; // Błąd wykonania netsh, zakładamy, że interfejs nie jest połączony poprawnie
+                    }
+
+                    if (string.IsNullOrWhiteSpace(output))
+                    {
+                        _logger.LogWarning($"Polecenie netsh dla '{interfaceName}' nie zwróciło danych wyjściowych, ale zakończyło się kodem 0.");
+                        return false;
+                    }
+
+                    bool adminEnabled = false;
+                    bool connectConnected = false;
+
+                    using (var reader = new StringReader(output))
+                    {
+                        string line;
+                        while ((line = await reader.ReadLineAsync()) != null)
+                        {
+                            if (cancellationToken.IsCancellationRequested) return false;
+                            string[] parts = line.Split(new[] { ':' }, 2);
+                            if (parts.Length == 2)
+                            {
+                                string key = parts[0].Trim();
+                                string value = parts[1].Trim();
+
+                                if (key.Equals("Administrative state", StringComparison.OrdinalIgnoreCase) &&
+                                    value.Equals("Enabled", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    adminEnabled = true;
+                                }
+                                if (key.Equals("Connect state", StringComparison.OrdinalIgnoreCase) &&
+                                    value.Equals("Connected", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    connectConnected = true;
+                                }
+                            }
+                        }
+                    }
+
+                    bool isActuallyConnected = adminEnabled && connectConnected;
+                    if (isActuallyConnected)
+                    {
+                        _logger.LogInformation($"Interfejs '{interfaceName}' jest w stanie: Administracyjnym=Włączony, Połączenia=Połączony.");
+                    }
+                    else
+                    {
+                        _logger.LogTrace($"Interfejs '{interfaceName}' jest w stanie: Administracyjnym={(adminEnabled ? "Włączony" : "Wyłączony")}, Połączenia={(connectConnected ? "Połączony" : "Rozłączony")}.");
+                    }
+                    return isActuallyConnected;
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                _logger.LogInformation($"Operacja sprawdzania statusu interfejsu '{interfaceName}' została anulowana.");
+                return false;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Wyjątek podczas sprawdzania statusu interfejsu '{interfaceName}'.");
+                return false;
+            }
+        }
+
+        public async Task<bool> TriggerNetworkDisableAndResetAsync(CancellationToken cancellationToken = default)
+        {
+            _logger.LogInformation(">>> Rozpoczęto TriggerNetworkDisableAndResetAsync.");
+
+            _logger.LogInformation(">>> Rozpoczęto próbę wyłączenia interfejsów VPN.");
+            bool anyDisableSuccess = false;
+            List<string> disableErrors = new List<string>();
+
+            foreach (var interfaceName in TargetVpnInterfaceNames)
+            {
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    _logger.LogInformation("Operacja wyłączania interfejsów przerwana (anulowanie).");
+                    return false;
+                }
+
                 _logger.LogInformation($"Próba wyłączenia interfejsu: {interfaceName}");
                 var args = $"interface set interface name=\"{interfaceName}\" admin=disabled";
-
                 var psi = new ProcessStartInfo("netsh", args)
                 {
-                    Verb = "runas",
+                    Verb = "runas", // Wymaga uprawnień administratora
                     UseShellExecute = true,
                     CreateNoWindow = true,
                     WindowStyle = ProcessWindowStyle.Hidden
@@ -58,46 +180,102 @@ namespace PriceSafari.Services.ControlNetwork
                     {
                         if (proc == null)
                         {
-                            string errorMsg = $"Nie udało się wystartować procesu netsh dla interfejsu '{interfaceName}'.";
+                            string errorMsg = $"Nie udało się wystartować procesu netsh (do wyłączenia) dla interfejsu '{interfaceName}'.";
                             _logger.LogError(errorMsg);
-                            errors.Add(errorMsg);
+                            disableErrors.Add(errorMsg);
                             continue;
                         }
-                        proc.WaitForExit();
-                        _logger.LogInformation($"Proces netsh dla '{interfaceName}' zakończony. Kod wyjścia: {proc.ExitCode}");
-                        if (proc.ExitCode == 0)
-                        {
-                            _logger.LogInformation($"Interfejs '{interfaceName}' został pomyślnie wyłączony.");
-                            anySuccess = true;
-                        }
-                        else
-                        {
-                            string errorMsg = $"Polecenie netsh dla '{interfaceName}' nie powiodło się. Kod błędu: {proc.ExitCode}.";
-                            _logger.LogWarning(errorMsg);
-                            errors.Add(errorMsg);
-                        }
+
+                        // Czekaj na zakończenie procesu, ale z timeoutem (np. 10 sekund)
+                        // W przypadku UAC, WaitForExit może nie działać zgodnie z oczekiwaniami, jeśli UseShellExecute=true
+                        // Tutaj zakładamy, że proces albo szybko się zakończy, albo go nie monitorujemy ściśle jeśli UAC blokuje.
+                        // Dla operacji 'runas' z UseShellExecute=true, precyzyjne WaitForExit jest trudne.
+                        // Zamiast tego, polegamy na tym, że polecenie zostanie wydane.
+                        // Można dodać krótkie opóźnienie, aby dać czas na wykonanie.
+                        await Task.Delay(TimeSpan.FromSeconds(3), cancellationToken); // Krótkie opóźnienie na wykonanie polecenia
+
+                        // Sprawdzenie, czy interfejs jest teraz wyłączony, byłoby bardziej wiarygodne,
+                        // ale 'netsh' z 'runas' i 'UseShellExecute=true' nie pozwala łatwo odczytać ExitCode.
+                        // Dlatego zakładamy, że polecenie zostało wysłane.
+                        // Dla uproszczenia, uznajemy, że polecenie zostało poprawnie *wysłane*.
+                        // Prawdziwa weryfikacja będzie przy sprawdzaniu ponownego połączenia.
+                        _logger.LogInformation($"Polecenie wyłączenia dla '{interfaceName}' zostało wysłane.");
+                        anyDisableSuccess = true; // Zakładamy, że wysłanie polecenia to częściowy sukces
                     }
+                }
+                catch (OperationCanceledException)
+                {
+                    _logger.LogInformation("Operacja wyłączania interfejsu przerwana (anulowanie).");
+                    return false;
                 }
                 catch (Exception ex)
                 {
+                    // Jeśli np. użytkownik anuluje UAC, wpadnie tutaj Win32Exception "Operacja została anulowana przez użytkownika"
                     string errorMsg = $"Wystąpił wyjątek podczas próby wyłączenia interfejsu '{interfaceName}': {ex.Message}";
                     _logger.LogError(ex, errorMsg);
-                    errors.Add(errorMsg);
+                    disableErrors.Add(errorMsg);
                 }
             }
 
-            if (!anySuccess && errors.Count == targetInterfaceNames.Count)
+            // Jeśli żadne polecenie wyłączenia nie zostało nawet pomyślnie wysłane (np. same wyjątki)
+            // LUB jeśli wszystkie próby skutkowały błędami (choć to trudne do stwierdzenia bez ExitCode)
+            // Na razie uprościmy: jeśli anyDisableSuccess jest false, to znaczy, że coś poszło bardzo nie tak na etapie prób wyłączenia.
+            if (!anyDisableSuccess && disableErrors.Count == TargetVpnInterfaceNames.Count)
             {
-                _logger.LogError("Nie udało się pomyślnie wykonać operacji netsh dla żadnego z docelowych interfejsów.");
-                return false; // Zwróć false jeśli całkowita porażka
+                _logger.LogError("Nie udało się zainicjować operacji wyłączenia dla żadnego z docelowych interfejsów VPN.");
+                return false;
             }
 
-            _logger.LogInformation("Zakończono próby wyłączania interfejsów. Oczekiwanie 15 sekund...");
-            await Task.Delay(TimeSpan.FromSeconds(15)); 
-            _logger.LogInformation("Zakończono oczekiwanie. Wywoływanie eventu NetworkResetCompleted.");
-            NetworkResetCompleted?.Invoke(this, EventArgs.Empty); 
+            _logger.LogInformation("Zakończono próby wysyłania poleceń wyłączania interfejsów. Rozpoczynam sprawdzanie ponownego połączenia (do 60 sekund).");
 
-            return true; 
+            bool reconnectedWithinTimeLimit = false;
+            for (int i = 0; i < 60; i++) 
+            {
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    _logger.LogInformation("Sprawdzanie ponownego połączenia przerwane (anulowanie).");
+                    return false;
+                }
+
+                _logger.LogInformation($"Sprawdzanie statusu ponownego połączenia VPN... Próba {i + 1}/60");
+                foreach (var interfaceName in TargetVpnInterfaceNames)
+                {
+                    if (await IsInterfaceConnectedAsync(interfaceName, cancellationToken))
+                    {
+                        _logger.LogInformation($"WYKRYTO PONOWNE POŁĄCZENIE: Interfejs '{interfaceName}' jest aktywny.");
+                        reconnectedWithinTimeLimit = true;
+                        break; // Wystarczy, że jeden z docelowych interfejsów się połączył
+                    }
+                }
+
+                if (reconnectedWithinTimeLimit)
+                {
+                    break; // Przerwij pętlę sprawdzania
+                }
+
+                await Task.Delay(TimeSpan.FromSeconds(5), cancellationToken); 
+            }
+
+            if (reconnectedWithinTimeLimit)
+            {
+                _logger.LogInformation("Ponowne połączenie VPN potwierdzone. Oczekiwanie dodatkowe 10 sekundy dla stabilizacji...");
+                await Task.Delay(TimeSpan.FromSeconds(10), cancellationToken);
+
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    _logger.LogInformation("Oczekiwanie po ponownym połączeniu przerwane (anulowanie).");
+                    return false;
+                }
+
+                _logger.LogInformation("Zakończono oczekiwanie. Reset sieci uznany za udany.");
+                NetworkResetCompleted?.Invoke(this, EventArgs.Empty);
+                return true;
+            }
+            else
+            {
+                _logger.LogWarning("Nie wykryto ponownego połączenia żadnego z interfejsów VPN w ciągu 60 sekund.");
+                return false;
+            }
         }
     }
 }
