@@ -47,7 +47,7 @@ public class GoogleScraper
 
     public async Task InitializeBrowserAsync()
     {
-        IsCaptchaEncountered = false; // Reset flagi przy inicjalizacji
+        IsCaptchaEncountered = false; 
         var browserFetcher = new BrowserFetcher();
         await browserFetcher.DownloadAsync();
 
@@ -201,94 +201,106 @@ public class GoogleScraper
         }
     }
 
-    public async Task<ScraperResult<bool>> NavigateToProductPageAndExpandOffersAsync(string cid)
+    // Teraz zwracamy List<string> zamiast bool
+    public async Task<ScraperResult<List<string>>> NavigateToProductPageAndExpandOffersAsync(string cid)
     {
-        Console.WriteLine($"Nawigacja do strony ofert produktu Google Shopping (CID: {cid})...");
+        Console.WriteLine($"Rozpoczynam zbieranie ofert produktu Google Shopping (CID: {cid})...");
+        var allStoreUrls = new List<string>();
         IsCaptchaEncountered = false;
+
+        int start = 0;
+        const int pageSize = 20;
 
         try
         {
             if (_browser == null || _page == null || _page.IsClosed)
-            {
                 await InitializeBrowserAsync();
+
+            while (true)
+            {
+                var url = $"https://www.google.com/shopping/product/{cid}/offers?prds=cid:{cid},cond:1,cs:1,start:{start}&gl=pl&hl=pl";
+                Console.WriteLine($"– Nawigacja do: {url}");
+                await _page.GoToAsync(url, new NavigationOptions
+                {
+                    Timeout = 60000,
+                    WaitUntil = new[] { WaitUntilNavigation.Load }
+                });
+
+                var currentUrl = _page.Url;
+                if (currentUrl.Contains("/sorry/") || currentUrl.Contains("/captcha"))
+                {
+                    Console.WriteLine("❌ CAPTCHA napotkana podczas nawigacji.");
+                    IsCaptchaEncountered = true;
+                    return ScraperResult<List<string>>.Captcha(allStoreUrls);
+                }
+
+                // Wywołujemy Twój istniejący ekstraktor
+                var extractResult = await ExtractStoreOffersAsync(_page);
+
+                // Zamiast extractResult.IsCaptcha
+                if (extractResult.CaptchaEncountered)
+                    return ScraperResult<List<string>>.Captcha(allStoreUrls);
+
+                if (!extractResult.IsSuccess)
+                    return ScraperResult<List<string>>.Fail(extractResult.ErrorMessage, allStoreUrls);
+
+                // Zamiast extractResult.Value
+                var urls = extractResult.Data;
+                Console.WriteLine($"– Zebrano {urls.Count} linków na stronie start={start}.");
+                allStoreUrls.AddRange(urls);
+
+                // Jeśli mniej niż pełne pageSize, kończymy pętlę
+                if (urls.Count < pageSize)
+                    break;
+
+                start += pageSize;
             }
 
-            var url = $"https://www.google.com/shopping/product/{cid}/offers?prds=cid:{cid},cond:1&gl=pl&hl=pl";
-            await _page.GoToAsync(url, new NavigationOptions
-            {
-                Timeout = 60000,
-                WaitUntil = new[] { WaitUntilNavigation.Load }
-            });
-
-            var currentUrl = _page.Url;
-            if (currentUrl.Contains("/sorry/") || currentUrl.Contains("/captcha"))
-            {
-                Console.WriteLine("Natrafiono na stronę CAPTCHA podczas nawigacji do ofert produktu.");
-                IsCaptchaEncountered = true;
-                // await CloseBrowserAsync();
-                return ScraperResult<bool>.Captcha(false);
-            }
-
-            var rejectButton = await _page.QuerySelectorAsync("button[aria-label='Odrzuć wszystko']");
-            if (rejectButton != null)
-            {
-                Console.WriteLine("Znaleziono przycisk 'Odrzuć wszystko'. Klikam...");
-                await rejectButton.ClickAsync();
-                await Task.Delay(1000);
-            }
-
-
-            return ScraperResult<bool>.Success(true);
+            return ScraperResult<List<string>>.Success(allStoreUrls);
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Błąd podczas nawigacji do strony ofert produktu Google Shopping (CID: {cid}): {ex.Message}");
-            // await CloseBrowserAsync();
-            return ScraperResult<bool>.Fail($"Błąd nawigacji do ofert: {ex.Message}", false);
+            Console.WriteLine($"Błąd podczas paginacji ofert (CID: {cid}): {ex.Message}");
+            return ScraperResult<List<string>>.Fail($"Błąd paginacji ofert: {ex.Message}", allStoreUrls);
         }
     }
 
+
+    // ExtractStoreOffersAsync zostaje BEZ ZMIAN
     public async Task<ScraperResult<List<string>>> ExtractStoreOffersAsync(IPage page)
     {
         var storeUrls = new List<string>();
-  
         IsCaptchaEncountered = false;
 
         try
         {
-            // Sprawdzenie CAPTCHA na podstawie URL przed próbą ekstrakcji
             if (page.Url.Contains("/sorry/") || page.Url.Contains("/captcha"))
             {
-                 Console.WriteLine("Strona ofert jest stroną CAPTCHA. Przerywam ekstrakcję ofert.");
-                 IsCaptchaEncountered = true;
-                 return ScraperResult<List<string>>.Captcha(storeUrls);
+                Console.WriteLine("Strona ofert to CAPTCHA. Przerywam ekstrakcję.");
+                IsCaptchaEncountered = true;
+                return ScraperResult<List<string>>.Captcha(storeUrls);
             }
 
-            // Czekanie na selektor linków ofert
             try
             {
-                 await page.WaitForSelectorAsync("a.sh-osd__seller-link", new WaitForSelectorOptions { Timeout = 500 }); // Zaktualizowany selektor i dłuższy timeout
+                await page.WaitForSelectorAsync("a.sh-osd__seller-link", new WaitForSelectorOptions { Timeout = 500 });
             }
-            catch(WaitTaskTimeoutException)
+            catch (WaitTaskTimeoutException)
             {
-                // Fallback do starego selektora, jeśli nowy nie zadziałał
                 try
                 {
                     await page.WaitForSelectorAsync("div.UAVKwf > a.UxuaJe.shntl.FkMp", new WaitForSelectorOptions { Timeout = 500 });
                 }
                 catch (WaitTaskTimeoutException ex)
                 {
-                     Console.WriteLine($"Nie znaleziono elementów linków ofert sklepów (ani .sh-osd__seller-link ani .UAVKwf > a) w określonym czasie: {ex.Message}. Możliwe, że strona się zmieniła lub brak ofert.");
-                     return ScraperResult<List<string>>.Success(storeUrls); // Traktujemy jako sukces, ale z pustą listą, bo nie ma ofert
+                    Console.WriteLine($"Nie znaleziono linków ofert: {ex.Message}. Zwracam pustą listę.");
+                    return ScraperResult<List<string>>.Success(storeUrls);
                 }
-
             }
 
             var offerLinkElements = await page.QuerySelectorAllAsync("a.sh-osd__seller-link");
             if (offerLinkElements.Length == 0)
-            {
                 offerLinkElements = await page.QuerySelectorAllAsync("div.UAVKwf > a.UxuaJe.shntl.FkMp");
-            }
 
             Console.WriteLine($"Znaleziono {offerLinkElements.Length} linków ofert.");
 
@@ -301,31 +313,24 @@ public class GoogleScraper
                     continue;
                 }
 
-                string extractedStoreUrl;
-                if (rawStoreUrl.Contains("google.com/url"))
-                {
-                    // teraz złapiemy każdy google-redirect, nie tylko te bez domeny
-                    extractedStoreUrl = ExtractStoreUrlFromGoogleRedirect(rawStoreUrl);
-                }
-                else
-                {
-                    // zwykły link sklepu
-                    extractedStoreUrl = rawStoreUrl;
-                }
+                string extractedStoreUrl = rawStoreUrl.Contains("google.com/url")
+                    ? ExtractStoreUrlFromGoogleRedirect(rawStoreUrl)
+                    : rawStoreUrl;
 
                 var cleanedStoreUrl = CleanUrlParameters(extractedStoreUrl);
                 storeUrls.Add(cleanedStoreUrl);
-                Console.WriteLine($"Ekstrahowano i oczyszczono URL sklepu: {cleanedStoreUrl}");
+                Console.WriteLine($"Ekstrahowano i oczyszczono URL: {cleanedStoreUrl}");
             }
 
             return ScraperResult<List<string>>.Success(storeUrls);
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Błąd podczas ekstrakcji ofert sklepów: {ex.Message}");
+            Console.WriteLine($"Błąd przy ekstrakcji ofert sklepów: {ex.Message}");
             return ScraperResult<List<string>>.Fail($"Błąd ekstrakcji ofert: {ex.Message}", storeUrls);
         }
     }
+
 
     private string ExtractStoreUrlFromGoogleRedirect(string googleRedirectUrl)
     {

@@ -650,56 +650,74 @@ public class GoogleScraperController : Controller
 
                 foreach (var cid in initialCIDs)
                 {
-                    if (captchaCts.IsCancellationRequested) break;
-                    Console.WriteLine($"\n[{DateTime.Now:HH:mm:ss}] [{Thread.CurrentThread.ManagedThreadId}] ID {productState.ProductId}: Przetwarzam CID: {cid}");
-                    ScraperResult<bool> navResult = await scraper.NavigateToProductPageAndExpandOffersAsync(cid);
-                    if (navResult.CaptchaEncountered)
+                    if (captchaCts.IsCancellationRequested)
+                        break;
+
+                    Console.WriteLine($"\n[{DateTime.Now:HH:mm:ss}] [{Thread.CurrentThread.ManagedThreadId}] " +
+                                      $"ID {productState.ProductId}: Przetwarzam CID: {cid}");
+
+                    // 1) Paginacja + ekstrakcja wszystkich ofert
+                    ScraperResult<List<string>> offersResult =
+                        await scraper.NavigateToProductPageAndExpandOffersAsync(cid);
+
+                    // 2) CAPTCHA?
+                    if (offersResult.CaptchaEncountered)
                     {
-                        Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [{Thread.CurrentThread.ManagedThreadId}] CAPTCHA (Navigate) CID {cid}, ID {productState.ProductId}. Sygnalizuję.");
-                        if (!captchaCts.IsCancellationRequested) captchaCts.Cancel();
-                        lock (productState) { productState.UpdateStatus(ProductStatus.CaptchaHalt); }
+                        Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [{Thread.CurrentThread.ManagedThreadId}] " +
+                                          $"CAPTCHA (Navigate+Extract) CID {cid}, ID {productState.ProductId}. Sygnalizuję.");
+                        if (!captchaCts.IsCancellationRequested)
+                            captchaCts.Cancel();
+
+                        lock (productState)
+                        {
+                            productState.UpdateStatus(ProductStatus.CaptchaHalt);
+                        }
                         return;
                     }
-                    if (captchaCts.IsCancellationRequested) break;
 
-                    if (navResult.IsSuccess && navResult.Data && localEligibleProductsMap.Any())
+                    if (captchaCts.IsCancellationRequested)
+                        break;
+
+                    // 3) Mamy oferty?
+                    if (offersResult.IsSuccess && offersResult.Data.Any())
                     {
-                        ScraperResult<List<string>> offersResult = await scraper.ExtractStoreOffersAsync(scraper.CurrentPage);
-                        if (offersResult.CaptchaEncountered)
-                        {
-                            Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [{Thread.CurrentThread.ManagedThreadId}] CAPTCHA (ExtractOffers) CID {cid}, ID {productState.ProductId}. Sygnalizuję.");
-                            if (!captchaCts.IsCancellationRequested) captchaCts.Cancel();
-                            lock (productState) { productState.UpdateStatus(ProductStatus.CaptchaHalt); }
-                            return;
-                        }
-                        if (captchaCts.IsCancellationRequested) break;
+                        Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [{Thread.CurrentThread.ManagedThreadId}] " +
+                                          $"ID {productState.ProductId}, CID {cid}: Znaleziono {offersResult.Data.Count} ofert.");
 
-                        if (offersResult.IsSuccess && offersResult.Data.Any())
+                        foreach (var cleanedOfferUrl in offersResult.Data)
                         {
-                            Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [{Thread.CurrentThread.ManagedThreadId}] ID {productState.ProductId}, CID {cid}: Znaleziono {offersResult.Data.Count} ofert.");
-                            foreach (var offerUrlFromGoogle_Cleaned in offersResult.Data)
+                            if (captchaCts.IsCancellationRequested)
+                                break;
+
+                            if (localEligibleProductsMap.TryGetValue(cleanedOfferUrl, out var matchedState))
                             {
-                                if (captchaCts.IsCancellationRequested) break;
-                                if (localEligibleProductsMap.TryGetValue(offerUrlFromGoogle_Cleaned, out var matchedProductStateFromMap))
+                                lock (matchedState)
                                 {
-                                    lock (matchedProductStateFromMap)
-                                    {
-                                        string googleProductPageUrl = $"https://www.google.com/shopping/product/{cid}";
-                                        matchedProductStateFromMap.UpdateStatus(ProductStatus.Found, googleProductPageUrl, cid);
-                                        Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [{Thread.CurrentThread.ManagedThreadId}] \u2713 DOPASOWANO! Google: {offerUrlFromGoogle_Cleaned} -> ID {matchedProductStateFromMap.ProductId}. CID: {cid}");
-                                        if (matchedProductStateFromMap.ProductId == productState.ProductId) { initiatingProductDirectlyMatchedInThisTask = true; }
-                                    }
+                                    string googleProductPageUrl = $"https://www.google.com/shopping/product/{cid}";
+                                    matchedState.UpdateStatus(ProductStatus.Found, googleProductPageUrl, cid);
+                                    Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [{Thread.CurrentThread.ManagedThreadId}] " +
+                                                      $"✓ DOPASOWANO! {cleanedOfferUrl} → ID {matchedState.ProductId}. CID: {cid}");
+
+                                    if (matchedState.ProductId == productState.ProductId)
+                                        initiatingProductDirectlyMatchedInThisTask = true;
                                 }
                             }
                         }
-                        else { Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [{Thread.CurrentThread.ManagedThreadId}] ID {productState.ProductId}, CID {cid}: Brak ofert/błąd. Msg: {offersResult.ErrorMessage}"); }
                     }
-                    else if (!navResult.IsSuccess || !navResult.Data)
-                    { Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [{Thread.CurrentThread.ManagedThreadId}] ID {productState.ProductId}: Błąd nawigacji CID {cid}. Msg: {navResult.ErrorMessage}"); }
+                    else
+                    {
+                        // brak ofert lub błąd
+                        Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [{Thread.CurrentThread.ManagedThreadId}] " +
+                                          $"ID {productState.ProductId}, CID {cid}: Brak ofert lub błąd. Msg: {offersResult.ErrorMessage}");
+                    }
 
-                    if (captchaCts.IsCancellationRequested) break;
+                    if (captchaCts.IsCancellationRequested)
+                        break;
+
+                    // krótka losowa przerwa przed kolejnym CID
                     await Task.Delay(TimeSpan.FromMilliseconds(_random.Next(200, 400)), CancellationToken.None);
                 }
+
 
                 if (!captchaCts.IsCancellationRequested)
                 {
