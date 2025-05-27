@@ -727,23 +727,27 @@
         });
     }
     function exportToCsv() {
-
-        let csvContent = "ID,EAN,CENA\n";
+ 
+        let csvContent = "ID,EAN,CENA\n"; 
 
         originalRowsData.forEach(row => {
-            const baseNewPrice = (typeof row.baseNewPrice === 'number') ? row.baseNewPrice.toFixed(2).replace('.', ',') : "";
+         
+            const priceString = (typeof row.baseNewPrice === 'number') ? row.baseNewPrice.toFixed(2).replace('.', ',') : "";
 
-            const eanText = row.ean ? `="${row.ean}"` : "";
-            const extIdText = row.externalId ? `="${row.externalId}"` : "";
 
-            csvContent += `${extIdText},${eanText},${baseNewPrice}\n`;
+            const quotedPrice = `"${priceString}"`;
+
+            const eanText = row.ean ? `="${String(row.ean)}"` : "";
+            const extIdText = row.externalId ? `="${String(row.externalId)}"` : "";
+
+            csvContent += `${extIdText},${eanText},${quotedPrice}\n`;
         });
 
         const dateStr = getCurrentDateString();
-
         const fileName = `PriceSafari-${dateStr}-${currentOurStoreName}-bazowa.csv`;
 
-        const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+     
+        const blob = new Blob(["\uFEFF" + csvContent], { type: "text/csv;charset=utf-8;" });
         const link = document.createElement("a");
         link.href = URL.createObjectURL(blob);
         link.download = fileName;
