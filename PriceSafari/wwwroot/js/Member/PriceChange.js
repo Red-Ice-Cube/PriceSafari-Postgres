@@ -257,14 +257,33 @@
             return 0;
         }
 
+
+
         function channelScore(oldRankData, newRankData, totalOffers) {
             if (oldRankData.rank === null || newRankData.rank === null || totalOffers < 1) return null;
 
-            let gainedPos = oldRankData.rank - newRankData.rank;
+            let effectiveOldRank = oldRankData.rank;
+            let isOldRankRangeImprovement = false;
+
+            if (oldRankData.isRange && oldRankData.rangeSize > 1) {
+               
+                effectiveOldRank = oldRankData.rank + oldRankData.rangeSize - 1;
+                if (newRankData.rank < effectiveOldRank) { 
+                    isOldRankRangeImprovement = true;
+                }
+            }
+
+            let gainedPos = effectiveOldRank - newRankData.rank;
 
             if (gainedPos <= 0) return null;
 
             let jumpFrac = gainedPos * Math.log10(totalOffers + 1);
+
+     
+            const rangeUncertaintyModifier = 0.8;
+            if (isOldRankRangeImprovement) {
+                jumpFrac *= rangeUncertaintyModifier;
+            }
 
             let rankRounded = Math.round(newRankData.rank);
             let placeBonus = getPlaceBonus(rankRounded);
@@ -291,17 +310,37 @@
         const googleFinalScore = channelScore(googleOldData, googleNewData, totalG);
         const ceneoFinalScore = channelScore(ceneoOldData, ceneoNewData, totalC);
 
+     
+        let calculatedGoogleGained = 0;
+        if (googleOldData.rank !== null && googleNewData.rank !== null) {
+            let effectiveOldGoogleRank = googleOldData.rank;
+            if (googleOldData.isRange && googleOldData.rangeSize > 1) {
+                effectiveOldGoogleRank = googleOldData.rank + googleOldData.rangeSize - 1;
+            }
+            calculatedGoogleGained = effectiveOldGoogleRank - googleNewData.rank;
+        }
+
+        let calculatedCeneoGained = 0;
+        if (ceneoOldData.rank !== null && ceneoNewData.rank !== null) {
+            let effectiveOldCeneoRank = ceneoOldData.rank;
+            if (ceneoOldData.isRange && ceneoOldData.rangeSize > 1) {
+                effectiveOldCeneoRank = ceneoOldData.rank + ceneoOldData.rangeSize - 1;
+            }
+            calculatedCeneoGained = effectiveOldCeneoRank - ceneoNewData.rank;
+        }
+
+
         return {
             cost,
             costFrac,
-            googleGained: googleOldData.rank !== null && googleNewData.rank !== null ? googleOldData.rank - googleNewData.rank : 0,
-            ceneoGained: ceneoOldData.rank !== null && ceneoNewData.rank !== null ? ceneoOldData.rank - ceneoNewData.rank : 0,
+           
+            googleGained: calculatedGoogleGained > 0 ? calculatedGoogleGained : 0,
+            ceneoGained: calculatedCeneoGained > 0 ? calculatedCeneoGained : 0,
             googleFinalScore,
             ceneoFinalScore,
             basePriceChangeType
         };
     }
-
     function buildPriceBlock(basePrice, effectivePrice, shippingCost, usePriceWithDeliveryFlag, marginPercent, marginValue, googleRank, googleOffers, ceneoRank, ceneoOffers) {
 
         const validBasePrice = typeof basePrice === 'number' ? basePrice : null;
