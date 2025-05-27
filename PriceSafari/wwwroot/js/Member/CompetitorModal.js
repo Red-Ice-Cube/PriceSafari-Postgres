@@ -84,6 +84,13 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
+    const searchInput = document.getElementById("competitorSearchInput");
+    if (searchInput) {
+        searchInput.addEventListener("input", function () {
+            filterCompetitors(this.value);
+        });
+    }
+
     const useUnmarkedStoresCheckbox = document.getElementById("useUnmarkedStoresCheckbox");
     if (useUnmarkedStoresCheckbox) {
         useUnmarkedStoresCheckbox.addEventListener("change", async function () {
@@ -675,7 +682,7 @@ function highlightTextCaseInsensitive(fullText, searchTerm) {
     if (!searchTerm) return fullText;
     const escapedTerm = searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const regex = new RegExp(`(${escapedTerm})`, 'gi');
-    return fullText.replace(regex, '<span style="font-weight:bold; color:yellow;">$1</span>');
+    return fullText.replace(regex, '<span style="font-weight:bold; color:purple;">$1</span>');
 }
 
 document.addEventListener('click', function (event) {
