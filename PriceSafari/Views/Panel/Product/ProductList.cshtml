@@ -144,7 +144,7 @@
 
             <div>
                 <button type="button" class="Button-Page-Small-gr" id="uploadMarginsButton">
-                    Wgraj Marże
+                    Ceny zakupu
                 </button>
                
                 <select id="categoryDropdown" class="DropDown" style="width:150px;">
@@ -245,7 +245,7 @@
         <div class="modal-content">
             <form asp-action="SetMargins" asp-controller="Product" asp-route-storeId="@ViewBag.StoreId" method="post" enctype="multipart/form-data" id="uploadMarginsForm">
                 <div class="modal-header">
-                    <h5 class="modal-title" id="uploadMarginsModalLabel">Wgraj Marże</h5>
+                    <h5 class="modal-title" id="uploadMarginsModalLabel">Ceny zakupu</h5>
                     <button type="button" class="close" data-dismiss="modal" aria-label="Zamknij">
                         <span aria-hidden="true">&times;</span>
                     </button>
@@ -257,6 +257,18 @@
                             @Html.ValidationSummary()
                         </div>
                     }
+
+                    <div id="modalProductStats" style="margin-bottom: 20px; padding: 10px; border: 1px solid #eee; border-radius: 4px; background-color: #f9f9f9;">
+                        <h6 style="margin-bottom: 10px; font-weight: bold; color: #333;">Statystyki Produktów:</h6>
+                        <ul class="list-unstyled" style="font-size: 0.9em; line-height: 1.6;">
+                            <li>Całkowita liczba produktów w sklepie: <strong id="stat-total-products" class="float-right">Ładowanie...</strong></li>
+                            <li>Produkty z przypisaną ceną zakupu: <strong id="stat-products-with-purchase-price" class="float-right">Ładowanie...</strong></li>
+                            <hr style="margin: 5px 0;" />
+                            <li>Produkty aktywne w monitoringu: <strong id="stat-active-monitoring-products" class="float-right">Ładowanie...</strong></li>
+                            <li style="padding-left: 15px;"><span style="font-size:0.9em;">↳ z kodem EAN:</span> <strong id="stat-active-monitoring-with-ean" class="float-right">Ładowanie...</strong></li>
+                            <li style="padding-left: 15px;"><span style="font-size:0.9em;">↳ z wgraną ceną zakupu:</span> <strong id="stat-active-monitoring-with-purchase-price" class="float-right">Ładowanie...</strong></li>
+                        </ul>
+                    </div>
                     <p>Proszę wgrać plik Excel zawierający następujące kolumny:</p>
                     <ul>
                         <li><strong>EAN</strong>: Kod EAN produktu.</li>
@@ -264,13 +276,30 @@
                     </ul>
                     <p>Plik może zawierać dodatkowe kolumny, ale tylko kolumny 'EAN' i 'CENA' zostaną użyte.</p>
                     <div class="mb-3">
-                        <label for="uploadedFile" class="form-label">Wybierz plik</label>
-                        <input type="file" name="uploadedFile" id="uploadedFile" class="form-control" accept=".xls,.xlsx,.csv,.xml" required />
+                        <label for="uploadedFile" class="form-label">Wybierz plik (.xls, .xlsx)</label>
+                        <input type="file" name="uploadedFile" id="uploadedFile" class="form-control" accept=".xls,.xlsx" required />
                     </div>
+                        <p>
+                        <strong>Aktualizacja cen zakupu:</strong>
+                        Jeśli ceny zakupu są już wgrane i chcesz je zaktualizować, wgraj nowy plik. Spowoduje to nadpisanie cen dla produktów, których kody EAN pasują do wpisów w nowym pliku.
+
+                   
+                        </p>
+                 
+                        <p style="margin-top:20px;">
+                        <strong>
+                            Ważne:
+                        </strong>
+                        Jeżeli nowy plik nie zawiera produktów (kodów EAN), dla których wcześniej istniała cena zakupu, ich dotychczasowe ceny nie zostaną zmienione ani usunięte.
+                        Aby mieć pewność, że w systemie znajdują się wyłącznie ceny z nowego pliku (a stare ceny dla produktów nieobecnych w nowym pliku zostały usunięte), najpierw skorzystaj z opcji "Usuń wszystkie ceny zakupu", a dopiero potem wgraj nowy plik.
+                        </p>
+                    <div id="uploadClientError" class="alert alert-danger" style="display: none; margin-top: 10px;"></div>
                 </div>
                 <div class="modal-footer">
-                    <button type="submit" class="Button-Page-Small-b" id="submitUploadMarginsButton">Wgraj Marże</button>
                     <button type="button" class="Button-Page-Small" data-dismiss="modal">Anuluj</button>
+                 
+                    <button type="button" class="Button-Page-Small-r" id="clearAllMarginsButton" style="margin-right: auto;">Usuń wszystkie ceny zakupu</button>
+                    <button type="submit" class="Button-Page-Small-b" id="submitUploadMarginsButton">Wgraj ceny zakupu</button>
                 </div>
             </form>
         </div>
@@ -281,13 +310,15 @@
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
     <script>
+        var allProducts = [];
+
         document.addEventListener('DOMContentLoaded', function () {
             var storeId = @ViewBag.StoreId;
             var selectAllButton = document.getElementById('select-all');
             var deselectAllButton = document.getElementById('deselect-all');
             var searchInput = document.getElementById('productSearch');
             var categoryDropdown = document.getElementById('categoryDropdown');
-            var allProducts = [];
+
             var lastScrollPosition = 0;
             var selectedCategory = 'all';
 
@@ -554,6 +585,8 @@
                 updateCounters(filteredProducts);
             }
 
+           
+
             function fetchProducts() {
                 fetch('@Url.Action("GetProducts", "Product")?storeId=' + storeId)
                     .then(response => response.json())
@@ -667,20 +700,26 @@
             const uploadedFileField = document.getElementById('uploadedFile');
             const submitUploadButton = document.getElementById('submitUploadMarginsButton');
             const uploadClientError = document.getElementById('uploadClientError');
-            const originalButtonText = submitUploadButton ? submitUploadButton.innerHTML : 'Wgraj Marże';
+            const originalButtonText = submitUploadButton ? submitUploadButton.innerHTML : 'Wgraj ceny zakupu';
+            const clearAllMarginsButton = document.getElementById('clearAllMarginsButton');
+            const storeIdForMargins = @ViewBag.StoreId;
 
             // Logika otwierania modala (już istnieje w Twoim głównym skrypcie, ale upewnij się, że działa)
             const uploadMarginsButton = document.getElementById('uploadMarginsButton'); // Przycisk na stronie
-            if (uploadMarginsButton && uploadMarginsModal) {
+           if (uploadMarginsButton && uploadMarginsModal) {
                 uploadMarginsButton.addEventListener('click', function () {
-                    // Resetuj stan modala przed pokazaniem
                     if (uploadMarginsForm) uploadMarginsForm.reset();
-                    if (uploadClientError) uploadClientError.style.display = 'none';
+                    if (uploadClientError) {
+                        uploadClientError.style.display = 'none';
+                        uploadClientError.textContent = '';
+                    }
                     if (submitUploadButton) {
                         submitUploadButton.disabled = false;
+                        // Użyj originalButtonText zdefiniowanego na początku skryptu
                         submitUploadButton.innerHTML = originalButtonText;
                     }
-                    $('#uploadMarginsModal').modal('show'); // Użycie jQuery do pokazania modala Bootstrap
+                    updateModalStats(); // Aktualizuj statystyki przy każdym otwarciu modala
+                    $('#uploadMarginsModal').modal('show');
                 });
             }
 
@@ -725,6 +764,142 @@
 
                 });
             }
+
+
+
+
+        // Ten kod znajduje się w drugim bloku document.addEventListener('DOMContentLoaded', function () { ... });
+
+        // ... (deklaracje const clearAllMarginsButton, storeIdForMargins itp. bez zmian) ...
+
+        if (clearAllMarginsButton) {
+            clearAllMarginsButton.addEventListener('click', function() {
+                if (!confirm('Jesteś pewien, że chcesz usunąć WSZYSTKIE ceny zakupu dla tego sklepu? Ta operacja jest nieodwracalna.')) {
+                    return;
+                }
+
+                this.disabled = true;
+                const originalButtonHTML = this.innerHTML;
+                this.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Usuwanie...';
+
+                const formWithToken = document.getElementById('uploadMarginsForm'); // Zakładamy, że atrybut [ValidateAntiForgeryToken] pozostał w akcji C#
+                let requestVerificationToken = null;
+                if (formWithToken) {
+                    const tokenInput = formWithToken.querySelector('input[name="__RequestVerificationToken"]');
+                    if (tokenInput) {
+                        requestVerificationToken = tokenInput.value;
+                    }
+                }
+
+                if (!requestVerificationToken) {
+                    // Jeśli zdecydujesz się usunąć [ValidateAntiForgeryToken] z akcji ClearAllPurchasePrices,
+                    // ten blok sprawdzania tokenu i poniższy nagłówek 'RequestVerificationToken' można usunąć.
+                    alert('Nie można znaleźć tokenu weryfikacyjnego. Operacja anulowana.');
+                    this.disabled = false;
+                    this.innerHTML = originalButtonHTML;
+                    console.error('__RequestVerificationToken not found on the page.');
+                    return;
+                }
+
+                fetch(`@Url.Action("ClearAllPurchasePrices", "Product")?storeId=${storeIdForMargins}`, {
+                    method: 'POST',
+                    headers: {
+                        'Accept': 'application/json',
+                        'RequestVerificationToken': requestVerificationToken
+                    }
+                })
+                .then(response => {
+                    // ... (obsługa błędów response.ok i parsowania JSON bez zmian, jak w poprzedniej sugestii) ...
+                    if (!response.ok) {
+                        const contentType = response.headers.get("content-type");
+                        if (contentType && contentType.indexOf("application/json") !== -1) {
+                            return response.json().then(errData => {
+                                throw new Error(errData.message || `Błąd serwera (JSON): ${response.status}`);
+                            });
+                        } else {
+                            return response.text().then(textData => {
+                                throw new Error(`Błąd serwera (${response.status}). Odpowiedź nie była w formacie JSON. Treść: ${textData.substring(0, 100)}...`);
+                            });
+                        }
+                    }
+                    const contentType = response.headers.get("content-type");
+                    if (contentType && contentType.indexOf("application/json") !== -1) {
+                         return response.json();
+                    } else {
+                        throw new Error('Serwer odpowiedział poprawnie, ale odpowiedź nie jest w formacie JSON.');
+                    }
+                })
+                .then(data => {
+                    if (data.success) {
+                        // Zamiast alertu i fetchProducts(), odświeżamy całą stronę.
+                        // Komunikat TempData ustawiony w akcji C# zostanie wyświetlony po przeładowaniu.
+                        window.location.reload();
+                    } else {
+                        alert(data.message || 'Wystąpił błąd podczas usuwania cen zakupu.');
+                        // Jeśli wystąpił błąd, nie przeładowujemy strony, więc musimy ręcznie odblokować przycisk.
+                        this.disabled = false;
+                        this.innerHTML = originalButtonHTML;
+                    }
+                })
+                .catch(error => {
+                    console.error('Błąd podczas usuwania cen zakupu:', error);
+                    alert('Wystąpił błąd komunikacji: ' + error.message);
+                    // W przypadku błędu sieciowego również odblokowujemy przycisk.
+                    this.disabled = false;
+                    this.innerHTML = originalButtonHTML;
+                })
+                // .finally() nie jest już potrzebne do resetowania przycisku, jeśli sukces zawsze przeładowuje.
+                // Obsługujemy reset przycisku tylko w ścieżkach błędów.
+                // Jeśli jednak chcesz zachować .finally() na wszelki wypadek:
+                /*
+                .finally(() => {
+                    // Ta część zostanie wykonana, chyba że nastąpiło natychmiastowe przeładowanie strony.
+                    // Jeśli strona się przeładowuje, ten konkretny skrypt przestaje istnieć.
+                    // Może być przydatne, jeśli np. `window.location.reload()` zostało zablokowane.
+                    if (!this.disabled) { // Sprawdź, czy przycisk nie został już odblokowany w bloku catch/else
+                         this.disabled = false;
+                         this.innerHTML = originalButtonHTML;
+                    }
+                });
+                */
+            });
+        }
+
+
+
+            function updateModalStats() {
+                const elTotal = document.getElementById('stat-total-products');
+                const elWithPrice = document.getElementById('stat-products-with-purchase-price');
+                const elActiveMon = document.getElementById('stat-active-monitoring-products');
+                const elActiveMonEan = document.getElementById('stat-active-monitoring-with-ean');
+                const elActiveMonPrice = document.getElementById('stat-active-monitoring-with-purchase-price');
+
+                if (!allProducts || allProducts.length === 0) {
+                    elTotal.textContent = '0';
+                    elWithPrice.textContent = '0 (0.0%)';
+                    elActiveMon.textContent = '0';
+                    elActiveMonEan.textContent = '0 (0.0%)';
+                    elActiveMonPrice.textContent = '0 (0.0%)';
+                    return;
+                }
+
+                const totalProducts = allProducts.length;
+                const productsWithPurchasePrice = allProducts.filter(p => p.marginPrice != null && p.marginPrice.toString().trim() !== '').length;
+
+                const activeMonitoringProducts = allProducts.filter(p => p.isScrapable && !p.isRejected);
+                const activeMonitoringCount = activeMonitoringProducts.length;
+
+                const activeMonitoringWithEan = activeMonitoringProducts.filter(p => p.ean && p.ean.trim() !== '').length;
+                const activeMonitoringWithPurchasePrice = activeMonitoringProducts.filter(p => p.marginPrice != null && p.marginPrice.toString().trim() !== '').length;
+
+                elTotal.textContent = totalProducts;
+                elWithPrice.textContent = `${productsWithPurchasePrice} (${totalProducts > 0 ? ((productsWithPurchasePrice / totalProducts) * 100).toFixed(1) : '0.0'}%)`;
+                elActiveMon.textContent = activeMonitoringCount;
+                elActiveMonEan.textContent = `${activeMonitoringWithEan} (${activeMonitoringCount > 0 ? ((activeMonitoringWithEan / activeMonitoringCount) * 100).toFixed(1) : '0.0'}%)`;
+                elActiveMonPrice.textContent = `${activeMonitoringWithPurchasePrice} (${activeMonitoringCount > 0 ? ((activeMonitoringWithPurchasePrice / activeMonitoringCount) * 100).toFixed(1) : '0.0'}%)`;
+            }
+
+
 
             // Opcjonalnie: Resetowanie stanu przycisku i błędów, jeśli modal zostanie zamknięty inaczej niż przez submit
             // (np. przez kliknięcie "Anuluj" lub "x")
