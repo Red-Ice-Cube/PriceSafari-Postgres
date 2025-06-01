@@ -363,7 +363,7 @@
 
             block += `
                   <div class="price-info-item" style="padding: 4px 12px; background: #e5f5e5; border: 1px solid #c3e3c3; border-radius: 5px;">
-                    Koszt | ${validBasePrice !== null ? validBasePrice.toFixed(2) : '-'} PLN + ${validShippingCost.toFixed(2)} PLN
+                    Składowe | ${validBasePrice !== null ? validBasePrice.toFixed(2) : '-'} PLN + ${validShippingCost.toFixed(2)} PLN
                   </div>`;
         }
 
@@ -394,7 +394,7 @@
             block += `
                  <div class="price-info-item">
                      <div class="price-box-diff-margin ${cls}">
-                         <p>Marża: ${sign}${mv} PLN (${sign}${mp}%)</p>
+                         <p>Narzut: ${sign}${mv} PLN (${sign}${mp}%)</p>
                      </div>
                  </div>`;
         }

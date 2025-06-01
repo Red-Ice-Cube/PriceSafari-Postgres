@@ -269,8 +269,8 @@
                     <button id="sortRaisePercentage">Podnieś %</button>
                     <button id="sortLowerAmount">Obniż PLN</button>
                     <button id="sortLowerPercentage">Obniż %</button>
-                    <button id="sortMarginAmount">Marża PLN</button>
-                    <button id="sortMarginPercentage">Marża %</button>
+                    <button id="sortMarginAmount">Narzut PLN</button>
+                    <button id="sortMarginPercentage">Narzut %</button>
                     <button id="showRejectedButton">Odrzucone</button>
                 </div>
 
@@ -445,7 +445,7 @@
             </div>
             <div class="modal-body">
                 <p style="margin-bottom:48px;">
-                    Ustawienia symulacji marżowej umożliwiają precyzyjne określenie, dla których produktów oraz w jaki sposób mają być modyfikowane ceny w oparciu o cenę zakupu. Jeśli chcesz, aby symulacja dotyczyła tylko produktów z określoną ceną zakupu, lub aby cena nie spadła poniżej ustalonego poziomu marży – skonfiguruj poniższe opcje.
+                    Ustawienia symulacji cenowej pozwalają precyzyjnie określić, dla których produktów oraz w jaki sposób mają być modyfikowane ceny w oparciu o cenę zakupu. Jeśli chcesz, aby symulacja dotyczyła tylko produktów z określoną ceną zakupu, lub aby cena nie spadła poniżej ustalonego poziomu narzutu – skonfiguruj poniższe opcje.
                 </p>
                 <form id="marginSettingsForm">
                     <div style="display:flex; gap:6px; justify-content: space-between;">
@@ -493,7 +493,7 @@
 
                     <div class="form-group" style="margin-bottom:24px;">
                         <label for="minimalMarginPercentInput">
-                            Minimalna marża (%) – procent, poniżej którego cena nie może spaść
+                            Minimalny narzut (%) – procent, poniżej którego cena nie może spaść
                         </label>
                         <input type="number" class="form-control" id="minimalMarginPercentInput" step="0.01" value="0.00">
                     </div>
@@ -816,7 +816,7 @@
 
     <script src="~/js/member/PriceChange.js"></script>
     <script src="~/js/member/CompetitorModal.js"></script>
-    <script src="~/js/member/pricehistory.min.js"></script>
+    <script src="~/js/member/PriceHistory.js"></script>
 
     <div id="loadingOverlay" class="loading-overlay" style="display: none;">
         <div class="loader"></div>
