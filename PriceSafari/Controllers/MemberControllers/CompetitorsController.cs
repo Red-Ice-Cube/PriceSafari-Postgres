@@ -37,7 +37,6 @@ public class CompetitorsController : Controller
         return true;
     }
 
-
     public async Task<IActionResult> Index()
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -47,13 +46,10 @@ public class CompetitorsController : Controller
             .Include(us => us.StoreClass)
             .ThenInclude(s => s.ScrapHistories)
 
-
-
             .ToListAsync();
 
         var stores = userStores.Select(us => us.StoreClass).ToList();
 
-      
         return View("~/Views/Panel/Competitors/Index.cshtml", stores);
     }
     public async Task<IActionResult> Competitors(int storeId)
@@ -68,10 +64,9 @@ public class CompetitorsController : Controller
             .Select(s => s.StoreName)
             .FirstOrDefaultAsync();
 
-        // Dodatkowe sprawdzenie, czy nazwa sklepu została pobrana
         if (string.IsNullOrEmpty(storeName))
         {
-            // Możesz zwrócić błąd lub widok z odpowiednią informacją
+
             return Content("Nie można zidentyfikować nazwy sklepu.");
         }
 
@@ -88,24 +83,23 @@ public class CompetitorsController : Controller
 
         var myPriceEntries = await _context.PriceHistories
             .Where(ph => ph.ScrapHistoryId == latestScrap.Id && ph.StoreName.ToLower() == storeName.ToLower())
-            .Select(ph => new { ph.ProductId, ph.Price, ph.IsGoogle }) // Zakładamy, że IsGoogle istnieje
+            .Select(ph => new { ph.ProductId, ph.Price, ph.IsGoogle })
             .ToListAsync();
 
         var myDistinctProductIds = myPriceEntries.Select(mp => mp.ProductId).Distinct().ToHashSet();
 
-        // Jeśli nie ma produktów dla naszego sklepu, można zwrócić informację
         if (!myDistinctProductIds.Any())
         {
             ViewBag.StoreName = storeName;
             ViewBag.StoreId = storeId;
-            // Przekazujemy pustą listę konkurentów do widoku lub odpowiedni komunikat
+
             return View("~/Views/Panel/Competitors/Competitors.cshtml", new List<object>());
-            // Lub: return Content("Brak produktów dla Twojego sklepu w ostatnim zestawieniu.");
+
         }
 
         var allCompetitorPriceEntries = await _context.PriceHistories
             .Where(ph => ph.ScrapHistoryId == latestScrap.Id && ph.StoreName.ToLower() != storeName.ToLower())
-            .Select(ph => new { ph.StoreName, ph.ProductId, ph.Price, ph.IsGoogle }) // Zakładamy, że IsGoogle istnieje
+            .Select(ph => new { ph.StoreName, ph.ProductId, ph.Price, ph.IsGoogle })
             .ToListAsync();
 
         var competitors = allCompetitorPriceEntries
@@ -142,9 +136,8 @@ public class CompetitorsController : Controller
                     }
                 }
 
-                // --- NOWA CZĘŚĆ: Określanie źródeł danych dla konkurenta ---
                 bool sourcedFromGoogle = competitorEntriesForStore.Any(e => e.IsGoogle == true);
-                // Używamy logiki z Twojego drugiego skryptu dla Ceneo (IsGoogle == false lub null)
+
                 bool sourcedFromCeneo = competitorEntriesForStore.Any(e => e.IsGoogle == false || e.IsGoogle == null);
 
                 string dataSourceDescription;
@@ -162,19 +155,18 @@ public class CompetitorsController : Controller
                 }
                 else
                 {
-                    // Ten przypadek nie powinien wystąpić, jeśli są jakiekolwiek wpisy dla konkurenta
+
                     dataSourceDescription = "Nieznane źródło";
                 }
-                // --- KONIEC NOWEJ CZĘŚCI ---
 
                 return new
                 {
                     StoreName = competitorStoreName,
                     CommonProductsCount = commonProductsCountResult,
                     SamePriceCount = samePriceCountResult,
-                    HigherPriceCount = higherPriceCountResult, // Nasza cena niższa, konkurenta wyższa
-                    LowerPriceCount = lowerPriceCountResult,   // Nasza cena wyższa, konkurenta niższa
-                    DataSourceDescription = dataSourceDescription // Nowe pole
+                    HigherPriceCount = higherPriceCountResult,
+                    LowerPriceCount = lowerPriceCountResult,
+                    DataSourceDescription = dataSourceDescription
                 };
             })
             .Where(c => c.CommonProductsCount >= 10)
@@ -186,7 +178,6 @@ public class CompetitorsController : Controller
         return View("~/Views/Panel/Competitors/Competitors.cshtml", competitors);
     }
 
-
     public async Task<IActionResult> CompetitorPrices(int storeId, string competitorStoreName)
     {
 
@@ -197,7 +188,7 @@ public class CompetitorsController : Controller
 
         var storeName = await _context.Stores
             .Where(s => s.StoreId == storeId)
-            .Select(s => s.StoreName) 
+            .Select(s => s.StoreName)
             .FirstOrDefaultAsync();
 
         ViewBag.CompetitorStoreName = competitorStoreName;
@@ -228,18 +219,12 @@ public class CompetitorsController : Controller
         public string CompetitorStoreName { get; set; }
         public int ScrapHistoryId { get; set; }
     }
-
-
     [HttpPost]
     public async Task<IActionResult> GetCompetitorPrices([FromBody] GetCompetitorPricesRequest request)
     {
-        Console.WriteLine($"Received request for competitor prices with parameters: storeId={request.StoreId}, competitorStoreName={request.CompetitorStoreName}, scrapHistoryId={request.ScrapHistoryId}");
-
-        var storeId = request.StoreId;
-
-        if (!await UserHasAccessToStore(storeId))
+        if (!await UserHasAccessToStore(request.StoreId))
         {
-            return Content("Nie ma takiego sklepu");
+            return Forbid();
         }
 
         var storeName = await _context.Stores
@@ -247,65 +232,82 @@ public class CompetitorsController : Controller
             .Select(s => s.StoreName)
             .FirstOrDefaultAsync();
 
-        
-        var ourPrices = await _context.PriceHistories
-            .Where(ph => ph.Product.StoreId == request.StoreId && ph.StoreName == storeName && ph.ScrapHistoryId == request.ScrapHistoryId)
-            .Select(ph => new
-            {
-                ph.ProductId,
-                ph.Price,
-                ph.StoreName,
-                ph.Product.ProductName,
-                ph.Product.OfferUrl
-            })
-            .ToListAsync();
-
-        // Pobierz ceny konkurenta
-        var competitorPrices = await _context.PriceHistories
-            .Where(ph => ph.ScrapHistoryId == request.ScrapHistoryId && ph.StoreName == request.CompetitorStoreName)
-            .Select(ph => new
-            {
-                ph.ProductId,
-                ph.Product.ProductName,
-                ph.Product.OfferUrl,
-                ph.Price,
-                ph.ScrapHistoryId
-            })
-            .ToListAsync();
-
-        // Połącz ceny tylko tych produktów, dla których mamy zarówno naszą cenę, jak i cenę konkurenta
-        var combinedPrices = ourPrices
-            .Select(op => {
-                var competitorPrice = competitorPrices.FirstOrDefault(cp => cp.ProductId == op.ProductId);
-                if (competitorPrice != null)
-                {
-                    return new
-                    {
-                        op.ProductId,
-                        competitorPrice.ProductName,
-                        competitorPrice.OfferUrl,
-                        competitorPrice.Price,
-                        request.ScrapHistoryId,
-                        OurPrice = op.Price,
-                        PriceData = 3  // Oznaczenie, że mamy kompletne dane
-                    };
-                }
-                return null;
-            })
-            .Where(result => result != null)
-            .ToList();
-
-        Console.WriteLine($"Found {combinedPrices.Count} prices for competitor {request.CompetitorStoreName} in scrap history {request.ScrapHistoryId}");
-
-        foreach (var price in combinedPrices)
+        if (string.IsNullOrEmpty(storeName))
         {
-            Console.WriteLine($"ProductId: {price.ProductId}, ProductName: {price.ProductName}, OfferUrl: {price.OfferUrl}, Price: {price.Price}, OurPrice: {price.OurPrice}, ScrapHistoryId: {price.ScrapHistoryId}, PriceData: {price.PriceData}");
+            return NotFound(new { message = "Nie znaleziono sklepu." });
+        }
+
+        var ourPriceEntries = await _context.PriceHistories
+            .Where(ph => ph.Product.StoreId == request.StoreId &&
+                         ph.StoreName.ToLower() == storeName.ToLower() &&
+                         ph.ScrapHistoryId == request.ScrapHistoryId)
+            .Select(ph => new
+            {
+                ph.ProductId,
+                ph.Price,
+                ph.Product.ProductName,
+                ph.Product.MainUrl
+            })
+            .ToListAsync();
+
+        var ourRepresentativePrices = ourPriceEntries
+            .GroupBy(p => p.ProductId)
+            .Select(g =>
+            {
+                var distinctPrices = g.Select(p => p.Price).Distinct().ToList();
+                return new
+                {
+                    ProductId = g.Key,
+                    ProductName = g.First().ProductName,
+                    ProductMainUrl = g.First().MainUrl,
+
+                    OurPrice = distinctPrices.Count == 1 ? distinctPrices.First() : (decimal?)null
+                };
+            })
+            .Where(p => p.OurPrice.HasValue)
+            .ToDictionary(p => p.ProductId);
+
+        var competitorPriceEntries = await _context.PriceHistories
+            .Where(ph => ph.StoreName.ToLower() == request.CompetitorStoreName.ToLower() &&
+                         ph.ScrapHistoryId == request.ScrapHistoryId)
+            .Select(ph => new { ph.ProductId, ph.Price })
+            .ToListAsync();
+
+        var competitorRepresentativePrices = competitorPriceEntries
+            .GroupBy(p => p.ProductId)
+            .Select(g =>
+            {
+                var distinctPrices = g.Select(p => p.Price).Distinct().ToList();
+                return new
+                {
+                    ProductId = g.Key,
+
+                    CompetitorPrice = distinctPrices.Count == 1 ? distinctPrices.First() : (decimal?)null
+                };
+            })
+            .Where(p => p.CompetitorPrice.HasValue)
+            .ToDictionary(p => p.ProductId);
+
+        var combinedPrices = new List<object>();
+
+        foreach (var productId in ourRepresentativePrices.Keys)
+        {
+            if (competitorRepresentativePrices.TryGetValue(productId, out var competitorProductPriceInfo))
+            {
+                var ourProductPriceInfo = ourRepresentativePrices[productId];
+                combinedPrices.Add(new
+                {
+                    productId = ourProductPriceInfo.ProductId,
+                    productName = ourProductPriceInfo.ProductName,
+                    productMainUrl = ourProductPriceInfo.ProductMainUrl,
+                    price = competitorProductPriceInfo.CompetitorPrice,
+                    ourPrice = ourProductPriceInfo.OurPrice,
+                    scrapHistoryId = request.ScrapHistoryId
+                });
+            }
         }
 
         return Json(combinedPrices);
     }
-
-
-
 
 }

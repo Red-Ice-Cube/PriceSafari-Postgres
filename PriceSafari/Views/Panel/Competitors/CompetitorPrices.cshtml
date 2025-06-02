@@ -30,30 +30,27 @@
             background-color: #ccc;
         }
 
-    .priceBox-style-c  {
+    .priceBox-style-c {
         display: flex;
         padding: 4px 0px;
         align-items: center;
         justify-content: flex-start;
-        gap:8px;
-        height:40PX;
+        gap: 8px;
+        height: 40PX;
         font-size: 15px;
         font-weight: 400;
         color: #000;
         border-bottom: 0.5px solid #1B3C37;
-
     }
 
     .PriceTagBox-c {
-        display:flex;
+        display: flex;
         justify-content: flex-start;
-
     }
 
     .PriceTagBox-o {
         display: flex;
         justify-content: flex-end;
-
     }
 
     .priceBox-style-o {
@@ -71,8 +68,8 @@
 
     .no-price {
         color: #777;
-        display:flex;
-        width:100%;
+        display: flex;
+        width: 100%;
     }
 
     .flex-row {
@@ -86,24 +83,20 @@
         flex-direction: column;
     }
 
-  
-
     .Price-box-content-c {
         display: flex;
         flex-direction: column;
         gap: 6px;
         padding: 4px;
         width: 300px;
-
     }
 
     .Price-box-content-o {
         display: flex;
-        flex-direction:column;
+        flex-direction: column;
         padding: 4px;
         width: 300px;
         gap: 6px;
-
     }
 
     .Price-box-content-c-t {
@@ -112,6 +105,7 @@
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
+        width: 100%;
     }
 
     .Price-box-content-o-t {
@@ -121,22 +115,148 @@
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
+        width: 100%;
     }
 
     .scrollable-table-container {
-        max-height: 79vh;
+        max-height: 80vh;
         overflow-y: auto;
+        overflow-x: auto;
         position: relative;
     }
 
     .table-orders thead {
         position: sticky;
         top: 0;
-        z-index: 1;
-     
+        z-index: 10;
     }
 
+        .table-orders thead th {
+            background-color: #222222;
+            color: white;
+            z-index: 3;
+        }
 
+        .table-orders thead th {
+            background-color: #222222;
+            color: white;
+            z-index: 3;
+        }
+
+    .table-orders th:first-child,
+    .table-orders td:first-child {
+        position: -webkit-sticky;
+        position: sticky;
+        left: 0;
+        z-index: 2;
+        background-color: #222222;
+        color: white;
+        min-width: 300px;
+        max-width: 350px;
+        white-space: normal;
+    }
+
+    .table-orders thead th:first-child {
+        background-color: #222222;
+        color: white;
+        z-index: 4;
+    }
+
+    .table-orders td:first-child {
+        background-color: #fff;
+        color: #333333;
+    }
+
+    .table-container {
+        overflow-x: auto;
+        max-width: 100%;
+    }
+
+    .table-orders {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+        .table-orders th,
+        .table-orders td {
+            padding: 8px;
+            white-space: nowrap;
+        }
+
+    .product-info-cell {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+        .product-info-cell img {
+            width: 70px;
+            height: 70px;
+            object-fit: contain;
+            border-radius: 5px;
+            flex-shrink: 0;
+        }
+
+        .product-info-cell .product-name-text {
+            flex-grow: 1;
+        }
+
+    .flex-row {
+        display: flex;
+        flex-direction: row;
+        gap: 10px;
+        justify-content: center;
+    }
+
+    .flex-column {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        min-width: 120px;
+    }
+
+    .priceBox-style-o, .priceBox-style-c {
+        padding: 5px;
+        text-align: center;
+        width: 100%;
+    }
+
+    .no-price .PriceTagBox-o, .no-price .PriceTagBox-c {
+        color: #999;
+    }
+
+    .PriceTagBox-o, .PriceTagBox-c {
+        font-size: 1.1em;
+        margin-top: 5px;
+    }
+
+    .offers-list {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        margin-top: 5px;
+    }
+
+    .offer-item {
+        font-size: 0.9em;
+        white-space: nowrap;
+    }
+
+        .offer-item a {
+            text-decoration: none;
+            color: #007bff;
+        }
+
+            .offer-item a:hover {
+                text-decoration: underline;
+            }
+
+    .source-icon-small {
+        width: 14px;
+        height: 14px;
+        vertical-align: middle;
+        margin-left: 4px;
+    }
 </style>
 
 <div class="Vert">
@@ -144,13 +264,10 @@
         <div class="Page-Box-Container">
             <div class="Page-Box-Category" style="padding:0px; min-width:190px; max-width:200px;">
                 <div class="Category-Container-Title">Historia cen</div>
-
                 <div class="filterBox" style="padding-left:16px;">
-
                     <div class="Category-Container-Select">Zmiany</div>
                     <div class="store-section">
                         <div class="filter-category">
-
                             <div class="form-check">
                                 <input class="form-check-input deliveryFilterCompetitor" type="checkbox" id="filterIncrease" value="increase">
                                 <label class="form-check-label" for="filterIncrease">Podwyżka</label>
@@ -163,32 +280,24 @@
                                 <input class="form-check-input deliveryFilterCompetitor" type="checkbox" id="filterChange" value="change">
                                 <label class="form-check-label" for="filterChange">Zmiana</label>
                             </div>
-
                         </div>
-
                     </div>
                     <div>
-
                         <div class="Category-Container-Select">Data</div>
                         <div class="store-section">
                             <div class="filter-category">
-
                                 <div id="scrapHistoryCheckboxes"></div>
                             </div>
                         </div>
                     </div>
                 </div>
-
             </div>
             <div class="Horizontal-x">
-
                 <div class="order-upper-box">
-
                     <div class="price-box-space">
                         <div class="form-check-orders">
                             <div>
                                 <p><strong>Sklep: </strong>@competitorStoreName <span></span></p>
-
                             </div>
                             <div>
                                 <strong>Produkty: </strong><span id="scrapable-count"></span>
@@ -196,7 +305,6 @@
                         </div>
                         <input type="text" id="productSearch" placeholder="Wyszukaj produkt">
                     </div>
-
                 </div>
                 <div class="Vert-table">
                     <div class="scrollable-table-container">
@@ -205,7 +313,6 @@
                                 <tr>
                                     <th>Produkt</th>
                                     <th>Kanał</th>
-                                   
                                 </tr>
                             </thead>
                             <tbody id="priceTableBody">
@@ -213,12 +320,9 @@
                         </table>
                     </div>
                 </div>
-
-
             </div>
-
         </div>
     </div>
 </div>
 
-    <script src="~/js/member/competitorprices.min.js"></script>
+<script src="~/js/member/CompetitorPrices.js"></script>

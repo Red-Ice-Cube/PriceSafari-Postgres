@@ -1,22 +1,47 @@
-﻿document.addEventListener('DOMContentLoaded', () => {
-    
+﻿// Globalne zmienne (zakładam, że storeId, competitorStoreName, storeName są zdefiniowane globalnie lub przekazywane poprawnie)
+const loadedPrices = {};
+let allProducts = {}; // Używamy tej nazwy konsekwentnie
+
+document.addEventListener('DOMContentLoaded', () => {
+    if (typeof storeId === 'undefined' || typeof competitorStoreName === 'undefined' || typeof storeName === 'undefined') {
+        console.error("Kluczowe zmienne globalne (storeId, competitorStoreName, storeName) nie są zdefiniowane.");
+        // Możesz tu wyświetlić komunikat użytkownikowi lub zablokować dalsze działanie
+        const tableContainer = document.querySelector('.table-container');
+        if (tableContainer) tableContainer.innerHTML = '<p style="color:red; text-align:center;">Błąd konfiguracji: Brak niezbędnych danych sklepu.</p>';
+        return;
+    }
     loadScrapHistoryOptions(storeId, competitorStoreName);
 
-    document.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
-        checkbox.addEventListener('change', renderPrices);
+
+    // Listener dla checkboxów filtrów - bardziej precyzyjny selektor
+    document.querySelectorAll('.price-filter-checkbox').forEach(checkbox => { // Załóżmy, że checkboxy filtrów mają tę klasę
+        checkbox.addEventListener('change', () => renderPrices());
     });
 
-    document.getElementById('productSearch').addEventListener('keyup', function () {
-        filterProducts(this.value);
-    });
+    const productSearchInput = document.getElementById('productSearch');
+    if (productSearchInput) {
+        productSearchInput.addEventListener('keyup', function () {
+            filterProducts(this.value);
+        });
+    }
 });
 
-function loadScrapHistoryOptions(storeId, competitorStoreName) {
-    fetch(`/Competitors/GetScrapHistoryIds?storeId=${storeId}`)
-        .then(response => response.json())
-        .then(scrapHistoryIds => {1
+function loadScrapHistoryOptions(currentStoreId, currentCompetitorStoreName) {
+    fetch(`/Competitors/GetScrapHistoryIds?storeId=${currentStoreId}`)
+        .then(response => {
+            if (!response.ok) throw new Error(`Błąd HTTP! Status: ${response.status}`);
+            return response.json();
+        })
+        .then(scrapHistoryIds => {
             const container = document.getElementById('scrapHistoryCheckboxes');
+            if (!container) {
+                console.error('Kontener #scrapHistoryCheckboxes nie znaleziony.');
+                return;
+            }
+            container.innerHTML = '';
             let firstCheckbox = null;
+
+            scrapHistoryIds.sort((a, b) => new Date(b.date) - new Date(a.date)); // Najnowsze pierwsze
 
             scrapHistoryIds.forEach((scrap, index) => {
                 const label = document.createElement('label');
@@ -31,7 +56,7 @@ function loadScrapHistoryOptions(storeId, competitorStoreName) {
 
                 checkbox.addEventListener('change', () => {
                     if (checkbox.checked) {
-                        loadCompetitorPrices([scrap.id], storeId, competitorStoreName);
+                        loadCompetitorPrices([scrap.id], currentStoreId, currentCompetitorStoreName);
                     } else {
                         delete loadedPrices[scrap.id];
                         renderPrices();
@@ -39,222 +64,247 @@ function loadScrapHistoryOptions(storeId, competitorStoreName) {
                 });
 
                 const date = new Date(scrap.date);
-                const formattedDate = `${date.getDate()}.${date.getMonth() + 1}.${date.getFullYear()}`;
+                const formattedDate = `${date.getDate().toString().padStart(2, '0')}.${(date.getMonth() + 1).toString().padStart(2, '0')}.${date.getFullYear()}`;
 
                 label.appendChild(checkbox);
-                label.appendChild(document.createTextNode(formattedDate));
+                label.appendChild(document.createTextNode(` ${formattedDate}`));
                 container.appendChild(label);
 
-                if (index === 0) {
-                    firstCheckbox = checkbox;
-                }
+                if (index === 0) firstCheckbox = checkbox;
             });
 
             if (firstCheckbox) {
                 firstCheckbox.checked = true;
-                loadCompetitorPrices([firstCheckbox.value], storeId, competitorStoreName);
+                loadCompetitorPrices([firstCheckbox.value], currentStoreId, currentCompetitorStoreName);
             }
         })
-        .catch(error => console.error('Error loading scrap history options:', error));
+        .catch(error => console.error('Błąd ładowania opcji historii analiz:', error));
 }
 
-const loadedPrices = {};
-let allProducts = {};
-
-function loadCompetitorPrices(scrapHistoryIds, storeId, competitorStoreName) {
+function loadCompetitorPrices(scrapHistoryIds, currentStoreId, currentCompetitorStoreName) {
     scrapHistoryIds.forEach(scrapHistoryId => {
+        if (loadedPrices[scrapHistoryId] === 'loading') return;
+        loadedPrices[scrapHistoryId] = 'loading';
+
         const requestData = {
-            storeId: storeId,
-            competitorStoreName: competitorStoreName,
+            storeId: currentStoreId,
+            competitorStoreName: currentCompetitorStoreName,
             scrapHistoryId: parseInt(scrapHistoryId)
         };
 
         fetch('/Competitors/GetCompetitorPrices', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(requestData)
         })
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) {
+                    delete loadedPrices[scrapHistoryId];
+                    return response.text().then(text => { throw new Error(`Błąd HTTP! Status: ${response.status}, Wiadomość: ${text}`) });
+                }
+                return response.json();
+            })
             .then(data => {
+                // Zakładamy, że backend zwraca teraz productMainUrl
                 loadedPrices[scrapHistoryId] = data;
                 renderPrices();
             })
-            .catch(error => console.error('Error loading competitor prices:', error));
+            .catch(error => {
+                console.error(`Błąd ładowania cen konkurenta dla scrapId ${scrapHistoryId}:`, error);
+                if (loadedPrices[scrapHistoryId] === 'loading') delete loadedPrices[scrapHistoryId];
+                renderPrices(); // Odśwież, aby usunąć ew. stare dane lub pokazać błąd
+            });
     });
 }
 
 function renderPrices() {
     const tableBody = document.getElementById('priceTableBody');
+    if (!tableBody) return;
     tableBody.innerHTML = '';
 
-    const urlProductMap = {};
+    const newAllProducts = {};
+    const successfullyLoadedScrapIds = Object.keys(loadedPrices)
+        .filter(id => loadedPrices[id] && loadedPrices[id] !== 'loading');
 
-    for (const [scrapHistoryId, prices] of Object.entries(loadedPrices)) {
-        prices.forEach(price => {
-            if (!urlProductMap[price.productId]) {
-                urlProductMap[price.productId] = {
-                    productName: price.productName,
-                    scrapHistoryId: scrapHistoryId,
+    successfullyLoadedScrapIds.forEach(scrapHistoryId => {
+        const pricesFromThisScrap = loadedPrices[scrapHistoryId];
+        pricesFromThisScrap.forEach(priceEntry => {
+            if (!newAllProducts[priceEntry.productId]) {
+                newAllProducts[priceEntry.productId] = {
+                    productName: priceEntry.productName,
+                    mainUrl: priceEntry.productMainUrl, // Zapisujemy URL obrazka
                     data: {},
-                    ourData: {},
-                    offerUrl: price.offerUrl
+                    ourData: {}
                 };
             }
-            urlProductMap[price.productId].data[scrapHistoryId] = price.price;
-            urlProductMap[price.productId].ourData[scrapHistoryId] = price.ourPrice;
+            // Upewnij się, że backend zwraca 'price' i 'ourPrice' (lub dostosuj)
+            newAllProducts[priceEntry.productId].data[scrapHistoryId] = priceEntry.price;
+            newAllProducts[priceEntry.productId].ourData[scrapHistoryId] = priceEntry.ourPrice;
         });
+    });
+    allProducts = newAllProducts;
+
+    const table = tableBody.closest('table');
+    if (!table) return;
+    const thead = table.querySelector('thead');
+    if (!thead) { // Jeśli nie ma thead, utwórz go
+        thead = table.insertBefore(document.createElement('thead'), table.firstChild);
     }
+    let theadRow = thead.querySelector('tr');
+    if (!theadRow) {
+        theadRow = thead.appendChild(document.createElement('tr'));
+    }
+    theadRow.innerHTML = `<th class="sticky-col">Produkt</th>`; // Dodajemy klasę dla sticky
 
-    allProducts = urlProductMap;
+    const sortedUniqueScrapHistoryIds = successfullyLoadedScrapIds.sort((a, b) => {
+        const checkboxA = document.querySelector(`.deliveryFilterCompetitor[value="${a}"]`);
+        const checkboxB = document.querySelector(`.deliveryFilterCompetitor[value="${b}"]`);
+        if (!checkboxA?.dataset?.date || !checkboxB?.dataset?.date) return 0;
+        return new Date(checkboxA.dataset.date) - new Date(checkboxB.dataset.date); // Rosnąco
+    });
 
-    const theadRow = document.querySelector('table thead tr');
-    theadRow.innerHTML = `<th>Produkt</th>`;
-
-    const uniqueScrapHistoryIds = Object.keys(loadedPrices);
-    uniqueScrapHistoryIds.forEach(id => {
+    sortedUniqueScrapHistoryIds.forEach(id => {
         const th = document.createElement('th');
-
-        const checkbox = document.querySelector(`input[type="checkbox"][value="${id}"]`);
-        if (checkbox) {
+        const checkbox = document.querySelector(`.deliveryFilterCompetitor[value="${id}"]`);
+        if (checkbox?.dataset?.date) {
             const date = new Date(checkbox.dataset.date);
-            const formattedDate = `${date.getDate()}.${date.getMonth() + 1}.${date.getFullYear()}`;
-            th.textContent = `${formattedDate}`;
+            th.textContent = `${date.getDate().toString().padStart(2, '0')}.${(date.getMonth() + 1).toString().padStart(2, '0')}.${date.getFullYear()}`;
         } else {
-            th.textContent = `Cena (${id})`;
+            th.textContent = `Dane (${id})`;
         }
-
         theadRow.appendChild(th);
     });
 
-    displayProducts(urlProductMap);
+    displayProducts(allProducts, sortedUniqueScrapHistoryIds);
 }
 
 function filterProducts(searchTerm) {
+    const lowerSearchTerm = searchTerm.toLowerCase();
     const filteredProducts = {};
     for (const [productId, product] of Object.entries(allProducts)) {
-        if (product.productName.toLowerCase().includes(searchTerm.toLowerCase())) {
+        if (product.productName && product.productName.toLowerCase().includes(lowerSearchTerm)) {
             filteredProducts[productId] = product;
         }
     }
-    displayProducts(filteredProducts);
+    const successfullyLoadedScrapIds = Object.keys(loadedPrices)
+        .filter(id => loadedPrices[id] && loadedPrices[id] !== 'loading');
+    const sortedUniqueScrapHistoryIds = successfullyLoadedScrapIds.sort((a, b) => {
+        const checkboxA = document.querySelector(`.deliveryFilterCompetitor[value="${a}"]`);
+        const checkboxB = document.querySelector(`.deliveryFilterCompetitor[value="${b}"]`);
+        if (!checkboxA?.dataset?.date || !checkboxB?.dataset?.date) return 0;
+        return new Date(checkboxA.dataset.date) - new Date(checkboxB.dataset.date);
+    });
+    displayProducts(filteredProducts, sortedUniqueScrapHistoryIds);
 }
-function displayProducts(products) {
+
+function displayProducts(productsToDisplay, sortedScrapIds) {
     const tableBody = document.getElementById('priceTableBody');
     tableBody.innerHTML = '';
 
-    const filterIncrease = document.getElementById('filterIncrease').checked;
-    const filterDecrease = document.getElementById('filterDecrease').checked;
-    const filterChange = document.getElementById('filterChange').checked;
+    const filterIncrease = document.getElementById('filterIncrease')?.checked || false;
+    const filterDecrease = document.getElementById('filterDecrease')?.checked || false;
+    const filterChange = document.getElementById('filterChange')?.checked || false;
 
     let productCount = 0;
 
-    for (const [productId, product] of Object.entries(products)) {
+    for (const productId of Object.keys(productsToDisplay)) {
+        const product = productsToDisplay[productId];
         let showRow = true;
-        let hasChange = false;
-        let hasIncrease = false;
-        let hasDecrease = false;
-
-        const priceChanges = [];
+        let rowHasChange = false, rowHasIncrease = false, rowHasDecrease = false;
 
         const row = document.createElement('tr');
-        row.innerHTML = `<td><div class="price-box-column-name-com">${product.productName}</div></td>`;
 
-        const uniqueScrapHistoryIds = Object.keys(loadedPrices);
+        // --- Komórka z informacjami o produkcie (przyklejona) ---
+        const productInfoTd = document.createElement('td');
+        productInfoTd.classList.add('sticky-col'); // Dodajemy klasę dla sticky
 
-        uniqueScrapHistoryIds.forEach((id, index) => {
+        const productInfoDiv = document.createElement('div');
+        productInfoDiv.className = 'product-info-cell';
+
+        const img = document.createElement('img');
+        img.src = product.mainUrl ? product.mainUrl : '/images/placeholder.png'; // Użyj placeholdera, jeśli brak URL
+        img.alt = product.productName || 'Obrazek produktu';
+        img.onerror = function () { this.src = '/images/placeholder.png'; this.onerror = null; }; // Placeholder w razie błędu ładowania
+        productInfoDiv.appendChild(img);
+
+        const nameSpan = document.createElement('span');
+        nameSpan.className = 'product-name-text';
+        nameSpan.textContent = product.productName || 'Brak nazwy';
+        productInfoDiv.appendChild(nameSpan);
+
+        productInfoTd.appendChild(productInfoDiv);
+        row.appendChild(productInfoTd);
+        // --- Koniec komórki produktu ---
+
+
+        sortedScrapIds.forEach((scrapId, index) => {
             const td = document.createElement('td');
-            let tdContent = '<div class="flex-row">';
-
-            const ourPrice = product.ourData[id] ? product.ourData[id].toFixed(2) : "B/D";
-            let ourPriceContent = `<div class="priceBox-style-o ${ourPrice === "B/D" ? 'no-price' : ''}">`;
-
-            if (index > 0 && ourPrice !== "B/D") {
-                const previousId = uniqueScrapHistoryIds[index - 1];
-                const previousOurPrice = product.ourData[previousId] ? product.ourData[previousId] : null;
-
-                if (previousOurPrice !== null) {
-                    const ourPriceDifference = product.ourData[id] - previousOurPrice;
-                    const ourPercentageDifference = ((ourPriceDifference / previousOurPrice) * 100).toFixed(2);
-
-                    if (ourPriceDifference !== 0) {
-                        const isIncrease = ourPriceDifference > 0;
-                        const changeType = isIncrease ? 'increase' : 'decrease';
-                        const ourDifferenceElement = `<div class="${isIncrease ? 'priceBox-diff-down' : 'priceBox-diff-up'}">
-                                ${ourPriceDifference.toFixed(2)} PLN (${ourPercentageDifference}%) ${isIncrease ? '&uarr;' : '&darr;'}
-                            </div>`;
-
-                        ourPriceContent += ourDifferenceElement;
-                        hasChange = true;
-                        if (isIncrease) {
-                            hasIncrease = true;
-                        } else {
-                            hasDecrease = true;
-                        }
-                        priceChanges.push({ change: changeType });
-                    }
-                }
-            }
-
-            ourPriceContent += `<div class="PriceTagBox-o">${ourPrice !== "B/D" ? `${ourPrice} PLN` : ourPrice}</div></div>`;
-            ourPriceContent += `<div class="Price-box-content-o-t">${storeName}</div>`;
-            tdContent += `<div class="Price-box-content-o flex-column">${ourPriceContent}</div>`;
-
-            const currentPrice = product.data[id] ? product.data[id].toFixed(2) : "B/D";
-            let competitorPriceContent = `<div class="priceBox-style-c ${currentPrice === "B/D" ? 'no-price' : ''}">`;
-
-            competitorPriceContent += `<div class="PriceTagBox-c">${currentPrice !== "B/D" ? `${currentPrice} PLN` : currentPrice}</div>`;
-
-            if (index > 0 && currentPrice !== "B/D") {
-                const previousId = uniqueScrapHistoryIds[index - 1];
-                const previousPrice = product.data[previousId] ? product.data[previousId] : null;
-
-                if (previousPrice !== null) {
-                    const priceDifference = product.data[id] - previousPrice;
-                    const percentageDifference = ((priceDifference / previousPrice) * 100).toFixed(2);
-
-                    if (priceDifference !== 0) {
-                        const isIncrease = priceDifference > 0;
-                        const differenceElement = `<div class="${isIncrease ? 'priceBox-diff-down' : 'priceBox-diff-up'}">
-                                ${priceDifference.toFixed(2)} PLN (${percentageDifference}%) ${isIncrease ? '&uarr;' : '&darr;'}
-                            </div>`;
-
-                        competitorPriceContent += differenceElement;
-                        hasChange = true;
-                        if (isIncrease) {
-                            hasIncrease = true;
-                        } else {
-                            hasDecrease = true;
-                        }
-                        priceChanges.push({ change: isIncrease ? 'increase' : 'decrease' });
-                    }
-                }
-            }
-
-            competitorPriceContent += `</div>`;
-            competitorPriceContent += `<div class="Price-box-content-c-t">${competitorStoreName}</div>`;
-            tdContent += `<div class="Price-box-content-c flex-column">${competitorPriceContent}</div>`;
-
-            td.innerHTML = tdContent;
             td.classList.add('nowrap');
+            let cellContent = '<div class="flex-row">';
 
-         
-            td.addEventListener('click', () => {
-                const url = `/PriceHistory/Details?productId=${productId}&scrapId=${id}`;
+            const ourPriceValue = product.ourData[scrapId];
+            const competitorPriceValue = product.data[scrapId];
+
+            // Nasza cena
+            let ourPriceDisplay = (typeof ourPriceValue === 'number') ? ourPriceValue.toFixed(2) : "B/D";
+            let ourPriceHtml = `<div class="Price-box-content-o flex-column">
+                                  <div class="priceBox-style-o ${ourPriceDisplay === "B/D" ? 'no-price' : ''}">`;
+            if (index > 0 && typeof ourPriceValue === 'number') {
+                const previousScrapId = sortedScrapIds[index - 1];
+                const previousOurPrice = product.ourData[previousScrapId];
+                if (typeof previousOurPrice === 'number') {
+                    const diff = ourPriceValue - previousOurPrice;
+                    if (diff !== 0) {
+                        const percDiff = previousOurPrice === 0 ? (diff > 0 ? 100 : -100) : ((diff / previousOurPrice) * 100);
+                        const isIncrease = diff > 0;
+                        const changeClass = isIncrease ? 'priceBox-diff-down' : 'priceBox-diff-up';
+                        const arrow = isIncrease ? '&uarr;' : '&darr;';
+                        ourPriceHtml += `<div class="${changeClass}">${diff.toFixed(2)} PLN (${percDiff.toFixed(2)}%) ${arrow}</div>`;
+                        rowHasChange = true;
+                        if (isIncrease) rowHasIncrease = true; else rowHasDecrease = true;
+                    }
+                }
+            }
+            ourPriceHtml += `<div class="PriceTagBox-o">${ourPriceDisplay !== "B/D" ? `${ourPriceDisplay} PLN` : ourPriceDisplay}</div></div>`;
+            ourPriceHtml += `<div class="Price-box-content-o-t">${typeof storeName !== 'undefined' ? storeName : 'Nasz Sklep'}</div></div>`;
+            cellContent += ourPriceHtml;
+
+            // Cena konkurenta
+            let competitorPriceDisplay = (typeof competitorPriceValue === 'number') ? competitorPriceValue.toFixed(2) : "B/D";
+            let competitorPriceHtml = `<div class="Price-box-content-c flex-column">
+                                        <div class="priceBox-style-c ${competitorPriceDisplay === "B/D" ? 'no-price' : ''}">`;
+            if (index > 0 && typeof competitorPriceValue === 'number') {
+                const previousScrapId = sortedScrapIds[index - 1];
+                const previousCompetitorPrice = product.data[previousScrapId];
+                if (typeof previousCompetitorPrice === 'number') {
+                    const diff = competitorPriceValue - previousCompetitorPrice;
+                    if (diff !== 0) {
+                        const percDiff = previousCompetitorPrice === 0 ? (diff > 0 ? 100 : -100) : ((diff / previousCompetitorPrice) * 100);
+                        const isIncrease = diff > 0;
+                        const changeClass = isIncrease ? 'priceBox-diff-down' : 'priceBox-diff-up';
+                        const arrow = isIncrease ? '&uarr;' : '&darr;';
+                        competitorPriceHtml += `<div class="${changeClass}">${diff.toFixed(2)} PLN (${percDiff.toFixed(2)}%) ${arrow}</div>`;
+                        rowHasChange = true;
+                        if (isIncrease) rowHasIncrease = true; else rowHasDecrease = true;
+                    }
+                }
+            }
+            competitorPriceHtml += `<div class="PriceTagBox-c">${competitorPriceDisplay !== "B/D" ? `${competitorPriceDisplay} PLN` : competitorPriceDisplay}</div></div>`;
+            competitorPriceHtml += `<div class="Price-box-content-c-t">${typeof competitorStoreName !== 'undefined' ? competitorStoreName : 'Konkurent'}</div></div>`;
+            cellContent += competitorPriceHtml;
+
+            cellContent += '</div>';
+            td.innerHTML = cellContent;
+
+            td.addEventListener('click', (event) => {
+                if (event.target.tagName === 'A' || event.target.closest('a')) return;
+                const url = `/PriceHistory/Details?productId=${productId}&scrapId=${scrapId}`;
                 window.open(url, '_blank');
             });
-
             row.appendChild(td);
         });
 
-        if (filterIncrease && !hasIncrease) {
-            showRow = false;
-        }
-        if (filterDecrease && !hasDecrease) {
-            showRow = false;
-        }
-        if (filterChange && priceChanges.length === 0) {
+        if ((filterIncrease && !rowHasIncrease) || (filterDecrease && !rowHasDecrease) || (filterChange && !rowHasChange)) {
             showRow = false;
         }
 
@@ -264,6 +314,6 @@ function displayProducts(products) {
         }
     }
 
-    document.getElementById('scrapable-count').textContent = productCount;
+    const scrapableCountElement = document.getElementById('scrapable-count');
+    if (scrapableCountElement) scrapableCountElement.textContent = productCount;
 }
-
