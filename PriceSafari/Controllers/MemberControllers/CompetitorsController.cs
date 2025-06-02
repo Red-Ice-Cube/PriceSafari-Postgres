@@ -68,6 +68,13 @@ public class CompetitorsController : Controller
             .Select(s => s.StoreName)
             .FirstOrDefaultAsync();
 
+        // Dodatkowe sprawdzenie, czy nazwa sklepu została pobrana
+        if (string.IsNullOrEmpty(storeName))
+        {
+            // Możesz zwrócić błąd lub widok z odpowiednią informacją
+            return Content("Nie można zidentyfikować nazwy sklepu.");
+        }
+
         var latestScrap = await _context.ScrapHistories
             .Where(sh => sh.StoreId == storeId)
             .OrderByDescending(sh => sh.Date)
@@ -79,26 +86,98 @@ public class CompetitorsController : Controller
             return Content("Brak danych o cenach.");
         }
 
-        var myPrices = await _context.PriceHistories
+        var myPriceEntries = await _context.PriceHistories
             .Where(ph => ph.ScrapHistoryId == latestScrap.Id && ph.StoreName.ToLower() == storeName.ToLower())
-            .Select(ph => new { ph.ProductId, ph.Price })
+            .Select(ph => new { ph.ProductId, ph.Price, ph.IsGoogle }) // Zakładamy, że IsGoogle istnieje
             .ToListAsync();
 
-        var competitorPrices = await _context.PriceHistories
+        var myDistinctProductIds = myPriceEntries.Select(mp => mp.ProductId).Distinct().ToHashSet();
+
+        // Jeśli nie ma produktów dla naszego sklepu, można zwrócić informację
+        if (!myDistinctProductIds.Any())
+        {
+            ViewBag.StoreName = storeName;
+            ViewBag.StoreId = storeId;
+            // Przekazujemy pustą listę konkurentów do widoku lub odpowiedni komunikat
+            return View("~/Views/Panel/Competitors/Competitors.cshtml", new List<object>());
+            // Lub: return Content("Brak produktów dla Twojego sklepu w ostatnim zestawieniu.");
+        }
+
+        var allCompetitorPriceEntries = await _context.PriceHistories
             .Where(ph => ph.ScrapHistoryId == latestScrap.Id && ph.StoreName.ToLower() != storeName.ToLower())
+            .Select(ph => new { ph.StoreName, ph.ProductId, ph.Price, ph.IsGoogle }) // Zakładamy, że IsGoogle istnieje
             .ToListAsync();
 
-        var competitors = competitorPrices
+        var competitors = allCompetitorPriceEntries
             .GroupBy(ph => ph.StoreName)
-            .Select(g => new
+            .Select(g =>
             {
-                StoreName = g.Key,
-                CommonProductsCount = g.Count(ph => myPrices.Any(mp => mp.ProductId == ph.ProductId)),
-                SamePriceCount = g.Count(ph => myPrices.Any(mp => mp.ProductId == ph.ProductId && mp.Price == ph.Price)),
-                HigherPriceCount = g.Count(ph => myPrices.Any(mp => mp.ProductId == ph.ProductId && mp.Price < ph.Price)),
-                LowerPriceCount = g.Count(ph => myPrices.Any(mp => mp.ProductId == ph.ProductId && mp.Price > ph.Price))
+                var competitorStoreName = g.Key;
+                var competitorEntriesForStore = g.ToList();
+
+                var competitorDistinctProductIdsForStore = competitorEntriesForStore.Select(p => p.ProductId).Distinct().ToHashSet();
+                var actualCommonProductIds = myDistinctProductIds.Intersect(competitorDistinctProductIdsForStore).ToList();
+
+                int commonProductsCountResult = actualCommonProductIds.Count();
+                int samePriceCountResult = 0;
+                int higherPriceCountResult = 0;
+                int lowerPriceCountResult = 0;
+
+                foreach (var productId in actualCommonProductIds)
+                {
+                    var ourOffersForProduct = myPriceEntries.Where(p => p.ProductId == productId).ToList();
+                    var competitorOffersForProduct = competitorEntriesForStore.Where(p => p.ProductId == productId).ToList();
+
+                    if (ourOffersForProduct.Any(op => competitorOffersForProduct.Any(cp => op.Price == cp.Price)))
+                    {
+                        samePriceCountResult++;
+                    }
+                    if (ourOffersForProduct.Any(op => competitorOffersForProduct.Any(cp => op.Price < cp.Price)))
+                    {
+                        higherPriceCountResult++;
+                    }
+                    if (ourOffersForProduct.Any(op => competitorOffersForProduct.Any(cp => op.Price > cp.Price)))
+                    {
+                        lowerPriceCountResult++;
+                    }
+                }
+
+                // --- NOWA CZĘŚĆ: Określanie źródeł danych dla konkurenta ---
+                bool sourcedFromGoogle = competitorEntriesForStore.Any(e => e.IsGoogle == true);
+                // Używamy logiki z Twojego drugiego skryptu dla Ceneo (IsGoogle == false lub null)
+                bool sourcedFromCeneo = competitorEntriesForStore.Any(e => e.IsGoogle == false || e.IsGoogle == null);
+
+                string dataSourceDescription;
+                if (sourcedFromGoogle && sourcedFromCeneo)
+                {
+                    dataSourceDescription = "Google & Ceneo";
+                }
+                else if (sourcedFromGoogle)
+                {
+                    dataSourceDescription = "Google";
+                }
+                else if (sourcedFromCeneo)
+                {
+                    dataSourceDescription = "Ceneo";
+                }
+                else
+                {
+                    // Ten przypadek nie powinien wystąpić, jeśli są jakiekolwiek wpisy dla konkurenta
+                    dataSourceDescription = "Nieznane źródło";
+                }
+                // --- KONIEC NOWEJ CZĘŚCI ---
+
+                return new
+                {
+                    StoreName = competitorStoreName,
+                    CommonProductsCount = commonProductsCountResult,
+                    SamePriceCount = samePriceCountResult,
+                    HigherPriceCount = higherPriceCountResult, // Nasza cena niższa, konkurenta wyższa
+                    LowerPriceCount = lowerPriceCountResult,   // Nasza cena wyższa, konkurenta niższa
+                    DataSourceDescription = dataSourceDescription // Nowe pole
+                };
             })
-            .Where(c => c.CommonProductsCount >= 10) // Filtrujemy konkurentów z przynajmniej 10 wspólnymi produktami
+            .Where(c => c.CommonProductsCount >= 10)
             .OrderByDescending(c => c.CommonProductsCount)
             .ToList();
 
@@ -106,7 +185,6 @@ public class CompetitorsController : Controller
         ViewBag.StoreId = storeId;
         return View("~/Views/Panel/Competitors/Competitors.cshtml", competitors);
     }
-
 
 
     public async Task<IActionResult> CompetitorPrices(int storeId, string competitorStoreName)
