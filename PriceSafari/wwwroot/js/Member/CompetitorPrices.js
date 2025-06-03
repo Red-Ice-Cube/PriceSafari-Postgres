@@ -270,6 +270,7 @@ function displayProducts(productsToDisplay, sortedScrapIds) {
                     }
                 }
             }
+
             ourPriceHtml += `<div class="PriceTagBox-o">${ourPriceDisplay !== "B/D" ? `${ourPriceDisplay} PLN` : ourPriceDisplay}</div></div>`;
             ourPriceHtml += `<div class="Price-box-content-o-t">${typeof storeName !== 'undefined' ? storeName : 'Nasz Sklep'}</div></div>`;
             cellContent += ourPriceHtml;
