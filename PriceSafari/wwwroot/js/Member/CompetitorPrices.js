@@ -1,22 +1,29 @@
-﻿// Globalne zmienne (zakładam, że storeId, competitorStoreName, storeName są zdefiniowane globalnie lub przekazywane poprawnie)
-const loadedPrices = {};
-let allProducts = {}; // Używamy tej nazwy konsekwentnie
+﻿const loadedPrices = {};
+let allProducts = {};
 
 document.addEventListener('DOMContentLoaded', () => {
     if (typeof storeId === 'undefined' || typeof competitorStoreName === 'undefined' || typeof storeName === 'undefined') {
         console.error("Kluczowe zmienne globalne (storeId, competitorStoreName, storeName) nie są zdefiniowane.");
-        // Możesz tu wyświetlić komunikat użytkownikowi lub zablokować dalsze działanie
+
         const tableContainer = document.querySelector('.table-container');
         if (tableContainer) tableContainer.innerHTML = '<p style="color:red; text-align:center;">Błąd konfiguracji: Brak niezbędnych danych sklepu.</p>';
         return;
     }
     loadScrapHistoryOptions(storeId, competitorStoreName);
 
+    const increaseCheckbox = document.getElementById('filterIncrease');
+    const decreaseCheckbox = document.getElementById('filterDecrease');
+    const changeCheckbox = document.getElementById('filterChange');
 
-    // Listener dla checkboxów filtrów - bardziej precyzyjny selektor
-    document.querySelectorAll('.price-filter-checkbox').forEach(checkbox => { // Załóżmy, że checkboxy filtrów mają tę klasę
-        checkbox.addEventListener('change', () => renderPrices());
-    });
+    if (increaseCheckbox) {
+        increaseCheckbox.addEventListener('change', () => renderPrices());
+    }
+    if (decreaseCheckbox) {
+        decreaseCheckbox.addEventListener('change', () => renderPrices());
+    }
+    if (changeCheckbox) {
+        changeCheckbox.addEventListener('change', () => renderPrices());
+    }
 
     const productSearchInput = document.getElementById('productSearch');
     if (productSearchInput) {
@@ -41,7 +48,7 @@ function loadScrapHistoryOptions(currentStoreId, currentCompetitorStoreName) {
             container.innerHTML = '';
             let firstCheckbox = null;
 
-            scrapHistoryIds.sort((a, b) => new Date(b.date) - new Date(a.date)); // Najnowsze pierwsze
+            scrapHistoryIds.sort((a, b) => new Date(b.date) - new Date(a.date));
 
             scrapHistoryIds.forEach((scrap, index) => {
                 const label = document.createElement('label');
@@ -105,14 +112,14 @@ function loadCompetitorPrices(scrapHistoryIds, currentStoreId, currentCompetitor
                 return response.json();
             })
             .then(data => {
-                // Zakładamy, że backend zwraca teraz productMainUrl
+
                 loadedPrices[scrapHistoryId] = data;
                 renderPrices();
             })
             .catch(error => {
                 console.error(`Błąd ładowania cen konkurenta dla scrapId ${scrapHistoryId}:`, error);
                 if (loadedPrices[scrapHistoryId] === 'loading') delete loadedPrices[scrapHistoryId];
-                renderPrices(); // Odśwież, aby usunąć ew. stare dane lub pokazać błąd
+                renderPrices();
             });
     });
 }
@@ -132,12 +139,12 @@ function renderPrices() {
             if (!newAllProducts[priceEntry.productId]) {
                 newAllProducts[priceEntry.productId] = {
                     productName: priceEntry.productName,
-                    mainUrl: priceEntry.productMainUrl, // Zapisujemy URL obrazka
+                    mainUrl: priceEntry.productMainUrl,
                     data: {},
                     ourData: {}
                 };
             }
-            // Upewnij się, że backend zwraca 'price' i 'ourPrice' (lub dostosuj)
+
             newAllProducts[priceEntry.productId].data[scrapHistoryId] = priceEntry.price;
             newAllProducts[priceEntry.productId].ourData[scrapHistoryId] = priceEntry.ourPrice;
         });
@@ -147,20 +154,20 @@ function renderPrices() {
     const table = tableBody.closest('table');
     if (!table) return;
     const thead = table.querySelector('thead');
-    if (!thead) { // Jeśli nie ma thead, utwórz go
+    if (!thead) {
         thead = table.insertBefore(document.createElement('thead'), table.firstChild);
     }
     let theadRow = thead.querySelector('tr');
     if (!theadRow) {
         theadRow = thead.appendChild(document.createElement('tr'));
     }
-    theadRow.innerHTML = `<th class="sticky-col">Produkt</th>`; // Dodajemy klasę dla sticky
+    theadRow.innerHTML = `<th class="sticky-col">Produkt</th>`;
 
     const sortedUniqueScrapHistoryIds = successfullyLoadedScrapIds.sort((a, b) => {
         const checkboxA = document.querySelector(`.deliveryFilterCompetitor[value="${a}"]`);
         const checkboxB = document.querySelector(`.deliveryFilterCompetitor[value="${b}"]`);
         if (!checkboxA?.dataset?.date || !checkboxB?.dataset?.date) return 0;
-        return new Date(checkboxA.dataset.date) - new Date(checkboxB.dataset.date); // Rosnąco
+        return new Date(checkboxA.dataset.date) - new Date(checkboxB.dataset.date);
     });
 
     sortedUniqueScrapHistoryIds.forEach(id => {
@@ -196,9 +203,9 @@ function filterProducts(searchTerm) {
     });
     displayProducts(filteredProducts, sortedUniqueScrapHistoryIds);
 }
-
 function displayProducts(productsToDisplay, sortedScrapIds) {
     const tableBody = document.getElementById('priceTableBody');
+    if (!tableBody) return;
     tableBody.innerHTML = '';
 
     const filterIncrease = document.getElementById('filterIncrease')?.checked || false;
@@ -209,22 +216,22 @@ function displayProducts(productsToDisplay, sortedScrapIds) {
 
     for (const productId of Object.keys(productsToDisplay)) {
         const product = productsToDisplay[productId];
-        let showRow = true;
-        let rowHasChange = false, rowHasIncrease = false, rowHasDecrease = false;
+
+        let rowHasAnyPriceChange = false;
+        let rowHasAnyPriceIncrease = false;
+        let rowHasAnyPriceDecrease = false;
 
         const row = document.createElement('tr');
 
-        // --- Komórka z informacjami o produkcie (przyklejona) ---
         const productInfoTd = document.createElement('td');
-        productInfoTd.classList.add('sticky-col'); // Dodajemy klasę dla sticky
 
         const productInfoDiv = document.createElement('div');
         productInfoDiv.className = 'product-info-cell';
 
         const img = document.createElement('img');
-        img.src = product.mainUrl ? product.mainUrl : '/images/placeholder.png'; // Użyj placeholdera, jeśli brak URL
+        img.src = product.mainUrl ? product.mainUrl : '/images/placeholder.png';
         img.alt = product.productName || 'Obrazek produktu';
-        img.onerror = function () { this.src = '/images/placeholder.png'; this.onerror = null; }; // Placeholder w razie błędu ładowania
+        img.onerror = function () { this.src = '/images/placeholder.png'; this.onerror = null; };
         productInfoDiv.appendChild(img);
 
         const nameSpan = document.createElement('span');
@@ -234,8 +241,6 @@ function displayProducts(productsToDisplay, sortedScrapIds) {
 
         productInfoTd.appendChild(productInfoDiv);
         row.appendChild(productInfoTd);
-        // --- Koniec komórki produktu ---
-
 
         sortedScrapIds.forEach((scrapId, index) => {
             const td = document.createElement('td');
@@ -245,7 +250,6 @@ function displayProducts(productsToDisplay, sortedScrapIds) {
             const ourPriceValue = product.ourData[scrapId];
             const competitorPriceValue = product.data[scrapId];
 
-            // Nasza cena
             let ourPriceDisplay = (typeof ourPriceValue === 'number') ? ourPriceValue.toFixed(2) : "B/D";
             let ourPriceHtml = `<div class="Price-box-content-o flex-column">
                                   <div class="priceBox-style-o ${ourPriceDisplay === "B/D" ? 'no-price' : ''}">`;
@@ -255,13 +259,14 @@ function displayProducts(productsToDisplay, sortedScrapIds) {
                 if (typeof previousOurPrice === 'number') {
                     const diff = ourPriceValue - previousOurPrice;
                     if (diff !== 0) {
+                        rowHasAnyPriceChange = true;
                         const percDiff = previousOurPrice === 0 ? (diff > 0 ? 100 : -100) : ((diff / previousOurPrice) * 100);
                         const isIncrease = diff > 0;
+                        if (isIncrease) rowHasAnyPriceIncrease = true; else rowHasAnyPriceDecrease = true;
+
                         const changeClass = isIncrease ? 'priceBox-diff-down' : 'priceBox-diff-up';
                         const arrow = isIncrease ? '&uarr;' : '&darr;';
                         ourPriceHtml += `<div class="${changeClass}">${diff.toFixed(2)} PLN (${percDiff.toFixed(2)}%) ${arrow}</div>`;
-                        rowHasChange = true;
-                        if (isIncrease) rowHasIncrease = true; else rowHasDecrease = true;
                     }
                 }
             }
@@ -269,23 +274,23 @@ function displayProducts(productsToDisplay, sortedScrapIds) {
             ourPriceHtml += `<div class="Price-box-content-o-t">${typeof storeName !== 'undefined' ? storeName : 'Nasz Sklep'}</div></div>`;
             cellContent += ourPriceHtml;
 
-            // Cena konkurenta
             let competitorPriceDisplay = (typeof competitorPriceValue === 'number') ? competitorPriceValue.toFixed(2) : "B/D";
             let competitorPriceHtml = `<div class="Price-box-content-c flex-column">
-                                        <div class="priceBox-style-c ${competitorPriceDisplay === "B/D" ? 'no-price' : ''}">`;
+                                         <div class="priceBox-style-c ${competitorPriceDisplay === "B/D" ? 'no-price' : ''}">`;
             if (index > 0 && typeof competitorPriceValue === 'number') {
                 const previousScrapId = sortedScrapIds[index - 1];
                 const previousCompetitorPrice = product.data[previousScrapId];
                 if (typeof previousCompetitorPrice === 'number') {
                     const diff = competitorPriceValue - previousCompetitorPrice;
                     if (diff !== 0) {
+                        rowHasAnyPriceChange = true;
                         const percDiff = previousCompetitorPrice === 0 ? (diff > 0 ? 100 : -100) : ((diff / previousCompetitorPrice) * 100);
                         const isIncrease = diff > 0;
+                        if (isIncrease) rowHasAnyPriceIncrease = true; else rowHasAnyPriceDecrease = true;
+
                         const changeClass = isIncrease ? 'priceBox-diff-down' : 'priceBox-diff-up';
                         const arrow = isIncrease ? '&uarr;' : '&darr;';
                         competitorPriceHtml += `<div class="${changeClass}">${diff.toFixed(2)} PLN (${percDiff.toFixed(2)}%) ${arrow}</div>`;
-                        rowHasChange = true;
-                        if (isIncrease) rowHasIncrease = true; else rowHasDecrease = true;
                     }
                 }
             }
@@ -304,11 +309,26 @@ function displayProducts(productsToDisplay, sortedScrapIds) {
             row.appendChild(td);
         });
 
-        if ((filterIncrease && !rowHasIncrease) || (filterDecrease && !rowHasDecrease) || (filterChange && !rowHasChange)) {
-            showRow = false;
+        let showThisRow = false;
+        const anyChangeFilterActive = filterIncrease || filterDecrease || filterChange;
+
+        if (!anyChangeFilterActive) {
+
+            showThisRow = true;
+        } else {
+
+            if (filterIncrease && rowHasAnyPriceIncrease) {
+                showThisRow = true;
+            }
+            if (filterDecrease && rowHasAnyPriceDecrease) {
+                showThisRow = true;
+            }
+            if (filterChange && rowHasAnyPriceChange) {
+                showThisRow = true;
+            }
         }
 
-        if (showRow) {
+        if (showThisRow) {
             tableBody.appendChild(row);
             productCount++;
         }
