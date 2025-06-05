@@ -56,6 +56,81 @@
         background-color: #dc3545;
     }
 
+    #extendedExportCheckbox {
+        opacity: 0;
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+        border: 0;
+    }
+
+    label[for="extendedExportCheckbox"] {
+        display: inline-flex;
+        align-items: center;
+        position: relative;
+        padding: 6px 16px 6px 40px;
+        border-radius: 4px;
+        font-size: 14px;
+        cursor: pointer;
+        user-select: none;
+        transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+        background-color: #6c757d;
+        height: 33px;
+        color: #ffffff;
+        border: 1px solid #6c757d;
+    }
+
+        label[for="extendedExportCheckbox"]::before {
+            content: "";
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 18px;
+            height: 18px;
+            background-color: transparent;
+            border: 2px solid #ffffff;
+            border-radius: 3px;
+            transition: background-color 0.2s ease, border-color 0.2s ease;
+        }
+
+        label[for="extendedExportCheckbox"]::after {
+            content: "";
+            position: absolute;
+            left: 18px;
+            top: 50%;
+            width: 5px;
+            height: 10px;
+            border: solid #ffffff;
+            border-width: 0 2px 2px 0;
+            transform: translateY(-50%) rotate(45deg) scale(0);
+            transform-origin: center;
+            transition: transform 0.2s ease;
+        }
+
+    #extendedExportCheckbox:checked + label[for="extendedExportCheckbox"] {
+        background-color: #222222;
+        border-color: #222222;
+        color: #ffffff;
+    }
+
+        #extendedExportCheckbox:checked + label[for="extendedExportCheckbox"]::after {
+            transform: translateY(-50%) rotate(45deg) scale(1);
+        }
+
+    label[for="extendedExportCheckbox"]:not(:checked):hover {
+        background-color: #5a6268;
+        border-color: #545b62;
+    }
+
+    #extendedExportCheckbox:checked + label[for="extendedExportCheckbox"]:hover {
+        background-color: #222222;
+        border-color: #222222;
+    }
+
 </style>
 
 <div class="Vert">
@@ -306,13 +381,16 @@
                 <div class="table-scroll" id="simulationModalBody"></div>
             </div>
             <div class="modal-footer">
-                <div style="display:flex; width:100%; justify-content:space-between;">
+                <div style="display:flex; width:100%; justify-content:space-between; align-items: center;">
                     <div style="display:inline-flex;">
                         <button type="button" id="clearChangesButton" class="Button-Page-Small-r">Usuń wszystkie zmiany</button>
                     </div>
 
-                    <div style="display:inline-flex; gap:10px;">
-
+                    <div style="display:inline-flex; gap:10px; align-items: center;">
+                        <div style="display:flex; align-items:center; gap:5px;">
+                            <input type="checkbox" id="extendedExportCheckbox">
+                            <label for="extendedExportCheckbox" style="margin-bottom: 0;">Eksport rozszerzony</label>
+                        </div>
                         <button id="exportToCsvButton" class="Button-Page-Small-bl"><i class="fa-solid fa-file-csv"></i>Eksportuj do CSV</button>
                         <button id="exportNewPriceToExcelButton" class="Button-Page-Small-gr"><i class="fas fa-file-excel"></i>Eksportuj do Excela</button>
                     </div>
@@ -323,7 +401,6 @@
         </div>
     </div>
 </div>
-
 <div class="modal fade" id="exportDisclaimerModal" tabindex="-1" role="dialog" aria-labelledby="exportDisclaimerModalLabel" aria-hidden="true">
     <div class="modal-dialog" role="document">
         <div class="modal-content" style="width:460px;">
@@ -814,7 +891,7 @@
 
     </script>
 
-    <script src="~/js/member/PriceChange.js"></script>
+    <script src="~/js/member/PriceChange.min.js"></script>
     <script src="~/js/member/CompetitorModal.js"></script>
     <script src="~/js/member/PriceHistory.js"></script>
 
