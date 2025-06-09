@@ -252,7 +252,8 @@ function displayProducts(productsToDisplay, sortedScrapIds) {
 
             let ourPriceDisplay = (typeof ourPriceValue === 'number') ? ourPriceValue.toFixed(2) : "B/D";
             let ourPriceHtml = `<div class="Price-box-content-o flex-column">
-                                  <div class="priceBox-style-o ${ourPriceDisplay === "B/D" ? 'no-price' : ''}">`;
+                                    <div class="priceBox-style-o ${ourPriceDisplay === "B/D" ? 'no-price' : ''}">`;
+
             if (index > 0 && typeof ourPriceValue === 'number') {
                 const previousScrapId = sortedScrapIds[index - 1];
                 const previousOurPrice = product.ourData[previousScrapId];
@@ -277,7 +278,10 @@ function displayProducts(productsToDisplay, sortedScrapIds) {
 
             let competitorPriceDisplay = (typeof competitorPriceValue === 'number') ? competitorPriceValue.toFixed(2) : "B/D";
             let competitorPriceHtml = `<div class="Price-box-content-c flex-column">
-                                         <div class="priceBox-style-c ${competitorPriceDisplay === "B/D" ? 'no-price' : ''}">`;
+                                            <div class="priceBox-style-c ${competitorPriceDisplay === "B/D" ? 'no-price' : ''}">`;
+
+            competitorPriceHtml += `<div class="PriceTagBox-c">${competitorPriceDisplay !== "B/D" ? `${competitorPriceDisplay} PLN` : competitorPriceDisplay}</div>`;
+
             if (index > 0 && typeof competitorPriceValue === 'number') {
                 const previousScrapId = sortedScrapIds[index - 1];
                 const previousCompetitorPrice = product.data[previousScrapId];
@@ -295,7 +299,7 @@ function displayProducts(productsToDisplay, sortedScrapIds) {
                     }
                 }
             }
-            competitorPriceHtml += `<div class="PriceTagBox-c">${competitorPriceDisplay !== "B/D" ? `${competitorPriceDisplay} PLN` : competitorPriceDisplay}</div></div>`;
+            competitorPriceHtml += `</div>`;
             competitorPriceHtml += `<div class="Price-box-content-c-t">${typeof competitorStoreName !== 'undefined' ? competitorStoreName : 'Konkurent'}</div></div>`;
             cellContent += competitorPriceHtml;
 
@@ -314,10 +318,8 @@ function displayProducts(productsToDisplay, sortedScrapIds) {
         const anyChangeFilterActive = filterIncrease || filterDecrease || filterChange;
 
         if (!anyChangeFilterActive) {
-
             showThisRow = true;
         } else {
-
             if (filterIncrease && rowHasAnyPriceIncrease) {
                 showThisRow = true;
             }
