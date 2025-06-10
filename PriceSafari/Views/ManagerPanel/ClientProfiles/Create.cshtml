@@ -1,6 +1,5 @@
 ﻿@model PriceSafari.Models.ClientProfile
 
-
 @{
     Layout = "~/Views/Shared/_PanelLayout.cshtml";
 }
@@ -10,123 +9,264 @@
         <div class="Page-Box-Category">
             <div class="Category-Box-Title">
                 Dodaj Profil
-
             </div>
-
             <partial name="_ContactNavCol" />
         </div>
 
         <div class="Column-30">
-
             <form asp-action="Create" id="clientProfileForm" class="Column-Form">
+                @Html.AntiForgeryToken()
+
                 <div class="form-group">
+                    <input type="checkbox" id="isCeneoClient" name="Source" value="@((int)PriceSafari.Models.ClientSource.Ceneo)" @(Model.Source == PriceSafari.Models.ClientSource.Ceneo ? "checked" : "") />
+                    <label for="isCeneoClient">Dodaj klienta z Ceneo</label>
+                </div>
+
+                <input type="hidden" id="googleSourceValue" name="Source" value="@((int)PriceSafari.Models.ClientSource.Google)" />
+
+                <div class="form-group" id="ceneoUrlGroup">
                     <label for="CeneoProfileUrl" class="control-label">Url Ceneo</label>
-                    <input type="url" class="form-control" id="CeneoProfileUrl" name="CeneoProfileUrl" />
-                    <small id="urlError" class="form-text text-danger" style="display:none;">Ten klient jest już zapisany</small>
+                    <input type="url" class="form-control" id="CeneoProfileUrl" name="CeneoProfileUrl" value="@Model.CeneoProfileUrl" />
+                    <small id="urlError" class="form-text text-danger" style="display:none;">Ten klient z tym URL już istnieje.</small>
                 </div>
                 <div class="form-group">
-                    <label for="CeneoProfileName" class="control-label">Nazwa Firmy</label>
-                    <input type="text" class="form-control" id="CeneoProfileName" name="CeneoProfileName" required />
+                    <label for="CeneoProfileName" class="control-label">Nazwa Firmy / Domeny</label>
+                    <input type="text" class="form-control" id="CeneoProfileName" name="CeneoProfileName" value="@Model.CeneoProfileName" required />
+                    <small id="companyNameError" class="form-text text-danger" style="display:none;">Klient z tą nazwą firmy (domeną) już istnieje.</small>
+                    @Html.ValidationMessageFor(model => model.CeneoProfileName, "", new { @class = "text-danger" })
                 </div>
                 <div class="form-group">
                     <label for="CeneoProfileEmail" class="control-label">Email</label>
-                    <input type="text" class="form-control"  id="CeneoProfileEmail" name="CeneoProfileEmail" required />
+                    <input type="text" class="form-control" id="CeneoProfileEmail" name="CeneoProfileEmail" value="@Model.CeneoProfileEmail" required />
                     <small class="form-text text-muted">
                         Jeśli chcesz dodać więcej niż jeden adres email, oddziel je średnikami (pierwszy@mail.com; drugi@mail.com).
                     </small>
+                    @Html.ValidationMessageFor(model => model.CeneoProfileEmail, "", new { @class = "text-danger" })
                 </div>
 
-                <div class="form-group">
+                <div class="form-group" id="ceneoTelephoneGroup">
                     <label for="CeneoProfileTelephone" class="control-label">Telefon</label>
-                    <input type="tel" class="form-control" id="CeneoProfileTelephone" name="CeneoProfileTelephone" required />
+                    <input type="tel" class="form-control" id="CeneoProfileTelephone" name="CeneoProfileTelephone" value="@Model.CeneoProfileTelephone" />
                 </div>
-                <div class="form-group">
+                <div class="form-group" id="ceneoProductCountGroup">
                     <label for="CeneoProfileProductCount" class="control-label">Liczba Produktów</label>
-                    <input type="number" class="form-control" id="CeneoProfileProductCount" name="CeneoProfileProductCount" />
+                    <input type="number" class="form-control" id="CeneoProfileProductCount" name="CeneoProfileProductCount" value="@Model.CeneoProfileProductCount" />
                 </div>
                 <button type="submit" class="Button-Add-Small">Zapisz</button>
             </form>
-
-
-
         </div>
-
     </div>
-
 </div>
-
-
-
 
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
 <script>
     $(document).ready(function () {
-        $('#CeneoProfileUrl').on('blur', function () {
-            var originalUrl = $(this).val().trim();
-            var trimmedUrl = originalUrl;
+        const ceneoUrlGroup = $('#ceneoUrlGroup');
+        const ceneoTelephoneGroup = $('#ceneoTelephoneGroup');
+        const ceneoProductCountGroup = $('#ceneoProductCountGroup');
+        const isCeneoClientCheckbox = $('#isCeneoClient');
+        const googleSourceValueInput = $('#googleSourceValue');
+        const ceneoProfileUrlInput = $('#CeneoProfileUrl');
+        const ceneoProfileNameInput = $('#CeneoProfileName'); 
+        const submitButton = $('button[type="submit"]');
+        const urlError = $('#urlError');
+        const companyNameError = $('#companyNameError');
+
+
+        function cleanCompanyName(companyName) {
+            if (!companyName) return '';
+
+            let cleanedName = companyName.trim();
 
             try {
-              
-                if (!/^https?:\/\//i.test(originalUrl)) {
-                    originalUrl = originalUrl;
+                if (!cleanedName.startsWith('http://') && !cleanedName.startsWith('https://')) {
+                    cleanedName = 'http://' + cleanedName;
                 }
+                const url = new URL(cleanedName);
+                cleanedName = url.hostname; 
 
+              
+                cleanedName = cleanedName.replace(/^www\./i, ''); 
+            } catch (e) {
+        
+                cleanedName = cleanedName.replace(/^(https?:\/\/)?(www\.)?/i, '');
+           
+                cleanedName = cleanedName.split('/')[0];
+         
+                cleanedName = cleanedName.split('?')[0];
+                cleanedName = cleanedName.split('#')[0];
+            }
+
+           
+            cleanedName = cleanedName.replace(/[^a-zA-Z0-9\.-]/g, '').toLowerCase();
+
+            return cleanedName;
+        }
+
+       
+        function updateFormVisibility() {
+            if (isCeneoClientCheckbox.is(':checked')) {
+           
+                ceneoUrlGroup.show();
+                ceneoTelephoneGroup.show();
+                ceneoProductCountGroup.show();
+             
+                isCeneoClientCheckbox.attr('name', 'Source');
+                googleSourceValueInput.removeAttr('name');
+
+              
+                companyNameError.hide();
+       
+                ceneoProfileNameInput.removeClass('input-validation-error');
+            } else {
+             
+                ceneoUrlGroup.hide();
+                ceneoTelephoneGroup.hide();
+                ceneoProductCountGroup.hide();
+              
+                isCeneoClientCheckbox.removeAttr('name');
+                googleSourceValueInput.attr('name', 'Source');
+
+          
+                ceneoProfileUrlInput.val('');
+                urlError.hide();
+                submitButton.prop('disabled', false); 
+            }
+         
+            checkCompanyNameUniqueness();
+            checkUrlUniqueness(); 
+        }
+
+   
+        function checkUrlUniqueness() {
+            var originalUrl = ceneoProfileUrlInput.val().trim();
+            var trimmedUrl = originalUrl;
+
+            if (!isCeneoClientCheckbox.is(':checked') || originalUrl === '') {
+                urlError.hide();
+                return;
+            }
+
+            try {
+                if (!/^https?:\/\//i.test(originalUrl)) {
+                    originalUrl = "http://" + originalUrl; 
+                }
                 var url = new URL(originalUrl);
-
                 url.hash = '';
                 url.search = '';
-
-               
                 var pathname = url.pathname.split(';')[0];
                 url.pathname = pathname;
-
-              
                 trimmedUrl = url.toString();
             } catch (e) {
-               
                 trimmedUrl = originalUrl;
             }
 
-        
-            $(this).val(trimmedUrl);
+          
+            if (trimmedUrl !== ceneoProfileUrlInput.val()) {
+                 ceneoProfileUrlInput.val(trimmedUrl);
+            }
+           
 
-            
             $.ajax({
                 url: '@Url.Action("CheckUrlExists", "ClientProfile")',
                 type: 'GET',
                 data: { url: trimmedUrl },
                 success: function (response) {
                     if (response.exists) {
-                        $('#urlError').show();
-                        $('button[type="submit"]').prop('disabled', true);
+                        urlError.show();
+                        submitButton.prop('disabled', true);
                     } else {
-                        $('#urlError').hide();
-                        $('button[type="submit"]').prop('disabled', false);
+                        urlError.hide();
+                     
+                        checkFormValidity();
                     }
                 }
             });
-        });
+        }
 
-     
-        var inputFields = ['#CeneoProfileName', '#CeneoProfileEmail', '#CeneoProfileTelephone', '#CeneoProfileProductCount'];
+
+        function checkCompanyNameUniqueness() {
+            var companyName = ceneoProfileNameInput.val().trim();
+
+            if (isCeneoClientCheckbox.is(':checked') || companyName === '') {
+                companyNameError.hide();
+                return;
+            }
+
+            var cleanedName = cleanCompanyName(companyName);
+        
+            if (cleanedName !== ceneoProfileNameInput.val()) {
+                ceneoProfileNameInput.val(cleanedName);
+            }
+            
+
+            $.ajax({
+                url: '@Url.Action("CheckGoogleCompanyNameExists", "ClientProfile")',
+                type: 'GET',
+                data: { companyName: cleanedName },
+                success: function (response) {
+                    if (response.exists) {
+                        companyNameError.show();
+                        submitButton.prop('disabled', true);
+                    } else {
+                        companyNameError.hide();
+                      
+                        checkFormValidity();
+                    }
+                }
+            });
+        }
+
+    
+        function checkFormValidity() {
+            let isUrlErrorVisible = urlError.is(':visible');
+            let isCompanyNameErrorVisible = companyNameError.is(':visible');
+            let isNameEmpty = ceneoProfileNameInput.val().trim() === '';
+            let isEmailEmpty = $('#CeneoProfileEmail').val().trim() === '';
+
+          
+            if (isUrlErrorVisible || isCompanyNameErrorVisible || isNameEmpty || isEmailEmpty) {
+                submitButton.prop('disabled', true);
+            } else {
+                submitButton.prop('disabled', false);
+            }
+        }
+
+
+       
+        updateFormVisibility();
 
         
+        isCeneoClientCheckbox.on('change', function () {
+            updateFormVisibility();
+        });
+
+       
+        ceneoProfileUrlInput.on('blur', checkUrlUniqueness);
+        ceneoProfileUrlInput.on('keyup', checkUrlUniqueness);
+
+        
+        ceneoProfileNameInput.on('blur', checkCompanyNameUniqueness);
+        ceneoProfileNameInput.on('keyup', checkCompanyNameUniqueness); 
+
+        var inputFields = ['#CeneoProfileName', '#CeneoProfileEmail', '#CeneoProfileTelephone', '#CeneoProfileProductCount'];
         inputFields.forEach(function (selector) {
             $(selector).on('blur', function () {
                 var trimmedValue = $(this).val().trim();
                 $(this).val(trimmedValue);
+                checkFormValidity(); 
             });
         });
 
-       
+
         $('#clientProfileForm').on('submit', function (e) {
-            $(this).find('input').each(function () {
+            $(this).find('input[type="text"], input[type="url"], input[type="tel"]').each(function () {
                 var trimmedValue = $(this).val().trim();
                 $(this).val(trimmedValue);
             });
         });
+
+     
+        checkFormValidity();
     });
-
-
 </script>
-

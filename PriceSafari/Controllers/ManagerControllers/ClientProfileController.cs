@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using PriceSafari.Data;
 using PriceSafari.Models;
+using System.Text.RegularExpressions;
 
 [Authorize(Roles = "Manager, Admin")]
 public class ClientProfileController : Controller
@@ -24,7 +25,7 @@ public class ClientProfileController : Controller
     public IActionResult Index()
     {
         var clientProfiles = _context.ClientProfiles
-            .Include(cp => cp.CreatedByUser) 
+            .Include(cp => cp.CreatedByUser)
             .ToList();
 
         return View("~/Views/ManagerPanel/ClientProfiles/Index.cshtml", clientProfiles);
@@ -32,9 +33,9 @@ public class ClientProfileController : Controller
 
     public IActionResult Create()
     {
-        return View("~/Views/ManagerPanel/ClientProfiles/Create.cshtml");
-    }
 
+        return View("~/Views/ManagerPanel/ClientProfiles/Create.cshtml", new ClientProfile { Status = ClientStatus.Nowy, Source = ClientSource.Google });
+    }
 
     [HttpPost]
     [ValidateAntiForgeryToken]
@@ -44,20 +45,60 @@ public class ClientProfileController : Controller
 
         model.CreatedByUserId = user.Id;
         model.CreationDate = DateTime.Now;
+        model.Status = ClientStatus.Nowy;
 
-        // Remove these from ModelState to avoid validation errors
         ModelState.Remove("CreatedByUserId");
         ModelState.Remove("CreatedByUser");
+        ModelState.Remove("Status");
+
+        if (model.Source == ClientSource.Google)
+        {
+            ModelState.Remove("CeneoProfileUrl");
+            ModelState.Remove("CeneoProfileTelephone");
+            ModelState.Remove("CeneoProfileProductCount");
+        }
+
+        if (string.IsNullOrWhiteSpace(model.CeneoProfileName))
+        {
+            ModelState.AddModelError("CeneoProfileName", "Nazwa firmy jest wymagana.");
+        }
+
+        if (string.IsNullOrWhiteSpace(model.CeneoProfileEmail))
+        {
+            ModelState.AddModelError("CeneoProfileEmail", "Email jest wymagany.");
+        }
+
+        if (model.Source == ClientSource.Ceneo && string.IsNullOrWhiteSpace(model.CeneoProfileUrl))
+        {
+            ModelState.AddModelError("CeneoProfileUrl", "URL Ceneo jest wymagany dla klientów z Ceneo.");
+        }
 
         if (ModelState.IsValid)
         {
-            // Check if URL already exists
-            bool urlExists = await _context.ClientProfiles
-                .AnyAsync(cp => cp.CeneoProfileUrl == model.CeneoProfileUrl);
 
-            if (urlExists)
+            bool exists = false;
+            if (model.Source == ClientSource.Ceneo)
             {
-                ModelState.AddModelError("CeneoProfileUrl", "Klient z tym URL już istnieje."); // "A client with this URL already exists."
+                exists = await _context.ClientProfiles
+                    .AnyAsync(cp => cp.Source == ClientSource.Ceneo && cp.CeneoProfileUrl == model.CeneoProfileUrl);
+                if (exists)
+                {
+                    ModelState.AddModelError("CeneoProfileUrl", "Klient z tym URL już istnieje.");
+                }
+            }
+            else if (model.Source == ClientSource.Google)
+            {
+
+                exists = await _context.ClientProfiles
+                    .AnyAsync(cp => cp.Source == ClientSource.Google && cp.CeneoProfileName == model.CeneoProfileName && cp.CeneoProfileEmail == model.CeneoProfileEmail);
+                if (exists)
+                {
+                    ModelState.AddModelError("CeneoProfileName", "Klient z tą nazwą firmy i adresem e-mail już istnieje.");
+                }
+            }
+
+            if (exists)
+            {
                 return View("~/Views/ManagerPanel/ClientProfiles/Create.cshtml", model);
             }
 
@@ -65,10 +106,12 @@ public class ClientProfileController : Controller
             {
                 _context.ClientProfiles.Add(model);
                 await _context.SaveChangesAsync();
+                TempData["SuccessMessage"] = "Profil klienta został dodany pomyślnie.";
                 return RedirectToAction("Index");
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex, "Wystąpił błąd podczas zapisywania danych nowego klienta.");
                 ModelState.AddModelError("", "Wystąpił błąd podczas zapisywania danych. Skontaktuj się z administratorem.");
             }
         }
@@ -81,16 +124,61 @@ public class ClientProfileController : Controller
         return View("~/Views/ManagerPanel/ClientProfiles/Create.cshtml", model);
     }
 
-
-
     [HttpGet]
     public JsonResult CheckUrlExists(string url)
     {
-        var exists = _context.ClientProfiles.Any(cp => cp.CeneoProfileUrl == url);
+
+        var exists = _context.ClientProfiles.Any(cp => cp.Source == ClientSource.Ceneo && cp.CeneoProfileUrl == url);
         return Json(new { exists });
     }
 
+    [HttpGet]
+    public async Task<JsonResult> CheckGoogleCompanyNameExists(string companyName)
+    {
+        var cleanedCompanyName = CleanCompanyName(companyName);
+        var exists = await _context.ClientProfiles.AnyAsync(cp => cp.Source == ClientSource.Google && cp.CeneoProfileName == cleanedCompanyName);
+        return Json(new { exists, cleanedName = cleanedCompanyName });
+    }
 
+    private string CleanCompanyName(string companyName)
+    {
+        if (string.IsNullOrWhiteSpace(companyName))
+        {
+            return companyName;
+        }
+
+        string cleanedName = companyName.Trim();
+
+        try
+        {
+            if (!cleanedName.StartsWith("http://", StringComparison.OrdinalIgnoreCase) &&
+                !cleanedName.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+            {
+
+                cleanedName = "http://" + cleanedName;
+            }
+            var uri = new Uri(cleanedName);
+            string host = uri.Host;
+
+            host = Regex.Replace(host, @"^www\.", "", RegexOptions.IgnoreCase);
+
+            return host.ToLowerInvariant();
+        }
+        catch (UriFormatException)
+        {
+
+            cleanedName = Regex.Replace(cleanedName, @"^(https?:\/\/)?(www\.)?", "", RegexOptions.IgnoreCase);
+
+            cleanedName = cleanedName.Split('/')[0];
+
+            cleanedName = cleanedName.Split('?')[0];
+            cleanedName = cleanedName.Split('#')[0];
+
+            cleanedName = Regex.Replace(cleanedName, @"[^a-zA-Z0-9\.-]", "");
+
+            return cleanedName.ToLowerInvariant();
+        }
+    }
     public async Task<IActionResult> Edit(int id)
     {
         var clientProfile = await _context.ClientProfiles
@@ -116,13 +204,12 @@ public class ClientProfileController : Controller
             return NotFound();
         }
 
-        // Remove these from ModelState to avoid validation errors
         ModelState.Remove("CreatedByUserId");
         ModelState.Remove("CreatedByUser");
 
         if (ModelState.IsValid)
         {
-            // Check if URL already exists in another record
+
             bool urlExists = await _context.ClientProfiles
                 .AnyAsync(cp => cp.CeneoProfileUrl == model.CeneoProfileUrl && cp.ClientProfileId != id);
 
@@ -134,9 +221,9 @@ public class ClientProfileController : Controller
 
             try
             {
-                // Update the existing profile with new values
+
                 existingProfile.CeneoProfileName = model.CeneoProfileName;
-                existingProfile.CeneoProfileEmail = model.CeneoProfileEmail; // Upewnij się, że to pole jest aktualizowane
+                existingProfile.CeneoProfileEmail = model.CeneoProfileEmail;
                 existingProfile.CeneoProfileTelephone = model.CeneoProfileTelephone;
                 existingProfile.CeneoProfileUrl = model.CeneoProfileUrl;
                 existingProfile.CeneoProfileProductCount = model.CeneoProfileProductCount;
@@ -159,7 +246,6 @@ public class ClientProfileController : Controller
 
         return View("~/Views/ManagerPanel/ClientProfiles/Edit.cshtml", model);
     }
-
 
     [HttpPost]
     [ValidateAntiForgeryToken]
@@ -189,17 +275,12 @@ public class ClientProfileController : Controller
             SelectedMailType = 1
         };
 
-        // ZWRACAMY PEŁNY WIDOK zamiast partiala!
         return View("~/Views/ManagerPanel/ClientProfiles/PrepareEmails.cshtml", sendEmailViewModel);
     }
-
 
     [HttpPost]
     public IActionResult ChangeMailTypeAjax(int mailType, List<int> selectedClientIds)
     {
-        // Zdecyduj, czy musisz odczytywać Klientów z bazy,
-        // czy wystarczy Ci tylko nowa treść maila
-        // Na początek – tylko wypełnimy treść.
 
         string baseContent;
         switch (mailType)
@@ -218,11 +299,8 @@ public class ClientProfileController : Controller
                 break;
         }
 
-        // Możesz skorzystać z istniejącego modelu, np. SendEmailViewModel
-        // ale nie musisz tworzyć całego widoku, wystarczy np. zwrócić JSON-a:
         return Json(new { content = baseContent });
     }
-
 
     [HttpPost]
     [ValidateAntiForgeryToken]
@@ -240,29 +318,27 @@ public class ClientProfileController : Controller
             return View("PrepareEmails", model);
         }
 
-        // Tutaj dynamicznie pobieramy treść w zależności od wybranego maila
         string baseContent;
         switch (model.SelectedMailType)
         {
             case 1:
-                // Mail #1 - np. „standardowy” z {ProductCount}
+
                 baseContent = GetEmailContent1();
                 break;
             case 2:
-                // Mail #2 - inny; np. nie używamy {ProductCount}
+
                 baseContent = GetEmailContent2();
                 break;
             case 3:
-                // Mail #3 - jeszcze inny
+
                 baseContent = GetEmailContent3();
                 break;
             default:
-                // Domyślnie mail #1
+
                 baseContent = GetEmailContent1();
                 break;
         }
 
-   
         var allClients = await _context.ClientProfiles.ToListAsync();
         var clientsToEmail = allClients
             .Where(cp => model.SelectedClientIds.Contains(cp.ClientProfileId))
@@ -272,24 +348,22 @@ public class ClientProfileController : Controller
         {
             try
             {
-               
+
                 var personalizedContent = baseContent
                     .Replace("{ClientName}", client.CeneoProfileName);
 
-             
                 if (model.SelectedMailType == 1 || model.SelectedMailType == 3)
                 {
                     personalizedContent = personalizedContent.Replace("{ProductCount}", client.CeneoProfileProductCount.ToString());
                 }
                 else
                 {
-                  
+
                     personalizedContent = personalizedContent.Replace("{ProductCount}", "");
                 }
 
                 var emailBody = personalizedContent + GetEmailFooter();
 
-               
                 var emailAddresses = client.CeneoProfileEmail
                     .Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries)
                     .Select(e => e.Trim())
@@ -301,7 +375,6 @@ public class ClientProfileController : Controller
                     await _emailSender.SendEmailAsync(email, model.EmailSubject, emailBody);
                 }
 
-                // Update client status and email tracking properties
                 client.Status = ClientStatus.Mail;
                 client.EmailSentCount += 1;
                 client.LastEmailSentDate = DateTime.Now;
@@ -309,7 +382,7 @@ public class ClientProfileController : Controller
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Błąd podczas wysyłania maila do {Email}", client.CeneoProfileEmail);
-             
+
             }
         }
 
@@ -318,7 +391,6 @@ public class ClientProfileController : Controller
         TempData["SuccessMessage"] = "Wiadomości zostały wysłane pomyślnie.";
         return RedirectToAction("Index");
     }
-
 
     private string GetEmailContent1()
     {
@@ -376,7 +448,7 @@ public class ClientProfileController : Controller
             <p>Panel PriceSafari prezentuje aktualną sytuację rynkową ofert z Państwa sklepu na tle konkurencji.</p> 
             <p>Dzięki zaawansowanym filtrom można precyzyjnie wybrać kanały oraz sklepy, z którymi chcą Państwo konkurować cenowo – i wykluczyć te, z którymi nie.</p>
             <br>
-            <img src=""https://pricesafari.pl/mail/Panel_PriceSafari.png"" alt=""Panel_PriceSafari"" style=""width: 1400px; height: auto;"" />
+            <img src=""https:
             <br>
             <br>
             <br>
@@ -384,7 +456,7 @@ public class ClientProfileController : Controller
             <p>Możemy sprawdzić, kto oferuje najniższą cenę, jakie są koszty dostawy oraz dostępność towaru.</p>
             <p>Dodatkowo zobaczymy, jak nasza oferta wypada na tle konkurencji – w zależności od źródła danych, takiego jak Ceneo czy Google Shopping.</p>
             <br>
-            <img src=""https://pricesafari.pl/mail/Ranking_PriceSafari.png"" alt=""Ranking_PriceSafari"" style=""width: 1400px; height: auto;"" />
+            <img src=""https:
             <br>
             <br>
             <br>
@@ -392,21 +464,21 @@ public class ClientProfileController : Controller
             <p>Dzięki temu można śledzić, jak zmieniała się cena oraz dostępność danego produktu w czasie.</p>
             <p>Pozwala to m.in. sprawdzić, którzy z konkurentów modyfikują ceny w weekendy.</p>
             <br>
-            <img src=""https://pricesafari.pl/mail/Wykres_PriceSafari.png"" alt=""Wykres_PriceSafari"" style=""width: 1400px; height: auto;"" />
+            <img src=""https:
             <br>
             <br>
             <br>
             <p>PriceSafari umożliwia tworzenie zaawansowanych presetów widoków z danymi, dopasowanych do konkretnych potrzeb.</p>
             <p>Czasami nie chcemy konkurować z własnym sklepem czy np. z Amazonem – dlatego możemy łatwo wykluczyć wybrane źródła danych i skupić się tylko na tych konkurentach, którzy naprawdę nas interesują.</p>
             <br>
-            <img src=""https://pricesafari.pl/mail/Presety_PriceSafari.png"" alt=""Wykres_PriceSafari"" style=""width: 1400px; height: auto;"" />
+            <img src=""https:
             <br>
 
             <p>Do programu możemy zaimportować ceny zakupu towarów oraz skonfigurować wiele funkcji, które pozwalają precyzyjnie zarządzać zmianami cen w naszych ofertach.</p>
             <p>Przykładowo, możemy ustawić minimalną marżę na poziomie 8%, przeprowadzić symulację cenową dla wybranej grupy produktów, a następnie wyeksportować nowe ceny do pliku CSV lub XLSX.</p>
             <p>Potem wystarczy już tylko zaimportować je do sklepu internetowego i obserwować, jak rośnie sprzedaż – a cały proces, zamiast zajmować godziny żmudnej pracy, trwa dosłownie kilka minut.</p>
             <br>
-            <img src=""https://pricesafari.pl/mail/CoPilot_PriceSafari.png"" alt=""Wykres_PriceSafari"" style=""width: 1400px; height: auto;"" />
+            <img src=""https:
 
             <p>Oferujemy bezpłatne konto demo, na którym mogą Państwo przetestować nasz program na 1000 własnych produktów. Wystarczy przesłać feed produktowy z Państwa sklepu zawierający produkty, które mamy monitorować.</p>
             <p>Na tej podstawie przygotujemy konto, a podczas krótkiego spotkania online pokażemy, jak korzystać z Panelu PriceSafari w praktyce i przekażemy dostępy do konta.</p>
@@ -418,7 +490,6 @@ public class ClientProfileController : Controller
         </html>
         ";
     }
-
 
     private string GetEmailContent2()
     {
@@ -456,7 +527,7 @@ public class ClientProfileController : Controller
 
             <p>Monitorujemy ceny produktów na Google Shopping i Ceneo.</p>
             <p>Spojrzenie na cały rynek z jednego panelu pozwoli Państwu strategicznie zarządzać cenami własnych produktów, maksymalizować zyski i wyprzedzać konkurentów.</p>
-           
+
             <br>
             <p>Dzięki śledzeniu cen, możemy szybko sprawdzić:</p>
 
@@ -476,7 +547,7 @@ public class ClientProfileController : Controller
             <p>Panel PriceSafari prezentuje aktualną sytuację rynkową ofert z Państwa sklepu na tle konkurencji.</p> 
             <p>Dzięki zaawansowanym filtrom można precyzyjnie wybrać kanały oraz sklepy, z którymi chcą Państwo konkurować cenowo – i wykluczyć te, z którymi nie.</p>
             <br>
-            <img src=""https://pricesafari.pl/mail/Panel_PriceSafari.png"" alt=""Panel_PriceSafari"" style=""width: 1400px; height: auto;"" />
+            <img src=""https:
             <br>
             <br>
             <br>
@@ -484,7 +555,7 @@ public class ClientProfileController : Controller
             <p>Możemy sprawdzić, kto oferuje najniższą cenę, jakie są koszty dostawy oraz dostępność towaru.</p>
             <p>Dodatkowo zobaczymy, jak nasza oferta wypada na tle konkurencji – w zależności od źródła danych, takiego jak Ceneo czy Google Shopping.</p>
             <br>
-            <img src=""https://pricesafari.pl/mail/Ranking_PriceSafari.png"" alt=""Ranking_PriceSafari"" style=""width: 1400px; height: auto;"" />
+            <img src=""https:
             <br>
             <br>
             <br>
@@ -492,21 +563,21 @@ public class ClientProfileController : Controller
             <p>Dzięki temu można śledzić, jak zmieniała się cena oraz dostępność danego produktu w czasie.</p>
             <p>Pozwala to m.in. sprawdzić, którzy z konkurentów modyfikują ceny w weekendy.</p>
             <br>
-            <img src=""https://pricesafari.pl/mail/Wykres_PriceSafari.png"" alt=""Wykres_PriceSafari"" style=""width: 1400px; height: auto;"" />
+            <img src=""https:
             <br>
             <br>
             <br>
             <p>PriceSafari umożliwia tworzenie zaawansowanych presetów widoków z danymi, dopasowanych do konkretnych potrzeb.</p>
             <p>Czasami nie chcemy konkurować z własnym sklepem czy np. z Amazonem – dlatego możemy łatwo wykluczyć wybrane źródła danych i skupić się tylko na tych konkurentach, którzy naprawdę nas interesują.</p>
             <br>
-            <img src=""https://pricesafari.pl/mail/Presety_PriceSafari.png"" alt=""Wykres_PriceSafari"" style=""width: 1400px; height: auto;"" />
+            <img src=""https:
             <br>
 
             <p>Do programu możemy zaimportować ceny zakupu towarów oraz skonfigurować wiele funkcji, które pozwalają precyzyjnie zarządzać zmianami cen w naszych ofertach.</p>
             <p>Przykładowo, możemy ustawić minimalną marżę na poziomie 8%, przeprowadzić symulację cenową dla wybranej grupy produktów, a następnie wyeksportować nowe ceny do pliku CSV lub XLSX.</p>
             <p>Potem wystarczy już tylko zaimportować je do sklepu internetowego i obserwować, jak rośnie sprzedaż – a cały proces, zamiast zajmować godziny żmudnej pracy, trwa dosłownie kilka minut.</p>
             <br>
-            <img src=""https://pricesafari.pl/mail/CoPilot_PriceSafari.png"" alt=""Wykres_PriceSafari"" style=""width: 1400px; height: auto;"" />
+            <img src=""https:
 
             <p>Oferujemy bezpłatne konto demo, na którym mogą Państwo przetestować nasz program na 1000 własnych produktów. Wystarczy przesłać feed produktowy z Państwa sklepu zawierający produkty, które mamy monitorować.</p>
             <p>Na tej podstawie przygotujemy konto, a podczas krótkiego spotkania online pokażemy, jak korzystać z Panelu PriceSafari w praktyce i przekażemy dostępy do konta.</p>
@@ -527,10 +598,6 @@ public class ClientProfileController : Controller
     ";
     }
 
-
-
-
-
     private string GetEmailFooter()
     {
         return @"
@@ -541,10 +608,10 @@ public class ClientProfileController : Controller
     <p>
         Tel.: +48 791 855 755<br />
         <a href=""mailto:biuro@pricesafari.pl"">biuro@pricesafari.pl</a><br />
-        <a href=""https://www.pricesafari.pl"">www.pricesafari.pl</a>
+        <a href=""https:
     </p>
     <p>
-        <a href=""https://www.pricesafari.pl"">
+        <a href=""https:
             <img src=""cid:signatureImage"" alt=""PriceSafari - Monitoring cen online"" style=""cursor: pointer;"" />
         </a>
     </p>
@@ -563,10 +630,8 @@ public class ClientProfileController : Controller
 
         W przypadku zainteresowania podjęciem współpracy, przesyłając odpowiedź na ten e-mail, wyrażacie Państwo zgodę na włączenie danych Państwa firmy oraz osób kontaktowych, działających w jej imieniu, do zbioru danych, których administratorem jest Heated Box Sp. z o.o., w celu kontynuacji kontaktu z Państwem – w tym wysyłania materiałów o charakterze marketingowym. Dane będą wykorzystywane w celach marketingu usług własnych oraz usług podmiotów współpracujących z Heated Box Sp. z o.o. Dane mogą być powierzane lub przekazywane podmiotom współpracującym z Heated Box Sp. z o.o. w celach marketingowych.<br /><br />
 
-        W każdym momencie możecie Państwo skontaktować się z administratorem pod adresem biuro@pricesafari.pl w celu uzyskania informacji o zakresie przetwarzanych danych, dokonania ich sprostowania lub uzupełnienia, jak również zażądania zaprzestania ich przetwarzania. Szersze informacje o sposobie przetwarzania danych przez Heated Box Sp. z o.o. oraz o Państwa uprawnieniach znajdziecie Państwo na stronie internetowej: <a href=""https://pricesafari.pl/Home/PrivacyPolicy"">https://pricesafari.pl/Home/PrivacyPolicy</a>
+        W każdym momencie możecie Państwo skontaktować się z administratorem pod adresem biuro@pricesafari.pl w celu uzyskania informacji o zakresie przetwarzanych danych, dokonania ich sprostowania lub uzupełnienia, jak również zażądania zaprzestania ich przetwarzania. Szersze informacje o sposobie przetwarzania danych przez Heated Box Sp. z o.o. oraz o Państwa uprawnieniach znajdziecie Państwo na stronie internetowej: <a href=""https:
     </p>";
     }
-
-
 
 }
