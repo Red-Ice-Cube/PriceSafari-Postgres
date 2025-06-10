@@ -27,15 +27,15 @@
       "enabled": true
     }
   },
-  {
-    "outputFileName": "wwwroot/css/Home/header.min.css",
-    "inputFiles": [
-      "wwwroot/css/Home/Header.css"
-    ],
-    "minify": {
-      "enabled": true
-    }
-  },
+  //{
+  //  "outputFileName": "wwwroot/css/Home/header.min.css",
+  //  "inputFiles": [
+  //    "wwwroot/css/Home/Header.css"
+  //  ],
+  //  "minify": {
+  //    "enabled": true
+  //  }
+  //},
   {
     "outputFileName": "wwwroot/js/Home/index.min.js",
     "inputFiles": [
@@ -46,15 +46,6 @@
     }
   },
 
-  {
-    "outputFileName": "wwwroot/js/Manager/affiliateprofile.min.js",
-    "inputFiles": [
-      "wwwroot/js/Manager/AffiliateProfile.js"
-    ],
-    "minify": {
-      "enabled": true
-    }
-  },
 
   {
     "outputFileName": "wwwroot/js/Manager/scrape.min.js",

@@ -1,5 +1,5 @@
 ﻿
-.Nav-Bar {
+/*.Nav-Bar {
     display: flex;
     height: 72px;
     padding: 4px 128px;
@@ -189,12 +189,12 @@
     display: flex;
     font-size: 14px;
     color: rgba(0, 0, 0, 0.5);
-}
+}*/
 
 /* Menu Mobile */
 
 /* Stylizacja ikony hamburgera */
-.Nav-Bar-Hamburger {
+/*.Nav-Bar-Hamburger {
     display: none;
     flex-direction: column;
     cursor: pointer;
@@ -207,10 +207,10 @@
         background-color: #fff;
         margin: 4px 0;
         transition: 0.4s;
-    }
+    }*/
 
 /* Stylizacja bocznego menu */
-.Mobile-Menu {
+/*.Mobile-Menu {
     position: fixed;
     top: 0;
     right: -300px;
@@ -227,10 +227,10 @@
 
     .Mobile-Menu.open {
         right: 0;
-    }
+    }*/
 
 /* Lista w menu mobilnym */
-.Mobile-Menu-List {
+/*.Mobile-Menu-List {
     list-style: none;
     padding: 0;
     margin: 0;
@@ -258,12 +258,12 @@
 .Mobile-Menu-Item.active > .Mobile-Menu-Link {
     background-color: rgba(255, 255, 255, 0.1);
     color: #41c7c7;
-}
+}*/
 
 
 
 /* Stylizacja podmenu */
-.Mobile-Submenu {
+/*.Mobile-Submenu {
     list-style: none;
     padding: 0;
     margin: 0;
@@ -274,8 +274,8 @@
 }
 
     .Mobile-Submenu.open {
-        max-height: 500px; /* Dostosuj wartość w zależności od potrzeb */
-    }
+        max-height: 500px;*/ /* Dostosuj wartość w zależności od potrzeb */
+    /*}
 
     .Mobile-Submenu li {
         border-bottom: 1px solid rgba(255, 255, 255, 0.1);
@@ -291,17 +291,17 @@
 
         .Mobile-Submenu a:hover {
             background-color: rgba(255, 255, 255, 0.1);
-        }
+        }*/
 
 /* Stylizacja subtekstów w podmenu */
-.Mobile-Submenu-Desc {
+/*.Mobile-Submenu-Desc {
     font-size: 14px;
     color: rgba(255, 255, 255, 0.7);
     margin-top: 5px;
-}
+}*/
 
 /* Ikona strzałki przy linkach z podmenu */
-.Mobile-Menu-Link::after {
+/*.Mobile-Menu-Link::after {
     content: '\25BC';
     position: absolute;
     right: 20px;
@@ -311,10 +311,10 @@
 
 .Mobile-Menu-Link.open::after {
     transform: rotate(180deg);
-}
+}*/
 
 /* Overlay mobilny */
-.overlay-mobile {
+/*.overlay-mobile {
     position: fixed;
     top: 0;
     left: 0;
@@ -335,10 +335,10 @@
         background: rgba(0, 0, 0, 0.4);
         backdrop-filter: blur(2px);
         pointer-events: auto;
-    }
+    }*/
 
 /* Dodatkowe style dla przycisków na dole menu */
-.Mobile-bottom {
+/*.Mobile-bottom {
     display: flex;
     flex-direction: column;
     padding: 16px;
@@ -372,10 +372,10 @@
 .Mobile-login {
     border: 2px solid rgba(6, 6, 6, 0.92);
     background: rgba(6, 6, 6, 0.3);
-}
+}*/
 
 /* Media queries */
-@media (max-width: 1212px) {
+/*@media (max-width: 1212px) {
     .Nav-Bar-Hamburger {
         display: flex;
     }
@@ -387,12 +387,12 @@
 
     .Mobile-Menu {
         display: flex;
-    }
+    }*/
 
 
 
     /* Nawigacja */
-    .Nav-Bar {
+    /*.Nav-Bar {
         padding: 4px 16px;
     }
 
@@ -408,11 +408,11 @@
         .Nav-Bar-Scal-Box.nav-buttons {
             flex-direction: column;
             gap: 8px;
-        }
+        }*/
 
             /* Przyciski nawigacji */
-            .Nav-Bar-Scal-Box.nav-buttons .Nav-Bar-Button {
+            /*.Nav-Bar-Scal-Box.nav-buttons .Nav-Bar-Button {
                 width: 100%;
                 justify-content: center;
             }
-}
+}*/

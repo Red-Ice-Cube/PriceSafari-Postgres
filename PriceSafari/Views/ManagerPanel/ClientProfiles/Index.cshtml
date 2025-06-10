@@ -33,6 +33,7 @@
 
             <div class="product-upper-box" style="justify-content: flex-start; gap:16px;">
                 <a asp-action="Create" class="Button-Page-Small">Dodaj profil</a>
+                <button type="button" class="Button-Page-Small-gr" onclick="exportToCsv()">Eksportuj do CSV</button>
                 <a asp-action="Index" asp-controller="ClientProfileScraper" class="Button-Page-Small-r">Scraper Klientów</a>
                
                 
@@ -267,6 +268,52 @@
         // Na starcie przelicz liczbę kont
         calculateAccounts();
     });
+
+
+
+        function exportToCsv() {
+        // 1. Zbierz wszystkie e-maile z zaznaczonych i widocznych wierszy
+        const emails = [];
+        document.querySelectorAll('.select-client:checked').forEach(checkbox => {
+            const row = checkbox.closest('tr');
+
+            // Upewnij się, że przetwarzamy tylko widoczne wiersze (po filtrowaniu)
+            if (row.style.display !== 'none') {
+                // Znajdź wszystkie divy z emailami w 5. kolumnie (td)
+                const emailDivs = row.querySelectorAll('td:nth-child(5) div');
+                emailDivs.forEach(div => {
+                    emails.push(div.textContent.trim());
+                });
+            }
+        });
+
+        // 2. Sprawdź, czy cokolwiek zostało wybrane
+        if (emails.length === 0) {
+            alert('Wybierz klientów, aby wyeksportować ich adresy e-mail!');
+            return;
+        }
+
+        // 3. Przygotuj zawartość pliku CSV
+        // Dodajemy nagłówek kolumny
+        let csvContent = "Email\n";
+        // Dodajemy każdy email w nowej linii
+        csvContent += emails.join("\n");
+
+        // 4. Stwórz i pobierz plik CSV
+        // Używamy BOM, aby Excel poprawnie rozpoznał kodowanie UTF-8
+        const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement("a");
+        const url = URL.createObjectURL(blob);
+
+        link.setAttribute("href", url);
+        link.setAttribute("download", "eksport_maili.csv");
+        link.style.visibility = 'hidden';
+
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+
 
     function sendEmails() {
         var selectedIds = [];
