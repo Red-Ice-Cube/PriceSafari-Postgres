@@ -316,13 +316,13 @@ namespace PriceSafari.Controllers
                 var marginData = await ParseExcelFile(uploadedFile);
                 if (marginData == null || !marginData.Any())
                 {
-                    _logger.LogWarning("Plik nie zawiera poprawnych danych marż");
+                    _logger.LogWarning("Plik nie zawiera poprawnych danych o cenach zakupu.");
                     TempData["ErrorMessage"] = "Plik nie zawiera poprawnych danych.";
                     return RedirectToAction("ProductList", new { storeId });
                 }
-                _logger.LogInformation("Pobrano {Count} wpisów marż z pliku", marginData.Count);
+                _logger.LogInformation("Pobrano {Count} wpisów cen zakupu z pliku", marginData.Count);
 
-                // 3) Aktualizacja marż w bazie
+                // 3) Aktualizacja cen zakupu w bazie
                 var products = await _context.Products
                     .Where(p => p.StoreId == storeId && !string.IsNullOrEmpty(p.Ean))
                     .ToListAsync();
@@ -333,16 +333,16 @@ namespace PriceSafari.Controllers
                 {
                     if (marginData.TryGetValue(prod.Ean, out var m))
                     {
-                        _logger.LogInformation("Aktualizuję produkt EAN={Ean} marża={Margin}", prod.Ean, m);
+                        _logger.LogInformation("Aktualizuję produkt EAN={Ean} Cena zakupu={Margin}", prod.Ean, m);
                         prod.MarginPrice = m;
                         updatedCount++;
                     }
                 }
 
                 await _context.SaveChangesAsync();
-                _logger.LogInformation("Zaktualizowano marże dla {UpdatedCount} produktów", updatedCount);
+                _logger.LogInformation("Zaktualizowano ceny zakupu dla {UpdatedCount} produktów", updatedCount);
 
-                TempData["SuccessMessage"] = $"Marże zostały zaktualizowane dla {updatedCount} produktów.";
+                TempData["SuccessMessage"] = $"Ceny zakupu zostały zaktualizowane dla {updatedCount} produktów.";
                 return RedirectToAction("ProductList", new { storeId });
             }
             catch (Exception ex)
@@ -536,6 +536,70 @@ namespace PriceSafari.Controllers
                     };
                 }
                 return null;
+            }
+        }
+
+
+        [HttpPost]
+        [ValidateAntiForgeryToken] // Dodajemy dla bezpieczeństwa, jeśli formularz modalny go wysyła lub jeśli zdecydujemy się go dodać do JS
+        public async Task<IActionResult> ClearAllPurchasePrices(int storeId)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            _logger.LogInformation("Attempting to clear all purchase prices for StoreId={StoreId} by UserId={UserId}", storeId, userId);
+
+            // 1. Sprawdzenie dostępu użytkownika do sklepu
+            var userStore = await _context.UserStores
+                .FirstOrDefaultAsync(us => us.UserId == userId && us.StoreId == storeId);
+
+            if (userStore == null)
+            {
+                _logger.LogWarning("User {UserId} does not have access to StoreId {StoreId} for ClearAllPurchasePrices.", userId, storeId);
+                return Forbid();
+            }
+
+            // 2. Sprawdzenie czy sklep istnieje (choć userStore by to implikował)
+            var storeExists = await _context.Stores.AnyAsync(s => s.StoreId == storeId);
+            if (!storeExists)
+            {
+                _logger.LogWarning("Store with StoreId {StoreId} not found for ClearAllPurchasePrices.", storeId);
+                return NotFound(new { success = false, message = "Sklep nie został znaleziony." });
+            }
+
+            try
+            {
+                // 3. Pobranie wszystkich produktów dla danego sklepu i ustawienie MarginPrice na null
+                var productsInStore = await _context.Products
+                    .Where(p => p.StoreId == storeId)
+                    .ToListAsync();
+
+                int clearedCount = 0;
+                if (productsInStore.Any())
+                {
+                    foreach (var product in productsInStore)
+                    {
+                        if (product.MarginPrice != null) // Czyścimy tylko jeśli cena była ustawiona
+                        {
+                            product.MarginPrice = null;
+                            clearedCount++;
+                        }
+                    }
+                    await _context.SaveChangesAsync();
+                    _logger.LogInformation("Successfully cleared purchase prices for {ClearedCount} products in StoreId={StoreId}.", clearedCount, storeId);
+                    TempData["SuccessMessage"] = $"Pomyślnie usunięto ceny zakupu dla {clearedCount} produktów.";
+                    return Json(new { success = true, message = $"Pomyślnie usunięto ceny zakupu dla {clearedCount} produktów." });
+                }
+                else
+                {
+                    _logger.LogInformation("No products found in StoreId={StoreId} to clear purchase prices.", storeId);
+                    TempData["SuccessMessage"] = "Brak produktów w sklepie, nie usunięto żadnych cen zakupu.";
+                    return Json(new { success = true, message = "Brak produktów w sklepie, nie usunięto żadnych cen zakupu." });
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error during ClearAllPurchasePrices for StoreId={StoreId}.", storeId);
+                // TempData["ErrorMessage"] nie będzie widoczne dla odpowiedzi JSON, ale jest dobre dla logów.
+                return StatusCode(500, new { success = false, message = "Wystąpił wewnętrzny błąd serwera podczas usuwania cen zakupu." });
             }
         }
 

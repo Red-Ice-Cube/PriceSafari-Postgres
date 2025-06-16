@@ -97,10 +97,10 @@
                         button.innerHTML = stateValue === 'asc' ? 'Obniż % ↑' : 'Obniż % ↓';
                         break;
                     case 'sortMarginAmount':
-                        button.innerHTML = stateValue === 'asc' ? 'Marża PLN ↑' : 'Marża PLN ↓';
+                        button.innerHTML = stateValue === 'asc' ? 'Narzut PLN ↑' : 'Narzut PLN ↓';
                         break;
                     case 'sortMarginPercentage':
-                        button.innerHTML = stateValue === 'asc' ? 'Marża % ↑' : 'Marża % ↓';
+                        button.innerHTML = stateValue === 'asc' ? 'Narzut % ↑' : 'Narzut % ↓';
                         break;
                     case 'showRejected':
 
@@ -1072,7 +1072,7 @@
                     if (item.marginPrice == null) {
                         showGlobalNotification(
                             `<p style="margin:8px 0; font-weight:bold;">Zmiana ceny nie została dodana</p>
-                         <p>Symulacja cenowa z marżą jest włączona – produkt musi posiadać cenę zakupu.</p>`
+                         <p>Symulacja cenowa z narzutem jest włączona – produkt musi posiadać cenę zakupu.</p>`
                         );
                         return;
                     }
@@ -1100,7 +1100,7 @@
                         if (item.marginPrice == null) {
                             showGlobalNotification(
                                 `<p style="margin:8px 0; font-weight:bold;">Zmiana ceny nie została dodana</p>
-                         <p>Symulacja cenowa z marżą jest włączona – produkt musi posiadać cenę zakupu.</p>`
+                         <p>Symulacja cenowa z narzutem jest włączona – produkt musi posiadać cenę zakupu.</p>`
                             );
                             return;
                         }
@@ -1140,13 +1140,13 @@
                                     let reason = "";
                                     if (oldMargin >= marginSettings.minimalMarginPercent) {
 
-                                        reason = `Zmiana obniża marżę z <strong>${oldMargin}%</strong> (która spełniała minimum) do <strong>${newMargin}%</strong>, czyli poniżej wymaganego progu <strong>${marginSettings.minimalMarginPercent}%</strong>.`;
+                                        reason = `Zmiana obniża narzut z <strong>${oldMargin}%</strong> (który spełniał minimum) do <strong>${newMargin}%</strong>, czyli poniżej wymaganego progu <strong>${marginSettings.minimalMarginPercent}%</strong>.`;
                                     } else if (newMargin <= oldMargin) {
 
-                                        reason = `Nowa marża (<strong>${newMargin}%</strong>) jest poniżej wymaganego minimum (<strong>${marginSettings.minimalMarginPercent}%</strong>) i nie stanowi poprawy (lub jest pogorszeniem) poprzedniej, już niskiej marży (<strong>${oldMargin}%</strong>).`;
+                                        reason = `Nowy narzut (<strong>${newMargin}%</strong>) jest poniżej wymaganego minimum (<strong>${marginSettings.minimalMarginPercent}%</strong>) i nie stanowi poprawy (lub jest pogorszeniem) poprzedniego, już niskiego narzutu (<strong>${oldMargin}%</strong>).`;
                                     } else {
 
-                                        reason = `Nowa marża (<strong>${newMargin}%</strong>) jest poniżej wymaganego minimum (<strong>${marginSettings.minimalMarginPercent}%</strong>), a warunki poprawy nie zostały spełnione (poprzednia marża: <strong>${oldMargin}%</strong>).`;
+                                        reason = `Nowy narzut (<strong>${newMargin}%</strong>) jest poniżej wymaganego minimum (<strong>${marginSettings.minimalMarginPercent}%</strong>), a warunki poprawy nie zostały spełnione (poprzedni narzut: <strong>${oldMargin}%</strong>).`;
                                     }
 
                                     showGlobalNotification(
@@ -1167,7 +1167,7 @@
                                 if (!(oldMargin < 0 && newMargin > oldMargin)) {
                                     showGlobalNotification(
                                         `<p style="margin:8px 0; font-weight:bold;">Zmiana ceny nie została dodana</p>
-                                 <p>Nowa cena <strong>${suggestedPriceDisplay}</strong> spowoduje ujemną marżę (nowa marża: <strong>${newMargin}%</strong>).</p>
+                                 <p>Nowa cena <strong>${suggestedPriceDisplay}</strong> spowoduje ujemny narzut (nowy narzut: <strong>${newMargin}%</strong>).</p>
                                  <p>Cena zakupu wynosi <strong>${item.marginPrice.toFixed(2)} PLN</strong>. Zmiana nie może zostać zastosowana.</p>`
                                     );
                                     return;
@@ -1177,8 +1177,8 @@
                             if (marginSettings.minimalMarginPercent < 0 && newMargin > marginSettings.minimalMarginPercent) {
                                 showGlobalNotification(
                                     `<p style="margin:8px 0; font-weight:bold;">Zmiana ceny nie została dodana</p>
-                             <p>Nowa cena <strong>${suggestedPriceDisplay}</strong> ustawi marżę (<strong>${newMargin}%</strong>), która jest powyżej dopuszczalnego progu straty (<strong>${marginSettings.minimalMarginPercent}%</strong>).</p>
-                             <p>Nowa marża wynosi <strong>${newMargin}%</strong>.</p>`
+                             <p>Nowa cena <strong>${suggestedPriceDisplay}</strong> ustawi narzut (<strong>${newMargin}%</strong>), który jest powyżej dopuszczalnego progu straty (<strong>${marginSettings.minimalMarginPercent}%</strong>).</p>
+                             <p>Nowy narzut wynosi <strong>${newMargin}%</strong>.</p>`
                                 );
                                 return;
                             }
@@ -1192,7 +1192,7 @@
                             if (!(oldMargin < 0 && newMargin > oldMargin)) {
                                 showGlobalNotification(
                                     `<p style="margin:8px 0; font-weight:bold;">Zmiana ceny nie została dodana</p>
-                                 <p>Nowa cena <strong>${suggestedPrice.toFixed(2)} PLN</strong> spowoduje ujemną marżę (nowa marża: <strong>${newMargin}%</strong>).</p>
+                                 <p>Nowa cena <strong>${suggestedPrice.toFixed(2)} PLN</strong> spowoduje ujemny narzut (nowy narzut: <strong>${newMargin}%</strong>).</p>
                                  <p>Cena zakupu wynosi <strong>${item.marginPrice.toFixed(2)} PLN</strong>. Zmiana nie może zostać zastosowana.</p>`
                                 );
                                 return;
@@ -1202,8 +1202,8 @@
                         if (marginSettings.minimalMarginPercent < 0 && newMargin > marginSettings.minimalMarginPercent) {
                             showGlobalNotification(
                                 `<p style="margin:8px 0; font-weight:bold;">Zmiana ceny nie została dodana</p>
-                             <p>Nowa cena <strong>${suggestedPrice.toFixed(2)} PLN</strong> ustawi marżę (<strong>${newMargin}%</strong>), która jest powyżej dopuszczalnego progu straty (<strong>${marginSettings.minimalMarginPercent}%</strong>).</p>
-                             <p>Nowa marża wynosi <strong>${newMargin}%</strong>.</p>`
+                             <p>Nowa cena <strong>${suggestedPrice.toFixed(2)} PLN</strong> ustawi narzut (<strong>${newMargin}%</strong>), który jest powyżej dopuszczalnego progu straty (<strong>${marginSettings.minimalMarginPercent}%</strong>).</p>
+                             <p>Nowy narzut wynosi <strong>${newMargin}%</strong>.</p>`
                             );
                             return;
                         }
@@ -1249,13 +1249,13 @@
 
                     let finalMargin = ((finalPriceForMarginCalculation - item.marginPrice) / item.marginPrice) * 100;
                     finalMargin = parseFloat(finalMargin.toFixed(2));
-                    message += `<p style="margin:4px 0;"><strong>Nowa marża:</strong> ${finalMargin}%</p>`;
+                    message += `<p style="margin:4px 0;"><strong>Nowy narzut:</strong> ${finalMargin}%</p>`;
                     message += `<p style="margin:4px 0;"><strong>Cena zakupu:</strong> ${item.marginPrice.toFixed(2)} PLN</p>`;
                     if (marginSettings.enforceMinimalMargin) {
                         if (marginSettings.minimalMarginPercent > 0) {
-                            message += `<p style="margin:4px 0;"><strong>Minimalna wymagana marża:</strong> ${marginSettings.minimalMarginPercent}%</p>`;
+                            message += `<p style="margin:4px 0;"><strong>Minimalny wymagany narzut:</strong> ${marginSettings.minimalMarginPercent}%</p>`;
                         } else if (marginSettings.minimalMarginPercent < 0) {
-                            message += `<p style="margin:4px 0;"><strong>Maksymalne obniżenie marży:</strong> ${marginSettings.minimalMarginPercent}%</p>`;
+                            message += `<p style="margin:4px 0;"><strong>Maksymalne obniżenie narzutu:</strong> ${marginSettings.minimalMarginPercent}%</p>`;
                         }
                     }
                 }
@@ -1424,7 +1424,7 @@
 
                     const marginBox = document.createElement('div');
                     marginBox.className = 'price-box-diff-margin ' + marginClass;
-                    marginBox.innerHTML = '<p>Marża: ' + formattedMarginAmount + ' ' + formattedMarginPercentage + '</p>';
+                    marginBox.innerHTML = '<p>Narzut: ' + formattedMarginAmount + ' ' + formattedMarginPercentage + '</p>';
 
                     externalInfoContainer.appendChild(marginBox);
                 }
@@ -2440,8 +2440,8 @@
                 }
             })
             .catch(error => {
-                console.error('Błąd zapisu ustawień marży:', error);
-                showGlobalNotification('<p style="margin-bottom:8px; font-weight:bold;">Błąd zapisu ustawień</p><p>Wystąpił błąd podczas zapisywania ustawień marży.</p>');
+                console.error('Błąd zapisu ustawień narzutu:', error);
+                showGlobalNotification('<p style="margin-bottom:8px; font-weight:bold;">Błąd zapisu ustawień</p><p>Wystąpił błąd podczas zapisywania ustawień narzutu.</p>');
             });
     });
     function updateColorCounts(data) {
@@ -2690,9 +2690,9 @@
             case 'sortLowerPercentage':
                 return 'Obniż %';
             case 'sortMarginAmount':
-                return 'Marża PLN';
+                return 'Narzut PLN';
             case 'sortMarginPercentage':
-                return 'Marża %';
+                return 'Narzut %';
             case 'showRejected':
                 return 'Pokaż Odrzucone';
             default:
@@ -2859,15 +2859,15 @@
     document.getElementById('sortMarginAmount').addEventListener('click', function () {
         if (sortingState.sortMarginAmount === null) {
             sortingState.sortMarginAmount = 'asc';
-            this.innerHTML = 'Marża PLN ↑';
+            this.innerHTML = 'Narzut PLN ↑';
             this.classList.add('active');
         } else if (sortingState.sortMarginAmount === 'asc') {
             sortingState.sortMarginAmount = 'desc';
-            this.innerHTML = 'Marża PLN ↓';
+            this.innerHTML = 'Narzut PLN ↓';
             this.classList.add('active');
         } else {
             sortingState.sortMarginAmount = null;
-            this.innerHTML = 'Marża PLN';
+            this.innerHTML = 'Narzut PLN';
             this.classList.remove('active');
         }
         resetSortingStates('sortMarginAmount');
@@ -2878,15 +2878,15 @@
     document.getElementById('sortMarginPercentage').addEventListener('click', function () {
         if (sortingState.sortMarginPercentage === null) {
             sortingState.sortMarginPercentage = 'asc';
-            this.innerHTML = 'Marża % ↑';
+            this.innerHTML = 'Narzut % ↑';
             this.classList.add('active');
         } else if (sortingState.sortMarginPercentage === 'asc') {
             sortingState.sortMarginPercentage = 'desc';
-            this.innerHTML = 'Marża % ↓';
+            this.innerHTML = 'Narzut % ↓';
             this.classList.add('active');
         } else {
             sortingState.sortMarginPercentage = null;
-            this.innerHTML = 'Marża %';
+            this.innerHTML = 'Narzut %';
             this.classList.remove('active');
         }
         resetSortingStates('sortMarginPercentage');

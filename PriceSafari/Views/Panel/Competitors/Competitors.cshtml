@@ -62,7 +62,30 @@
                     @foreach (var competitor in Model)
                     {
                         <tr data-url="@Url.Action("CompetitorPrices", "Competitors", new { storeId = storeId, competitorStoreName = competitor.StoreName })">
-                            <td class="competitor-name">@competitor.StoreName</td>
+                            <td class="competitor-name">
+                                @competitor.StoreName
+                                @{
+                                  
+                                    string googleIcon = "<img src=\"/images/GoogleShopping.png\" alt=\"Google Icon\" style=\"width:17px; height:17px; margin-left: 6px; vertical-align: middle;\">";
+                                    string ceneoIcon = "<img src=\"/images/Ceneo.png\" alt=\"Ceneo Icon\" style=\"width:17px; height:17px; margin-left: 4px; vertical-align: middle;\">";
+
+                                    if (competitor.DataSourceDescription == "Google")
+                                    {
+                                        @Html.Raw(googleIcon)
+                                    }
+                                    else if (competitor.DataSourceDescription == "Ceneo")
+                                    {
+                                        @Html.Raw(ceneoIcon)
+                                    }
+                                    else if (competitor.DataSourceDescription == "Google & Ceneo")
+                                    {
+                                        @Html.Raw(googleIcon)
+                                
+                                        @Html.Raw(ceneoIcon)
+                                     
+                                    }
+                                }
+                            </td>
                             <td>@competitor.CommonProductsCount</td>
                             <td>
                                 <div class="competitorsBarBox">
@@ -81,4 +104,4 @@
     </div>
 </div>
 
-<script src="~/js/member/competitors.min.js"></script>
+<script src="~/js/member/Competitors.js"></script>

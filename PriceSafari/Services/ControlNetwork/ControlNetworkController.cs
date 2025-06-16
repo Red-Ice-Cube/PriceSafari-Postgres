@@ -185,20 +185,9 @@ namespace PriceSafari.Services.ControlNetwork
                             disableErrors.Add(errorMsg);
                             continue;
                         }
-
-                        // Czekaj na zakończenie procesu, ale z timeoutem (np. 10 sekund)
-                        // W przypadku UAC, WaitForExit może nie działać zgodnie z oczekiwaniami, jeśli UseShellExecute=true
-                        // Tutaj zakładamy, że proces albo szybko się zakończy, albo go nie monitorujemy ściśle jeśli UAC blokuje.
-                        // Dla operacji 'runas' z UseShellExecute=true, precyzyjne WaitForExit jest trudne.
-                        // Zamiast tego, polegamy na tym, że polecenie zostanie wydane.
-                        // Można dodać krótkie opóźnienie, aby dać czas na wykonanie.
                         await Task.Delay(TimeSpan.FromSeconds(3), cancellationToken); // Krótkie opóźnienie na wykonanie polecenia
 
-                        // Sprawdzenie, czy interfejs jest teraz wyłączony, byłoby bardziej wiarygodne,
-                        // ale 'netsh' z 'runas' i 'UseShellExecute=true' nie pozwala łatwo odczytać ExitCode.
-                        // Dlatego zakładamy, że polecenie zostało wysłane.
-                        // Dla uproszczenia, uznajemy, że polecenie zostało poprawnie *wysłane*.
-                        // Prawdziwa weryfikacja będzie przy sprawdzaniu ponownego połączenia.
+       
                         _logger.LogInformation($"Polecenie wyłączenia dla '{interfaceName}' zostało wysłane.");
                         anyDisableSuccess = true; // Zakładamy, że wysłanie polecenia to częściowy sukces
                     }
@@ -217,9 +206,7 @@ namespace PriceSafari.Services.ControlNetwork
                 }
             }
 
-            // Jeśli żadne polecenie wyłączenia nie zostało nawet pomyślnie wysłane (np. same wyjątki)
-            // LUB jeśli wszystkie próby skutkowały błędami (choć to trudne do stwierdzenia bez ExitCode)
-            // Na razie uprościmy: jeśli anyDisableSuccess jest false, to znaczy, że coś poszło bardzo nie tak na etapie prób wyłączenia.
+
             if (!anyDisableSuccess && disableErrors.Count == TargetVpnInterfaceNames.Count)
             {
                 _logger.LogError("Nie udało się zainicjować operacji wyłączenia dla żadnego z docelowych interfejsów VPN.");

@@ -22,11 +22,17 @@ namespace PriceSafari.Models
         [Key]
         public int ClientProfileId { get; set; }
 
-        public string CeneoProfileUrl { get; set; }
+        public string? CeneoProfileUrl { get; set; }
+
+        [Required(ErrorMessage = "Nazwa firmy jest wymagana.")]
         public string CeneoProfileName { get; set; }
+
+        [Required(ErrorMessage = "Email jest wymagany.")]
         public string CeneoProfileEmail { get; set; }
-        public string CeneoProfileTelephone { get; set; }
-        public int CeneoProfileProductCount { get; set; }
+
+        public string? CeneoProfileTelephone { get; set; }
+
+        public int? CeneoProfileProductCount { get; set; }
 
         public DateTime CreationDate { get; set; } = DateTime.Now;
 
@@ -38,8 +44,15 @@ namespace PriceSafari.Models
 
         public DateTime? ScheduledMeetingDate { get; set; }
 
-        // New properties
-        public int EmailSentCount { get; set; } = 0; // Default to 0
+        public int EmailSentCount { get; set; } = 0;
         public DateTime? LastEmailSentDate { get; set; }
+
+        public ClientSource Source { get; set; } = ClientSource.Ceneo;
+    }
+
+    public enum ClientSource
+    {
+        Ceneo,
+        Google
     }
 }

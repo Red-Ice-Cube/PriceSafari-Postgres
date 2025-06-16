@@ -12,6 +12,7 @@ using PriceSafari.Services.ScheduleService;
 using PriceSafari.Models.SchedulePlan;
 using PriceSafari.SignalIR;
 using PriceSafari.Services.ControlNetwork;
+using PdfSharp.Fonts;
 
 
 
@@ -60,6 +61,10 @@ public class Program
         builder.Services.AddScoped<GoogleScraperService>();
         builder.Services.AddScoped<CeneoScraperService>();
         builder.Services.AddScoped<INetworkControlService, NetworkControlService>();
+
+
+
+        GlobalFontSettings.UseWindowsFontsUnderWindows = true;
 
 
         builder.Services.AddMemoryCache();
@@ -196,6 +201,9 @@ public class Program
             }
         }
     }
+
+
+
 
 
 }

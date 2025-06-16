@@ -1,9 +1,6 @@
-﻿
-
-
-@model IEnumerable<PriceSafari.Models.ClientProfile>
+﻿@model IEnumerable<PriceSafari.Models.ClientProfile>
 @{
-    Layout = "~/Views/Shared/_PanelLayout.cshtml";  
+    Layout = "~/Views/Shared/_PanelLayout.cshtml";
     var users = Model.Where(m => m.CreatedByUser != null)
                      .GroupBy(m => m.CreatedByUser.Id)
                      .Select(g => g.First().CreatedByUser);
@@ -13,7 +10,6 @@
     .checkbox-cell {
         cursor: pointer;
     }
-    
 
     .select-client {
         cursor: pointer;
@@ -33,41 +29,43 @@
 
             <div class="product-upper-box" style="justify-content: flex-start; gap:16px;">
                 <a asp-action="Create" class="Button-Page-Small">Dodaj profil</a>
+                <button type="button" class="Button-Page-Small-gr" onclick="exportToCsv()">Eksportuj do CSV</button>
                 <a asp-action="Index" asp-controller="ClientProfileScraper" class="Button-Page-Small-r">Scraper Klientów</a>
-               
-                
-                    <input type="text" id="accountSearch" placeholder="Wyszukaj firmę">
 
-                    <div style="display:flex; flex-direction:column;">
-                        <input type="date" class="dateSelect" id="startDate" placeholder="Data od (Nadanie)" />
-                        <input type="date" class="dateSelect" id="endDate" placeholder="Data do (Nadanie)" />
-                    </div>
+                <input type="text" id="accountSearch" placeholder="Wyszukaj firmę">
 
-                    <select id="createdByFilter" class="DropDown">
-                        <option value="">Wszystkie osoby</option>
-                        @foreach (var user in users)
-                        {
-                            <option value="@user.Id.ToString()">@user.PartnerName @user.PartnerSurname</option>
-                        }
-                    </select>
+                <div style="display:flex; flex-direction:column;">
+                    <input type="date" class="dateSelect" id="startDate" placeholder="Data od (Nadanie)" />
+                    <input type="date" class="dateSelect" id="endDate" placeholder="Data do (Nadanie)" />
+                </div>
 
-                    <select id="statusFilter" class="DropDown">
-                        <option value="">Wszystkie statusy</option>
-                        @foreach (var status in Enum.GetValues(typeof(PriceSafari.Models.ClientStatus)).Cast<PriceSafari.Models.ClientStatus>())
-                        {
-                            <option value="@((int)status)">@GetStatusDisplayName(status)</option>
-                        }
-                    </select>
+                <select id="createdByFilter" class="DropDown">
+                    <option value="">Wszystkie osoby</option>
+                    @foreach (var user in users)
+                    {
+                        <option value="@user.Id.ToString()">@user.PartnerName @user.PartnerSurname</option>
+                    }
+                </select>
 
-                
+                <select id="statusFilter" class="DropDown">
+                    <option value="">Wszystkie statusy</option>
+                    @foreach (var status in Enum.GetValues(typeof(PriceSafari.Models.ClientStatus)).Cast<PriceSafari.Models.ClientStatus>())
+                    {
+                        <option value="@((int)status)">@GetStatusDisplayName(status)</option>
+                    }
+                </select>
 
-                    <button type="button" class="Button-Page-Small-b" onclick="sendEmails()">Kokpit wiadomości E-mail</button>
-             
+                <select id="sourceFilter" class="DropDown">
+                    <option value="">Wszystkie źródła</option>
+                    @foreach (var source in Enum.GetValues(typeof(PriceSafari.Models.ClientSource)).Cast<PriceSafari.Models.ClientSource>())
+                    {
+                        <option value="@((int)source)">@GetSourceDisplayName(source)</option>
+                    }
+                </select>
 
-               
+                <button type="button" class="Button-Page-Small-b" onclick="sendEmails()">Kokpit wiadomości E-mail</button>
             </div>
 
-            <!-- Display any messages -->
             @if (TempData["ErrorMessage"] != null)
             {
                 <div class="alert alert-danger">@TempData["ErrorMessage"]</div>
@@ -93,14 +91,15 @@
                             <th>Wysłano</th>
                             <th>Nadanie</th>
                             <th>Dodał</th>
+                            <th>Źródło</th>
                         </tr>
                     </thead>
                     <tbody>
                         @foreach (var item in Model)
                         {
                             <tr data-contact-id="@item.ClientProfileId" data-contact="@item.ClientProfileId" data-createdby="@item.CreatedByUser?.Id.ToString()" data-status="@((int)item.Status)"
-                                data-nadanie="@(item.LastEmailSentDate.HasValue ? item.LastEmailSentDate.Value.ToString("yyyy-MM-dd HH:mm") : "")">
-                                
+                                data-nadanie="@(item.LastEmailSentDate.HasValue? item.LastEmailSentDate.Value.ToString("yyyy-MM-dd HH:mm") : "")"
+                                data-source="@((int)item.Source)">
 
                                 <td class="checkbox-cell">
                                     <input type="checkbox" name="selectedClientIds" value="@item.ClientProfileId" class="select-client" />
@@ -127,22 +126,27 @@
                                         <span>Brak adresu email</span>
                                     }
                                 </td>
-
-
                                 <td>
-                                    <a href="@item.CeneoProfileUrl" target="_blank" class="Button-Page-Small" onclick="event.stopPropagation()">Ceneo</a>
+                                    @if (!string.IsNullOrEmpty(item.CeneoProfileUrl))
+                                    {
+                                        <a href="@item.CeneoProfileUrl" target="_blank" class="Button-Page-Small" onclick="event.stopPropagation()">Ceneo</a>
+                                    }
+                                    else
+                                    {
+                                        <span>N/A</span>
+                                    }
                                 </td>
-                                <td>@item.CeneoProfileProductCount</td>
+                                <td>@(item.CeneoProfileProductCount.HasValue? item.CeneoProfileProductCount.ToString() : "N/A")</td>
                                 <td>
                                     <span class="badge" style="background-color:@GetStatusColor(item.Status)">
                                         @GetStatusDisplayName(item.Status)
                                     </span>
                                 </td>
                                 <td>@item.EmailSentCount</td>
-                                <td>@(item.LastEmailSentDate.HasValue ? item.LastEmailSentDate.Value.ToString("dd-MM-yyyy HH:mm") : "Brak")</td>
+                                <td>@(item.LastEmailSentDate.HasValue? item.LastEmailSentDate.Value.ToString("dd-MM-yyyy HH:mm") : "Brak")</td>
                                 <td>@item.CreatedByUser?.PartnerName @item.CreatedByUser?.PartnerSurname</td>
+                                <td>@GetSourceDisplayName(item.Source)</td>
                             </tr>
-                          
                         }
                     </tbody>
                 </table>
@@ -154,44 +158,31 @@
 <script>
     document.querySelectorAll('.table-orders tr[data-contact]').forEach(row => {
         row.addEventListener('click', function (event) {
-            // Sprawdź, czy kliknięty element lub jego rodzice mają klasę 'checkbox-cell'
             if (event.target.closest('.checkbox-cell')) {
-                // Jeśli tak, nie rób nic (już obsłużyliśmy kliknięcie w checkbox)
                 return;
             }
-
             var clientId = this.getAttribute('data-contact-id');
             window.location.href = '/ClientProfile/Edit/' + clientId;
         });
     });
 
-    // Funkcja do przeliczania liczby kont
     function calculateAccounts() {
         let accountsCount = $('.table-orders tbody tr:visible').length;
         document.getElementById('accountsCount').innerText = accountsCount;
     }
 
-    
-
     document.querySelectorAll('.checkbox-cell').forEach(cell => {
         cell.addEventListener('click', function (event) {
-            // Znajdź checkbox wewnątrz klikniętego td
             var checkbox = this.querySelector('.select-client');
-
-            // Jeśli kliknięto checkbox bezpośrednio, zachowaj jego domyślne działanie
             if (event.target === checkbox) {
                 return;
             }
-
-            // Przełączamy stan checkboxa, jeśli kliknięto poza checkboxem, ale w obrębie td
             if (checkbox) {
                 checkbox.checked = !checkbox.checked;
             }
         });
     });
 
-
-    // Obsługa checkboxa "Zaznacz wszystkie"
     document.getElementById('select-all').addEventListener('change', function () {
         var isChecked = this.checked;
         var rows = document.querySelectorAll('.table-orders tbody tr');
@@ -206,17 +197,16 @@
         });
     });
 
-     $(document).ready(function () {
+    $(document).ready(function () {
         function filterTable() {
             var searchText = $('#accountSearch').val().toLowerCase();
             var selectedUserId = $('#createdByFilter').val();
             var selectedStatus = $('#statusFilter').val();
+            var selectedSource = $('#sourceFilter').val(); // Nowy filtr dla źródła
 
-            // Pobieramy zakres dat z inputów
             var startDateVal = $('#startDate').val();
             var endDateVal   = $('#endDate').val();
 
-            // Jeśli pola nie są uzupełnione, będą null-ami
             var startDate = startDateVal ? new Date(startDateVal) : null;
             var endDate   = endDateVal   ? new Date(endDateVal)   : null;
 
@@ -224,19 +214,17 @@
                 var contactName = $(this).find('td:nth-child(4)').text().toLowerCase(); // 'Firma' column
                 var createdByUserId = $(this).data('createdby') ? $(this).data('createdby').toString() : '';
                 var status = $(this).data('status') !== undefined ? $(this).data('status').toString() : '';
+                var source = $(this).data('source') !== undefined ? $(this).data('source').toString() : ''; // Pobieranie źródła
 
-                // Odczytujemy datę z atrybutu data-nadanie
-                var nadanieVal = $(this).data('nadanie'); // np. "2024-02-28 10:30"
-                // Jeśli puste, to wiersz nie ma ustawionej daty
+                var nadanieVal = $(this).data('nadanie');
                 var rowDate = nadanieVal ? new Date(nadanieVal) : null;
 
-                // Dotychczasowe filtry
                 var matchesSearch = contactName.indexOf(searchText) > -1;
                 var matchesUser = selectedUserId === '' || createdByUserId == selectedUserId;
                 var matchesStatus = selectedStatus === '' || status == selectedStatus;
+                var matchesSource = selectedSource === '' || source == selectedSource; // Filtr po źródle
 
-                var matchesDate = true; // domyślnie true
-
+                var matchesDate = true;
                 if (startDate && (!rowDate || rowDate < startDate)) {
                     matchesDate = false;
                 }
@@ -244,29 +232,56 @@
                     matchesDate = false;
                 }
 
-                var shouldShow = matchesSearch && matchesUser && matchesStatus && matchesDate;
+                var shouldShow = matchesSearch && matchesUser && matchesStatus && matchesDate && matchesSource;
                 $(this).toggle(shouldShow);
             });
 
-            // Przeliczenie liczby kont po zastosowaniu filtru
             calculateAccounts();
-
-            // Zresetuj checkbox "Zaznacz wszystkie" po filtrowaniu
             $('#select-all').prop('checked', false);
         }
 
-        // Podłączamy zdarzenia do naszych inputów dat
         $('#startDate').on('change', filterTable);
         $('#endDate').on('change', filterTable);
-
-        // Pozostałe zdarzenia
         $('#accountSearch').on('keyup', filterTable);
         $('#createdByFilter').on('change', filterTable);
         $('#statusFilter').on('change', filterTable);
+        $('#sourceFilter').on('change', filterTable); // Podłączanie zdarzenia do nowego filtra źródła
 
-        // Na starcie przelicz liczbę kont
         calculateAccounts();
     });
+
+    function exportToCsv() {
+        const emails = [];
+        document.querySelectorAll('.select-client:checked').forEach(checkbox => {
+            const row = checkbox.closest('tr');
+            if (row.style.display !== 'none') {
+                const emailDivs = row.querySelectorAll('td:nth-child(5) div');
+                emailDivs.forEach(div => {
+                    emails.push(div.textContent.trim());
+                });
+            }
+        });
+
+        if (emails.length === 0) {
+            alert('Wybierz klientów, aby wyeksportować ich adresy e-mail!');
+            return;
+        }
+
+        let csvContent = "Email\n";
+        csvContent += emails.join("\n");
+
+        const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement("a");
+        const url = URL.createObjectURL(blob);
+
+        link.setAttribute("href", url);
+        link.setAttribute("download", "eksport_maili.csv");
+        link.style.visibility = 'hidden';
+
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
 
     function sendEmails() {
         var selectedIds = [];
@@ -278,19 +293,16 @@
             return;
         }
 
-        // Tworzysz formularz w locie
         const form = document.createElement('form');
         form.method = 'POST';
         form.action = '/ClientProfile/PrepareEmails';
 
-        // Dodaj token antyforgery
         const tokenInput = document.createElement('input');
         tokenInput.type = 'hidden';
         tokenInput.name = '__RequestVerificationToken';
         tokenInput.value = document.querySelector('input[name="__RequestVerificationToken"]').value;
         form.appendChild(tokenInput);
 
-        // Dodaj ID klientów
         selectedIds.forEach(id => {
             const hidden = document.createElement('input');
             hidden.type = 'hidden';
@@ -302,9 +314,7 @@
         document.body.appendChild(form);
         form.submit();
     }
-
 </script>
-
 
 
 @functions {
@@ -341,8 +351,16 @@
             _ => "Nieznany"
         };
     }
+
+    // Nowa funkcja do wyświetlania nazwy źródła
+    public string GetSourceDisplayName(PriceSafari.Models.ClientSource source)
+    {
+        return source switch
+        {
+            PriceSafari.Models.ClientSource.Ceneo => "Ceneo",
+            PriceSafari.Models.ClientSource.Google => "Google",
+            _ => "Nieznane"
+        };
+    }
 }
-
-<!-- Include the anti-forgery token -->
 @Html.AntiForgeryToken()
-
