@@ -522,12 +522,51 @@ public class ClientProfileController : Controller
     private string GetEmailContent3()
     {
         return @"
-        <p>To jest Mail #3 – inny wariant. Możemy też używać {ProductCount}, jeśli chcemy.</p>
-        ...
+        <div style=""font-family: Arial, Helvetica, sans-serif; color: #333333; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 5px; overflow: hidden;"">
+            <div style=""background-color: #2c3e50; color: #ffffff; padding: 20px; text-align: center;"">
+                <h1 style=""margin: 0; font-size: 24px;"">Poznaj PriceSafari.pl</h1>
+            </div>
+            <div style=""padding: 20px 30px; line-height: 1.6;"">
+                <p>Dzień dobry,</p>
+                <p>Prowadzimy monitoring cen produktów na Google Shopping i Ceneo.</p>
+                <p>Spojrzenie na cały rynek z jednego panelu pozwoli Państwu strategicznie zarządzać cenami własnych produktów, maksymalizować zyski i wyprzedzać konkurentów.</p>
+                
+                <h3 style=""color: #3498db; border-bottom: 2px solid #f0f0f0; padding-bottom: 5px; margin-top: 25px;"">Monitoring konkurencji z PriceSafari pozwoli szybko sprawdzić:</h3>
+                
+                <ul style=""list-style-type: none; padding-left: 0;"">
+                    <li style=""padding-bottom: 8px;"">✅ Kto ma najlepszą cenę na danym produkcie?</li>
+                    <li style=""padding-bottom: 8px;"">✅ Gdzie w rankingu cenowym znajduje się Państwa oferta?</li>
+                    <li style=""padding-bottom: 8px;"">✅ Kto i gdzie promuje oferty?</li>
+                    <li style=""padding-bottom: 8px;"">✅ Jak szeroka jest konkurencja?</li>
+                    <li style=""padding-bottom: 8px;"">✅ Jaki czas wysyłki oferują poszczególni konkurenci?</li>
+                    <li style=""padding-bottom: 8px;"">✅ Które ceny produktów można podnieść, aby maksymalizować zyski?</li>
+                    <li style=""padding-bottom: 8px;"">✅ Na jakich produktach wybrany konkurent zmienił wczoraj cenę?</li>
+                </ul>
+
+                <div style=""background-color: #f2f9ff; border-left: 4px solid #3498db; padding: 15px; margin: 25px 0;"">
+                    <p style=""margin: 0; font-weight: bold;"">Co-Pilot Cenowy</p>
+                    <p style=""margin: 5px 0 0 0;"">Funkcja ta pozwala masowo wprowadzać zmiany, symulować wyniki i eksportować nowe ceny dla setek produktów kilkoma kliknięciami.</p>
+                </div>
+
+                <p>Oferujemy <strong>bezpłatne konto przez 7 dni</strong>. Mogą Państwo przetestować nasz program na <strong>{ProductCount} własnych produktów</strong>.</p>
+                
+                <div style=""text-align: center; margin: 30px 0;"">
+                    <a href=""https://pricesafari.pl/#kontakt"" style=""background-color: #e67e22; color: #ffffff; padding: 15px 30px; text-decoration: none; border-radius: 5px; font-weight: bold; font-size: 16px; display: inline-block;"">
+                        Umów bezpłatną konsultację online 😎
+                    </a>
+                </div>
+                
+                <p style=""text-align: center; font-size: 14px; color: #7f8c8d;"">
+                    Po rozmowie przygotujemy dla Państwa konto demo.
+                </p>
+
+                <p style=""text-align: center; margin-top: 30px;"">
+                    Więcej o PriceSafari 👉 <a href=""https://pricesafari.pl/"" style=""color: #3498db; text-decoration: none;"">https://pricesafari.pl/</a>
+                </p>
+            </div>
+        </div>
     ";
     }
-
-
 
 
 
