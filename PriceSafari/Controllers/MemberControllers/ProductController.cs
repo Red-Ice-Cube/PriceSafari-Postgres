@@ -9,7 +9,6 @@ using NPOI.SS.UserModel;
 using NPOI.XSSF.UserModel;
 using System.Globalization;
 
-
 namespace PriceSafari.Controllers
 {
     [Authorize(Roles = "Admin, Manager, Member")]
@@ -84,7 +83,6 @@ namespace PriceSafari.Controllers
                 return Forbid();
             }
 
-            // Tutaj dodajemy trzy nowe daty do anonimu:
             var products = await _context.Products
                 .Where(p => p.StoreId == storeId)
                 .Select(p => new
@@ -101,7 +99,6 @@ namespace PriceSafari.Controllers
                     p.MainUrl,
                     p.GoogleUrl,
 
-                    // Nowe pola dat
                     AddedDate = p.AddedDate,
                     FoundOnGoogleDate = p.FoundOnGoogleDate,
                     FoundOnCeneoDate = p.FoundOnCeneoDate
@@ -110,8 +107,6 @@ namespace PriceSafari.Controllers
 
             return Json(products);
         }
-
-
 
         [HttpPost]
         public async Task<IActionResult> UpdateScrapableProduct(int storeId, [FromBody] int productId)
@@ -122,7 +117,7 @@ namespace PriceSafari.Controllers
 
             try
             {
-           
+
                 var userStore = await _context.UserStores
                     .FirstOrDefaultAsync(us => us.UserId == userId && us.StoreId == storeId);
 
@@ -132,7 +127,6 @@ namespace PriceSafari.Controllers
                     return Json(new { success = false, message = "User store not found.", logs });
                 }
 
-              
                 var product = await _context.Products.Include(p => p.Store)
                     .FirstOrDefaultAsync(p => p.ProductId == productId && p.StoreId == storeId);
                 if (product == null)
@@ -143,18 +137,15 @@ namespace PriceSafari.Controllers
 
                 logs.Add($"Product ID: {product.ProductId}, Store ID: {product.StoreId}");
 
-             
                 var scrapableCount = await _context.Products
                     .CountAsync(p => p.StoreId == storeId && p.IsScrapable);
                 logs.Add($"Scrapable count: {scrapableCount}, Store ProductsToScrap: {product.Store.ProductsToScrap}");
 
-          
                 if (!product.IsScrapable && scrapableCount >= product.Store.ProductsToScrap)
                 {
                     logs.Add("Scrapable product limit exceeded.");
                     return Json(new { success = false, message = "Przekroczono limit produktów do scrapowania.", logs });
                 }
-
 
                 product.IsScrapable = !product.IsScrapable;
                 await _context.SaveChangesAsync();
@@ -172,7 +163,6 @@ namespace PriceSafari.Controllers
                 return StatusCode(500, new { success = false, message = "Internal Server Error", logs });
             }
         }
-
 
         [HttpPost]
         public async Task<IActionResult> UpdateMultipleScrapableProducts(int storeId, [FromBody] List<int> productIds)
@@ -218,7 +208,6 @@ namespace PriceSafari.Controllers
             return Json(new { success = true });
         }
 
-
         [HttpPost]
         public async Task<IActionResult> ResetMultipleScrapableProducts(int storeId, [FromBody] List<int> productIds)
         {
@@ -250,13 +239,6 @@ namespace PriceSafari.Controllers
             return Json(new { success = true });
         }
 
-
-
-
-
-
-
-
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> SetMargins(int storeId, IFormFile uploadedFile)
@@ -265,7 +247,6 @@ namespace PriceSafari.Controllers
             _logger.LogInformation("Wywołanie SetMargins: StoreId={StoreId}, UserId={UserId}, FileName={FileName}, FileSize={FileSize}",
                                     storeId, userId, uploadedFile?.FileName, uploadedFile?.Length);
 
-            // 1) Sprawdzenie dostępu
             var userStore = await _context.UserStores
                 .FirstOrDefaultAsync(us => us.UserId == userId && us.StoreId == storeId);
             if (userStore == null)
@@ -281,7 +262,6 @@ namespace PriceSafari.Controllers
                 return NotFound();
             }
 
-            // 2) Walidacja pliku
             if (uploadedFile == null || uploadedFile.Length == 0)
             {
                 _logger.LogWarning("Brak pliku w requestcie lub plik pusty");
@@ -322,7 +302,6 @@ namespace PriceSafari.Controllers
                 }
                 _logger.LogInformation("Pobrano {Count} wpisów cen zakupu z pliku", marginData.Count);
 
-                // 3) Aktualizacja cen zakupu w bazie
                 var products = await _context.Products
                     .Where(p => p.StoreId == storeId && !string.IsNullOrEmpty(p.Ean))
                     .ToListAsync();
@@ -353,9 +332,6 @@ namespace PriceSafari.Controllers
             }
         }
 
-        // ------------------------------------------------------------
-        // Parsowanie arkusza Excel, zwraca słownik EAN→marża
-        // ------------------------------------------------------------
         private async Task<Dictionary<string, decimal>> ParseExcelFile(IFormFile file)
         {
             var marginData = new Dictionary<string, decimal>();
@@ -390,7 +366,6 @@ namespace PriceSafari.Controllers
                 }
                 _logger.LogInformation("Odczyt arkusza: {SheetName}", sheet.SheetName);
 
-                // nagłówki
                 var eanHeaders = new[] { "EAN", "KODEAN" };
                 var priceHeaders = new[] { "CENA", "PRICE" };
                 int eanCol = -1, priceCol = -1;
@@ -420,7 +395,6 @@ namespace PriceSafari.Controllers
                     return null;
                 }
 
-                // pętla po wierszach danych
                 for (int r = 1; r <= sheet.LastRowNum; r++)
                 {
                     var row = sheet.GetRow(r);
@@ -460,20 +434,15 @@ namespace PriceSafari.Controllers
             return marginData.Count > 0 ? marginData : null;
         }
 
-        // ------------------------------------------------------------
-        // Pomocnicza: odczyt dowolnej komórki (z formułą lub prostego typu),
-        // z obsługą odwołań zewnętrznych (np. [marza-safari.xlsx]…)
-        // ------------------------------------------------------------
         private string GetCellValue(ICell cell, IFormulaEvaluator evaluator)
         {
             if (cell == null) return null;
 
-            // 1) Komórka-formuła odwołująca się do zewnętrznego pliku?
             if (cell.CellType == CellType.Formula &&
                 !string.IsNullOrEmpty(cell.CellFormula) &&
                 cell.CellFormula.Contains("["))
             {
-                // pomijamy Evaluate(), bierzemy ostatni wynik
+
                 _logger.LogDebug("Formula external reference detected ('{Formula}'), using cached result.", cell.CellFormula);
                 return cell.CachedFormulaResultType switch
                 {
@@ -488,7 +457,7 @@ namespace PriceSafari.Controllers
             {
                 if (cell.CellType == CellType.Formula)
                 {
-                    // normalna formuła wewnętrzna
+
                     var eval = evaluator.Evaluate(cell);
                     if (eval != null)
                     {
@@ -501,7 +470,6 @@ namespace PriceSafari.Controllers
                         };
                     }
 
-                    // jeśli Evaluate zwróciło null — fallback
                     _logger.LogDebug("Evaluate zwróciło null dla formuły '{Formula}', używam cached.", cell.CellFormula);
                     return cell.CachedFormulaResultType switch
                     {
@@ -512,7 +480,6 @@ namespace PriceSafari.Controllers
                     };
                 }
 
-                // proste typy
                 return cell.CellType switch
                 {
                     CellType.Numeric => cell.NumericCellValue.ToString(CultureInfo.InvariantCulture),
@@ -523,7 +490,7 @@ namespace PriceSafari.Controllers
             }
             catch (Exception ex)
             {
-                // logujemy tylko na DEBUG, bo np. inne formuły też mogą czasem zawieźć
+
                 _logger.LogDebug(ex, "Błąd Evaluate() dla komórki formuły '{Formula}', używam cached.", cell.CellFormula);
                 if (cell.CellType == CellType.Formula)
                 {
@@ -539,15 +506,13 @@ namespace PriceSafari.Controllers
             }
         }
 
-
         [HttpPost]
-        [ValidateAntiForgeryToken] // Dodajemy dla bezpieczeństwa, jeśli formularz modalny go wysyła lub jeśli zdecydujemy się go dodać do JS
+        [ValidateAntiForgeryToken]
         public async Task<IActionResult> ClearAllPurchasePrices(int storeId)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             _logger.LogInformation("Attempting to clear all purchase prices for StoreId={StoreId} by UserId={UserId}", storeId, userId);
 
-            // 1. Sprawdzenie dostępu użytkownika do sklepu
             var userStore = await _context.UserStores
                 .FirstOrDefaultAsync(us => us.UserId == userId && us.StoreId == storeId);
 
@@ -557,7 +522,6 @@ namespace PriceSafari.Controllers
                 return Forbid();
             }
 
-            // 2. Sprawdzenie czy sklep istnieje (choć userStore by to implikował)
             var storeExists = await _context.Stores.AnyAsync(s => s.StoreId == storeId);
             if (!storeExists)
             {
@@ -567,7 +531,7 @@ namespace PriceSafari.Controllers
 
             try
             {
-                // 3. Pobranie wszystkich produktów dla danego sklepu i ustawienie MarginPrice na null
+
                 var productsInStore = await _context.Products
                     .Where(p => p.StoreId == storeId)
                     .ToListAsync();
@@ -577,7 +541,7 @@ namespace PriceSafari.Controllers
                 {
                     foreach (var product in productsInStore)
                     {
-                        if (product.MarginPrice != null) // Czyścimy tylko jeśli cena była ustawiona
+                        if (product.MarginPrice != null)
                         {
                             product.MarginPrice = null;
                             clearedCount++;
@@ -598,10 +562,72 @@ namespace PriceSafari.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error during ClearAllPurchasePrices for StoreId={StoreId}.", storeId);
-                // TempData["ErrorMessage"] nie będzie widoczne dla odpowiedzi JSON, ale jest dobre dla logów.
+
                 return StatusCode(500, new { success = false, message = "Wystąpił wewnętrzny błąd serwera podczas usuwania cen zakupu." });
             }
         }
 
+
+
+
+
+        public class UpdatePurchasePriceViewModel
+        {
+            public int ProductId { get; set; }
+            public decimal? NewPrice { get; set; } 
+        }
+
+
+
+        // Umieść tę metodę wewnątrz klasy ProductController
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> UpdatePurchasePrice(int storeId, [FromBody] UpdatePurchasePriceViewModel model)
+        {
+            if (model == null)
+            {
+                return BadRequest(new { success = false, message = "Nieprawidłowe dane." });
+            }
+
+            // Walidacja ceny - nie może być ujemna
+            if (model.NewPrice.HasValue && model.NewPrice < 0)
+            {
+                return BadRequest(new { success = false, message = "Cena nie może być ujemna." });
+            }
+
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+            // Sprawdzenie dostępu użytkownika do sklepu
+            var hasAccess = await _context.UserStores.AnyAsync(us => us.UserId == userId && us.StoreId == storeId);
+            if (!hasAccess)
+            {
+                return Forbid();
+            }
+
+            // Znalezienie produktu
+            var product = await _context.Products.FirstOrDefaultAsync(p => p.ProductId == model.ProductId && p.StoreId == storeId);
+            if (product == null)
+            {
+                return NotFound(new { success = false, message = "Produkt nie został znaleziony." });
+            }
+
+            try
+            {
+                // Ustawienie nowej ceny (lub null w przypadku usunięcia)
+                product.MarginPrice = model.NewPrice;
+                await _context.SaveChangesAsync();
+
+                _logger.LogInformation("Zaktualizowano cenę zakupu dla produktu ID={ProductId} na {NewPrice} przez użytkownika ID={UserId}",
+                                        model.ProductId, model.NewPrice.HasValue ? model.NewPrice.Value.ToString() : "NULL", userId);
+
+                return Json(new { success = true, message = "Cena zakupu została zaktualizowana." });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Błąd podczas aktualizacji ceny zakupu dla produktu ID={ProductId}", model.ProductId);
+                return StatusCode(500, new { success = false, message = "Wystąpił wewnętrzny błąd serwera." });
+            }
+        }
     }
 }
