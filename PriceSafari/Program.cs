@@ -137,17 +137,23 @@ public class Program
         using (var scope = app.Services.CreateScope())
         {
             var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
-            var roles = new[] { "Admin", "Manager", "Member" };
+
+            // Dodajemy "PreMember" do listy ról, które maj¹ istnieæ w systemie.
+            var roles = new[] { "Admin", "Manager", "Member", "PreMember" };
 
             foreach (var role in roles)
             {
+                // Ta logika sprawi, ¿e rola zostanie utworzona tylko wtedy, gdy jeszcze nie istnieje.
+                // Jest to bezpieczne do uruchamiania za ka¿dym razem.
                 if (!await roleManager.RoleExistsAsync(role))
+                {
                     await roleManager.CreateAsync(new IdentityRole(role));
+                }
             }
         }
 
 
-    
+
         app.MapHub<ScrapingHub>("/scrapingHub");
         app.MapHub<ReportProgressHub>("/reportProgressHub");
         app.MapHub<DashboardProgressHub>("/dashboardProgressHub");
