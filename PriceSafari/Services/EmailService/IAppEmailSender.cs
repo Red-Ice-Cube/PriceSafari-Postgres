@@ -1,0 +1,7 @@
+﻿namespace PriceSafari.Services.EmailService
+{
+    public interface IAppEmailSender
+    {
+        Task<bool> SendEmailAsync(string email, string subject, string htmlMessage);
+    }
+}

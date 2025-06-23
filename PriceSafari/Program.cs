@@ -13,6 +13,7 @@ using PriceSafari.Models.SchedulePlan;
 using PriceSafari.SignalIR;
 using PriceSafari.Services.ControlNetwork;
 using PdfSharp.Fonts;
+using PriceSafari.Services.EmailService;
 
 
 
@@ -48,7 +49,12 @@ public class Program
         builder.Services.AddControllersWithViews();
         builder.Services.AddHttpClient();
 
-        builder.Services.AddTransient<IEmailSender, EmailService>();
+        // Rejestrujemy nasz¹ klasê EmailService
+        builder.Services.AddTransient<EmailService>();
+        // Mówimy systemowi, ¿e gdy ktoœ prosi o IEmailSender, ma otrzymaæ instancjê EmailService
+        builder.Services.AddTransient<IEmailSender>(s => s.GetRequiredService<EmailService>());
+        // Oraz gdy ktoœ prosi o IAppEmailSender, równie¿ ma otrzymaæ TÊ SAM¥ instancjê EmailService
+        builder.Services.AddTransient<IAppEmailSender>(s => s.GetRequiredService<EmailService>());
         builder.Services.AddSignalR();
         builder.Services.AddHostedService<KeepAliveService>();
         builder.Services.AddTransient<IViewRenderService, ViewRenderService>();

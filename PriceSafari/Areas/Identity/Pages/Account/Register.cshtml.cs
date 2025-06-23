@@ -117,13 +117,41 @@ namespace PriceSafari.Areas.Identity.Pages.Account
 
             foreach (var error in result.Errors)
             {
-                // Jeśli użytkownik już istnieje, dajemy bardziej ogólny komunikat
+                // Sprawdzamy, czy błąd to zduplikowany email
                 if (error.Code == "DuplicateUserName")
                 {
-                    ModelState.AddModelError(string.Empty, "Konto z tym adresem e-mail już istnieje. Czy chcesz się zalogować?");
+                    _logger.LogWarning("Registration failed for {Email} because the user already exists.", Input.Email);
+
+                    // Znajdź istniejącego użytkownika
+                    var existingUser = await _userManager.FindByEmailAsync(Input.Email);
+
+                    // Jeśli użytkownik istnieje i czeka na weryfikację e-mail...
+                    if (existingUser != null && existingUser.Status == UserStatus.PendingEmailVerification)
+                    {
+                        _logger.LogInformation("Resending verification code to existing, unverified user {Email}.", Input.Email);
+
+                        // Wygeneruj NOWY kod, aby stary był nieważny
+                        var newCode = new Random().Next(100000, 999999).ToString();
+                        existingUser.VerificationCode = newCode;
+                        existingUser.VerificationCodeExpires = DateTime.UtcNow.AddMinutes(15);
+                        await _userManager.UpdateAsync(existingUser);
+
+                        // Wyślij email z nowym kodem
+                        await _emailSender.SendEmailAsync(Input.Email, "Twój nowy kod weryfikacyjny - Price Safari",
+                            $"Witaj ponownie! Wygląda na to, że nie dokończyłeś/aś rejestracji. Oto Twój nowy kod weryfikacyjny: <h1>{newCode}</h1>");
+
+                        // Przekieruj użytkownika prosto do strony weryfikacji
+                        return RedirectToPage("./VerifyEmail", new { email = Input.Email });
+                    }
+                    else
+                    {
+                        // Jeśli użytkownik istnieje, ale jest w innym stanie (np. jest już aktywny)
+                        ModelState.AddModelError(string.Empty, "Konto z tym adresem e-mail już istnieje. Czy chcesz się zalogować?");
+                    }
                 }
                 else
                 {
+                    // Inne błędy rejestracji
                     ModelState.AddModelError(string.Empty, error.Description);
                 }
             }

@@ -58,7 +58,7 @@ namespace PriceSafari.Areas.Identity.Pages.Account
             ExternalLogins = (await _signInManager.GetExternalAuthenticationSchemesAsync()).ToList();
             ReturnUrl = returnUrl;
         }
-
+        // W pliku Login.cshtml.cs
         public async Task<IActionResult> OnPostAsync(string returnUrl = null)
         {
             returnUrl ??= Url.Content("~/");
@@ -74,13 +74,26 @@ namespace PriceSafari.Areas.Identity.Pages.Account
                     return Page();
                 }
 
+                // <<< KLUCZOWA ZMIANA: SPRAWDZAMY ROLĘ UŻYTKOWNIKA >>>
+                var roles = await _signInManager.UserManager.GetRolesAsync(user);
+
+                // Ten blok wykona się TYLKO dla użytkowników z rolą "PreMember", którzy nie zweryfikowali jeszcze emaila.
+                // Użytkownicy z rolami Admin, Manager, Member zostaną zignorowani przez ten warunek.
+                if (roles.Contains("PreMember") && user.Status == UserStatus.PendingEmailVerification)
+                {
+                    _logger.LogInformation("Login attempt for unverified PreMember {Email}. Redirecting to verification page.", Input.Email);
+                    return RedirectToPage("./VerifyEmail", new { email = Input.Email });
+                }
+
+                // Ten warunek pozostaje bez zmian, ale teraz nie będzie już blokował użytkowników "PreMember".
                 if (!user.IsActive)
                 {
-                    _logger.LogWarning("Próba logowania na zdezaktywowane konto.");
-                    ModelState.AddModelError(string.Empty, "To konto zostało zdezaktywowane.");
+                    _logger.LogWarning("Login attempt for a deactivated account: {Email}", Input.Email);
+                    ModelState.AddModelError(string.Empty, "To konto zostało zdezaktywowane lub wymaga aktywacji przez administratora.");
                     return Page();
                 }
 
+                // Twoja dotychczasowa logika weryfikacji i logowania
                 var settings = await _context.Settings.FirstOrDefaultAsync();
                 if (settings != null && settings.VerificationRequired)
                 {
@@ -93,28 +106,34 @@ namespace PriceSafari.Areas.Identity.Pages.Account
                 }
 
                 var result = await _signInManager.PasswordSignInAsync(Input.Email, Input.Password, Input.RememberMe, lockoutOnFailure: false);
+
                 if (result.Succeeded)
                 {
                     _logger.LogInformation("User logged in.");
 
-                    // Aktualizacja danych logowania
                     user.LastLoginDateTime = DateTime.Now;
                     user.LoginCount += 1;
                     await _signInManager.UserManager.UpdateAsync(user);
 
-                    var roles = await _signInManager.UserManager.GetRolesAsync(user);
+                    // Pobieramy role ponownie na wszelki wypadek, chociaż mamy je już wyżej
+                    var loggedInUserRoles = await _signInManager.UserManager.GetRolesAsync(user);
 
-                    if (roles.Contains("Admin"))
+                    if (loggedInUserRoles.Contains("Admin"))
                     {
                         return RedirectToAction("Index", "Store");
                     }
-                    else if (roles.Contains("Manager"))
+                    else if (loggedInUserRoles.Contains("Manager"))
                     {
                         return RedirectToAction("Index", "ClientProfile");
                     }
-                    else if (roles.Contains("Member"))
+                    else if (loggedInUserRoles.Contains("Member"))
                     {
                         return RedirectToAction("Index", "Chanel");
+                    }
+                    else if (loggedInUserRoles.Contains("PreMember"))
+                    {
+                        // Jeśli PreMember jakoś się zaloguje, kierujemy go do panelu Setup
+                        return RedirectToPage("/Setup");
                     }
                     else
                     {
@@ -131,4 +150,5 @@ namespace PriceSafari.Areas.Identity.Pages.Account
             return Page();
         }
     }
+    
 }
