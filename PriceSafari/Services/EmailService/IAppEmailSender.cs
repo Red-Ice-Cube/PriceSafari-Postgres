@@ -2,6 +2,6 @@
 {
     public interface IAppEmailSender
     {
-        Task<bool> SendEmailAsync(string email, string subject, string htmlMessage);
+        Task<bool> SendEmailAsync(string email, string subject, string htmlMessage, Dictionary<string, string> inlineImages = null);
     }
 }

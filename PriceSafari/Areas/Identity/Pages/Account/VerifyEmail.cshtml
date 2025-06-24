@@ -23,50 +23,52 @@
                 <div class="login-box-head">
                     <div class="login-box-title">Sukces!</div>
                 </div>
-                <div class="text-center p-4">
-                    @* Jeśli masz własną ikonę sukcesu, możesz ją tu wstawić *@
-                    @* <img src="~/images/success-icon.png" alt="Success" width="80" class="mb-3" /> *@
-                    <div class="Main-Text mb-3">
-                        <h4>E-mail zweryfikowany poprawnie.</h4>
-                        <p>Twoje konto jest gotowe do dalszej konfiguracji. Zaloguj się, aby kontynuować.</p>
+         
+
+                    <div class="Main-Text">
+                    
+                        Twoje konto jest gotowe do dalszej konfiguracji. Zaloguj się, aby kontynuować.
                     </div>
                     <a asp-page="./Login" class="login-button">Przejdź do logowania</a>
-                </div>
+        
             </div>
         }
         else
         {
-            <div class="login-box">
+
+            <form method="post" id="verify-form" class="login-box">
+
                 <div class="login-box-head">
                     <div class="login-box-title">Potwierdź swój e-mail</div>
-                </div>
 
-                <div class="Main-Text">
-                    Na Twój adres e-mail wysłaliśmy 6-cyfrowy kod. Wpisz go poniżej, aby kontynuować.
-                </div>
-
-                <div id="message-container" class="mt-2 mx-3"></div>
-
-                <form method="post" id="verify-form" class="px-3 pb-3">
-                    <div asp-validation-summary="ModelOnly" class="text-danger" role="alert"></div>
-                    <input type="hidden" asp-for="Input.Email" />
-
-                    <div class="form-floating">
-                        <input asp-for="Input.Code" class="form-control" placeholder="123456" autofocus />
-                        <label asp-for="Input.Code" class="form-label"></label>
-                        <span asp-validation-for="Input.Code" class="text-danger"></span>
+                    <div class="Main-Text">
+                        Na Twój adres e-mail wysłaliśmy 6-cyfrowy kod. Wpisz go poniżej, aby kontynuować.
                     </div>
 
-                    <button type="submit" class="login-button">Zweryfikuj konto</button>
-                </form>
+                </div>
 
-                <div class="text-center mb-3">
+                <div asp-validation-summary="ModelOnly" class="validation-summary-errors" role="alert"></div>
+                <input type="hidden" asp-for="Input.Email" />
+
+                <div class="form-floating">
+                    <input asp-for="Input.Code" class="form-control" placeholder="123456" autofocus />
+                    <label asp-for="Input.Code" class="form-label"></label>
+                    <span asp-validation-for="Input.Code" class="text-danger"></span>
+                </div>
+
+                <button type="submit" class="login-button">Zweryfikuj konto</button>
+
+                <div class="other-function">
                     <button id="resend-button" class="btn btn-link links">
                         <span id="resend-spinner" class="spinner-border spinner-border-sm" role="status" aria-hidden="true" style="display: none;"></span>
                         <span id="resend-text">Nie otrzymałeś kodu? Wyślij ponownie.</span>
                     </button>
                 </div>
-            </div>
+
+                <div id="resend-message-container"></div>
+
+            </form>
+
         }
 
         <a href="https://pricesafari.pl/">
@@ -94,83 +96,103 @@
 </script>
 
 @section Scripts {
-    <partial name="_ValidationScriptsPartial" />
-
     <script>
         document.addEventListener('DOMContentLoaded', function () {
+
             const resendButton = document.getElementById('resend-button');
-            if (!resendButton) return;
-
+            const messageContainer = document.getElementById('resend-message-container');
+            const spinner = document.getElementById('resend-spinner');
             const resendText = document.getElementById('resend-text');
-            const resendSpinner = document.getElementById('resend-spinner');
-            const messageContainer = document.getElementById('message-container');
-            const emailInput = document.querySelector('input[name="Input.Email"]');
-            const verifyForm = document.getElementById('verify-form');
 
-            resendButton.addEventListener('click', function(event) {
-                event.preventDefault();
+            const COOLDOWN_KEY = 'resendCooldownUntil';
 
-                resendButton.disabled = true;
-                resendSpinner.style.display = 'inline-block';
-                resendText.textContent = 'Wysyłanie...';
-                messageContainer.innerHTML = '';
+            function startCooldown(seconds) {
 
-                const formData = new FormData();
-                formData.append('Input.Email', emailInput.value);
+                const cooldownEndTime = Date.now() + seconds * 1000;
+                localStorage.setItem(COOLDOWN_KEY, cooldownEndTime);
 
-                // Token jest częścią formularza, więc musimy go znaleźć wewnątrz niego
-                const token = verifyForm.querySelector('input[name="__RequestVerificationToken"]');
-                if(token) {
-                     formData.append('__RequestVerificationToken', token.value);
-                }
-
-                fetch('?handler=ResendCode', {
-                    method: 'POST',
-                    body: new URLSearchParams(formData)
-                })
-                .then(response => {
-                    if (!response.ok) {
-                        // Obsługa błędów HTTP (np. 500)
-                        throw new Error('Błąd serwera: ' + response.statusText);
-                    }
-                    return response.json();
-                })
-                .then(data => {
-                    if (data.success) {
-                        messageContainer.innerHTML = `<div class="alert alert-success">${data.message}</div>`;
-                        startCooldownTimer(60);
-                    } else {
-                        messageContainer.innerHTML = `<div class="alert alert-danger">${data.message || 'Wystąpił nieznany błąd.'}</div>`;
-                        resetButton();
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    messageContainer.innerHTML = `<div class="alert alert-danger">Błąd sieci lub serwera. Spróbuj ponownie.</div>`;
-                    resetButton();
-                });
-            });
-
-            function startCooldownTimer(duration) {
-                let timer = duration;
-                resendSpinner.style.display = 'none';
+                let counter = seconds;
+                spinner.style.display = 'none';
+                resendText.textContent = `Wyślij ponownie za ${counter}s`;
+                resendText.style.color = 'white';
                 resendButton.disabled = true;
 
-                const interval = setInterval(function () {
-                    resendText.textContent = `Wyślij ponownie za ${timer}s`;
-                    timer--;
-                    if (timer < 0) {
-                        clearInterval(interval);
-                        resetButton();
+                const intervalId = setInterval(() => {
+                    counter--;
+                    resendText.textContent = `Wyślij ponownie za ${counter}s`;
+
+                    if (counter <= 0) {
+                        clearInterval(intervalId);
+                        resendText.textContent = 'Nie otrzymałeś kodu? Wyślij ponownie.';
+                        resendText.style.color = '';
+                        resendButton.disabled = false;
+                        localStorage.removeItem(COOLDOWN_KEY);
                     }
                 }, 1000);
             }
 
-            function resetButton() {
-                 resendButton.disabled = false;
-                 resendSpinner.style.display = 'none';
-                 resendText.textContent = 'Nie otrzymałeś kodu? Wyślij ponownie.';
+            function checkCooldownOnLoad() {
+                const cooldownEndTime = localStorage.getItem(COOLDOWN_KEY);
+                if (cooldownEndTime) {
+                    const remainingSeconds = Math.round((cooldownEndTime - Date.now()) / 1000);
+                    if (remainingSeconds > 0) {
+
+                        startCooldown(remainingSeconds);
+                    } else {
+
+                        localStorage.removeItem(COOLDOWN_KEY);
+                    }
+                }
             }
+
+            resendButton.addEventListener('click', function (event) {
+                event.preventDefault();
+
+                spinner.style.display = 'inline-block';
+                resendText.textContent = 'Wysyłanie...';
+                resendText.style.color = 'white';
+                resendButton.disabled = true;
+
+                messageContainer.innerHTML = '';
+                messageContainer.className = '';
+
+                fetch('/Identity/Account/VerifyEmail?handler=ResendCode', {
+                    method: 'POST',
+                    headers: {
+                        'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value,
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    },
+                    body: 'Input.Email=' + encodeURIComponent(document.querySelector('input[name="Input.Email"]').value)
+                })
+                .then(response => response.ok ? response.json() : Promise.reject('Błąd serwera'))
+                .then(data => {
+                    messageContainer.textContent = data.message;
+
+                    if (data.success) {
+                        messageContainer.className = 'validation-summary-succes';
+                        startCooldown(60);
+                    } else {
+                        messageContainer.className = 'validation-summary-errors';
+
+                        spinner.style.display = 'none';
+                        resendText.textContent = 'Nie otrzymałeś kodu? Wyślij ponownie.';
+                        resendText.style.color = '';
+                        resendButton.disabled = false;
+                    }
+                })
+                .catch(error => {
+                    console.error('Błąd:', error);
+                    messageContainer.textContent = 'Wystąpił nieoczekiwany błąd. Spróbuj ponownie.';
+                    messageContainer.className = 'validation-summary-errors';
+
+                    spinner.style.display = 'none';
+                    resendText.textContent = 'Nie otrzymałeś kodu? Wyślij ponownie.';
+                    resendText.style.color = '';
+                    resendButton.disabled = false;
+                });
+            });
+
+            checkCooldownOnLoad();
         });
     </script>
 }

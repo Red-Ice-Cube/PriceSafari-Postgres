@@ -3,25 +3,28 @@ using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using System.ComponentModel.DataAnnotations;
+using PriceSafari.Services.EmailService;
+using Microsoft.AspNetCore.Hosting;
 
-// Upewnij się, że namespace jest poprawny dla Twojego projektu
 namespace PriceSafari.Areas.Identity.Pages.Account
 {
-    // Zakładamy, że ta strona nie wymaga autoryzacji
     public class RegisterModel : PageModel
     {
         private readonly UserManager<PriceSafariUser> _userManager;
         private readonly ILogger<RegisterModel> _logger;
-        private readonly IEmailSender _emailSender;
+        private readonly IAppEmailSender _emailSender;
+        private readonly IWebHostEnvironment _webHostEnvironment;
 
         public RegisterModel(
             UserManager<PriceSafariUser> userManager,
             ILogger<RegisterModel> logger,
-            IEmailSender emailSender)
+            IAppEmailSender emailSender,
+            IWebHostEnvironment webHostEnvironment)
         {
             _userManager = userManager;
             _logger = logger;
             _emailSender = emailSender;
+            _webHostEnvironment = webHostEnvironment;
         }
 
         [BindProperty]
@@ -55,6 +58,7 @@ namespace PriceSafari.Areas.Identity.Pages.Account
             [Display(Name = "Hasło")]
             public string Password { get; set; }
 
+            [Required(ErrorMessage = "Potwierdzenie hasła jest wymagane.")]
             [DataType(DataType.Password)]
             [Display(Name = "Potwierdź hasło")]
             [Compare("Password", ErrorMessage = "Wprowadzone hasła nie są identyczne.")]
@@ -82,12 +86,9 @@ namespace PriceSafari.Areas.Identity.Pages.Account
                 PartnerSurname = Input.LastName,
                 PhoneNumber = Input.PhoneNumber,
                 CreationDate = DateTime.UtcNow,
-
-                // Ustawiamy wartości początkowe dla nowego użytkownika,
-                // nadpisując domyślne z konstruktora modelu.
                 IsActive = false,
                 IsMember = false,
-                Status = UserStatus.PendingEmailVerification // Zaczynamy od tego statusu
+                Status = UserStatus.PendingEmailVerification
             };
 
             var result = await _userManager.CreateAsync(user, Input.Password);
@@ -96,67 +97,149 @@ namespace PriceSafari.Areas.Identity.Pages.Account
             {
                 _logger.LogInformation("User created a new account with password.");
 
-                // Nadaj nowo utworzonemu użytkownikowi rolę "PreMember"
                 await _userManager.AddToRoleAsync(user, "PreMember");
                 _logger.LogInformation("User was assigned the PreMember role.");
 
-                // Generowanie i zapisywanie 6-cyfrowego kodu weryfikacyjnego
                 var code = new Random().Next(100000, 999999).ToString();
                 user.VerificationCode = code;
-                user.VerificationCodeExpires = DateTime.UtcNow.AddMinutes(15); // Kod ważny 15 minut
+                user.VerificationCodeExpires = DateTime.UtcNow.AddMinutes(15);
                 await _userManager.UpdateAsync(user);
 
-                // Wysyłanie emaila z kodem
-                await _emailSender.SendEmailAsync(Input.Email, "Potwierdź swoje konto w Price Safari",
-                    $"Witaj! Dziękujemy za rejestrację. Twój kod weryfikacyjny to: <h1>{code}</h1>. Podaj go na następnej stronie, aby kontynuować.");
+                // --- POCZĄTEK ZMIANY: Logika wysyłki e-maila z logo ---
+                var logoPath = Path.Combine(_webHostEnvironment.WebRootPath, "cid", "PriceSafari.png");
+                var inlineImages = new Dictionary<string, string>
+                {
+                    { "PriceSafariLogo", logoPath }
+                };
 
-                // Przekieruj na stronę weryfikacji, przekazując email w query string
-                // Tę stronę stworzymy w następnym kroku.
+                var emailSubject = "Witaj w Price Safari! Potwierdź swój adres e-mail";
+                var emailBody = GenerateInitialVerificationEmailBody(user.PartnerName, code);
+
+                // Zakładamy, że IEmailSender został rozszerzony do IAppEmailSender, który akceptuje obrazki
+                await _emailSender.SendEmailAsync(Input.Email, emailSubject, emailBody, inlineImages);
+                // --- KONIEC ZMIANY ---
+
                 return RedirectToPage("./VerifyEmail", new { email = Input.Email });
             }
 
             foreach (var error in result.Errors)
             {
-                // Sprawdzamy, czy błąd to zduplikowany email
                 if (error.Code == "DuplicateUserName")
                 {
-                    _logger.LogWarning("Registration failed for {Email} because the user already exists.", Input.Email);
-
-                    // Znajdź istniejącego użytkownika
-                    var existingUser = await _userManager.FindByEmailAsync(Input.Email);
-
-                    // Jeśli użytkownik istnieje i czeka na weryfikację e-mail...
-                    if (existingUser != null && existingUser.Status == UserStatus.PendingEmailVerification)
-                    {
-                        _logger.LogInformation("Resending verification code to existing, unverified user {Email}.", Input.Email);
-
-                        // Wygeneruj NOWY kod, aby stary był nieważny
-                        var newCode = new Random().Next(100000, 999999).ToString();
-                        existingUser.VerificationCode = newCode;
-                        existingUser.VerificationCodeExpires = DateTime.UtcNow.AddMinutes(15);
-                        await _userManager.UpdateAsync(existingUser);
-
-                        // Wyślij email z nowym kodem
-                        await _emailSender.SendEmailAsync(Input.Email, "Twój nowy kod weryfikacyjny - Price Safari",
-                            $"Witaj ponownie! Wygląda na to, że nie dokończyłeś/aś rejestracji. Oto Twój nowy kod weryfikacyjny: <h1>{newCode}</h1>");
-
-                        // Przekieruj użytkownika prosto do strony weryfikacji
-                        return RedirectToPage("./VerifyEmail", new { email = Input.Email });
-                    }
-                    else
-                    {
-                        // Jeśli użytkownik istnieje, ale jest w innym stanie (np. jest już aktywny)
-                        ModelState.AddModelError(string.Empty, "Konto z tym adresem e-mail już istnieje. Czy chcesz się zalogować?");
-                    }
+                    // Tutaj również można zaimplementować ładniejszy e-mail dla istniejącego użytkownika
+                    ModelState.AddModelError(string.Empty, "Konto z tym adresem e-mail już istnieje. Czy chcesz się zalogować?");
                 }
                 else
                 {
-                    // Inne błędy rejestracji
                     ModelState.AddModelError(string.Empty, error.Description);
                 }
             }
-
             return Page();
+        }
+
+        // --- NOWA METODA: GENERATOR SZABLONU E-MAILA DLA PIERWSZEJ REJESTRACJI ---
+        private string GenerateInitialVerificationEmailBody(string userName, string code)
+        {
+            // Adres URL, do którego będzie prowadził przycisk. Zmień go na właściwy dla swojej aplikacji.
+            var verificationUrl = "https://twoja-strona.pl/Identity/Account/VerifyEmail";
+
+            return $@"
+                <!DOCTYPE html>
+                <html lang=""pl"">
+                    <head>
+                <meta charset=""UTF-8"">
+                <meta name=""viewport"" content=""width=device-width, initial-scale=1.0"">
+                <style>
+                    body {{
+                        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+                        margin: 0;
+                        padding: 0;
+                        background-color: #f5f5f7; 
+                    }}
+                    .container {{
+                        max-width: 560px;
+                        margin: 40px auto;
+                        background-color: #ffffff;
+                  
+                        overflow: hidden;
+                    }}
+                    .top-bar {{
+                        height: 1px;
+                        margin-bottom:10px;
+                        background-color: #222222; 
+                    }}
+                    .header {{
+                               padding-top:10px;
+                   padding-bottom:10px;
+                    }}
+                    .content {{
+                   padding-top:10px;
+                   padding-bottom:10px;
+                        line-height: 1.6;
+                        color: #1d1d1f; 
+                        font-size: 16px;
+                    }}
+        
+                    .content p {{
+                        margin: 0 0 16px 0;
+                    }}
+                    .code-label {{
+                        font-size: 16px;
+                   
+                        margin-bottom: 4px;
+                    }}
+                    .code {{
+                        font-size: 36px;
+                        font-weight: 700;
+                        letter-spacing: 4px;
+                        color: #41C7C7;
+                        margin-bottom: 16px;
+                    }}
+                    .button {{
+                        display: inline-block;
+                        background-color: #007B84; 
+                        color: #ffffff;
+                        padding: 14px 24px;
+                        border-radius: 8px;
+                        text-decoration: none;
+                        font-weight: 500;
+                        font-size: 16px;
+                        margin-top: 10px;
+                    }}
+                    .footer {{
+                        background-color: #f5f5f7;
+                        color: #86868b;
+                        padding: 20px 40px;
+                        text-align: center;
+                        font-size: 16px;
+                        line-height: 1.5;
+                    }}
+                </style>
+            </head>
+                <body>
+                    <div class=""container"">
+                        <div class=""header"">
+                            <img src=""cid:PriceSafariLogo"" alt=""Price Safari Logo"" style=""height: 32px; width: auto;"">
+                        </div>
+                        <div class=""top-bar""></div>
+                        <div class=""content"">
+                        
+                            <p>Cześć {userName},</p>
+                            <p>Dziękujemy za założenie konta w Price Safari! Jesteśmy o krok od zakończenia procesu rejestracji. Użyj poniższego kodu, aby zweryfikować swój adres e-mail.</p>
+                            
+                            <div class=""code-label"">Kod weryfikacyjny</div>
+                            <div class=""code"">{code}</div>
+
+                            <p style=""margin-top: 16px; font-size: 16px;"">
+                                Kod jest ważny przez 15 minut. Jeśli to nie Ty zakładałeś/aś konto, możesz bezpiecznie zignorować tę wiadomość.
+                            </p>
+                        </div>
+                        <div class=""footer"">
+                            <p>&copy; {DateTime.Now.Year} Price Safari<br>Wszelkie prawa zastrzeżone.</p>
+                        </div>
+                    </div>
+                </body>
+                </html>";
         }
     }
 }

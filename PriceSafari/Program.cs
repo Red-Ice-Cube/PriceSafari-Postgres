@@ -1,27 +1,25 @@
-using PriceSafari.Data;
-using PriceSafari.DotEnv;
-using PriceSafari.Models;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.EntityFrameworkCore;
-using PriceSafari.Hubs;
-using PriceSafari.Services.ViewRenderService;
-using PriceSafari.Scrapers;
-using PriceSafari.Services.ControlXY;
-using PriceSafari.Services.ScheduleService;
-using PriceSafari.Models.SchedulePlan;
-using PriceSafari.SignalIR;
-using PriceSafari.Services.ControlNetwork;
 using PdfSharp.Fonts;
+using PriceSafari.Culture;
+using PriceSafari.Data;
+using PriceSafari.DotEnv;
+using PriceSafari.Hubs;
+using PriceSafari.Models;
+using PriceSafari.Models.SchedulePlan;
+using PriceSafari.Scrapers;
+using PriceSafari.Services.ControlNetwork;
+using PriceSafari.Services.ControlXY;
 using PriceSafari.Services.EmailService;
-
-
+using PriceSafari.Services.ScheduleService;
+using PriceSafari.Services.ViewRenderService;
+using PriceSafari.SignalIR;
 
 public class Program
 {
     public static async Task Main(string[] args)
     {
-
 
         var root = Directory.GetCurrentDirectory();
         var dotenv = Path.Combine(root, ".env");
@@ -39,21 +37,20 @@ public class Program
 
         var connectionString = $"Data Source={dbServer};Database={dbName};Uid={dbUser};Password={dbPassword};TrustServerCertificate=True";
 
-        //var connectionString = $"Data Source=(localdb)\\MSSQLLocalDB;Initial Catalog=PriceSafariDBLH;Integrated Security=True;Connect Timeout=30;Encrypt=False;Trust Server Certificate=False;Application Intent=ReadWrite;Multi Subnet Failover=False";
         builder.Services.AddDbContext<PriceSafariContext>(options => options.UseSqlServer(connectionString));
 
         builder.Services.AddDefaultIdentity<PriceSafariUser>(options => options.SignIn.RequireConfirmedAccount = true)
-            .AddRoles<IdentityRole>()
-            .AddEntityFrameworkStores<PriceSafariContext>();
+       .AddRoles<IdentityRole>()
+       .AddErrorDescriber<PolishIdentityErrorDescriber>()
+       .AddEntityFrameworkStores<PriceSafariContext>();
         builder.Services.AddScoped<AuthorizeStoreAccessAttribute>();
         builder.Services.AddControllersWithViews();
         builder.Services.AddHttpClient();
 
-        // Rejestrujemy nasz¹ klasê EmailService
         builder.Services.AddTransient<EmailService>();
-        // Mówimy systemowi, ¿e gdy ktoœ prosi o IEmailSender, ma otrzymaæ instancjê EmailService
+
         builder.Services.AddTransient<IEmailSender>(s => s.GetRequiredService<EmailService>());
-        // Oraz gdy ktoœ prosi o IAppEmailSender, równie¿ ma otrzymaæ TÊ SAM¥ instancjê EmailService
+
         builder.Services.AddTransient<IAppEmailSender>(s => s.GetRequiredService<EmailService>());
         builder.Services.AddSignalR();
         builder.Services.AddHostedService<KeepAliveService>();
@@ -68,10 +65,7 @@ public class Program
         builder.Services.AddScoped<CeneoScraperService>();
         builder.Services.AddScoped<INetworkControlService, NetworkControlService>();
 
-
-
         GlobalFontSettings.UseWindowsFontsUnderWindows = true;
-
 
         builder.Services.AddMemoryCache();
         builder.Services.AddSession(options =>
@@ -91,15 +85,11 @@ public class Program
 
         app.UseHttpsRedirection();
         app.UseStaticFiles();
-
         app.UseRouting();
-
-        app.UseAuthentication(); // Potem uwierzytelnianie
-        app.UseAuthorization();  // Nastêpnie autoryzacja
+        app.UseAuthentication();
+        app.UseAuthorization();
         app.UseSession();
-
         app.MapControllers();
-
         app.MapControllerRoute(
               name: "default",
               pattern: "{controller=Identity}/{action=Login}/{id?}"
@@ -144,21 +134,17 @@ public class Program
         {
             var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
 
-            // Dodajemy "PreMember" do listy ról, które maj¹ istnieæ w systemie.
             var roles = new[] { "Admin", "Manager", "Member", "PreMember" };
 
             foreach (var role in roles)
             {
-                // Ta logika sprawi, ¿e rola zostanie utworzona tylko wtedy, gdy jeszcze nie istnieje.
-                // Jest to bezpieczne do uruchamiania za ka¿dym razem.
+
                 if (!await roleManager.RoleExistsAsync(role))
                 {
                     await roleManager.CreateAsync(new IdentityRole(role));
                 }
             }
         }
-
-
 
         app.MapHub<ScrapingHub>("/scrapingHub");
         app.MapHub<ReportProgressHub>("/reportProgressHub");
@@ -213,9 +199,5 @@ public class Program
             }
         }
     }
-
-
-
-
 
 }

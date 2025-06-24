@@ -46,9 +46,37 @@
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    margin-top: 24px;
-    margin-bottom: 24px;
+    margin-top: 12px;
+    margin-bottom: 12px;
 }
+
+
+
+    .validation-summary-succes ul {
+        list-style-type: none;
+        padding: 0;
+        margin: 0;
+    }
+
+.validation-summary-succes {
+    width: 100%;
+    background: #007B84;
+    border-radius: 10px;
+    margin: 0 auto;
+    text-align: center;
+    color: white;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    margin-top: 12px;
+    margin-bottom: 12px;
+}
+
+
+
+
 
 .login {
     display: flex;
@@ -86,8 +114,8 @@
     justify-content: center;
     align-items: flex-start;
     width: 85%;
-    max-width:500px;
-    gap: 18px;
+    max-width: 500px;
+    gap: 16px;
     align-self: center;
 }
 
@@ -113,16 +141,27 @@
     flex: 1;
     border: none;
     flex-direction: column;
-    gap: 16px;
 }
 
-.form-control {
-    border-radius: 10px;
-    height: 56px !important;
-    background-color: #FFFFFF;
-    justify-content: center;
-    border: none;
-}
+    .form-floating .form-control {
+        height: calc(2.8rem + 2px) !important;
+        padding: 0.8rem 1rem;
+        font-size: 0.9rem;
+        border-radius: 10px;
+        background-color: #FFFFFF;
+        border: none;
+    }
+
+    .form-floating > label {
+        padding: 0.8rem 1rem;
+        font-size: 0.9rem;
+    }
+
+    .form-floating > .form-control:focus ~ label,
+    .form-floating > .form-control:not(:placeholder-shown) ~ label {
+        font-size: 0.75rem;
+        transform: scale(0.85) translateY(-0.30rem) translateX(0.15rem);
+    }
 
 .other-function {
     display: flex;
@@ -187,15 +226,16 @@
     font-size: 26px;
     font-weight: 300;
     width: 100%;
-    margin-top: 36px;
+    margin-top: 24px;
     transition: box-shadow 0.2s ease;
-    text-decoration:none;
+    text-decoration: none;
 }
 
     .login-button:hover {
         box-shadow: 0px 4px 4px 0px rgba(0, 0, 0, 0.25);
         background: rgba(6, 6, 6, 0.7);
         text-decoration: none;
+        color: #fff;
     }
 
 .links {
@@ -215,11 +255,9 @@
         color: #41C7C7 !important;
     }
 
-
-
 .Main-Text {
     display: flex;
-    margin-bottom: 24px;
+    margin-TOP: 10px;
     color: #fff;
     font-size: 16px;
     font-weight: 400;
@@ -232,22 +270,22 @@
     padding: 8px 16px;
     justify-content: center;
     align-items: center;
-    border-radius: 16px;
+    border-radius: 34px;
     border: 2px solid rgba(6, 6, 6, 0.92);
     background: rgba(6, 6, 6, 0.3);
     color: #fff;
     font-size: 26px;
     font-weight: 300;
     width: 100%;
-    margin-top: 36px;
-    transition: box-shadow 0.3s ease;
+    margin-top: 24px;
+    transition: box-shadow 0.2s ease;
     text-decoration: none;
 }
 
     .Main-button:hover {
         box-shadow: 0px 4px 4px 0px rgba(0, 0, 0, 0.25);
+        background: rgba(6, 6, 6, 0.7);
         text-decoration: none;
-        color: #fff;
     }
 
 .Join-button {
