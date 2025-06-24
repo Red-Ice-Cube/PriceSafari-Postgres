@@ -74,76 +74,94 @@ namespace PriceSafari.Areas.Identity.Pages.Account
                     return Page();
                 }
 
-                // <<< KLUCZOWA ZMIANA: SPRAWDZAMY ROLĘ UŻYTKOWNIKA >>>
                 var roles = await _signInManager.UserManager.GetRolesAsync(user);
 
-                // Ten blok wykona się TYLKO dla użytkowników z rolą "PreMember", którzy nie zweryfikowali jeszcze emaila.
-                // Użytkownicy z rolami Admin, Manager, Member zostaną zignorowani przez ten warunek.
-                if (roles.Contains("PreMember") && user.Status == UserStatus.PendingEmailVerification)
-                {
-                    _logger.LogInformation("Login attempt for unverified PreMember {Email}. Redirecting to verification page.", Input.Email);
-                    return RedirectToPage("./VerifyEmail", new { email = Input.Email });
-                }
+                // --- PRZEBUDOWANA LOGIKA ---
 
-                // Ten warunek pozostaje bez zmian, ale teraz nie będzie już blokował użytkowników "PreMember".
-                if (!user.IsActive)
+                // ** PRZYPADEK 1: Użytkownik to PreMember **
+                if (roles.Contains("PreMember"))
                 {
-                    _logger.LogWarning("Login attempt for a deactivated account: {Email}", Input.Email);
-                    ModelState.AddModelError(string.Empty, "To konto zostało zdezaktywowane lub wymaga aktywacji przez administratora.");
-                    return Page();
-                }
-
-                // Twoja dotychczasowa logika weryfikacji i logowania
-                var settings = await _context.Settings.FirstOrDefaultAsync();
-                if (settings != null && settings.VerificationRequired)
-                {
-                    var affiliateVerification = await _context.AffiliateVerification.FirstOrDefaultAsync(av => av.UserId == user.Id);
-                    if (affiliateVerification == null || !affiliateVerification.IsVerified)
+                    // Jeśli PreMember nie zweryfikował jeszcze e-maila, przekieruj go do weryfikacji
+                    if (user.Status == UserStatus.PendingEmailVerification)
                     {
-                        ModelState.AddModelError(string.Empty, "Konto jest jeszcze przygotowywane. Po zakończonej konfiguracji powiadomimy Cię o tym mailowo.");
+                        _logger.LogInformation("Login attempt for unverified PreMember {Email}. Redirecting to verification page.", Input.Email);
+                        return RedirectToPage("./VerifyEmail", new { email = Input.Email });
+                    }
+
+                    // Jeśli PreMember zweryfikował e-mail, próbujemy go zalogować, ignorując flagę IsActive
+                    _logger.LogInformation("Verified PreMember {Email} is attempting to log in to Setup.", Input.Email);
+                    var preMemberResult = await _signInManager.PasswordSignInAsync(Input.Email, Input.Password, Input.RememberMe, lockoutOnFailure: false);
+
+                    if (preMemberResult.Succeeded)
+                    {
+                        _logger.LogInformation("PreMember logged in successfully. Redirecting to /Setup page.");
+                        // Logowanie udane, przekierowujemy do specjalnej strony /Setup
+                        return RedirectToPage("/Setup"); // Upewnij się, że masz stronę o nazwie Setup.cshtml
+                    }
+                    else
+                    {
+                        ModelState.AddModelError(string.Empty, "Błędne dane logowania.");
                         return Page();
                     }
                 }
 
-                var result = await _signInManager.PasswordSignInAsync(Input.Email, Input.Password, Input.RememberMe, lockoutOnFailure: false);
-
-                if (result.Succeeded)
+                // ** PRZYPADEK 2: Użytkownik to zwykły klient lub administrator (nie PreMember) **
+                else
                 {
-                    _logger.LogInformation("User logged in.");
-
-                    user.LastLoginDateTime = DateTime.Now;
-                    user.LoginCount += 1;
-                    await _signInManager.UserManager.UpdateAsync(user);
-
-                    // Pobieramy role ponownie na wszelki wypadek, chociaż mamy je już wyżej
-                    var loggedInUserRoles = await _signInManager.UserManager.GetRolesAsync(user);
-
-                    if (loggedInUserRoles.Contains("Admin"))
+                    // Sprawdzamy, czy konto jest aktywne - TEN WARUNEK DOTYCZY TERAZ TYLKO ZWYKŁYCH KONT
+                    if (!user.IsActive)
                     {
-                        return RedirectToAction("Index", "Store");
+                        _logger.LogWarning("Login attempt for a deactivated account: {Email}", Input.Email);
+                        ModelState.AddModelError(string.Empty, "To konto zostało zdezaktywowane lub wymaga aktywacji przez administratora.");
+                        return Page();
                     }
-                    else if (loggedInUserRoles.Contains("Manager"))
+
+                    // Sprawdzanie weryfikacji przez Affilate (jeśli wymagane)
+                    var settings = await _context.Settings.FirstOrDefaultAsync();
+                    if (settings != null && settings.VerificationRequired)
                     {
-                        return RedirectToAction("Index", "ClientProfile");
+                        var affiliateVerification = await _context.AffiliateVerification.FirstOrDefaultAsync(av => av.UserId == user.Id);
+                        if (affiliateVerification == null || !affiliateVerification.IsVerified)
+                        {
+                            ModelState.AddModelError(string.Empty, "Konto jest jeszcze przygotowywane. Po zakończonej konfiguracji powiadomimy Cię o tym mailowo.");
+                            return Page();
+                        }
                     }
-                    else if (loggedInUserRoles.Contains("Member"))
+
+                    // Logowanie dla pozostałych ról
+                    var result = await _signInManager.PasswordSignInAsync(Input.Email, Input.Password, Input.RememberMe, lockoutOnFailure: false);
+
+                    if (result.Succeeded)
                     {
-                        return RedirectToAction("Index", "Chanel");
-                    }
-                    else if (loggedInUserRoles.Contains("PreMember"))
-                    {
-                        // Jeśli PreMember jakoś się zaloguje, kierujemy go do panelu Setup
-                        return RedirectToPage("/Setup");
+                        _logger.LogInformation("User {Email} logged in.", Input.Email);
+
+                        user.LastLoginDateTime = DateTime.Now;
+                        user.LoginCount += 1;
+                        await _signInManager.UserManager.UpdateAsync(user);
+
+                        // Przekierowanie na podstawie roli
+                        if (roles.Contains("Admin"))
+                        {
+                            return RedirectToAction("Index", "Store");
+                        }
+                        else if (roles.Contains("Manager"))
+                        {
+                            return RedirectToAction("Index", "ClientProfile");
+                        }
+                        else if (roles.Contains("Member"))
+                        {
+                            return RedirectToAction("Index", "Chanel");
+                        }
+                        else
+                        {
+                            return LocalRedirect(returnUrl);
+                        }
                     }
                     else
                     {
-                        return LocalRedirect(returnUrl);
+                        ModelState.AddModelError(string.Empty, "Błędne dane logowania.");
+                        return Page();
                     }
-                }
-                else
-                {
-                    ModelState.AddModelError(string.Empty, "Błędne dane logowania.");
-                    return Page();
                 }
             }
 
