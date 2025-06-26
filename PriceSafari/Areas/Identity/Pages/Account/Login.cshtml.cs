@@ -96,7 +96,7 @@ namespace PriceSafari.Areas.Identity.Pages.Account
                     {
                         _logger.LogInformation("PreMember logged in successfully. Redirecting to /Setup page.");
                         // Logowanie udane, przekierowujemy do specjalnej strony /Setup
-                        return RedirectToPage("/Setup"); // Upewnij się, że masz stronę o nazwie Setup.cshtml
+                        return RedirectToAction("Index", "SetUp");
                     }
                     else
                     {

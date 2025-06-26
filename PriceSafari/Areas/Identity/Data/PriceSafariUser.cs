@@ -39,7 +39,8 @@ public class PriceSafariUser : IdentityUser
     public string? VerificationCode { get; set; }
     public DateTime? VerificationCodeExpires { get; set; }
 
-    public string? PendingStoreUrl { get; set; }
+    public string? PendingStoreNameCeneo { get; set; }
+    public string? PendingStoreNameGoogle { get; set; }
     public string? PendingCeneoFeedUrl { get; set; }
     public string? PendingGoogleFeedUrl { get; set; }
 
