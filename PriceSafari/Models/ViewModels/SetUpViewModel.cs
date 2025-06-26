@@ -9,5 +9,8 @@
         public string PendingCeneoFeedUrl { get; set; }
         public string PendingStoreNameGoogle { get; set; }
         public string PendingGoogleFeedUrl { get; set; }
+
+        public bool IsCeneoSubmitted { get; set; }
+        public bool IsGoogleSubmitted { get; set; }
     }
 }

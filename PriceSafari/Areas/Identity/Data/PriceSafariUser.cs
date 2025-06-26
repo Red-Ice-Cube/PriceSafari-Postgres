@@ -44,6 +44,9 @@ public class PriceSafariUser : IdentityUser
     public string? PendingCeneoFeedUrl { get; set; }
     public string? PendingGoogleFeedUrl { get; set; }
 
+    public DateTime? CeneoFeedSubmittedOn { get; set; }
+    public DateTime? GoogleFeedSubmittedOn { get; set; }
+
     public PriceSafariUser()
     {
         CodePAR = GenerateUniqueCodePAR();

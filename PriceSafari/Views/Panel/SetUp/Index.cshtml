@@ -3,19 +3,18 @@
     ViewData["Title"] = "Konfiguracja Konta";
     Layout = "~/Views/Shared/_PanelLayout.cshtml";
 }
-
 <style>
-    /* Style dla strony konfiguracji (Setup) */
+
     .setup-options-container {
         display: flex;
         flex-direction: column;
-        gap: 20px; /* Odstęp między opcjami */
+        gap: 20px;
     }
 
     .setup-option {
         border: 1px solid #dee2e6;
         border-radius: 0.5rem;
-        overflow: hidden; /* Ważne dla animacji i zaokrąglonych rogów */
+        overflow: hidden;
     }
 
     .setup-option-header {
@@ -57,17 +56,18 @@
         }
 
     .setup-option-content {
-        max-height: 0; /* Domyślnie schowany */
+        max-height: 0;
         overflow: hidden;
         transition: max-height 0.4s ease-in-out, padding 0.4s ease-in-out;
-        padding: 0 1.5rem; /* Ukryty padding */
+        padding: 0 1.5rem;
     }
 
         .setup-option-content.open {
-            max-height: 500px; /* Wystarczająco duża wartość, aby pomieścić formularz */
+            max-height: 5000px;
             padding: 1.5rem;
             padding-top: 0;
             border-top: 1px solid #dee2e6;
+            transition: max-height 0.8s ease-in-out, padding 0.4s ease-in-out;
         }
 
     .form-message {
@@ -76,23 +76,152 @@
     }
 
         .form-message.success {
-            color: #198754; /* Zielony */
+            color: #198754;
         }
 
         .form-message.error {
-            color: #dc3545; /* Czerwony */
+            color: #dc3545;
+        }
+
+    .setup-content-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 2fr) 1fr;
+        gap: 2rem;
+        align-items: start;
+        padding: 24px 16px;
+    }
+
+        .setup-content-grid > * {
+            min-width: 0;
+        }
+
+    .setup-description {
+        border-radius: 0.5rem;
+        padding: 1.5rem;
+        font-size: 0.9rem;
+        min-width: 500px;
+        width: 100%;
+        color: #495057;
+    }
+
+        .setup-description h5 {
+            font-weight: 600;
+            margin-bottom: 1rem;
+        }
+
+        .setup-description a {
+            font-weight: 500;
+        }
+
+    .status-in-progress {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        color: #0d6efd;
+        font-weight: 500;
+    }
+
+    .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.6);
+        display: none;
+        justify-content: center;
+        align-items: center;
+        z-index: 1050;
+    }
+
+    .modal-content {
+        background: #fff;
+        padding: 2rem;
+        border-radius: 0.5rem;
+        max-width: 500px;
+        text-align: center;
+    }
+
+    .modal-buttons {
+        margin-top: 1.5rem;
+        display: flex;
+        justify-content: center;
+        gap: 1rem;
+    }
+
+    .form-submitted-info {
+        background-color: #e9ecef;
+        border-radius: 0.375rem;
+        padding: 1rem;
+        text-align: center;
+        color: #495057;
+        border: 1px solid #dee2e6;
+    }
+
+    .xml-preview-container {
+        background-color: #222222;
+        color: #abb2bf;
+        border-radius: 0.375rem;
+        padding: 1rem;
+        margin-top: 0.75rem;
+        font-family: 'Courier New', Courier, monospace;
+        font-size: 0.85rem;
+        max-height: 300px;
+        overflow: auto;
+    }
+
+        .xml-preview-container.error-message {
+            white-space: pre-wrap;
+            color: #ff6b6b;
+        }
+
+        .xml-preview-container pre {
+            margin: 0;
+            padding: 0;
+            white-space: pre;
+        }
+
+        .xml-preview-container .tag {
+            color: #e06c75;
+        }
+
+        .xml-preview-container .attr-name {
+            color: #d19a66;
+        }
+
+        .xml-preview-container .attr-value {
+            color: #98c379;
+        }
+
+        .xml-preview-container ul {
+            list-style-type: none;
+            padding-left: 20px;
+            margin: 0;
+        }
+
+        .xml-preview-container li {
+            padding: 1px 0;
+        }
+
+        .xml-preview-container .text-node {
+            color: #abb2bf;
+            padding-left: 20px;
+            white-space: normal;
         }
 </style>
+<div class="Vert">
+    <div class="Date">
+        <div class="Order-Container-Title">Witaj w konfiguratorze konta, @Model.UserName!</div>
 
+    </div>
+</div>
 
-<div class="container-fluid pt-4 px-4">
-    <div class="row g-4">
-        <div class="col-12">
-            <div class="bg-light rounded h-100 p-4">
-                <h2 class="mb-2">Witaj w konfiguratorze konta, @Model.UserName!</h2>
-                <p class="lead mb-4">
-                    Wybierz i skonfiguruj źródła danych, które chcesz monitorować.
-                </p>
+<div class="Vert">
+    <div class="Vert-full">
+        <div class="row g-4">
+            <div class="col-12">
+
+                <p class="lead mb-4">Wybierz i skonfiguruj źródła danych, które chcesz monitorować.</p>
 
                 <div class="setup-options-container">
 
@@ -100,26 +229,62 @@
                         <div class="setup-option-header" data-target="#ceneo-content">
                             <img src="~/images/Ceneo.png" alt="Ceneo" class="source-logo" />
                             <div class="header-text">
-                                <h4>Sklep w Ceneo</h4>
+                                <h4>Monitoring Ceneo</h4>
                                 <p>Podaj nazwę sklepu i link do feedu produktowego.</p>
                             </div>
-                            <i class="fas fa-chevron-down arrow-icon"></i>
+                            @if (Model.IsCeneoSubmitted)
+                            {
+                                <div class="status-in-progress ms-auto">
+                                    <span class="spinner-border spinner-border-sm" role="status"></span>
+                                    <span>W przygotowaniu</span>
+                                </div>
+                            }
+                            else
+                            {
+                                <i class="fas fa-chevron-down arrow-icon"></i>
+                            }
                         </div>
                         <div class="setup-option-content" id="ceneo-content">
-                            <form id="ceneo-form">
-                                <div class="mb-3">
-                                    <label for="ceneoStoreName" class="form-label">Nazwa Twojego sklepu w Ceneo</label>
-                                    <input type="text" class="form-control" id="ceneoStoreName" name="StoreName" placeholder="np. super-sklep" value="@Model.PendingStoreNameCeneo" required>
-                                    <div class="form-text">To nazwa, która pojawia się w adresie URL Twojego sklepu na Ceneo.</div>
+                            <div class="setup-content-grid">
+                                <form id="ceneo-form" style="display:flex; max-width:100%; flex-direction:column;">
+                                    @Html.AntiForgeryToken()
+                                    <div class="mb-3">
+                                        <label for="ceneoStoreName" class="form-label">Nazwa Twojego sklepu w Ceneo</label>
+                                        <input type="text" class="form-control" name="StoreName" value="@Model.PendingStoreNameCeneo" required @(Model.IsCeneoSubmitted ? "readonly" : "")>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="ceneoFeedUrl" class="form-label">Adres URL feedu produktowego dla Ceneo</label>
+                                        <div style="display: flex; gap:8px;">
+                                            <input type="url" class="form-control" name="FeedUrl" id="ceneoFeedUrl" value="@Model.PendingCeneoFeedUrl" required @(Model.IsCeneoSubmitted ? "readonly" : "")>
+                                            <button type="button" class="Button-Page-Small-b" style="height:38.18px; margin-top:8px; text-wrap:nowrap;" data-feed-url-id="ceneoFeedUrl" data-preview-id="ceneo-xml-preview">Pokarz podgląd</button>
+                                        </div>
+
+                                    </div>
+
+                                    <div class="mb-3">
+
+                                        <div class="xml-preview-container" id="ceneo-xml-preview">
+                                            Wklej link i kliknij "Sprawdź", aby zobaczyć podgląd Twojego pliku XML.
+                                        </div>
+                                    </div>
+
+                                    <div id="ceneo-message" class="form-message"></div>
+                                    @if (!Model.IsCeneoSubmitted)
+                                    {
+                                        <button type="submit" class="btn btn-primary">Zapisz konfigurację Ceneo</button>
+                                    }
+                                    else
+                                    {
+                                        <div class="form-submitted-info"><p class="mb-0">Konfiguracja w trakcie przygotowania.</p></div>
+                                    }
+                                </form>
+
+                                <div class="setup-description">
+                                    <h5>Jak przygotować feed?</h5>
+                                    <p>Plik XML powinien zawierać podstawowe informacje o Twoich produktach, takie jak ID, nazwa i cena. Upewnij się, że jest on publicznie dostępny pod podanym adresem URL.</p>
+                                    <a href="https://pricesafari.pl/Guide/FeedCeneo" target="_blank">Zobacz szczegółowy poradnik &rarr;</a>
                                 </div>
-                                <div class="mb-3">
-                                    <label for="ceneoFeedUrl" class="form-label">Adres URL feedu produktowego dla Ceneo</label>
-                                    <input type="url" class="form-control" id="ceneoFeedUrl" name="FeedUrl" placeholder="https://..." value="@Model.PendingCeneoFeedUrl" required>
-                                    <div class="form-text">Link do pliku XML z Twoimi produktami.</div>
-                                </div>
-                                <div id="ceneo-message" class="form-message"></div>
-                                <button type="submit" class="btn btn-primary">Zapisz konfigurację Ceneo</button>
-                            </form>
+                            </div>
                         </div>
                     </div>
 
@@ -127,93 +292,388 @@
                         <div class="setup-option-header" data-target="#google-content">
                             <img src="~/images/GoogleShopping.png" alt="Google Shopping" class="source-logo" />
                             <div class="header-text">
-                                <h4>Google Shopping</h4>
+                                <h4>Monitoring Google Shopping</h4>
                                 <p>Podaj nazwę sklepu i link do feedu produktowego.</p>
                             </div>
-                            <i class="fas fa-chevron-down arrow-icon"></i>
+                            @if (Model.IsGoogleSubmitted)
+                            {
+                                <div class="status-in-progress ms-auto">
+                                    <span class="spinner-border spinner-border-sm" role="status"></span>
+                                    <span>W przygotowaniu</span>
+                                </div>
+                            }
+                            else
+                            {
+                                <i class="fas fa-chevron-down arrow-icon"></i>
+                            }
                         </div>
                         <div class="setup-option-content" id="google-content">
-                            <form id="google-form">
-                                <div class="mb-3">
-                                    <label for="googleStoreName" class="form-label">Nazwa Twojego sklepu</label>
-                                    <input type="text" class="form-control" id="googleStoreName" name="StoreName" placeholder="np. Mój Sklep" value="@Model.PendingStoreNameGoogle" required>
-                                    <div class="form-text">Twoja nazwa handlowa.</div>
+                            <div class="setup-content-grid">
+
+                                <form id="google-form" style="display:flex; max-width:100%; flex-direction:column;">
+                                    @Html.AntiForgeryToken()
+                                    <div class="mb-3">
+                                        <label class="form-label">Nazwa Twojego sklepu</label>
+                                        <input type="text" class="form-control" name="StoreName" value="@Model.PendingStoreNameGoogle" required @(Model.IsGoogleSubmitted ? "readonly" : "")>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Adres URL feedu produktowego dla Google</label>
+                                        <div style="display: flex; gap:8px;">
+                                            <input type="url" class="form-control" name="FeedUrl" id="googleFeedUrl" value="@Model.PendingGoogleFeedUrl" required @(Model.IsGoogleSubmitted ? "readonly" : "")>
+                                            <button type="button" class="Button-Page-Small-b" style="height:38.18px; margin-top:8px; text-wrap:nowrap;" data-feed-url-id="googleFeedUrl" data-preview-id="google-xml-preview">Pokarz podgląd</button>
+                                        </div>
+
+                                    </div>
+
+                                    <div class="mb-3">
+
+                                        <div class="xml-preview-container" id="google-xml-preview">
+                                            Wklej link i kliknij "Sprawdź", aby zobaczyć podgląd Twojego pliku XML.
+                                        </div>
+                                    </div>
+
+                                    <div id="google-message" class="form-message"></div>
+                                    @if (!Model.IsGoogleSubmitted)
+                                    {
+                                        <button type="submit" class="btn btn-primary">Zapisz konfigurację Google</button>
+                                    }
+                                    else
+                                    {
+                                        <div class="form-submitted-info"><p class="mb-0">Konfiguracja w trakcie przygotowania.</p></div>
+                                    }
+                                </form>
+                                <div class="setup-description">
+                                    <h5>Feed dla Merchant Center</h5>
+                                    <p>Podaj link do feedu produktowego, którego używasz w swoim koncie Google Merchant Center. Musi on być zgodny ze specyfikacją Google.</p>
+                                    <a href="https://pricesafari.pl/Guide/FeedGMC" target="_blank">Zobacz szczegółowy poradnik &rarr;</a>
                                 </div>
-                                <div class="mb-3">
-                                    <label for="googleFeedUrl" class="form-label">Adres URL feedu produktowego dla Google</label>
-                                    <input type="url" class="form-control" id="googleFeedUrl" name="FeedUrl" placeholder="https://..." value="@Model.PendingGoogleFeedUrl" required>
-                                    <div class="form-text">Link do pliku XML z Twoimi produktami dla Google Merchant Center.</div>
-                                </div>
-                                <div id="google-message" class="form-message"></div>
-                                <button type="submit" class="btn btn-primary">Zapisz konfigurację Google</button>
-                            </form>
+                            </div>
                         </div>
                     </div>
 
                 </div>
+
             </div>
         </div>
     </div>
 </div>
 
-
-
+<div class="modal-overlay" id="confirmation-modal">
+    <div class="modal-content">
+        <h4>Potwierdzenie zapisu</h4>
+        <p id="modal-text" class="my-3">Czy na pewno chcesz zapisać tę konfigurację? Po zapisaniu danych nie będzie można ich edytować, a my rozpoczniemy proces przygotowywania Twojego konta, co może potrwać do 48 godzin. O zakończeniu poinformujemy Cię mailowo.</p>
+        <div class="modal-buttons">
+            <button class="btn btn-secondary" id="modal-cancel">Anuluj</button>
+            <button class="btn btn-success" id="modal-confirm">Tak, zapisz</button>
+        </div>
+    </div>
+</div>
 @section Scripts {
     <script>
         document.addEventListener('DOMContentLoaded', function () {
-            // Logika dla rozwijanych paneli (akordeon)
-            const headers = document.querySelectorAll('.setup-option-header');
-            headers.forEach(header => {
+
+             function sanitizeInputs() {
+
+                const inputsToSanitize = document.querySelectorAll('#ceneo-form input[type="text"], #ceneo-form input[type="url"], #google-form input[type="text"], #google-form input[type="url"]');
+
+                inputsToSanitize.forEach(input => {
+
+                    input.addEventListener('blur', () => {
+                        input.value = input.value.trim();
+                    });
+                });
+            }
+            sanitizeInputs();
+
+            document.querySelectorAll('.setup-option-header').forEach(header => {
                 header.addEventListener('click', () => {
                     const content = document.querySelector(header.dataset.target);
                     const arrow = header.querySelector('.arrow-icon');
-
                     content.classList.toggle('open');
-                    arrow.classList.toggle('rotated');
+                    if (arrow) {
+                        arrow.classList.toggle('rotated');
+                    }
                 });
             });
 
-            // Logika dla formularza Ceneo
-            const ceneoForm = document.getElementById('ceneo-form');
-            ceneoForm.addEventListener('submit', function(e) {
-                e.preventDefault();
-                const formData = new FormData(ceneoForm);
-                const messageDiv = document.getElementById('ceneo-message');
+            const modal = document.getElementById('confirmation-modal');
+            const confirmBtn = document.getElementById('modal-confirm');
+            const cancelBtn = document.getElementById('modal-cancel');
+            let formToSubmit = null;
+            const showModal = () => modal.style.display = 'flex';
+            const hideModal = () => { modal.style.display = 'none'; formToSubmit = null; };
+            cancelBtn.addEventListener('click', hideModal);
+            confirmBtn.addEventListener('click', () => {
+                if (formToSubmit) {
+                    submitForm(formToSubmit);
+                }
+                hideModal();
+            });
 
-                fetch('@Url.Action("SaveCeneo", "SetUp")', {
+            function setupFormListener(formId) {
+                const form = document.getElementById(formId);
+                if (form) {
+                    form.addEventListener('submit', e => {
+                        e.preventDefault();
+                        formToSubmit = form;
+                        showModal();
+                    });
+                }
+            }
+
+              function formatXml(xmlString) {
+
+                const attributeRegex = /(\s[\w:-]+=)((".*?")|('.*?'))/gs;
+                let sanitizedXmlString = xmlString.replace(attributeRegex, (match, attrName, attrValueWithQuotes) => {
+                    const quoteChar = attrValueWithQuotes.substring(0, 1);
+                    const valueContent = attrValueWithQuotes.substring(1, attrValueWithQuotes.length - 1);
+                    const sanitizedValueContent = valueContent
+                        .replace(/&/g, '&amp;')
+                        .replace(/</g, '&lt;');
+                    return attrName + quoteChar + sanitizedValueContent + quoteChar;
+                });
+
+                let openTags = [];
+                (sanitizedXmlString.match(/<[^>]+>/g) || []).forEach(tag => {
+                    if (tag.startsWith('<?') || tag.startsWith('<!') || tag.endsWith('/>')) return;
+                    if (tag.startsWith('</')) {
+                        const tagNameMatch = tag.match(/<\/([^\s>]+)/);
+                        if (tagNameMatch && openTags.length > 0 && tagNameMatch[1] === openTags[openTags.length - 1]) {
+                             openTags.pop();
+                        }
+                    } else {
+                        const tagNameMatch = tag.match(/<([^\s>]+)/);
+                        if (tagNameMatch) {
+                            openTags.push(tagNameMatch[1]);
+                        }
+                    }
+                });
+                let closingTags = '';
+                while(openTags.length > 0) {
+                    closingTags += `</${openTags.pop()}>`;
+                }
+                const fixedXmlString = sanitizedXmlString + closingTags;
+
+                const parser = new DOMParser();
+                const xmlDoc = parser.parseFromString(fixedXmlString, "application/xml");
+                const parserError = xmlDoc.querySelector("parsererror");
+                if (parserError) {
+                    console.error("Błąd parsowania XML:", parserError);
+                    return `<pre class="parser-error">Błąd parsowania pliku XML.\nPlik może być uszkodzony lub mieć niestandardową strukturę.\n\nSzczegóły błędu:\n${parserError.textContent}</pre>`;
+                }
+
+                const container = document.createElement('div');
+                const rootElement = xmlDoc.documentElement;
+                if (rootElement && rootElement.nodeName !== 'parsererror') {
+                     container.appendChild(createNodeTree(rootElement));
+                } else {
+                     return `<pre class="parser-error">Nie udało się znaleźć głównego elementu w pliku XML.</pre>`;
+                }
+
+                return `<pre>${container.innerHTML}</pre>`;
+            }
+
+            function createNodeTree(node) {
+                const ul = document.createElement('ul');
+                const li = document.createElement('li');
+                const header = document.createElement('div');
+
+                const tagName = `<span class="tag">&lt;${node.nodeName}</span>`;
+                let attributes = '';
+
+                if (node.attributes.length > 0) {
+                    for (const attr of node.attributes) {
+                        const escapedValue = attr.value.replace(/"/g, '&quot;');
+                        attributes += ` <span class="attr-name">${attr.name}</span>=<span class="attr-value">"${escapedValue}"</span>`;
+                    }
+                }
+
+                const isSelfClosing = node.children.length === 0 && !node.textContent.trim();
+                const closingChar = isSelfClosing ? ' /&gt;' : '&gt;';
+
+                header.innerHTML = tagName + attributes + `<span class="tag">${closingChar}</span>`;
+                li.appendChild(header);
+
+                if (node.children.length > 0) {
+                    for (const child of node.children) {
+                        li.appendChild(createNodeTree(child));
+                    }
+                } else if (node.textContent.trim()) {
+                    const textContent = document.createElement('div');
+                    textContent.className = 'text-node';
+                    textContent.textContent = node.textContent.trim();
+                    li.appendChild(textContent);
+                }
+
+                if (!isSelfClosing) {
+                    const closingTag = document.createElement('div');
+                    closingTag.innerHTML = `<span class="tag">&lt;/${node.nodeName}&gt;</span>`;
+                    li.appendChild(closingTag);
+                }
+
+                ul.appendChild(li);
+                return ul;
+            }
+
+          async function verifyFeed(feedUrlId, previewId) {
+            const urlInput = document.getElementById(feedUrlId);
+            const previewContainer = document.getElementById(previewId);
+            const url = urlInput.value.trim();
+
+            if (!url) {
+                previewContainer.textContent = 'Najpierw wklej adres URL feedu.';
+                return false;
+            }
+
+            previewContainer.classList.remove('error-message');
+            previewContainer.innerHTML = '<div class="d-flex align-items-center"><span class="spinner-border spinner-border-sm me-2" role="status"></span><span>Wczytywanie podglądu... Może to potrwać chwilę.</span></div>';
+
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 120000);
+
+            try {
+                const response = await fetch('@Url.Action("FetchXmlFeed", "SetUp")', {
                     method: 'POST',
-                    headers: {
-                        'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value
-                    },
-                    body: new URLSearchParams(formData)
-                })
-                .then(res => res.json())
-                .then(data => {
-                    messageDiv.textContent = data.message;
-                    messageDiv.className = data.success ? 'form-message success' : 'form-message error';
+                    headers: { 'Content-Type': 'application/json', 'RequestVerificationToken': document.querySelector('form input[name="__RequestVerificationToken"]').value },
+                    body: JSON.stringify({ url }),
+                    signal: controller.signal
                 });
-            });
 
-            // Logika dla formularza Google
-            const googleForm = document.getElementById('google-form');
-            googleForm.addEventListener('submit', function(e) {
-                e.preventDefault();
-                const formData = new FormData(googleForm);
-                const messageDiv = document.getElementById('google-message');
+                if (!response.ok) {
+                    const errText = await response.text();
+                    throw new Error(errText || `${response.status} ${response.statusText}`);
+                }
 
-                fetch('@Url.Action("SaveGoogleShopping", "SetUp")', {
-                    method: 'POST',
-                     headers: {
-                        'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value
-                    },
-                    body: new URLSearchParams(formData)
-                })
-                .then(res => res.json())
-                .then(data => {
-                    messageDiv.textContent = data.message;
-                    messageDiv.className = data.success ? 'form-message success' : 'form-message error';
-                });
+                const reader = response.body.getReader();
+                const PREVIEW_CHAR_LIMIT = 50000;
+                let receivedLength = 0;
+                let receivedChunks = [];
+                let wasTruncated = false;
+
+                while(true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    receivedChunks.push(value);
+                    receivedLength += value.length;
+                    if (receivedLength >= PREVIEW_CHAR_LIMIT) {
+                        wasTruncated = true;
+                        reader.cancel().catch(() => {});
+                        break;
+                    }
+                }
+                clearTimeout(timeoutId);
+                const blob = new Blob(receivedChunks);
+                let previewText = await blob.text();
+
+                if (previewText.trim() === '') {
+                    previewContainer.textContent = 'Otrzymano pustą odpowiedź od serwera.';
+                    return false;
+                }
+
+                const lastTagStart = previewText.lastIndexOf('<');
+                const lastTagEnd = previewText.lastIndexOf('>');
+                if (lastTagStart > lastTagEnd) {
+                    previewText = previewText.substring(0, lastTagStart);
+                }
+                const lastCdataStart = previewText.lastIndexOf('<![CDATA[');
+                const lastCdataEnd = previewText.lastIndexOf(']]>');
+                if (lastCdataStart > -1 && lastCdataStart > lastCdataEnd) {
+                    previewText = previewText.substring(0, lastCdataStart);
+                }
+                let formattedHtml = formatXml(previewText);
+                if (wasTruncated) {
+                    const commentHtml = `<div style="color: #28a745; margin-top: 10px; font-style: italic;">(Wyświetlono podgląd. Cały plik jest prawdopodobnie większy.)</div>`;
+                    const lastPreIndex = formattedHtml.lastIndexOf('</pre>');
+                    if (lastPreIndex !== -1) {
+                         formattedHtml = formattedHtml.slice(0, lastPreIndex) + commentHtml + formattedHtml.slice(lastPreIndex);
+                    } else {
+                         formattedHtml += commentHtml;
+                    }
+                }
+                previewContainer.innerHTML = formattedHtml;
+
+                return true;
+
+            } catch (err) {
+                previewContainer.classList.add('error-message');
+                previewContainer.innerText =
+                    err.name === 'AbortError'
+                        ? 'Przekroczono limit czasu (2 min). Serwer źródłowy odpowiada zbyt wolno.'
+                        : `Nie udało się wczytać feedu: ${err.message}`;
+                console.error('Feed verification error:', err);
+
+                return false;
+            }
+        }
+
+               document.querySelectorAll('button[data-feed-url-id]').forEach(btn => {
+            const previewId = btn.dataset.previewId;
+            const previewContainer = document.getElementById(previewId);
+
+            const originalPreviewContent = previewContainer.innerHTML;
+
+            btn.addEventListener('click', async (event) => {
+                const currentButton = event.currentTarget;
+
+                const currentState = currentButton.dataset.state || 'hidden';
+
+                if (currentState === 'hidden') {
+
+                    const originalButtonText = currentButton.textContent;
+                    currentButton.textContent = 'Wczytywanie...';
+                    currentButton.disabled = true;
+
+                    const success = await verifyFeed(currentButton.dataset.feedUrlId, previewId);
+
+                    currentButton.disabled = false;
+                    if (success) {
+
+                        currentButton.textContent = 'Ukryj podgląd';
+                        currentButton.dataset.state = 'shown';
+                    } else {
+
+                        currentButton.textContent = originalButtonText;
+                        currentButton.dataset.state = 'hidden';
+                    }
+                } else {
+
+                    previewContainer.innerHTML = originalPreviewContent;
+                    previewContainer.classList.remove('error-message');
+                    currentButton.textContent = 'Pokaż podgląd';
+                    currentButton.dataset.state = 'hidden';
+                }
             });
+        });
+
+            async function submitForm(form) {
+                const messageDiv = form.querySelector('.form-message');
+                const formData = new FormData(form);
+                const url = form.id === 'ceneo-form'
+                    ? '@Url.Action("SaveCeneo", "SetUp")'
+                    : '@Url.Action("SaveGoogleShopping", "SetUp")';
+
+                try {
+                    const response = await fetch(url, {
+                        method: 'POST',
+                        headers: { 'RequestVerificationToken': document.querySelector('form input[name="__RequestVerificationToken"]').value },
+                        body: new URLSearchParams(formData)
+                    });
+                    const data = await response.json();
+
+                    if (data.success) {
+
+                    } else {
+                        messageDiv.textContent = data.message;
+                        messageDiv.className = 'form-message error';
+                    }
+                } catch {
+                    messageDiv.textContent = 'Wystąpił błąd sieci. Spróbuj ponownie.';
+                    messageDiv.className = 'form-message error';
+                }
+            }
+
+            setupFormListener('ceneo-form');
+            setupFormListener('google-form');
         });
     </script>
 }
