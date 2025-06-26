@@ -117,7 +117,7 @@
         display: flex;
         align-items: center;
         gap: 0.75rem;
-        color: #0d6efd;
+        color: #41C7C7;
         font-weight: 500;
     }
 
@@ -138,7 +138,7 @@
         background: #fff;
         padding: 2rem;
         border-radius: 0.5rem;
-        max-width: 500px;
+        max-width: 560px;
         text-align: center;
     }
 
@@ -236,7 +236,7 @@
                             {
                                 <div class="status-in-progress ms-auto">
                                     <span class="spinner-border spinner-border-sm" role="status"></span>
-                                    <span>W przygotowaniu</span>
+                                    <span>Finalizujemy konfigurację konta…</span>
                                 </div>
                             }
                             else
@@ -264,18 +264,25 @@
                                     <div class="mb-3">
 
                                         <div class="xml-preview-container" id="ceneo-xml-preview">
-                                            Wklej link i kliknij "Sprawdź", aby zobaczyć podgląd Twojego pliku XML.
+                                            Wklej link i kliknij "Pokarz pogląd", aby zobaczyć podgląd Twojego pliku XML.
                                         </div>
                                     </div>
 
                                     <div id="ceneo-message" class="form-message"></div>
                                     @if (!Model.IsCeneoSubmitted)
                                     {
-                                        <button type="submit" class="btn btn-primary">Zapisz konfigurację Ceneo</button>
+                                
+                                        <button type="submit" class="Button-Page-Small-bl" style="height:38.18px;">Rozpocznij monitoring Ceneo</button>
                                     }
                                     else
                                     {
-                                        <div class="form-submitted-info"><p class="mb-0">Konfiguracja w trakcie przygotowania.</p></div>
+
+                                        <div class="form-submitted-info">
+                                            <p class="mb-0">
+                                                Dziękujemy za przesłanie danych! Rozpoczynamy monitoring 500 pierwszych produktów z przesłanego feedu w serwisie Ceneo. Zebranie informacji oraz przygotowanie Twojego konta może potrwać do 24 godzin. Gdy wszystko będzie gotowe, otrzymasz od nas powiadomienie mailowe.
+                                            </p>
+
+                                        </div>                                
                                     }
                                 </form>
 
@@ -328,18 +335,22 @@
                                     <div class="mb-3">
 
                                         <div class="xml-preview-container" id="google-xml-preview">
-                                            Wklej link i kliknij "Sprawdź", aby zobaczyć podgląd Twojego pliku XML.
+                                            Wklej link i kliknij "Pokarz pogląd", aby zobaczyć podgląd Twojego pliku XML.
                                         </div>
                                     </div>
 
                                     <div id="google-message" class="form-message"></div>
                                     @if (!Model.IsGoogleSubmitted)
                                     {
-                                        <button type="submit" class="btn btn-primary">Zapisz konfigurację Google</button>
+                                        <button type="submit" class="Button-Page-Small-bl" style="height:38.18px;">Rozpocznij monitoring Google Shopping</button>
                                     }
                                     else
                                     {
-                                        <div class="form-submitted-info"><p class="mb-0">Konfiguracja w trakcie przygotowania.</p></div>
+                                        <div class="form-submitted-info">
+                                            <p class="mb-0">
+                                                Dziękujemy za przesłanie danych! Rozpoczynamy monitoring 500 pierwszych produktów z przesłanego feedu w Google Shopping. Zebranie informacji oraz przygotowanie Twojego konta może potrwać do 24 godzin. Gdy wszystko będzie gotowe, otrzymasz od nas powiadomienie mailowe.
+                                            </p>
+                                        </div>
                                     }
                                 </form>
                                 <div class="setup-description">
@@ -645,32 +656,36 @@
             });
         });
 
-            async function submitForm(form) {
-                const messageDiv = form.querySelector('.form-message');
-                const formData = new FormData(form);
-                const url = form.id === 'ceneo-form'
-                    ? '@Url.Action("SaveCeneo", "SetUp")'
-                    : '@Url.Action("SaveGoogleShopping", "SetUp")';
+        // --- POCZĄTEK SEKCJI Z KLUCZOWĄ POPRAWKĄ ---
+        async function submitForm(form) {
+            const messageDiv = form.querySelector('.form-message');
+            const formData = new FormData(form);
+            const url = form.id === 'ceneo-form'
+                ? '@Url.Action("SaveCeneo", "SetUp")'
+                : '@Url.Action("SaveGoogleShopping", "SetUp")';
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'RequestVerificationToken': document.querySelector('form input[name="__RequestVerificationToken"]').value },
+                    body: new URLSearchParams(formData)
+                });
+                const data = await response.json();
 
-                try {
-                    const response = await fetch(url, {
-                        method: 'POST',
-                        headers: { 'RequestVerificationToken': document.querySelector('form input[name="__RequestVerificationToken"]').value },
-                        body: new URLSearchParams(formData)
-                    });
-                    const data = await response.json();
-
-                    if (data.success) {
-
-                    } else {
-                        messageDiv.textContent = data.message;
-                        messageDiv.className = 'form-message error';
-                    }
-                } catch {
-                    messageDiv.textContent = 'Wystąpił błąd sieci. Spróbuj ponownie.';
+                if (data.success) {
+                    // POPRAWKA: Przeładuj stronę, aby pokazać zaktualizowany widok z serwera.
+                    window.location.reload();
+                } else {
+                    messageDiv.textContent = data.message;
                     messageDiv.className = 'form-message error';
                 }
+            } catch (error) {
+                messageDiv.textContent = 'Wystąpił błąd sieci. Spróbuj ponownie.';
+                messageDiv.className = 'form-message error';
+                console.error('Submit form error:', error);
             }
+        }
+        // --- KONIEC SEKCJI Z KLUCZOWĄ POPRAWKĄ ---
+
 
             setupFormListener('ceneo-form');
             setupFormListener('google-form');
