@@ -128,34 +128,6 @@
         font-weight: 500;
     }
 
-    .modal-overlay {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background-color: rgba(0, 0, 0, 0.6);
-        display: none;
-        justify-content: center;
-        align-items: center;
-        z-index: 1050;
-    }
-
-    .modal-content {
-        background: #fff;
-        padding: 2rem;
-        border-radius: 0.5rem;
-        max-width: 560px;
-        text-align: center;
-    }
-
-    .modal-buttons {
-        margin-top: 1.5rem;
-        display: flex;
-        justify-content: center;
-        gap: 1rem;
-    }
-
     .form-submitted-info {
         background-color: #e9ecef;
         border-radius: 0.375rem;
@@ -228,6 +200,109 @@
         min-height: 97vh;
         min-width: 956px;
     }
+
+    .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.6);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 1000;
+        opacity: 0;
+        visibility: hidden;
+        transition: opacity 0.3s ease, visibility 0.3s ease;
+    }
+
+        .modal-overlay.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+
+    .modal-content {
+        background-color: #ffffff;
+        padding: 2.5rem;
+        border-radius: 16px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        width: 90%;
+        max-width: 500px;
+        text-align: left;
+        transform: scale(0.95);
+        transition: transform 0.3s ease;
+        gap: 0px;
+    }
+
+    .modal-overlay.visible .modal-content {
+        transform: scale(1);
+    }
+
+    .modal-content h3 {
+        margin-top: 0;
+        margin-bottom: 1rem;
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: #111827;
+    }
+
+    .modal-content p {
+        margin-bottom: 1rem;
+        font-size: 1rem;
+        color: #4b5563;
+        line-height: 1.6;
+    }
+
+    .modal-buttons {
+        margin-top: 1.5rem;
+        display: flex;
+        gap: 1rem;
+        justify-content: space-between;
+    }
+
+        .modal-buttons .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+        }
+
+    .modal-details {
+        margin-top: 1.5rem;
+        margin-bottom: 1.5rem;
+        padding: 1rem;
+        background-color: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 5px;
+        text-align: left;
+        font-size: 0.9rem;
+        color: #495057;
+    }
+
+        .modal-details p {
+            margin-bottom: 1rem;
+            line-height: 1.5;
+        }
+
+        .modal-details ul {
+            list-style-position: inside;
+            padding-left: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .modal-details li {
+            margin-bottom: 0.5rem;
+        }
+
+        .modal-details .modal-warning {
+            font-size: 0.85rem;
+            color: #6c757d;
+            margin-bottom: 0;
+        }
 </style>
 <div class="Vert">
     <div class="Date">
@@ -426,12 +501,36 @@
 
 <div class="modal-overlay" id="confirmation-modal">
     <div class="modal-content">
-        <h4>Potwierdzenie zapisu</h4>
-        <p id="modal-text" class="my-3">Czy na pewno chcesz zapisać tę konfigurację? Po zapisaniu danych nie będzie można ich edytować, a my rozpoczniemy proces przygotowywania Twojego konta, co może potrwać do 48 godzin. O zakończeniu poinformujemy Cię mailowo.</p>
-        <div class="modal-buttons">
-            <button class="btn btn-secondary" id="modal-cancel">Anuluj</button>
-            <button class="btn btn-success" id="modal-confirm">Tak, zapisz</button>
+
+        <h3><i class="fas fa-check-circle" style="color: #41C7C7;"></i> Potwierdzenie zapisu</h3>
+
+        <p id="modal-text">
+            Czy na pewno chcesz zapisać tę konfigurację? Po zapisaniu, jej edycja nie będzie możliwa.
+        </p>
+
+        <div class="modal-details">
+            <p>
+                Zanim zatwierdzisz, upewnij się, że Twój feed produktowy jest poprawny.
+                <strong>Zmapujemy z niego pierwsze 500 produktów.</strong>
+            </p>
+
+            <p style="margin-bottom: 0.5rem;"><strong>Feed produktowy powinien zawierać:</strong></p>
+            <ul>
+                <li><strong>ID</strong> produktu</li>
+                <li><strong>URL</strong> prowadzący do produktu na Twojej stronie</li>
+                <li><strong>Kod EAN/GTIN</strong> produktu</li>
+                <li><strong>URL obrazu</strong> produktu</li>
+            </ul>
+
+            <p class="modal-warning">
+                Produkty bez kodu EAN/GTIN nie będą brane pod uwagę. Jeżeli produkt ma ten sam kod EAN/GTIN co inny, pod uwagę weźmiemy tylko pierwsze wystąpienie.
+            </p>
         </div>
+        <div class="modal-buttons">
+            <button class="Button-Page-Small" id="modal-cancel">Anuluj</button>
+            <button class="Button-Page-Small-bl" id="modal-confirm">Tak, zapisz i kontynuuj</button>
+        </div>
+
     </div>
 </div>
 @section Scripts {
@@ -462,30 +561,55 @@
                 });
             });
 
-            const modal = document.getElementById('confirmation-modal');
-            const confirmBtn = document.getElementById('modal-confirm');
-            const cancelBtn = document.getElementById('modal-cancel');
-            let formToSubmit = null;
-            const showModal = () => modal.style.display = 'flex';
-            const hideModal = () => { modal.style.display = 'none'; formToSubmit = null; };
-            cancelBtn.addEventListener('click', hideModal);
-            confirmBtn.addEventListener('click', () => {
-                if (formToSubmit) {
-                    submitForm(formToSubmit);
-                }
-                hideModal();
-            });
+        const modalOverlay = document.getElementById('confirmation-modal');
+        const confirmBtn = document.getElementById('modal-confirm');
+        const cancelBtn = document.getElementById('modal-cancel');
+        let formToSubmit = null;
 
-            function setupFormListener(formId) {
-                const form = document.getElementById(formId);
-                if (form) {
-                    form.addEventListener('submit', e => {
-                        e.preventDefault();
-                        formToSubmit = form;
-                        showModal();
-                    });
-                }
+        const showConfirmationModal = (formElement) => {
+            if (formElement) {
+                formToSubmit = formElement;
             }
+            modalOverlay.classList.add('visible');
+        };
+
+        const hideConfirmationModal = () => {
+            modalOverlay.classList.remove('visible');
+            formToSubmit = null;
+        };
+
+        const handleConfirm = () => {
+            if (formToSubmit) {
+
+                submitForm(formToSubmit);
+            }
+            hideConfirmationModal();
+        };
+
+        cancelBtn.addEventListener('click', hideConfirmationModal);
+        confirmBtn.addEventListener('click', handleConfirm);
+
+        modalOverlay.addEventListener('click', (event) => {
+            if (event.target === modalOverlay) {
+                hideConfirmationModal();
+            }
+        });
+
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape' && modalOverlay.classList.contains('visible')) {
+                hideConfirmationModal();
+            }
+        });
+
+        function setupFormListener(formId) {
+            const form = document.getElementById(formId);
+            if (form) {
+                form.addEventListener('submit', event => {
+                    event.preventDefault();
+                    showConfirmationModal(form);
+                });
+            }
+        }
 
               function formatXml(xmlString) {
 
