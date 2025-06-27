@@ -104,7 +104,7 @@ namespace PriceSafari.Controllers.ManagerControllers
             return View("~/Views/ManagerPanel/Affiliates/Accounts.cshtml", model);
         }
 
-
+        // Akcja w Twoim kontrolerze
         public async Task<IActionResult> UserProfile(string codePAR)
         {
             if (codePAR == null || _context.Users == null)
@@ -113,16 +113,23 @@ namespace PriceSafari.Controllers.ManagerControllers
             }
 
             var user = await _context.Users
-              .Include(p => p.AffiliateVerification)
-              .FirstOrDefaultAsync(p => p.CodePAR == codePAR);
+                .Include(p => p.AffiliateVerification)
+                .FirstOrDefaultAsync(p => p.CodePAR == codePAR);
 
             if (user == null)
             {
                 return NotFound();
             }
 
+            // --- POCZĄTEK NOWEGO KODU ---
+            // Pobieranie ról użytkownika
+            var roles = await _userManager.GetRolesAsync(user);
+            var primaryRole = roles.FirstOrDefault(); // Bierzemy pierwszą rolę z listy
+                                                      // --- KONIEC NOWEGO KODU ---
+
             var managerUserProfileViewModel = new ManagerUserProfileViewModel
             {
+                // ... (wszystkie istniejące mapowania bez zmian)
                 UserName = user.PartnerName,
                 UserSurname = user.PartnerSurname,
                 UserEmail = user.Email,
@@ -130,10 +137,83 @@ namespace PriceSafari.Controllers.ManagerControllers
                 UserJoin = user.CreationDate,
                 Status = user.IsActive,
                 Verification = user.AffiliateVerification?.IsVerified ?? false,
-                //Description = user.AffiliateVerification?.AffiliateDescription
+                UserStatus = user.Status,
+                LastLogin = user.LastLoginDateTime,
+                LoginCount = user.LoginCount,
+                CeneoStoreName = user.PendingStoreNameCeneo,
+                CeneoFeedUrl = user.PendingCeneoFeedUrl,
+                CeneoFeedSubmittedOn = user.CeneoFeedSubmittedOn,
+                GoogleStoreName = user.PendingStoreNameGoogle,
+                GoogleFeedUrl = user.PendingGoogleFeedUrl,
+                GoogleFeedSubmittedOn = user.GoogleFeedSubmittedOn,
+
+                // --- POCZĄTEK MAPOWANIA NOWYCH DANYCH ---
+                Role = primaryRole,
+                PhoneNumber = user.PhoneNumber
             };
 
             return View("~/Views/ManagerPanel/Affiliates/UserProfile.cshtml", managerUserProfileViewModel);
+        }
+
+
+
+
+
+        // Dodaj tę nową metodę w swoim kontrolerze
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> PromoteToMember(string codePAR)
+        {
+            if (string.IsNullOrEmpty(codePAR))
+            {
+                return BadRequest("Nie podano kodu PAR użytkownika.");
+            }
+
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.CodePAR == codePAR);
+            if (user == null)
+            {
+                return NotFound("Nie znaleziono użytkownika.");
+            }
+
+            // Sprawdzamy, czy użytkownik faktycznie jest w roli "PreMember"
+            if (await _userManager.IsInRoleAsync(user, "PreMember"))
+            {
+                // Krok 1: Usuń starą rolę
+                var removeResult = await _userManager.RemoveFromRoleAsync(user, "PreMember");
+                if (!removeResult.Succeeded)
+                {
+                    // Obsługa błędu, jeśli usunięcie roli się nie powiedzie
+                    TempData["ErrorMessage"] = "Nie udało się usunąć roli PreMember.";
+                    return RedirectToAction("UserProfile", new { codePAR = user.CodePAR });
+                }
+
+                // Krok 2: Dodaj nową rolę
+                var addResult = await _userManager.AddToRoleAsync(user, "Member");
+                if (!addResult.Succeeded)
+                {
+                    // Obsługa błędu, jeśli dodanie roli się nie powiedzie
+                    TempData["ErrorMessage"] = "Nie udało się dodać roli Member.";
+                    // Opcjonalnie: spróbuj dodać z powrotem rolę PreMember, aby zachować spójność
+                    await _userManager.AddToRoleAsync(user, "PreMember");
+                    return RedirectToAction("UserProfile", new { codePAR = user.CodePAR });
+                }
+
+                // Krok 3: Zmień status użytkownika na "Active" i zapisz zmiany
+                user.Status = UserStatus.Active;
+                var updateResult = await _userManager.UpdateAsync(user);
+
+                if (updateResult.Succeeded)
+                {
+                    TempData["SuccessMessage"] = "Rola użytkownika została pomyślnie zmieniona na Member.";
+                }
+            }
+            else
+            {
+                TempData["WarningMessage"] = "Użytkownik nie ma roli PreMember.";
+            }
+
+            // Przekieruj z powrotem do profilu, aby zobaczyć zmiany
+            return RedirectToAction("UserProfile", new { codePAR = user.CodePAR });
         }
 
         [HttpPost]

@@ -2590,6 +2590,22 @@ tr:last-child .sub-line {
     color: #808080;
 }
 
+.PreMemberStyle {
+    display: inline-flex;
+    align-self: center;
+    padding: 4px 12px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 400;
+    border: 1px solid #FFD700; 
+    background: rgba(255, 215, 0, 0.12); 
+    color: #FFD700;
+}
+
+
+
 .ManagerStyle {
     display: inline-flex;
     align-self: center;

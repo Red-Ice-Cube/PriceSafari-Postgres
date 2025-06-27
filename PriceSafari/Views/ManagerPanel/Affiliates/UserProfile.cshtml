@@ -4,91 +4,334 @@
     Layout = "~/Views/Shared/_PanelLayout.cshtml";
 }
 
+<style>
+
+    .top-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+        gap: 24px;
+        align-items: start;
+    }
+
+    .info-card {
+        display: flex;
+        flex-direction: column;
+        background-color: #ffffff;
+        border: 1px solid #e9ecef;
+        border-radius: 8px;
+        padding: 1.5rem;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+
+    .info-card-header {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: #343a40;
+        margin-bottom: 1.5rem;
+        padding-bottom: 0.75rem;
+        border-bottom: 1px solid #e9ecef;
+    }
+
+    .info-line {
+        display: flex;
+        align-items: center;
+        font-size: 14px;
+        margin-bottom: 1.25rem;
+        color: #4B4B4B;
+        gap: 8px;
+    }
+
+    .info-line-icon {
+        flex-shrink: 0;
+        width: 20px;
+        height: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 8px;
+    }
+
+        .info-line-icon img {
+            width: 100%;
+            height: 100%;
+        }
+
+        .info-line-icon .fas {
+            font-size: 18px;
+            color: #6c757d;
+            width: 20px;
+            text-align: center;
+        }
+
+    .info-line strong {
+        color: #212529;
+        min-width: 140px;
+        flex-shrink: 0;
+    }
+
+    .info-line span, .info-line a, .info-line div {
+        word-break: break-all;
+    }
+
+    .feed-grid {
+        display: flex;
+        gap: 32px;
+        flex-direction: column;
+    }
+
+    .actions-container {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+    }
+
+        .actions-container .btn {
+            min-width: 180px;
+        }
+
+    .status-badge {
+        display: inline-block;
+        padding: 0.3em 0.65em;
+        font-size: 80%;
+        font-weight: 700;
+        line-height: 1;
+        text-align: center;
+        white-space: nowrap;
+        vertical-align: baseline;
+        border-radius: 0.25rem;
+        color: #fff;
+    }
+
+    .status-active {
+        background-color: #28a745;
+    }
+
+    .status-pending {
+        background-color: #ffc107;
+        color: #212529;
+    }
+
+    .status-inactive {
+        background-color: #6c757d;
+    }
+
+</style>
+
 <div class="Page-Box">
     <div class="Page-Box-Container">
         <div class="Page-Box-Category">
             <div class="Category-Box-Title">
                 Profil użytkownika
-
             </div>
-
             <partial name="_ManageNavCol" />
         </div>
 
         <div class="Column-Form">
-            <div class="campaign-box-head-name" style="font-size: 26px; color: #4B4B4B; font-weight:300;">
+            <div class="campaign-box-head-name" style="font-size: 26px; color: #4B4B4B; font-weight:300; margin-bottom: 2rem;">
                 Konto @Model.UserName @Model.UserSurname
-
             </div>
+            <div style="display:flex; gap:24px;">
+                <div class="top-grid">
+                    <div class="info-card">
+                        <div class="info-card-header">Dane podstawowe</div>
+                        <div class="info-line">
+                            <div class="info-line-icon"><img src="~/images/Affiliate.svg" /></div>
+                            <strong>Kod Partnera:</strong> <span>@Model.UserCode</span>
+                        </div>
+                        <div class="info-line">
+                            <div class="info-line-icon"><img src="~/images/Mail.svg" /></div>
+                            <strong>E-mail:</strong> <span>@Model.UserEmail</span>
+                        </div>
+                        <div class="info-line">
+                            <div class="info-line-icon"><i class="fas fa-phone-alt"></i></div>
+                            <strong>Telefon:</strong>
+                            <span>@(string.IsNullOrEmpty(Model.PhoneNumber) ? "Brak danych" : Model.PhoneNumber)</span>
+                        </div>
+                        <div class="info-line">
+                            <div class="info-line-icon"><i class="fas fa-user-tag"></i></div>
+                            <strong>Rola w systemie:</strong>
+                            <div>
+                                @if (Model.Role == "Admin")
+                                {
+                                    <div class="AdminStyle">@Model.Role</div>
+                                }
+                                else if (Model.Role == "Manager")
+                                {
+                                    <div class="ManagerStyle">@Model.Role</div>
+                                }
+                                else if (Model.Role == "Member")
+                                {
+                                    <div class="MemberStyle">@Model.Role</div>
+                                }
+                                else if (Model.Role == "PreMember")
+                                {
+                                    <div class="PreMemberStyle">@Model.Role</div>
+                                }
+                                else
+                                {
+                                    <span>@Model.Role</span>
+                                }
+                            </div>
+                            <div>
+                                @if (Model.Role == "PreMember")
+                                {
+                                    <form asp-action="PromoteToMember" method="post" asp-antiforgery="true" class="mb-0">
+                                        <input type="hidden" name="codePAR" value="@Model.UserCode" />
+                                        <button type="submit" class="btn btn-sm btn-outline-success">Zmień na Member</button>
+                                    </form>
+                                }
+                            </div>
+                        </div>
+                        <div class="info-line">
+                            <div class="info-line-icon"><img src="~/images/Time.svg" /></div>
+                            <strong>Data dołączenia:</strong> <span>@Model.UserJoin.ToString("g")</span>
+                        </div>
+                    </div>
 
-            <div class="campaign-summary">
+                    <div class="info-card">
+                        <div class="info-card-header">Status i Aktywność</div>
+                        <div class="info-line">
+                            <div class="info-line-icon"><i class="fas fa-shield-alt"></i></div>
+                            <strong>Status konta:</strong>
+                            <div>
+                                @switch (Model.UserStatus)
+                                {
+                                    case UserStatus.Active:
+                                        <span class="status-badge status-active">Aktywne</span>
+                                        break;
+                                    case UserStatus.PendingEmailVerification:
+                                    case UserStatus.PendingSetup:
+                                    case UserStatus.AwaitingAdminApproval:
+                                    case UserStatus.Onboarding:
+                                        <span class="status-badge status-pending">Oczekujące (@Model.UserStatus.ToString())</span>
+                                        break;
+                                    case UserStatus.Inactive:
+                                        <span class="status-badge status-inactive">Nieaktywne</span>
+                                        break;
+                                }
+                            </div>
+                        </div> 
+                
+                        <div class="info-line">
+                            <div class="info-line-icon"><i class="fas fa-sign-in-alt"></i></div>
+                            <strong>Ostatnie logowanie:</strong>
+                            <span>@(Model.LastLogin.HasValue? Model.LastLogin.Value.ToString("g") : "Brak danych")</span>
+                        </div>
+                        <div class="info-line">
+                            <div class="info-line-icon"><i class="fas fa-list-ol"></i></div>
+                            <strong>Liczba logowań:</strong> <span>@Model.LoginCount</span>
+                        </div>
+                        <div class="info-line">
+                            <div class="info-line-icon"><i class="fas fa-user-check"></i></div>
+                            <strong>Weryfikacja Partnera:</strong> <span>@(Model.Verification ? "Zatwierdzony" : "Czeka na weryfikację")</span>
+                        </div>
+                    </div>
 
-                <div class="campaign-summary-line" style="font-size: 14px;">
-                    <div class="campaign-summary-line-icon">
-                        <img src="~/images/Affiliate.svg" alt="Panel Icon" width="18" height="18" />
-                    </div>Kod Partnera: @Model.UserCode
+                    <div class="info-card">
+                        <div class="info-card-header">Akcje</div>
+                        <div class="actions-container">
+                            @if (Model.Status)
+                            {
+                                <form asp-action="BlockUser" method="post" asp-antiforgery="true">
+                                    <input type="hidden" name="codePAR" value="@Model.UserCode" />
+                                    <button type="submit" class="btn btn-warning">Zablokuj użytkownika</button>
+                                </form>
+                            }
+                            else
+                            {
+                                <form asp-action="UnblockUser" method="post" asp-antiforgery="true">
+                                    <input type="hidden" name="codePAR" value="@Model.UserCode" />
+                                    <button type="submit" class="btn btn-success">Odblokuj użytkownika</button>
+                                </form>
+                            }
+
+                            @if (!Model.Verification)
+                            {
+                                <form asp-action="VerifyUser" method="post">
+                                    <input type="hidden" name="codePAR" value="@Model.UserCode" />
+                                    <button type="submit" class="btn btn-primary">Zaakceptuj weryfikację</button>
+                                </form>
+                            }
+
+                            <form asp-action="HardDeleteUser" method="post" asp-antiforgery="true"
+                                  onsubmit="return confirm('Ta operacja TRWALE usunie konto i wszystkie dane powiązane. Kontynuować?');">
+                                <input type="hidden" name="codePAR" value="@Model.UserCode" />
+                                <button type="submit" class="btn btn-danger">
+                                    Usuń konto na stałe
+                                </button>
+                            </form>
+                        </div>
+                    </div>
                 </div>
-                <div class="campaign-summary-line" style="font-size: 14px;">
-                    <div class="campaign-summary-line-icon">
-                        <img src="~/images/Time.svg" alt="Panel Icon" width="18" height="18" />
-                    </div>Data dołączenia: @Model.UserJoin
+
+                <div class="info-card">
+                    <div class="info-card-header">Konfiguracja Feedów Produktowych</div>
+                    <div class="feed-grid">
+                        <div>
+                            <h5>Ceneo</h5>
+                            <hr />
+                            @if (Model.CeneoFeedSubmittedOn.HasValue)
+                            {
+                                <div class="info-line">
+                                    <div class="info-line-icon"><i class="fas fa-check-circle" style="color: green;"></i></div>
+                                    <strong>Status:</strong> <span>Dane przesłane</span>
+                                </div>
+                                <div class="info-line">
+                                    <div class="info-line-icon"><i class="fas fa-calendar-alt"></i></div>
+                                    <strong>Data przesłania:</strong> <span>@Model.CeneoFeedSubmittedOn.Value.ToString("g")</span>
+                                </div>
+                                <div class="info-line">
+                                    <div class="info-line-icon"><i class="fas fa-store"></i></div>
+                                    <strong>Nazwa sklepu:</strong> <span>@Model.CeneoStoreName</span>
+                                </div>
+                                <div class="info-line">
+                                    <div class="info-line-icon"><i class="fas fa-link"></i></div>
+                                    <strong>URL Feedu:</strong> <a href="@Model.CeneoFeedUrl" target="_blank">@Model.CeneoFeedUrl</a>
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="info-line">
+                                    <div class="info-line-icon"><i class="fas fa-hourglass-half"></i></div>
+                                    Użytkownik nie podał jeszcze danych dla Ceneo.
+                                </div>
+                            }
+                        </div>
+                        <div>
+                            <h5>Google Shopping</h5>
+                            <hr />
+                            @if (Model.GoogleFeedSubmittedOn.HasValue)
+                            {
+                                <div class="info-line">
+                                    <div class="info-line-icon"><i class="fas fa-check-circle" style="color: green;"></i></div>
+                                    <strong>Status:</strong> <span>Dane przesłane</span>
+                                </div>
+                                <div class="info-line">
+                                    <div class="info-line-icon"><i class="fas fa-calendar-alt"></i></div>
+                                    <strong>Data przesłania:</strong> <span>@Model.GoogleFeedSubmittedOn.Value.ToString("g")</span>
+                                </div>
+                                <div class="info-line">
+                                    <div class="info-line-icon"><i class="fas fa-store"></i></div>
+                                    <strong>Nazwa sklepu:</strong> <span>@Model.GoogleStoreName</span>
+                                </div>
+                                <div class="info-line">
+                                    <div class="info-line-icon"><i class="fas fa-link"></i></div>
+                                    <strong>URL Feedu:</strong> <a href="@Model.GoogleFeedUrl" target="_blank">@Model.GoogleFeedUrl</a>
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="info-line">
+                                    <div class="info-line-icon"><i class="fas fa-hourglass-half"></i></div>
+                                    Użytkownik nie podał jeszcze danych dla Google Shopping.
+                                </div>
+                            }
+                        </div>
+                    </div>
                 </div>
-                <div class="campaign-summary-line" style="font-size: 14px;">
-                    <div class="campaign-summary-line-icon">
-                        <img src="~/images/Mail.svg" alt="Panel Icon" width="18" height="18" />
-                    </div>E-mail: @Model.UserEmail
-                </div>
-
-            </div>
-
-            <div class="campaign-summary">
-
-                <div class="campaign-summary-line" style="font-size: 14px;">
-                    <div class="campaign-summary-line-icon">
-                        <img src="~/images/Time.svg" alt="Panel Icon" width="18" height="18" />
-                    </div>Weryfikacja Partnera: @(Model.Verification ? "Zatwierdzony" : "Czeka na weryfikację")
-                </div>
-
-            </div>
-
-            <div class="campaign-summary" style="margin-top: 64px;">
-                @if (Model.Status)
-                {
-                    <form asp-action="BlockUser" method="post" asp-antiforgery="true">
-                        <input type="hidden" name="codePAR" value="@Model.UserCode" />
-                        <button type="submit" class="Button-Page-Small-r" style="width: 180px;">Zablokuj użytkownika</button>
-                    </form>
-                }
-                else
-                {
-                    <form asp-action="UnblockUser" method="post" asp-antiforgery="true">
-                        <input type="hidden" name="codePAR" value="@Model.UserCode" />
-                        <button type="submit" class="Button-Page-Small" style="width: 180px;">Odblokuj użytkownika</button>
-                    </form>
-                }
-
-                @if (!Model.Verification)
-                {
-                    <form asp-action="VerifyUser" method="post">
-                        <input type="hidden" name="codePAR" value="@Model.UserCode" />
-                        <button type="submit" class="Button-Add-Small" style="width: 180px;">Zaakceptuj użytkownika</button>
-                    </form>
-                }
-
-
-
-                <form asp-action="HardDeleteUser" method="post" asp-antiforgery="true"
-                      onsubmit="return confirm('Ta operacja TRWALE usunie konto i wszystkie dane powiązane. Kontynuować?');">
-                    <input type="hidden" name="codePAR" value="@Model.UserCode" />
-                    <button type="submit" class="Button-Page-Small-r" style="width:180px;background:#C62828;">
-                        Usuń konto
-                    </button>
-                </form>
 
             </div>
 
         </div>
-
     </div>
-
 </div>

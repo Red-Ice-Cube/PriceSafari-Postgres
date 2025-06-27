@@ -58,7 +58,7 @@ namespace PriceSafari.Areas.Identity.Pages.Account
             ExternalLogins = (await _signInManager.GetExternalAuthenticationSchemesAsync()).ToList();
             ReturnUrl = returnUrl;
         }
-        // W pliku Login.cshtml.cs
+
         public async Task<IActionResult> OnPostAsync(string returnUrl = null)
         {
             returnUrl ??= Url.Content("~/");
@@ -76,26 +76,29 @@ namespace PriceSafari.Areas.Identity.Pages.Account
 
                 var roles = await _signInManager.UserManager.GetRolesAsync(user);
 
-                // --- PRZEBUDOWANA LOGIKA ---
-
-                // ** PRZYPADEK 1: Użytkownik to PreMember **
                 if (roles.Contains("PreMember"))
                 {
-                    // Jeśli PreMember nie zweryfikował jeszcze e-maila, przekieruj go do weryfikacji
+
                     if (user.Status == UserStatus.PendingEmailVerification)
                     {
                         _logger.LogInformation("Login attempt for unverified PreMember {Email}. Redirecting to verification page.", Input.Email);
                         return RedirectToPage("./VerifyEmail", new { email = Input.Email });
                     }
 
-                    // Jeśli PreMember zweryfikował e-mail, próbujemy go zalogować, ignorując flagę IsActive
                     _logger.LogInformation("Verified PreMember {Email} is attempting to log in to Setup.", Input.Email);
                     var preMemberResult = await _signInManager.PasswordSignInAsync(Input.Email, Input.Password, Input.RememberMe, lockoutOnFailure: false);
 
+                   
                     if (preMemberResult.Succeeded)
                     {
-                        _logger.LogInformation("PreMember logged in successfully. Redirecting to /Setup page.");
-                        // Logowanie udane, przekierowujemy do specjalnej strony /Setup
+                        _logger.LogInformation("PreMember logged in successfully. Updating login stats and redirecting to /Setup page.");
+
+                      
+                        user.LastLoginDateTime = DateTime.Now;
+                        user.LoginCount += 1;
+                        await _signInManager.UserManager.UpdateAsync(user);
+                   
+
                         return RedirectToAction("Index", "SetUp");
                     }
                     else
@@ -105,10 +108,9 @@ namespace PriceSafari.Areas.Identity.Pages.Account
                     }
                 }
 
-                // ** PRZYPADEK 2: Użytkownik to zwykły klient lub administrator (nie PreMember) **
                 else
                 {
-                    // Sprawdzamy, czy konto jest aktywne - TEN WARUNEK DOTYCZY TERAZ TYLKO ZWYKŁYCH KONT
+
                     if (!user.IsActive)
                     {
                         _logger.LogWarning("Login attempt for a deactivated account: {Email}", Input.Email);
@@ -116,7 +118,6 @@ namespace PriceSafari.Areas.Identity.Pages.Account
                         return Page();
                     }
 
-                    // Sprawdzanie weryfikacji przez Affilate (jeśli wymagane)
                     var settings = await _context.Settings.FirstOrDefaultAsync();
                     if (settings != null && settings.VerificationRequired)
                     {
@@ -128,7 +129,6 @@ namespace PriceSafari.Areas.Identity.Pages.Account
                         }
                     }
 
-                    // Logowanie dla pozostałych ról
                     var result = await _signInManager.PasswordSignInAsync(Input.Email, Input.Password, Input.RememberMe, lockoutOnFailure: false);
 
                     if (result.Succeeded)
@@ -139,7 +139,6 @@ namespace PriceSafari.Areas.Identity.Pages.Account
                         user.LoginCount += 1;
                         await _signInManager.UserManager.UpdateAsync(user);
 
-                        // Przekierowanie na podstawie roli
                         if (roles.Contains("Admin"))
                         {
                             return RedirectToAction("Index", "Store");
@@ -168,5 +167,5 @@ namespace PriceSafari.Areas.Identity.Pages.Account
             return Page();
         }
     }
-    
+
 }

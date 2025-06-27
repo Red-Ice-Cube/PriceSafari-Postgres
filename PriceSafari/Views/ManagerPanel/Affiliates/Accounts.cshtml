@@ -4,6 +4,10 @@
     Layout = "~/Views/Shared/_PanelLayout.cshtml";
 }
 
+
+
+
+
 <div class="Page-Box">
 
     <div class="Page-Box-Container">
@@ -79,6 +83,10 @@
                                     else if (affiliate.Role == "Member")
                                     {
                                         <div class="MemberStyle">@affiliate.Role</div>
+                                    }
+                                    else if (affiliate.Role == "PreMember")
+                                    {
+                                        <div class="PreMemberStyle">@affiliate.Role</div>
                                     }
                                     else
                                     {
