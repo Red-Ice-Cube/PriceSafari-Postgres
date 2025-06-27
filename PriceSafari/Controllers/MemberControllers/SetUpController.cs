@@ -94,35 +94,61 @@ namespace PriceSafari.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> FetchXmlFeed([FromBody] FeedRequestModel model)
         {
-            // Walidacja URL (bez zmian)
+            // --- Walidacja URL (bez zmian, ale z lepszymi komunikatami) ---
             if (string.IsNullOrEmpty(model.Url) || !Uri.IsWellFormedUriString(model.Url, UriKind.Absolute))
-                return BadRequest("Nieprawidłowy format adresu URL.");
+                return BadRequest("Podany adres URL jest nieprawidłowy. Sprawdź jego format.");
 
             var uri = new Uri(model.Url);
 
             if (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps)
-                return BadRequest("Dozwolone są tylko protokoły HTTP i HTTPS.");
+                return BadRequest("Adres URL musi używać protokołu HTTP lub HTTPS.");
 
             if (uri.IsLoopback)
-                return BadRequest("Żądania do adresów lokalnych (localhost) są zabronione.");
+                return BadRequest("Ze względów bezpieczeństwa, adresy lokalne (localhost) nie są dozwolone.");
 
             try
             {
                 var client = _httpClientFactory.CreateClient();
-                // ZWIĘKSZAMY TIMEOUT do 2 minut jako zabezpieczenie
                 client.Timeout = TimeSpan.FromSeconds(120);
                 client.DefaultRequestHeaders.Accept.ParseAdd("application/xml, text/xml, */*");
+                // Ustawienie User-Agent może pomóc ominąć blokady niektórych serwerów
+                client.DefaultRequestHeaders.UserAgent.ParseAdd("PriceSafari-Feed-Validator/1.0");
 
                 var request = new HttpRequestMessage(HttpMethod.Get, uri);
-
-                // KRYTYCZNA ZMIANA: Wracamy do ResponseHeadersRead, aby natychmiast rozpocząć streaming
                 var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
 
+                // --- NOWA, ROZBUDOWANA SEKCJA OBSŁUGI BŁĘDÓW HTTP ---
                 if (!response.IsSuccessStatusCode)
                 {
-                    return StatusCode((int)response.StatusCode, "Serwer źródłowy zwrócił błąd.");
+                    var statusCode = response.StatusCode;
+                    string errorMessage;
+
+                    switch (statusCode)
+                    {
+                        case System.Net.HttpStatusCode.NotFound: // 404
+                            errorMessage = "Nie znaleziono pliku pod podanym adresem URL (błąd 404). Sprawdź, czy link jest poprawny i spróbuj ponownie.";
+                            break;
+                        case System.Net.HttpStatusCode.Forbidden: // 403
+                        case System.Net.HttpStatusCode.Unauthorized: // 401
+                            errorMessage = "Dostęp do pliku jest zablokowany (błąd 401/403). Feed produktowy nie może być chroniony hasłem. Upewnij się, że jest on publicznie dostępny.";
+                            break;
+                        default:
+                            if ((int)statusCode >= 500 && (int)statusCode < 600) // Błędy serwera 5xx
+                            {
+                                errorMessage = $"Wystąpił błąd na serwerze udostępniającym feed (błąd {(int)statusCode}). Spróbuj ponownie później lub skontaktuj się z administratorem swojego sklepu.";
+                            }
+                            else
+                            {
+                                errorMessage = $"Serwer źródłowy zwrócił nieoczekiwany błąd (status: {(int)statusCode}).";
+                            }
+                            break;
+                    }
+
+                    _logger.LogWarning("Błąd podczas pobierania feedu z {Url}. Status: {StatusCode}, Komunikat: {ErrorMessage}", model.Url, statusCode, errorMessage);
+                    return StatusCode((int)statusCode, errorMessage);
                 }
 
+                // --- Sprawdzanie rozmiaru pliku (bez zmian) ---
                 long? contentLength = response.Content.Headers.ContentLength;
                 const long maxFileSize = 50 * 1024 * 1024; // 50 MB
 
@@ -134,19 +160,26 @@ namespace PriceSafari.Controllers
                     return BadRequest($"Plik jest zbyt duży. Maksymalny dozwolony rozmiar to {maxFileSize / (1024 * 1024)} MB.");
                 }
 
-                // Zawsze zwracamy strumień - to najbardziej wydajne i odporne na wolne połączenia
                 var stream = await response.Content.ReadAsStreamAsync();
-                return File(stream, "application/xml");
+                return File(stream, response.Content.Headers.ContentType?.ToString() ?? "application/xml");
             }
-            catch (TaskCanceledException ex) // Specjalna obsługa timeoutu
+            catch (TaskCanceledException ex) when (ex.InnerException is TimeoutException || ex.CancellationToken.IsCancellationRequested)
             {
                 _logger.LogWarning(ex, "Przekroczono limit czasu (120s) podczas pobierania pliku z {Url}", model.Url);
-                return StatusCode(408, "Serwer źródłowy nie odpowiedział lub przesyła dane zbyt wolno (timeout).");
+                // Zwracamy kod 408 Request Timeout, który jest bardziej adekwatny
+                return StatusCode(408, "Serwer źródłowy odpowiada zbyt wolno lub przekroczono limit czasu (2 minuty).");
+            }
+            // --- NOWA, BARDZIEJ SZCZEGÓŁOWA OBSŁUGA WYJĄTKÓW SIECIOWYCH ---
+            catch (HttpRequestException ex)
+            {
+                // Ten wyjątek łapie błędy DNS, odmowę połączenia itp.
+                _logger.LogWarning(ex, "Błąd sieciowy podczas próby połączenia z {Url}", model.Url);
+                return StatusCode(503, "Nie można połączyć się z podanym adresem URL. Sprawdź, czy adres jest poprawny, czy serwer działa i czy nie ma problemów z siecią (np. DNS).");
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Wystąpił nieoczekiwany błąd podczas pobierania pliku z {Url}", model.Url);
-                return StatusCode(500, "Wystąpił wewnętrzny błąd serwera. Prosimy spróbować ponownie później.");
+                return StatusCode(500, "Wystąpił nieoczekiwany wewnętrzny błąd. Spróbuj ponownie później.");
             }
         }
         // Model zostaje bez zmian

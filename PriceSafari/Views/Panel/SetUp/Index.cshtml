@@ -36,13 +36,15 @@
     }
 
     .header-text h4 {
-        margin: 0;
+        margin-bottom: 3px;
         font-weight: 600;
     }
 
     .header-text p {
         margin: 0;
         color: #6c757d;
+        font-size: 1.0rem;
+        font-weight: 400;
     }
 
     .arrow-icon {
@@ -101,7 +103,7 @@
         font-size: 0.9rem;
         min-width: 500px;
         width: 100%;
-        color: #495057;
+        color: #5C5C5C;
     }
 
         .setup-description h5 {
@@ -110,7 +112,12 @@
         }
 
         .setup-description a {
-            font-weight: 500;
+            font-weight: 400;
+        }
+
+        .setup-description p {
+            font-weight: 400;
+            font-size: 16px;
         }
 
     .status-in-progress {
@@ -208,6 +215,19 @@
             padding-left: 20px;
             white-space: normal;
         }
+
+    .Vert-fluid {
+        display: flex;
+        flex-direction: column;
+        width: 100%;
+        gap: 24px;
+        border-radius: 8px;
+        padding: 24px;
+        background: #FFF;
+        box-shadow: 0px 4px 4px 0px rgba(0, 0, 0, 0.15);
+        min-height: 97vh;
+        min-width: 956px;
+    }
 </style>
 <div class="Vert">
     <div class="Date">
@@ -217,7 +237,7 @@
 </div>
 
 <div class="Vert">
-    <div class="Vert-full">
+    <div class="Vert-fluid">
         <div class="row g-4">
             <div class="col-12">
 
@@ -230,13 +250,22 @@
                             <img src="~/images/Ceneo.png" alt="Ceneo" class="source-logo" />
                             <div class="header-text">
                                 <h4>Monitoring Ceneo</h4>
-                                <p>Podaj nazwę sklepu i link do feedu produktowego.</p>
+                                @if (Model.IsCeneoSubmitted)
+                                {
+                                    <p>
+                                        <i class="fas fa-check-circle" style="color: #41C7C7;"></i> Wszystko gotowe! Zaczynamy przygotowywać Twoje konto.
+                                    </p>
+                                }
+                                else
+                                {
+                                    <p>Podaj nazwę sklepu i link do feedu produktowego.</p>
+                                }
                             </div>
                             @if (Model.IsCeneoSubmitted)
                             {
                                 <div class="status-in-progress ms-auto">
                                     <span class="spinner-border spinner-border-sm" role="status"></span>
-                                    <span>Finalizujemy konfigurację konta…</span>
+                                    <span>W przygotowaniu...</span>
                                 </div>
                             }
                             else
@@ -271,7 +300,7 @@
                                     <div id="ceneo-message" class="form-message"></div>
                                     @if (!Model.IsCeneoSubmitted)
                                     {
-                                
+
                                         <button type="submit" class="Button-Page-Small-bl" style="height:38.18px;">Rozpocznij monitoring Ceneo</button>
                                     }
                                     else
@@ -279,17 +308,25 @@
 
                                         <div class="form-submitted-info">
                                             <p class="mb-0">
-                                                Dziękujemy za przesłanie danych! Rozpoczynamy monitoring 500 pierwszych produktów z przesłanego feedu w serwisie Ceneo. Zebranie informacji oraz przygotowanie Twojego konta może potrwać do 24 godzin. Gdy wszystko będzie gotowe, otrzymasz od nas powiadomienie mailowe.
+                                                Dziękujemy za przesłanie danych! Rozpoczynamy monitoring 500 pierwszych produktów z przesłanego feedu w serwisie Ceneo. Zebranie informacji oraz przygotowanie Twojego konta może potrwać do 48 godzin. Gdy wszystko będzie gotowe, otrzymasz od nas powiadomienie mailowe.
                                             </p>
 
-                                        </div>                                
+                                        </div>
                                     }
                                 </form>
 
                                 <div class="setup-description">
-                                    <h5>Jak przygotować feed?</h5>
-                                    <p>Plik XML powinien zawierać podstawowe informacje o Twoich produktach, takie jak ID, nazwa i cena. Upewnij się, że jest on publicznie dostępny pod podanym adresem URL.</p>
-                                    <a href="https://pricesafari.pl/Guide/FeedCeneo" target="_blank">Zobacz szczegółowy poradnik &rarr;</a>
+                                    <h5>Gdzie znaleźć feed produktowy Ceneo?</h5>
+                                    <p>Możesz przesłać nam URL feedu produktowego wskazanego bezpośrednio w Ceneo. Sprawdź <a href="https://pricesafari.pl/Guide/FeedCeneo" style="color:#41C7C7; " target="_blank">ten poradnik</a> jeżeli nie wiesz gdzie znaleźć feed produktowy. Po przesłaniu feedu zmapujemy z niego pierwsze 500 produktów.</p>
+                                    <p>Feed produktowy powinien zawierać następujące informacje:</p>
+                                    <ul>
+                                        <li><b>ID</b> produktu</li>
+                                        <li><b>URL</b> prowadzący do produktu na Twojej stronie</li>
+                                        <li><b>Kod EAN/GTIN</b> produktu</li>
+                                        <li><b>URL obrazu</b> produktu</li>
+                                    </ul>
+                                    <p>Produkty bez kodu EAN/GTIN nie będą brane pod uwagę. Jeżeli więcej niż jeden produkt posiada ten sam kod EAN/GTIN, pod uwagę brane będzie tylko pierwsze wystąpienie.</p>
+
                                 </div>
                             </div>
                         </div>
@@ -300,13 +337,22 @@
                             <img src="~/images/GoogleShopping.png" alt="Google Shopping" class="source-logo" />
                             <div class="header-text">
                                 <h4>Monitoring Google Shopping</h4>
-                                <p>Podaj nazwę sklepu i link do feedu produktowego.</p>
+                                @if (Model.IsGoogleSubmitted)
+                                {
+                                    <p>
+                                        <i class="fas fa-check-circle" style="color: #41C7C7;"></i> Wszystko gotowe! Zaczynamy przygotowywać Twoje konto.
+                                    </p>
+                                }
+                                else
+                                {
+                                    <p>Podaj nazwę sklepu i link do feedu produktowego.</p>
+                                }
                             </div>
                             @if (Model.IsGoogleSubmitted)
                             {
                                 <div class="status-in-progress ms-auto">
                                     <span class="spinner-border spinner-border-sm" role="status"></span>
-                                    <span>W przygotowaniu</span>
+                                    <span>W przygotowaniu...</span>
                                 </div>
                             }
                             else
@@ -354,9 +400,18 @@
                                     }
                                 </form>
                                 <div class="setup-description">
-                                    <h5>Feed dla Merchant Center</h5>
-                                    <p>Podaj link do feedu produktowego, którego używasz w swoim koncie Google Merchant Center. Musi on być zgodny ze specyfikacją Google.</p>
-                                    <a href="https://pricesafari.pl/Guide/FeedGMC" target="_blank">Zobacz szczegółowy poradnik &rarr;</a>
+
+                                    <h5>Gdzie znaleźć feed produktowy Google?</h5>
+                                    <p>Możesz przesłać nam URL feedu produktowego wskazanego bezpośrednio w Twoim Google Merchant Center. Sprawdź <a href="https://pricesafari.pl/Guide/FeedGMC" style="color:#41C7C7; " target="_blank">ten poradnik</a> jeżeli nie wiesz gdzie znaleźć feed produktowy. Po przesłaniu feedu zmapujemy z niego pierwsze 500 produktów.</p>
+                                    <p>Feed produktowy powinien zawierać następujące informacje:</p>
+                                    <ul>
+                                        <li><b>ID</b> produktu</li>
+                                        <li><b>URL</b> prowadzący do produktu na Twojej stronie</li>
+                                        <li><b>Kod EAN/GTIN</b> produktu</li>
+                                        <li><b>URL obrazu</b> produktu</li>
+                                    </ul>
+                                    <p>Produkty bez kodu EAN/GTIN nie będą brane pod uwagę. Jeżeli więcej niż jeden produkt posiada ten sam kod EAN/GTIN, pod uwagę brane będzie tylko pierwsze wystąpienie.</p>
+
                                 </div>
                             </div>
                         </div>
@@ -468,10 +523,11 @@
                 const parser = new DOMParser();
                 const xmlDoc = parser.parseFromString(fixedXmlString, "application/xml");
                 const parserError = xmlDoc.querySelector("parsererror");
-                if (parserError) {
-                    console.error("Błąd parsowania XML:", parserError);
-                    return `<pre class="parser-error">Błąd parsowania pliku XML.\nPlik może być uszkodzony lub mieć niestandardową strukturę.\n\nSzczegóły błędu:\n${parserError.textContent}</pre>`;
-                }
+
+        if (parserError) {
+            console.error("Błąd parsowania XML:", parserError.textContent);
+            return `<pre class="parser-error">Struktura pliku XML jest nieprawidłowa. Upewnij się, że został on poprawnie wygenerowany i nie jest zabezpieczony hasłem.</pre>`;
+        }
 
                 const container = document.createElement('div');
                 const rootElement = xmlDoc.documentElement;
@@ -656,7 +712,6 @@
             });
         });
 
-        // --- POCZĄTEK SEKCJI Z KLUCZOWĄ POPRAWKĄ ---
         async function submitForm(form) {
             const messageDiv = form.querySelector('.form-message');
             const formData = new FormData(form);
@@ -672,7 +727,7 @@
                 const data = await response.json();
 
                 if (data.success) {
-                    // POPRAWKA: Przeładuj stronę, aby pokazać zaktualizowany widok z serwera.
+
                     window.location.reload();
                 } else {
                     messageDiv.textContent = data.message;
@@ -684,8 +739,6 @@
                 console.error('Submit form error:', error);
             }
         }
-        // --- KONIEC SEKCJI Z KLUCZOWĄ POPRAWKĄ ---
-
 
             setupFormListener('ceneo-form');
             setupFormListener('google-form');
