@@ -55,7 +55,7 @@ public class PriceSafariUser : IdentityUser
     private string GenerateUniqueCodePAR()
     {
 
-        var length = 5;
+        var length = 6;
         var random = new Random();
         var chars = Enumerable.Repeat("QWERTYUIOPASDFGHJKLZXCVBNMqwertyuiopasdfghjklzxcvbnm1234567890", length)
                               .Select(s => s[random.Next(s.Length)]).ToArray();

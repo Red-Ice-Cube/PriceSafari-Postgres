@@ -1,0 +1,134 @@
+﻿@model PriceSafari.Models.ViewModels.AwaitingConfigurationViewModel
+
+@{
+    Layout = "~/Views/Shared/_PanelLayout.cshtml";
+    ViewData["Title"] = "Twoje Plany";
+    var placeholderStoreName = "Twój Sklep (w konfiguracji)";
+}
+
+@functions {
+    public string GetAnalysesText(int count)
+    {
+        if (count == 1) return $"{count} analiza";
+        if (count >= 2 && count <= 4) return $"{count} analizy";
+        return $"{count} analiz";
+    }
+}
+
+<style>
+
+    .header-text{
+        margin: 0;
+        color: #6c757d;
+        font-size: 1.0rem;
+        font-weight: 400;
+    }
+
+    .header-title {
+        margin: 0;
+        color: #4B4B4B;
+        font-size: 21px;
+        margin-bottom:12px;
+        font-weight: 400;
+    }
+
+</style>
+
+<div class="Vert">
+    <div class="Date">
+        <div class="Order-Container-Title">Plan</div>
+
+    </div>
+</div>
+<div class="Vert">
+    <div class="Vert-full">
+     
+
+        <div style="padding: 15px; background-color: #f8f9fa; border: 1px solid #dee2e6; border-radius: 5px;">
+       
+            <p class="header-title">Twoje konto testowe jest prawie gotowe!</p>
+            <p class="header-text">
+                Poniżej znajduje się podgląd Twojego darmowego planu testowego.
+                Jeżeli jeszcze tego nie zrobiłeś, uzupełnij brakujące dane w
+                <a href="@Url.Action("Index", "SetUp")" style="color:#41C7C7;">konfiguratorze</a>.
+                <br>
+                Jeśli chcesz sprawdzić cennik usług monitoringu cen PriceSafari, sprawdź
+                <a href="https://pricesafari.pl/Home/Pricing" style="color:#41C7C7;">nasz cennik</a>.
+            </p>
+
+        </div>
+
+        <div class="Vert-table">
+            <table class="table-orders">
+                <thead>
+                    <tr>
+                        <th>Plan</th>
+                        <th>Sklep</th>
+                        <th>Ilość produktów w planie</th>
+                        <th>Źródło Danych</th>
+                        <th>Pozostałe pakiety</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>
+                            <img src="~/images/Free.png" alt="Plan Testowy" style="height:22px;" />
+                            <div class="Validation Validation-accepted" style="display:inline-block; margin-left:5px;">Plan Testowy</div>
+                        </td>
+                        <td>
+                      
+                            @if (Model.StoreName == placeholderStoreName)
+                            {
+                                <a href="@Url.Action("Index", "SetUp")" class="Button-Page-Small" style="text-wrap:nowrap;">Dokończ konfigurację</a>
+                            }
+                            else
+                            {
+                                @Model.StoreName
+                            }
+                        </td>
+                        <td>
+                            Do 500 SKU
+                        </td>
+                        <td>
+                            @if (Model.HasCeneoFeed && Model.HasGoogleFeed)
+                            {
+                                <img src="~/images/Ceneo.png" alt="Ceneo" style="height:24px;width:24px;" title="Ceneo" />
+                                <img src="~/images/GoogleShopping.png" alt="Google Shopping" style="height:24px;width:24px;" title="Google Shopping" />
+                            }
+                            else if (Model.HasCeneoFeed)
+                            {
+                                <img src="~/images/Ceneo.png" alt="Ceneo" style="height:24px;width:24px;" title="Ceneo" />
+                            }
+                            else if (Model.HasGoogleFeed)
+                            {
+                                <img src="~/images/GoogleShopping.png" alt="Google Shopping" style="height:24px;width:24px;" title="Google Shopping" />
+                            }
+                            else
+                            {
+                                <a href="@Url.Action("Index", "SetUp")" class="Button-Page-Small" style="text-wrap:nowrap;">Wybierz źródła</a>
+                            }
+                        </td>
+                        <td>
+                            <div class="Validation Validation-accepted">@GetAnalysesText(7)</div>
+                        </td>
+                        <td>
+                           
+                            @if (!Model.HasCeneoFeed && !Model.HasGoogleFeed || Model.StoreName == placeholderStoreName)
+                            {
+                                <a href="@Url.Action("Index", "SetUp")" class="Button-Page-Small" style="text-wrap:nowrap;">Dokończ konfigurację</a>
+                            }
+                            else
+                            {
+                                <div class="status-in-progress" style="display: flex; align-items: center; justify-content: start;">
+                                    <span class="spinner-border spinner-border-sm" role="status" style="margin-right: 8px;"></span>
+                                    <span>W przygotowaniu...</span>
+                                </div>
+                            }
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>

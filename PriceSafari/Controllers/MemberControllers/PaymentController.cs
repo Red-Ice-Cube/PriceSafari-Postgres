@@ -10,7 +10,7 @@ using System.Security.Claims;
 
 namespace PriceSafari.Controllers.MemberControllers
 {
-    [Authorize(Roles = "Member")]
+    [Authorize(Roles = "Member, PreMember")]
     public class PaymentController : Controller
     {
         private readonly PriceSafariContext _context;
@@ -26,24 +26,43 @@ namespace PriceSafari.Controllers.MemberControllers
         [HttpGet]
         public async Task<IActionResult> StorePlans()
         {
+            if (User.IsInRole("PreMember"))
+            {
+                // ZMIANA: Logika dla PreMember
+                var user = await _userManager.GetUserAsync(User);
+                if (user == null)
+                {
+                    // Mało prawdopodobne dla zalogowanego użytkownika, ale dobre zabezpieczenie
+                    return Challenge();
+                }
+
+                // Przygotuj ViewModel dla widoku konfiguracji
+                var viewModel = new AwaitingConfigurationViewModel
+                {
+                    // Użyj nazwy sklepu z Ceneo lub Google, jeśli istnieje. W przeciwnym razie użyj placeholdera.
+                    StoreName = user.PendingStoreNameCeneo ?? user.PendingStoreNameGoogle ?? "Twój Sklep (w konfiguracji)",
+
+                    // Sprawdź, czy użytkownik podał już URL do feeda
+                    HasCeneoFeed = !string.IsNullOrWhiteSpace(user.PendingCeneoFeedUrl),
+                    HasGoogleFeed = !string.IsNullOrWhiteSpace(user.PendingGoogleFeedUrl)
+                };
+
+                return View("~/Views/Panel/Plans/AwaitingConfiguration.cshtml", viewModel);
+            }
+
+            // Dotychczasowa logika dla roli "Member" pozostaje bez zmian
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
             var userStores = await _context.UserStores
                 .Where(us => us.UserId == userId)
-                .Include(us => us.StoreClass)
-                    .ThenInclude(s => s.Plan)
-                .Include(us => us.StoreClass)
-                    .ThenInclude(s => s.ScrapHistories)
-                .Include(us => us.StoreClass)
-                    .ThenInclude(s => s.Invoices)
+                .Include(us => us.StoreClass).ThenInclude(s => s.Plan)
+                .Include(us => us.StoreClass).ThenInclude(s => s.ScrapHistories)
+                .Include(us => us.StoreClass).ThenInclude(s => s.Invoices)
                 .ToListAsync();
 
             var storeViewModels = userStores.Select(us =>
             {
                 var store = us.StoreClass;
-                var lastScrapeDate = store.ScrapHistories.OrderByDescending(sh => sh.Date).FirstOrDefault()?.Date;
-                var unpaidInvoiceExists = store.Invoices.Any(i => !i.IsPaid);
-
                 return new PaymentViewModel
                 {
                     StoreId = store.StoreId,
@@ -54,7 +73,6 @@ namespace PriceSafari.Controllers.MemberControllers
                     IsTestPlan = store.Plan?.IsTestPlan ?? false,
                     ProductsToScrap = store.ProductsToScrap ?? 0,
                     LeftScrapes = store.RemainingScrapes,
-                    // Nowe właściwości
                     Ceneo = store.Plan?.Ceneo ?? false,
                     GoogleShopping = store.Plan?.GoogleShopping ?? false,
                     Info = store.Plan?.Info ?? string.Empty
