@@ -362,11 +362,11 @@
                                 <form id="ceneo-form" style="display:flex; max-width:100%; flex-direction:column;">
                                     @Html.AntiForgeryToken()
                                     <div class="mb-3">
-                                        <label for="ceneoStoreName" class="form-label">Nazwa Twojego sklepu w Ceneo</label>
+                                        <label for="ceneoStoreName" class="form-label">Jak nazywa się Twój sklep na Ceneo?</label>
                                         <input type="text" class="form-control" name="StoreName" value="@Model.PendingStoreNameCeneo" required @(Model.IsCeneoSubmitted ? "readonly" : "")>
                                     </div>
                                     <div class="mb-3">
-                                        <label for="ceneoFeedUrl" class="form-label">Adres URL feedu produktowego dla Ceneo</label>
+                                        <label for="ceneoFeedUrl" class="form-label">Podaj adres URL feedu produktowego dla Ceneo. Nie wiesz gdzie znaleźć feed produktowy? Sprawdź <a href="https://pricesafari.pl/Guide/FeedCeneo" style="color:#41C7C7; " target="_blank">ten poradnik</a>.</label>
                                         <div style="display: flex; gap:8px;">
                                             <input type="url" class="form-control" name="FeedUrl" id="ceneoFeedUrl" value="@Model.PendingCeneoFeedUrl" required @(Model.IsCeneoSubmitted ? "readonly" : "")>
                                             <button type="button" class="Button-Page-Small-b" style="height:38.18px; margin-top:8px; text-wrap:nowrap;" data-feed-url-id="ceneoFeedUrl" data-preview-id="ceneo-xml-preview">Pokaż podgląd</button>
@@ -450,11 +450,11 @@
                                 <form id="google-form" style="display:flex; max-width:100%; flex-direction:column;">
                                     @Html.AntiForgeryToken()
                                     <div class="mb-3">
-                                        <label class="form-label">Nazwa Twojego sklepu</label>
+                                        <label class="form-label">Jak nazywa się Twój sklep na Google Shopping?</label>
                                         <input type="text" class="form-control" name="StoreName" value="@Model.PendingStoreNameGoogle" required @(Model.IsGoogleSubmitted ? "readonly" : "")>
                                     </div>
                                     <div class="mb-3">
-                                        <label class="form-label">Adres URL feedu produktowego dla Google</label>
+                                        <label class="form-label">Podaj adres URL feedu produktowego z Google Merchant Center. Nie wiesz gdzie znaleźć feed produktowy? Sprawdź <a href="https://pricesafari.pl/Guide/FeedGMC" style="color:#41C7C7; " target="_blank">ten poradnik</a>.</label>
                                         <div style="display: flex; gap:8px;">
                                             <input type="url" class="form-control" name="FeedUrl" id="googleFeedUrl" value="@Model.PendingGoogleFeedUrl" required @(Model.IsGoogleSubmitted ? "readonly" : "")>
                                             <button type="button" class="Button-Page-Small-b" style="height:38.18px; margin-top:8px; text-wrap:nowrap;" data-feed-url-id="googleFeedUrl" data-preview-id="google-xml-preview">Pokaż podgląd</button>
