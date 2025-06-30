@@ -1,13 +1,13 @@
-﻿
-using PriceSafari.Models;
-using PriceSafari.Models.ManagerViewModels;
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-
 using PriceSafari.Data;
+using PriceSafari.Models;
+using PriceSafari.Models.ManagerViewModels;
+using PriceSafari.Services.EmailService;
 
 namespace PriceSafari.Controllers.ManagerControllers
 {
@@ -17,13 +17,15 @@ namespace PriceSafari.Controllers.ManagerControllers
     {
         private readonly PriceSafariContext _context;
         private readonly UserManager<PriceSafariUser> _userManager;
-        private readonly IEmailSender _emailSender;
+        private readonly IAppEmailSender _emailSender;
+        private readonly IWebHostEnvironment _webHostEnvironment;
 
-        public ManagerAffiliateController(UserManager<PriceSafariUser> userManager, PriceSafariContext context, IEmailSender emailSender)
+        public ManagerAffiliateController(UserManager<PriceSafariUser> userManager, PriceSafariContext context, IAppEmailSender emailSender, IWebHostEnvironment webHostEnvironment)
         {
             _userManager = userManager;
             _context = context;
             _emailSender = emailSender;
+            _webHostEnvironment = webHostEnvironment;
         }
 
         [Authorize]
@@ -93,7 +95,7 @@ namespace PriceSafari.Controllers.ManagerControllers
                 Status = user.IsActive,
                 Verification = user.AffiliateVerification?.IsVerified ?? false,
                 Role = string.Join(", ", _userManager.GetRolesAsync(user).Result),
-                EmailConfirmed = user.EmailConfirmed  
+                EmailConfirmed = user.EmailConfirmed
             }).ToList();
 
             var model = new ManagerAffiliateViewModel
@@ -104,7 +106,6 @@ namespace PriceSafari.Controllers.ManagerControllers
             return View("~/Views/ManagerPanel/Affiliates/Accounts.cshtml", model);
         }
 
-        // Akcja w Twoim kontrolerze
         public async Task<IActionResult> UserProfile(string codePAR)
         {
             if (codePAR == null || _context.Users == null)
@@ -121,15 +122,12 @@ namespace PriceSafari.Controllers.ManagerControllers
                 return NotFound();
             }
 
-            // --- POCZĄTEK NOWEGO KODU ---
-            // Pobieranie ról użytkownika
             var roles = await _userManager.GetRolesAsync(user);
-            var primaryRole = roles.FirstOrDefault(); // Bierzemy pierwszą rolę z listy
-                                                      // --- KONIEC NOWEGO KODU ---
+            var primaryRole = roles.FirstOrDefault();
 
             var managerUserProfileViewModel = new ManagerUserProfileViewModel
             {
-                // ... (wszystkie istniejące mapowania bez zmian)
+
                 UserName = user.PartnerName,
                 UserSurname = user.PartnerSurname,
                 UserEmail = user.Email,
@@ -147,7 +145,6 @@ namespace PriceSafari.Controllers.ManagerControllers
                 GoogleFeedUrl = user.PendingGoogleFeedUrl,
                 GoogleFeedSubmittedOn = user.GoogleFeedSubmittedOn,
 
-                // --- POCZĄTEK MAPOWANIA NOWYCH DANYCH ---
                 Role = primaryRole,
                 PhoneNumber = user.PhoneNumber
             };
@@ -155,11 +152,6 @@ namespace PriceSafari.Controllers.ManagerControllers
             return View("~/Views/ManagerPanel/Affiliates/UserProfile.cshtml", managerUserProfileViewModel);
         }
 
-
-
-
-
-        // Dodaj tę nową metodę w swoim kontrolerze
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> PromoteToMember(string codePAR)
@@ -175,30 +167,27 @@ namespace PriceSafari.Controllers.ManagerControllers
                 return NotFound("Nie znaleziono użytkownika.");
             }
 
-            // Sprawdzamy, czy użytkownik faktycznie jest w roli "PreMember"
             if (await _userManager.IsInRoleAsync(user, "PreMember"))
             {
-                // Krok 1: Usuń starą rolę
+
                 var removeResult = await _userManager.RemoveFromRoleAsync(user, "PreMember");
                 if (!removeResult.Succeeded)
                 {
-                    // Obsługa błędu, jeśli usunięcie roli się nie powiedzie
+
                     TempData["ErrorMessage"] = "Nie udało się usunąć roli PreMember.";
                     return RedirectToAction("UserProfile", new { codePAR = user.CodePAR });
                 }
 
-                // Krok 2: Dodaj nową rolę
                 var addResult = await _userManager.AddToRoleAsync(user, "Member");
                 if (!addResult.Succeeded)
                 {
-                    // Obsługa błędu, jeśli dodanie roli się nie powiedzie
+
                     TempData["ErrorMessage"] = "Nie udało się dodać roli Member.";
-                    // Opcjonalnie: spróbuj dodać z powrotem rolę PreMember, aby zachować spójność
+
                     await _userManager.AddToRoleAsync(user, "PreMember");
                     return RedirectToAction("UserProfile", new { codePAR = user.CodePAR });
                 }
 
-                // Krok 3: Zmień status użytkownika na "Active" i zapisz zmiany
                 user.Status = UserStatus.Active;
                 var updateResult = await _userManager.UpdateAsync(user);
 
@@ -212,7 +201,6 @@ namespace PriceSafari.Controllers.ManagerControllers
                 TempData["WarningMessage"] = "Użytkownik nie ma roli PreMember.";
             }
 
-            // Przekieruj z powrotem do profilu, aby zobaczyć zmiany
             return RedirectToAction("UserProfile", new { codePAR = user.CodePAR });
         }
 
@@ -236,7 +224,6 @@ namespace PriceSafari.Controllers.ManagerControllers
             var isCurrentUserAdmin = await _userManager.IsInRoleAsync(currentUser, "Admin");
             var isCurrentUserManager = await _userManager.IsInRoleAsync(currentUser, "Manager");
 
-            // Logika zezwalająca tylko administratorowi na blokowanie dowolnego użytkownika
             if (isCurrentUserAdmin)
             {
                 userToBlock.IsActive = false;
@@ -244,7 +231,7 @@ namespace PriceSafari.Controllers.ManagerControllers
                 await _context.SaveChangesAsync();
                 return RedirectToAction(nameof(Accounts));
             }
-            // Logika zezwalająca menedżerowi na blokowanie tylko członków
+
             else if (isCurrentUserManager && rolesToBlock.All(r => r == "Member"))
             {
                 userToBlock.IsActive = false;
@@ -332,20 +319,140 @@ namespace PriceSafari.Controllers.ManagerControllers
             _context.Update(userToVerify);
             await _context.SaveChangesAsync();
 
-            var emailSubject = "Price Safari - Twój Panel jest Gotowy!";
-            var loginUrl = $"{Request.Scheme}://{Request.Host}/Identity/Account/Login";
-            var emailBody = $"<h1>Twój Panel Jest Gotowy!</h1>" +
-                            $"<p>Szanowny Kliencie,</p>" +
-                            $"<p>Z przyjemnością informujemy, że Twój panel w aplikacji Price Safari został pomyślnie przygotowany." +
-                            $" Teraz możesz się zalogować i skorzystać z pełnej funkcjonalności naszego programu.</p>" +
-                            $"<p><a href='{loginUrl}'>Kliknij tutaj, aby się zalogować</a></p>" +
-                            $"<p>Dziękujemy za zaufanie i życzymy owocnego korzystania z naszego oprogramowania!</p>" +
-                            $"<p>Z pozdrowieniami,<br/>Zespół Price Safari</p>";
-
-
-            await _emailSender.SendEmailAsync(userToVerify.Email, emailSubject, emailBody);
-
             return RedirectToAction(nameof(UserProfile), new { codePAR = codePAR });
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> SendPanelReadyEmail([FromBody] CodeParRequest request)
+        {
+            var codePAR = request.CodePAR;
+
+            if (string.IsNullOrEmpty(codePAR))
+            {
+                return BadRequest("Kod PAR użytkownika nie może być pusty.");
+            }
+
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.CodePAR == codePAR);
+            if (user == null)
+            {
+                return NotFound("Nie znaleziono użytkownika o podanym kodzie PAR.");
+            }
+
+            var nameForGreeting = !string.IsNullOrWhiteSpace(user.PartnerName) ? user.PartnerName : user.Email;
+            var emailSubject = "Twój panel Price Safari jest gotowy!";
+            var loginUrl = $"https://panel.pricesafari.pl/Identity/Account/Login";
+            var emailBody = GeneratePanelReadyEmailBody(nameForGreeting, loginUrl);
+
+            var logoPath = Path.Combine(_webHostEnvironment.WebRootPath, "cid", "PriceSafari.png");
+            var inlineImages = new Dictionary<string, string>
+    {
+        { "PriceSafariLogo", logoPath }
+    };
+
+            try
+            {
+
+                await _emailSender.SendEmailAsync(user.Email, emailSubject, emailBody, inlineImages);
+                return Ok(new { message = "Wiadomość e-mail została pomyślnie wysłana." });
+            }
+            catch (Exception ex)
+            {
+
+                return StatusCode(500, new { error = "Wystąpił błąd podczas wysyłania wiadomości e-mail." });
+            }
+        }
+
+        public class CodeParRequest
+        {
+            public string CodePAR { get; set; }
+        }
+
+        private string GeneratePanelReadyEmailBody(string userName, string loginUrl)
+        {
+  
+            string guidesUrl = "https://pricesafari.pl/Guide";
+
+            return $@"
+    <!DOCTYPE html>
+    <html lang=""pl"">
+    <head>
+        <meta charset=""UTF-8"">
+        <meta name=""viewport"" content=""width=device-width, initial-scale=1.0"">
+        <style>
+            body {{
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+                margin: 0;
+                padding: 0;
+                background-color: #f5f5f7;
+            }}
+            .container {{
+                max-width: 560px;
+                margin: 40px auto;
+                background-color: #ffffff;
+                overflow: hidden;
+            }}
+            .header {{
+                padding: 10px 0px; 
+            }}
+            .top-bar {{
+                height: 1px;
+                margin-bottom: 10px;
+                background-color: #222222; 
+            }}
+            .content {{
+                padding-top:10px;
+                padding-bottom:10px;
+                line-height: 1.6;
+                color: #1d1d1f; 
+                font-size: 16px;
+            }}
+            .content p {{
+                margin: 0 0 16px 0;
+            }}
+            .button {{
+                display: inline-block;
+                background-color: #41C7C7;
+                color: #ffffff !important;
+                padding: 12px 24px;
+                border-radius: 8px;
+                text-decoration: none;
+                font-weight: 500;
+                font-size: 16px;
+                margin: 10px 0 20px 0;
+            }}
+            .footer {{
+                background-color: #f5f5f7;
+                color: #86868b;
+                padding: 20px 40px;
+                text-align: center;
+                font-size: 16px; 
+                line-height: 1.5;
+            }}
+        </style>
+    </head>
+    <body>
+        <div class=""container"">
+            <div class=""header"">
+                <img src=""cid:PriceSafariLogo"" alt=""Price Safari Logo"" style=""height: 32px; width: auto;"">
+            </div>
+            <div class=""top-bar""></div>
+            <div class=""content"">
+                <p>Cześć {userName},</p>
+                <p>Z przyjemnością informujemy, że Twój panel w Price Safari jest już gotowy do działania! Możesz się teraz zalogować i w pełni korzystać z możliwości naszej aplikacji w ramach okresu próbnego.</p>
+                <p>Co dalej? Przez kolejne 7 dni będziemy codziennie aktualizować dane o cenach Twoich produktów. Twoje konto pozwala również na eksport danych i korzystanie z funkcji Pilota Cenowego w celu masowych zmian cen w Twoim sklepie internetowym.</p>
+                <p>Jeśli chcesz sprawnie postawić pierwsze kroki z naszą aplikacją, przygotowaliśmy dla Ciebie sekcję z poradnikami, którą znajdziesz pod tym adresem: <a href=""{guidesUrl}"" style=""color: #41C7C7;"">przejdź do poradników</a>.</p>
+                <p>Aby zobaczyć swój panel i pierwsze zebrane dane, zaloguj się na swoje konto:</p>
+                <a href=""{loginUrl}"" class=""button"">Zaloguj się do panelu</a>
+                <p style=""margin-top: 16px;"">Dziękujemy za zaufanie i życzymy owocnego korzystania z Price Safari!</p>
+            </div>
+            <div class=""footer"">
+                <p>Z pozdrowieniami,<br>Zespół Price Safari</p>
+                <p style=""margin-top: 16px;"">&copy; {DateTime.Now.Year} Price Safari<br>Wszelkie prawa zastrzeżone.</p>
+            </div>
+        </div>
+    </body>
+    </html>";
         }
 
         [Authorize]
@@ -363,12 +470,8 @@ namespace PriceSafari.Controllers.ManagerControllers
 
             var affiliatesData = new List<AffiliateData>();
 
-            
-
             return Json(affiliatesData);
         }
-
-
 
         [HttpPost]
         [ValidateAntiForgeryToken]
@@ -377,15 +480,13 @@ namespace PriceSafari.Controllers.ManagerControllers
             if (string.IsNullOrWhiteSpace(codePAR))
                 return NotFound();
 
-            // tylko Admin może trwale usuwać
             var currentUser = await _userManager.GetUserAsync(User);
             if (!await _userManager.IsInRoleAsync(currentUser, "Admin"))
                 return Forbid();
 
-            // pobieramy użytkownika wraz z podstawowymi nawigacjami
             var user = await _context.Users
                 .Include(u => u.AffiliateVerification)
-                // .Include(… inne kolekcje powiązane …)
+
                 .FirstOrDefaultAsync(u => u.CodePAR == codePAR);
 
             if (user == null)
@@ -394,7 +495,7 @@ namespace PriceSafari.Controllers.ManagerControllers
             using var transaction = await _context.Database.BeginTransactionAsync();
             try
             {
-                
+
                 var deleteResult = await _userManager.DeleteAsync(user);
                 if (!deleteResult.Succeeded)
                 {
@@ -416,7 +517,6 @@ namespace PriceSafari.Controllers.ManagerControllers
                 return View("Error", new ErrorViewModel { RequestId = ex.Message });
             }
 
-            // wracamy do listy kont
             return RedirectToAction(nameof(Accounts));
         }
     }

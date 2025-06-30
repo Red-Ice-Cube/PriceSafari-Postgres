@@ -127,6 +127,7 @@
         </div>
 
         <div class="Column-Form">
+            @Html.AntiForgeryToken()
             <div class="campaign-box-head-name" style="font-size: 26px; color: #4B4B4B; font-weight:300; margin-bottom: 2rem;">
                 Konto @Model.UserName @Model.UserSurname
             </div>
@@ -210,8 +211,8 @@
                                         break;
                                 }
                             </div>
-                        </div> 
-                
+                        </div>
+
                         <div class="info-line">
                             <div class="info-line-icon"><i class="fas fa-sign-in-alt"></i></div>
                             <strong>Ostatnie logowanie:</strong>
@@ -224,6 +225,18 @@
                         <div class="info-line">
                             <div class="info-line-icon"><i class="fas fa-user-check"></i></div>
                             <strong>Weryfikacja Partnera:</strong> <span>@(Model.Verification ? "Zatwierdzony" : "Czeka na weryfikację")</span>
+                        </div>
+                        <div class="info-line">
+                            <div class="info-line-icon"><i class="fas fa-paper-plane"></i></div>
+                            <strong>Powiadomienie:</strong>
+                            <div>
+                                <button id="send-panel-ready-email-btn"
+                                        class="btn btn-sm btn-outline-primary"
+                                        data-user-code-par="@Model.UserCode" data-controller-url="@Url.Action("SendPanelReadyEmail", "ManagerAffiliate")">
+                                    Wyślij e-mail "Panel Gotowy"
+                                </button>
+                                <small id="email-status-text" class="form-text text-muted" style="display:none; margin-top: 5px;"></small>
+                            </div>
                         </div>
                     </div>
 
@@ -335,3 +348,74 @@
         </div>
     </div>
 </div>
+@section Scripts {
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const sendButton = document.getElementById('send-panel-ready-email-btn');
+            const statusText = document.getElementById('email-status-text');
+            const antiForgeryToken = document.querySelector('input[name="__RequestVerificationToken"]').value;
+
+            if (!sendButton) return;
+
+            const userCodePar = sendButton.dataset.userCodePar;
+            const actionUrl = sendButton.dataset.controllerUrl;
+
+            const localStorageKey = `panelReadyEmailSent_${userCodePar}`;
+
+            function updateButtonState(state, message) {
+
+                 if (state === 'sent') {
+                    sendButton.disabled = true;
+                    sendButton.classList.remove('btn-outline-primary');
+                    sendButton.classList.add('btn-success');
+                    sendButton.innerHTML = '<i class="fas fa-check"></i> Wysłano';
+                    statusText.innerText = message || `Powiadomienie zostało wysłane.`;
+                    statusText.style.display = 'block';
+                } else if (state === 'sending') {
+                    sendButton.disabled = true;
+                    sendButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Wysyłanie...';
+                } else if (state === 'error') {
+                    sendButton.disabled = false;
+                    sendButton.innerHTML = 'Wyślij e-mail "Panel Gotowy"';
+                    statusText.innerText = message || 'Wystąpił błąd. Spróbuj ponownie.';
+                    statusText.style.display = 'block';
+                    setTimeout(() => { statusText.style.display = 'none'; }, 5000);
+                }
+            }
+
+            const emailAlreadySent = localStorage.getItem(localStorageKey);
+            if (emailAlreadySent) {
+                updateButtonState('sent', 'Powiadomienie zostało już wysłane w tej sesji przeglądarki.');
+            }
+
+            sendButton.addEventListener('click', function () {
+                updateButtonState('sending');
+
+                fetch(actionUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'RequestVerificationToken': antiForgeryToken
+                    },
+
+                    body: JSON.stringify({ codePAR: userCodePar })
+                })
+                .then(response => {
+                    if (response.ok) {
+                        return response.json();
+                    }
+                    return response.text().then(text => { throw new Error(text || 'Odpowiedź serwera nie jest pomyślna.') });
+                })
+                .then(data => {
+                    console.log('Sukces:', data.message);
+                    localStorage.setItem(localStorageKey, 'true');
+                    updateButtonState('sent');
+                })
+                .catch(error => {
+                    console.error('Błąd fetch:', error);
+                    updateButtonState('error', 'Wystąpił błąd. Sprawdź konsolę deweloperską (F12) po szczegóły.');
+                });
+            });
+        });
+    </script>
+}

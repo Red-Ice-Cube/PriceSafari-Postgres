@@ -105,7 +105,6 @@ namespace PriceSafari.Areas.Identity.Pages.Account
                 user.VerificationCodeExpires = DateTime.UtcNow.AddMinutes(15);
                 await _userManager.UpdateAsync(user);
 
-                // --- POCZĄTEK ZMIANY: Logika wysyłki e-maila z logo ---
                 var logoPath = Path.Combine(_webHostEnvironment.WebRootPath, "cid", "PriceSafari.png");
                 var inlineImages = new Dictionary<string, string>
                 {
@@ -115,9 +114,7 @@ namespace PriceSafari.Areas.Identity.Pages.Account
                 var emailSubject = "Witaj w Price Safari! Potwierdź swój adres e-mail";
                 var emailBody = GenerateInitialVerificationEmailBody(user.PartnerName, code);
 
-                // Zakładamy, że IEmailSender został rozszerzony do IAppEmailSender, który akceptuje obrazki
                 await _emailSender.SendEmailAsync(Input.Email, emailSubject, emailBody, inlineImages);
-                // --- KONIEC ZMIANY ---
 
                 return RedirectToPage("./VerifyEmail", new { email = Input.Email });
             }
@@ -126,7 +123,7 @@ namespace PriceSafari.Areas.Identity.Pages.Account
             {
                 if (error.Code == "DuplicateUserName")
                 {
-                    // Tutaj również można zaimplementować ładniejszy e-mail dla istniejącego użytkownika
+
                     ModelState.AddModelError(string.Empty, "Konto z tym adresem e-mail już istnieje. Czy chcesz się zalogować?");
                 }
                 else
@@ -137,11 +134,10 @@ namespace PriceSafari.Areas.Identity.Pages.Account
             return Page();
         }
 
-        // --- NOWA METODA: GENERATOR SZABLONU E-MAILA DLA PIERWSZEJ REJESTRACJI ---
         private string GenerateInitialVerificationEmailBody(string userName, string code)
         {
-            // Adres URL, do którego będzie prowadził przycisk. Zmień go na właściwy dla swojej aplikacji.
-            var verificationUrl = "https://twoja-strona.pl/Identity/Account/VerifyEmail";
+
+    
 
             return $@"
                 <!DOCTYPE html>
@@ -160,7 +156,7 @@ namespace PriceSafari.Areas.Identity.Pages.Account
                         max-width: 560px;
                         margin: 40px auto;
                         background-color: #ffffff;
-                  
+
                         overflow: hidden;
                     }}
                     .top-bar {{
@@ -179,13 +175,13 @@ namespace PriceSafari.Areas.Identity.Pages.Account
                         color: #1d1d1f; 
                         font-size: 16px;
                     }}
-        
+
                     .content p {{
                         margin: 0 0 16px 0;
                     }}
                     .code-label {{
                         font-size: 16px;
-                   
+
                         margin-bottom: 4px;
                     }}
                     .code {{
@@ -223,10 +219,10 @@ namespace PriceSafari.Areas.Identity.Pages.Account
                         </div>
                         <div class=""top-bar""></div>
                         <div class=""content"">
-                        
+
                             <p>Cześć {userName},</p>
                             <p>Dziękujemy za założenie konta w Price Safari! Jesteśmy o krok od zakończenia procesu rejestracji. Użyj poniższego kodu, aby zweryfikować swój adres e-mail.</p>
-                            
+
                             <div class=""code-label"">Kod weryfikacyjny</div>
                             <div class=""code"">{code}</div>
 
