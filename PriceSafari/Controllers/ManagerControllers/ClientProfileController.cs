@@ -589,56 +589,35 @@ public class ClientProfileController : Controller
         </html>
         ";
     }
-
     private string GetEmailContent3()
     {
         return @"
-        <div style=""font-family: Arial, Helvetica, sans-serif; color: #333333; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 5px; overflow: hidden;"">
-            <div style=""background-color: #222222; color: #ffffff; padding: 20px; text-align: center;"">
-                <h1 style=""margin: 0; font-size: 24px;"">Monitoring cen z PriceSafari</h1>
-            </div>
-            <div style=""padding: 20px 30px; line-height: 1.8;"">
-                <p>Dzień dobry,</p>
-                <p>Prowadzimy monitoring cen produktów na Google Shopping i Ceneo.</p>
-                <p>Spojrzenie na cały rynek z jednego panelu pozwoli Państwu strategicznie zarządzać cenami własnych produktów, maksymalizować zyski i wyprzedzać konkurentów.</p>
-                
-                <h3 style=""color: #222222; border-bottom: 2px solid #f0f0f0; padding-bottom: 5px; margin-top: 25px;"">Monitoring konkurencji z PriceSafari pozwoli szybko sprawdzić:</h3>
-                
-                <ul style=""list-style-type: none; padding-left: 0;"">
-                    <li style=""padding-bottom: 8px;"">✅ Kto ma najlepszą cenę na danym produkcie?</li>
-                    <li style=""padding-bottom: 8px;"">✅ Gdzie w rankingu cenowym znajduje się Państwa oferta?</li>
-                    <li style=""padding-bottom: 8px;"">✅ Kto i gdzie promuje oferty?</li>
-                    <li style=""padding-bottom: 8px;"">✅ Jak szeroka jest konkurencja?</li>
-                    <li style=""padding-bottom: 8px;"">✅ Jaki czas wysyłki oferują poszczególni konkurenci?</li>
-                    <li style=""padding-bottom: 8px;"">✅ Które ceny produktów można podnieść, aby maksymalizować zyski?</li>
-                    <li style=""padding-bottom: 8px;"">✅ Na jakich produktach wybrany konkurent zmienił wczoraj cenę?</li>
-                </ul>
+        <p>Dzień dobry,</p>
+        <p>Czy tracą Państwo czas na ręcznym śledzeniu cen konkurencji na <strong>Google Shopping</strong> i <strong>Ceneo</strong>?</p>
+        <p>Nasze narzędzie, PriceSafari, automatyzuje proces zbierania cen i pozwala spojrzeć na cały rynek z jednego panelu.</p> 
+        <p>Umożliwia to strategiczne zarządzanie cenami, maksymalizację zysków i wyprzedzenie konkurentów.</p>
+        <br>
+        <p>Dzięki automatycznemu monitoringowi cen konkurencji szybko sprawdzą Państwo:</p>
+        <ul>
+            <li>Kto ma najlepszą cenę na danym produkcie?</li>
+            <li>Gdzie w rankingu cenowym znajduje się Państwa oferta?</li>
+            <li>Kto, gdzie i jak promuje swoje oferty?</li>
+            <li>Jak szeroka jest realna konkurencja?</li>
+            <li>Jakie ceny i czas wysyłki oferują inni?</li>
+            <li>Które ceny można bezpiecznie podnieść, aby zwiększyć zysk?</li>
+            <li>Jakie ruchy cenowe wykonał wczoraj wybrany konkurent?</li>
+        </ul>
 
-                <div style=""background-color: #f2f9ff; border-left: 4px solid #41C7C7; padding: 15px; margin: 25px 0;"">
-                    <p style=""margin: 0; font-weight: bold;"">Co-Pilot Cenowy</p>
-                    <p style=""margin: 5px 0 0 0;"">Funkcja ta pozwala masowo wprowadzać zmiany, symulować wyniki i eksportować nowe ceny dla setek produktów kilkoma kliknięciami.</p>
-                </div>
+        <p>Już pierwsza analiza potrafi przynieść wymierne korzyści. Z doświadczenia naszych klientów wiemy, że w przypadku <strong>7-13% asortymentu</strong> ceny są na tyle niskie, że można je podnieść — <strong>zwiększając zysk, a jednocześnie nadal pozostając najtańszą ofertą na rynku.</strong></p>
+        <p><strong>Czy byliby Państwo zainteresowani bezpłatnym przetestowaniem naszego narzędzia na 500 własnych produktach przez 7 dni?</strong></p>
+        <p>Jeśli tak, wystarczy krótka odpowiedź na tę wiadomość, a ja prześlę więcej szczegółów i pokażę, jak możemy pomóc w rozwoju Państwa biznesu.</p>
+        
+        <br>
 
-                <p>Oferujemy <strong>bezpłatne konto przez 7 dni</strong>. Mogą Państwo przetestować nasz program na <strong>1000 własnych produktów</strong>.</p>
-                
-                <div style=""text-align: center; margin: 30px 0;"">
-                    <a href=""https://pricesafari.pl/Home/Pricing"" style=""background-color: #41C7C7; color: #ffffff; padding: 15px 30px; text-decoration: none; border-radius: 5px; font-weight: bold; font-size: 16px; display: inline-block;"">
-                       Szybka wycena online
-                    </a>
-                </div>
-                
-                <p style=""text-align: center; font-size: 14px; color: #7f8c8d;"">
-             Do uruchomienia konta testowego, potrzebujemy jedynie feedu produktowego z Państwa produktami. Następnie, po rozmowie online, przygotujemy dla Państwa konto demo.
-                </p>
-
-                <p style=""text-align: center; margin-top: 30px;"">
-                    Więcej o PriceSafari 👉 <a href=""https://pricesafari.pl/"" style=""color: #41C7C7; text-decoration: none;"">https://pricesafari.pl/</a>
-                </p>
-            </div>
-        </div>
+        <p>Tymczasem zapraszam do zapoznania się z pełnymi możliwościami naszego systemu na stronie internetowej:</p>
+        <p><a href=""https://pricesafari.pl/"">https://pricesafari.pl/</a></p>
     ";
     }
-
     private string GetEmailFooter()
     {
         return @"
