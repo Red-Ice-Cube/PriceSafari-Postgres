@@ -125,18 +125,27 @@ public class ClientProfileController : Controller
     }
 
     [HttpGet]
-    public JsonResult CheckUrlExists(string url)
+    public JsonResult CheckUrlExists(string url, int? id)
     {
-
-        var exists = _context.ClientProfiles.Any(cp => cp.Source == ClientSource.Ceneo && cp.CeneoProfileUrl == url);
+        var query = _context.ClientProfiles.Where(cp => cp.Source == ClientSource.Ceneo && cp.CeneoProfileUrl == url);
+        if (id.HasValue)
+        {
+            query = query.Where(cp => cp.ClientProfileId != id.Value);
+        }
+        var exists = query.Any();
         return Json(new { exists });
     }
 
     [HttpGet]
-    public async Task<JsonResult> CheckGoogleCompanyNameExists(string companyName)
+    public async Task<JsonResult> CheckGoogleCompanyNameExists(string companyName, int? id)
     {
         var cleanedCompanyName = CleanCompanyName(companyName);
-        var exists = await _context.ClientProfiles.AnyAsync(cp => cp.Source == ClientSource.Google && cp.CeneoProfileName == cleanedCompanyName);
+        var query = _context.ClientProfiles.Where(cp => cp.Source == ClientSource.Google && cp.CeneoProfileName == cleanedCompanyName);
+        if (id.HasValue)
+        {
+            query = query.Where(cp => cp.ClientProfileId != id.Value);
+        }
+        var exists = await query.AnyAsync();
         return Json(new { exists, cleanedName = cleanedCompanyName });
     }
 
@@ -197,9 +206,8 @@ public class ClientProfileController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Edit(int id, ClientProfile model)
     {
-        var existingProfile = await _context.ClientProfiles.FindAsync(id);
 
-        if (existingProfile == null)
+        if (id != model.ClientProfileId)
         {
             return NotFound();
         }
@@ -207,42 +215,89 @@ public class ClientProfileController : Controller
         ModelState.Remove("CreatedByUserId");
         ModelState.Remove("CreatedByUser");
 
-        if (ModelState.IsValid)
+        if (model.Source == ClientSource.Google)
         {
+            ModelState.Remove("CeneoProfileUrl");
+            ModelState.Remove("CeneoProfileTelephone");
+            ModelState.Remove("CeneoProfileProductCount");
+        }
 
-            bool urlExists = await _context.ClientProfiles
-                .AnyAsync(cp => cp.CeneoProfileUrl == model.CeneoProfileUrl && cp.ClientProfileId != id);
+        if (string.IsNullOrWhiteSpace(model.CeneoProfileName))
+        {
+            ModelState.AddModelError("CeneoProfileName", "Nazwa firmy jest wymagana.");
+        }
+        if (string.IsNullOrWhiteSpace(model.CeneoProfileEmail))
+        {
+            ModelState.AddModelError("CeneoProfileEmail", "Email jest wymagany.");
+        }
 
-            if (urlExists)
+        if (model.Source == ClientSource.Ceneo && string.IsNullOrWhiteSpace(model.CeneoProfileUrl))
+        {
+            ModelState.AddModelError("CeneoProfileUrl", "URL Ceneo jest wymagany dla klientów z Ceneo.");
+        }
+
+        bool exists = false;
+        if (model.Source == ClientSource.Ceneo)
+        {
+            exists = await _context.ClientProfiles
+                .AnyAsync(cp => cp.Source == ClientSource.Ceneo && cp.CeneoProfileUrl == model.CeneoProfileUrl && cp.ClientProfileId != id);
+            if (exists)
             {
                 ModelState.AddModelError("CeneoProfileUrl", "Klient z tym URL już istnieje.");
-                return View("~/Views/ManagerPanel/ClientProfiles/Edit.cshtml", model);
             }
+        }
+        else if (model.Source == ClientSource.Google)
+        {
+            exists = await _context.ClientProfiles
+                .AnyAsync(cp => cp.Source == ClientSource.Google && cp.CeneoProfileName == model.CeneoProfileName && cp.CeneoProfileEmail == model.CeneoProfileEmail && cp.ClientProfileId != id);
+            if (exists)
+            {
+                ModelState.AddModelError("CeneoProfileName", "Klient z tą nazwą firmy i adresem e-mail już istnieje.");
+            }
+        }
 
+        if (ModelState.IsValid)
+        {
             try
             {
+                var profileToUpdate = await _context.ClientProfiles.FindAsync(id);
+                if (profileToUpdate == null)
+                {
+                    return NotFound();
+                }
 
-                existingProfile.CeneoProfileName = model.CeneoProfileName;
-                existingProfile.CeneoProfileEmail = model.CeneoProfileEmail;
-                existingProfile.CeneoProfileTelephone = model.CeneoProfileTelephone;
-                existingProfile.CeneoProfileUrl = model.CeneoProfileUrl;
-                existingProfile.CeneoProfileProductCount = model.CeneoProfileProductCount;
-                existingProfile.Status = model.Status;
-                existingProfile.ScheduledMeetingDate = model.ScheduledMeetingDate;
+                profileToUpdate.Source = model.Source;
+                profileToUpdate.CeneoProfileName = model.CeneoProfileName;
+                profileToUpdate.CeneoProfileEmail = model.CeneoProfileEmail;
+                profileToUpdate.Status = model.Status;
+                profileToUpdate.ScheduledMeetingDate = model.ScheduledMeetingDate;
+
+                if (model.Source == ClientSource.Ceneo)
+                {
+                    profileToUpdate.CeneoProfileUrl = model.CeneoProfileUrl;
+                    profileToUpdate.CeneoProfileTelephone = model.CeneoProfileTelephone;
+                    profileToUpdate.CeneoProfileProductCount = model.CeneoProfileProductCount;
+                }
+                else
+                {
+                    profileToUpdate.CeneoProfileUrl = null;
+                    profileToUpdate.CeneoProfileTelephone = null;
+                    profileToUpdate.CeneoProfileProductCount = null;
+                }
 
                 await _context.SaveChangesAsync();
+                TempData["SuccessMessage"] = "Profil klienta został zaktualizowany pomyślnie.";
                 return RedirectToAction("Index");
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex, "Wystąpił błąd podczas aktualizowania profilu klienta.");
                 ModelState.AddModelError("", "Wystąpił błąd podczas zapisywania danych. Skontaktuj się z administratorem.");
             }
         }
-        else
-        {
-            _logger.LogWarning("ModelState is invalid: {ModelStateErrors}",
-                string.Join(", ", ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage)));
-        }
+
+        _logger.LogWarning("ModelState is invalid on Edit: {ModelStateErrors}",
+            string.Join(", ", ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage)));
 
         return View("~/Views/ManagerPanel/ClientProfiles/Edit.cshtml", model);
     }
@@ -611,11 +666,11 @@ public class ClientProfileController : Controller
         <p>Już pierwsza analiza potrafi przynieść wymierne korzyści. Z doświadczenia naszych klientów wiemy, że w przypadku <strong>7-13% asortymentu</strong> ceny są na tyle niskie, że można je podnieść — <strong>zwiększając zysk, a jednocześnie nadal pozostając najtańszą ofertą na rynku.</strong></p>
         <p><strong>Czy byliby Państwo zainteresowani bezpłatnym przetestowaniem naszego narzędzia na 500 własnych produktach przez 7 dni?</strong></p>
         <p>Jeśli tak, wystarczy krótka odpowiedź na tę wiadomość, a ja prześlę więcej szczegółów i pokażę, jak możemy pomóc w rozwoju Państwa biznesu.</p>
-        
+
         <br>
 
         <p>Tymczasem zapraszam do zapoznania się z pełnymi możliwościami naszego systemu na stronie internetowej:</p>
-        <p><a href=""https://pricesafari.pl/"">https://pricesafari.pl/</a></p>
+        <p><a href=""https:
     ";
     }
     private string GetEmailFooter()
