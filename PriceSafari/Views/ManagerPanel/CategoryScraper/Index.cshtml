@@ -1,25 +1,179 @@
-﻿@model IEnumerable<PriceSafari.Models.StoreClass>
+﻿@model PriceSafari.Models.ManagerViewModels.CategoryManagementViewModel
 
 @{
-    ViewData["Title"] = "Scrape Categories";
-}
-
-@{
-
+    ViewData["Title"] = "Zarządzanie Kategoriami Sklepów";
     Layout = "~/Views/Shared/_PanelLayout.cshtml";
 }
 
-<h2>Scrape Categories</h2>
+<div class="Vert">
+    <div class="Vert-full">
 
-<form asp-action="ScrapeCategories" method="post">
-    <div class="form-group">
-        <label for="storeId">Select Store:</label>
-        <select id="storeId" name="storeId" class="form-control">
-            @foreach (var store in Model)
-            {
-                <option value="@store.StoreId">@store.StoreName</option>
-            }
-        </select>
+        <form asp-action="Index" method="get" class="form-inline mb-4">
+            <div class="form-group">
+                <label for="storeId" class="mr-2">Wybierz Sklep:</label>
+                <select id="storeId" name="storeId" asp-for="SelectedStoreId" asp-items="@(new SelectList(Model.AllStores, "StoreId", "StoreName"))" class="form-control mr-2">
+                    <option value="">-- Wybierz --</option>
+                </select>
+            </div>
+            <button type="submit" class="btn btn-info">Pokaż Kategorie</button>
+        </form>
+
+        <h4>Dodaj nową kategorię ręcznie</h4>
+        <form id="addCategoryForm">
+            @Html.AntiForgeryToken()
+
+            <input type="hidden" id="selectedStoreId" value="@Model.SelectedStoreId" />
+
+            <div id="form-errors" class="text-danger mb-2" style="display: none;"></div>
+
+            <div class="form-row">
+                <div class="form-group col-md-4">
+                    <label for="newCategoryName">Nazwa Kategorii</label>
+                    <input id="newCategoryName" name="CategoryName" class="form-control" placeholder="np. Laptopy" />
+                </div>
+                <div class="form-group col-md-4">
+                    <label for="newCategoryUrl">URL Kategorii</label>
+                    <input id="newCategoryUrl" name="CategoryUrl" class="form-control" placeholder="np. laptopy" />
+                </div>
+                <div class="form-group col-md-2">
+                    <label for="newCategoryDepth">Głębokość</label>
+                    <input id="newCategoryDepth" name="Depth" class="form-control" type="number" value="0" />
+                </div>
+                <div class="form-group col-md-2 d-flex align-items-end">
+                    <button type="submit" class="btn btn-success w-100">Dodaj Kategorię</button>
+                </div>
+            </div>
+        </form>
+
+        @if (Model.SelectedStoreId.HasValue)
+        {
+            <hr />
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h3>Kategorie dla: @Model.SelectedStoreName</h3>
+
+                <form asp-action="ScrapeCategories" method="post">
+                    <input type="hidden" name="storeId" value="@Model.SelectedStoreId" />
+                    <button type="submit" class="btn btn-primary">Uruchom Scrapowanie dla Tego Sklepu</button>
+                </form>
+            </div>
+            <div class="Vert-table" style="height:40vh;">
+                <table class="table-orders">
+                    <thead>
+                        <tr>
+                            <th>Nazwa Kategorii</th>
+                            <th>URL Kategorii</th>
+                            <th>Głębokość</th>
+                            <th style="width: 150px;">Akcje</th>
+                        </tr>
+                    </thead>
+                    <tbody id="categoryTableBody">
+                        @foreach (var category in Model.CategoriesForSelectedStore)
+                        {
+                            <tr>
+                                <td>@category.CategoryName</td>
+                                <td>@category.CategoryUrl</td>
+                                <td>@category.Depth</td>
+                                <td>
+                                    <a asp-action="Edit" asp-route-id="@category.CategoryId" class="btn btn-sm btn-warning">Edytuj</a>
+                                    <form asp-action="Delete" method="post" class="d-inline" onsubmit="return confirm('Czy na pewno chcesz usunąć tę kategorię?');">
+                                        <input type="hidden" name="id" value="@category.CategoryId" />
+                                        @Html.AntiForgeryToken()
+                                        <button type="submit" class="btn btn-sm btn-danger">Usuń</button>
+                                    </form>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
     </div>
-    <button type="submit" class="btn btn-primary">Scrape Categories</button>
-</form>
+</div>
+
+@section Scripts {
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const addCategoryForm = document.getElementById('addCategoryForm');
+            if (addCategoryForm) {
+                addCategoryForm.addEventListener('submit', function (e) {
+                    e.preventDefault();
+
+                    const storeId = document.getElementById('selectedStoreId').value;
+                    const errorDiv = document.getElementById('form-errors');
+                    errorDiv.innerHTML = '';
+                    errorDiv.style.display = 'none';
+
+                    if (!storeId) {
+                        alert('Proszę najpierw wybrać sklep.');
+                        return;
+                    }
+
+                    const data = {
+                        StoreId: parseInt(storeId, 10),
+                        CategoryName: document.getElementById('newCategoryName').value,
+                        CategoryUrl: document.getElementById('newCategoryUrl').value,
+                        Depth: parseInt(document.getElementById('newCategoryDepth').value, 10)
+                    };
+
+                    const token = document.querySelector('input[name="__RequestVerificationToken"]').value;
+
+                    fetch('/CategoryScraper/Create', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'RequestVerificationToken': token
+                        },
+                        body: JSON.stringify(data)
+                    })
+                    .then(response => {
+                        if (response.ok) {
+                            return response.json();
+                        } else {
+
+                            return response.json().then(errorData => Promise.reject(errorData));
+                        }
+                    })
+                    .then(newCategory => {
+
+                        const tableBody = document.getElementById('categoryTableBody');
+
+                        const newRow = tableBody.insertRow(0);
+                        newRow.innerHTML = `
+                            <td>${newCategory.categoryName}</td>
+                            <td>${newCategory.categoryUrl}</td>
+                            <td>${newCategory.depth}</td>
+                            <td>
+                                <a href="/CategoryScraper/Edit/${newCategory.categoryId}" class="btn btn-sm btn-warning">Edytuj</a>
+                                <form action="/CategoryScraper/Delete" method="post" class="d-inline" onsubmit="return confirm('Czy na pewno chcesz usunąć tę kategorię?');">
+                                    <input type="hidden" name="id" value="${newCategory.categoryId}" />
+                                    <input type="hidden" name="__RequestVerificationToken" value="${token}" />
+                                    <button type="submit" class="btn btn-sm btn-danger">Usuń</button>
+                                </form>
+                            </td>
+                        `;
+
+                        addCategoryForm.reset();
+                        document.getElementById('newCategoryDepth').value = '0';
+                    })
+                    .catch(errorData => {
+
+                        console.error('Błąd walidacji:', errorData);
+                        let errorMessages = '<strong>Popraw błędy:</strong><ul>';
+
+                        const errors = errorData.errors || errorData;
+                        for (const key in errors) {
+                             if (errors.hasOwnProperty(key)) {
+                                errors[key].forEach(err => {
+                                    errorMessages += `<li>${err}</li>`;
+                                });
+                            }
+                        }
+                        errorMessages += '</ul>';
+                        errorDiv.innerHTML = errorMessages;
+                        errorDiv.style.display = 'block';
+                    });
+                });
+            }
+        });
+    </script>
+}

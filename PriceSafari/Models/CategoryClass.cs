@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using Microsoft.AspNetCore.Mvc.ModelBinding.Validation;
+using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 
 namespace PriceSafari.Models
@@ -13,6 +14,7 @@ namespace PriceSafari.Models
         public string CategoryName { get; set; }
         public string CategoryUrl { get; set; }
 
+        [ValidateNever]
         public StoreClass Store { get; set; }
     }
 }

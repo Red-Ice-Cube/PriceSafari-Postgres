@@ -10,7 +10,6 @@ using PriceSafari.Scrapers;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.Data.SqlClient;
 
-
 namespace PriceSafari.Controllers.ManagerControllers
 {
     [Authorize(Roles = "Admin")]
@@ -56,7 +55,6 @@ namespace PriceSafari.Controllers.ManagerControllers
             return RedirectToAction("Index");
         }
 
-
         [HttpGet]
         public async Task<IActionResult> EditStore(int storeId)
         {
@@ -75,16 +73,15 @@ namespace PriceSafari.Controllers.ManagerControllers
         [HttpPost]
         public async Task<IActionResult> EditStore(StoreClass store)
         {
-            // Sprawdź, czy model przesłany z formularza jest prawidłowy
+
             if (!ModelState.IsValid)
             {
-                // Jeśli nie, ponownie przygotuj listę planów i zwróć widok z błędami walidacji
+
                 var plans = await _context.Plans.ToListAsync();
                 ViewBag.Plans = new SelectList(plans, "PlanId", "PlanName", store.PlanId);
                 return View("~/Views/ManagerPanel/Store/EditStore.cshtml", store);
             }
 
-            // Pobierz istniejący sklep z bazy danych (wraz z planem)
             var existingStore = await _context.Stores
                 .Include(s => s.Plan)
                 .FirstOrDefaultAsync(s => s.StoreId == store.StoreId);
@@ -92,7 +89,6 @@ namespace PriceSafari.Controllers.ManagerControllers
             if (existingStore == null)
                 return NotFound();
 
-            // Ustaw aktualizowane pola
             existingStore.StoreName = store.StoreName;
             existingStore.StoreProfile = store.StoreProfile;
             existingStore.StoreApiUrl = store.StoreApiUrl;
@@ -105,12 +101,10 @@ namespace PriceSafari.Controllers.ManagerControllers
             existingStore.RemainingScrapes = store.RemainingScrapes;
             existingStore.ProductsToScrap = store.ProductsToScrap;
 
-            // Nowe pola
             existingStore.StoreNameGoogle = store.StoreNameGoogle;
             existingStore.StoreNameCeneo = store.StoreNameCeneo;
             existingStore.UseGoogleXMLFeedPrice = store.UseGoogleXMLFeedPrice;
 
-            // Jeśli zmieniono plan:
             if (existingStore.PlanId != store.PlanId)
             {
                 existingStore.PlanId = store.PlanId;
@@ -118,15 +112,13 @@ namespace PriceSafari.Controllers.ManagerControllers
 
                 if (newPlan != null)
                 {
-                    // Przypisz liczby produktów do scrapowania z planu
+
                     existingStore.ProductsToScrap = newPlan.ProductsToScrap;
 
-                    // Jeśli plan jest darmowy lub testowy
                     if (newPlan.NetPrice == 0 || newPlan.IsTestPlan)
                     {
                         existingStore.RemainingScrapes = newPlan.ScrapesPerInvoice;
 
-                        // Opcjonalnie oznaczamy niezapłacone faktury jako zapłacone
                         var unpaidInvoices = await _context.Invoices
                             .Where(i => i.StoreId == store.StoreId && !i.IsPaid)
                             .ToListAsync();
@@ -138,7 +130,7 @@ namespace PriceSafari.Controllers.ManagerControllers
                     }
                     else
                     {
-                        // W płatnych planach do momentu opłacenia ustawiamy 0
+
                         existingStore.RemainingScrapes = 0;
                     }
                 }
@@ -148,15 +140,10 @@ namespace PriceSafari.Controllers.ManagerControllers
                 }
             }
 
-            // Zapis do bazy
             await _context.SaveChangesAsync();
 
-            // Powrót do listy sklepów (lub innego widoku)
             return RedirectToAction("Index");
         }
-
-
-
 
         [HttpGet]
         public async Task<IActionResult> Index()
@@ -180,9 +167,6 @@ namespace PriceSafari.Controllers.ManagerControllers
             return View("~/Views/ManagerPanel/Store/Index.cshtml", stores);
         }
 
-
-
-
         [HttpGet]
         public async Task<IActionResult> ScrapeProducts(int storeId, int depth)
         {
@@ -196,25 +180,23 @@ namespace PriceSafari.Controllers.ManagerControllers
             var settings = await _context.Settings.FirstOrDefaultAsync();
             if (settings == null)
             {
-                // Tworzymy domyślne ustawienia, jeśli brak w bazie
+
                 settings = new Settings
                 {
                     HeadLess = true,
                     JavaScript = true,
                     Styles = false,
-                    WarmUpTime = 5 // sekundy
+                    WarmUpTime = 5
                 };
             }
 
             using (var productScraper = new ProductScraper(_context, _hubContext, settings))
             {
-                // Najpierw przechodzimy intencjonalnie do strony z Captchą
+
                 await productScraper.NavigateToCaptchaAsync();
 
-                // Czekamy aż użytkownik rozwiąże Captchę
                 await productScraper.WaitForCaptchaSolutionAsync();
 
-                // Teraz, gdy Captcha jest rozwiązana, możemy kontynuować scrapowanie kategorii
                 foreach (var category in categories)
                 {
                     var baseUrlTemplate = $"https://www.ceneo.pl/{category.CategoryUrl};0192;{store.StoreProfile}-0v;0020-15-0-0-{{0}}.htm";
@@ -225,68 +207,10 @@ namespace PriceSafari.Controllers.ManagerControllers
             return RedirectToAction("ProductList", new { storeId });
         }
 
-
-        //[HttpPost]
-        //public async Task<IActionResult> DeleteStore(int storeId)
-        //{
-        //    // Wczytujemy Store wraz ze wszystkimi powiązaniami, które chcemy usunąć
-        //    var store = await _context.Stores
-        //        .Include(s => s.Products)
-        //        .Include(s => s.Categories)
-        //        .Include(s => s.ScrapHistories)
-        //        .Include(s => s.PriceValues)
-        //        .Include(s => s.Flags)
-        //        .Include(s => s.UserStores)
-        //        .Include(s => s.PriceSafariReports)
-        //        .Include(s => s.Invoices)
-        //        .FirstOrDefaultAsync(s => s.StoreId == storeId);
-
-        //    if (store == null)
-        //    {
-        //        return NotFound();
-        //    }
-
-
-        //    _context.Products.RemoveRange(store.Products);
-
-
-        //    _context.Categories.RemoveRange(store.Categories);
-
-
-        //    _context.ScrapHistories.RemoveRange(store.ScrapHistories);
-
-
-        //    _context.PriceValues.RemoveRange(store.PriceValues);
-
-
-        //    store.Flags.Clear();
-
-
-
-        //    _context.UserStores.RemoveRange(store.UserStores);
-
-
-        //    _context.PriceSafariReports.RemoveRange(store.PriceSafariReports);
-
-
-        //    _context.Invoices.RemoveRange(store.Invoices);
-
-
-        //    _context.Stores.Remove(store);
-
-
-        //    await _context.SaveChangesAsync();
-
-        //    return RedirectToAction("Index");
-        //}
-
-
-
-
         [HttpPost]
         public async Task<IActionResult> DeleteStore(int storeId)
         {
-            // Na wypadek, gdyby store nie istniał
+
             bool storeExists = await _context.Stores.AnyAsync(s => s.StoreId == storeId);
             if (!storeExists)
             {
@@ -294,19 +218,14 @@ namespace PriceSafari.Controllers.ManagerControllers
                 return NotFound();
             }
 
-            // Na wszelki wypadek zwiększamy czas wykonywania poleceń (domyślnie 30 sekund).
-            // Jeśli 5 minut to nadal za mało, można jeszcze wydłużyć.
             _context.Database.SetCommandTimeout(300);
 
             Console.WriteLine($"Rozpoczynam usuwanie Store o ID={storeId}...");
 
-            // Rozpoczynamy transakcję
             using var transaction = await _context.Database.BeginTransactionAsync();
 
-            // Z chunk size = 100 (możesz dostosować w razie potrzeby)
             int chunkSize = 100;
 
-            // Usuwanie z poszczególnych tabel
             await DeleteInChunksAsync("Products", "StoreId", storeId, chunkSize);
             await DeleteInChunksAsync("Categories", "StoreId", storeId, chunkSize);
             await DeleteInChunksAsync("ScrapHistories", "StoreId", storeId, chunkSize);
@@ -316,14 +235,12 @@ namespace PriceSafari.Controllers.ManagerControllers
             await DeleteInChunksAsync("PriceSafariReports", "StoreId", storeId, chunkSize);
             await DeleteInChunksAsync("Invoices", "StoreId", storeId, chunkSize);
 
-            // Na końcu usuwamy sam Store (zwykle jeden rekord)
             int deletedStores = await _context.Database.ExecuteSqlRawAsync(
                 "DELETE FROM [Stores] WHERE StoreId = {0}",
                 storeId
             );
             Console.WriteLine($"Usunięto {deletedStores} rekord(ów) z tabeli [Stores].");
 
-            // Zatwierdzamy transakcję
             await transaction.CommitAsync();
 
             Console.WriteLine($"Zakończono usuwanie Store o ID={storeId} wraz z powiązanymi danymi.");
@@ -336,7 +253,7 @@ namespace PriceSafari.Controllers.ManagerControllers
             int totalDeleted = 0;
             while (true)
             {
-                // DELETE TOP(...) pozwala nam w każdej iteracji usunąć paczkę rekordów
+
                 int deleted = await _context.Database.ExecuteSqlRawAsync($@"
             DELETE TOP({chunkSize})
             FROM [{tableName}]
@@ -347,14 +264,11 @@ namespace PriceSafari.Controllers.ManagerControllers
                 totalDeleted += deleted;
                 Console.WriteLine($"[{tableName}] - usunięto {deleted} rekordów (łącznie {totalDeleted}).");
 
-                // Jeśli w tej iteracji nic nie skasowano, to znaczy, że wszystko już usunięte
                 if (deleted == 0)
                     break;
             }
             return totalDeleted;
         }
-
-
 
         [HttpGet]
         public async Task<IActionResult> ProductList(int storeId)
@@ -386,29 +300,23 @@ namespace PriceSafari.Controllers.ManagerControllers
             return View("~/Views/ManagerPanel/Store/ProductList.cshtml", products);
         }
 
-       
-
         [HttpPost]
         public async Task<IActionResult> ClearRejectedProducts(int storeId)
         {
-            // Pobieramy wszystkie produkty dla danego sklepu, które są odrzucone i mogą być zeskrobane
+
             var products = await _context.Products
                 .Where(p => p.StoreId == storeId && p.IsRejected && p.IsScrapable)
                 .ToListAsync();
 
-            // Ustawiamy IsRejected na false tylko dla produktów spełniających warunki
             foreach (var product in products)
             {
                 product.IsRejected = false;
             }
 
-            // Zapisujemy zmiany do bazy danych
             await _context.SaveChangesAsync();
 
-            // Przekierowanie do listy produktów po zakończeniu operacji
             return RedirectToAction("ProductList", new { storeId });
         }
-
 
     }
 }
