@@ -1422,7 +1422,7 @@
 
                 const soloBadge = document.createElement('span');
                 soloBadge.className = 'Position';
-                soloBadge.style.backgroundColor = '#B8B8B8';
+                soloBadge.style.backgroundColor = '#9C9C9C';
                 soloBadge.style.color = 'white';
                 soloBadge.textContent = 'Brak ofert konkurencji - Produkt solo';
                 soloDetails.appendChild(soloBadge);
@@ -1637,7 +1637,7 @@
 
                 const noOfferBadge = document.createElement('span');
                 noOfferBadge.className = 'Position';
-                noOfferBadge.style.backgroundColor = '#B8B8B8';
+                noOfferBadge.style.backgroundColor = '#9C9C9C';
 
                 noOfferBadge.textContent = 'Brak Twojej oferty - Cena niedostępna';
                 detailsContainer.appendChild(noOfferBadge);
