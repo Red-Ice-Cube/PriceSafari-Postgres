@@ -2977,6 +2977,10 @@ tr:last-child .sub-line {
     height: 16px;
 }
 
+
+
+
+
 .colorFilter {
     outline: none;
     background-color: white;
@@ -3014,6 +3018,11 @@ tr:last-child .sub-line {
     .colorFilter:checked#prOnlyMeCheckbox {
         background-color: rgba(180, 180, 180, 0.7);
         border: 2px solid rgba(180, 180, 180, 1);
+    }
+
+    .colorFilter:checked#prNoOfferCheckbox {
+        background-color: rgba(220, 220, 220, 0.7);
+        border: 2px solid rgba(220, 220, 220, 1);
     }
 
     .colorFilter:checked#prGrayCheckbox {
@@ -3220,6 +3229,11 @@ tr:last-child .sub-line {
 .prOnlyMe .color-bar {
     background-color: rgba(180,180, 180, 0.7);
 }
+
+.prNoOffer .color-bar {
+    background-color: rgba(230, 230, 230, 0.7);
+}
+
 
 .priceBox-diff-up {
     display: inline-flex;
@@ -3725,7 +3739,7 @@ tr:last-child .sub-line {
 
 .store-section {
     display: flex;
-    width: 180px;
+    width: 186px;
     flex-direction: column;
 }
 
