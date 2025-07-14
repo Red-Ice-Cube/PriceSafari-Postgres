@@ -1,5 +1,6 @@
 ﻿document.addEventListener("DOMContentLoaded", function () {
     let allPrices = [];
+    let currentlyFilteredPrices = [];
     let chartInstance = null;
     let myStoreName = "";
     let setPrice1 = 2.00;
@@ -225,9 +226,13 @@
         }, 4000);
     }
 
-    function exportToExcelXLSX() {
-        const workbook = new ExcelJS.Workbook();
+    function exportToExcelXLSX(dataToExport) { // <--- ZMIANA: dodajemy argument
+        if (!dataToExport || dataToExport.length === 0) {
+            alert("Brak danych do wyeksportowania po zastosowaniu filtrów.");
+            return;
+        }
 
+        const workbook = new ExcelJS.Workbook();
         const worksheet = workbook.addWorksheet("Dane");
 
         worksheet.addRow(["ID", "Nazwa Produktu", "EAN", "Ilość ofert", "Najniższa Konkurencyjna Cena", "Twoja Cena"]);
@@ -236,7 +241,8 @@
         const fontGreen = { color: { argb: "FF006400" } };
         const fontGray = { color: { argb: "FF7E7E7E" } };
 
-        allPrices.forEach((item) => {
+        // vvv ZMIANA: używamy 'dataToExport' zamiast 'allPrices' vvv
+        dataToExport.forEach((item) => {
             const rowData = [
                 item.externalId || "",
                 item.productName || "",
@@ -278,7 +284,6 @@
             const link = document.createElement("a");
             link.href = URL.createObjectURL(blob);
             link.download = fileName;
-
             link.click();
 
             setTimeout(() => {
@@ -2614,6 +2619,8 @@
                 );
             }
 
+            currentlyFilteredPrices = [...filteredPrices];
+
             renderPrices(filteredPrices);
             debouncedRenderChart(filteredPrices);
             updateColorCounts(filteredPrices);
@@ -2901,7 +2908,9 @@
 
     const exportButton = document.getElementById("exportToExcelButton");
     if (exportButton) {
-        exportButton.addEventListener("click", exportToExcelXLSX);
+        exportButton.addEventListener("click", function () {
+            exportToExcelXLSX(currentlyFilteredPrices);
+        });
     }
 
     document.getElementById('savePriceValues').addEventListener('click', function () {
