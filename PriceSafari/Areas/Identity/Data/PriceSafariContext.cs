@@ -49,6 +49,9 @@ namespace PriceSafari.Data
         public DbSet<CeneoFieldMapping> CeneoFieldMappings { get; set; }
         public DbSet<CompetitorPresetClass> CompetitorPresets { get; set; }
         public DbSet<CompetitorPresetItem> CompetitorPresetItems { get; set; }
+        public DbSet<AllegroProductClass> AllegroProducts { get; set; }
+
+
 
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)

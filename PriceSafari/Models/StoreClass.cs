@@ -36,11 +36,16 @@ namespace PriceSafari.Models
 
         public bool IsActive => RemainingScrapes > 0;
 
-        public string? StoreNameGoogle { get; set; }   // np. "Akson"
-        public string? StoreNameCeneo { get; set; }    // np. "akson.pl"
+        public string? StoreNameGoogle { get; set; }   
+        public string? StoreNameCeneo { get; set; }   
 
-        // NOWE POLE - domyślnie false
+        
         public bool UseGoogleXMLFeedPrice { get; set; } = false;
+
+
+        public string? StoreNameAllegro { get; set; }
+
+
 
         // Navigation properties
         public ICollection<ScrapHistoryClass> ScrapHistories { get; set; } = new List<ScrapHistoryClass>();
