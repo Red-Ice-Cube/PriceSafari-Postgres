@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using PriceSafari.Data; // Załóżmy, że tutaj masz swój DbContext
 using PriceSafari.Models;
@@ -7,8 +8,12 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
+
+
 namespace PriceSafari.ScrapersControllers
 {
+
+
 
     [ApiController]
     [Route("api/allegro-gather")] // Używamy ścieżki typowej dla API
@@ -22,70 +27,74 @@ namespace PriceSafari.ScrapersControllers
             _context = context;
         }
 
-        // === Endpoint do tworzenia zadania (wywoływany z Twojej aplikacji webowej) ===
-        [HttpPost("start-task/{storeId}")]
-        public async Task<IActionResult> StartTask(int storeId)
-        {
-            var store = await _context.Stores.FindAsync(storeId);
-            if (store == null || string.IsNullOrEmpty(store.StoreNameAllegro))
-            {
-                return NotFound("Nie znaleziono sklepu lub sklep nie ma przypisanej nazwy Allegro.");
-            }
 
-            // Dodajemy nazwę użytkownika Allegro do naszej kolejki zadań
-            AllegroTaskQueue.UsernamesToScrape.Enqueue(store.StoreNameAllegro);
 
-            return Ok(new { message = $"Zadanie dla '{store.StoreNameAllegro}' zostało dodane do kolejki." });
-        }
-
-        // === Endpoint dla Pythona: "Czy jest praca?" ===
         [HttpGet("get-task")]
         public IActionResult GetTask([FromHeader(Name = "X-Api-Key")] string receivedApiKey)
         {
-            if (receivedApiKey != ApiKey)
+            if (receivedApiKey != ApiKey) return Unauthorized("Błędny klucz API.");
+
+            // 1. Znajdź pierwsze zadanie ze stanem "Pending"
+            var pendingTask = AllegroTaskManager.ActiveTasks
+                .FirstOrDefault(t => t.Value == ScrapingStatus.Pending);
+
+            if (pendingTask.Key != null)
             {
-                return Unauthorized("Błędny klucz API.");
+                // 2. Jeśli znaleziono, spróbuj ATOMOWO zmienić jego stan na "Running"
+                // To zapobiega sytuacji, w której dwa scrapery pobiorą to samo zadanie.
+                bool updated = AllegroTaskManager.ActiveTasks.TryUpdate(
+                    key: pendingTask.Key,
+                    newValue: ScrapingStatus.Running,
+                    comparisonValue: ScrapingStatus.Pending // Zmień tylko jeśli stan to wciąż "Pending"
+                );
+
+                if (updated)
+                {
+                    // 3. Jeśli się udało, wyślij zadanie do scrapera
+                    return Ok(new { allegroUsername = pendingTask.Key });
+                }
             }
 
-            // Próbujemy pobrać zadanie z kolejki
-            if (AllegroTaskQueue.UsernamesToScrape.TryDequeue(out var username))
-            {
-                // Jest zadanie! Wysyłamy je do scrapera.
-                return Ok(new { allegroUsername = username });
-            }
-            else
-            {
-                // Kolejka pusta, nie ma pracy.
-                return Ok(new { message = "Brak zadań w kolejce." });
-            }
+            // Jeśli nie ma zadań "Pending" lub aktualizacja się nie powiodła, zwróć pustą odpowiedź
+            return Ok(new { message = "Brak oczekujących zadań." });
         }
 
-        // === Endpoint dla Pythona: "Oto znalezione produkty" ===
+        // NOWY ENDPOINT: Scraper pyta "Czy mam kontynuować pracę?"
+        [HttpGet("check-status/{username}")]
+        public IActionResult CheckStatus(string username, [FromHeader(Name = "X-Api-Key")] string receivedApiKey)
+        {
+            if (receivedApiKey != ApiKey) return Unauthorized();
+
+            if (AllegroTaskManager.ActiveTasks.TryGetValue(username, out var status))
+            {
+                return Ok(new { status = status.ToString() }); // Zwraca "Running" lub "Cancelled"
+            }
+            return NotFound("Zadanie nie zostało znalezione.");
+        }
+
+        // NOWY ENDPOINT: Scraper informuje "Skończyłem pracę"
+        [HttpPost("finish-task/{username}")]
+        public IActionResult FinishTask(string username, [FromHeader(Name = "X-Api-Key")] string receivedApiKey)
+        {
+            if (receivedApiKey != ApiKey) return Unauthorized();
+
+            // Usuwamy zakończone zadanie ze słownika aktywnych zadań
+            AllegroTaskManager.ActiveTasks.TryRemove(username, out _);
+            return Ok(new { message = "Zadanie oznaczone jako zakończone." });
+        }
+
+        // Endpoint "submit-products" pozostaje bez większych zmian
         [HttpPost("submit-products")]
         public async Task<IActionResult> SubmitProducts(
             [FromHeader(Name = "X-Api-Key")] string receivedApiKey,
             [FromBody] List<AllegroProductDto> productDtos)
         {
-            if (receivedApiKey != ApiKey)
-            {
-                return Unauthorized("Błędny klucz API.");
-            }
-
-            if (productDtos == null || !productDtos.Any())
-            {
-                return BadRequest("Otrzymano pustą listę produktów.");
-            }
-
-            // Tutaj znajdź StoreId na podstawie nazwy użytkownika Allegro
+            // ... (logika zapisu do bazy jak poprzednio) ...
+            if (receivedApiKey != ApiKey) return Unauthorized("Błędny klucz API.");
+            if (productDtos == null || !productDtos.Any()) return BadRequest("Otrzymano pustą listę produktów.");
             var storeName = productDtos.First().StoreNameAllegro;
-            var store = await _context.Stores
-                                      .FirstOrDefaultAsync(s => s.StoreNameAllegro == storeName);
-
-            if (store == null)
-            {
-                return NotFound($"Nie znaleziono sklepu dla użytkownika Allegro: {storeName}");
-            }
-
+            var store = await _context.Stores.FirstOrDefaultAsync(s => s.StoreNameAllegro == storeName);
+            if (store == null) return NotFound($"Nie znaleziono sklepu dla użytkownika Allegro: {storeName}");
             var newProducts = productDtos.Select(dto => new AllegroProductClass
             {
                 StoreId = store.StoreId,
@@ -93,11 +102,8 @@ namespace PriceSafari.ScrapersControllers
                 AllegroOfferUrl = dto.Url,
                 AddedDate = DateTime.UtcNow
             }).ToList();
-
-            // Zapisujemy nowe produkty w bazie
             await _context.AllegroProducts.AddRangeAsync(newProducts);
             await _context.SaveChangesAsync();
-
             return Ok(new { message = $"Zapisano {newProducts.Count} produktów dla sklepu {store.StoreName}." });
         }
     }
@@ -110,12 +116,6 @@ namespace PriceSafari.ScrapersControllers
         public string StoreNameAllegro { get; set; } // Dodajemy to, żeby wiedzieć, do kogo przypisać produkty
     }
 
-    public static class AllegroTaskQueue
-    {
-        // ConcurrentQueue jest bezpieczna do użycia w środowisku wielowątkowym,
-        // co jest kluczowe w aplikacjach webowych.
-        // Przechowujemy tu nazwy użytkowników Allegro do zescrapowania.
-        public static readonly ConcurrentQueue<string> UsernamesToScrape = new();
-    }
+
 
 }

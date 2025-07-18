@@ -1,0 +1,91 @@
+﻿@model PriceSafari.Models.ManagerViewModels.AllegroGatherViewModel
+@using PriceSafari.ScrapersControllers 
+@{
+    ViewData["Title"] = "Panel Zbierania Ofert Allegro";
+    Layout = "~/Views/Shared/_PanelLayout.cshtml";
+}
+
+<style>
+    .status-active {
+        color: #198754;
+        font-weight: bold;
+    }
+
+    .status-idle {
+        color: #6c757d;
+        font-weight: bold;
+    }
+</style>
+<h1>@ViewData["Title"]</h1>
+<hr />
+@if (TempData["SuccessMessage"] != null) { /* ... */ }
+@if (TempData["ErrorMessage"] != null) { /* ... */ }
+
+<div class="card mb-4">
+    <div class="card-header">
+        <h4>Panel Sterowania Sklepami</h4>
+    </div>
+    <div class="card-body">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Nazwa Sklepu</th>
+                    <th>Nazwa Allegro</th>
+                    <th>Status</th>
+                    <th>Akcja</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var store in Model.ScrapableStores)
+                {
+                    <tr>
+                        <td>@store.StoreName</td>
+                        <td>@store.StoreNameAllegro</td>
+                        <td>
+                            @if (Model.ActiveTasks.TryGetValue(store.StoreNameAllegro, out var status))
+                            {
+                                <span class="badge
+                                            @(status == ScrapingStatus.Running ? "bg-success" : "")
+                                            @(status == ScrapingStatus.Pending ? "bg-warning text-dark" : "")">
+                                    @status.ToString()
+                                </span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-secondary">Bezczynny</span>
+                            }
+                        </td>
+                        <td>
+                            @if (Model.ActiveTasks.ContainsKey(store.StoreNameAllegro))
+                            {
+                                <form asp-action="CancelScraping" method="post" class="d-inline">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="storeId" value="@store.StoreId" />
+                                    <button type="submit" class="btn btn-warning btn-sm">🛑 Przerwij</button>
+                                </form>
+                            }
+                            else
+                            {
+                                <form asp-action="StartScraping" method="post" class="d-inline">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="storeId" value="@store.StoreId" />
+                                    <button type="submit" class="btn btn-primary btn-sm">🚀 Scrapuj</button>
+                                </form>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h4>Zebrane Produkty (@Model.ScrapedProducts.Count)</h4>
+        <form asp-action="DeleteAllProducts" method="post" onsubmit="return confirm('Czy na pewno chcesz usunąć WSZYSTKIE zebrane produkty?');">
+            @Html.AntiForgeryToken()
+            <button type="submit" class="btn btn-danger btn-sm">🗑️ Usuń Wszystkie</button>
+        </form>
+    </div>
+</div>
