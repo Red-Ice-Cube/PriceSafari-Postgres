@@ -9,6 +9,7 @@ using PriceSafari.Hubs;
 using PriceSafari.Models;
 using PriceSafari.Models.SchedulePlan;
 using PriceSafari.Scrapers;
+using PriceSafari.Services.ConnectionStatus;
 using PriceSafari.Services.ControlNetwork;
 using PriceSafari.Services.ControlXY;
 using PriceSafari.Services.EmailService;
@@ -63,6 +64,7 @@ public class Program
         builder.Services.AddScoped<CaptchaScraper>();
         builder.Services.AddScoped<GoogleScraperService>();
         builder.Services.AddScoped<CeneoScraperService>();
+        builder.Services.AddHostedService<ScraperHealthCheckService>();
         builder.Services.AddScoped<INetworkControlService, NetworkControlService>();
 
         GlobalFontSettings.UseWindowsFontsUnderWindows = true;

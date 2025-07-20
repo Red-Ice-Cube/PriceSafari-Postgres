@@ -1,7 +1,9 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using PriceSafari.Data;
+using PriceSafari.Hubs;
 using PriceSafari.Models.ManagerViewModels;
 using PriceSafari.ScrapersControllers;
 
@@ -11,10 +13,12 @@ namespace PriceSafari.Controllers.ManagerControllers
     public class AllegroGatherController : Controller
     {
         private readonly PriceSafariContext _context;
+        private readonly IHubContext<ScrapingHub> _hubContext;
 
-        public AllegroGatherController(PriceSafariContext context)
+        public AllegroGatherController(PriceSafariContext context, IHubContext<ScrapingHub> hubContext)
         {
             _context = context;
+            _hubContext = hubContext;
         }
 
         [HttpGet]
@@ -30,13 +34,12 @@ namespace PriceSafari.Controllers.ManagerControllers
                 .OrderByDescending(p => p.AddedDate)
                 .ToListAsync();
 
-            // Przekazujemy cały słownik aktywnych zadań do widoku
             var viewModel = new AllegroGatherViewModel
             {
                 ScrapableStores = scrapableStores,
                 ScrapedProducts = scrapedProducts,
-                // Przekazujemy aktualny stan zadań
-                ActiveTasks = AllegroTaskManager.ActiveTasks
+                ActiveTasks = AllegroTaskManager.ActiveTasks,
+                ActiveScrapers = AllegroTaskManager.ActiveScrapers
             };
 
             return View("~/Views/ManagerPanel/Allegro/Index.cshtml", viewModel);
@@ -49,14 +52,12 @@ namespace PriceSafari.Controllers.ManagerControllers
             var store = await _context.Stores.FindAsync(storeId);
             if (store != null && !string.IsNullOrEmpty(store.StoreNameAllegro))
             {
-                // TryAdd zadziała tylko, jeśli zadanie dla tego sklepu jeszcze nie istnieje.
-                // To jest nasza "blokada" przed podwójnym uruchomieniem.
-                bool addedSuccessfully = AllegroTaskManager.ActiveTasks
-                    .TryAdd(store.StoreNameAllegro, ScrapingStatus.Pending);
-
-                if (addedSuccessfully)
+                var newTask = new ScrapingTaskState { Status = ScrapingStatus.Pending };
+                if (AllegroTaskManager.ActiveTasks.TryAdd(store.StoreNameAllegro, newTask))
                 {
                     TempData["SuccessMessage"] = $"Zlecono zadanie dla sklepu: {store.StoreName}";
+
+                    await _hubContext.Clients.All.SendAsync("UpdateTaskProgress", store.StoreNameAllegro, newTask);
                 }
                 else
                 {
@@ -66,7 +67,6 @@ namespace PriceSafari.Controllers.ManagerControllers
             return RedirectToAction(nameof(Index));
         }
 
-        // NOWA AKCJA: Przerwanie zadania
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> CancelScraping(int storeId)
@@ -74,11 +74,13 @@ namespace PriceSafari.Controllers.ManagerControllers
             var store = await _context.Stores.FindAsync(storeId);
             if (store != null && !string.IsNullOrEmpty(store.StoreNameAllegro))
             {
-                // Jeśli zadanie istnieje, próbujemy zaktualizować jego stan na "Anulowane"
-                if (AllegroTaskManager.ActiveTasks.ContainsKey(store.StoreNameAllegro))
+                if (AllegroTaskManager.ActiveTasks.TryGetValue(store.StoreNameAllegro, out var taskState))
                 {
-                    AllegroTaskManager.ActiveTasks[store.StoreNameAllegro] = ScrapingStatus.Cancelled;
+                    taskState.Status = ScrapingStatus.Cancelled;
+                    taskState.LastProgressMessage = "Anulowane przez użytkownika.";
                     TempData["SuccessMessage"] = $"Wysłano sygnał przerwania do zadania dla sklepu: {store.StoreName}";
+
+                    await _hubContext.Clients.All.SendAsync("UpdateTaskProgress", store.StoreNameAllegro, taskState);
                 }
             }
             return RedirectToAction(nameof(Index));
