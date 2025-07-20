@@ -8,10 +8,17 @@
 
 <h2 class="mt-4 mb-4">Products for Google Scraping</h2>
 
-@* NOWA SEKCJA Z OPCJAMI SCRAPOWANIA *@
+
+
 <div class="mb-3 p-3 border rounded bg-light" id="scrapingOptions">
     <h4>Opcje Uruchomienia Bota</h4>
     <div class="row g-3 align-items-end">
+        <div class="form-check form-switch mt-3">
+            <input class="form-check-input" type="checkbox" id="useFirstMatchLogic">
+            <label class="form-check-label" for="useFirstMatchLogic">
+                <strong>Włącz tryb "Pierwszy Trafiony"</strong> (szybki, mniej dokładny - przypisuje pierwszy znaleziony produkt w Google)
+            </label>
+        </div>
         <div class="col-md-3">
             <label for="numberOfConcurrentScrapers" class="form-label">Liczba scraperów (wątków):</label>
             <input type="number" class="form-control" id="numberOfConcurrentScrapers" value="7" min="1">
@@ -25,6 +32,7 @@
             <select class="form-select" id="searchTermSource">
                 <option value="ProductName" selected>Nazwa produktu</option>
                 <option value="ProductUrl">URL produktu</option>
+                <option value="Ean">Kod EAN</option>
             </select>
         </div>
         <div class="col-md-3" id="productNamePrefixContainer">
@@ -35,17 +43,16 @@
 </div>
 
 <div class="d-flex mb-3 flex-wrap">
-    @* Dodano flex-wrap dla lepszego RWD *@
+
     <button id="startScraping" class="btn btn-primary me-2 mb-2">Uruchom BOT z powyższymi opcjami</button>
-    @* NOWY PRZYCISK ZATRZYMANIA *@
+ 
     <button id="stopScrapingButton" class="btn me-2 mb-2" style="background-color: purple; color: white;">Zatrzymaj BOTa</button>
 
     <button id="updatePendingStatuses" class="btn btn-secondary me-2 mb-2">Przelicz korekty</button>
     <button id="resetNotFoundStatuses" class="btn btn-warning me-2 mb-2">Resetuj nieznalezione</button>
     <button id="resetIncorrectGoogleStatuses" class="btn btn-danger me-2 mb-2">Resetuj Niepoprawnie znalezione produkty Google</button>
-    <button id="clearGoogleUrls" class="btn btn-danger mb-2">Wyczyść Google URLs</button> @* Usunięto me-2, jeśli to ostatni *@
+    <button id="clearGoogleUrls" class="btn btn-danger mb-2">Wyczyść Google URLs</button> 
 </div>
-
 
 <h3>Podsumowanie</h3>
 <div class="d-flex mb-3">
@@ -58,6 +65,7 @@
     <thead class="table-dark">
         <tr>
             <th>Product Name</th>
+            <th>EAN</th>
             <th>Product URL</th>
             <th>Found on Google</th>
             <th>Google URL</th>
@@ -72,20 +80,17 @@
     <script>
         $(document).ready(function () {
             console.log("Document ready, loading products...");
-            loadProducts(); // Ładowanie produktów przy wejściu na stronę
+            loadProducts();
 
-            // Obsługa widoczności pola prefixu
             $('#searchTermSource').change(function() {
                 if ($(this).val() === 'ProductName') {
                     $('#productNamePrefixContainer').show();
                 } else {
                     $('#productNamePrefixContainer').hide();
-                    // Opcjonalnie wyczyść wartość prefixu, gdy jest ukryty
-                    // $('#productNamePrefix').val('');
-                }
-            }).trigger('change'); // Wywołaj raz przy ładowaniu, aby ustawić stan początkowy
 
-            // Start scraping button
+                }
+            }).trigger('change');
+
             $('#startScraping').click(function () {
                 console.log("Start Scraping button clicked.");
                 startScraping();
@@ -98,14 +103,11 @@
                 }
             });
 
-            // ... (reszta handerów dla przycisków bez zmian) ...
-            // Update pending statuses button
             $('#updatePendingStatuses').click(function () {
                 console.log("Update Pending Statuses button clicked.");
                 updatePendingProducts();
             });
 
-            // Reset Not Found statuses button
             $('#resetNotFoundStatuses').click(function () {
                 console.log("Reset Not Found Statuses button clicked.");
                 resetNotFoundProducts();
@@ -121,7 +123,6 @@
                 clearGoogleUrls();
             });
 
-
             function loadProducts() {
                 console.log("Sending GET request to load products...");
                 $.ajax({
@@ -130,7 +131,7 @@
                     data: { storeId: '@storeId' },
                     success: function (products) {
                         console.log("Received products from server:", products);
-                        updateTable(products); // Aktualizacja tabeli i liczników
+                        updateTable(products);
                     },
                     error: function (xhr, status, error) {
                         console.error("Error loading products: ", error);
@@ -140,40 +141,38 @@
                 });
             }
 
-            function startScraping() {
+                function startScraping() {
                 console.log("Sending POST request to start scraping...");
 
-                // Pobranie wartości z nowych pól formularza
                 var concurrentScrapers = $('#numberOfConcurrentScrapers').val();
                 var maxCids = $('#maxCidsToProcessPerProduct').val();
                 var termSource = $('#searchTermSource').val();
                 var prefix = $('#productNamePrefix').val();
 
-                // Przygotowanie danych do wysłania
+                // ZMIANA: Odczytanie stanu nowego przełącznika
+                var useFirstMatch = $('#useFirstMatchLogic').is(':checked');
+
                 var scrapingData = {
                     storeId: '@storeId',
-                    numberOfConcurrentScrapers: parseInt(concurrentScrapers, 10), // Konwersja na liczbę
-                    maxCidsToProcessPerProduct: parseInt(maxCids, 10),       // Konwersja na liczbę
-                    searchTermSource: termSource
+                    numberOfConcurrentScrapers: parseInt(concurrentScrapers, 10),
+                    maxCidsToProcessPerProduct: parseInt(maxCids, 10),
+                    searchTermSource: termSource,
+                    useFirstMatchLogic: useFirstMatch // ZMIANA: Dodanie nowej opcji do danych
                 };
 
-                // Dodaj prefix tylko jeśli źródłem jest nazwa produktu i prefix nie jest pusty
                 if (termSource === 'ProductName' && prefix && prefix.trim() !== '') {
                     scrapingData.productNamePrefix = prefix;
                 }
-                // Jeśli searchTermSource to ProductUrl, productNamePrefix nie jest potrzebny
-                // (backend i tak go zignoruje lub ustawi na null, jeśli wyślemy pusty)
-
 
                 $.ajax({
                     type: "POST",
                     url: '@Url.Action("StartScrapingForProducts", "GoogleScraper")',
-                    data: scrapingData, // Użycie zaktualizowanych danych
+                    data: scrapingData,
                     success: function (response) {
                         console.log("Scraping started successfully. Response:", response);
-                        // Możesz tu dodać jakieś powiadomienie dla użytkownika
+
                         alert("Rozpoczęto scrapowanie: " + response);
-                     
+
                     },
                     error: function (xhr, status, error) {
                         console.error("Error starting scraping: ", error);
@@ -184,19 +183,16 @@
                 });
             }
 
-
-             // NOWA FUNKCJA DO ZATRZYMYWANIA SCRAPOWANIA
             function stopScrapingProcess() {
                 console.log("Sending POST request to stop scraping...");
                 $.ajax({
                     type: "POST",
-                    url: '@Url.Action("StopScraping", "GoogleScraper")', // Endpoint zdefiniowany jako [HttpPost("stop")]
-                    // Dla tego żądania nie są potrzebne dodatkowe dane
+                    url: '@Url.Action("StopScraping", "GoogleScraper")',
+
                     success: function (response) {
                         console.log("Stop request sent successfully. Response:", response);
                         alert("Wysłano żądanie zatrzymania scrapowania. " + response);
-                        // Możesz rozważyć dodanie logiki do UI, np. zablokowanie przycisku "Uruchom"
-                        // lub odświeżenie listy produktów po pewnym czasie.
+
                     },
                     error: function (xhr, status, error) {
                         console.error("Error sending stop request: ", error);
@@ -207,7 +203,6 @@
                 });
             }
 
-            // ... (reszta funkcji JavaScript: updatePendingProducts, resetNotFoundProducts, itd. bez zmian) ...
             function updatePendingProducts() {
                 console.log("Sending POST request to update pending products...");
                 $.ajax({
@@ -304,8 +299,14 @@
 
                     var googleUrl = product.googleUrl || '';
 
+
+
+                     var ean = product.ean || '';
+
+       
                     var row = '<tr id="productRow-' + product.productId + '">' +
                         '<td>' + product.productNameInStoreForGoogle + '</td>' +
+                        '<td>' + ean + '</td>' + 
                         '<td><a href="' + product.url + '" target="_blank">' + product.url + '</a></td>' +
                         '<td>' + foundOnGoogleBadge + '</td>' +
                         '<td><a href="' + googleUrl + '" target="_blank">' + googleUrl + '</a></td>' +
