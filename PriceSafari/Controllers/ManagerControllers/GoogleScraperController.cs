@@ -1,5 +1,4 @@
-﻿
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using PriceSafari.Data;
@@ -12,7 +11,7 @@ public class GoogleScraperController : Controller
 {
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly INetworkControlService _networkControlService;
-    private readonly PriceSafariContext _context; 
+    private readonly PriceSafariContext _context;
 
     private static readonly Random _random = new Random();
     private static readonly object _lockMasterListInit = new object();
@@ -21,10 +20,9 @@ public class GoogleScraperController : Controller
         new ConcurrentDictionary<int, ProductProcessingState>();
 
     private static System.Threading.Timer _batchSaveTimer;
-    private static volatile bool _isScrapingActive = false; 
+    private static volatile bool _isScrapingActive = false;
     private static readonly SemaphoreSlim _timerCallbackSemaphore = new SemaphoreSlim(1, 1);
 
-    
     private static CancellationTokenSource _currentGlobalScrapingOperationCts;
     private static CancellationTokenSource _currentCaptchaGlobalCts;
 
@@ -32,7 +30,7 @@ public class GoogleScraperController : Controller
     {
         _scopeFactory = scopeFactory;
         _networkControlService = networkControlService;
-        _context = context; 
+        _context = context;
     }
 
     public enum ProductStatus
@@ -46,6 +44,9 @@ public class GoogleScraperController : Controller
         public string OriginalUrl { get; set; }
         public string CleanedUrl { get; set; }
         public string ProductNameInStoreForGoogle { get; set; }
+
+        public string Ean { get; set; }
+
         private ProductStatus _status;
         private string _googleUrl;
         private string _cid;
@@ -62,6 +63,7 @@ public class GoogleScraperController : Controller
             OriginalUrl = product.Url;
             CleanedUrl = !string.IsNullOrEmpty(product.Url) ? cleanUrlFunc(product.Url) : string.Empty;
             ProductNameInStoreForGoogle = product.ProductNameInStoreForGoogle;
+            Ean = product.Ean;
             if (product.FoundOnGoogle == true) { _status = ProductStatus.Found; _googleUrl = product.GoogleUrl; }
             else if (product.FoundOnGoogle == false) { _status = ProductStatus.NotFound; }
             else { _status = ProductStatus.Pending; }
@@ -80,23 +82,52 @@ public class GoogleScraperController : Controller
         }
     }
 
-
     public enum SearchTermSource
     {
-        ProductName, 
-        ProductUrl
+        ProductName,
+        ProductUrl,
+        Ean
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> StartScrapingForProducts(
+        int storeId,
+        int numberOfConcurrentScrapers = 7,
+        int maxCidsToProcessPerProduct = 5,
+        SearchTermSource searchTermSource = SearchTermSource.ProductName,
+        string productNamePrefix = null,
+        bool useFirstMatchLogic = false) // ZMIANA: Dodany nowy parametr
+    {
+        if (_isScrapingActive)
+        {
+            return Conflict("Proces scrapowania jest już globalnie aktywny.");
+        }
+
+        // ZMIANA: Rozgałęzienie logiki na podstawie nowego parametru
+        if (useFirstMatchLogic)
+        {
+            // Uruchom nową, uproszczoną logikę
+            Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] Wybrano tryb 'Pierwszy Trafiony'. Uruchamiam uproszczony scraper...");
+            return await StartScrapingForProducts_FirstMatchAsync(storeId, numberOfConcurrentScrapers, searchTermSource, productNamePrefix);
+        }
+        else
+        {
+            // Uruchom istniejącą, dokładną logikę
+            Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] Wybrano tryb standardowy (dokładny). Uruchamiam pełny scraper...");
+            return await StartScrapingForProducts_StandardAsync(storeId, numberOfConcurrentScrapers, maxCidsToProcessPerProduct, searchTermSource, productNamePrefix);
+        }
     }
 
 
-    [HttpPost]
 
-    public async Task<IActionResult> StartScrapingForProducts(
-    int storeId,
-    int numberOfConcurrentScrapers = 7,
-    int maxCidsToProcessPerProduct = 5,
-    SearchTermSource searchTermSource = SearchTermSource.ProductName,
-    string productNamePrefix = null)
-    {
+
+    public async Task<IActionResult> StartScrapingForProducts_StandardAsync(
+        int storeId,
+        int numberOfConcurrentScrapers = 7,
+        int maxCidsToProcessPerProduct = 5,
+        SearchTermSource searchTermSource = SearchTermSource.ProductName,
+        string productNamePrefix = null)
+    
         {
             if (_isScrapingActive)
             {
@@ -111,7 +142,7 @@ public class GoogleScraperController : Controller
             }
             if (searchTermSource == SearchTermSource.ProductName && string.IsNullOrEmpty(productNamePrefix))
             {
-                // To jest ok, prefix jest opcjonalny
+
             }
 
             int restartAttempt = 0;
@@ -139,10 +170,8 @@ public class GoogleScraperController : Controller
                     var activeScrapingTasks = new List<Task>();
                     overallOperationSuccess = false;
 
-
                     List<GoogleScraper> scraperInstancesForThisAttempt = new List<GoogleScraper>();
                     ConcurrentBag<GoogleScraper> availableScrapersPool = null;
-
 
                     if (restartAttempt > 0)
                     {
@@ -231,7 +260,7 @@ public class GoogleScraperController : Controller
                                         if (!availableScrapersPool.TryTake(out assignedScraper))
                                         {
                                             Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [Próba {restartAttempt}] KRYTYCZNE: Brak wolnego scrapera w puli! Semafor pozwolił, ale pula pusta. Produkt ID: {selectedProductId}");
-                                            lock (productStateToProcess) { productStateToProcess.Status = ProductStatus.Pending; productStateToProcess.ProcessingByTaskId = null; } // Revert status
+                                            lock (productStateToProcess) { productStateToProcess.Status = ProductStatus.Pending; productStateToProcess.ProcessingByTaskId = null; }
                                             semaphore.Release();
                                             continue;
                                         }
@@ -248,9 +277,9 @@ public class GoogleScraperController : Controller
                                                    storeId,
                                                    _masterProductStateList,
                                                    _currentCaptchaGlobalCts,
-                                                   maxCidsToProcessPerProduct, 
-                                                   searchTermSource,           
-                                                   productNamePrefix          
+                                                   maxCidsToProcessPerProduct,
+                                                   searchTermSource,
+                                                   productNamePrefix
                                                 );
                                             }
                                             catch (OperationCanceledException oce) when (oce.CancellationToken == _currentCaptchaGlobalCts.Token)
@@ -345,8 +374,197 @@ public class GoogleScraperController : Controller
             }
             Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] Ostateczny status: {finalMessage}");
             return Content(finalMessage);
+        
+    }
+
+
+
+
+
+
+
+
+
+    private async Task<IActionResult> StartScrapingForProducts_FirstMatchAsync(int storeId, int numberOfConcurrentScrapers, SearchTermSource searchTermSource, string productNamePrefix)
+    {
+        _isScrapingActive = true;
+        _currentGlobalScrapingOperationCts = new CancellationTokenSource();
+
+        lock (_lockTimer)
+        {
+            if (_batchSaveTimer == null)
+            {
+                _batchSaveTimer = new Timer(async _ => await TimerBatchUpdateCallback(CancellationToken.None), null, TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(30));
+            }
+        }
+
+        try
+        {
+            InitializeMasterProductListIfNeeded(storeId, false);
+
+            var scraperInstances = new List<GoogleScraper>();
+            var initTasks = new List<Task>();
+            for (int i = 0; i < numberOfConcurrentScrapers; i++)
+            {
+                var sc = new GoogleScraper();
+                scraperInstances.Add(sc);
+                initTasks.Add(sc.InitializeBrowserAsync());
+            }
+            await Task.WhenAll(initTasks);
+            var availableScrapersPool = new ConcurrentBag<GoogleScraper>(scraperInstances);
+
+            var semaphore = new SemaphoreSlim(numberOfConcurrentScrapers, numberOfConcurrentScrapers);
+            var activeTasks = new List<Task>();
+
+            while (!_currentGlobalScrapingOperationCts.IsCancellationRequested)
+            {
+                var pendingProductIds = _masterProductStateList
+                    .Where(p => p.Value.Status == ProductStatus.Pending && p.Value.ProcessingByTaskId == null)
+                    .Select(p => p.Key).ToList();
+
+                if (!pendingProductIds.Any())
+                {
+                    if (activeTasks.Any(t => !t.IsCompleted))
+                    {
+                        await Task.WhenAny(activeTasks.Where(t => !t.IsCompleted).ToArray());
+                        activeTasks.RemoveAll(t => t.IsCompleted);
+                        continue;
+                    }
+                    break;
+                }
+
+                await semaphore.WaitAsync(_currentGlobalScrapingOperationCts.Token);
+
+                int productId = pendingProductIds[_random.Next(pendingProductIds.Count)];
+                if (_masterProductStateList.TryGetValue(productId, out var productState) && productState.Status == ProductStatus.Pending)
+                {
+                    lock (productState)
+                    {
+                        productState.Status = ProductStatus.Processing;
+                        productState.ProcessingByTaskId = Task.CurrentId;
+                    }
+
+                    availableScrapersPool.TryTake(out var scraper);
+
+                    var task = Task.Run(async () =>
+                    {
+                        try
+                        {
+                            await ProcessSingleProduct_FirstMatchAsync(productState, scraper, searchTermSource, productNamePrefix, _currentGlobalScrapingOperationCts);
+                        }
+                        finally
+                        {
+                            lock (productState) { productState.ProcessingByTaskId = null; }
+                            availableScrapersPool.Add(scraper);
+                            semaphore.Release();
+                        }
+                    }, _currentGlobalScrapingOperationCts.Token);
+                    activeTasks.Add(task);
+                }
+                else
+                {
+                    semaphore.Release();
+                }
+            }
+            await Task.WhenAll(activeTasks);
+        }
+        catch (OperationCanceledException)
+        {
+            Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] Tryb 'Pierwszy Trafiony' został zatrzymany.");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] BŁĄD w trybie 'Pierwszy Trafiony': {ex.Message}");
+            return StatusCode(500, $"Błąd w trybie 'Pierwszy Trafiony': {ex.Message}");
+        }
+        finally
+        {
+            await BatchUpdateDatabaseAsync(true, CancellationToken.None);
+            lock (_lockTimer)
+            {
+                _batchSaveTimer?.Dispose();
+                _batchSaveTimer = null;
+            }
+            _isScrapingActive = false;
+            _currentGlobalScrapingOperationCts?.Dispose();
+        }
+
+        return Content("Proces 'Pierwszy Trafiony' zakończony.");
+    }
+
+    // ##########################################################################################
+    // NOWA METODA PRZETWARZANIA POJEDYNCZEGO PRODUKTU (UPROSZCZONA)
+    // ##########################################################################################
+    private async Task ProcessSingleProduct_FirstMatchAsync(ProductProcessingState productState, GoogleScraper scraper, SearchTermSource termSource, string namePrefix, CancellationTokenSource cts)
+    {
+        if (cts.IsCancellationRequested) return;
+
+        // Ta część jest taka sama jak w oryginalnej metodzie
+        string searchTermBase;
+        switch (termSource)
+        {
+            case SearchTermSource.ProductUrl: searchTermBase = productState.OriginalUrl; break;
+            case SearchTermSource.Ean: searchTermBase = productState.Ean; break;
+            case SearchTermSource.ProductName:
+            default:
+                searchTermBase = productState.ProductNameInStoreForGoogle;
+                if (!string.IsNullOrWhiteSpace(namePrefix))
+                    searchTermBase = $"{namePrefix} {searchTermBase}";
+                break;
+        }
+
+        if (string.IsNullOrWhiteSpace(searchTermBase))
+        {
+            lock (productState) { productState.UpdateStatus(ProductStatus.Error); }
+            return;
+        }
+
+        Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [Tryb Szybki] Przetwarzam ID: {productState.ProductId}, Szukam: '{searchTermBase}'");
+
+        // Uproszczona logika: szukaj, weź pierwszy CID i zapisz
+        var cidResult = await scraper.SearchInitialProductCIDsAsync(searchTermBase, maxCIDsToExtract: 1);
+
+        // Obsługa CAPTCHA
+        if (cidResult.CaptchaEncountered)
+        {
+            Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [Tryb Szybki] CAPTCHA! Zatrzymuję operację.");
+            if (!cts.IsCancellationRequested) cts.Cancel();
+            lock (productState) { productState.UpdateStatus(ProductStatus.CaptchaHalt); }
+            return;
+        }
+
+        if (cidResult.IsSuccess && cidResult.Data.Any())
+        {
+            var firstCid = cidResult.Data.First();
+            var googleUrl = $"https://www.google.com/shopping/product/{firstCid}";
+            lock (productState)
+            {
+                productState.UpdateStatus(ProductStatus.Found, googleUrl, firstCid);
+            }
+            Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [Tryb Szybki] ✓ Znaleziono dla ID {productState.ProductId}. CID: {firstCid}");
+        }
+        else
+        {
+            lock (productState)
+            {
+                productState.UpdateStatus(ProductStatus.NotFound);
+            }
+            Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [Tryb Szybki] ✗ Nie znaleziono dla ID {productState.ProductId}.");
         }
     }
+
+
+
+
+
+
+
+
+
+
+
+
+
 
     [HttpPost("stop")]
     public IActionResult StopScraping()
@@ -356,33 +574,32 @@ public class GoogleScraperController : Controller
             return Ok("Scrapowanie nie jest aktywne.");
         }
         Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] Otrzymano żądanie ZATRZYMANIA scrapowania...");
-        _currentGlobalScrapingOperationCts?.Cancel(); 
-     
+        _currentGlobalScrapingOperationCts?.Cancel();
+
         return Ok("Żądanie zatrzymania wysłane. Proces zakończy się wkrótce.");
     }
 
-    private async Task TimerBatchUpdateCallback(CancellationToken cancellationToken) 
+    private async Task TimerBatchUpdateCallback(CancellationToken cancellationToken)
     {
 
         if (!Volatile.Read(ref _isScrapingActive) && !_masterProductStateList.Values.Any(p => p.IsDirty))
         {
-          
+
             return;
         }
-
 
         bool lockTaken = false;
         try
         {
-          
-            lockTaken = await _timerCallbackSemaphore.WaitAsync(TimeSpan.FromSeconds(1) );
+
+            lockTaken = await _timerCallbackSemaphore.WaitAsync(TimeSpan.FromSeconds(1));
             if (lockTaken)
             {
                 if (!_masterProductStateList.Values.Any(p => p.IsDirty)) { return; }
                 Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] Timer wywołał BatchUpdateDatabaseAsync...");
-                await BatchUpdateDatabaseAsync(false, CancellationToken.None); 
+                await BatchUpdateDatabaseAsync(false, CancellationToken.None);
             }
-      
+
         }
         catch (OperationCanceledException) { Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] Timer: Operacja zapisu wsadowego anulowana."); }
         catch (Exception ex) { Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] Timer: Błąd podczas zapisu wsadowego: {ex.Message}"); }
@@ -395,19 +612,18 @@ public class GoogleScraperController : Controller
         {
             bool needsFullReinitialization = false;
 
-          
             if (isRestartAfterCaptcha)
             {
                 Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] WYKRYTO RESTART PO CAPTCHA. Wymuszam pełną reinicjalizację _masterProductStateList dla sklepu ID: {storeId}.");
                 needsFullReinitialization = true;
             }
-            else if (!_masterProductStateList.Any()) 
+            else if (!_masterProductStateList.Any())
             {
                 needsFullReinitialization = true;
             }
             else
             {
-    
+
                 var firstStateProduct = _masterProductStateList.Values.FirstOrDefault();
                 if (firstStateProduct != null)
                 {
@@ -420,7 +636,7 @@ public class GoogleScraperController : Controller
                             needsFullReinitialization = true;
                             Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] Wykryto zmianę sklepu/brak produktu w DB. Wymuszam pełną reinicjalizację _masterProductStateList.");
                         }
-                     
+
                         else if (_masterProductStateList.Values.All(p => p.Status != ProductStatus.Pending && p.Status != ProductStatus.Processing))
                         {
                             needsFullReinitialization = true;
@@ -428,7 +644,7 @@ public class GoogleScraperController : Controller
                         }
                     }
                 }
-                else 
+                else
                 {
                     needsFullReinitialization = true;
                 }
@@ -437,14 +653,13 @@ public class GoogleScraperController : Controller
             if (needsFullReinitialization)
             {
                 Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] Inicjalizuję (pełna) _masterProductStateList dla sklepu ID: {storeId}...");
-                _masterProductStateList.Clear(); 
+                _masterProductStateList.Clear();
                 using (var scope = _scopeFactory.CreateScope())
                 {
                     var context = scope.ServiceProvider.GetRequiredService<PriceSafariContext>();
                     var productsFromDb = context.Set<ProductClass>().AsNoTracking()
                         .Where(p => p.StoreId == storeId && p.OnGoogle && !string.IsNullOrEmpty(p.Url)).ToList();
 
-              
                     var tempScraperForCleaning = new GoogleScraper();
 
                     foreach (var dbProduct in productsFromDb)
@@ -462,7 +677,6 @@ public class GoogleScraperController : Controller
             }
         }
     }
-
 
     private async Task BatchUpdateDatabaseAsync(bool isFinalSave = false, CancellationToken cancellationToken = default)
     {
@@ -541,9 +755,8 @@ public class GoogleScraperController : Controller
                         }
                         else if (currentStatusSnapshot == ProductStatus.CaptchaHalt)
                         {
-                     
-                        }
 
+                        }
 
                         if (changedInDb)
                         { context.Set<ProductClass>().Update(dbProduct); changesMadeToContext++; }
@@ -575,26 +788,32 @@ public class GoogleScraperController : Controller
      int storeId,
      ConcurrentDictionary<int, ProductProcessingState> masterList,
      CancellationTokenSource captchaCts,
-     int maxCidsToSearch, 
+     int maxCidsToSearch,
      SearchTermSource termSource,
      string namePrefix)
     {
         if (captchaCts.IsCancellationRequested)
         { lock (productState) { productState.UpdateStatus(ProductStatus.CaptchaHalt); } return; }
 
-
         string searchTermBase;
-
 
         switch (termSource)
         {
             case SearchTermSource.ProductUrl:
-                searchTermBase = productState.OriginalUrl; // Używamy oryginalnego URL
-                                                           // Można też rozważyć productState.CleanedUrl, jeśli ma to sens
+                searchTermBase = productState.OriginalUrl;
                 if (string.IsNullOrWhiteSpace(searchTermBase))
                 {
                     Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [{Thread.CurrentThread.ManagedThreadId}] OSTRZEŻENIE: Źródło terminu to URL, ale URL jest pusty dla ID: {productState.ProductId}. Używam nazwy produktu jako fallback.");
-                    searchTermBase = productState.ProductNameInStoreForGoogle; // Fallback na nazwę produktu
+                    searchTermBase = productState.ProductNameInStoreForGoogle;
+                }
+                break;
+
+            case SearchTermSource.Ean:
+                searchTermBase = productState.Ean;
+                if (string.IsNullOrWhiteSpace(searchTermBase))
+                {
+                    Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [{Thread.CurrentThread.ManagedThreadId}] OSTRZEŻENIE: Źródło terminu to EAN, ale EAN jest pusty dla ID: {productState.ProductId}. Używam nazwy produktu jako fallback.");
+                    searchTermBase = productState.ProductNameInStoreForGoogle;
                 }
                 break;
 
@@ -656,11 +875,9 @@ public class GoogleScraperController : Controller
                     Console.WriteLine($"\n[{DateTime.Now:HH:mm:ss}] [{Thread.CurrentThread.ManagedThreadId}] " +
                                       $"ID {productState.ProductId}: Przetwarzam CID: {cid}");
 
-                    // 1) Paginacja + ekstrakcja wszystkich ofert
                     ScraperResult<List<string>> offersResult =
                         await scraper.NavigateToProductPageAndExpandOffersAsync(cid);
 
-                    // 2) CAPTCHA?
                     if (offersResult.CaptchaEncountered)
                     {
                         Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [{Thread.CurrentThread.ManagedThreadId}] " +
@@ -678,7 +895,6 @@ public class GoogleScraperController : Controller
                     if (captchaCts.IsCancellationRequested)
                         break;
 
-                    // 3) Mamy oferty?
                     if (offersResult.IsSuccess && offersResult.Data.Any())
                     {
                         Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [{Thread.CurrentThread.ManagedThreadId}] " +
@@ -706,7 +922,7 @@ public class GoogleScraperController : Controller
                     }
                     else
                     {
-                        // brak ofert lub błąd
+
                         Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [{Thread.CurrentThread.ManagedThreadId}] " +
                                           $"ID {productState.ProductId}, CID {cid}: Brak ofert lub błąd. Msg: {offersResult.ErrorMessage}");
                     }
@@ -714,10 +930,8 @@ public class GoogleScraperController : Controller
                     if (captchaCts.IsCancellationRequested)
                         break;
 
-                    // krótka losowa przerwa przed kolejnym CID
                     await Task.Delay(TimeSpan.FromMilliseconds(_random.Next(200, 400)), CancellationToken.None);
                 }
-
 
                 if (!captchaCts.IsCancellationRequested)
                 {
@@ -750,325 +964,7 @@ public class GoogleScraperController : Controller
         }
     }
 
-
-// Nowa powolna
-
-//[HttpPost]
-//public async Task<IActionResult> StartScrapingForProducts(int storeId)
-//{
-//    var store = await _context.Stores.FindAsync(storeId);
-//    if (store == null)
-//    {
-//        return NotFound();
-//    }
-
-//    var scraper = new GoogleScraper();
-//    while (true)
-//    {
-//        var productsToProcessQuery = _context.Products
-//            .Where(p => p.StoreId == storeId
-//                         && p.OnGoogle
-//                         && !string.IsNullOrEmpty(p.Url)
-//                         && p.FoundOnGoogle == null);
-
-//        var productsToProcessCandidates = await productsToProcessQuery.ToListAsync();
-
-//        if (!productsToProcessCandidates.Any())
-//        {
-//            Console.WriteLine("Nie ma więcej produktów do przetworzenia dla tego sklepu (kryterium FoundOnGoogle == null).");
-//            break;
-//        }
-
-//        Random random = new Random();
-//        var productToProcess = productsToProcessCandidates[random.Next(productsToProcessCandidates.Count)];
-
-
-
-//        // Opcja 1: Wyszukiwanie po nazwie produktu
-//        //string searchTermBase = productToProcess.ProductNameInStoreForGoogle;
-
-//        // Opcja 2: Wyszukiwanie po URL-u produktu (upewnij się, że URL jest sensowny jako termin wyszukiwania)
-//        string searchTermBase = productToProcess.Url;
-
-//        string storeSuffix = " k3design"; // Lub np. $" {store.Name}"; jeśli 'store.Name' istnieje
-//        if (string.IsNullOrWhiteSpace(productToProcess.ProductNameInStoreForGoogle) && searchTermBase == productToProcess.ProductNameInStoreForGoogle)
-//        {
-//            Console.WriteLine($"OSTRZEŻENIE: Nazwa produktu (ProductNameInStoreForGoogle) dla produktu ID: {productToProcess.ProductId} jest pusta. Używam URL jako searchTermBase.");
-//            searchTermBase = productToProcess.Url; // Awaryjnie URL, jeśli nazwa jest pusta
-//            if (string.IsNullOrEmpty(searchTermBase))
-//            {
-//                Console.WriteLine($"BŁĄD KRYTYCZNY: Zarówno nazwa produktu, jak i URL są puste dla produktu ID: {productToProcess.ProductId}. Pomijam produkt.");
-//                productToProcess.FoundOnGoogle = false; // Oznacz jako nieznaleziony/błąd
-//                _context.Products.Update(productToProcess);
-//                await _context.SaveChangesAsync();
-//                continue; // Przejdź do następnego produktu
-//            }
-//        }
-
-//        //NAZWA PLUS PREFIX
-//        //string finalSearchTerm = $"{storeSuffix} {searchTermBase}";
-
-//        // GOLY URL
-//        string finalSearchTerm = $"{searchTermBase}";
-
-//        Console.WriteLine($"\n--- Rozpoczynam wyszukiwanie dla produktu z DB: {productToProcess.ProductNameInStoreForGoogle} (ID: {productToProcess.ProductId}, URL: {productToProcess.Url}) ---");
-//        Console.WriteLine($"Użyty searchTerm dla Google: '{finalSearchTerm}' ---");
-//        // --- KONIEC MODYFIKACJI ---
-
-//        string cidForCurrentGooglePage = null;
-//        bool anEligibleStoreProductWasUpdatedInThisIteration = false;
-
-//        try
-//        {
-//            // Użyj 'finalSearchTerm' zamiast 'productToProcess.ProductNameInStoreForGoogle'
-//            cidForCurrentGooglePage = await scraper.SearchAndClickFirstProductAsync(finalSearchTerm);
-
-//            if (!string.IsNullOrEmpty(cidForCurrentGooglePage))
-//            {
-//                var allStoreProductsEligibleForUpdate = await _context.Products
-//                    .Where(p => p.StoreId == storeId && !string.IsNullOrEmpty(p.Url) && p.FoundOnGoogle == null)
-//                    .Select(p => new { p.ProductId, RawUrl = p.Url, p.ProductNameInStoreForGoogle })
-//                    .ToListAsync();
-
-//                if (!allStoreProductsEligibleForUpdate.Any())
-//                {
-//                    Console.WriteLine("Brak produktów w sklepie kwalifikujących się do aktualizacji (FoundOnGoogle == null). Pomijam sprawdzanie ofert.");
-//                }
-//                else
-//                {
-//                    var cleanedUrlToProductInfoMap = allStoreProductsEligibleForUpdate
-//                        .GroupBy(p => scraper.CleanUrlParameters(p.RawUrl))
-//                        .ToDictionary(
-//                            g => g.Key,
-//                            g => g.First()
-//                        );
-//                    //var allCleanedStoreUrlsForMatching = cleanedUrlToProductInfoMap.Keys.ToList(); // Już niepotrzebne bezpośrednio
-
-//                    Console.WriteLine($"Przygotowano {cleanedUrlToProductInfoMap.Count} unikalnych, oczyszczonych URL-i sklepu do porównania z ofertami.");
-
-//                    Console.WriteLine($"Sprawdzanie ofert dla pierwszego boksu Google (CID: {cidForCurrentGooglePage})...");
-//                    var offersFromCurrentGoogleBox = await scraper.ExtractStoreOffersAsync(scraper.CurrentPage);
-//                    Console.WriteLine($"Znaleziono {offersFromCurrentGoogleBox.Count} oczyszczonych ofert dla CID {cidForCurrentGooglePage}.");
-
-//                    foreach (var offerUrlFromGoogle in offersFromCurrentGoogleBox)
-//                    {
-//                        if (cleanedUrlToProductInfoMap.TryGetValue(offerUrlFromGoogle, out var matchedProductInfo))
-//                        {
-//                            var productToUpdateInDb = await _context.Products.FindAsync(matchedProductInfo.ProductId);
-//                            if (productToUpdateInDb != null && productToUpdateInDb.FoundOnGoogle == null)
-//                            {
-//                                Console.WriteLine($"\u2713 Dopasowano w boksie Google (CID: {cidForCurrentGooglePage})! Oferta Google: {offerUrlFromGoogle}. " +
-//                                                  $"Produkt z DB (ID: {productToUpdateInDb.ProductId}, Nazwa: {productToUpdateInDb.ProductNameInStoreForGoogle}, URL: {matchedProductInfo.RawUrl}) " +
-//                                                  $"zostanie zaktualizowany.");
-//                                productToUpdateInDb.FoundOnGoogle = true;
-//                                productToUpdateInDb.GoogleUrl = $"https://www.google.com/shopping/product/{cidForCurrentGooglePage}";
-//                                _context.Products.Update(productToUpdateInDb);
-//                                anEligibleStoreProductWasUpdatedInThisIteration = true;
-//                            }
-//                            else if (productToUpdateInDb != null && productToUpdateInDb.FoundOnGoogle == true)
-//                            {
-//                                Console.WriteLine($"INFO: Oferta Google: {offerUrlFromGoogle} pasuje do produktu (ID: {productToUpdateInDb.ProductId}), który już został oznaczony jako znaleziony.");
-//                            }
-//                        }
-//                    }
-
-//                    if (!anEligibleStoreProductWasUpdatedInThisIteration)
-//                    {
-//                        Console.WriteLine($"\u2717 Żaden kwalifikujący się produkt sklepu nie został dopasowany w pierwszym boksie Google (CID: {cidForCurrentGooglePage}). Próba kolejnych boksów Google...");
-//                        int maxGoogleBoxesToTry = 10;
-//                        for (int googleBoxIndex = 1; googleBoxIndex < maxGoogleBoxesToTry; googleBoxIndex++)
-//                        {
-//                            Console.WriteLine($"\n--- Próba przetworzenia boksu produktu Google o indeksie {googleBoxIndex} na stronie wyników ---");
-//                            var nextGoogleBoxResult = await scraper.ClickProductBoxByIndexAndExtractOffersAsync(googleBoxIndex);
-
-//                            if (nextGoogleBoxResult.HasValue)
-//                            {
-//                                string currentGoogleBoxCid = nextGoogleBoxResult.Value.Cid;
-//                                var offersFromNextGoogleBox = nextGoogleBoxResult.Value.Offers;
-//                                Console.WriteLine($"Znaleziono {offersFromNextGoogleBox.Count} ofert w boksie Google {googleBoxIndex} (CID: {currentGoogleBoxCid}).");
-
-//                                foreach (var offerUrlFromGoogle in offersFromNextGoogleBox)
-//                                {
-//                                    if (cleanedUrlToProductInfoMap.TryGetValue(offerUrlFromGoogle, out var matchedProductInfo))
-//                                    {
-//                                        var productToUpdateInDb = await _context.Products.FindAsync(matchedProductInfo.ProductId);
-//                                        if (productToUpdateInDb != null && productToUpdateInDb.FoundOnGoogle == null)
-//                                        {
-//                                            Console.WriteLine($"\u2713 Dopasowano w boksie Google {googleBoxIndex} (CID: {currentGoogleBoxCid})! Oferta Google: {offerUrlFromGoogle}. " +
-//                                                              $"Produkt z DB (ID: {productToUpdateInDb.ProductId}, Nazwa: {productToUpdateInDb.ProductNameInStoreForGoogle}, URL: {matchedProductInfo.RawUrl}) " +
-//                                                              $"zostanie zaktualizowany.");
-//                                            productToUpdateInDb.FoundOnGoogle = true;
-//                                            productToUpdateInDb.GoogleUrl = $"https://www.google.com/shopping/product/{currentGoogleBoxCid}";
-//                                            _context.Products.Update(productToUpdateInDb);
-//                                            anEligibleStoreProductWasUpdatedInThisIteration = true;
-//                                        }
-//                                        else if (productToUpdateInDb != null && productToUpdateInDb.FoundOnGoogle == true)
-//                                        {
-//                                            Console.WriteLine($"INFO: Oferta Google: {offerUrlFromGoogle} pasuje do produktu (ID: {productToUpdateInDb.ProductId}), który już został oznaczony jako znaleziony.");
-//                                        }
-//                                    }
-//                                }
-//                            }
-//                            else
-//                            {
-//                                Console.WriteLine($"Nie udało się przetworzyć boksu Google {googleBoxIndex} lub brak więcej boksów. Koniec pętli boksów Google.");
-//                                break;
-//                            }
-//                            await Task.Delay(TimeSpan.FromSeconds(new Random().Next(1, 3)));
-//                        }
-//                    }
-//                }
-//            }
-//            else
-//            {
-//                Console.WriteLine($"Produkt (dla którego zainicjowano wyszukiwanie: {productToProcess.ProductNameInStoreForGoogle} używając searchTerm: '{finalSearchTerm}') nie został odnaleziony na stronie wyników Google (SearchAndClickFirstProductAsync zwrócił null).");
-//                if (productToProcess.FoundOnGoogle == null)
-//                {
-//                    productToProcess.FoundOnGoogle = false;
-//                    productToProcess.GoogleUrl = null;
-//                    _context.Products.Update(productToProcess);
-//                }
-//            }
-
-//            if (!anEligibleStoreProductWasUpdatedInThisIteration && productToProcess.FoundOnGoogle == null)
-//            {
-//                Console.WriteLine($"INFO: Produkt (inicjujący wyszukiwanie: {productToProcess.ProductNameInStoreForGoogle}) oznaczony jako NIEZNALEZIONY, " +
-//                                  "ponieważ żadna oferta z przeglądanych boksów Google nie doprowadziła do jego aktualizacji ani aktualizacji innego produktu sklepu.");
-//                productToProcess.FoundOnGoogle = false;
-//                productToProcess.GoogleUrl = null;
-//                _context.Products.Update(productToProcess);
-//            }
-
-//            await _context.SaveChangesAsync();
-//            Console.WriteLine("Zapisano wszystkie zmiany w bazie danych dla tej iteracji produktu.");
-
-//            await Task.Delay(TimeSpan.FromSeconds(new Random().Next(5, 10)));
-//        }
-//        catch (Exception ex)
-//        {
-//            Console.WriteLine($"KRYTYCZNY BŁĄD w kontrolerze podczas przetwarzania (produktu inicjującego: {productToProcess?.ProductNameInStoreForGoogle}): {ex.Message}{Environment.NewLine}StackTrace: {ex.StackTrace}");
-//            if (productToProcess != null && productToProcess.FoundOnGoogle == null)
-//            {
-//                productToProcess.FoundOnGoogle = false;
-//                productToProcess.GoogleUrl = null;
-//                _context.Products.Update(productToProcess);
-//                await _context.SaveChangesAsync();
-//            }
-//            Console.WriteLine("Próba zamknięcia i zresetowania przeglądarki scrapera po błędzie w kontrolerze...");
-//            await scraper.CloseBrowserAsync();
-//            scraper = new GoogleScraper();
-//            await Task.Delay(TimeSpan.FromSeconds(new Random().Next(15, 30)));
-//        }
-//        Console.WriteLine($"--- Zakończono iterację pętli while dla produktu (inicjującego: {productToProcess?.ProductNameInStoreForGoogle}) ---\n");
-//    }
-
-//    await scraper.CloseBrowserAsync();
-//    Console.WriteLine("Zakończono scrapowanie dla wszystkich produktów lub nie ma więcej produktów do przetworzenia.");
-//    return Content("Scraping completed for all products or no more products to process.");
-//}
-
-
-
-
-// Stara metoda 
-
-
-//[HttpPost]
-//public async Task<IActionResult> StartScrapingForProducts(int storeId)
-//{
-//    var store = await _context.Stores.FindAsync(storeId);
-//    if (store == null)
-//    {
-//        return NotFound();
-//    }
-
-//    var googleMiG = store.GoogleMiG;
-//    if (string.IsNullOrEmpty(googleMiG))
-//    {
-//        return BadRequest("GoogleMiG is not set for this store.");
-//    }
-
-//    var scraper = new GoogleScraper();
-//    await scraper.InitializeBrowserAsync();
-
-//    // Pętla, która będzie działać, dopóki są produkty do przetworzenia
-//    while (true)
-//    {
-//        // Pobierz produkty, które są OnGoogle, mają niepusty URL i jeszcze nie były przetworzone (FoundOnGoogle == null)
-//        var productsToProcess = await _context.Products
-//            .Where(p => p.StoreId == storeId
-//                     && p.OnGoogle
-//                     && !string.IsNullOrEmpty(p.Url)
-//                     && p.FoundOnGoogle == null)
-//            .ToListAsync();
-
-//        if (!productsToProcess.Any())
-//        {
-//            Console.WriteLine("No products left to process.");
-//            break; // Kończymy pętlę, gdy nie ma już produktów do przetworzenia
-//        }
-
-//        // Wybieramy losowy produkt z aktualnej listy do przetwarzania
-//        Random random = new Random();
-//        var productToProcess = productsToProcess[random.Next(productsToProcess.Count)];
-
-//        // Pobieramy pełną listę produktów (wszystkich URL-i) dla porównania
-//        var allProducts = await _context.Products
-//            .Where(p => p.StoreId == storeId && p.OnGoogle && !string.IsNullOrEmpty(p.Url))
-//            .ToListAsync();
-
-//        // Tworzymy słownik dla szybkiego dostępu po URL
-//        var productDict = allProducts.ToDictionary(p => p.Url, p => p);
-//        var allProductUrls = productDict.Keys.ToList();
-
-//        try
-//        {
-//            // Wyszukujemy produkt na Google używając nazwy produktu
-//            await scraper.InitializeAndSearchAsync(productToProcess.ProductNameInStoreForGoogle, googleMiG);
-
-//            // Pobieramy listę dopasowanych URL-i
-//            var matchedUrls = await scraper.SearchForMatchingProductUrlsAsync(allProductUrls);
-
-//            // Aktualizujemy produkty, które zostały znalezione
-//            foreach (var (matchedStoreUrl, googleProductUrl) in matchedUrls)
-//            {
-//                if (productDict.TryGetValue(matchedStoreUrl, out var matchedProduct))
-//                {
-//                    // Bez względu na poprzedni status, ustawiamy FoundOnGoogle na true i zapisujemy URL
-//                    matchedProduct.GoogleUrl = googleProductUrl;
-//                    matchedProduct.FoundOnGoogle = true;
-//                    Console.WriteLine($"Updated product: {matchedProduct.ProductName}, GoogleUrl: {matchedProduct.GoogleUrl}");
-
-//                    _context.Products.Update(matchedProduct);
-//                    await _context.SaveChangesAsync();
-//                }
-//            }
-
-//            // Jeśli przetwarzany produkt nie został znaleziony, ustawiamy jego status na false
-//            if (!matchedUrls.Any(m => m.storeUrl == productToProcess.Url))
-//            {
-//                productToProcess.FoundOnGoogle = false;
-//                Console.WriteLine($"Product not found on Google: {productToProcess.ProductName}");
-//                _context.Products.Update(productToProcess);
-//                await _context.SaveChangesAsync();
-//            }
-//        }
-//        catch (Exception ex)
-//        {
-//            Console.WriteLine($"Error processing product: {ex.Message}");
-//        }
-//    }
-
-//    await scraper.CloseBrowserAsync();
-//    return Content("Scraping completed for all products.");
-//}
-
-
-
-
-
-
-[HttpGet]
+    [HttpGet]
     public async Task<IActionResult> ProductList(int storeId)
     {
         var store = await _context.Stores.FindAsync(storeId);
@@ -1086,21 +982,20 @@ public class GoogleScraperController : Controller
         return View("~/Views/ManagerPanel/GoogleScraper/ProductList.cshtml", products);
     }
 
-
     [HttpPost]
     public async Task<IActionResult> ValidateGoogleUrls(int storeId)
     {
-        // Pobranie produktów z prawidłowym statusem FoundOnGoogle i GoogleUrl
+
         var products = await _context.Products
             .Where(p => p.StoreId == storeId && p.FoundOnGoogle == true && !string.IsNullOrEmpty(p.GoogleUrl))
             .ToListAsync();
 
         foreach (var product in products)
         {
-            // Sprawdzenie, czy GoogleUrl spełnia wymagany schemat (czy zawiera "shopping/product")
+
             if (!product.GoogleUrl.Contains("shopping/product"))
             {
-                // Jeżeli URL jest nieprawidłowy, aktualizujemy produkt
+
                 product.FoundOnGoogle = false;
                 product.GoogleUrl = null;
 
@@ -1108,48 +1003,39 @@ public class GoogleScraperController : Controller
             }
         }
 
-        // Zapisanie zmian w bazie danych
         await _context.SaveChangesAsync();
 
         return RedirectToAction("ProductList", new { storeId });
     }
 
-
-  
-
     [HttpPost]
     public async Task<IActionResult> SetOnGoogleForAll()
     {
-        // Pobieramy produkty, które mają wypełnione pole ProductNameInStoreForGoogle
+
         var products = await _context.Products
             .Where(p => !string.IsNullOrEmpty(p.ProductNameInStoreForGoogle))
             .ToListAsync();
 
         foreach (var product in products)
         {
-            // Jeśli pole Url nie jest puste, ustawiamy OnGoogle na true
+
             if (!string.IsNullOrEmpty(product.Url))
             {
                 product.OnGoogle = true;
             }
-            // Jeśli pole Url jest puste, ustawiamy OnGoogle na false
+
             else
             {
                 product.OnGoogle = false;
             }
 
-            // Aktualizujemy produkt w bazie danych
             _context.Products.Update(product);
         }
 
-        // Zapisujemy zmiany
         await _context.SaveChangesAsync();
 
         return RedirectToAction("ProductList", new { storeId = products.FirstOrDefault()?.StoreId });
     }
-
-
-
 
     [HttpGet]
     public async Task<IActionResult> GoogleProducts(int storeId)
@@ -1164,22 +1050,22 @@ public class GoogleScraperController : Controller
             .Where(p => p.StoreId == storeId && p.OnGoogle)
             .ToListAsync();
 
-        if (Request.Headers["X-Requested-With"] == "XMLHttpRequest") 
+        if (Request.Headers["X-Requested-With"] == "XMLHttpRequest")
         {
-            
+
             var jsonProducts = products.Select(p => new
             {
                 p.ProductId,
                 p.ProductNameInStoreForGoogle,
                 p.Url,
                 p.FoundOnGoogle,
-                p.GoogleUrl
+                p.GoogleUrl,
+                p.Ean
             }).ToList();
 
             return Json(jsonProducts);
         }
 
- 
         ViewBag.StoreName = store.StoreName;
         ViewBag.StoreId = storeId;
         return View("~/Views/ManagerPanel/GoogleScraper/GoogleProducts.cshtml", products);
@@ -1188,47 +1074,42 @@ public class GoogleScraperController : Controller
     [HttpPost]
     public async Task<IActionResult> UpdatePendingProducts(int storeId)
     {
-       
+
         var pendingProducts = await _context.Products
             .Where(p => p.StoreId == storeId && !string.IsNullOrEmpty(p.GoogleUrl) && (p.FoundOnGoogle == null || p.FoundOnGoogle == false))
             .ToListAsync();
 
         foreach (var product in pendingProducts)
         {
-          
+
             product.FoundOnGoogle = true;
             _context.Products.Update(product);
         }
 
-     
         await _context.SaveChangesAsync();
 
         return Ok();
     }
 
-
     [HttpPost]
     public async Task<IActionResult> ResetNotFoundProducts(int storeId)
     {
-      
+
         var notFoundProducts = await _context.Products
             .Where(p => p.StoreId == storeId && p.FoundOnGoogle == false)
             .ToListAsync();
 
         foreach (var product in notFoundProducts)
         {
-  
+
             product.FoundOnGoogle = null;
             _context.Products.Update(product);
         }
 
- 
         await _context.SaveChangesAsync();
 
         return Ok();
     }
-
-
 
     [HttpPost]
     public async Task<IActionResult> ToggleGoogleStatus(int productId)
@@ -1260,27 +1141,25 @@ public class GoogleScraperController : Controller
         return RedirectToAction("ProductList", new { storeId = product.StoreId });
     }
 
-
     [HttpPost]
     public async Task<IActionResult> ResetIncorrectGoogleStatuses(int storeId)
     {
-        // Znajdź produkty, które mają FoundOnGoogle = true, mają GoogleUrl, ale ProductUrl jest null
+
         var productsToReset = await _context.Products
             .Where(p => p.StoreId == storeId && p.FoundOnGoogle == true && !string.IsNullOrEmpty(p.GoogleUrl) && string.IsNullOrEmpty(p.Url))
             .ToListAsync();
 
         foreach (var product in productsToReset)
         {
-            // Ustawiamy FoundOnGoogle na null i usuwamy GoogleUrl
+
             product.FoundOnGoogle = null;
             product.GoogleUrl = null;
             _context.Products.Update(product);
         }
 
-        // Zapisanie zmian
         await _context.SaveChangesAsync();
 
-        return Ok(); // Możesz zwrócić inne odpowiedzi w zależności od tego, co chcesz
+        return Ok();
     }
 
     [HttpPost]
@@ -1293,12 +1172,12 @@ public class GoogleScraperController : Controller
         foreach (var product in products)
         {
             product.GoogleUrl = null;
-            product.FoundOnGoogle = null; // Opcjonalnie możesz zresetować także ten status
+            product.FoundOnGoogle = null;
             _context.Products.Update(product);
         }
 
         await _context.SaveChangesAsync();
 
-        return Ok(); // Możesz zwrócić inną odpowiedź w zależności od potrzeb
+        return Ok();
     }
 }

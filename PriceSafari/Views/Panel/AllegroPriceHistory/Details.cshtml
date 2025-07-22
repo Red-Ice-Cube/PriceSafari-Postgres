@@ -1,0 +1,238 @@
+﻿@{
+    Layout = "~/Views/Shared/_PanelLayout.cshtml";
+    ViewData["Title"] = "Szczegóły Cen Allegro";
+    var storeId = ViewBag.StoreId;
+    var productId = ViewBag.ProductId;
+    var productName = ViewBag.ProductName as string;
+    var storeName = ViewBag.StoreName as string;
+    var allegroOfferUrl = ViewBag.AllegroOfferUrl as string;
+}
+
+<div class="Vert" data-store-name="@storeName">
+    <div class="Page-Box">
+
+
+
+
+
+
+        <div style="display:flex; width:100%; justify-content:space-between;">
+            <div style="font-weight: 300; font-size: 22px;">
+                @productName
+            </div>
+            
+        </div>
+
+        <div class="form-check-orders" style="margin-bottom:16px;">
+
+            <div id="lastScrapeInfo">
+            </div>
+        </div>
+
+   
+        <div style="display: flex; width: 100%; gap: 48px;  align-items: flex-end; justify-content:space-between;">
+            @if (!string.IsNullOrEmpty(allegroOfferUrl))
+            {
+                <a href="@allegroOfferUrl" class="Button-Page-Small" style="margin-bottom: 8px;" target="_blank">
+                    <img src="/images/AllegroIcon.png" alt="Allegro Icon" style="width:18px; height:18px; margin-right: 5px;" /> Zobacz na Allegro
+                </a>
+            }
+            <div id="chartContainer" style="flex-shrink: 0; width: 50%; height: 130px;">
+                <canvas id="priceBarChart"></canvas>
+            </div>
+        </div>
+
+        <div id="priceTableContainer" class="Vert-table">
+            <table class="table-orders" id="priceTable">
+                <thead>
+                    <tr>
+                        <th></th>
+                        <th id="storeHeader">Sklep</th>
+                        <th>Cena</th>
+                        <th>Różnica</th>
+                        <th>Źródło</th>
+                    </tr>
+                </thead>
+                <tbody>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div id="loadingOverlay" class="loading-overlay" style="display: none;">
+    <div class="loader"></div>
+</div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            // --- Inicjalizacja ---
+            const myStoreName = "@Html.Raw(System.Web.HttpUtility.JavaScriptStringEncode(storeName))";
+            const storeId = @storeId;
+            const productId = @productId;
+            let chartInstance = null;
+            const myStoreLower = myStoreName ? myStoreName.toLowerCase().trim() : '';
+            const loadingOverlay = document.getElementById('loadingOverlay');
+
+            // --- Logika kolorowania DLA TABELI ---
+            function getColorClass(item, allOffers, myOffer, setPrice1, setPrice2) {
+                const myPrice = myOffer ? myOffer.price : null;
+                const minPrice = Math.min(...allOffers.map(o => o.price));
+                const offersWithMinPrice = allOffers.filter(o => o.price === minPrice);
+                const isUniqueBestPrice = item.price === minPrice && offersWithMinPrice.length === 1;
+                const isSharedBestPrice = item.price === minPrice && offersWithMinPrice.length > 1;
+                if (isSharedBestPrice) return "prGood";
+                if (isUniqueBestPrice) {
+                    const secondMinPriceOffer = allOffers.filter(o => o.price > minPrice).sort((a, b) => a.price - b.price)[0];
+                    const savings = secondMinPriceOffer ? secondMinPriceOffer.price - item.price : null;
+                    return (savings != null && savings >= 0.01 && savings <= setPrice1) ? "prIdeal" : "prToLow";
+                }
+                if (myPrice && item.price > minPrice) {
+                    const priceDifference = item.price - myPrice;
+                    return priceDifference < setPrice2 ? "prMid" : "prToHigh";
+                }
+                return "prToHigh";
+            }
+
+            // --- Funkcje renderujące ---
+            function renderTable(offersData, setPrice1, setPrice2) {
+                const tbody = document.querySelector("#priceTable tbody");
+                const storeHeader = document.getElementById('storeHeader');
+                tbody.innerHTML = '';
+                storeHeader.textContent = `Sklep (${offersData.length})`;
+                const myCurrentOffer = offersData.find(o => o.sellerName.toLowerCase().trim() === myStoreLower);
+                const basePrice = myCurrentOffer ? myCurrentOffer.price : 0;
+
+                offersData.forEach(item => {
+                    const isMyStore = item.sellerName.toLowerCase().trim() === myStoreLower;
+                    const priceDifference = basePrice > 0 ? item.price - basePrice : 0;
+                    const percentageDifference = basePrice > 0 ? (priceDifference / basePrice) * 100 : 0;
+                    const colorClass = getColorClass(item, offersData, myCurrentOffer, setPrice1, setPrice2);
+                    const tr = document.createElement('tr');
+                    tr.className = `price-row ${colorClass}`;
+                    let diffHtml = '<div class="priceBox-diff-neutral">0,00 PLN (0,00 %)</div>';
+                    if (!isMyStore && priceDifference !== 0) {
+                        const diffClass = priceDifference < 0 ? 'priceBox-diff-up' : 'priceBox-diff-down';
+                        const sign = priceDifference > 0 ? '+' : '';
+                        diffHtml = `<div class="${diffClass}">${sign}${priceDifference.toFixed(2)} PLN (${sign}${percentageDifference.toFixed(2)}%)</div>`;
+                    }
+                    const storeNameStyle = isMyStore ? 'font-weight: bold;' : '';
+
+                    tr.innerHTML = `
+                        <td><div class="color-bar ${colorClass}"></div></td>
+                        <td class="store-name" style="${storeNameStyle}">${item.sellerName}</td>
+                        <td class="store-price" style="${storeNameStyle}">${item.price.toFixed(2)} PLN</td>
+                        <td>${diffHtml}</td>
+                        <td class="data-chanel"><img src="/images/AllegroIcon.png" alt="Allegro Icon" style="width:24px; height:24px;" /></td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            }
+
+            function drawBarChart(allOffersData) {
+                const ctx = document.getElementById('priceBarChart');
+                if (!ctx) return;
+                if (chartInstance) chartInstance.destroy();
+
+                const sortedData = [...allOffersData].sort((a, b) => b.price - a.price);
+                const labels = sortedData.map(item => item.sellerName);
+                const data = sortedData.map(item => item.price);
+
+                const barColors = sortedData.map(item => {
+                    const storeNormalized = item.sellerName.toLowerCase().trim();
+                    return storeNormalized === myStoreLower ? 'rgba(255, 100, 0, 0.6)' : 'rgba(34, 34, 34, 0.4)';
+                });
+
+                const borderColors = sortedData.map(item => {
+                    const storeNormalized = item.sellerName.toLowerCase().trim();
+                    return storeNormalized === myStoreLower ? 'rgba(255, 100, 0, 1)' : 'rgba(34, 34, 34, 1)';
+                });
+
+                chartInstance = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'Cena PLN',
+                            data: data,
+                            backgroundColor: barColors,
+                            borderColor: borderColors,
+                            borderWidth: 2,
+                            borderRadius: 2
+                        }]
+                    },
+                    options: {
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    callback: function (value) { return value + ' PLN'; }
+                                }
+                            },
+                            x: { display: false }
+                        },
+                        plugins: {
+                            legend: { display: false }
+                        }
+                    }
+                });
+            }
+
+            function updateLastScrapeDate(dateStr) {
+                 const lastScrapeInfo = document.getElementById('lastScrapeInfo');
+                 if (lastScrapeInfo && dateStr) {
+                     // Zakładamy, że data przychodzi w formacie ISO lub podobnym. Formatujemy ją.
+                     const date = new Date(dateStr);
+                     const options = { year: 'numeric', month: '2-digit', day: '2-digit' };
+                     lastScrapeInfo.innerHTML = `<p><strong>Wykonano:</strong> ${date.toLocaleDateString('pl-PL', options)}</p>`;
+                 }
+            }
+
+            function showLoadingState() {
+                if(loadingOverlay) loadingOverlay.style.display = 'flex';
+                const tbody = document.querySelector("#priceTable tbody");
+                if (tbody) {
+                     tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding: 40px;">Ładowanie danych...</td></tr>';
+                }
+            }
+
+            function showEmptyState() {
+                if(loadingOverlay) loadingOverlay.style.display = 'none';
+                const tbody = document.querySelector("#priceTable tbody");
+                 if (tbody) {
+                    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding: 40px;">Brak ofert do wyświetlenia dla tego produktu.</td></tr>';
+                 }
+                 const chartParent = document.getElementById('chartContainer');
+                 if(chartParent) chartParent.innerHTML = '<div style="text-align:center; padding: 40px;">Brak danych do narysowania wykresu.</div>';
+            }
+
+            // --- Główna logika ---
+            showLoadingState();
+            const url = `/AllegroPriceHistory/GetProductPriceDetails?storeId=${storeId}&productId=${productId}`;
+
+            fetch(url)
+                .then(response => {
+                    if(loadingOverlay) loadingOverlay.style.display = 'none';
+                    return response.ok ? response.json() : Promise.reject('Błąd sieci');
+                })
+                .then(result => {
+                    const offers = result?.data ?? [];
+                    if (offers.length > 0) {
+                        offers.sort((a,b) => a.price - b.price);
+                        renderTable(offers, result.setPrice1, result.setPrice2);
+                        drawBarChart(offers);
+                        updateLastScrapeDate(result.lastScrapeDate); // Używamy daty z odpowiedzi JSON
+                    } else {
+                        showEmptyState();
+                    }
+                })
+                .catch(error => {
+                    console.error('Błąd:', error);
+                    showEmptyState();
+                });
+        });
+    </script>
+}

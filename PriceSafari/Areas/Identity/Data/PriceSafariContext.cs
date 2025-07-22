@@ -50,15 +50,16 @@ namespace PriceSafari.Data
         public DbSet<CompetitorPresetClass> CompetitorPresets { get; set; }
         public DbSet<CompetitorPresetItem> CompetitorPresetItems { get; set; }
         public DbSet<AllegroProductClass> AllegroProducts { get; set; }
-
-
-
+        public DbSet<AllegroOfferToScrape> AllegroOffersToScrape { get; set; }
+        public DbSet<AllegroScrapedOffer> AllegroScrapedOffers { get; set; }
+        public DbSet<AllegroScrapeHistory> AllegroScrapeHistories { get; set; } 
+        public DbSet<AllegroPriceHistory> AllegroPriceHistories { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
 
-            // Dodatkowe relacje z istniejącymi encjami, jak w oryginalnym przykładzie:
+
             modelBuilder.Entity<PriceSafariUser>()
                 .HasOne(u => u.AffiliateVerification)
                 .WithOne(av => av.PriceSafariUser)
@@ -184,14 +185,14 @@ namespace PriceSafari.Data
                .HasForeignKey<SchedulePlan>(sp => sp.SundayId)
                .OnDelete(DeleteBehavior.Restrict);
 
-            // DayDetail -> ScheduleTask: w sumie to jest 1:N
+       
             modelBuilder.Entity<ScheduleTask>()
                 .HasOne(st => st.DayDetail)
                 .WithMany(dd => dd.Tasks)
                 .HasForeignKey(st => st.DayDetailId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            // M:N ScheduleTaskStore
+       
             modelBuilder.Entity<ScheduleTaskStore>()
                 .HasOne(sts => sts.ScheduleTask)
                 .WithMany(st => st.TaskStores)
@@ -203,6 +204,21 @@ namespace PriceSafari.Data
                 .WithMany(s => s.ScheduleTaskStores)
                 .HasForeignKey(sts => sts.StoreId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+
+            modelBuilder.Entity<AllegroScrapeHistory>()
+                .HasMany(h => h.PriceHistories) 
+                .WithOne(p => p.AllegroScrapeHistory) 
+                .HasForeignKey(p => p.AllegroScrapeHistoryId) 
+                .OnDelete(DeleteBehavior.Cascade); 
+
+        
+            modelBuilder.Entity<AllegroProductClass>()
+                
+                .HasMany<AllegroPriceHistory>()
+                .WithOne(p => p.AllegroProduct) 
+                .HasForeignKey(p => p.AllegroProductId) 
+                .OnDelete(DeleteBehavior.Restrict);
         }
     }
 }

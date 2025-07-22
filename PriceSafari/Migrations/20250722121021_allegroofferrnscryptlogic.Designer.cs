@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using PriceSafari.Data;
 
@@ -11,9 +12,11 @@ using PriceSafari.Data;
 namespace PriceSafari.Migrations
 {
     [DbContext(typeof(PriceSafariContext))]
-    partial class PriceTrackerContextModelSnapshot : ModelSnapshot
+    [Migration("20250722121021_allegroofferrnscryptlogic")]
+    partial class allegroofferrnscryptlogic
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1018,18 +1021,6 @@ namespace PriceSafari.Migrations
                         .HasColumnType("int");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("PriceValueClassId"));
-
-                    b.Property<decimal>("AllegroPriceStep")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<decimal>("AllegroSetPrice1")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<decimal>("AllegroSetPrice2")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<bool>("AllegroUsePriceDiff")
-                        .HasColumnType("bit");
 
                     b.Property<bool>("EnforceMinimalMargin")
                         .HasColumnType("bit");

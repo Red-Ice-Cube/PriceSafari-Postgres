@@ -160,6 +160,18 @@
                            class="btn btn-sm btn-dark">
                             Analiza Cen
                         </a>
+                        @if (!string.IsNullOrEmpty(store.StoreNameAllegro))
+                        {
+                            <a asp-controller="AllegroScrape" asp-action="Process" asp-route-storeId="@store.StoreId"
+                               class="btn btn-sm btn-warning" style="background-color:orangered" title="Przetwórz zebrane dane z Allegro dla tego sklepu">
+                                Przetwórz Allegro
+                            </a>
+                        }
+
+                        <a asp-controller="AllegroPriceHistory" asp-action="Index" asp-route-storeId="@store.StoreId"
+                           class="btn btn-sm btn-warning" style="background-color:coral" title="Analizuj wyniki z Allegro">
+                             Allegro CENY
+                        </a>
                     </div>
 
                 </td>

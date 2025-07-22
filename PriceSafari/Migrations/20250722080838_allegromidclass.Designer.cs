@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using PriceSafari.Data;
 
@@ -11,9 +12,11 @@ using PriceSafari.Data;
 namespace PriceSafari.Migrations
 {
     [DbContext(typeof(PriceSafariContext))]
-    partial class PriceTrackerContextModelSnapshot : ModelSnapshot
+    [Migration("20250722080838_allegromidclass")]
+    partial class allegromidclass
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -308,12 +311,6 @@ namespace PriceSafari.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<int>("CollectedPricesCount")
-                        .HasColumnType("int");
-
-                    b.Property<bool>("IsProcessing")
-                        .HasColumnType("bit");
-
                     b.Property<bool>("IsRejected")
                         .HasColumnType("bit");
 
@@ -323,36 +320,6 @@ namespace PriceSafari.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("AllegroOffersToScrape");
-                });
-
-            modelBuilder.Entity("PriceSafari.Models.AllegroPriceHistory", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("AllegroProductId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("AllegroScrapeHistoryId")
-                        .HasColumnType("int");
-
-                    b.Property<decimal>("Price")
-                        .HasColumnType("decimal(18, 2)");
-
-                    b.Property<string>("SellerName")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("AllegroProductId");
-
-                    b.HasIndex("AllegroScrapeHistoryId");
-
-                    b.ToTable("AllegroPriceHistories");
                 });
 
             modelBuilder.Entity("PriceSafari.Models.AllegroProductClass", b =>
@@ -385,58 +352,6 @@ namespace PriceSafari.Migrations
                     b.HasIndex("StoreId");
 
                     b.ToTable("AllegroProducts");
-                });
-
-            modelBuilder.Entity("PriceSafari.Models.AllegroScrapeHistory", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("Date")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int>("ProcessedUrlsCount")
-                        .HasColumnType("int");
-
-                    b.Property<int>("SavedOffersCount")
-                        .HasColumnType("int");
-
-                    b.Property<int>("StoreId")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("StoreId");
-
-                    b.ToTable("AllegroScrapeHistories");
-                });
-
-            modelBuilder.Entity("PriceSafari.Models.AllegroScrapedOffer", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("AllegroOfferToScrapeId")
-                        .HasColumnType("int");
-
-                    b.Property<decimal>("Price")
-                        .HasColumnType("decimal(18, 2)");
-
-                    b.Property<string>("SellerName")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("AllegroOfferToScrapeId");
-
-                    b.ToTable("AllegroScrapedOffers");
                 });
 
             modelBuilder.Entity("PriceSafari.Models.CategoryClass", b =>
@@ -1018,18 +933,6 @@ namespace PriceSafari.Migrations
                         .HasColumnType("int");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("PriceValueClassId"));
-
-                    b.Property<decimal>("AllegroPriceStep")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<decimal>("AllegroSetPrice1")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<decimal>("AllegroSetPrice2")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<bool>("AllegroUsePriceDiff")
-                        .HasColumnType("bit");
 
                     b.Property<bool>("EnforceMinimalMargin")
                         .HasColumnType("bit");
@@ -1910,25 +1813,6 @@ namespace PriceSafari.Migrations
                     b.Navigation("PriceSafariUser");
                 });
 
-            modelBuilder.Entity("PriceSafari.Models.AllegroPriceHistory", b =>
-                {
-                    b.HasOne("PriceSafari.Models.AllegroProductClass", "AllegroProduct")
-                        .WithMany()
-                        .HasForeignKey("AllegroProductId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("PriceSafari.Models.AllegroScrapeHistory", "AllegroScrapeHistory")
-                        .WithMany("PriceHistories")
-                        .HasForeignKey("AllegroScrapeHistoryId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("AllegroProduct");
-
-                    b.Navigation("AllegroScrapeHistory");
-                });
-
             modelBuilder.Entity("PriceSafari.Models.AllegroProductClass", b =>
                 {
                     b.HasOne("PriceSafari.Models.StoreClass", "Store")
@@ -1938,28 +1822,6 @@ namespace PriceSafari.Migrations
                         .IsRequired();
 
                     b.Navigation("Store");
-                });
-
-            modelBuilder.Entity("PriceSafari.Models.AllegroScrapeHistory", b =>
-                {
-                    b.HasOne("PriceSafari.Models.StoreClass", "Store")
-                        .WithMany()
-                        .HasForeignKey("StoreId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Store");
-                });
-
-            modelBuilder.Entity("PriceSafari.Models.AllegroScrapedOffer", b =>
-                {
-                    b.HasOne("PriceSafari.Models.AllegroOfferToScrape", "AllegroOfferToScrape")
-                        .WithMany("ScrapedOffers")
-                        .HasForeignKey("AllegroOfferToScrapeId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("AllegroOfferToScrape");
                 });
 
             modelBuilder.Entity("PriceSafari.Models.CategoryClass", b =>
@@ -2282,19 +2144,9 @@ namespace PriceSafari.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("PriceSafari.Models.AllegroOfferToScrape", b =>
-                {
-                    b.Navigation("ScrapedOffers");
-                });
-
             modelBuilder.Entity("PriceSafari.Models.AllegroProductClass", b =>
                 {
                     b.Navigation("ProductFlags");
-                });
-
-            modelBuilder.Entity("PriceSafari.Models.AllegroScrapeHistory", b =>
-                {
-                    b.Navigation("PriceHistories");
                 });
 
             modelBuilder.Entity("PriceSafari.Models.CompetitorPresetClass", b =>

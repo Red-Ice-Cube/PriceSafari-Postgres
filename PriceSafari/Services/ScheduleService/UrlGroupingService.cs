@@ -18,20 +18,17 @@ namespace PriceSafari.Services.ScheduleService
 
         public async Task<(int totalProducts, List<string> distinctStoreNames)> GroupAndSaveUniqueUrls(List<int> storeIds)
         {
-            // Krok 1) Najpierw pobierz TYLKO podstawowe warunki z bazy:
-            //         (IsScrapable i .RemainingScrapes > 0), ALE NIE storeIds.Contains(...)!
+
             var allProducts = await _context.Products
                 .Include(p => p.Store)
                 .Where(p => p.IsScrapable && p.Store.RemainingScrapes > 0)
                 .AsNoTracking()
                 .ToListAsync();
 
-            // Krok 2) W pamięci (LINQ-to-Objects) ogranicz do tych, co pasują do `storeIds`
             var products = allProducts
                 .Where(p => storeIds.Contains(p.StoreId))
                 .ToList();
 
-            // Krok 3) Dalej: distinct, groupBy, itp. w pamięci (jak w Twoim kodzie)
             var distinctStoreNames = products
                 .Select(p => p.Store.StoreName)
                 .Distinct()
@@ -44,8 +41,6 @@ namespace PriceSafari.Services.ScheduleService
 
             var coOfrs = new List<CoOfrClass>();
 
-            // --- Grupowanie w pamięci ---
-            // 1) Z OfferUrl
             var groupsByOfferUrl = productsWithOffer
                 .GroupBy(p => p.OfferUrl ?? "")
                 .ToDictionary(g => g.Key, g => g.ToList());
@@ -63,7 +58,6 @@ namespace PriceSafari.Services.ScheduleService
                 coOfrs.Add(coOfr);
             }
 
-            // 2) Bez OfferUrl (po GoogleUrl)
             var groupsByGoogleUrlForNoOffer = productsWithoutOffer
                 .GroupBy(p => p.GoogleUrl ?? "")
                 .ToDictionary(g => g.Key, g => g.ToList());
@@ -81,14 +75,12 @@ namespace PriceSafari.Services.ScheduleService
                 coOfrs.Add(coOfr);
             }
 
-            // Nadpisanie starych rekordów w CoOfrs
             _context.CoOfrs.RemoveRange(_context.CoOfrs);
             _context.CoOfrs.AddRange(coOfrs);
 
             await _context.SaveChangesAsync();
             return (totalProducts, distinctStoreNames);
         }
-
 
         private CoOfrClass CreateCoOfrClass(List<ProductClass> productList, string? offerUrl, string? googleUrl)
         {
@@ -111,10 +103,9 @@ namespace PriceSafari.Services.ScheduleService
 
             foreach (var product in productList)
             {
-                // Każdy produkt trafia do ProductIds
+
                 coOfr.ProductIds.Add(product.ProductId);
 
-                // Jeśli mamy wybrany GoogleUrl i produkt go posiada – trafia również do ProductIdsGoogle
                 if (!string.IsNullOrEmpty(googleUrl) && product.GoogleUrl == googleUrl)
                 {
                     coOfr.ProductIdsGoogle.Add(product.ProductId);

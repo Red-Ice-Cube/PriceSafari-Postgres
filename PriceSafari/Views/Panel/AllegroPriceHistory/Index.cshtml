@@ -1,0 +1,127 @@
+﻿@{
+    ViewData["Title"] = "Historia Cen Allegro";
+    var latestScrap = ViewBag.LatestScrap as PriceSafari.Models.AllegroScrapeHistory;
+    var storeId = ViewBag.StoreId;
+    var storeLogo = ViewBag.StoreLogo;
+    var storeName = ViewBag.StoreName;
+    var scrapDate = latestScrap?.Date.ToString("dd.MM.yyyy");
+}
+@{
+    Layout = "~/Views/Shared/_PanelLayout.cshtml";
+}
+
+<style>
+    .price-box {
+      
+        padding: 10px;
+        margin-bottom: 10px;
+        transition: border-width 0.2s ease-in-out; 
+    }
+
+     
+
+    
+
+    .loading-overlay { /* style dla overlay... */
+    }
+</style>
+
+<div class="Vert">
+    <div class="Page-Box">
+        <div class="Page-Box-Container">
+            <div class="Page-Box-Category">
+                <div><img src="@storeLogo" class="img-container" /></div>
+                <div class="side-chart-box">
+                    <canvas id="colorChart"></canvas>
+                </div>
+                <div class="store-section">
+                    <div class="form-check"><input class="form-check-input colorFilter" type="checkbox" id="prNoOfferCheckbox" value="prNoOffer"><label for="prNoOfferCheckbox"></label></div>
+                    <div class="form-check"><input class="form-check-input colorFilter" type="checkbox" id="prOnlyMeCheckbox" value="prOnlyMe"><label for="prOnlyMeCheckbox"></label></div>
+                    <div class="form-check"><input class="form-check-input colorFilter" type="checkbox" id="prToHighCheckbox" value="prToHigh"><label for="prToHighCheckbox"></label></div>
+                    <div class="form-check"><input class="form-check-input colorFilter" type="checkbox" id="prMidCheckbox" value="prMid"><label for="prMidCheckbox"></label></div>
+                    <div class="form-check"><input class="form-check-input colorFilter" type="checkbox" id="prGoodCheckbox" value="prGood"><label for="prGoodCheckbox"></label></div>
+                    <div class="form-check"><input class="form-check-input colorFilter" type="checkbox" id="prIdealCheckbox" value="prIdeal"><label for="prIdealCheckbox"></label></div>
+                    <div class="form-check"><input class="form-check-input colorFilter" type="checkbox" id="prToLowCheckbox" value="prToLow"><label for="prToLowCheckbox"></label></div>
+
+                    <div class="price-range-settings">
+                        <div class="color-circle prMid-circle"></div>
+                        <input type="number" id="price2" value="2.00" step="0.01" min="0.01">
+                        <span id="unitLabel2">PLN</span>
+                    </div>
+                    <div class="price-range-settings">
+                        <div class="color-circle prIdeal-circle"></div>
+                        <input type="number" id="price1" value="2.00" step="0.01" min="0.01">
+                        <span id="unitLabel1">PLN</span>
+                    </div>
+                    <div class="price-range-settings">
+                        <div class="price-range-settings-stepPrice"></div>
+                        <input type="number" id="stepPrice" value="2.00" step="0.01" min="0.01">
+                        <span id="unitLabelStepPrice">PLN</span>
+                    </div>
+
+                    <div>
+                        <input class="diffCheckBox" style="margin-top: 10px;" type="checkbox" id="usePriceDifference" checked />
+                    </div>
+                    <button class="Button-Page-Small" style="margin-top: 2px;" id="savePriceValues">Zapisz progi</button>
+                </div>
+            </div>
+            <div class="Horizontal">
+                <div class="order-upper-box">
+                    <input type="text" id="productSearch" style="max-width:150px;" placeholder="Wyszukaj produkt">
+                    <input type="text" id="storeSearch" style="max-width:150px;" placeholder="Wyszukaj sklep">
+                    <select id="producerFilterDropdown" class="DropDown" style="max-width:150px;">
+                        <option value="">Wszystkie marki</option>
+                    </select>
+                    <div class="SimpleSpace" style="justify-content:flex-end;">
+                        <button type="button" class="btn-round" data-toggle="modal" data-target="#infoModal"><i class="fa fa-info-circle"></i></button>
+                    </div>
+                </div>
+                <div id="sortingButtons">
+                    <div class="ProductCount" id="displayedProductCount" style="width:120px;"></div>
+                    <div id="paginationContainer"></div>
+                    <button id="sortName">A-Z</button>
+                    <button id="sortPrice">Cena</button>
+                    <button id="sortRaiseAmount">Podnieś PLN</button>
+                    <button id="sortRaisePercentage">Podnieś %</button>
+                    <button id="sortLowerAmount">Obniż PLN</button>
+                    <button id="sortLowerPercentage">Obniż %</button>
+                </div>
+                <div class="Vert-table">
+                    <div id="priceContainer" class="price-container"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="infoModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-sm" role="document">
+        <div class="modal-content" style="width:auto;">
+            <div class="modal-header">
+                <h5 class="modal-title">Informacje</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Zamknij"><span aria-hidden="true">&times;</span></button>
+            </div>
+            <div class="modal-body">
+                <p><strong>Wykonanie analizy:</strong> @scrapDate</p>
+                <p><strong>Ilość produktów:</strong> <span id="totalProductCount">0</span></p>
+                <p><strong>Ilość zebranych cen:</strong> <span id="totalPriceCount">0</span></p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="loadingOverlay" class="loading-overlay" style="display: none;"><div class="loader"></div></div>
+
+@section Scripts {
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+    <script>
+        // Przekazanie zmiennych z C# do JS
+        var storeId = @storeId;
+        var scrapDateJS = "@scrapDate";
+        var myStoreNameJS = "@storeName";
+    </script>
+    <script src="~/js/member/AllegroPriceHistory.js"></script>
+}

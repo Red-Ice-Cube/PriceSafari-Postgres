@@ -551,6 +551,11 @@ function getVal(entryNode, fieldName) {
 
     let path = info.xpath;
 
+
+    if (path.endsWith('/#value')) {
+        path = path.slice(0, -7);
+    }
+
     let possiblePrefixes = ["/rss/channel/item/", "/feed/entry/"];
     for (let i = 0; i < possiblePrefixes.length; i++) {
         if (path.startsWith(possiblePrefixes[i])) {

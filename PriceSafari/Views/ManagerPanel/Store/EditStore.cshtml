@@ -80,12 +80,12 @@
             <div class="form-row">
                 <div class="col-md-6 mb-3">
                     <label asp-for="StoreNameGoogle">Nazwa sklepu w Google</label>
-                    <input asp-for="StoreNameGoogle" class="form-control" placeholder="Np. Akson" />
+                    <input asp-for="StoreNameGoogle" class="form-control" />
                     <span asp-validation-for="StoreNameGoogle" class="text-danger"></span>
                 </div>
                 <div class="col-md-6 mb-3">
                     <label asp-for="StoreNameCeneo">Nazwa sklepu w Ceneo</label>
-                    <input asp-for="StoreNameCeneo" class="form-control" placeholder="Np. akson.pl" />
+                    <input asp-for="StoreNameCeneo" class="form-control" />
                     <span asp-validation-for="StoreNameCeneo" class="text-danger"></span>
                 </div>
             </div>
@@ -97,7 +97,23 @@
             </div>
         </div>
     </div>
+    <!-- Integracje Google i Ceneo -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h4>Allegro</h4>
+        </div>
+        <div class="card-body">
+            <div class="form-row">
+                <div class="col-md-6 mb-3">
+                    <label asp-for="StoreNameAllegro">Nazwa sklepu w Allegro</label>
+                    <input asp-for="StoreNameAllegro" class="form-control"  />
+                    <span asp-validation-for="StoreNameAllegro" class="text-danger"></span>
+                </div>
+                
+            </div>
 
+        </div>
+    </div>
     <!-- Pozostałe ustawienia -->
     <div class="card mb-4">
         <div class="card-header">

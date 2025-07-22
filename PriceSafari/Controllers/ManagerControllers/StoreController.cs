@@ -100,6 +100,7 @@ namespace PriceSafari.Controllers.ManagerControllers
             existingStore.DiscountPercentage = store.DiscountPercentage ?? 0;
             existingStore.RemainingScrapes = store.RemainingScrapes;
             existingStore.ProductsToScrap = store.ProductsToScrap;
+            existingStore.StoreNameAllegro = store.StoreNameAllegro;
 
             existingStore.StoreNameGoogle = store.StoreNameGoogle;
             existingStore.StoreNameCeneo = store.StoreNameCeneo;

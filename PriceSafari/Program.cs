@@ -9,6 +9,8 @@ using PriceSafari.Hubs;
 using PriceSafari.Models;
 using PriceSafari.Models.SchedulePlan;
 using PriceSafari.Scrapers;
+using PriceSafari.Services.AllegroServices;
+using PriceSafari.Services.ConnectionStatus;
 using PriceSafari.Services.ControlNetwork;
 using PriceSafari.Services.ControlXY;
 using PriceSafari.Services.EmailService;
@@ -37,7 +39,11 @@ public class Program
 
         var connectionString = $"Data Source={dbServer};Database={dbName};Uid={dbUser};Password={dbPassword};TrustServerCertificate=True";
 
-        builder.Services.AddDbContext<PriceSafariContext>(options => options.UseSqlServer(connectionString));
+        builder.Services.AddDbContext<PriceSafariContext>(options =>
+        options.UseSqlServer(connectionString, sqlServerOptions =>
+        {
+            sqlServerOptions.UseCompatibilityLevel(110);
+        }));
 
         builder.Services.AddDefaultIdentity<PriceSafariUser>(options => options.SignIn.RequireConfirmedAccount = true)
        .AddRoles<IdentityRole>()
@@ -63,7 +69,10 @@ public class Program
         builder.Services.AddScoped<CaptchaScraper>();
         builder.Services.AddScoped<GoogleScraperService>();
         builder.Services.AddScoped<CeneoScraperService>();
+        builder.Services.AddHostedService<ScraperHealthCheckService>();
         builder.Services.AddScoped<INetworkControlService, NetworkControlService>();
+        builder.Services.AddScoped<AllegroUrlGroupingService>();
+        builder.Services.AddScoped<AllegroProcessingService>();
 
         GlobalFontSettings.UseWindowsFontsUnderWindows = true;
 

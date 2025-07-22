@@ -160,6 +160,13 @@
                     <img src="~/images/Link-bone.svg" alt="Panel Icon" class="menu-icon" />Generuj raporty
                 </div>
 
+                <div class="@(controllerName == "AllegroGather" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "AllegroGather")'">
+                    <img src="~/images/Link-bone.svg" alt="Panel Icon" class="menu-icon" />Allegro Colector  
+                </div>
+                <div class="@(controllerName == "AllegroScrape" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "AllegroScrape")'">
+                    <img src="~/images/Link-bone.svg" alt="Panel Icon" class="menu-icon" />Allegro Scraper
+                </div>
+
                 <div class="@(controllerName == "Plan" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "Plan")'">
                     <img src="~/images/MoneyIn-bone.svg" alt="Panel Icon" class="menu-icon" />Plany
                 </div>
