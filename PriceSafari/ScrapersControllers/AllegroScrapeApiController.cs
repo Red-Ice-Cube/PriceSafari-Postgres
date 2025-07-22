@@ -13,7 +13,8 @@ namespace PriceSafari.ScrapersControllers
     {
         private readonly PriceSafariContext _context;
         private readonly IHubContext<ScrapingHub> _hubContext;
-        private const string ApiKey = "twoj-super-tajny-klucz-api-123"; // Ten sam klucz co wcześniej
+        private const string ApiKey = "twoj-super-tajny-klucz-api-123";
+        private const int BatchSize = 100; // Rozmiar paczki URL-i
 
         public AllegroScrapeApiController(PriceSafariContext context, IHubContext<ScrapingHub> hubContext)
         {
@@ -21,13 +22,12 @@ namespace PriceSafari.ScrapersControllers
             _hubContext = hubContext;
         }
 
-        // --- Endpoint dla scrapera w Pythonie do pobierania zadań ---
         [HttpGet("get-task")]
-        public async Task<IActionResult> GetTask([FromQuery] string scraperName)
+        public async Task<IActionResult> GetTaskBatch([FromQuery] string scraperName)
         {
             if (Request.Headers["X-Api-Key"] != ApiKey) return Unauthorized();
 
-            // 1. Zarejestruj lub zaktualizuj status scrapera
+            // Rejestracja scrapera (bez zmian)
             var scraper = AllegroScrapeManager.ActiveScrapers.AddOrUpdate(
                 scraperName,
                 new HybridScraperClient { Name = scraperName, Status = ScraperLiveStatus.Idle, LastCheckIn = DateTime.UtcNow },
@@ -39,66 +39,105 @@ namespace PriceSafari.ScrapersControllers
                 });
             await _hubContext.Clients.All.SendAsync("UpdateDetailScraperStatus", scraper);
 
-            // 2. Sprawdź, czy proces scrapowania jest w ogóle uruchomiony
             if (AllegroScrapeManager.CurrentStatus != ScrapingProcessStatus.Running)
             {
                 return Ok(new { message = "Scraping process is paused." });
             }
 
-            // 3. Znajdź następne zadanie w kolejce (pierwszy URL, który nie jest ani zescrapowany, ani odrzucony)
-            var offerToScrape = await _context.AllegroOffersToScrape
-                .Where(o => !o.IsScraped && !o.IsRejected)
-                .OrderBy(o => o.Id) // Bierzemy najstarsze zadania jako pierwsze
-                .FirstOrDefaultAsync();
+            // Pobierz paczkę 100 URL-i, które nie są ani zescrapowane, ani odrzucone, ani w trakcie przetwarzania
+            var offersToScrape = await _context.AllegroOffersToScrape
+                .Where(o => !o.IsScraped && !o.IsRejected && !o.IsProcessing)
+                .OrderBy(o => o.Id)
+                .Take(BatchSize)
+                .ToListAsync();
 
-            if (offerToScrape == null)
+            if (!offersToScrape.Any())
             {
                 return Ok(new { message = "No pending tasks available." });
             }
 
-            // 4. Zwróć zadanie do scrapera w Pythonie
-            scraper.Status = ScraperLiveStatus.Busy;
-            scraper.CurrentTaskId = offerToScrape.Id;
-            await _hubContext.Clients.All.SendAsync("UpdateDetailScraperStatus", scraper);
-
-            return Ok(new { taskId = offerToScrape.Id, url = offerToScrape.AllegroOfferUrl });
-        }
-
-        // --- Endpoint dla scrapera do odsyłania wyników ---
-        [HttpPost("submit-result")]
-        public async Task<IActionResult> SubmitResult([FromBody] ScrapeResultDto result)
-        {
-            if (Request.Headers["X-Api-Key"] != ApiKey) return Unauthorized();
-
-            var offer = await _context.AllegroOffersToScrape.FindAsync(result.TaskId);
-            if (offer == null) return NotFound();
-
-            if (result.Status == "success")
+            // Oznacz pobrane zadania jako "w trakcie przetwarzania", aby inny scraper ich nie pobrał
+            foreach (var offer in offersToScrape)
             {
-                offer.IsScraped = true;
-                offer.IsRejected = false;
-                offer.CollectedPricesCount = result.CollectedPricesCount;
+                offer.IsProcessing = true;
             }
-            else // "rejected"
-            {
-                offer.IsScraped = false;
-                offer.IsRejected = true;
-            }
-
             await _context.SaveChangesAsync();
 
-            // Wyślij aktualizację do frontendu przez SignalR, aby tabela odświeżyła się na żywo
-            await _hubContext.Clients.All.SendAsync("UpdateAllegroOfferRow", offer);
+            scraper.Status = ScraperLiveStatus.Busy;
+            // Zamiast jednego ID, możemy wysłać informację o liczbie zadań
+            await _hubContext.Clients.All.SendAsync("UpdateDetailScraperStatus", scraper);
 
-            return Ok(new { message = "Result processed." });
+            // Zwróć paczkę zadań do Pythona
+            var tasksForPython = offersToScrape.Select(o => new { taskId = o.Id, url = o.AllegroOfferUrl });
+            return Ok(tasksForPython);
+        }
+
+        [HttpPost("submit-batch-results")] // NOWY ENDPOINT
+        public async Task<IActionResult> SubmitBatchResults([FromBody] List<UrlResultDto> batchResults)
+        {
+            if (Request.Headers["X-Api-Key"] != ApiKey) return Unauthorized();
+            if (batchResults == null || !batchResults.Any()) return BadRequest();
+
+            var taskIds = batchResults.Select(r => r.TaskId).ToList();
+            var offersToUpdate = await _context.AllegroOffersToScrape
+                .Where(o => taskIds.Contains(o.Id))
+                .ToListAsync();
+
+            var newScrapedOffers = new List<AllegroScrapedOffer>();
+
+            foreach (var result in batchResults)
+            {
+                var offer = offersToUpdate.FirstOrDefault(o => o.Id == result.TaskId);
+                if (offer == null) continue;
+
+                offer.IsProcessing = false;
+
+                if (result.Status == "success")
+                {
+                    // ZMIANA: Filtrujemy oferty, aby odrzucić te z domyślną nazwą "Brak sprzedawcy"
+                    var validOffers = result.Offers
+                        .Where(o => o.SellerName != "Brak sprzedawcy" && !string.IsNullOrWhiteSpace(o.SellerName))
+                        .ToList();
+
+                    offer.IsScraped = true;
+                    offer.CollectedPricesCount = validOffers.Count; // Zliczamy tylko poprawne oferty
+
+                    foreach (var scraped in validOffers) // Iterujemy po przefiltrowanej liście
+                    {
+                        newScrapedOffers.Add(new AllegroScrapedOffer
+                        {
+                            AllegroOfferToScrapeId = offer.Id,
+                            SellerName = scraped.SellerName,
+                            Price = scraped.Price
+                        });
+                    }
+                }
+                else
+                {
+                    offer.IsRejected = true;
+                }
+
+                await _hubContext.Clients.All.SendAsync("UpdateAllegroOfferRow", offer);
+            }
+
+            await _context.AllegroScrapedOffers.AddRangeAsync(newScrapedOffers);
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "Batch processed successfully." });
         }
     }
 
-    // DTO (Data Transfer Object) do przesyłania wyników
-    public class ScrapeResultDto
+    // DTO dla wyników
+    public class ScrapedOfferDto
+    {
+        public string SellerName { get; set; }
+        public decimal Price { get; set; }
+    }
+
+    public class UrlResultDto
     {
         public int TaskId { get; set; }
-        public string Status { get; set; } // "success" or "rejected"
-        public int CollectedPricesCount { get; set; }
+        public string Status { get; set; }
+        public List<ScrapedOfferDto> Offers { get; set; } = new List<ScrapedOfferDto>();
     }
 }

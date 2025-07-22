@@ -39,7 +39,11 @@ public class Program
 
         var connectionString = $"Data Source={dbServer};Database={dbName};Uid={dbUser};Password={dbPassword};TrustServerCertificate=True";
 
-        builder.Services.AddDbContext<PriceSafariContext>(options => options.UseSqlServer(connectionString));
+        builder.Services.AddDbContext<PriceSafariContext>(options =>
+        options.UseSqlServer(connectionString, sqlServerOptions =>
+        {
+            sqlServerOptions.UseCompatibilityLevel(110);
+        }));
 
         builder.Services.AddDefaultIdentity<PriceSafariUser>(options => options.SignIn.RequireConfirmedAccount = true)
        .AddRoles<IdentityRole>()

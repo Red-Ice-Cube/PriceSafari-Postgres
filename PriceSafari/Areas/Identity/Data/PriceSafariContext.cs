@@ -51,7 +51,7 @@ namespace PriceSafari.Data
         public DbSet<CompetitorPresetItem> CompetitorPresetItems { get; set; }
         public DbSet<AllegroProductClass> AllegroProducts { get; set; }
         public DbSet<AllegroOfferToScrape> AllegroOffersToScrape { get; set; }
-
+        public DbSet<AllegroScrapedOffer> AllegroScrapedOffers { get; set; }
 
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)

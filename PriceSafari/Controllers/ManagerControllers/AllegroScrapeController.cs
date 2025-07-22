@@ -43,7 +43,6 @@ namespace PriceSafari.Controllers.ManagerControllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> StartScraping()
         {
-            // NOWE ZABEZPIECZENIE: Sprawdź, czy jest co najmniej jeden scraper online
             var anyActiveScrapers = AllegroScrapeManager.ActiveScrapers.Values.Any(s => s.Status != ScraperLiveStatus.Offline);
 
             if (!anyActiveScrapers)
@@ -52,9 +51,29 @@ namespace PriceSafari.Controllers.ManagerControllers
                 return RedirectToAction(nameof(Index));
             }
 
+            // --- NOWA, KLUCZOWA LOGIKA ---
+            // 1. Znajdź wszystkie zadania, które mogły zostać "zawieszone" w stanie przetwarzania.
+            var orphanedTasks = await _context.AllegroOffersToScrape
+                .Where(o => o.IsProcessing)
+                .ToListAsync();
+
+            if (orphanedTasks.Any())
+            {
+                // 2. Zresetuj ich status, aby mogły być ponownie pobrane.
+                foreach (var task in orphanedTasks)
+                {
+                    task.IsProcessing = false;
+                }
+                await _context.SaveChangesAsync();
+                TempData["InfoMessage"] = $"Zresetowano stan dla {orphanedTasks.Count} zawieszonych zadań.";
+            }
+            // --- KONIEC NOWEJ LOGIKI ---
+
+            // 3. Uruchom proces
             AllegroScrapeManager.CurrentStatus = ScrapingProcessStatus.Running;
             TempData["SuccessMessage"] = "Proces scrapowania ofert został uruchomiony.";
             await _hubContext.Clients.All.SendAsync("UpdateScrapingProcessStatus", new { status = "Running" });
+
             return RedirectToAction(nameof(Index));
         }
 
