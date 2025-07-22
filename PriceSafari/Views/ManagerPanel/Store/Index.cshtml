@@ -160,6 +160,13 @@
                            class="btn btn-sm btn-dark">
                             Analiza Cen
                         </a>
+                        @if (!string.IsNullOrEmpty(store.StoreNameAllegro))
+                        {
+                            <a asp-controller="AllegroScrape" asp-action="Process" asp-route-storeId="@store.StoreId"
+                               class="btn btn-sm btn-warning" style="background-color:orangered" title="Przetwórz zebrane dane z Allegro dla tego sklepu">
+                                Przetwórz Allegro
+                            </a>
+                        }
                     </div>
 
                 </td>

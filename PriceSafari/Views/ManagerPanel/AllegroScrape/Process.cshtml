@@ -1,0 +1,48 @@
+﻿@{
+    var store = ViewBag.Store as PriceSafari.Models.StoreClass;
+    ViewData["Title"] = $"Przetwarzanie Danych Allegro dla {store.StoreName}";
+    Layout = "~/Views/Shared/_PanelLayout.cshtml";
+}
+
+<a asp-controller="Store" asp-action="Index" class="btn btn-secondary mb-3">
+    <i class="fas fa-arrow-left"></i> Powrót do listy sklepów
+</a>
+
+<h1>@ViewData["Title"]</h1>
+<hr />
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                Podsumowanie danych do przetworzenia
+            </div>
+            <div class="card-body">
+                <p>Poniżej znajduje się podsumowanie "surowych" danych zebranych przez scrapera, które są gotowe do przypisania do produktów w sklepie <strong>@store.StoreName</strong>.</p>
+                <ul class="list-group">
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        Liczba zescrapowanych URL-i powiązanych z tym sklepem
+                        <span class="badge bg-primary rounded-pill">@ViewBag.OffersToProcessCount</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        Łączna liczba "surowych" ofert od sprzedawców w tych URL-ach
+                        <span class="badge bg-primary rounded-pill">@ViewBag.ScrapedOffersCount</span>
+                    </li>
+                </ul>
+                <hr />
+                <p class="text-muted">
+                    Proces ten przeanalizuje zebrane dane, dopasuje je do odpowiednich produktów w Twoim sklepie na podstawie powiązań,
+                    a następnie zapisze je jako "czyste" wpisy w historii cen Allegro.
+                </p>
+
+                <form asp-controller="AllegroScrape" asp-action="ProcessData" method="post" onsubmit="return confirm('Czy na pewno chcesz przetworzyć i zapisać te dane?');">
+                    <input type="hidden" name="storeId" value="@store.StoreId" />
+                    <button type="submit" class="btn btn-success btn-lg">
+                        <i class="fas fa-cogs"></i> Uruchom Przetwarzanie i Zapisz Dane
+                    </button>
+                </form>
+
+            </div>
+        </div>
+    </div>
+</div>

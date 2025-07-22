@@ -3,10 +3,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace PriceSafari.Models
 {
-    /// <summary>
-    /// Przechowuje pojedynczą, zescrapowaną ofertę (sprzedawca + cena)
-    /// powiązaną z konkretnym URL-em z AllegroOfferToScrape.
-    /// </summary>
+
     public class AllegroScrapedOffer
     {
         [Key]

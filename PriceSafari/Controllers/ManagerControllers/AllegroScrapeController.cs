@@ -17,12 +17,17 @@ namespace PriceSafari.Controllers.ManagerControllers
         private readonly PriceSafariContext _context;
         private readonly AllegroUrlGroupingService _groupingService;
         private readonly IHubContext<ScrapingHub> _hubContext; // Wstrzyknij HubContext
+        private readonly AllegroProcessingService _processingService;
 
-        public AllegroScrapeController(PriceSafariContext context, AllegroUrlGroupingService groupingService, IHubContext<ScrapingHub> hubContext)
+        public AllegroScrapeController(PriceSafariContext context,
+                                       AllegroUrlGroupingService groupingService,
+                                       IHubContext<ScrapingHub> hubContext,
+                                       AllegroProcessingService processingService)
         {
             _context = context;
             _groupingService = groupingService;
             _hubContext = hubContext; // Przypisz
+            _processingService = processingService;
         }
 
         [HttpGet]
@@ -104,6 +109,67 @@ namespace PriceSafari.Controllers.ManagerControllers
             var rowsAffected = await _context.AllegroOffersToScrape.ExecuteDeleteAsync();
             TempData["SuccessMessage"] = $"Usunięto {rowsAffected} przygotowanych ofert.";
             return RedirectToAction(nameof(Index));
+        }
+
+
+
+
+
+        [HttpGet]
+        public async Task<IActionResult> Process(int storeId)
+        {
+            var store = await _context.Stores.FindAsync(storeId);
+            if (store == null)
+            {
+                return NotFound();
+            }
+
+            // Policz, ile "surowych" ofert czeka na przetworzenie dla produktów tego sklepu
+            var relevantProductIds = await _context.AllegroProducts
+                .Where(p => p.StoreId == storeId)
+                .Select(p => p.AllegroProductId)
+                .ToListAsync();
+
+            // --- ZMIANA #1 ---
+            // Pobieramy szerszy zbiór danych z bazy...
+            var scrapedOffersFromDb = await _context.AllegroOffersToScrape
+                .Where(o => o.IsScraped) // 1. Prosty filtr, który SQL potrafi przetłumaczyć
+                .ToListAsync();         // 2. Pobieramy dane do pamięci aplikacji
+
+            // ...i dopiero teraz wykonujemy skomplikowane filtrowanie w pamięci
+            var offersToProcessCount = scrapedOffersFromDb
+                .Count(o => o.AllegroProductIds.Any(pId => relevantProductIds.Contains(pId))); // 3. Złożony filtr na liście w C#
+
+            // --- ZMIANA #2 ---
+            // Ta sama logika dla drugiej tabeli
+            var allScrapedOffersFromDb = await _context.AllegroScrapedOffers
+                .Include(so => so.AllegroOfferToScrape)
+                .Where(so => so.AllegroOfferToScrape.IsScraped) // 1. Prosty filtr w SQL
+                .ToListAsync(); // 2. Pobierz dane do pamięci
+
+            var scrapedOffersCount = allScrapedOffersFromDb
+                .Count(so => so.AllegroOfferToScrape.AllegroProductIds.Any(pId => relevantProductIds.Contains(pId))); // 3. Złożony filtr w pamięci
+
+            ViewBag.Store = store;
+            ViewBag.OffersToProcessCount = offersToProcessCount;
+            ViewBag.ScrapedOffersCount = scrapedOffersCount;
+
+            return View("~/Views/ManagerPanel/AllegroScrape/Process.cshtml");
+        }
+
+
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ProcessData(int storeId)
+        {
+            var (processedUrls, savedOffers) = await _processingService.ProcessScrapedDataForStoreAsync(storeId);
+
+
+            TempData["SuccessMessage"] = $"Przetworzono dane dla sklepu '{_context.Stores.Find(storeId)?.StoreName}'. Zapisano {savedOffers} czystych ofert z {processedUrls} unikalnych URL-i.";
+
+            // Wracamy do widoku listy sklepów po przetworzeniu
+            return RedirectToAction("Index", "Store");
         }
     }
 }
