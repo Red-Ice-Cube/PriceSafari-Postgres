@@ -17,6 +17,13 @@
 
 
 
+        public bool AllegroUsePriceDiff { get; set; } = true;
+        public decimal AllegroPriceStep { get; set; } = 2.00m;
+        public decimal AllegroSetPrice1 { get; set; } = 2.00m;
+        public decimal AllegroSetPrice2 { get; set; } = 2.00m;
+
+
+
         public bool UsePriceWithDelivery { get; set; } = false;
 
         public bool UseEanForSimulation { get; set; } = true;
