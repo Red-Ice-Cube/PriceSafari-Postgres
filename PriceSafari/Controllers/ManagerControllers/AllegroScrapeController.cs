@@ -30,17 +30,27 @@ namespace PriceSafari.Controllers.ManagerControllers
             _processingService = processingService;
         }
 
+        // Wewnątrz klasy AllegroScrapeController
+
         [HttpGet]
         public async Task<IActionResult> Index()
         {
             var viewModel = new AllegroScrapeViewModel
             {
-                PreparedOffers = await _context.AllegroOffersToScrape.OrderByDescending(o => o.AddedDate).ToListAsync(),
+                // --- ZMIANA TUTAJ ---
+                PreparedOffers = await _context.AllegroOffersToScrape
+                    .OrderBy(o => o.Id) // Sortowanie rosnące po ID
+
+                    .ToListAsync(),
+                // --- KONIEC ZMIANY ---
+
                 CurrentStatus = AllegroScrapeManager.CurrentStatus,
                 ActiveScrapers = AllegroScrapeManager.ActiveScrapers.Values
             };
             return View("~/Views/ManagerPanel/AllegroScrape/Index.cshtml", viewModel);
         }
+
+        // ... reszta kodu kontrolera bez zmian
 
         // Wewnątrz klasy AllegroScrapeController
 

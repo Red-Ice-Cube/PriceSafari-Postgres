@@ -151,7 +151,6 @@
         const container = document.getElementById('priceContainer');
         container.innerHTML = '';
 
-        // Pobierz aktualne frazy wyszukiwania
         const productSearchTerm = document.getElementById('productSearch').value.trim();
         const storeSearchTerm = document.getElementById('storeSearch').value.trim();
 
@@ -161,15 +160,18 @@
             const myPrice = item.myPrice != null ? parseFloat(item.myPrice) : null;
             const lowestPrice = item.lowestPrice != null ? parseFloat(item.lowestPrice) : null;
 
-            // Użyj funkcji podświetlającej
             const highlightedProductName = highlightMatches(item.productName, productSearchTerm);
             const highlightedStoreName = highlightMatches(item.storeName, storeSearchTerm);
             const highlightedMyStoreName = highlightMatches(myStoreName, storeSearchTerm);
 
-
             const box = document.createElement('div');
             box.className = 'price-box ' + item.colorClass;
             box.dataset.productId = item.productId;
+
+            // ZMIANA START: Dodajemy atrybut data-details-url
+            box.dataset.detailsUrl = `/AllegroPriceHistory/Details?storeId=${storeId}&productId=${item.productId}`;
+            box.style.cursor = 'pointer'; // Dodajemy kursor, by wskazać klikalność
+            // ZMIANA KONIEC
 
             box.innerHTML = `
             <div class="price-box-space">
@@ -202,23 +204,30 @@
         `;
             container.appendChild(box);
 
+            // ZMIANA START: Dodajemy event listener do nawigacji
+            box.addEventListener('click', function (event) {
+                // Upewniamy się, że kliknięcie w przycisk lub inny interaktywny element nie spowoduje nawigacji
+                if (event.target.closest('button, a')) {
+                    return;
+                }
+                window.open(this.dataset.detailsUrl, '_blank');
+            });
+            // ZMIANA KONIEC
+
             const infoCol = document.getElementById(`infoCol-${item.productId}`);
             if (!infoCol || item.onlyMe || item.isRejected || myPrice === null || lowestPrice === null) {
                 return;
             }
 
-            // Logika dla sugestii cen pozostaje bez zmian...
+            // ... reszta kodu funkcji `renderPrices` (sugestie cen) pozostaje bez zmian ...
             if (item.colorClass === "prToLow" || item.colorClass === "prIdeal") {
                 const savingsValue = parseFloat(item.savings);
                 const upArrowClass = item.colorClass === 'prToLow' ? 'arrow-up-black' : 'arrow-up-turquoise';
-
                 const suggestedPrice1 = myPrice + savingsValue;
                 const amount1 = savingsValue;
                 const percentage1 = myPrice > 0 ? (amount1 / myPrice) * 100 : 0;
-
                 let suggestedPrice2, amount2, percentage2;
                 let arrowClass2 = upArrowClass;
-
                 if (usePriceDifference) {
                     suggestedPrice2 = suggestedPrice1 - setStepPrice;
                 } else {
@@ -249,7 +258,6 @@
             } else if (item.colorClass === "prMid" || item.colorClass === "prToHigh") {
                 const amountToMatch = myPrice - lowestPrice;
                 const percentageToMatch = myPrice > 0 ? (amountToMatch / myPrice) * 100 : 0;
-
                 let strategicPrice, amountToBeat, percentageToBeat;
                 if (usePriceDifference) {
                     strategicPrice = lowestPrice - setStepPrice;
@@ -258,7 +266,6 @@
                 }
                 amountToBeat = myPrice - strategicPrice;
                 percentageToBeat = myPrice > 0 ? (amountToBeat / myPrice) * 100 : 0;
-
                 const arrowClass = item.colorClass === "prMid" ? "arrow-down-yellow" : "arrow-down-red";
 
                 infoCol.innerHTML = `
@@ -283,7 +290,6 @@
                 const amount1 = 0;
                 const percentage1 = 0;
                 const suggestedPrice1 = myPrice;
-
                 let suggestedPrice2, amount2, percentage2;
                 let downArrowClass = 'arrow-down-green';
 

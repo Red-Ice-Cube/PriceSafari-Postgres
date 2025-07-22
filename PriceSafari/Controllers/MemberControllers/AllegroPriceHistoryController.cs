@@ -137,6 +137,8 @@ namespace PriceSafari.Controllers.MemberControllers
             public bool UsePriceDifference { get; set; }
         }
 
+
+
         [HttpPost]
         public async Task<IActionResult> SavePriceValues([FromBody] PriceSettingsViewModel model)
         {
@@ -160,5 +162,74 @@ namespace PriceSafari.Controllers.MemberControllers
             await _context.SaveChangesAsync();
             return Json(new { success = true });
         }
+
+
+
+        // Akcja kontrolera, która ładuje tylko szkielet strony.
+        // Dane są dociągane dynamicznie przez JavaScript.
+        [HttpGet]
+        public async Task<IActionResult> Details(int storeId, int productId)
+        {
+            if (!await UserHasAccessToStore(storeId)) return Forbid();
+
+            var product = await _context.AllegroProducts.FindAsync(productId);
+            if (product == null) return NotFound("Product not found.");
+
+            var store = await _context.Stores.FindAsync(storeId);
+            if (store == null) return NotFound("Store not found.");
+
+            ViewBag.StoreId = storeId;
+            ViewBag.ProductId = productId;
+            ViewBag.ProductName = product.AllegroProductName;
+            ViewBag.StoreName = store.StoreNameAllegro;
+            ViewBag.AllegroOfferUrl = product.AllegroOfferUrl;
+
+            return View("~/Views/Panel/AllegroPriceHistory/Details.cshtml");
+        }
+
+        // Akcja API, która zwraca dane w formacie JSON na żądanie z widoku.
+        [HttpGet]
+        public async Task<IActionResult> GetProductPriceDetails(int storeId, int productId)
+        {
+            if (!await UserHasAccessToStore(storeId)) return Forbid();
+
+            var priceSettings = await _context.PriceValues
+                .FirstOrDefaultAsync(pv => pv.StoreId == storeId);
+
+            var latestScrap = await _context.AllegroScrapeHistories
+                .Where(sh => sh.StoreId == storeId)
+                .OrderByDescending(sh => sh.Date)
+                .FirstOrDefaultAsync();
+
+            if (latestScrap == null)
+            {
+                return Json(new { data = new List<object>() });
+            }
+
+            var allOffersForProduct = await _context.AllegroPriceHistories
+                .Where(aph => aph.AllegroScrapeHistoryId == latestScrap.Id &&
+                              aph.AllegroProductId == productId &&
+                              aph.Price > 0)
+                .OrderBy(x => x.Price)
+                .Select(aph => new {
+                    aph.SellerName,
+                    aph.Price,
+                    aph.AllegroProduct.AllegroOfferUrl
+                })
+                .ToListAsync();
+
+            return Json(new
+            {
+                data = allOffersForProduct,
+                lastScrapeDate = latestScrap.Date, // Dodajemy datę ostatniego scrapu do odpowiedzi
+                setPrice1 = priceSettings?.AllegroSetPrice1 ?? 0.01m,
+                setPrice2 = priceSettings?.AllegroSetPrice2 ?? 2.00m
+            });
+        }
+
+
+
+
+
     }
 }
