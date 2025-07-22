@@ -63,7 +63,6 @@ namespace PriceSafari.Controllers.MemberControllers
             if (!await UserHasAccessToStore(storeId.Value)) return Forbid();
 
             var store = await _context.Stores.FindAsync(storeId.Value);
-
             var priceSettings = await _context.PriceValues
                 .FirstOrDefaultAsync(pv => pv.StoreId == storeId.Value);
 
@@ -74,7 +73,6 @@ namespace PriceSafari.Controllers.MemberControllers
 
             if (latestScrap == null)
             {
-
                 return Json(new { myStoreName = store?.StoreName, prices = new List<object>() });
             }
 
@@ -95,13 +93,14 @@ namespace PriceSafari.Controllers.MemberControllers
                     {
                         ProductId = product.AllegroProductId,
                         ProductName = product.AllegroProductName,
-
                         Producer = (string)null,
                         MyPrice = myOffer?.Price,
                         LowestPrice = bestCompetitor?.Price,
                         StoreName = bestCompetitor?.SellerName,
                         StoreCount = g.Select(p => p.SellerName).Distinct().Count(),
-
+                        // ZMIANA START: Dodajemy nową właściwość z całkowitą liczbą ofert
+                        TotalOfferCount = g.Count(),
+                        // ZMIANA KONIEC
                         IsRejected = false,
                         OnlyMe = (myOffer != null && !competitors.Any()),
                         Savings = (myOffer != null && bestCompetitor != null && myOffer.Price < bestCompetitor.Price) ? bestCompetitor.Price - myOffer.Price : (decimal?)null,
@@ -110,7 +109,6 @@ namespace PriceSafari.Controllers.MemberControllers
                         IsUniqueBestPrice = (myOffer != null && bestCompetitor != null && myOffer.Price < bestCompetitor.Price),
                         IsSharedBestPrice = (myOffer != null && bestCompetitor != null && myOffer.Price == bestCompetitor.Price),
                         FlagIds = new List<int>(),
-
                         Ean = (string)null,
                         ExternalId = (int?)null,
                         MarginPrice = product.MarginPrice,
@@ -122,11 +120,11 @@ namespace PriceSafari.Controllers.MemberControllers
             {
                 myStoreName = store.StoreNameAllegro,
                 prices = groupedData,
+                priceCount = priceData.Count, // Dodajmy też całkowitą liczbę cen dla modalu info
                 setPrice1 = priceSettings?.AllegroSetPrice1 ?? 2.00m,
                 setPrice2 = priceSettings?.AllegroSetPrice2 ?? 2.00m,
                 stepPrice = priceSettings?.AllegroPriceStep ?? 2.00m,
                 usePriceDifference = priceSettings?.AllegroUsePriceDiff ?? true
-
             });
         }
 

@@ -53,6 +53,73 @@
         return { valueToUse: valueForColor, colorClass: colorClass };
     }
 
+    function getOfferText(count) {
+        if (count === 1) return `${count} Oferta`;
+        // Obsługa liczb "nastoletnich" (12-14), które mają końcówkę "Ofert"
+        if (count > 10 && count < 20) return `${count} Ofert`;
+        const lastDigit = count % 10;
+        // Obsługa liczb kończących się na 2, 3, 4
+        if ([2, 3, 4].includes(lastDigit)) return `${count} Oferty`;
+        // Domyślnie dla 0, 1, 5-9
+        return `${count} Ofert`;
+    }
+
+
+    function getDefaultButtonLabel(key) {
+        switch (key) {
+            case 'sortName': return 'A-Z';
+            case 'sortPrice': return 'Cena';
+            case 'sortRaiseAmount': return 'Podnieś PLN';
+            case 'sortRaisePercentage': return 'Podnieś %';
+            case 'sortLowerAmount': return 'Obniż PLN';
+            case 'sortLowerPercentage': return 'Obniż %';
+            default: return '';
+        }
+    }
+
+    function updateSortButtonVisuals() {
+        Object.keys(sortingState).forEach(key => {
+            const stateValue = sortingState[key];
+            const button = document.getElementById(key);
+
+            if (button && stateValue !== null) {
+                button.classList.add('active');
+                const directionArrow = stateValue === 'asc' ? '↑' : '↓';
+                button.innerHTML = `${getDefaultButtonLabel(key)} ${directionArrow}`;
+            } else if (button) {
+                button.classList.remove('active');
+                button.innerHTML = getDefaultButtonLabel(key);
+            }
+        });
+    }
+
+    function getExactMatchIndex(text, searchTerm) {
+        return text.indexOf(searchTerm);
+    }
+
+    function getLongestMatchLength(text, searchTerm) {
+        let maxLength = 0;
+        for (let i = 0; i < text.length; i++) {
+            for (let j = i; j <= text.length; j++) {
+                const substring = text.slice(i, j);
+                if (searchTerm.includes(substring) && substring.length > maxLength) {
+                    maxLength = substring.length;
+                }
+            }
+        }
+        return maxLength;
+    }
+
+
+    // Wklej tę funkcję do AllegroPriceHistory.js
+
+    function highlightMatches(fullText, searchTerm) {
+        if (!searchTerm || !fullText) return fullText;
+        const escapedTerm = searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const regex = new RegExp(escapedTerm, 'gi');
+        return fullText.replace(regex, (match) => `<span class="highlighted-text">${match}</span>`);
+    }
+
     function getColorClass(valueToUse, isUniqueBestPrice = false, isSharedBestPrice = false) {
         if (isSharedBestPrice) return "prGood";
 
@@ -83,11 +150,22 @@
     function renderPrices(data) {
         const container = document.getElementById('priceContainer');
         container.innerHTML = '';
+
+        // Pobierz aktualne frazy wyszukiwania
+        const productSearchTerm = document.getElementById('productSearch').value.trim();
+        const storeSearchTerm = document.getElementById('storeSearch').value.trim();
+
         const paginatedData = data.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
         paginatedData.forEach(item => {
             const myPrice = item.myPrice != null ? parseFloat(item.myPrice) : null;
             const lowestPrice = item.lowestPrice != null ? parseFloat(item.lowestPrice) : null;
+
+            // Użyj funkcji podświetlającej
+            const highlightedProductName = highlightMatches(item.productName, productSearchTerm);
+            const highlightedStoreName = highlightMatches(item.storeName, storeSearchTerm);
+            const highlightedMyStoreName = highlightMatches(myStoreName, storeSearchTerm);
+
 
             const box = document.createElement('div');
             box.className = 'price-box ' + item.colorClass;
@@ -95,19 +173,27 @@
 
             box.innerHTML = `
             <div class="price-box-space">
-                <div class="price-box-column-name">${item.productName}</div>
+                <div class="price-box-column-name">${highlightedProductName}</div>
+            </div>
+            <div class="price-box-externalInfo">
+                <div class="price-box-column-offers">
+                    <span class="data-channel">
+                        <img src="/images/AllegroIcon.png" alt="Allegro Icon" style="width:15px; height:15px;" />
+                    </span>
+                    <div class="offer-count-box">${getOfferText(item.totalOfferCount)}</div>
+                </div>
             </div>
             <div class="price-box-data">
                 <div class="color-bar ${item.colorClass}"></div>
                 <div class="price-box-column">
                     ${(item.onlyMe || lowestPrice == null) ?
                     `<div><span style="font-weight: 500;">Brak konkurencji</span></div>` :
-                    `<div><span style="font-weight: 500; font-size: 17px;">${lowestPrice.toFixed(2)} PLN</span><div>${item.storeName || ''}</div></div>`
+                    `<div><span style="font-weight: 500; font-size: 17px;">${lowestPrice.toFixed(2)} PLN</span><div>${highlightedStoreName || ''}</div></div>`
                 }
                 </div>
                 <div class="price-box-column">
                     ${myPrice != null ?
-                    `<div><span style="font-weight: 500; font-size: 17px;">${myPrice.toFixed(2)} PLN</span><div>${myStoreName}</div></div>` :
+                    `<div><span style="font-weight: 500; font-size: 17px;">${myPrice.toFixed(2)} PLN</span><div>${highlightedMyStoreName}</div></div>` :
                     `<div><span style="font-weight: 500;">Brak Twojej oferty</span></div>`
                 }
                 </div>
@@ -121,6 +207,7 @@
                 return;
             }
 
+            // Logika dla sugestii cen pozostaje bez zmian...
             if (item.colorClass === "prToLow" || item.colorClass === "prIdeal") {
                 const savingsValue = parseFloat(item.savings);
                 const upArrowClass = item.colorClass === 'prToLow' ? 'arrow-up-black' : 'arrow-up-turquoise';
@@ -192,31 +279,25 @@
                     </div>
                 </div>
             `;
-                // ZMIANA START: Logika dla przypadku "prGood"
             } else if (item.colorClass === "prGood") {
-                // Pierwsza opcja: Wyrównaj (zmiana 0)
                 const amount1 = 0;
                 const percentage1 = 0;
                 const suggestedPrice1 = myPrice;
 
-                // Druga opcja: Pokonaj konkurencję o krok cenowy
                 let suggestedPrice2, amount2, percentage2;
-                let downArrowClass = 'arrow-down-green'; // Strzałka w dół
+                let downArrowClass = 'arrow-down-green';
 
-                // Jeśli jest więcej niż 1 oferta w tej samej cenie, zasugeruj obniżkę
                 if (item.storeCount > 1) {
                     if (usePriceDifference) {
                         suggestedPrice2 = myPrice - setStepPrice;
                     } else {
                         let reduction = myPrice * (setStepPrice / 100);
-                        // Upewnij się, że obniżka to co najmniej 0.01 PLN
                         if (reduction < 0.01) reduction = 0.01;
                         suggestedPrice2 = myPrice - reduction;
                     }
-                    amount2 = suggestedPrice2 - myPrice; // Wynik będzie ujemny
+                    amount2 = suggestedPrice2 - myPrice;
                     percentage2 = myPrice > 0 ? (amount2 / myPrice) * 100 : 0;
                 } else {
-                    // Jeśli jesteś jedyny w tej cenie, druga opcja jest taka sama jak pierwsza
                     suggestedPrice2 = myPrice;
                     amount2 = 0;
                     percentage2 = 0;
@@ -242,7 +323,6 @@
                 </div>
             `;
             }
-            // ZMIANA KONIEC
         });
 
         renderPaginationControls(data.length);
@@ -340,18 +420,44 @@
 
             for (const [key, direction] of Object.entries(sortingState)) {
                 if (direction) {
-                    const sortKey = key.replace('sort', '').charAt(0).toLowerCase() + key.slice(5);
+                    // ZMIANA START: Poprawiona i ujednoznaczniona logika sortowania
                     filtered.sort((a, b) => {
-                        let valA = a[sortKey]; let valB = b[sortKey];
-                        if (sortKey === 'raiseAmount') { valA = a.savings; valB = b.savings; }
-                        if (sortKey === 'raisePercentage') { valA = a.percentageDifference; valB = b.percentageDifference; }
-                        if (sortKey === 'lowerAmount') { valA = a.priceDifference; valB = b.priceDifference; }
-                        if (sortKey === 'lowerPercentage') { valA = a.percentageDifference; valB = b.percentageDifference; }
+                        let valA, valB;
 
-                        if (valA == null) return 1; if (valB == null) return -1;
-                        if (typeof valA === 'string') return direction === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
+                        switch (key) {
+                            case 'sortName':
+                                valA = a.productName;
+                                valB = b.productName;
+                                break;
+                            case 'sortPrice':
+                                valA = a.lowestPrice;
+                                valB = b.lowestPrice;
+                                break;
+                            case 'sortRaiseAmount':
+                                valA = a.savings;
+                                valB = b.savings;
+                                break;
+                            case 'sortRaisePercentage':
+                            case 'sortLowerPercentage':
+                                valA = a.percentageDifference;
+                                valB = b.percentageDifference;
+                                break;
+                            case 'sortLowerAmount':
+                                valA = a.priceDifference;
+                                valB = b.priceDifference;
+                                break;
+                            default:
+                                return 0;
+                        }
+
+                        if (valA == null) return 1;
+                        if (valB == null) return -1;
+                        if (typeof valA === 'string') {
+                            return direction === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
+                        }
                         return direction === 'asc' ? valA - valB : valB - valA;
                     });
+                    // ZMIANA KONIEC
                     break;
                 }
             }
@@ -382,10 +488,23 @@
             if (button) {
                 button.addEventListener('click', () => {
                     const currentDirection = sortingState[key];
+
+                    // Resetuj wszystkie stany sortowania
                     Object.keys(sortingState).forEach(k => sortingState[k] = null);
-                    if (currentDirection === 'asc') sortingState[key] = 'desc';
-                    else if (currentDirection === 'desc') sortingState[key] = null;
-                    else sortingState[key] = 'asc';
+
+                    // Ustaw nowy stan dla klikniętego przycisku
+                    if (currentDirection === 'asc') {
+                        sortingState[key] = 'desc';
+                    } else if (currentDirection === 'desc') {
+                        sortingState[key] = null; // Trzecie kliknięcie resetuje
+                    } else {
+                        sortingState[key] = 'asc';
+                    }
+
+                    // Zaktualizuj wygląd wszystkich przycisków
+                    updateSortButtonVisuals();
+
+                    // Przefiltruj i posortuj dane
                     filterAndSortPrices();
                 });
             }
