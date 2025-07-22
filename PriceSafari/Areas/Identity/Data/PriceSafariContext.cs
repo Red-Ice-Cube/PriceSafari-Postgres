@@ -50,7 +50,7 @@ namespace PriceSafari.Data
         public DbSet<CompetitorPresetClass> CompetitorPresets { get; set; }
         public DbSet<CompetitorPresetItem> CompetitorPresetItems { get; set; }
         public DbSet<AllegroProductClass> AllegroProducts { get; set; }
-
+        public DbSet<AllegroOfferToScrape> AllegroOffersToScrape { get; set; }
 
 
 
@@ -58,7 +58,7 @@ namespace PriceSafari.Data
         {
             base.OnModelCreating(modelBuilder);
 
-            // Dodatkowe relacje z istniejącymi encjami, jak w oryginalnym przykładzie:
+
             modelBuilder.Entity<PriceSafariUser>()
                 .HasOne(u => u.AffiliateVerification)
                 .WithOne(av => av.PriceSafariUser)

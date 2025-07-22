@@ -9,6 +9,7 @@ using PriceSafari.Hubs;
 using PriceSafari.Models;
 using PriceSafari.Models.SchedulePlan;
 using PriceSafari.Scrapers;
+using PriceSafari.Services.AllegroServices;
 using PriceSafari.Services.ConnectionStatus;
 using PriceSafari.Services.ControlNetwork;
 using PriceSafari.Services.ControlXY;
@@ -66,6 +67,7 @@ public class Program
         builder.Services.AddScoped<CeneoScraperService>();
         builder.Services.AddHostedService<ScraperHealthCheckService>();
         builder.Services.AddScoped<INetworkControlService, NetworkControlService>();
+        builder.Services.AddScoped<AllegroUrlGroupingService>();
 
         GlobalFontSettings.UseWindowsFontsUnderWindows = true;
 
