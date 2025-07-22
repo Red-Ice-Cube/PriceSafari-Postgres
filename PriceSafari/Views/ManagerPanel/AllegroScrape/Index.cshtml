@@ -1,6 +1,6 @@
 ﻿@model AllegroScrapeViewModel
 @using PriceSafari.Models.ManagerViewModels
-@using PriceSafari.ScrapersControllers // Potrzebne dla enumów
+@using PriceSafari.ScrapersControllers
 @{
     ViewData["Title"] = "Scrapowanie Ofert Allegro";
     Layout = "~/Views/Shared/_PanelLayout.cshtml";
@@ -12,32 +12,34 @@
             <div class="card-header">
                 <h4><i class="fas fa-toggle-on"></i> Panel Sterowania Procesem</h4>
             </div>
-            <div class="card-body">
+            <div class="card-body" id="process-control-panel">
                 <p>
                     Aktualny status:
                     @if (Model.CurrentStatus == ScrapingProcessStatus.Running)
                     {
-                        <span class="badge bg-success">URUCHOMIONY</span>
+                        <span id="process-status-badge" class="badge bg-success">URUCHOMIONY</span>
                     }
                     else
                     {
-                        <span class="badge bg-danger">ZATRZYMANY</span>
+                        <span id="process-status-badge" class="badge bg-danger">ZATRZYMANY</span>
                     }
                 </p>
-                @if (Model.CurrentStatus == ScrapingProcessStatus.Running)
-                {
-                    <form asp-action="StopScraping" method="post">
-                        @Html.AntiForgeryToken()
-                        <button type="submit" class="btn btn-danger"><i class="fas fa-stop-circle"></i> Zatrzymaj Scrapowanie</button>
-                    </form>
+
+                @{
+                    var anyScraperOnline = Model.ActiveScrapers.Any(s => s.Status != ScraperLiveStatus.Offline);
                 }
-                else
-                {
-                    <form asp-action="StartScraping" method="post">
-                        @Html.AntiForgeryToken()
-                        <button type="submit" class="btn btn-success"><i class="fas fa-play-circle"></i> Uruchom Scrapowanie</button>
-                    </form>
-                }
+
+                <form id="stop-form" asp-controller="AllegroScrape" asp-action="StopScraping" method="post" style="@(Model.CurrentStatus == ScrapingProcessStatus.Running ? "display:block;" : "display:none;")">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="btn btn-danger"><i class="fas fa-stop-circle"></i> Zatrzymaj Scrapowanie</button>
+                </form>
+
+                <form id="start-form" asp-controller="AllegroScrape" asp-action="StartScraping" method="post" style="@(Model.CurrentStatus == ScrapingProcessStatus.Running ? "display:none;" : "display:block;")">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="btn btn-success" id="start-scraping-btn" disabled="@(!anyScraperOnline)" title="@(anyScraperOnline ? "Uruchom proces scrapowania" : "Nie można uruchomić - brak aktywnych scraperów")">
+                        <i class="fas fa-play-circle"></i> Uruchom Scrapowanie
+                    </button>
+                </form>
             </div>
         </div>
     </div>
@@ -49,22 +51,22 @@
             <div class="card-body" id="detail-scrapers-list">
                 @if (!Model.ActiveScrapers.Any())
                 {
-                    <p class="text-muted">Brak aktywnych scraperów. Uruchom skrypt w Pythonie.</p>
+                    <p class="text-muted" id="no-scrapers-info">Brak aktywnych scraperów. Uruchom skrypt w Pythonie.</p>
                 }
-                @foreach (var scraper in Model.ActiveScrapers)
+
+                @foreach (var scraper in Model.ActiveScrapers.OrderBy(s => s.Name))
                 {
-                    <p id="scraper-@scraper.Name">
+                    <div class="scraper-entry" id="scraper-@scraper.Name">
                         <strong>@scraper.Name:</strong>
+                        <span class="badge @(scraper.Status == ScraperLiveStatus.Busy ? "bg-info" : scraper.Status == ScraperLiveStatus.Offline ? "bg-secondary" : "bg-success")">
+                            @scraper.Status.ToString()
+                        </span>
                         @if (scraper.Status == ScraperLiveStatus.Busy)
                         {
-                            <span class="badge bg-info">Pracuje (Zadanie @scraper.CurrentTaskId)</span>
+                            <small class="text-muted scraper-task-info">(Pracuje nad: @scraper.CurrentTaskId)</small>
                         }
-                        else
-                        {
-                            <span class="badge bg-success">Czeka na zadanie</span>
-                        }
-                        <small class="text-muted"> widziano: @scraper.LastCheckIn.ToLocalTime().ToString("HH:mm:ss")</small>
-                    </p>
+                        <small class="text-muted scraper-last-seen"> widziano: @scraper.LastCheckIn.ToLocalTime().ToString("HH:mm:ss")</small>
+                    </div>
                 }
             </div>
         </div>
@@ -75,7 +77,7 @@
 
 <div class="card">
     <div class="card-header d-flex justify-content-between align-items-center">
-        <h4><i class="fas fa-list-ul"></i> Przygotowane Oferty do Scrapowania (@Model.PreparedOffers.Count)</h4>
+        <h4><i class="fas fa-list-ul"></i> Przygotowane Oferty do Scrapowania (<span id="prepared-offers-count">@Model.PreparedOffers.Count</span>)</h4>
         <div>
             <form asp-action="PrepareUrls" method="post" class="d-inline">
                 @Html.AntiForgeryToken()
@@ -105,21 +107,23 @@
                         <tr id="offer-row-@offer.Id">
                             <td><a href="@offer.AllegroOfferUrl" target="_blank" rel="noopener noreferrer" title="@offer.AllegroOfferUrl">@offer.AllegroOfferUrl.Substring(0, Math.Min(offer.AllegroOfferUrl.Length, 80))...</a></td>
                             <td>@string.Join(", ", offer.AllegroProductIds)</td>
-                            <td class="text-center">
+                            <td class="text-center status-cell">
                                 @if (offer.IsRejected)
                                 {
-                                    <span class="badge bg-danger" title="Scraper napotkał błąd i odrzucił ten URL.">❌ Odrzucona</span>
+                                    <span class="badge bg-danger" title="Scraper napotkał błąd.">❌ Odrzucona</span>
                                 }
                                 else if (offer.IsScraped)
                                 {
+
                                     <span class="badge bg-success" title="Scrapowanie zakończone.">✅ Zeskanowana</span>
                                 }
                                 else
                                 {
+
                                     <span class="badge bg-warning text-dark" title="Oczekuje na przetworzenie.">⏳ Oczekuje</span>
                                 }
                             </td>
-                            <td class="text-center">
+                            <td class="text-center prices-cell">
                                 <span class="badge bg-info">@offer.CollectedPricesCount</span>
                             </td>
                         </tr>
@@ -127,7 +131,7 @@
                 }
                 else
                 {
-                    <tr>
+                    <tr id="no-offers-row">
                         <td colspan="4" class="text-center text-muted">Brak przygotowanych ofert. Kliknij przycisk "Przygotuj / Scal URL-e".</td>
                     </tr>
                 }
@@ -139,32 +143,118 @@
 @section Scripts {
     <script src="~/lib/microsoft/signalr/dist/browser/signalr.min.js"></script>
     <script>
-        // JS do obsługi SignalR (prosta wersja, do rozbudowy)
-        const connection = new signalR.HubConnectionBuilder().withUrl("/scrapingHub").build();
+        document.addEventListener("DOMContentLoaded", function () {
+            const connection = new signalR.HubConnectionBuilder()
+                .withUrl("/scrapingHub")
+                .withAutomaticReconnect()
+                .build();
 
-        // Funkcja do aktualizacji wiersza w tabeli
-        connection.on("UpdateAllegroOfferRow", (offer) => {
-            const row = document.getElementById(`offer-row-${offer.id}`);
-            if (row) {
-                let statusHtml = '';
-                if (offer.isRejected) {
-                    statusHtml = '<span class="badge bg-danger" title="Scraper napotkał błąd i odrzucił ten URL.">❌ Odrzucona</span>';
-                } else if (offer.isScraped) {
-                    statusHtml = '<span class="badge bg-success" title="Scrapowanie zakończone.">✅ Zeskanowana</span>';
+            // Słowniki do mapowania statusów
+            const scraperStatusMap = {
+                0: { name: 'Czeka', class: 'bg-success' }, // Idle
+                1: { name: 'Pracuje', class: 'bg-info' },   // Busy
+                2: { name: 'Offline', class: 'bg-secondary' }, // Offline
+                3: { name: 'Resetuje', class: 'bg-warning text-dark' } // ResettingNetwork
+            };
+
+            // --- FUNKCJE POMOCNICZE ---
+
+            function updateStartButtonState() {
+                const startButton = document.getElementById('start-scraping-btn');
+                if (!startButton) return;
+
+                // Sprawdzamy, czy istnieje jakikolwiek scraper, który NIE ma statusu 'Offline'
+                const onlineScrapers = document.querySelectorAll('.scraper-entry .badge:not(.bg-secondary)').length;
+
+                if (onlineScrapers > 0) {
+                    startButton.disabled = false;
+                    startButton.title = 'Uruchom proces scrapowania';
                 } else {
-                    statusHtml = '<span class="badge bg-warning text-dark" title="Oczekuje na przetworzenie.">⏳ Oczekuje</span>';
+                    startButton.disabled = true;
+                    startButton.title = 'Nie można uruchomić - brak aktywnych scraperów';
                 }
-                row.cells[2].innerHTML = statusHtml;
-                row.cells[3].innerHTML = `<span class="badge bg-info">${offer.collectedPricesCount}</span>`;
             }
-        });
 
-        // Tu można dodać logikę do aktualizacji listy scraperów
-        connection.on("UpdateDetailScraperStatus", (scraper) => {
-            console.log("Otrzymano status scrapera:", scraper);
-       
-        });
+            function renderScraper(scraper) {
+                const list = document.getElementById('detail-scrapers-list');
+                let entry = document.getElementById(`scraper-${scraper.name}`);
 
-        connection.start().catch(err => console.error(err.toString()));
+                const statusInfo = scraperStatusMap[scraper.status] || { name: 'Nieznany', class: 'bg-dark' };
+                const taskInfo = scraper.status === 1 && scraper.currentTaskId ? `<small class="text-muted scraper-task-info">(Zadanie ${scraper.currentTaskId})</small>` : '';
+                const lastSeen = new Date(scraper.lastCheckIn).toLocaleTimeString();
+
+                const innerHtml = `
+                    <strong>${scraper.name}:</strong>
+                    <span class="badge ${statusInfo.class}">${statusInfo.name}</span>
+                    ${taskInfo}
+                    <small class="text-muted scraper-last-seen"> widziano: ${lastSeen}</small>
+                `;
+
+                if (!entry) {
+                    const placeholder = document.getElementById('no-scrapers-info');
+                    if(placeholder) placeholder.remove();
+
+                    entry = document.createElement('div');
+                    entry.id = `scraper-${scraper.name}`;
+                    entry.className = 'scraper-entry';
+                    list.appendChild(entry);
+                }
+                entry.innerHTML = innerHtml;
+                updateStartButtonState();
+            }
+
+            // --- HANDLERY SIGNALR ---
+
+            connection.on("UpdateDetailScraperStatus", renderScraper);
+
+            connection.on("UpdateScrapingProcessStatus", (statusUpdate) => {
+                const statusBadge = document.getElementById('process-status-badge');
+                const startForm = document.getElementById('start-form');
+                const stopForm = document.getElementById('stop-form');
+
+                if (!statusBadge || !startForm || !stopForm) return;
+
+                const isRunning = statusUpdate.status === 'Running';
+
+                statusBadge.textContent = isRunning ? 'URUCHOMIONY' : 'ZATRZYMANY';
+                statusBadge.className = isRunning ? 'badge bg-success' : 'badge bg-danger';
+
+                startForm.style.display = isRunning ? 'none' : 'block';
+                stopForm.style.display = isRunning ? 'block' : 'none';
+
+                updateStartButtonState();
+            });
+
+            connection.on("UpdateAllegroOfferRow", (offer) => {
+                const row = document.getElementById(`offer-row-${offer.id}`);
+                if (row) {
+                    const statusCell = row.querySelector('.status-cell');
+                    const pricesCell = row.querySelector('.prices-cell');
+
+                    if (offer.isRejected) {
+                        statusCell.innerHTML = '<span class="badge bg-danger" title="Scraper napotkał błąd.">❌ Odrzucona</span>';
+                    } else if (offer.isScraped) {
+                        statusCell.innerHTML = '<span class="badge bg-success" title="Scrapowanie zakończone.">✅ Zeskanowana</span>';
+                    }
+                    pricesCell.innerHTML = `<span class="badge bg-info">${offer.collectedPricesCount}</span>`;
+                }
+            });
+
+            // --- START POŁĄCZENIA ---
+            async function start() {
+                try {
+                    await connection.start();
+                    console.log("SignalR Connected.");
+                    updateStartButtonState();
+                } catch (err) {
+                    console.error("SignalR Connection Error: ", err);
+                    setTimeout(start, 5000);
+                }
+            };
+            connection.onclose(async () => {
+                await start();
+            });
+            start();
+        });
     </script>
 }

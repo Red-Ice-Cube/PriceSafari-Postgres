@@ -37,25 +37,34 @@ namespace PriceSafari.Controllers.ManagerControllers
             return View("~/Views/ManagerPanel/AllegroScrape/Index.cshtml", viewModel);
         }
 
-        // NOWA AKCJA - Start
+        // Wewnątrz klasy AllegroScrapeController
+
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> StartScraping()
         {
+            // NOWE ZABEZPIECZENIE: Sprawdź, czy jest co najmniej jeden scraper online
+            var anyActiveScrapers = AllegroScrapeManager.ActiveScrapers.Values.Any(s => s.Status != ScraperLiveStatus.Offline);
+
+            if (!anyActiveScrapers)
+            {
+                TempData["ErrorMessage"] = "Nie można uruchomić procesu. Żaden scraper nie jest aktywny (online).";
+                return RedirectToAction(nameof(Index));
+            }
+
             AllegroScrapeManager.CurrentStatus = ScrapingProcessStatus.Running;
             TempData["SuccessMessage"] = "Proces scrapowania ofert został uruchomiony.";
-            await _hubContext.Clients.All.SendAsync("UpdateScrapingProcessStatus", "Running");
+            await _hubContext.Clients.All.SendAsync("UpdateScrapingProcessStatus", new { status = "Running" });
             return RedirectToAction(nameof(Index));
         }
 
-        // NOWA AKCJA - Stop
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> StopScraping()
         {
             AllegroScrapeManager.CurrentStatus = ScrapingProcessStatus.Idle;
             TempData["SuccessMessage"] = "Proces scrapowania ofert został zatrzymany.";
-            await _hubContext.Clients.All.SendAsync("UpdateScrapingProcessStatus", "Idle");
+            await _hubContext.Clients.All.SendAsync("UpdateScrapingProcessStatus", new { status = "Idle" });
             return RedirectToAction(nameof(Index));
         }
 
