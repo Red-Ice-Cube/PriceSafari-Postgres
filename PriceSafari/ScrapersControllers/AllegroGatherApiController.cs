@@ -1,6 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using PriceSafari.Data; // Załóżmy, że tutaj masz swój DbContext
+using PriceSafari.Data;
 using PriceSafari.Models;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -11,18 +11,17 @@ namespace PriceSafari.ScrapersControllers
 {
 
     [ApiController]
-    [Route("api/allegro-gather")] // Używamy ścieżki typowej dla API
+    [Route("api/allegro-gather")]
     public class AllegroGatherApiController : ControllerBase
     {
-        private readonly PriceSafariContext _context; // Wstrzyknij swój DbContext
-        private const string ApiKey = "twoj-super-tajny-klucz-api-123"; // Klucz API do testów
+        private readonly PriceSafariContext _context;
+        private const string ApiKey = "twoj-super-tajny-klucz-api-123";
 
         public AllegroGatherApiController(PriceSafariContext context)
         {
             _context = context;
         }
 
-        // === Endpoint do tworzenia zadania (wywoływany z Twojej aplikacji webowej) ===
         [HttpPost("start-task/{storeId}")]
         public async Task<IActionResult> StartTask(int storeId)
         {
@@ -32,13 +31,11 @@ namespace PriceSafari.ScrapersControllers
                 return NotFound("Nie znaleziono sklepu lub sklep nie ma przypisanej nazwy Allegro.");
             }
 
-            // Dodajemy nazwę użytkownika Allegro do naszej kolejki zadań
             AllegroTaskQueue.UsernamesToScrape.Enqueue(store.StoreNameAllegro);
 
             return Ok(new { message = $"Zadanie dla '{store.StoreNameAllegro}' zostało dodane do kolejki." });
         }
 
-        // === Endpoint dla Pythona: "Czy jest praca?" ===
         [HttpGet("get-task")]
         public IActionResult GetTask([FromHeader(Name = "X-Api-Key")] string receivedApiKey)
         {
@@ -47,20 +44,18 @@ namespace PriceSafari.ScrapersControllers
                 return Unauthorized("Błędny klucz API.");
             }
 
-            // Próbujemy pobrać zadanie z kolejki
             if (AllegroTaskQueue.UsernamesToScrape.TryDequeue(out var username))
             {
-                // Jest zadanie! Wysyłamy je do scrapera.
+
                 return Ok(new { allegroUsername = username });
             }
             else
             {
-                // Kolejka pusta, nie ma pracy.
+
                 return Ok(new { message = "Brak zadań w kolejce." });
             }
         }
 
-        // === Endpoint dla Pythona: "Oto znalezione produkty" ===
         [HttpPost("submit-products")]
         public async Task<IActionResult> SubmitProducts(
             [FromHeader(Name = "X-Api-Key")] string receivedApiKey,
@@ -76,7 +71,6 @@ namespace PriceSafari.ScrapersControllers
                 return BadRequest("Otrzymano pustą listę produktów.");
             }
 
-            // Tutaj znajdź StoreId na podstawie nazwy użytkownika Allegro
             var storeName = productDtos.First().StoreNameAllegro;
             var store = await _context.Stores
                                       .FirstOrDefaultAsync(s => s.StoreNameAllegro == storeName);
@@ -94,7 +88,6 @@ namespace PriceSafari.ScrapersControllers
                 AddedDate = DateTime.UtcNow
             }).ToList();
 
-            // Zapisujemy nowe produkty w bazie
             await _context.AllegroProducts.AddRangeAsync(newProducts);
             await _context.SaveChangesAsync();
 
@@ -102,19 +95,16 @@ namespace PriceSafari.ScrapersControllers
         }
     }
 
-    // Prosty obiekt DTO (Data Transfer Object) do przesyłania danych z Pythona
     public class AllegroProductDto
     {
         public string Name { get; set; }
         public string Url { get; set; }
-        public string StoreNameAllegro { get; set; } // Dodajemy to, żeby wiedzieć, do kogo przypisać produkty
+        public string StoreNameAllegro { get; set; }
     }
 
     public static class AllegroTaskQueue
     {
-        // ConcurrentQueue jest bezpieczna do użycia w środowisku wielowątkowym,
-        // co jest kluczowe w aplikacjach webowych.
-        // Przechowujemy tu nazwy użytkowników Allegro do zescrapowania.
+
         public static readonly ConcurrentQueue<string> UsernamesToScrape = new();
     }
 

@@ -1,9 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.IO; // Potrzebne dla StringReader
-using System.Linq; // Potrzebne dla bardziej zwięzłego sprawdzania stringów
-using System.Threading; // Potrzebne dla CancellationToken (opcjonalnie, ale dobra praktyka)
+using System.IO;
+using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 
@@ -11,7 +11,7 @@ namespace PriceSafari.Services.ControlNetwork
 {
     public interface INetworkControlService
     {
-        Task<bool> TriggerNetworkDisableAndResetAsync(CancellationToken cancellationToken = default); // Dodano CancellationToken
+        Task<bool> TriggerNetworkDisableAndResetAsync(CancellationToken cancellationToken = default);
         event EventHandler NetworkResetCompleted;
     }
 
@@ -20,12 +20,11 @@ namespace PriceSafari.Services.ControlNetwork
         private readonly ILogger<NetworkControlService> _logger;
         public event EventHandler NetworkResetCompleted;
 
-        // Lista docelowych interfejsów VPN
         private static readonly List<string> TargetVpnInterfaceNames = new List<string>
         {
             "Avast SecureLine VPN",
             "Avast SecureLine VPN WireGuard"
-            // Możesz dodać tu inne nazwy interfejsów, jeśli są używane
+
         };
 
         public NetworkControlService(ILogger<NetworkControlService> logger)
@@ -53,21 +52,19 @@ namespace PriceSafari.Services.ControlNetwork
                     var outputTask = proc.StandardOutput.ReadToEndAsync();
                     var errorTask = proc.StandardError.ReadToEndAsync();
 
-                    // Czekaj na zakończenie procesu, ale z timeoutem (np. 5 sekund)
-                    // Jeśli proces nie zakończy się w rozsądnym czasie, uznajemy, że coś jest nie tak.
                     bool processExited = await Task.Run(() => proc.WaitForExit(5000), cancellationToken);
 
                     if (cancellationToken.IsCancellationRequested)
                     {
                         _logger.LogInformation($"Sprawdzanie statusu interfejsu '{interfaceName}' anulowane.");
-                        if (!proc.HasExited) try { proc.Kill(); } catch { /* Ignoruj błędy przy zabijaniu */ }
+                        if (!proc.HasExited) try { proc.Kill(); } catch { }
                         return false;
                     }
 
                     if (!processExited)
                     {
                         _logger.LogWarning($"Proces netsh dla interfejsu '{interfaceName}' przekroczył limit czasu (5s). Zabijam proces.");
-                        try { proc.Kill(); } catch { /* Ignoruj błędy przy zabijaniu */ }
+                        try { proc.Kill(); } catch { }
                         return false;
                     }
 
@@ -77,7 +74,7 @@ namespace PriceSafari.Services.ControlNetwork
                     if (proc.ExitCode != 0)
                     {
                         _logger.LogWarning($"Polecenie netsh dla sprawdzenia statusu '{interfaceName}' zakończone kodem {proc.ExitCode}. Błąd: '{errorOutput?.Trim()}'. Wyjście: '{output?.Trim()}'");
-                        // Jeśli interfejs nie istnieje, netsh zwróci błąd.
+
                         if (!string.IsNullOrWhiteSpace(errorOutput) &&
                             (errorOutput.Contains("is not a valid interface name", StringComparison.OrdinalIgnoreCase) ||
                              errorOutput.Contains("The system cannot find the file specified", StringComparison.OrdinalIgnoreCase) ||
@@ -85,7 +82,7 @@ namespace PriceSafari.Services.ControlNetwork
                         {
                             _logger.LogInformation($"Interfejs '{interfaceName}' nie został znaleziony przez netsh.");
                         }
-                        return false; // Błąd wykonania netsh, zakładamy, że interfejs nie jest połączony poprawnie
+                        return false;
                     }
 
                     if (string.IsNullOrWhiteSpace(output))
@@ -167,7 +164,7 @@ namespace PriceSafari.Services.ControlNetwork
                 var args = $"interface set interface name=\"{interfaceName}\" admin=disabled";
                 var psi = new ProcessStartInfo("netsh", args)
                 {
-                    Verb = "runas", // Wymaga uprawnień administratora
+                    Verb = "runas",
                     UseShellExecute = true,
                     CreateNoWindow = true,
                     WindowStyle = ProcessWindowStyle.Hidden
@@ -185,11 +182,10 @@ namespace PriceSafari.Services.ControlNetwork
                             disableErrors.Add(errorMsg);
                             continue;
                         }
-                        await Task.Delay(TimeSpan.FromSeconds(3), cancellationToken); // Krótkie opóźnienie na wykonanie polecenia
+                        await Task.Delay(TimeSpan.FromSeconds(3), cancellationToken);
 
-       
                         _logger.LogInformation($"Polecenie wyłączenia dla '{interfaceName}' zostało wysłane.");
-                        anyDisableSuccess = true; // Zakładamy, że wysłanie polecenia to częściowy sukces
+                        anyDisableSuccess = true;
                     }
                 }
                 catch (OperationCanceledException)
@@ -199,13 +195,12 @@ namespace PriceSafari.Services.ControlNetwork
                 }
                 catch (Exception ex)
                 {
-                    // Jeśli np. użytkownik anuluje UAC, wpadnie tutaj Win32Exception "Operacja została anulowana przez użytkownika"
+
                     string errorMsg = $"Wystąpił wyjątek podczas próby wyłączenia interfejsu '{interfaceName}': {ex.Message}";
                     _logger.LogError(ex, errorMsg);
                     disableErrors.Add(errorMsg);
                 }
             }
-
 
             if (!anyDisableSuccess && disableErrors.Count == TargetVpnInterfaceNames.Count)
             {
@@ -216,7 +211,7 @@ namespace PriceSafari.Services.ControlNetwork
             _logger.LogInformation("Zakończono próby wysyłania poleceń wyłączania interfejsów. Rozpoczynam sprawdzanie ponownego połączenia (do 60 sekund).");
 
             bool reconnectedWithinTimeLimit = false;
-            for (int i = 0; i < 60; i++) 
+            for (int i = 0; i < 60; i++)
             {
                 if (cancellationToken.IsCancellationRequested)
                 {
@@ -231,16 +226,16 @@ namespace PriceSafari.Services.ControlNetwork
                     {
                         _logger.LogInformation($"WYKRYTO PONOWNE POŁĄCZENIE: Interfejs '{interfaceName}' jest aktywny.");
                         reconnectedWithinTimeLimit = true;
-                        break; // Wystarczy, że jeden z docelowych interfejsów się połączył
+                        break;
                     }
                 }
 
                 if (reconnectedWithinTimeLimit)
                 {
-                    break; // Przerwij pętlę sprawdzania
+                    break;
                 }
 
-                await Task.Delay(TimeSpan.FromSeconds(5), cancellationToken); 
+                await Task.Delay(TimeSpan.FromSeconds(5), cancellationToken);
             }
 
             if (reconnectedWithinTimeLimit)
