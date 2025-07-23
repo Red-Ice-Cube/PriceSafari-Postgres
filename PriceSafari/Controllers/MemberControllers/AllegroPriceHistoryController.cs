@@ -56,8 +56,6 @@ namespace PriceSafari.Controllers.MemberControllers
             return View("~/Views/Panel/AllegroPriceHistory/Index.cshtml");
         }
 
-
-
         [HttpGet]
         public async Task<IActionResult> GetAllegroPrices(int? storeId)
         {
@@ -91,22 +89,15 @@ namespace PriceSafari.Controllers.MemberControllers
                     var competitors = g.Where(p => !p.SellerName.Equals(store.StoreNameAllegro, StringComparison.OrdinalIgnoreCase)).ToList();
                     var bestCompetitor = competitors.OrderBy(p => p.Price).FirstOrDefault();
 
-                    // --- POCZĄTEK ZMIANY: NOWE OBLICZENIA ---
-
-                    // 1. Obliczamy sumę popularności dla wszystkich ofert w tej grupie
                     var totalPopularity = g.Sum(p => p.Popularity ?? 0);
 
-                    // 2. Filtrujemy tylko własne oferty i sumujemy ich popularność
                     var myPopularity = g
                         .Where(p => p.SellerName.Equals(store.StoreNameAllegro, StringComparison.OrdinalIgnoreCase))
                         .Sum(p => p.Popularity ?? 0);
 
-                    // 3. Obliczamy procentowy udział w rynku. Sprawdzamy, czy totalPopularity > 0, by uniknąć dzielenia przez zero.
                     var marketSharePercentage = (totalPopularity > 0)
                         ? ((decimal)myPopularity / totalPopularity) * 100
                         : 0;
-
-                    // --- KONIEC ZMIANY ---
 
                     return new
                     {
@@ -119,17 +110,14 @@ namespace PriceSafari.Controllers.MemberControllers
                         StoreCount = g.Select(p => p.SellerName).Distinct().Count(),
                         TotalOfferCount = g.Count(),
 
-                        // Zmodyfikowane i nowe pola popularności
-                        TotalPopularity = totalPopularity, // Całkowita popularność (już była, teraz używa zmiennej)
-                        MyTotalPopularity = myPopularity,             // NOWE POLE: Suma popularności tylko dla Twoich ofert
-                        MarketSharePercentage = marketSharePercentage, // NOWE POLE: Procentowy udział w rynku
+                        TotalPopularity = totalPopularity,
+                        MyTotalPopularity = myPopularity,
+                        MarketSharePercentage = marketSharePercentage,
 
-                        // --- DANE DLA NAJLEPSZEGO KONKURENTA ---
                         DeliveryTime = bestCompetitor?.DeliveryTime,
                         IsSuperSeller = bestCompetitor?.SuperSeller ?? false,
                         IsSmart = bestCompetitor?.Smart ?? false,
 
-                        // --- DANE DLA WŁASNEJ OFERTY ---
                         MyDeliveryTime = myOffer?.DeliveryTime,
                         MyIsSuperSeller = myOffer?.SuperSeller ?? false,
                         MyIsSmart = myOffer?.Smart ?? false,
@@ -169,8 +157,6 @@ namespace PriceSafari.Controllers.MemberControllers
             public bool UsePriceDifference { get; set; }
         }
 
-
-
         [HttpPost]
         public async Task<IActionResult> SavePriceValues([FromBody] PriceSettingsViewModel model)
         {
@@ -195,10 +181,6 @@ namespace PriceSafari.Controllers.MemberControllers
             return Json(new { success = true });
         }
 
-
-
-        // Akcja kontrolera, która ładuje tylko szkielet strony.
-        // Dane są dociągane dynamicznie przez JavaScript.
         [HttpGet]
         public async Task<IActionResult> Details(int storeId, int productId)
         {
@@ -219,7 +201,6 @@ namespace PriceSafari.Controllers.MemberControllers
             return View("~/Views/Panel/AllegroPriceHistory/Details.cshtml");
         }
 
-        // Akcja API, która zwraca dane w formacie JSON na żądanie z widoku.
         [HttpGet]
         public async Task<IActionResult> GetProductPriceDetails(int storeId, int productId)
         {
@@ -246,22 +227,30 @@ namespace PriceSafari.Controllers.MemberControllers
                 .Select(aph => new {
                     aph.SellerName,
                     aph.Price,
-                    aph.AllegroProduct.AllegroOfferUrl
+                    aph.AllegroProduct.AllegroOfferUrl,
+                    aph.SuperSeller,
+                    aph.Smart,
+                    aph.DeliveryTime,
+
+                    aph.DeliveryCost,
+                    aph.Popularity
+
                 })
                 .ToListAsync();
+
+            var totalPopularity = allOffersForProduct.Sum(o => o.Popularity ?? 0);
 
             return Json(new
             {
                 data = allOffersForProduct,
-                lastScrapeDate = latestScrap.Date, // Dodajemy datę ostatniego scrapu do odpowiedzi
+
+                totalProductPopularity = totalPopularity,
+
+                lastScrapeDate = latestScrap.Date,
                 setPrice1 = priceSettings?.AllegroSetPrice1 ?? 0.01m,
                 setPrice2 = priceSettings?.AllegroSetPrice2 ?? 2.00m
             });
         }
-
-
-
-
 
     }
 }
