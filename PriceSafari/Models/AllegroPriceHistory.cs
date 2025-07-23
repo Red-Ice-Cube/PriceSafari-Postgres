@@ -3,19 +3,16 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace PriceSafari.Models
 {
- 
     public class AllegroPriceHistory
     {
         [Key]
         public int Id { get; set; }
 
-        // Klucz obcy do produktu, którego dotyczy ta cena
         public int AllegroProductId { get; set; }
 
         [ForeignKey("AllegroProductId")]
         public virtual AllegroProductClass AllegroProduct { get; set; }
 
-        // Klucz obcy do sesji, w której ta cena została zapisana
         public int AllegroScrapeHistoryId { get; set; }
 
         [ForeignKey("AllegroScrapeHistoryId")]
@@ -34,5 +31,10 @@ namespace PriceSafari.Models
         public int? DeliveryTime { get; set; }
 
         public int? Popularity { get; set; }
+
+        // --- NOWE POLA ---
+        public bool SuperSeller { get; set; }
+        public bool Smart { get; set; }
+        // ------------------
     }
 }

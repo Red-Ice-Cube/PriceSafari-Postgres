@@ -1,6 +1,4 @@
-﻿// Plik: Models/AllegroScrapedOffer.cs
-
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace PriceSafari.Models
@@ -17,13 +15,16 @@ namespace PriceSafari.Models
         [Column(TypeName = "decimal(18, 2)")]
         public decimal Price { get; set; }
 
-        // --- NOWE POLA ---
         [Column(TypeName = "decimal(18, 2)")]
-        public decimal? DeliveryCost { get; set; } // Może być null
+        public decimal? DeliveryCost { get; set; }
 
-        public int? DeliveryTime { get; set; } // Może być null
+        public int? DeliveryTime { get; set; }
 
-        public int? Popularity { get; set; } // Może być null
+        public int? Popularity { get; set; }
+
+        // --- NOWE POLA ---
+        public bool SuperSeller { get; set; }
+        public bool Smart { get; set; }
         // ------------------
 
         public int AllegroOfferToScrapeId { get; set; }

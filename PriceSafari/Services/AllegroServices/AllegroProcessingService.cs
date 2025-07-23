@@ -74,10 +74,12 @@ namespace PriceSafari.Services.AllegroServices
                                 AllegroScrapeHistory = scrapeHistory,
                                 SellerName = scrapedOffer.SellerName,
                                 Price = scrapedOffer.Price,
-                                // --- MAPOWANIE NOWYCH PÓL ---
                                 DeliveryCost = scrapedOffer.DeliveryCost,
                                 DeliveryTime = scrapedOffer.DeliveryTime,
-                                Popularity = scrapedOffer.Popularity
+                                Popularity = scrapedOffer.Popularity,
+                                // --- MAPOWANIE NOWYCH PÓL ---
+                                SuperSeller = scrapedOffer.SuperSeller,
+                                Smart = scrapedOffer.Smart
                                 // -----------------------------
                             });
                         }

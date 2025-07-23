@@ -14,7 +14,7 @@ namespace PriceSafari.ScrapersControllers
         private readonly PriceSafariContext _context;
         private readonly IHubContext<ScrapingHub> _hubContext;
         private const string ApiKey = "twoj-super-tajny-klucz-api-123";
-        private const int BatchSize = 100; // Rozmiar paczki URL-i
+        private const int BatchSize = 200; // Rozmiar paczki URL-i
 
         public AllegroScrapeApiController(PriceSafariContext context, IHubContext<ScrapingHub> hubContext)
         {
@@ -72,7 +72,7 @@ namespace PriceSafari.ScrapersControllers
             return Ok(tasksForPython);
         }
 
-        [HttpPost("submit-batch-results")] // NOWY ENDPOINT
+        [HttpPost("submit-batch-results")]
         public async Task<IActionResult> SubmitBatchResults([FromBody] List<UrlResultDto> batchResults)
         {
             if (Request.Headers["X-Api-Key"] != ApiKey) return Unauthorized();
@@ -94,25 +94,26 @@ namespace PriceSafari.ScrapersControllers
 
                 if (result.Status == "success")
                 {
-                    // ZMIANA: Filtrujemy oferty, aby odrzucić te z domyślną nazwą "Brak sprzedawcy"
                     var validOffers = result.Offers
                         .Where(o => o.SellerName != "Brak sprzedawcy" && !string.IsNullOrWhiteSpace(o.SellerName))
                         .ToList();
 
                     offer.IsScraped = true;
-                    offer.CollectedPricesCount = validOffers.Count; // Zliczamy tylko poprawne oferty
+                    offer.CollectedPricesCount = validOffers.Count;
 
-                    foreach (var scraped in validOffers) // Iterujemy po przefiltrowanej liście
+                    foreach (var scraped in validOffers)
                     {
                         newScrapedOffers.Add(new AllegroScrapedOffer
                         {
                             AllegroOfferToScrapeId = offer.Id,
                             SellerName = scraped.SellerName,
                             Price = scraped.Price,
-                            // --- MAPOWANIE NOWYCH PÓL ---
                             DeliveryCost = scraped.DeliveryCost,
                             DeliveryTime = scraped.DeliveryTime,
-                            Popularity = scraped.Popularity
+                            Popularity = scraped.Popularity,
+                            // --- MAPOWANIE NOWYCH PÓL ---
+                            SuperSeller = scraped.SuperSeller,
+                            Smart = scraped.Smart
                             // -----------------------------
                         });
                     }
@@ -136,12 +137,17 @@ namespace PriceSafari.ScrapersControllers
     {
         public string SellerName { get; set; }
         public decimal Price { get; set; }
-        public decimal? DeliveryCost { get; set; } // NOWE POLE
-        public int? DeliveryTime { get; set; }   // NOWE POLE
-        public int? Popularity { get; set; }       // NOWE POLE
+        public decimal? DeliveryCost { get; set; }
+        public int? DeliveryTime { get; set; }
+        public int? Popularity { get; set; }
+
+
+        public bool SuperSeller { get; set; }
+        public bool Smart { get; set; }
+        // ------------------
     }
 
-    // DTO dla całej paczki wyników (pozostaje bez zmian, bo zawiera listę powyższego DTO)
+    // DTO dla całej paczki wyników (pozostaje bez zmian)
     public class UrlResultDto
     {
         public int TaskId { get; set; }
