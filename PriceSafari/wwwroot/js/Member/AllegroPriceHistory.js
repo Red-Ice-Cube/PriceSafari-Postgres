@@ -3,7 +3,6 @@
     let chartInstance = null;
     let myStoreName = "";
 
-    // Domyślne wartości, nadpisywane przez API
     let setPrice1 = 2.00;
     let setPrice2 = 2.00;
     let setStepPrice = 2.00;
@@ -55,15 +54,14 @@
 
     function getOfferText(count) {
         if (count === 1) return `${count} Oferta`;
-        // Obsługa liczb "nastoletnich" (12-14), które mają końcówkę "Ofert"
+
         if (count > 10 && count < 20) return `${count} Ofert`;
         const lastDigit = count % 10;
-        // Obsługa liczb kończących się na 2, 3, 4
+
         if ([2, 3, 4].includes(lastDigit)) return `${count} Oferty`;
-        // Domyślnie dla 0, 1, 5-9
+
         return `${count} Ofert`;
     }
-
 
     function getDefaultButtonLabel(key) {
         switch (key) {
@@ -110,9 +108,6 @@
         return maxLength;
     }
 
-
-    // Wklej tę funkcję do AllegroPriceHistory.js
-
     function highlightMatches(fullText, searchTerm) {
         if (!searchTerm || !fullText) return fullText;
         const escapedTerm = searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -120,33 +115,54 @@
         return fullText.replace(regex, (match) => `<span class="highlighted-text">${match}</span>`);
     }
 
+    function renderDeliveryInfo(deliveryTime) {
+        if (deliveryTime === null || deliveryTime === undefined) {
+            return '';
+        }
+
+        let text = '';
+        let className = '';
+
+        switch (deliveryTime) {
+            case 1:
+                text = 'Dostawa jutro';
+                className = 'Delivery1';
+                break;
+            case 2:
+                text = 'Dostawa pojutrze';
+                className = 'Delivery2';
+                break;
+            case 3:
+                text = 'Długa dostawa';
+                className = 'Delivery3';
+                break;
+            default:
+                return '';
+        }
+
+        return `<div class="${className}">${text}</div>`;
+    }
+
     function getColorClass(valueToUse, isUniqueBestPrice = false, isSharedBestPrice = false) {
         if (isSharedBestPrice) return "prGood";
 
         if (isUniqueBestPrice) {
-            // ZMIANA START: Dodajemy specjalną logikę dla trybu procentowego
+
             if (!usePriceDifference) {
-                // Jesteśmy w trybie procentowym. Wartość `valueToUse` jest ujemna (np. -5).
-                // Musimy porównać jej wartość bezwzględną z progiem.
-                // Math.abs(-5) > 2  -->  5 > 2  --> prawda, co oznacza, że cena jest ZANIŻONA.
+
                 return Math.abs(valueToUse) > setPrice1 ? "prToLow" : "prIdeal";
             } else {
-                // Jesteśmy w trybie PLN. Wartość `valueToUse` (oszczędność) jest dodatnia.
-                // Stara logika jest tutaj poprawna.
-                // 3 PLN <= 2 PLN --> fałsz, co oznacza, że cena jest ZANIŻONA.
+
                 return valueToUse <= setPrice1 ? "prIdeal" : "prToLow";
             }
-            // ZMIANA KONIEC
+
         }
 
         const numericValue = parseFloat(valueToUse);
         if (isNaN(numericValue)) return "prNoOffer";
 
-        // Ta logika dla cen zawyżonych (prMid, prToHigh) jest poprawna,
-        // ponieważ `valueToUse` jest wtedy zawsze dodatnie.
         return numericValue < setPrice2 ? "prMid" : "prToHigh";
     }
-
     function renderPrices(data) {
         const container = document.getElementById('priceContainer');
         container.innerHTML = '';
@@ -167,36 +183,94 @@
             const box = document.createElement('div');
             box.className = 'price-box ' + item.colorClass;
             box.dataset.productId = item.productId;
-
-            // ZMIANA START: Dodajemy atrybut data-details-url
             box.dataset.detailsUrl = `/AllegroPriceHistory/Details?storeId=${storeId}&productId=${item.productId}`;
-            box.style.cursor = 'pointer'; // Dodajemy kursor, by wskazać klikalność
-            // ZMIANA KONIEC
+            box.style.cursor = 'pointer';
 
             box.innerHTML = `
-            <div class="price-box-space">
+            <div class="price-box-space" style="margin-bottom:20px;">
                 <div class="price-box-column-name">${highlightedProductName}</div>
-            </div>
-            <div class="price-box-externalInfo">
-                <div class="price-box-column-offers">
-                    <span class="data-channel">
-                        <img src="/images/AllegroIcon.png" alt="Allegro Icon" style="width:15px; height:15px;" />
-                    </span>
-                    <div class="offer-count-box">${getOfferText(item.totalOfferCount)}</div>
-                </div>
             </div>
             <div class="price-box-data">
                 <div class="color-bar ${item.colorClass}"></div>
+
+                <div class="price-box-stats-container">
+                    <div class="price-box-column-offers-a">
+                        <span class="data-channel">
+                            <img src="/images/AllegroIcon.png" alt="Allegro Icon" style="width:15px; height:15px;" />
+                        </span>
+                        <div class="offer-count-box">${getOfferText(item.totalOfferCount)}</div>
+                    </div>
+                    <div class="price-box-column-offers-a">
+                        <span class="data-channel">
+                            <i class="fas fa-shopping-cart" style="font-size: 15px; color: grey; margin-top:1px;" title="Łączna sprzedaż ostatnich 30 dni"></i>
+                        </span>
+                        <div class="offer-count-box">
+                            <p>${item.totalPopularity} osb. kupiło</p>
+                        </div>
+                    </div>
+                    <div class="price-box-column-offers-a">
+                        <span class="data-channel">
+                            <i class="fas fa-chart-pie" style="font-size: 15px; color: grey; margin-top:1px;" title="Twój udział w rynku w ostatnich 30 dniach"></i>
+                        </span>
+                        <div class="offer-count-box">
+                            <p>${item.myTotalPopularity} osb. (${item.marketSharePercentage.toFixed(2)}%)</p>
+                        </div>
+                    </div>
+                </div>
                 <div class="price-box-column">
                     ${(item.onlyMe || lowestPrice == null) ?
-                    `<div><span style="font-weight: 500;">Brak konkurencji</span></div>` :
-                    `<div><span style="font-weight: 500; font-size: 17px;">${lowestPrice.toFixed(2)} PLN</span><div>${highlightedStoreName || ''}</div></div>`
+                    `<div class="price-box-column-text">
+                        <div><span style="font-weight: 500;">Brak konkurencji</span></div>
+                    </div>` :
+                    `
+                    <div class="price-box-column-text">
+                        <div>
+                            <span style="font-weight: 500; font-size: 17px;">${lowestPrice.toFixed(2)} PLN</span>
+                            <div>
+                                ${highlightedStoreName || ''}
+                                ${item.isSuperSeller ? `<img src="/images/SuperSeller.png" alt="Super Sprzedawca" title="Super Sprzedawca" style="width: 18px; height: 18px; vertical-align: middle; margin-bottom: 1px;">` : ''}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="price-box-column-text">
+                        <div class="data-channel">
+                            ${item.isSmart ? `
+                                <div class="Smart-Allegro">
+                                    <img src="/images/Smart.png" alt="Smart!" title="Smart!" style="height: 15px; width: auto; margin-left: 2px;">
+                                </div>
+                            ` : ''}
+                            ${renderDeliveryInfo(item.deliveryTime)}
+                        </div>
+                        </div>
+                    `
                 }
                 </div>
                 <div class="price-box-column">
                     ${myPrice != null ?
-                    `<div><span style="font-weight: 500; font-size: 17px;">${myPrice.toFixed(2)} PLN</span><div>${highlightedMyStoreName}</div></div>` :
-                    `<div><span style="font-weight: 500;">Brak Twojej oferty</span></div>`
+                    `
+                    <div class="price-box-column-text">
+                        <div>
+                            <span style="font-weight: 500; font-size: 17px;">${myPrice.toFixed(2)} PLN</span>
+                            <div>
+                                ${highlightedMyStoreName}
+                                ${item.myIsSuperSeller ? `<img src="/images/SuperSeller.png" alt="Super Sprzedawca" title="Super Sprzedawca" style="width: 18px; height: 18px; vertical-align: middle; margin-bottom: 1px;">` : ''}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="price-box-column-text">
+                        <div class="data-channel">
+                            ${item.myIsSmart ? `
+                                <div class="Smart-Allegro">
+                                    <img src="/images/Smart.png" alt="Smart!" title="Smart!" style="height: 15px; width: auto; margin-left: 2px;">
+                                </div>
+                            ` : ''}
+                            ${renderDeliveryInfo(item.myDeliveryTime)}
+                        </div>
+                        </div>
+                    ` :
+                    `<div class="price-box-column-text">
+                        <div><span style="font-weight: 500;">Brak Twojej oferty</span></div>
+                    </div>`
                 }
                 </div>
                 <div class="price-box-column-action" id="infoCol-${item.productId}"></div>
@@ -204,22 +278,18 @@
         `;
             container.appendChild(box);
 
-            // ZMIANA START: Dodajemy event listener do nawigacji
             box.addEventListener('click', function (event) {
-                // Upewniamy się, że kliknięcie w przycisk lub inny interaktywny element nie spowoduje nawigacji
-                if (event.target.closest('button, a')) {
+                if (event.target.closest('button, a, img')) {
                     return;
                 }
                 window.open(this.dataset.detailsUrl, '_blank');
             });
-            // ZMIANA KONIEC
 
             const infoCol = document.getElementById(`infoCol-${item.productId}`);
             if (!infoCol || item.onlyMe || item.isRejected || myPrice === null || lowestPrice === null) {
                 return;
             }
 
-            // ... reszta kodu funkcji `renderPrices` (sugestie cen) pozostaje bez zmian ...
             if (item.colorClass === "prToLow" || item.colorClass === "prIdeal") {
                 const savingsValue = parseFloat(item.savings);
                 const upArrowClass = item.colorClass === 'prToLow' ? 'arrow-up-black' : 'arrow-up-turquoise';
@@ -335,7 +405,6 @@
         document.getElementById('displayedProductCount').textContent = `${data.length} / ${allPrices.length}`;
     }
 
-   
     function renderPaginationControls(totalItems) {
         const totalPages = Math.ceil(totalItems / itemsPerPage);
         const paginationContainer = document.getElementById('paginationContainer');
@@ -426,7 +495,7 @@
 
             for (const [key, direction] of Object.entries(sortingState)) {
                 if (direction) {
-                    // ZMIANA START: Poprawiona i ujednoznaczniona logika sortowania
+
                     filtered.sort((a, b) => {
                         let valA, valB;
 
@@ -463,7 +532,7 @@
                         }
                         return direction === 'asc' ? valA - valB : valB - valA;
                     });
-                    // ZMIANA KONIEC
+
                     break;
                 }
             }
@@ -484,7 +553,7 @@
         document.getElementById('usePriceDifference').addEventListener('change', function () {
             usePriceDifference = this.checked;
             updateUnits(usePriceDifference);
-            // Przelicz klasy kolorów dla wszystkich produktów i odśwież widok
+
             allPrices = allPrices.map(p => ({ ...p, ...convertPriceValue(p) }));
             filterAndSortPrices();
         });
@@ -495,22 +564,18 @@
                 button.addEventListener('click', () => {
                     const currentDirection = sortingState[key];
 
-                    // Resetuj wszystkie stany sortowania
                     Object.keys(sortingState).forEach(k => sortingState[k] = null);
 
-                    // Ustaw nowy stan dla klikniętego przycisku
                     if (currentDirection === 'asc') {
                         sortingState[key] = 'desc';
                     } else if (currentDirection === 'desc') {
-                        sortingState[key] = null; // Trzecie kliknięcie resetuje
+                        sortingState[key] = null;
                     } else {
                         sortingState[key] = 'asc';
                     }
 
-                    // Zaktualizuj wygląd wszystkich przycisków
                     updateSortButtonVisuals();
 
-                    // Przefiltruj i posortuj dane
                     filterAndSortPrices();
                 });
             }
@@ -532,7 +597,7 @@
                 .then(res => res.json())
                 .then(result => {
                     if (result.success) {
-                        loadPrices(); // Przeładuj dane, aby pobrać i zastosować nowe ustawienia
+                        loadPrices();
                     } else {
                         alert('Wystąpił błąd podczas zapisywania progów.');
                     }
@@ -553,7 +618,7 @@
                 setPrice1 = data.setPrice1;
                 setPrice2 = data.setPrice2;
                 setStepPrice = data.stepPrice;
-                usePriceDifference = data.usePriceDifference; 
+                usePriceDifference = data.usePriceDifference;
 
                 document.getElementById('price1').value = setPrice1.toFixed(2);
                 document.getElementById('price2').value = setPrice2.toFixed(2);
@@ -564,7 +629,7 @@
                 allPrices = data.prices.map(p => ({ ...p, ...convertPriceValue(p) }));
 
                 const producerDropdown = document.getElementById('producerFilterDropdown');
-                // Wyczyść stare opcje (oprócz pierwszej)
+
                 while (producerDropdown.options.length > 1) {
                     producerDropdown.remove(1);
                 }

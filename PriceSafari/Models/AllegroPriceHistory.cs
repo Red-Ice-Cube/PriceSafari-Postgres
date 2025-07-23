@@ -32,9 +32,9 @@ namespace PriceSafari.Models
 
         public int? Popularity { get; set; }
 
-        // --- NOWE POLA ---
+
         public bool SuperSeller { get; set; }
         public bool Smart { get; set; }
-        // ------------------
+       
     }
 }

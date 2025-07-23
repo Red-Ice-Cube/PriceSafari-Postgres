@@ -3182,6 +3182,37 @@ tr:last-child .sub-line {
     color: #4e4e4e;
 }
 
+.price-box-column-offers-a {
+    display: flex;
+    border-radius: 4px;
+    padding: 4px 10px;
+    width: 158px;
+    height: 31px;
+    align-items: center;
+    justify-content: space-between;
+    background: rgb(245, 245, 245);
+    border: 1px solid #e3e3e3;
+    font-size: 14px;
+    font-weight: 400;
+    color: #4e4e4e;
+}
+
+.price-box-stats-container{
+    display:flex;
+    flex-direction:column;
+    gap:9px;
+    margin-left:5px;
+    margin-right:5px;
+}
+
+.offer-count-box{
+    text-wrap:nowrap;
+}
+
+
+
+
+
 .price-box-column-text {
     font-size: 15px;
     font-weight: 400;
@@ -3531,7 +3562,11 @@ tr:last-child .sub-line {
 .Availability1Day,
 .Availability3Days,
 .Availability7Days,
-.Availability14Days {
+.Availability14Days,
+.Smart-Allegro,
+.Delivery1,
+.Delivery2,
+.Delivery3{
     border-radius: 4px;
     padding: 2px 5px;
     display: inline-flex;
@@ -3582,18 +3617,21 @@ tr:last-child .sub-line {
     background: #000000;
 }
 
-.ApiBox {
-    border-radius: 4px;
-    padding: 2px 5px;
-    width: 125px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    background: rgba(34, 34, 34, 0.75);
-    border: solid 1px rgba(16, 16, 16, 1);
-    font-size: 11px;
-    font-weight: 500;
-    color: white;
+.Smart-Allegro {
+    background: #422A76;
+    height:20.5px;
+}
+
+
+
+.Delivery1 {
+    background: #006400;
+}
+.Delivery2 {
+    background: #FFA500;
+}
+.Delivery3 {
+    background: #000000;
 }
 
 .positionFilter {

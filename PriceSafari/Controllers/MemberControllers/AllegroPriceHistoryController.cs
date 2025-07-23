@@ -56,6 +56,8 @@ namespace PriceSafari.Controllers.MemberControllers
             return View("~/Views/Panel/AllegroPriceHistory/Index.cshtml");
         }
 
+
+
         [HttpGet]
         public async Task<IActionResult> GetAllegroPrices(int? storeId)
         {
@@ -89,6 +91,23 @@ namespace PriceSafari.Controllers.MemberControllers
                     var competitors = g.Where(p => !p.SellerName.Equals(store.StoreNameAllegro, StringComparison.OrdinalIgnoreCase)).ToList();
                     var bestCompetitor = competitors.OrderBy(p => p.Price).FirstOrDefault();
 
+                    // --- POCZĄTEK ZMIANY: NOWE OBLICZENIA ---
+
+                    // 1. Obliczamy sumę popularności dla wszystkich ofert w tej grupie
+                    var totalPopularity = g.Sum(p => p.Popularity ?? 0);
+
+                    // 2. Filtrujemy tylko własne oferty i sumujemy ich popularność
+                    var myPopularity = g
+                        .Where(p => p.SellerName.Equals(store.StoreNameAllegro, StringComparison.OrdinalIgnoreCase))
+                        .Sum(p => p.Popularity ?? 0);
+
+                    // 3. Obliczamy procentowy udział w rynku. Sprawdzamy, czy totalPopularity > 0, by uniknąć dzielenia przez zero.
+                    var marketSharePercentage = (totalPopularity > 0)
+                        ? ((decimal)myPopularity / totalPopularity) * 100
+                        : 0;
+
+                    // --- KONIEC ZMIANY ---
+
                     return new
                     {
                         ProductId = product.AllegroProductId,
@@ -98,9 +117,23 @@ namespace PriceSafari.Controllers.MemberControllers
                         LowestPrice = bestCompetitor?.Price,
                         StoreName = bestCompetitor?.SellerName,
                         StoreCount = g.Select(p => p.SellerName).Distinct().Count(),
-                        // ZMIANA START: Dodajemy nową właściwość z całkowitą liczbą ofert
                         TotalOfferCount = g.Count(),
-                        // ZMIANA KONIEC
+
+                        // Zmodyfikowane i nowe pola popularności
+                        TotalPopularity = totalPopularity, // Całkowita popularność (już była, teraz używa zmiennej)
+                        MyTotalPopularity = myPopularity,             // NOWE POLE: Suma popularności tylko dla Twoich ofert
+                        MarketSharePercentage = marketSharePercentage, // NOWE POLE: Procentowy udział w rynku
+
+                        // --- DANE DLA NAJLEPSZEGO KONKURENTA ---
+                        DeliveryTime = bestCompetitor?.DeliveryTime,
+                        IsSuperSeller = bestCompetitor?.SuperSeller ?? false,
+                        IsSmart = bestCompetitor?.Smart ?? false,
+
+                        // --- DANE DLA WŁASNEJ OFERTY ---
+                        MyDeliveryTime = myOffer?.DeliveryTime,
+                        MyIsSuperSeller = myOffer?.SuperSeller ?? false,
+                        MyIsSmart = myOffer?.Smart ?? false,
+
                         IsRejected = false,
                         OnlyMe = (myOffer != null && !competitors.Any()),
                         Savings = (myOffer != null && bestCompetitor != null && myOffer.Price < bestCompetitor.Price) ? bestCompetitor.Price - myOffer.Price : (decimal?)null,
@@ -120,14 +153,13 @@ namespace PriceSafari.Controllers.MemberControllers
             {
                 myStoreName = store.StoreNameAllegro,
                 prices = groupedData,
-                priceCount = priceData.Count, // Dodajmy też całkowitą liczbę cen dla modalu info
+                priceCount = priceData.Count,
                 setPrice1 = priceSettings?.AllegroSetPrice1 ?? 2.00m,
                 setPrice2 = priceSettings?.AllegroSetPrice2 ?? 2.00m,
                 stepPrice = priceSettings?.AllegroPriceStep ?? 2.00m,
                 usePriceDifference = priceSettings?.AllegroUsePriceDiff ?? true
             });
         }
-
         public class PriceSettingsViewModel
         {
             public int StoreId { get; set; }
