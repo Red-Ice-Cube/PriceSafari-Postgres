@@ -8,5 +8,6 @@
         public string? LogoUrl { get; set; }
         public int? ProductCount { get; set; }
         public int? AllowedProducts { get; set; }
+        public string? StoreNameAllegro { get; set; }
     }
 }

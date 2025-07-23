@@ -20,7 +20,7 @@ namespace PriceSafari.ScrapersControllers
         private readonly PriceSafariContext _context;
 
         private readonly IHubContext<ScrapingHub> _hubContext;
-        private const string ApiKey = "twoj-super-tajny-klucz-api-123";
+        private const string ApiKey = "Thdg12639Ghkdhiop273hdo2989wunwi618Hidoe8492CNWI7428";
 
         public AllegroGatherApiController(PriceSafariContext context, IHubContext<ScrapingHub> hubContext)
         {

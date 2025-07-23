@@ -21,7 +21,6 @@ namespace PriceSafari.Controllers.MemberControllers
             _context = context;
      
         }
-
         [HttpGet]
         public async Task<IActionResult> Index()
         {
@@ -31,9 +30,6 @@ namespace PriceSafari.Controllers.MemberControllers
                 .Where(us => us.UserId == userId)
                 .Include(us => us.StoreClass)
                 .ThenInclude(s => s.ScrapHistories)
-                
-          
-              
                 .ToListAsync();
 
             var stores = userStores.Select(us => us.StoreClass).ToList();
@@ -43,8 +39,11 @@ namespace PriceSafari.Controllers.MemberControllers
                 StoreId = store.StoreId,
                 StoreName = store.StoreName,
                 LogoUrl = store.StoreLogoUrl,
-                LastScrapeDate = store.ScrapHistories.OrderByDescending(sh => sh.Date).FirstOrDefault()?.Date,    
-             
+                LastScrapeDate = store.ScrapHistories.OrderByDescending(sh => sh.Date).FirstOrDefault()?.Date,
+
+                // --- ZMIANA W LINII PONIŻEJ ---
+                StoreNameAllegro = store.StoreNameAllegro // Przypisanie wartości do modelu widoku
+
             }).ToList();
 
             return View("~/Views/Panel/Chanel/Index.cshtml", storeDetails);

@@ -7,7 +7,7 @@
 <div class="Vert">
     <div class="Vert-full">
         <div class="Order-Container-Title">
-           Monitoring cen
+            Monitoring cen
         </div>
         @if (Model != null && Model.Any())
         {
@@ -19,7 +19,7 @@
                             <th>Kanał</th>
                             <th>Ostatnie scrapowanie</th>
                             <th>Czas od ostatniego scrapowania</th>
-                         
+                            <th>Akcje</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -30,12 +30,16 @@
                                     <img src="@store.LogoUrl" class="img-container" alt="@store.StoreName" />
                                 </td>
                                 <td>
-                                   @store.StoreName
-                                                             
+                                    @store.StoreName
                                 </td>
                                 <td>@store.LastScrapeDate?.ToString("g")</td>
                                 <td class="time-since-last-scrape"></td>
-                                
+                                <td>
+                                    @if (!string.IsNullOrEmpty(store.StoreNameAllegro))
+                                    {
+                                        <a href="@Url.Action("Index", "AllegroPriceHistory", new { storeId = store.StoreId })" class="Button-Page-Small-b">Allegro</a>
+                                    }
+                                </td>
                             </tr>
                         }
                     </tbody>
@@ -55,6 +59,7 @@
             var rows = document.querySelectorAll('.store-row');
             rows.forEach(function (row) {
                 row.addEventListener('click', function (e) {
+       
                     if (!e.target.classList.contains('Button-Page-Small-b')) {
                         window.location.href = row.getAttribute('data-url');
                     }
