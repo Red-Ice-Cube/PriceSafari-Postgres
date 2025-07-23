@@ -90,8 +90,31 @@ namespace PriceSafari.Controllers.ManagerControllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteAllProducts()
         {
-            var rowsAffected = await _context.AllegroProducts.ExecuteDeleteAsync();
-            TempData["SuccessMessage"] = $"Usunięto {rowsAffected} produktów.";
+            // Używamy transakcji, aby obie operacje masowe wykonały się razem albo żadna
+            await using var transaction = await _context.Database.BeginTransactionAsync();
+
+            try
+            {
+                // Krok 1: Usuń wszystkie rekordy podrzędne (historię cen)
+                // To polecenie usunie wszystkie wiersze z tabeli AllegroPriceHistories
+                var priceHistoryRows = await _context.AllegroPriceHistories.ExecuteDeleteAsync();
+
+                // Krok 2: Usuń wszystkie rekordy nadrzędne (produkty)
+                // Teraz, gdy nie ma już powiązań, to polecenie zadziała
+                var productRows = await _context.AllegroProducts.ExecuteDeleteAsync();
+
+                // Zatwierdź transakcję, jeśli wszystko poszło dobrze
+                await transaction.CommitAsync();
+
+                TempData["SuccessMessage"] = $"Usunięto {productRows} produktów oraz {priceHistoryRows} powiązanych wpisów historii cen.";
+            }
+            catch (Exception ex)
+            {
+                // W razie błędu cofnij wszystkie zmiany
+                await transaction.RollbackAsync();
+                TempData["ErrorMessage"] = $"Wystąpił błąd podczas usuwania danych: {ex.Message}";
+            }
+
             return RedirectToAction(nameof(Index));
         }
     }

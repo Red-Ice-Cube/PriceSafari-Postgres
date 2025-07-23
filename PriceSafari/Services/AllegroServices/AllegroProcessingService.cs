@@ -66,15 +66,19 @@ namespace PriceSafari.Services.AllegroServices
                 {
                     if (relevantProducts.TryGetValue(productId, out var product))
                     {
-                        // Mapujemy ofertę do produktu, tylko jeśli produkt należy do przetwarzanego sklepu
                         if (product.StoreId == storeId)
                         {
                             newPriceHistories.Add(new AllegroPriceHistory
                             {
                                 AllegroProductId = productId,
-                                AllegroScrapeHistory = scrapeHistory, // Powiązanie z sesją
+                                AllegroScrapeHistory = scrapeHistory,
                                 SellerName = scrapedOffer.SellerName,
-                                Price = scrapedOffer.Price
+                                Price = scrapedOffer.Price,
+                                // --- MAPOWANIE NOWYCH PÓL ---
+                                DeliveryCost = scrapedOffer.DeliveryCost,
+                                DeliveryTime = scrapedOffer.DeliveryTime,
+                                Popularity = scrapedOffer.Popularity
+                                // -----------------------------
                             });
                         }
                     }

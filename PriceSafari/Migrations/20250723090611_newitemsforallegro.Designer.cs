@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using PriceSafari.Data;
 
@@ -11,9 +12,11 @@ using PriceSafari.Data;
 namespace PriceSafari.Migrations
 {
     [DbContext(typeof(PriceSafariContext))]
-    partial class PriceTrackerContextModelSnapshot : ModelSnapshot
+    [Migration("20250723090611_newitemsforallegro")]
+    partial class newitemsforallegro
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -342,8 +345,8 @@ namespace PriceSafari.Migrations
                     b.Property<decimal?>("DeliveryCost")
                         .HasColumnType("decimal(18, 2)");
 
-                    b.Property<int?>("DeliveryTime")
-                        .HasColumnType("int");
+                    b.Property<string>("DeliveryTime")
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<int?>("Popularity")
                         .HasColumnType("int");
@@ -437,8 +440,8 @@ namespace PriceSafari.Migrations
                     b.Property<decimal?>("DeliveryCost")
                         .HasColumnType("decimal(18, 2)");
 
-                    b.Property<int?>("DeliveryTime")
-                        .HasColumnType("int");
+                    b.Property<string>("DeliveryTime")
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<int?>("Popularity")
                         .HasColumnType("int");

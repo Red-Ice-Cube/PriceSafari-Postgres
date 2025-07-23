@@ -1,9 +1,10 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿// Plik: Models/AllegroScrapedOffer.cs
+
+using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace PriceSafari.Models
 {
-
     public class AllegroScrapedOffer
     {
         [Key]
@@ -13,13 +14,20 @@ namespace PriceSafari.Models
         public string SellerName { get; set; }
 
         [Required]
-        [Column(TypeName = "decimal(18, 2)")] // Poprawny typ dla waluty w bazie danych
+        [Column(TypeName = "decimal(18, 2)")]
         public decimal Price { get; set; }
 
-        // Klucz obcy do tabeli AllegroOfferToScrape
+        // --- NOWE POLA ---
+        [Column(TypeName = "decimal(18, 2)")]
+        public decimal? DeliveryCost { get; set; } // Może być null
+
+        public int? DeliveryTime { get; set; } // Może być null
+
+        public int? Popularity { get; set; } // Może być null
+        // ------------------
+
         public int AllegroOfferToScrapeId { get; set; }
 
-        // Właściwość nawigacyjna
         [ForeignKey("AllegroOfferToScrapeId")]
         public virtual AllegroOfferToScrape AllegroOfferToScrape { get; set; }
     }

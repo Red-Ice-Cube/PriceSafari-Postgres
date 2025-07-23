@@ -108,7 +108,12 @@ namespace PriceSafari.ScrapersControllers
                         {
                             AllegroOfferToScrapeId = offer.Id,
                             SellerName = scraped.SellerName,
-                            Price = scraped.Price
+                            Price = scraped.Price,
+                            // --- MAPOWANIE NOWYCH PÓL ---
+                            DeliveryCost = scraped.DeliveryCost,
+                            DeliveryTime = scraped.DeliveryTime,
+                            Popularity = scraped.Popularity
+                            // -----------------------------
                         });
                     }
                 }
@@ -127,13 +132,16 @@ namespace PriceSafari.ScrapersControllers
         }
     }
 
-    // DTO dla wyników
     public class ScrapedOfferDto
     {
         public string SellerName { get; set; }
         public decimal Price { get; set; }
+        public decimal? DeliveryCost { get; set; } // NOWE POLE
+        public int? DeliveryTime { get; set; }   // NOWE POLE
+        public int? Popularity { get; set; }       // NOWE POLE
     }
 
+    // DTO dla całej paczki wyników (pozostaje bez zmian, bo zawiera listę powyższego DTO)
     public class UrlResultDto
     {
         public int TaskId { get; set; }
