@@ -15,16 +15,13 @@ namespace PriceSafari.Services.AllegroServices
 
         public async Task<(int processedUrls, int savedOffers)> ProcessScrapedDataForStoreAsync(int storeId)
         {
-            // 1. Pobierz sklep i jego aliasy
             var store = await _context.Stores.FindAsync(storeId);
             if (store == null || string.IsNullOrEmpty(store.StoreNameAllegro))
             {
-                // Ten sklep nie jest skonfigurowany do pracy z Allegro
                 return (0, 0);
             }
             var storeAllegroName = store.StoreNameAllegro.ToLower();
 
-            // 2. Pobierz wszystkie "surowe" dane z tabel pośrednich
             var allScrapedOffers = await _context.AllegroScrapedOffers
                 .Include(o => o.AllegroOfferToScrape)
                 .AsNoTracking()
@@ -32,11 +29,9 @@ namespace PriceSafari.Services.AllegroServices
 
             if (!allScrapedOffers.Any())
             {
-                // Brak danych do przetworzenia
                 return (0, 0);
             }
 
-            // 3. Stwórz nową sesję przetwarzania (log)
             var scrapeHistory = new AllegroScrapeHistory
             {
                 StoreId = storeId,
@@ -49,7 +44,6 @@ namespace PriceSafari.Services.AllegroServices
                 .Distinct()
                 .ToList();
 
-            // 4. Pobierz wszystkie produkty, których mogą dotyczyć te oferty
             var relevantProducts = await _context.AllegroProducts
                 .Where(p => allProductIds.Contains(p.AllegroProductId))
                 .AsNoTracking()
@@ -57,7 +51,6 @@ namespace PriceSafari.Services.AllegroServices
 
             var newPriceHistories = new List<AllegroPriceHistory>();
 
-            // 5. Przetwarzanie danych
             foreach (var scrapedOffer in allScrapedOffers)
             {
                 var productIdsForThisUrl = scrapedOffer.AllegroOfferToScrape.AllegroProductIds;
@@ -77,23 +70,22 @@ namespace PriceSafari.Services.AllegroServices
                                 DeliveryCost = scrapedOffer.DeliveryCost,
                                 DeliveryTime = scrapedOffer.DeliveryTime,
                                 Popularity = scrapedOffer.Popularity,
-                                // --- MAPOWANIE NOWYCH PÓL ---
                                 SuperSeller = scrapedOffer.SuperSeller,
-                                Smart = scrapedOffer.Smart
-                                // -----------------------------
+                                Smart = scrapedOffer.Smart,
+                                // --- ZMIANA: Zmapowanie nowych pól ---
+                                IsBestPriceGuarantee = scrapedOffer.IsBestPriceGuarantee,
+                                TopOffer = scrapedOffer.TopOffer
                             });
                         }
                     }
                 }
             }
 
-            // 6. Zapisz "czyste" dane
             if (newPriceHistories.Any())
             {
                 await _context.AllegroPriceHistories.AddRangeAsync(newPriceHistories);
             }
 
-            // 7. Zaktualizuj statystyki w logu sesji
             scrapeHistory.ProcessedUrlsCount = allScrapedOffers.Select(o => o.AllegroOfferToScrapeId).Distinct().Count();
             scrapeHistory.SavedOffersCount = newPriceHistories.Count;
 
@@ -102,9 +94,9 @@ namespace PriceSafari.Services.AllegroServices
             return (scrapeHistory.ProcessedUrlsCount, scrapeHistory.SavedOffersCount);
         }
 
+        // Metoda ClearIntermediateTablesAsync pozostaje bez zmian
         public async Task ClearIntermediateTablesAsync()
         {
-            // Opcjonalna funkcja do czyszczenia tabel pośrednich po przetworzeniu
             await _context.AllegroScrapedOffers.ExecuteDeleteAsync();
             await _context.AllegroOffersToScrape.ExecuteDeleteAsync();
         }

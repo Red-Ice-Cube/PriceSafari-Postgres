@@ -32,9 +32,11 @@ namespace PriceSafari.Models
 
         public int? Popularity { get; set; }
 
-
         public bool SuperSeller { get; set; }
         public bool Smart { get; set; }
-       
+
+        // --- ZMIANA: Dodanie nowych pól do modelu ---
+        public bool IsBestPriceGuarantee { get; set; }
+        public bool TopOffer { get; set; }
     }
 }

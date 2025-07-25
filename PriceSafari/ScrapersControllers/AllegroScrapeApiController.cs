@@ -14,7 +14,7 @@ namespace PriceSafari.ScrapersControllers
         private readonly PriceSafariContext _context;
         private readonly IHubContext<ScrapingHub> _hubContext;
         private const string ApiKey = "2764udhnJUDI8392j83jfi2ijdo1949rncowp89i3rnfiiui1203kfnf9030rfpPkUjHyHt";
-        private const int BatchSize = 200; 
+        private const int BatchSize = 200;
 
         public AllegroScrapeApiController(PriceSafariContext context, IHubContext<ScrapingHub> hubContext)
         {
@@ -22,6 +22,7 @@ namespace PriceSafari.ScrapersControllers
             _hubContext = hubContext;
         }
 
+        // Metoda GetTaskBatch pozostaje bez zmian...
         [HttpGet("get-task")]
         public async Task<IActionResult> GetTaskBatch([FromQuery] string scraperName)
         {
@@ -44,7 +45,6 @@ namespace PriceSafari.ScrapersControllers
                 return Ok(new { message = "Scraping process is paused." });
             }
 
-            // Pobierz paczkę 100 URL-i, które nie są ani zescrapowane, ani odrzucone, ani w trakcie przetwarzania
             var offersToScrape = await _context.AllegroOffersToScrape
                 .Where(o => !o.IsScraped && !o.IsRejected && !o.IsProcessing)
                 .OrderBy(o => o.Id)
@@ -56,7 +56,6 @@ namespace PriceSafari.ScrapersControllers
                 return Ok(new { message = "No pending tasks available." });
             }
 
-            // Oznacz pobrane zadania jako "w trakcie przetwarzania", aby inny scraper ich nie pobrał
             foreach (var offer in offersToScrape)
             {
                 offer.IsProcessing = true;
@@ -64,13 +63,12 @@ namespace PriceSafari.ScrapersControllers
             await _context.SaveChangesAsync();
 
             scraper.Status = ScraperLiveStatus.Busy;
-            // Zamiast jednego ID, możemy wysłać informację o liczbie zadań
             await _hubContext.Clients.All.SendAsync("UpdateDetailScraperStatus", scraper);
 
-            // Zwróć paczkę zadań do Pythona
             var tasksForPython = offersToScrape.Select(o => new { taskId = o.Id, url = o.AllegroOfferUrl });
             return Ok(tasksForPython);
         }
+
 
         [HttpPost("submit-batch-results")]
         public async Task<IActionResult> SubmitBatchResults([FromBody] List<UrlResultDto> batchResults)
@@ -111,10 +109,11 @@ namespace PriceSafari.ScrapersControllers
                             DeliveryCost = scraped.DeliveryCost,
                             DeliveryTime = scraped.DeliveryTime,
                             Popularity = scraped.Popularity,
-                            // --- MAPOWANIE NOWYCH PÓL ---
                             SuperSeller = scraped.SuperSeller,
-                            Smart = scraped.Smart
-                            // -----------------------------
+                            Smart = scraped.Smart,
+                            // --- ZMIANA: Zmapowanie nowych pól ---
+                            IsBestPriceGuarantee = scraped.IsBestPriceGuarantee,
+                            TopOffer = scraped.TopOffer
                         });
                     }
                 }
@@ -140,14 +139,14 @@ namespace PriceSafari.ScrapersControllers
         public decimal? DeliveryCost { get; set; }
         public int? DeliveryTime { get; set; }
         public int? Popularity { get; set; }
-
-
         public bool SuperSeller { get; set; }
         public bool Smart { get; set; }
-        // ------------------
+
+        // --- ZMIANA: Dodanie nowych pól do DTO ---
+        public bool IsBestPriceGuarantee { get; set; }
+        public bool TopOffer { get; set; }
     }
 
-    // DTO dla całej paczki wyników (pozostaje bez zmian)
     public class UrlResultDto
     {
         public int TaskId { get; set; }
