@@ -74,9 +74,9 @@
                 if (deliveryTime === null || deliveryTime === undefined) return '<span>-</span>';
                 let text = '', className = '';
                 switch (deliveryTime) {
-                    case 1: text = 'jutro'; className = 'Delivery1'; break;
-                    case 2: text = 'pojutrze'; className = 'Delivery2'; break;
-                    case 3: text = 'długa dostawa'; className = 'Delivery3'; break;
+                    case 1: text = 'Jutro'; className = 'Delivery1'; break;
+                    case 2: text = 'Pojutrze'; className = 'Delivery2'; break;
+                    case 3: text = 'Długa dostawa'; className = 'Delivery3'; break;
                     default: return '<span>-</span>';
                 }
                 return `<div class="${className}">${text}</div>`;
@@ -110,67 +110,77 @@
                 }
                 return "prToHigh";
             }
-                    function renderTable(offersData, totalPopularity, setPrice1, setPrice2) {
-            const tbody = document.querySelector("#priceTable tbody");
-            const storeHeader = document.getElementById('storeHeader');
-            const popularityHeader = document.getElementById('popularityHeader');
-            tbody.innerHTML = '';
-            storeHeader.textContent = `Sklep (${offersData.length})`;
-            popularityHeader.textContent = `Kupiło ${totalPopularity} osb.`;
 
-            const myCurrentOffer = offersData.find(o => o.sellerName.toLowerCase().trim() === myStoreLower);
-            const basePrice = myCurrentOffer ? myCurrentOffer.price : 0;
+            function renderTable(offersData, totalPopularity, setPrice1, setPrice2) {
+                const tbody = document.querySelector("#priceTable tbody");
+                const storeHeader = document.getElementById('storeHeader');
+                const popularityHeader = document.getElementById('popularityHeader');
+                tbody.innerHTML = '';
+                storeHeader.textContent = `Sklep (${offersData.length})`;
+                popularityHeader.textContent = `Kupiło ${totalPopularity} osb.`;
 
-            offersData.forEach(item => {
-                const isMyStore = item.sellerName.toLowerCase().trim() === myStoreLower;
-                const priceDifference = basePrice > 0 ? item.price - basePrice : 0;
-                const percentageDifference = basePrice > 0 ? (priceDifference / basePrice) * 100 : 0;
-                const colorClass = getColorClass(item, offersData, myCurrentOffer, setPrice1, setPrice2);
-                const tr = document.createElement('tr');
-                tr.className = `price-row ${colorClass}`;
+                const myCurrentOffer = offersData.find(o => o.sellerName.toLowerCase().trim() === myStoreLower);
+                const basePrice = myCurrentOffer ? myCurrentOffer.price : 0;
 
-                let diffHtml = '<div class="priceBox-diff-neutral">0,00 PLN (0,00 %)</div>';
-                if (!isMyStore && priceDifference !== 0) {
-                    const diffClass = priceDifference < 0 ? 'priceBox-diff-up' : 'priceBox-diff-down';
-                    const sign = priceDifference > 0 ? '+' : '';
-                    diffHtml = `<div class="${diffClass}">${sign}${priceDifference.toFixed(2)} PLN (${sign}${percentageDifference.toFixed(2)}%)</div>`;
-                }
-                const storeNameStyle = isMyStore ? 'font-weight: bold;' : '';
-                const marketShare = (totalPopularity > 0 && item.popularity) ? (item.popularity / totalPopularity) * 100 : 0;
+                offersData.forEach(item => {
+                    const isMyStore = item.sellerName.toLowerCase().trim() === myStoreLower;
+                    const priceDifference = basePrice > 0 ? item.price - basePrice : 0;
+                    const percentageDifference = basePrice > 0 ? (priceDifference / basePrice) * 100 : 0;
+                    const colorClass = getColorClass(item, offersData, myCurrentOffer, setPrice1, setPrice2);
+                    const tr = document.createElement('tr');
+                    tr.className = `price-row ${colorClass}`;
 
-                let popularityHtml = '<span>-</span>';
-                if (item.popularity > 0) {
-                    const shareText = `<span style="font-size: 12px; color: #666;">(${marketShare.toFixed(2)}%)</span>`;
-                    if (isMyStore) {
-
-                        popularityHtml = `<div><strong>${item.popularity} osb. ${shareText}</strong></div>`;
-
-                    } else {
-                        popularityHtml = `<div>${item.popularity} osb. ${shareText}</div>`;
+                    let diffHtml = '<div class="priceBox-diff-neutral">0,00 PLN (0,00 %)</div>';
+                    if (!isMyStore && priceDifference !== 0) {
+                        const diffClass = priceDifference < 0 ? 'priceBox-diff-up' : 'priceBox-diff-down';
+                        const sign = priceDifference > 0 ? '+' : '';
+                        diffHtml = `<div class="${diffClass}">${sign}${priceDifference.toFixed(2)} PLN (${sign}${percentageDifference.toFixed(2)}%)</div>`;
                     }
-                }
+                    const storeNameStyle = isMyStore ? 'font-weight: bold;' : '';
+                    const marketShare = (totalPopularity > 0 && item.popularity) ? (item.popularity / totalPopularity) * 100 : 0;
 
-                tr.innerHTML = `
-                    <td><div class="color-bar ${colorClass}"></div></td>
-                    <td class="store-name" style="${storeNameStyle}">
-                        ${item.sellerName}
-                        ${item.superSeller ? `<img src="/images/SuperSeller.png" alt="Super Sprzedawca" title="Super Sprzedawca" style="width: 18px; height: 18px; vertical-align: middle; margin-left: 5px;">` : ''}
-                    </td>
-                    <td class="store-price" style="${storeNameStyle}">${item.price.toFixed(2)} PLN</td>
-                    <td>${diffHtml}</td>
-                    <td>${renderShippingCost(item.deliveryCost)}</td>
-                    <td>${renderDeliveryInfo(item.deliveryTime)}</td>
-                    <td>
-                        ${item.smart ? `<div class="Smart-Allegro"><img src="/images/Smart.png" alt="Smart!" title="Smart!" style="height: 15px; width: auto;"></div>` : '<span>-</span>'}
-                    </td>
-                    <td>
-                        ${popularityHtml}
-                    </td>
-                    <td class="data-chanel"><img src="/images/AllegroIcon.png" alt="Allegro Icon" style="width:24px; height:24px;" /></td>
-                `;
-                tbody.appendChild(tr);
-            });
-        }
+                    let popularityHtml = '<span>-</span>';
+                    if (item.popularity > 0) {
+                        const shareText = `<span style="font-size: 12px; color: #666;">(${marketShare.toFixed(2)}%)</span>`;
+                        if (isMyStore) {
+                            popularityHtml = `<div><strong>${item.popularity} osb. ${shareText}</strong></div>`;
+                        } else {
+                            popularityHtml = `<div>${item.popularity} osb. ${shareText}</div>`;
+                        }
+                    }
+
+                    
+                    const priceStyle = item.isBestPriceGuarantee ? 'color: #169A23;' : '';
+                    const bestPriceIcon = item.isBestPriceGuarantee ? `<img src="/images/TopPrice.png" alt="Gwarancja Najniższej Ceny" title="Gwarancja Najniższej Ceny" style="width: 18px; height: 18px; vertical-align: middle; margin-left: 5px;">` : '';
+                    const topOfferBadge = item.topOffer ? `<div class="TopOffer" style="display: inline-block; margin-left: 5px; vertical-align: middle;">Top oferta</div>` : '';
+
+
+                    tr.innerHTML = `
+                        <td><div class="color-bar ${colorClass}"></div></td>
+                        <td class="store-name" style="${storeNameStyle}">
+                            ${item.sellerName}
+                            ${item.superSeller ? `<img src="/images/SuperSeller.png" alt="Super Sprzedawca" title="Super Sprzedawca" style="width: 18px; height: 18px; vertical-align: middle; margin-left: 5px;">` : ''}
+                        </td>
+                      
+                        <td class="store-price" style="${storeNameStyle} ${priceStyle}">
+                            ${item.price.toFixed(2)} PLN
+                            ${bestPriceIcon}
+                            ${topOfferBadge}
+                        </td>
+                        <td>${diffHtml}</td>
+                        <td>${renderShippingCost(item.deliveryCost)}</td>
+                        <td>${renderDeliveryInfo(item.deliveryTime)}</td>
+                        <td>
+                            ${item.smart ? `<div class="Smart-Allegro"><img src="/images/Smart.png" alt="Smart!" title="Smart!" style="height: 15px; width: auto;"></div>` : '<span>-</span>'}
+                        </td>
+                        <td>
+                            ${popularityHtml}
+                        </td>
+                        <td class="data-chanel"><img src="/images/AllegroIcon.png" alt="Allegro Icon" style="width:24px; height:24px;" /></td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            }
 
             function drawBarChart(allOffersData) {
                 const ctx = document.getElementById('priceBarChart');
