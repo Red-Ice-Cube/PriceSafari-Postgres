@@ -118,9 +118,17 @@ namespace PriceSafari.Controllers.MemberControllers
                         IsSuperSeller = bestCompetitor?.SuperSeller ?? false,
                         IsSmart = bestCompetitor?.Smart ?? false,
 
+                        // ZMIANA: Dodanie pól promocyjnych dla najlepszej oferty konkurencji
+                        CompetitorIsBestPriceGuarantee = bestCompetitor?.IsBestPriceGuarantee ?? false,
+                        CompetitorIsTopOffer = bestCompetitor?.TopOffer ?? false,
+
                         MyDeliveryTime = myOffer?.DeliveryTime,
                         MyIsSuperSeller = myOffer?.SuperSeller ?? false,
                         MyIsSmart = myOffer?.Smart ?? false,
+
+                        // ZMIANA: Dodanie pól promocyjnych dla Twojej oferty
+                        MyIsBestPriceGuarantee = myOffer?.IsBestPriceGuarantee ?? false,
+                        MyIsTopOffer = myOffer?.TopOffer ?? false,
 
                         IsRejected = false,
                         OnlyMe = (myOffer != null && !competitors.Any()),

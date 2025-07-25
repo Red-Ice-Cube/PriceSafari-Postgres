@@ -3566,7 +3566,8 @@ tr:last-child .sub-line {
 .Smart-Allegro,
 .Delivery1,
 .Delivery2,
-.Delivery3{
+.Delivery3,
+.TopOffer{
     border-radius: 4px;
     padding: 2px 5px;
     display: inline-flex;
@@ -3622,7 +3623,9 @@ tr:last-child .sub-line {
     height:20.5px;
 }
 
-
+.TopOffer {
+    background: #FF5A00;
+}
 
 .Delivery1 {
     background: #006400;

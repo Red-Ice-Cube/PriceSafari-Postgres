@@ -91,22 +91,6 @@
         });
     }
 
-    function getExactMatchIndex(text, searchTerm) {
-        return text.indexOf(searchTerm);
-    }
-
-    function getLongestMatchLength(text, searchTerm) {
-        let maxLength = 0;
-        for (let i = 0; i < text.length; i++) {
-            for (let j = i; j <= text.length; j++) {
-                const substring = text.slice(i, j);
-                if (searchTerm.includes(substring) && substring.length > maxLength) {
-                    maxLength = substring.length;
-                }
-            }
-        }
-        return maxLength;
-    }
 
     function highlightMatches(fullText, searchTerm) {
         if (!searchTerm || !fullText) return fullText;
@@ -180,6 +164,13 @@
             const highlightedStoreName = highlightMatches(item.storeName, storeSearchTerm);
             const highlightedMyStoreName = highlightMatches(myStoreName, storeSearchTerm);
 
+            
+            const competitorPriceStyle = item.competitorIsBestPriceGuarantee ? 'color: #169A23;' : '';
+            const competitorPriceIcon = item.competitorIsBestPriceGuarantee ? `<img src="/images/TopPrice.png" alt="Gwarancja Najniższej Ceny" title="Gwarancja Najniższej Ceny" style="width: 18px; height: 18px; vertical-align: middle; margin-left: 5px; margin-top: -5px;">` : '';
+
+            const myPriceStyle = item.myIsBestPriceGuarantee ? 'color: #169A23;' : '';
+            const myPriceIcon = item.myIsBestPriceGuarantee ? `<img src="/images/TopPrice.png" alt="Gwarancja Najniższej Ceny" title="Gwarancja Najniższej Ceny" style="width: 18px; height: 18px; vertical-align: middle; margin-left: 5px; margin-top: -5px;">` : '';
+
             const box = document.createElement('div');
             box.className = 'price-box ' + item.colorClass;
             box.dataset.productId = item.productId;
@@ -187,95 +178,101 @@
             box.style.cursor = 'pointer';
 
             box.innerHTML = `
-            <div class="price-box-space" style="margin-bottom:20px;">
-                <div class="price-box-column-name">${highlightedProductName}</div>
-            </div>
-            <div class="price-box-data">
-                <div class="color-bar ${item.colorClass}"></div>
+        <div class="price-box-space" style="margin-bottom:20px;">
+            <div class="price-box-column-name">${highlightedProductName}</div>
+        </div>
+        <div class="price-box-data">
+            <div class="color-bar ${item.colorClass}"></div>
 
-                <div class="price-box-stats-container">
-                    <div class="price-box-column-offers-a">
-                        <span class="data-channel">
-                            <img src="/images/AllegroIcon.png" alt="Allegro Icon" style="width:15px; height:15px;" />
-                        </span>
-                        <div class="offer-count-box">${getOfferText(item.totalOfferCount)}</div>
-                    </div>
-                    <div class="price-box-column-offers-a">
-                        <span class="data-channel">
-                            <i class="fas fa-shopping-cart" style="font-size: 15px; color: grey; margin-top:1px;" title="Łączna sprzedaż ostatnich 30 dni"></i>
-                        </span>
-                        <div class="offer-count-box">
-                            <p>${item.totalPopularity} osb. kupiło</p>
-                        </div>
-                    </div>
-                    <div class="price-box-column-offers-a">
-                        <span class="data-channel">
-                            <i class="fas fa-chart-pie" style="font-size: 15px; color: grey; margin-top:1px;" title="Twój udział w rynku w ostatnich 30 dniach"></i>
-                        </span>
-                        <div class="offer-count-box">
-                            <p>${item.myTotalPopularity} osb. (${item.marketSharePercentage.toFixed(2)}%)</p>
-                        </div>
+            <div class="price-box-stats-container">
+                <div class="price-box-column-offers-a">
+                    <span class="data-channel">
+                        <img src="/images/AllegroIcon.png" alt="Allegro Icon" style="width:15px; height:15px;" />
+                    </span>
+                    <div class="offer-count-box">${getOfferText(item.totalOfferCount)}</div>
+                </div>
+                <div class="price-box-column-offers-a">
+                    <span class="data-channel">
+                        <i class="fas fa-shopping-cart" style="font-size: 15px; color: grey; margin-top:1px;" title="Łączna sprzedaż ostatnich 30 dni"></i>
+                    </span>
+                    <div class="offer-count-box">
+                        <p>${item.totalPopularity} osb. kupiło</p>
                     </div>
                 </div>
-                <div class="price-box-column">
-                    ${(item.onlyMe || lowestPrice == null) ?
-                    `<div class="price-box-column-text">
-                        <div><span style="font-weight: 500;">Brak konkurencji</span></div>
-                    </div>` :
-                    `
-                    <div class="price-box-column-text">
-                        <div>
-                            <span style="font-weight: 500; font-size: 17px;">${lowestPrice.toFixed(2)} PLN</span>
-                            <div>
-                                ${highlightedStoreName || ''}
-                                ${item.isSuperSeller ? `<img src="/images/SuperSeller.png" alt="Super Sprzedawca" title="Super Sprzedawca" style="width: 18px; height: 18px; vertical-align: middle; margin-bottom: 1px;">` : ''}
-                            </div>
-                        </div>
+                <div class="price-box-column-offers-a">
+                    <span class="data-channel">
+                        <i class="fas fa-chart-pie" style="font-size: 15px; color: grey; margin-top:1px;" title="Twój udział w rynku w ostatnich 30 dniach"></i>
+                    </span>
+                    <div class="offer-count-box">
+                        <p>${item.myTotalPopularity} osb. (${item.marketSharePercentage.toFixed(2)}%)</p>
                     </div>
-                    <div class="price-box-column-text">
-                        <div class="data-channel">
-                            ${item.isSmart ? `
-                                <div class="Smart-Allegro">
-                                    <img src="/images/Smart.png" alt="Smart!" title="Smart!" style="height: 15px; width: auto; margin-left: 2px;">
-                                </div>
-                            ` : ''}
-                            ${renderDeliveryInfo(item.deliveryTime)}
-                        </div>
-                        </div>
-                    `
-                }
                 </div>
-                <div class="price-box-column">
-                    ${myPrice != null ?
-                    `
-                    <div class="price-box-column-text">
-                        <div>
-                            <span style="font-weight: 500; font-size: 17px;">${myPrice.toFixed(2)} PLN</span>
-                            <div>
-                                ${highlightedMyStoreName}
-                                ${item.myIsSuperSeller ? `<img src="/images/SuperSeller.png" alt="Super Sprzedawca" title="Super Sprzedawca" style="width: 18px; height: 18px; vertical-align: middle; margin-bottom: 1px;">` : ''}
-                            </div>
-                        </div>
-                    </div>
-                    <div class="price-box-column-text">
-                        <div class="data-channel">
-                            ${item.myIsSmart ? `
-                                <div class="Smart-Allegro">
-                                    <img src="/images/Smart.png" alt="Smart!" title="Smart!" style="height: 15px; width: auto; margin-left: 2px;">
-                                </div>
-                            ` : ''}
-                            ${renderDeliveryInfo(item.myDeliveryTime)}
-                        </div>
-                        </div>
-                    ` :
-                    `<div class="price-box-column-text">
-                        <div><span style="font-weight: 500;">Brak Twojej oferty</span></div>
-                    </div>`
-                }
-                </div>
-                <div class="price-box-column-action" id="infoCol-${item.productId}"></div>
             </div>
-        `;
+            <div class="price-box-column">
+                ${(item.onlyMe || lowestPrice == null) ?
+                    `<div class="price-box-column-text">
+                    <div><span style="font-weight: 500;">Brak konkurencji</span></div>
+                </div>` :
+                    `
+                <div class="price-box-column-text">
+                    <div>
+                       
+                        <span style="font-weight: 500; font-size: 17px; ${competitorPriceStyle}">${lowestPrice.toFixed(2)} PLN</span>${competitorPriceIcon}
+                        <div>
+                            ${highlightedStoreName || ''}
+                            ${item.isSuperSeller ? `<img src="/images/SuperSeller.png" alt="Super Sprzedawca" title="Super Sprzedawca" style="width: 18px; height: 18px; vertical-align: middle; margin-bottom: 1px;">` : ''}
+                        </div>
+                    </div>
+                </div>
+                <div class="price-box-column-text">
+                    <div class="data-channel">
+                        
+                        ${item.competitorIsTopOffer ? `<div class="TopOffer">Top oferta</div>` : ''}
+                        ${item.isSmart ? `
+                            <div class="Smart-Allegro">
+                                <img src="/images/Smart.png" alt="Smart!" title="Smart!" style="height: 15px; width: auto; margin-left: 2px;">
+                            </div>
+                        ` : ''}
+                        ${renderDeliveryInfo(item.deliveryTime)}
+                    </div>
+                    </div>
+                `
+                }
+            </div>
+            <div class="price-box-column">
+                ${myPrice != null ?
+                    `
+                <div class="price-box-column-text">
+                    <div>
+                        
+                        <span style="font-weight: 500; font-size: 17px; ${myPriceStyle}">${myPrice.toFixed(2)} PLN</span>${myPriceIcon}
+                        <div>
+                            ${highlightedMyStoreName}
+                            ${item.myIsSuperSeller ? `<img src="/images/SuperSeller.png" alt="Super Sprzedawca" title="Super Sprzedawca" style="width: 18px; height: 18px; vertical-align: middle; margin-bottom: 1px;">` : ''}
+                        </div>
+                    </div>
+                </div>
+                <div class="price-box-column-text">
+                    <div class="data-channel">
+                     
+                        ${item.myIsTopOffer ? `<div class="TopOffer">Top oferta</div>` : ''}
+                        ${item.myIsSmart ? `
+                            <div class="Smart-Allegro">
+                                <img src="/images/Smart.png" alt="Smart!" title="Smart!" style="height: 15px; width: auto; margin-left: 2px;">
+                            </div>
+                        ` : ''}
+                        ${renderDeliveryInfo(item.myDeliveryTime)}
+                    </div>
+                    </div>
+                ` :
+                    `<div class="price-box-column-text">
+                    <div><span style="font-weight: 500;">Brak Twojej oferty</span></div>
+                </div>`
+                }
+            </div>
+            <div class="price-box-column-action" id="infoCol-${item.productId}"></div>
+        </div>
+    `;
             container.appendChild(box);
 
             box.addEventListener('click', function (event) {
@@ -285,29 +282,31 @@
                 window.open(this.dataset.detailsUrl, '_blank');
             });
 
+            // Reszta funkcji renderPrices bez zmian...
             const infoCol = document.getElementById(`infoCol-${item.productId}`);
             if (!infoCol || item.onlyMe || item.isRejected || myPrice === null || lowestPrice === null) {
-                return;
-            }
+                // Zmieniono warunek, aby nie kończyć funkcji, gdy infoCol jest nullem.
+                // Sprawdzamy `infoCol` przed próbą użycia go.
+            } else {
+                // Tutaj kod dla kolumny akcji pozostaje bez zmian
+                if (item.colorClass === "prToLow" || item.colorClass === "prIdeal") {
+                    const savingsValue = parseFloat(item.savings);
+                    const upArrowClass = item.colorClass === 'prToLow' ? 'arrow-up-black' : 'arrow-up-turquoise';
+                    const suggestedPrice1 = myPrice + savingsValue;
+                    const amount1 = savingsValue;
+                    const percentage1 = myPrice > 0 ? (amount1 / myPrice) * 100 : 0;
+                    let suggestedPrice2, amount2, percentage2;
+                    let arrowClass2 = upArrowClass;
+                    if (usePriceDifference) {
+                        suggestedPrice2 = suggestedPrice1 - setStepPrice;
+                    } else {
+                        suggestedPrice2 = suggestedPrice1 * (1 - (setStepPrice / 100));
+                    }
+                    amount2 = suggestedPrice2 - myPrice;
+                    percentage2 = myPrice > 0 ? (amount2 / myPrice) * 100 : 0;
+                    if (amount2 < 0) arrowClass2 = 'arrow-down-turquoise';
 
-            if (item.colorClass === "prToLow" || item.colorClass === "prIdeal") {
-                const savingsValue = parseFloat(item.savings);
-                const upArrowClass = item.colorClass === 'prToLow' ? 'arrow-up-black' : 'arrow-up-turquoise';
-                const suggestedPrice1 = myPrice + savingsValue;
-                const amount1 = savingsValue;
-                const percentage1 = myPrice > 0 ? (amount1 / myPrice) * 100 : 0;
-                let suggestedPrice2, amount2, percentage2;
-                let arrowClass2 = upArrowClass;
-                if (usePriceDifference) {
-                    suggestedPrice2 = suggestedPrice1 - setStepPrice;
-                } else {
-                    suggestedPrice2 = suggestedPrice1 * (1 - (setStepPrice / 100));
-                }
-                amount2 = suggestedPrice2 - myPrice;
-                percentage2 = myPrice > 0 ? (amount2 / myPrice) * 100 : 0;
-                if (amount2 < 0) arrowClass2 = 'arrow-down-turquoise';
-
-                infoCol.innerHTML = `
+                    infoCol.innerHTML = `
                 <div class="price-box-column">
                     <div class="price-action-line">
                         <span class="${upArrowClass}"></span>
@@ -325,20 +324,20 @@
                     </div>
                 </div>
             `;
-            } else if (item.colorClass === "prMid" || item.colorClass === "prToHigh") {
-                const amountToMatch = myPrice - lowestPrice;
-                const percentageToMatch = myPrice > 0 ? (amountToMatch / myPrice) * 100 : 0;
-                let strategicPrice, amountToBeat, percentageToBeat;
-                if (usePriceDifference) {
-                    strategicPrice = lowestPrice - setStepPrice;
-                } else {
-                    strategicPrice = lowestPrice * (1 - (setStepPrice / 100));
-                }
-                amountToBeat = myPrice - strategicPrice;
-                percentageToBeat = myPrice > 0 ? (amountToBeat / myPrice) * 100 : 0;
-                const arrowClass = item.colorClass === "prMid" ? "arrow-down-yellow" : "arrow-down-red";
+                } else if (item.colorClass === "prMid" || item.colorClass === "prToHigh") {
+                    const amountToMatch = myPrice - lowestPrice;
+                    const percentageToMatch = myPrice > 0 ? (amountToMatch / myPrice) * 100 : 0;
+                    let strategicPrice, amountToBeat, percentageToBeat;
+                    if (usePriceDifference) {
+                        strategicPrice = lowestPrice - setStepPrice;
+                    } else {
+                        strategicPrice = lowestPrice * (1 - (setStepPrice / 100));
+                    }
+                    amountToBeat = myPrice - strategicPrice;
+                    percentageToBeat = myPrice > 0 ? (amountToBeat / myPrice) * 100 : 0;
+                    const arrowClass = item.colorClass === "prMid" ? "arrow-down-yellow" : "arrow-down-red";
 
-                infoCol.innerHTML = `
+                    infoCol.innerHTML = `
                 <div class="price-box-column">
                     <div class="price-action-line">
                         <span class="${arrowClass}"></span>
@@ -356,31 +355,31 @@
                     </div>
                 </div>
             `;
-            } else if (item.colorClass === "prGood") {
-                const amount1 = 0;
-                const percentage1 = 0;
-                const suggestedPrice1 = myPrice;
-                let suggestedPrice2, amount2, percentage2;
-                let downArrowClass = 'arrow-down-green';
+                } else if (item.colorClass === "prGood") {
+                    const amount1 = 0;
+                    const percentage1 = 0;
+                    const suggestedPrice1 = myPrice;
+                    let suggestedPrice2, amount2, percentage2;
+                    let downArrowClass = 'arrow-down-green';
 
-                if (item.storeCount > 1) {
-                    if (usePriceDifference) {
-                        suggestedPrice2 = myPrice - setStepPrice;
+                    if (item.storeCount > 1) {
+                        if (usePriceDifference) {
+                            suggestedPrice2 = myPrice - setStepPrice;
+                        } else {
+                            let reduction = myPrice * (setStepPrice / 100);
+                            if (reduction < 0.01) reduction = 0.01;
+                            suggestedPrice2 = myPrice - reduction;
+                        }
+                        amount2 = suggestedPrice2 - myPrice;
+                        percentage2 = myPrice > 0 ? (amount2 / myPrice) * 100 : 0;
                     } else {
-                        let reduction = myPrice * (setStepPrice / 100);
-                        if (reduction < 0.01) reduction = 0.01;
-                        suggestedPrice2 = myPrice - reduction;
+                        suggestedPrice2 = myPrice;
+                        amount2 = 0;
+                        percentage2 = 0;
+                        downArrowClass = 'no-change-icon-turquoise';
                     }
-                    amount2 = suggestedPrice2 - myPrice;
-                    percentage2 = myPrice > 0 ? (amount2 / myPrice) * 100 : 0;
-                } else {
-                    suggestedPrice2 = myPrice;
-                    amount2 = 0;
-                    percentage2 = 0;
-                    downArrowClass = 'no-change-icon-turquoise';
-                }
 
-                infoCol.innerHTML = `
+                    infoCol.innerHTML = `
                 <div class="price-box-column">
                     <div class="price-action-line">
                         <span class="no-change-icon"></span>
@@ -398,13 +397,13 @@
                     </div>
                 </div>
             `;
+                }
             }
         });
 
         renderPaginationControls(data.length);
         document.getElementById('displayedProductCount').textContent = `${data.length} / ${allPrices.length}`;
     }
-
     function renderPaginationControls(totalItems) {
         const totalPages = Math.ceil(totalItems / itemsPerPage);
         const paginationContainer = document.getElementById('paginationContainer');
