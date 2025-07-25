@@ -22,10 +22,19 @@ namespace PriceSafari.Models
 
         public int? Popularity { get; set; }
 
-        // --- NOWE POLA ---
+    
         public bool SuperSeller { get; set; }
         public bool Smart { get; set; }
-        // ------------------
+
+
+        // nowe miejsca 
+
+        public bool IsBestPriceGuarantee { get; set; }
+        public bool TopOffer { get; set; }
+
+
+
+        // koniec nowych miejsc
 
         public int AllegroOfferToScrapeId { get; set; }
 
