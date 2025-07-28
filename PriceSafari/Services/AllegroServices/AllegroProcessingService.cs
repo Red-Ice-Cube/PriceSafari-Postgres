@@ -72,9 +72,12 @@ namespace PriceSafari.Services.AllegroServices
                                 Popularity = scrapedOffer.Popularity,
                                 SuperSeller = scrapedOffer.SuperSeller,
                                 Smart = scrapedOffer.Smart,
-                                // --- ZMIANA: Zmapowanie nowych pól ---
+                                
                                 IsBestPriceGuarantee = scrapedOffer.IsBestPriceGuarantee,
-                                TopOffer = scrapedOffer.TopOffer
+                                TopOffer = scrapedOffer.TopOffer,
+                                SuperPrice = scrapedOffer.SuperPrice,
+                                Promoted = scrapedOffer.Promoted,
+                                Sponsored = scrapedOffer.SuperPrice,
                             });
                         }
                     }

@@ -111,9 +111,14 @@ namespace PriceSafari.ScrapersControllers
                             Popularity = scraped.Popularity,
                             SuperSeller = scraped.SuperSeller,
                             Smart = scraped.Smart,
-                            // --- ZMIANA: Zmapowanie nowych pól ---
+                            
                             IsBestPriceGuarantee = scraped.IsBestPriceGuarantee,
-                            TopOffer = scraped.TopOffer
+                            TopOffer = scraped.TopOffer,
+                            SuperPrice = scraped.SuperPrice,
+                            Promoted = scraped.Promoted,
+                            Sponsored = scraped.Sponsored,
+
+
                         });
                     }
                 }
@@ -142,9 +147,16 @@ namespace PriceSafari.ScrapersControllers
         public bool SuperSeller { get; set; }
         public bool Smart { get; set; }
 
-        // --- ZMIANA: Dodanie nowych pól do DTO ---
         public bool IsBestPriceGuarantee { get; set; }
         public bool TopOffer { get; set; }
+
+        // nowe miejsca 
+
+
+        public bool SuperPrice { get; set; }
+        public bool Promoted { get; set; }
+        public bool Sponsored { get; set; }
+        // koniec nowych miejsc
     }
 
     public class UrlResultDto

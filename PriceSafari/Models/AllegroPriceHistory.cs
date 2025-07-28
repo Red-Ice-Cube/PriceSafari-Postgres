@@ -35,8 +35,15 @@ namespace PriceSafari.Models
         public bool SuperSeller { get; set; }
         public bool Smart { get; set; }
 
-        // --- ZMIANA: Dodanie nowych pól do modelu ---
+        
         public bool IsBestPriceGuarantee { get; set; }
         public bool TopOffer { get; set; }
+
+
+
+        //nowe miejsca
+        public bool SuperPrice { get; set; }
+        public bool Promoted { get; set; }
+        public bool Sponsored { get; set; }
     }
 }

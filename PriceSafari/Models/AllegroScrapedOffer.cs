@@ -27,13 +27,17 @@ namespace PriceSafari.Models
         public bool Smart { get; set; }
 
 
-        // nowe miejsca 
+    
 
         public bool IsBestPriceGuarantee { get; set; }
         public bool TopOffer { get; set; }
 
+        // nowe miejsca 
 
 
+        public bool SuperPrice { get; set; }
+        public bool Promoted { get; set; }
+        public bool Sponsored { get; set; }
         // koniec nowych miejsc
 
         public int AllegroOfferToScrapeId { get; set; }
