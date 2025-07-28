@@ -147,7 +147,7 @@ namespace PriceSafari.ScrapersControllers
         public bool SuperPrice { get; set; }
         public bool Promoted { get; set; }
         public bool Sponsored { get; set; }
-        public int IdAllegro { get; set; }
+        public long IdAllegro { get; set; }
     }
 
     public class UrlResultDto

@@ -56,124 +56,6 @@ namespace PriceSafari.Controllers.MemberControllers
             return View("~/Views/Panel/AllegroPriceHistory/Index.cshtml");
         }
 
-        [HttpGet]
-        public async Task<IActionResult> GetAllegroPrices(int? storeId)
-        {
-            if (storeId == null) return BadRequest();
-            if (!await UserHasAccessToStore(storeId.Value)) return Forbid();
-
-            var store = await _context.Stores.FindAsync(storeId.Value);
-            var priceSettings = await _context.PriceValues
-                .FirstOrDefaultAsync(pv => pv.StoreId == storeId.Value);
-
-            var latestScrap = await _context.AllegroScrapeHistories
-                .Where(sh => sh.StoreId == storeId)
-                .OrderByDescending(sh => sh.Date)
-                .FirstOrDefaultAsync();
-
-            if (latestScrap == null)
-            {
-                return Json(new { myStoreName = store?.StoreName, prices = new List<object>() });
-            }
-
-            var priceData = await _context.AllegroPriceHistories
-                .Where(aph => aph.AllegroScrapeHistoryId == latestScrap.Id)
-                .Include(aph => aph.AllegroProduct)
-                .ToListAsync();
-
-            var groupedData = priceData
-                .GroupBy(aph => aph.AllegroProduct)
-                .Select(g => {
-                    var product = g.Key;
-                    var myOffer = g.FirstOrDefault(p => p.SellerName.Equals(store.StoreNameAllegro, StringComparison.OrdinalIgnoreCase));
-                    var competitors = g.Where(p => !p.SellerName.Equals(store.StoreNameAllegro, StringComparison.OrdinalIgnoreCase)).ToList();
-                    var bestCompetitor = competitors.OrderBy(p => p.Price).FirstOrDefault();
-
-                    var totalPopularity = g.Sum(p => p.Popularity ?? 0);
-
-                    var myPopularity = g
-                        .Where(p => p.SellerName.Equals(store.StoreNameAllegro, StringComparison.OrdinalIgnoreCase))
-                        .Sum(p => p.Popularity ?? 0);
-
-                    var marketSharePercentage = (totalPopularity > 0)
-                        ? ((decimal)myPopularity / totalPopularity) * 100
-                        : 0;
-
-                    return new
-                    {
-                        ProductId = product.AllegroProductId,
-                        ProductName = product.AllegroProductName,
-                        Producer = (string)null,
-                        MyPrice = myOffer?.Price,
-                        LowestPrice = bestCompetitor?.Price,
-                        StoreName = bestCompetitor?.SellerName,
-                        StoreCount = g.Select(p => p.SellerName).Distinct().Count(),
-                        TotalOfferCount = g.Count(),
-
-                        TotalPopularity = totalPopularity,
-                        MyTotalPopularity = myPopularity,
-                        MarketSharePercentage = marketSharePercentage,
-
-                        // Informacje o ofercie konkurenta
-                        DeliveryTime = bestCompetitor?.DeliveryTime,
-                        IsSuperSeller = bestCompetitor?.SuperSeller ?? false,
-                        IsSmart = bestCompetitor?.Smart ?? false,
-                        IsBestPriceGuarantee = bestCompetitor?.IsBestPriceGuarantee ?? false,
-                        IsTopOffer = bestCompetitor?.TopOffer ?? false,
-                        // Nowe pola dla konkurenta
-                        IsSuperPrice = bestCompetitor?.SuperPrice ?? false,
-                        IsPromoted = bestCompetitor?.Promoted ?? false,
-                        IsSponsored = bestCompetitor?.Sponsored ?? false,
-
-
-                        // Informacje o Twojej ofercie
-                        MyDeliveryTime = myOffer?.DeliveryTime,
-                        MyIsSuperSeller = myOffer?.SuperSeller ?? false,
-                        MyIsSmart = myOffer?.Smart ?? false,
-                        MyIsBestPriceGuarantee = myOffer?.IsBestPriceGuarantee ?? false,
-                        MyIsTopOffer = myOffer?.TopOffer ?? false,
-                        // Nowe pola dla Twojej oferty
-                        MyIsSuperPrice = myOffer?.SuperPrice ?? false,
-                        MyIsPromoted = myOffer?.Promoted ?? false,
-                        MyIsSponsored = myOffer?.Sponsored ?? false,
-
-
-                        IsRejected = false,
-                        OnlyMe = (myOffer != null && !competitors.Any()),
-                        Savings = (myOffer != null && bestCompetitor != null && myOffer.Price < bestCompetitor.Price) ? bestCompetitor.Price - myOffer.Price : (decimal?)null,
-                        PriceDifference = (myOffer != null && bestCompetitor != null) ? myOffer.Price - bestCompetitor.Price : (decimal?)null,
-                        PercentageDifference = (myOffer != null && bestCompetitor != null && bestCompetitor.Price > 0) ? ((myOffer.Price - bestCompetitor.Price) / bestCompetitor.Price) * 100 : (decimal?)null,
-                        IsUniqueBestPrice = (myOffer != null && bestCompetitor != null && myOffer.Price < bestCompetitor.Price),
-                        IsSharedBestPrice = (myOffer != null && bestCompetitor != null && myOffer.Price == bestCompetitor.Price),
-                        FlagIds = new List<int>(),
-                        Ean = (string)null,
-                        ExternalId = (int?)null,
-                        MarginPrice = product.MarginPrice,
-                        ImgUrl = (string)null,
-                    };
-                }).ToList();
-
-            return Json(new
-            {
-                myStoreName = store.StoreNameAllegro,
-                prices = groupedData,
-                priceCount = priceData.Count,
-                setPrice1 = priceSettings?.AllegroSetPrice1 ?? 2.00m,
-                setPrice2 = priceSettings?.AllegroSetPrice2 ?? 2.00m,
-                stepPrice = priceSettings?.AllegroPriceStep ?? 2.00m,
-                usePriceDifference = priceSettings?.AllegroUsePriceDiff ?? true
-            });
-        }
-
-
-
-
-
-        // nowa wersja mapujaca po id allegro 
-
-
-
-
         //[HttpGet]
         //public async Task<IActionResult> GetAllegroPrices(int? storeId)
         //{
@@ -203,26 +85,7 @@ namespace PriceSafari.Controllers.MemberControllers
         //        .GroupBy(aph => aph.AllegroProduct)
         //        .Select(g => {
         //            var product = g.Key;
-
-        //            // --- POCZĄTEK ZMIAN ---
-        //            // 1. Wyciągnij ID głównej oferty z URL-a produktu
-        //            int? targetOfferId = null;
-        //            if (!string.IsNullOrEmpty(product.AllegroOfferUrl))
-        //            {
-        //                var idString = product.AllegroOfferUrl.Split('-').LastOrDefault();
-        //                if (int.TryParse(idString, out var parsedId))
-        //                {
-        //                    targetOfferId = parsedId;
-        //                }
-        //            }
-
-        //            // 2. Znajdź DOKŁADNIE tę ofertę, która pasuje do ID z URL-a.
-        //            //    Jeśli nie zostanie znaleziona (np. nie została zescrapowana), `myOffer` będzie null.
-        //            var myOffer = targetOfferId.HasValue
-        //                ? g.FirstOrDefault(p => p.IdAllegro == targetOfferId.Value && p.SellerName.Equals(store.StoreNameAllegro, StringComparison.OrdinalIgnoreCase))
-        //                : null;
-        //            // --- KONIEC ZMIAN ---
-
+        //            var myOffer = g.FirstOrDefault(p => p.SellerName.Equals(store.StoreNameAllegro, StringComparison.OrdinalIgnoreCase));
         //            var competitors = g.Where(p => !p.SellerName.Equals(store.StoreNameAllegro, StringComparison.OrdinalIgnoreCase)).ToList();
         //            var bestCompetitor = competitors.OrderBy(p => p.Price).FirstOrDefault();
 
@@ -257,19 +120,23 @@ namespace PriceSafari.Controllers.MemberControllers
         //                IsSmart = bestCompetitor?.Smart ?? false,
         //                IsBestPriceGuarantee = bestCompetitor?.IsBestPriceGuarantee ?? false,
         //                IsTopOffer = bestCompetitor?.TopOffer ?? false,
+        //                // Nowe pola dla konkurenta
         //                IsSuperPrice = bestCompetitor?.SuperPrice ?? false,
         //                IsPromoted = bestCompetitor?.Promoted ?? false,
         //                IsSponsored = bestCompetitor?.Sponsored ?? false,
 
-        //                // Informacje o Twojej ofercie (teraz pochodzą z właściwej oferty)
+
+        //                // Informacje o Twojej ofercie
         //                MyDeliveryTime = myOffer?.DeliveryTime,
         //                MyIsSuperSeller = myOffer?.SuperSeller ?? false,
         //                MyIsSmart = myOffer?.Smart ?? false,
         //                MyIsBestPriceGuarantee = myOffer?.IsBestPriceGuarantee ?? false,
         //                MyIsTopOffer = myOffer?.TopOffer ?? false,
+        //                // Nowe pola dla Twojej oferty
         //                MyIsSuperPrice = myOffer?.SuperPrice ?? false,
         //                MyIsPromoted = myOffer?.Promoted ?? false,
         //                MyIsSponsored = myOffer?.Sponsored ?? false,
+
 
         //                IsRejected = false,
         //                OnlyMe = (myOffer != null && !competitors.Any()),
@@ -302,6 +169,130 @@ namespace PriceSafari.Controllers.MemberControllers
 
 
 
+        // nowa wersja mapujaca po id allegro 
+
+
+        [HttpGet]
+        public async Task<IActionResult> GetAllegroPrices(int? storeId)
+        {
+            if (storeId == null) return BadRequest();
+            if (!await UserHasAccessToStore(storeId.Value)) return Forbid();
+
+            var store = await _context.Stores.FindAsync(storeId.Value);
+            var priceSettings = await _context.PriceValues
+                .FirstOrDefaultAsync(pv => pv.StoreId == storeId.Value);
+
+            var latestScrap = await _context.AllegroScrapeHistories
+                .Where(sh => sh.StoreId == storeId)
+                .OrderByDescending(sh => sh.Date)
+                .FirstOrDefaultAsync();
+
+            if (latestScrap == null)
+            {
+                return Json(new { myStoreName = store?.StoreName, prices = new List<object>() });
+            }
+
+            var priceData = await _context.AllegroPriceHistories
+                .Where(aph => aph.AllegroScrapeHistoryId == latestScrap.Id)
+                .Include(aph => aph.AllegroProduct)
+                .ToListAsync();
+
+            var groupedData = priceData
+                .GroupBy(aph => aph.AllegroProduct)
+                .Select(g =>
+                {
+                    var product = g.Key;
+
+                    // --- POPRAWKA ---
+                    // 1. Zmieniamy typ zmiennej na long?, aby pomieścić duże ID
+                    long? targetOfferId = null;
+                    if (!string.IsNullOrEmpty(product.AllegroOfferUrl))
+                    {
+                        var idString = product.AllegroOfferUrl.Split('-').LastOrDefault();
+                        // 2. Używamy long.TryParse do wczytania ID
+                        if (long.TryParse(idString, out var parsedId))
+                        {
+                            targetOfferId = parsedId;
+                        }
+                    }
+
+                    var myOffer = targetOfferId.HasValue
+                        ? g.FirstOrDefault(p => p.IdAllegro == targetOfferId.Value && p.SellerName.Equals(store.StoreNameAllegro, StringComparison.OrdinalIgnoreCase))
+                        : null;
+                    // --- KONIEC POPRAWKI ---
+
+                    var competitors = g.Where(p => !p.SellerName.Equals(store.StoreNameAllegro, StringComparison.OrdinalIgnoreCase)).ToList();
+                    var bestCompetitor = competitors.OrderBy(p => p.Price).FirstOrDefault();
+
+                    var totalPopularity = g.Sum(p => p.Popularity ?? 0);
+
+                    var myPopularity = g
+                        .Where(p => p.SellerName.Equals(store.StoreNameAllegro, StringComparison.OrdinalIgnoreCase))
+                        .Sum(p => p.Popularity ?? 0);
+
+                    var marketSharePercentage = (totalPopularity > 0)
+                        ? ((decimal)myPopularity / totalPopularity) * 100
+                        : 0;
+
+                    return new
+                    {
+                        ProductId = product.AllegroProductId,
+                        ProductName = product.AllegroProductName,
+                        Producer = (string)null,
+                        MyPrice = myOffer?.Price,
+                        LowestPrice = bestCompetitor?.Price,
+                        StoreName = bestCompetitor?.SellerName,
+                        StoreCount = g.Select(p => p.SellerName).Distinct().Count(),
+                        TotalOfferCount = g.Count(),
+
+                        TotalPopularity = totalPopularity,
+                        MyTotalPopularity = myPopularity,
+                        MarketSharePercentage = marketSharePercentage,
+
+                        DeliveryTime = bestCompetitor?.DeliveryTime,
+                        IsSuperSeller = bestCompetitor?.SuperSeller ?? false,
+                        IsSmart = bestCompetitor?.Smart ?? false,
+                        IsBestPriceGuarantee = bestCompetitor?.IsBestPriceGuarantee ?? false,
+                        IsTopOffer = bestCompetitor?.TopOffer ?? false,
+                        IsSuperPrice = bestCompetitor?.SuperPrice ?? false,
+                        IsPromoted = bestCompetitor?.Promoted ?? false,
+                        IsSponsored = bestCompetitor?.Sponsored ?? false,
+
+                        MyDeliveryTime = myOffer?.DeliveryTime,
+                        MyIsSuperSeller = myOffer?.SuperSeller ?? false,
+                        MyIsSmart = myOffer?.Smart ?? false,
+                        MyIsBestPriceGuarantee = myOffer?.IsBestPriceGuarantee ?? false,
+                        MyIsTopOffer = myOffer?.TopOffer ?? false,
+                        MyIsSuperPrice = myOffer?.SuperPrice ?? false,
+                        MyIsPromoted = myOffer?.Promoted ?? false,
+                        MyIsSponsored = myOffer?.Sponsored ?? false,
+
+                        IsRejected = false,
+                        OnlyMe = (myOffer != null && !competitors.Any()),
+                        Savings = (myOffer != null && bestCompetitor != null && myOffer.Price < bestCompetitor.Price) ? bestCompetitor.Price - myOffer.Price : (decimal?)null,
+                        PriceDifference = (myOffer != null && bestCompetitor != null) ? myOffer.Price - bestCompetitor.Price : (decimal?)null,
+                        PercentageDifference = (myOffer != null && bestCompetitor != null && bestCompetitor.Price > 0) ? ((myOffer.Price - bestCompetitor.Price) / bestCompetitor.Price) * 100 : (decimal?)null,
+                        IsUniqueBestPrice = (myOffer != null && bestCompetitor != null && myOffer.Price < bestCompetitor.Price),
+                        IsSharedBestPrice = (myOffer != null && bestCompetitor != null && myOffer.Price == bestCompetitor.Price),
+                        FlagIds = new List<int>(),
+                        Ean = (string)null,
+                        ExternalId = (int?)null,
+                        MarginPrice = product.MarginPrice,
+                        ImgUrl = (string)null,
+                    };
+                }).ToList();
+
+            return Json(new
+            {
+                myStoreName = store.StoreNameAllegro,
+                prices = groupedData,
+                priceCount = priceData.Count,
+                setPrice1 = priceSettings?.AllegroSetPrice1 ?? 2.00m,
+                setPrice2 = priceSettings?.AllegroSetPrice2 ?? 2.00m,
+                stepPrice = priceSettings?.AllegroPriceStep ?? 2.00m,
+                usePriceDifference = priceSettings?.AllegroUsePriceDiff ?? true
+            });
+        }
 
 
 

@@ -46,6 +46,6 @@ namespace PriceSafari.Models
         public bool Promoted { get; set; }
         public bool Sponsored { get; set; }
 
-        public int IdAllegro { get; set; }
+        public long IdAllegro { get; set; }
     }
 }

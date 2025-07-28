@@ -39,7 +39,7 @@ namespace PriceSafari.Models
         public bool Sponsored { get; set; }
         
         //.nowe pole 
-        public int IdAllegro {  get; set; }
+        public long IdAllegro {  get; set; }
 
         public int AllegroOfferToScrapeId { get; set; }
 
