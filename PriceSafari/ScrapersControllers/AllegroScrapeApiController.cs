@@ -22,13 +22,11 @@ namespace PriceSafari.ScrapersControllers
             _hubContext = hubContext;
         }
 
-        // Metoda GetTaskBatch pozostaje bez zmian...
         [HttpGet("get-task")]
         public async Task<IActionResult> GetTaskBatch([FromQuery] string scraperName)
         {
             if (Request.Headers["X-Api-Key"] != ApiKey) return Unauthorized();
 
-            // Rejestracja scrapera (bez zmian)
             var scraper = AllegroScrapeManager.ActiveScrapers.AddOrUpdate(
                 scraperName,
                 new HybridScraperClient { Name = scraperName, Status = ScraperLiveStatus.Idle, LastCheckIn = DateTime.UtcNow },
@@ -111,14 +109,12 @@ namespace PriceSafari.ScrapersControllers
                             Popularity = scraped.Popularity,
                             SuperSeller = scraped.SuperSeller,
                             Smart = scraped.Smart,
-                            
                             IsBestPriceGuarantee = scraped.IsBestPriceGuarantee,
                             TopOffer = scraped.TopOffer,
                             SuperPrice = scraped.SuperPrice,
                             Promoted = scraped.Promoted,
                             Sponsored = scraped.Sponsored,
-
-
+                            IdAllegro = scraped.IdAllegro,
                         });
                     }
                 }
@@ -146,17 +142,12 @@ namespace PriceSafari.ScrapersControllers
         public int? Popularity { get; set; }
         public bool SuperSeller { get; set; }
         public bool Smart { get; set; }
-
         public bool IsBestPriceGuarantee { get; set; }
         public bool TopOffer { get; set; }
-
-        // nowe miejsca 
-
-
         public bool SuperPrice { get; set; }
         public bool Promoted { get; set; }
         public bool Sponsored { get; set; }
-        // koniec nowych miejsc
+        public int IdAllegro { get; set; }
     }
 
     public class UrlResultDto

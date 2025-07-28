@@ -78,6 +78,7 @@ namespace PriceSafari.Services.AllegroServices
                                 SuperPrice = scrapedOffer.SuperPrice,
                                 Promoted = scrapedOffer.Promoted,
                                 Sponsored = scrapedOffer.SuperPrice,
+                                IdAllegro = scrapedOffer.IdAllegro
                             });
                         }
                     }

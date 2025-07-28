@@ -32,13 +32,14 @@ namespace PriceSafari.Models
         public bool IsBestPriceGuarantee { get; set; }
         public bool TopOffer { get; set; }
 
-        // nowe miejsca 
-
+       
 
         public bool SuperPrice { get; set; }
         public bool Promoted { get; set; }
         public bool Sponsored { get; set; }
-        // koniec nowych miejsc
+        
+        //.nowe pole 
+        public int IdAllegro {  get; set; }
 
         public int AllegroOfferToScrapeId { get; set; }
 

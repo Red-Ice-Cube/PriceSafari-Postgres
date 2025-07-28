@@ -41,9 +41,11 @@ namespace PriceSafari.Models
 
 
 
-        //nowe miejsca
+        
         public bool SuperPrice { get; set; }
         public bool Promoted { get; set; }
         public bool Sponsored { get; set; }
+
+        public int IdAllegro { get; set; }
     }
 }
