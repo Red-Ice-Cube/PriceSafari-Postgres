@@ -216,6 +216,9 @@ namespace PriceSafari.Controllers.MemberControllers
 
             return View("~/Views/Panel/AllegroPriceHistory/Details.cshtml");
         }
+
+
+
         [HttpGet]
         public async Task<IActionResult> GetProductPriceDetails(int storeId, int productId)
         {
@@ -248,10 +251,12 @@ namespace PriceSafari.Controllers.MemberControllers
                     aph.DeliveryTime,
                     aph.DeliveryCost,
                     aph.Popularity,
-
-                 
                     aph.IsBestPriceGuarantee,
-                    aph.TopOffer
+                    aph.TopOffer,
+                    // Nowe pola
+                    aph.SuperPrice,
+                    aph.Promoted,
+                    aph.Sponsored
                 })
                 .ToListAsync();
 
