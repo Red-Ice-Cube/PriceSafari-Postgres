@@ -114,21 +114,29 @@ namespace PriceSafari.Controllers.MemberControllers
                         MyTotalPopularity = myPopularity,
                         MarketSharePercentage = marketSharePercentage,
 
+                        // Informacje o ofercie konkurenta
                         DeliveryTime = bestCompetitor?.DeliveryTime,
                         IsSuperSeller = bestCompetitor?.SuperSeller ?? false,
                         IsSmart = bestCompetitor?.Smart ?? false,
+                        IsBestPriceGuarantee = bestCompetitor?.IsBestPriceGuarantee ?? false,
+                        IsTopOffer = bestCompetitor?.TopOffer ?? false,
+                        // Nowe pola dla konkurenta
+                        IsSuperPrice = bestCompetitor?.SuperPrice ?? false,
+                        IsPromoted = bestCompetitor?.Promoted ?? false,
+                        IsSponsored = bestCompetitor?.Sponsored ?? false,
 
-                        // ZMIANA: Dodanie pól promocyjnych dla najlepszej oferty konkurencji
-                        CompetitorIsBestPriceGuarantee = bestCompetitor?.IsBestPriceGuarantee ?? false,
-                        CompetitorIsTopOffer = bestCompetitor?.TopOffer ?? false,
 
+                        // Informacje o Twojej ofercie
                         MyDeliveryTime = myOffer?.DeliveryTime,
                         MyIsSuperSeller = myOffer?.SuperSeller ?? false,
                         MyIsSmart = myOffer?.Smart ?? false,
-
-                        // ZMIANA: Dodanie pól promocyjnych dla Twojej oferty
                         MyIsBestPriceGuarantee = myOffer?.IsBestPriceGuarantee ?? false,
                         MyIsTopOffer = myOffer?.TopOffer ?? false,
+                        // Nowe pola dla Twojej oferty
+                        MyIsSuperPrice = myOffer?.SuperPrice ?? false,
+                        MyIsPromoted = myOffer?.Promoted ?? false,
+                        MyIsSponsored = myOffer?.Sponsored ?? false,
+
 
                         IsRejected = false,
                         OnlyMe = (myOffer != null && !competitors.Any()),
@@ -241,7 +249,7 @@ namespace PriceSafari.Controllers.MemberControllers
                     aph.DeliveryCost,
                     aph.Popularity,
 
-                    // ZMIANA: Dodanie nowych pól do selekcji
+                 
                     aph.IsBestPriceGuarantee,
                     aph.TopOffer
                 })

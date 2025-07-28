@@ -3567,7 +3567,8 @@ tr:last-child .sub-line {
 .Delivery1,
 .Delivery2,
 .Delivery3,
-.TopOffer{
+.TopOffer,
+.SuperPrice{
     border-radius: 4px;
     padding: 2px 5px;
     display: inline-flex;
@@ -3636,6 +3637,21 @@ tr:last-child .sub-line {
 .Delivery3 {
     background: #000000;
 }
+
+.SuperPrice {
+    background: #107B1E;
+}
+
+
+.PromoInfo {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 500;
+    color: #969696;
+}
+
 
 .positionFilter {
     outline: none;

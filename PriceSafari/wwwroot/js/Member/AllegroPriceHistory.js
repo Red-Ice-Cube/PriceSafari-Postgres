@@ -164,12 +164,30 @@
             const highlightedStoreName = highlightMatches(item.storeName, storeSearchTerm);
             const highlightedMyStoreName = highlightMatches(myStoreName, storeSearchTerm);
 
-            
-            const competitorPriceStyle = item.competitorIsBestPriceGuarantee ? 'color: #169A23;' : '';
-            const competitorPriceIcon = item.competitorIsBestPriceGuarantee ? `<img src="/images/TopPrice.png" alt="Gwarancja Najniższej Ceny" title="Gwarancja Najniższej Ceny" style="width: 18px; height: 18px; vertical-align: middle; margin-left: 5px; margin-top: -5px;">` : '';
+            // Generowanie oznaczeń dla konkurenta
+            const competitorSuperPriceBadge = item.isSuperPrice ? `<div class="SuperPrice">SUPERCENA</div>` : '';
+            let competitorPromoInfoBadge = '';
+            if (item.isPromoted) {
+                competitorPromoInfoBadge = `<div class="PromoInfo">Promowane</div>`;
+            } else if (item.isSponsored) {
+                competitorPromoInfoBadge = `<div class="PromoInfo">Sponsorowane</div>`;
+            }
+
+            // Generowanie oznaczeń dla Twojej oferty
+            const mySuperPriceBadge = item.myIsSuperPrice ? `<div class="SuperPrice">SUPERCENA</div>` : '';
+            let myPromoInfoBadge = '';
+            if (item.myIsPromoted) {
+                myPromoInfoBadge = `<div class="PromoInfo">Promowane</div>`;
+            } else if (item.myIsSponsored) {
+                myPromoInfoBadge = `<div class="PromoInfo">Sponsorowane</div>`;
+            }
+
+
+            const competitorPriceStyle = item.isBestPriceGuarantee ? 'color: #169A23;' : '';
+            const competitorPriceIcon = item.isBestPriceGuarantee ? `<img src="/images/TopPrice.png" alt="Gwarancja Najniższej Ceny" title="Gwarancja Najniższej Ceny" style="width: 18px; height: 18px; vertical-align: middle; margin-top: -5px;">` : '';
 
             const myPriceStyle = item.myIsBestPriceGuarantee ? 'color: #169A23;' : '';
-            const myPriceIcon = item.myIsBestPriceGuarantee ? `<img src="/images/TopPrice.png" alt="Gwarancja Najniższej Ceny" title="Gwarancja Najniższej Ceny" style="width: 18px; height: 18px; vertical-align: middle; margin-left: 5px; margin-top: -5px;">` : '';
+            const myPriceIcon = item.myIsBestPriceGuarantee ? `<img src="/images/TopPrice.png" alt="Gwarancja Najniższej Ceny" title="Gwarancja Najniższej Ceny" style="width: 18px; height: 18px; vertical-align: middle;  margin-top: -5px;">` : '';
 
             const box = document.createElement('div');
             box.className = 'price-box ' + item.colorClass;
@@ -216,18 +234,22 @@
                     `
                 <div class="price-box-column-text">
                     <div>
-                       
-                        <span style="font-weight: 500; font-size: 17px; ${competitorPriceStyle}">${lowestPrice.toFixed(2)} PLN</span>${competitorPriceIcon}
+                        <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                            <span style="font-weight: 500; font-size: 17px; ${competitorPriceStyle}">${lowestPrice.toFixed(2)} PLN</span>
+                            ${competitorPriceIcon}
+                            ${competitorSuperPriceBadge}
+                        </div>
                         <div>
                             ${highlightedStoreName || ''}
                             ${item.isSuperSeller ? `<img src="/images/SuperSeller.png" alt="Super Sprzedawca" title="Super Sprzedawca" style="width: 18px; height: 18px; vertical-align: middle; margin-bottom: 1px;">` : ''}
                         </div>
+                        <div style="height: 16.5px; margin-top:-2px; display:flex; align-content:center;">${competitorPromoInfoBadge}</div>
                     </div>
                 </div>
                 <div class="price-box-column-text">
                     <div class="data-channel">
                         
-                        ${item.competitorIsTopOffer ? `<div class="TopOffer">Top oferta</div>` : ''}
+                        ${item.isTopOffer ? `<div class="TopOffer">Top oferta</div>` : ''}
                         ${item.isSmart ? `
                             <div class="Smart-Allegro">
                                 <img src="/images/Smart.png" alt="Smart!" title="Smart!" style="height: 15px; width: auto; margin-left: 2px;">
@@ -244,17 +266,21 @@
                     `
                 <div class="price-box-column-text">
                     <div>
-                        
-                        <span style="font-weight: 500; font-size: 17px; ${myPriceStyle}">${myPrice.toFixed(2)} PLN</span>${myPriceIcon}
+                        <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                            <span style="font-weight: 500; font-size: 17px; ${myPriceStyle}">${myPrice.toFixed(2)} PLN</span>
+                            ${myPriceIcon}
+                            ${mySuperPriceBadge}
+                        </div>
                         <div>
                             ${highlightedMyStoreName}
                             ${item.myIsSuperSeller ? `<img src="/images/SuperSeller.png" alt="Super Sprzedawca" title="Super Sprzedawca" style="width: 18px; height: 18px; vertical-align: middle; margin-bottom: 1px;">` : ''}
                         </div>
+                        <div style="height: 16.5px; margin-top:-2px; display:flex; align-content:center;">${myPromoInfoBadge}</div>
                     </div>
                 </div>
                 <div class="price-box-column-text">
                     <div class="data-channel">
-                     
+                       
                         ${item.myIsTopOffer ? `<div class="TopOffer">Top oferta</div>` : ''}
                         ${item.myIsSmart ? `
                             <div class="Smart-Allegro">
