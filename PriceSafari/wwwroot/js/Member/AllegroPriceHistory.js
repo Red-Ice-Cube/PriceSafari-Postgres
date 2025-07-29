@@ -13,6 +13,10 @@
         sortRaisePercentage: null, sortLowerAmount: null, sortLowerPercentage: null,
     };
 
+    // --- NOWY STAN ---
+    let isCatalogViewActive = false;
+    // -----------------
+
     let currentPage = 1;
     const itemsPerPage = 1000;
 
@@ -54,12 +58,9 @@
 
     function getOfferText(count) {
         if (count === 1) return `${count} Oferta`;
-
         if (count > 10 && count < 20) return `${count} Ofert`;
         const lastDigit = count % 10;
-
         if ([2, 3, 4].includes(lastDigit)) return `${count} Oferty`;
-
         return `${count} Ofert`;
     }
 
@@ -91,7 +92,6 @@
         });
     }
 
-
     function highlightMatches(fullText, searchTerm) {
         if (!searchTerm || !fullText) return fullText;
         const escapedTerm = searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -103,50 +103,30 @@
         if (deliveryTime === null || deliveryTime === undefined) {
             return '';
         }
-
-        let text = '';
-        let className = '';
-
+        let text = '', className = '';
         switch (deliveryTime) {
-            case 1:
-                text = 'Dostawa jutro';
-                className = 'Delivery1';
-                break;
-            case 2:
-                text = 'Dostawa pojutrze';
-                className = 'Delivery2';
-                break;
-            case 3:
-                text = 'Długa dostawa';
-                className = 'Delivery3';
-                break;
-            default:
-                return '';
+            case 1: text = 'Dostawa jutro'; className = 'Delivery1'; break;
+            case 2: text = 'Dostawa pojutrze'; className = 'Delivery2'; break;
+            case 3: text = 'Długa dostawa'; className = 'Delivery3'; break;
+            default: return '';
         }
-
         return `<div class="${className}">${text}</div>`;
     }
 
     function getColorClass(valueToUse, isUniqueBestPrice = false, isSharedBestPrice = false) {
         if (isSharedBestPrice) return "prGood";
-
         if (isUniqueBestPrice) {
-
             if (!usePriceDifference) {
-
                 return Math.abs(valueToUse) > setPrice1 ? "prToLow" : "prIdeal";
             } else {
-
                 return valueToUse <= setPrice1 ? "prIdeal" : "prToLow";
             }
-
         }
-
         const numericValue = parseFloat(valueToUse);
         if (isNaN(numericValue)) return "prNoOffer";
-
         return numericValue < setPrice2 ? "prMid" : "prToHigh";
     }
+
     function renderPrices(data) {
         const container = document.getElementById('priceContainer');
         container.innerHTML = '';
@@ -159,12 +139,17 @@
         paginatedData.forEach(item => {
             const myPrice = item.myPrice != null ? parseFloat(item.myPrice) : null;
             const lowestPrice = item.lowestPrice != null ? parseFloat(item.lowestPrice) : null;
-
             const highlightedProductName = highlightMatches(item.productName, productSearchTerm);
             const highlightedStoreName = highlightMatches(item.storeName, storeSearchTerm);
             const highlightedMyStoreName = highlightMatches(myStoreName, storeSearchTerm);
-
-            // Generowanie oznaczeń dla konkurenta
+            let myOfferIdHtml = '';
+            if (item.myIdAllegro) {
+                myOfferIdHtml = `
+                <div class="price-box-column-category">
+                    <span class="ApiBox">ID ${item.myIdAllegro}</span>
+                </div>
+            `;
+            }
             const competitorSuperPriceBadge = item.isSuperPrice ? `<div class="SuperPrice">SUPERCENA</div>` : '';
             let competitorPromoInfoBadge = '';
             if (item.isPromoted) {
@@ -172,147 +157,138 @@
             } else if (item.isSponsored) {
                 competitorPromoInfoBadge = `<div class="PromoInfo">Sponsorowane</div>`;
             }
-
-            // Generowanie oznaczeń dla Twojej oferty
             const mySuperPriceBadge = item.myIsSuperPrice ? `<div class="SuperPrice">SUPERCENA</div>` : '';
             let myPromoInfoBadge = '';
             if (item.myIsPromoted) {
                 myPromoInfoBadge = `<div class="PromoInfo">Promowane</div>`;
-            } else if (item.myIsSponsored) {
+            } else if (item.isSponsored) {
                 myPromoInfoBadge = `<div class="PromoInfo">Sponsorowane</div>`;
             }
-
-
             const competitorPriceStyle = item.isBestPriceGuarantee ? 'color: #169A23;' : '';
             const competitorPriceIcon = item.isBestPriceGuarantee ? `<img src="/images/TopPrice.png" alt="Gwarancja Najniższej Ceny" title="Gwarancja Najniższej Ceny" style="width: 18px; height: 18px; vertical-align: middle; margin-top: -5px;">` : '';
-
             const myPriceStyle = item.myIsBestPriceGuarantee ? 'color: #169A23;' : '';
             const myPriceIcon = item.myIsBestPriceGuarantee ? `<img src="/images/TopPrice.png" alt="Gwarancja Najniższej Ceny" title="Gwarancja Najniższej Ceny" style="width: 18px; height: 18px; vertical-align: middle;  margin-top: -5px;">` : '';
-
             const box = document.createElement('div');
             box.className = 'price-box ' + item.colorClass;
             box.dataset.productId = item.productId;
             box.dataset.detailsUrl = `/AllegroPriceHistory/Details?storeId=${storeId}&productId=${item.productId}`;
             box.style.cursor = 'pointer';
-
             box.innerHTML = `
-        <div class="price-box-space" style="margin-bottom:20px;">
-            <div class="price-box-column-name">${highlightedProductName}</div>
-        </div>
-        <div class="price-box-data">
-            <div class="color-bar ${item.colorClass}"></div>
-
-            <div class="price-box-stats-container">
-                <div class="price-box-column-offers-a">
-                    <span class="data-channel">
-                        <img src="/images/AllegroIcon.png" alt="Allegro Icon" style="width:15px; height:15px;" />
-                    </span>
-                    <div class="offer-count-box">${getOfferText(item.totalOfferCount)}</div>
-                </div>
-                <div class="price-box-column-offers-a">
-                    <span class="data-channel">
-                        <i class="fas fa-shopping-cart" style="font-size: 15px; color: grey; margin-top:1px;" title="Łączna sprzedaż ostatnich 30 dni"></i>
-                    </span>
-                    <div class="offer-count-box">
-                        <p>${item.totalPopularity} osb. kupiło</p>
-                    </div>
-                </div>
-                <div class="price-box-column-offers-a">
-                    <span class="data-channel">
-                        <i class="fas fa-chart-pie" style="font-size: 15px; color: grey; margin-top:1px;" title="Twój udział w rynku w ostatnich 30 dniach"></i>
-                    </span>
-                    <div class="offer-count-box">
-                        <p>${item.myTotalPopularity} osb. (${item.marketSharePercentage.toFixed(2)}%)</p>
-                    </div>
-                </div>
+            <div class="price-box-space">
+                <div class="price-box-column-name">${highlightedProductName}</div>
+                <div class="flags-container"></div>
+                <button class="assign-flag-button" data-product-id="${item.productId}">+ Przypisz flagi</button>
             </div>
-            <div class="price-box-column">
-                ${(item.onlyMe || lowestPrice == null) ?
+            ${myOfferIdHtml}
+            <div class="price-box-data">
+                <div class="color-bar ${item.colorClass}"></div>
+                <div class="price-box-stats-container">
+                    <div class="price-box-column-offers-a">
+                        <span class="data-channel">
+                            <img src="/images/AllegroIcon.png" alt="Allegro Icon" style="width:15px; height:15px;" />
+                        </span>
+                        <div class="offer-count-box">${getOfferText(item.totalOfferCount)}</div>
+                    </div>
+                    <div class="price-box-column-offers-a">
+                        <span class="data-channel">
+                            <i class="fas fa-shopping-cart" style="font-size: 15px; color: grey; margin-top:1px;" title="Łączna sprzedaż ostatnich 30 dni"></i>
+                        </span>
+                        <div class="offer-count-box">
+                            <p>${item.totalPopularity} osb. kupiło</p>
+                        </div>
+                    </div>
+                    <div class="price-box-column-offers-a">
+                        <span class="data-channel">
+                            <i class="fas fa-chart-pie" style="font-size: 15px; color: grey; margin-top:1px;" title="Twój udział w rynku w ostatnich 30 dniach"></i>
+                        </span>
+                        <div class="offer-count-box">
+                            <p>${item.myTotalPopularity} osb. (${item.marketSharePercentage.toFixed(2)}%)</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="price-box-column">
+                    ${(item.onlyMe || lowestPrice == null) ?
                     `<div class="price-box-column-text">
-                    <div><span style="font-weight: 500;">Brak konkurencji</span></div>
-                </div>` :
+                            <div><span style="font-weight: 500;">Brak konkurencji</span></div>
+                        </div>` :
                     `
-                <div class="price-box-column-text">
-                    <div>
-                        <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
-                            <span style="font-weight: 500; font-size: 17px; ${competitorPriceStyle}">${lowestPrice.toFixed(2)} PLN</span>
-                            ${competitorPriceIcon}
-                            ${competitorSuperPriceBadge}
-                        </div>
+                    <div class="price-box-column-text">
                         <div>
-                            ${highlightedStoreName || ''}
-                            ${item.isSuperSeller ? `<img src="/images/SuperSeller.png" alt="Super Sprzedawca" title="Super Sprzedawca" style="width: 18px; height: 18px; vertical-align: middle; margin-bottom: 1px;">` : ''}
-                        </div>
-                        <div style="height: 16.5px; margin-top:-2px; display:flex; align-content:center;">${competitorPromoInfoBadge}</div>
-                    </div>
-                </div>
-                <div class="price-box-column-text">
-                    <div class="data-channel">
-                        
-                        ${item.isTopOffer ? `<div class="TopOffer">Top oferta</div>` : ''}
-                        ${item.isSmart ? `
-                            <div class="Smart-Allegro">
-                                <img src="/images/Smart.png" alt="Smart!" title="Smart!" style="height: 15px; width: auto; margin-left: 2px;">
+                            <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                                <span style="font-weight: 500; font-size: 17px; ${competitorPriceStyle}">${lowestPrice.toFixed(2)} PLN</span>
+                                ${competitorPriceIcon}
+                                ${competitorSuperPriceBadge}
                             </div>
-                        ` : ''}
-                        ${renderDeliveryInfo(item.deliveryTime)}
+                            <div>
+                                ${highlightedStoreName || ''}
+                                ${item.isSuperSeller ? `<img src="/images/SuperSeller.png" alt="Super Sprzedawca" title="Super Sprzedawca" style="width: 18px; height: 18px; vertical-align: middle; margin-bottom: 1px;">` : ''}
+                            </div>
+                            <div style="height: 16.5px; margin-top:-2px; display:flex; align-content:center;">${competitorPromoInfoBadge}</div>
+                        </div>
                     </div>
-                    </div>
-                `
+                    <div class="price-box-column-text">
+                        <div class="data-channel">
+                            
+                            ${item.isTopOffer ? `<div class="TopOffer">Top oferta</div>` : ''}
+                            ${item.isSmart ? `
+                                <div class="Smart-Allegro">
+                                    <img src="/images/Smart.png" alt="Smart!" title="Smart!" style="height: 15px; width: auto; margin-left: 2px;">
+                                </div>
+                            ` : ''}
+                            ${renderDeliveryInfo(item.deliveryTime)}
+                        </div>
+                        </div>
+                    `
                 }
-            </div>
-            <div class="price-box-column">
-                ${myPrice != null ?
-                    `
-                <div class="price-box-column-text">
-                    <div>
-                        <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
-                            <span style="font-weight: 500; font-size: 17px; ${myPriceStyle}">${myPrice.toFixed(2)} PLN</span>
-                            ${myPriceIcon}
-                            ${mySuperPriceBadge}
-                        </div>
-                        <div>
-                            ${highlightedMyStoreName}
-                            ${item.myIsSuperSeller ? `<img src="/images/SuperSeller.png" alt="Super Sprzedawca" title="Super Sprzedawca" style="width: 18px; height: 18px; vertical-align: middle; margin-bottom: 1px;">` : ''}
-                        </div>
-                        <div style="height: 16.5px; margin-top:-2px; display:flex; align-content:center;">${myPromoInfoBadge}</div>
-                    </div>
                 </div>
-                <div class="price-box-column-text">
-                    <div class="data-channel">
-                       
-                        ${item.myIsTopOffer ? `<div class="TopOffer">Top oferta</div>` : ''}
-                        ${item.myIsSmart ? `
-                            <div class="Smart-Allegro">
-                                <img src="/images/Smart.png" alt="Smart!" title="Smart!" style="height: 15px; width: auto; margin-left: 2px;">
+                <div class="price-box-column">
+                    ${myPrice != null ?
+                    `
+                    <div class="price-box-column-text">
+                        <div>
+                            <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                                <span style="font-weight: 500; font-size: 17px; ${myPriceStyle}">${myPrice.toFixed(2)} PLN</span>
+                                ${myPriceIcon}
+                                ${mySuperPriceBadge}
                             </div>
-                        ` : ''}
-                        ${renderDeliveryInfo(item.myDeliveryTime)}
+                            <div>
+                                ${highlightedMyStoreName}
+                                ${item.myIsSuperSeller ? `<img src="/images/SuperSeller.png" alt="Super Sprzedawca" title="Super Sprzedawca" style="width: 18px; height: 18px; vertical-align: middle; margin-bottom: 1px;">` : ''}
+                            </div>
+                            <div style="height: 16.5px; margin-top:-2px; display:flex; align-content:center;">${myPromoInfoBadge}</div>
+                        </div>
                     </div>
-                    </div>
-                ` :
+                    <div class="price-box-column-text">
+                        <div class="data-channel">
+                           
+                            ${item.myIsTopOffer ? `<div class="TopOffer">Top oferta</div>` : ''}
+                            ${item.myIsSmart ? `
+                                <div class="Smart-Allegro">
+                                    <img src="/images/Smart.png" alt="Smart!" title="Smart!" style="height: 15px; width: auto; margin-left: 2px;">
+                                </div>
+                            ` : ''}
+                            ${renderDeliveryInfo(item.myDeliveryTime)}
+                        </div>
+                        </div>
+                    ` :
                     `<div class="price-box-column-text">
-                    <div><span style="font-weight: 500;">Brak Twojej oferty</span></div>
-                </div>`
+                            <div><span style="font-weight: 500;">Brak Twojej oferty</span></div>
+                        </div>`
                 }
+                </div>
+                <div class="price-box-column-action" id="infoCol-${item.productId}"></div>
             </div>
-            <div class="price-box-column-action" id="infoCol-${item.productId}"></div>
-        </div>
-    `;
+        `;
             container.appendChild(box);
-
             box.addEventListener('click', function (event) {
                 if (event.target.closest('button, a, img')) {
                     return;
                 }
                 window.open(this.dataset.detailsUrl, '_blank');
             });
-
-            // Reszta funkcji renderPrices bez zmian...
             const infoCol = document.getElementById(`infoCol-${item.productId}`);
             if (!infoCol || item.onlyMe || item.isRejected || myPrice === null || lowestPrice === null) {
-                // Zmieniono warunek, aby nie kończyć funkcji, gdy infoCol jest nullem.
-                // Sprawdzamy `infoCol` przed próbą użycia go.
+ 
             } else {
                 // Tutaj kod dla kolumny akcji pozostaje bez zmian
                 if (item.colorClass === "prToLow" || item.colorClass === "prIdeal") {
@@ -333,23 +309,23 @@
                     if (amount2 < 0) arrowClass2 = 'arrow-down-turquoise';
 
                     infoCol.innerHTML = `
-                <div class="price-box-column">
-                    <div class="price-action-line">
-                        <span class="${upArrowClass}"></span>
-                        <span>${amount1 >= 0 ? '+' : ''}${amount1.toFixed(2)} PLN (${percentage1 >= 0 ? '+' : ''}${percentage1.toFixed(2)}%)</span>
-                        <div>= ${suggestedPrice1.toFixed(2)} PLN</div>
-                        <span class="color-square-green"></span>
+                    <div class="price-box-column">
+                        <div class="price-action-line">
+                            <span class="${upArrowClass}"></span>
+                            <span>${amount1 >= 0 ? '+' : ''}${amount1.toFixed(2)} PLN (${percentage1 >= 0 ? '+' : ''}${percentage1.toFixed(2)}%)</span>
+                            <div>= ${suggestedPrice1.toFixed(2)} PLN</div>
+                            <span class="color-square-green"></span>
+                        </div>
                     </div>
-                </div>
-                <div class="price-box-column">
-                    <div class="price-action-line">
-                        <span class="${arrowClass2}"></span>
-                        <span>${amount2 >= 0 ? '+' : ''}${amount2.toFixed(2)} PLN (${percentage2 >= 0 ? '+' : ''}${percentage2.toFixed(2)}%)</span>
-                        <div>= ${suggestedPrice2.toFixed(2)} PLN</div>
-                        <span class="color-square-turquoise"></span>
+                    <div class="price-box-column">
+                        <div class="price-action-line">
+                            <span class="${arrowClass2}"></span>
+                            <span>${amount2 >= 0 ? '+' : ''}${amount2.toFixed(2)} PLN (${percentage2 >= 0 ? '+' : ''}${percentage2.toFixed(2)}%)</span>
+                            <div>= ${suggestedPrice2.toFixed(2)} PLN</div>
+                            <span class="color-square-turquoise"></span>
+                        </div>
                     </div>
-                </div>
-            `;
+                `;
                 } else if (item.colorClass === "prMid" || item.colorClass === "prToHigh") {
                     const amountToMatch = myPrice - lowestPrice;
                     const percentageToMatch = myPrice > 0 ? (amountToMatch / myPrice) * 100 : 0;
@@ -364,23 +340,23 @@
                     const arrowClass = item.colorClass === "prMid" ? "arrow-down-yellow" : "arrow-down-red";
 
                     infoCol.innerHTML = `
-                <div class="price-box-column">
-                    <div class="price-action-line">
-                        <span class="${arrowClass}"></span>
-                        <span>-${amountToMatch.toFixed(2)} PLN (-${percentageToMatch.toFixed(2)}%)</span>
-                        <div>= ${lowestPrice.toFixed(2)} PLN</div>
-                        <span class="color-square-green"></span>
+                    <div class="price-box-column">
+                        <div class="price-action-line">
+                            <span class="${arrowClass}"></span>
+                            <span>-${amountToMatch.toFixed(2)} PLN (-${percentageToMatch.toFixed(2)}%)</span>
+                            <div>= ${lowestPrice.toFixed(2)} PLN</div>
+                            <span class="color-square-green"></span>
+                        </div>
                     </div>
-                </div>
-                <div class="price-box-column">
-                    <div class="price-action-line">
-                        <span class="${arrowClass}"></span>
-                        <span>-${amountToBeat.toFixed(2)} PLN (-${percentageToBeat.toFixed(2)}%)</span>
-                        <div>= ${strategicPrice.toFixed(2)} PLN</div>
-                        <span class="color-square-turquoise"></span>
+                    <div class="price-box-column">
+                        <div class="price-action-line">
+                            <span class="${arrowClass}"></span>
+                            <span>-${amountToBeat.toFixed(2)} PLN (-${percentageToBeat.toFixed(2)}%)</span>
+                            <div>= ${strategicPrice.toFixed(2)} PLN</div>
+                            <span class="color-square-turquoise"></span>
+                        </div>
                     </div>
-                </div>
-            `;
+                `;
                 } else if (item.colorClass === "prGood") {
                     const amount1 = 0;
                     const percentage1 = 0;
@@ -406,23 +382,23 @@
                     }
 
                     infoCol.innerHTML = `
-                <div class="price-box-column">
-                    <div class="price-action-line">
-                        <span class="no-change-icon"></span>
-                        <span>+${amount1.toFixed(2)} PLN (+${percentage1.toFixed(2)}%)</span>
-                        <div>= ${suggestedPrice1.toFixed(2)} PLN</div>
-                        <span class="color-square-green"></span>
+                    <div class="price-box-column">
+                        <div class="price-action-line">
+                            <span class="no-change-icon"></span>
+                            <span>+${amount1.toFixed(2)} PLN (+${percentage1.toFixed(2)}%)</span>
+                            <div>= ${suggestedPrice1.toFixed(2)} PLN</div>
+                            <span class="color-square-green"></span>
+                        </div>
                     </div>
-                </div>
-                <div class="price-box-column">
-                    <div class="price-action-line">
-                        <span class="${downArrowClass}"></span>
-                        <span>${amount2.toFixed(2)} PLN (${percentage2.toFixed(2)}%)</span>
-                        <div>= ${suggestedPrice2.toFixed(2)} PLN</div>
-                        <span class="color-square-turquoise"></span>
+                    <div class="price-box-column">
+                        <div class="price-action-line">
+                            <span class="${downArrowClass}"></span>
+                            <span>${amount2.toFixed(2)} PLN (${percentage2.toFixed(2)}%)</span>
+                            <div>= ${suggestedPrice2.toFixed(2)} PLN</div>
+                            <span class="color-square-turquoise"></span>
+                        </div>
                     </div>
-                </div>
-            `;
+                `;
                 }
             }
         });
@@ -430,74 +406,166 @@
         renderPaginationControls(data.length);
         document.getElementById('displayedProductCount').textContent = `${data.length} / ${allPrices.length}`;
     }
+
+    // --- NOWA FUNKCJA GRUPUJĄCA ---
+    function groupAndFilterByCatalog(data) {
+        const catalogGroups = new Map();
+
+        for (const item of data) {
+            // Grupujemy tylko produkty, w których mamy ofertę (i tym samym klucz)
+            if (item.myOffersGroupKey) {
+                const existingItem = catalogGroups.get(item.myOffersGroupKey);
+                // Jeśli nie ma jeszcze reprezentanta tej grupy, lub nowy jest tańszy, zapisujemy go.
+                // Musimy też obsłużyć przypadek, gdy nasza cena to null.
+                if (!existingItem || (item.myPrice !== null && item.myPrice < existingItem.myPrice)) {
+                    catalogGroups.set(item.myOffersGroupKey, item);
+                }
+            } else {
+                // Produkty bez naszej oferty (bez klucza) są unikalne, więc je zachowujemy.
+                // Używamy productId jako unikalnego klucza, by uniknąć nadpisania.
+                catalogGroups.set(`no-group-${item.productId}`, item);
+            }
+        }
+        // Zwracamy tablicę z najtańszymi ofertami z każdego katalogu.
+        return Array.from(catalogGroups.values());
+    }
+
     function renderPaginationControls(totalItems) {
+
         const totalPages = Math.ceil(totalItems / itemsPerPage);
+
         const paginationContainer = document.getElementById('paginationContainer');
+
         if (!paginationContainer) return;
+
         paginationContainer.innerHTML = '';
+
         if (totalPages <= 1) return;
 
+
+
         const createButton = (html, page, isDisabled = false, isActive = false) => {
+
             const button = document.createElement('button');
+
             button.innerHTML = html;
+
             button.disabled = isDisabled;
+
             if (isActive) button.classList.add('active');
+
             button.addEventListener('click', () => {
+
                 currentPage = page;
+
                 filterAndSortPrices(false);
+
             });
+
             return button;
+
         };
 
+
+
         paginationContainer.appendChild(createButton('<i class="fa fa-chevron-circle-left" aria-hidden="true"></i>', currentPage - 1, currentPage === 1));
+
         for (let i = 1; i <= totalPages; i++) {
+
             paginationContainer.appendChild(createButton(i, i, false, i === currentPage));
+
         }
+
         paginationContainer.appendChild(createButton('<i class="fa fa-chevron-circle-right" aria-hidden="true"></i>', currentPage + 1, currentPage === totalPages));
+
     }
+
+
 
     function renderChart(data) {
+
         const colorCounts = { prNoOffer: 0, prOnlyMe: 0, prToHigh: 0, prMid: 0, prGood: 0, prIdeal: 0, prToLow: 0 };
+
         data.forEach(item => { if (colorCounts.hasOwnProperty(item.colorClass)) colorCounts[item.colorClass]++; });
+
         const chartData = Object.values(colorCounts);
+
         const ctx = document.getElementById('colorChart');
+
         if (!ctx) return;
 
+
+
         if (chartInstance) {
+
             chartInstance.data.datasets[0].data = chartData;
+
             chartInstance.update();
+
         } else {
+
             chartInstance = new Chart(ctx.getContext('2d'), {
+
                 type: 'doughnut',
+
                 data: {
+
                     labels: ['Cena niedostępna', 'Cena solo', 'Cena zawyżona', 'Cena suboptymalna', 'Cena konkurencyjna', 'Cena strategiczna', 'Cena zaniżona'],
+
                     datasets: [{
+
                         data: chartData,
+
                         backgroundColor: ['#e6e6e6', '#b4b4b4', '#ab2520', '#e0a842', '#759870', '#0d6efd', '#060606'],
+
                         borderWidth: 1
+
                     }]
+
                 },
+
                 options: {
+
                     responsive: true, maintainAspectRatio: false, cutout: '60%',
+
                     plugins: { legend: { display: false }, tooltip: { callbacks: { label: (c) => `Produkty: ${c.parsed}` } } }
+
                 }
+
             });
+
         }
+
     }
+
+
 
     const debouncedRenderChart = debounce(renderChart, 300);
 
+
+
     function updateColorCounts(data) {
+
         const counts = { prNoOffer: 0, prOnlyMe: 0, prToHigh: 0, prMid: 0, prGood: 0, prIdeal: 0, prToLow: 0 };
+
         data.forEach(item => { if (counts.hasOwnProperty(item.colorClass)) counts[item.colorClass]++; });
 
+
+
         document.querySelector('label[for="prNoOfferCheckbox"]').textContent = `Cena niedostępna (${counts.prNoOffer})`;
+
         document.querySelector('label[for="prOnlyMeCheckbox"]').textContent = `Cena solo (${counts.prOnlyMe})`;
+
         document.querySelector('label[for="prToHighCheckbox"]').textContent = `Cena zawyżona (${counts.prToHigh})`;
+
         document.querySelector('label[for="prMidCheckbox"]').textContent = `Cena suboptymalna (${counts.prMid})`;
+
         document.querySelector('label[for="prGoodCheckbox"]').textContent = `Cena konkurencyjna (${counts.prGood})`;
+
         document.querySelector('label[for="prIdealCheckbox"]').textContent = `Cena strategiczna (${counts.prIdeal})`;
+
         document.querySelector('label[for="prToLowCheckbox"]').textContent = `Cena zaniżona (${counts.prToLow})`;
+
     }
 
     function filterAndSortPrices(resetPageFlag = true) {
@@ -518,38 +586,24 @@
             const selectedProducer = document.getElementById('producerFilterDropdown').value;
             if (selectedProducer) filtered = filtered.filter(p => p.producer === selectedProducer);
 
+            // --- MODYFIKACJA - FILTROWANIE KATALOGÓW ---
+            if (isCatalogViewActive) {
+                filtered = groupAndFilterByCatalog(filtered);
+            }
+            // -------------------------------------------
+
             for (const [key, direction] of Object.entries(sortingState)) {
                 if (direction) {
-
                     filtered.sort((a, b) => {
                         let valA, valB;
-
                         switch (key) {
-                            case 'sortName':
-                                valA = a.productName;
-                                valB = b.productName;
-                                break;
-                            case 'sortPrice':
-                                valA = a.lowestPrice;
-                                valB = b.lowestPrice;
-                                break;
-                            case 'sortRaiseAmount':
-                                valA = a.savings;
-                                valB = b.savings;
-                                break;
-                            case 'sortRaisePercentage':
-                            case 'sortLowerPercentage':
-                                valA = a.percentageDifference;
-                                valB = b.percentageDifference;
-                                break;
-                            case 'sortLowerAmount':
-                                valA = a.priceDifference;
-                                valB = b.priceDifference;
-                                break;
-                            default:
-                                return 0;
+                            case 'sortName': valA = a.productName; valB = b.productName; break;
+                            case 'sortPrice': valA = a.lowestPrice; valB = b.lowestPrice; break;
+                            case 'sortRaiseAmount': valA = a.savings; valB = b.savings; break;
+                            case 'sortRaisePercentage': case 'sortLowerPercentage': valA = a.percentageDifference; valB = b.percentageDifference; break;
+                            case 'sortLowerAmount': valA = a.priceDifference; valB = b.priceDifference; break;
+                            default: return 0;
                         }
-
                         if (valA == null) return 1;
                         if (valB == null) return -1;
                         if (typeof valA === 'string') {
@@ -557,11 +611,9 @@
                         }
                         return direction === 'asc' ? valA - valB : valB - valA;
                     });
-
                     break;
                 }
             }
-
             renderPrices(filtered);
             debouncedRenderChart(filtered);
             updateColorCounts(filtered);
@@ -575,10 +627,17 @@
         document.getElementById('producerFilterDropdown').addEventListener('change', () => filterAndSortPrices());
         document.querySelectorAll('.colorFilter').forEach(el => el.addEventListener('change', () => filterAndSortPrices()));
 
+        // --- NOWY EVENT LISTENER DLA PRZYCISKU "KATALOG" ---
+        document.getElementById('linkOffers').addEventListener('click', function () {
+            isCatalogViewActive = !isCatalogViewActive;
+            this.classList.toggle('active', isCatalogViewActive);
+            filterAndSortPrices();
+        });
+        // ----------------------------------------------------
+
         document.getElementById('usePriceDifference').addEventListener('change', function () {
             usePriceDifference = this.checked;
             updateUnits(usePriceDifference);
-
             allPrices = allPrices.map(p => ({ ...p, ...convertPriceValue(p) }));
             filterAndSortPrices();
         });
@@ -588,9 +647,7 @@
             if (button) {
                 button.addEventListener('click', () => {
                     const currentDirection = sortingState[key];
-
                     Object.keys(sortingState).forEach(k => sortingState[k] = null);
-
                     if (currentDirection === 'asc') {
                         sortingState[key] = 'desc';
                     } else if (currentDirection === 'desc') {
@@ -598,9 +655,7 @@
                     } else {
                         sortingState[key] = 'asc';
                     }
-
                     updateSortButtonVisuals();
-
                     filterAndSortPrices();
                 });
             }
@@ -611,7 +666,6 @@
             const price2 = parseFloat(document.getElementById('price2').value);
             const stepPrice = parseFloat(document.getElementById('stepPrice').value);
             const usePriceDiff = document.getElementById('usePriceDifference').checked;
-
             const data = { StoreId: storeId, SetPrice1: price1, SetPrice2: price2, PriceStep: stepPrice, UsePriceDifference: usePriceDiff };
 
             fetch('/AllegroPriceHistory/SavePriceValues', {
@@ -639,12 +693,10 @@
             .then(response => response.json())
             .then(data => {
                 myStoreName = data.myStoreName;
-
                 setPrice1 = data.setPrice1;
                 setPrice2 = data.setPrice2;
                 setStepPrice = data.stepPrice;
                 usePriceDifference = data.usePriceDifference;
-
                 document.getElementById('price1').value = setPrice1.toFixed(2);
                 document.getElementById('price2').value = setPrice2.toFixed(2);
                 document.getElementById('stepPrice').value = setStepPrice.toFixed(2);
@@ -654,7 +706,6 @@
                 allPrices = data.prices.map(p => ({ ...p, ...convertPriceValue(p) }));
 
                 const producerDropdown = document.getElementById('producerFilterDropdown');
-
                 while (producerDropdown.options.length > 1) {
                     producerDropdown.remove(1);
                 }

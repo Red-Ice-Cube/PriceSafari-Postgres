@@ -203,13 +203,10 @@ namespace PriceSafari.Controllers.MemberControllers
                 {
                     var product = g.Key;
 
-                    // --- POPRAWKA ---
-                    // 1. Zmieniamy typ zmiennej na long?, aby pomieścić duże ID
                     long? targetOfferId = null;
                     if (!string.IsNullOrEmpty(product.AllegroOfferUrl))
                     {
                         var idString = product.AllegroOfferUrl.Split('-').LastOrDefault();
-                        // 2. Używamy long.TryParse do wczytania ID
                         if (long.TryParse(idString, out var parsedId))
                         {
                             targetOfferId = parsedId;
@@ -219,10 +216,18 @@ namespace PriceSafari.Controllers.MemberControllers
                     var myOffer = targetOfferId.HasValue
                         ? g.FirstOrDefault(p => p.IdAllegro == targetOfferId.Value && p.SellerName.Equals(store.StoreNameAllegro, StringComparison.OrdinalIgnoreCase))
                         : null;
-                    // --- KONIEC POPRAWKI ---
 
                     var competitors = g.Where(p => !p.SellerName.Equals(store.StoreNameAllegro, StringComparison.OrdinalIgnoreCase)).ToList();
                     var bestCompetitor = competitors.OrderBy(p => p.Price).FirstOrDefault();
+
+                    // --- NOWA LOGIKA ---
+                    // 1. Znajdź wszystkie oferty TWOJEGO sklepu w tej grupie produktowej.
+                    var allMyOffersInGroup = g.Where(p => p.SellerName.Equals(store.StoreNameAllegro, StringComparison.OrdinalIgnoreCase));
+
+                    // 2. Wyciągnij ich ID, posortuj (dla spójności) i połącz w jeden string.
+                    //    To będzie nasz unikalny klucz do grupowania "katalogów" na froncie.
+                    var myOffersGroupKey = string.Join(",", allMyOffersInGroup.Select(o => o.IdAllegro).OrderBy(id => id));
+                    // --- KONIEC NOWEJ LOGIKI ---
 
                     var totalPopularity = g.Sum(p => p.Popularity ?? 0);
 
@@ -249,6 +254,7 @@ namespace PriceSafari.Controllers.MemberControllers
                         MyTotalPopularity = myPopularity,
                         MarketSharePercentage = marketSharePercentage,
 
+                        // Informacje o ofercie konkurenta
                         DeliveryTime = bestCompetitor?.DeliveryTime,
                         IsSuperSeller = bestCompetitor?.SuperSeller ?? false,
                         IsSmart = bestCompetitor?.Smart ?? false,
@@ -258,6 +264,9 @@ namespace PriceSafari.Controllers.MemberControllers
                         IsPromoted = bestCompetitor?.Promoted ?? false,
                         IsSponsored = bestCompetitor?.Sponsored ?? false,
 
+                        // Informacje o Twojej ofercie
+                        MyIdAllegro = myOffer?.IdAllegro,
+                        MyOffersGroupKey = myOffersGroupKey, // <-- NOWE POLE
                         MyDeliveryTime = myOffer?.DeliveryTime,
                         MyIsSuperSeller = myOffer?.SuperSeller ?? false,
                         MyIsSmart = myOffer?.Smart ?? false,
@@ -293,9 +302,6 @@ namespace PriceSafari.Controllers.MemberControllers
                 usePriceDifference = priceSettings?.AllegroUsePriceDiff ?? true
             });
         }
-
-
-
 
 
         public class PriceSettingsViewModel
