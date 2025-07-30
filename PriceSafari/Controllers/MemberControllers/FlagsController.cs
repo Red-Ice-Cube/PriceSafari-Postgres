@@ -36,30 +36,46 @@ namespace PriceSafari.Controllers.MemberControllers
 
             return true;
         }
-
-        // GET: Flags/List
+        // W pliku FlagsController.cs
         public async Task<IActionResult> List(int storeId)
         {
             if (!await UserHasAccessToStore(storeId))
             {
-                return Content("Nie ma takiego sklepu");
+                return Content("Nie ma takiego sklepu lub brak dostępu.");
             }
 
-            var flags = await _context.Flags.Where(f => f.StoreId == storeId).ToListAsync();
-            var store = await _context.Stores.Where(f => f.StoreId == storeId).FirstOrDefaultAsync();
+            var store = await _context.Stores.FindAsync(storeId);
+            if (store == null)
+            {
+                return NotFound("Nie znaleziono sklepu.");
+            }
 
-            ViewBag.StoreId = storeId;
-            ViewBag.StoreName = store?.StoreName;
+            // Pobierz wszystkie flagi dla sklepu
+            var allFlags = await _context.Flags.Where(f => f.StoreId == storeId).ToListAsync();
 
-            return View("~/Views/Panel/Flags/List.cshtml", flags);
+            // Podziel flagi na dwie grupy
+            var standardFlags = allFlags.Where(f => !f.IsMarketplace).ToList();
+            var marketplaceFlags = allFlags.Where(f => f.IsMarketplace).ToList();
+
+            // Stwórz model widoku, który przekaże wszystko
+            var viewModel = new FlagsListViewModel
+            {
+                StandardFlags = standardFlags,
+                MarketplaceFlags = marketplaceFlags,
+                StoreId = storeId,
+                StoreName = store.StoreName,
+                HasAllegro = !string.IsNullOrEmpty(store.StoreNameAllegro)
+            };
+
+            return View("~/Views/Panel/Flags/List.cshtml", viewModel);
         }
-
+        // W pliku FlagsController.cs
         [HttpPost]
-        public async Task<IActionResult> Create([Bind("FlagId,FlagName,FlagColor,StoreId")] FlagsClass flag)
+        public async Task<IActionResult> Create([Bind("FlagName,FlagColor,StoreId,IsMarketplace")] FlagsClass flag)
         {
             if (!await UserHasAccessToStore(flag.StoreId))
             {
-                return Content("Nie ma takiego sklepu");
+                return Forbid();
             }
 
             if (ModelState.IsValid)
@@ -71,9 +87,11 @@ namespace PriceSafari.Controllers.MemberControllers
 
             return BadRequest(ModelState);
         }
+        // W pliku FlagsController.cs
 
+        // Usuń metody UpdateFlagName i UpdateFlagColor i zastąp je tą jedną
         [HttpPost]
-        public async Task<IActionResult> UpdateFlagName(int id, string flagName)
+        public async Task<IActionResult> UpdateFlag(int id, string flagName, string flagColor, bool isMarketplace)
         {
             var flag = await _context.Flags.FindAsync(id);
             if (flag == null)
@@ -81,27 +99,29 @@ namespace PriceSafari.Controllers.MemberControllers
                 return NotFound();
             }
 
+            if (!await UserHasAccessToStore(flag.StoreId))
+            {
+                return Forbid();
+            }
+
             flag.FlagName = flagName;
+            flag.FlagColor = flagColor;
+            flag.IsMarketplace = isMarketplace; // Aktualizujemy też ten stan
+
             _context.Update(flag);
             await _context.SaveChangesAsync();
 
             return Ok();
         }
 
-        [HttpPost]
-        public async Task<IActionResult> UpdateFlagColor(int id, string flagColor)
+        // Model widoku, który stworzyliśmy
+        public class FlagsListViewModel
         {
-            var flag = await _context.Flags.FindAsync(id);
-            if (flag == null)
-            {
-                return NotFound();
-            }
-
-            flag.FlagColor = flagColor;
-            _context.Update(flag);
-            await _context.SaveChangesAsync();
-
-            return Ok();
+            public List<FlagsClass> StandardFlags { get; set; }
+            public List<FlagsClass> MarketplaceFlags { get; set; }
+            public int StoreId { get; set; }
+            public string StoreName { get; set; }
+            public bool HasAllegro { get; set; }
         }
 
         [HttpPost]

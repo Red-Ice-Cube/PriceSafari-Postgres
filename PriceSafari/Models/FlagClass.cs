@@ -15,6 +15,7 @@ namespace PriceSafari.Models
         public string FlagColor { get; set; }
 
         public int StoreId { get; set; }
+        public bool IsMarketplace { get; set; } = false;
 
         public ICollection<ProductFlag> ProductFlags { get; set; } = new List<ProductFlag>();
     }

@@ -32,7 +32,8 @@ namespace PriceSafari.Controllers.MemberControllers
             return await _context.UserStores.AnyAsync(us => us.UserId == userId && us.StoreId == storeId);
         }
 
-        [HttpGet]
+        // W pliku AllegroPriceHistoryController.cs
+
         public async Task<IActionResult> Index(int? storeId)
         {
             if (storeId == null) return BadRequest("Store ID is required.");
@@ -46,17 +47,24 @@ namespace PriceSafari.Controllers.MemberControllers
                 .OrderByDescending(sh => sh.Date)
                 .FirstOrDefaultAsync();
 
+            // --- DODAJ TEN FRAGMENT ---
+            var flags = await _context.Flags
+                .Where(f => f.StoreId == storeId.Value)
+                .ToListAsync();
+            // -------------------------
+
             ViewBag.StoreId = store.StoreId;
             ViewBag.StoreName = store.StoreName;
             ViewBag.StoreLogo = store.StoreLogoUrl;
             ViewBag.LatestScrap = latestScrap;
 
-            ViewBag.Flags = new List<FlagsClass>();
+            // --- ZMIEŃ TĘ LINIĘ ---
+            ViewBag.Flags = flags; // Zamiast new List<FlagsClass>()
+                                   // --------------------
 
             return View("~/Views/Panel/AllegroPriceHistory/Index.cshtml");
         }
 
-       
         // nowa wersja mapujaca po id allegro 
 
 
@@ -84,6 +92,15 @@ namespace PriceSafari.Controllers.MemberControllers
                 .Where(aph => aph.AllegroScrapeHistoryId == latestScrap.Id)
                 .Include(aph => aph.AllegroProduct)
                 .ToListAsync();
+
+
+            var productIds = priceData.Select(p => p.AllegroProductId).Distinct().ToList();
+            var productFlagsDictionary = await _context.ProductFlags
+                .Where(pf => productIds.Contains(pf.AllegroProductId.Value))
+                .GroupBy(pf => pf.AllegroProductId.Value)
+                .ToDictionaryAsync(g => g.Key, g => g.Select(pf => pf.FlagId).ToList());
+            // ------------------------------------------
+
 
             var groupedData = priceData
                 .GroupBy(aph => aph.AllegroProduct)
@@ -171,7 +188,8 @@ namespace PriceSafari.Controllers.MemberControllers
                         PercentageDifference = (myOffer != null && bestCompetitor != null && bestCompetitor.Price > 0) ? ((myOffer.Price - bestCompetitor.Price) / bestCompetitor.Price) * 100 : (decimal?)null,
                         IsUniqueBestPrice = (myOffer != null && bestCompetitor != null && myOffer.Price < bestCompetitor.Price),
                         IsSharedBestPrice = (myOffer != null && bestCompetitor != null && myOffer.Price == bestCompetitor.Price),
-                        FlagIds = new List<int>(),
+                        FlagIds = productFlagsDictionary.GetValueOrDefault(product.AllegroProductId, new List<int>()),
+                        // --------------------
                         Ean = (string)null,
                         ExternalId = (int?)null,
                         MarginPrice = product.MarginPrice,
@@ -199,6 +217,66 @@ namespace PriceSafari.Controllers.MemberControllers
             public decimal SetPrice2 { get; set; }
             public decimal PriceStep { get; set; }
             public bool UsePriceDifference { get; set; }
+        }
+
+
+
+
+        // W pliku AllegroPriceHistoryController.cs, dodaj te dwie metody
+
+        [HttpGet]
+        public async Task<IActionResult> GetFlagsForProduct(int productId)
+        {
+            // Znajdź produkt, aby zweryfikować dostęp do sklepu
+            var product = await _context.AllegroProducts.FindAsync(productId);
+            if (product == null) return NotFound();
+            if (!await UserHasAccessToStore(product.StoreId)) return Forbid();
+
+            var assignedFlags = await _context.ProductFlags
+                .Where(pf => pf.AllegroProductId == productId)
+                .Select(pf => pf.FlagId)
+                .ToListAsync();
+
+            return Json(assignedFlags);
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> AssignFlagsToProduct([FromBody] AssignFlagsViewModel model)
+        {
+            if (model == null) return BadRequest();
+
+            var product = await _context.AllegroProducts
+                .Include(p => p.ProductFlags)
+                .FirstOrDefaultAsync(p => p.AllegroProductId == model.ProductId);
+
+            if (product == null) return NotFound();
+            if (!await UserHasAccessToStore(product.StoreId)) return Forbid();
+
+            // Usuń stare przypisania
+            product.ProductFlags.Clear();
+
+            // Dodaj nowe, jeśli jakieś zostały wybrane
+            if (model.FlagIds != null && model.FlagIds.Any())
+            {
+                foreach (var flagId in model.FlagIds)
+                {
+                    product.ProductFlags.Add(new ProductFlag
+                    {
+                        AllegroProductId = model.ProductId,
+                        FlagId = flagId
+                    });
+                }
+            }
+
+            await _context.SaveChangesAsync();
+            return Json(new { success = true });
+        }
+
+        // Dodaj też tę klasę pomocniczą na końcu pliku kontrolera
+        public class AssignFlagsViewModel
+        {
+            public int ProductId { get; set; }
+            public List<int> FlagIds { get; set; }
         }
 
         [HttpPost]

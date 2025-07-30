@@ -5,6 +5,7 @@
     var storeLogo = ViewBag.StoreLogo;
     var storeName = ViewBag.StoreName;
     var scrapDate = latestScrap?.Date.ToString("dd.MM.yyyy");
+    var flags = ViewBag.Flags as List<PriceSafari.Models.FlagsClass>;
 }
 @{
     Layout = "~/Views/Shared/_PanelLayout.cshtml";
@@ -67,6 +68,17 @@
                     </div>
                     <button class="Button-Page-Small" style="margin-top: 2px;" id="savePriceValues">Zapisz progi</button>
                 </div>
+                <div class="filterBox">
+
+                    <div class="Category-Container-Select" style="margin-top:-2px;">Flagi <a asp-controller="Flags" asp-action="List" asp-route-storeId="@ViewBag.StoreId" class="link-line">+ Dodaj Flage</a></div>
+                    <div class="store-section" id="flagContainer">
+                    </div>
+
+                   
+
+
+
+                </div>
             </div>
             <div class="Horizontal">
                 <div class="order-upper-box">
@@ -115,6 +127,29 @@
 </div>
 
 <div id="loadingOverlay" class="loading-overlay" style="display: none;"><div class="loader"></div></div>
+
+
+<div id="flagModal" class="modal">
+    <div class="modal-content">
+
+        <span class="close">&times;</span>
+
+        <div class="price-box-space">
+            <div class="price-box-column-name">Przypisz flagi do produktu</div>
+        </div>
+        <div id="flagCheckboxes">
+            @if (flags != null)
+            {
+                @foreach (var flag in flags)
+                {
+                    <label><input type="checkbox" class="form-check-input flagCheckbox" value="@flag.FlagId"> @flag.FlagName</label>
+                    <br />
+                }
+            }
+        </div>
+        <button class="Button-Page-Small" id="saveFlagsButton">Zapisz</button>
+    </div>
+</div>
 
 @section Scripts {
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>

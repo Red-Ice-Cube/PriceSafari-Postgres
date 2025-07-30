@@ -1,4 +1,14 @@
-﻿document.addEventListener("DOMContentLoaded", function () {
+﻿
+
+
+
+
+
+
+
+
+
+document.addEventListener("DOMContentLoaded", function () {
     let allPrices = [];
     let chartInstance = null;
     let myStoreName = "";
@@ -8,15 +18,19 @@
     let setStepPrice = 2.00;
     let usePriceDifference = document.getElementById('usePriceDifference').checked;
 
+    // --- NOWY/ZMIENIONY FRAGMENT ---
+    // Zmienne stanu dla flag
+    let selectedProductId = null;
+    let selectedFlagsInclude = new Set();
+    let selectedFlagsExclude = new Set();
+    // ----------------------------
+
     let sortingState = {
         sortName: null, sortPrice: null, sortRaiseAmount: null,
         sortRaisePercentage: null, sortLowerAmount: null, sortLowerPercentage: null,
     };
 
-    // --- NOWY STAN ---
     let isCatalogViewActive = false;
-    // -----------------
-
     let currentPage = 1;
     const itemsPerPage = 1000;
 
@@ -127,6 +141,97 @@
         return numericValue < setPrice2 ? "prMid" : "prToHigh";
     }
 
+    // --- NOWY/ZMIENIONY FRAGMENT ---
+    // Ta funkcja jest skopiowana z Twojego działającego przykładu.
+    // Używa `flags` - globalnej zmiennej, którą musisz zdefiniować w widoku Razor.
+    function createFlagsContainer(item) {
+        const flagsContainer = document.createElement('div');
+        flagsContainer.className = 'flags-container';
+        if (item.flagIds && item.flagIds.length > 0) {
+            item.flagIds.forEach(function (flagId) {
+                const flag = flags.find(f => f.FlagId === flagId);
+                if (flag) {
+                    const flagSpan = document.createElement('span');
+                    flagSpan.className = 'flag';
+                    flagSpan.style.color = flag.FlagColor;
+                    flagSpan.style.border = '2px solid ' + flag.FlagColor;
+                    flagSpan.style.backgroundColor = hexToRgba(flag.FlagColor, 0.3);
+                    flagSpan.innerHTML = flag.FlagName;
+                    flagsContainer.appendChild(flagSpan);
+                }
+            });
+        }
+        return flagsContainer;
+    }
+
+    // --- NOWY/ZMIENIONY FRAGMENT ---
+    // Ta funkcja jest skopiowana z Twojego działającego przykładu.
+    // Używa `flags` - globalnej zmiennej, którą musisz zdefiniować w widoku Razor.
+    function updateFlagCounts(prices) {
+        const flagCounts = {};
+        let noFlagCount = 0;
+        prices.forEach(price => {
+            if (!price.flagIds || price.flagIds.length === 0) {
+                noFlagCount++;
+            } else {
+                price.flagIds.forEach(flagId => {
+                    flagCounts[flagId] = (flagCounts[flagId] || 0) + 1;
+                });
+            }
+        });
+
+        const flagContainer = document.getElementById('flagContainer');
+        if (!flagContainer) return;
+        flagContainer.innerHTML = '';
+
+        flags.forEach(flag => {
+            const count = flagCounts[flag.FlagId] || 0;
+            const includeChecked = selectedFlagsInclude.has(String(flag.FlagId)) ? 'checked' : '';
+            const excludeChecked = selectedFlagsExclude.has(String(flag.FlagId)) ? 'checked' : '';
+            const flagElementHTML = `
+            <div class="flag-filter-group">
+                <div class="form-check form-check-inline check-include" style="margin-right:0px;">
+                    <input class="form-check-input flagFilterInclude" type="checkbox" id="flagInclude_${flag.FlagId}" value="${flag.FlagId}" ${includeChecked}>
+                </div>
+                <div class="form-check form-check-inline check-exclude" style="margin-right:0px; padding-left:16px;">
+                    <input class="form-check-input flagFilterExclude" type="checkbox" id="flagExclude_${flag.FlagId}" value="${flag.FlagId}" ${excludeChecked}>
+                </div>
+                <span class="flag-name-count">${flag.FlagName} (${count})</span>
+            </div>`;
+            flagContainer.insertAdjacentHTML('beforeend', flagElementHTML);
+        });
+
+        const noFlagIncludeChecked = selectedFlagsInclude.has('noFlag') ? 'checked' : '';
+        const noFlagExcludeChecked = selectedFlagsExclude.has('noFlag') ? 'checked' : '';
+        const noFlagElementHTML = `
+        <div class="flag-filter-group">
+            <div class="form-check form-check-inline check-include" style="margin-right:0px;">
+                <input class="form-check-input flagFilterInclude" type="checkbox" id="flagInclude_noFlag" value="noFlag" ${noFlagIncludeChecked}>
+            </div>
+            <div class="form-check form-check-inline check-exclude" style="margin-right:0px; padding-left:16px;">
+                <input class="form-check-input flagFilterExclude" type="checkbox" id="flagExclude_noFlag" value="noFlag" ${noFlagExcludeChecked}>
+            </div>
+            <span class="flag-name-count">Brak flagi (${noFlagCount})</span>
+        </div>`;
+        flagContainer.insertAdjacentHTML('beforeend', noFlagElementHTML);
+
+        setupFlagFilterListeners();
+    }
+
+    function hexToRgba(hex, alpha) {
+        let r = 0, g = 0, b = 0;
+        if (hex.length == 4) {
+            r = parseInt(hex[1] + hex[1], 16);
+            g = parseInt(hex[2] + hex[2], 16);
+            b = parseInt(hex[3] + hex[3], 16);
+        } else if (hex.length == 7) {
+            r = parseInt(hex[1] + hex[2], 16);
+            g = parseInt(hex[3] + hex[4], 16);
+            b = parseInt(hex[5] + hex[6], 16);
+        }
+        return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    }
+    // ---------------------------------------------
     function renderPrices(data) {
         const container = document.getElementById('priceContainer');
         container.innerHTML = '';
@@ -145,9 +250,9 @@
             let myOfferIdHtml = '';
             if (item.myIdAllegro) {
                 myOfferIdHtml = `
-                <div class="price-box-column-category">
-                    <span class="ApiBox">ID ${item.myIdAllegro}</span>
-                </div>
+            <div class="price-box-column-category">
+                <span class="ApiBox">ID ${item.myIdAllegro}</span>
+            </div>
             `;
             }
             const competitorSuperPriceBadge = item.isSuperPrice ? `<div class="SuperPrice">SUPERCENA</div>` : '';
@@ -168,6 +273,7 @@
             const competitorPriceIcon = item.isBestPriceGuarantee ? `<img src="/images/TopPrice.png" alt="Gwarancja Najniższej Ceny" title="Gwarancja Najniższej Ceny" style="width: 18px; height: 18px; vertical-align: middle; margin-top: -5px;">` : '';
             const myPriceStyle = item.myIsBestPriceGuarantee ? 'color: #169A23;' : '';
             const myPriceIcon = item.myIsBestPriceGuarantee ? `<img src="/images/TopPrice.png" alt="Gwarancja Najniższej Ceny" title="Gwarancja Najniższej Ceny" style="width: 18px; height: 18px; vertical-align: middle;  margin-top: -5px;">` : '';
+
             const box = document.createElement('div');
             box.className = 'price-box ' + item.colorClass;
             box.dataset.productId = item.productId;
@@ -228,7 +334,6 @@
                     </div>
                     <div class="price-box-column-text">
                         <div class="data-channel">
-                            
                             ${item.isTopOffer ? `<div class="TopOffer">Top oferta</div>` : ''}
                             ${item.isSmart ? `
                                 <div class="Smart-Allegro">
@@ -237,7 +342,7 @@
                             ` : ''}
                             ${renderDeliveryInfo(item.deliveryTime)}
                         </div>
-                        </div>
+                    </div>
                     `
                 }
                 </div>
@@ -260,7 +365,7 @@
                     </div>
                     <div class="price-box-column-text">
                         <div class="data-channel">
-                           
+                            
                             ${item.myIsTopOffer ? `<div class="TopOffer">Top oferta</div>` : ''}
                             ${item.myIsSmart ? `
                                 <div class="Smart-Allegro">
@@ -279,18 +384,48 @@
                 <div class="price-box-column-action" id="infoCol-${item.productId}"></div>
             </div>
         `;
+
             container.appendChild(box);
+
+            // --- KLUCZOWY FRAGMENT DO OBSŁUGI FLAG ---
+            const flagsContainer = createFlagsContainer(item);
+            const placeholder = box.querySelector('.flags-container');
+            if (placeholder) {
+                placeholder.replaceWith(flagsContainer);
+            }
+
+            const assignButton = box.querySelector('.assign-flag-button');
+            if (assignButton) {
+                assignButton.addEventListener('click', function (event) {
+                    event.stopPropagation();
+                    selectedProductId = this.dataset.productId;
+                    const modal = document.getElementById('flagModal');
+                    if (modal) {
+                        modal.style.display = 'block';
+                        fetch(`/AllegroPriceHistory/GetFlagsForProduct?productId=${selectedProductId}`)
+                            .then(res => res.json())
+                            .then(assignedFlags => {
+                                document.querySelectorAll('.flagCheckbox').forEach(cb => {
+                                    cb.checked = assignedFlags.includes(parseInt(cb.value));
+                                });
+                            });
+                    }
+                });
+            }
+            // ------------------------------------------
+
             box.addEventListener('click', function (event) {
                 if (event.target.closest('button, a, img')) {
                     return;
                 }
                 window.open(this.dataset.detailsUrl, '_blank');
             });
+
             const infoCol = document.getElementById(`infoCol-${item.productId}`);
             if (!infoCol || item.onlyMe || item.isRejected || myPrice === null || lowestPrice === null) {
- 
+                // Puste
             } else {
-                // Tutaj kod dla kolumny akcji pozostaje bez zmian
+                // Logika dla kolumny akcji
                 if (item.colorClass === "prToLow" || item.colorClass === "prIdeal") {
                     const savingsValue = parseFloat(item.savings);
                     const upArrowClass = item.colorClass === 'prToLow' ? 'arrow-up-black' : 'arrow-up-turquoise';
@@ -309,22 +444,22 @@
                     if (amount2 < 0) arrowClass2 = 'arrow-down-turquoise';
 
                     infoCol.innerHTML = `
-                    <div class="price-box-column">
-                        <div class="price-action-line">
-                            <span class="${upArrowClass}"></span>
-                            <span>${amount1 >= 0 ? '+' : ''}${amount1.toFixed(2)} PLN (${percentage1 >= 0 ? '+' : ''}${percentage1.toFixed(2)}%)</span>
-                            <div>= ${suggestedPrice1.toFixed(2)} PLN</div>
-                            <span class="color-square-green"></span>
-                        </div>
+                <div class="price-box-column">
+                    <div class="price-action-line">
+                        <span class="${upArrowClass}"></span>
+                        <span>${amount1 >= 0 ? '+' : ''}${amount1.toFixed(2)} PLN (${percentage1 >= 0 ? '+' : ''}${percentage1.toFixed(2)}%)</span>
+                        <div>= ${suggestedPrice1.toFixed(2)} PLN</div>
+                        <span class="color-square-green"></span>
                     </div>
-                    <div class="price-box-column">
-                        <div class="price-action-line">
-                            <span class="${arrowClass2}"></span>
-                            <span>${amount2 >= 0 ? '+' : ''}${amount2.toFixed(2)} PLN (${percentage2 >= 0 ? '+' : ''}${percentage2.toFixed(2)}%)</span>
-                            <div>= ${suggestedPrice2.toFixed(2)} PLN</div>
-                            <span class="color-square-turquoise"></span>
-                        </div>
+                </div>
+                <div class="price-box-column">
+                    <div class="price-action-line">
+                        <span class="${arrowClass2}"></span>
+                        <span>${amount2 >= 0 ? '+' : ''}${amount2.toFixed(2)} PLN (${percentage2 >= 0 ? '+' : ''}${percentage2.toFixed(2)}%)</span>
+                        <div>= ${suggestedPrice2.toFixed(2)} PLN</div>
+                        <span class="color-square-turquoise"></span>
                     </div>
+                </div>
                 `;
                 } else if (item.colorClass === "prMid" || item.colorClass === "prToHigh") {
                     const amountToMatch = myPrice - lowestPrice;
@@ -340,22 +475,22 @@
                     const arrowClass = item.colorClass === "prMid" ? "arrow-down-yellow" : "arrow-down-red";
 
                     infoCol.innerHTML = `
-                    <div class="price-box-column">
-                        <div class="price-action-line">
-                            <span class="${arrowClass}"></span>
-                            <span>-${amountToMatch.toFixed(2)} PLN (-${percentageToMatch.toFixed(2)}%)</span>
-                            <div>= ${lowestPrice.toFixed(2)} PLN</div>
-                            <span class="color-square-green"></span>
-                        </div>
+                <div class="price-box-column">
+                    <div class="price-action-line">
+                        <span class="${arrowClass}"></span>
+                        <span>-${amountToMatch.toFixed(2)} PLN (-${percentageToMatch.toFixed(2)}%)</span>
+                        <div>= ${lowestPrice.toFixed(2)} PLN</div>
+                        <span class="color-square-green"></span>
                     </div>
-                    <div class="price-box-column">
-                        <div class="price-action-line">
-                            <span class="${arrowClass}"></span>
-                            <span>-${amountToBeat.toFixed(2)} PLN (-${percentageToBeat.toFixed(2)}%)</span>
-                            <div>= ${strategicPrice.toFixed(2)} PLN</div>
-                            <span class="color-square-turquoise"></span>
-                        </div>
+                </div>
+                <div class="price-box-column">
+                    <div class="price-action-line">
+                        <span class="${arrowClass}"></span>
+                        <span>-${amountToBeat.toFixed(2)} PLN (-${percentageToBeat.toFixed(2)}%)</span>
+                        <div>= ${strategicPrice.toFixed(2)} PLN</div>
+                        <span class="color-square-turquoise"></span>
                     </div>
+                </div>
                 `;
                 } else if (item.colorClass === "prGood") {
                     const amount1 = 0;
@@ -382,22 +517,22 @@
                     }
 
                     infoCol.innerHTML = `
-                    <div class="price-box-column">
-                        <div class="price-action-line">
-                            <span class="no-change-icon"></span>
-                            <span>+${amount1.toFixed(2)} PLN (+${percentage1.toFixed(2)}%)</span>
-                            <div>= ${suggestedPrice1.toFixed(2)} PLN</div>
-                            <span class="color-square-green"></span>
-                        </div>
+                <div class="price-box-column">
+                    <div class="price-action-line">
+                        <span class="no-change-icon"></span>
+                        <span>+${amount1.toFixed(2)} PLN (+${percentage1.toFixed(2)}%)</span>
+                        <div>= ${suggestedPrice1.toFixed(2)} PLN</div>
+                        <span class="color-square-green"></span>
                     </div>
-                    <div class="price-box-column">
-                        <div class="price-action-line">
-                            <span class="${downArrowClass}"></span>
-                            <span>${amount2.toFixed(2)} PLN (${percentage2.toFixed(2)}%)</span>
-                            <div>= ${suggestedPrice2.toFixed(2)} PLN</div>
-                            <span class="color-square-turquoise"></span>
-                        </div>
+                </div>
+                <div class="price-box-column">
+                    <div class="price-action-line">
+                        <span class="${downArrowClass}"></span>
+                        <span>${amount2.toFixed(2)} PLN (${percentage2.toFixed(2)}%)</span>
+                        <div>= ${suggestedPrice2.toFixed(2)} PLN</div>
+                        <span class="color-square-turquoise"></span>
                     </div>
+                </div>
                 `;
                 }
             }
@@ -407,165 +542,89 @@
         document.getElementById('displayedProductCount').textContent = `${data.length} / ${allPrices.length}`;
     }
 
-    // --- NOWA FUNKCJA GRUPUJĄCA ---
     function groupAndFilterByCatalog(data) {
         const catalogGroups = new Map();
-
         for (const item of data) {
-            // Grupujemy tylko produkty, w których mamy ofertę (i tym samym klucz)
             if (item.myOffersGroupKey) {
                 const existingItem = catalogGroups.get(item.myOffersGroupKey);
-                // Jeśli nie ma jeszcze reprezentanta tej grupy, lub nowy jest tańszy, zapisujemy go.
-                // Musimy też obsłużyć przypadek, gdy nasza cena to null.
                 if (!existingItem || (item.myPrice !== null && item.myPrice < existingItem.myPrice)) {
                     catalogGroups.set(item.myOffersGroupKey, item);
                 }
             } else {
-                // Produkty bez naszej oferty (bez klucza) są unikalne, więc je zachowujemy.
-                // Używamy productId jako unikalnego klucza, by uniknąć nadpisania.
                 catalogGroups.set(`no-group-${item.productId}`, item);
             }
         }
-        // Zwracamy tablicę z najtańszymi ofertami z każdego katalogu.
         return Array.from(catalogGroups.values());
     }
 
     function renderPaginationControls(totalItems) {
-
         const totalPages = Math.ceil(totalItems / itemsPerPage);
-
         const paginationContainer = document.getElementById('paginationContainer');
-
         if (!paginationContainer) return;
-
         paginationContainer.innerHTML = '';
-
         if (totalPages <= 1) return;
 
-
-
         const createButton = (html, page, isDisabled = false, isActive = false) => {
-
             const button = document.createElement('button');
-
             button.innerHTML = html;
-
             button.disabled = isDisabled;
-
             if (isActive) button.classList.add('active');
-
             button.addEventListener('click', () => {
-
                 currentPage = page;
-
                 filterAndSortPrices(false);
-
             });
-
             return button;
-
         };
 
-
-
         paginationContainer.appendChild(createButton('<i class="fa fa-chevron-circle-left" aria-hidden="true"></i>', currentPage - 1, currentPage === 1));
-
         for (let i = 1; i <= totalPages; i++) {
-
             paginationContainer.appendChild(createButton(i, i, false, i === currentPage));
-
         }
-
         paginationContainer.appendChild(createButton('<i class="fa fa-chevron-circle-right" aria-hidden="true"></i>', currentPage + 1, currentPage === totalPages));
-
     }
-
-
 
     function renderChart(data) {
-
         const colorCounts = { prNoOffer: 0, prOnlyMe: 0, prToHigh: 0, prMid: 0, prGood: 0, prIdeal: 0, prToLow: 0 };
-
         data.forEach(item => { if (colorCounts.hasOwnProperty(item.colorClass)) colorCounts[item.colorClass]++; });
-
         const chartData = Object.values(colorCounts);
-
         const ctx = document.getElementById('colorChart');
-
         if (!ctx) return;
 
-
-
         if (chartInstance) {
-
             chartInstance.data.datasets[0].data = chartData;
-
             chartInstance.update();
-
         } else {
-
             chartInstance = new Chart(ctx.getContext('2d'), {
-
                 type: 'doughnut',
-
                 data: {
-
                     labels: ['Cena niedostępna', 'Cena solo', 'Cena zawyżona', 'Cena suboptymalna', 'Cena konkurencyjna', 'Cena strategiczna', 'Cena zaniżona'],
-
                     datasets: [{
-
                         data: chartData,
-
                         backgroundColor: ['#e6e6e6', '#b4b4b4', '#ab2520', '#e0a842', '#759870', '#0d6efd', '#060606'],
-
                         borderWidth: 1
-
                     }]
-
                 },
-
                 options: {
-
                     responsive: true, maintainAspectRatio: false, cutout: '60%',
-
                     plugins: { legend: { display: false }, tooltip: { callbacks: { label: (c) => `Produkty: ${c.parsed}` } } }
-
                 }
-
             });
-
         }
-
     }
-
-
 
     const debouncedRenderChart = debounce(renderChart, 300);
 
-
-
     function updateColorCounts(data) {
-
         const counts = { prNoOffer: 0, prOnlyMe: 0, prToHigh: 0, prMid: 0, prGood: 0, prIdeal: 0, prToLow: 0 };
-
         data.forEach(item => { if (counts.hasOwnProperty(item.colorClass)) counts[item.colorClass]++; });
 
-
-
         document.querySelector('label[for="prNoOfferCheckbox"]').textContent = `Cena niedostępna (${counts.prNoOffer})`;
-
         document.querySelector('label[for="prOnlyMeCheckbox"]').textContent = `Cena solo (${counts.prOnlyMe})`;
-
         document.querySelector('label[for="prToHighCheckbox"]').textContent = `Cena zawyżona (${counts.prToHigh})`;
-
         document.querySelector('label[for="prMidCheckbox"]').textContent = `Cena suboptymalna (${counts.prMid})`;
-
         document.querySelector('label[for="prGoodCheckbox"]').textContent = `Cena konkurencyjna (${counts.prGood})`;
-
         document.querySelector('label[for="prIdealCheckbox"]').textContent = `Cena strategiczna (${counts.prIdeal})`;
-
         document.querySelector('label[for="prToLowCheckbox"]').textContent = `Cena zaniżona (${counts.prToLow})`;
-
     }
 
     function filterAndSortPrices(resetPageFlag = true) {
@@ -578,7 +637,7 @@
             if (productSearch) filtered = filtered.filter(p => p.productName && p.productName.toLowerCase().includes(productSearch));
 
             const storeSearch = document.getElementById('storeSearch').value.toLowerCase();
-            if (storeSearch) filtered = filtered.filter(p => p.storeName && p.storeName.toLowerCase().includes(storeSearch));
+            if (storeSearch) filtered = filtered.filter(p => (p.storeName && p.storeName.toLowerCase().includes(storeSearch)) || (myStoreName && myStoreName.toLowerCase().includes(storeSearch)));
 
             const selectedColors = Array.from(document.querySelectorAll('.colorFilter:checked')).map(cb => cb.value);
             if (selectedColors.length > 0) filtered = filtered.filter(p => selectedColors.includes(p.colorClass));
@@ -586,11 +645,30 @@
             const selectedProducer = document.getElementById('producerFilterDropdown').value;
             if (selectedProducer) filtered = filtered.filter(p => p.producer === selectedProducer);
 
-            // --- MODYFIKACJA - FILTROWANIE KATALOGÓW ---
+            // --- NOWY/ZMIENIONY FRAGMENT ---
+            // Dodana logika filtrowania po flagach
+            if (selectedFlagsExclude.size > 0) {
+                filtered = filtered.filter(item => {
+                    if (selectedFlagsExclude.has('noFlag') && (!item.flagIds || item.flagIds.length === 0)) {
+                        return false;
+                    }
+                    return !item.flagIds || !item.flagIds.some(fid => selectedFlagsExclude.has(String(fid)));
+                });
+            }
+
+            if (selectedFlagsInclude.size > 0) {
+                filtered = filtered.filter(item => {
+                    if (selectedFlagsInclude.has('noFlag') && (!item.flagIds || item.flagIds.length === 0)) {
+                        return true;
+                    }
+                    return item.flagIds && item.flagIds.some(fid => selectedFlagsInclude.has(String(fid)));
+                });
+            }
+            // -----------------------------
+
             if (isCatalogViewActive) {
                 filtered = groupAndFilterByCatalog(filtered);
             }
-            // -------------------------------------------
 
             for (const [key, direction] of Object.entries(sortingState)) {
                 if (direction) {
@@ -617,9 +695,54 @@
             renderPrices(filtered);
             debouncedRenderChart(filtered);
             updateColorCounts(filtered);
+
+            // --- NOWY/ZMIENIONY FRAGMENT ---
+            // Aktualizujemy liczniki flag po każdym filtrowaniu
+            updateFlagCounts(filtered);
+            // ----------------------------
+
             hideLoading();
         }, 10);
     }
+
+    // --- NOWY/ZMIENIONY FRAGMENT ---
+    // Nowa funkcja do podpinania listenerów do filtrów flag
+    function setupFlagFilterListeners() {
+        document.querySelectorAll('.flagFilterInclude').forEach(checkbox => {
+            checkbox.addEventListener('change', function () {
+                const flagValue = this.value;
+                if (this.checked) {
+                    const excludeCheckbox = document.getElementById(`flagExclude_${flagValue}`);
+                    if (excludeCheckbox) {
+                        excludeCheckbox.checked = false;
+                        selectedFlagsExclude.delete(flagValue);
+                    }
+                    selectedFlagsInclude.add(flagValue);
+                } else {
+                    selectedFlagsInclude.delete(flagValue);
+                }
+                filterAndSortPrices();
+            });
+        });
+
+        document.querySelectorAll('.flagFilterExclude').forEach(checkbox => {
+            checkbox.addEventListener('change', function () {
+                const flagValue = this.value;
+                if (this.checked) {
+                    const includeCheckbox = document.getElementById(`flagInclude_${flagValue}`);
+                    if (includeCheckbox) {
+                        includeCheckbox.checked = false;
+                        selectedFlagsInclude.delete(flagValue);
+                    }
+                    selectedFlagsExclude.add(flagValue);
+                } else {
+                    selectedFlagsExclude.delete(flagValue);
+                }
+                filterAndSortPrices();
+            });
+        });
+    }
+    // ---------------------------------
 
     function setupEventListeners() {
         document.getElementById('productSearch').addEventListener('input', debounce(() => filterAndSortPrices(), 300));
@@ -627,13 +750,11 @@
         document.getElementById('producerFilterDropdown').addEventListener('change', () => filterAndSortPrices());
         document.querySelectorAll('.colorFilter').forEach(el => el.addEventListener('change', () => filterAndSortPrices()));
 
-        // --- NOWY EVENT LISTENER DLA PRZYCISKU "KATALOG" ---
         document.getElementById('linkOffers').addEventListener('click', function () {
             isCatalogViewActive = !isCatalogViewActive;
             this.classList.toggle('active', isCatalogViewActive);
             filterAndSortPrices();
         });
-        // ----------------------------------------------------
 
         document.getElementById('usePriceDifference').addEventListener('change', function () {
             usePriceDifference = this.checked;
@@ -682,6 +803,53 @@
                     }
                 }).catch(err => console.error('Błąd zapisu:', err));
         });
+
+        // --- NOWY/ZMIENIONY FRAGMENT ---
+        // Logika obsługi modala flag
+        const modal = document.getElementById('flagModal');
+        if (modal) {
+            const span = modal.querySelector('.close');
+            span.onclick = () => modal.style.display = 'none';
+            window.onclick = (event) => {
+                if (event.target == modal) {
+                    modal.style.display = 'none';
+                }
+            };
+
+            document.getElementById('saveFlagsButton').addEventListener('click', function () {
+                const selectedFlags = Array.from(document.querySelectorAll('.flagCheckbox:checked')).map(cb => parseInt(cb.value));
+                const data = {
+                    productId: parseInt(selectedProductId),
+                    flagIds: selectedFlags
+                };
+
+                fetch('/AllegroPriceHistory/AssignFlagsToProduct', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                })
+                    .then(res => res.json())
+                    .then(response => {
+                        if (response.success) {
+                            modal.style.display = 'none';
+                            const product = allPrices.find(p => p.productId == selectedProductId);
+                            if (product) {
+                                product.flagIds = selectedFlags;
+                            }
+                            const box = document.querySelector(`.price-box[data-product-id='${selectedProductId}']`);
+                            if (box) {
+                                const newFlagsContainer = createFlagsContainer(product);
+                                const placeholder = box.querySelector('.flags-container');
+                                if (placeholder) placeholder.replaceWith(newFlagsContainer);
+                            }
+                            updateFlagCounts(allPrices);
+                        } else {
+                            alert('Błąd podczas zapisywania flag.');
+                        }
+                    }).catch(err => console.error('Błąd zapisu flag:', err));
+            });
+        }
+        // ---------------------------------
     }
 
     function showLoading() { document.getElementById("loadingOverlay").style.display = "flex"; }
@@ -716,6 +884,12 @@
                 document.getElementById('totalPriceCount').textContent = data.priceCount || 0;
 
                 filterAndSortPrices();
+
+                // --- NOWY/ZMIENIONY FRAGMENT ---
+                // Inicjalne stworzenie filtrów flag na podstawie wszystkich produktów
+                updateFlagCounts(allPrices);
+                // ----------------------------
+
             })
             .catch(error => console.error("Błąd ładowania danych:", error))
             .finally(hideLoading);
