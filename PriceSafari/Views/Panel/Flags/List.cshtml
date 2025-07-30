@@ -14,6 +14,15 @@
             <div class="bar-List" style="max-height:64px; margin-top:32px;">
                 <button class="Button-Page-Small create-flag-btn" data-marketplace="false">+ Nowa Flaga</button>
             </div>
+
+            <div style="display: flex; gap: 10px;">
+                <a href="@Url.Action("ExportFlags", "Flags", new { storeId = Model.StoreId })" class="Button-Page-Small">Eksportuj Flagi</a>
+
+                <form id="importForm" action="@Url.Action("ImportFlags", "Flags", new { storeId = Model.StoreId })" method="post" enctype="multipart/form-data" style="display: inline-block;">
+                    <input type="file" name="file" id="fileInput" accept=".json" style="display: none;" />
+                    <button type="button" class="Button-Page-Small" onclick="document.getElementById('fileInput').click();">Importuj Flagi</button>
+                </form>
+            </div>
             <div class="Vert-table">
                 <table class="table-orders">
                     <thead>
@@ -169,6 +178,16 @@
                 $('#editFlagModal').modal('show');
             });
 
+
+              $('#fileInput').on('change', function() {
+                if (confirm('Czy na pewno chcesz nadpisać wszystkie istniejące flagi w tym sklepie plikiem? Ta operacja jest nieodwracalna.')) {
+                    $('#importForm').submit();
+                } else {
+                    // Wyczyść input, jeśli użytkownik anuluje
+                    $(this).val('');
+                }
+            });
+
             // Otwieranie modala tworzenia
             $('.create-flag-btn').on('click', function () {
                 var isMarketplace = $(this).data('marketplace');
@@ -198,23 +217,36 @@
                 });
             });
 
-            // Tworzenie nowej flagi
-            $('#createFlag').on('click', function () {
-                var flagData = {
-                    FlagName: $('#createFlagName').val(),
-                    FlagColor: $('#createFlagColor').val(),
-                    IsMarketplace: $('#createIsMarketplace').val() === 'true',
-                    StoreId: @Model.StoreId
-                };
 
-                $.ajax({
-                    url: '@Url.Action("Create", "Flags")',
-                    type: 'POST',
-                    data: flagData,
-                    success: function () { location.reload(); },
-                    error: function () { alert('Błąd podczas tworzenia flagi'); }
-                });
+        // Tworzenie nowej flagi
+        $('#createFlag').on('click', function () {
+            var flagData = {
+                FlagName: $('#createFlagName').val(),
+                FlagColor: $('#createFlagColor').val(),
+                IsMarketplace: $('#createIsMarketplace').val() === 'true',
+                StoreId: @Model.StoreId
+            };
+
+            $.ajax({
+                url: '@Url.Action("Create", "Flags")',
+                type: 'POST',
+                // --- POPRAWKA TUTAJ ---
+                contentType: 'application/json', // 1. Mówimy serwerowi, że wysyłamy JSON
+                data: JSON.stringify(flagData),    // 2. Konwertujemy nasz obiekt JavaScript na tekst JSON
+                // --- KONIEC POPRAWKI ---
+                success: function (newFlag) {
+                    // Możemy teraz odświeżyć stronę lub dynamicznie dodać nowy wiersz do tabeli
+                    console.log('Dodano flagę:', newFlag);
+                    location.reload();
+                },
+                error: function (xhr) {
+                    // Wyświetlamy błędy walidacji, jeśli wystąpią
+                    var errors = xhr.responseJSON;
+                    console.error(errors);
+                    alert('Błąd podczas tworzenia flagi. Sprawdź konsolę, aby zobaczyć szczegóły.');
+                }
             });
+        });
 
             // Usuwanie flagi
             $('#deleteFlag').on('click', function () {

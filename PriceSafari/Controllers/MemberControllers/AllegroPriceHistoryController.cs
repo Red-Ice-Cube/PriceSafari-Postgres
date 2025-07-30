@@ -32,7 +32,7 @@ namespace PriceSafari.Controllers.MemberControllers
             return await _context.UserStores.AnyAsync(us => us.UserId == userId && us.StoreId == storeId);
         }
 
-        // W pliku AllegroPriceHistoryController.cs
+        // W AllegroPriceHistoryController.cs
 
         public async Task<IActionResult> Index(int? storeId)
         {
@@ -47,26 +47,36 @@ namespace PriceSafari.Controllers.MemberControllers
                 .OrderByDescending(sh => sh.Date)
                 .FirstOrDefaultAsync();
 
-            // --- DODAJ TEN FRAGMENT ---
+            // --- POPRAWKA TUTAJ ---
             var flags = await _context.Flags
-                .Where(f => f.StoreId == storeId.Value)
+                .Where(f => f.StoreId == storeId.Value && f.IsMarketplace == true)
+                .Select(f => new FlagViewModel // Używamy projekcji na nasz nowy, prosty ViewModel
+                {
+                    FlagId = f.FlagId,
+                    FlagName = f.FlagName,
+                    FlagColor = f.FlagColor,
+                    IsMarketplace = f.IsMarketplace
+                })
                 .ToListAsync();
-            // -------------------------
 
             ViewBag.StoreId = store.StoreId;
             ViewBag.StoreName = store.StoreName;
             ViewBag.StoreLogo = store.StoreLogoUrl;
             ViewBag.LatestScrap = latestScrap;
-
-            // --- ZMIEŃ TĘ LINIĘ ---
-            ViewBag.Flags = flags; // Zamiast new List<FlagsClass>()
-                                   // --------------------
+            ViewBag.Flags = flags; // Teraz ViewBag przechowuje listę prostych, "płaskich" obiektów
 
             return View("~/Views/Panel/AllegroPriceHistory/Index.cshtml");
         }
 
-        // nowa wersja mapujaca po id allegro 
 
+        // Np. w pliku ViewModels/FlagViewModel.cs
+        public class FlagViewModel
+        {
+            public int FlagId { get; set; }
+            public string FlagName { get; set; }
+            public string FlagColor { get; set; }
+            public bool IsMarketplace { get; set; }
+        }
 
         [HttpGet]
         public async Task<IActionResult> GetAllegroPrices(int? storeId)
@@ -93,14 +103,11 @@ namespace PriceSafari.Controllers.MemberControllers
                 .Include(aph => aph.AllegroProduct)
                 .ToListAsync();
 
-
             var productIds = priceData.Select(p => p.AllegroProductId).Distinct().ToList();
             var productFlagsDictionary = await _context.ProductFlags
                 .Where(pf => productIds.Contains(pf.AllegroProductId.Value))
                 .GroupBy(pf => pf.AllegroProductId.Value)
                 .ToDictionaryAsync(g => g.Key, g => g.Select(pf => pf.FlagId).ToList());
-            // ------------------------------------------
-
 
             var groupedData = priceData
                 .GroupBy(aph => aph.AllegroProduct)
@@ -125,14 +132,9 @@ namespace PriceSafari.Controllers.MemberControllers
                     var competitors = g.Where(p => !p.SellerName.Equals(store.StoreNameAllegro, StringComparison.OrdinalIgnoreCase)).ToList();
                     var bestCompetitor = competitors.OrderBy(p => p.Price).FirstOrDefault();
 
-                    // --- NOWA LOGIKA ---
-                    // 1. Znajdź wszystkie oferty TWOJEGO sklepu w tej grupie produktowej.
                     var allMyOffersInGroup = g.Where(p => p.SellerName.Equals(store.StoreNameAllegro, StringComparison.OrdinalIgnoreCase));
 
-                    // 2. Wyciągnij ich ID, posortuj (dla spójności) i połącz w jeden string.
-                    //    To będzie nasz unikalny klucz do grupowania "katalogów" na froncie.
                     var myOffersGroupKey = string.Join(",", allMyOffersInGroup.Select(o => o.IdAllegro).OrderBy(id => id));
-                    // --- KONIEC NOWEJ LOGIKI ---
 
                     var totalPopularity = g.Sum(p => p.Popularity ?? 0);
 
@@ -159,7 +161,6 @@ namespace PriceSafari.Controllers.MemberControllers
                         MyTotalPopularity = myPopularity,
                         MarketSharePercentage = marketSharePercentage,
 
-                        // Informacje o ofercie konkurenta
                         DeliveryTime = bestCompetitor?.DeliveryTime,
                         IsSuperSeller = bestCompetitor?.SuperSeller ?? false,
                         IsSmart = bestCompetitor?.Smart ?? false,
@@ -169,9 +170,8 @@ namespace PriceSafari.Controllers.MemberControllers
                         IsPromoted = bestCompetitor?.Promoted ?? false,
                         IsSponsored = bestCompetitor?.Sponsored ?? false,
 
-                        // Informacje o Twojej ofercie
                         MyIdAllegro = myOffer?.IdAllegro,
-                        MyOffersGroupKey = myOffersGroupKey, // <-- NOWE POLE
+                        MyOffersGroupKey = myOffersGroupKey,
                         MyDeliveryTime = myOffer?.DeliveryTime,
                         MyIsSuperSeller = myOffer?.SuperSeller ?? false,
                         MyIsSmart = myOffer?.Smart ?? false,
@@ -189,7 +189,7 @@ namespace PriceSafari.Controllers.MemberControllers
                         IsUniqueBestPrice = (myOffer != null && bestCompetitor != null && myOffer.Price < bestCompetitor.Price),
                         IsSharedBestPrice = (myOffer != null && bestCompetitor != null && myOffer.Price == bestCompetitor.Price),
                         FlagIds = productFlagsDictionary.GetValueOrDefault(product.AllegroProductId, new List<int>()),
-                        // --------------------
+
                         Ean = (string)null,
                         ExternalId = (int?)null,
                         MarginPrice = product.MarginPrice,
@@ -209,7 +209,6 @@ namespace PriceSafari.Controllers.MemberControllers
             });
         }
 
-
         public class PriceSettingsViewModel
         {
             public int StoreId { get; set; }
@@ -219,15 +218,10 @@ namespace PriceSafari.Controllers.MemberControllers
             public bool UsePriceDifference { get; set; }
         }
 
-
-
-
-        // W pliku AllegroPriceHistoryController.cs, dodaj te dwie metody
-
         [HttpGet]
         public async Task<IActionResult> GetFlagsForProduct(int productId)
         {
-            // Znajdź produkt, aby zweryfikować dostęp do sklepu
+
             var product = await _context.AllegroProducts.FindAsync(productId);
             if (product == null) return NotFound();
             if (!await UserHasAccessToStore(product.StoreId)) return Forbid();
@@ -239,6 +233,13 @@ namespace PriceSafari.Controllers.MemberControllers
 
             return Json(assignedFlags);
         }
+
+
+
+
+
+
+
 
         [HttpPost]
         public async Task<IActionResult> AssignFlagsToProduct([FromBody] AssignFlagsViewModel model)
@@ -252,19 +253,24 @@ namespace PriceSafari.Controllers.MemberControllers
             if (product == null) return NotFound();
             if (!await UserHasAccessToStore(product.StoreId)) return Forbid();
 
-            // Usuń stare przypisania
-            product.ProductFlags.Clear();
+            var flagsToRemove = product.ProductFlags.ToList();
 
-            // Dodaj nowe, jeśli jakieś zostały wybrane
+            if (flagsToRemove.Any())
+            {
+                _context.ProductFlags.RemoveRange(flagsToRemove);
+            }
+
             if (model.FlagIds != null && model.FlagIds.Any())
             {
                 foreach (var flagId in model.FlagIds)
                 {
-                    product.ProductFlags.Add(new ProductFlag
+
+                    var newProductFlag = new ProductFlag
                     {
                         AllegroProductId = model.ProductId,
                         FlagId = flagId
-                    });
+                    };
+                    _context.ProductFlags.Add(newProductFlag);
                 }
             }
 
@@ -272,7 +278,12 @@ namespace PriceSafari.Controllers.MemberControllers
             return Json(new { success = true });
         }
 
-        // Dodaj też tę klasę pomocniczą na końcu pliku kontrolera
+
+
+
+
+
+
         public class AssignFlagsViewModel
         {
             public int ProductId { get; set; }
@@ -323,7 +334,6 @@ namespace PriceSafari.Controllers.MemberControllers
             return View("~/Views/Panel/AllegroPriceHistory/Details.cshtml");
         }
 
-
         [HttpGet]
         public async Task<IActionResult> GetProductPriceDetails(int storeId, int productId)
         {
@@ -345,33 +355,27 @@ namespace PriceSafari.Controllers.MemberControllers
                 return Json(new { data = new List<object>() });
             }
 
-            // --- NOWA, POPRAWIONA I UPROSZCZONA LOGIKA ---
-
-            // Krok 1: Pobierz wszystkie oferty dla AKTUALNIE oglądanego produktu.
             var allOffersForProduct = await _context.AllegroPriceHistories
                 .Where(aph => aph.AllegroScrapeHistoryId == latestScrap.Id &&
                               aph.AllegroProductId == productId &&
                               aph.Price > 0)
                 .OrderBy(aph => aph.Price)
-                .ToListAsync(); // Pobieramy pełne obiekty do pamięci
+                .ToListAsync();
 
-            // Krok 2: Zidentyfikuj, które z tych ofert należą do Twojego sklepu.
             var myOfferIdsInList = allOffersForProduct
                 .Where(aph => aph.SellerName.Equals(store.StoreNameAllegro, StringComparison.OrdinalIgnoreCase))
                 .Select(aph => aph.IdAllegro)
                 .ToList();
 
-            // Krok 3: Zbuduj mapę nawigacji [IdAllegro] -> [Docelowy ProductId] dla Twoich ofert.
-            // Pobieramy wszystkie Twoje produkty raz, aby uniknąć wielu zapytań do bazy.
             var allMyProducts = await _context.AllegroProducts
                 .Where(p => p.StoreId == storeId)
                 .Select(p => new { p.AllegroProductId, p.AllegroOfferUrl })
                 .ToListAsync();
 
-            var navigationMap = new Dictionary<long, int>(); // Mapa: IdAllegro -> docelowy ProductId
+            var navigationMap = new Dictionary<long, int>();
             foreach (var offerId in myOfferIdsInList)
             {
-                // Szukamy produktu, którego główny URL pasuje do ID naszej oferty
+
                 var matchingProduct = allMyProducts.FirstOrDefault(p =>
                     !string.IsNullOrEmpty(p.AllegroOfferUrl) && p.AllegroOfferUrl.EndsWith($"-{offerId}")
                 );
@@ -382,7 +386,6 @@ namespace PriceSafari.Controllers.MemberControllers
                 }
             }
 
-            // Krok 4: Przygotuj dane do wysłania, dodając docelowy ProductId do Twoich ofert
             var dataForJson = allOffersForProduct.Select(aph => new {
                 aph.SellerName,
                 aph.Price,
@@ -397,12 +400,10 @@ namespace PriceSafari.Controllers.MemberControllers
                 aph.Promoted,
                 aph.Sponsored,
                 aph.IdAllegro,
-                // Dla ofert Twojego sklepu dodajemy znaleziony productId, dla innych zostaje null
+
                 TargetProductId = navigationMap.ContainsKey(aph.IdAllegro) ? navigationMap[aph.IdAllegro] : (int?)null
             }).ToList();
 
-
-            // Wyciągnij ID głównej oferty z URL-a bieżącego produktu
             long? mainOfferId = null;
             if (!string.IsNullOrEmpty(product.AllegroOfferUrl))
             {

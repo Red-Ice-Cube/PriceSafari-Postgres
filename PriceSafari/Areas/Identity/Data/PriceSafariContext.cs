@@ -84,20 +84,33 @@ namespace PriceSafari.Data
                 .HasForeignKey(ph => ph.ProductId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            modelBuilder.Entity<ProductFlag>()
-                .HasKey(pf => new { pf.ProductId, pf.FlagId });
+            // W pliku PriceSafariContext.cs, w metodzie OnModelCreating
 
+            modelBuilder.Entity<ProductFlag>()
+                .HasKey(pf => pf.ProductFlagId);
+
+            // Konfiguracja dla relacji ProductFlag <-> ProductClass (GŁÓWNA ŚCIEŻKA)
             modelBuilder.Entity<ProductFlag>()
                 .HasOne(pf => pf.Product)
                 .WithMany(p => p.ProductFlags)
                 .HasForeignKey(pf => pf.ProductId)
-                .OnDelete(DeleteBehavior.Cascade);
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.Cascade); // TYLKO TA RELACJA MA CASCADE
 
+            // Konfiguracja dla relacji ProductFlag <-> AllegroProductClass (PRZERWANIE CYKLU)
+            modelBuilder.Entity<ProductFlag>()
+                .HasOne(pf => pf.AllegroProduct)
+                .WithMany(ap => ap.ProductFlags)
+                .HasForeignKey(pf => pf.AllegroProductId)
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.NoAction); // ZMIANA
+
+            // Konfiguracja dla relacji ProductFlag <-> FlagsClass (PRZERWANIE CYKLU)
             modelBuilder.Entity<ProductFlag>()
                 .HasOne(pf => pf.Flag)
                 .WithMany(f => f.ProductFlags)
                 .HasForeignKey(pf => pf.FlagId)
-                .OnDelete(DeleteBehavior.Cascade);
+                .OnDelete(DeleteBehavior.NoAction); // ZMIANA
 
             modelBuilder.Entity<PriceSafariUserStore>()
                 .HasKey(us => new { us.UserId, us.StoreId });

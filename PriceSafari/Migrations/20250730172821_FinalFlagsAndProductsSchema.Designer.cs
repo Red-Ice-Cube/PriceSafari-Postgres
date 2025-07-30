@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using PriceSafari.Data;
 
@@ -11,9 +12,11 @@ using PriceSafari.Data;
 namespace PriceSafari.Migrations
 {
     [DbContext(typeof(PriceSafariContext))]
-    partial class PriceTrackerContextModelSnapshot : ModelSnapshot
+    [Migration("20250730172821_FinalFlagsAndProductsSchema")]
+    partial class FinalFlagsAndProductsSchema
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -755,12 +758,15 @@ namespace PriceSafari.Migrations
                     b.Property<bool>("IsMarketplace")
                         .HasColumnType("bit");
 
+                    b.Property<int?>("StoreClassStoreId")
+                        .HasColumnType("int");
+
                     b.Property<int>("StoreId")
                         .HasColumnType("int");
 
                     b.HasKey("FlagId");
 
-                    b.HasIndex("StoreId");
+                    b.HasIndex("StoreClassStoreId");
 
                     b.ToTable("Flags");
                 });
@@ -2091,13 +2097,9 @@ namespace PriceSafari.Migrations
 
             modelBuilder.Entity("PriceSafari.Models.FlagsClass", b =>
                 {
-                    b.HasOne("PriceSafari.Models.StoreClass", "Store")
+                    b.HasOne("PriceSafari.Models.StoreClass", null)
                         .WithMany("Flags")
-                        .HasForeignKey("StoreId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Store");
+                        .HasForeignKey("StoreClassStoreId");
                 });
 
             modelBuilder.Entity("PriceSafari.Models.GoogleScrapingProduct", b =>
