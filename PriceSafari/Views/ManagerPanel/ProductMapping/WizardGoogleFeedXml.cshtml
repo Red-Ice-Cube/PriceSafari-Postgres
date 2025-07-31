@@ -60,6 +60,13 @@
         Usuń duplikaty EAN (zostaw pierwszy wystąpienie)
     </label>
 </div>
+
+<div style="margin-bottom: 10px;">
+    <label>
+        <input type="checkbox" id="removeDuplicateProducerCodes">
+        Usuń duplikaty kodu producenta (zostaw pierwsze wystąpienie)
+    </label>
+</div>
 <div style="margin-bottom: 10px;">
     <label>
         <input type="checkbox" id="onlyEanProducts" checked>
@@ -87,6 +94,7 @@
         <option value="GoogleImage">URL Obrazu</option>
         <option value="GoogleExportedName">Nazwa produktu</option>
         <option value="GoogleExportedProducer">Nazwa producenta</option>
+        <option value="GoogleExportedProducerCode">Kod producenta</option>
         <option value="GoogleXMLPrice">Eksportowana Cena (Google)</option>
         <option value="GoogleDeliveryXMLPrice">Eksportowana Cena z dostawa (Google)</option>
     </select>
@@ -157,6 +165,10 @@
 
     .highlight-GoogleExportedProducer {
         background-color: rgba(17, 205, 255, 0.1);
+    }
+
+    .highlight-GoogleExportedProducerCode {
+        background-color: rgba(135, 206, 250, 0.2);
     }
 
     .highlight-GoogleXMLPrice {

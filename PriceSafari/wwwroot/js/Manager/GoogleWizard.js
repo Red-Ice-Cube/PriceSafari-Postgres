@@ -20,6 +20,7 @@ let mappingForField = {
     "GoogleImage": null,
     "GoogleExportedName": null,
     "GoogleExportedProducer": null,
+    "GoogleExportedProducerCode": null, // Nowe pole
     "GoogleXMLPrice": null,
     "GoogleDeliveryXMLPrice": null
 };
@@ -104,9 +105,9 @@ function createLi(node, parentPath) {
         nodeName += `[@name="${nameAttr}"]`;
     }
 
-    let currentPath = parentPath
-        ? parentPath + "/" + nodeName
-        : "/" + nodeName;
+    let currentPath = parentPath ?
+        parentPath + "/" + nodeName :
+        "/" + nodeName;
 
     li.setAttribute("data-xpath", currentPath);
 
@@ -319,17 +320,17 @@ function renderMappingTable() {
         let tr = document.createElement("tr");
         if (!info) {
             tr.innerHTML = `
-                  <td>${fieldName}</td>
-                  <td>-</td>
-                  <td>0</td>
-                  <td>-</td>
+                <td>${fieldName}</td>
+                <td>-</td>
+                <td>0</td>
+                <td>-</td>
                 `;
         } else {
             tr.innerHTML = `
-                  <td>${fieldName}</td>
-                  <td>${info.xpath || "-"}</td>
-                  <td>${info.nodeCount || 0}</td>
-                  <td>${info.firstValue || "-"}</td>
+                <td>${fieldName}</td>
+                <td>${info.xpath || "-"}</td>
+                <td>${info.nodeCount || 0}</td>
+                <td>${info.firstValue || "-"}</td>
                 `;
         }
         tbody.appendChild(tr);
@@ -394,9 +395,9 @@ function extractProductsFromXml() {
         alert("Brak XML do parsowania");
         return;
     }
-    let entries = xmlDoc.getElementsByTagName("item").length > 0
-        ? xmlDoc.getElementsByTagName("item")
-        : xmlDoc.getElementsByTagName("entry");
+    let entries = xmlDoc.getElementsByTagName("item").length > 0 ?
+        xmlDoc.getElementsByTagName("item") :
+        xmlDoc.getElementsByTagName("entry");
 
     let onlyEanProducts = document.getElementById("onlyEanProducts").checked;
 
@@ -414,6 +415,7 @@ function extractProductsFromXml() {
             GoogleImage: getVal(entryNode, "GoogleImage"),
             GoogleExportedName: getVal(entryNode, "GoogleExportedName"),
             GoogleExportedProducer: getVal(entryNode, "GoogleExportedProducer"),
+            GoogleExportedProducerCode: getVal(entryNode, "GoogleExportedProducerCode"),
             GoogleXMLPrice: parsePrice(getVal(entryNode, "GoogleXMLPrice")),
             GoogleDeliveryXMLPrice: parsePrice(getVal(entryNode, "GoogleDeliveryXMLPrice"))
         };
@@ -480,6 +482,24 @@ function extractProductsFromXml() {
             JSON.stringify(productMaps, null, 2);
     }
 
+    if (document.getElementById("removeDuplicateProducerCodes").checked) {
+        let seenProducerCode = {};
+        let dedupedProducerCode = [];
+        productMaps.forEach(pm => {
+            if (pm.GoogleExportedProducerCode) {
+                if (!seenProducerCode[pm.GoogleExportedProducerCode]) {
+                    seenProducerCode[pm.GoogleExportedProducerCode] = true;
+                    dedupedProducerCode.push(pm);
+                }
+            } else {
+                dedupedProducerCode.push(pm);
+            }
+        });
+        productMaps = dedupedProducerCode;
+        document.getElementById("productMapsPreview").textContent =
+            JSON.stringify(productMaps, null, 2);
+    }
+
     document.getElementById("finalNodesInfo").textContent =
         "Final nodes po filtrach: " + productMaps.length;
 
@@ -489,6 +509,7 @@ function extractProductsFromXml() {
 function checkDuplicates(productMaps) {
     let urlCounts = {};
     let eanCounts = {};
+    let producerCodeCounts = {};
 
     productMaps.forEach(pm => {
         if (pm.Url) {
@@ -496,6 +517,9 @@ function checkDuplicates(productMaps) {
         }
         if (pm.GoogleEan) {
             eanCounts[pm.GoogleEan] = (eanCounts[pm.GoogleEan] || 0) + 1;
+        }
+        if (pm.GoogleExportedProducerCode) {
+            producerCodeCounts[pm.GoogleExportedProducerCode] = (producerCodeCounts[pm.GoogleExportedProducerCode] || 0) + 1;
         }
     });
 
@@ -515,18 +539,31 @@ function checkDuplicates(productMaps) {
         }
     }
 
+    let totalUniqueProducerCodes = Object.keys(producerCodeCounts).length;
+    let duplicateProducerCodes = 0;
+    for (let key in producerCodeCounts) {
+        if (producerCodeCounts[key] > 1) {
+            duplicateProducerCodes++;
+        }
+    }
+
     let urlMessage = `Unikalnych URL: ${totalUniqueUrls} `;
-    urlMessage += duplicateUrls > 0
-        ? `<span style="color:red;">(Duplikatów: ${duplicateUrls})</span>`
-        : `(Brak duplikatów)`;
+    urlMessage += duplicateUrls > 0 ?
+        `<span style="color:red;">(Duplikatów: ${duplicateUrls})</span>` :
+        `(Brak duplikatów)`;
 
     let eanMessage = `Unikalnych kodów EAN: ${totalUniqueEans} `;
-    eanMessage += duplicateEans > 0
-        ? `<span style="color:red;">(Duplikatów: ${duplicateEans})</span>`
-        : `(Brak duplikatów)`;
+    eanMessage += duplicateEans > 0 ?
+        `<span style="color:red;">(Duplikatów: ${duplicateEans})</span>` :
+        `(Brak duplikatów)`;
+
+    let producerCodeMessage = `Unikalnych kodów producenta: ${totalUniqueProducerCodes} `;
+    producerCodeMessage += duplicateProducerCodes > 0 ?
+        `<span style="color:red;">(Duplikatów: ${duplicateProducerCodes})</span>` :
+        `(Brak duplikatów)`;
 
     document.getElementById("duplicatesInfo").innerHTML =
-        urlMessage + "<br>" + eanMessage;
+        urlMessage + "<br>" + eanMessage + "<br>" + producerCodeMessage;
 }
 
 document.getElementById("extractProducts").addEventListener("click", function () {
@@ -542,6 +579,10 @@ document.getElementById("removeDuplicateUrls").addEventListener("change", functi
 });
 
 document.getElementById("removeDuplicateEans").addEventListener("change", function () {
+    extractProductsFromXml();
+});
+
+document.getElementById("removeDuplicateProducerCodes").addEventListener("change", function () {
     extractProductsFromXml();
 });
 

@@ -20,7 +20,6 @@ namespace PriceSafari.Controllers.ManagerControllers
             _context = context;
         }
 
-       
         [HttpGet]
         public IActionResult ShowCeneoFeedXml(int storeId)
         {
@@ -54,32 +53,27 @@ namespace PriceSafari.Controllers.ManagerControllers
 
             var url = store.ProductMapXmlUrl;
 
-            // Możesz dodać obsługę auto-redirect
             var handler = new HttpClientHandler
             {
-                AllowAutoRedirect = true // domyślnie True, ale można ustawić jawnie
+                AllowAutoRedirect = true
             };
             using var client = new HttpClient(handler);
 
-            // Opcjonalnie zmień User-Agent, jeśli strona wymaga
             client.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (compatible; MyFeedBot/1.0)");
 
             try
             {
                 var xmlContent = await client.GetStringAsync(url);
 
-                // Zwracamy w formacie XML do frontu:
                 return Content(xmlContent, "text/xml");
             }
             catch (Exception ex)
             {
-                // Możesz przechwycić błąd i zwrócić np. BadRequest z komunikatem
+
                 return BadRequest($"Błąd pobierania z {url}: {ex.Message}");
             }
         }
 
-
-        
         [HttpGet]
         public IActionResult GetCeneoMappings(int storeId)
         {
@@ -89,19 +83,16 @@ namespace PriceSafari.Controllers.ManagerControllers
             return Json(existing);
         }
 
-      
         [HttpPost]
         public IActionResult SaveCeneoMappings([FromBody] List<FieldMappingDto> mappings, int storeId)
         {
             if (mappings == null) mappings = new List<FieldMappingDto>();
 
-            // Usuń stare
             var oldMappings = _context.CeneoFieldMappings
                 .Where(x => x.StoreId == storeId)
                 .ToList();
             _context.CeneoFieldMappings.RemoveRange(oldMappings);
 
-            // Dodaj nowe
             foreach (var m in mappings)
             {
                 _context.CeneoFieldMappings.Add(new CeneoFieldMapping
@@ -140,12 +131,9 @@ namespace PriceSafari.Controllers.ManagerControllers
 
         public class FieldMappingDto
         {
-            public string FieldName { get; set; }  // "ExternalId" itp.
-            public string LocalName { get; set; }  // "g:id" itp.
+            public string FieldName { get; set; }
+            public string LocalName { get; set; }
         }
-
-
-        // W pliku CeneoImportWizardXmlController.cs
 
         [HttpPost]
         public async Task<IActionResult> SaveProductMapsFromFront([FromBody] List<ProductMapDto> productMaps)
@@ -165,13 +153,12 @@ namespace PriceSafari.Controllers.ManagerControllers
 
             foreach (var pmDto in productMaps)
             {
-                // Oczyszczanie ExternalId, by zostały tylko cyfry
+
                 if (!string.IsNullOrEmpty(pmDto.ExternalId))
                 {
                     pmDto.ExternalId = new string(pmDto.ExternalId.Where(c => char.IsDigit(c)).ToArray());
                 }
 
-                // Tylko jeśli URL i ExternalId są identyczne
                 var found = existing.FirstOrDefault(x =>
                     x.Url == pmDto.Url
                     && x.ExternalId == pmDto.ExternalId
@@ -179,43 +166,41 @@ namespace PriceSafari.Controllers.ManagerControllers
 
                 if (found == null)
                 {
-                    // Nowy wpis
+
                     var newMap = new ProductMap
                     {
                         StoreId = pmDto.StoreId,
                         ExternalId = pmDto.ExternalId,
                         Url = pmDto.Url,
 
-                        // Pola Ceneo
                         Ean = pmDto.CeneoEan,
                         MainUrl = pmDto.CeneoImage,
                         ExportedName = pmDto.CeneoExportedName,
                         CeneoExportedProducer = pmDto.CeneoExportedProducer,
 
-                        // --- DODANE POLA CENOWE ---
                         CeneoXMLPrice = pmDto.CeneoXMLPrice,
-                        CeneoDeliveryXMLPrice = pmDto.CeneoDeliveryXMLPrice
-                        // --- KONIEC DODANYCH PÓL CENOWYCH ---
+                        CeneoDeliveryXMLPrice = pmDto.CeneoDeliveryXMLPrice,
+                        CeneoExportedProducerCode = pmDto.CeneoExportedProducerCode
+
                     };
 
                     _context.ProductMaps.Add(newMap);
-                    existing.Add(newMap); // Dodaj do listy, aby uniknąć duplikatów w tej samej pętli
+                    existing.Add(newMap);
                     added++;
                 }
                 else
                 {
-                    // Aktualizacja
-                    found.ExternalId = pmDto.ExternalId; // Może niepotrzebne, skoro szukamy po tym? Zależy od logiki.
-                    found.Url = pmDto.Url;            // Może niepotrzebne, skoro szukamy po tym? Zależy od logiki.
+
+                    found.ExternalId = pmDto.ExternalId;
+                    found.Url = pmDto.Url;
                     found.Ean = pmDto.CeneoEan;
                     found.MainUrl = pmDto.CeneoImage;
                     found.ExportedName = pmDto.CeneoExportedName;
                     found.ExportedName = pmDto.CeneoExportedName;
 
-                    // --- DODANE POLA CENOWE ---
                     found.CeneoXMLPrice = pmDto.CeneoXMLPrice;
                     found.CeneoExportedProducer = pmDto.CeneoExportedProducer;
-                    // --- KONIEC DODANYCH PÓL CENOWYCH ---
+                    found.CeneoExportedProducerCode = pmDto.CeneoExportedProducerCode;
 
                     _context.ProductMaps.Update(found);
                     updated++;
@@ -226,8 +211,6 @@ namespace PriceSafari.Controllers.ManagerControllers
             return Json(new { success = true, message = $"Dodano {added}, zaktualizowano {updated}." });
         }
 
-
-
         public class ProductMapDto
         {
             public int StoreId { get; set; }
@@ -235,16 +218,15 @@ namespace PriceSafari.Controllers.ManagerControllers
             public string Url { get; set; }
             public string CeneoEan { get; set; }
             public string CeneoImage { get; set; }
-            
+
             public string CeneoExportedName { get; set; }
 
             public string? CeneoExportedProducer { get; set; }
 
             public decimal? CeneoXMLPrice { get; set; }
             public decimal? CeneoDeliveryXMLPrice { get; set; }
+            public string? CeneoExportedProducerCode { get; set; }
         }
-
-
 
     }
 }

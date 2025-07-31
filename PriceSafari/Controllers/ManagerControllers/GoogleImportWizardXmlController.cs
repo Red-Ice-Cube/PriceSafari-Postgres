@@ -2,7 +2,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authorization;
 using PriceSafari.Data;
-using PriceSafari.Models; // GoogleFieldMapping
+using PriceSafari.Models;
 using System.Collections.Generic;
 using System.Linq;
 using PriceSafari.Models.ProductXML;
@@ -19,9 +19,6 @@ namespace PriceSafari.Controllers.ManagerControllers
             _context = context;
         }
 
-        /// <summary>
-        /// Wyświetla widok kreatora z mapowaniami w JSON (ViewBag.ExistingMappings).
-        /// </summary>
         [HttpGet]
         public IActionResult ShowGoogleFeedXml(int storeId)
         {
@@ -32,12 +29,10 @@ namespace PriceSafari.Controllers.ManagerControllers
                 return RedirectToAction("Index", "ProductMapping");
             }
 
-            // Odczytujemy mapowania z bazy
             var existingMappings = _context.GoogleFieldMappings
                 .Where(m => m.StoreId == storeId)
                 .ToList();
 
-            // Serializujemy do JSON
             var existingMappingsJson = System.Text.Json.JsonSerializer.Serialize(existingMappings);
 
             ViewBag.StoreId = storeId;
@@ -57,19 +52,17 @@ namespace PriceSafari.Controllers.ManagerControllers
 
             var url = store.ProductMapXmlUrlGoogle;
 
-
             if (url.StartsWith("file://", System.StringComparison.OrdinalIgnoreCase))
             {
                 try
                 {
 
                     string filePathEncoded = url.Substring("file://".Length);
-                    // Dekoduj URL, aby zamienić np. %20 na spację
+
                     string filePath = Uri.UnescapeDataString(filePathEncoded);
-                    // Opcjonalnie usuń wiodące ukośniki
+
                     filePath = filePath.TrimStart('/', '\\');
 
-                    // Odczytujemy zawartość pliku
                     var xmlContent = System.IO.File.ReadAllText(filePath);
                     return Content(xmlContent, "text/xml");
                 }
@@ -80,7 +73,7 @@ namespace PriceSafari.Controllers.ManagerControllers
             }
             else
             {
-                // Dla URL hostowanych (http/https) używamy HttpClient
+
                 var handler = new HttpClientHandler
                 {
                     AllowAutoRedirect = true
@@ -100,12 +93,6 @@ namespace PriceSafari.Controllers.ManagerControllers
             }
         }
 
-
-
-
-        /// <summary>
-        /// Zwraca aktualne mapowania (GoogleFieldMapping) w formie JSON.
-        /// </summary>
         [HttpGet]
         public IActionResult GetGoogleMappings(int storeId)
         {
@@ -115,21 +102,16 @@ namespace PriceSafari.Controllers.ManagerControllers
             return Json(existing);
         }
 
-        /// <summary>
-        /// Zapisuje mapowania (nadpisuje stare) w tabeli GoogleFieldMappings.
-        /// </summary>
         [HttpPost]
         public IActionResult SaveGoogleMappings([FromBody] List<FieldMappingDto> mappings, int storeId)
         {
             if (mappings == null) mappings = new List<FieldMappingDto>();
 
-            // Usuń stare
             var oldMappings = _context.GoogleFieldMappings
                 .Where(x => x.StoreId == storeId)
                 .ToList();
             _context.GoogleFieldMappings.RemoveRange(oldMappings);
 
-            // Dodaj nowe
             foreach (var m in mappings)
             {
                 _context.GoogleFieldMappings.Add(new GoogleFieldMapping
@@ -145,9 +127,6 @@ namespace PriceSafari.Controllers.ManagerControllers
             return Json(new { success = true, message = "Mapowania zapisane w bazie." });
         }
 
-        /// <summary>
-        /// Usuwa wszystkie mapowania dla danego storeId.
-        /// </summary>
         [HttpPost]
         public IActionResult ClearGoogleMappings(int storeId)
         {
@@ -171,11 +150,9 @@ namespace PriceSafari.Controllers.ManagerControllers
 
         public class FieldMappingDto
         {
-            public string FieldName { get; set; }  // "ExternalId" itp.
-            public string LocalName { get; set; }  // "g:id" itp.
+            public string FieldName { get; set; }
+            public string LocalName { get; set; }
         }
-
-
 
         [HttpPost]
         public async Task<IActionResult> SaveProductMapsFromFront([FromBody] List<ProductMapDto> productMaps)
@@ -194,13 +171,12 @@ namespace PriceSafari.Controllers.ManagerControllers
 
             foreach (var pmDto in productMaps)
             {
-                // Wyczyszczenie ExternalId z niedozwolonych znaków (zostawiamy cyfry)
+
                 if (!string.IsNullOrEmpty(pmDto.ExternalId))
                 {
                     pmDto.ExternalId = new string(pmDto.ExternalId.Where(c => char.IsDigit(c)).ToArray());
                 }
 
-                // Nowy - 1 do 1 (URL i ExternalId muszą się zgadzać)
                 var found = existing.FirstOrDefault(x =>
                     x.Url == pmDto.Url
                     && x.ExternalId == pmDto.ExternalId
@@ -208,7 +184,7 @@ namespace PriceSafari.Controllers.ManagerControllers
 
                 if (found == null)
                 {
-                    // Nie ma takiego produktu -> tworzymy nowy
+
                     var newMap = new ProductMap
                     {
                         StoreId = pmDto.StoreId,
@@ -219,9 +195,10 @@ namespace PriceSafari.Controllers.ManagerControllers
                         GoogleExportedName = pmDto.GoogleExportedName,
                         GoogleExportedProducer = pmDto.GoogleExportedProducer,
 
-                        // Pola GoogleXMLPrice, GoogleDeliveryXMLPrice
                         GoogleXMLPrice = pmDto.GoogleXMLPrice,
-                        GoogleDeliveryXMLPrice = pmDto.GoogleDeliveryXMLPrice
+                        GoogleDeliveryXMLPrice = pmDto.GoogleDeliveryXMLPrice,
+                        GoogleExportedProducerCode = pmDto.GoogleExportedProducerCode,
+
                     };
 
                     _context.ProductMaps.Add(newMap);
@@ -230,7 +207,7 @@ namespace PriceSafari.Controllers.ManagerControllers
                 }
                 else
                 {
-                   
+
                     found.ExternalId = pmDto.ExternalId;
                     found.Url = pmDto.Url;
                     found.GoogleEan = pmDto.GoogleEan;
@@ -241,6 +218,8 @@ namespace PriceSafari.Controllers.ManagerControllers
                     found.GoogleXMLPrice = pmDto.GoogleXMLPrice;
                     found.GoogleDeliveryXMLPrice = pmDto.GoogleDeliveryXMLPrice;
 
+                    found.GoogleExportedProducerCode = pmDto.GoogleExportedProducerCode;
+
                     _context.ProductMaps.Update(found);
                     updated++;
                 }
@@ -249,9 +228,6 @@ namespace PriceSafari.Controllers.ManagerControllers
             await _context.SaveChangesAsync();
             return Json(new { success = true, message = $"Dodano {added}, zaktualizowano {updated}." });
         }
-
-
-
 
         public class ProductMapDto
         {
@@ -264,9 +240,9 @@ namespace PriceSafari.Controllers.ManagerControllers
             public string? GoogleExportedProducer { get; set; }
             public decimal? GoogleXMLPrice { get; set; }
             public decimal? GoogleDeliveryXMLPrice { get; set; }
+            public string? GoogleExportedProducerCode { get; set; }
+
         }
-
-
 
     }
 }
