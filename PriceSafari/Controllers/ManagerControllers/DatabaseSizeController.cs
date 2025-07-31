@@ -4,7 +4,6 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using PriceSafari.Data;
 
-
 namespace PriceSafari.Controllers.ManagerControllers
 {
     [Authorize(Roles = "Admin")]
@@ -21,7 +20,7 @@ namespace PriceSafari.Controllers.ManagerControllers
 
         public async Task<IActionResult> Index()
         {
-            // Istniejący kod dla PriceHistories
+
             var priceHistories = await _context.PriceHistories
                 .GroupBy(ph => new { ph.ScrapHistory.StoreId, ph.ScrapHistory.Store.StoreName })
                 .Select(g => new
@@ -51,11 +50,9 @@ namespace PriceSafari.Controllers.ManagerControllers
                 };
             }
 
-            // Obliczenie całkowitego rozmiaru i liczby rekordów GlobalPriceReports
             var totalGlobalPriceReportsSizeKB = await CalculateTotalSpaceForGlobalPriceReports();
             var totalGlobalPriceReportsCount = await _context.GlobalPriceReports.CountAsync();
 
-            // Pobranie liczby GlobalPriceReports dla każdego sklepu
             var globalPriceReportsPerStore = await _context.GlobalPriceReports
                 .Include(gpr => gpr.PriceSafariReport)
                 .ThenInclude(psr => psr.Store)
@@ -97,7 +94,6 @@ namespace PriceSafari.Controllers.ManagerControllers
 
             var storeSummaries = storeSummariesDict.Values.ToList();
 
-            // Obliczenie łącznych sum
             var totalUsedSpaceMB = storeSummaries.Sum(s => s.TotalUsedSpaceMB);
             totalPriceHistoriesCount = storeSummaries.Sum(s => s.TotalPriceHistoriesCount);
 
@@ -118,13 +114,11 @@ namespace PriceSafari.Controllers.ManagerControllers
 
         public async Task<IActionResult> StoreDetails(int storeId)
         {
-            // Oblicz całkowity rozmiar tabeli PriceHistories
+
             var totalSizeKB = await CalculateTotalSpaceForPriceHistories();
 
-            // Oblicz całkowitą liczbę PriceHistories w bazie danych
             var totalPriceHistoriesCount = await _context.PriceHistories.CountAsync();
 
-            // Pobierz dane ScrapHistories z Date i posortuj malejąco
             var priceHistories = await _context.PriceHistories
                 .Where(ph => ph.ScrapHistory.StoreId == storeId)
                 .GroupBy(ph => new
@@ -132,7 +126,7 @@ namespace PriceSafari.Controllers.ManagerControllers
                     ph.ScrapHistoryId,
                     ph.ScrapHistory.StoreId,
                     ph.ScrapHistory.Store.StoreName,
-                    ph.ScrapHistory.Date // Używamy ScrapHistory.Date
+                    ph.ScrapHistory.Date
                 })
                 .Select(g => new
                 {
@@ -163,33 +157,28 @@ namespace PriceSafari.Controllers.ManagerControllers
                     PriceHistoriesCount = ph.PriceHistoriesCount,
                     TotalSpaceKB = (long)totalSpaceKB,
                     UsedSpaceMB = Math.Round(totalSpaceKB / 1024.0m, 4),
-                    ScrapDate = ph.ScrapDate // Ustawiamy ScrapDate
+                    ScrapDate = ph.ScrapDate
                 });
             }
 
-            // Pobierz PriceSafariReports z datą i posortuj malejąco
             var preparedPriceSafariReports = await _context.PriceSafariReports
                 .Where(psr => psr.StoreId == storeId && psr.Prepared == true)
-                .OrderByDescending(psr => psr.CreatedDate) // Upewnij się, że masz właściwość Date
+                .OrderByDescending(psr => psr.CreatedDate)
                 .ToListAsync();
 
-            // Oblicz rozmiary GlobalPriceReports
             var priceSafariReportSizes = new List<PriceSafariReportSizeInfo>();
 
-            // Oblicz całkowity rozmiar tabeli GlobalPriceReports
             var totalGlobalPriceReportsSizeKB = await CalculateTotalSpaceForGlobalPriceReports();
 
-            // Oblicz całkowitą liczbę rekordów w GlobalPriceReports
             var totalGlobalPriceReportsCount = await _context.GlobalPriceReports.CountAsync();
 
             foreach (var psr in preparedPriceSafariReports)
             {
-                // Pobierz liczbę GlobalPriceReports dla danego PriceSafariReport
+
                 var globalPriceReportsCount = await _context.GlobalPriceReports
                     .Where(gpr => gpr.PriceSafariReportId == psr.ReportId)
                     .CountAsync();
 
-                // Oblicz używaną przestrzeń
                 decimal usedSpaceKB = 0;
                 if (totalGlobalPriceReportsCount > 0)
                 {
@@ -202,7 +191,7 @@ namespace PriceSafari.Controllers.ManagerControllers
                     ReportName = psr.ReportName,
                     TotalGlobalPriceReportsCount = globalPriceReportsCount,
                     UsedSpaceMB = Math.Round(usedSpaceKB / 1024.0m, 4),
-                    ReportDate = psr.CreatedDate // Ustawiamy ReportDate
+                    ReportDate = psr.CreatedDate
                 });
             }
 
@@ -217,9 +206,6 @@ namespace PriceSafari.Controllers.ManagerControllers
 
             return View("~/Views/ManagerPanel/DatabaseSize/StoreDetails.cshtml", viewModel);
         }
-
-
-
 
         [HttpPost]
         public async Task<IActionResult> DeleteSelectedScrapHistories(int[] selectedScrapHistoryIds, int storeId)
@@ -250,11 +236,10 @@ namespace PriceSafari.Controllers.ManagerControllers
                     var priceSafariReport = await _context.PriceSafariReports.FindAsync(id);
                     if (priceSafariReport != null)
                     {
-                        // Delete related GlobalPriceReports
+
                         var globalPriceReports = _context.GlobalPriceReports.Where(gpr => gpr.PriceSafariReportId == id);
                         _context.GlobalPriceReports.RemoveRange(globalPriceReports);
 
-                        // Delete PriceSafariReport
                         _context.PriceSafariReports.Remove(priceSafariReport);
                     }
                 }
@@ -264,39 +249,9 @@ namespace PriceSafari.Controllers.ManagerControllers
             return RedirectToAction(nameof(StoreDetails), new { storeId });
         }
 
-
-
-
-        // NOWA METODA DO PRZETESTOWANIA DO USUNIENCIA 
-
-        //[HttpPost]
-        //public async Task<IActionResult> DeleteSelectedPriceSafariReports(int[] selectedPriceSafariReportIds, int storeId)
-        //{
-        //    if (selectedPriceSafariReportIds != null && selectedPriceSafariReportIds.Any())
-        //    {
-        //        // Delete all GlobalPriceReports related to the selected PriceSafariReports in one query
-        //        var globalPriceReports = _context.GlobalPriceReports
-        //            .Where(gpr => selectedPriceSafariReportIds.Contains(gpr.PriceSafariReportId));
-
-        //        _context.GlobalPriceReports.RemoveRange(globalPriceReports);
-
-        //        // Delete all PriceSafariReports in one query
-        //        var priceSafariReports = _context.PriceSafariReports
-        //            .Where(psr => selectedPriceSafariReportIds.Contains(psr.ReportId));
-
-        //        _context.PriceSafariReports.RemoveRange(priceSafariReports);
-
-        //        await _context.SaveChangesAsync();
-        //    }
-
-        //    return RedirectToAction(nameof(StoreDetails), new { storeId });
-        //}
-
-
-
         private async Task<long> CalculateTotalSpaceForGlobalPriceReports()
         {
-                    var query = @"
+            var query = @"
                 EXEC sp_spaceused 'GlobalPriceReports'
             ";
 
@@ -322,9 +277,6 @@ namespace PriceSafari.Controllers.ManagerControllers
 
             return totalSpaceKB;
         }
-
-
-
 
         private async Task<long> CalculateTotalSpaceForPriceHistories()
         {
@@ -362,9 +314,8 @@ namespace PriceSafari.Controllers.ManagerControllers
         public string ReportName { get; set; }
         public int TotalGlobalPriceReportsCount { get; set; }
         public decimal UsedSpaceMB { get; set; }
-        public DateTime ReportDate { get; set; } // Używamy daty raportu
+        public DateTime ReportDate { get; set; }
     }
-
 
     public class TableSizeInfo
     {
@@ -374,10 +325,8 @@ namespace PriceSafari.Controllers.ManagerControllers
         public int? StoreId { get; set; }
         public string StoreName { get; set; }
         public int PriceHistoriesCount { get; set; }
-        public DateTime ScrapDate { get; set; } // Używamy ScrapHistory.Date
+        public DateTime ScrapDate { get; set; }
     }
-
-
 
     public class DatabaseSizeSummaryViewModel
     {
@@ -387,7 +336,6 @@ namespace PriceSafari.Controllers.ManagerControllers
         public decimal TotalGlobalPriceReportsUsedSpaceMB { get; set; }
         public int TotalGlobalPriceReportsCount { get; set; }
     }
-
 
     public class StoreSummaryViewModel
     {
@@ -399,7 +347,6 @@ namespace PriceSafari.Controllers.ManagerControllers
         public decimal TotalGlobalPriceReportsUsedSpaceMB { get; set; } = 0;
     }
 
-
     public class StoreDetailsViewModel
     {
         public int StoreId { get; set; }
@@ -407,7 +354,5 @@ namespace PriceSafari.Controllers.ManagerControllers
         public List<TableSizeInfo> TableSizes { get; set; }
         public List<PriceSafariReportSizeInfo> PriceSafariReportSizes { get; set; }
     }
-
-
 
 }

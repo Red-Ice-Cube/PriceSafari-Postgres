@@ -3375,19 +3375,23 @@ tr:last-child .sub-line {
     color: #AB2520 !important;
 }
 
+
+
 .priceBox-diff-neutral {
-    display: inline-flex;
-    align-self: center;
+    display: flex;
     padding: 4px 12px;
-    align-items: center;
-    justify-content: center;
+    flex-direction: column;
     border-radius: 4px;
+    gap: 4px;
     font-size: 14px;
     font-weight: 400;
     border: 1px solid rgba(40, 40, 40, 0.80);
     background: rgba(40, 40, 40, 0.20);
     color: rgba(40, 40, 40, 1) !important;
+    min-width: 260px;
 }
+
+
 
 .priceBox-diff-margin {
     display: flex;

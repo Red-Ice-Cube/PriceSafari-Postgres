@@ -14,7 +14,7 @@ namespace PriceSafari.ScrapersControllers
         private readonly PriceSafariContext _context;
         private readonly IHubContext<ScrapingHub> _hubContext;
         private const string ApiKey = "2764udhnJUDI8392j83jfi2ijdo1949rncowp89i3rnfiiui1203kfnf9030rfpPkUjHyHt";
-        private const int BatchSize = 200;
+        private const int BatchSize = 500;
 
         public AllegroScrapeApiController(PriceSafariContext context, IHubContext<ScrapingHub> hubContext)
         {

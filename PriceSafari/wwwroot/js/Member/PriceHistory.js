@@ -1341,12 +1341,18 @@
                 }) + ' PLN';
 
                 const purchasePriceBox = document.createElement('div');
-                purchasePriceBox.className = 'price-box-diff-margin ' + marginClass;
+
+                // ✨ ZMIANA: Klasa jest teraz nadawana warunkowo
+                purchasePriceBox.className = myPrice != null
+                    ? 'price-box-diff-margin ' + marginClass
+                    : 'priceBox-diff-neutral';
+
                 purchasePriceBox.innerHTML = '<p>Cena zakupu: ' + formattedMarginPrice + '</p>';
 
                 externalInfoContainer.appendChild(purchasePriceBox);
 
                 if (myPrice != null) {
+        
                     const formattedMarginAmount = marginSign + Math.abs(marginAmount).toLocaleString('pl-PL', {
                         minimumFractionDigits: 2,
                         maximumFractionDigits: 2
@@ -1359,6 +1365,14 @@
                     const marginBox = document.createElement('div');
                     marginBox.className = 'price-box-diff-margin ' + marginClass;
                     marginBox.innerHTML = '<p>Narzut: ' + formattedMarginAmount + ' ' + formattedMarginPercentage + '</p>';
+
+                    externalInfoContainer.appendChild(marginBox);
+                } else {
+                  
+                    const marginBox = document.createElement('div');
+                
+                    marginBox.className = 'priceBox-diff-neutral';
+                    marginBox.innerHTML = '<p>Narzut: Brak informacji</p>';
 
                     externalInfoContainer.appendChild(marginBox);
                 }
