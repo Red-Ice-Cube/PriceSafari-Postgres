@@ -34,6 +34,7 @@
     <link href="~/css/panel.css" rel="stylesheet" />
 
     @RenderSection("Scripts", required: false)
+    @await RenderSectionAsync("Styles", required: false)
 
     @{
         ViewData["Title"] = "_PanelLayout";

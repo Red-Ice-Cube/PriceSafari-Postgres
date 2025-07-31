@@ -1,58 +1,222 @@
 ﻿@model PriceSafari.Controllers.ManagerControllers.DatabaseSizeSummaryViewModel
+@using System.Globalization
 
 @{
-    ViewData["Title"] = "Rozmiar Tabel";
+    ViewData["Title"] = "Rozmiar Bazy Danych";
     Layout = "~/Views/Shared/_PanelLayout.cshtml";
 }
 
-
-    <table class="table table-bordered>
-        <thead class="thead-dark">
-            <tr>
-                <th colspan="2" class="text-center">Rozmiary bazy danych </th>
-            </tr>
-        </thead>
-        <tbody>
-            <tr>
-                <td>Łączna ilość <strong>PriceHistories</strong></td>
-                <td class="text-right">@Model.TotalPriceHistories.ToString("N0")</td>
-            </tr>
-            <tr>
-                <td>Łączna użyta przestrzeń dla <strong>PriceHistories</strong> </td>
-            <td class="text-right">@Model.TotalUsedSpaceMB.ToString("N2") (MB)</td>
-            </tr>
-            <tr>
-                <td>Łączna ilość <strong>GlobalPriceReports</strong></td>
-                <td class="text-right">@Model.TotalGlobalPriceReportsCount.ToString("N0")</td>
-            </tr>
-            <tr>
-                <td>Łączna użyta przestrzeń dla <strong>GlobalPriceReports</strong></td>
-            <td class="text-right">@Model.TotalGlobalPriceReportsUsedSpaceMB.ToString("N2") (MB)</td>
-            </tr>
-        </tbody>
-    </table>
-
-
-<table class="table">
-    <thead>
-        <tr>
-            <th>Nazwa Sklepu</th>
-            <th>Ilość PriceHistories</th>
-            <th>Użyta przestrzeń PriceHistories (MB)</th>
-            <th>Ilość GlobalPriceReports</th>
-            <th>Użyta przestrzeń GlobalPriceReports (MB)</th>
-        </tr>
-    </thead>
-    <tbody>
-        @foreach (var item in Model.StoreSummaries)
-        {
-            <tr>
-                <td><a href="@Url.Action("StoreDetails", new { storeId = item.StoreId })">@item.StoreName</a></td>
-                <td>@item.TotalPriceHistoriesCount</td>
-                <td>@item.TotalUsedSpaceMB</td>
-                <td>@item.TotalGlobalPriceReportsCount</td>
-                <td>@item.TotalGlobalPriceReportsUsedSpaceMB</td>
-            </tr>
+@section Styles {
+    <style>
+        .info-box {
+            background: #fff;
+            border-radius: .375rem;
+            padding: 1.25rem;
+            text-align: center;
+            border-left: 5px solid;
+            transition: all 0.3s ease-in-out;
         }
-    </tbody>
-</table>
+
+            .info-box:hover {
+                transform: translateY(-3px);
+                box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            }
+
+        .info-box-text {
+            color: #6c757d;
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.8rem;
+        }
+
+        .info-box-number {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #343a40;
+        }
+
+        .info-box.border-danger {
+            border-color: #e74a3b;
+        }
+
+        .info-box.border-info {
+            border-color: #36b9cc;
+        }
+
+        .info-box.border-secondary {
+            border-color: #858796;
+        }
+
+        #chart-container, #top-tables-container {
+            position: relative;
+            height: 300px;
+        }
+
+        .table-sm td, .table-sm th {
+            padding: .4rem;
+        }
+    </style>
+}
+
+<div class="d-sm-flex align-items-center justify-content-between mb-4">
+    <h1 class="h3 mb-0 text-gray-800">Podsumowanie Bazy Danych</h1>
+</div>
+
+<div class="row">
+    <div class="col-lg-4 col-md-6 mb-4">
+        <div class="info-box border-danger shadow-sm h-100">
+            <span class="info-box-text">Całkowity rozmiar bazy</span>
+            <span class="info-box-number">@Model.TotalDatabaseSizeMB.ToString("N2") MB</span>
+        </div>
+    </div>
+    <div class="col-lg-4 col-md-6 mb-4">
+        <div class="info-box border-info shadow-sm h-100">
+            <span class="info-box-text">Rozmiar monitorowanych tabel</span>
+            <span class="info-box-number">@((Model.TotalUsedSpaceMB + Model.TotalAllegroPriceHistoriesUsedSpaceMB + Model.TotalGlobalPriceReportsUsedSpaceMB).ToString("N2")) MB</span>
+        </div>
+    </div>
+    <div class="col-lg-4 col-md-12 mb-4">
+        <div class="info-box border-secondary shadow-sm h-100">
+            <span class="info-box-text">Liczba monitorowanych sklepów</span>
+            <span class="info-box-number">@Model.StoreSummaries.Count()</span>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-6 mb-4">
+        <div class="card shadow h-100">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Struktura monitorowanych danych</h6>
+            </div>
+            <div class="card-body">
+                <div id="chart-container">
+                    <canvas id="overallSizeChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-6 mb-4">
+        <div class="card shadow h-100">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Największe tabele w bazie danych</h6>
+            </div>
+            <div class="card-body" id="top-tables-container">
+                <div class="table-responsive h-100">
+                    <table class="table table-sm table-striped">
+                        <tbody>
+                            @foreach (var table in Model.TopTables)
+                            {
+                                <tr>
+                                    <td><strong>@table.TableName</strong></td>
+                                    <td class="text-right">@table.SizeMB.ToString("N2") MB</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card shadow mb-4">
+    <div class="card-header py-3">
+        <h6 class="m-0 font-weight-bold text-primary">Podział na sklepy</h6>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-bordered table-hover" id="storesTable" width="100%" cellspacing="0">
+                <thead class="thead-light">
+                    <tr>
+                        <th>Nazwa Sklepu</th>
+                        <th class="text-center">Rozmiar P.H. (Sklep) (MB)</th>
+                        <th class="text-center">Rozmiar P.H. (Allegro) (MB)</th>
+                        <th class="text-center">Rozmiar G.P.R. (MB)</th>
+                        <th class="text-center table-info">Łączny Rozmiar (MB)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in Model.StoreSummaries)
+                    {
+                        <tr>
+                            <td><a href="@Url.Action("StoreDetails", new { storeId = item.StoreId })"><strong>@item.StoreName</strong></a></td>
+                            <td class="text-right">@item.TotalUsedSpaceMB.ToString("N4")</td>
+                            <td class="text-right">@item.TotalAllegroPriceHistoriesUsedSpaceMB.ToString("N4")</td>
+                            <td class="text-right">@item.TotalGlobalPriceReportsUsedSpaceMB.ToString("N4")</td>
+                            <td class="text-right table-info font-weight-bold">
+                                @((item.TotalUsedSpaceMB + item.TotalAllegroPriceHistoriesUsedSpaceMB + item.TotalGlobalPriceReportsUsedSpaceMB).ToString("N4"))
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            // Pobranie danych z modelu. Użycie CultureInfo.InvariantCulture zapobiega problemom z przecinkami/kropkami.
+            const storeSize = parseFloat('@Model.TotalUsedSpaceMB.ToString(CultureInfo.InvariantCulture)');
+            const allegroSize = parseFloat('@Model.TotalAllegroPriceHistoriesUsedSpaceMB.ToString(CultureInfo.InvariantCulture)');
+            const reportsSize = parseFloat('@Model.TotalGlobalPriceReportsUsedSpaceMB.ToString(CultureInfo.InvariantCulture)');
+
+            if (storeSize > 0 || allegroSize > 0 || reportsSize > 0) {
+                const ctx = document.getElementById('overallSizeChart').getContext('2d');
+                const sizeChart = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Historia Sklepów', 'Historia Allegro', 'Raporty Globalne'],
+                        datasets: [{
+                            label: 'Rozmiar (MB)',
+                            data: [storeSize, allegroSize, reportsSize],
+                            backgroundColor: [
+                                'rgba(78, 115, 223, 0.8)',  // Primary
+                                'rgba(28, 200, 138, 0.8)',  // Success
+                                'rgba(246, 194, 62, 0.8)'   // Warning
+                            ],
+                            borderColor: [
+                                'rgba(78, 115, 223, 1)',
+                                'rgba(28, 200, 138, 1)',
+                                'rgba(246, 194, 62, 1)'
+                            ],
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'top',
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function (context) {
+                                        let label = context.label || '';
+                                        if (label) {
+                                            label += ': ';
+                                        }
+                                        if (context.parsed !== null) {
+                                            label += context.parsed.toFixed(4) + ' MB';
+                                        }
+                                        return label;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            } else {
+                const container = document.getElementById('chart-container');
+                container.innerHTML = '<p class="text-center text-muted mt-5">Brak danych do narysowania wykresu.</p>';
+            }
+        });
+    </script>
+}

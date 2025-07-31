@@ -1,8 +1,12 @@
-﻿using EFCore.BulkExtensions;
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using PriceSafari.Data;
+using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace PriceSafari.Controllers.ManagerControllers
 {
@@ -10,8 +14,6 @@ namespace PriceSafari.Controllers.ManagerControllers
     public class DatabaseSizeController : Controller
     {
         private readonly PriceSafariContext _context;
-        private static decimal totalUsedSpaceMB;
-        private static int totalPriceHistoriesCount;
 
         public DatabaseSizeController(PriceSafariContext context)
         {
@@ -20,93 +22,101 @@ namespace PriceSafari.Controllers.ManagerControllers
 
         public async Task<IActionResult> Index()
         {
-
-            var priceHistories = await _context.PriceHistories
-                .GroupBy(ph => new { ph.ScrapHistory.StoreId, ph.ScrapHistory.Store.StoreName })
-                .Select(g => new
-                {
-                    StoreId = g.Key.StoreId,
-                    StoreName = g.Key.StoreName,
-                    PriceHistoriesCount = g.Count()
-                })
-                .ToListAsync();
-
-            var totalSizeKB = await CalculateTotalSpaceForPriceHistories();
-
-            var totalPriceHistoriesCount = priceHistories.Sum(x => x.PriceHistoriesCount);
-
             var storeSummariesDict = new Dictionary<int, StoreSummaryViewModel>();
 
-            foreach (var ph in priceHistories)
-            {
-                var totalSpaceKB = totalSizeKB * ph.PriceHistoriesCount / totalPriceHistoriesCount;
+            // --- 1. Agregacja danych dla PriceHistories (ULEPSZONA LOGIKA) ---
+            var (_, totalPhDataKB) = await GetTableSpaceUsageKB("PriceHistories");
+            var phPerStore = await _context.PriceHistories
+                .GroupBy(ph => new { ph.ScrapHistory.StoreId, ph.ScrapHistory.Store.StoreName })
+                .Select(g => new { g.Key.StoreId, g.Key.StoreName, Count = g.Count() })
+                .ToListAsync();
 
-                storeSummariesDict[ph.StoreId] = new StoreSummaryViewModel
+            var totalPhCount = (decimal)phPerStore.Sum(x => x.Count);
+            foreach (var item in phPerStore)
+            {
+                var spaceKB = totalPhCount > 0 ? totalPhDataKB * item.Count / totalPhCount : 0;
+                storeSummariesDict[item.StoreId] = new StoreSummaryViewModel
                 {
-                    StoreId = ph.StoreId,
-                    StoreName = ph.StoreName,
-                    TotalPriceHistoriesCount = ph.PriceHistoriesCount,
-                    TotalUsedSpaceMB = Math.Round(totalSpaceKB / 1024.0m, 4)
+                    StoreId = item.StoreId,
+                    StoreName = item.StoreName,
+                    TotalPriceHistoriesCount = item.Count,
+                    TotalUsedSpaceMB = Math.Round(spaceKB / 1024.0m, 4)
                 };
             }
 
-            var totalGlobalPriceReportsSizeKB = await CalculateTotalSpaceForGlobalPriceReports();
-            var totalGlobalPriceReportsCount = await _context.GlobalPriceReports.CountAsync();
-
-            var globalPriceReportsPerStore = await _context.GlobalPriceReports
-                .Include(gpr => gpr.PriceSafariReport)
-                .ThenInclude(psr => psr.Store)
+            // --- 2. Agregacja danych dla GlobalPriceReports (ULEPSZONA LOGIKA) ---
+            var (_, totalGprDataKB) = await GetTableSpaceUsageKB("GlobalPriceReports");
+            var gprPerStore = await _context.GlobalPriceReports
                 .GroupBy(gpr => new { gpr.PriceSafariReport.StoreId, gpr.PriceSafariReport.Store.StoreName })
-                .Select(g => new
-                {
-                    StoreId = g.Key.StoreId,
-                    StoreName = g.Key.StoreName,
-                    GlobalPriceReportsCount = g.Count()
-                })
+                .Select(g => new { g.Key.StoreId, g.Key.StoreName, Count = g.Count() })
                 .ToListAsync();
 
-            foreach (var gpr in globalPriceReportsPerStore)
+            var totalGprCount = (decimal)gprPerStore.Sum(x => x.Count);
+            foreach (var item in gprPerStore)
             {
-                decimal usedSpaceKB = 0;
-                if (totalGlobalPriceReportsCount > 0)
+                var spaceKB = totalGprCount > 0 ? totalGprDataKB * item.Count / totalGprCount : 0;
+                if (storeSummariesDict.TryGetValue(item.StoreId, out var summary))
                 {
-                    usedSpaceKB = (decimal)totalGlobalPriceReportsSizeKB * gpr.GlobalPriceReportsCount / totalGlobalPriceReportsCount;
-                }
-
-                if (storeSummariesDict.TryGetValue(gpr.StoreId, out var existingStoreSummary))
-                {
-                    existingStoreSummary.TotalGlobalPriceReportsCount = gpr.GlobalPriceReportsCount;
-                    existingStoreSummary.TotalGlobalPriceReportsUsedSpaceMB = Math.Round(usedSpaceKB / 1024.0m, 4);
+                    summary.TotalGlobalPriceReportsCount = item.Count;
+                    summary.TotalGlobalPriceReportsUsedSpaceMB = Math.Round(spaceKB / 1024.0m, 4);
                 }
                 else
                 {
-                    storeSummariesDict[gpr.StoreId] = new StoreSummaryViewModel
+                    storeSummariesDict[item.StoreId] = new StoreSummaryViewModel
                     {
-                        StoreId = gpr.StoreId,
-                        StoreName = gpr.StoreName,
-                        TotalPriceHistoriesCount = 0,
-                        TotalUsedSpaceMB = 0,
-                        TotalGlobalPriceReportsCount = gpr.GlobalPriceReportsCount,
-                        TotalGlobalPriceReportsUsedSpaceMB = Math.Round(usedSpaceKB / 1024.0m, 4)
+                        StoreId = item.StoreId,
+                        StoreName = item.StoreName,
+                        TotalGlobalPriceReportsCount = item.Count,
+                        TotalGlobalPriceReportsUsedSpaceMB = Math.Round(spaceKB / 1024.0m, 4)
                     };
                 }
             }
 
-            var storeSummaries = storeSummariesDict.Values.ToList();
+            // --- 3. Agregacja danych dla AllegroPriceHistories (ULEPSZONA LOGIKA) ---
+            var (_, totalAphDataKB) = await GetTableSpaceUsageKB("AllegroPriceHistories");
+            var aphPerStore = await _context.AllegroPriceHistories
+                .GroupBy(aph => new { aph.AllegroScrapeHistory.StoreId, aph.AllegroScrapeHistory.Store.StoreName })
+                .Select(g => new { g.Key.StoreId, g.Key.StoreName, Count = g.Count() })
+                .ToListAsync();
 
-            var totalUsedSpaceMB = storeSummaries.Sum(s => s.TotalUsedSpaceMB);
-            totalPriceHistoriesCount = storeSummaries.Sum(s => s.TotalPriceHistoriesCount);
+            var totalAphCount = (decimal)aphPerStore.Sum(x => x.Count);
+            foreach (var item in aphPerStore)
+            {
+                var spaceKB = totalAphCount > 0 ? totalAphDataKB * item.Count / totalAphCount : 0;
+                if (storeSummariesDict.TryGetValue(item.StoreId, out var summary))
+                {
+                    summary.TotalAllegroPriceHistoriesCount = item.Count;
+                    summary.TotalAllegroPriceHistoriesUsedSpaceMB = Math.Round(spaceKB / 1024.0m, 4);
+                }
+                else
+                {
+                    storeSummariesDict[item.StoreId] = new StoreSummaryViewModel
+                    {
+                        StoreId = item.StoreId,
+                        StoreName = item.StoreName,
+                        TotalAllegroPriceHistoriesCount = item.Count,
+                        TotalAllegroPriceHistoriesUsedSpaceMB = Math.Round(spaceKB / 1024.0m, 4)
+                    };
+                }
+            }
 
-            var totalGlobalPriceReportsUsedSpaceMB = storeSummaries.Sum(s => s.TotalGlobalPriceReportsUsedSpaceMB);
-            totalGlobalPriceReportsCount = storeSummaries.Sum(s => s.TotalGlobalPriceReportsCount);
+            // --- 4. Pobranie dodatkowych informacji diagnostycznych ---
+            var totalDbSize = await GetTotalDatabaseSizeMB();
+            var topTables = await GetTopTableSizesAsync(10);
 
+            // --- 5. Finalizacja i budowa ViewModelu ---
+            var storeSummaries = storeSummariesDict.Values.OrderByDescending(s => s.TotalUsedSpaceMB + s.TotalAllegroPriceHistoriesUsedSpaceMB + s.TotalGlobalPriceReportsUsedSpaceMB).ToList();
             var viewModel = new DatabaseSizeSummaryViewModel
             {
                 StoreSummaries = storeSummaries,
-                TotalUsedSpaceMB = Math.Round(totalUsedSpaceMB, 4),
-                TotalPriceHistories = totalPriceHistoriesCount,
-                TotalGlobalPriceReportsUsedSpaceMB = Math.Round(totalGlobalPriceReportsUsedSpaceMB, 4),
-                TotalGlobalPriceReportsCount = totalGlobalPriceReportsCount
+                TotalDatabaseSizeMB = totalDbSize,
+                TopTables = topTables,
+                TotalPriceHistories = storeSummaries.Sum(s => s.TotalPriceHistoriesCount),
+                TotalUsedSpaceMB = storeSummaries.Sum(s => s.TotalUsedSpaceMB),
+                TotalGlobalPriceReportsCount = storeSummaries.Sum(s => s.TotalGlobalPriceReportsCount),
+                TotalGlobalPriceReportsUsedSpaceMB = storeSummaries.Sum(s => s.TotalGlobalPriceReportsUsedSpaceMB),
+                TotalAllegroPriceHistories = storeSummaries.Sum(s => s.TotalAllegroPriceHistoriesCount),
+                TotalAllegroPriceHistoriesUsedSpaceMB = storeSummaries.Sum(s => s.TotalAllegroPriceHistoriesUsedSpaceMB)
             };
 
             return View("~/Views/ManagerPanel/DatabaseSize/Index.cshtml", viewModel);
@@ -114,237 +124,262 @@ namespace PriceSafari.Controllers.ManagerControllers
 
         public async Task<IActionResult> StoreDetails(int storeId)
         {
+            var store = await _context.Stores.FindAsync(storeId);
+            if (store == null) return NotFound();
 
-            var totalSizeKB = await CalculateTotalSpaceForPriceHistories();
-
-            var totalPriceHistoriesCount = await _context.PriceHistories.CountAsync();
-
-            var priceHistories = await _context.PriceHistories
+            var (_, totalPhDataKB) = await GetTableSpaceUsageKB("PriceHistories");
+            var totalPhCount = (decimal)await _context.PriceHistories.CountAsync();
+            var phGroups = await _context.PriceHistories
                 .Where(ph => ph.ScrapHistory.StoreId == storeId)
-                .GroupBy(ph => new
-                {
-                    ph.ScrapHistoryId,
-                    ph.ScrapHistory.StoreId,
-                    ph.ScrapHistory.Store.StoreName,
-                    ph.ScrapHistory.Date
-                })
-                .Select(g => new
-                {
-                    ScrapHistoryId = g.Key.ScrapHistoryId,
-                    StoreId = g.Key.StoreId,
-                    StoreName = g.Key.StoreName,
-                    ScrapDate = g.Key.Date,
-                    PriceHistoriesCount = g.Count()
-                })
-                .OrderByDescending(g => g.ScrapDate)
+                .GroupBy(ph => new { ph.ScrapHistoryId, ph.ScrapHistory.Date })
+                .Select(g => new { g.Key.ScrapHistoryId, g.Key.Date, Count = g.Count() })
+                .OrderByDescending(g => g.Date)
                 .ToListAsync();
 
-            var tableSizes = new List<TableSizeInfo>();
-
-            foreach (var ph in priceHistories)
+            var tableSizes = phGroups.Select(g => new TableSizeInfo
             {
-                decimal totalSpaceKB = 0;
-                if (totalPriceHistoriesCount > 0)
-                {
-                    totalSpaceKB = (decimal)totalSizeKB * ph.PriceHistoriesCount / totalPriceHistoriesCount;
-                }
+                ScrapHistoryId = g.ScrapHistoryId,
+                Date = g.Date,
+                PriceHistoriesCount = g.Count,
+                UsedSpaceMB = totalPhCount > 0 ? Math.Round((totalPhDataKB * g.Count / totalPhCount) / 1024.0m, 4) : 0
+            }).ToList();
 
-                tableSizes.Add(new TableSizeInfo
-                {
-                    ScrapHistoryId = ph.ScrapHistoryId,
-                    StoreId = ph.StoreId,
-                    StoreName = ph.StoreName,
-                    PriceHistoriesCount = ph.PriceHistoriesCount,
-                    TotalSpaceKB = (long)totalSpaceKB,
-                    UsedSpaceMB = Math.Round(totalSpaceKB / 1024.0m, 4),
-                    ScrapDate = ph.ScrapDate
-                });
-            }
-
-            var preparedPriceSafariReports = await _context.PriceSafariReports
+            var (_, totalGprDataKB) = await GetTableSpaceUsageKB("GlobalPriceReports");
+            var totalGprCount = (decimal)await _context.GlobalPriceReports.CountAsync();
+            var preparedReports = await _context.PriceSafariReports
                 .Where(psr => psr.StoreId == storeId && psr.Prepared == true)
                 .OrderByDescending(psr => psr.CreatedDate)
+                .Select(psr => new { psr.ReportId, psr.ReportName, psr.CreatedDate })
                 .ToListAsync();
 
-            var priceSafariReportSizes = new List<PriceSafariReportSizeInfo>();
+            var reportIds = preparedReports.Select(r => r.ReportId).ToList();
+            var reportCounts = await _context.GlobalPriceReports
+                .Where(gpr => reportIds.Contains(gpr.PriceSafariReportId))
+                .GroupBy(gpr => gpr.PriceSafariReportId)
+                .Select(g => new { ReportId = g.Key, Count = g.Count() })
+                .ToDictionaryAsync(x => x.ReportId, x => x.Count);
 
-            var totalGlobalPriceReportsSizeKB = await CalculateTotalSpaceForGlobalPriceReports();
-
-            var totalGlobalPriceReportsCount = await _context.GlobalPriceReports.CountAsync();
-
-            foreach (var psr in preparedPriceSafariReports)
+            var reportSizes = preparedReports.Select(psr =>
             {
-
-                var globalPriceReportsCount = await _context.GlobalPriceReports
-                    .Where(gpr => gpr.PriceSafariReportId == psr.ReportId)
-                    .CountAsync();
-
-                decimal usedSpaceKB = 0;
-                if (totalGlobalPriceReportsCount > 0)
-                {
-                    usedSpaceKB = (decimal)totalGlobalPriceReportsSizeKB * globalPriceReportsCount / totalGlobalPriceReportsCount;
-                }
-
-                priceSafariReportSizes.Add(new PriceSafariReportSizeInfo
+                reportCounts.TryGetValue(psr.ReportId, out var count);
+                return new PriceSafariReportSizeInfo
                 {
                     ReportId = psr.ReportId,
                     ReportName = psr.ReportName,
-                    TotalGlobalPriceReportsCount = globalPriceReportsCount,
-                    UsedSpaceMB = Math.Round(usedSpaceKB / 1024.0m, 4),
-                    ReportDate = psr.CreatedDate
-                });
-            }
+                    ReportDate = psr.CreatedDate,
+                    TotalGlobalPriceReportsCount = count,
+                    UsedSpaceMB = totalGprCount > 0 ? Math.Round((totalGprDataKB * count / totalGprCount) / 1024.0m, 4) : 0
+                };
+            }).ToList();
 
-            var store = await _context.Stores.FindAsync(storeId);
+            var (_, totalAphDataKB) = await GetTableSpaceUsageKB("AllegroPriceHistories");
+            var totalAphCount = (decimal)await _context.AllegroPriceHistories.CountAsync();
+            var aphGroups = await _context.AllegroPriceHistories
+                .Where(aph => aph.AllegroScrapeHistory.StoreId == storeId)
+                .GroupBy(aph => new { aph.AllegroScrapeHistoryId, aph.AllegroScrapeHistory.Date })
+                .Select(g => new { g.Key.AllegroScrapeHistoryId, g.Key.Date, Count = g.Count() })
+                .OrderByDescending(g => g.Date)
+                .ToListAsync();
+
+            var allegroSizes = aphGroups.Select(g => new AllegroScrapeHistorySizeInfo
+            {
+                AllegroScrapeHistoryId = g.AllegroScrapeHistoryId,
+                Date = g.Date,
+                PriceHistoriesCount = g.Count,
+                UsedSpaceMB = totalAphCount > 0 ? Math.Round((totalAphDataKB * g.Count / totalAphCount) / 1024.0m, 4) : 0
+            }).ToList();
+
+            var totalStoreHistorySizeMB = tableSizes.Sum(s => s.UsedSpaceMB);
+            var totalAllegroHistorySizeMB = allegroSizes.Sum(s => s.UsedSpaceMB);
+            var totalReportsSizeMB = reportSizes.Sum(s => s.UsedSpaceMB);
+
             var viewModel = new StoreDetailsViewModel
             {
                 StoreId = storeId,
                 StoreName = store.StoreName,
                 TableSizes = tableSizes,
-                PriceSafariReportSizes = priceSafariReportSizes
+                PriceSafariReportSizes = reportSizes,
+                AllegroScrapeHistorySizes = allegroSizes,
+                TotalStoreHistorySizeMB = totalStoreHistorySizeMB,
+                TotalAllegroHistorySizeMB = totalAllegroHistorySizeMB,
+                TotalReportsSizeMB = totalReportsSizeMB
             };
 
             return View("~/Views/ManagerPanel/DatabaseSize/StoreDetails.cshtml", viewModel);
         }
 
-        [HttpPost]
-        public async Task<IActionResult> DeleteSelectedScrapHistories(int[] selectedScrapHistoryIds, int storeId)
+        #region Akcje Usuwania
+        [HttpPost, ActionName("DeleteSelectedScrapHistories")]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> DeleteSelectedScrapHistories(int[] selectedIds, int storeId)
         {
-            if (selectedScrapHistoryIds != null && selectedScrapHistoryIds.Any())
+            if (selectedIds != null && selectedIds.Any())
             {
-                foreach (var id in selectedScrapHistoryIds)
+                var entitiesToRemove = await _context.ScrapHistories.Where(sh => selectedIds.Contains(sh.Id)).ToListAsync();
+                if (entitiesToRemove.Any())
                 {
-                    var scrapHistory = await _context.ScrapHistories.FindAsync(id);
-                    if (scrapHistory != null)
-                    {
-                        _context.ScrapHistories.Remove(scrapHistory);
-                    }
+                    _context.ScrapHistories.RemoveRange(entitiesToRemove);
+                    await _context.SaveChangesAsync();
                 }
-                await _context.SaveChangesAsync();
             }
-
             return RedirectToAction(nameof(StoreDetails), new { storeId });
         }
 
-        [HttpPost]
-        public async Task<IActionResult> DeleteSelectedPriceSafariReports(int[] selectedPriceSafariReportIds, int storeId)
+        [HttpPost, ActionName("DeleteSelectedPriceSafariReports")]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> DeleteSelectedPriceSafariReports(int[] selectedIds, int storeId)
         {
-            if (selectedPriceSafariReportIds != null && selectedPriceSafariReportIds.Any())
+            if (selectedIds != null && selectedIds.Any())
             {
-                foreach (var id in selectedPriceSafariReportIds)
-                {
-                    var priceSafariReport = await _context.PriceSafariReports.FindAsync(id);
-                    if (priceSafariReport != null)
-                    {
+                var gprToRemove = await _context.GlobalPriceReports.Where(gpr => selectedIds.Contains(gpr.PriceSafariReportId)).ToListAsync();
+                if (gprToRemove.Any()) _context.GlobalPriceReports.RemoveRange(gprToRemove);
 
-                        var globalPriceReports = _context.GlobalPriceReports.Where(gpr => gpr.PriceSafariReportId == id);
-                        _context.GlobalPriceReports.RemoveRange(globalPriceReports);
+                var reportsToRemove = await _context.PriceSafariReports.Where(psr => selectedIds.Contains(psr.ReportId)).ToListAsync();
+                if (reportsToRemove.Any()) _context.PriceSafariReports.RemoveRange(reportsToRemove);
 
-                        _context.PriceSafariReports.Remove(priceSafariReport);
-                    }
-                }
                 await _context.SaveChangesAsync();
             }
-
             return RedirectToAction(nameof(StoreDetails), new { storeId });
         }
 
-        private async Task<long> CalculateTotalSpaceForGlobalPriceReports()
+        [HttpPost, ActionName("DeleteSelectedAllegroScrapHistories")]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> DeleteSelectedAllegroScrapHistories(int[] selectedIds, int storeId)
         {
-            var query = @"
-                EXEC sp_spaceused 'GlobalPriceReports'
-            ";
+            if (selectedIds != null && selectedIds.Any())
+            {
+                var entitiesToRemove = await _context.AllegroScrapeHistories.Where(ash => selectedIds.Contains(ash.Id)).ToListAsync();
+                if (entitiesToRemove.Any())
+                {
+                    _context.AllegroScrapeHistories.RemoveRange(entitiesToRemove);
+                    await _context.SaveChangesAsync();
+                }
+            }
+            return RedirectToAction(nameof(StoreDetails), new { storeId });
+        }
+        #endregion
 
-            long totalSpaceKB = 0;
+        #region Metody Pomocnicze
+        private async Task<(long reservedKB, long dataKB)> GetTableSpaceUsageKB(string tableName)
+        {
+            long reservedKB = 0;
+            long dataKB = 0;
+            var query = $"EXEC sp_spaceused '{tableName}'";
 
             using (var command = _context.Database.GetDbConnection().CreateCommand())
             {
                 command.CommandText = query;
-                _context.Database.OpenConnection();
+                await _context.Database.OpenConnectionAsync();
                 using (var result = await command.ExecuteReaderAsync())
                 {
                     if (await result.ReadAsync())
                     {
                         var reservedSpace = result["reserved"].ToString();
-                        if (long.TryParse(reservedSpace.Replace(" KB", "").Replace(",", ""), out var reservedKB))
-                        {
-                            totalSpaceKB = reservedKB;
-                        }
+                        var dataSpace = result["data"].ToString();
+                        long.TryParse(reservedSpace?.Replace(" KB", "").Replace(",", ""), out reservedKB);
+                        long.TryParse(dataSpace?.Replace(" KB", "").Replace(",", ""), out dataKB);
                     }
                 }
-                _context.Database.CloseConnection();
+                await _context.Database.CloseConnectionAsync();
             }
-
-            return totalSpaceKB;
+            return (reservedKB, dataKB);
         }
 
-        private async Task<long> CalculateTotalSpaceForPriceHistories()
+        private async Task<decimal> GetTotalDatabaseSizeMB()
         {
-            var query = @"
-                EXEC sp_spaceused 'PriceHistories'
-            ";
-
-            long totalSpaceKB = 0;
+            decimal totalSizeMB = 0;
+            var query = "EXEC sp_spaceused";
 
             using (var command = _context.Database.GetDbConnection().CreateCommand())
             {
                 command.CommandText = query;
-                _context.Database.OpenConnection();
+                await _context.Database.OpenConnectionAsync();
                 using (var result = await command.ExecuteReaderAsync())
                 {
                     if (await result.ReadAsync())
                     {
-                        var reservedSpace = result["reserved"].ToString();
-                        if (long.TryParse(reservedSpace.Replace(" KB", "").Replace(",", ""), out var reservedKB))
-                        {
-                            totalSpaceKB = reservedKB;
-                        }
+                        var dbSizeString = result["database_size"].ToString();
+                        decimal.TryParse(dbSizeString?.Replace(" MB", "").Replace(",", "."), NumberStyles.Any, CultureInfo.InvariantCulture, out totalSizeMB);
                     }
                 }
-                _context.Database.CloseConnection();
+                await _context.Database.CloseConnectionAsync();
             }
-
-            return totalSpaceKB;
+            return totalSizeMB;
         }
+
+        private async Task<List<TableUsageInfo>> GetTopTableSizesAsync(int topN)
+        {
+            var result = new List<TableUsageInfo>();
+            var query = @"
+                SELECT TOP (@TopN)
+                    t.NAME AS TableName,
+                    SUM(p.rows) AS RowCounts,
+                    CAST(ROUND(((SUM(a.total_pages) * 8) / 1024.00), 2) AS NUMERIC(36, 2)) AS TotalSpaceMB
+                FROM sys.tables t
+                INNER JOIN sys.indexes i ON t.OBJECT_ID = i.object_id
+                INNER JOIN sys.partitions p ON i.object_id = p.OBJECT_ID AND i.index_id = p.index_id
+                INNER JOIN sys.allocation_units a ON p.partition_id = a.container_id
+                WHERE t.NAME NOT LIKE 'dt%' AND i.OBJECT_ID > 255 AND i.index_id <= 1
+                GROUP BY t.NAME
+                ORDER BY TotalSpaceMB DESC";
+
+            using (var command = _context.Database.GetDbConnection().CreateCommand())
+            {
+                command.CommandText = query;
+                var parameter = command.CreateParameter();
+                parameter.ParameterName = "@TopN";
+                parameter.Value = topN;
+                command.Parameters.Add(parameter);
+
+                await _context.Database.OpenConnectionAsync();
+                using (var reader = await command.ExecuteReaderAsync())
+                {
+                    while (await reader.ReadAsync())
+                    {
+                        result.Add(new TableUsageInfo
+                        {
+                            TableName = reader["TableName"].ToString(),
+                            SizeMB = Convert.ToDecimal(reader["TotalSpaceMB"])
+                        });
+                    }
+                }
+                await _context.Database.CloseConnectionAsync();
+            }
+            return result;
+        }
+        #endregion
     }
 
-    public class PriceSafariReportSizeInfo
+    #region ViewModels
+    public class TableUsageInfo
     {
-        public int ReportId { get; set; }
-        public string ReportName { get; set; }
-        public int TotalGlobalPriceReportsCount { get; set; }
-        public decimal UsedSpaceMB { get; set; }
-        public DateTime ReportDate { get; set; }
-    }
-
-    public class TableSizeInfo
-    {
-        public decimal UsedSpaceMB { get; set; }
-        public long TotalSpaceKB { get; set; }
-        public int? ScrapHistoryId { get; set; }
-        public int? StoreId { get; set; }
-        public string StoreName { get; set; }
-        public int PriceHistoriesCount { get; set; }
-        public DateTime ScrapDate { get; set; }
+        public string TableName { get; set; }
+        public decimal SizeMB { get; set; }
     }
 
     public class DatabaseSizeSummaryViewModel
     {
         public List<StoreSummaryViewModel> StoreSummaries { get; set; }
+        public decimal TotalDatabaseSizeMB { get; set; }
         public decimal TotalUsedSpaceMB { get; set; }
         public int TotalPriceHistories { get; set; }
         public decimal TotalGlobalPriceReportsUsedSpaceMB { get; set; }
         public int TotalGlobalPriceReportsCount { get; set; }
+        public int TotalAllegroPriceHistories { get; set; }
+        public decimal TotalAllegroPriceHistoriesUsedSpaceMB { get; set; }
+        public List<TableUsageInfo> TopTables { get; set; }
     }
 
     public class StoreSummaryViewModel
     {
         public int StoreId { get; set; }
         public string StoreName { get; set; }
-        public int TotalPriceHistoriesCount { get; set; } = 0;
-        public decimal TotalUsedSpaceMB { get; set; } = 0;
-        public int TotalGlobalPriceReportsCount { get; set; } = 0;
-        public decimal TotalGlobalPriceReportsUsedSpaceMB { get; set; } = 0;
+        public int TotalPriceHistoriesCount { get; set; }
+        public decimal TotalUsedSpaceMB { get; set; }
+        public int TotalGlobalPriceReportsCount { get; set; }
+        public decimal TotalGlobalPriceReportsUsedSpaceMB { get; set; }
+        public int TotalAllegroPriceHistoriesCount { get; set; }
+        public decimal TotalAllegroPriceHistoriesUsedSpaceMB { get; set; }
     }
 
     public class StoreDetailsViewModel
@@ -353,6 +388,35 @@ namespace PriceSafari.Controllers.ManagerControllers
         public string StoreName { get; set; }
         public List<TableSizeInfo> TableSizes { get; set; }
         public List<PriceSafariReportSizeInfo> PriceSafariReportSizes { get; set; }
+        public List<AllegroScrapeHistorySizeInfo> AllegroScrapeHistorySizes { get; set; }
+        public decimal TotalStoreHistorySizeMB { get; set; }
+        public decimal TotalAllegroHistorySizeMB { get; set; }
+        public decimal TotalReportsSizeMB { get; set; }
     }
 
+    public class TableSizeInfo
+    {
+        public int ScrapHistoryId { get; set; }
+        public DateTime Date { get; set; }
+        public int PriceHistoriesCount { get; set; }
+        public decimal UsedSpaceMB { get; set; }
+    }
+
+    public class PriceSafariReportSizeInfo
+    {
+        public int ReportId { get; set; }
+        public string ReportName { get; set; }
+        public DateTime ReportDate { get; set; }
+        public int TotalGlobalPriceReportsCount { get; set; }
+        public decimal UsedSpaceMB { get; set; }
+    }
+
+    public class AllegroScrapeHistorySizeInfo
+    {
+        public int AllegroScrapeHistoryId { get; set; }
+        public DateTime Date { get; set; }
+        public int PriceHistoriesCount { get; set; }
+        public decimal UsedSpaceMB { get; set; }
+    }
+    #endregion
 }

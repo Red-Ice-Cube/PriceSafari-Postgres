@@ -1,80 +1,285 @@
 ﻿@model PriceSafari.Controllers.ManagerControllers.StoreDetailsViewModel
+@using System.Globalization
 
 @{
-    ViewData["Title"] = "Szczegóły Sklepu";
+    ViewData["Title"] = $"Szczegóły Sklepu: {Model.StoreName}";
     Layout = "~/Views/Shared/_PanelLayout.cshtml";
 }
 
-<h2>Szczegóły Sklepu: @Model.StoreName</h2>
+@section Styles {
+    <style>
+        .info-box {
+            background: #fff;
+            border-radius: .375rem;
+            padding: 1.5rem;
+            border-left: 5px solid #4e73df; /* Primary color */
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            height: 100%;
+        }
 
-<!-- Formularz dla ScrapHistories -->
-@{
-    int rowNumber1 = 1;
+        .info-box-text {
+            color: #6c757d;
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.9rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .info-box-number {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: #343a40;
+        }
+
+        #chart-container {
+            position: relative;
+            height: 250px; /* Zmniejszona wysokość dla lepszego dopasowania */
+            width: 100%;
+        }
+    </style>
 }
-<form method="post" asp-action="DeleteSelectedScrapHistories" asp-route-storeId="@Model.StoreId" onsubmit="return confirm('Czy na pewno chcesz usunąć zaznaczone scrapowania?');">
-    <table class="table">
-        <thead>
-            <tr>
-                <th></th> <!-- Checkbox -->
-                <th>Lp.</th>
-                <th>ID Scrapowania</th>
-                <th>Data Scrapowania</th>
-                <th>Ilość PriceHistories</th>
-                <th>Użyta Przestrzeń (MB)</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var item in Model.TableSizes)
+
+<div class="d-sm-flex align-items-center justify-content-between mb-4">
+    <h1 class="h3 mb-0 text-gray-800">Zarządzanie danymi dla: <strong>@Model.StoreName</strong></h1>
+    <a href="@Url.Action("Index")" class="btn btn-sm btn-secondary shadow-sm"><i class="fas fa-arrow-left fa-sm text-white-50"></i> Powrót do listy</a>
+</div>
+
+<div class="row mb-4">
+    <div class="col-lg-7 mb-4 mb-lg-0">
+        <div class="info-box shadow h-100 py-2">
+            <div class="info-box-text">Łączny rozmiar danych dla sklepu</div>
+            <div class="info-box-number">
+                @((Model.TotalStoreHistorySizeMB + Model.TotalAllegroHistorySizeMB + Model.TotalReportsSizeMB).ToString("N4")) MB
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-5">
+        <div class="card shadow h-100">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Podział danych dla sklepu</h6>
+            </div>
+            <div class="card-body">
+                <div id="chart-container">
+                    <canvas id="sizeChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card shadow mb-4">
+    <div class="card-header py-3">
+        <h6 class="m-0 font-weight-bold text-primary">Historia Scrapowania (Sklep)</h6>
+    </div>
+    <div class="card-body">
+        <form method="post" asp-action="DeleteSelectedScrapHistories" asp-route-storeId="@Model.StoreId" onsubmit="return confirm('Czy na pewno chcesz usunąć zaznaczone historie scrapowania sklepu?');">
+            <div class="table-responsive">
+                <table class="table table-striped table-hover" width="100%" cellspacing="0">
+                    <thead class="thead-light">
+                        <tr>
+                            <th style="width: 5%;"><input type="checkbox" onclick="toggleAll(this, 'selectedIds')" /></th>
+                            <th style="width: 5%;">Lp.</th>
+                            <th style="width: 10%;">ID</th>
+                            <th>Data</th>
+                            <th class="text-right">Ilość Rekordów</th>
+                            <th class="text-right">Rozmiar (MB)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @{
+                            int rowNum1 = 1;
+                        }
+                        @foreach (var item in Model.TableSizes)
+                        {
+                            <tr>
+                                <td><input type="checkbox" name="selectedIds" value="@item.ScrapHistoryId" /></td>
+                                <td>@(rowNum1++)</td>
+                                <td>@item.ScrapHistoryId</td>
+                                <td>@item.Date.ToString("yyyy-MM-dd HH:mm:ss")</td>
+                                <td class="text-right">@item.PriceHistoriesCount.ToString("N0")</td>
+                                <td class="text-right">@item.UsedSpaceMB.ToString("N4")</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+            @if (Model.TableSizes.Any())
             {
-                <tr>
-                    <td><input type="checkbox" name="selectedScrapHistoryIds" value="@item.ScrapHistoryId" /></td>
-                    <td>@rowNumber1</td>
-                    <td>@item.ScrapHistoryId</td>
-                    <td>@item.ScrapDate.ToString("yyyy-MM-dd HH:mm:ss")</td>
-                    <td>@item.PriceHistoriesCount</td>
-                    <td>@item.UsedSpaceMB</td>
-                </tr>
-                rowNumber1++;
+                <button type="submit" class="btn btn-danger mt-3"><i class="fas fa-trash"></i> Usuń Zaznaczone</button>
             }
-        </tbody>
-    </table>
-    <button type="submit" class="btn btn-danger">Usuń Zaznaczone</button>
-</form>
+            else
+            {
 
-<!-- Formularz dla PriceSafariReports -->
-<h3>Raporty PriceSafari dla tego sklepu</h3>
+                <p class="text-center mt-3">Brak danych.</p>
+            }
+        </form>
+    </div>
+</div>
 
-@{
-    int rowNumber2 = 1;
+<div class="card shadow mb-4">
+    <div class="card-header py-3">
+        <h6 class="m-0 font-weight-bold text-primary">Historia Scrapowania (Allegro)</h6>
+    </div>
+    <div class="card-body">
+        <form method="post" asp-action="DeleteSelectedAllegroScrapHistories" asp-route-storeId="@Model.StoreId" onsubmit="return confirm('Czy na pewno chcesz usunąć zaznaczone historie scrapowania Allegro?');">
+            <div class="table-responsive">
+                <table class="table table-striped table-hover" width="100%" cellspacing="0">
+                    <thead class="thead-light">
+                        <tr>
+                            <th style="width: 5%;"><input type="checkbox" onclick="toggleAll(this, 'selectedIds')" /></th>
+                            <th style="width: 5%;">Lp.</th>
+                            <th style="width: 10%;">ID</th>
+                            <th>Data</th>
+                            <th class="text-right">Ilość Rekordów</th>
+                            <th class="text-right">Rozmiar (MB)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @{
+                            int rowNum3 = 1;
+                        }
+                        @foreach (var item in Model.AllegroScrapeHistorySizes)
+                        {
+                            <tr>
+                                <td><input type="checkbox" name="selectedIds" value="@item.AllegroScrapeHistoryId" /></td>
+                                <td>@(rowNum3++)</td>
+                                <td>@item.AllegroScrapeHistoryId</td>
+                                <td>@item.Date.ToString("yyyy-MM-dd HH:mm:ss")</td>
+                                <td class="text-right">@item.PriceHistoriesCount.ToString("N0")</td>
+                                <td class="text-right">@item.UsedSpaceMB.ToString("N4")</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+            @if (Model.AllegroScrapeHistorySizes.Any())
+            {
+                <button type="submit" class="btn btn-danger mt-3"><i class="fas fa-trash"></i> Usuń Zaznaczone</button>
+            }
+            else
+            {
+
+                <p class="text-center mt-3">Brak danych.</p>
+            }
+        </form>
+    </div>
+</div>
+
+<div class="card shadow mb-4">
+    <div class="card-header py-3">
+        <h6 class="m-0 font-weight-bold text-primary">Raporty PriceSafari</h6>
+    </div>
+    <div class="card-body">
+        <form method="post" asp-action="DeleteSelectedPriceSafariReports" asp-route-storeId="@Model.StoreId" onsubmit="return confirm('Czy na pewno chcesz usunąć zaznaczone raporty?');">
+            <div class="table-responsive">
+                <table class="table table-striped table-hover" width="100%" cellspacing="0">
+                    <thead class="thead-light">
+                        <tr>
+                            <th style="width: 5%;"><input type="checkbox" onclick="toggleAll(this, 'selectedIds')" /></th>
+                            <th style="width: 5%;">Lp.</th>
+                            <th>Nazwa Raportu</th>
+                            <th>Data</th>
+                            <th class="text-right">Ilość Rekordów</th>
+                            <th class="text-right">Rozmiar (MB)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @{
+                            int rowNum2 = 1;
+                        }
+                        @foreach (var item in Model.PriceSafariReportSizes)
+                        {
+                            <tr>
+                                <td><input type="checkbox" name="selectedIds" value="@item.ReportId" /></td>
+                                <td>@(rowNum2++)</td>
+                                <td>@item.ReportName</td>
+                                <td>@item.ReportDate.ToString("yyyy-MM-dd HH:mm:ss")</td>
+                                <td class="text-right">@item.TotalGlobalPriceReportsCount.ToString("N0")</td>
+                                <td class="text-right">@item.UsedSpaceMB.ToString("N4")</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+            @if (Model.PriceSafariReportSizes.Any())
+            {
+                <button type="submit" class="btn btn-danger mt-3"><i class="fas fa-trash"></i> Usuń Zaznaczone</button>
+            }
+            else
+            {
+
+                <p class="text-center mt-3">Brak danych.</p>
+            }
+        </form>
+    </div>
+</div>
+
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        // Funkcja do przełączania wszystkich checkboxów
+        function toggleAll(source, name) {
+            const form = source.closest('form');
+            const checkboxes = form.querySelectorAll('input[type="checkbox"][name="' + name + '"]');
+            for (var i = 0; i < checkboxes.length; i++) {
+                checkboxes[i].checked = source.checked;
+            }
+        }
+
+        // Inicjalizacja wykresu po załadowaniu strony
+        document.addEventListener("DOMContentLoaded", function () {
+            const storeSize = parseFloat('@Model.TotalStoreHistorySizeMB.ToString(CultureInfo.InvariantCulture)');
+            const allegroSize = parseFloat('@Model.TotalAllegroHistorySizeMB.ToString(CultureInfo.InvariantCulture)');
+            const reportsSize = parseFloat('@Model.TotalReportsSizeMB.ToString(CultureInfo.InvariantCulture)');
+
+            if (storeSize > 0 || allegroSize > 0 || reportsSize > 0) {
+                const ctx = document.getElementById('sizeChart').getContext('2d');
+                new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Historia Sklepu', 'Historia Allegro', 'Raporty'],
+                        datasets: [{
+                            label: 'Rozmiar (MB)',
+                            data: [storeSize, allegroSize, reportsSize],
+                            backgroundColor: [
+                                'rgba(78, 115, 223, 0.8)',
+                                'rgba(28, 200, 138, 0.8)',
+                                'rgba(246, 194, 62, 0.8)'
+                            ],
+                            borderColor: [
+                                'rgba(78, 115, 223, 1)',
+                                'rgba(28, 200, 138, 1)',
+                                'rgba(246, 194, 62, 1)'
+                            ],
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'bottom', // Legenda na dole
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function (context) {
+                                        let label = context.label || '';
+                                        let value = context.parsed || 0;
+                                        return `${label}: ${value.toFixed(4)} MB`;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            } else {
+                const container = document.getElementById('chart-container');
+                container.innerHTML = '<div class="d-flex align-items-center justify-content-center h-100"><p class="text-muted">Brak danych do narysowania wykresu.</p></div>';
+            }
+        });
+    </script>
 }
-<form method="post" asp-action="DeleteSelectedPriceSafariReports" asp-route-storeId="@Model.StoreId" onsubmit="return confirm('Czy na pewno chcesz usunąć zaznaczone raporty?');">
-    <table class="table">
-        <thead>
-            <tr>
-                <th></th> <!-- Checkbox -->
-                <th>Lp.</th>
-                <th>ID Raportu</th>
-                <th>Nazwa Raportu</th>
-                <th>Data Raportu</th>
-                <th>Ilość GlobalPriceReports</th>
-                <th>Użyta Przestrzeń (MB)</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var item in Model.PriceSafariReportSizes)
-            {
-                <tr>
-                    <td><input type="checkbox" name="selectedPriceSafariReportIds" value="@item.ReportId" /></td>
-                    <td>@rowNumber2</td>
-                    <td>@item.ReportId</td>
-                    <td>@item.ReportName</td>
-                    <td>@item.ReportDate.ToString("yyyy-MM-dd HH:mm:ss")</td>
-                    <td>@item.TotalGlobalPriceReportsCount</td>
-                    <td>@item.UsedSpaceMB</td>
-                </tr>
-                rowNumber2++;
-            }
-        </tbody>
-    </table>
-    <button type="submit" class="btn btn-danger">Usuń Zaznaczone Raporty</button>
-</form>
