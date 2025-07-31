@@ -111,6 +111,19 @@ namespace PriceSafari.Controllers.MemberControllers
             return View("~/Views/Panel/PriceHistory/Index.cshtml");
         }
 
+
+
+
+
+
+
+
+
+
+
+
+
+
         [HttpGet]
         public async Task<IActionResult> GetPrices(int? storeId)
         {
@@ -324,7 +337,8 @@ namespace PriceSafari.Controllers.MemberControllers
                     p.ExternalPrice,
                     p.MainUrl,
                     p.MarginPrice,
-                    p.Ean
+                    p.Ean,
+                    p.ProducerCode
                 })
                 .ToListAsync();
 
@@ -337,7 +351,8 @@ namespace PriceSafari.Controllers.MemberControllers
                         p.ExternalPrice,
                         p.MainUrl,
                         p.MarginPrice,
-                        p.Ean
+                        p.Ean,
+                        p.ProducerCode
                     }
                 );
 
@@ -603,6 +618,9 @@ namespace PriceSafari.Controllers.MemberControllers
                             : null,
                         Ean = productExternalInfoDictionary.ContainsKey(g.Key)
                             ? productExternalInfoDictionary[g.Key].Ean
+                            : null,
+                        ProducerCode = productExternalInfoDictionary.ContainsKey(g.Key)
+                            ? productExternalInfoDictionary[g.Key].ProducerCode
                             : null,
                         IsRejected = product.IsRejected || isRejectedDueToZeroPrice,
                         StoreCount = storeCount,
@@ -1392,6 +1410,7 @@ namespace PriceSafari.Controllers.MemberControllers
                         ean = product.Ean,
                         externalId = product.ExternalId,
 
+                        producerCode = product.ProducerCode,
                         currentGoogleRanking = "-",
                         newGoogleRanking = "-",
                         totalGoogleOffers = (int?)null,
@@ -1560,6 +1579,7 @@ namespace PriceSafari.Controllers.MemberControllers
                 {
                     productId = product.ProductId,
                     ean = product.Ean,
+                    producerCode = product.ProducerCode,
                     externalId = product.ExternalId,
 
                     ourStoreShippingCost,
@@ -1617,7 +1637,7 @@ namespace PriceSafari.Controllers.MemberControllers
                 var inClause = string.Join(",", subset);
 
                 string sql = $@"
-            SELECT ProductId, Ean, MarginPrice, ExternalId
+            SELECT ProductId, Ean, MarginPrice, ExternalId, ProducerCode
             FROM Products
             WHERE ProductId IN ({inClause})
         ";
@@ -1629,7 +1649,8 @@ namespace PriceSafari.Controllers.MemberControllers
                         ProductId = p.ProductId,
                         Ean = p.Ean,
                         MarginPrice = p.MarginPrice,
-                        ExternalId = p.ExternalId
+                        ExternalId = p.ExternalId,
+                        ProducerCode = p.ProducerCode
                     })
                     .ToListAsync();
 
@@ -1645,7 +1666,13 @@ namespace PriceSafari.Controllers.MemberControllers
             public string Ean { get; set; }
             public decimal? MarginPrice { get; set; }
             public int? ExternalId { get; set; }
+            public string? ProducerCode { get; set; }
         }
+
+
+
+
+
 
         private async Task<List<(int ProductId, decimal Price, bool IsGoogle, string StoreName, decimal? ShippingCostNum)>>
         GetPriceHistoriesInChunksAsync(List<int> productIds, int scrapId)

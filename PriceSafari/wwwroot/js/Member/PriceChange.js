@@ -597,6 +597,7 @@
                         productName: name,
                         ean,
                         externalId,
+                        producerCode: simResult ? simResult.producerCode : null,
                         diff,
                         diffPercent,
                         arrow,
@@ -676,11 +677,12 @@
                 }
             }
 
-            let eanInfo = row.ean ? `<div class="price-info-item">EAN: ${row.ean}</div>` : "";
-            let extIdInfo = row.externalId ? `<div class="price-info-item">ID: ${row.externalId}</div>` : "";
+                        let eanInfo = row.ean ? `<div class="price-info-item">EAN: ${row.ean}</div>` : "";
+                        let extIdInfo = row.externalId ? `<div class="price-info-item">ID: ${row.externalId}</div>` : "";
+                        let producerCodeInfo = row.producerCode ? `<div class="price-info-item">Kod: ${row.producerCode}</div>` : "";
 
-            html += `<tr>
-                            ${imageCell}
+                        html += `<tr>
+                         ${imageCell}
                             <td>
                                 <a
                                     href="/PriceHistory/Details?scrapId=${row.scrapId}&productId=${row.productId}"
@@ -688,12 +690,13 @@
                                     rel="noopener noreferrer"
                                     class="simulationProductTitle"
                                 >
-                                    <div class="price-info-item" style="font-size:125%;">
+                                    <div class="price-info-item" style="font-size:120%; margin-bottom:12px;">
                                         ${row.productName}
                                     </div>
                                 </a>
-                                ${eanInfo}
-                                ${extIdInfo}
+                            ${eanInfo}
+                            ${extIdInfo}
+                            ${producerCodeInfo}
                             </td>
                             <td>${row.currentBlock}</td>
                             <td style="font-size:16px; white-space: nowrap;">
