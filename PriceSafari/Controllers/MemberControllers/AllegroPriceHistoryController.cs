@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using PriceSafari.Data;
 using PriceSafari.Models;
+using PriceSafari.Models.ViewModels;
 using PriceSafari.ViewModels;
 using System.Security.Claims;
 
@@ -50,7 +51,7 @@ namespace PriceSafari.Controllers.MemberControllers
             // --- POPRAWKA TUTAJ ---
             var flags = await _context.Flags
                 .Where(f => f.StoreId == storeId.Value && f.IsMarketplace == true)
-                .Select(f => new FlagViewModel // Używamy projekcji na nasz nowy, prosty ViewModel
+                .Select(f => new FlagViewModel 
                 {
                     FlagId = f.FlagId,
                     FlagName = f.FlagName,
@@ -63,20 +64,12 @@ namespace PriceSafari.Controllers.MemberControllers
             ViewBag.StoreName = store.StoreName;
             ViewBag.StoreLogo = store.StoreLogoUrl;
             ViewBag.LatestScrap = latestScrap;
-            ViewBag.Flags = flags; // Teraz ViewBag przechowuje listę prostych, "płaskich" obiektów
+            ViewBag.Flags = flags; 
 
             return View("~/Views/Panel/AllegroPriceHistory/Index.cshtml");
         }
 
 
-        // Np. w pliku ViewModels/FlagViewModel.cs
-        public class FlagViewModel
-        {
-            public int FlagId { get; set; }
-            public string FlagName { get; set; }
-            public string FlagColor { get; set; }
-            public bool IsMarketplace { get; set; }
-        }
 
         [HttpGet]
         public async Task<IActionResult> GetAllegroPrices(int? storeId)
@@ -218,77 +211,7 @@ namespace PriceSafari.Controllers.MemberControllers
             public bool UsePriceDifference { get; set; }
         }
 
-        [HttpGet]
-        public async Task<IActionResult> GetFlagsForProduct(int productId)
-        {
-
-            var product = await _context.AllegroProducts.FindAsync(productId);
-            if (product == null) return NotFound();
-            if (!await UserHasAccessToStore(product.StoreId)) return Forbid();
-
-            var assignedFlags = await _context.ProductFlags
-                .Where(pf => pf.AllegroProductId == productId)
-                .Select(pf => pf.FlagId)
-                .ToListAsync();
-
-            return Json(assignedFlags);
-        }
-
-
-
-
-
-
-
-
-        [HttpPost]
-        public async Task<IActionResult> AssignFlagsToProduct([FromBody] AssignFlagsViewModel model)
-        {
-            if (model == null) return BadRequest();
-
-            var product = await _context.AllegroProducts
-                .Include(p => p.ProductFlags)
-                .FirstOrDefaultAsync(p => p.AllegroProductId == model.ProductId);
-
-            if (product == null) return NotFound();
-            if (!await UserHasAccessToStore(product.StoreId)) return Forbid();
-
-            var flagsToRemove = product.ProductFlags.ToList();
-
-            if (flagsToRemove.Any())
-            {
-                _context.ProductFlags.RemoveRange(flagsToRemove);
-            }
-
-            if (model.FlagIds != null && model.FlagIds.Any())
-            {
-                foreach (var flagId in model.FlagIds)
-                {
-
-                    var newProductFlag = new ProductFlag
-                    {
-                        AllegroProductId = model.ProductId,
-                        FlagId = flagId
-                    };
-                    _context.ProductFlags.Add(newProductFlag);
-                }
-            }
-
-            await _context.SaveChangesAsync();
-            return Json(new { success = true });
-        }
-
-
-
-
-
-
-
-        public class AssignFlagsViewModel
-        {
-            public int ProductId { get; set; }
-            public List<int> FlagIds { get; set; }
-        }
+     
 
         [HttpPost]
         public async Task<IActionResult> SavePriceValues([FromBody] PriceSettingsViewModel model)

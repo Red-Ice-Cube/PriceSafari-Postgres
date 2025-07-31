@@ -1,14 +1,4 @@
-﻿
-
-
-
-
-
-
-
-
-
-document.addEventListener("DOMContentLoaded", function () {
+﻿document.addEventListener("DOMContentLoaded", function () {
     let allPrices = [];
     let chartInstance = null;
     let myStoreName = "";
@@ -18,12 +8,9 @@ document.addEventListener("DOMContentLoaded", function () {
     let setStepPrice = 2.00;
     let usePriceDifference = document.getElementById('usePriceDifference').checked;
 
-    // --- NOWY/ZMIENIONY FRAGMENT ---
-    // Zmienne stanu dla flag
     let selectedProductId = null;
     let selectedFlagsInclude = new Set();
     let selectedFlagsExclude = new Set();
-    // ----------------------------
 
     let sortingState = {
         sortName: null, sortPrice: null, sortRaiseAmount: null,
@@ -141,32 +128,26 @@ document.addEventListener("DOMContentLoaded", function () {
         return numericValue < setPrice2 ? "prMid" : "prToHigh";
     }
 
-    // --- NOWY/ZMIENIONY FRAGMENT ---
-    // Ta funkcja jest skopiowana z Twojego działającego przykładu.
-    // Używa `flags` - globalnej zmiennej, którą musisz zdefiniować w widoku Razor.
     function createFlagsContainer(item) {
         const flagsContainer = document.createElement('div');
         flagsContainer.className = 'flags-container';
         if (item.flagIds && item.flagIds.length > 0) {
             item.flagIds.forEach(function (flagId) {
-                const flag = flags.find(f => f.FlagId === flagId);
+
+                const flag = flags.find(f => f.flagId === flagId);
                 if (flag) {
                     const flagSpan = document.createElement('span');
                     flagSpan.className = 'flag';
-                    flagSpan.style.color = flag.FlagColor;
-                    flagSpan.style.border = '2px solid ' + flag.FlagColor;
-                    flagSpan.style.backgroundColor = hexToRgba(flag.FlagColor, 0.3);
-                    flagSpan.innerHTML = flag.FlagName;
+                    flagSpan.style.color = flag.flagColor;
+                    flagSpan.style.border = '2px solid ' + flag.flagColor;
+                    flagSpan.style.backgroundColor = hexToRgba(flag.flagColor, 0.3);
+                    flagSpan.innerHTML = flag.flagName;
                     flagsContainer.appendChild(flagSpan);
                 }
             });
         }
         return flagsContainer;
     }
-
-    // --- NOWY/ZMIENIONY FRAGMENT ---
-    // Ta funkcja jest skopiowana z Twojego działającego przykładu.
-    // Używa `flags` - globalnej zmiennej, którą musisz zdefiniować w widoku Razor.
     function updateFlagCounts(prices) {
         const flagCounts = {};
         let noFlagCount = 0;
@@ -184,22 +165,25 @@ document.addEventListener("DOMContentLoaded", function () {
         if (!flagContainer) return;
         flagContainer.innerHTML = '';
 
-        flags.forEach(flag => {
-            const count = flagCounts[flag.FlagId] || 0;
-            const includeChecked = selectedFlagsInclude.has(String(flag.FlagId)) ? 'checked' : '';
-            const excludeChecked = selectedFlagsExclude.has(String(flag.FlagId)) ? 'checked' : '';
-            const flagElementHTML = `
-            <div class="flag-filter-group">
-                <div class="form-check form-check-inline check-include" style="margin-right:0px;">
-                    <input class="form-check-input flagFilterInclude" type="checkbox" id="flagInclude_${flag.FlagId}" value="${flag.FlagId}" ${includeChecked}>
-                </div>
-                <div class="form-check form-check-inline check-exclude" style="margin-right:0px; padding-left:16px;">
-                    <input class="form-check-input flagFilterExclude" type="checkbox" id="flagExclude_${flag.FlagId}" value="${flag.FlagId}" ${excludeChecked}>
-                </div>
-                <span class="flag-name-count">${flag.FlagName} (${count})</span>
-            </div>`;
-            flagContainer.insertAdjacentHTML('beforeend', flagElementHTML);
-        });
+        if (typeof flags !== 'undefined' && flags) {
+            flags.forEach(flag => {
+
+                const count = flagCounts[flag.flagId] || 0;
+                const includeChecked = selectedFlagsInclude.has(String(flag.flagId)) ? 'checked' : '';
+                const excludeChecked = selectedFlagsExclude.has(String(flag.flagId)) ? 'checked' : '';
+                const flagElementHTML = `
+                <div class="flag-filter-group">
+                    <div class="form-check form-check-inline check-include" style="margin-right:0px;">
+                        <input class="form-check-input flagFilterInclude" type="checkbox" id="flagInclude_${flag.flagId}" value="${flag.flagId}" ${includeChecked}>
+                    </div>
+                    <div class="form-check form-check-inline check-exclude" style="margin-right:0px; padding-left:16px;">
+                        <input class="form-check-input flagFilterExclude" type="checkbox" id="flagExclude_${flag.flagId}" value="${flag.flagId}" ${excludeChecked}>
+                    </div>
+                    <span class="flag-name-count">${flag.flagName} (${count})</span>
+                </div>`;
+                flagContainer.insertAdjacentHTML('beforeend', flagElementHTML);
+            });
+        }
 
         const noFlagIncludeChecked = selectedFlagsInclude.has('noFlag') ? 'checked' : '';
         const noFlagExcludeChecked = selectedFlagsExclude.has('noFlag') ? 'checked' : '';
@@ -231,7 +215,7 @@ document.addEventListener("DOMContentLoaded", function () {
         }
         return `rgba(${r}, ${g}, ${b}, ${alpha})`;
     }
-    // ---------------------------------------------
+
     function renderPrices(data) {
         const container = document.getElementById('priceContainer');
         container.innerHTML = '';
@@ -365,7 +349,7 @@ document.addEventListener("DOMContentLoaded", function () {
                     </div>
                     <div class="price-box-column-text">
                         <div class="data-channel">
-                            
+
                             ${item.myIsTopOffer ? `<div class="TopOffer">Top oferta</div>` : ''}
                             ${item.myIsSmart ? `
                                 <div class="Smart-Allegro">
@@ -387,7 +371,6 @@ document.addEventListener("DOMContentLoaded", function () {
 
             container.appendChild(box);
 
-            // --- KLUCZOWY FRAGMENT DO OBSŁUGI FLAG ---
             const flagsContainer = createFlagsContainer(item);
             const placeholder = box.querySelector('.flags-container');
             if (placeholder) {
@@ -402,7 +385,7 @@ document.addEventListener("DOMContentLoaded", function () {
                     const modal = document.getElementById('flagModal');
                     if (modal) {
                         modal.style.display = 'block';
-                        fetch(`/AllegroPriceHistory/GetFlagsForProduct?productId=${selectedProductId}`)
+                        fetch(`/ProductFlags/GetFlagsForProduct?allegroProductId=${selectedProductId}`)
                             .then(res => res.json())
                             .then(assignedFlags => {
                                 document.querySelectorAll('.flagCheckbox').forEach(cb => {
@@ -412,7 +395,6 @@ document.addEventListener("DOMContentLoaded", function () {
                     }
                 });
             }
-            // ------------------------------------------
 
             box.addEventListener('click', function (event) {
                 if (event.target.closest('button, a, img')) {
@@ -423,9 +405,9 @@ document.addEventListener("DOMContentLoaded", function () {
 
             const infoCol = document.getElementById(`infoCol-${item.productId}`);
             if (!infoCol || item.onlyMe || item.isRejected || myPrice === null || lowestPrice === null) {
-                // Puste
+
             } else {
-                // Logika dla kolumny akcji
+
                 if (item.colorClass === "prToLow" || item.colorClass === "prIdeal") {
                     const savingsValue = parseFloat(item.savings);
                     const upArrowClass = item.colorClass === 'prToLow' ? 'arrow-up-black' : 'arrow-up-turquoise';
@@ -645,8 +627,6 @@ document.addEventListener("DOMContentLoaded", function () {
             const selectedProducer = document.getElementById('producerFilterDropdown').value;
             if (selectedProducer) filtered = filtered.filter(p => p.producer === selectedProducer);
 
-            // --- NOWY/ZMIENIONY FRAGMENT ---
-            // Dodana logika filtrowania po flagach
             if (selectedFlagsExclude.size > 0) {
                 filtered = filtered.filter(item => {
                     if (selectedFlagsExclude.has('noFlag') && (!item.flagIds || item.flagIds.length === 0)) {
@@ -664,7 +644,6 @@ document.addEventListener("DOMContentLoaded", function () {
                     return item.flagIds && item.flagIds.some(fid => selectedFlagsInclude.has(String(fid)));
                 });
             }
-            // -----------------------------
 
             if (isCatalogViewActive) {
                 filtered = groupAndFilterByCatalog(filtered);
@@ -696,17 +675,12 @@ document.addEventListener("DOMContentLoaded", function () {
             debouncedRenderChart(filtered);
             updateColorCounts(filtered);
 
-            // --- NOWY/ZMIENIONY FRAGMENT ---
-            // Aktualizujemy liczniki flag po każdym filtrowaniu
             updateFlagCounts(filtered);
-            // ----------------------------
 
             hideLoading();
         }, 10);
     }
 
-    // --- NOWY/ZMIENIONY FRAGMENT ---
-    // Nowa funkcja do podpinania listenerów do filtrów flag
     function setupFlagFilterListeners() {
         document.querySelectorAll('.flagFilterInclude').forEach(checkbox => {
             checkbox.addEventListener('change', function () {
@@ -742,7 +716,6 @@ document.addEventListener("DOMContentLoaded", function () {
             });
         });
     }
-    // ---------------------------------
 
     function setupEventListeners() {
         document.getElementById('productSearch').addEventListener('input', debounce(() => filterAndSortPrices(), 300));
@@ -804,8 +777,6 @@ document.addEventListener("DOMContentLoaded", function () {
                 }).catch(err => console.error('Błąd zapisu:', err));
         });
 
-        // --- NOWY/ZMIENIONY FRAGMENT ---
-        // Logika obsługi modala flag
         const modal = document.getElementById('flagModal');
         if (modal) {
             const span = modal.querySelector('.close');
@@ -819,11 +790,11 @@ document.addEventListener("DOMContentLoaded", function () {
             document.getElementById('saveFlagsButton').addEventListener('click', function () {
                 const selectedFlags = Array.from(document.querySelectorAll('.flagCheckbox:checked')).map(cb => parseInt(cb.value));
                 const data = {
-                    productId: parseInt(selectedProductId),
+                    allegroProductId: parseInt(selectedProductId),
                     flagIds: selectedFlags
                 };
 
-                fetch('/AllegroPriceHistory/AssignFlagsToProduct', {
+                fetch('/ProductFlags/AssignFlagsToProduct', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(data)
@@ -831,7 +802,7 @@ document.addEventListener("DOMContentLoaded", function () {
                     .then(res => res.json())
                     .then(response => {
                         if (response.success) {
-                            modal.style.display = 'none';
+                            document.getElementById('flagModal').style.display = 'none';
                             const product = allPrices.find(p => p.productId == selectedProductId);
                             if (product) {
                                 product.flagIds = selectedFlags;
@@ -849,7 +820,7 @@ document.addEventListener("DOMContentLoaded", function () {
                     }).catch(err => console.error('Błąd zapisu flag:', err));
             });
         }
-        // ---------------------------------
+
     }
 
     function showLoading() { document.getElementById("loadingOverlay").style.display = "flex"; }
@@ -885,10 +856,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
                 filterAndSortPrices();
 
-                // --- NOWY/ZMIENIONY FRAGMENT ---
-                // Inicjalne stworzenie filtrów flag na podstawie wszystkich produktów
                 updateFlagCounts(allPrices);
-                // ----------------------------
 
             })
             .catch(error => console.error("Błąd ładowania danych:", error))

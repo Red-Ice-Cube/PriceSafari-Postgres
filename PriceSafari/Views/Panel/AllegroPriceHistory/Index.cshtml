@@ -1,12 +1,17 @@
-﻿@{
+﻿@using PriceSafari.Models.ViewModels
+
+
+
+@{
     ViewData["Title"] = "Historia Cen Allegro";
     var latestScrap = ViewBag.LatestScrap as PriceSafari.Models.AllegroScrapeHistory;
     var storeId = ViewBag.StoreId;
     var storeLogo = ViewBag.StoreLogo;
     var storeName = ViewBag.StoreName;
     var scrapDate = latestScrap?.Date.ToString("dd.MM.yyyy");
-    var flags = ViewBag.Flags as List<PriceSafari.Controllers.MemberControllers.AllegroPriceHistoryController.FlagViewModel>;
+    var flags = ViewBag.Flags as List<FlagViewModel>;
 }
+
 @{
     Layout = "~/Views/Shared/_PanelLayout.cshtml";
 }
@@ -21,10 +26,6 @@
 
      
 
-    
-
-    .loading-overlay { /* style dla overlay... */
-    }
 </style>
 
 <div class="Vert">
@@ -161,9 +162,7 @@
         var storeId = @storeId;
         var scrapDateJS = "@scrapDate";
         var myStoreNameJS = "@storeName";
-
-                   // Nowa, poprawna linia
-        var flags = @Html.Raw(Json.Serialize(ViewBag.Flags ?? new List<PriceSafari.Controllers.MemberControllers.AllegroPriceHistoryController.FlagViewModel>()));
+        var flags = @Html.Raw(Json.Serialize(ViewBag.Flags ?? new List<FlagViewModel>()));
     </script>
     <script src="~/js/member/AllegroPriceHistory.js"></script>
 }

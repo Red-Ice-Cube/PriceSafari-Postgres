@@ -14,14 +14,12 @@ namespace PriceSafari.Controllers.MemberControllers
         private readonly PriceSafariContext _context;
         private readonly UserManager<PriceSafariUser> _userManager;
 
-        // Dodajemy UserManager do wstrzykiwania zależności
         public ProductFlagsController(PriceSafariContext context, UserManager<PriceSafariUser> userManager)
         {
             _context = context;
             _userManager = userManager;
         }
 
-        // Prywatna metoda do sprawdzania dostępu (przeniesiona tutaj)
         private async Task<bool> UserHasAccessToStore(int storeId)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -38,7 +36,7 @@ namespace PriceSafari.Controllers.MemberControllers
         {
             List<int> flagIds;
 
-            if (productId.HasValue) // Sprawdzamy, czy to standardowy produkt
+            if (productId.HasValue)
             {
                 var product = await _context.Products.FindAsync(productId.Value);
                 if (product == null) return NotFound();
@@ -49,7 +47,7 @@ namespace PriceSafari.Controllers.MemberControllers
                     .Select(pf => pf.FlagId)
                     .ToListAsync();
             }
-            else if (allegroProductId.HasValue) // Sprawdzamy, czy to produkt Allegro
+            else if (allegroProductId.HasValue)
             {
                 var allegroProduct = await _context.AllegroProducts.FindAsync(allegroProductId.Value);
                 if (allegroProduct == null) return NotFound();
@@ -73,7 +71,7 @@ namespace PriceSafari.Controllers.MemberControllers
         {
             if (model == null || model.FlagIds == null) return BadRequest("Nieprawidłowe dane.");
 
-            if (model.ProductId.HasValue) // Logika dla standardowego produktu
+            if (model.ProductId.HasValue)
             {
                 var product = await _context.Products.FindAsync(model.ProductId.Value);
                 if (product == null) return NotFound();
@@ -85,7 +83,7 @@ namespace PriceSafari.Controllers.MemberControllers
                 var newFlags = model.FlagIds.Select(flagId => new ProductFlag { ProductId = model.ProductId.Value, FlagId = flagId });
                 _context.ProductFlags.AddRange(newFlags);
             }
-            else if (model.AllegroProductId.HasValue) // Logika dla produktu Allegro
+            else if (model.AllegroProductId.HasValue)
             {
                 var allegroProduct = await _context.AllegroProducts.FindAsync(model.AllegroProductId.Value);
                 if (allegroProduct == null) return NotFound();
@@ -107,7 +105,6 @@ namespace PriceSafari.Controllers.MemberControllers
         }
     }
 
-    // Ten ViewModel będzie obsługiwał oba typy produktów
     public class AssignFlagsViewModel
     {
         public int? ProductId { get; set; }
