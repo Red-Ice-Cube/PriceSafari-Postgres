@@ -677,11 +677,11 @@
                 }
             }
 
-                        let eanInfo = row.ean ? `<div class="price-info-item">EAN: ${row.ean}</div>` : "";
-                        let extIdInfo = row.externalId ? `<div class="price-info-item">ID: ${row.externalId}</div>` : "";
-                        let producerCodeInfo = row.producerCode ? `<div class="price-info-item">Kod: ${row.producerCode}</div>` : "";
+            let eanInfo = row.ean ? `<div class="price-info-item">EAN: ${row.ean}</div>` : "";
+            let extIdInfo = row.externalId ? `<div class="price-info-item">ID: ${row.externalId}</div>` : "";
+            let producerCodeInfo = row.producerCode ? `<div class="price-info-item">Kod: ${row.producerCode}</div>` : "";
 
-                        html += `<tr>
+            html += `<tr>
                          ${imageCell}
                             <td>
                                 <a
@@ -783,6 +783,11 @@
         });
     }
 
+
+
+
+
+
     function exportToCsv(isExtended = false) {
         let csvContent = "";
         let fileName = "";
@@ -790,7 +795,7 @@
 
         if (isExtended) {
             const baseHeaders = [
-                "ID", "EAN", "Nazwa produktu",
+                "ID", "EAN", "KOD", "Nazwa produktu",
                 "Obecna pozycja Google", "Całkowita liczba ofert Google",
                 "Obecna pozycja Ceneo", "Całkowita liczba ofert Ceneo",
                 "Obecna cena oferty"
@@ -847,6 +852,7 @@
                 let values = [
                     `="${String(row.externalId || '')}"`,
                     `="${String(row.ean || '')}"`,
+                    `="${String(row.producerCode || '')}"`, // Dodano kod producenta
                     `"${row.productName}"`,
                     `"${currentGoogleRanking}"`,
                     `"${totalGoogleOffers}"`,
@@ -881,14 +887,14 @@
             });
             fileName = `PriceSafari-${dateStr}-${currentOurStoreName}-rozszerzony.csv`;
 
-        } else {
-
-            csvContent = "ID;EAN;CENA\n";
+        } else { // Wersja podstawowa
+            csvContent = "ID;EAN;KOD;CENA\n";
             originalRowsData.forEach(row => {
                 const priceString = (typeof row.baseNewPrice === 'number') ? row.baseNewPrice.toFixed(2).replace('.', ',') : "";
                 const eanText = row.ean ? `="${String(row.ean)}"` : "";
+                const producerCodeText = row.producerCode ? `="${String(row.producerCode)}"` : ""; // Dodano kod producenta
                 const extIdText = row.externalId ? `="${String(row.externalId)}"` : "";
-                csvContent += `${extIdText};${eanText};"${priceString}"\n`;
+                csvContent += `${extIdText};${eanText};${producerCodeText};"${priceString}"\n`;
             });
             fileName = `PriceSafari-${dateStr}-${currentOurStoreName}-bazowa.csv`;
         }
@@ -903,6 +909,14 @@
         }, 1000);
     }
 
+
+
+
+
+
+
+
+
     async function exportToExcelXLSX(isExtended = false) {
         const workbook = new ExcelJS.Workbook();
         const worksheet = workbook.addWorksheet("Zmiany Cen");
@@ -913,6 +927,7 @@
             let columns = [
                 { header: "ID", key: "externalId", width: 18, style: { numFmt: "@" } },
                 { header: "EAN", key: "ean", width: 18, style: { numFmt: "@" } },
+                { header: "KOD", key: "producerCode", width: 20, style: { numFmt: "@" } }, // Dodano kod producenta
                 { header: "Nazwa produktu", key: "productName", width: 40 },
                 { header: "Obecna poz. Google", key: "currentGoogleRanking", width: 20 },
                 { header: "Obecna liczba ofert Google", key: "totalGoogleOffers", width: 25 },
@@ -956,6 +971,7 @@
                 let rowData = {
                     externalId: String(row.externalId || ''),
                     ean: String(row.ean || ''),
+                    producerCode: String(row.producerCode || ''), // Dodano kod producenta
                     productName: row.productName,
                     currentGoogleRanking: row.currentGoogleRanking,
                     totalGoogleOffers: row.totalGoogleOffers,
@@ -989,18 +1005,19 @@
             });
             fileName = `PriceSafari-${dateStr}-${currentOurStoreName}-rozszerzony.xlsx`;
 
-        } else {
-
+        } else { // Wersja podstawowa
             worksheet.columns = [
                 { header: "ID", key: "externalId", width: 18, style: { numFmt: "@" } },
                 { header: "EAN", key: "ean", width: 18, style: { numFmt: "@" } },
+                { header: "KOD", key: "producerCode", width: 20, style: { numFmt: "@" } }, // Dodano kod producenta
                 { header: "CENA", key: "newPrice", width: 15, style: { numFmt: '#,##0.00' } }
             ];
             originalRowsData.forEach(row => {
                 const baseNewPrice = (typeof row.baseNewPrice === 'number') ? parseFloat(row.baseNewPrice.toFixed(2)) : null;
                 const eanStr = String(row.ean || "");
+                const producerCodeStr = String(row.producerCode || "");
                 const extIdStr = String(row.externalId || "");
-                worksheet.addRow({ externalId: extIdStr, ean: eanStr, newPrice: baseNewPrice });
+                worksheet.addRow({ externalId: extIdStr, ean: eanStr, producerCode: producerCodeStr, newPrice: baseNewPrice });
             });
             fileName = `PriceSafari-${dateStr}-${currentOurStoreName}-bazowa.xlsx`;
         }
@@ -1015,6 +1032,13 @@
             URL.revokeObjectURL(link.href);
         }, 1000);
     }
+
+
+
+
+
+
+
 
     var simulateButton = document.getElementById("simulateButton");
     if (simulateButton) {
