@@ -631,6 +631,18 @@
                         colorClass = 'prNoOffer';
                     } else if (onlyMe) {
                         colorClass = 'prOnlyMe';
+
+                     
+                        if (marginPrice != null && myPrice != null) {
+                            let priceForMarginCalculation = myPrice;
+                            if (marginSettings.usePriceWithDelivery && price.myPriceIncludesDelivery) {
+                                const myDeliveryCost = price.myPriceDeliveryCost != null && !isNaN(parseFloat(price.myPriceDeliveryCost)) ? parseFloat(price.myPriceDeliveryCost) : 0;
+                                priceForMarginCalculation = myPrice - myDeliveryCost;
+                            }
+                            marginAmount = priceForMarginCalculation - marginPrice;
+                            marginPercentage = (marginPrice !== 0) ? (marginAmount / marginPrice) * 100 : null;
+                            marginClass = 'priceBox-diff-margin-neutral'; 
+                        }
                     } else {
 
                         let valueToUseForColorCalculation;
@@ -1342,10 +1354,10 @@
 
                 const purchasePriceBox = document.createElement('div');
 
-                // ✨ ZMIANA: Klasa jest teraz nadawana warunkowo
+                
                 purchasePriceBox.className = myPrice != null
                     ? 'price-box-diff-margin ' + marginClass
-                    : 'priceBox-diff-neutral';
+                    : 'priceBox-diff-margin-neutral';
 
                 purchasePriceBox.innerHTML = '<p>Cena zakupu: ' + formattedMarginPrice + '</p>';
 
@@ -1371,7 +1383,7 @@
                   
                     const marginBox = document.createElement('div');
                 
-                    marginBox.className = 'priceBox-diff-neutral';
+                    marginBox.className = 'priceBox-diff-margin-neutral';
                     marginBox.innerHTML = '<p>Narzut: Brak informacji</p>';
 
                     externalInfoContainer.appendChild(marginBox);

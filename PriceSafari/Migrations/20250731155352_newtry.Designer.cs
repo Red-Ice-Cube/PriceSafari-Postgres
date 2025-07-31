@@ -12,15 +12,15 @@ using PriceSafari.Data;
 namespace PriceSafari.Migrations
 {
     [DbContext(typeof(PriceSafariContext))]
-    [Migration("20250730172821_FinalFlagsAndProductsSchema")]
-    partial class FinalFlagsAndProductsSchema
+    [Migration("20250731155352_newtry")]
+    partial class newtry
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "9.0.6")
+                .HasAnnotation("ProductVersion", "9.0.7")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
@@ -758,15 +758,12 @@ namespace PriceSafari.Migrations
                     b.Property<bool>("IsMarketplace")
                         .HasColumnType("bit");
 
-                    b.Property<int?>("StoreClassStoreId")
-                        .HasColumnType("int");
-
                     b.Property<int>("StoreId")
                         .HasColumnType("int");
 
                     b.HasKey("FlagId");
 
-                    b.HasIndex("StoreClassStoreId");
+                    b.HasIndex("StoreId");
 
                     b.ToTable("Flags");
                 });
@@ -1232,6 +1229,9 @@ namespace PriceSafari.Migrations
                     b.Property<string>("Producer")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("ProducerCode")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("ProductName")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -1296,6 +1296,9 @@ namespace PriceSafari.Migrations
                     b.Property<string>("CeneoExportedProducer")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("CeneoExportedProducerCode")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<decimal?>("CeneoXMLPrice")
                         .HasColumnType("decimal(18, 2)");
 
@@ -1319,6 +1322,9 @@ namespace PriceSafari.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("GoogleExportedProducer")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("GoogleExportedProducerCode")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("GoogleImage")
@@ -2097,9 +2103,13 @@ namespace PriceSafari.Migrations
 
             modelBuilder.Entity("PriceSafari.Models.FlagsClass", b =>
                 {
-                    b.HasOne("PriceSafari.Models.StoreClass", null)
+                    b.HasOne("PriceSafari.Models.StoreClass", "Store")
                         .WithMany("Flags")
-                        .HasForeignKey("StoreClassStoreId");
+                        .HasForeignKey("StoreId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Store");
                 });
 
             modelBuilder.Entity("PriceSafari.Models.GoogleScrapingProduct", b =>

@@ -3,7 +3,6 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
-using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using PriceSafari.Data;
 
@@ -12,15 +11,13 @@ using PriceSafari.Data;
 namespace PriceSafari.Migrations
 {
     [DbContext(typeof(PriceSafariContext))]
-    [Migration("20250730172358_clean")]
-    partial class clean
+    partial class PriceSafariContextModelSnapshot : ModelSnapshot
     {
-        /// <inheritdoc />
-        protected override void BuildTargetModel(ModelBuilder modelBuilder)
+        protected override void BuildModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "9.0.6")
+                .HasAnnotation("ProductVersion", "9.0.7")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
@@ -758,15 +755,12 @@ namespace PriceSafari.Migrations
                     b.Property<bool>("IsMarketplace")
                         .HasColumnType("bit");
 
-                    b.Property<int?>("StoreClassStoreId")
-                        .HasColumnType("int");
-
                     b.Property<int>("StoreId")
                         .HasColumnType("int");
 
                     b.HasKey("FlagId");
 
-                    b.HasIndex("StoreClassStoreId");
+                    b.HasIndex("StoreId");
 
                     b.ToTable("Flags");
                 });
@@ -1232,6 +1226,9 @@ namespace PriceSafari.Migrations
                     b.Property<string>("Producer")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("ProducerCode")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("ProductName")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -1256,23 +1253,28 @@ namespace PriceSafari.Migrations
 
             modelBuilder.Entity("PriceSafari.Models.ProductFlag", b =>
                 {
-                    b.Property<int>("ProductId")
+                    b.Property<int>("ProductFlagId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("ProductFlagId"));
+
+                    b.Property<int?>("AllegroProductId")
                         .HasColumnType("int");
 
                     b.Property<int>("FlagId")
                         .HasColumnType("int");
 
-                    b.Property<int?>("AllegroProductId")
+                    b.Property<int?>("ProductId")
                         .HasColumnType("int");
 
-                    b.Property<int>("ProductFlagId")
-                        .HasColumnType("int");
-
-                    b.HasKey("ProductId", "FlagId");
+                    b.HasKey("ProductFlagId");
 
                     b.HasIndex("AllegroProductId");
 
                     b.HasIndex("FlagId");
+
+                    b.HasIndex("ProductId");
 
                     b.ToTable("ProductFlags");
                 });
@@ -1289,6 +1291,9 @@ namespace PriceSafari.Migrations
                         .HasColumnType("decimal(18, 2)");
 
                     b.Property<string>("CeneoExportedProducer")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("CeneoExportedProducerCode")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<decimal?>("CeneoXMLPrice")
@@ -1314,6 +1319,9 @@ namespace PriceSafari.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("GoogleExportedProducer")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("GoogleExportedProducerCode")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("GoogleImage")
@@ -2092,9 +2100,13 @@ namespace PriceSafari.Migrations
 
             modelBuilder.Entity("PriceSafari.Models.FlagsClass", b =>
                 {
-                    b.HasOne("PriceSafari.Models.StoreClass", null)
+                    b.HasOne("PriceSafari.Models.StoreClass", "Store")
                         .WithMany("Flags")
-                        .HasForeignKey("StoreClassStoreId");
+                        .HasForeignKey("StoreId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Store");
                 });
 
             modelBuilder.Entity("PriceSafari.Models.GoogleScrapingProduct", b =>
@@ -2223,19 +2235,19 @@ namespace PriceSafari.Migrations
                 {
                     b.HasOne("PriceSafari.Models.AllegroProductClass", "AllegroProduct")
                         .WithMany("ProductFlags")
-                        .HasForeignKey("AllegroProductId");
+                        .HasForeignKey("AllegroProductId")
+                        .OnDelete(DeleteBehavior.NoAction);
 
                     b.HasOne("PriceSafari.Models.FlagsClass", "Flag")
                         .WithMany("ProductFlags")
                         .HasForeignKey("FlagId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired();
 
                     b.HasOne("PriceSafari.Models.ProductClass", "Product")
                         .WithMany("ProductFlags")
                         .HasForeignKey("ProductId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Cascade);
 
                     b.Navigation("AllegroProduct");
 
