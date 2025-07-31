@@ -226,7 +226,7 @@
         }, 4000);
     }
 
-    function exportToExcelXLSX(dataToExport) { // <--- ZMIANA: dodajemy argument
+    function exportToExcelXLSX(dataToExport) {
         if (!dataToExport || dataToExport.length === 0) {
             alert("Brak danych do wyeksportowania po zastosowaniu filtrów.");
             return;
@@ -241,7 +241,6 @@
         const fontGreen = { color: { argb: "FF006400" } };
         const fontGray = { color: { argb: "FF7E7E7E" } };
 
-        // vvv ZMIANA: używamy 'dataToExport' zamiast 'allPrices' vvv
         dataToExport.forEach((item) => {
             const rowData = [
                 item.externalId || "",
@@ -754,126 +753,95 @@
         window.loadPrices = loadPrices;
 
     }
+
     function updateFlagCounts(prices) {
         const flagCounts = {};
         let noFlagCount = 0;
 
         prices.forEach(price => {
-            if (price.flagIds.length === 0) {
+            if (!price.flagIds || price.flagIds.length === 0) {
                 noFlagCount++;
+            } else {
+                price.flagIds.forEach(flagId => {
+                    flagCounts[flagId] = (flagCounts[flagId] || 0) + 1;
+                });
             }
-            price.flagIds.forEach(flagId => {
-                if (!flagCounts[flagId]) {
-                    flagCounts[flagId] = 0;
-                }
-                flagCounts[flagId]++;
-            });
         });
 
         const flagContainer = document.getElementById('flagContainer');
+        if (!flagContainer) return;
         flagContainer.innerHTML = '';
 
-        flags.forEach(flag => {
-            const count = flagCounts[flag.FlagId] || 0;
-            const includeChecked = selectedFlagsInclude.has(String(flag.FlagId)) ? 'checked' : '';
-            const excludeChecked = selectedFlagsExclude.has(String(flag.FlagId)) ? 'checked' : '';
+        if (typeof flags !== 'undefined' && flags) {
+            flags.forEach(flag => {
+                const count = flagCounts[flag.flagId] || 0;
+                const includeChecked = selectedFlagsInclude.has(String(flag.flagId)) ? 'checked' : '';
+                const excludeChecked = selectedFlagsExclude.has(String(flag.flagId)) ? 'checked' : '';
 
-            const flagElement = `
-          <div class="flag-filter-group">
-            <!-- Checkbox "Pokaż" -->
-            <div class="form-check form-check-inline check-include" style="margin-right:0px;">
-              <input class="form-check-input flagFilterInclude"
-                     type="checkbox"
-                     id="flagCheckboxInclude_${flag.FlagId}"
-                     value="${flag.FlagId}"
-                     ${includeChecked}
-                     title="Pokaż wszystkie produkty z tą flagą" />
-            </div>
-
-            <!-- Checkbox "Ukryj" -->
-            <div class="form-check form-check-inline check-exclude" style="margin-right:0px; padding-left:16px;">
-              <input class="form-check-input flagFilterExclude"
-                     type="checkbox"
-                     id="flagCheckboxExclude_${flag.FlagId}"
-                     value="${flag.FlagId}"
-                     ${excludeChecked}
-                     title="Ukryj wszystkie produkty z tą flagą" />
-            </div>
-
-            <!-- Nazwa flagi i liczba -->
-            <span class="flag-name-count" style="font-size:14px; font-weight: 400;">
-              ${flag.FlagName} (${count})
-            </span>
-          </div>
-        `;
-            flagContainer.innerHTML += flagElement;
-        });
-
-        const includeCheckedNoFlag = selectedFlagsInclude.has('noFlag') ? 'checked' : '';
-        const excludeCheckedNoFlag = selectedFlagsExclude.has('noFlag') ? 'checked' : '';
-
-        const noFlagElement = `
-      <div class="flag-filter-group">
-        <div class="form-check form-check-inline check-include" style="margin-right:0px;">
-          <input class="form-check-input flagFilterInclude"
-                 type="checkbox"
-                 id="flagCheckboxInclude_noFlag"
-                 value="noFlag"
-                 ${includeCheckedNoFlag}
-                 title="Pokaż wszystkie produkty z tą flagą (brak flagi)" />
-        </div>
-
-        <div class="form-check form-check-inline check-exclude" style="margin-right:0px; padding-left:16px;">
-          <input class="form-check-input flagFilterExclude"
-                 type="checkbox"
-                 id="flagCheckboxExclude_noFlag"
-                 value="noFlag"
-                 ${excludeCheckedNoFlag}
-                 title="Ukryj wszystkie produkty z tą flagą (brak flagi)" />
-        </div>
-
-        <span class="flag-name-count" style="font-size:14px; font-weight: 400;">
-          Brak flagi (${noFlagCount})
-        </span>
-      </div>
-    `;
-        flagContainer.innerHTML += noFlagElement;
-
-        document.querySelectorAll('.flagFilterInclude').forEach(checkbox => {
-            checkbox.addEventListener('change', function () {
-                const flagValue = this.value;
-
-                if (this.checked) {
-                    const excludeCheckbox = document.getElementById(`flagCheckboxExclude_${flagValue}`);
-                    if (excludeCheckbox && excludeCheckbox.checked) {
-                        excludeCheckbox.checked = false;
-                        selectedFlagsExclude.delete(flagValue);
-                    }
-                    selectedFlagsInclude.add(flagValue);
-                } else {
-                    selectedFlagsInclude.delete(flagValue);
-                }
-
-                filterPricesAndUpdateUI();
+                const flagElementHTML = `
+            <div class="flag-filter-group">
+                <div class="form-check form-check-inline check-include" style="margin-right:0px;">
+                    <input class="form-check-input flagFilterInclude" type="checkbox" id="flagCheckboxInclude_${flag.flagId}" value="${flag.flagId}" ${includeChecked} title="Pokaż wszystkie produkty z tą flagą">
+                </div>
+                <div class="form-check form-check-inline check-exclude" style="margin-right:0px; padding-left:16px;">
+                    <input class="form-check-input flagFilterExclude" type="checkbox" id="flagCheckboxExclude_${flag.flagId}" value="${flag.flagId}" ${excludeChecked} title="Ukryj wszystkie produkty z tą flagą">
+                </div>
+                <span class="flag-name-count" style="font-size:14px; font-weight: 400;">
+                    ${flag.flagName} (${count})
+                </span>
+            </div>`;
+                flagContainer.insertAdjacentHTML('beforeend', flagElementHTML);
             });
-        });
+        }
 
-        document.querySelectorAll('.flagFilterExclude').forEach(checkbox => {
-            checkbox.addEventListener('change', function () {
+        const noFlagIncludeChecked = selectedFlagsInclude.has('noFlag') ? 'checked' : '';
+        const noFlagExcludeChecked = selectedFlagsExclude.has('noFlag') ? 'checked' : '';
+
+        const noFlagElementHTML = `
+        <div class="flag-filter-group">
+            <div class="form-check form-check-inline check-include" style="margin-right:0px;">
+                <input class="form-check-input flagFilterInclude" type="checkbox" id="flagCheckboxInclude_noFlag" value="noFlag" ${noFlagIncludeChecked} title="Pokaż wszystkie produkty bez flagi">
+            </div>
+            <div class="form-check form-check-inline check-exclude" style="margin-right:0px; padding-left:16px;">
+                <input class="form-check-input flagFilterExclude" type="checkbox" id="flagCheckboxExclude_noFlag" value="noFlag" ${noFlagExcludeChecked} title="Ukryj wszystkie produkty bez flagi">
+            </div>
+            <span class="flag-name-count" style="font-size:14px; font-weight: 400;">
+                Brak flagi (${noFlagCount})
+            </span>
+        </div>`;
+        flagContainer.insertAdjacentHTML('beforeend', noFlagElementHTML);
+
+        document.querySelectorAll('.flagFilterInclude, .flagFilterExclude').forEach(checkbox => {
+            const newCheckbox = checkbox.cloneNode(true);
+            checkbox.parentNode.replaceChild(newCheckbox, checkbox);
+
+            newCheckbox.addEventListener('change', function () {
                 const flagValue = this.value;
+                const isInclude = this.classList.contains('flagFilterInclude');
 
-                if (this.checked) {
-
-                    const includeCheckbox = document.getElementById(`flagCheckboxInclude_${flagValue}`);
-                    if (includeCheckbox && includeCheckbox.checked) {
-                        includeCheckbox.checked = false;
+                if (isInclude) {
+                    if (this.checked) {
+                        const excludeCheckbox = document.getElementById(`flagCheckboxExclude_${flagValue}`);
+                        if (excludeCheckbox) {
+                            excludeCheckbox.checked = false;
+                            selectedFlagsExclude.delete(flagValue);
+                        }
+                        selectedFlagsInclude.add(flagValue);
+                    } else {
                         selectedFlagsInclude.delete(flagValue);
                     }
-                    selectedFlagsExclude.add(flagValue);
                 } else {
-                    selectedFlagsExclude.delete(flagValue);
+                    if (this.checked) {
+                        const includeCheckbox = document.getElementById(`flagCheckboxInclude_${flagValue}`);
+                        if (includeCheckbox) {
+                            includeCheckbox.checked = false;
+                            selectedFlagsInclude.delete(flagValue);
+                        }
+                        selectedFlagsExclude.add(flagValue);
+                    } else {
+                        selectedFlagsExclude.delete(flagValue);
+                    }
                 }
-
                 filterPricesAndUpdateUI();
             });
         });
@@ -1345,7 +1313,6 @@
                     })
                     .catch(error => console.error('Błąd pobierania flag dla produktu:', error));
             });
-
             priceBoxSpace.appendChild(priceBoxColumnName);
             priceBoxSpace.appendChild(flagsContainer);
             priceBoxSpace.appendChild(assignFlagButton);
@@ -3032,14 +2999,15 @@
         flagsContainer.className = 'flags-container';
         if (item.flagIds && item.flagIds.length > 0) {
             item.flagIds.forEach(function (flagId) {
-                const flag = flags.find(function (f) { return f.FlagId === flagId; });
+
+                const flag = flags.find(f => f.flagId === flagId);
                 if (flag) {
                     const flagSpan = document.createElement('span');
                     flagSpan.className = 'flag';
-                    flagSpan.style.color = flag.FlagColor;
-                    flagSpan.style.border = '2px solid ' + flag.FlagColor;
-                    flagSpan.style.backgroundColor = hexToRgba(flag.FlagColor, 0.3);
-                    flagSpan.innerHTML = flag.FlagName;
+                    flagSpan.style.color = flag.flagColor;
+                    flagSpan.style.border = '2px solid ' + flag.flagColor;
+                    flagSpan.style.backgroundColor = hexToRgba(flag.flagColor, 0.3);
+                    flagSpan.innerHTML = flag.flagName;
                     flagsContainer.appendChild(flagSpan);
                 }
             });

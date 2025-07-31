@@ -90,8 +90,15 @@ namespace PriceSafari.Controllers.MemberControllers
                 .CountAsync();
 
             var flags = await _context.Flags
-                .Where(f => f.StoreId == storeId)
-                .ToListAsync();
+               .Where(f => f.StoreId == storeId.Value && f.IsMarketplace == false)
+               .Select(f => new FlagViewModel // Projekcja na prosty ViewModel
+               {
+                   FlagId = f.FlagId,
+                   FlagName = f.FlagName,
+                   FlagColor = f.FlagColor,
+                   IsMarketplace = f.IsMarketplace
+               })
+               .ToListAsync();
 
             ViewBag.LatestScrap = latestScrap;
             ViewBag.StoreId = storeId;
@@ -297,17 +304,13 @@ namespace PriceSafari.Controllers.MemberControllers
                 rawPrices = filteredPrices;
             }
 
-            var storeFlags = await _context.Flags
-                .Where(f => f.StoreId == storeId)
-                .ToListAsync();
+            // Nowy, wydajny kod
+            var productIds = rawPrices.Select(p => p.ProductId).ToList();
 
-            var productFlagsDictionary = storeFlags
-                .SelectMany(flag => _context.ProductFlags
-                    .Where(pf => pf.FlagId == flag.FlagId)
-                    .Select(pf => new { pf.ProductId, pf.FlagId })
-                )
-                .GroupBy(pf => pf.ProductId)
-                .ToDictionary(
+            var productFlagsDictionary = await _context.ProductFlags
+                .Where(pf => pf.ProductId.HasValue && productIds.Contains(pf.ProductId.Value))
+                .GroupBy(pf => pf.ProductId.Value)
+                .ToDictionaryAsync(
                     g => g.Key,
                     g => g.Select(pf => pf.FlagId).ToList()
                 );
@@ -655,6 +658,11 @@ namespace PriceSafari.Controllers.MemberControllers
             public bool IsRejected { get; set; }
             public decimal? ShippingCostNum { get; set; }
         }
+
+
+      
+        
+
 
         [HttpGet]
         public async Task<IActionResult> GetPresets(int storeId)
@@ -1738,5 +1746,8 @@ namespace PriceSafari.Controllers.MemberControllers
             public string Store { get; set; }
             public bool Source { get; set; }
         }
+
+
+
     }
 }

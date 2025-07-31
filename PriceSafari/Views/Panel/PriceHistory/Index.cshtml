@@ -1,4 +1,5 @@
 ﻿@using Newtonsoft.Json
+@using PriceSafari.Models.ViewModels
 
 @{
     ViewData["Title"] = "Historia Cen";
@@ -6,7 +7,7 @@
     var storeId = ViewBag.StoreId;
     var storeLogo = ViewBag.StoreLogo;
     var scrapId = ViewBag.ScrapId;
-    var flags = ViewBag.Flags as List<PriceSafari.Models.FlagsClass>;
+    var flags = ViewBag.Flags as List<FlagViewModel>;
 }
 
 @{
@@ -829,9 +830,7 @@
     <script>
         var priceHistoryPageContext = 'index';
         var storeId = '@storeId';
-        var flags = (function(){
-            return @Html.Raw(JsonConvert.SerializeObject(ViewBag.Flags));
-        })();
+        var flags = @Html.Raw(Json.Serialize(ViewBag.Flags ?? new List<FlagViewModel>()));
         var scrapDateJS = "@scrapDate";
         var myStoreNameJS = "@store";
         var globalLatestScrapId = "@scrapId";

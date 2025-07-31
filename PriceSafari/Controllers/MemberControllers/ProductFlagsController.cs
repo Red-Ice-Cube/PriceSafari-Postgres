@@ -1,9 +1,10 @@
 ﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using PriceSafari.Data;
 using PriceSafari.Models;
-using PriceSafari.ViewModels;
+using System.Security.Claims;
 
 namespace PriceSafari.Controllers.MemberControllers
 {
@@ -11,19 +12,58 @@ namespace PriceSafari.Controllers.MemberControllers
     public class ProductFlagsController : Controller
     {
         private readonly PriceSafariContext _context;
+        private readonly UserManager<PriceSafariUser> _userManager;
 
-        public ProductFlagsController(PriceSafariContext context)
+        // Dodajemy UserManager do wstrzykiwania zależności
+        public ProductFlagsController(PriceSafariContext context, UserManager<PriceSafariUser> userManager)
         {
             _context = context;
+            _userManager = userManager;
+        }
+
+        // Prywatna metoda do sprawdzania dostępu (przeniesiona tutaj)
+        private async Task<bool> UserHasAccessToStore(int storeId)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var user = await _userManager.FindByIdAsync(userId);
+            if (await _userManager.IsInRoleAsync(user, "Admin") || await _userManager.IsInRoleAsync(user, "Manager"))
+            {
+                return true;
+            }
+            return await _context.UserStores.AnyAsync(us => us.UserId == userId && us.StoreId == storeId);
         }
 
         [HttpGet]
-        public async Task<IActionResult> GetFlagsForProduct(int productId)
+        public async Task<IActionResult> GetFlagsForProduct(int? productId, int? allegroProductId)
         {
-            var flagIds = await _context.ProductFlags
-                .Where(pf => pf.ProductId == productId)
-                .Select(pf => pf.FlagId)
-                .ToListAsync();
+            List<int> flagIds;
+
+            if (productId.HasValue) // Sprawdzamy, czy to standardowy produkt
+            {
+                var product = await _context.Products.FindAsync(productId.Value);
+                if (product == null) return NotFound();
+                if (!await UserHasAccessToStore(product.StoreId)) return Forbid();
+
+                flagIds = await _context.ProductFlags
+                    .Where(pf => pf.ProductId == productId.Value)
+                    .Select(pf => pf.FlagId)
+                    .ToListAsync();
+            }
+            else if (allegroProductId.HasValue) // Sprawdzamy, czy to produkt Allegro
+            {
+                var allegroProduct = await _context.AllegroProducts.FindAsync(allegroProductId.Value);
+                if (allegroProduct == null) return NotFound();
+                if (!await UserHasAccessToStore(allegroProduct.StoreId)) return Forbid();
+
+                flagIds = await _context.ProductFlags
+                    .Where(pf => pf.AllegroProductId == allegroProductId.Value)
+                    .Select(pf => pf.FlagId)
+                    .ToListAsync();
+            }
+            else
+            {
+                return BadRequest("Musisz podać productId lub allegroProductId.");
+            }
 
             return Json(flagIds);
         }
@@ -31,28 +71,47 @@ namespace PriceSafari.Controllers.MemberControllers
         [HttpPost]
         public async Task<IActionResult> AssignFlagsToProduct([FromBody] AssignFlagsViewModel model)
         {
-            if (model == null || model.ProductId <= 0 || model.FlagIds == null)
+            if (model == null || model.FlagIds == null) return BadRequest("Nieprawidłowe dane.");
+
+            if (model.ProductId.HasValue) // Logika dla standardowego produktu
             {
-                return BadRequest("Invalid data.");
+                var product = await _context.Products.FindAsync(model.ProductId.Value);
+                if (product == null) return NotFound();
+                if (!await UserHasAccessToStore(product.StoreId)) return Forbid();
+
+                var existingFlags = await _context.ProductFlags.Where(pf => pf.ProductId == model.ProductId.Value).ToListAsync();
+                _context.ProductFlags.RemoveRange(existingFlags);
+
+                var newFlags = model.FlagIds.Select(flagId => new ProductFlag { ProductId = model.ProductId.Value, FlagId = flagId });
+                _context.ProductFlags.AddRange(newFlags);
             }
-
-            var existingFlags = await _context.ProductFlags
-                .Where(pf => pf.ProductId == model.ProductId)
-                .ToListAsync();
-
-            _context.ProductFlags.RemoveRange(existingFlags);
-
-            foreach (var flagId in model.FlagIds)
+            else if (model.AllegroProductId.HasValue) // Logika dla produktu Allegro
             {
-                _context.ProductFlags.Add(new ProductFlag
-                {
-                    ProductId = model.ProductId,
-                    FlagId = flagId
-                });
+                var allegroProduct = await _context.AllegroProducts.FindAsync(model.AllegroProductId.Value);
+                if (allegroProduct == null) return NotFound();
+                if (!await UserHasAccessToStore(allegroProduct.StoreId)) return Forbid();
+
+                var existingFlags = await _context.ProductFlags.Where(pf => pf.AllegroProductId == model.AllegroProductId.Value).ToListAsync();
+                _context.ProductFlags.RemoveRange(existingFlags);
+
+                var newFlags = model.FlagIds.Select(flagId => new ProductFlag { AllegroProductId = model.AllegroProductId.Value, FlagId = flagId });
+                _context.ProductFlags.AddRange(newFlags);
+            }
+            else
+            {
+                return BadRequest("Musisz podać productId lub allegroProductId.");
             }
 
             await _context.SaveChangesAsync();
             return Json(new { success = true });
         }
+    }
+
+    // Ten ViewModel będzie obsługiwał oba typy produktów
+    public class AssignFlagsViewModel
+    {
+        public int? ProductId { get; set; }
+        public int? AllegroProductId { get; set; }
+        public List<int> FlagIds { get; set; }
     }
 }
