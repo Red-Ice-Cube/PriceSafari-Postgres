@@ -32,6 +32,10 @@
     var ceneoScrapXmlMismatchCount = Model.Count(p => p.LastCeneoPrice.HasValue && p.CeneoXMLPrice.HasValue && p.LastCeneoPrice.Value != p.CeneoXMLPrice.Value);
     var xmlPricesMismatchCount = Model.Count(p => p.GoogleXMLPrice.HasValue && p.CeneoXMLPrice.HasValue && p.GoogleXMLPrice.Value != p.CeneoXMLPrice.Value);
     var eanMismatchCount = Model.Count(p => !string.IsNullOrEmpty(p.EanGoogle) && !string.IsNullOrEmpty(p.EanCeneo) && p.EanGoogle != p.EanCeneo);
+    var producerCodeCount = Model.Count(p => !string.IsNullOrEmpty(p.ProducerCode));
+    var googleProducerCodeCount = Model.Count(p => !string.IsNullOrEmpty(p.GoogleProducerCode));
+    var ceneoProducerCodeCount = Model.Count(p => !string.IsNullOrEmpty(p.CeneoProducerCode));
+    var producerCodeMismatchCount = Model.Count(p => !string.IsNullOrEmpty(p.GoogleProducerCode) && !string.IsNullOrEmpty(p.CeneoProducerCode) && p.GoogleProducerCode != p.CeneoProducerCode);
 }
 
 <div class="container-fluid">
@@ -60,7 +64,8 @@
                         <li>Z ceną G (XML): @googleXmlPriceCount</li>
                         <li>Z ceną C (XML): @ceneoXmlPriceCount</li>
                         <li>Z External ID: @externalIdCount</li>
-                        <li><small>(Różnica EAN G<>C: @eanMismatchCount)</small></li> @* Opcjonalna statystyka *@
+                        <li>Z kodem producenta: @producerCodeCount</li>
+                        <li><small>(Różnica EAN G&ne;C: @eanMismatchCount)</small></li>
                     </ul>
                 </div>
             </div>
@@ -97,7 +102,7 @@
                 </div>
                 <div class="col-md-4 mb-3">
                     <form asp-action="UpdateEansFromProductMap" method="post" onsubmit="return confirm('Czy na pewno chcesz zaktualizować EANy dla produktów w sklepie \'@storeName\' na podstawie danych z ProductMap XML? Ta operacja może nadpisać istniejące EANy w bazie danych.');">
-                        @Html.AntiForgeryToken() 
+                        @Html.AntiForgeryToken()
                         <input type="hidden" name="storeId" value="@storeId" />
                         <button type="submit" class="btn btn-warning w-100">
                             <i class="fas fa-barcode me-1"></i> Aktualizuj EANy z XML Map
@@ -228,6 +233,10 @@
                         <th>Nazwa (Google) <small>(@googleNameCount)</small></th>
                         <th>EAN (C) <small>(@ceneoEanCount)</small></th>
                         <th>EAN (G) <small>(@googleEanCount)</small></th>
+                        <th>Kod Prod. (gl.) <small>(@producerCodeCount)</small></th>
+                        <th>Kod Prod. (C) <small>(@ceneoProducerCodeCount)</small></th>
+                        <th>Kod Prod. (G) <small>(@googleProducerCodeCount)</small></th>
+
                         <th>URL Prod <small>(@urlCount)</small></th>
                         <th>URL Ceneo</th>
                         <th>URL Google</th>
@@ -306,6 +315,9 @@
                             @* Dodanie klasy dla EAN mismatch - wizualne wyróżnienie *@
                             <td class="@(eanMismatch ? "ean-mismatch-cell text-danger fw-bold" : "")">@(productVm.EanCeneo ?? "(brak)")</td>
                             <td class="@(eanMismatch ? "ean-mismatch-cell text-danger fw-bold" : "")">@(productVm.EanGoogle ?? "(brak)")</td>
+                            <td class="text-primary fw-bold">@(productVm.ProducerCode ?? "(brak)")</td>
+                            <td class="@(productVm.GoogleProducerCode != productVm.CeneoProducerCode ? "text-danger fw-bold" : "")">@(productVm.CeneoProducerCode ?? "(brak)")</td>
+                            <td class="@(productVm.GoogleProducerCode != productVm.CeneoProducerCode ? "text-danger fw-bold" : "")">@(productVm.GoogleProducerCode ?? "(brak)")</td>
                             <td>
                                 @if (!string.IsNullOrEmpty(productVm.Url))
                                 {
@@ -338,12 +350,12 @@
                             </td>
                             <td><input class="form-check-input" type="checkbox" checked="@productVm.IsScrapable" disabled /></td>
                             <td><input class="form-check-input" type="checkbox" checked="@productVm.IsRejected" disabled /></td>
-                            <td class="id-cell">@(productVm.ExternalId.HasValue ? productVm.ExternalId.Value.ToString() : "-")</td>
-                            <td class="price-cell @(gcScrapMismatch ? "text-warning fw-bold" : "")">@(productVm.LastGooglePrice.HasValue ? productVm.LastGooglePrice.Value.ToString("C2", new CultureInfo("pl-PL")) : "-")</td>
-                            <td class="price-cell @(gcScrapMismatch ? "text-warning fw-bold" : "")">@(productVm.LastCeneoPrice.HasValue ? productVm.LastCeneoPrice.Value.ToString("C2", new CultureInfo("pl-PL")) : "-")</td>
-                            <td class="diff-cell @(gcScrapMismatch ? "fw-bold" : "")">@(productVm.PriceDifference.HasValue ? productVm.PriceDifference.Value.ToString("C2", new CultureInfo("pl-PL")) : "-")</td>
-                            <td class="price-cell @(googleScrapXmlMismatch ? "text-danger fw-bold" : "") @(xmlPricesMismatch ? "text-info fw-bold" : "")">@(productVm.GoogleXMLPrice.HasValue ? productVm.GoogleXMLPrice.Value.ToString("C2", new CultureInfo("pl-PL")) : "-")</td>
-                            <td class="price-cell @(ceneoScrapXmlMismatch ? "text-danger fw-bold" : "") @(xmlPricesMismatch ? "text-info fw-bold" : "")">@(productVm.CeneoXMLPrice.HasValue ? productVm.CeneoXMLPrice.Value.ToString("C2", new CultureInfo("pl-PL")) : "-")</td>
+                            <td class="id-cell">@(productVm.ExternalId.HasValue? productVm.ExternalId.Value.ToString() : "-")</td>
+                            <td class="price-cell @(gcScrapMismatch ? "text-warning fw-bold" : "")">@(productVm.LastGooglePrice.HasValue? productVm.LastGooglePrice.Value.ToString("C2", new CultureInfo("pl-PL")) : "-")</td>
+                            <td class="price-cell @(gcScrapMismatch ? "text-warning fw-bold" : "")">@(productVm.LastCeneoPrice.HasValue? productVm.LastCeneoPrice.Value.ToString("C2", new CultureInfo("pl-PL")) : "-")</td>
+                            <td class="diff-cell @(gcScrapMismatch ? "fw-bold" : "")">@(productVm.PriceDifference.HasValue? productVm.PriceDifference.Value.ToString("C2", new CultureInfo("pl-PL")) : "-")</td>
+                            <td class="price-cell @(googleScrapXmlMismatch ? "text-danger fw-bold" : "") @(xmlPricesMismatch ? "text-info fw-bold" : "")">@(productVm.GoogleXMLPrice.HasValue? productVm.GoogleXMLPrice.Value.ToString("C2", new CultureInfo("pl-PL")) : "-")</td>
+                            <td class="price-cell @(ceneoScrapXmlMismatch ? "text-danger fw-bold" : "") @(xmlPricesMismatch ? "text-info fw-bold" : "")">@(productVm.CeneoXMLPrice.HasValue? productVm.CeneoXMLPrice.Value.ToString("C2", new CultureInfo("pl-PL")) : "-")</td>
                             <td class="action-link">
                                 <a href="/PriceHistory/Details?productId=@productVm.ProductId&scrapId=@productVm.ScrapId" target="_blank" class="btn btn-sm btn-outline-info" title="Szczegóły historii cen">
                                     <i class="fas fa-history"></i>
@@ -359,8 +371,6 @@
 
 @section Scripts {
     <script>
-
-      
 
         document.addEventListener('DOMContentLoaded', () => {
 
@@ -480,14 +490,12 @@
                         return;
                     }
 
-                    // Użyj zdefiniowanej wcześniej zmiennej JavaScript storeNameForJs
                     if (!confirm(`Czy na pewno usunąć ${visibleIds.length} widocznych produktów ze sklepu ${storeNameForJs}? Tej operacji nie można cofnąć.`)) {
                         return;
                     }
 
-                    // Pobierz storeId również z C#
                     const currentStoreId = @Json.Serialize(storeId);
-                    const removeUrl = `@Url.Action("RemoveSelectedProducts", "ProductMapping")?storeId=${currentStoreId}`; // Użyj currentStoreId
+                    const removeUrl = `@Url.Action("RemoveSelectedProducts", "ProductMapping")?storeId=${currentStoreId}`;
 
                     console.log("Wysyłanie żądania usunięcia do:", removeUrl);
                     console.log("ID do usunięcia:", visibleIds);
@@ -496,8 +504,7 @@
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
-                            // Pamiętaj o dodaniu nagłówka dla Request Verification Token, jeśli używasz ochrony Antiforgery
-                            // 'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value
+
                         },
                         body: JSON.stringify(visibleIds)
                     })

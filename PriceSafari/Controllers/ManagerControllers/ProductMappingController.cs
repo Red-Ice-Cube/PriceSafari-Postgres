@@ -122,27 +122,28 @@ namespace PriceSafari.Controllers.ManagerControllers
             }
 
             var productsData = await _context.Products
-                .Where(p => p.StoreId == storeId)
-                .Select(p => new
-                {
-                    p.ProductId,
-                    p.ProductName,
-                    p.ExternalId,
-                    p.Url,
-                    p.OfferUrl,
-                    p.GoogleUrl,
-                    p.IsScrapable,
-                    p.IsRejected,
-                    p.MainUrl,
-                    p.ImgUrlGoogle,
-                    p.ExportedNameCeneo,
-                    p.ProductNameInStoreForGoogle,
-                    p.Ean,
-                    p.EanGoogle,
-                    p.GoogleXMLPrice,
-                    p.CeneoXMLPrice
-                })
-                .ToListAsync();
+             .Where(p => p.StoreId == storeId)
+             .Select(p => new
+             {
+                 p.ProductId,
+                 p.ProductName,
+                 p.ExternalId,
+                 p.Url,
+                 p.OfferUrl,
+                 p.GoogleUrl,
+                 p.IsScrapable,
+                 p.IsRejected,
+                 p.MainUrl,
+                 p.ImgUrlGoogle,
+                 p.ExportedNameCeneo,
+                 p.ProductNameInStoreForGoogle,
+                 p.Ean,
+                 p.EanGoogle,
+                 p.GoogleXMLPrice,
+                 p.CeneoXMLPrice,
+                 p.ProducerCode,
+             })
+             .ToListAsync();
 
             var vmList = new List<MappedProductViewModel>();
 
@@ -190,7 +191,8 @@ namespace PriceSafari.Controllers.ManagerControllers
                     GoogleXMLPrice = pData.GoogleXMLPrice,
                     CeneoXMLPrice = pData.CeneoXMLPrice,
                     PriceDifference = diff,
-                    ScrapId = latestScrapId
+                    ScrapId = latestScrapId,
+                    ProducerCode = pData.ProducerCode,
                 };
                 vmList.Add(vm);
             }
@@ -233,6 +235,10 @@ namespace PriceSafari.Controllers.ManagerControllers
             public decimal? CeneoXMLPrice { get; set; }
             public decimal? PriceDifference { get; set; }
             public int ScrapId { get; set; }
+
+            public string? ProducerCode { get; set; }
+            public string? GoogleProducerCode { get; set; }
+            public string? CeneoProducerCode { get; set; }
         }
 
         [HttpPost]
@@ -382,6 +388,12 @@ namespace PriceSafari.Controllers.ManagerControllers
             if (!mainProduct.GoogleDeliveryXMLPrice.HasValue && duplicateProduct.GoogleDeliveryXMLPrice.HasValue)
                 mainProduct.GoogleDeliveryXMLPrice = duplicateProduct.GoogleDeliveryXMLPrice;
 
+            if (string.IsNullOrEmpty(mainProduct.ProducerCode) && !string.IsNullOrEmpty(duplicateProduct.ProducerCode))
+            {
+                mainProduct.ProducerCode = duplicateProduct.ProducerCode;
+            }
+
+
             mainProduct.PriceHistories ??= new List<PriceHistoryClass>();
             foreach (var priceHistory in duplicateProduct.PriceHistories ?? Enumerable.Empty<PriceHistoryClass>())
             {
@@ -405,10 +417,8 @@ namespace PriceSafari.Controllers.ManagerControllers
             }
         }
 
-
-
         [HttpPost]
-        [ValidateAntiForgeryToken] // Dodaj dla bezpieczeństwa, jeśli formularz będzie go generował
+        [ValidateAntiForgeryToken]
         public async Task<IActionResult> UpdateEansFromProductMap(int storeId)
         {
             if (storeId <= 0)
@@ -450,20 +460,13 @@ namespace PriceSafari.Controllers.ManagerControllers
 
             foreach (var mappedProduct in productMaps)
             {
-                // Próba sparsowania ExternalId z ProductMap
+
                 int? mappedExternalId = null;
                 if (!string.IsNullOrEmpty(mappedProduct.ExternalId) && int.TryParse(mappedProduct.ExternalId, out var extId))
                 {
                     mappedExternalId = extId;
                 }
-                string mappedUrl = mappedProduct.Url; // Zakładamy, że URL jest kluczowym elementem do dopasowania
-
-                // Znajdź istniejący produkt. Logika dopasowania jest kluczowa.
-                // Rozważ różne scenariusze:
-                // 1. Dopasowanie po ExternalId ORAZ URL (najbardziej precyzyjne, jeśli oba są wiarygodne)
-                // 2. Dopasowanie po samym URL (jeśli ExternalId może być pusty lub niepewny)
-                // 3. Dopasowanie po samym ExternalId (jeśli URL może się zmieniać, a ExternalId jest unikalny)
-                // Poniżej przykład z priorytetem dla ExternalId + URL, potem sam URL. Dostosuj do swoich potrzeb.
+                string mappedUrl = mappedProduct.Url;
 
                 ProductClass? dbProductToUpdate = null;
 
@@ -472,10 +475,9 @@ namespace PriceSafari.Controllers.ManagerControllers
                     dbProductToUpdate = existingDbProducts.FirstOrDefault(p => p.ExternalId == mappedExternalId && p.Url == mappedUrl);
                 }
 
-                if (dbProductToUpdate == null && !string.IsNullOrWhiteSpace(mappedUrl)) // Jeśli nie znaleziono, spróbuj po samym URL
+                if (dbProductToUpdate == null && !string.IsNullOrWhiteSpace(mappedUrl))
                 {
-                    // Uważaj na duplikaty URL, jeśli nie są unikalne!
-                    // Możesz chcieć wybrać pierwszy lub dodać logikę obsługi wielu dopasowań.
+
                     var potentialMatchesByUrl = existingDbProducts.Where(p => p.Url == mappedUrl).ToList();
                     if (potentialMatchesByUrl.Count == 1)
                     {
@@ -483,13 +485,11 @@ namespace PriceSafari.Controllers.ManagerControllers
                     }
                     else if (potentialMatchesByUrl.Count > 1)
                     {
-                        // Logika obsługi wielu produktów z tym samym URL, np. pomiń lub wybierz na podstawie innego kryterium
+
                         updateLog.Add($"OSTRZEŻENIE: Znaleziono {potentialMatchesByUrl.Count} produktów w DB z URL '{mappedUrl}' dla ProductMap ID: {mappedProduct.ProductMapId}. Pomijam aktualizację EAN dla tego wpisu mapy.");
                         continue;
                     }
                 }
-            
-
 
                 if (dbProductToUpdate != null)
                 {
@@ -498,7 +498,6 @@ namespace PriceSafari.Controllers.ManagerControllers
                     string originalEanGoogle = dbProductToUpdate.EanGoogle ?? "brak";
                     string newEanSource = "";
 
-                    // Priorytet dla EAN z Google (z ProductMap)
                     if (!string.IsNullOrWhiteSpace(mappedProduct.GoogleEan))
                     {
                         if (dbProductToUpdate.EanGoogle != mappedProduct.GoogleEan)
@@ -507,10 +506,10 @@ namespace PriceSafari.Controllers.ManagerControllers
                             eanWasUpdated = true;
                             newEanSource += "EanGoogle (map)";
                         }
-                        // Jeśli główny EAN jest pusty LUB chcesz nadpisać go EANem Google
+
                         if (string.IsNullOrWhiteSpace(dbProductToUpdate.Ean) || dbProductToUpdate.Ean != mappedProduct.GoogleEan)
                         {
-                            if (dbProductToUpdate.Ean != mappedProduct.GoogleEan) // Sprawdź, by nie logować tej samej zmiany
+                            if (dbProductToUpdate.Ean != mappedProduct.GoogleEan)
                             {
                                 dbProductToUpdate.Ean = mappedProduct.GoogleEan;
                                 eanWasUpdated = true;
@@ -518,7 +517,7 @@ namespace PriceSafari.Controllers.ManagerControllers
                             }
                         }
                     }
-                    // Jeśli EAN Google nie był dostępny w mapie lub nie zaktualizował głównego EANu, użyj EAN (Ceneo) z mapy
+
                     else if (!string.IsNullOrWhiteSpace(mappedProduct.Ean))
                     {
                         if (dbProductToUpdate.Ean != mappedProduct.Ean)
@@ -527,7 +526,7 @@ namespace PriceSafari.Controllers.ManagerControllers
                             eanWasUpdated = true;
                             newEanSource = "Ean (map)";
                         }
-                 
+
                     }
 
                     if (eanWasUpdated)
@@ -548,7 +547,7 @@ namespace PriceSafari.Controllers.ManagerControllers
             {
                 await _context.SaveChangesAsync();
                 TempData["SuccessMessage"] = $"Pomyślnie zaktualizowano EANy dla {updatedCount} produktów.";
-                if (updateLog.Any()) TempData["UpdateDetailsLog"] = string.Join("<br>", updateLog); // Do wyświetlenia w widoku
+                if (updateLog.Any()) TempData["UpdateDetailsLog"] = string.Join("<br>", updateLog);
             }
             else
             {
@@ -564,10 +563,8 @@ namespace PriceSafari.Controllers.ManagerControllers
             Debug.WriteLine("Log aktualizacji EAN:");
             foreach (var log in updateLog) Debug.WriteLine(log);
 
-
             return RedirectToAction("MappedProducts", new { storeId });
         }
-    
 
         [HttpPost]
         public async Task<IActionResult> CreateOrUpdateProductsFromProductMap(int storeId, bool addGooglePrices)
@@ -718,12 +715,26 @@ namespace PriceSafari.Controllers.ManagerControllers
             {
                 producerToSet = mappedProduct.CeneoExportedProducer;
             }
-
-
             if (!string.IsNullOrEmpty(producerToSet))
             {
                 product.Producer = producerToSet;
             }
+            // Poprawne dodanie mapowania dla ProducerCode
+            if (!string.IsNullOrEmpty(mappedProduct.GoogleExportedProducerCode))
+            {
+                if (string.IsNullOrEmpty(product.ProducerCode))
+                {
+                    product.ProducerCode = mappedProduct.GoogleExportedProducerCode;
+                }
+            }
+            else if (!string.IsNullOrEmpty(mappedProduct.CeneoExportedProducerCode))
+            {
+                if (string.IsNullOrEmpty(product.ProducerCode))
+                {
+                    product.ProducerCode = mappedProduct.CeneoExportedProducerCode;
+                }
+            }
+
 
         }
 
