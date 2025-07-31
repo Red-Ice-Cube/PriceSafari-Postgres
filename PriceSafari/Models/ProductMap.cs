@@ -12,26 +12,26 @@ namespace PriceSafari.Models
         public string? Url { get; set; }
         public string? Ean { get; set; }
 
-        //grafika z xml ceneo
+      
         public string? MainUrl { get; set; }
 
         public string? ExportedName { get; set; }
 
-        // Nowe pola dla danych z Google Shopping
+        
         public string? GoogleEan { get; set; }
         public string? GoogleImage { get; set; }
         public string? GoogleExportedName { get; set; }
 
        
 
-        // NOWE pola cenowe (precyzja do 2 miejsc)
+        
         [Column(TypeName = "decimal(18, 2)")]
         public decimal? GoogleXMLPrice { get; set; }
 
         [Column(TypeName = "decimal(18, 2)")]
         public decimal? GoogleDeliveryXMLPrice { get; set; }
 
-        // NOWE pola cenowe (precyzja do 2 miejsc)
+    
         [Column(TypeName = "decimal(18, 2)")]
         public decimal? CeneoXMLPrice { get; set; }
 
@@ -40,5 +40,10 @@ namespace PriceSafari.Models
 
         public string? GoogleExportedProducer { get; set; }
         public string? CeneoExportedProducer { get; set; }
+
+
+        // nowe pola kod producenta, 
+        public string? GoogleExportedProducerCode { get; set; }
+        public string? CeneoExportedProducerCode { get; set; }
     }
 }

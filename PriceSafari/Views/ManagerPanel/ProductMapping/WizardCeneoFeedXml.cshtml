@@ -6,7 +6,6 @@
 
 <h2>Wizard Mapping Ceneo - storeId=@storeId</h2>
 
-<!-- Górny panel z przyciskami -->
 <div style="margin-bottom: 10px;">
     <form asp-action="ClearCeneoMappings"
           asp-controller="CeneoImportWizardXml"
@@ -25,15 +24,11 @@
     <button id="saveProductMapsInDb" style="margin-left:10px;">
         Zapisz w ProductMap
     </button>
-
-
 </div>
 
-<!-- Nowe elementy filtrów -->
 <div style="margin-bottom:10px; font-weight:bold;">
     <div id="urlParamsInfo">Liczba URL zawierających parametry: 0</div>
     <div id="duplicatesInfo">
-        <!-- Informacja o unikatowych URL i kodach EAN pojawi się tutaj -->
     </div>
     <div>
         <label>
@@ -53,18 +48,21 @@
             Usuń duplikaty EAN (zostaw pierwsze wystąpienie)
         </label>
     </div>
-
+    <div>
+        <label>
+            <input type="checkbox" id="removeDuplicateProducerCodes">
+            Usuń duplikaty kodu producenta (zostaw pierwsze wystąpienie)
+        </label>
+    </div>
     <div>
         <label>
             <input type="checkbox" id="onlyEanProducts" checked>
             Bierz tylko produkty z EAN
         </label>
     </div>
-
     <div id="finalNodesInfo">Final nodes po filtrach: 0</div>
 </div>
 
-<!-- Panel wyboru pola mapowania -->
 <div style="margin-bottom: 10px;">
     <label>Wybierz Pole: </label>
     <select id="fieldSelector">
@@ -74,6 +72,7 @@
         <option value="CeneoImage">URL Obrazu</option>
         <option value="CeneoExportedName">Nazwa produktu</option>
         <option value="CeneoExportedProducer">Nazwa producenta</option>
+        <option value="CeneoExportedProducerCode">Kod producenta</option>
         <option value="CeneoXMLPrice">Cena XML (Ceneo)</option>
         <option value="CeneoDeliveryXMLPrice">Dostawa cena XML (Ceneo)</option>
     </select>
@@ -82,14 +81,11 @@
     <button id="reloadMappings" style="margin-left:10px;">Załaduj mapowania</button>
 </div>
 
-<!-- Dwukolumnowy layout -->
 <div style="display: flex; gap: 10px; width:100%;">
-    <!-- LEWA kolumna: drzewo XML -->
     <div style="flex: 1; border:1px solid #ccc; height:900px; overflow:auto; padding:5px;">
         <h4>Struktura XML</h4>
         <div id="xmlContainer"></div>
     </div>
-    <!-- PRAWA kolumna: Tabela mapowań + Podgląd JSON -->
     <div style="flex: 1; border:1px solid #ccc; height:900px; overflow:auto; padding:5px;">
         <h4>Mapa Pól i Podgląd</h4>
         <table id="mappingTable" border="1" cellpadding="5" style="border-collapse: collapse; width:100%;">
@@ -103,8 +99,7 @@
             </thead>
             <tbody></tbody>
         </table>
-        <pre id="productMapsPreview" style="border:1px solid #ccc; margin-top:10px; min-height:100px; padding:10px;">
-        </pre>
+        <pre id="productMapsPreview" style="border:1px solid #ccc; margin-top:10px; min-height:100px; padding:10px;"></pre>
     </div>
 </div>
 
@@ -124,15 +119,19 @@
     .highlight-ExternalId {
         background-color: rgba(255, 0, 0, 0.1);
     }
+
     .highlight-Url {
         background-color: rgba(0, 255, 0, 0.1);
     }
+
     .highlight-CeneoEan {
         background-color: rgba(0, 0, 255, 0.1);
     }
+
     .highlight-CeneoImage {
         background-color: rgba(255, 165, 0, 0.1);
     }
+
     .highlight-CeneoExportedName {
         background-color: rgba(255, 255, 0, 0.2);
     }
@@ -140,20 +139,25 @@
     .highlight-CeneoExportedProducer {
         background-color: rgba(17, 205, 255, 0.1);
     }
+    /* NOWY STYL */
+    .highlight-CeneoExportedProducerCode {
+        background-color: rgba(128, 0, 128, 0.1);
+    }
 
     .highlight-CeneoXMLPrice {
         background-color: rgba(255, 192, 203, 0.2);
     }
 
     .highlight-CeneoDeliveryXMLPrice {
-        background-color: rgba(255, 165, 0, 0.2); 
+        background-color: rgba(255, 165, 0, 0.2);
     }
 
     #mappingTable {
         width: 100%;
     }
-    #mappingTable th, #mappingTable td {
-        padding: 4px 8px;
-        text-align: left;
-    }
+
+        #mappingTable th, #mappingTable td {
+            padding: 4px 8px;
+            text-align: left;
+        }
 </style>
