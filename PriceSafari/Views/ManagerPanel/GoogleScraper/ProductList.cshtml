@@ -43,21 +43,24 @@
         </select>
     </div>
 
-
     <form asp-action="ValidateGoogleUrls" method="post">
         <input type="hidden" name="storeId" value="@ViewBag.StoreId" />
         <button type="submit" class="btn btn-warning">Validate Google URLs</button>
     </form>
     <button onclick="filterProducts()" class="btn btn-primary">Filtruj</button>
 
-
-    <form asp-action="SetOnGoogleForAll" method="post" class="mt-3">
-        <button type="submit" class="btn btn-success">Ustaw na Google dla produktów z nazwą</button>
+    <form asp-action="SetOnGoogleForAll" method="post" class="mt-3 form-inline">
+        <input type="hidden" name="storeId" value="@ViewBag.StoreId" />
+        <div class="form-group mr-2">
+            <button type="submit" class="btn btn-success">Ustaw na Google dla produktów z nazwą</button>
+        </div>
+        <div class="form-check">
+            <input class="form-check-input" type="checkbox" name="ignoreUrlRequirement" id="ignoreUrlRequirement" value="true">
+            <label class="form-check-label" for="ignoreUrlRequirement">
+                Ustaw mimo braku URL
+            </label>
+        </div>
     </form>
-
-
-    
-
 </div>
 
 <table class="table">
@@ -92,7 +95,7 @@
                 <td>
                     <form asp-action="ToggleGoogleStatus" method="post">
                         <input type="hidden" name="productId" value="@product.ProductId" />
-                        <button type="submit" class="btn btn-primary">@product.OnGoogle ? "Usuń z Google" : "Dodaj do Google"</button>
+                        <button type="submit" class="btn btn-primary">@(product.OnGoogle ? "Usuń z Google" : "Dodaj do Google")</button>
                     </form>
                 </td>
             </tr>
@@ -102,6 +105,9 @@
 
 @section Scripts {
     <script>
+        // Sprawdź, czy Twój skrypt filtrowania nie wymaga poprawek w indeksach komórek.
+        // Wygląda na to, że indeksy w oryginalnym kodzie mogły być nieprawidłowe.
+        // Poniżej poprawiona wersja z prawidłowymi indeksami komórek (kolumn).
         function filterProducts() {
             var onGoogleFilter = document.getElementById("onGoogleFilter").value;
             var hasUrlFilter = document.getElementById("hasUrlFilter").value;
@@ -111,34 +117,35 @@
             var rows = document.querySelectorAll("#productTableBody tr");
 
             rows.forEach(row => {
-                var onGoogle = row.cells[3].textContent.trim().toLowerCase();
-                var hasUrl = row.cells[1].querySelector("a").href !== "";
-                var hasGoogleUrl = row.cells[2].textContent.trim() !== "";
-                var hasProductNameInStore = row.cells[4].textContent.trim() !== "false";
+                var urlCell = row.cells[1];
+                var googleUrlCell = row.cells[3];
+                var onGoogleCell = row.cells[4];
+                var productNameInStoreCell = row.cells[5];
+
+                var onGoogle = onGoogleCell.textContent.trim().toLowerCase();
+                var hasUrl = urlCell.querySelector("a") && urlCell.querySelector("a").href.trim() !== "" && !urlCell.querySelector("a").href.endsWith("#");
+                var hasGoogleUrl = googleUrlCell.textContent.trim() !== "";
+                var hasProductNameInStore = productNameInStoreCell.textContent.trim() !== "";
 
                 var show = true;
 
-                if (onGoogleFilter !== "all" && (onGoogleFilter === "true" && onGoogle !== "true" || onGoogleFilter === "false" && onGoogle !== "false")) {
+                if (onGoogleFilter !== "all" && onGoogle !== onGoogleFilter) {
                     show = false;
                 }
 
-                if (hasUrlFilter !== "all" && (hasUrlFilter === "true" && !hasUrl || hasUrlFilter === "false" && hasUrl)) {
+                if (hasUrlFilter !== "all" && ((hasUrlFilter === "true" && !hasUrl) || (hasUrlFilter === "false" && hasUrl))) {
                     show = false;
                 }
 
-                if (hasGoogleUrlFilter !== "all" && (hasGoogleUrlFilter === "true" && !hasGoogleUrl || hasGoogleUrlFilter === "false" && hasGoogleUrl)) {
+                if (hasGoogleUrlFilter !== "all" && ((hasGoogleUrlFilter === "true" && !hasGoogleUrl) || (hasGoogleUrlFilter === "false" && hasGoogleUrl))) {
                     show = false;
                 }
 
-                if (hasProductNameInStoreFilter !== "all" && (hasProductNameInStoreFilter === "true" && !hasProductNameInStore || hasProductNameInStoreFilter === "false" && hasProductNameInStore)) {
+                if (hasProductNameInStoreFilter !== "all" && ((hasProductNameInStoreFilter === "true" && !hasProductNameInStore) || (hasProductNameInStoreFilter === "false" && hasProductNameInStore))) {
                     show = false;
                 }
 
-                if (show) {
-                    row.style.display = "";
-                } else {
-                    row.style.display = "none";
-                }
+                row.style.display = show ? "" : "none";
             });
         }
     </script>

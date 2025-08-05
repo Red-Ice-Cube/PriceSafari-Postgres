@@ -964,6 +964,22 @@ public class GoogleScraperController : Controller
         }
     }
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     [HttpGet]
     public async Task<IActionResult> ProductList(int storeId)
     {
@@ -1008,34 +1024,37 @@ public class GoogleScraperController : Controller
         return RedirectToAction("ProductList", new { storeId });
     }
 
+
+
     [HttpPost]
-    public async Task<IActionResult> SetOnGoogleForAll()
+    public async Task<IActionResult> SetOnGoogleForAll(int storeId, bool ignoreUrlRequirement)
     {
+        // Budujemy bazowe zapytanie, które filtruje produkty po ID sklepu
+        // i sprawdza, czy mają ustawioną nazwę dla Google.
+        var productsToUpdateQuery = _context.Products
+            .Where(p => p.StoreId == storeId && !string.IsNullOrEmpty(p.ProductNameInStoreForGoogle));
 
-        var products = await _context.Products
-            .Where(p => !string.IsNullOrEmpty(p.ProductNameInStoreForGoogle))
-            .ToListAsync();
-
-        foreach (var product in products)
+        // Jeśli checkbox "Ustaw mimo braku URL" NIE był zaznaczony,
+        // dodajemy dodatkowy warunek, aby aktualizować tylko produkty, które mają URL.
+        if (!ignoreUrlRequirement)
         {
-
-            if (!string.IsNullOrEmpty(product.Url))
-            {
-                product.OnGoogle = true;
-            }
-
-            else
-            {
-                product.OnGoogle = false;
-            }
-
-            _context.Products.Update(product);
+            productsToUpdateQuery = productsToUpdateQuery
+                .Where(p => !string.IsNullOrEmpty(p.Url));
         }
 
-        await _context.SaveChangesAsync();
+        // Używamy ExecuteUpdateAsync do wykonania masowej aktualizacji bezpośrednio w bazie danych.
+        // Jest to znacznie bardziej wydajne niż pobieranie encji, modyfikowanie ich w pętli i zapisywanie.
+        // To polecenie tłumaczy się na jedno zapytanie SQL: UPDATE [Products] SET [OnGoogle] = 1 WHERE ...
+        await productsToUpdateQuery.ExecuteUpdateAsync(s => s.SetProperty(p => p.OnGoogle, true));
 
-        return RedirectToAction("ProductList", new { storeId = products.FirstOrDefault()?.StoreId });
+        // Przekierowujemy z powrotem do listy produktów dla danego sklepu.
+        return RedirectToAction("ProductList", new { storeId = storeId });
     }
+
+
+
+
+
 
     [HttpGet]
     public async Task<IActionResult> GoogleProducts(int storeId)
