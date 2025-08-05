@@ -46,6 +46,7 @@ public class GoogleScraperController : Controller
         public string ProductNameInStoreForGoogle { get; set; }
 
         public string Ean { get; set; }
+        public string ProducerCode { get; set; }
 
         private ProductStatus _status;
         private string _googleUrl;
@@ -64,6 +65,7 @@ public class GoogleScraperController : Controller
             CleanedUrl = !string.IsNullOrEmpty(product.Url) ? cleanUrlFunc(product.Url) : string.Empty;
             ProductNameInStoreForGoogle = product.ProductNameInStoreForGoogle;
             Ean = product.Ean;
+            ProducerCode = product.ProducerCode;
             if (product.FoundOnGoogle == true) { _status = ProductStatus.Found; _googleUrl = product.GoogleUrl; }
             else if (product.FoundOnGoogle == false) { _status = ProductStatus.NotFound; }
             else { _status = ProductStatus.Pending; }
@@ -86,7 +88,8 @@ public class GoogleScraperController : Controller
     {
         ProductName,
         ProductUrl,
-        Ean
+        Ean,
+        ProducerCode
     }
 
     [HttpPost]
@@ -505,6 +508,7 @@ public class GoogleScraperController : Controller
         {
             case SearchTermSource.ProductUrl: searchTermBase = productState.OriginalUrl; break;
             case SearchTermSource.Ean: searchTermBase = productState.Ean; break;
+            case SearchTermSource.ProducerCode: searchTermBase = productState.ProducerCode; break;
             case SearchTermSource.ProductName:
             default:
                 searchTermBase = productState.ProductNameInStoreForGoogle;
@@ -817,6 +821,16 @@ public class GoogleScraperController : Controller
                 }
                 break;
 
+            // ZMIANA: Dodana obsługa dla ProducerCode w trybie standardowym (z fallbackiem)
+            case SearchTermSource.ProducerCode:
+                searchTermBase = productState.ProducerCode;
+                if (string.IsNullOrWhiteSpace(searchTermBase))
+                {
+                    Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [{Thread.CurrentThread.ManagedThreadId}] OSTRZEŻENIE: Źródło terminu to Kod Producenta, ale jest pusty dla ID: {productState.ProductId}. Używam nazwy produktu jako fallback.");
+                    searchTermBase = productState.ProductNameInStoreForGoogle;
+                }
+                break;
+
             case SearchTermSource.ProductName:
             default:
                 searchTermBase = productState.ProductNameInStoreForGoogle;
@@ -1079,7 +1093,8 @@ public class GoogleScraperController : Controller
                 p.Url,
                 p.FoundOnGoogle,
                 p.GoogleUrl,
-                p.Ean
+                p.Ean,
+                p.ProducerCode
             }).ToList();
 
             return Json(jsonProducts);

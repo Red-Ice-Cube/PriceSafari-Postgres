@@ -8,8 +8,6 @@
 
 <h2 class="mt-4 mb-4">Products for Google Scraping</h2>
 
-
-
 <div class="mb-3 p-3 border rounded bg-light" id="scrapingOptions">
     <h4>Opcje Uruchomienia Bota</h4>
     <div class="row g-3 align-items-end">
@@ -33,6 +31,7 @@
                 <option value="ProductName" selected>Nazwa produktu</option>
                 <option value="ProductUrl">URL produktu</option>
                 <option value="Ean">Kod EAN</option>
+                <option value="ProducerCode">Kod producenta</option>
             </select>
         </div>
         <div class="col-md-3" id="productNamePrefixContainer">
@@ -66,6 +65,7 @@
         <tr>
             <th>Product Name</th>
             <th>EAN</th>
+            <th>Kod Producenta</th>
             <th>Product URL</th>
             <th>Found on Google</th>
             <th>Google URL</th>
@@ -301,12 +301,15 @@
 
 
 
-                     var ean = product.ean || '';
+                    var ean = product.ean || '';
+
+                    var producerCode = product.producerCode || '';
 
        
                     var row = '<tr id="productRow-' + product.productId + '">' +
                         '<td>' + product.productNameInStoreForGoogle + '</td>' +
-                        '<td>' + ean + '</td>' + 
+                        '<td>' + ean + '</td>' +
+                        '<td>' + producerCode + '</td>' +
                         '<td><a href="' + product.url + '" target="_blank">' + product.url + '</a></td>' +
                         '<td>' + foundOnGoogleBadge + '</td>' +
                         '<td><a href="' + googleUrl + '" target="_blank">' + googleUrl + '</a></td>' +
