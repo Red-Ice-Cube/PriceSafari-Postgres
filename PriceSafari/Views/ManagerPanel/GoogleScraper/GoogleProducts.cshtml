@@ -17,6 +17,13 @@
                 <strong>Włącz tryb "Pierwszy Trafiony"</strong> (szybki, mniej dokładny - przypisuje pierwszy znaleziony produkt w Google)
             </label>
         </div>
+
+        <div class="form-check form-switch mt-2">
+            <input class="form-check-input" type="checkbox" id="ensureNameMatch">
+            <label class="form-check-label" for="ensureNameMatch">
+                <strong>Tryb Pośredni:</strong> Upewnij się, że w nazwie wyniku występuje wyszukiwany parametr (np. Kod produktu)
+            </label>
+        </div>
         <div class="col-md-3">
             <label for="numberOfConcurrentScrapers" class="form-label">Liczba scraperów (wątków):</label>
             <input type="number" class="form-control" id="numberOfConcurrentScrapers" value="7" min="1">
@@ -151,13 +158,15 @@
 
                 // ZMIANA: Odczytanie stanu nowego przełącznika
                 var useFirstMatch = $('#useFirstMatchLogic').is(':checked');
+                 var ensureMatch = $('#ensureNameMatch').is(':checked');
 
                 var scrapingData = {
                     storeId: '@storeId',
                     numberOfConcurrentScrapers: parseInt(concurrentScrapers, 10),
                     maxCidsToProcessPerProduct: parseInt(maxCids, 10),
                     searchTermSource: termSource,
-                    useFirstMatchLogic: useFirstMatch // ZMIANA: Dodanie nowej opcji do danych
+                    useFirstMatchLogic: useFirstMatch,
+                    ensureNameMatch: ensureMatch
                 };
 
                 if (termSource === 'ProductName' && prefix && prefix.trim() !== '') {
