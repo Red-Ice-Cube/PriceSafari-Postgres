@@ -510,6 +510,7 @@ public class GoogleScraperController : Controller
     {
         if (cts.IsCancellationRequested) return;
 
+        // Ta część jest taka sama jak w oryginalnej metodzie
         string searchTermBase;
         switch (termSource)
         {
@@ -532,9 +533,10 @@ public class GoogleScraperController : Controller
 
         Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [Tryb Szybki] Przetwarzam ID: {productState.ProductId}, Szukam: '{searchTermBase}'");
 
-        // Wywołanie scrapera, które zwraca teraz List<ProductSearchResult>
+        // Uproszczona logika: szukaj, weź pierwszy CID i zapisz
         var cidResult = await scraper.SearchInitialProductCIDsAsync(searchTermBase, maxCIDsToExtract: 1);
 
+        // Obsługa CAPTCHA
         if (cidResult.CaptchaEncountered)
         {
             Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [Tryb Szybki] CAPTCHA! Zatrzymuję operację.");
@@ -545,10 +547,8 @@ public class GoogleScraperController : Controller
 
         if (cidResult.IsSuccess && cidResult.Data.Any())
         {
-            // ZMIANA: Poprawiony dostęp do właściwości .Cid z obiektu ProductSearchResult
-            var firstCid = cidResult.Data.First().Cid;
+            var firstCid = cidResult.Data.First();
             var googleUrl = $"https://www.google.com/shopping/product/{firstCid}";
-
             lock (productState)
             {
                 productState.UpdateStatus(ProductStatus.Found, googleUrl, firstCid);
@@ -815,60 +815,69 @@ public class GoogleScraperController : Controller
     // ##########################################################################################
     // NOWA METODA PRZETWARZANIA POJEDYNCZEGO PRODUKTU (TRYB POŚREDNI)
     // ##########################################################################################
-    private async Task ProcessSingleProduct_IntermediateMatchAsync(ProductProcessingState productState, GoogleScraper scraper, SearchTermSource termSource, CancellationTokenSource cts, int maxCidsToExtract) // ZMIANA: Dodany parametr
+    private async Task ProcessSingleProduct_IntermediateMatchAsync(ProductProcessingState productState, GoogleScraper scraper, SearchTermSource termSource, CancellationTokenSource cts, int maxCidsToExtract)
     {
         if (cts.IsCancellationRequested) return;
 
-        // Zgodnie z założeniem, w tym trybie jako termin wyszukiwania używamy kodu producenta
         string searchTerm = productState.ProducerCode;
 
         if (string.IsNullOrWhiteSpace(searchTerm))
         {
             lock (productState) { productState.UpdateStatus(ProductStatus.Error, "Brak kodu producenta do wyszukania"); }
-            Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [Tryb Pośredni] ✗ Błąd dla ID {productState.ProductId}: Brak kodu producenta do wyszukania.");
+            Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [Tryb Pośredni] ✗ Błąd dla ID {productState.ProductId}: Brak kodu producenta.");
             return;
         }
 
         Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [Tryb Pośredni] Przetwarzam ID: {productState.ProductId}, Szukam: '{searchTerm}'");
 
-        var searchResult = await scraper.SearchInitialProductCIDsAsync(searchTerm, maxCIDsToExtract: maxCidsToExtract);
+        // Krok 1: Pobierz listę CID-ów do sprawdzenia
+        var cidsResult = await scraper.SearchInitialProductCIDsAsync(searchTerm, maxCIDsToExtract: maxCidsToExtract);
 
-        if (cts.IsCancellationRequested || searchResult.CaptchaEncountered)
+        if (cts.IsCancellationRequested || cidsResult.CaptchaEncountered)
         {
-            if (searchResult.CaptchaEncountered && !cts.IsCancellationRequested) cts.Cancel();
+            if (cidsResult.CaptchaEncountered && !cts.IsCancellationRequested) cts.Cancel();
             lock (productState) { productState.UpdateStatus(ProductStatus.CaptchaHalt); }
             return;
         }
 
-        if (!searchResult.IsSuccess || !searchResult.Data.Any())
+        if (!cidsResult.IsSuccess || !cidsResult.Data.Any())
         {
             lock (productState) { productState.UpdateStatus(ProductStatus.NotFound); }
             Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [Tryb Pośredni] ✗ Nie znaleziono żadnych wyników dla ID {productState.ProductId}.");
             return;
         }
 
-        // --- KLUCZOWA LOGIKA WERYFIKACJI ---
+        // Krok 2: Iteruj po CID-ach i sprawdzaj tytuł na stronie produktu
         string foundCid = null;
         string cleanedSearchTerm = searchTerm.Replace(" ", "").Trim();
 
-        foreach (var result in searchResult.Data)
+        foreach (var cid in cidsResult.Data)
         {
-            string cleanedTitle = result.Title.Replace(" ", "").Trim();
+            if (cts.IsCancellationRequested) break;
 
-            // Sprawdzamy, czy oczyszczony tytuł zawiera oczyszczony kod (ignorując wielkość liter)
-            if (cleanedTitle.Contains(cleanedSearchTerm, StringComparison.OrdinalIgnoreCase))
+            Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [Tryb Pośredni] Weryfikuję CID: {cid} dla produktu ID: {productState.ProductId}");
+            var titleResult = await scraper.GetTitleFromProductPageAsync(cid);
+
+            if (titleResult.CaptchaEncountered)
             {
-                foundCid = result.Cid;
-                Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [Tryb Pośredni] ✓ ZNALEZIONO DOPASOWANIE dla ID {productState.ProductId}. Tytuł: '{result.Title}' zawiera '{searchTerm}'. CID: {foundCid}");
-                break; // Znaleźliśmy pierwsze pasujące, więc przerywamy pętlę
+                if (!cts.IsCancellationRequested) cts.Cancel();
+                lock (productState) { productState.UpdateStatus(ProductStatus.CaptchaHalt); }
+                return; // Zakończ całą operację dla tego produktu
             }
-            else
+
+            if (titleResult.IsSuccess && !string.IsNullOrEmpty(titleResult.Data))
             {
-                Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [Tryb Pośredni] - Odrzucono wynik dla ID {productState.ProductId}. Tytuł: '{result.Title}' nie zawiera '{searchTerm}'.");
+                string cleanedTitle = titleResult.Data.Replace(" ", "").Trim();
+                if (cleanedTitle.Contains(cleanedSearchTerm, StringComparison.OrdinalIgnoreCase))
+                {
+                    foundCid = cid;
+                    Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [Tryb Pośredni] ✓ ZNALEZIONO DOPASOWANIE. Tytuł: '{titleResult.Data}'. CID: {foundCid}");
+                    break; // Znaleziono, przerywamy pętlę
+                }
             }
         }
 
-        // Zapisanie wyniku
+        // Krok 3: Zapisz wynik
         if (foundCid != null)
         {
             var googleUrl = $"https://www.google.com/shopping/product/{foundCid}";
@@ -879,11 +888,8 @@ public class GoogleScraperController : Controller
         }
         else
         {
-            lock (productState)
-            {
-                productState.UpdateStatus(ProductStatus.NotFound);
-            }
-            Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [Tryb Pośredni] ✗ Nie znaleziono pasującego tytułu dla ID {productState.ProductId} w żadnym z {searchResult.Data.Count} sprawdzonych wyników.");
+            lock (productState) { productState.UpdateStatus(ProductStatus.NotFound); }
+            Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [Tryb Pośredni] ✗ Nie znaleziono dopasowania w żadnym z {cidsResult.Data.Count} sprawdzonych CID-ów.");
         }
     }
 
@@ -1121,14 +1127,14 @@ public class GoogleScraperController : Controller
     }
 
     private async Task ProcessSingleProductAsync(
-      ProductProcessingState productState,
-      GoogleScraper scraper,
-      int storeId,
-      ConcurrentDictionary<int, ProductProcessingState> masterList,
-      CancellationTokenSource captchaCts,
-      int maxCidsToSearch,
-      SearchTermSource termSource,
-      string namePrefix)
+  ProductProcessingState productState,
+  GoogleScraper scraper,
+  int storeId,
+  ConcurrentDictionary<int, ProductProcessingState> masterList,
+  CancellationTokenSource captchaCts,
+  int maxCidsToSearch,
+  SearchTermSource termSource,
+  string namePrefix)
     {
         if (captchaCts.IsCancellationRequested)
         { lock (productState) { productState.UpdateStatus(ProductStatus.CaptchaHalt); } return; }
@@ -1155,6 +1161,7 @@ public class GoogleScraperController : Controller
                 }
                 break;
 
+            // ZMIANA: Dodana obsługa dla ProducerCode w trybie standardowym (z fallbackiem)
             case SearchTermSource.ProducerCode:
                 searchTermBase = productState.ProducerCode;
                 if (string.IsNullOrWhiteSpace(searchTermBase))
@@ -1184,9 +1191,7 @@ public class GoogleScraperController : Controller
 
         try
         {
-            // ZMIANA 1: Zmieniono typ zmiennej na 'var', aby kompilator sam dopasował poprawny typ.
-            var cidResult = await scraper.SearchInitialProductCIDsAsync(searchTermBase, maxCidsToSearch);
-
+            ScraperResult<List<string>> cidResult = await scraper.SearchInitialProductCIDsAsync(searchTermBase, maxCidsToSearch);
             if (cidResult.CaptchaEncountered)
             {
                 Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [{Thread.CurrentThread.ManagedThreadId}] CAPTCHA (SearchInitialProductCIDsAsync) dla ID {productState.ProductId}. Sygnalizuję.");
@@ -1203,11 +1208,8 @@ public class GoogleScraperController : Controller
             }
             else
             {
-                // ZMIANA 2: Używamy LINQ .Select(), aby z listy obiektów ProductSearchResult wyciągnąć listę stringów (samych CID-ów).
-                List<string> initialCIDs = cidResult.Data.Select(r => r.Cid).ToList();
-
+                List<string> initialCIDs = cidResult.Data;
                 Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [{Thread.CurrentThread.ManagedThreadId}] Znaleziono {initialCIDs.Count} CID dla ID {productState.ProductId}. Sprawdzam oferty.");
-
                 Dictionary<string, ProductProcessingState> localEligibleProductsMap;
                 lock (_lockMasterListInit)
                 {
@@ -1553,6 +1555,15 @@ public class GoogleScraperController : Controller
         return Ok();
     }
 }
+
+
+
+
+
+
+
+
+
 
 //Pelna obsluga starego scrapera, bez trybu posredniego trafienia 
 
@@ -2057,64 +2068,64 @@ public class GoogleScraperController : Controller
 //    // ##########################################################################################
 //    // NOWA METODA PRZETWARZANIA POJEDYNCZEGO PRODUKTU (UPROSZCZONA)
 //    // ##########################################################################################
-//    private async Task ProcessSingleProduct_FirstMatchAsync(ProductProcessingState productState, GoogleScraper scraper, SearchTermSource termSource, string namePrefix, CancellationTokenSource cts)
+//private async Task ProcessSingleProduct_FirstMatchAsync(ProductProcessingState productState, GoogleScraper scraper, SearchTermSource termSource, string namePrefix, CancellationTokenSource cts)
+//{
+//    if (cts.IsCancellationRequested) return;
+
+//    // Ta część jest taka sama jak w oryginalnej metodzie
+//    string searchTermBase;
+//    switch (termSource)
 //    {
-//        if (cts.IsCancellationRequested) return;
-
-//        // Ta część jest taka sama jak w oryginalnej metodzie
-//        string searchTermBase;
-//        switch (termSource)
-//        {
-//            case SearchTermSource.ProductUrl: searchTermBase = productState.OriginalUrl; break;
-//            case SearchTermSource.Ean: searchTermBase = productState.Ean; break;
-//            case SearchTermSource.ProducerCode: searchTermBase = productState.ProducerCode; break;
-//            case SearchTermSource.ProductName:
-//            default:
-//                searchTermBase = productState.ProductNameInStoreForGoogle;
-//                if (!string.IsNullOrWhiteSpace(namePrefix))
-//                    searchTermBase = $"{namePrefix} {searchTermBase}";
-//                break;
-//        }
-
-//        if (string.IsNullOrWhiteSpace(searchTermBase))
-//        {
-//            lock (productState) { productState.UpdateStatus(ProductStatus.Error); }
-//            return;
-//        }
-
-//        Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [Tryb Szybki] Przetwarzam ID: {productState.ProductId}, Szukam: '{searchTermBase}'");
-
-//        // Uproszczona logika: szukaj, weź pierwszy CID i zapisz
-//        var cidResult = await scraper.SearchInitialProductCIDsAsync(searchTermBase, maxCIDsToExtract: 1);
-
-//        // Obsługa CAPTCHA
-//        if (cidResult.CaptchaEncountered)
-//        {
-//            Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [Tryb Szybki] CAPTCHA! Zatrzymuję operację.");
-//            if (!cts.IsCancellationRequested) cts.Cancel();
-//            lock (productState) { productState.UpdateStatus(ProductStatus.CaptchaHalt); }
-//            return;
-//        }
-
-//        if (cidResult.IsSuccess && cidResult.Data.Any())
-//        {
-//            var firstCid = cidResult.Data.First();
-//            var googleUrl = $"https://www.google.com/shopping/product/{firstCid}";
-//            lock (productState)
-//            {
-//                productState.UpdateStatus(ProductStatus.Found, googleUrl, firstCid);
-//            }
-//            Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [Tryb Szybki] ✓ Znaleziono dla ID {productState.ProductId}. CID: {firstCid}");
-//        }
-//        else
-//        {
-//            lock (productState)
-//            {
-//                productState.UpdateStatus(ProductStatus.NotFound);
-//            }
-//            Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [Tryb Szybki] ✗ Nie znaleziono dla ID {productState.ProductId}.");
-//        }
+//        case SearchTermSource.ProductUrl: searchTermBase = productState.OriginalUrl; break;
+//        case SearchTermSource.Ean: searchTermBase = productState.Ean; break;
+//        case SearchTermSource.ProducerCode: searchTermBase = productState.ProducerCode; break;
+//        case SearchTermSource.ProductName:
+//        default:
+//            searchTermBase = productState.ProductNameInStoreForGoogle;
+//            if (!string.IsNullOrWhiteSpace(namePrefix))
+//                searchTermBase = $"{namePrefix} {searchTermBase}";
+//            break;
 //    }
+
+//    if (string.IsNullOrWhiteSpace(searchTermBase))
+//    {
+//        lock (productState) { productState.UpdateStatus(ProductStatus.Error); }
+//        return;
+//    }
+
+//    Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [Tryb Szybki] Przetwarzam ID: {productState.ProductId}, Szukam: '{searchTermBase}'");
+
+//    // Uproszczona logika: szukaj, weź pierwszy CID i zapisz
+//    var cidResult = await scraper.SearchInitialProductCIDsAsync(searchTermBase, maxCIDsToExtract: 1);
+
+//    // Obsługa CAPTCHA
+//    if (cidResult.CaptchaEncountered)
+//    {
+//        Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [Tryb Szybki] CAPTCHA! Zatrzymuję operację.");
+//        if (!cts.IsCancellationRequested) cts.Cancel();
+//        lock (productState) { productState.UpdateStatus(ProductStatus.CaptchaHalt); }
+//        return;
+//    }
+
+//    if (cidResult.IsSuccess && cidResult.Data.Any())
+//    {
+//        var firstCid = cidResult.Data.First();
+//        var googleUrl = $"https://www.google.com/shopping/product/{firstCid}";
+//        lock (productState)
+//        {
+//            productState.UpdateStatus(ProductStatus.Found, googleUrl, firstCid);
+//        }
+//        Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [Tryb Szybki] ✓ Znaleziono dla ID {productState.ProductId}. CID: {firstCid}");
+//    }
+//    else
+//    {
+//        lock (productState)
+//        {
+//            productState.UpdateStatus(ProductStatus.NotFound);
+//        }
+//        Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [Tryb Szybki] ✗ Nie znaleziono dla ID {productState.ProductId}.");
+//    }
+//}
 
 
 
@@ -2345,197 +2356,197 @@ public class GoogleScraperController : Controller
 //        }
 //    }
 
-//    private async Task ProcessSingleProductAsync(
-//     ProductProcessingState productState,
-//     GoogleScraper scraper,
-//     int storeId,
-//     ConcurrentDictionary<int, ProductProcessingState> masterList,
-//     CancellationTokenSource captchaCts,
-//     int maxCidsToSearch,
-//     SearchTermSource termSource,
-//     string namePrefix)
+//private async Task ProcessSingleProductAsync(
+// ProductProcessingState productState,
+// GoogleScraper scraper,
+// int storeId,
+// ConcurrentDictionary<int, ProductProcessingState> masterList,
+// CancellationTokenSource captchaCts,
+// int maxCidsToSearch,
+// SearchTermSource termSource,
+// string namePrefix)
+//{
+//    if (captchaCts.IsCancellationRequested)
+//    { lock (productState) { productState.UpdateStatus(ProductStatus.CaptchaHalt); } return; }
+
+//    string searchTermBase;
+
+//    switch (termSource)
 //    {
-//        if (captchaCts.IsCancellationRequested)
-//        { lock (productState) { productState.UpdateStatus(ProductStatus.CaptchaHalt); } return; }
-
-//        string searchTermBase;
-
-//        switch (termSource)
-//        {
-//            case SearchTermSource.ProductUrl:
-//                searchTermBase = productState.OriginalUrl;
-//                if (string.IsNullOrWhiteSpace(searchTermBase))
-//                {
-//                    Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [{Thread.CurrentThread.ManagedThreadId}] OSTRZEŻENIE: Źródło terminu to URL, ale URL jest pusty dla ID: {productState.ProductId}. Używam nazwy produktu jako fallback.");
-//                    searchTermBase = productState.ProductNameInStoreForGoogle;
-//                }
-//                break;
-
-//            case SearchTermSource.Ean:
-//                searchTermBase = productState.Ean;
-//                if (string.IsNullOrWhiteSpace(searchTermBase))
-//                {
-//                    Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [{Thread.CurrentThread.ManagedThreadId}] OSTRZEŻENIE: Źródło terminu to EAN, ale EAN jest pusty dla ID: {productState.ProductId}. Używam nazwy produktu jako fallback.");
-//                    searchTermBase = productState.ProductNameInStoreForGoogle;
-//                }
-//                break;
-
-//            // ZMIANA: Dodana obsługa dla ProducerCode w trybie standardowym (z fallbackiem)
-//            case SearchTermSource.ProducerCode:
-//                searchTermBase = productState.ProducerCode;
-//                if (string.IsNullOrWhiteSpace(searchTermBase))
-//                {
-//                    Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [{Thread.CurrentThread.ManagedThreadId}] OSTRZEŻENIE: Źródło terminu to Kod Producenta, ale jest pusty dla ID: {productState.ProductId}. Używam nazwy produktu jako fallback.");
-//                    searchTermBase = productState.ProductNameInStoreForGoogle;
-//                }
-//                break;
-
-//            case SearchTermSource.ProductName:
-//            default:
+//        case SearchTermSource.ProductUrl:
+//            searchTermBase = productState.OriginalUrl;
+//            if (string.IsNullOrWhiteSpace(searchTermBase))
+//            {
+//                Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [{Thread.CurrentThread.ManagedThreadId}] OSTRZEŻENIE: Źródło terminu to URL, ale URL jest pusty dla ID: {productState.ProductId}. Używam nazwy produktu jako fallback.");
 //                searchTermBase = productState.ProductNameInStoreForGoogle;
-//                if (!string.IsNullOrWhiteSpace(namePrefix))
-//                {
-//                    searchTermBase = $"{namePrefix} {searchTermBase}";
-//                }
-//                break;
-//        }
+//            }
+//            break;
 
-//        if (string.IsNullOrWhiteSpace(searchTermBase))
+//        case SearchTermSource.Ean:
+//            searchTermBase = productState.Ean;
+//            if (string.IsNullOrWhiteSpace(searchTermBase))
+//            {
+//                Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [{Thread.CurrentThread.ManagedThreadId}] OSTRZEŻENIE: Źródło terminu to EAN, ale EAN jest pusty dla ID: {productState.ProductId}. Używam nazwy produktu jako fallback.");
+//                searchTermBase = productState.ProductNameInStoreForGoogle;
+//            }
+//            break;
+
+//        // ZMIANA: Dodana obsługa dla ProducerCode w trybie standardowym (z fallbackiem)
+//        case SearchTermSource.ProducerCode:
+//            searchTermBase = productState.ProducerCode;
+//            if (string.IsNullOrWhiteSpace(searchTermBase))
+//            {
+//                Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [{Thread.CurrentThread.ManagedThreadId}] OSTRZEŻENIE: Źródło terminu to Kod Producenta, ale jest pusty dla ID: {productState.ProductId}. Używam nazwy produktu jako fallback.");
+//                searchTermBase = productState.ProductNameInStoreForGoogle;
+//            }
+//            break;
+
+//        case SearchTermSource.ProductName:
+//        default:
+//            searchTermBase = productState.ProductNameInStoreForGoogle;
+//            if (!string.IsNullOrWhiteSpace(namePrefix))
+//            {
+//                searchTermBase = $"{namePrefix} {searchTermBase}";
+//            }
+//            break;
+//    }
+
+//    if (string.IsNullOrWhiteSpace(searchTermBase))
+//    {
+//        Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [{Thread.CurrentThread.ManagedThreadId}] BŁĄD: Nie można wygenerować terminu wyszukiwania dla produktu ID: {productState.ProductId} (źródło: {termSource}, nazwa/URL puste).");
+//        lock (productState) { productState.UpdateStatus(ProductStatus.Error); }
+//        return;
+//    }
+//    Console.WriteLine($"\n[{DateTime.Now:HH:mm:ss}] [{Thread.CurrentThread.ManagedThreadId}] Przetwarzam produkt: {productState.ProductNameInStoreForGoogle} (ID: {productState.ProductId}), Szukam: '{searchTermBase}'");
+
+//    try
+//    {
+//        ScraperResult<List<string>> cidResult = await scraper.SearchInitialProductCIDsAsync(searchTermBase, maxCidsToSearch);
+//        if (cidResult.CaptchaEncountered)
 //        {
-//            Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [{Thread.CurrentThread.ManagedThreadId}] BŁĄD: Nie można wygenerować terminu wyszukiwania dla produktu ID: {productState.ProductId} (źródło: {termSource}, nazwa/URL puste).");
-//            lock (productState) { productState.UpdateStatus(ProductStatus.Error); }
+//            Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [{Thread.CurrentThread.ManagedThreadId}] CAPTCHA (SearchInitialProductCIDsAsync) dla ID {productState.ProductId}. Sygnalizuję.");
+//            if (!captchaCts.IsCancellationRequested) captchaCts.Cancel();
+//            lock (productState) { productState.UpdateStatus(ProductStatus.CaptchaHalt); }
 //            return;
 //        }
-//        Console.WriteLine($"\n[{DateTime.Now:HH:mm:ss}] [{Thread.CurrentThread.ManagedThreadId}] Przetwarzam produkt: {productState.ProductNameInStoreForGoogle} (ID: {productState.ProductId}), Szukam: '{searchTermBase}'");
+//        if (captchaCts.IsCancellationRequested) { lock (productState) { productState.UpdateStatus(ProductStatus.CaptchaHalt); } return; }
 
-//        try
+//        if (!cidResult.IsSuccess || !cidResult.Data.Any())
 //        {
-//            ScraperResult<List<string>> cidResult = await scraper.SearchInitialProductCIDsAsync(searchTermBase, maxCidsToSearch);
-//            if (cidResult.CaptchaEncountered)
+//            Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [{Thread.CurrentThread.ManagedThreadId}] Nie znaleziono CID/błąd dla '{searchTermBase}' (ID {productState.ProductId}). Msg: {cidResult.ErrorMessage}");
+//            lock (productState) { productState.UpdateStatus(ProductStatus.NotFound); }
+//        }
+//        else
+//        {
+//            List<string> initialCIDs = cidResult.Data;
+//            Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [{Thread.CurrentThread.ManagedThreadId}] Znaleziono {initialCIDs.Count} CID dla ID {productState.ProductId}. Sprawdzam oferty.");
+//            Dictionary<string, ProductProcessingState> localEligibleProductsMap;
+//            lock (_lockMasterListInit)
 //            {
-//                Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [{Thread.CurrentThread.ManagedThreadId}] CAPTCHA (SearchInitialProductCIDsAsync) dla ID {productState.ProductId}. Sygnalizuję.");
-//                if (!captchaCts.IsCancellationRequested) captchaCts.Cancel();
-//                lock (productState) { productState.UpdateStatus(ProductStatus.CaptchaHalt); }
-//                return;
+//                localEligibleProductsMap = masterList.Values
+//                    .Where(p => (p.Status == ProductStatus.Pending || p.Status == ProductStatus.NotFound || p.Status == ProductStatus.Error || p.Status == ProductStatus.Processing || p.Status == ProductStatus.CaptchaHalt)
+//                           && !string.IsNullOrEmpty(p.CleanedUrl))
+//                    .GroupBy(p => p.CleanedUrl).ToDictionary(g => g.Key, g => g.First());
 //            }
-//            if (captchaCts.IsCancellationRequested) { lock (productState) { productState.UpdateStatus(ProductStatus.CaptchaHalt); } return; }
+//            bool initiatingProductDirectlyMatchedInThisTask = false;
+//            lock (productState) { if (productState.Status == ProductStatus.Found) initiatingProductDirectlyMatchedInThisTask = true; }
 
-//            if (!cidResult.IsSuccess || !cidResult.Data.Any())
+//            foreach (var cid in initialCIDs)
 //            {
-//                Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [{Thread.CurrentThread.ManagedThreadId}] Nie znaleziono CID/błąd dla '{searchTermBase}' (ID {productState.ProductId}). Msg: {cidResult.ErrorMessage}");
-//                lock (productState) { productState.UpdateStatus(ProductStatus.NotFound); }
-//            }
-//            else
-//            {
-//                List<string> initialCIDs = cidResult.Data;
-//                Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [{Thread.CurrentThread.ManagedThreadId}] Znaleziono {initialCIDs.Count} CID dla ID {productState.ProductId}. Sprawdzam oferty.");
-//                Dictionary<string, ProductProcessingState> localEligibleProductsMap;
-//                lock (_lockMasterListInit)
+//                if (captchaCts.IsCancellationRequested)
+//                    break;
+
+//                Console.WriteLine($"\n[{DateTime.Now:HH:mm:ss}] [{Thread.CurrentThread.ManagedThreadId}] " +
+//                                  $"ID {productState.ProductId}: Przetwarzam CID: {cid}");
+
+//                ScraperResult<List<string>> offersResult =
+//                    await scraper.NavigateToProductPageAndExpandOffersAsync(cid);
+
+//                if (offersResult.CaptchaEncountered)
 //                {
-//                    localEligibleProductsMap = masterList.Values
-//                        .Where(p => (p.Status == ProductStatus.Pending || p.Status == ProductStatus.NotFound || p.Status == ProductStatus.Error || p.Status == ProductStatus.Processing || p.Status == ProductStatus.CaptchaHalt)
-//                               && !string.IsNullOrEmpty(p.CleanedUrl))
-//                        .GroupBy(p => p.CleanedUrl).ToDictionary(g => g.Key, g => g.First());
-//                }
-//                bool initiatingProductDirectlyMatchedInThisTask = false;
-//                lock (productState) { if (productState.Status == ProductStatus.Found) initiatingProductDirectlyMatchedInThisTask = true; }
+//                    Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [{Thread.CurrentThread.ManagedThreadId}] " +
+//                                      $"CAPTCHA (Navigate+Extract) CID {cid}, ID {productState.ProductId}. Sygnalizuję.");
+//                    if (!captchaCts.IsCancellationRequested)
+//                        captchaCts.Cancel();
 
-//                foreach (var cid in initialCIDs)
-//                {
-//                    if (captchaCts.IsCancellationRequested)
-//                        break;
-
-//                    Console.WriteLine($"\n[{DateTime.Now:HH:mm:ss}] [{Thread.CurrentThread.ManagedThreadId}] " +
-//                                      $"ID {productState.ProductId}: Przetwarzam CID: {cid}");
-
-//                    ScraperResult<List<string>> offersResult =
-//                        await scraper.NavigateToProductPageAndExpandOffersAsync(cid);
-
-//                    if (offersResult.CaptchaEncountered)
+//                    lock (productState)
 //                    {
-//                        Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [{Thread.CurrentThread.ManagedThreadId}] " +
-//                                          $"CAPTCHA (Navigate+Extract) CID {cid}, ID {productState.ProductId}. Sygnalizuję.");
-//                        if (!captchaCts.IsCancellationRequested)
-//                            captchaCts.Cancel();
-
-//                        lock (productState)
-//                        {
-//                            productState.UpdateStatus(ProductStatus.CaptchaHalt);
-//                        }
-//                        return;
+//                        productState.UpdateStatus(ProductStatus.CaptchaHalt);
 //                    }
+//                    return;
+//                }
 
-//                    if (captchaCts.IsCancellationRequested)
-//                        break;
+//                if (captchaCts.IsCancellationRequested)
+//                    break;
 
-//                    if (offersResult.IsSuccess && offersResult.Data.Any())
+//                if (offersResult.IsSuccess && offersResult.Data.Any())
+//                {
+//                    Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [{Thread.CurrentThread.ManagedThreadId}] " +
+//                                      $"ID {productState.ProductId}, CID {cid}: Znaleziono {offersResult.Data.Count} ofert.");
+
+//                    foreach (var cleanedOfferUrl in offersResult.Data)
 //                    {
-//                        Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [{Thread.CurrentThread.ManagedThreadId}] " +
-//                                          $"ID {productState.ProductId}, CID {cid}: Znaleziono {offersResult.Data.Count} ofert.");
+//                        if (captchaCts.IsCancellationRequested)
+//                            break;
 
-//                        foreach (var cleanedOfferUrl in offersResult.Data)
+//                        if (localEligibleProductsMap.TryGetValue(cleanedOfferUrl, out var matchedState))
 //                        {
-//                            if (captchaCts.IsCancellationRequested)
-//                                break;
-
-//                            if (localEligibleProductsMap.TryGetValue(cleanedOfferUrl, out var matchedState))
+//                            lock (matchedState)
 //                            {
-//                                lock (matchedState)
-//                                {
-//                                    string googleProductPageUrl = $"https://www.google.com/shopping/product/{cid}";
-//                                    matchedState.UpdateStatus(ProductStatus.Found, googleProductPageUrl, cid);
-//                                    Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [{Thread.CurrentThread.ManagedThreadId}] " +
-//                                                      $"✓ DOPASOWANO! {cleanedOfferUrl} → ID {matchedState.ProductId}. CID: {cid}");
+//                                string googleProductPageUrl = $"https://www.google.com/shopping/product/{cid}";
+//                                matchedState.UpdateStatus(ProductStatus.Found, googleProductPageUrl, cid);
+//                                Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [{Thread.CurrentThread.ManagedThreadId}] " +
+//                                                  $"✓ DOPASOWANO! {cleanedOfferUrl} → ID {matchedState.ProductId}. CID: {cid}");
 
-//                                    if (matchedState.ProductId == productState.ProductId)
-//                                        initiatingProductDirectlyMatchedInThisTask = true;
-//                                }
+//                                if (matchedState.ProductId == productState.ProductId)
+//                                    initiatingProductDirectlyMatchedInThisTask = true;
 //                            }
 //                        }
 //                    }
-//                    else
-//                    {
+//                }
+//                else
+//                {
 
-//                        Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [{Thread.CurrentThread.ManagedThreadId}] " +
-//                                          $"ID {productState.ProductId}, CID {cid}: Brak ofert lub błąd. Msg: {offersResult.ErrorMessage}");
-//                    }
-
-//                    if (captchaCts.IsCancellationRequested)
-//                        break;
-
-//                    await Task.Delay(TimeSpan.FromMilliseconds(_random.Next(200, 400)), CancellationToken.None);
+//                    Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [{Thread.CurrentThread.ManagedThreadId}] " +
+//                                      $"ID {productState.ProductId}, CID {cid}: Brak ofert lub błąd. Msg: {offersResult.ErrorMessage}");
 //                }
 
-//                if (!captchaCts.IsCancellationRequested)
+//                if (captchaCts.IsCancellationRequested)
+//                    break;
+
+//                await Task.Delay(TimeSpan.FromMilliseconds(_random.Next(200, 400)), CancellationToken.None);
+//            }
+
+//            if (!captchaCts.IsCancellationRequested)
+//            {
+//                lock (productState)
 //                {
-//                    lock (productState)
+//                    if ((productState.Status == ProductStatus.Processing || productState.Status == ProductStatus.Pending) && !initiatingProductDirectlyMatchedInThisTask)
 //                    {
-//                        if ((productState.Status == ProductStatus.Processing || productState.Status == ProductStatus.Pending) && !initiatingProductDirectlyMatchedInThisTask)
-//                        {
-//                            Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [{Thread.CurrentThread.ManagedThreadId}] \u2717 Produkt inicjujący ID {productState.ProductId} NIE znaleziony. Status: NotFound.");
-//                            productState.UpdateStatus(ProductStatus.NotFound);
-//                        }
+//                        Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [{Thread.CurrentThread.ManagedThreadId}] \u2717 Produkt inicjujący ID {productState.ProductId} NIE znaleziony. Status: NotFound.");
+//                        productState.UpdateStatus(ProductStatus.NotFound);
 //                    }
 //                }
 //            }
 //        }
-//        catch (OperationCanceledException) when (captchaCts.IsCancellationRequested)
-//        {
-//            Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [{Thread.CurrentThread.ManagedThreadId}] Przetwarzanie ID {productState.ProductId} anulowane przez CAPTCHA.");
-//            lock (productState) { productState.UpdateStatus(ProductStatus.CaptchaHalt); }
-//        }
-//        catch (Exception ex)
-//        {
-//            Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [{Thread.CurrentThread.ManagedThreadId}] BŁĄD OGÓLNY (ProcessSingle) dla ID {productState.ProductId}: {ex.GetType().Name} - {ex.Message}");
-//            lock (productState) { productState.UpdateStatus(ProductStatus.Error); }
-//        }
-//        finally
-//        {
-//            if (captchaCts.IsCancellationRequested)
-//            { lock (productState) { if (productState.Status != ProductStatus.Found && productState.Status != ProductStatus.Error) productState.Status = ProductStatus.CaptchaHalt; } }
-//            Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [{Thread.CurrentThread.ManagedThreadId}] --- Koniec ProcessSingle dla ID {productState.ProductId}. Finalny Status: {productState.Status} ---");
-//        }
 //    }
+//    catch (OperationCanceledException) when (captchaCts.IsCancellationRequested)
+//    {
+//        Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [{Thread.CurrentThread.ManagedThreadId}] Przetwarzanie ID {productState.ProductId} anulowane przez CAPTCHA.");
+//        lock (productState) { productState.UpdateStatus(ProductStatus.CaptchaHalt); }
+//    }
+//    catch (Exception ex)
+//    {
+//        Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [{Thread.CurrentThread.ManagedThreadId}] BŁĄD OGÓLNY (ProcessSingle) dla ID {productState.ProductId}: {ex.GetType().Name} - {ex.Message}");
+//        lock (productState) { productState.UpdateStatus(ProductStatus.Error); }
+//    }
+//    finally
+//    {
+//        if (captchaCts.IsCancellationRequested)
+//        { lock (productState) { if (productState.Status != ProductStatus.Found && productState.Status != ProductStatus.Error) productState.Status = ProductStatus.CaptchaHalt; } }
+//        Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [{Thread.CurrentThread.ManagedThreadId}] --- Koniec ProcessSingle dla ID {productState.ProductId}. Finalny Status: {productState.Status} ---");
+//    }
+//}
 
 
 
