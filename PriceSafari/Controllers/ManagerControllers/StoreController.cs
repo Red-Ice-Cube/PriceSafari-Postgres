@@ -207,11 +207,9 @@ namespace PriceSafari.Controllers.ManagerControllers
 
             return RedirectToAction("ProductList", new { storeId });
         }
-
         [HttpPost]
         public async Task<IActionResult> DeleteStore(int storeId)
         {
-
             bool storeExists = await _context.Stores.AnyAsync(s => s.StoreId == storeId);
             if (!storeExists)
             {
@@ -225,28 +223,90 @@ namespace PriceSafari.Controllers.ManagerControllers
 
             using var transaction = await _context.Database.BeginTransactionAsync();
 
-            int chunkSize = 100;
+            try
+            {
+                int chunkSize = 100;
 
-            await DeleteInChunksAsync("Products", "StoreId", storeId, chunkSize);
-            await DeleteInChunksAsync("Categories", "StoreId", storeId, chunkSize);
-            await DeleteInChunksAsync("ScrapHistories", "StoreId", storeId, chunkSize);
-            await DeleteInChunksAsync("PriceValues", "StoreId", storeId, chunkSize);
-            await DeleteInChunksAsync("Flags", "StoreClassStoreId", storeId, chunkSize);
-            await DeleteInChunksAsync("UserStores", "StoreId", storeId, chunkSize);
-            await DeleteInChunksAsync("PriceSafariReports", "StoreId", storeId, chunkSize);
-            await DeleteInChunksAsync("Invoices", "StoreId", storeId, chunkSize);
+                // --- KROK 1: Usuwanie danych z tabel pośredniczących ze złożonymi relacjami ---
 
-            int deletedStores = await _context.Database.ExecuteSqlRawAsync(
-                "DELETE FROM [Stores] WHERE StoreId = {0}",
-                storeId
-            );
-            Console.WriteLine($"Usunięto {deletedStores} rekord(ów) z tabeli [Stores].");
+                // 1a. Usuwanie ProductFlags
+                Console.WriteLine($"Rozpoczynam usuwanie [ProductFlags] dla StoreId={storeId}...");
+                int totalProductFlagsDeleted = 0;
+                while (true)
+                {
+                    int deleted = await _context.Database.ExecuteSqlRawAsync($@"
+                DELETE TOP({chunkSize}) PF
+                FROM [ProductFlags] AS PF
+                JOIN [Flags] AS F ON PF.FlagId = F.FlagId
+                WHERE F.StoreId = @storeId",
+                        new SqlParameter("@storeId", storeId)
+                    );
+                    totalProductFlagsDeleted += deleted;
+                    if (deleted == 0) break;
+                    Console.WriteLine($"[ProductFlags] - usunięto {deleted} rekordów (łącznie {totalProductFlagsDeleted}).");
+                }
 
-            await transaction.CommitAsync();
+                // 1b. ROZWIĄZANIE DLA STARSZYCH BAZ SQL: Przetwarzanie listy ID za pomocą XML zamiast OPENJSON
+                Console.WriteLine($"Rozpoczynam usuwanie [AllegroOffersToScrape] dla StoreId={storeId}...");
+                int totalOffersDeleted = 0;
+                while (true)
+                {
+                    int deleted = await _context.Database.ExecuteSqlRawAsync($@"
+                ;WITH OffersToDelete AS (
+                    SELECT TOP({chunkSize}) AOTS.Id
+                    FROM AllegroOffersToScrape AS AOTS
+                    CROSS APPLY (
+                        SELECT CAST('<id>' + REPLACE(LTRIM(RTRIM(REPLACE(REPLACE(AOTS.AllegroProductIds, '[', ''), ']', ''))), ',', '</id><id>') + '</id>' AS XML) AS ProductIdsXml
+                    ) AS XmlData
+                    CROSS APPLY (
+                        SELECT n.value('.', 'int') AS ProductId
+                        FROM XmlData.ProductIdsXml.nodes('/id') AS t(n)
+                    ) AS ParsedIds
+                    WHERE ParsedIds.ProductId IN (
+                        SELECT AP.AllegroProductId FROM AllegroProducts AS AP WHERE AP.StoreId = @storeId
+                    ) AND AOTS.AllegroProductIds != '[]' AND AOTS.AllegroProductIds IS NOT NULL
+                )
+                DELETE FROM AllegroOffersToScrape
+                WHERE Id IN (SELECT Id FROM OffersToDelete);",
+                        new SqlParameter("@storeId", storeId)
+                    );
+                    totalOffersDeleted += deleted;
+                    if (deleted == 0) break;
+                    Console.WriteLine($"[AllegroOffersToScrape] - usunięto {deleted} rekordów (łącznie {totalOffersDeleted}).");
+                }
 
-            Console.WriteLine($"Zakończono usuwanie Store o ID={storeId} wraz z powiązanymi danymi.");
+                // --- KROK 2: Usuwanie pozostałych danych zależnych ---
+                await DeleteInChunksAsync("Products", "StoreId", storeId, chunkSize);
+                await DeleteInChunksAsync("Categories", "StoreId", storeId, chunkSize);
+                await DeleteInChunksAsync("ScrapHistories", "StoreId", storeId, chunkSize);
+                await DeleteInChunksAsync("PriceValues", "StoreId", storeId, chunkSize);
+                await DeleteInChunksAsync("Flags", "StoreId", storeId, chunkSize);
+                await DeleteInChunksAsync("UserStores", "StoreId", storeId, chunkSize);
+                await DeleteInChunksAsync("PriceSafariReports", "StoreId", storeId, chunkSize);
+                await DeleteInChunksAsync("Invoices", "StoreId", storeId, chunkSize);
+                await DeleteInChunksAsync("AllegroProducts", "StoreId", storeId, chunkSize);
+                await DeleteInChunksAsync("AllegroScrapeHistories", "StoreId", storeId, chunkSize);
 
-            return RedirectToAction("Index");
+                // --- KROK 3: Usuwanie samego sklepu ---
+                int deletedStores = await _context.Database.ExecuteSqlRawAsync(
+                    "DELETE FROM [Stores] WHERE StoreId = {0}",
+                    storeId
+                );
+                Console.WriteLine($"Usunięto {deletedStores} rekord(ów) z tabeli [Stores].");
+
+                await transaction.CommitAsync();
+
+                Console.WriteLine($"Zakończono pomyślnie usuwanie Store o ID={storeId} wraz z powiązanymi danymi.");
+
+                return RedirectToAction("Index");
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                Console.WriteLine($"Wystąpił błąd podczas usuwania Store o ID={storeId}. Transakcja została wycofana. Błąd: {ex.Message}");
+                TempData["ErrorMessage"] = $"Nie udało się usunąć sklepu. Błąd: {ex.Message}";
+                return RedirectToAction("Index");
+            }
         }
 
         private async Task<int> DeleteInChunksAsync(string tableName, string whereColumn, int storeId, int chunkSize)
@@ -254,11 +314,10 @@ namespace PriceSafari.Controllers.ManagerControllers
             int totalDeleted = 0;
             while (true)
             {
-
                 int deleted = await _context.Database.ExecuteSqlRawAsync($@"
             DELETE TOP({chunkSize})
             FROM [{tableName}]
-            WHERE {whereColumn} = @storeId",
+            WHERE [{whereColumn}] = @storeId",
                     new SqlParameter("@storeId", storeId)
                 );
 
@@ -270,6 +329,8 @@ namespace PriceSafari.Controllers.ManagerControllers
             }
             return totalDeleted;
         }
+
+
 
         [HttpGet]
         public async Task<IActionResult> ProductList(int storeId)

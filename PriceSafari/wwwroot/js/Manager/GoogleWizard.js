@@ -20,7 +20,7 @@ let mappingForField = {
     "GoogleImage": null,
     "GoogleExportedName": null,
     "GoogleExportedProducer": null,
-    "GoogleExportedProducerCode": null, // Nowe pole
+    "GoogleExportedProducerCode": null,
     "GoogleXMLPrice": null,
     "GoogleDeliveryXMLPrice": null
 };
@@ -395,12 +395,48 @@ function extractProductsFromXml() {
         alert("Brak XML do parsowania");
         return;
     }
-    let entries = xmlDoc.getElementsByTagName("item").length > 0 ?
-        xmlDoc.getElementsByTagName("item") :
-        xmlDoc.getElementsByTagName("entry");
+
+    const mappedXPaths = Object.values(mappingForField)
+        .filter(m => m && m.xpath)
+
+        .map(m => m.xpath.replace('/#value', '').replace(/\/\@.*/, ''));
+
+    if (mappedXPaths.length === 0) {
+        alert("Proszę najpierw zmapować przynajmniej jedno pole (np. ID Produktu), aby można było zidentyfikować strukturę produktu.");
+        document.getElementById("productMapsPreview").textContent = "[]";
+        return;
+    }
+
+    const pathParts = mappedXPaths.map(p => p.split('/'));
+    let commonPath = [];
+    if (pathParts.length > 0) {
+        for (let i = 0; i < pathParts[0].length; i++) {
+            const segment = pathParts[0][i];
+            if (pathParts.every(p => p.length > i && p[i] === segment)) {
+                commonPath.push(segment);
+            } else {
+                break;
+            }
+        }
+    }
+
+    if (commonPath.length <= 1) {
+        alert("Nie udało się automatycznie zidentyfikować głównego węzła produktu. Sprawdź, czy mapowania są spójne i wskazują na elementy wewnątrz tego samego typu obiektu.");
+        return;
+    }
+
+    const productNodeName = commonPath[commonPath.length - 1];
+    console.log("Automatycznie wykryto węzeł produktu:", productNodeName);
+
+    let entries = xmlDoc.getElementsByTagName(productNodeName);
+
+    if (entries.length === 0) {
+        alert(`Nie znaleziono żadnych elementów o nazwie <${productNodeName}>. Sprawdź, czy mapowania są spójne.`);
+        document.getElementById("productMapsPreview").textContent = "[]";
+        return;
+    }
 
     let onlyEanProducts = document.getElementById("onlyEanProducts").checked;
-
     let productMaps = [];
     let countUrlsWithParams = 0;
     let removeParams = document.getElementById("cleanUrlParameters").checked;
@@ -409,15 +445,16 @@ function extractProductsFromXml() {
         let entryNode = entries[i];
         let pm = {
             StoreId: storeId.toString(),
-            ExternalId: getVal(entryNode, "ExternalId"),
-            Url: getVal(entryNode, "Url"),
-            GoogleEan: getVal(entryNode, "GoogleEan"),
-            GoogleImage: getVal(entryNode, "GoogleImage"),
-            GoogleExportedName: getVal(entryNode, "GoogleExportedName"),
-            GoogleExportedProducer: getVal(entryNode, "GoogleExportedProducer"),
-            GoogleExportedProducerCode: getVal(entryNode, "GoogleExportedProducerCode"),
-            GoogleXMLPrice: parsePrice(getVal(entryNode, "GoogleXMLPrice")),
-            GoogleDeliveryXMLPrice: parsePrice(getVal(entryNode, "GoogleDeliveryXMLPrice"))
+
+            ExternalId: getVal(entryNode, "ExternalId", productNodeName),
+            Url: getVal(entryNode, "Url", productNodeName),
+            GoogleEan: getVal(entryNode, "GoogleEan", productNodeName),
+            GoogleImage: getVal(entryNode, "GoogleImage", productNodeName),
+            GoogleExportedName: getVal(entryNode, "GoogleExportedName", productNodeName),
+            GoogleExportedProducer: getVal(entryNode, "GoogleExportedProducer", productNodeName),
+            GoogleExportedProducerCode: getVal(entryNode, "GoogleExportedProducerCode", productNodeName),
+            GoogleXMLPrice: parsePrice(getVal(entryNode, "GoogleXMLPrice", productNodeName)),
+            GoogleDeliveryXMLPrice: parsePrice(getVal(entryNode, "GoogleDeliveryXMLPrice", productNodeName))
         };
 
         if (onlyEanProducts && (!pm.GoogleEan || !pm.GoogleEan.trim())) {
@@ -433,7 +470,6 @@ function extractProductsFromXml() {
                 }
             }
         }
-
         productMaps.push(pm);
     }
 
@@ -585,48 +621,44 @@ document.getElementById("removeDuplicateEans").addEventListener("change", functi
 document.getElementById("removeDuplicateProducerCodes").addEventListener("change", function () {
     extractProductsFromXml();
 });
+function getVal(entryNode, fieldName, productNodeName) {
+    const info = mappingForField[fieldName];
 
-function getVal(entryNode, fieldName) {
-    let info = mappingForField[fieldName];
-    if (!info || !info.xpath) return null;
+    if (!info || !info.xpath || !productNodeName) {
+        return null;
+    }
 
     let path = info.xpath;
+    const contextNode = entryNode;
 
+    const productNodePathPart = `/${productNodeName}/`;
+    const lastIndexOfProductNode = path.lastIndexOf(productNodePathPart);
 
-    if (path.endsWith('/#value')) {
-        path = path.slice(0, -7);
+    let relativePath;
+    if (lastIndexOfProductNode !== -1) {
+
+        relativePath = '.' + path.substring(lastIndexOfProductNode + productNodePathPart.length - 1);
+    } else {
+        console.error(`Nie można ustalić ścieżki względnej dla "${path}" w oparciu o węzeł "${productNodeName}"`);
+        return null;
     }
 
-    let possiblePrefixes = ["/rss/channel/item/", "/feed/entry/"];
-    for (let i = 0; i < possiblePrefixes.length; i++) {
-        if (path.startsWith(possiblePrefixes[i])) {
-            path = path.substring(possiblePrefixes[i].length);
-            break;
-        }
-    }
-    if (path.startsWith("/")) {
-        path = path.substring(1);
+    if (relativePath.endsWith('/#value')) {
+
+        relativePath = relativePath.slice(0, -6) + 'text()';
     }
 
-    let segments = path.split('/');
+    relativePath = relativePath.replace(/\/\@/g, '@');
 
-    let currentNode = entryNode;
-    for (let seg of segments) {
+    try {
 
-        if (seg.indexOf(':') !== -1) {
-            seg = seg.split(':')[1];
-        }
-        if (!seg) return null;
-
-        let child = Array.from(currentNode.children).find(e => e.localName === seg);
-        if (!child) {
-            return null;
-        }
-        currentNode = child;
+        const result = xmlDoc.evaluate(relativePath, contextNode, null, XPathResult.STRING_TYPE, null);
+        return result.stringValue.trim();
+    } catch (e) {
+        console.error(`Błąd wykonania XPath: "${relativePath}" w kontekście ${contextNode.tagName}`, e);
+        return null;
     }
-    return currentNode.textContent.trim();
 }
-
 document.getElementById("saveProductMapsInDb").addEventListener("click", function () {
     let txt = document.getElementById("productMapsPreview").textContent.trim();
     if (!txt) {

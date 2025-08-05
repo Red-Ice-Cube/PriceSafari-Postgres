@@ -17,7 +17,6 @@ namespace PriceSafari.Models
         [Required]
         public string FlagColor { get; set; }
 
-        // --- POPRAWKA TUTAJ ---
         [ForeignKey("Store")] // Ten atrybut wskazuje na poniższą właściwość nawigacyjną
         public int StoreId { get; set; }
         public StoreClass Store { get; set; } // Ta właściwość była brakująca
