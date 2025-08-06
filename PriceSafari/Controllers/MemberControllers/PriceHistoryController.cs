@@ -760,62 +760,78 @@ namespace PriceSafari.Controllers.MemberControllers
                 return Json(new { data = new List<object>() });
             }
 
-            var myPricesQuery = _context.PriceHistories
-                .Where(ph => ph.ScrapHistoryId == latestScrap.Id
-                          && ph.StoreName.ToLower() == storeName.ToLower());
+            var basePricesQuery = _context.PriceHistories
+                .Where(ph => ph.ScrapHistoryId == latestScrap.Id);
 
+            // POPRAWKA: Uproszczony switch dla typu bool
             switch (ourSource?.ToLower())
             {
                 case "google":
-                    myPricesQuery = myPricesQuery.Where(ph => ph.IsGoogle == true);
+                    basePricesQuery = basePricesQuery.Where(ph => ph.IsGoogle);
                     break;
-
                 case "ceneo":
-                    myPricesQuery = myPricesQuery.Where(ph => ph.IsGoogle == false || ph.IsGoogle == null);
-                    break;
-
-                case "all":
-                default:
-
+                    // Skoro IsGoogle to bool, warunek '== null' był błędny.
+                    // Poprawny warunek to po prostu sprawdzenie 'false'.
+                    basePricesQuery = basePricesQuery.Where(ph => !ph.IsGoogle);
                     break;
             }
 
-            var myProductIds = await myPricesQuery
+            var myProductIds = await basePricesQuery
+                .Where(ph => ph.StoreName.ToLower() == storeName.ToLower())
                 .Select(ph => ph.ProductId)
                 .Distinct()
                 .ToListAsync();
 
-            var competitorPrices = await _context.PriceHistories
-                .Where(ph => ph.ScrapHistoryId == latestScrap.Id
-                          && ph.StoreName.ToLower() != storeName.ToLower())
-                .ToListAsync();
-
-            var competitors = competitorPrices
-                .GroupBy(ph => new { NormalizedName = ph.StoreName.ToLower(), ph.IsGoogle })
-                .Select(g =>
-                {
-                    var storeNameInGroup = g.First().StoreName;
-                    bool isGoogle = g.Key.IsGoogle;
-
-                    var competitorProductIds = g
-                        .Select(x => x.ProductId)
-                        .Distinct();
-
-                    int commonProductsCount = myProductIds
-                        .Count(pid => competitorProductIds.Contains(pid));
-
-                    return new
+            if (!myProductIds.Any())
+            {
+                // NOWA LOGIKA: Bez obsługi null, bo IsGoogle to bool
+                var storeCounts = await basePricesQuery
+                    .GroupBy(ph => new { ph.StoreName, ph.IsGoogle }) // <<< USUNIĘTO '?? false'
+                    .Select(g => new
                     {
-                        StoreName = storeNameInGroup,
-                        DataSource = isGoogle ? "Google" : "Ceneo",
-                        CommonProductsCount = commonProductsCount
-                    };
-                })
-                .Where(c => c.CommonProductsCount >= 1)
-                .OrderByDescending(c => c.CommonProductsCount)
-                .ToList();
+                        StoreName = g.Key.StoreName,
+                        DataSource = g.Key.IsGoogle ? "Google" : "Ceneo",
+                        CommonProductsCount = g.Count()
+                    })
+                    .OrderByDescending(s => s.CommonProductsCount)
+                    .ToListAsync();
 
-            return Json(new { data = competitors });
+                return Json(new { data = storeCounts, analysisType = "fullScan" });
+            }
+            else
+            {
+                // ORYGINALNA LOGIKA: Również bez zbędnej obsługi null
+                var competitorPrices = await basePricesQuery
+                    .Where(ph => ph.StoreName.ToLower() != storeName.ToLower())
+                    .ToListAsync();
+
+                var competitors = competitorPrices
+                    .GroupBy(ph => new { NormalizedName = ph.StoreName.ToLower(), ph.IsGoogle }) // <<< USUNIĘTO '?? false'
+                    .Select(g =>
+                    {
+                        var storeNameInGroup = g.First().StoreName;
+                        bool isGoogle = g.Key.IsGoogle;
+
+                        var competitorProductIds = g
+                            .Select(x => x.ProductId)
+                            .Distinct();
+
+                        int commonProductsCount = myProductIds
+                            .Count(pid => competitorProductIds.Contains(pid));
+
+                        return new
+                        {
+                            StoreName = storeNameInGroup,
+                            DataSource = isGoogle ? "Google" : "Ceneo",
+                            CommonProductsCount = commonProductsCount
+                        };
+                    })
+                    .Where(c => c.CommonProductsCount >= 1)
+                    .OrderByDescending(c => c.CommonProductsCount)
+                    .ToList();
+
+                return Json(new { data = competitors, analysisType = "commonProducts" });
+            }
         }
 
         [HttpPost]
