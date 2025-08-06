@@ -1746,15 +1746,7 @@
                         matchPriceBtn.textContent = 'Zmień cenę';
                         matchPriceBtn.dataset.originalText = 'Zmień cenę';
 
-                        if (!requiredField || requiredField.toString().trim() === "") {
-                            matchPriceBtn.addEventListener("click", function (e) {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                showGlobalNotification(`Produkt musi mieć zmapowany ${requiredLabel}`);
-                            });
-                        } else {
-                            attachPriceChangeListener(matchPriceBtn, suggestedPrice1, box, item.productId, item.productName, myPrice, item);
-                        }
+                        attachPriceChangeListener(matchPriceBtn, suggestedPrice1, box, item.productId, item.productName, myPrice, item);
 
                         matchPriceLine.appendChild(matchPriceBtn);
 
@@ -1785,15 +1777,7 @@
                         strategicPriceBtn.textContent = 'Zmień cenę';
                         strategicPriceBtn.dataset.originalText = 'Zmień cenę';
 
-                        if (!requiredField || requiredField.toString().trim() === "") {
-                            strategicPriceBtn.addEventListener("click", function (e) {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                showGlobalNotification(`Produkt musi mieć zmapowany ${requiredLabel}`);
-                            });
-                        } else {
-                            attachPriceChangeListener(strategicPriceBtn, suggestedPrice2, box, item.productId, item.productName, myPrice, item);
-                        }
+                        attachPriceChangeListener(strategicPriceBtn, suggestedPrice2, box, item.productId, item.productName, myPrice, item);
 
                         strategicPriceLine.appendChild(strategicPriceBtn);
 
@@ -1854,16 +1838,7 @@
                         matchPriceBtn.textContent = 'Zmień cenę';
                         matchPriceBtn.dataset.originalText = 'Zmień cenę';
 
-                        if (!requiredField || requiredField.toString().trim() === "") {
-                            matchPriceBtn.addEventListener("click", function (e) {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                showGlobalNotification(`Produkt musi mieć zmapowany ${requiredLabel}`);
-                            });
-                        } else {
-                            attachPriceChangeListener(matchPriceBtn, lowestPrice, box, item.productId, item.productName, myPrice, item);
-                        }
-
+                        attachPriceChangeListener(matchPriceBtn, lowestPrice, box, item.productId, item.productName, myPrice, item);
                         matchPriceLine.appendChild(matchPriceBtn);
 
                         matchPriceBox.appendChild(matchPriceLine);
@@ -1893,15 +1868,7 @@
                         strategicPriceBtn.textContent = 'Zmień cenę';
                         strategicPriceBtn.dataset.originalText = 'Zmień cenę';
 
-                        if (!requiredField || requiredField.toString().trim() === "") {
-                            strategicPriceBtn.addEventListener("click", function (e) {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                showGlobalNotification(`Produkt musi mieć zmapowany ${requiredLabel}`);
-                            });
-                        } else {
-                            attachPriceChangeListener(strategicPriceBtn, strategicPrice, box, item.productId, item.productName, myPrice, item);
-                        }
+                        attachPriceChangeListener(strategicPriceBtn, strategicPrice, box, item.productId, item.productName, myPrice, item);
 
                         strategicPriceLine.appendChild(strategicPriceBtn);
 
@@ -1961,15 +1928,8 @@
                         matchPriceBtn.className = 'simulate-change-btn';
                         matchPriceBtn.textContent = 'Zmień cenę';
                         matchPriceBtn.dataset.originalText = 'Zmień cenę';
-                        if (!requiredField || requiredField.toString().trim() === "") {
-                            matchPriceBtn.addEventListener("click", function (e) {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                showGlobalNotification(`Produkt musi mieć zmapowany ${requiredLabel}`);
-                            });
-                        } else {
-                            attachPriceChangeListener(matchPriceBtn, lowestPrice, box, item.productId, item.productName, myPrice, item);
-                        }
+
+                        attachPriceChangeListener(matchPriceBtn, lowestPrice, box, item.productId, item.productName, myPrice, item);
 
                         matchPriceLine.appendChild(matchPriceBtn);
 
@@ -2000,15 +1960,7 @@
                         strategicPriceBtn.textContent = 'Zmień cenę';
                         strategicPriceBtn.dataset.originalText = 'Zmień cenę';
 
-                        if (!requiredField || requiredField.toString().trim() === "") {
-                            strategicPriceBtn.addEventListener("click", function (e) {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                showGlobalNotification(`Produkt musi mieć zmapowany ${requiredLabel}`);
-                            });
-                        } else {
-                            attachPriceChangeListener(strategicPriceBtn, strategicPrice, box, item.productId, item.productName, myPrice, item);
-                        }
+                        attachPriceChangeListener(strategicPriceBtn, strategicPrice, box, item.productId, item.productName, myPrice, item);
 
                         strategicPriceLine.appendChild(strategicPriceBtn);
 
@@ -2095,15 +2047,7 @@
                         matchPriceBtn.textContent = 'Zmień cenę';
                         matchPriceBtn.dataset.originalText = 'Zmień cenę';
 
-                        if (!requiredField || requiredField.toString().trim() === "") {
-                            matchPriceBtn.addEventListener("click", function (e) {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                showGlobalNotification(`Produkt musi mieć zmapowany ${requiredLabel}`);
-                            });
-                        } else {
-                            attachPriceChangeListener(matchPriceBtn, suggestedPrice1, box, item.productId, item.productName, myPrice, item);
-                        }
+                        attachPriceChangeListener(matchPriceBtn, suggestedPrice1, box, item.productId, item.productName, myPrice, item);
 
                         matchPriceLine.appendChild(matchPriceBtn);
 
@@ -2134,15 +2078,7 @@
                         strategicPriceBtn.textContent = 'Zmień cenę';
                         strategicPriceBtn.dataset.originalText = 'Zmień cenę';
 
-                        if (!requiredField || requiredField.toString().trim() === "") {
-                            strategicPriceBtn.addEventListener("click", function (e) {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                showGlobalNotification(`Produkt musi mieć zmapowany ${requiredLabel}`);
-                            });
-                        } else {
-                            attachPriceChangeListener(strategicPriceBtn, suggestedPrice2, box, item.productId, item.productName, myPrice, item);
-                        }
+                        attachPriceChangeListener(strategicPriceBtn, suggestedPrice2, box, item.productId, item.productName, myPrice, item);
                         strategicPriceLine.appendChild(strategicPriceBtn);
 
                         strategicPriceBox.appendChild(strategicPriceLine);
