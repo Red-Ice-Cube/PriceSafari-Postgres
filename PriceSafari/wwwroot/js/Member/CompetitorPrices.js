@@ -228,11 +228,23 @@ function displayProducts(productsToDisplay, sortedScrapIds) {
         const productInfoDiv = document.createElement('div');
         productInfoDiv.className = 'product-info-cell';
 
-        const img = document.createElement('img');
-        img.src = product.mainUrl ? product.mainUrl : '/images/placeholder.png';
-        img.alt = product.productName || 'Obrazek produktu';
-        img.onerror = function () { this.src = '/images/placeholder.png'; this.onerror = null; };
-        productInfoDiv.appendChild(img);
+
+        
+        if (product.mainUrl) {
+            const img = document.createElement('img');
+            img.src = product.mainUrl;
+            img.alt = product.productName || 'Obrazek produktu';
+
+  
+            img.onerror = function () {
+                this.parentElement.classList.add('no-image');
+                this.remove(); 
+            };
+            productInfoDiv.appendChild(img);
+        } else {
+           
+            productInfoDiv.classList.add('no-image');
+        }
 
         const nameSpan = document.createElement('span');
         nameSpan.className = 'product-name-text';
