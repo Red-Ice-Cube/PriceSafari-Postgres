@@ -1,9 +1,6 @@
-﻿
+﻿@model PriceSafari.Models.ViewModels.SafariReportAnalysisViewModel
 
-
-@model PriceSafari.Models.ViewModels.SafariReportAnalysisViewModel
-
-       <style>
+<style>
 
     #sortingButtons {
         display: inline-flex;
@@ -42,9 +39,7 @@
                 cursor: pointer;
             }
 
-
-
-       </style>
+</style>
 
 @{
     Layout = "~/Views/Shared/_PanelLayout.cshtml";
@@ -66,46 +61,44 @@
                 </div>
                 <div class="store-section">
                     <!-- Classification Filters -->
-                        <div class="form-check">
-                            <input class="form-check-input colorFilter" type="checkbox" id="prIdealCheckbox" value="prIdeal">
+                    <div class="form-check">
+                        <input class="form-check-input colorFilter" type="checkbox" id="prIdealCheckbox" value="prIdeal">
                         <label class="form-check-label" for="prIdealCheckbox" id="prIdealLabel">Taniej o (<span id="prIdealCount">0</span>)</label>
-                        </div>
+                    </div>
 
-                        <div class="form-check">
-                            <input class="form-check-input colorFilter" type="checkbox" id="prGrayCheckbox" value="prGray">
-                            <label class="form-check-label" for="prGrayCheckbox" id="prGrayLabel">Podobna cena (<span id="prGrayCount">0</span>)</label>
-                        </div>
+                    <div class="form-check">
+                        <input class="form-check-input colorFilter" type="checkbox" id="prGrayCheckbox" value="prGray">
+                        <label class="form-check-label" for="prGrayCheckbox" id="prGrayLabel">Podobna cena (<span id="prGrayCount">0</span>)</label>
+                    </div>
 
-                        <div class="form-check">
-                            <input class="form-check-input colorFilter" type="checkbox" id="prToHighCheckbox" value="prToHigh">
+                    <div class="form-check">
+                        <input class="form-check-input colorFilter" type="checkbox" id="prToHighCheckbox" value="prToHigh">
                         <label class="form-check-label" for="prToHighCheckbox" id="prToHighLabel">Drożej o (<span id="prToHighCount">0</span>)</label>
-                        </div>
+                    </div>
 
-                        <!-- Threshold Inputs -->
-                        <div class="price-range-settings">
+                    <!-- Threshold Inputs -->
+                    <div class="price-range-settings">
                         <div class="color-circle prLower-circle"></div>
-                            <label for="threshold1"></label>
-                            <input type="number" id="threshold1" value="@Model.SetSafariPrice1.ToString(System.Globalization.CultureInfo.InvariantCulture)" step="0.01" min="0.00">
-                            <span id="unitLabel1"></span>
-                        </div>
-                        <div class="price-range-settings">
+                        <label for="threshold1"></label>
+                        <input type="number" id="threshold1" value="@Model.SetSafariPrice1.ToString(System.Globalization.CultureInfo.InvariantCulture)" step="0.01" min="0.00">
+                        <span id="unitLabel1"></span>
+                    </div>
+                    <div class="price-range-settings">
                         <div class="color-circle prHigher-circle"></div>
-                            <label for="threshold2"></label>
-                            <input type="number" id="threshold2" value="@Model.SetSafariPrice2.ToString(System.Globalization.CultureInfo.InvariantCulture)" step="0.01" min="0.00">
-                            <span id="unitLabel2"></span>
-                        </div>
+                        <label for="threshold2"></label>
+                        <input type="number" id="threshold2" value="@Model.SetSafariPrice2.ToString(System.Globalization.CultureInfo.InvariantCulture)" step="0.01" min="0.00">
+                        <span id="unitLabel2"></span>
+                    </div>
 
-                        <!-- Use Price Difference Checkbox -->
+                    <!-- Use Price Difference Checkbox -->
                     <div>
                         <label>
                             <input class="diffCheckBox" style="margin-top: 10px;" type="checkbox" id="usePriceDifference"
-                            @(Model.UsePriceDiffSafari ? "checked" : "") />
+                                   @(Model.UsePriceDiffSafari ? "checked" : "") />
                         </label>
                     </div>
 
-                       
-                        <button id="savePriceValues" class="Button-Page-Small" style="margin-top: 2px;" data-store-id="@Model.StoreId">Zapisz</button>
-
+                    <button id="savePriceValues" class="Button-Page-Small" style="margin-top: 2px;" data-store-id="@Model.StoreId">Zapisz</button>
 
                 </div>
 
@@ -114,8 +107,8 @@
                     <div class="Category-Container-Select" style="margin-top:-2px;">Flagi</div>
                     <div class="store-section" id="flagContainer">
                         @{
-                            // Collect flags used in products and count occurrences
-                            var flagUsage = new Dictionary<int, int>(); // FlagId, Count
+
+                            var flagUsage = new Dictionary<int, int>();
                             foreach (var item in Model.ProductPrices)
                             {
                                 foreach (var flagId in item.FlagIds)
@@ -127,7 +120,6 @@
                                 }
                             }
 
-                            // Get only flags that are used in products
                             var usedFlags = flagsList.Where(f => flagUsage.ContainsKey(f.FlagId)).ToList();
                         }
 
@@ -148,7 +140,7 @@
                 <div class="order-upper-box">
                     <!-- Search Input -->
                     <input type="text" id="productSearch" placeholder="Wyszukaj produkt" />
-                  
+
                     <!-- Region Filter -->
                     <select id="regionFilter" class="DropDown">
                         <option value="">Wszystkie regiony</option>
@@ -175,15 +167,13 @@
 
                 </div>
 
-              
                 <div id="sortingButtons">
                     <div class="ProductCount" id="displayedProductCount"></div>
                     <button id="sortName">A-Z</button>
                     <button id="sortPrice">Cena</button>
                     <button id="sortRaiseAmount">Różnica w cenie PLN</button>
                     <button id="sortRaisePercentage">Różnica w cenie %</button>
-                   
- 
+
                 </div>
 
                 <div class="Vert-table">
@@ -198,13 +188,11 @@
                                 percentageDifference = Math.Round(((item.CalculatedPrice - item.OurCalculatedPrice) / item.OurCalculatedPrice) * 100, 2);
                             }
 
-                            var colorClass = "prGray"; // Default class
+                            var colorClass = "prGray";
 
-                            // Combine Flag IDs into a comma-separated string for data attribute
                             var flagIdsString = string.Join(",", item.FlagIds);
 
                             <div class="price-box @colorClass"
-                             
                                  data-pricedifference="@priceDifference.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)"
                                  data-percdifference="@(percentageDifference?.ToString("F2", System.Globalization.CultureInfo.InvariantCulture) ?? "null")"
                                  data-colorclass="@colorClass"
@@ -213,29 +201,27 @@
                                  data-marginprice="@(item.MarginPrice?.ToString("F2", System.Globalization.CultureInfo.InvariantCulture) ?? "null")"
                                  onclick="window.open('@Url.Action("ProductPriceDetails", "Safari", new { reportId = ViewBag.ReportId, productId = item.ProductId, regionId = ViewBag.RegionId })', '_blank')">
 
-
-
                                 <div class="price-box-space">
                                     <div class="price-box-column-name" style="margin-bottom:24px;">
                                         @item.ProductName
                                     </div>
                                     <div><img src="~/images/GoogleShopping.png" alt="GoogleShopping" style=" height:32px;" /></div>
                                 </div>
-                               
+
                                 <div class="price-box-data">
                                     <div class="color-bar @colorClass" style="margin-right:16px; min-height:110px; max-height:110px;"></div>
 
                                     @if (!string.IsNullOrEmpty(item.MainUrl))
                                     {
                                         <img data-src="@item.MainUrl" alt="@item.ProductName" class="product-image lazy-load" style="width: 110px;
-                                        height: 110px;
-                                        margin-right: 5px;
-                                        margin-left: 5px;
-                                        background-color: rgb(255, 255, 255);
-                                        border: 1px solid rgb(227, 227, 227);
-                                        border-radius: 4px;
-                                        padding: 10px;
-                                        display: block;" />
+                                                height: 110px;
+                                                margin-right: 5px;
+                                                margin-left: 5px;
+                                                background-color: rgb(255, 255, 255);
+                                                border: 1px solid rgb(227, 227, 227);
+                                                border-radius: 4px;
+                                                padding: 10px;
+                                                display: block;" />
                                     }
                                     else
                                     {
@@ -280,7 +266,6 @@
                                     @if (item.OurCalculatedPrice != 0)
                                     {
                                         <div class="price-box-column-action" style="margin-left:5px;">
-                                            
                                         </div>
                                     }
 
@@ -328,8 +313,6 @@
             observer.observe(img);
         });
 
-       
-
         let allProducts = Array.from(document.querySelectorAll('.price-box'));
         const searchInput = document.getElementById('productSearch');
 
@@ -341,13 +324,13 @@
             if (!searchTerm) return productName;
 
             const sanitizedSearchTerm = searchTerm.replace(/[^a-zA-Z0-9\s/.-]/g, '').trim().toLowerCase();
-            const regex = new RegExp(`(${sanitizedSearchTerm.split('').join('\\s*')})`, 'gi'); // Allows gaps
+            const regex = new RegExp(`(${sanitizedSearchTerm.split('').join('\\s*')})`, 'gi');
             return productName.replace(regex, '<span style="color: #9400D3; font-weight: bold;">$1</span>');
         }
 
         function updateProducts() {
             const searchTerm = sanitizeString(searchInput.value.trim());
-           
+
             const selectedFlags = Array.from(document.querySelectorAll('.flagFilter:checked')).map(cb => cb.value);
             const selectedClasses = Array.from(document.querySelectorAll('.colorFilter:checked')).map(cb => cb.value);
             const noClassificationFilter = selectedClasses.length === 0;
@@ -365,12 +348,12 @@
             allProducts.forEach(productBox => {
                 const productNameElement = productBox.querySelector('.price-box-column-name');
                 const productName = productNameElement.textContent.trim();
-             
+
                 const productFlags = productBox.getAttribute('data-flags').split(',');
                 const sanitizedProductName = sanitizeString(productName);
 
                 const matchesSearch = sanitizedProductName.includes(searchTerm);
-              
+
                 const matchesFlags = selectedFlags.length === 0 || selectedFlags.some(flagId => productFlags.includes(flagId));
 
                 const priceDifference = parseFloat(productBox.getAttribute('data-pricedifference')) || 0;
@@ -391,7 +374,6 @@
                     prGrayCount++;
                 }
 
-                // Assign the colorClass to the productBox and remove previous classes
                 productBox.classList.remove('prToHigh', 'prIdeal', 'prGray');
                 productBox.classList.add(colorClass);
                 productBox.setAttribute('data-colorclass', colorClass);
@@ -410,7 +392,6 @@
                     const marginPriceAttr = productBox.getAttribute('data-marginprice');
                     const marginPrice = marginPriceAttr !== null && marginPriceAttr !== 'null' ? parseFloat(marginPriceAttr) : null;
 
-                    // Margin calculations
                     let marginAmount = null;
                     let marginPercentage = null;
 
@@ -423,21 +404,19 @@
                         }
                     }
 
-                    // Determine sign and CSS class for margin
                     let marginSign = '';
-                    let marginClass = 'priceBox-diff-margin'; // Default class
+                    let marginClass = 'priceBox-diff-margin';
 
                     if (marginAmount != null) {
                         if (marginAmount >= 0) {
                             marginSign = '+';
-                            marginClass = 'priceBox-diff-margin'; // Positive margin class
+                            marginClass = 'priceBox-diff-margin';
                         } else {
                             marginSign = '-';
-                            marginClass = 'priceBox-diff-margin-minus'; 
+                            marginClass = 'priceBox-diff-margin-minus';
                         }
                     }
 
-                    // Build marginInfoHtml
                     let marginInfoHtml = '';
                     if (marginPrice != null) {
                         const formattedMarginPrice = marginPrice.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' PLN';
@@ -459,7 +438,6 @@
                         }
                     }
 
-                    // Existing price difference calculations
                     let priceDiffText = '';
 
                     if (myPrice === null || myPrice === 0) {
@@ -483,11 +461,9 @@
                         }
                     }
 
-                    // Update the price difference display with colorClass
                     priceDiffDisplay.innerHTML = marginInfoHtml + '<div class="priceBox-diff ' + colorClass + '">' + priceDiffText + '</div>';
                 }
 
-                // Filter products based on criteria
                 const matchesClassification = noClassificationFilter || selectedClasses.includes(colorClass);
 
                 if (matchesSearch && matchesFlags && matchesClassification) {
@@ -503,7 +479,6 @@
                 }
             });
 
-            // Sort and highlight matches
             filteredProducts.sort((a, b) => {
                 if (a.exactMatch && !b.exactMatch) return -1;
                 if (!a.exactMatch && b.exactMatch) return 1;
@@ -514,7 +489,6 @@
                 item.productNameElement.innerHTML = highlightMatches(item.productNameElement.textContent, searchInput.value);
             });
 
-            // Update counts and charts
             prIdealCountSpan.textContent = prIdealCount;
             prGrayCountSpan.textContent = prGrayCount;
             prToHighCountSpan.textContent = prToHighCount;
@@ -525,12 +499,9 @@
 
             updateFlagCounts();
 
-
-               
             document.getElementById('displayedProductCount').textContent = filteredProducts.length;
         }
 
-            
     let sortingState = {
         sortName: null,
         sortPrice: null,
@@ -539,7 +510,6 @@
 
     };
 
-    // Funkcja resetująca wszystkie stany sortowania z wyjątkiem jednego
     function resetSortingStates(except) {
         for (let key in sortingState) {
             if (key !== except) {
@@ -553,19 +523,17 @@
         }
     }
 
-    // Funkcja zwracająca domyślne etykiety przycisków
     function getDefaultButtonLabel(key) {
         switch (key) {
             case 'sortName': return 'A-Z';
             case 'sortPrice': return 'Cena';
             case 'sortRaiseAmount': return 'Różnica w cenie PLN';
             case 'sortRaisePercentage': return 'Różnica w cenie %';
-  
+
         }
         return '';
     }
 
-    // Funkcja sortująca aktualnie widoczne produkty
     function sortVisibleProducts() {
         const container = document.getElementById('priceContainer');
         let visibleProducts = Array.from(container.querySelectorAll('.price-box'))
@@ -591,7 +559,7 @@
                 return sortingState.sortPrice === 'asc' ? (priceA - priceB) : (priceB - priceA);
             });
         } else if (sortingState.sortRaiseAmount !== null) {
-            // sortowanie według różnicy cen (Podnieś PLN) - rosnąco/malejąco
+
             visibleProducts.sort((a, b) => {
                 const diffA = parseFloat(a.getAttribute('data-pricedifference')) || 0;
                 const diffB = parseFloat(b.getAttribute('data-pricedifference')) || 0;
@@ -608,14 +576,12 @@
         visibleProducts.forEach(p => container.appendChild(p));
     }
 
-    // Po zaktualizowaniu produktów wywołaj funkcję sortującą:
     const originalUpdateProducts = updateProducts;
     updateProducts = function() {
         originalUpdateProducts();
         sortVisibleProducts();
     };
 
-    // Event listenery dla przycisków sortowania
     document.getElementById('sortName').addEventListener('click', function() {
         if (sortingState.sortName === null) {
             sortingState.sortName = 'asc';
@@ -688,8 +654,6 @@
         updateProducts();
     });
 
-
-
         const ctx = document.getElementById('classificationChart').getContext('2d');
         let classificationChart;
 
@@ -706,12 +670,12 @@
                         backgroundColor: [
                             'rgba(171, 37, 32, 0.8)',
                             'rgba(40, 40, 40, 0.8)',
-                            'rgba(0, 145, 123, 0.8)'
+                            'rgba(13, 110, 253, 0.8)'
                         ],
                         borderColor: [
                             'rgba(171, 37, 32, 1)',
                             'rgba(40, 40, 40, 1)',
-                            'rgba(0, 145, 123, 1)'
+                            'rgba(13, 110, 253, 1)'
                         ],
                         borderWidth: 1
                     }]
@@ -799,27 +763,14 @@
         usePriceDifferenceCheckbox.addEventListener('change', updateProducts);
         colorFilters.forEach(checkbox => checkbox.addEventListener('change', updateProducts));
         searchInput.addEventListener('input', updateProducts);
-       
+
         document.querySelectorAll('.flagFilter').forEach(checkbox => checkbox.addEventListener('change', updateProducts));
 
         updateProducts();
 
-
-
-           
-
-
-
-
     });
 
-
-
-
 </script>
-
-
-
 
 <script>
     document.addEventListener("DOMContentLoaded", function () {
@@ -837,11 +788,8 @@
             updateUnits();
         });
 
-       
         updateUnits();
     });
-
-
 
 </script>
 <script>
@@ -864,14 +812,13 @@
         const threshold2 = parseFloat(document.getElementById('threshold2').value);
         const storeId = parseInt(this.getAttribute('data-store-id'));
 
-        
         const usePriceDifference = document.getElementById('usePriceDifference').checked;
 
         const data = {
             StoreId: storeId,
             SetSafariPrice1: threshold1,
             SetSafariPrice2: threshold2,
-            UsePriceDiffSafari: usePriceDifference 
+            UsePriceDiffSafari: usePriceDifference
         };
 
         fetch('/Safari/SaveSafariPriceValues', {
@@ -885,7 +832,7 @@
             .then(response => {
                 if (response.success) {
                     alert('Wartości progów zostały zapisane pomyślnie.');
-                 
+
                 } else {
                     alert('Błąd podczas zapisywania wartości progów: ' + response.message);
                 }
@@ -907,7 +854,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/5.0.9/signalr.min.js"></script>
 <script>
     var connection = new signalR.HubConnectionBuilder().withUrl("/reportProgressHub").build();
-    var isProcessing = false; 
+    var isProcessing = false;
 
     connection.start().then(function () {
         console.log("SignalR connected.");
@@ -916,30 +863,28 @@
     });
 
     connection.on("ReceiveProgress", function (message, percentage) {
-   
+
         document.getElementById("progressText").innerText = message + " " + percentage + "%";
         document.getElementById("progressBar").style.width = percentage + "%";
 
         if (percentage === 100) {
             document.getElementById("progressText").innerText = "Wczytywanie zakończone.";
             isProcessing = false;
-            setTimeout(hideLoadingOverlay, 1500); 
+            setTimeout(hideLoadingOverlay, 1500);
         }
     });
 
-   
     document.querySelectorAll("tr[data-url]").forEach(function (row) {
         row.addEventListener("click", function () {
             if (!isProcessing) {
-                isProcessing = true; // Zapobiega wielokrotnym kliknięciom
+                isProcessing = true;
                 var url = row.getAttribute("data-url");
                 var reportName = row.querySelector('td').innerText;
 
                 if (url) {
-                    showLoadingOverlay(reportName); 
-                    startProgress(); 
+                    showLoadingOverlay(reportName);
+                    startProgress();
 
-                   
                     window.location.href = url;
                 }
             }
@@ -957,18 +902,15 @@
         }
     }
 
-    
     function showLoadingOverlay(reportName) {
-        document.getElementById("reportName").innerText = reportName; 
+        document.getElementById("reportName").innerText = reportName;
         document.getElementById("loadingOverlay").style.display = "block";
     }
 
-   
     function hideLoadingOverlay() {
         document.getElementById("loadingOverlay").style.display = "none";
     }
 
-   
     document.getElementById('regionFilter').addEventListener('change', function () {
         var selectedRegionId = this.value;
         var url = new URL(window.location.href);
@@ -979,16 +921,12 @@
             url.searchParams.delete('regionId');
         }
 
-       
         showLoadingOverlay("regionu");
         startProgress();
 
-       
         window.location.href = url.toString();
     });
 </script>
-
-
 
 @functions {
     string HexToRgba(string hex, double alpha)
