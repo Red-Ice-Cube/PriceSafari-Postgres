@@ -3,68 +3,140 @@ using PuppeteerSharp;
 using System.Globalization;
 using System.Text.RegularExpressions;
 
-
 namespace PriceSafari.Scrapers
 {
     public class GooglePriceScraper
     {
         private Browser _browser;
         private Page _page;
+        private Settings _scraperSettings; // Przechowujemy ustawienia do ponownego uruchomienia
 
-        // Metoda do inicjalizacji przeglądarki
-        public async Task InitializeAsync(Settings settings)
+        // === NOWE I ZMODYFIKOWANE METODY DO OBSŁUGI RESETU ===
+
+        // Prywatna metoda zawierająca logikę uruchamiania przeglądarki
+        private async Task LaunchNewBrowserAsync()
         {
             var browserFetcher = new BrowserFetcher();
             await browserFetcher.DownloadAsync();
 
             _browser = (Browser)await Puppeteer.LaunchAsync(new LaunchOptions
             {
-                Headless = settings.HeadLess,
+                Headless = _scraperSettings.HeadLess,
                 Args = new[]
                 {
-                    "--no-sandbox",
-                    "--disable-setuid-sandbox",
-                    "--disable-gpu",
-                    "--disable-blink-features=AutomationControlled",
-                    "--disable-software-rasterizer",
-                    "--disable-extensions",
-                    "--disable-dev-shm-usage",
-                    "--disable-features=IsolateOrigins,site-per-process",
-                    "--disable-infobars"
+                    "--no-sandbox", "--disable-setuid-sandbox", "--disable-gpu",
+                    "--disable-blink-features=AutomationControlled", "--disable-software-rasterizer",
+                    "--disable-extensions", "--disable-dev-shm-usage",
+                    "--disable-features=IsolateOrigins,site-per-process", "--disable-infobars"
                 }
             });
 
             _page = (Page)await _browser.NewPageAsync();
-            //await _page.SetJavaScriptEnabledAsync(settings.JavaScript);
             Console.WriteLine("Przeglądarka zainicjalizowana.");
         }
 
+        // Zmodyfikowana metoda InitializeAsync
+        public async Task InitializeAsync(Settings settings)
+        {
+            _scraperSettings = settings;
+            await LaunchNewBrowserAsync();
+        }
 
+        // Nowa metoda do wykonywania pełnego resetu przeglądarki
+        public async Task ResetBrowserAndPageAsync()
+        {
+            Console.WriteLine("Wykonywanie PEŁNEGO RESETU PRZEGLĄDARKI...");
+            await CloseAsync(); // Używamy istniejącej, ulepszonej metody do posprzątania
+            await LaunchNewBrowserAsync(); // Uruchamiamy całkowicie nową instancję
+            Console.WriteLine("Pełny reset przeglądarki zakończony.");
+        }
+
+        // Nowa metoda do weryfikacji nawigacji
+        private async Task<bool> TryNavigateAndVerifyUrlAsync(string targetUrl, string expectedUrlIdentifier, NavigationOptions options)
+        {
+            if (_page == null || _page.IsClosed)
+            {
+                throw new InvalidOperationException("Strona jest niedostępna. Reset może być konieczny.");
+            }
+
+            await _page.GoToAsync(targetUrl, options);
+
+            // Prosta weryfikacja przekierowania na podstawie obecności ID produktu w URL
+            if (_page.Url.Contains(expectedUrlIdentifier))
+            {
+                return true; // Sukces
+            }
+            else
+            {
+                Console.WriteLine($"Wykryto przekierowanie! Oczekiwano URL zawierającego '{expectedUrlIdentifier}', ale finalny URL to: '{_page.Url}'.");
+                return false; // Porażka, przekierowanie
+            }
+        }
+
+        // === GŁÓWNA METODA SCRAPUJĄCA Z NOWĄ LOGIKĄ ===
 
         public async Task<List<PriceData>> ScrapePricesAsync(GoogleScrapingProduct scrapingProduct, string countryCode)
         {
             var scrapedData = new List<PriceData>();
             var storeBestOffers = new Dictionary<string, PriceData>();
+            const int MAX_RETRIES_PER_PAGE = 2; // 1 próba + 2 ponowienia
 
-            // Wyciągamy productId z URL
             string productId = ExtractProductId(scrapingProduct.GoogleUrl);
+            if (string.IsNullOrEmpty(productId))
+            {
+                Console.WriteLine($"Nie można wyodrębnić ID produktu z URL: {scrapingProduct.GoogleUrl}");
+                return scrapedData;
+            }
 
-            // Tworzymy URL na pierwszą stronę
-            string productOffersUrl = $"{scrapingProduct.GoogleUrl}/offers?prds=cid:{productId},cond:1&gl={countryCode}&hl=pl";
             bool hasNextPage = true;
             int totalOffersCount = 0;
             int currentPage = 0;
+            var navOptions = new NavigationOptions { WaitUntil = new[] { WaitUntilNavigation.Networkidle2 } };
 
             try
             {
                 while (hasNextPage && currentPage < 3)
                 {
-                    string paginatedUrl = currentPage == 0
-                        ? productOffersUrl
-                        : $"{scrapingProduct.GoogleUrl}/offers?prds=cid:{productId},cond:1,start:{currentPage * 20}&gl={countryCode}&hl=pl";
+                    string paginatedUrl = $"https://www.google.com/shopping/product/{productId}/offers?prds=cid:{productId},cond:1,start:{currentPage * 20}&gl={countryCode}&hl=pl";
+                    if (currentPage == 0)
+                    {
+                        paginatedUrl = $"https://www.google.com/shopping/product/{productId}/offers?prds=cid:{productId},cond:1&gl={countryCode}&hl=pl";
+                    }
 
-                    Console.WriteLine($"Odwiedzanie URL: {paginatedUrl}");
-                    await _page.GoToAsync(paginatedUrl, new NavigationOptions { WaitUntil = new[] { WaitUntilNavigation.Networkidle2 } });
+                    bool navigationSuccess = false;
+                    for (int attempt = 0; attempt <= MAX_RETRIES_PER_PAGE; attempt++)
+                    {
+                        try
+                        {
+                            if (attempt > 0)
+                            {
+                                await ResetBrowserAndPageAsync(); // Reset całej przeglądarki
+                            }
+
+                            Console.WriteLine($"Nawigacja do strony {currentPage + 1} (Próba {attempt + 1}): {paginatedUrl}");
+
+                            if (await TryNavigateAndVerifyUrlAsync(paginatedUrl, productId, navOptions))
+                            {
+                                navigationSuccess = true;
+                                break; // Sukces! Wychodzimy z pętli ponawiania.
+                            }
+                        }
+                        catch (Exception navEx)
+                        {
+                            Console.WriteLine($"Błąd krytyczny podczas próby nawigacji ({attempt + 1}): {navEx.Message}");
+                        }
+                    }
+
+                    if (!navigationSuccess)
+                    {
+                        Console.WriteLine($"BŁĄD KRYTYCZNY: Nie udało się załadować strony dla produktu {productId} po {MAX_RETRIES_PER_PAGE + 1} próbach. Pomijam produkt.");
+                        break; // Przerwij scraping tego produktu
+                    }
+
+                    // =========================================================================
+                    // Oryginalny kod scrapujący, który wykona się po udanej nawigacji
+                    // =========================================================================
+
                     await Task.Delay(1111);
 
                     var moreOffersButtons = await _page.QuerySelectorAllAsync("div.cNMlI");
@@ -77,9 +149,6 @@ namespace PriceSafari.Scrapers
                             await Task.Delay(557);
                         }
                     }
-
-
-
 
                     var offerRowsSelector = "#sh-osd__online-sellers-cont > tr";
                     var offerRows = await _page.QuerySelectorAllAsync(offerRowsSelector);
@@ -94,89 +163,56 @@ namespace PriceSafari.Scrapers
 
                     Console.WriteLine($"Znaleziono {offersCount} ofert. Rozpoczynam scrapowanie...");
 
+                    // Pętla po ofertach i cała reszta logiki pozostaje bez zmian...
                     for (int i = 1; i <= offersCount; i++)
                     {
                         var storeNameSelector = $"#sh-osd__online-sellers-cont > tr:nth-child({i}) > td:nth-child(1) > div.kPMwsc > a";
                         var priceSelector = "";
                         var priceWithDeliverySelector = "";
 
-                        // Warunkowe sprawdzanie selektorów w zależności od kraju
                         if (countryCode == "ua" || countryCode == "tr" || countryCode == "by")
                         {
-                            // Dla Ukrainy i Turcji
                             priceSelector = $"#sh-osd__online-sellers-cont > tr:nth-child({i}) > td:nth-child(3) > span";
                             priceWithDeliverySelector = $"#sh-osd__online-sellers-cont > tr:nth-child({i}) > td:nth-child(4) > div > div.drzWO";
                         }
                         else
                         {
-                            // Dla innych krajów
                             priceSelector = $"#sh-osd__online-sellers-cont > tr:nth-child({i}) > td:nth-child(4) > span";
                             priceWithDeliverySelector = $"#sh-osd__online-sellers-cont > tr:nth-child({i}) > td:nth-child(5) > div > div.drzWO";
                         }
 
                         var offerUrlSelector = $"#sh-osd__online-sellers-cont > tr:nth-child({i}) > td:nth-child(1) > div.kPMwsc > a";
-
                         var storeNameElement = await _page.QuerySelectorAsync(storeNameSelector);
                         if (storeNameElement != null)
                         {
                             var storeName = await storeNameElement.EvaluateFunctionAsync<string>("node => node.firstChild.textContent.trim()");
-                            Console.WriteLine($"Znaleziono sklep: {storeName}");
-
                             var priceElement = await _page.QuerySelectorAsync(priceSelector);
                             var priceText = priceElement != null ? await priceElement.EvaluateFunctionAsync<string>("node => node.textContent.trim()") : "Brak ceny";
-                            Console.WriteLine($"Cena: {priceText}");
-
                             var priceWithDeliveryElement = await _page.QuerySelectorAsync(priceWithDeliverySelector);
                             var priceWithDeliveryText = priceWithDeliveryElement != null ? await priceWithDeliveryElement.EvaluateFunctionAsync<string>("node => node.textContent.trim()") : priceText;
-                            Console.WriteLine($"Cena z dostawą: {priceWithDeliveryText}");
-
                             var priceDecimal = ExtractPrice(priceText);
                             var priceWithDeliveryDecimal = ExtractPrice(priceWithDeliveryText);
-
                             var offerUrlElement = await _page.QuerySelectorAsync(offerUrlSelector);
                             var offerUrl = offerUrlElement != null ? await offerUrlElement.EvaluateFunctionAsync<string>("node => node.href") : "Brak URL";
-                            Console.WriteLine($"URL oferty: {offerUrl}");
 
-                            // Sprawdzenie, czy URL zawiera "outlet"
                             if (IsOutletOffer(offerUrl))
                             {
                                 Console.WriteLine("Oferta outlet, pomijam.");
-                                continue; // Pomijamy tę ofertę
+                                continue;
                             }
 
                             if (storeBestOffers.ContainsKey(storeName))
                             {
-                                var existingOffer = storeBestOffers[storeName];
-                                if (priceWithDeliveryDecimal < existingOffer.PriceWithDelivery)
+                                if (priceWithDeliveryDecimal < storeBestOffers[storeName].PriceWithDelivery)
                                 {
-                                    storeBestOffers[storeName] = new PriceData
-                                    {
-                                        StoreName = storeName,
-                                        Price = priceDecimal,
-                                        PriceWithDelivery = priceWithDeliveryDecimal,
-                                        OfferUrl = offerUrl,
-                                        ScrapingProductId = scrapingProduct.ScrapingProductId,
-                                        RegionId = scrapingProduct.RegionId,
-                                    };
+                                    storeBestOffers[storeName].Price = priceDecimal;
+                                    storeBestOffers[storeName].PriceWithDelivery = priceWithDeliveryDecimal;
                                 }
                             }
                             else
                             {
-                                // Dodajemy nową ofertę do słownika
-                                storeBestOffers[storeName] = new PriceData
-                                {
-                                    StoreName = storeName,
-                                    Price = priceDecimal,
-                                    PriceWithDelivery = priceWithDeliveryDecimal,
-                                    OfferUrl = offerUrl,
-                                    ScrapingProductId = scrapingProduct.ScrapingProductId,
-                                    RegionId = scrapingProduct.RegionId,
-                                };
+                                storeBestOffers[storeName] = new PriceData { StoreName = storeName, Price = priceDecimal, PriceWithDelivery = priceWithDeliveryDecimal, OfferUrl = offerUrl, ScrapingProductId = scrapingProduct.ScrapingProductId, RegionId = scrapingProduct.RegionId };
                             }
-                        }
-                        else
-                        {
-                            Console.WriteLine($"Nie znaleziono elementu nazwy sklepu w wierszu {i}.");
                         }
                     }
 
@@ -358,12 +394,32 @@ namespace PriceSafari.Scrapers
 
 
 
-
         public async Task CloseAsync()
         {
-            await _page.CloseAsync();
-            await _browser.CloseAsync();
-            Console.WriteLine("Przeglądarka zamknięta.");
+            try
+            {
+                if (_page != null && !_page.IsClosed)
+                {
+                    await _page.CloseAsync();
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Nieszkodliwy błąd podczas zamykania strony: {ex.Message}");
+            }
+
+            try
+            {
+                if (_browser != null && _browser.IsConnected)
+                {
+                    await _browser.CloseAsync();
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Nieszkodliwy błąd podczas zamykania przeglądarki: {ex.Message}");
+            }
+            Console.WriteLine("Zasoby przeglądarki zamknięte.");
         }
     }
 }
