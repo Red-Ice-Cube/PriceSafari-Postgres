@@ -26,7 +26,7 @@
 
         public bool UsePriceWithDelivery { get; set; } = false;
 
-        public bool UseEanForSimulation { get; set; } = true;
+        public string IdentifierForSimulation { get; set; } = "EAN";
         public bool UseMarginForSimulation { get; set; } = true;
 
         public bool EnforceMinimalMargin { get; set; } = true;

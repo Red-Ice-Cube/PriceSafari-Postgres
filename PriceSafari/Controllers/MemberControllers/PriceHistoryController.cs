@@ -179,7 +179,7 @@ namespace PriceSafari.Controllers.MemberControllers
                     pv.SetPrice2,
                     pv.PriceStep,
                     pv.UsePriceDiff,
-                    pv.UseEanForSimulation,
+                    pv.IdentifierForSimulation,
                     pv.UseMarginForSimulation,
                     pv.EnforceMinimalMargin,
                     pv.MinimalMarginPercent,
@@ -191,7 +191,7 @@ namespace PriceSafari.Controllers.MemberControllers
                     SetPrice2 = 2.00m,
                     PriceStep = 2.00m,
                     UsePriceDiff = true,
-                    UseEanForSimulation = true,
+                    IdentifierForSimulation = "EAN",
                     UseMarginForSimulation = true,
                     EnforceMinimalMargin = true,
                     MinimalMarginPercent = 0.00m,
@@ -653,7 +653,7 @@ namespace PriceSafari.Controllers.MemberControllers
                 useMarginForSimulation = priceValues.UseMarginForSimulation,
                 enforceMinimalMargin = priceValues.EnforceMinimalMargin,
                 minimalMarginPercent = priceValues.MinimalMarginPercent,
-                useEanForSimulation = priceValues.UseEanForSimulation,
+                identifierForSimulation = priceValues.IdentifierForSimulation,
                 usePriceWithDelivery = priceValues.UsePriceWithDelivery,
 
                 presetName = activePresetName ?? "PriceSafari"
@@ -1736,7 +1736,7 @@ namespace PriceSafari.Controllers.MemberControllers
                 priceValues = new PriceValueClass
                 {
                     StoreId = model.StoreId,
-                    UseEanForSimulation = model.UseEanForSimulation,
+                    IdentifierForSimulation = model.IdentifierForSimulation,
                     UsePriceWithDelivery = model.UsePriceWithDelivery,
                     UseMarginForSimulation = model.UseMarginForSimulation,
                     EnforceMinimalMargin = model.EnforceMinimalMargin,
@@ -1746,7 +1746,7 @@ namespace PriceSafari.Controllers.MemberControllers
             }
             else
             {
-                priceValues.UseEanForSimulation = model.UseEanForSimulation;
+                priceValues.IdentifierForSimulation = model.IdentifierForSimulation;
                 priceValues.UseMarginForSimulation = model.UseMarginForSimulation;
                 priceValues.UsePriceWithDelivery = model.UsePriceWithDelivery;
                 priceValues.EnforceMinimalMargin = model.EnforceMinimalMargin;
@@ -1761,7 +1761,7 @@ namespace PriceSafari.Controllers.MemberControllers
         public class PriceMarginSettingsViewModel
         {
             public int StoreId { get; set; }
-            public bool UseEanForSimulation { get; set; }
+            public string IdentifierForSimulation { get; set; }
             public bool UsePriceWithDelivery { get; set; }
             public bool UseMarginForSimulation { get; set; }
             public bool EnforceMinimalMargin { get; set; }

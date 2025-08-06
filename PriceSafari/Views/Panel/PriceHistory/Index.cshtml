@@ -520,12 +520,13 @@
                 <form id="marginSettingsForm">
                     <div style="display:flex; gap:6px; justify-content: space-between;">
                         <div class="form-group" style="margin-bottom:24px; width:250px;">
-                            <label for="useEanForSimulation">
+                            <label for="identifierForSimulationInput">
                                 Element nawigacyjny dla produktów
                             </label>
-                            <select class="form-control" id="useEanForSimulationInput">
-                                <option value="true">EAN</option>
-                                <option value="false">ID</option>
+                            <select class="form-control" id="identifierForSimulationInput">
+                                <option value="EAN">EAN</option>
+                                <option value="ID">ID</option>
+                                <option value="ProducerCode">Kod producenta</option>
                             </select>
                         </div>
                         <div class="form-group" style="margin-bottom:24px;  width:250px;">
@@ -884,7 +885,7 @@
 
     <script src="~/js/member/PriceChange.js"></script>
     <script src="~/js/member/CompetitorModal.js"></script>
-    <script src="~/js/member/pricehistory.min.js"></script>
+    <script src="~/js/member/PriceHistory.js"></script>
 
     <div id="loadingOverlay" class="loading-overlay" style="display: none;">
         <div class="loader"></div>

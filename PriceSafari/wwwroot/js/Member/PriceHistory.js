@@ -8,7 +8,7 @@
     let setStepPrice = 2.00;
     let usePriceDifference = document.getElementById('usePriceDifference').checked;
     let marginSettings = {
-        useEanForSimulation: true,
+        identifierForSimulation: 'EAN',
         useMarginForSimulation: true,
         usePriceWithDelivery: true,
         enforceMinimalMargin: true,
@@ -603,7 +603,7 @@
                 marginSettings.useMarginForSimulation = response.useMarginForSimulation;
                 marginSettings.enforceMinimalMargin = response.enforceMinimalMargin;
                 marginSettings.minimalMarginPercent = response.minimalMarginPercent;
-                marginSettings.useEanForSimulation = response.useEanForSimulation;
+                marginSettings.identifierForSimulation = response.identifierForSimulation;
                 marginSettings.usePriceWithDelivery = response.usePriceWithDelivery;
 
                 if (response.presetName) {
@@ -632,7 +632,6 @@
                     } else if (onlyMe) {
                         colorClass = 'prOnlyMe';
 
-                     
                         if (marginPrice != null && myPrice != null) {
                             let priceForMarginCalculation = myPrice;
                             if (marginSettings.usePriceWithDelivery && price.myPriceIncludesDelivery) {
@@ -641,7 +640,7 @@
                             }
                             marginAmount = priceForMarginCalculation - marginPrice;
                             marginPercentage = (marginPrice !== 0) ? (marginAmount / marginPrice) * 100 : null;
-                            marginClass = 'priceBox-diff-margin-neutral'; 
+                            marginClass = 'priceBox-diff-margin-neutral';
                         }
                     } else {
 
@@ -729,16 +728,21 @@
                             .toLowerCase()
                             .replace(/\s+/g, '');
 
-                        let eanOrId;
-                        if (marginSettings.useEanForSimulation) {
-
-                            eanOrId = price.ean || '';
-                        } else {
-
-                            eanOrId = price.externalId ? price.externalId.toString() : '';
+                        let identifierValue = '';
+                        switch (marginSettings.identifierForSimulation) {
+                            case 'ID':
+                                identifierValue = price.externalId ? price.externalId.toString() : '';
+                                break;
+                            case 'ProducerCode':
+                                identifierValue = price.producerCode || '';
+                                break;
+                            case 'EAN':
+                            default:
+                                identifierValue = price.ean || '';
+                                break;
                         }
 
-                        const productNamePlusCode = (price.productName || '') + ' ' + eanOrId;
+                        const productNamePlusCode = (price.productName || '') + ' ' + identifierValue;
 
                         const combinedLower = productNamePlusCode
                             .toLowerCase()
@@ -1023,11 +1027,23 @@
 
         function attachPriceChangeListener(button, suggestedPrice, priceBox, productId, productName, currentPriceValue, item) {
 
-            const useEan = marginSettings.useEanForSimulation;
-
-            const requiredField = useEan ? item.ean : item.externalId;
-
-            const requiredLabel = useEan ? "EAN" : "ID";
+            let requiredField = '';
+            let requiredLabel = '';
+            switch (marginSettings.identifierForSimulation) {
+                case 'ID':
+                    requiredField = item.externalId;
+                    requiredLabel = "ID";
+                    break;
+                case 'ProducerCode':
+                    requiredField = item.producerCode;
+                    requiredLabel = "Kod producenta";
+                    break;
+                case 'EAN':
+                default:
+                    requiredField = item.ean;
+                    requiredLabel = "EAN";
+                    break;
+            }
 
             if (!requiredField || requiredField.toString().trim() === "") {
 
@@ -1280,25 +1296,31 @@
             const priceBoxColumnCategory = document.createElement('div');
             priceBoxColumnCategory.className = 'price-box-column-category';
 
-            const useEanOrId = marginSettings.useEanForSimulation;
-
             const apiBox = document.createElement('span');
             apiBox.className = 'ApiBox';
 
-            if (useEanOrId) {
-                if (item.ean && item.ean.trim() !== "") {
-                    const displayedEan = highlightMatches(item.ean, currentProductSearchTerm, 'highlighted-text-yellow');
-                    apiBox.innerHTML = 'EAN ' + displayedEan;
-                } else {
-                    apiBox.innerHTML = 'Brak EAN';
-                }
+            let identifierValue, identifierLabel, displayedIdentifier;
+            switch (marginSettings.identifierForSimulation) {
+                case 'ID':
+                    identifierValue = item.externalId ? item.externalId.toString() : null;
+                    identifierLabel = 'ID';
+                    break;
+                case 'ProducerCode':
+                    identifierValue = item.producerCode || null;
+                    identifierLabel = 'KOD';
+                    break;
+                case 'EAN':
+                default:
+                    identifierValue = item.ean || null;
+                    identifierLabel = 'EAN';
+                    break;
+            }
+
+            if (identifierValue) {
+                displayedIdentifier = highlightMatches(identifierValue, currentProductSearchTerm, 'highlighted-text-yellow');
+                apiBox.innerHTML = `${identifierLabel} ${displayedIdentifier}`;
             } else {
-                if (item.externalId) {
-                    const displayedId = highlightMatches(item.externalId.toString(), currentProductSearchTerm, 'highlighted-text-yellow');
-                    apiBox.innerHTML = 'ID ' + displayedId;
-                } else {
-                    apiBox.innerHTML = 'Brak ID';
-                }
+                apiBox.innerHTML = `Brak ${identifierLabel}`;
             }
 
             priceBoxColumnCategory.appendChild(apiBox);
@@ -1354,7 +1376,6 @@
 
                 const purchasePriceBox = document.createElement('div');
 
-                
                 purchasePriceBox.className = myPrice != null
                     ? 'price-box-diff-margin ' + marginClass
                     : 'priceBox-diff-margin-neutral';
@@ -1364,7 +1385,7 @@
                 externalInfoContainer.appendChild(purchasePriceBox);
 
                 if (myPrice != null) {
-        
+
                     const formattedMarginAmount = marginSign + Math.abs(marginAmount).toLocaleString('pl-PL', {
                         minimumFractionDigits: 2,
                         maximumFractionDigits: 2
@@ -1380,9 +1401,9 @@
 
                     externalInfoContainer.appendChild(marginBox);
                 } else {
-                  
+
                     const marginBox = document.createElement('div');
-                
+
                     marginBox.className = 'priceBox-diff-margin-neutral';
                     marginBox.innerHTML = '<p>Narzut: Brak informacji</p>';
 
@@ -1648,9 +1669,6 @@
             const priceBoxColumnInfo = document.createElement('div');
             priceBoxColumnInfo.className = 'price-box-column-action';
             priceBoxColumnInfo.innerHTML = '';
-
-            const requiredField = marginSettings.useEanForSimulation ? item.ean : item.externalId;
-            const requiredLabel = marginSettings.useEanForSimulation ? "kod EAN" : "ID";
 
             if (item.colorClass === 'prNoOffer') {
 
@@ -2380,7 +2398,7 @@
 
     document.getElementById('openMarginSettingsBtn').addEventListener('click', function () {
 
-        document.getElementById('useEanForSimulationInput').value = marginSettings.useEanForSimulation.toString();
+        document.getElementById('identifierForSimulationInput').value = marginSettings.identifierForSimulation;
         document.getElementById('useMarginForSimulationInput').value = marginSettings.useMarginForSimulation.toString();
         document.getElementById('usePriceWithDeliveryInput').value = marginSettings.usePriceWithDelivery.toString();
         document.getElementById('enforceMinimalMarginInput').value = marginSettings.enforceMinimalMargin.toString();
@@ -2390,14 +2408,13 @@
     });
 
     document.getElementById('saveMarginSettingsBtn').addEventListener('click', function () {
-
         const oldUsePriceWithDeliverySetting = marginSettings.usePriceWithDelivery;
 
         const updatedMarginSettings = {
             StoreId: storeId,
-            useEanForSimulation: document.getElementById('useEanForSimulationInput').value === 'true',
-            UseMarginForSimulation: document.getElementById('useMarginForSimulationInput').value === 'true',
 
+            IdentifierForSimulation: document.getElementById('identifierForSimulationInput').value,
+            UseMarginForSimulation: document.getElementById('useMarginForSimulationInput').value === 'true',
             UsePriceWithDelivery: document.getElementById('usePriceWithDeliveryInput').value === 'true',
             EnforceMinimalMargin: document.getElementById('enforceMinimalMarginInput').value === 'true',
             MinimalMarginPercent: parseFloat(document.getElementById('minimalMarginPercentInput').value)
@@ -2483,7 +2500,6 @@
 
             const productSearchRaw = document.getElementById('productSearch').value.trim();
             const storeSearchRaw = document.getElementById('storeSearch').value.trim();
-
             if (productSearchRaw) {
                 const sanitizedProductSearch = productSearchRaw
                     .replace(/[^a-zA-Z0-9\s.-]/g, '')
@@ -2492,14 +2508,20 @@
 
                 filteredPrices = filteredPrices.filter(price => {
 
-                    let eanOrId;
-                    if (marginSettings.useEanForSimulation) {
-                        eanOrId = price.ean || '';
-                    } else {
-                        eanOrId = price.externalId ? price.externalId.toString() : '';
+                    let identifierValue = '';
+                    switch (marginSettings.identifierForSimulation) {
+                        case 'ID':
+                            identifierValue = price.externalId ? price.externalId.toString() : '';
+                            break;
+                        case 'ProducerCode':
+                            identifierValue = price.producerCode || '';
+                            break;
+                        case 'EAN':
+                        default:
+                            identifierValue = price.ean || '';
+                            break;
                     }
-
-                    const combined = (price.productName || '') + ' ' + eanOrId;
+                    const combined = (price.productName || '') + ' ' + identifierValue;
 
                     const combinedSanitized = combined
                         .toLowerCase()
