@@ -196,18 +196,4 @@ namespace PriceSafari.Controllers.MemberControllers
     }
 
 
-    //public class FlagDefinition
-    //{
-    //    public string FlagName { get; set; }
-    //    public string FlagColor { get; set; }
-    //    public bool IsMarketplace { get; set; }
-    //}
-
-    //public class FlagAssignment
-    //{
-    //    public string FlagName { get; set; }
-    //    public int? ProductId { get; set; }
-    //    public int? AllegroProductId { get; set; }
-    //}
-
 }
