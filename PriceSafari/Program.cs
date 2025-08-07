@@ -40,10 +40,18 @@ public class Program
         var connectionString = $"Data Source={dbServer};Database={dbName};Uid={dbUser};Password={dbPassword};TrustServerCertificate=True";
 
         builder.Services.AddDbContext<PriceSafariContext>(options =>
-        options.UseSqlServer(connectionString, sqlServerOptions =>
-        {
-            sqlServerOptions.UseCompatibilityLevel(110);
+           options.UseSqlServer(connectionString, sqlServerOptions =>
+           {
+          
+               sqlServerOptions.EnableRetryOnFailure(
+                   maxRetryCount: 5, 
+                   maxRetryDelay: TimeSpan.FromSeconds(30), 
+                   errorNumbersToAdd: null); 
+
+               sqlServerOptions.UseCompatibilityLevel(110);
+          
         }));
+
 
         builder.Services.AddDefaultIdentity<PriceSafariUser>(options => options.SignIn.RequireConfirmedAccount = true)
        .AddRoles<IdentityRole>()
@@ -73,7 +81,7 @@ public class Program
         builder.Services.AddScoped<INetworkControlService, NetworkControlService>();
         builder.Services.AddScoped<AllegroUrlGroupingService>();
         builder.Services.AddScoped<AllegroProcessingService>();
-
+       
         GlobalFontSettings.UseWindowsFontsUnderWindows = true;
 
         builder.Services.AddMemoryCache();
