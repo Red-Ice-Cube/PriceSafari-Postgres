@@ -272,31 +272,45 @@ namespace PriceSafari.Controllers
             return RedirectToAction("PreparedProducts");
         }
 
-   
+
         [HttpPost]
         public async Task<IActionResult> ResetAllScrapingStatuses()
         {
-            var products = await _context.GoogleScrapingProducts.ToListAsync();
+            // 1. Pobierz tylko te produkty, które mają OffersCount = 0.
+            //    Użyj .Include(), aby od razu załadować powiązane dane cenowe i uniknąć dodatkowych zapytań w pętli.
+            var productsToReset = await _context.GoogleScrapingProducts
+                                              .Include(p => p.PriceData)
+                                              .Where(p => p.OffersCount == 0)
+                                              .ToListAsync();
 
-            foreach (var product in products)
+            // 2. Jeśli nie ma takich produktów, zakończ wcześniej.
+            if (!productsToReset.Any())
             {
-                product.IsScraped = null;
-
-           
-                var relatedPrices = _context.PriceData.Where(pd => pd.ScrapingProductId == product.ScrapingProductId);
-                _context.PriceData.RemoveRange(relatedPrices);
-
-                _context.GoogleScrapingProducts.Update(product);
+                return RedirectToAction("PreparedProducts");
             }
 
+            foreach (var product in productsToReset)
+            {
+                // 3. Zresetuj status scrapingu.
+                product.IsScraped = null;
+
+                // 4. Usuń powiązane dane cenowe, które zostały już załadowane dzięki .Include().
+                if (product.PriceData.Any())
+                {
+                    _context.PriceData.RemoveRange(product.PriceData);
+                }
+
+                // Wywołanie .Update() nie jest tutaj konieczne,
+                // ponieważ Entity Framework śledzi zmiany w pobranych obiektach.
+            }
+
+            // 5. Zapisz wszystkie zmiany w bazie danych za jednym razem.
             await _context.SaveChangesAsync();
 
             return RedirectToAction("PreparedProducts");
         }
 
 
-
-     
 
 
         [HttpPost]
