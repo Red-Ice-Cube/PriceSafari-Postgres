@@ -111,8 +111,8 @@ public class GoogleScraperController : Controller
         if (ensureNameMatch)
         {
             Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] Wybrano tryb Pośredni (z weryfikacją nazwy). Uruchamiam scraper...");
-            // ZMIANA: Dodajemy 'maxCidsToProcessPerProduct' do wywołania
-            return await StartScrapingForProducts_IntermediateMatchAsync(storeId, numberOfConcurrentScrapers, SearchTermSource.ProducerCode, maxCidsToProcessPerProduct);
+            // ZMIANA: Przekazujemy 'searchTermSource' od użytkownika, zamiast narzucać 'ProducerCode'
+            return await StartScrapingForProducts_IntermediateMatchAsync(storeId, numberOfConcurrentScrapers, searchTermSource, maxCidsToProcessPerProduct);
         }
         else if (useFirstMatchLogic)
         {
@@ -813,25 +813,52 @@ public class GoogleScraperController : Controller
 
 
     // ##########################################################################################
-    // NOWA METODA PRZETWARZANIA POJEDYNCZEGO PRODUKTU (TRYB POŚREDNI)
+    // NOWA METODA PRZETWARZANIA POJEDYNCZEGO PRODUKTU (TRYB POŚREDNI) - ZAKTUALIZOWANA
     // ##########################################################################################
     private async Task ProcessSingleProduct_IntermediateMatchAsync(ProductProcessingState productState, GoogleScraper scraper, SearchTermSource termSource, CancellationTokenSource cts, int maxCidsToExtract)
     {
         if (cts.IsCancellationRequested) return;
 
-        string searchTerm = productState.ProducerCode;
+        // ZMIANA: Wprowadzamy dwie oddzielne zmienne:
+        // 1. searchTermForGoogle: Tego użyjemy do zapytania w Google.
+        // 2. comparisonTerm: To JEST ZAWSZE kod producenta, którego będziemy szukać w tytule wyniku.
+        string searchTermForGoogle;
+        string comparisonTerm = productState.ProducerCode;
 
-        if (string.IsNullOrWhiteSpace(searchTerm))
+        // Krok 1: Ustal, czego szukać w Google na podstawie wyboru użytkownika
+        switch (termSource)
         {
-            lock (productState) { productState.UpdateStatus(ProductStatus.Error, "Brak kodu producenta do wyszukania"); }
-            Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [Tryb Pośredni] ✗ Błąd dla ID {productState.ProductId}: Brak kodu producenta.");
+            case SearchTermSource.ProductName:
+                searchTermForGoogle = productState.ProductNameInStoreForGoogle;
+                break;
+            case SearchTermSource.Ean:
+                searchTermForGoogle = productState.Ean;
+                break;
+            case SearchTermSource.ProducerCode:
+            default:
+                searchTermForGoogle = productState.ProducerCode;
+                break;
+        }
+
+        // Krok 2: Sprawdź, czy mamy dane do pracy
+        if (string.IsNullOrWhiteSpace(searchTermForGoogle))
+        {
+            lock (productState) { productState.UpdateStatus(ProductStatus.Error, "Brak terminu do wyszukania (np. nazwy lub kodu)"); }
+            Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [Tryb Pośredni] ✗ Błąd dla ID {productState.ProductId}: Brak terminu do wyszukania.");
             return;
         }
 
-        Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [Tryb Pośredni] Przetwarzam ID: {productState.ProductId}, Szukam: '{searchTerm}'");
+        if (string.IsNullOrWhiteSpace(comparisonTerm))
+        {
+            lock (productState) { productState.UpdateStatus(ProductStatus.Error, "Brak kodu producenta do weryfikacji tytułu"); }
+            Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [Tryb Pośredni] ✗ Błąd dla ID {productState.ProductId}: Brak kodu producenta do weryfikacji.");
+            return;
+        }
 
-        // Krok 1: Pobierz listę CID-ów do sprawdzenia
-        var cidsResult = await scraper.SearchInitialProductCIDsAsync(searchTerm, maxCIDsToExtract: maxCidsToExtract);
+        Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [Tryb Pośredni] Przetwarzam ID: {productState.ProductId}. Szukam w Google: '{searchTermForGoogle}', Weryfikuję w tytule: '{comparisonTerm}'");
+
+        // Krok 3: Pobierz listę CID-ów do sprawdzenia
+        var cidsResult = await scraper.SearchInitialProductCIDsAsync(searchTermForGoogle, maxCIDsToExtract: maxCidsToExtract);
 
         if (cts.IsCancellationRequested || cidsResult.CaptchaEncountered)
         {
@@ -843,13 +870,13 @@ public class GoogleScraperController : Controller
         if (!cidsResult.IsSuccess || !cidsResult.Data.Any())
         {
             lock (productState) { productState.UpdateStatus(ProductStatus.NotFound); }
-            Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [Tryb Pośredni] ✗ Nie znaleziono żadnych wyników dla ID {productState.ProductId}.");
+            Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [Tryb Pośredni] ✗ Nie znaleziono żadnych wyników dla '{searchTermForGoogle}'.");
             return;
         }
 
-        // Krok 2: Iteruj po CID-ach i sprawdzaj tytuł na stronie produktu
+        // Krok 4: Iteruj po CID-ach i sprawdzaj tytuł na stronie produktu, porównując go z KODEM PRODUCENTA
         string foundCid = null;
-        string cleanedSearchTerm = searchTerm.Replace(" ", "").Trim();
+        string cleanedComparisonTerm = comparisonTerm.Replace(" ", "").Trim(); // ZMIANA: Używamy comparisonTerm
 
         foreach (var cid in cidsResult.Data)
         {
@@ -862,22 +889,27 @@ public class GoogleScraperController : Controller
             {
                 if (!cts.IsCancellationRequested) cts.Cancel();
                 lock (productState) { productState.UpdateStatus(ProductStatus.CaptchaHalt); }
-                return; // Zakończ całą operację dla tego produktu
+                return;
             }
 
             if (titleResult.IsSuccess && !string.IsNullOrEmpty(titleResult.Data))
             {
                 string cleanedTitle = titleResult.Data.Replace(" ", "").Trim();
-                if (cleanedTitle.Contains(cleanedSearchTerm, StringComparison.OrdinalIgnoreCase))
+                // ZMIANA: Porównujemy z cleanedComparisonTerm, który jest kodem producenta
+                if (cleanedTitle.Contains(cleanedComparisonTerm, StringComparison.OrdinalIgnoreCase))
                 {
                     foundCid = cid;
-                    Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [Tryb Pośredni] ✓ ZNALEZIONO DOPASOWANIE. Tytuł: '{titleResult.Data}'. CID: {foundCid}");
+                    Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [Tryb Pośredni] ✓ ZNALEZIONO DOPASOWANIE. Tytuł: '{titleResult.Data}' zawiera kod '{comparisonTerm}'. CID: {foundCid}");
                     break; // Znaleziono, przerywamy pętlę
+                }
+                else
+                {
+                    Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [Tryb Pośredni] - Brak dopasowania. Tytuł '{titleResult.Data}' nie zawiera kodu '{comparisonTerm}'.");
                 }
             }
         }
 
-        // Krok 3: Zapisz wynik
+        // Krok 5: Zapisz wynik
         if (foundCid != null)
         {
             var googleUrl = $"https://www.google.com/shopping/product/{foundCid}";
@@ -892,7 +924,6 @@ public class GoogleScraperController : Controller
             Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [Tryb Pośredni] ✗ Nie znaleziono dopasowania w żadnym z {cidsResult.Data.Count} sprawdzonych CID-ów.");
         }
     }
-
 
 
 
