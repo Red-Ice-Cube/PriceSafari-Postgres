@@ -17,7 +17,7 @@ public class GoogleMainPriceScraper
     private Browser _browser;
     private Page _page;
     private bool _expandAndCompareGoogleOffersSetting;
-    private Settings _scraperSettings; // NOWY FIELD: Przechowujemy ustawienia
+    private Settings _scraperSettings;
 
     public event EventHandler CaptchaDetected;
 
@@ -193,6 +193,10 @@ public class GoogleMainPriceScraper
                     var priceWithDeliveryText = priceWithDeliveryElement != null ? await priceWithDeliveryElement.EvaluateFunctionAsync<string>("node => node.textContent.trim()") : priceText;
                     var priceDecimal = ExtractPrice(priceText);
                     var priceWithDeliveryDecimal = ExtractPrice(priceWithDeliveryText);
+
+                    // <<< NOWY LOG DIAGNOSTYCZNY >>>
+                    Console.WriteLine($"[DEBUG-OFFER] Store: '{storeName}', RawPrice: '{priceText}', ParsedPrice: {priceDecimal}");
+
                     var currentPositionInPage = positionCounter++;
                     var offer = new CoOfrPriceHistoryClass { GoogleStoreName = storeName, GooglePrice = priceDecimal, GooglePriceWithDelivery = priceWithDeliveryDecimal, GooglePosition = currentPositionInPage.ToString() };
                     if (storeBestOffers.TryGetValue(storeName, out var existingOffer)) { if (priceWithDeliveryDecimal < existingOffer.GooglePriceWithDelivery) { storeBestOffers[storeName] = offer; } }
@@ -211,7 +215,7 @@ public class GoogleMainPriceScraper
                     {
                         var hiddenStoreNameSelector = "td:nth-child(1) > div._-ez > a";
                         var hiddenPriceSelector = "td:nth-child(4) > span";
-                        var hiddenPriceWithDeliverySelector = "td:nth-child(5) > div";
+                        var hiddenPriceWithDeliverySelector = "td:nth-child(5) > div > div._-f3";
                         var hiddenStoreNameElement = await hiddenRowElement.QuerySelectorAsync(hiddenStoreNameSelector);
                         if (hiddenStoreNameElement != null)
                         {
@@ -224,6 +228,10 @@ public class GoogleMainPriceScraper
                             var hiddenPriceWithDeliveryText = hiddenPriceWithDeliveryElement != null ? await hiddenPriceWithDeliveryElement.EvaluateFunctionAsync<string>("node => node.textContent.trim()") : hiddenPriceText;
                             var hiddenPriceDecimal = ExtractPrice(hiddenPriceText);
                             var hiddenPriceWithDeliveryDecimal = ExtractPrice(hiddenPriceWithDeliveryText);
+
+                            // <<< NOWY LOG DIAGNOSTYCZNY >>>
+                            Console.WriteLine($"[DEBUG-HIDDEN-OFFER] Store: '{hiddenStoreName}', RawPrice: '{hiddenPriceText}', ParsedPrice: {hiddenPriceDecimal}");
+
                             var currentHiddenPosition = positionCounter++;
                             var offer = new CoOfrPriceHistoryClass { GoogleStoreName = hiddenStoreName, GooglePrice = hiddenPriceDecimal, GooglePriceWithDelivery = hiddenPriceWithDeliveryDecimal, GooglePosition = currentHiddenPosition.ToString() };
                             if (storeBestOffers.TryGetValue(hiddenStoreName, out var existingOffer)) { if (hiddenPriceWithDeliveryDecimal < existingOffer.GooglePriceWithDelivery) { storeBestOffers[hiddenStoreName] = offer; Console.WriteLine($"Updated hidden offer for {hiddenStoreName}: Price {hiddenPriceDecimal}, Delivery {hiddenPriceWithDeliveryDecimal}, Position {currentHiddenPosition}"); } }
@@ -234,6 +242,7 @@ public class GoogleMainPriceScraper
                 else { Console.WriteLine("No hidden/expanded offer rows found with the specified selector."); }
             }
             else { Console.WriteLine("Skipping processing of hidden/expanded offers as ExpandAndCompareGoogleOffers is false."); }
+
 
             var paginationElement = await _page.QuerySelectorAsync("#sh-fp__pagination-button-wrapper");
             if (paginationElement != null)
