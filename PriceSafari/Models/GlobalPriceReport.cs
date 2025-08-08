@@ -18,7 +18,7 @@ public class GlobalPriceReport
     public decimal PriceWithDelivery { get; set; }
     public decimal CalculatedPriceWithDelivery { get; set; }
     public string StoreName { get; set; }
-    public string OfferUrl { get; set; }
+    public string? OfferUrl { get; set; }
 
     // Klucz obcy do Region
     public int RegionId { get; set; }

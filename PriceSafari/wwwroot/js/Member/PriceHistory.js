@@ -400,12 +400,13 @@
     positionSlider = document.getElementById('positionRangeSlider');
     var positionRangeInput = document.getElementById('positionRange');
 
+ 
     noUiSlider.create(positionSlider, {
-        start: [1, 60],
+        start: [1, 200], 
         connect: true,
         range: {
             'min': 1,
-            'max': 60
+            'max': 200 
         },
         step: 1,
         format: wNumb({
@@ -709,6 +710,25 @@
                 });
 
                 offerSlider.noUiSlider.set([1, offerSliderMax]);
+
+                const positions = allPrices
+                    .map(item => item.myPosition)
+                    .filter(p => p !== null && !isNaN(p)); 
+
+                
+                const maxPosition = positions.length > 0 ? Math.max(...positions) : 60;
+
+            
+                positionSlider.noUiSlider.updateOptions({
+                    range: {
+                        'min': 1,
+                        'max': maxPosition
+                    }
+                });
+
+               
+                positionSlider.noUiSlider.set([1, maxPosition]);
+
 
                 document.getElementById('totalPriceCount').textContent = response.priceCount;
                 document.getElementById('price1').value = setPrice1;

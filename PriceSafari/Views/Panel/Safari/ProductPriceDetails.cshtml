@@ -78,7 +78,6 @@
             }
         </div>
 
-        <!-- Table with offers -->
         <div class="Vert-table">
             <table class="table-orders">
                 <thead>
@@ -87,12 +86,12 @@
                         <th>Pozycja</th>
                         <th>Kraj</th>
                         <th>Cena PLN</th>
-                        <th>Różnica</th> <!-- New column for price difference -->                  
+                        <th>Różnica</th>
                         <th>Dostawa PLN</th>
                         <th>Cena</th>
                         <th>Dostawa</th>
                         <th>Oferta</th>
-                        <th><img src="~/images/Bin-bone.svg" alt="Usuń" style="width:16px; height:16px;"/></th>
+                        <th><img src="~/images/Bin-bone.svg" alt="Usuń" style="width:16px; height:16px;" /></th>
                     </tr>
                 </thead>
                 <tbody id="offersTableBody">
@@ -176,9 +175,13 @@
                                 }
                             </td>
                             <td>
-                                <button type="button" class="Button-Page-Small" onclick="window.open('@price.OfferUrl', '_blank')">
-                                    Oferta
-                                </button>
+                                @* --- OSTATECZNA POPRAWKA: Sprawdzamy, czy URL jest prawidłowy --- *@
+                                @if (!string.IsNullOrEmpty(price.OfferUrl) && price.OfferUrl.StartsWith("http"))
+                                {
+                                    <button type="button" class="Button-Page-Small" onclick="window.open('@price.OfferUrl', '_blank')">
+                                        Oferta
+                                    </button>
+                                }
                             </td>
                             <td>
                                 @if (price.StoreName != Model.MyStore)
@@ -198,7 +201,6 @@
     </div>
 </div>
 
-<!-- JavaScript for filtering offers and updating the chart -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
     var chart; // Global variable to hold the chart instance
@@ -350,12 +352,12 @@
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ priceId: priceId })  // Przesyłamy jako liczba
+                body: JSON.stringify({ priceId: priceId })
             })
                 .then(response => {
                     if (response.ok) {
                         alert('Cena została pomyślnie usunięta.');
-                        location.reload(); // Odśwież stronę, aby zaktualizować widok
+                        location.reload();
                     } else {
                         response.text().then(text => alert('Błąd podczas usuwania ceny: ' + text));
                     }

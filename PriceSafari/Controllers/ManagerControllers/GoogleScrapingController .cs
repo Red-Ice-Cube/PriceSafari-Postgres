@@ -632,136 +632,477 @@ namespace PriceSafari.Controllers
 
 
 
+        //[HttpPost]
+        //public async Task<IActionResult> SaveReportProducts(int reportId)
+        //{
+        //    using var transaction = await _context.Database.BeginTransactionAsync();
+        //    Stopwatch stopwatch = new Stopwatch();
+
+        //    try
+        //    {
+        //        Console.WriteLine("Rozpoczęto przetwarzanie raportu...");
+        //        stopwatch.Start();
+
+        //        stopwatch.Restart();
+        //        var scrapingProducts = await _context.GoogleScrapingProducts
+        //            .Include(sp => sp.Products)
+        //            .Include(sp => sp.PriceData)
+        //            .Include(sp => sp.Region)
+        //            .Where(sp => sp.PriceSafariRaportId == reportId)
+        //            .ToListAsync();
+        //        stopwatch.Stop();
+        //        Console.WriteLine($"Pobranie produktów i powiązań zajęło: {stopwatch.ElapsedMilliseconds} ms");
+
+        //        if (!scrapingProducts.Any())
+        //        {
+        //            return NotFound("Brak produktów dla tego raportu.");
+        //        }
+
+        //        var globalPriceReports = new List<GlobalPriceReport>();
+
+        //        stopwatch.Restart();
+        //        foreach (var scrapingProduct in scrapingProducts)
+        //        {
+        //            var region = await _context.Regions.FindAsync(scrapingProduct.RegionId);
+        //            if (region == null)
+        //            {
+        //                Console.WriteLine($"Nie znaleziono regionu dla RegionId: {scrapingProduct.RegionId}");
+        //                continue;
+        //            }
+
+        //            // Jeśli dla danego produktu jest tylko jedna cena, pomiń go
+        //            if (scrapingProduct.PriceData == null || scrapingProduct.PriceData.Count <= 1)
+        //            {
+        //                Console.WriteLine($"Produkt {scrapingProduct.ScrapingProductId} pominięty - tylko jedna cena.");
+        //                continue;
+        //            }
+
+        //            foreach (var price in scrapingProduct.PriceData)
+        //            {
+        //                foreach (var productId in scrapingProduct.ProductIds)
+        //                {
+        //                    var product = await _context.Products.FindAsync(productId);
+        //                    if (product == null)
+        //                    {
+        //                        Console.WriteLine($"Nie znaleziono produktu dla ProductId: {productId}");
+        //                        continue;
+        //                    }
+
+        //                    var calculatedPrice = price.Price * region.CurrencyValue;
+        //                    var calculatedPriceWithDelivery = price.PriceWithDelivery * region.CurrencyValue;
+
+        //                    var newReport = new GlobalPriceReport
+        //                    {
+        //                        ScrapingProductId = scrapingProduct.ScrapingProductId,
+        //                        ProductId = product.ProductId,
+        //                        Price = price.Price,
+        //                        CalculatedPrice = calculatedPrice,
+        //                        PriceWithDelivery = price.PriceWithDelivery,
+        //                        CalculatedPriceWithDelivery = calculatedPriceWithDelivery,
+        //                        StoreName = price.StoreName,
+        //                        OfferUrl = price.OfferUrl,
+        //                        RegionId = scrapingProduct.RegionId,
+        //                        PriceSafariReportId = reportId
+        //                    };
+
+        //                    globalPriceReports.Add(newReport);
+        //                }
+        //            }
+        //        }
+
+
+        //        stopwatch.Stop();
+        //        Console.WriteLine($"Przetwarzanie produktów zajęło: {stopwatch.ElapsedMilliseconds} ms");
+
+        //        globalPriceReports = globalPriceReports.OrderBy(r => r.CalculatedPrice).ToList();
+
+        //        var bulkConfig = new BulkConfig
+        //        {
+        //            CustomDestinationTableName = "heatlead1_SQL_user.GlobalPriceReports",
+        //            BulkCopyTimeout = 0,
+        //        };
+
+        //        stopwatch.Restart();
+        //        var batchSize = 1000;
+        //        var totalBatches = (int)Math.Ceiling((double)globalPriceReports.Count / batchSize);
+
+        //        for (int i = 0; i < globalPriceReports.Count; i += batchSize)
+        //        {
+        //            var batch = globalPriceReports.Skip(i).Take(batchSize).ToList();
+        //            stopwatch.Restart();
+        //            await _context.BulkInsertAsync(batch, bulkConfig);
+        //            stopwatch.Stop();
+
+        //            Console.WriteLine($"Przetworzono partię {i / batchSize + 1} z {totalBatches}. Liczba rekordów: {batch.Count}, Czas zapisania paczki: {stopwatch.ElapsedMilliseconds} ms");
+        //        }
+
+        //        stopwatch.Stop();
+        //        Console.WriteLine($"Całkowity czas zapisu wszystkich paczek: {stopwatch.ElapsedMilliseconds} ms");
+
+        //        // Zmiana statusu raportu na "Prepared"
+        //        var report = await _context.PriceSafariReports.FindAsync(reportId);
+        //        if (report != null)
+        //        {
+        //            report.Prepared = true;
+        //            report.ReadyDate = DateTime.Now;
+        //            _context.PriceSafariReports.Update(report);
+        //            await _context.SaveChangesAsync();
+        //        }
+
+        //        await transaction.CommitAsync();
+
+        //        Console.WriteLine("Zakończono przetwarzanie raportu.");
+
+        //        return RedirectToAction("PreparedProducts");
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        await transaction.RollbackAsync();
+        //        Console.WriteLine($"Błąd podczas zapisywania raportu: {ex.Message}");
+        //        throw;
+        //    }
+        //}
+
+
+
+        //nowe dziala bez ostrzykiwania
+
+
+        //[HttpPost]
+        //public async Task<IActionResult> SaveReportProducts(int reportId)
+        //{
+        //    try
+        //    {
+        //        // 1. Utwórz strategię wykonania.
+        //        var strategy = _context.Database.CreateExecutionStrategy();
+
+        //        // 2. Wykonaj operację bazodanową. Lambda wewnątrz NIE ZWRACA wartości (jest typu async Task).
+        //        //    Jej celem jest tylko wykonanie pracy lub rzucenie wyjątku w razie porażki.
+        //        await strategy.ExecuteAsync(async () =>
+        //        {
+        //            Stopwatch stopwatch = new Stopwatch();
+        //            Console.WriteLine("Rozpoczęto przetwarzanie raportu...");
+        //            stopwatch.Start();
+
+        //            stopwatch.Restart();
+        //            var scrapingProducts = await _context.GoogleScrapingProducts
+        //                .Include(sp => sp.Products)
+        //                .Include(sp => sp.PriceData)
+        //                .Include(sp => sp.Region)
+        //                .Where(sp => sp.PriceSafariRaportId == reportId)
+        //                .ToListAsync();
+        //            stopwatch.Stop();
+        //            Console.WriteLine($"Pobranie produktów i powiązań zajęło: {stopwatch.ElapsedMilliseconds} ms");
+
+        //            if (!scrapingProducts.Any())
+        //            {
+        //                // To jest wyjątek biznesowy, a nie błąd bazy danych. 
+        //                // Rzucamy go, by przerwać operację i obsłużyć go na zewnątrz strategii.
+        //                throw new InvalidOperationException("Brak produktów dla tego raportu.");
+        //            }
+
+        //            var globalPriceReports = new List<GlobalPriceReport>();
+        //            stopwatch.Restart();
+
+        //            foreach (var scrapingProduct in scrapingProducts)
+        //            {
+        //                var region = await _context.Regions.FindAsync(scrapingProduct.RegionId);
+        //                if (region == null)
+        //                {
+        //                    Console.WriteLine($"Nie znaleziono regionu dla RegionId: {scrapingProduct.RegionId}");
+        //                    continue;
+        //                }
+
+        //                if (scrapingProduct.PriceData == null || scrapingProduct.PriceData.Count <= 1)
+        //                {
+        //                    Console.WriteLine($"Produkt {scrapingProduct.ScrapingProductId} pominięty - tylko jedna cena.");
+        //                    continue;
+        //                }
+
+        //                foreach (var price in scrapingProduct.PriceData)
+        //                {
+        //                    foreach (var productId in scrapingProduct.ProductIds)
+        //                    {
+        //                        var product = await _context.Products.FindAsync(productId);
+        //                        if (product == null)
+        //                        {
+        //                            Console.WriteLine($"Nie znaleziono produktu dla ProductId: {productId}");
+        //                            continue;
+        //                        }
+
+        //                        var calculatedPrice = price.Price * region.CurrencyValue;
+        //                        var calculatedPriceWithDelivery = price.PriceWithDelivery * region.CurrencyValue;
+
+        //                        var newReport = new GlobalPriceReport
+        //                        {
+        //                            ScrapingProductId = scrapingProduct.ScrapingProductId,
+        //                            ProductId = product.ProductId,
+        //                            Price = price.Price,
+        //                            CalculatedPrice = calculatedPrice,
+        //                            PriceWithDelivery = price.PriceWithDelivery,
+        //                            CalculatedPriceWithDelivery = calculatedPriceWithDelivery,
+        //                            StoreName = price.StoreName,
+        //                            OfferUrl = price.OfferUrl,
+        //                            RegionId = scrapingProduct.RegionId,
+        //                            PriceSafariReportId = reportId
+        //                        };
+
+        //                        globalPriceReports.Add(newReport);
+        //                    }
+        //                }
+        //            }
+
+        //            stopwatch.Stop();
+        //            Console.WriteLine($"Przetwarzanie produktów zajęło: {stopwatch.ElapsedMilliseconds} ms");
+
+        //            globalPriceReports = globalPriceReports.OrderBy(r => r.CalculatedPrice).ToList();
+
+        //            var bulkConfig = new BulkConfig
+        //            {
+        //                CustomDestinationTableName = "heatlead1_SQL_user.GlobalPriceReports",
+        //                BulkCopyTimeout = 0,
+        //            };
+
+        //            stopwatch.Restart();
+        //            var batchSize = 1000;
+        //            var totalBatches = (int)Math.Ceiling((double)globalPriceReports.Count / batchSize);
+
+        //            for (int i = 0; i < globalPriceReports.Count; i += batchSize)
+        //            {
+        //                var batch = globalPriceReports.Skip(i).Take(batchSize).ToList();
+        //                stopwatch.Restart();
+        //                await _context.BulkInsertAsync(batch, bulkConfig);
+        //                stopwatch.Stop();
+
+        //                Console.WriteLine($"Przetworzono partię {i / batchSize + 1} z {totalBatches}. Liczba rekordów: {batch.Count}, Czas zapisania paczki: {stopwatch.ElapsedMilliseconds} ms");
+        //            }
+
+        //            stopwatch.Stop();
+        //            Console.WriteLine($"Całkowity czas zapisu wszystkich paczek: {stopwatch.ElapsedMilliseconds} ms");
+
+        //            var report = await _context.PriceSafariReports.FindAsync(reportId);
+        //            if (report != null)
+        //            {
+        //                report.Prepared = true;
+        //                report.ReadyDate = DateTime.Now;
+        //                _context.PriceSafariReports.Update(report);
+        //                await _context.SaveChangesAsync();
+        //            }
+
+        //            Console.WriteLine("Zakończono przetwarzanie raportu.");
+        //        });
+
+        //        // 3. Jeśli strategia zakończyła się sukcesem (nie rzuciła wyjątku), generujemy odpowiedź HTTP o sukcesie.
+        //        return RedirectToAction("PreparedProducts");
+        //    }
+        //    catch (InvalidOperationException ex) when (ex.Message == "Brak produktów dla tego raportu.")
+        //    {
+        //        // 4. Obsługujemy nasz konkretny przypadek biznesowy "braku produktów".
+        //        return NotFound(ex.Message);
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        // 5. Jeśli strategia rzuciła wyjątek po wszystkich próbach (np. błąd SQL), logujemy go i zwracamy ogólny błąd serwera.
+        //        Console.WriteLine($"Wystąpił ostateczny, nieodwracalny błąd podczas zapisu raportu: {ex}");
+        //        // Możesz tutaj zwrócić widok z informacją o błędzie dla użytkownika.
+        //        return StatusCode(500, "Wystąpił wewnętrzny błąd serwera podczas przetwarzania raportu.");
+        //    }
+        //}
+
+
+
+        //dziala ale dodaje wiele skelpow
         [HttpPost]
         public async Task<IActionResult> SaveReportProducts(int reportId)
         {
-            using var transaction = await _context.Database.BeginTransactionAsync();
-            Stopwatch stopwatch = new Stopwatch();
-
             try
             {
-                Console.WriteLine("Rozpoczęto przetwarzanie raportu...");
-                stopwatch.Start();
+                var strategy = _context.Database.CreateExecutionStrategy();
 
-                stopwatch.Restart();
-                var scrapingProducts = await _context.GoogleScrapingProducts
-                    .Include(sp => sp.Products)
-                    .Include(sp => sp.PriceData)
-                    .Include(sp => sp.Region)
-                    .Where(sp => sp.PriceSafariRaportId == reportId)
-                    .ToListAsync();
-                stopwatch.Stop();
-                Console.WriteLine($"Pobranie produktów i powiązań zajęło: {stopwatch.ElapsedMilliseconds} ms");
-
-                if (!scrapingProducts.Any())
+                await strategy.ExecuteAsync(async () =>
                 {
-                    return NotFound("Brak produktów dla tego raportu.");
-                }
+                    var stopwatch = new Stopwatch();
+                    Console.WriteLine("Rozpoczęto przetwarzanie raportu...");
+                    stopwatch.Start();
 
-                var globalPriceReports = new List<GlobalPriceReport>();
+                    // ... (sekcja pobierania danych wstępnych - bez zmian) ...
+                    var priceSafariReport = await _context.PriceSafariReports
+                        .Include(r => r.Store)
+                        .AsNoTracking()
+                        .FirstOrDefaultAsync(r => r.ReportId == reportId);
 
-                stopwatch.Restart();
-                foreach (var scrapingProduct in scrapingProducts)
-                {
-                    var region = await _context.Regions.FindAsync(scrapingProduct.RegionId);
-                    if (region == null)
+                    if (priceSafariReport == null || priceSafariReport.Store == null)
                     {
-                        Console.WriteLine($"Nie znaleziono regionu dla RegionId: {scrapingProduct.RegionId}");
-                        continue;
+                        throw new InvalidOperationException("Nie znaleziono raportu lub powiązanego z nim sklepu.");
                     }
+                    bool useGoogleXmlFeed = priceSafariReport.Store.UseGoogleXMLFeedPrice;
+                    string canonicalStoreName = priceSafariReport.Store.StoreName;
 
-                    // Jeśli dla danego produktu jest tylko jedna cena, pomiń go
-                    if (scrapingProduct.PriceData == null || scrapingProduct.PriceData.Count <= 1)
+                    Region plnRegion = null;
+                    if (useGoogleXmlFeed)
                     {
-                        Console.WriteLine($"Produkt {scrapingProduct.ScrapingProductId} pominięty - tylko jedna cena.");
-                        continue;
-                    }
-
-                    foreach (var price in scrapingProduct.PriceData)
-                    {
-                        foreach (var productId in scrapingProduct.ProductIds)
+                        plnRegion = await _context.Regions.FindAsync(1);
+                        if (plnRegion == null)
                         {
-                            var product = await _context.Products.FindAsync(productId);
-                            if (product == null)
+                            throw new InvalidOperationException("Krytyczny błąd: Nie znaleziono w bazie danych regionu o ID = 1 (PLN).");
+                        }
+                    }
+
+                    var scrapingProducts = await _context.GoogleScrapingProducts
+                        .Include(sp => sp.PriceData)
+                        .Where(sp => sp.PriceSafariRaportId == reportId)
+                        .ToListAsync();
+
+                    if (!scrapingProducts.Any())
+                    {
+                        throw new InvalidOperationException("Brak produktów dla tego raportu.");
+                    }
+
+                    var allProductIds = scrapingProducts.SelectMany(sp => sp.ProductIds).Distinct().ToList();
+                    var allProducts = await _context.Products
+                        .Where(p => allProductIds.Contains(p.ProductId))
+                        .ToDictionaryAsync(p => p.ProductId);
+
+                    var allRegionIds = scrapingProducts.Select(sp => sp.RegionId).Distinct().ToList();
+                    var allRegions = await _context.Regions
+                        .Where(r => allRegionIds.Contains(r.RegionId))
+                        .ToDictionaryAsync(r => r.RegionId);
+                    // ... (koniec sekcji pobierania danych wstępnych) ...
+
+                    var globalPriceReports = new List<GlobalPriceReport>();
+                    stopwatch.Restart();
+
+                    // --- OSTATECZNA POPRAWKA: Prawidłowy klucz grupowania ---
+                    // Grupujemy po posortowanej, połączonej liście identyfikatorów produktów.
+                    // To gwarantuje, że wszystkie regionalne wyniki dla tego samego produktu trafią do jednej grupy.
+                    var scrapingGroups = scrapingProducts.GroupBy(sp => string.Join(",", sp.ProductIds.OrderBy(id => id)));
+
+                    foreach (var group in scrapingGroups)
+                    {
+                        // Musimy wybrać jeden, reprezentatywny ScrapingProductId dla całej grupy.
+                        // Może to być ID pierwszego elementu. Będzie on używany dla wszystkich raportów z tej grupy.
+                        var representativeScrapingProductId = group.First().ScrapingProductId;
+                        var productIdsForGroup = group.First().ProductIds;
+
+                        // Sprawdzamy, czy oferta naszego sklepu istnieje w całej grupie (we wszystkich regionach)
+                        bool ownStoreOfferFoundInScraping = false;
+                        if (useGoogleXmlFeed && !string.IsNullOrEmpty(canonicalStoreName))
+                        {
+                            ownStoreOfferFoundInScraping = group
+                                .SelectMany(sp => sp.PriceData)
+                                .Any(p => canonicalStoreName.Equals(p.StoreName, StringComparison.OrdinalIgnoreCase));
+                        }
+
+                        // Przetwarzamy oferty ze scrapingu dla każdego regionu w grupie
+                        foreach (var scrapingProductInGroup in group)
+                        {
+                            if (!allRegions.TryGetValue(scrapingProductInGroup.RegionId, out var region))
                             {
-                                Console.WriteLine($"Nie znaleziono produktu dla ProductId: {productId}");
+                                Console.WriteLine($"Nie znaleziono regionu dla RegionId: {scrapingProductInGroup.RegionId}");
                                 continue;
                             }
 
-                            var calculatedPrice = price.Price * region.CurrencyValue;
-                            var calculatedPriceWithDelivery = price.PriceWithDelivery * region.CurrencyValue;
+                            if (scrapingProductInGroup.PriceData == null) continue;
 
-                            var newReport = new GlobalPriceReport
+                            foreach (var price in scrapingProductInGroup.PriceData)
                             {
-                                ScrapingProductId = scrapingProduct.ScrapingProductId,
-                                ProductId = product.ProductId,
-                                Price = price.Price,
-                                CalculatedPrice = calculatedPrice,
-                                PriceWithDelivery = price.PriceWithDelivery,
-                                CalculatedPriceWithDelivery = calculatedPriceWithDelivery,
-                                StoreName = price.StoreName,
-                                OfferUrl = price.OfferUrl,
-                                RegionId = scrapingProduct.RegionId,
-                                PriceSafariReportId = reportId
-                            };
+                                foreach (var productId in productIdsForGroup)
+                                {
+                                    if (allProducts.TryGetValue(productId, out var product))
+                                    {
+                                        var newReport = new GlobalPriceReport
+                                        {
+                                            ScrapingProductId = representativeScrapingProductId, // Używamy reprezentatywnego ID
+                                            ProductId = product.ProductId,
+                                            Price = price.Price,
+                                            CalculatedPrice = price.Price * region.CurrencyValue,
+                                            PriceWithDelivery = price.PriceWithDelivery,
+                                            CalculatedPriceWithDelivery = price.PriceWithDelivery * region.CurrencyValue,
+                                            StoreName = price.StoreName,
+                                            OfferUrl = price.OfferUrl,
+                                            RegionId = scrapingProductInGroup.RegionId,
+                                            PriceSafariReportId = reportId
+                                        };
+                                        globalPriceReports.Add(newReport);
+                                    }
+                                }
+                            }
+                        }
 
-                            globalPriceReports.Add(newReport);
+                        // Dodajemy ofertę własną z XML tylko RAZ dla całej grupy, jeśli warunki są spełnione
+                        if (useGoogleXmlFeed && !ownStoreOfferFoundInScraping && plnRegion != null)
+                        {
+                            foreach (var productId in productIdsForGroup)
+                            {
+                                if (allProducts.TryGetValue(productId, out var product) && product.GoogleXMLPrice.HasValue && product.GoogleXMLPrice.Value > 0)
+                                {
+                                    decimal priceFromFeed = product.GoogleXMLPrice.Value;
+                                    decimal deliveryFromFeed = product.GoogleDeliveryXMLPrice ?? 0;
+                                    decimal priceWithDeliveryFromFeed = priceFromFeed + deliveryFromFeed;
+
+                                    var newReportFromFeed = new GlobalPriceReport
+                                    {
+                                        ScrapingProductId = representativeScrapingProductId, // Używamy tego samego reprezentatywnego ID
+                                        ProductId = product.ProductId,
+                                        Price = priceFromFeed,
+                                        CalculatedPrice = priceFromFeed * plnRegion.CurrencyValue,
+                                        PriceWithDelivery = priceWithDeliveryFromFeed,
+                                        CalculatedPriceWithDelivery = priceWithDeliveryFromFeed * plnRegion.CurrencyValue,
+                                        StoreName = canonicalStoreName,
+                                        OfferUrl = null,
+                                        RegionId = plnRegion.RegionId,
+                                        PriceSafariReportId = reportId
+                                    };
+                                    globalPriceReports.Add(newReportFromFeed);
+                                }
+                            }
                         }
                     }
-                }
 
-
-                stopwatch.Stop();
-                Console.WriteLine($"Przetwarzanie produktów zajęło: {stopwatch.ElapsedMilliseconds} ms");
-
-                globalPriceReports = globalPriceReports.OrderBy(r => r.CalculatedPrice).ToList();
-
-                var bulkConfig = new BulkConfig
-                {
-                    CustomDestinationTableName = "heatlead1_SQL_user.GlobalPriceReports",
-                    BulkCopyTimeout = 0,
-                };
-
-                stopwatch.Restart();
-                var batchSize = 1000;
-                var totalBatches = (int)Math.Ceiling((double)globalPriceReports.Count / batchSize);
-
-                for (int i = 0; i < globalPriceReports.Count; i += batchSize)
-                {
-                    var batch = globalPriceReports.Skip(i).Take(batchSize).ToList();
-                    stopwatch.Restart();
-                    await _context.BulkInsertAsync(batch, bulkConfig);
                     stopwatch.Stop();
+                    Console.WriteLine($"Przetwarzanie produktów i tworzenie listy zajęło: {stopwatch.ElapsedMilliseconds} ms");
 
-                    Console.WriteLine($"Przetworzono partię {i / batchSize + 1} z {totalBatches}. Liczba rekordów: {batch.Count}, Czas zapisania paczki: {stopwatch.ElapsedMilliseconds} ms");
-                }
+                    // ... (reszta kodu: sortowanie, zapis masowy, aktualizacja raportu - bez zmian) ...
+                    globalPriceReports = globalPriceReports.OrderBy(r => r.CalculatedPrice).ToList();
 
-                stopwatch.Stop();
-                Console.WriteLine($"Całkowity czas zapisu wszystkich paczek: {stopwatch.ElapsedMilliseconds} ms");
+                    var bulkConfig = new BulkConfig
+                    {
+                        CustomDestinationTableName = "heatlead1_SQL_user.GlobalPriceReports",
+                        BulkCopyTimeout = 0,
+                    };
 
-                // Zmiana statusu raportu na "Prepared"
-                var report = await _context.PriceSafariReports.FindAsync(reportId);
-                if (report != null)
-                {
-                    report.Prepared = true;
-                    report.ReadyDate = DateTime.Now;
-                    _context.PriceSafariReports.Update(report);
-                    await _context.SaveChangesAsync();
-                }
+                    var batchSize = 1000;
+                    for (int i = 0; i < globalPriceReports.Count; i += batchSize)
+                    {
+                        var batch = globalPriceReports.Skip(i).Take(batchSize).ToList();
+                        await _context.BulkInsertAsync(batch, bulkConfig);
+                    }
 
-                await transaction.CommitAsync();
+                    var reportToUpdate = await _context.PriceSafariReports.FindAsync(reportId);
+                    if (reportToUpdate != null)
+                    {
+                        reportToUpdate.Prepared = true;
+                        reportToUpdate.ReadyDate = DateTime.Now;
+                        _context.PriceSafariReports.Update(reportToUpdate);
+                        await _context.SaveChangesAsync();
+                    }
 
-                Console.WriteLine("Zakończono przetwarzanie raportu.");
+                    Console.WriteLine("Zakończono przetwarzanie raportu.");
+                });
 
                 return RedirectToAction("PreparedProducts");
             }
+            catch (InvalidOperationException ex) when (ex.Message == "Brak produktów dla tego raportu.")
+            {
+                return NotFound(ex.Message);
+            }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
-                Console.WriteLine($"Błąd podczas zapisywania raportu: {ex.Message}");
-                throw;
+                Console.WriteLine($"Wystąpił ostateczny, nieodwracalny błąd podczas zapisu raportu: {ex}");
+                return StatusCode(500, "Wystąpił wewnętrzny błąd serwera podczas przetwarzania raportu.");
             }
         }
+
 
 
         [HttpGet]
