@@ -667,10 +667,7 @@ public class ClientProfileController : Controller
         <p><strong>Czy byliby Państwo zainteresowani bezpłatnym przetestowaniem naszego narzędzia na 500 własnych produktach przez 7 dni?</strong></p>
         <p>Jeśli tak, wystarczy krótka odpowiedź na tę wiadomość, a ja prześlę więcej szczegółów i pokażę, jak możemy pomóc w rozwoju Państwa biznesu.</p>
 
-        <br>
-
-        <p>Tymczasem zapraszam do zapoznania się z pełnymi możliwościami naszego systemu na stronie internetowej:</p>
-        <p><a href=""https:
+   
     ";
     }
     private string GetEmailFooter()
