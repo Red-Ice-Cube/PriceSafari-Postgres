@@ -95,6 +95,15 @@ function buildXmlTree(node, parentPath) {
     }
 }
 
+
+// Dodaj to na początku pliku, np. pod zmienną proxyUrl
+const nsResolver = function (prefix) {
+    const ns = {
+        'g': 'http://base.google.com/ns/1.0'
+        // Jeśli plik używa innych prefiksów, dodaj je tutaj
+    };
+    return ns[prefix] || null;
+}
 function createLi(node, parentPath) {
     let li = document.createElement("li");
     li.classList.add("xml-node");
@@ -649,10 +658,9 @@ function getVal(entryNode, fieldName, productNodeName) {
     }
 
     relativePath = relativePath.replace(/\/\@/g, '@');
-
     try {
-
-        const result = xmlDoc.evaluate(relativePath, contextNode, null, XPathResult.STRING_TYPE, null);
+        // ZMIANA TUTAJ: Zamiast 'null' wstaw 'nsResolver'
+        const result = xmlDoc.evaluate(relativePath, contextNode, nsResolver, XPathResult.STRING_TYPE, null);
         return result.stringValue.trim();
     } catch (e) {
         console.error(`Błąd wykonania XPath: "${relativePath}" w kontekście ${contextNode.tagName}`, e);
