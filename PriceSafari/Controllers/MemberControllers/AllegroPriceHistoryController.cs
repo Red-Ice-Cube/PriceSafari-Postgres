@@ -351,5 +351,62 @@ namespace PriceSafari.Controllers.MemberControllers
             });
         }
 
+
+        [HttpGet]
+        public async Task<IActionResult> GetPriceTrendData(int productId)
+        {
+            var product = await _context.AllegroProducts.FindAsync(productId);
+            if (product == null)
+                return NotFound(new { Error = "Nie znaleziono produktu." });
+
+            var storeId = product.StoreId;
+            if (!await UserHasAccessToStore(storeId))
+                return Unauthorized(new { Error = "Brak dostępu do sklepu." });
+
+            var lastScraps = await _context.AllegroScrapeHistories
+                .Where(sh => sh.StoreId == storeId)
+                .OrderByDescending(sh => sh.Date)
+                .Take(30)
+                .OrderBy(sh => sh.Date)
+                .ToListAsync();
+
+            var scrapIds = lastScraps.Select(sh => sh.Id).ToList();
+
+            if (!scrapIds.Any())
+            {
+                return Json(new
+                {
+                    ProductName = product.AllegroProductName,
+                    TimelineData = new List<object>()
+                });
+            }
+
+            // --- POPRAWKA JEST TUTAJ ---
+            // Usunęliśmy .HasValue i .Value, ponieważ AllegroScrapeHistoryId jest typu int.
+            var priceHistories = await _context.AllegroPriceHistories
+                .Where(aph => aph.AllegroProductId == productId && scrapIds.Contains(aph.AllegroScrapeHistoryId))
+                .Where(aph => aph.Price > 0)
+                .ToListAsync();
+
+            var timelineData = lastScraps.Select(scrap => new
+            {
+                ScrapDate = scrap.Date.ToString("yyyy-MM-dd"),
+                PricesByStore = priceHistories
+                    .Where(ph => ph.AllegroScrapeHistoryId == scrap.Id)
+                    .Select(ph => new
+                    {
+                        StoreName = ph.SellerName,
+                        ph.Price,
+                        Source = "allegro"
+                    })
+                    .ToList()
+            }).ToList();
+
+            return Json(new
+            {
+                ProductName = product.AllegroProductName,
+                TimelineData = timelineData
+            });
+        }
     }
 }
