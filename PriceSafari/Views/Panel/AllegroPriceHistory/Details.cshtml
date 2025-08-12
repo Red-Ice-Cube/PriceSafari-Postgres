@@ -8,14 +8,16 @@
     var allegroOfferUrl = ViewBag.AllegroOfferUrl as string;
 }
 
-
-
 <style>
     .price-trend-section {
         display: flex;
         flex-wrap: wrap;
         gap: 20px;
         margin-top: 25px;
+    }
+
+    #customTrendTooltip {
+        width: 450px;
     }
 
     .price-trend__main-panel {
@@ -65,15 +67,37 @@
     }
 
     .price-trend__tooltip-panel {
-        flex-basis: 340px;
+        flex-basis: 370px;
         flex-shrink: 0;
         border-left: 1px solid #e0e0e0;
         padding-left: 20px;
         overflow-y: auto;
     }
+
+    .offer-badge {
+        display: inline-block;
+        padding: 2px 5px;
+        font-size: 0.7rem;
+        font-weight: bold;
+        color: white;
+        border-radius: 4px;
+        margin-left: 4px;
+        vertical-align: middle;
+    }
+
+    .badge-bpg {
+        background-color: #169A23;
+    }
+
+    .badge-top {
+        background-color: #9c27b0;
+    }
+
+    .badge-super {
+        background-color: #ff9800;
+    }
+
 </style>
-
-
 
 <div class="Vert" data-store-name="@storeName">
     <div class="Page-Box">
@@ -129,7 +153,6 @@
             </table>
         </div>
 
-
         <div id="trendChartContainer" class="price-trend-section" style="display: none;">
             <div class="price-trend__main-panel">
                 <div class="price-trend__chart-area">
@@ -155,7 +178,10 @@
 </div>
 
 @section Scripts {
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
 
@@ -386,13 +412,9 @@
         })
         });
 
-
-
-
     </script>
 
     <script>
-
 
             let productId = @ViewBag.ProductId;
             let myStoreLower = "@storeName".toLowerCase().trim();
@@ -403,21 +425,24 @@
             let lastHighlightedStore = null;
             let hiddenStores = [];
 
-             const highlightColors = [
-                'rgba(255, 128, 0, 1)',
-                'rgba(76, 175, 80, 1)',
-                'rgba(153, 102, 255, 1)',
-                'rgba(244, 67, 54, 1)',
-                'rgba(0, 150, 136, 1)',
-                'rgba(255, 193, 7, 1)',
-                'rgba(0, 188, 212, 1)',
-                'rgba(139, 195, 74, 1)',
-                'rgba(121, 85, 72, 1)',
-                'rgba(233, 30, 99, 1)'
-            ];
+        const highlightColors = [
+            'rgba(54, 162, 235, 1)',
+            'rgba(75, 192, 192, 1)',
+            'rgba(153, 102, 255, 1)',
+            'rgba(255, 99, 132, 1)',
+            'rgba(0, 150, 136, 1)',
+            'rgba(201, 203, 207, 1)',
+            'rgba(121, 85, 72, 1)',
+            'rgba(139, 195, 74, 1)',
+            'rgba(0, 188, 212, 1)',
+            'rgba(233, 30, 99, 1)'
+        ];
 
-            const myStoreColor = 'rgba(54, 162, 235, 1)';
-            const defaultGrayColor = 'rgba(128, 128, 128, {alpha})';
+                    const myMainOfferColor = 'rgba(255, 100, 0, 1)';
+        const myOtherOfferColor = 'rgba(255, 159, 64, 0.7)';
+        const defaultGrayColor = 'rgba(128, 128, 128, {alpha})';
+
+        let mainOfferId = null;
 
                 const UNIFORM_LINE_WIDTH = 2.3;
             const UNIFORM_EMPHASIS_LINE_WIDTH = 2.3;
@@ -534,88 +559,103 @@
                }
             }
 
-                function getSeriesStyleAndZ(storeNameLower) {
-                if (hiddenStores.includes(storeNameLower)) {
-                    return {
-                        lineStyle: { color: 'transparent', width: 0 },
-                        itemStyle: { color: 'transparent' },
-                        z: 0
-                    };
-                }
-                const isMyStore = storeNameLower === myStoreLower;
-                const isHighlighted = highlightedStores.includes(storeNameLower);
-                const isLastHighlighted = storeNameLower === lastHighlightedStore;
-                const colorIndex = storeColorMap[storeNameLower];
-
-                let color = defaultGrayColor.replace('{alpha}', defaultGrayAlpha);
-                let z = 1;
-
-                if (isMyStore) {
-                    color = myStoreColor;
-                    z = 3;
-                } else if (isHighlighted && colorIndex !== undefined && colorIndex !== null) {
-                    color = highlightColors[colorIndex];
-                    z = 2;
-                }
-
-                if (isLastHighlighted) {
-                    z = 4;
-                }
-
+        function getSeriesStyleAndZ(storeNameLower, offerId) {
+            if (hiddenStores.includes(storeNameLower)) {
                 return {
-
-                    lineStyle: { color: color, width: UNIFORM_LINE_WIDTH },
-                    itemStyle: { color: color },
-                    z: z
+                    lineStyle: { color: 'transparent', width: 0 },
+                    itemStyle: { color: 'transparent' },
+                    z: 0
                 };
             }
 
-            function generateTooltipPanelHtml(params) {
-             if (!params || params.length === 0) {
-                 return null;
-             }
+            const isMyStore = storeNameLower === myStoreLower;
 
-             const date = params[0].axisValueLabel;
-             let items = [];
+            if (isMyStore && offerId && offerId === mainOfferId) {
+                return {
+                    lineStyle: { color: myMainOfferColor, width: UNIFORM_LINE_WIDTH },
+                    itemStyle: { color: myMainOfferColor },
+                    z: 5
+                };
+            }
 
-             params.forEach(param => {
-                 const priceVal = param.data.value;
+            if (isMyStore) {
+                return {
+                    lineStyle: { color: myOtherOfferColor, width: UNIFORM_LINE_WIDTH },
+                    itemStyle: { color: myOtherOfferColor },
+                    z: 4
+                };
+            }
 
-                 const sourceVal = param.data.source;
+            const isHighlighted = highlightedStores.includes(storeNameLower);
+            const colorIndex = storeColorMap[storeNameLower];
 
-                 const storeName = param.seriesName;
-                 const storeLower = storeName.toLowerCase().trim();
+            if (isHighlighted && colorIndex !== undefined && colorIndex !== null) {
+                const isLastHighlighted = storeNameLower === lastHighlightedStore;
+                return {
+                    lineStyle: { color: highlightColors[colorIndex], width: UNIFORM_LINE_WIDTH },
+                    itemStyle: { color: highlightColors[colorIndex] },
+                    z: isLastHighlighted ? 3 : 2
+                };
+            }
 
-                 if (hiddenStores.includes(storeLower)) {
-                     return;
-                 }
+            return {
+                lineStyle: { color: defaultGrayColor.replace('{alpha}', defaultGrayAlpha), width: UNIFORM_LINE_WIDTH },
+                itemStyle: { color: defaultGrayColor.replace('{alpha}', defaultGrayAlpha) },
+                z: 1
+            };
+        }
 
-                 if (priceVal !== null && priceVal !== undefined) {
+               function generateTooltipPanelHtml(params) {
+            if (!params || params.length === 0) {
+                return null;
+            }
 
-                      const currentSeriesStyle = getSeriesStyleAndZ(storeLower);
+            const date = params[0].axisValueLabel;
+            let items = [];
 
-                     items.push({
-                         storeName: storeName,
-                         price: priceVal,
-                         source: sourceVal,
-                         isHighlighted: highlightedStores.includes(storeLower),
-                         isMyStore: (storeLower === myStoreLower),
-                         isLastHighlighted: (storeLower === lastHighlightedStore),
-                         colorIndex: storeColorMap[storeLower],
-                         markerColor: currentSeriesStyle.itemStyle.color
+            params.forEach(param => {
+                const priceVal = param.data.value;
+                const sourceVal = param.data.source;
+                const storeName = param.seriesName;
+                const offerId = param.data.idAllegro;
+                const storeLower = storeName.toLowerCase().trim();
 
-                     });
-                 }
-             });
+                const isBpg = param.data.isBestPriceGuarantee;
+                const isTop = param.data.topOffer;
+                const isSuper = param.data.superPrice;
 
-                items.sort((a, b) => {
-                    if (a.price !== b.price) {
-                        return a.price - b.price;
-                    }
-                    return a.storeName.localeCompare(b.storeName);
-                });
+                if (hiddenStores.includes(storeLower)) {
+                    return;
+                }
 
-               let panelHtml = `<div style="font-weight:bold; margin-bottom:4px;">Data: ${date}</div>`;
+                if (priceVal !== null && priceVal !== undefined) {
+                    items.push({
+                        storeName: storeName,
+                        price: priceVal,
+                        offerId: offerId,
+                        source: sourceVal,
+                        isHighlighted: highlightedStores.includes(storeLower),
+                        isMyStore: (storeLower === myStoreLower),
+                        isLastHighlighted: (storeLower === lastHighlightedStore),
+                        colorIndex: storeColorMap[storeLower],
+
+                        markerColor: param.color,
+
+                        isBestPriceGuarantee: isBpg,
+                        isTopOffer: isTop,
+                        isSuperPrice: isSuper
+                    });
+                }
+            });
+
+            items.sort((a, b) => {
+                if (a.price !== b.price) {
+                    return a.price - b.price;
+                }
+                return a.storeName.localeCompare(b.storeName);
+            });
+
+            let panelHtml = `<div style="font-weight:bold; margin-bottom:4px;">Data: ${date}</div>`;
             if (items.length > 0) {
                 panelHtml += `<table style="width:100%; border-collapse:collapse; font-size: 0.85rem;">`;
                 items.forEach(item => {
@@ -623,126 +663,166 @@
                     let fontWeight = 'normal';
                     const storeLower = item.storeName.toLowerCase().trim();
 
-                     if (storeLower === myStoreLower) {
-                         colorText = myStoreColor;
-                         fontWeight = 'bold';
-                     } else if (highlightedStores.includes(storeLower) && item.colorIndex != null) {
-                         colorText = highlightColors[item.colorIndex];
-                         fontWeight = 'bold';
-                     }
+                    if (item.isMyStore) {
+                        if (item.offerId && item.offerId === mainOfferId) {
+                            colorText = myMainOfferColor;
+                        } else {
+                            colorText = myOtherOfferColor;
+                        }
+                        fontWeight = 'bold';
+                    } else if (item.isHighlighted && item.colorIndex != null) {
+                        colorText = highlightColors[item.colorIndex];
+                        fontWeight = 'bold';
+                    }
 
                     let displayName = item.storeName;
                     if (displayName.length > 23) displayName = displayName.substring(0, 20) + '...';
 
-                            
-                     let iconHtml = `<img src="/images/AllegroIcon.png" alt="Allegro" style="width:14px;height:14px;margin-right:4px; vertical-align: middle;" title="Allegro" />`;
+                          let badgesHtml = '';
+                            if (item.isBestPriceGuarantee) {
+                                badgesHtml += ` <img src="/images/TopPrice.png" alt="Gwarancja Najniższej Ceny" title="Gwarancja Najniższej Ceny" style="height: 14px; vertical-align: middle; margin-left: 3px;">`;
+                            }
+                            if (item.isTopOffer) {
+                                badgesHtml += ` <div class="TopOffer" style="display: inline-block; font-size: 0.7rem; vertical-align: middle; margin-left: 3px;">Top oferta</div>`;
+                            }
+                            if (item.isSuperPrice) {
+                                badgesHtml += ` <div class="SuperPrice" style="display: inline-block; font-size: 0.7rem; vertical-align: middle; margin-left: 3px;">SUPERCENA</div>`;
+                            }
 
-                    const escapedStoreName = item.storeName.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                            const iconHtml = `<img src="/images/AllegroIcon.png" alt="Allegro" style="width:14px; height:14px; margin-right:4px; vertical-align: middle;" title="Allegro" />`;
+                            const escapedStoreName = item.storeName.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;');
 
-                    const removeButtonHtml = `
-                        <span class="remove-store-btn" title="Ukryj sklep '${item.storeName}' z wykresu"
-                              style="cursor: pointer; color: #aaa; margin-left: 8px; font-weight: bold; padding: 0 4px; display: inline-block; vertical-align: middle;"
-                              onmouseover="this.style.color='red'"
-                              onmouseout="this.style.color='#aaa'"
-                              onclick="event.stopPropagation(); hideStoreFromChart('${escapedStoreName}');">
-                              &times;
-                        </span>`;
+                            const removeButtonHtml = `
+                                <span class="remove-store-btn" title="Ukryj sklep '${item.storeName}' z wykresu"
+                                        style="cursor: pointer; color: #aaa; margin-left: 8px; font-weight: bold; padding: 0 4px; display: inline-block; vertical-align: middle;"
+                                        onmouseover="this.style.color='red'"
+                                        onmouseout="this.style.color='#aaa'"
+                                        onclick="event.stopPropagation(); hideStoreFromChart('${escapedStoreName}');">
+                                        &times;
+                                </span>`;
 
-                    panelHtml += `
-                        <tr style="border-bottom:1px solid #eee; cursor:pointer;"
-                            onclick="event.stopPropagation(); toggleStoreHighlight('${escapedStoreName}');">
-                            <td style="padding: 3px 2px; color:${colorText}; font-weight:${fontWeight}; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${item.storeName}">
-                                <span style="display:inline-block;margin-right:5px;border-radius:10px;width:10px;height:10px;background-color:${item.markerColor}; vertical-align: middle;"></span>
-                                ${iconHtml}${displayName}
-                            </td>
-                            <td style="padding: 3px 2px; text-align:right; color:${colorText}; font-weight:${fontWeight}; white-space:nowrap;">
-                                ${item.price.toFixed(2)} PLN
-                                ${removeButtonHtml}
-                            </td>
-                        </tr>
-                    `;
+                            panelHtml += `
+                                <tr style="border-bottom:1px solid #eee; cursor:pointer;"
+                                    onclick="event.stopPropagation(); toggleStoreHighlight('${escapedStoreName}');">
+                                    <td style="padding: 3px 2px; color:${colorText}; font-weight:${fontWeight}; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${item.storeName}">
+                                        <span style="display:inline-block; margin-right:5px; border-radius:10px; width:10px; height:10px; background-color:${item.markerColor}; vertical-align: middle;"></span>
+                                        ${iconHtml}${displayName}
+                                    </td>
+                                    <td style="padding: 3px 2px; text-align:right; color:${colorText}; font-weight:${fontWeight}; white-space:nowrap;">
+                                        ${badgesHtml}
+                                        <span style="vertical-align: middle;">${item.price.toFixed(2)} PLN</span>
+                                        ${removeButtonHtml}
+                                    </td>
+                                </tr>
+                            `;
                 });
                 panelHtml += `</table>`;
             } else {
-
-                 const hasAnyDataForDate = params.some(p => p.data.value !== null && p.data.value !== undefined);
-                 if(hasAnyDataForDate) {
-                     panelHtml += `<div style="color: #666; font-style: italic;">Wszystkie widoczne sklepy nie miały oferty w tej dacie lub zostały ukryte.</div>`;
-                 } else {
+                const hasAnyDataForDate = params.some(p => p.data.value !== null && p.data.value !== undefined);
+                if(hasAnyDataForDate) {
+                    panelHtml += `<div style="color: #666; font-style: italic;">Wszystkie widoczne sklepy nie miały oferty w tej dacie lub zostały ukryte.</div>`;
+                } else {
                     panelHtml += `<div style="color: #666; font-style: italic;">Brak danych dla tej daty.</div>`;
-                 }
+                }
             }
             return panelHtml;
-            }
+        }
 
-               function prepareEchartsSeries(dataByInstance, allDates, allInstances) {
+           function prepareEchartsSeries(dataByInstance, allDates, allInstances) {
 
-                const SINGLE_POINT_SIZE = 10;
-                const MULTI_POINT_EMPHASIS_SIZE = 12;
-                const SINGLE_POINT_EMPHASIS_SIZE = 14;
+        const specialOfferIconUrl = 'image:///images/TopPrice.png';
 
-                return allInstances.map(instanceId => {
-                    const [storeName, source] = instanceId.split('|');
-                    const storeLower = storeName.toLowerCase().trim();
+        const SINGLE_POINT_SIZE = 10;
+        const MULTI_POINT_EMPHASIS_SIZE = 12;
+        const SINGLE_POINT_EMPHASIS_SIZE = 14;
+        const SPECIAL_POINT_SIZE = 16;
+        const SPECIAL_POINT_EMPHASIS_SIZE = 20;
 
-                    const initialStyleAndZ = getSeriesStyleAndZ(storeLower);
+        return allInstances.map(instanceId => {
+            const [storeName, offerIdStr, source] = instanceId.split('|');
+            const offerId = parseInt(offerIdStr, 10);
+            const storeLower = storeName.toLowerCase().trim();
+            const initialStyleAndZ = getSeriesStyleAndZ(storeLower, offerId);
 
-                    let validDataPointsCount = 0;
+            let validDataPointsCount = 0;
 
-                    const data = allDates.map(date => {
-                        const price = dataByInstance[instanceId]?.[date] ?? null;
-                        if (price !== null && price !== undefined) {
-                            validDataPointsCount++;
-                        }
-                        return { value: price, source: source, storeName: storeName };
-                    });
-
-                    let showSymbolDefault = false;
-                    let symbolSizeDefault = 6;
-                    let symbolSizeEmphasis = MULTI_POINT_EMPHASIS_SIZE;
-
-                    if (validDataPointsCount === 1) {
-                        showSymbolDefault = true;
-                        symbolSizeDefault = SINGLE_POINT_SIZE;
-                        symbolSizeEmphasis = SINGLE_POINT_EMPHASIS_SIZE;
-                    }
-
-                    return {
-                        name: storeName,
-                        _instanceId: instanceId,
-                        _source: source,
-                        type: 'line',
-                        data: data,
-                        connectNulls: false,
-                        smooth: 0.30,
-
-                        showSymbol: showSymbolDefault,
-                        symbol: 'circle',
-                        symbolSize: symbolSizeDefault,
-
-                       emphasis: {
-                focus: 'series',
-                symbolSize: symbolSizeEmphasis,
-                lineStyle: {
-                    width: UNIFORM_EMPHASIS_LINE_WIDTH
-
-                },
-                itemStyle: {
-
-                    color: initialStyleAndZ.itemStyle.color,
-                    borderColor: 'rgba(255, 255, 255, 0.7)',
-                    borderWidth: 1,
-                    opacity: 1
+            const data = allDates.map(date => {
+                const pointData = dataByInstance[instanceId]?.[date] ?? {};
+                const price = pointData.price;
+                if (price !== null && price !== undefined) {
+                    validDataPointsCount++;
                 }
-            },
-            lineStyle: initialStyleAndZ.lineStyle,
-            itemStyle: {
-                color: initialStyleAndZ.itemStyle.color
-            },
-            z: initialStyleAndZ.z
-                    };
-                });
-            }
+
+                return {
+                    value: price,
+                    source: pointData.source,
+                    storeName: pointData.storeName,
+                    idAllegro: pointData.idAllegro,
+                    isBestPriceGuarantee: pointData.isBestPriceGuarantee,
+                    topOffer: pointData.topOffer,
+                    superPrice: pointData.superPrice
+                };
+            });
+
+            const styledData = data.map(point => {
+                const hasSpecialBadge = point.isBestPriceGuarantee || point.topOffer || point.superPrice;
+                const isSinglePointSeries = validDataPointsCount === 1;
+
+                let symbol = 'circle';
+                let symbolSize = isSinglePointSeries ? SINGLE_POINT_SIZE : 6;
+
+                if (hasSpecialBadge) {
+
+                    symbol = specialOfferIconUrl;
+                    symbolSize = isSinglePointSeries ? SPECIAL_POINT_EMPHASIS_SIZE : SPECIAL_POINT_SIZE;
+                }
+
+                return {
+                    ...point,
+                    symbol: symbol,
+                    symbolSize: symbolSize
+                };
+            });
+
+                let showSymbolDefault = (validDataPointsCount === 1);
+                let symbolSizeDefault = (validDataPointsCount === 1) ? SINGLE_POINT_SIZE : 6;
+                let symbolSizeEmphasis = (validDataPointsCount === 1) ? SINGLE_POINT_EMPHASIS_SIZE : MULTI_POINT_EMPHASIS_SIZE;
+
+                return {
+                    name: storeName,
+                    _instanceId: instanceId,
+                    _source: source,
+                    type: 'line',
+
+                    data: styledData,
+                    connectNulls: false,
+                    smooth: 0.30,
+
+                    showSymbol: showSymbolDefault,
+                    symbol: 'circle',
+                    symbolSize: symbolSizeDefault,
+
+                    emphasis: {
+                        focus: 'series',
+
+                        lineStyle: {
+                            width: UNIFORM_EMPHASIS_LINE_WIDTH
+                        },
+                        itemStyle: {
+                            color: initialStyleAndZ.itemStyle.color,
+                            borderColor: 'rgba(255, 255, 255, 0.7)',
+                            borderWidth: 1,
+                            opacity: 1
+                        }
+                    },
+                    lineStyle: initialStyleAndZ.lineStyle,
+                    itemStyle: {
+                        color: initialStyleAndZ.itemStyle.color
+                    },
+                    z: initialStyleAndZ.z
+                };
+            });
+        }
             function drawEchartsTrendChart(timelineData) {
                 currentTimelineData = timelineData;
 
@@ -763,23 +843,22 @@
             let allInstancesSet = new Set();
             let dataByInstance = {};
 
-            timelineData.forEach(entry => {
-                const date = entry.scrapDate;
-                allDatesSet.add(date);
-                entry.pricesByStore.forEach(ps => {
-                    if (ps.storeName && ps.source && ps.price !== null && ps.price !== undefined) {
-                        const storeName = ps.storeName;
-                        const source = ps.source;
-                        const price = ps.price;
-                        const instanceId = `${storeName}|${source}`;
-                        allInstancesSet.add(instanceId);
-                        if (!dataByInstance[instanceId]) {
-                            dataByInstance[instanceId] = {};
-                        }
-                        dataByInstance[instanceId][date] = price;
-                    }
-                });
+        timelineData.forEach(entry => {
+            const date = entry.scrapDate;
+            allDatesSet.add(date);
+
+            entry.pricesByStore.forEach(priceObject => {
+
+                const instanceId = `${priceObject.storeName}|${priceObject.idAllegro}|${priceObject.source}`;
+                allInstancesSet.add(instanceId);
+
+                if (!dataByInstance[instanceId]) {
+                    dataByInstance[instanceId] = {};
+                }
+
+                dataByInstance[instanceId][date] = priceObject;
             });
+        });
 
             const chartContainerElement = document.getElementById('trendChartContainer');
 
@@ -822,14 +901,16 @@
                 return sourceA.localeCompare(sourceB);
             });
 
-            let globalMinPrice = Number.POSITIVE_INFINITY;
-            let globalMaxPrice = Number.NEGATIVE_INFINITY;
-            Object.values(dataByInstance).forEach(datesMap => {
-                Object.values(datesMap).forEach(price => {
-                    if (price < globalMinPrice) globalMinPrice = price;
-                    if (price > globalMaxPrice) globalMaxPrice = price;
-                });
+        let globalMinPrice = Number.POSITIVE_INFINITY;
+        let globalMaxPrice = Number.NEGATIVE_INFINITY;
+        Object.values(dataByInstance).forEach(datesMap => {
+            Object.values(datesMap).forEach(priceObject => {
+                if (priceObject && priceObject.price != null) {
+                    if (priceObject.price < globalMinPrice) globalMinPrice = priceObject.price;
+                    if (priceObject.price > globalMaxPrice) globalMaxPrice = priceObject.price;
+                }
             });
+        });
 
              if (!isFinite(globalMinPrice)) globalMinPrice = 0;
              if (!isFinite(globalMaxPrice) || globalMaxPrice <= globalMinPrice) {
@@ -1092,57 +1173,55 @@
 
             }
 
-            function updateEchartsStylesAndZ() {
-                if (!echartsTrendChart || !currentChartOptions || !currentChartOptions.series) return;
+                   function updateEchartsStylesAndZ() {
+            if (!echartsTrendChart || !currentChartOptions || !currentChartOptions.series) return;
 
-                const updatedSeries = currentChartOptions.series.map(series => {
-                    const storeLower = series.name.toLowerCase().trim();
-                    const styleAndZ = getSeriesStyleAndZ(storeLower);
+            const updatedSeries = currentChartOptions.series.map(series => {
+                const storeLower = series.name.toLowerCase().trim();
 
-                    const currentEmphasis = series.emphasis || {};
-                    const currentEmphasisItemStyle = currentEmphasis.itemStyle || {};
-                    const currentEmphasisLineStyle = currentEmphasis.lineStyle || {};
-
-                    const DEBUG_STORE_NAME = "NAZWA_SKLEPU_Z_JEDNYM_PUNKTEM";
-                    if (series.name === DEBUG_STORE_NAME) {
-                         console.log(`[${series.name}] Emphasis PRZED aktualizacją:`, JSON.stringify(currentEmphasis));
-                         console.log(`[${series.name}] Styl normalny (itemStyle.color):`, styleAndZ.itemStyle.color);
+                let offerId = null;
+                if (series._instanceId) {
+                    const parts = series._instanceId.split('|');
+                    if (parts.length > 1) {
+                        offerId = parseInt(parts[1], 10);
                     }
+                }
 
-                    const newEmphasis = {
-                        ...currentEmphasis,
-                        lineStyle: {
-                            ...currentEmphasisLineStyle,
-                            width: UNIFORM_EMPHASIS_LINE_WIDTH
-                        },
-                        itemStyle: {
-                            ...currentEmphasisItemStyle,
-                            color: styleAndZ.itemStyle.color,
-                            opacity: 1
-                        }
-                    };
+                const styleAndZ = getSeriesStyleAndZ(storeLower, offerId);
 
-                     if (series.name === DEBUG_STORE_NAME) {
-                         console.log(`[${series.name}] Emphasis PO aktualizacji (przed setOption):`, JSON.stringify(newEmphasis));
-                     }
+                const currentEmphasis = series.emphasis || {};
+                const currentEmphasisItemStyle = currentEmphasis.itemStyle || {};
+                const currentEmphasisLineStyle = currentEmphasis.lineStyle || {};
 
-                    return {
-                        ...series,
-                        lineStyle: styleAndZ.lineStyle,
-                        itemStyle: styleAndZ.itemStyle,
-                        emphasis: newEmphasis,
-                        z: styleAndZ.z
-                    };
-                });
+                const newEmphasis = {
+                    ...currentEmphasis,
+                    lineStyle: {
+                        ...currentEmphasisLineStyle,
+                        width: UNIFORM_EMPHASIS_LINE_WIDTH
+                    },
+                    itemStyle: {
+                        ...currentEmphasisItemStyle,
+                        color: styleAndZ.itemStyle.color,
+                        opacity: 1
+                    }
+                };
 
-                currentChartOptions.series = updatedSeries;
+                return {
+                    ...series,
+                    lineStyle: styleAndZ.lineStyle,
+                    itemStyle: styleAndZ.itemStyle,
+                    emphasis: newEmphasis,
+                    z: styleAndZ.z
+                };
+            });
 
-                console.log("Aktualizowanie opcji wykresu...");
-                echartsTrendChart.setOption({
-                    series: updatedSeries
-                });
-                console.log("Opcje wykresu zaktualizowane.");
-            }
+            currentChartOptions.series = updatedSeries;
+
+            echartsTrendChart.setOption({
+                series: updatedSeries
+            });
+
+        }
 
             document.addEventListener("DOMContentLoaded", function () {
                  const $exportExcelBtn = $('#exportExcelBtn');
@@ -1228,12 +1307,15 @@
                     data: { productId: productId },
                     success: function(response) {
                         if (response && response.timelineData && Array.isArray(response.timelineData)) {
-                             currentTimelineData = response.timelineData;
-                             if ($('#trendChartContainer').is(':visible') && document.getElementById('trendChart')) {
-                                  drawEchartsTrendChart(currentTimelineData);
-                             } else {
-                                  console.log("Chart container not visible, data stored for later drawing.");
-                             }
+
+        currentTimelineData = response.timelineData;
+        mainOfferId = response.mainOfferId;
+
+        if ($('#trendChartContainer').is(':visible') && document.getElementById('trendChart')) {
+            drawEchartsTrendChart(currentTimelineData);
+        } else {
+            console.log("Chart container not visible, data stored for later drawing.");
+        }
                         } else {
                              alert("Otrzymano nieprawidłowy format danych trendu.");
                              console.error("Invalid timeline data received:", response);
@@ -1346,20 +1428,25 @@
                 currentTimelineData.forEach(entry => {
                     const date = entry.scrapDate;
                     allDates.add(date);
-                    entry.pricesByStore.forEach(ps => {
-                        if (ps.price !== null && ps.price !== undefined && ps.storeName && ps.source) {
-                            const storeKey = `${ps.storeName}|${ps.source}`;
-                            const storeLower = ps.storeName.toLowerCase().trim();
-                            let isHidden = (typeof hiddenStores !== 'undefined' && Array.isArray(hiddenStores) && hiddenStores.includes(storeLower));
-                            if (!isHidden) {
-                                if (!storeData[storeKey]) {
-                                    storeData[storeKey] = {};
-                                    localStoreInfo[storeKey] = { name: ps.storeName, source: ps.source };
-                                }
-                                storeData[storeKey][date] = ps.price;
-                            }
-                        }
-                    });
+                       entry.pricesByStore.forEach(ps => {
+
+            if (ps.storeName && ps.source && ps.price !== null && ps.price !== undefined && ps.idAllegro) {
+                const storeName = ps.storeName;
+                const source = ps.source;
+                const price = ps.price;
+                const offerId = ps.idAllegro;
+
+                const instanceId = `${storeName}|${offerId}|${source}`;
+
+                allInstancesSet.add(instanceId);
+                if (!dataByInstance[instanceId]) {
+                    dataByInstance[instanceId] = {};
+                }
+
+                dataByInstance[instanceId][date] = price;
+            }
+
+        });
                 });
 
                 const sortedDates = Array.from(allDates).sort();

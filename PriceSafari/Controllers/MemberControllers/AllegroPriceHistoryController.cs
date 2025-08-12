@@ -351,6 +351,7 @@ namespace PriceSafari.Controllers.MemberControllers
             });
         }
 
+        // W pliku AllegroPriceHistoryController.cs
 
         [HttpGet]
         public async Task<IActionResult> GetPriceTrendData(int productId)
@@ -362,6 +363,21 @@ namespace PriceSafari.Controllers.MemberControllers
             var storeId = product.StoreId;
             if (!await UserHasAccessToStore(storeId))
                 return Unauthorized(new { Error = "Brak dostępu do sklepu." });
+
+            // --- POCZĄTEK ZMIAN ---
+
+            // 1. Wyciągnij ID głównej, oglądanej oferty z jej URL
+            long? mainOfferId = null;
+            if (!string.IsNullOrEmpty(product.AllegroOfferUrl))
+            {
+                var idString = product.AllegroOfferUrl.Split('-').LastOrDefault();
+                if (long.TryParse(idString, out var parsedId))
+                {
+                    mainOfferId = parsedId;
+                }
+            }
+
+            // --- KONIEC ZMIAN ---
 
             var lastScraps = await _context.AllegroScrapeHistories
                 .Where(sh => sh.StoreId == storeId)
@@ -377,12 +393,11 @@ namespace PriceSafari.Controllers.MemberControllers
                 return Json(new
                 {
                     ProductName = product.AllegroProductName,
-                    TimelineData = new List<object>()
+                    TimelineData = new List<object>(),
+                    MainOfferId = mainOfferId // Zwróć mainOfferId nawet przy braku danych
                 });
             }
 
-            // --- POPRAWKA JEST TUTAJ ---
-            // Usunęliśmy .HasValue i .Value, ponieważ AllegroScrapeHistoryId jest typu int.
             var priceHistories = await _context.AllegroPriceHistories
                 .Where(aph => aph.AllegroProductId == productId && scrapIds.Contains(aph.AllegroScrapeHistoryId))
                 .Where(aph => aph.Price > 0)
@@ -392,20 +407,28 @@ namespace PriceSafari.Controllers.MemberControllers
             {
                 ScrapDate = scrap.Date.ToString("yyyy-MM-dd"),
                 PricesByStore = priceHistories
-                    .Where(ph => ph.AllegroScrapeHistoryId == scrap.Id)
-                    .Select(ph => new
-                    {
-                        StoreName = ph.SellerName,
-                        ph.Price,
-                        Source = "allegro"
-                    })
-                    .ToList()
+                 .Where(ph => ph.AllegroScrapeHistoryId == scrap.Id)
+                 .Select(ph => new
+                 {
+                     StoreName = ph.SellerName,
+                     ph.Price,
+                     Source = "allegro",
+                     ph.IdAllegro,
+
+                     // --- POCZĄTEK ZMIAN ---
+                     ph.IsBestPriceGuarantee,
+                     ph.TopOffer,
+                     ph.SuperPrice
+                     // --- KONIEC ZMIAN ---
+                 })
+                .ToList()
             }).ToList();
 
             return Json(new
             {
                 ProductName = product.AllegroProductName,
-                TimelineData = timelineData
+                TimelineData = timelineData,
+                MainOfferId = mainOfferId // <-- 3. ZWRÓĆ GŁÓWNE ID OFERTY
             });
         }
     }
