@@ -56,12 +56,23 @@
 
     const localStorageKey = 'selectedPriceChanges_' + storeId;
     var selectedPriceChanges = [];
-    const storedChanges = localStorage.getItem(localStorageKey);
-    if (storedChanges) {
+    var sessionScrapId = null;
+    const storedDataJSON = localStorage.getItem(localStorageKey);
+    if (storedDataJSON) {
         try {
-            selectedPriceChanges = JSON.parse(storedChanges);
+            const storedData = JSON.parse(storedDataJSON);
+
+            if (storedData && storedData.scrapId && Array.isArray(storedData.changes)) {
+                selectedPriceChanges = storedData.changes;
+                sessionScrapId = storedData.scrapId;
+            } else {
+
+                console.warn("Wykryto stary format danych w LS. Zostanie on usunięty przy następnej zmianie.");
+                localStorage.removeItem(localStorageKey);
+            }
         } catch (err) {
             console.error("Błąd parsowania storedChanges z Local Storage:", err);
+            localStorage.removeItem(localStorageKey);
         }
     }
 
@@ -80,7 +91,10 @@
         return d.toISOString().split('T')[0];
     }
 
-    function updatePriceChangeSummary() {
+    function updatePriceChangeSummary(forceClear = false) {
+        if (forceClear) {
+            selectedPriceChanges = [];
+        }
         var increasedCount = selectedPriceChanges.filter(function (item) {
             return item.newPrice > item.currentPrice;
         }).length;
@@ -104,11 +118,16 @@
     }
 
     function savePriceChanges() {
-        localStorage.setItem(localStorageKey, JSON.stringify(selectedPriceChanges));
+        const dataToStore = {
+            scrapId: sessionScrapId,
+            changes: selectedPriceChanges
+        };
+        localStorage.setItem(localStorageKey, JSON.stringify(dataToStore));
     }
 
     function clearPriceChanges() {
         selectedPriceChanges = [];
+        sessionScrapId = null;
         savePriceChanges();
         updatePriceChangeSummary();
         const tableContainer = document.getElementById("simulationModalBody");
@@ -129,15 +148,22 @@
     }
 
     document.addEventListener('priceBoxChange', function (event) {
-        const { productId, productName, currentPrice, newPrice } = event.detail;
+        const { productId, productName, currentPrice, newPrice, scrapId } = event.detail;
+
+        if (selectedPriceChanges.length === 0) {
+            sessionScrapId = scrapId;
+        }
+
         var existingIndex = selectedPriceChanges.findIndex(function (item) {
             return parseInt(item.productId) === parseInt(productId);
         });
+
         if (existingIndex > -1) {
             selectedPriceChanges[existingIndex] = { productId, productName, currentPrice, newPrice };
         } else {
             selectedPriceChanges.push({ productId, productName, currentPrice, newPrice });
         }
+
         savePriceChanges();
         updatePriceChangeSummary();
     });
@@ -783,11 +809,6 @@
         });
     }
 
-
-
-
-
-
     function exportToCsv(isExtended = false) {
         let csvContent = "";
         let fileName = "";
@@ -852,7 +873,7 @@
                 let values = [
                     `="${String(row.externalId || '')}"`,
                     `="${String(row.ean || '')}"`,
-                    `="${String(row.producerCode || '')}"`, // Dodano kod producenta
+                    `="${String(row.producerCode || '')}"`,
                     `"${row.productName}"`,
                     `"${currentGoogleRanking}"`,
                     `"${totalGoogleOffers}"`,
@@ -887,12 +908,12 @@
             });
             fileName = `PriceSafari-${dateStr}-${currentOurStoreName}-rozszerzony.csv`;
 
-        } else { // Wersja podstawowa
+        } else {
             csvContent = "ID;EAN;KOD;CENA\n";
             originalRowsData.forEach(row => {
                 const priceString = (typeof row.baseNewPrice === 'number') ? row.baseNewPrice.toFixed(2).replace('.', ',') : "";
                 const eanText = row.ean ? `="${String(row.ean)}"` : "";
-                const producerCodeText = row.producerCode ? `="${String(row.producerCode)}"` : ""; // Dodano kod producenta
+                const producerCodeText = row.producerCode ? `="${String(row.producerCode)}"` : "";
                 const extIdText = row.externalId ? `="${String(row.externalId)}"` : "";
                 csvContent += `${extIdText};${eanText};${producerCodeText};"${priceString}"\n`;
             });
@@ -909,14 +930,6 @@
         }, 1000);
     }
 
-
-
-
-
-
-
-
-
     async function exportToExcelXLSX(isExtended = false) {
         const workbook = new ExcelJS.Workbook();
         const worksheet = workbook.addWorksheet("Zmiany Cen");
@@ -927,7 +940,7 @@
             let columns = [
                 { header: "ID", key: "externalId", width: 18, style: { numFmt: "@" } },
                 { header: "EAN", key: "ean", width: 18, style: { numFmt: "@" } },
-                { header: "KOD", key: "producerCode", width: 20, style: { numFmt: "@" } }, // Dodano kod producenta
+                { header: "KOD", key: "producerCode", width: 20, style: { numFmt: "@" } },
                 { header: "Nazwa produktu", key: "productName", width: 40 },
                 { header: "Obecna poz. Google", key: "currentGoogleRanking", width: 20 },
                 { header: "Obecna liczba ofert Google", key: "totalGoogleOffers", width: 25 },
@@ -971,7 +984,7 @@
                 let rowData = {
                     externalId: String(row.externalId || ''),
                     ean: String(row.ean || ''),
-                    producerCode: String(row.producerCode || ''), // Dodano kod producenta
+                    producerCode: String(row.producerCode || ''),
                     productName: row.productName,
                     currentGoogleRanking: row.currentGoogleRanking,
                     totalGoogleOffers: row.totalGoogleOffers,
@@ -1005,11 +1018,11 @@
             });
             fileName = `PriceSafari-${dateStr}-${currentOurStoreName}-rozszerzony.xlsx`;
 
-        } else { // Wersja podstawowa
+        } else {
             worksheet.columns = [
                 { header: "ID", key: "externalId", width: 18, style: { numFmt: "@" } },
                 { header: "EAN", key: "ean", width: 18, style: { numFmt: "@" } },
-                { header: "KOD", key: "producerCode", width: 20, style: { numFmt: "@" } }, // Dodano kod producenta
+                { header: "KOD", key: "producerCode", width: 20, style: { numFmt: "@" } },
                 { header: "CENA", key: "newPrice", width: 15, style: { numFmt: '#,##0.00' } }
             ];
             originalRowsData.forEach(row => {
@@ -1032,13 +1045,6 @@
             URL.revokeObjectURL(link.href);
         }, 1000);
     }
-
-
-
-
-
-
-
 
     var simulateButton = document.getElementById("simulateButton");
     if (simulateButton) {

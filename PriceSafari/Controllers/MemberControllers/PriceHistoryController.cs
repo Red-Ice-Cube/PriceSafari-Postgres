@@ -655,8 +655,8 @@ namespace PriceSafari.Controllers.MemberControllers
                 minimalMarginPercent = priceValues.MinimalMarginPercent,
                 identifierForSimulation = priceValues.IdentifierForSimulation,
                 usePriceWithDelivery = priceValues.UsePriceWithDelivery,
-
-                presetName = activePresetName ?? "PriceSafari"
+                presetName = activePresetName ?? "PriceSafari",
+                latestScrapId = latestScrap?.Id
             });
         }
 

@@ -1,5 +1,6 @@
 ﻿document.addEventListener("DOMContentLoaded", function () {
     let allPrices = [];
+    let currentScrapId = null;
     let currentlyFilteredPrices = [];
     let chartInstance = null;
     let myStoreName = "";
@@ -112,6 +113,30 @@
                 button.classList.remove('active');
             }
         });
+    }
+
+    function validateSimulationData() {
+        const localStorageKey = 'selectedPriceChanges_' + storeId;
+        const storedDataJSON = localStorage.getItem(localStorageKey);
+
+        if (storedDataJSON) {
+            try {
+                const storedData = JSON.parse(storedDataJSON);
+
+                if (!storedData.scrapId || storedData.scrapId !== currentScrapId) {
+                    console.warn(`Wykryto przestarzałe dane symulacji. Zapisany scrapId: ${storedData.scrapId}, Obecny scrapId: ${currentScrapId}. Czyszczenie localStorage.`);
+                    localStorage.removeItem(localStorageKey);
+
+                    if (typeof updatePriceChangeSummary === 'function') {
+                        updatePriceChangeSummary(true);
+                    }
+                }
+            } catch (e) {
+
+                console.error("Błąd parsowania danych z localStorage. Czyszczenie...", e);
+                localStorage.removeItem(localStorageKey);
+            }
+        }
     }
 
     function restoreSortingState() {
@@ -400,13 +425,12 @@
     positionSlider = document.getElementById('positionRangeSlider');
     var positionRangeInput = document.getElementById('positionRange');
 
- 
     noUiSlider.create(positionSlider, {
-        start: [1, 200], 
+        start: [1, 200],
         connect: true,
         range: {
             'min': 1,
-            'max': 200 
+            'max': 200
         },
         step: 1,
         format: wNumb({
@@ -591,6 +615,8 @@
         fetch(`/PriceHistory/GetPrices?storeId=${storeId}`)
             .then(response => response.json())
             .then(response => {
+                currentScrapId = response.latestScrapId;
+                validateSimulationData();
                 myStoreName = response.myStoreName;
                 setPrice1 = response.setPrice1;
                 setPrice2 = response.setPrice2;
@@ -713,12 +739,10 @@
 
                 const positions = allPrices
                     .map(item => item.myPosition)
-                    .filter(p => p !== null && !isNaN(p)); 
+                    .filter(p => p !== null && !isNaN(p));
 
-                
                 const maxPosition = positions.length > 0 ? Math.max(...positions) : 60;
 
-            
                 positionSlider.noUiSlider.updateOptions({
                     range: {
                         'min': 1,
@@ -726,9 +750,7 @@
                     }
                 });
 
-               
                 positionSlider.noUiSlider.set([1, maxPosition]);
-
 
                 document.getElementById('totalPriceCount').textContent = response.priceCount;
                 document.getElementById('price1').value = setPrice1;
@@ -1223,7 +1245,14 @@
                 }
 
                 const priceChangeEvent = new CustomEvent('priceBoxChange', {
-                    detail: { productId, productName, currentPrice: currentPriceValue, newPrice: suggestedPrice, storeId: storeId }
+                    detail: {
+                        productId,
+                        productName,
+                        currentPrice: currentPriceValue,
+                        newPrice: suggestedPrice,
+                        storeId: storeId,
+                        scrapId: item.scrapId
+                    }
                 });
                 document.dispatchEvent(priceChangeEvent);
 
