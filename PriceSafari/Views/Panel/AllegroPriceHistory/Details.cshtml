@@ -452,8 +452,10 @@
             let currentTimelineData = null;
             let currentChartOptions = null;
             const defaultCustomTooltipContent = 'Najedź na punkt na wykresie...';
+                    let originalTimelineData = null;
+        let showOnlyCheapest = false;
 
-            function updateCustomTooltipPanel(htmlContent) {
+                    function updateCustomTooltipPanel(htmlContent) {
                 const panelDiv = document.getElementById('customTrendTooltip');
                 if (panelDiv) {
                     panelDiv.innerHTML = htmlContent || defaultCustomTooltipContent;
@@ -605,7 +607,7 @@
             };
         }
 
-               function generateTooltipPanelHtml(params) {
+        function generateTooltipPanelHtml(params) {
             if (!params || params.length === 0) {
                 return null;
             }
@@ -655,7 +657,16 @@
                 return a.storeName.localeCompare(b.storeName);
             });
 
-            let panelHtml = `<div style="font-weight:bold; margin-bottom:4px;">Data: ${date}</div>`;
+        let panelHtml = `
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <div style="font-weight:bold;">Data: ${date}</div>
+                <div style="font-size: 0.8rem;">
+                    <label for="cheapest-offer-toggle" style="cursor:pointer; display:flex; align-items:center; gap:4px;">
+                        <input type="checkbox" id="cheapest-offer-toggle" onchange="toggleCheapestOfferFilter(this.checked)" ${showOnlyCheapest ? 'checked' : ''}>
+                        Tylko najtańsze
+                    </label>
+                </div>
+            </div>`;
             if (items.length > 0) {
                 panelHtml += `<table style="width:100%; border-collapse:collapse; font-size: 0.85rem;">`;
                 items.forEach(item => {
@@ -728,18 +739,41 @@
             return panelHtml;
         }
 
-               function prepareEchartsSeries(dataByInstance, allDates, allInstances) {
-            // Definicje ścieżek do ikon
-            const specialOfferIconUrl = 'image:///images/TopPrice.png';
-            const topOfferIconUrl = 'image:///images/TopOffer.png';     // Upewnij się, że ten plik istnieje!
-            const superPriceIconUrl = 'image:///images/SuperPrice.png'; // Upewnij się, że ten plik istnieje!
+                function filterTimelineData(timelineData) {
+            if (!showOnlyCheapest) {
+                return timelineData;
+            }
 
-            // Definicje rozmiarów punktów na wykresie
+            return timelineData.map(dailyEntry => {
+                const cheapestByStore = new Map();
+
+                dailyEntry.pricesByStore.forEach(offer => {
+                    const existingOffer = cheapestByStore.get(offer.storeName);
+                    if (!existingOffer || offer.price < existingOffer.price) {
+                        cheapestByStore.set(offer.storeName, offer);
+                    }
+                });
+
+                return {
+                    ...dailyEntry,
+                    pricesByStore: Array.from(cheapestByStore.values())
+                };
+            });
+        }
+
+        function toggleCheapestOfferFilter(isChecked) {
+            showOnlyCheapest = isChecked;
+            if (originalTimelineData) {
+                const filteredData = filterTimelineData(originalTimelineData);
+                drawEchartsTrendChart(filteredData);
+            }
+        }
+
+        function prepareEchartsSeries(dataByInstance, allDates, allInstances) {
+
             const SINGLE_POINT_SIZE = 10;
             const MULTI_POINT_EMPHASIS_SIZE = 12;
             const SINGLE_POINT_EMPHASIS_SIZE = 14;
-            const SPECIAL_POINT_SIZE = 16;
-            const SPECIAL_POINT_EMPHASIS_SIZE = 20;
 
             return allInstances.map(instanceId => {
                 const [storeName, offerIdStr, source] = instanceId.split('|');
@@ -765,49 +799,15 @@
                     };
                 });
 
-                // =================================================================
-                // ===                 TUTAJ JEST POPRAWIONA LOGIKA              ===
-                // =================================================================
-                const styledData = data.map(point => {
-                    const isSinglePointSeries = validDataPointsCount === 1;
+        const styledData = data.map(point => {
+            const isSinglePointSeries = validDataPointsCount === 1;
 
-                    // Ustawienia domyślne dla każdego punktu
-                    let symbol = 'circle';
-                    let symbolSize = isSinglePointSeries ? SINGLE_POINT_SIZE : 6;
-
-                    // Sprawdzamy, czy punkt ma cenę (nie jest pusty)
-                    if (point.value !== null && point.value !== undefined) {
-                        const hasAnySpecialBadge = point.isBestPriceGuarantee || point.topOffer || point.superPrice;
-
-                        if (hasAnySpecialBadge) {
-                            // Jeśli jest jakakolwiek odznaka, punkt będzie większy
-                            symbolSize = isSinglePointSeries ? SPECIAL_POINT_EMPHASIS_SIZE : SPECIAL_POINT_SIZE;
-
-                            // HIERARCHIA WYŚWIETLANIA IKON:
-                            // 1. Gwarancja Najniższej Ceny jest najważniejsza.
-                            if (point.isBestPriceGuarantee) {
-                                symbol = specialOfferIconUrl;
-                            }
-                            // 2. Top Oferta (tylko jeśli NIE MA Gwarancji).
-                            else if (point.topOffer) {
-                                symbol = topOfferIconUrl;
-                            }
-                            // 3. Super Cena (tylko jeśli NIE MA ani Gwarancji, ani Top Oferty).
-                            else if (point.superPrice) {
-                                symbol = superPriceIconUrl;
-                            }
-                        }
-                    }
-
-                    return {
-                        ...point,
-                        symbol: symbol,
-                        symbolSize: symbolSize
-                    };
-                });
-                // =================================================================
-                // ===                 KONIEC POPRAWIONEJ LOGIKI                 ===
-                // =================================================================
+            return {
+                ...point,
+                symbol: 'circle',
+                symbolSize: isSinglePointSeries ? SINGLE_POINT_SIZE : 6
+            };
+        });
 
                 let showSymbolDefault = (validDataPointsCount === 1);
                 let symbolSizeDefault = (validDataPointsCount === 1) ? SINGLE_POINT_SIZE : 6;
@@ -817,7 +817,7 @@
                     _instanceId: instanceId,
                     _source: source,
                     type: 'line',
-                    data: styledData, // Używamy nowo przetworzonych danych!
+                    data: styledData,
                     connectNulls: false,
                     smooth: 0.30,
                     showSymbol: showSymbolDefault,
@@ -1328,11 +1328,12 @@
                     success: function(response) {
                         if (response && response.timelineData && Array.isArray(response.timelineData)) {
 
-        currentTimelineData = response.timelineData;
+        originalTimelineData = response.timelineData;
         mainOfferId = response.mainOfferId;
 
         if ($('#trendChartContainer').is(':visible') && document.getElementById('trendChart')) {
-            drawEchartsTrendChart(currentTimelineData);
+            const dataToDraw = filterTimelineData(originalTimelineData);
+            drawEchartsTrendChart(dataToDraw);
         } else {
             console.log("Chart container not visible, data stored for later drawing.");
         }
