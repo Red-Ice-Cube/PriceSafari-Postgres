@@ -680,13 +680,13 @@
 
                           let badgesHtml = '';
                             if (item.isBestPriceGuarantee) {
-                                badgesHtml += ` <img src="/images/TopPrice.png" alt="Gwarancja Najniższej Ceny" title="Gwarancja Najniższej Ceny" style="height: 14px; vertical-align: middle; margin-left: 3px;">`;
+                                badgesHtml += ` <img src="/images/TopPrice.png" alt="Gwarancja Najniższej Ceny" title="Gwarancja Najniższej Ceny" style="height: 16px; vertical-align: middle; margin-left: 3px;">`;
                             }
                             if (item.isTopOffer) {
-                                badgesHtml += ` <div class="TopOffer" style="display: inline-block; font-size: 0.7rem; vertical-align: middle; margin-left: 3px;">Top oferta</div>`;
+                                badgesHtml += ` <div class="TopOffer" style="display: inline-block; font-size: 0.7rem; vertical-align: middle; margin-left: 3px;">T</div>`;
                             }
                             if (item.isSuperPrice) {
-                                badgesHtml += ` <div class="SuperPrice" style="display: inline-block; font-size: 0.7rem; vertical-align: middle; margin-left: 3px;">SUPERCENA</div>`;
+                                badgesHtml += ` <div class="SuperPrice" style="display: inline-block; font-size: 0.7rem; vertical-align: middle; margin-left: 3px;">S</div>`;
                             }
 
                             const iconHtml = `<img src="/images/AllegroIcon.png" alt="Allegro" style="width:14px; height:14px; margin-right:4px; vertical-align: middle;" title="Allegro" />`;
@@ -728,83 +728,103 @@
             return panelHtml;
         }
 
-           function prepareEchartsSeries(dataByInstance, allDates, allInstances) {
+               function prepareEchartsSeries(dataByInstance, allDates, allInstances) {
+            // Definicje ścieżek do ikon
+            const specialOfferIconUrl = 'image:///images/TopPrice.png';
+            const topOfferIconUrl = 'image:///images/TopOffer.png';     // Upewnij się, że ten plik istnieje!
+            const superPriceIconUrl = 'image:///images/SuperPrice.png'; // Upewnij się, że ten plik istnieje!
 
-        const specialOfferIconUrl = 'image:///images/TopPrice.png';
+            // Definicje rozmiarów punktów na wykresie
+            const SINGLE_POINT_SIZE = 10;
+            const MULTI_POINT_EMPHASIS_SIZE = 12;
+            const SINGLE_POINT_EMPHASIS_SIZE = 14;
+            const SPECIAL_POINT_SIZE = 16;
+            const SPECIAL_POINT_EMPHASIS_SIZE = 20;
 
-        const SINGLE_POINT_SIZE = 10;
-        const MULTI_POINT_EMPHASIS_SIZE = 12;
-        const SINGLE_POINT_EMPHASIS_SIZE = 14;
-        const SPECIAL_POINT_SIZE = 16;
-        const SPECIAL_POINT_EMPHASIS_SIZE = 20;
+            return allInstances.map(instanceId => {
+                const [storeName, offerIdStr, source] = instanceId.split('|');
+                const offerId = parseInt(offerIdStr, 10);
+                const storeLower = storeName.toLowerCase().trim();
+                const initialStyleAndZ = getSeriesStyleAndZ(storeLower, offerId);
 
-        return allInstances.map(instanceId => {
-            const [storeName, offerIdStr, source] = instanceId.split('|');
-            const offerId = parseInt(offerIdStr, 10);
-            const storeLower = storeName.toLowerCase().trim();
-            const initialStyleAndZ = getSeriesStyleAndZ(storeLower, offerId);
+                let validDataPointsCount = 0;
+                const data = allDates.map(date => {
+                    const pointData = dataByInstance[instanceId]?.[date] ?? {};
+                    const price = pointData.price;
+                    if (price !== null && price !== undefined) {
+                        validDataPointsCount++;
+                    }
+                    return {
+                        value: price,
+                        source: pointData.source,
+                        storeName: pointData.storeName,
+                        idAllegro: pointData.idAllegro,
+                        isBestPriceGuarantee: pointData.isBestPriceGuarantee,
+                        topOffer: pointData.topOffer,
+                        superPrice: pointData.superPrice
+                    };
+                });
 
-            let validDataPointsCount = 0;
+                // =================================================================
+                // ===                 TUTAJ JEST POPRAWIONA LOGIKA              ===
+                // =================================================================
+                const styledData = data.map(point => {
+                    const isSinglePointSeries = validDataPointsCount === 1;
 
-            const data = allDates.map(date => {
-                const pointData = dataByInstance[instanceId]?.[date] ?? {};
-                const price = pointData.price;
-                if (price !== null && price !== undefined) {
-                    validDataPointsCount++;
-                }
+                    // Ustawienia domyślne dla każdego punktu
+                    let symbol = 'circle';
+                    let symbolSize = isSinglePointSeries ? SINGLE_POINT_SIZE : 6;
 
-                return {
-                    value: price,
-                    source: pointData.source,
-                    storeName: pointData.storeName,
-                    idAllegro: pointData.idAllegro,
-                    isBestPriceGuarantee: pointData.isBestPriceGuarantee,
-                    topOffer: pointData.topOffer,
-                    superPrice: pointData.superPrice
-                };
-            });
+                    // Sprawdzamy, czy punkt ma cenę (nie jest pusty)
+                    if (point.value !== null && point.value !== undefined) {
+                        const hasAnySpecialBadge = point.isBestPriceGuarantee || point.topOffer || point.superPrice;
 
-            const styledData = data.map(point => {
-                const hasSpecialBadge = point.isBestPriceGuarantee || point.topOffer || point.superPrice;
-                const isSinglePointSeries = validDataPointsCount === 1;
+                        if (hasAnySpecialBadge) {
+                            // Jeśli jest jakakolwiek odznaka, punkt będzie większy
+                            symbolSize = isSinglePointSeries ? SPECIAL_POINT_EMPHASIS_SIZE : SPECIAL_POINT_SIZE;
 
-                let symbol = 'circle';
-                let symbolSize = isSinglePointSeries ? SINGLE_POINT_SIZE : 6;
+                            // HIERARCHIA WYŚWIETLANIA IKON:
+                            // 1. Gwarancja Najniższej Ceny jest najważniejsza.
+                            if (point.isBestPriceGuarantee) {
+                                symbol = specialOfferIconUrl;
+                            }
+                            // 2. Top Oferta (tylko jeśli NIE MA Gwarancji).
+                            else if (point.topOffer) {
+                                symbol = topOfferIconUrl;
+                            }
+                            // 3. Super Cena (tylko jeśli NIE MA ani Gwarancji, ani Top Oferty).
+                            else if (point.superPrice) {
+                                symbol = superPriceIconUrl;
+                            }
+                        }
+                    }
 
-                if (hasSpecialBadge) {
-
-                    symbol = specialOfferIconUrl;
-                    symbolSize = isSinglePointSeries ? SPECIAL_POINT_EMPHASIS_SIZE : SPECIAL_POINT_SIZE;
-                }
-
-                return {
-                    ...point,
-                    symbol: symbol,
-                    symbolSize: symbolSize
-                };
-            });
+                    return {
+                        ...point,
+                        symbol: symbol,
+                        symbolSize: symbolSize
+                    };
+                });
+                // =================================================================
+                // ===                 KONIEC POPRAWIONEJ LOGIKI                 ===
+                // =================================================================
 
                 let showSymbolDefault = (validDataPointsCount === 1);
                 let symbolSizeDefault = (validDataPointsCount === 1) ? SINGLE_POINT_SIZE : 6;
-                let symbolSizeEmphasis = (validDataPointsCount === 1) ? SINGLE_POINT_EMPHASIS_SIZE : MULTI_POINT_EMPHASIS_SIZE;
 
                 return {
                     name: storeName,
                     _instanceId: instanceId,
                     _source: source,
                     type: 'line',
-
-                    data: styledData,
+                    data: styledData, // Używamy nowo przetworzonych danych!
                     connectNulls: false,
                     smooth: 0.30,
-
                     showSymbol: showSymbolDefault,
                     symbol: 'circle',
                     symbolSize: symbolSizeDefault,
-
                     emphasis: {
                         focus: 'series',
-
                         lineStyle: {
                             width: UNIFORM_EMPHASIS_LINE_WIDTH
                         },
