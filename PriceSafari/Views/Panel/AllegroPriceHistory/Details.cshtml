@@ -1,4 +1,4 @@
-﻿@{
+﻿@* @{
     Layout = "~/Views/Shared/_PanelLayout.cshtml";
     ViewData["Title"] = "Szczegóły Cen Allegro";
     var storeId = ViewBag.StoreId;
@@ -97,6 +97,36 @@
         background-color: #ff9800;
     }
 
+
+
+
+
+
+    .seg-toggle {
+        display: inline-flex;
+        border-radius: 4px;
+        overflow: hidden;
+        vertical-align: middle;
+        gap: 0;
+    }
+
+    .seg-btn-left {
+        border-top-right-radius: 4px;
+        border-bottom-right-radius: 4px;
+    }
+
+    .seg-btn-right {
+        border-top-left-radius: 4px;
+        border-bottom-left-radius: 4px;
+    }
+
+    .seg-toggle .button-active,
+    .seg-toggle .button-inactive {
+        padding: 4px 10px;
+        font-size: 12px;
+        line-height: 1.2;
+        height: 26px;
+    }
 </style>
 
 <div class="Vert" data-store-name="@storeName">
@@ -657,16 +687,25 @@
                 return a.storeName.localeCompare(b.storeName);
             });
 
-        let panelHtml = `
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                <div style="font-weight:bold;">Data: ${date}</div>
-                <div style="font-size: 0.8rem;">
-                    <label for="cheapest-offer-toggle" style="cursor:pointer; display:flex; align-items:center; gap:4px;">
-                        <input type="checkbox" id="cheapest-offer-toggle" onchange="toggleCheapestOfferFilter(this.checked)" ${showOnlyCheapest ? 'checked' : ''}>
-                        Tylko najtańsze
-                    </label>
+            let panelHtml = `
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <div style="font-weight:bold;">Data: ${date}</div>
+            <div style="display:flex; align-items:center; gap:8px;">
+                <div class="seg-toggle" role="group" aria-label="Filtr widoku">
+                    <button type="button"
+                            class="${!showOnlyCheapest ? 'button-active' : 'button-inactive'} seg-btn-left"
+                            onclick="setCheapestMode(false)">
+                        Wszystkie
+                    </button>
+                    <button type="button"
+                            class="${showOnlyCheapest ? 'button-active' : 'button-inactive'} seg-btn-right"
+                            onclick="setCheapestMode(true)">
+                        Najtańsze
+                    </button>
                 </div>
-            </div>`;
+            </div>
+        </div>`;
+
             if (items.length > 0) {
                 panelHtml += `<table style="width:100%; border-collapse:collapse; font-size: 0.85rem;">`;
                 items.forEach(item => {
@@ -761,13 +800,49 @@
             });
         }
 
-        function toggleCheapestOfferFilter(isChecked) {
-            showOnlyCheapest = isChecked;
-            if (originalTimelineData) {
-                const filteredData = filterTimelineData(originalTimelineData);
-                drawEchartsTrendChart(filteredData);
+               function setCheapestMode(mode) {
+          if (showOnlyCheapest === mode) return;
+          showOnlyCheapest = mode;
+
+          if (originalTimelineData) {
+            const filtered = filterTimelineData(originalTimelineData);
+            drawEchartsTrendChart(filtered);
+
+            // po przerysowaniu spróbuj przywrócić tooltip na tej samej dacie
+            if (echartsTrendChart && (lastHoverIndex !== null || lastAxisValue !== null)) {
+              const opt = echartsTrendChart.getOption();
+              let idx = lastHoverIndex;
+
+              // jeśli nie mamy indeksu, spróbuj znaleźć po wartości osi X
+              if ((idx === null || idx === undefined) && opt && opt.xAxis && opt.xAxis[0] && opt.xAxis[0].data) {
+                const xs = opt.xAxis[0].data;
+                idx = xs.indexOf(lastAxisValue);
+              }
+
+              if (typeof idx === 'number' && idx >= 0) {
+                // daj echarts chwilkę na ustawienie opcji i dopiero pokaż tooltip
+                setTimeout(() => {
+                  echartsTrendChart.dispatchAction({
+                    type: 'showTip',
+                    xAxisIndex: 0,
+                    dataIndex: idx
+                  });
+                }, 0);
+              } else {
+                updateCustomTooltipPanel(null);
+              }
+            } else {
+              updateCustomTooltipPanel(null);
             }
+          }
         }
+
+
+        // Zachowaj kompatybilność ze starą nazwą, jeśli gdzieś jeszcze używasz checkboxa.
+        function toggleCheapestOfferFilter(isChecked) {
+            setCheapestMode(isChecked);
+        }
+
 
         function prepareEchartsSeries(dataByInstance, allDates, allInstances) {
 
@@ -967,23 +1042,23 @@
                 }
             }
 
-            currentChartOptions = {
-                tooltip: {
-                    trigger: 'axis',
-                    axisPointer: {
-                        type: 'cross',
-                        snap: true,
-                        label: { backgroundColor: '#6a7985' }
-                    },
 
-                    formatter: function (params) {
-                        lastHoverParams = params;
-                        const panelHtml = generateTooltipPanelHtml(params);
-                        updateCustomTooltipPanel(panelHtml || defaultCustomTooltipContent);
-                        return '';
-                    },
 
-                },
+             
+                  currentChartOptions = {
+        tooltip: {
+          trigger: 'axis',
+          axisPointer: { type: 'cross', snap: true, label: { backgroundColor: '#6a7985' } },
+          formatter: function (params) {
+            lastHoverParams = params;
+            lastHoverIndex = (params && params[0]) ? params[0].dataIndex : null;
+            lastAxisValue = (params && params[0]) ? params[0].axisValue : null;
+
+            const panelHtml = generateTooltipPanelHtml(params);
+            updateCustomTooltipPanel(panelHtml || defaultCustomTooltipContent);
+            return '';
+          },
+        },
                 xAxis: {
                     type: 'category',
                     data: allDates,
@@ -1610,5 +1685,988 @@
                 }
             }
 
+    </script>
+} *@
+
+
+
+
+
+@{
+    Layout = "~/Views/Shared/_PanelLayout.cshtml";
+    ViewData["Title"] = "Szczegóły Cen Allegro";
+    var storeId = ViewBag.StoreId;
+    var productId = ViewBag.ProductId;
+    var productName = ViewBag.ProductName as string;
+    var storeName = ViewBag.StoreName as string;
+    var allegroOfferUrl = ViewBag.AllegroOfferUrl as string;
+}
+
+<style>
+    .price-trend-section {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 20px;
+        margin-top: 25px;
+    }
+
+    #customTrendTooltip {
+        width: 450px;
+    }
+
+    .price-trend__main-panel {
+        flex: 1;
+        min-width: 480px;
+        display: flex;
+        flex-direction: column;
+        height: 65vh;
+    }
+
+    .price-trend__chart-area {
+        width: 100%;
+        flex-grow: 1;
+        min-height: 300px;
+        position: relative;
+        margin-bottom: 10px;
+    }
+
+    .price-trend__controls {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 5px;
+        align-self: center;
+        justify-self: center;
+        width: 93%;
+        box-sizing: border-box;
+        flex-shrink: 0;
+    }
+
+    .price-trend__alpha-slider-wrapper {
+        flex-grow: 1;
+        margin-right: 20px;
+        display: flex;
+        align-items: center;
+        max-width: 300px;
+    }
+
+        .price-trend__alpha-slider-wrapper input[type=range] {
+            width: 100%;
+            cursor: pointer;
+        }
+
+    #exportExcelBtn {
+        white-space: nowrap;
+        flex-shrink: 0;
+    }
+
+    .price-trend__tooltip-panel {
+        flex-basis: 370px;
+        flex-shrink: 0;
+        border-left: 1px solid #e0e0e0;
+        padding-left: 20px;
+        overflow-y: auto;
+    }
+
+    .offer-badge {
+        display: inline-block;
+        padding: 2px 5px;
+        font-size: 0.7rem;
+        font-weight: bold;
+        color: white;
+        border-radius: 4px;
+        margin-left: 4px;
+        vertical-align: middle;
+    }
+
+    .badge-bpg {
+        background-color: #169A23;
+    }
+
+    .badge-top {
+        background-color: #9c27b0;
+    }
+
+    .badge-super {
+        background-color: #ff9800;
+    }
+
+    .seg-toggle {
+        display: inline-flex;
+        border-radius: 4px;
+        overflow: hidden;
+        vertical-align: middle;
+        gap: 0;
+    }
+
+    .seg-btn-left {
+        border-top-right-radius: 0px;
+        border-bottom-right-radius: 0px;
+        border-top-left-radius: 4px;
+        border-bottom-left-radius: 4px;
+    }
+
+    .seg-btn-right {
+        border-top-left-radius: 0px;
+        border-bottom-left-radius: 0px;
+        border-top-right-radius: 4px;
+        border-bottom-right-radius: 4px;
+    }
+
+    .seg-toggle .button-active,
+    .seg-toggle .button-inactive {
+        padding: 4px 10px;
+        font-size: 12px;
+        line-height: 1.2;
+        height: 26px;
+    }
+</style>
+
+<div class="Vert" data-store-name="@storeName">
+    <div class="Page-Box">
+        <div style="display:flex; width:100%; justify-content:space-between;">
+            <div style="font-weight: 300; font-size: 22px;">
+                @productName
+            </div>
+            <div style="margin-top:4px;">
+                <button type="button" id="showTableBtn" class="button-active">
+                    Ranking
+                </button>
+                <button type="button" id="showChartBtn" class="button-inactive">
+                    Wykres
+                </button>
+            </div>
+        </div>
+
+        <div class="form-check-orders" style="margin-bottom:16px;">
+            <div id="lastScrapeInfo"></div>
+        </div>
+
+        <div style="display: flex; width: 100%; gap: 48px;  align-items: flex-end; justify-content:space-between;">
+            @if (!string.IsNullOrEmpty(allegroOfferUrl))
+            {
+                <a href="@allegroOfferUrl" class="Button-Page-Small" style="margin-bottom: 8px;" target="_blank" rel="noopener noreferrer">
+                    <img src="/images/AllegroIcon.png" alt="Allegro Icon" style="width:18px; height:18px; margin-right: 5px;" /> Zobacz na Allegro
+                </a>
+            }
+            <div id="chartContainer" style="flex-shrink: 0; width: 50%; height: 130px;">
+                <canvas id="priceBarChart"></canvas>
+            </div>
+        </div>
+
+        <div id="priceTableContainer" class="Vert-table">
+            <table class="table-orders" id="priceTable">
+                <thead>
+                    <tr>
+                        <th></th>
+                        <th id="storeHeader">Sklep</th>
+                        <th>Cena</th>
+                        <th>Różnica</th>
+                        <th>Ads</th>
+                        <th>Koszt wysyłki</th>
+                        <th>Dostawa</th>
+                        <th>Smart</th>
+                        <th id="popularityHeader">Sprzedaż</th>
+                        <th>Oferta w katalogu</th>
+                        <th>Źródło</th>
+                    </tr>
+                </thead>
+                <tbody>
+                </tbody>
+            </table>
+        </div>
+
+        <div id="trendChartContainer" class="price-trend-section" style="display: none;">
+            <div class="price-trend__main-panel">
+                <div style="display: flex; justify-content: center; align-items: center; margin-bottom: 10px;">
+                    <div class="seg-toggle" role="group" aria-label="Przełącznik widoku wykresu">
+                        <button type="button" id="switchToPriceChartBtn" class="button-active seg-btn-left">
+                            <i class="fas fa-dollar-sign" style="margin-right: 4px;"></i> Cena
+                        </button>
+                        <button type="button" id="switchToSalesChartBtn" class="button-inactive seg-btn-right">
+                            <i class="fas fa-chart-line" style="margin-right: 4px;"></i> Sprzedaż
+                        </button>
+                    </div>
+                </div>
+              
+
+                <div class="price-trend__chart-area">
+                    <div id="trendChart" style="width: 100%; height: 100%;"></div>
+                </div>
+                <div class="price-trend__controls">
+                    <div class="price-trend__alpha-slider-wrapper">
+                        <input type="range" id="grayAlphaRange" min="0" max="0.6" step="0.01" value="0.3">
+                    </div>
+                    <button type="button" id="exportExcelBtn" class="Button-Page-Small" title="Eksportuj dane historii cen do pliku Excel">
+                        <i class="fas fa-file-excel" style="margin-right: 5px;"></i> Excel
+                    </button>
+                </div>
+            </div>
+            <div id="customTrendTooltip" class="price-trend__tooltip-panel">
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="loadingOverlay" class="loading-overlay" style="display: none;">
+    <div class="loader"></div>
+</div>
+
+@section Scripts {
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
+
+    <script>
+        // Te zmienne muszą być dostępne globalnie dla funkcji poniżej
+        let echartsTrendChart = null;
+        let currentTimelineData = null;
+        let originalChartData = null;
+        let currentChartOptions = null;
+        let lastHoverParams = null;
+        let showOnlyCheapest = false;
+        let highlightedStores = [];
+        let storeColorMap = {};
+        let lastHighlightedStore = null;
+        let hiddenStores = [];
+        let salesChartMode = 'offers';
+
+        // ===== FUNKCJE PRZENIESIONE DO ZASIĘGU GLOBALNEGO (ABY onclick DZIAŁAŁ) =====
+        function toggleStoreHighlight(storeName) {
+            if (!echartsTrendChart || !currentTimelineData) return;
+            let sLower = storeName.toLowerCase().trim();
+            let idx = highlightedStores.indexOf(sLower);
+
+            const highlightColors = [
+                'rgba(54, 162, 235, 1)', 'rgba(75, 192, 192, 1)', 'rgba(153, 102, 255, 1)',
+                'rgba(255, 99, 132, 1)', 'rgba(0, 150, 136, 1)', 'rgba(201, 203, 207, 1)',
+                'rgba(121, 85, 72, 1)', 'rgba(139, 195, 74, 1)', 'rgba(0, 188, 212, 1)',
+                'rgba(233, 30, 99, 1)'
+            ];
+
+            function findNextFreeColorIndex() {
+                for (let i = 0; i < highlightColors.length; i++) {
+                    if (!Object.values(storeColorMap).includes(i)) return i;
+                }
+                return null;
+            }
+
+            if (idx >= 0) {
+                highlightedStores.splice(idx, 1);
+                delete storeColorMap[sLower];
+                if (lastHighlightedStore === sLower) {
+                    lastHighlightedStore = highlightedStores.length > 0 ? highlightedStores[highlightedStores.length - 1] : null;
+                }
+            } else {
+                if (sLower === "@storeName".toLowerCase().trim()) {
+                    lastHighlightedStore = sLower;
+                } else if (highlightedStores.length >= highlightColors.length) {
+                    alert(`Możesz zaznaczyć maks. ${highlightColors.length} sklepów do porównania `);
+                    return;
+                } else {
+                    let cIndex = findNextFreeColorIndex();
+                    if (cIndex === null) {
+                        alert("Brak wolnych kolorów do podświetlenia!");
+                        return;
+                    }
+                    if (!highlightedStores.includes(sLower)) {
+                        highlightedStores.push(sLower);
+                    }
+                    storeColorMap[sLower] = cIndex;
+                    lastHighlightedStore = sLower;
+                }
+            }
+            // Te funkcje muszą być zdefiniowane lub dostępne w tym zasięgu
+            updateEchartsStylesAndZ();
+            if (lastHoverParams) {
+                const updatedPanelHtml = generateTooltipPanelHtml(lastHoverParams);
+                if (updatedPanelHtml) {
+                    updateCustomTooltipPanel(updatedPanelHtml);
+                }
+            }
+        }
+
+        function setCheapestMode(mode) {
+            const currentChartType = document.getElementById('switchToPriceChartBtn').classList.contains('button-active') ? 'price' : 'sales';
+            if (showOnlyCheapest === mode || currentChartType !== 'price') return;
+            showOnlyCheapest = mode;
+
+            if (originalChartData) {
+                displayCurrentTrendChart();
+                if (echartsTrendChart && lastHoverParams) {
+                    setTimeout(() => {
+                        const opt = echartsTrendChart.getOption();
+                        if (opt && opt.xAxis && opt.xAxis[0].data) {
+                            const idx = opt.xAxis[0].data.indexOf(lastHoverParams[0].axisValue);
+                            if (idx > -1) {
+                                echartsTrendChart.dispatchAction({ type: 'showTip', xAxisIndex: 0, dataIndex: idx });
+                            }
+                        }
+                    }, 100);
+                }
+            }
+        }
+
+        function hideStoreFromChart(storeName) {
+            if (!echartsTrendChart || !currentTimelineData) return;
+            const storeLower = storeName.toLowerCase().trim();
+            if (!hiddenStores.includes(storeLower)) {
+                hiddenStores.push(storeLower);
+            }
+
+            const highlightedIndex = highlightedStores.indexOf(storeLower);
+            if (highlightedIndex > -1) {
+                highlightedStores.splice(highlightedIndex, 1);
+                delete storeColorMap[storeLower];
+                if (lastHighlightedStore === storeLower) {
+                    lastHighlightedStore = highlightedStores.length > 0 ? highlightedStores[highlightedStores.length - 1] : null;
+                }
+            }
+
+            updateEchartsStylesAndZ();
+            const newYAxisRange = recalculateYAxisRange();
+            if (newYAxisRange && currentChartOptions && currentChartOptions.yAxis) {
+                currentChartOptions.yAxis.min = newYAxisRange.min;
+                currentChartOptions.yAxis.max = newYAxisRange.max;
+                echartsTrendChart.setOption({
+                    yAxis: { min: newYAxisRange.min, max: newYAxisRange.max }
+                });
+            }
+
+            if (lastHoverParams) {
+                const updatedPanelHtml = generateTooltipPanelHtml(lastHoverParams);
+                updateCustomTooltipPanel(updatedPanelHtml || 'Najedź na punkt na wykresie...');
+            }
+        }
+        function setSalesChartMode(mode) {
+             if (salesChartMode === mode) return;
+             salesChartMode = mode;
+
+             // Nie musimy już ręcznie przełączać klas, ponieważ tooltip
+             // zostanie wygenerowany od nowa z poprawnymi klasami.
+
+             if (originalChartData) {
+                 displayCurrentTrendChart();
+             }
+         }
+        document.addEventListener("DOMContentLoaded", function () {
+            // Pierwsza część skryptu do obsługi tabeli i wykresu słupkowego
+            const myStoreName = "@Html.Raw(System.Web.HttpUtility.JavaScriptStringEncode(storeName))";
+            const storeId = @storeId;
+            const productId = @productId;
+            let chartInstance = null;
+            const myStoreLower = myStoreName ? myStoreName.toLowerCase().trim() : '';
+            const loadingOverlay = document.getElementById('loadingOverlay');
+
+            function renderDeliveryInfo(deliveryTime) {
+                if (deliveryTime === null || deliveryTime === undefined) return '<span>-</span>';
+                let text = '', className = '';
+                switch (deliveryTime) {
+                    case 1: text = 'Jutro'; className = 'Delivery1'; break;
+                    case 2: text = 'Pojutrze'; className = 'Delivery2'; break;
+                    case 3: text = 'Długa dostawa'; className = 'Delivery3'; break;
+                    default: return '<span>-</span>';
+                }
+                return `<div class="${className}">${text}</div>`;
+            }
+
+            function renderShippingCost(cost) {
+                if (cost === null || cost === undefined) return '<span>-</span>';
+                if (cost === 0) return `<div class="FreeShipping">Darmowa</div>`;
+                return `<div class="PaidShipping">${cost.toFixed(2)} PLN</div>`;
+            }
+
+            function getColorClass(item, allOffers, myOffer, setPrice1, setPrice2) {
+                const myPrice = myOffer ? myOffer.price : null;
+                const minPrice = Math.min(...allOffers.map(o => o.price));
+                const offersWithMinPrice = allOffers.filter(o => o.price === minPrice);
+                const isUniqueBestPrice = item.price === minPrice && offersWithMinPrice.length === 1;
+                const isSharedBestPrice = item.price === minPrice && offersWithMinPrice.length > 1;
+                if (isSharedBestPrice) return "prGood";
+                if (isUniqueBestPrice) {
+                    const secondMinPriceOffer = [...allOffers].filter(o => o.price > minPrice).sort((a, b) => a.price - b.price)[0];
+                    const savings = secondMinPriceOffer ? secondMinPriceOffer.price - item.price : null;
+                    return (savings != null && savings >= 0.01 && savings <= setPrice1) ? "prIdeal" : "prToLow";
+                }
+                if (myPrice && item.price > minPrice) {
+                    const priceDifference = item.price - myPrice;
+                    return priceDifference < setPrice2 ? "prMid" : "prToHigh";
+                }
+                return "prToHigh";
+            }
+
+            function renderTable(offersData, totalPopularity, setPrice1, setPrice2) {
+                const tbody = document.querySelector("#priceTable tbody");
+                tbody.innerHTML = '';
+
+                document.getElementById('storeHeader').textContent = `Sklep (${offersData.length})`;
+                document.getElementById('popularityHeader').textContent = `Kupiło ${totalPopularity} osb.`;
+
+                const myCurrentOfferForDiff = offersData.find(o => o.targetProductId === productId);
+                const basePrice = myCurrentOfferForDiff ? myCurrentOfferForDiff.price : 0;
+
+                offersData.forEach(item => {
+                    const isMyStore = item.sellerName.toLowerCase().trim() === myStoreLower;
+                    const priceDifference = basePrice > 0 ? item.price - basePrice : 0;
+                    const percentageDifference = basePrice > 0 ? (priceDifference / basePrice) * 100 : 0;
+                    const colorClass = getColorClass(item, offersData, myCurrentOfferForDiff, setPrice1, setPrice2);
+                    const tr = document.createElement('tr');
+                    tr.className = `price-row ${colorClass}`;
+                    let diffHtml = '<div class="priceBox-diff-neutral">0,00 PLN (0,00 %)</div>';
+                    if (basePrice > 0 && priceDifference !== 0) {
+                        const diffClass = priceDifference < 0 ? 'priceBox-diff-up' : 'priceBox-diff-down';
+                        const sign = priceDifference > 0 ? '+' : '';
+                        diffHtml = `<div class="${diffClass}">${sign}${priceDifference.toFixed(2)} PLN (${sign}${percentageDifference.toFixed(2)}%)</div>`;
+                    }
+                    const storeNameStyle = isMyStore ? 'font-weight: bold;' : '';
+                    const marketShare = (totalPopularity > 0 && item.popularity) ? (item.popularity / totalPopularity) * 100 : 0;
+                    let popularityHtml = item.popularity > 0 ? `<div style="${storeNameStyle}">${item.popularity} osb. <span style="font-size: 12px; color: #666;">(${marketShare.toFixed(2)}%)</span></div>` : '<span>-</span>';
+                    const priceStyle = item.isBestPriceGuarantee ? 'color: #169A23;' : '';
+                    const bestPriceIcon = item.isBestPriceGuarantee ? `<img src="/images/TopPrice.png" alt="Gwarancja Najniższej Ceny" title="Gwarancja Najniższej Ceny" style="width: 18px; height: 18px; vertical-align: middle; margin-left: 5px;">` : '';
+                    const topOfferBadge = item.topOffer ? `<div class="TopOffer" style="display: inline-block; margin-left: 5px; vertical-align: middle;">Top oferta</div>` : '';
+                    const superPriceBadge = item.superPrice ? `<div class="SuperPrice" style="display: inline-block; margin-left: 5px; vertical-align: middle;">SUPERCENA</div>` : '';
+                    let boostHtml = (item.promoted ? '<div class="PromoInfo">Promowana</div>' : (item.sponsored ? '<div class="PromoInfo">Sponsorowana</div>' : '<span>-</span>'));
+                    let navigationHtml = '';
+                    if (isMyStore) {
+                        if (item.targetProductId === productId) {
+                            navigationHtml = `<strong>Oglądana</strong>`;
+                        } else if (item.targetProductId) {
+                            const detailsUrl = `/AllegroPriceHistory/Details?storeId=${storeId}&productId=${item.targetProductId}`;
+                            navigationHtml = `<a href="${detailsUrl}" class="Button-Page-Small">Przejdź</a>`;
+                        }
+                    }
+                    tr.innerHTML = `<td><div class="color-bar ${colorClass}"></div></td><td class="store-name" style="${storeNameStyle}">${item.sellerName} ${item.superSeller ? `<img src="/images/SuperSeller.png" alt="Super Sprzedawca" title="Super Sprzedawca" style="width: 18px; height: 18px; vertical-align: middle; margin-left: 5px;">` : ''}</td><td class="store-price" style="${storeNameStyle} ${priceStyle}">${item.price.toFixed(2)} PLN ${bestPriceIcon} ${topOfferBadge} ${superPriceBadge}</td><td>${diffHtml}</td><td>${boostHtml}</td><td>${renderShippingCost(item.deliveryCost)}</td><td>${renderDeliveryInfo(item.deliveryTime)}</td><td>${item.smart ? `<div class="Smart-Allegro"><img src="/images/Smart.png" alt="Smart!" title="Smart!" style="height: 15px; width: auto;"></div>` : '<span>-</span>'}</td><td>${popularityHtml}</td><td>${navigationHtml}</td><td class="data-chanel"><img src="/images/AllegroIcon.png" alt="Allegro Icon" style="width:24px; height:24px;" /></td>`;
+                    tbody.appendChild(tr);
+                });
+            }
+
+            function drawBarChart(allOffersData) {
+                const ctx = document.getElementById('priceBarChart');
+                if (!ctx) return;
+                if (chartInstance) chartInstance.destroy();
+                const reversedData = [...allOffersData].reverse();
+                chartInstance = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: reversedData.map(item => item.sellerName),
+                        datasets: [{
+                            label: 'Cena PLN',
+                            data: reversedData.map(item => item.price),
+                            backgroundColor: reversedData.map(item => {
+                                if (item.targetProductId === productId) return 'rgba(255, 100, 0, 0.8)';
+                                if (item.sellerName.toLowerCase().trim() === myStoreLower) return 'rgba(255, 159, 64, 0.5)';
+                                return 'rgba(34, 34, 34, 0.4)';
+                            }),
+                            borderColor: reversedData.map(item => {
+                                if (item.targetProductId === productId) return 'rgba(255, 100, 0, 1)';
+                                if (item.sellerName.toLowerCase().trim() === myStoreLower) return 'rgba(255, 159, 64, 1)';
+                                return 'rgba(34, 34, 34, 1)';
+                            }),
+                            borderWidth: 2,
+                            borderRadius: 2
+                        }]
+                    },
+                    options: { maintainAspectRatio: false, scales: { y: { beginAtZero: false, ticks: { callback: value => value + ' PLN' } }, x: { display: false } }, plugins: { legend: { display: false } } }
+                });
+            }
+
+            function updateLastScrapeDate(dateStr) {
+                const info = document.getElementById('lastScrapeInfo');
+                if (info && dateStr) {
+                    const date = new Date(dateStr);
+                    info.innerHTML = `<p><strong>Wykonano:</strong> ${date.toLocaleDateString('pl-PL', { year: 'numeric', month: '2-digit', day: '2-digit' })}</p>`;
+                }
+            }
+
+            function showLoadingState() {
+                if (loadingOverlay) loadingOverlay.style.display = 'flex';
+                const tbody = document.querySelector("#priceTable tbody");
+                if (tbody) tbody.innerHTML = '<tr><td colspan="11" style="text-align:center; padding: 40px;">Ładowanie danych...</td></tr>';
+            }
+
+            function showEmptyState() {
+                if (loadingOverlay) loadingOverlay.style.display = 'none';
+                const tbody = document.querySelector("#priceTable tbody");
+                if (tbody) tbody.innerHTML = '<tr><td colspan="11" style="text-align:center; padding: 40px;">Brak ofert do wyświetlenia.</td></tr>';
+                const chartParent = document.getElementById('chartContainer');
+                if (chartParent) chartParent.innerHTML = '<div style="text-align:center; padding: 40px;">Brak danych do wykresu.</div>';
+            }
+
+            showLoadingState();
+            fetch(`/AllegroPriceHistory/GetProductPriceDetails?storeId=${storeId}&productId=${productId}`)
+                .then(response => response.ok ? response.json() : Promise.reject('Błąd sieci'))
+                .then(result => {
+                    if (loadingOverlay) loadingOverlay.style.display = 'none';
+                    let offers = result?.data ?? [];
+                    if (offers.length > 0) {
+                        offers.sort((a, b) => {
+                            if (a.price !== b.price) return a.price - b.price;
+                            const scoreA = (a.topOffer || a.superPrice || a.isBestPriceGuarantee) ? 0 : 1;
+                            const scoreB = (b.topOffer || b.superPrice || b.isBestPriceGuarantee) ? 0 : 1;
+                            if (scoreA !== scoreB) return scoreA - scoreB;
+                            const totalA = a.price + (a.deliveryCost || 0);
+                            const totalB = b.price + (b.deliveryCost || 0);
+                            if (totalA !== totalB) return totalA - totalB;
+                            return a.sellerName.localeCompare(b.sellerName);
+                        });
+                        renderTable(offers, result.totalProductPopularity, result.setPrice1, result.setPrice2);
+                        drawBarChart(offers);
+                        updateLastScrapeDate(result.lastScrapeDate);
+                    } else {
+                        showEmptyState();
+                    }
+                });
+        });
+
+        // Druga część skryptu do obsługi wykresu ECharts i jego logiki
+        document.addEventListener("DOMContentLoaded", function () {
+            const myStoreLower = "@storeName".toLowerCase().trim();
+            const productId = @ViewBag.ProductId;
+
+            const highlightColors = [
+                'rgba(54, 162, 235, 1)', 'rgba(75, 192, 192, 1)', 'rgba(153, 102, 255, 1)',
+                'rgba(255, 99, 132, 1)', 'rgba(0, 150, 136, 1)', 'rgba(201, 203, 207, 1)',
+                'rgba(121, 85, 72, 1)', 'rgba(139, 195, 74, 1)', 'rgba(0, 188, 212, 1)',
+                'rgba(233, 30, 99, 1)'
+            ];
+
+            const myMainOfferColor = 'rgba(255, 100, 0, 1)';
+            const myOtherOfferColor = 'rgba(255, 159, 64, 0.7)';
+            const defaultGrayColor = 'rgba(128, 128, 128, {alpha})';
+            let mainOfferId = null;
+
+            const UNIFORM_LINE_WIDTH = 2.3;
+            const UNIFORM_EMPHASIS_LINE_WIDTH = 2.3;
+            let defaultGrayAlpha = 0.3;
+            const defaultCustomTooltipContent = 'Najedź na punkt na wykresie...';
+            let currentChartType = 'price';
+
+            // Przypisanie funkcji do globalnego zasięgu, aby były widoczne dla reszty skryptu
+            window.updateEchartsStylesAndZ = updateEchartsStylesAndZ;
+            window.recalculateYAxisRange = recalculateYAxisRange;
+            window.generateTooltipPanelHtml = generateTooltipPanelHtml;
+            window.updateCustomTooltipPanel = updateCustomTooltipPanel;
+            window.displayCurrentTrendChart = displayCurrentTrendChart;
+
+            function updateCustomTooltipPanel(htmlContent) {
+                const panelDiv = document.getElementById('customTrendTooltip');
+                if (panelDiv) {
+                    panelDiv.innerHTML = htmlContent || defaultCustomTooltipContent;
+                }
+            }
+
+            function recalculateYAxisRange() {
+                if (!currentChartOptions || !currentChartOptions.series) return null;
+                let minVal = Infinity, maxVal = -Infinity;
+                const dataType = currentChartType;
+                currentChartOptions.series.forEach(series => {
+                    if (dataType === 'sales' && series.name === 'Sprzedaż w katalogu') return;
+                    if (!hiddenStores.includes(series.name.toLowerCase().trim())) {
+                        series.data.forEach(dp => {
+                            if (dp.value != null) {
+                                minVal = Math.min(minVal, dp.value);
+                                maxVal = Math.max(maxVal, dp.value);
+                            }
+                        });
+                    }
+                });
+                if (!isFinite(minVal)) return { min: 0, max: dataType === 'sales' ? 10 : 100 };
+                const padding = (maxVal - minVal) * 0.05 || (dataType === 'sales' ? 2 : 5);
+                return { min: dataType === 'sales' ? 0 : Math.max(0, minVal - padding), max: maxVal + padding };
+            }
+
+        function getSeriesStyleAndZ(storeNameLower, offerId) {
+            if (hiddenStores.includes(storeNameLower)) return { lineStyle: { color: 'transparent', width: 0 }, itemStyle: { color: 'transparent' }, z: 0 };
+
+            const isMyStore = storeNameLower === myStoreLower;
+            const isHighlighted = highlightedStores.includes(storeNameLower);
+            const isMainOffer = isMyStore && offerId && offerId === mainOfferId;
+
+            let style = {
+                lineStyle: { width: UNIFORM_LINE_WIDTH },
+                itemStyle: {},
+                // ZMIANA: Inicjujemy 'areaStyle' jako null. ECharts zignoruje tę właściwość
+                // i nie stworzy żadnego, nawet niewidzialnego, wypełnienia.
+                areaStyle: null,
+                z: 1
+            };
+
+            if (isMainOffer) {
+                style.lineStyle.color = myMainOfferColor;
+                style.itemStyle.color = myMainOfferColor;
+                style.z = 5;
+            } else if (isMyStore) {
+                style.lineStyle.color = myOtherOfferColor;
+                style.itemStyle.color = myOtherOfferColor;
+                style.z = 4;
+            } else if (isHighlighted) {
+                const colorIndex = storeColorMap[storeNameLower];
+                if (colorIndex != null) {
+                    const color = highlightColors[colorIndex];
+                    style.lineStyle.color = color;
+                    style.itemStyle.color = color;
+                    style.z = storeNameLower === lastHighlightedStore ? 3 : 2;
+                }
+            } else {
+                const gray = defaultGrayColor.replace('{alpha}', defaultGrayAlpha);
+                style.lineStyle.color = gray;
+                style.itemStyle.color = gray;
+            }
+
+            // Ta logika jest teraz poprawna - tworzy obiekt 'areaStyle' tylko wtedy, gdy jest potrzebny.
+            if (currentChartType === 'sales' && (isMyStore || isHighlighted)) {
+                style.areaStyle = {
+                    color: style.lineStyle.color,
+                    opacity: 0.2
+                };
+            }
+
+            return style;
+        }
+            function generateTooltipPanelHtml(params) {
+                if (!params || params.length === 0 || !params[0].axisValue) return defaultCustomTooltipContent;
+                return currentChartType === 'price' ? generatePriceTooltipHtml(params) : generateSalesTooltipHtml(params);
+            }
+
+            function generatePriceTooltipHtml(params) {
+                const date = params[0].axisValue;
+                let items = [];
+                params.forEach(p => { if (p.data.originalOffer && !hiddenStores.includes(p.seriesName.toLowerCase().trim())) items.push({ ...p.data.originalOffer, _markerColor: p.color }) });
+                items.sort((a, b) => a.price - b.price);
+
+                let html = `<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;"><div style="font-weight:bold;">Data: ${date}</div><div class="seg-toggle"><button class="${!showOnlyCheapest ? 'button-active' : 'button-inactive'} seg-btn-left" onclick="setCheapestMode(false)">Wszystkie</button><button class="${showOnlyCheapest ? 'button-active' : 'button-inactive'} seg-btn-right" onclick="setCheapestMode(true)">Najtańsze</button></div></div>`;
+                if (items.length > 0) {
+                    html += `<table style="width:100%; border-collapse:collapse; font-size: 0.85rem;">`;
+                    items.forEach(item => {
+                        const sLower = item.storeName.toLowerCase().trim();
+                        let cText = 'rgba(50,50,50,1)', fWeight = 'normal';
+                        if (sLower === myStoreLower) { cText = item.idAllegro === mainOfferId ? myMainOfferColor : myOtherOfferColor; fWeight = 'bold'; }
+                        else if (highlightedStores.includes(sLower) && storeColorMap[sLower] != null) { cText = highlightColors[storeColorMap[sLower]]; fWeight = 'bold'; }
+
+                        let badges = '';
+                        if (item.isBestPriceGuarantee) badges += ` <img src="/images/TopPrice.png" title="GNC" style="height: 16px; vertical-align: middle;">`;
+                        if (item.topOffer) badges += ` <div class="TopOffer" style="display: inline-block; font-size: 0.7rem; vertical-align: middle; margin-left: 3px;">Top</div>`;
+                        if (item.superPrice) badges += ` <div class="SuperPrice" style="display: inline-block; font-size: 0.7rem; vertical-align: middle; margin-left: 3px;">Super</div>`;
+
+                        const escName = item.storeName.replace(/'/g, "\\'");
+                        html += `<tr style="border-bottom:1px solid #eee; cursor:pointer;" onclick="event.stopPropagation(); toggleStoreHighlight('${escName}');"><td style="padding:3px 2px;color:${cText};font-weight:${fWeight};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${item.storeName}"><span style="display:inline-block;margin-right:5px;width:10px;height:10px;background-color:${item._markerColor};vertical-align:middle;"></span><img src="/images/AllegroIcon.png" style="width:14px;height:14px;margin-right:4px;vertical-align:middle;"/>${item.storeName.length > 23 ? item.storeName.substring(0,20)+'...' : item.storeName}</td><td style="padding:3px 2px;text-align:right;color:${cText};font-weight:${fWeight};white-space:nowrap;">${badges}<span style="vertical-align:middle;">${item.price.toFixed(2)} PLN</span><span title="Ukryj sklep '${escName}'" style="cursor:pointer;color:#aaa;margin-left:8px;font-weight:bold;" onmouseover="this.style.color='red'" onmouseout="this.style.color='#aaa'" onclick="event.stopPropagation();hideStoreFromChart('${escName}');">&times;</span></td></tr>`;
+                    });
+                    html += `</table>`;
+                } else html += `<div style="color: #666; font-style: italic;">Brak danych do wyświetlenia.</div>`;
+                return html;
+            }
+
+          function generateSalesTooltipHtml(params) {
+            const date = params[0].axisValue;
+            let items = [], totalSales = 0;
+            params.forEach(p => {
+                if (p.seriesName === 'Sprzedaż w katalogu') totalSales = p.value;
+                else if (p.data.originalOffer && !hiddenStores.includes(p.seriesName.toLowerCase().trim())) items.push({ ...p.data.originalOffer, _markerColor: p.color });
+            });
+            items.sort((a, b) => b.sales - a.sales);
+
+            // ZMODYFIKOWANA LINIA: Dodajemy przełącznik trybu sprzedaży obok daty.
+            let html = `<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                            <div style="font-weight:bold;">Data: ${date}</div>
+                            <div class="seg-toggle">
+                                <button class="${salesChartMode === 'offers' ? 'button-active' : 'button-inactive'} seg-btn-left" onclick="setSalesChartMode('offers')">Oferty</button>
+                                <button class="${salesChartMode === 'combined' ? 'button-active' : 'button-inactive'} seg-btn-right" onclick="setSalesChartMode('combined')">Łącznie</button>
+                            </div>
+                        </div>`;
+
+            html += `<div style="padding:4px 0;margin-bottom:8px;border-bottom:1px solid #ccc;display:flex;justify-content:space-between;"><strong>Sprzedaż w katalogu:</strong><strong>${totalSales} szt.</strong></div>`;
+
+            if (items.length > 0) {
+                html += `<table style="width:100%; border-collapse:collapse; font-size: 0.85rem;">`;
+                items.forEach(item => {
+                    const sLower = item.storeName.toLowerCase().trim();
+                    let cText = 'rgba(50,50,50,1)', fWeight = 'normal';
+                    if (sLower === myStoreLower) { cText = item.idAllegro === mainOfferId ? myMainOfferColor : myOtherOfferColor; fWeight = 'bold'; }
+                    else if (highlightedStores.includes(sLower) && storeColorMap[sLower] != null) { cText = highlightColors[storeColorMap[sLower]]; fWeight = 'bold'; }
+
+                    const escName = item.storeName.replace(/'/g, "\\'");
+                    html += `<tr style="border-bottom:1px solid #eee; cursor:pointer;" onclick="event.stopPropagation(); toggleStoreHighlight('${escName}');"><td style="padding:3px 2px;color:${cText};font-weight:${fWeight};" title="${item.storeName}"><span style="display:inline-block;margin-right:5px;width:10px;height:10px;background-color:${item._markerColor};vertical-align:middle;"></span>${item.storeName.substring(0,25)}</td><td style="padding:3px 2px;text-align:right;color:${cText};font-weight:${fWeight};">${item.sales} szt.<span title="Ukryj sklep '${escName}'" style="cursor:pointer;color:#aaa;margin-left:8px;font-weight:bold;" onmouseover="this.style.color='red'" onmouseout="this.style.color='#aaa'" onclick="event.stopPropagation();hideStoreFromChart('${escName}');">&times;</span></td></tr>`;
+                });
+                html += `</table>`;
+            } else html += `<div style="color:#666;font-style:italic;">Brak danych o sprzedaży indywidualnej.</div>`;
+            return html;
+        }
+
+            function filterTimelineData(timelineData) {
+                if (!showOnlyCheapest) return timelineData;
+                return timelineData.map(day => {
+                    const cheapest = new Map();
+                    const offers = day.offers || day.pricesByStore || [];
+                    offers.forEach(offer => {
+                        const existing = cheapest.get(offer.storeName);
+                        if (!existing || offer.price < existing.price) cheapest.set(offer.storeName, offer);
+                    });
+                    return { ...day, offers: Array.from(cheapest.values()) };
+                });
+            }
+
+            function displayCurrentTrendChart() {
+                if (!originalChartData) return;
+                if (echartsTrendChart) echartsTrendChart.dispose();
+                echartsTrendChart = echarts.init(document.getElementById('trendChart'));
+
+                currentTimelineData = currentChartType === 'price' ? filterTimelineData(originalChartData.timelineData) : originalChartData.timelineData;
+                drawChart(currentTimelineData, currentChartType);
+
+                echartsTrendChart.on('click', p => { if (p.seriesName && p.seriesName !== 'Sprzedaż w katalogu') toggleStoreHighlight(p.seriesName) });
+                window.addEventListener('resize', () => echartsTrendChart?.resize());
+            }
+
+        function drawChart(timelineData, dataType) {
+               const { allDates, dataByInstance, allInstances } = processData(timelineData, dataType);
+               let seriesData = prepareSeries(dataByInstance, allDates, allInstances, dataType);
+
+               if (dataType === 'sales') {
+                   seriesData.unshift({
+                       name: 'Sprzedaż w katalogu',
+                       type: 'line',
+                       data: timelineData.map(d => ({ value: d.totalSales })),
+                       smooth: 0.3,
+                       lineStyle: { color: 'rgba(34, 34, 34, 0.9)', width: 3, type: 'solid' },
+                       itemStyle: { color: '#222' },
+                       symbol: 'none',
+                       z: 10,
+                       areaStyle: {
+                           color: 'rgba(34, 34, 34, 0.1)'
+                       },
+                       // DODANE: Ta linia sprawi, że seria będzie "przezroczysta" dla kliknięć myszy.
+                       silent: true
+                   });
+               }
+
+               const { min, max } = recalculateYAxisRangeFromData(seriesData, dataType);
+
+               currentChartOptions = getBaseChartOptions(allDates, min, max, seriesData);
+               echartsTrendChart.setOption(currentChartOptions, true);
+               updateCustomTooltipPanel(null);
+           }
+
+        function recalculateYAxisRangeFromData(seriesData, dataType) { // DODANY parametr 'dataType'
+            let minVal = Infinity, maxVal = -Infinity;
+            seriesData.forEach(s => s.data.forEach(d => { if (d.value != null) { minVal = Math.min(minVal, d.value); maxVal = Math.max(maxVal, d.value); } }));
+            if (!isFinite(minVal)) return { min: 0, max: dataType === 'sales' ? 10 : 100 };
+            const padding = (maxVal - minVal) * 0.05 || (dataType === 'sales' ? 2 : 5);
+            return { min: dataType === 'sales' ? 0 : Math.max(0, minVal - padding), max: maxVal + padding };
+        }
+
+           function recalculateYAxisRange() {
+            if (!currentChartOptions || !currentChartOptions.series) return null;
+            let minVal = Infinity, maxVal = -Infinity;
+            const dataType = currentChartType;
+            currentChartOptions.series.forEach(series => {
+                // USUNIĘTA ZMIANA: Usunięto warunek, który błędnie ignorował serię 'Sprzedaż w katalogu'.
+                // if (dataType === 'sales' && series.name === 'Sprzedaż w katalogu') return;
+                if (!hiddenStores.includes(series.name.toLowerCase().trim())) {
+                    series.data.forEach(dp => {
+                        if (dp.value != null) {
+                            minVal = Math.min(minVal, dp.value);
+                            maxVal = Math.max(maxVal, dp.value);
+                        }
+                    });
+                }
+            });
+            if (!isFinite(minVal)) return { min: 0, max: dataType === 'sales' ? 10 : 100 };
+            const padding = (maxVal - minVal) * 0.05 || (dataType === 'sales' ? 2 : 5);
+            return { min: dataType === 'sales' ? 0 : Math.max(0, minVal - padding), max: maxVal + padding };
+        }
+
+        function processData(timelineData, dataType) {
+            let dates = new Set(), instances = new Set(), dataMap = {};
+
+            timelineData.forEach(entry => {
+                dates.add(entry.scrapDate);
+                const offersForDay = entry.offers || [];
+
+                // NOWA LOGIKA: Sprawdź, czy jesteśmy w trybie sumowania sprzedaży
+                if (dataType === 'sales' && salesChartMode === 'combined') {
+                    const aggregatedSales = new Map();
+
+                    // 1. Sumuj sprzedaż dla każdego sklepu w danym dniu
+                    offersForDay.forEach(offer => {
+                        const storeName = offer.storeName;
+                        if (!aggregatedSales.has(storeName)) {
+                            aggregatedSales.set(storeName, {
+                                ...offer, // Skopiuj dane z pierwszej napotkanej oferty
+                                sales: 0  // Zresetuj sprzedaż do zera
+                            });
+                        }
+                        aggregatedSales.get(storeName).sales += (offer.sales || 0);
+                    });
+
+                    // 2. Dodaj zsumowane dane do mapy
+                    aggregatedSales.forEach((aggregatedOffer, storeName) => {
+                        const id = storeName; // Kluczem jest teraz tylko nazwa sklepu
+                        instances.add(id);
+                        if (!dataMap[id]) dataMap[id] = {};
+                        dataMap[id][entry.scrapDate] = aggregatedOffer;
+                    });
+
+                } else {
+                    // ORYGINALNA LOGIKA: Dla wykresu cen lub trybu "Oferty"
+                    offersForDay.forEach(offer => {
+                        const val = offer[dataType] ?? offer['price'];
+                        if (val == null) return;
+                        // Kluczem jest unikalna oferta
+                        const id = `${offer.storeName}|${offer.idAllegro}|${offer.source}`;
+                        instances.add(id);
+                        if (!dataMap[id]) dataMap[id] = {};
+                        dataMap[id][entry.scrapDate] = offer;
+                    });
+                }
+            });
+
+            const sortedInstances = Array.from(instances).sort((a, b) => {
+                const nameA = a.split('|')[0].toLowerCase(), nameB = b.split('|')[0].toLowerCase();
+                if (nameA === myStoreLower && nameB !== myStoreLower) return -1;
+                if (nameB === myStoreLower && nameA !== myStoreLower) return 1;
+                return a.localeCompare(b);
+            });
+            return { allDates: Array.from(dates).sort(), dataByInstance: dataMap, allInstances: sortedInstances };
+        }
+
+            function prepareSeries(dataByInstance, allDates, allInstances, dataType) {
+            return allInstances.map(id => {
+                // ZMIANA: Sprawdzamy, czy ID zawiera separator, aby obsłużyć oba tryby
+                const hasOfferId = id.includes('|');
+                const [store, offerIdStr] = hasOfferId ? id.split('|') : [id, null];
+
+                const offerId = offerIdStr ? parseInt(offerIdStr, 10) : null;
+                const style = getSeriesStyleAndZ(store.toLowerCase().trim(), offerId);
+                let validPoints = 0;
+
+                const data = allDates.map(date => {
+                    const pData = dataByInstance[id]?.[date];
+                    const val = pData ? (pData[dataType] ?? pData.price) : null;
+                    if (val != null) validPoints++;
+                    return { value: val, originalOffer: pData };
+                });
+
+                const isSingle = validPoints === 1;
+                return { name: store, _instanceId: id, type: 'line', data, connectNulls: false, smooth: 0.3, showSymbol: isSingle, symbol: 'circle', symbolSize: isSingle ? 10 : 6, emphasis: { focus: 'series', lineStyle: { width: UNIFORM_EMPHASIS_LINE_WIDTH } }, ...style };
+            });
+        }
+
+            function getBaseChartOptions(allDates, yMin, yMax, series) {
+                const polishMonths = ['sty', 'lut', 'mar', 'kwi', 'maj', 'cze', 'lip', 'sie', 'wrz', 'paź', 'lis', 'gru'];
+                return {
+                    tooltip: { trigger: 'axis', axisPointer: { type: 'cross', snap: true, label: { backgroundColor: '#6a7985' } }, formatter: p => { lastHoverParams = p; updateCustomTooltipPanel(generateTooltipPanelHtml(p)); return ''; } },
+                    xAxis: { type: 'category', data: allDates, boundaryGap: false, axisLabel: { formatter: v => { try { const d = v.split('-'); return `${parseInt(d[2])} ${polishMonths[parseInt(d[1])-1]}` } catch { return v; } } } },
+                    yAxis: { type: 'value', min: yMin, max: yMax, scale: true, axisLabel: { show: false }, splitLine: { lineStyle: { color: '#E8E8E8', type: 'dashed' } } },
+                    grid: { left: '3%', right: '4%', bottom: '80px', containLabel: true },
+                    series: series,
+                    dataZoom: [{ type: 'slider', xAxisIndex: 0, bottom: '10px', height: 25 }, { type: 'inside', xAxisIndex: 0 }]
+                };
+            }
+
+            function updateEchartsStylesAndZ() {
+                if (!echartsTrendChart || !currentChartOptions) return;
+                const updatedSeries = currentChartOptions.series.map(s => {
+                    if (s.name === 'Sprzedaż w katalogu') return s;
+                    const [store, offerIdStr] = (s._instanceId || '').split('|');
+                    const style = getSeriesStyleAndZ(store.toLowerCase().trim(), parseInt(offerIdStr, 10));
+                    const newEmphasis = { ...s.emphasis, itemStyle: { ...s.emphasis?.itemStyle, color: style.itemStyle.color, opacity: 1 } };
+                    return { ...s, ...style, emphasis: newEmphasis };
+                });
+                currentChartOptions.series = updatedSeries;
+                echartsTrendChart.setOption({ series: updatedSeries });
+            }
+
+            const $exportExcelBtn = $('#exportExcelBtn'), $showTableBtn = $('#showTableBtn'), $showChartBtn = $('#showChartBtn');
+            const $tableContainer = $('#priceTableContainer'), $chartContainer = $('#trendChartContainer'), $customTooltipPanel = $('#customTrendTooltip');
+
+            function toggleMainView(showTable) {
+                $tableContainer.toggle(showTable);
+                $chartContainer.toggle(!showTable);
+                $customTooltipPanel.toggle(!showTable);
+                $showTableBtn.toggleClass('button-active', showTable).toggleClass('button-inactive', !showTable);
+                $showChartBtn.toggleClass('button-active', !showTable).toggleClass('button-inactive', showTable);
+                if ($chartContainer.is(':visible')) {
+                    if (echartsTrendChart) echartsTrendChart.resize();
+                    else loadTrendDataAndDrawEcharts();
+                }
+            }
+
+            function switchChartType(type) {
+                if (currentChartType === type) return;
+                currentChartType = type;
+                $('#switchToPriceChartBtn').toggleClass('button-active', type === 'price').toggleClass('button-inactive', type !== 'price');
+                $('#switchToSalesChartBtn').toggleClass('button-active', type === 'sales').toggleClass('button-inactive', type !== 'sales');
+                $('.price-trend__alpha-slider-wrapper').toggle(type === 'price');
+
+        
+
+                if (originalChartData) displayCurrentTrendChart();
+            }
+            $showTableBtn.on('click', () => toggleMainView(true));
+            $showChartBtn.on('click', () => toggleMainView(false));
+            $('#switchToPriceChartBtn').on('click', () => switchChartType('price'));
+            $('#switchToSalesChartBtn').on('click', () => switchChartType('sales'));
+            if ($exportExcelBtn.length) $exportExcelBtn.on('click', () => originalChartData ? exportChartDataToExcel() : alert("Dane nie są załadowane."));
+            $('#grayAlphaRange')?.on('input', e => { defaultGrayAlpha = parseFloat(e.target.value); updateEchartsStylesAndZ(); if (lastHoverParams) updateCustomTooltipPanel(generateTooltipPanelHtml(lastHoverParams)); });
+
+            toggleMainView(true); // Ustaw widok początkowy na tabelę
+
+            function loadTrendDataAndDrawEcharts() {
+                if (originalChartData) { displayCurrentTrendChart(); return; }
+                $('#loadingOverlay').show();
+                $.ajax({
+                    url: '@Url.Action("GetPriceTrendData", "AllegroPriceHistory")',
+                    type: 'GET', data: { productId: productId },
+                    success: function (res) {
+                        if (res && res.timelineData) {
+                            originalChartData = res; mainOfferId = res.mainOfferId;
+                            originalChartData.timelineData.forEach(d => { d.offers = d.offers || d.pricesByStore; });
+                            displayCurrentTrendChart();
+                        } else { updateCustomTooltipPanel('<div style="color:red;">Błąd ładowania.</div>'); }
+                    },
+                    error: (jqXHR, status, err) => { updateCustomTooltipPanel('<div style="color:red;">Błąd ładowania.</div>'); },
+                    complete: () => { $('#loadingOverlay').hide(); }
+                });
+            }
+
+            async function exportChartDataToExcel() {
+                if (!originalChartData || !echartsTrendChart) return;
+                try {
+                    const workbook = new ExcelJS.Workbook();
+                    const dataType = currentChartType;
+                    const ws = workbook.addWorksheet(`Historia ${dataType === 'price' ? 'Cen' : 'Sprzedaży'}`);
+                    const { data, xAxis, name } = echartsTrendChart.getOption();
+                    const allDates = xAxis[0].data;
+                    const { start, end } = data[0];
+                    const visDates = allDates.slice(Math.floor(allDates.length * (start / 100)), Math.ceil(allDates.length * (end / 100)));
+                    const { dataByInstance, allInstances } = processData(originalChartData.timelineData, dataType);
+
+                    ws.columns = [{h:'Sklep',k:'s',w:35},{h:'ID',k:'o',w:15},...visDates.map(d=>({h:d,k:d,w:12,s:dataType==='price'?{n:'#,##0.00 "PLN"'}:{n:'#,##0'}}))];
+                    allInstances.forEach(id => {
+                        const [store, offerId] = id.split('|');
+                        if (hiddenStores.includes(store.toLowerCase().trim())) return;
+                        const row = { s: store, o: offerId };
+                        visDates.forEach(date => { row[date] = dataByInstance[id]?.[date]?.[dataType] ?? null; });
+                        ws.addRow(row);
+                    });
+                    if(dataType==='sales') {
+                        ws.addRow({});
+                        const totals = {s:'SUMA SPRZEDAŻY'};
+                        visDates.forEach(d=>{const day=originalChartData.timelineData.find(x=>x.scrapDate===d);totals[d]=day?day.totalSales:null});
+                        const r = ws.addRow(totals);
+                        r.font = {bold:true};
+                    }
+                    const buf = await workbook.xlsx.writeBuffer();
+                    const blob = new Blob([buf], {type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
+                    const safeName = (originalChartData.productName||"Produkt").replace(/[^a-z0-9_]/gi,'_');
+                    const fname = `PriceSafari_${safeName}_${dataType}_${visDates[0]}_do_${visDates[visDates.length-1]}.xlsx`;
+                    const link = document.createElement("a");
+                    link.href=URL.createObjectURL(blob);link.download=fname;link.click();URL.revokeObjectURL(link.href);
+                } catch (e) { console.error("Błąd Excel:", e); alert("Błąd tworzenia pliku Excel."); }
+            }
+        });
     </script>
 }

@@ -33,8 +33,6 @@ namespace PriceSafari.Controllers.MemberControllers
             return await _context.UserStores.AnyAsync(us => us.UserId == userId && us.StoreId == storeId);
         }
 
-        // W AllegroPriceHistoryController.cs
-
         public async Task<IActionResult> Index(int? storeId)
         {
             if (storeId == null) return BadRequest("Store ID is required.");
@@ -48,10 +46,9 @@ namespace PriceSafari.Controllers.MemberControllers
                 .OrderByDescending(sh => sh.Date)
                 .FirstOrDefaultAsync();
 
-            // --- POPRAWKA TUTAJ ---
             var flags = await _context.Flags
                 .Where(f => f.StoreId == storeId.Value && f.IsMarketplace == true)
-                .Select(f => new FlagViewModel 
+                .Select(f => new FlagViewModel
                 {
                     FlagId = f.FlagId,
                     FlagName = f.FlagName,
@@ -64,12 +61,10 @@ namespace PriceSafari.Controllers.MemberControllers
             ViewBag.StoreName = store.StoreName;
             ViewBag.StoreLogo = store.StoreLogoUrl;
             ViewBag.LatestScrap = latestScrap;
-            ViewBag.Flags = flags; 
+            ViewBag.Flags = flags;
 
             return View("~/Views/Panel/AllegroPriceHistory/Index.cshtml");
         }
-
-
 
         [HttpGet]
         public async Task<IActionResult> GetAllegroPrices(int? storeId)
@@ -211,8 +206,6 @@ namespace PriceSafari.Controllers.MemberControllers
             public bool UsePriceDifference { get; set; }
         }
 
-     
-
         [HttpPost]
         public async Task<IActionResult> SavePriceValues([FromBody] PriceSettingsViewModel model)
         {
@@ -351,7 +344,7 @@ namespace PriceSafari.Controllers.MemberControllers
             });
         }
 
-        // W pliku AllegroPriceHistoryController.cs
+        // W pliku: /Controllers/MemberControllers/AllegroPriceHistoryController.cs
 
         [HttpGet]
         public async Task<IActionResult> GetPriceTrendData(int productId)
@@ -364,9 +357,6 @@ namespace PriceSafari.Controllers.MemberControllers
             if (!await UserHasAccessToStore(storeId))
                 return Unauthorized(new { Error = "Brak dostępu do sklepu." });
 
-            // --- POCZĄTEK ZMIAN ---
-
-            // 1. Wyciągnij ID głównej, oglądanej oferty z jej URL
             long? mainOfferId = null;
             if (!string.IsNullOrEmpty(product.AllegroOfferUrl))
             {
@@ -377,8 +367,7 @@ namespace PriceSafari.Controllers.MemberControllers
                 }
             }
 
-            // --- KONIEC ZMIAN ---
-
+            // Pobieramy dane z ostatnich 30 dni (lub inny wybrany okres)
             var lastScraps = await _context.AllegroScrapeHistories
                 .Where(sh => sh.StoreId == storeId)
                 .OrderByDescending(sh => sh.Date)
@@ -390,11 +379,11 @@ namespace PriceSafari.Controllers.MemberControllers
 
             if (!scrapIds.Any())
             {
-                return Json(new
+                return Json(new AllegroTrendDataViewModel
                 {
                     ProductName = product.AllegroProductName,
-                    TimelineData = new List<object>(),
-                    MainOfferId = mainOfferId // Zwróć mainOfferId nawet przy braku danych
+                    TimelineData = new List<DailyTrendPointViewModel>(),
+                    MainOfferId = mainOfferId
                 });
             }
 
@@ -403,33 +392,68 @@ namespace PriceSafari.Controllers.MemberControllers
                 .Where(aph => aph.Price > 0)
                 .ToListAsync();
 
-            var timelineData = lastScraps.Select(scrap => new
-            {
-                ScrapDate = scrap.Date.ToString("yyyy-MM-dd"),
-                PricesByStore = priceHistories
-                 .Where(ph => ph.AllegroScrapeHistoryId == scrap.Id)
-                 .Select(ph => new
-                 {
-                     StoreName = ph.SellerName,
-                     ph.Price,
-                     Source = "allegro",
-                     ph.IdAllegro,
+            var timelineData = lastScraps.Select(scrap => {
+                var dailyOffers = priceHistories
+                    .Where(ph => ph.AllegroScrapeHistoryId == scrap.Id)
+                    .Select(ph => new OfferTrendPointViewModel
+                    {
+                        StoreName = ph.SellerName,
+                        Price = ph.Price,
+                        Sales = ph.Popularity ?? 0, // Używamy Popularity jako sprzedaży
+                        Source = "allegro",
+                        IdAllegro = ph.IdAllegro,
+                        IsBestPriceGuarantee = ph.IsBestPriceGuarantee,
+                        TopOffer = ph.TopOffer,
+                        SuperPrice = ph.SuperPrice
+                    })
+                    .ToList();
 
-                     // --- POCZĄTEK ZMIAN ---
-                     ph.IsBestPriceGuarantee,
-                     ph.TopOffer,
-                     ph.SuperPrice
-                     // --- KONIEC ZMIAN ---
-                 })
-                .ToList()
+                return new DailyTrendPointViewModel
+                {
+                    ScrapDate = scrap.Date.ToString("yyyy-MM-dd"),
+                    TotalSales = dailyOffers.Sum(o => o.Sales), // Sumujemy sprzedaż z danego dnia
+                    Offers = dailyOffers
+                };
             }).ToList();
 
-            return Json(new
+            var viewModel = new AllegroTrendDataViewModel
             {
                 ProductName = product.AllegroProductName,
                 TimelineData = timelineData,
-                MainOfferId = mainOfferId // <-- 3. ZWRÓĆ GŁÓWNE ID OFERTY
-            });
+                MainOfferId = mainOfferId
+            };
+
+            return Json(viewModel);
+        }
+
+
+
+        // Plik: /ViewModels/AllegroTrendDataViewModel.cs (lub na dole kontrolera)
+
+        public class AllegroTrendDataViewModel
+        {
+            public string ProductName { get; set; }
+            public long? MainOfferId { get; set; }
+            public List<DailyTrendPointViewModel> TimelineData { get; set; }
+        }
+
+        public class DailyTrendPointViewModel
+        {
+            public string ScrapDate { get; set; }
+            public int TotalSales { get; set; } // Całkowita sprzedaż w danym dniu
+            public List<OfferTrendPointViewModel> Offers { get; set; } // Zmieniono nazwę z PricesByStore
+        }
+
+        public class OfferTrendPointViewModel
+        {
+            public string StoreName { get; set; }
+            public decimal Price { get; set; }
+            public int Sales { get; set; } // Sprzedaż dla tej konkretnej oferty
+            public string Source { get; set; }
+            public long IdAllegro { get; set; }
+            public bool IsBestPriceGuarantee { get; set; }
+            public bool TopOffer { get; set; }
+            public bool SuperPrice { get; set; }
         }
     }
 }
