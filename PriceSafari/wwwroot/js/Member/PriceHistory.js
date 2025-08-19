@@ -2360,7 +2360,10 @@
                 },
                 options: {
                     aspectRatio: 1,
-                    cutout: '60%',
+                    cutout: '65%',
+                    layout: { 
+                        padding: 4 
+                    },
                     plugins: {
                         legend: {
                             display: false

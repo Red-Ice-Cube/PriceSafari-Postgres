@@ -582,12 +582,31 @@
                     labels: ['Cena niedostępna', 'Cena solo', 'Cena zawyżona', 'Cena suboptymalna', 'Cena konkurencyjna', 'Cena strategiczna', 'Cena zaniżona'],
                     datasets: [{
                         data: chartData,
-                        backgroundColor: ['#e6e6e6', '#b4b4b4', '#ab2520', '#e0a842', '#759870', '#0d6efd', '#060606'],
+                        backgroundColor: ['rgba(230, 230, 230, 1)',
+                            'rgba(180, 180, 180, 0.8)',
+                            'rgba(171, 37, 32, 0.8)',
+                            'rgba(224, 168, 66, 0.8)',
+                            'rgba(117, 152, 112, 0.8)',
+                            'rgba(13, 110, 253, 0.8)',
+                            'rgba(6, 6, 6, 0.8)'],
+                        borderColor: [
+                            'rgba(230, 230, 230, 1)',
+                            'rgba(180, 180, 180, 1)',
+                            'rgba(171, 37, 32, 1)',
+                            'rgba(224, 168, 66, 1)',
+                            'rgba(117, 152, 112, 1)',
+                            'rgba(13, 110, 253, 1)',
+                            'rgba(6, 6, 6, 1)'
+
+                        ],
                         borderWidth: 1
+                     
                     }]
                 },
                 options: {
-                    responsive: true, maintainAspectRatio: false, cutout: '60%',
+                    responsive: true, maintainAspectRatio: false, cutout: '65%', layout: { 
+                        padding: 4 
+                    },
                     plugins: { legend: { display: false }, tooltip: { callbacks: { label: (c) => `Produkty: ${c.parsed}` } } }
                 }
             });
