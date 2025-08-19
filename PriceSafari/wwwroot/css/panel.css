@@ -3769,26 +3769,27 @@ tr:last-child .sub-line {
     font-size: 14px;
 }
 
+
+
     .price-range-settings label {
         margin-right: 4px;
         font-size: 14px;
     }
 
     .price-range-settings input[type="number"] {
-        width: 60px;
-        padding: 4px;
+        width: 55px;
         border: 1px solid #ccc;
         border-radius: 4px;
         text-align: right;
         margin-right: 6px;
-        height: 24px;
+        height: 26px;
         font-size: 14px;
     }
 
     .price-range-settings .color-circle {
         min-width: 16px;
         max-width: 16px;
-        height: 24px;
+        height: 26px;
         margin-left: 3px;
         border-radius: 4px;
         display: inline-block;
@@ -3811,17 +3812,19 @@ tr:last-child .sub-line {
     }
 
 .legendBox {
-    width: 100px;
-    height: 24px;
+    width: 105px;
+    height: 26px;
     margin-left: 3px;
     border-radius: 4px;
     display: inline-block;
-    background-color: #e3e3e3;
-    font-size:13px;
-    font-weight:400;
-    align-content:center;
-    justify-content:center;
-    padding-left:4px;
+    background-color: rgb(245, 245, 245);
+    font-size: 13px;
+    border: 1px solid #e3e3e3;
+    font-weight: 400;
+    align-content: center;
+    justify-content: center;
+    padding-left: 4px;
+    color: #4e4e4e;
 }
 
 .price-range-settings-stepPrice::before {
