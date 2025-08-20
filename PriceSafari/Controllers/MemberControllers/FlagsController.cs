@@ -186,8 +186,8 @@ namespace PriceSafari.Controllers.MemberControllers
 
 
 
-
-
+        // DTO, którego użyjemy
+      
 
 
 

@@ -3510,7 +3510,7 @@ tr:last-child .sub-line {
     font-size: 14px;
 }
 
-.assign-flag-button {
+.assign-flag-button, .select-product-btn {
     display: inline-block;
     padding: 4px 6px;
     align-items: center;
@@ -3522,7 +3522,7 @@ tr:last-child .sub-line {
     text-decoration: none;
     background: #e3e3e3;
     border: none;
-    width: 125px;
+    width: 65px;
     height: 33px;
     flex-wrap: nowrap;
     white-space: nowrap;
@@ -3703,7 +3703,7 @@ tr:last-child .sub-line {
 .ApiBox {
     border-radius: 4px;
     padding: 2px 5px;
-    width: 125px;
+    width: 135px;
     display: inline-flex;
     align-items: center;
     justify-content: center;

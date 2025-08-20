@@ -132,6 +132,20 @@
         border-color: #222222;
     }
 
+
+
+    /* Dodaj wewnątrz istniejącego bloku <style> */
+    .select-product-btn.selected {
+        background-color: #0d6efd; /* Niebieski kolor Bootstrapa */
+        color: white;
+        border-color: #0d6efd;
+    }
+
+        .select-product-btn.selected:hover {
+            background-color: #0b5ed7;
+            border-color: #0a58ca;
+        }
+
 </style>
 
 <div class="Vert">
@@ -333,6 +347,11 @@
                     <div class="ProductCount" id="displayedProductCount"></div>
 
                     <div id="paginationContainer"></div>
+
+                    <div id="selectionContainer" class="selection-container" style="display: none; align-items: center; gap: 10px; margin-left: 10px;">
+                        <span id="selectedProductsCounter" class="ProductCount" style="background-color: #0d6efd; color: white;">Zaznaczono: 0</span>
+                        <button id="showSelectedProductsBtn" class="Button-Page-Small">Pokaż zaznaczone</button>
+                    </div>
 
                     <button id="sortName">A-Z</button>
                     <button id="sortPrice">Cena</button>
@@ -782,6 +801,34 @@
                     </div>
                 </div>
 
+            </div>
+        </div>
+    </div>
+</div>
+
+
+
+<div class="modal fade" id="selectedProductsModal" tabindex="-1" role="dialog" aria-labelledby="selectedProductsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="price-box-column-name" id="selectedProductsModalLabel">Zaznaczone produkty</div>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Zamknij">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p>Poniżej znajduje się lista zaznaczonych produktów. Możesz wykonać na nich masowe operacje.</p>
+                <div id="selectedProductsList" class="table-scroll" style="max-height: 400px; overflow-y: auto;">
+                </div>
+            </div>
+            <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <strong>Akcje masowe:</strong>
+                </div>
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <button id="openBulkFlagModalBtn" class="Button-Page-Small-bl">Przypisz flagi...</button>
+                </div>
             </div>
         </div>
     </div>

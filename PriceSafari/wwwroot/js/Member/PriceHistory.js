@@ -1,4 +1,22 @@
 ﻿document.addEventListener("DOMContentLoaded", function () {
+
+    const selectionStorageKey = `selectedProducts_${storeId}`;
+
+    function saveSelectionToStorage(selectionSet) {
+        localStorage.setItem(selectionStorageKey, JSON.stringify(Array.from(selectionSet)));
+    }
+
+    function loadSelectionFromStorage() {
+        const storedSelection = localStorage.getItem(selectionStorageKey);
+        if (storedSelection) {
+            return new Set(JSON.parse(storedSelection));
+        }
+        return new Set();
+    }
+
+    function clearSelectionFromStorage() {
+        localStorage.removeItem(selectionStorageKey);
+    }
     let allPrices = [];
     let currentScrapId = null;
     let currentlyFilteredPrices = [];
@@ -18,6 +36,8 @@
     let selectedProductId = null;
     let selectedFlagsInclude = new Set();
     let selectedFlagsExclude = new Set();
+    let selectedProductIds = loadSelectionFromStorage();
+    let isBulkFlaggingMode = false;
 
     let sortingState = {
         sortName: null,
@@ -1379,13 +1399,24 @@
             const assignFlagButton = document.createElement('button');
             assignFlagButton.className = 'assign-flag-button';
             assignFlagButton.dataset.productId = item.productId;
-            assignFlagButton.innerHTML = '+ Przypisz flagi';
+            assignFlagButton.innerHTML = '+ Flaga';
             assignFlagButton.style.pointerEvents = 'auto';
 
             assignFlagButton.addEventListener('click', function (event) {
                 event.stopPropagation();
+                isBulkFlaggingMode = false;
                 selectedProductId = this.dataset.productId;
-                modal.style.display = 'block';
+
+                const flagModal = document.getElementById('flagModal');
+                const flagModalTitle = flagModal.querySelector('.price-box-column-name');
+                const productBox = this.closest('.price-box');
+                const productName = productBox ? productBox.dataset.productName : 'produktu';
+
+                if (flagModalTitle) {
+                    flagModalTitle.textContent = `Przypisz flagi do produktu: ${productName}`;
+                }
+
+                flagModal.style.display = 'block';
 
                 fetch(`/ProductFlags/GetFlagsForProduct?productId=${selectedProductId}`)
                     .then(response => response.json())
@@ -1399,6 +1430,41 @@
             priceBoxSpace.appendChild(priceBoxColumnName);
             priceBoxSpace.appendChild(flagsContainer);
             priceBoxSpace.appendChild(assignFlagButton);
+
+            const selectProductButton = document.createElement('button');
+            selectProductButton.className = 'select-product-btn';
+            selectProductButton.dataset.productId = item.productId;
+            selectProductButton.style.pointerEvents = 'auto';
+            selectProductButton.style.marginLeft = '5px';
+
+            if (selectedProductIds.has(item.productId.toString())) {
+                selectProductButton.textContent = 'Wybrano';
+                selectProductButton.classList.add('selected');
+            } else {
+                selectProductButton.textContent = 'Zaznacz';
+            }
+
+            selectProductButton.addEventListener('click', function (event) {
+                event.stopPropagation();
+                const productId = this.dataset.productId;
+
+                if (selectedProductIds.has(productId)) {
+                    selectedProductIds.delete(productId);
+                    this.textContent = 'Zaznacz';
+                    this.classList.remove('selected');
+                } else {
+                    selectedProductIds.add(productId);
+                    this.textContent = 'Wybrano';
+                    this.classList.add('selected');
+                }
+
+                saveSelectionToStorage(selectedProductIds);
+
+                updateSelectionUI();
+            });
+
+            priceBoxSpace.appendChild(selectProductButton);
+
             priceBoxSpace.appendChild(priceBoxColumnCategory);
 
             const externalInfoContainer = document.createElement('div');
@@ -2361,8 +2427,8 @@
                 options: {
                     aspectRatio: 1,
                     cutout: '65%',
-                    layout: { 
-                        padding: 4 
+                    layout: {
+                        padding: 4
                     },
                     plugins: {
                         legend: {
@@ -2964,71 +3030,183 @@
         }
     };
 
-    document.getElementById('saveFlagsButton').addEventListener('click', function () {
-        const selectedFlags = Array.from(document.querySelectorAll('.flagCheckbox:checked')).map(checkbox => parseInt(checkbox.value));
-        const data = {
-            productId: selectedProductId,
-            flagIds: selectedFlags
-        };
+    document.getElementById('openBulkFlagModalBtn').addEventListener('click', function () {
+        if (selectedProductIds.size === 0) {
+            alert('Nie zaznaczono żadnych produktów.');
+            return;
+        }
 
-        fetch('/ProductFlags/AssignFlagsToProduct', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(data)
-        })
-            .then(response => response.json())
-            .then(response => {
-                if (response.success) {
-                    modal.style.display = 'none';
+        isBulkFlaggingMode = true;
+        $('#selectedProductsModal').modal('hide');
 
-                    fetch(`/ProductFlags/GetFlagsForProduct?productId=${selectedProductId}`)
-                        .then(res => res.json())
-                        .then(updatedFlagIds => {
-                            const numericProductId = parseInt(selectedProductId);
-                            const priceItem = allPrices.find(item => item.productId === numericProductId);
-                            if (priceItem) {
-                                priceItem.flagIds = updatedFlagIds;
-                            } else {
-                                console.error('Product not found in allPrices:', selectedProductId);
-                            }
+        document.querySelectorAll('.flagCheckbox').forEach(checkbox => {
+            checkbox.checked = false;
+        });
 
-                            updateProductFlagsInUI(selectedProductId);
+        const flagModal = document.getElementById('flagModal');
+        const flagModalTitle = flagModal.querySelector('.price-box-column-name');
+        if (flagModalTitle) {
+            flagModalTitle.textContent = `Dopisz flagi do ${selectedProductIds.size} produktów`;
+        }
 
-                            updateFlagCounts(allPrices);
-                        })
-                        .catch(error => console.error('Error fetching updated flags for product:', error));
-                } else {
-                    alert('Error assigning flags: ' + response.message);
-                }
-            })
-            .catch(error => console.error('Error assigning flags:', error));
+        flagModal.style.display = 'block';
     });
 
-    function updateProductFlagsInUI(productId) {
-        const numericProductId = parseInt(productId);
+    document.getElementById('saveFlagsButton').addEventListener('click', function () {
+        const selectedFlags = Array.from(document.querySelectorAll('.flagCheckbox:checked')).map(checkbox => parseInt(checkbox.value));
+        const modal = document.getElementById('flagModal');
 
-        const productElement = document.querySelector(`.price-box[data-product-id='${productId}']`);
+        if (isBulkFlaggingMode) {
+            const productIds = Array.from(selectedProductIds).map(id => parseInt(id));
 
-        if (productElement) {
-            const existingFlagsContainer = productElement.querySelector('.flags-container');
+            if (selectedFlags.length === 0) {
 
-            const priceItem = allPrices.find(item => item.productId === numericProductId);
-
-            if (priceItem) {
-                const newFlagsContainer = createFlagsContainer(priceItem);
-
-                if (existingFlagsContainer) {
-                    existingFlagsContainer.parentNode.replaceChild(newFlagsContainer, existingFlagsContainer);
-                } else {
-                    productElement.appendChild(newFlagsContainer);
-                }
-            } else {
-                console.error('Product not found in allPrices:', productId);
+                alert("Nie wybrano żadnych flag do dopisania.");
+                return;
             }
+
+            const data = {
+                productIds: productIds,
+                flagIds: selectedFlags
+            };
+
+            showLoading();
+            fetch('/ProductFlags/AddFlagsToMultipleProducts', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            })
+                .then(response => response.json())
+                .then(response => {
+                    if (response.success) {
+
+                        productIds.forEach(productId => {
+                            const product = allPrices.find(p => p.productId === productId);
+                            if (product) {
+
+                                const updatedFlags = new Set([...product.flagIds, ...selectedFlags]);
+                                product.flagIds = Array.from(updatedFlags);
+                            }
+                        });
+
+                        modal.style.display = 'none';
+                        showGlobalUpdate(`<p>Pomyślnie dopisano flagi do ${productIds.length} produktów.</p>`);
+
+                        isBulkFlaggingMode = false;
+                        selectedProductIds = new Set();
+                        clearSelectionFromStorage();
+
+                        filterPricesAndUpdateUI();
+                    } else {
+                        alert('Błąd: ' + response.message);
+                    }
+                })
+                .catch(error => console.error('Błąd masowego dopisywania flag:', error))
+                .finally(() => hideLoading());
+
+        } else {
+
+            const data = {
+                productId: selectedProductId,
+                flagIds: selectedFlags
+            };
+
+            showLoading();
+            fetch('/ProductFlags/AssignFlagsToProduct', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            })
+                .then(response => response.json())
+                .then(response => {
+                    if (response.success) {
+
+                        const product = allPrices.find(p => p.productId.toString() === selectedProductId);
+                        if (product) {
+
+                            product.flagIds = selectedFlags;
+                        }
+
+                        modal.style.display = 'none';
+                        showGlobalUpdate("<p>Flagi dla produktu zostały zaktualizowane.</p>");
+
+                        filterPricesAndUpdateUI();
+                    } else {
+                        alert('Błąd przypisywania flag: ' + response.message);
+                    }
+                })
+                .catch(error => console.error('Błąd przypisywania flag:', error))
+                .finally(() => hideLoading());
         }
+    });
+
+    function updateSelectionUI() {
+        const selectionContainer = document.getElementById('selectionContainer');
+        const counter = document.getElementById('selectedProductsCounter');
+        const modalList = document.getElementById('selectedProductsList');
+
+        const count = selectedProductIds.size;
+
+        if (count > 0) {
+            selectionContainer.style.display = 'flex';
+            counter.textContent = `Zaznaczono: ${count}`;
+        } else {
+            selectionContainer.style.display = 'none';
+        }
+
+        modalList.innerHTML = '';
+        if (count === 0) {
+            modalList.innerHTML = '<p>Brak zaznaczonych produktów.</p>';
+            return;
+        }
+
+        const table = document.createElement('table');
+        table.className = 'table table-striped';
+        table.innerHTML = `<thead><tr><th>Nazwa Produktu</th><th>EAN/ID</th><th>Akcja</th></tr></thead>`;
+        const tbody = document.createElement('tbody');
+
+        selectedProductIds.forEach(productId => {
+            const product = allPrices.find(p => p.productId.toString() === productId);
+            if (product) {
+                const tr = document.createElement('tr');
+
+                let identifier = product.ean || product.externalId || 'Brak ID';
+
+                tr.innerHTML = `
+                <td>${product.productName}</td>
+                <td>${identifier}</td>
+                <td><button class="btn btn-danger btn-sm remove-selection-btn" data-product-id="${productId}">Usuń</button></td>
+            `;
+                tbody.appendChild(tr);
+            }
+        });
+
+        table.appendChild(tbody);
+        modalList.appendChild(table);
     }
+
+    document.getElementById('selectedProductsList').addEventListener('click', function (event) {
+        if (event.target.classList.contains('remove-selection-btn')) {
+            const productId = event.target.dataset.productId;
+
+            selectedProductIds.delete(productId);
+
+            saveSelectionToStorage(selectedProductIds);
+
+            const mainButton = document.querySelector(`.select-product-btn[data-product-id='${productId}']`);
+            if (mainButton) {
+                mainButton.textContent = 'Zaznacz';
+                mainButton.classList.remove('selected');
+            }
+
+            updateSelectionUI();
+        }
+    });
+
+    document.getElementById('showSelectedProductsBtn').addEventListener('click', function () {
+        updateSelectionUI();
+        $('#selectedProductsModal').modal('show');
+    });
 
     function createFlagsContainer(item) {
         const flagsContainer = document.createElement('div');
@@ -3052,6 +3230,7 @@
     }
 
     loadPrices();
+    updateSelectionUI();
 
     function showLoading() {
         document.getElementById("loadingOverlay").style.display = "flex";
