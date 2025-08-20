@@ -33,7 +33,7 @@
         enforceMinimalMargin: true,
         minimalMarginPercent: 0.00
     };
-    let selectedProductId = null;
+    //let selectedProductId = null;
     let selectedFlagsInclude = new Set();
     let selectedFlagsExclude = new Set();
     let selectedProductIds = loadSelectionFromStorage();
@@ -1396,40 +1396,57 @@
 
             const flagsContainer = createFlagsContainer(item);
 
-            const assignFlagButton = document.createElement('button');
-            assignFlagButton.className = 'assign-flag-button';
-            assignFlagButton.dataset.productId = item.productId;
-            assignFlagButton.innerHTML = '+ Flaga';
-            assignFlagButton.style.pointerEvents = 'auto';
+            //const assignFlagButton = document.createElement('button');
+            //assignFlagButton.className = 'assign-flag-button';
+            //assignFlagButton.dataset.productId = item.productId;
+            //assignFlagButton.innerHTML = '+ Flaga';
+            //assignFlagButton.style.pointerEvents = 'auto';
 
-            assignFlagButton.addEventListener('click', function (event) {
-                event.stopPropagation();
-                isBulkFlaggingMode = false;
-                selectedProductId = this.dataset.productId;
+            //assignFlagButton.addEventListener('click', function (event) {
+            //    event.stopPropagation();
+            //    isBulkFlaggingMode = false;
+            //    selectedProductId = this.dataset.productId;
 
-                const flagModal = document.getElementById('flagModal');
-                const flagModalTitle = flagModal.querySelector('.price-box-column-name');
-                const productBox = this.closest('.price-box');
-                const productName = productBox ? productBox.dataset.productName : 'produktu';
+            //    const productBox = this.closest('.price-box');
+            //    const productName = productBox ? productBox.dataset.productName : 'produktu';
 
-                if (flagModalTitle) {
-                    flagModalTitle.textContent = `Przypisz flagi do produktu: ${productName}`;
-                }
+            //    showLoading();
+            //    fetch(`/ProductFlags/GetFlagsForProduct?productId=${selectedProductId}`)
+            //        .then(response => response.json())
+            //        .then(assignedFlags => {
+            //            const modalBody = document.getElementById('flagModalBody');
+            //            const flagModalTitle = document.getElementById('flagModalLabel');
 
-                flagModal.style.display = 'block';
+            //            flagModalTitle.textContent = `Przypisz flagi do: ${productName}`;
+            //            modalBody.innerHTML = ''; // Wyczyść
 
-                fetch(`/ProductFlags/GetFlagsForProduct?productId=${selectedProductId}`)
-                    .then(response => response.json())
-                    .then(flags => {
-                        document.querySelectorAll('.flagCheckbox').forEach(checkbox => {
-                            checkbox.checked = flags.includes(parseInt(checkbox.value));
-                        });
-                    })
-                    .catch(error => console.error('Błąd pobierania flag dla produktu:', error));
-            });
+            //            const checkboxContainer = document.createElement('div');
+            //            checkboxContainer.id = 'flagCheckboxes'; // Utrzymujemy ID dla logiki zapisu
+
+            //            flags.forEach(flag => {
+            //                const isChecked = assignedFlags.includes(flag.flagId);
+            //                const label = document.createElement('label');
+            //                label.innerHTML = `<input type="checkbox" class="form-check-input flagCheckbox" value="${flag.flagId}" ${isChecked ? 'checked' : ''}> ${flag.flagName}`;
+            //                checkboxContainer.appendChild(label);
+            //                checkboxContainer.appendChild(document.createElement('br'));
+            //            });
+
+            //            modalBody.appendChild(checkboxContainer);
+            //            hideLoading();
+            //            $('#flagModal').modal('show');
+            //        })
+            //        .catch(error => {
+            //            console.error('Błąd pobierania flag dla produktu:', error);
+            //            hideLoading();
+            //        });
+            //});
+            //priceBoxSpace.appendChild(priceBoxColumnName);
+            //priceBoxSpace.appendChild(flagsContainer);
+            //priceBoxSpace.appendChild(assignFlagButton);
+
+            // Te linie zostają, ale bez assignFlagButton
             priceBoxSpace.appendChild(priceBoxColumnName);
             priceBoxSpace.appendChild(flagsContainer);
-            priceBoxSpace.appendChild(assignFlagButton);
 
             const selectProductButton = document.createElement('button');
             selectProductButton.className = 'select-product-btn';
@@ -3038,107 +3055,177 @@
 
         isBulkFlaggingMode = true;
         $('#selectedProductsModal').modal('hide');
+        showLoading();
 
-        document.querySelectorAll('.flagCheckbox').forEach(checkbox => {
-            checkbox.checked = false;
+        const productIds = Array.from(selectedProductIds);
+
+        fetch('/ProductFlags/GetFlagCountsForProducts', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ productIds: productIds })
+        })
+            .then(response => response.json())
+            .then(counts => {
+                populateBulkFlagModal(counts); // Nowa funkcja do budowania UI
+                hideLoading();
+                $('#flagModal').modal('show');
+            })
+            .catch(error => {
+                console.error('Błąd pobierania liczników flag:', error);
+                hideLoading();
+                alert('Nie udało się pobrać danych o flagach.');
+            });
+    });
+
+
+    function populateBulkFlagModal(flagCounts) {
+        const modalBody = document.getElementById('flagModalBody');
+        const flagModalTitle = document.querySelector('#flagModal .price-box-column-name');
+        const totalSelected = selectedProductIds.size;
+
+        flagModalTitle.textContent = `Zarządzaj flagami dla ${totalSelected} produktów`;
+        modalBody.innerHTML = ''; // Wyczyść poprzednią zawartość
+
+        flags.forEach(flag => {
+            const currentCount = flagCounts[flag.flagId] || 0;
+
+            const flagItem = document.createElement('div');
+            flagItem.className = 'bulk-flag-item';
+            flagItem.dataset.flagId = flag.flagId;
+
+            // Etykieta flagi z licznikiem
+            const label = document.createElement('div');
+            label.className = 'flag-label';
+            label.innerHTML = `
+            <span class="flag-name" style="border-color: ${flag.flagColor}; color: ${flag.flagColor};">${flag.flagName}</span>
+            <span class="flag-count">(${currentCount} / ${totalSelected})</span>
+        `;
+
+            // Akcje (Dodaj / Odepnij)
+            const actions = document.createElement('div');
+            actions.className = 'flag-actions';
+
+            actions.innerHTML = `
+            <div class="action-group">
+                <label>
+                    <input type="checkbox" class="bulk-flag-action" data-action="add" ${currentCount === totalSelected ? 'disabled' : ''}> Dodaj
+                </label>
+                <span class="change-indicator add-indicator">${currentCount} → ${totalSelected}</span>
+            </div>
+            <div class="action-group">
+                <label>
+                    <input type="checkbox" class="bulk-flag-action" data-action="remove" ${currentCount === 0 ? 'disabled' : ''}> Odepnij
+                </label>
+                <span class="change-indicator remove-indicator">${currentCount} → 0</span>
+            </div>
+        `;
+
+            flagItem.appendChild(label);
+            flagItem.appendChild(actions);
+            modalBody.appendChild(flagItem);
         });
 
-        const flagModal = document.getElementById('flagModal');
-        const flagModalTitle = flagModal.querySelector('.price-box-column-name');
-        if (flagModalTitle) {
-            flagModalTitle.textContent = `Dopisz flagi do ${selectedProductIds.size} produktów`;
-        }
+        // Logika obsługi checkboxów (wzajemne wykluczanie się)
+        modalBody.querySelectorAll('.bulk-flag-action').forEach(checkbox => {
+            checkbox.addEventListener('change', function () {
+                const parentItem = this.closest('.bulk-flag-item');
+                const action = this.dataset.action;
 
-        flagModal.style.display = 'block';
-    });
+                if (this.checked) {
+                    if (action === 'add') {
+                        parentItem.querySelector('.bulk-flag-action[data-action="remove"]').checked = false;
+                    } else { // action === 'remove'
+                        parentItem.querySelector('.bulk-flag-action[data-action="add"]').checked = false;
+                    }
+                }
+                // Synchronizacja widoczności wskaźników
+                parentItem.querySelector('.add-indicator').style.display = parentItem.querySelector('.bulk-flag-action[data-action="add"]').checked ? 'inline' : 'none';
+                parentItem.querySelector('.remove-indicator').style.display = parentItem.querySelector('.bulk-flag-action[data-action="remove"]').checked ? 'inline' : 'none';
+            });
+        });
+    }
 
     document.getElementById('saveFlagsButton').addEventListener('click', function () {
-        const selectedFlags = Array.from(document.querySelectorAll('.flagCheckbox:checked')).map(checkbox => parseInt(checkbox.value));
-        const modal = document.getElementById('flagModal');
+        // --- POZOSTAJE TYLKO LOGIKA DLA TRYBU MASOWEGO ---
+        const flagsToAdd = [];
+        const flagsToRemove = [];
 
-        if (isBulkFlaggingMode) {
-            const productIds = Array.from(selectedProductIds).map(id => parseInt(id));
+        document.querySelectorAll('#flagModalBody .bulk-flag-item').forEach(item => {
+            const flagId = parseInt(item.dataset.flagId, 10);
+            const addCheckbox = item.querySelector('.bulk-flag-action[data-action="add"]');
+            const removeCheckbox = item.querySelector('.bulk-flag-action[data-action="remove"]');
 
-            if (selectedFlags.length === 0) {
-
-                alert("Nie wybrano żadnych flag do dopisania.");
-                return;
+            if (addCheckbox && addCheckbox.checked) {
+                flagsToAdd.push(flagId);
             }
+            if (removeCheckbox && removeCheckbox.checked) {
+                flagsToRemove.push(flagId);
+            }
+        });
 
-            const data = {
-                productIds: productIds,
-                flagIds: selectedFlags
-            };
-
-            showLoading();
-            fetch('/ProductFlags/AddFlagsToMultipleProducts', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data)
-            })
-                .then(response => response.json())
-                .then(response => {
-                    if (response.success) {
-
-                        productIds.forEach(productId => {
-                            const product = allPrices.find(p => p.productId === productId);
-                            if (product) {
-
-                                const updatedFlags = new Set([...product.flagIds, ...selectedFlags]);
-                                product.flagIds = Array.from(updatedFlags);
-                            }
-                        });
-
-                        modal.style.display = 'none';
-                        showGlobalUpdate(`<p>Pomyślnie dopisano flagi do ${productIds.length} produktów.</p>`);
-
-                        isBulkFlaggingMode = false;
-                        selectedProductIds = new Set();
-                        clearSelectionFromStorage();
-
-                        filterPricesAndUpdateUI();
-                    } else {
-                        alert('Błąd: ' + response.message);
-                    }
-                })
-                .catch(error => console.error('Błąd masowego dopisywania flag:', error))
-                .finally(() => hideLoading());
-
-        } else {
-
-            const data = {
-                productId: selectedProductId,
-                flagIds: selectedFlags
-            };
-
-            showLoading();
-            fetch('/ProductFlags/AssignFlagsToProduct', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data)
-            })
-                .then(response => response.json())
-                .then(response => {
-                    if (response.success) {
-
-                        const product = allPrices.find(p => p.productId.toString() === selectedProductId);
-                        if (product) {
-
-                            product.flagIds = selectedFlags;
-                        }
-
-                        modal.style.display = 'none';
-                        showGlobalUpdate("<p>Flagi dla produktu zostały zaktualizowane.</p>");
-
-                        filterPricesAndUpdateUI();
-                    } else {
-                        alert('Błąd przypisywania flag: ' + response.message);
-                    }
-                })
-                .catch(error => console.error('Błąd przypisywania flag:', error))
-                .finally(() => hideLoading());
+        if (flagsToAdd.length === 0 && flagsToRemove.length === 0) {
+            alert("Nie wybrano żadnych akcji do wykonania.");
+            return;
         }
+
+        const data = {
+            productIds: Array.from(selectedProductIds).map(id => parseInt(id)),
+            flagsToAdd: flagsToAdd,
+            flagsToRemove: flagsToRemove
+        };
+
+        showLoading();
+        fetch('/ProductFlags/UpdateFlagsForMultipleProducts', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        })
+            .then(response => response.json())
+            .then(response => {
+                if (response.success) {
+                    $('#flagModal').modal('hide');
+                    showGlobalUpdate(`<p>Pomyślnie zaktualizowano flagi dla ${data.productIds.length} produktów.</p>`);
+
+                    // Resetowanie stanu zaznaczenia
+                    selectedProductIds.clear();
+                    clearSelectionFromStorage();
+                    updateSelectionUI(); // Aktualizuje licznik i modal do zera
+
+                    // Przeładowanie danych jest najlepszym sposobem na odświeżenie widoku
+                    loadPrices();
+                } else {
+                    alert('Błąd: ' + response.message);
+                }
+            })
+            .catch(error => console.error('Błąd masowej aktualizacji flag:', error))
+            .finally(() => hideLoading());
     });
+
+
+    //function updateSingleProductFlagsInUI(productId) {
+    //    // Znajdź główny element .price-box dla danego produktu
+    //    const productElement = document.querySelector(`.price-box[data-product-id='${productId}']`);
+    //    if (!productElement) {
+    //        // Produkt może nie być widoczny z powodu paginacji, to nie jest błąd.
+    //        // Zostanie poprawnie narysowany, gdy użytkownik przewinie do niego.
+    //        return;
+    //    }
+
+    //    // Znajdź stary kontener flag wewnątrz tego elementu
+    //    const existingFlagsContainer = productElement.querySelector('.flags-container');
+
+    //    // Znajdź zaktualizowane dane produktu w naszej głównej tablicy
+    //    const productData = allPrices.find(item => item.productId.toString() === productId);
+
+    //    if (productData && existingFlagsContainer) {
+    //        // Stwórz nowy kontener z flagami na podstawie zaktualizowanych danych
+    //        const newFlagsContainer = createFlagsContainer(productData);
+
+    //        // Podmień stary kontener na nowy
+    //        existingFlagsContainer.parentNode.replaceChild(newFlagsContainer, existingFlagsContainer);
+    //    }
+    //}
+
 
     function updateSelectionUI() {
         const selectionContainer = document.getElementById('selectionContainer');
