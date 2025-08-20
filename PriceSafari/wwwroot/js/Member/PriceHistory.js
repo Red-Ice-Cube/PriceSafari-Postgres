@@ -37,6 +37,7 @@
     let selectedFlagsInclude = new Set();
     let selectedFlagsExclude = new Set();
     let selectedProductIds = loadSelectionFromStorage();
+    let selectedPriceChanges = []; 
     let isBulkFlaggingMode = false;
 
     const selectAllVisibleBtn = document.getElementById('selectAllVisibleBtn');
@@ -1080,7 +1081,17 @@
         const storedChanges = localStorage.getItem('selectedPriceChanges_' + storeId);
         if (storedChanges) {
             try {
-                selectedPriceChanges = JSON.parse(storedChanges);
+                const parsedData = JSON.parse(storedChanges);
+                // SPRAWDŹ, CZY SPARSOWANE DANE TO NA PEWNO TABLICA
+                if (Array.isArray(parsedData)) {
+                    selectedPriceChanges = parsedData;
+                } else {
+                    // Jeśli to nie jest tablica, zaloguj ostrzeżenie i użyj pustej.
+                    // Być może to obiekt i zmiany są w jakimś jego polu, np. parsedData.changes?
+                    // Na podstawie obecnego kodu zakładam, że powinna to być tablica.
+                    console.warn("Dane 'selectedPriceChanges' w localStorage nie są tablicą. Używam pustej tablicy.");
+                    selectedPriceChanges = [];
+                }
             } catch (err) {
                 console.error("Błąd parsowania danych z localStorage:", err);
                 selectedPriceChanges = [];
