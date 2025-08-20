@@ -132,22 +132,8 @@
         border-color: #222222;
     }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-    /* Dodaj wewnątrz istniejącego bloku <style> */
     .select-product-btn.selected {
-        background-color: #0d6efd; /* Niebieski kolor Bootstrapa */
+        background-color: #0d6efd;
         color: white;
         border-color: #0d6efd;
     }
@@ -156,10 +142,6 @@
             background-color: #0b5ed7;
             border-color: #0a58ca;
         }
-
-
-
-
 
     .bulk-flag-item {
         display: flex;
@@ -205,7 +187,7 @@
         }
 
     .change-indicator {
-        display: none; /* Domyślnie ukryty */
+        display: none;
         background-color: #f0f0f0;
         padding: 2px 6px;
         border-radius: 3px;
@@ -386,7 +368,6 @@
                             </div>
                         </div>
 
-
                     </div>
 
                 </div>
@@ -407,13 +388,25 @@
                         Presety
                     </button>
 
-                    <button class="Button-Page-Small" style="white-space: nowrap;" id="exportToExcelButton"><i class="fa-solid fa-floppy-disk" style="margin-top:2px;"></i>Eksportuj widok</button>
+                    <button class="Button-Page-Small" style="white-space: nowrap;" id="exportToExcelButton"><i class="fa-solid fa-floppy-disk" style="margin-top:2px;"></i>Eksport</button>
 
-                    <div class="SimpleSpace" style="justify-content:flex-end;">
+                    <button type="button" class="btn-round" style="justify-self:flex-end; margin-right:4px;" data-toggle="modal" data-target="#infoModal">
+                        <i class="fa fa-info-circle"></i>
+                    </button>
 
-                        <button type="button" class="btn-round" style="justify-self:flex-end; margin-right:4px;" data-toggle="modal" data-target="#infoModal">
-                            <i class="fa fa-info-circle"></i>
-                        </button>
+                    <div class="SimpleSpace" style="justify-content:flex-end; margin-right: 12px;">
+                        <div id="selectionContainer" class="selection-container">
+                            <span id="selectedProductsCounter" class="ProductCount" style="width:126px; height:33.99px;">Wybrano: 0</span>
+
+                            <button id="selectAllVisibleBtn" class="Button-Page-Small" style="width:48px;" title="Zaznacz wszystkie widoczne produkty">
+                                <i class="fa-solid fa-square-check"></i>
+                            </button>
+                            <button id="deselectAllVisibleBtn" class="Button-Page-Small" style="width:48px;" title="Odznacz wszystkie widoczne produkty">
+                                <i class="fa-solid fa-square-xmark"></i>
+                            </button>
+                            <button id="showSelectedProductsBtn" class="Button-Page-Small" style="width:89.25px;">Akcje</button>
+                        </div>
+
                     </div>
 
                 </div>
@@ -423,11 +416,6 @@
 
                     <div id="paginationContainer"></div>
 
-                    <div id="selectionContainer" class="selection-container" style="display: none; align-items: center; gap: 10px; margin-left: 10px;">
-                        <span id="selectedProductsCounter" class="ProductCount" style="background-color: #0d6efd; color: white;">Zaznaczono: 0</span>
-                        <button id="showSelectedProductsBtn" class="Button-Page-Small">Pokaż zaznaczone</button>
-                    </div>
-
                     <button id="sortName">A-Z</button>
                     <button id="sortPrice">Cena</button>
                     <button id="sortRaiseAmount">Podnieś PLN</button>
@@ -436,14 +424,14 @@
                     <button id="sortLowerPercentage">Obniż %</button>
                     <button id="sortMarginAmount">Narzut PLN</button>
                     <button id="sortMarginPercentage">Narzut %</button>
-                  
+
                 </div>
 
                 <div class="buttonsContainer">
                     <div id="priceChangeSummary" class="priceChangeSummary">
                         <div id="summaryText"></div>
-                        <button id="openMarginSettingsBtn" class="Button-Page-Small"><i class="fa fa-cog" aria-hidden="true"></i></button>
-                        <button id="openMassChangeModalBtn" class="Button-Page-Small">
+                        <button id="openMarginSettingsBtn" class="Button-Page-Small" style="width:48px;"><i class="fa fa-cog" aria-hidden="true"></i></button>
+                        <button id="openMassChangeModalBtn" class="Button-Page-Small" style="width:48px;">
                             <i class="fa fa-cubes" aria-hidden="true"></i>
                         </button>
                         <button id="simulateButton">Symuluj ceny</button>
@@ -880,8 +868,6 @@
         </div>
     </div>
 </div>
-
-
 
 <div class="modal fade" id="selectedProductsModal" tabindex="-1" role="dialog" aria-labelledby="selectedProductsModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg" role="document">

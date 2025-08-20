@@ -4282,7 +4282,14 @@ th small {
 .SimpleSpace {
     display: flex;
     justify-content: space-between;
-    width: 100%
+    width: 100%;
+}
+
+
+.selection-container {
+    display: inline-flex;
+    gap: 6px;
+    align-items: center;
 }
 
 .SimpleHorizontal {

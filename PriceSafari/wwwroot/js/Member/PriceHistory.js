@@ -33,11 +33,52 @@
         enforceMinimalMargin: true,
         minimalMarginPercent: 0.00
     };
-    //let selectedProductId = null;
+
     let selectedFlagsInclude = new Set();
     let selectedFlagsExclude = new Set();
     let selectedProductIds = loadSelectionFromStorage();
     let isBulkFlaggingMode = false;
+
+    const selectAllVisibleBtn = document.getElementById('selectAllVisibleBtn');
+    const deselectAllVisibleBtn = document.getElementById('deselectAllVisibleBtn');
+
+    function updateVisibleProductSelectionButtons() {
+        const visibleButtons = document.querySelectorAll('#priceContainer .select-product-btn');
+        visibleButtons.forEach(btn => {
+            const productId = btn.dataset.productId;
+            if (selectedProductIds.has(productId)) {
+                btn.textContent = 'Wybrano';
+                btn.classList.add('selected');
+            } else {
+                btn.textContent = 'Zaznacz';
+                btn.classList.remove('selected');
+            }
+        });
+    }
+
+    selectAllVisibleBtn.addEventListener('click', function () {
+        if (currentlyFilteredPrices.length === 0) return;
+
+        currentlyFilteredPrices.forEach(product => {
+            selectedProductIds.add(product.productId.toString());
+        });
+
+        saveSelectionToStorage(selectedProductIds);
+        updateSelectionUI();
+        updateVisibleProductSelectionButtons();
+    });
+
+    deselectAllVisibleBtn.addEventListener('click', function () {
+        if (currentlyFilteredPrices.length === 0) return;
+
+        currentlyFilteredPrices.forEach(product => {
+            selectedProductIds.delete(product.productId.toString());
+        });
+
+        saveSelectionToStorage(selectedProductIds);
+        updateSelectionUI();
+        updateVisibleProductSelectionButtons();
+    });
 
     let sortingState = {
         sortName: null,
@@ -1396,55 +1437,6 @@
 
             const flagsContainer = createFlagsContainer(item);
 
-            //const assignFlagButton = document.createElement('button');
-            //assignFlagButton.className = 'assign-flag-button';
-            //assignFlagButton.dataset.productId = item.productId;
-            //assignFlagButton.innerHTML = '+ Flaga';
-            //assignFlagButton.style.pointerEvents = 'auto';
-
-            //assignFlagButton.addEventListener('click', function (event) {
-            //    event.stopPropagation();
-            //    isBulkFlaggingMode = false;
-            //    selectedProductId = this.dataset.productId;
-
-            //    const productBox = this.closest('.price-box');
-            //    const productName = productBox ? productBox.dataset.productName : 'produktu';
-
-            //    showLoading();
-            //    fetch(`/ProductFlags/GetFlagsForProduct?productId=${selectedProductId}`)
-            //        .then(response => response.json())
-            //        .then(assignedFlags => {
-            //            const modalBody = document.getElementById('flagModalBody');
-            //            const flagModalTitle = document.getElementById('flagModalLabel');
-
-            //            flagModalTitle.textContent = `Przypisz flagi do: ${productName}`;
-            //            modalBody.innerHTML = ''; // Wyczyść
-
-            //            const checkboxContainer = document.createElement('div');
-            //            checkboxContainer.id = 'flagCheckboxes'; // Utrzymujemy ID dla logiki zapisu
-
-            //            flags.forEach(flag => {
-            //                const isChecked = assignedFlags.includes(flag.flagId);
-            //                const label = document.createElement('label');
-            //                label.innerHTML = `<input type="checkbox" class="form-check-input flagCheckbox" value="${flag.flagId}" ${isChecked ? 'checked' : ''}> ${flag.flagName}`;
-            //                checkboxContainer.appendChild(label);
-            //                checkboxContainer.appendChild(document.createElement('br'));
-            //            });
-
-            //            modalBody.appendChild(checkboxContainer);
-            //            hideLoading();
-            //            $('#flagModal').modal('show');
-            //        })
-            //        .catch(error => {
-            //            console.error('Błąd pobierania flag dla produktu:', error);
-            //            hideLoading();
-            //        });
-            //});
-            //priceBoxSpace.appendChild(priceBoxColumnName);
-            //priceBoxSpace.appendChild(flagsContainer);
-            //priceBoxSpace.appendChild(assignFlagButton);
-
-            // Te linie zostają, ale bez assignFlagButton
             priceBoxSpace.appendChild(priceBoxColumnName);
             priceBoxSpace.appendChild(flagsContainer);
 
@@ -3066,7 +3058,7 @@
         })
             .then(response => response.json())
             .then(counts => {
-                populateBulkFlagModal(counts); // Nowa funkcja do budowania UI
+                populateBulkFlagModal(counts);
                 hideLoading();
                 $('#flagModal').modal('show');
             })
@@ -3077,14 +3069,13 @@
             });
     });
 
-
     function populateBulkFlagModal(flagCounts) {
         const modalBody = document.getElementById('flagModalBody');
         const flagModalTitle = document.querySelector('#flagModal .price-box-column-name');
         const totalSelected = selectedProductIds.size;
 
         flagModalTitle.textContent = `Zarządzaj flagami dla ${totalSelected} produktów`;
-        modalBody.innerHTML = ''; // Wyczyść poprzednią zawartość
+        modalBody.innerHTML = '';
 
         flags.forEach(flag => {
             const currentCount = flagCounts[flag.flagId] || 0;
@@ -3093,7 +3084,6 @@
             flagItem.className = 'bulk-flag-item';
             flagItem.dataset.flagId = flag.flagId;
 
-            // Etykieta flagi z licznikiem
             const label = document.createElement('div');
             label.className = 'flag-label';
             label.innerHTML = `
@@ -3101,7 +3091,6 @@
             <span class="flag-count">(${currentCount} / ${totalSelected})</span>
         `;
 
-            // Akcje (Dodaj / Odepnij)
             const actions = document.createElement('div');
             actions.className = 'flag-actions';
 
@@ -3125,7 +3114,6 @@
             modalBody.appendChild(flagItem);
         });
 
-        // Logika obsługi checkboxów (wzajemne wykluczanie się)
         modalBody.querySelectorAll('.bulk-flag-action').forEach(checkbox => {
             checkbox.addEventListener('change', function () {
                 const parentItem = this.closest('.bulk-flag-item');
@@ -3134,11 +3122,11 @@
                 if (this.checked) {
                     if (action === 'add') {
                         parentItem.querySelector('.bulk-flag-action[data-action="remove"]').checked = false;
-                    } else { // action === 'remove'
+                    } else {
                         parentItem.querySelector('.bulk-flag-action[data-action="add"]').checked = false;
                     }
                 }
-                // Synchronizacja widoczności wskaźników
+
                 parentItem.querySelector('.add-indicator').style.display = parentItem.querySelector('.bulk-flag-action[data-action="add"]').checked ? 'inline' : 'none';
                 parentItem.querySelector('.remove-indicator').style.display = parentItem.querySelector('.bulk-flag-action[data-action="remove"]').checked ? 'inline' : 'none';
             });
@@ -3146,7 +3134,7 @@
     }
 
     document.getElementById('saveFlagsButton').addEventListener('click', function () {
-        // --- POZOSTAJE TYLKO LOGIKA DLA TRYBU MASOWEGO ---
+
         const flagsToAdd = [];
         const flagsToRemove = [];
 
@@ -3186,12 +3174,10 @@
                     $('#flagModal').modal('hide');
                     showGlobalUpdate(`<p>Pomyślnie zaktualizowano flagi dla ${data.productIds.length} produktów.</p>`);
 
-                    // Resetowanie stanu zaznaczenia
                     selectedProductIds.clear();
                     clearSelectionFromStorage();
-                    updateSelectionUI(); // Aktualizuje licznik i modal do zera
+                    updateSelectionUI();
 
-                    // Przeładowanie danych jest najlepszym sposobem na odświeżenie widoku
                     loadPrices();
                 } else {
                     alert('Błąd: ' + response.message);
@@ -3201,45 +3187,15 @@
             .finally(() => hideLoading());
     });
 
-
-    //function updateSingleProductFlagsInUI(productId) {
-    //    // Znajdź główny element .price-box dla danego produktu
-    //    const productElement = document.querySelector(`.price-box[data-product-id='${productId}']`);
-    //    if (!productElement) {
-    //        // Produkt może nie być widoczny z powodu paginacji, to nie jest błąd.
-    //        // Zostanie poprawnie narysowany, gdy użytkownik przewinie do niego.
-    //        return;
-    //    }
-
-    //    // Znajdź stary kontener flag wewnątrz tego elementu
-    //    const existingFlagsContainer = productElement.querySelector('.flags-container');
-
-    //    // Znajdź zaktualizowane dane produktu w naszej głównej tablicy
-    //    const productData = allPrices.find(item => item.productId.toString() === productId);
-
-    //    if (productData && existingFlagsContainer) {
-    //        // Stwórz nowy kontener z flagami na podstawie zaktualizowanych danych
-    //        const newFlagsContainer = createFlagsContainer(productData);
-
-    //        // Podmień stary kontener na nowy
-    //        existingFlagsContainer.parentNode.replaceChild(newFlagsContainer, existingFlagsContainer);
-    //    }
-    //}
-
-
     function updateSelectionUI() {
         const selectionContainer = document.getElementById('selectionContainer');
         const counter = document.getElementById('selectedProductsCounter');
         const modalList = document.getElementById('selectedProductsList');
-
         const count = selectedProductIds.size;
 
-        if (count > 0) {
-            selectionContainer.style.display = 'flex';
-            counter.textContent = `Zaznaczono: ${count}`;
-        } else {
-            selectionContainer.style.display = 'none';
-        }
+        selectionContainer.style.display = 'flex';
+
+        counter.textContent = `Wybrano: ${count}`;
 
         modalList.innerHTML = '';
         if (count === 0) {
@@ -3256,9 +3212,7 @@
             const product = allPrices.find(p => p.productId.toString() === productId);
             if (product) {
                 const tr = document.createElement('tr');
-
                 let identifier = product.ean || product.externalId || 'Brak ID';
-
                 tr.innerHTML = `
                 <td>${product.productName}</td>
                 <td>${identifier}</td>
