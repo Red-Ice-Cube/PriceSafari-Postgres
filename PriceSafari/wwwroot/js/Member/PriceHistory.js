@@ -3087,9 +3087,9 @@
             const label = document.createElement('div');
             label.className = 'flag-label';
             label.innerHTML = `
-            <span class="flag-name" style="border-color: ${flag.flagColor}; color: ${flag.flagColor};">${flag.flagName}</span>
-            <span class="flag-count">(${currentCount} / ${totalSelected})</span>
-        `;
+                <span class="flag-name" style="border-color: ${flag.flagColor}; color: ${flag.flagColor}; background-color: ${hexToRgba(flag.flagColor, 0.3)};">${flag.flagName}</span>
+                <span class="flag-count">(${currentCount} / ${totalSelected})</span>
+            `;
 
             const actions = document.createElement('div');
             actions.className = 'flag-actions';
@@ -3190,22 +3190,35 @@
     function updateSelectionUI() {
         const selectionContainer = document.getElementById('selectionContainer');
         const counter = document.getElementById('selectedProductsCounter');
+        const modalCounter = document.getElementById('selectedProductsModalCounter');
         const modalList = document.getElementById('selectedProductsList');
         const count = selectedProductIds.size;
 
         selectionContainer.style.display = 'flex';
-
         counter.textContent = `Wybrano: ${count}`;
+
+        if (modalCounter) {
+            modalCounter.textContent = count;
+        }
 
         modalList.innerHTML = '';
         if (count === 0) {
-            modalList.innerHTML = '<p>Brak zaznaczonych produktów.</p>';
+
+            modalList.innerHTML = '<div class="alert alert-info text-center">Nie zaznaczono żadnych produktów.</div>';
             return;
         }
 
         const table = document.createElement('table');
-        table.className = 'table table-striped';
-        table.innerHTML = `<thead><tr><th>Nazwa Produktu</th><th>EAN/ID</th><th>Akcja</th></tr></thead>`;
+
+        table.className = 'table-orders';
+        table.innerHTML = `
+        <thead class="thead-light">
+            <tr>
+                <th style="width: 65%;">Nazwa Produktu</th>
+                <th>EAN/ID</th>
+                <th class="text-center">Akcja</th>
+            </tr>
+        </thead>`;
         const tbody = document.createElement('tbody');
 
         selectedProductIds.forEach(productId => {
@@ -3214,9 +3227,13 @@
                 const tr = document.createElement('tr');
                 let identifier = product.ean || product.externalId || 'Brak ID';
                 tr.innerHTML = `
-                <td>${product.productName}</td>
-                <td>${identifier}</td>
-                <td><button class="btn btn-danger btn-sm remove-selection-btn" data-product-id="${productId}">Usuń</button></td>
+                <td class="align-middle">${product.productName}</td>
+                <td class="align-middle">${identifier}</td>
+                <td class="text-center align-middle">
+                    <button class="btn btn-danger btn-sm remove-selection-btn" data-product-id="${productId}" title="Usuń z zaznaczonych">
+                        <i class="fa-solid fa-trash-can"></i>
+                    </button>
+                </td>
             `;
                 tbody.appendChild(tr);
             }

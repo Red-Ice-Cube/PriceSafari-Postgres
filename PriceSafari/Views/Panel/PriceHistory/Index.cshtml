@@ -868,28 +868,33 @@
         </div>
     </div>
 </div>
-
 <div class="modal fade" id="selectedProductsModal" tabindex="-1" role="dialog" aria-labelledby="selectedProductsModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg" role="document">
-        <div class="modal-content">
+    <div class="modal-dialog modal-xl"  role="document">
+        <div class="modal-content" style="margin: 10% auto; width:860px;">
             <div class="modal-header">
-                <div class="price-box-column-name" id="selectedProductsModalLabel">Zaznaczone produkty</div>
+                <div class="price-box-column-name" id="selectedProductsModalLabel">
+                    Zaznaczone produkty (<span id="selectedProductsModalCounter">0</span>)
+                </div>
                 <button type="button" class="close" data-dismiss="modal" aria-label="Zamknij">
                     <span aria-hidden="true">&times;</span>
                 </button>
             </div>
             <div class="modal-body">
-                <p>Poniżej znajduje się lista zaznaczonych produktów. Możesz wykonać na nich masowe operacje.</p>
-                <div id="selectedProductsList" class="table-scroll" style="max-height: 400px; overflow-y: auto;">
+                <div class="mb-4 p-3" style="background-color: #f8f9fa; border: 1px solid #dee2e6; border-radius: 5px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <strong style="font-size: 1.1rem; color: #333;">Dostępne akcje masowe:</strong>
+                        </div>
+                        <div style="display: flex; gap: 10px; align-items: center;">
+                            <button id="openBulkFlagModalBtn" class="Button-Page-Small-bl">
+                                <i class="fa-solid fa-tags" style="margin-right: 5px;"></i> Zarządzaj flagami
+                            </button>
+                        </div>
+                    </div>
                 </div>
-            </div>
-            <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center;">
-                <div>
-                    <strong>Akcje masowe:</strong>
-                </div>
-                <div style="display: flex; gap: 10px; align-items: center;">
-                    <button id="openBulkFlagModalBtn" class="Button-Page-Small-bl">Przypisz flagi...</button>
-                </div>
+
+            
+                <div id="selectedProductsList" class="table-scroll" style="max-height: 45vh; min-height: 40vh; overflow-y: auto;"> </div>
             </div>
         </div>
     </div>
