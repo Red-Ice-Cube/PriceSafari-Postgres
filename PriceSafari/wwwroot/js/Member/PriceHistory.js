@@ -37,7 +37,7 @@
     let selectedFlagsInclude = new Set();
     let selectedFlagsExclude = new Set();
     let selectedProductIds = loadSelectionFromStorage();
-    let selectedPriceChanges = []; 
+    let selectedPriceChanges = [];
     let isBulkFlaggingMode = false;
 
     const selectAllVisibleBtn = document.getElementById('selectAllVisibleBtn');
@@ -1082,13 +1082,11 @@
         if (storedChanges) {
             try {
                 const parsedData = JSON.parse(storedChanges);
-                // SPRAWDŹ, CZY SPARSOWANE DANE TO NA PEWNO TABLICA
+
                 if (Array.isArray(parsedData)) {
                     selectedPriceChanges = parsedData;
                 } else {
-                    // Jeśli to nie jest tablica, zaloguj ostrzeżenie i użyj pustej.
-                    // Być może to obiekt i zmiany są w jakimś jego polu, np. parsedData.changes?
-                    // Na podstawie obecnego kodu zakładam, że powinna to być tablica.
+
                     console.warn("Dane 'selectedPriceChanges' w localStorage nie są tablicą. Używam pustej tablicy.");
                     selectedPriceChanges = [];
                 }
@@ -3255,11 +3253,13 @@
     }
 
     document.getElementById('selectedProductsList').addEventListener('click', function (event) {
-        if (event.target.classList.contains('remove-selection-btn')) {
-            const productId = event.target.dataset.productId;
+
+        const removeButton = event.target.closest('.remove-selection-btn');
+
+        if (removeButton) {
+            const productId = removeButton.dataset.productId;
 
             selectedProductIds.delete(productId);
-
             saveSelectionToStorage(selectedProductIds);
 
             const mainButton = document.querySelector(`.select-product-btn[data-product-id='${productId}']`);
@@ -3267,7 +3267,6 @@
                 mainButton.textContent = 'Zaznacz';
                 mainButton.classList.remove('selected');
             }
-
             updateSelectionUI();
         }
     });
