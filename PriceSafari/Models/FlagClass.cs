@@ -1,7 +1,5 @@
-﻿// W pliku Models/FlagsClass.cs
-
-using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema; // Upewnij się, że ten using jest dodany
+﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 using System.Collections.Generic;
 
 namespace PriceSafari.Models
@@ -17,9 +15,9 @@ namespace PriceSafari.Models
         [Required]
         public string FlagColor { get; set; }
 
-        [ForeignKey("Store")] // Ten atrybut wskazuje na poniższą właściwość nawigacyjną
+        [ForeignKey("Store")]
         public int StoreId { get; set; }
-        public StoreClass Store { get; set; } // Ta właściwość była brakująca
+        public StoreClass Store { get; set; }
 
         public bool IsMarketplace { get; set; } = false;
 

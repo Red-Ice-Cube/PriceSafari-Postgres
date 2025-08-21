@@ -31,37 +31,55 @@ namespace PriceSafari.Controllers.MemberControllers
             return await _context.UserStores.AnyAsync(us => us.UserId == userId && us.StoreId == storeId);
         }
 
-        // DTO dla metody GetFlagCountsForProducts
+        // --- KLUCZOWA ZMIANA: Zaktualizowane DTO, aby obsługiwać oba typy produktów ---
         public class ProductIdsDto
         {
             public List<int> ProductIds { get; set; }
+            public List<int> AllegroProductIds { get; set; }
         }
 
         [HttpPost]
         public async Task<IActionResult> GetFlagCountsForProducts([FromBody] ProductIdsDto data)
         {
-            if (data == null || data.ProductIds == null || !data.ProductIds.Any())
+            if (data == null || (data.ProductIds == null || !data.ProductIds.Any()) && (data.AllegroProductIds == null || !data.AllegroProductIds.Any()))
             {
                 return BadRequest("Nie podano ID produktów.");
             }
 
-            var firstProduct = await _context.Products.FindAsync(data.ProductIds.First());
-            if (firstProduct == null) return NotFound("Nie znaleziono produktu.");
-            if (!await UserHasAccessToStore(firstProduct.StoreId)) return Forbid();
+            // --- KLUCZOWA ZMIANA: Logika sprawdzająca dostęp i pobierająca dane ---
+            if (data.ProductIds != null && data.ProductIds.Any())
+            {
+                var firstProduct = await _context.Products.FindAsync(data.ProductIds.First());
+                if (firstProduct == null) return NotFound("Nie znaleziono produktu.");
+                if (!await UserHasAccessToStore(firstProduct.StoreId)) return Forbid();
 
-            var counts = await _context.ProductFlags
-                .Where(pf => pf.ProductId.HasValue && data.ProductIds.Contains(pf.ProductId.Value))
-                .GroupBy(pf => pf.FlagId)
-                .Select(g => new { FlagId = g.Key, Count = g.Count() })
-                .ToDictionaryAsync(x => x.FlagId, x => x.Count);
+                var counts = await _context.ProductFlags
+                    .Where(pf => pf.ProductId.HasValue && data.ProductIds.Contains(pf.ProductId.Value))
+                    .GroupBy(pf => pf.FlagId)
+                    .Select(g => new { FlagId = g.Key, Count = g.Count() })
+                    .ToDictionaryAsync(x => x.FlagId, x => x.Count);
+                return Json(counts);
+            }
+            else // Obsługa produktów Allegro
+            {
+                var firstProduct = await _context.AllegroProducts.FindAsync(data.AllegroProductIds.First());
+                if (firstProduct == null) return NotFound("Nie znaleziono produktu Allegro.");
+                if (!await UserHasAccessToStore(firstProduct.StoreId)) return Forbid();
 
-            return Json(counts);
+                var counts = await _context.ProductFlags
+                    .Where(pf => pf.AllegroProductId.HasValue && data.AllegroProductIds.Contains(pf.AllegroProductId.Value))
+                    .GroupBy(pf => pf.FlagId)
+                    .Select(g => new { FlagId = g.Key, Count = g.Count() })
+                    .ToDictionaryAsync(x => x.FlagId, x => x.Count);
+                return Json(counts);
+            }
         }
 
-        // DTO dla metody UpdateFlagsForMultipleProducts
+        // --- KLUCZOWA ZMIANA: Zaktualizowane DTO ---
         public class UpdateFlagsDto
         {
             public List<int> ProductIds { get; set; }
+            public List<int> AllegroProductIds { get; set; }
             public List<int> FlagsToAdd { get; set; }
             public List<int> FlagsToRemove { get; set; }
         }
@@ -69,49 +87,85 @@ namespace PriceSafari.Controllers.MemberControllers
         [HttpPost]
         public async Task<IActionResult> UpdateFlagsForMultipleProducts([FromBody] UpdateFlagsDto data)
         {
-            if (data == null || data.ProductIds == null || !data.ProductIds.Any())
+            if (data == null || (data.ProductIds == null || !data.ProductIds.Any()) && (data.AllegroProductIds == null || !data.AllegroProductIds.Any()))
             {
                 return Json(new { success = false, message = "Nie wybrano produktów." });
             }
 
-            var firstProduct = await _context.Products.FindAsync(data.ProductIds.First());
-            if (firstProduct == null) return Json(new { success = false, message = "Nie znaleziono produktu." });
-            if (!await UserHasAccessToStore(firstProduct.StoreId)) return Forbid();
-
-            if (data.FlagsToRemove != null && data.FlagsToRemove.Any())
+            // --- Logika dla produktów marketplace ---
+            if (data.ProductIds != null && data.ProductIds.Any())
             {
-                var assignmentsToRemove = await _context.ProductFlags
-                    .Where(pf => pf.ProductId.HasValue && data.ProductIds.Contains(pf.ProductId.Value) && data.FlagsToRemove.Contains(pf.FlagId))
-                    .ToListAsync();
+                var firstProduct = await _context.Products.FindAsync(data.ProductIds.First());
+                if (firstProduct == null) return Json(new { success = false, message = "Nie znaleziono produktu." });
+                if (!await UserHasAccessToStore(firstProduct.StoreId)) return Forbid();
 
-                if (assignmentsToRemove.Any())
+                if (data.FlagsToRemove != null && data.FlagsToRemove.Any())
                 {
-                    _context.ProductFlags.RemoveRange(assignmentsToRemove);
+                    var assignmentsToRemove = await _context.ProductFlags
+                        .Where(pf => pf.ProductId.HasValue && data.ProductIds.Contains(pf.ProductId.Value) && data.FlagsToRemove.Contains(pf.FlagId))
+                        .ToListAsync();
+                    if (assignmentsToRemove.Any()) _context.ProductFlags.RemoveRange(assignmentsToRemove);
                 }
-            }
 
-            if (data.FlagsToAdd != null && data.FlagsToAdd.Any())
-            {
-                var existingAssignments = await _context.ProductFlags
-                    .Where(pf => pf.ProductId.HasValue && data.ProductIds.Contains(pf.ProductId.Value))
-                    .Select(pf => new { pf.ProductId, pf.FlagId })
-                    .ToListAsync();
-
-                var newAssignments = new List<ProductFlag>();
-                foreach (var productId in data.ProductIds)
+                if (data.FlagsToAdd != null && data.FlagsToAdd.Any())
                 {
-                    foreach (var flagId in data.FlagsToAdd)
+                    // --- ZMIANA TUTAJ: Pobieramy dane do listy, a potem tworzymy Lookup ---
+                    var existingAssignmentsList = await _context.ProductFlags
+                        .Where(pf => pf.ProductId.HasValue && data.ProductIds.Contains(pf.ProductId.Value))
+                        .ToListAsync();
+                    var existingAssignments = existingAssignmentsList.ToLookup(pf => pf.ProductId.Value, pf => pf.FlagId);
+
+                    var newAssignments = new List<ProductFlag>();
+                    foreach (var productId in data.ProductIds)
                     {
-                        if (!existingAssignments.Any(pf => pf.ProductId == productId && pf.FlagId == flagId))
+                        var assignedFlags = new HashSet<int>(existingAssignments[productId]);
+                        foreach (var flagId in data.FlagsToAdd)
                         {
-                            newAssignments.Add(new ProductFlag { ProductId = productId, FlagId = flagId });
+                            if (!assignedFlags.Contains(flagId))
+                            {
+                                newAssignments.Add(new ProductFlag { ProductId = productId, FlagId = flagId });
+                            }
                         }
                     }
+                    if (newAssignments.Any()) await _context.ProductFlags.AddRangeAsync(newAssignments);
+                }
+            }
+            // --- Logika dla produktów Allegro ---
+            else if (data.AllegroProductIds != null && data.AllegroProductIds.Any())
+            {
+                var firstProduct = await _context.AllegroProducts.FindAsync(data.AllegroProductIds.First());
+                if (firstProduct == null) return Json(new { success = false, message = "Nie znaleziono produktu Allegro." });
+                if (!await UserHasAccessToStore(firstProduct.StoreId)) return Forbid();
+
+                if (data.FlagsToRemove != null && data.FlagsToRemove.Any())
+                {
+                    var assignmentsToRemove = await _context.ProductFlags
+                        .Where(pf => pf.AllegroProductId.HasValue && data.AllegroProductIds.Contains(pf.AllegroProductId.Value) && data.FlagsToRemove.Contains(pf.FlagId))
+                        .ToListAsync();
+                    if (assignmentsToRemove.Any()) _context.ProductFlags.RemoveRange(assignmentsToRemove);
                 }
 
-                if (newAssignments.Any())
+                if (data.FlagsToAdd != null && data.FlagsToAdd.Any())
                 {
-                    await _context.ProductFlags.AddRangeAsync(newAssignments);
+                    // --- ZMIANA TUTAJ: Pobieramy dane do listy, a potem tworzymy Lookup ---
+                    var existingAssignmentsList = await _context.ProductFlags
+                        .Where(pf => pf.AllegroProductId.HasValue && data.AllegroProductIds.Contains(pf.AllegroProductId.Value))
+                        .ToListAsync();
+                    var existingAssignments = existingAssignmentsList.ToLookup(pf => pf.AllegroProductId.Value, pf => pf.FlagId);
+
+                    var newAssignments = new List<ProductFlag>();
+                    foreach (var productId in data.AllegroProductIds)
+                    {
+                        var assignedFlags = new HashSet<int>(existingAssignments[productId]);
+                        foreach (var flagId in data.FlagsToAdd)
+                        {
+                            if (!assignedFlags.Contains(flagId))
+                            {
+                                newAssignments.Add(new ProductFlag { AllegroProductId = productId, FlagId = flagId });
+                            }
+                        }
+                    }
+                    if (newAssignments.Any()) await _context.ProductFlags.AddRangeAsync(newAssignments);
                 }
             }
 
@@ -120,6 +174,139 @@ namespace PriceSafari.Controllers.MemberControllers
         }
     }
 }
+
+
+
+// Nowy model flagowania, bez obslugi allegro 
+
+
+//using Microsoft.AspNetCore.Authorization;
+//using Microsoft.AspNetCore.Identity;
+//using Microsoft.AspNetCore.Mvc;
+//using Microsoft.EntityFrameworkCore;
+//using PriceSafari.Data;
+//using PriceSafari.Models;
+//using System.Security.Claims;
+
+//namespace PriceSafari.Controllers.MemberControllers
+//{
+//    [Authorize(Roles = "Admin, Manager, Member")]
+//    public class ProductFlagsController : Controller
+//    {
+//        private readonly PriceSafariContext _context;
+//        private readonly UserManager<PriceSafariUser> _userManager;
+
+//        public ProductFlagsController(PriceSafariContext context, UserManager<PriceSafariUser> userManager)
+//        {
+//            _context = context;
+//            _userManager = userManager;
+//        }
+
+//        private async Task<bool> UserHasAccessToStore(int storeId)
+//        {
+//            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+//            var user = await _userManager.FindByIdAsync(userId);
+//            if (await _userManager.IsInRoleAsync(user, "Admin") || await _userManager.IsInRoleAsync(user, "Manager"))
+//            {
+//                return true;
+//            }
+//            return await _context.UserStores.AnyAsync(us => us.UserId == userId && us.StoreId == storeId);
+//        }
+
+//        // DTO dla metody GetFlagCountsForProducts
+//        public class ProductIdsDto
+//        {
+//            public List<int> ProductIds { get; set; }
+//        }
+
+//        [HttpPost]
+//        public async Task<IActionResult> GetFlagCountsForProducts([FromBody] ProductIdsDto data)
+//        {
+//            if (data == null || data.ProductIds == null || !data.ProductIds.Any())
+//            {
+//                return BadRequest("Nie podano ID produktów.");
+//            }
+
+//            var firstProduct = await _context.Products.FindAsync(data.ProductIds.First());
+//            if (firstProduct == null) return NotFound("Nie znaleziono produktu.");
+//            if (!await UserHasAccessToStore(firstProduct.StoreId)) return Forbid();
+
+//            var counts = await _context.ProductFlags
+//                .Where(pf => pf.ProductId.HasValue && data.ProductIds.Contains(pf.ProductId.Value))
+//                .GroupBy(pf => pf.FlagId)
+//                .Select(g => new { FlagId = g.Key, Count = g.Count() })
+//                .ToDictionaryAsync(x => x.FlagId, x => x.Count);
+
+//            return Json(counts);
+//        }
+
+//        // DTO dla metody UpdateFlagsForMultipleProducts
+//        public class UpdateFlagsDto
+//        {
+//            public List<int> ProductIds { get; set; }
+//            public List<int> FlagsToAdd { get; set; }
+//            public List<int> FlagsToRemove { get; set; }
+//        }
+
+//        [HttpPost]
+//        public async Task<IActionResult> UpdateFlagsForMultipleProducts([FromBody] UpdateFlagsDto data)
+//        {
+//            if (data == null || data.ProductIds == null || !data.ProductIds.Any())
+//            {
+//                return Json(new { success = false, message = "Nie wybrano produktów." });
+//            }
+
+//            var firstProduct = await _context.Products.FindAsync(data.ProductIds.First());
+//            if (firstProduct == null) return Json(new { success = false, message = "Nie znaleziono produktu." });
+//            if (!await UserHasAccessToStore(firstProduct.StoreId)) return Forbid();
+
+//            if (data.FlagsToRemove != null && data.FlagsToRemove.Any())
+//            {
+//                var assignmentsToRemove = await _context.ProductFlags
+//                    .Where(pf => pf.ProductId.HasValue && data.ProductIds.Contains(pf.ProductId.Value) && data.FlagsToRemove.Contains(pf.FlagId))
+//                    .ToListAsync();
+
+//                if (assignmentsToRemove.Any())
+//                {
+//                    _context.ProductFlags.RemoveRange(assignmentsToRemove);
+//                }
+//            }
+
+//            if (data.FlagsToAdd != null && data.FlagsToAdd.Any())
+//            {
+//                var existingAssignments = await _context.ProductFlags
+//                    .Where(pf => pf.ProductId.HasValue && data.ProductIds.Contains(pf.ProductId.Value))
+//                    .Select(pf => new { pf.ProductId, pf.FlagId })
+//                    .ToListAsync();
+
+//                var newAssignments = new List<ProductFlag>();
+//                foreach (var productId in data.ProductIds)
+//                {
+//                    foreach (var flagId in data.FlagsToAdd)
+//                    {
+//                        if (!existingAssignments.Any(pf => pf.ProductId == productId && pf.FlagId == flagId))
+//                        {
+//                            newAssignments.Add(new ProductFlag { ProductId = productId, FlagId = flagId });
+//                        }
+//                    }
+//                }
+
+//                if (newAssignments.Any())
+//                {
+//                    await _context.ProductFlags.AddRangeAsync(newAssignments);
+//                }
+//            }
+
+//            await _context.SaveChangesAsync();
+//            return Json(new { success = true });
+//        }
+//    }
+//}
+
+
+
+
+
 
 
 

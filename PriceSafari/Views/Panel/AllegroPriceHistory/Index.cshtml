@@ -1,7 +1,5 @@
 ﻿@using PriceSafari.Models.ViewModels
 
-
-
 @{
     ViewData["Title"] = "Historia Cen Allegro";
     var latestScrap = ViewBag.LatestScrap as PriceSafari.Models.AllegroScrapeHistory;
@@ -15,18 +13,6 @@
 @{
     Layout = "~/Views/Shared/_PanelLayout.cshtml";
 }
-
-<style>
-    .price-box {
-      
-        padding: 10px;
-        margin-bottom: 10px;
-        transition: border-width 0.2s ease-in-out; 
-    }
-
-     
-
-</style>
 
 <div class="Vert">
     <div class="Page-Box">
@@ -44,7 +30,6 @@
                     <div class="form-check"><input class="form-check-input colorFilter" type="checkbox" id="prGoodCheckbox" value="prGood"><label for="prGoodCheckbox"></label></div>
                     <div class="form-check"><input class="form-check-input colorFilter" type="checkbox" id="prIdealCheckbox" value="prIdeal"><label for="prIdealCheckbox"></label></div>
                     <div class="form-check"><input class="form-check-input colorFilter" type="checkbox" id="prToLowCheckbox" value="prToLow"><label for="prToLowCheckbox"></label></div>
-
                     <div class="price-range-settings">
                         <div class="color-circle prMid-circle"></div>
                         <div class="legendBox">Próg c. subopt.</div>
@@ -61,27 +46,20 @@
                     </div>
                     <div class="price-range-settings">
                         <div class="price-range-settings-stepPrice"></div>
-                        <div class="legendBox">Krok cenowy</div> 
+                        <div class="legendBox">Krok cenowy</div>
                         <label for="stepPrice"></label>
                         <input type="number" id="stepPrice" value="2.00" step="0.01" min="0.01">
                         <span id="unitLabelStepPrice" style="display:flex; align-items:center;">PLN</span>
                     </div>
-
                     <div>
                         <input class="diffCheckBox" style="margin-top: 10px;" type="checkbox" id="usePriceDifference" checked />
                     </div>
                     <button class="Button-Page-Small" style="margin-top: 4px;" id="savePriceValues">Zapisz progi</button>
                 </div>
                 <div class="filterBox">
-
                     <div class="Category-Container-Select" style="margin-top:-2px;">Flagi <a asp-controller="Flags" asp-action="List" asp-route-storeId="@ViewBag.StoreId" class="link-line">+ Dodaj Flage</a></div>
                     <div class="store-section" id="flagContainer">
                     </div>
-
-                   
-
-
-
                 </div>
             </div>
             <div class="Horizontal">
@@ -91,9 +69,24 @@
                     <select id="producerFilterDropdown" class="DropDown" style="max-width:150px;">
                         <option value="">Wszystkie marki</option>
                     </select>
-                    <div class="SimpleSpace" style="justify-content:flex-end;">
-                        <button type="button" class="btn-round" data-toggle="modal" data-target="#infoModal"><i class="fa fa-info-circle"></i></button>
+                    <button type="button" class="Button-Page-Small" style="justify-self:flex-end; margin-right:4px;" data-toggle="modal" data-target="#infoModal">
+                        <i class="fa fa-info-circle"></i>
+                    </button>
+
+                    <div class="SimpleSpace" style="justify-content:flex-end; margin-left: auto;">
+                        <div id="selectionContainer" class="selection-container">
+                            <span id="selectedProductsCounter" class="ProductCount" style="width:126px; height:33.99px;">Wybrano: 0</span>
+                            <button id="selectAllVisibleBtn" class="Button-Page-Small" style="width:48px;" title="Zaznacz wszystkie widoczne produkty">
+                                <i class="fa-solid fa-square-check"></i>
+                            </button>
+                            <button id="deselectAllVisibleBtn" class="Button-Page-Small" style="width:48px;" title="Odznacz wszystkie widoczne produkty">
+                                <i class="fa-solid fa-square-xmark"></i>
+                            </button>
+                            <button id="showSelectedProductsBtn" class="Button-Page-Small" style="width:89.25px;">Akcje</button>
+                        </div>
                     </div>
+
+               
                 </div>
                 <div id="sortingButtons">
                     <div class="ProductCount" id="displayedProductCount" style="width:120px;"></div>
@@ -132,28 +125,58 @@
 
 <div id="loadingOverlay" class="loading-overlay" style="display: none;"><div class="loader"></div></div>
 
-
-<div id="flagModal" class="modal">
-    <div class="modal-content">
-
-        <span class="close">&times;</span>
-
-        <div class="price-box-space">
-            <div class="price-box-column-name">Przypisz flagi do produktu</div>
+<div id="flagModal" class="modal fade" tabindex="-1" role="dialog" aria-labelledby="flagModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="price-box-column-name" id="flagModalLabel">Zarządzaj flagami</div>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Zamknij">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body" id="flagModalBody">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="Button-Page-Small-r" data-dismiss="modal">Anuluj</button>
+                <button type="button" class="Button-Page-Small-bl" id="saveFlagsButton">Zapisz zmiany</button>
+            </div>
         </div>
-        <div id="flagCheckboxes">
-            @if (flags != null)
-            {
-                @foreach (var flag in flags)
-                {
-                    <label><input type="checkbox" class="form-check-input flagCheckbox" value="@flag.FlagId"> @flag.FlagName</label>
-                    <br />
-                }
-            }
-        </div>
-        <button class="Button-Page-Small" id="saveFlagsButton">Zapisz</button>
     </div>
 </div>
+
+<div class="modal fade" id="selectedProductsModal" tabindex="-1" role="dialog" aria-labelledby="selectedProductsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl" role="document">
+        <div class="modal-content" style="margin: 10% auto; width:860px;">
+            <div class="modal-header">
+                <div class="price-box-column-name" id="selectedProductsModalLabel">
+                    Zaznaczone produkty (<span id="selectedProductsModalCounter">0</span>)
+                </div>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Zamknij">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-4 p-3" style="background-color: #f8f9fa; border: 1px solid #dee2e6; border-radius: 5px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <strong style="font-size: 1.1rem; color: #333;">Dostępne akcje masowe:</strong>
+                        </div>
+                        <div style="display: flex; gap: 10px; align-items: center;">
+                            <button id="openBulkFlagModalBtn" class="Button-Page-Small-bl">
+                                <i class="fa-solid fa-tags" style="margin-right: 5px;"></i> Zarządzaj flagami
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div id="selectedProductsList" class="table-scroll" style="max-height: 45vh; min-height: 40vh; overflow-y: auto;"> </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="globalNotification" style="display: none; position: fixed; width: 500px; top: 30px; left: 50%; transform: translateX(-50%); background: #F65063; color: white; padding: 24px; text-align: left; border-radius: 10px; z-index: 10000;"></div>
+<div id="globalUpdate" style="display: none; position: fixed; width: 500px; top: 30px; left: 50%; transform: translateX(-50%); background: #006400; color: white; padding: 24px; text-align: left; border-radius: 10px; z-index: 10000;"></div>
+
 
 @section Scripts {
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
