@@ -12,7 +12,7 @@
             background: #fff;
             border-radius: .375rem;
             padding: 1.5rem;
-            border-left: 5px solid #4e73df; /* Primary color */
+            border-left: 5px solid #4e73df;
             display: flex;
             flex-direction: column;
             justify-content: center;
@@ -35,7 +35,7 @@
 
         #chart-container {
             position: relative;
-            height: 250px; /* Zmniejszona wysokość dla lepszego dopasowania */
+            height: 250px;
             width: 100%;
         }
     </style>
@@ -85,6 +85,7 @@
                             <th>Data</th>
                             <th class="text-right">Ilość Rekordów</th>
                             <th class="text-right">Rozmiar (MB)</th>
+                            <th style="width: 5%;">Akcje</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -96,10 +97,15 @@
                             <tr>
                                 <td><input type="checkbox" name="selectedIds" value="@item.ScrapHistoryId" /></td>
                                 <td>@(rowNum1++)</td>
-                                <td>@item.ScrapHistoryId</td>
-                                <td>@item.Date.ToString("yyyy-MM-dd HH:mm:ss")</td>
+                                <td class="scrap-history-id">@item.ScrapHistoryId</td>
+                                <td class="scrap-history-date">@item.Date.ToString("yyyy-MM-dd HH:mm:ss")</td>
                                 <td class="text-right">@item.PriceHistoriesCount.ToString("N0")</td>
                                 <td class="text-right">@item.UsedSpaceMB.ToString("N4")</td>
+                                <td>
+                                    <button type="button" class="btn btn-sm btn-info edit-btn" data-toggle="modal" data-target="#editModal" data-id="@item.ScrapHistoryId" data-date="@item.Date.ToString("yyyy-MM-ddTHH:mm:ss")">
+                                        Edytuj
+                                    </button>
+                                </td>
                             </tr>
                         }
                     </tbody>
@@ -111,7 +117,6 @@
             }
             else
             {
-
                 <p class="text-center mt-3">Brak danych.</p>
             }
         </form>
@@ -160,7 +165,6 @@
             }
             else
             {
-
                 <p class="text-center mt-3">Brak danych.</p>
             }
         </form>
@@ -209,18 +213,46 @@
             }
             else
             {
-
                 <p class="text-center mt-3">Brak danych.</p>
             }
         </form>
     </div>
 </div>
 
+@* Modal edycji wbudowany bezpośrednio w plik *@
+<div class="modal fade" id="editModal" tabindex="-1" role="dialog" aria-labelledby="editModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editModalLabel">Edytuj Historię Scrapowania</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <form id="editForm" asp-action="EditScrapHistory" method="post">
+                <div class="modal-body">
+                    <input type="hidden" id="editId" name="Id" />
+                    <input type="hidden" name="StoreId" value="@Model.StoreId" />
+                    <div class="form-group">
+                        <label for="editDate">Data:</label>
+                        <input type="datetime-local" class="form-control" id="editDate" name="Date" required />
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Anuluj</button>
+                    <button type="submit" class="btn btn-primary">Zapisz Zmiany</button>
+                </div>
+                @Html.AntiForgeryToken()
+            </form>
+        </div>
+    </div>
+</div>
 
 @section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
+
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
-        // Funkcja do przełączania wszystkich checkboxów
         function toggleAll(source, name) {
             const form = source.closest('form');
             const checkboxes = form.querySelectorAll('input[type="checkbox"][name="' + name + '"]');
@@ -229,7 +261,6 @@
             }
         }
 
-        // Inicjalizacja wykresu po załadowaniu strony
         document.addEventListener("DOMContentLoaded", function () {
             const storeSize = parseFloat('@Model.TotalStoreHistorySizeMB.ToString(CultureInfo.InvariantCulture)');
             const allegroSize = parseFloat('@Model.TotalAllegroHistorySizeMB.ToString(CultureInfo.InvariantCulture)');
@@ -262,7 +293,7 @@
                         maintainAspectRatio: false,
                         plugins: {
                             legend: {
-                                position: 'bottom', // Legenda na dole
+                                position: 'bottom',
                             },
                             tooltip: {
                                 callbacks: {
@@ -280,6 +311,62 @@
                 const container = document.getElementById('chart-container');
                 container.innerHTML = '<div class="d-flex align-items-center justify-content-center h-100"><p class="text-muted">Brak danych do narysowania wykresu.</p></div>';
             }
+        });
+
+        // Skrypt do obsługi modalu bez AJAX-a
+        $(document).ready(function () {
+            // Obsługa kliknięcia przycisku "Edytuj"
+            $('.edit-btn').on('click', function () {
+                const scrapHistoryId = $(this).data('id');
+                const scrapHistoryDate = $(this).data('date');
+
+                // Konwersja formatu daty na YYYY-MM-DDTHH:mm
+                // Ten kod obcina sekundy, aby pasowały do inputu datetime-local
+                const formattedDate = scrapHistoryDate.substring(0, 16);
+
+                // Ustaw wartości pól w modal'u
+                $('#editId').val(scrapHistoryId);
+                $('#editDate').val(formattedDate);
+
+                // Pokaż modal
+                $('#editModal').modal('show');
+            });
+
+            // Obsługa wysyłania formularza w modal'u
+            $('#editModal').on('submit', '#editForm', function (e) {
+                e.preventDefault();
+
+                const form = $(this);
+                const token = $('input[name="__RequestVerificationToken"]', form).val();
+
+                $.ajax({
+                    url: form.attr('action'),
+                    method: 'POST',
+                    data: form.serialize(),
+                    headers: {
+                        'RequestVerificationToken': token
+                    },
+                    success: function (response) {
+                        if (response.success) {
+                            // Znajdź wiersz w tabeli i zaktualizuj datę
+                            const newDateFormatted = response.newDate;
+                            $(`[data-id="${response.id}"]`).closest('tr').find('.scrap-history-date').text(newDateFormatted);
+
+                            // Zamknij modal i wyświetl komunikat
+                            $('#editModal').modal('hide');
+                            alert(response.message);
+
+                            // Opcjonalnie: przeładowanie strony, jeśli chcesz odświeżyć wszystko
+                            // location.reload();
+                        } else {
+                            alert(response.message);
+                        }
+                    },
+                    error: function () {
+                        alert('Wystąpił nieoczekiwany błąd podczas zapisywania zmian.');
+                    }
+                });
+            });
         });
     </script>
 }

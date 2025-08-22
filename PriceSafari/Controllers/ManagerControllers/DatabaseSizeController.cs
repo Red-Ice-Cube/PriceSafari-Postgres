@@ -347,6 +347,53 @@ namespace PriceSafari.Controllers.ManagerControllers
             }
             return result;
         }
+
+
+
+
+        // Akcja GET, która zwraca częściowy widok dla modalu
+        [HttpGet]
+        public async Task<IActionResult> EditScrapHistoryModal(int id, int storeId)
+        {
+            var scrapHistory = await _context.ScrapHistories
+                .Where(sh => sh.Id == id && sh.StoreId == storeId)
+                .Select(sh => new ScrapHistoryEditViewModel
+                {
+                    Id = sh.Id,
+                    Date = sh.Date,
+                    StoreId = sh.StoreId
+                })
+                .FirstOrDefaultAsync();
+
+            if (scrapHistory == null)
+            {
+                return NotFound();
+            }
+
+            return PartialView("_EditScrapHistoryModal", scrapHistory);
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> EditScrapHistory(ScrapHistoryEditViewModel viewModel)
+        {
+            if (ModelState.IsValid)
+            {
+                var scrapHistory = await _context.ScrapHistories.FindAsync(viewModel.Id);
+                if (scrapHistory == null)
+                {
+                    return Json(new { success = false, message = "Record not found." });
+                }
+
+                scrapHistory.Date = viewModel.Date;
+                await _context.SaveChangesAsync();
+
+                return Json(new { success = true, message = "Zmiany zostały zapisane.", newDate = viewModel.Date.ToString("yyyy-MM-dd HH:mm:ss") });
+            }
+
+            return Json(new { success = false, message = "Wystąpił błąd walidacji." });
+        }
+
         #endregion
     }
 
@@ -418,5 +465,15 @@ namespace PriceSafari.Controllers.ManagerControllers
         public int PriceHistoriesCount { get; set; }
         public decimal UsedSpaceMB { get; set; }
     }
+
+    public class ScrapHistoryEditViewModel
+    {
+        public int Id { get; set; }
+        public DateTime Date { get; set; }
+        public int StoreId { get; set; } // Dodaj to pole, aby przekazać ID sklepu po edycji.
+    }
+
     #endregion
+
+
 }
