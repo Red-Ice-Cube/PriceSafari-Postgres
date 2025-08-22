@@ -370,7 +370,7 @@ namespace PriceSafari.Controllers.ManagerControllers
 
         private string GeneratePanelReadyEmailBody(string userName, string loginUrl)
         {
-  
+
             string guidesUrl = "https://pricesafari.pl/Guide";
 
             return $@"
@@ -486,36 +486,25 @@ namespace PriceSafari.Controllers.ManagerControllers
 
             var user = await _context.Users
                 .Include(u => u.AffiliateVerification)
-
                 .FirstOrDefaultAsync(u => u.CodePAR == codePAR);
 
             if (user == null)
                 return NotFound("Nie znaleziono użytkownika.");
 
-            using var transaction = await _context.Database.BeginTransactionAsync();
-            try
-            {
+            var deleteResult = await _userManager.DeleteAsync(user);
 
-                var deleteResult = await _userManager.DeleteAsync(user);
-                if (!deleteResult.Succeeded)
+            if (!deleteResult.Succeeded)
+            {
+                foreach (var err in deleteResult.Errors)
+                    ModelState.AddModelError(string.Empty, err.Description);
+
+                return View("Error", new ErrorViewModel
                 {
-                    foreach (var err in deleteResult.Errors)
-                        ModelState.AddModelError(string.Empty, err.Description);
-
-                    await transaction.RollbackAsync();
-                    return View("Error", new ErrorViewModel
-                    {
-                        RequestId = "Błąd podczas usuwania użytkownika."
-                    });
-                }
-
-                await transaction.CommitAsync();
+                    RequestId = "Błąd podczas usuwania użytkownika."
+                });
             }
-            catch (Exception ex)
-            {
-                await transaction.RollbackAsync();
-                return View("Error", new ErrorViewModel { RequestId = ex.Message });
-            }
+
+            TempData["SuccessMessage"] = "Użytkownik został pomyślnie usunięty.";
 
             return RedirectToAction(nameof(Accounts));
         }
