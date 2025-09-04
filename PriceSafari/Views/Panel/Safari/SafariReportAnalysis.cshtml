@@ -4,7 +4,6 @@
 
     #sortingButtons {
         display: inline-flex;
-        gap: 10px;
         height: 34px;
     }
 
@@ -63,42 +62,43 @@
                     <!-- Classification Filters -->
                     <div class="form-check">
                         <input class="form-check-input colorFilter" type="checkbox" id="prIdealCheckbox" value="prIdeal">
-                        <label class="form-check-label" for="prIdealCheckbox" id="prIdealLabel">Taniej o (<span id="prIdealCount">0</span>)</label>
+                        <label class="form-check-label" for="prIdealCheckbox" id="prIdealLabel">Prd. tańszy o (<span id="prIdealCount">0</span>)</label>
                     </div>
 
                     <div class="form-check">
                         <input class="form-check-input colorFilter" type="checkbox" id="prGrayCheckbox" value="prGray">
-                        <label class="form-check-label" for="prGrayCheckbox" id="prGrayLabel">Podobna cena (<span id="prGrayCount">0</span>)</label>
+                        <label class="form-check-label" for="prGrayCheckbox" id="prGrayLabel">Prd. w zak. ceny (<span id="prGrayCount">0</span>)</label>
                     </div>
 
                     <div class="form-check">
                         <input class="form-check-input colorFilter" type="checkbox" id="prToHighCheckbox" value="prToHigh">
-                        <label class="form-check-label" for="prToHighCheckbox" id="prToHighLabel">Drożej o (<span id="prToHighCount">0</span>)</label>
+                        <label class="form-check-label" for="prToHighCheckbox" id="prToHighLabel">Prd. droższy o (<span id="prToHighCount">0</span>)</label>
                     </div>
 
                     <!-- Threshold Inputs -->
                     <div class="price-range-settings">
                         <div class="color-circle prLower-circle"></div>
+                        <div class="legendBox">Próg c. niższej</div>
+
                         <label for="threshold1"></label>
                         <input type="number" id="threshold1" value="@Model.SetSafariPrice1.ToString(System.Globalization.CultureInfo.InvariantCulture)" step="0.01" min="0.00">
                         <span id="unitLabel1"></span>
                     </div>
                     <div class="price-range-settings">
                         <div class="color-circle prHigher-circle"></div>
+                        <div class="legendBox">Próg c. wyższej</div>
+
                         <label for="threshold2"></label>
                         <input type="number" id="threshold2" value="@Model.SetSafariPrice2.ToString(System.Globalization.CultureInfo.InvariantCulture)" step="0.01" min="0.00">
                         <span id="unitLabel2"></span>
                     </div>
 
-                    <!-- Use Price Difference Checkbox -->
                     <div>
-                        <label>
-                            <input class="diffCheckBox" style="margin-top: 10px;" type="checkbox" id="usePriceDifference"
-                                   @(Model.UsePriceDiffSafari ? "checked" : "") />
-                        </label>
+                        <input class="diffCheckBox" style="margin-top: 10px;" type="checkbox" id="usePriceDifference" />
+
                     </div>
 
-                    <button id="savePriceValues" class="Button-Page-Small" style="margin-top: 2px;" data-store-id="@Model.StoreId">Zapisz</button>
+                    <button id="savePriceValues" class="Button-Page-Small" style="margin-top: 4px;" data-store-id="@Model.StoreId">Przelicz i zapisz</button>
 
                 </div>
 
@@ -156,15 +156,9 @@
                             }
                         }
                     </select>
-
-                    <!-- Report Info -->
-                    <div class="form-check-orders">
-                        <div>
-                            <p><strong>Raport cenowy:</strong> @Model.ReportName</p>
-                            <p><strong>Data utworzenia:</strong> @Model.CreatedDate.ToString("yyyy-MM-dd HH:mm")</p>
-                        </div>
-                    </div>
-
+                    <button type="button" class="Button-Page-Small" data-toggle="modal" data-target="#infoModal">
+                        <i class="fa fa-info-circle"></i>
+                    </button>
                 </div>
 
                 <div id="sortingButtons">
@@ -209,25 +203,25 @@
                                 </div>
 
                                 <div class="price-box-data">
-                                    <div class="color-bar @colorClass" style="margin-right:16px; min-height:110px; max-height:110px;"></div>
+                                    <div class="color-bar @colorClass" style="min-height:110px; max-height:110px;"></div>
 
                                     @if (!string.IsNullOrEmpty(item.MainUrl))
                                     {
                                         <img data-src="@item.MainUrl" alt="@item.ProductName" class="product-image lazy-load" style="width: 110px;
-                                                height: 110px;
-                                                margin-right: 5px;
-                                                margin-left: 5px;
-                                                background-color: rgb(255, 255, 255);
-                                                border: 1px solid rgb(227, 227, 227);
-                                                border-radius: 4px;
-                                                padding: 10px;
-                                                display: block;" />
+                                                        height: 110px;
+                                                        margin-right: 5px;
+                                                        margin-left: 5px;
+                                                        background-color: rgb(255, 255, 255);
+                                                        border: 1px solid rgb(227, 227, 227);
+                                                        border-radius: 4px;
+                                                        padding: 10px;
+                                                        display: block;" />
                                     }
                                     else
                                     {
                                         <img data-src="/images/no-image.png" alt="Brak zdjęcia" class="product-image lazy-load" />
                                     }
-                                    <div class="price-box-column" style="margin-left:8px;">
+                                    <div class="price-box-column">
                                         <div class="price-box-column-text">
                                             <span style="font-weight: 500;">@item.CalculatedPrice.ToString("0.00") PLN</span><br />
                                             @item.StoreName
@@ -291,7 +285,38 @@
         </div>
     </div>
 </div>
-<!-- JavaScript Section -->
+
+<div class="modal fade" id="infoModal" tabindex="-1" role="dialog" aria-labelledby="infoModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content" style="width:auto;">
+            <div class="modal-header">
+                <h5 class="modal-title" id="infoModalLabel">Informacje o raporcie</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Zamknij">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body" style="gap:10px;">
+                <div class="form-check-orders">
+                    <div>
+                        <p><strong>Nazwa raportu:</strong> @Model.ReportName</p>
+                        <p><strong>Data utworzenia:</strong> @Model.CreatedDate.ToString("dd.MM.yyyy HH:mm")</p>
+                        <p><strong>Ilość produktów:</strong> @Model.ProductPrices.Count()</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+@section Scripts {
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.bundle.min.js"></script>
+
+
+
+
+}
 <script>
     document.addEventListener("DOMContentLoaded", function () {
         const lazyLoadImages = document.querySelectorAll('.lazy-load');
@@ -451,11 +476,11 @@
                         } else if (roundedPriceDifference < 0) {
                             const priceDiffFormatted = Math.abs(roundedPriceDifference).toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' PLN';
                             const percentageDiffFormatted = roundedPercentageDifference !== null ? Math.abs(roundedPercentageDifference).toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%' : '';
-                            priceDiffText = `Taniej o: ${priceDiffFormatted} (${percentageDiffFormatted})`;
+                            priceDiffText = `Prd. tańszy o: ${priceDiffFormatted} (${percentageDiffFormatted})`;
                         } else if (roundedPriceDifference > 0) {
                             const priceDiffFormatted = roundedPriceDifference.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' PLN';
                             const percentageDiffFormatted = roundedPercentageDifference !== null ? roundedPercentageDifference.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%' : '';
-                            priceDiffText = `Drożej o: ${priceDiffFormatted} (${percentageDiffFormatted})`;
+                            priceDiffText = `Prd. droższy o: ${priceDiffFormatted} (${percentageDiffFormatted})`;
                         } else {
                             priceDiffText = 'Brak danych';
                         }
@@ -706,9 +731,9 @@
             const usePriceDifference = usePriceDifferenceCheckbox.checked;
             const unit = usePriceDifference ? 'PLN' : '%';
 
-            prIdealLabel.innerHTML = `Taniej o ${thresholdCheaper} ${unit} (<span id="prIdealCount">${prIdealCountSpan.textContent}</span>)`;
-            prGrayLabel.innerHTML = `Podobna cena (<span id="prGrayCount">${prGrayCountSpan.textContent}</span>)`;
-            prToHighLabel.innerHTML = `Drożej o ${thresholdMoreExpensive} ${unit} (<span id="prToHighCount">${prToHighCountSpan.textContent}</span>)`;
+            prIdealLabel.innerHTML = `Prd. tańszy o ${thresholdCheaper} ${unit} (<span id="prIdealCount">${prIdealCountSpan.textContent}</span>)`;
+            prGrayLabel.innerHTML = `Prd. o podobnej cenie (<span id="prGrayCount">${prGrayCountSpan.textContent}</span>)`;
+            prToHighLabel.innerHTML = `Prd. droższy o ${thresholdMoreExpensive} ${unit} (<span id="prToHighCount">${prToHighCountSpan.textContent}</span>)`;
 
             unitLabel1.textContent = unit;
             unitLabel2.textContent = unit;
