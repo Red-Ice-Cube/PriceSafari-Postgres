@@ -19,100 +19,98 @@
 
 
 
-<div class="Vert" data-store-id="uniqueUrls">
-    <div class="Vert-full">
-        <div class="Order-Container-Title">
-            Lista unikalnych URL do scrapowania
-            <div class="bar-List">
-                <div>
-                    <strong>Łącznie URL: </strong><span id="totalUrlCount">@totalUrls</span>
-                </div>
-                <div>
-                    <strong>Łącznie produktów: </strong><span id="totalProductCount">@totalProducts</span>
-                </div>
-                <div>
-                    <strong>Zescrap. URL Ceneo: </strong><span id="scrapedUrlCountCeneo">@scrapedUrlsCountCeneo</span>
-                </div>
-                <div>
-                    <strong>Zescrap. URL Google: </strong><span id="scrapedUrlCountGoogle">@scrapedUrlsCountGoogle</span>
-                </div>
-                <div>
-                    <strong>Łącznie cen Ceneo: </strong><span id="totalPricesCountCeneo">@totalPricesCountCeneo</span>
-                </div>
-                <div>
-                    <strong>Łącznie cen Google: </strong><span id="totalPricesCountGoogle">@totalPricesCountGoogle</span>
-                </div>
-                <div>
-                    <strong>Łącznie odrzuc. Ceneo: </strong><span id="totalRejectedCountCeneo">@totalRejectedCountCeneo</span>
-                </div>
-                <div>
-                    <strong>Łącznie odrzuc. Google: </strong><span id="totalRejectedCountGoogle">@totalRejectedCountGoogle</span>
-                </div>
-                <div id="controlXYCountdown" style="display:none;
+    <div class="Vert" data-store-id="uniqueUrls">
+        <div class="Vert-full" style="height:auto;">
+            <div class="Order-Container-Title">
+                Lista unikalnych URL do scrapowania
+                <div class="bar-List">
+                    <div>
+                        <strong>Łącznie URL: </strong><span id="totalUrlCount">@totalUrls</span>
+                    </div>
+                    <div>
+                        <strong>Łącznie produktów: </strong><span id="totalProductCount">@totalProducts</span>
+                    </div>
+                    <div>
+                        <strong>Zescrap. URL Ceneo: </strong><span id="scrapedUrlCountCeneo">@scrapedUrlsCountCeneo</span>
+                    </div>
+                    <div>
+                        <strong>Zescrap. URL Google: </strong><span id="scrapedUrlCountGoogle">@scrapedUrlsCountGoogle</span>
+                    </div>
+                    <div>
+                        <strong>Łącznie cen Ceneo: </strong><span id="totalPricesCountCeneo">@totalPricesCountCeneo</span>
+                    </div>
+                    <div>
+                        <strong>Łącznie cen Google: </strong><span id="totalPricesCountGoogle">@totalPricesCountGoogle</span>
+                    </div>
+                    <div>
+                        <strong>Łącznie odrzuc. Ceneo: </strong><span id="totalRejectedCountCeneo">@totalRejectedCountCeneo</span>
+                    </div>
+                    <div>
+                        <strong>Łącznie odrzuc. Google: </strong><span id="totalRejectedCountGoogle">@totalRejectedCountGoogle</span>
+                    </div>
+                    <div id="controlXYCountdown" style="display:none;
                      background-color: rgba(0, 128, 0, 0.1);
                      border: 2px solid #008000;
                      color: #008000;
                      font-weight:400;
                      border-radius:4px;
                      padding: 8px;">
-                    Uruchomienie ControlXY za <span id="controlXYCounter">10</span> sekund...
-                </div>
+                        Uruchomienie ControlXY za <span id="controlXYCounter">10</span> sekund...
+                    </div>
 
-                <!-- Nowe, czerwone ostrzeżenie na 8 sekund -->
-                <div id="controlXYWarning" style="display:none;
+                    <!-- Nowe, czerwone ostrzeżenie na 8 sekund -->
+                    <div id="controlXYWarning" style="display:none;
                      background-color: rgba(255, 0, 0, 0.1);
                      border: 2px solid #ff0000;
                      color: #ff0000;
                      font-weight:600;
                      border-radius:4px;
                      padding: 8px;">
-                    UWAGA! Kontrola XY jest włączona!
+                        UWAGA! Kontrola XY jest włączona!
+                    </div>
+
                 </div>
 
             </div>
+            <div class="bar-List">
+                <form asp-action="GroupAndSaveUniqueUrls" asp-controller="PriceScraping" method="post">
+                    <button type="submit" class="Button-Page-Small-b">Scal produkty</button>
+                </form>
+                <form id="captchaScrapingForm" asp-action="StartScrapingWithCaptchaHandling" asp-controller="PriceScraping" method="post">
+                    <button type="submit" class="Button-Page-Small-bl">Rozpocznij scrapowanie Ceneo</button>
+                </form>
+                <form id="googleScrapingForm" asp-action="StartScraping" asp-controller="GoogleMainPriceScraper" method="post">
+                    <button type="submit" class="Button-Page-Small-bl">Rozpocznij scrapowanie Google</button>
+                </form>
 
-        </div>
-        <div class="bar-List">
-            <form asp-action="GroupAndSaveUniqueUrls" asp-controller="PriceScraping" method="post">
-                <button type="submit" class="Button-Page-Small-b">Scal produkty</button>
-            </form>
-            <form id="captchaScrapingForm" asp-action="StartScrapingWithCaptchaHandling" asp-controller="PriceScraping" method="post">
-                <button type="submit" class="Button-Page-Small-bl">Rozpocznij scrapowanie Ceneo</button>
-            </form>
-            <form id="googleScrapingForm" asp-action="StartScraping" asp-controller="GoogleMainPriceScraper" method="post">
-                <button type="submit" class="Button-Page-Small-bl">Rozpocznij scrapowanie Google</button>
-            </form>
+                <button id="stopScrapingCeneoButton" class="Button-Page-Small-y">Przerwij scrapowanie Ceneo</button>
+                <button id="stopScrapingGoogleButton" class="Button-Page-Small-y">Przerwij scrapowanie Google</button>
 
-            <button id="stopScrapingCeneoButton" class="Button-Page-Small-y">Przerwij scrapowanie Ceneo</button>
-            <button id="stopScrapingGoogleButton" class="Button-Page-Small-y">Przerwij scrapowanie Google</button>
-           
 
-            <!-- Reset odrzuconych statusów Ceneo -->
-            <form id="clearRejectedAndScrapedFormCeneo"
-                  asp-controller="PriceScraping"
-                  asp-action="ClearRejectedAndScrapedProductsCeneo"
-                  method="post">
-                <button type="submit" class="Button-Page-Small-o">Resetuj odrzucone Ceneo</button>
-            </form>
+                <!-- Reset odrzuconych statusów Ceneo -->
+                <form id="clearRejectedAndScrapedFormCeneo"
+                      asp-controller="PriceScraping"
+                      asp-action="ClearRejectedAndScrapedProductsCeneo"
+                      method="post">
+                    <button type="submit" class="Button-Page-Small-o">Resetuj odrzucone Ceneo</button>
+                </form>
 
-            <!-- Reset odrzuconych statusów Google -->
-            <form id="clearRejectedAndScrapedFormGoogle"
-                  asp-controller="PriceScraping"
-                  asp-action="ClearRejectedAndScrapedProductsGoogle"
-                  method="post">
-                <button type="submit" class="Button-Page-Small-o">Resetuj odrzucone Google</button>
-            </form>
+                <!-- Reset odrzuconych statusów Google -->
+                <form id="clearRejectedAndScrapedFormGoogle"
+                      asp-controller="PriceScraping"
+                      asp-action="ClearRejectedAndScrapedProductsGoogle"
+                      method="post">
+                    <button type="submit" class="Button-Page-Small-o">Resetuj odrzucone Google</button>
+                </form>
 
-            <form asp-action="ClearCoOfrPriceHistoriesCeneo" asp-controller="PriceScraping" method="post" style="display: inline-block;">
-                <button type="submit" class="Button-Page-Small-r">Usuń dane Ceneo</button>
-            </form>
+                <form asp-action="ClearCoOfrPriceHistoriesCeneo" asp-controller="PriceScraping" method="post" style="display: inline-block;">
+                    <button type="submit" class="Button-Page-Small-r">Usuń dane Ceneo</button>
+                </form>
 
-            <form asp-action="ClearCoOfrPriceHistoriesGoogle" asp-controller="PriceScraping" method="post" style="display: inline-block;">
-                <button type="submit" class="Button-Page-Small-r">Usuń dane Google</button>
-            </form>
-        </div>
-
-        <div class="order-upper-box">
+                <form asp-action="ClearCoOfrPriceHistoriesGoogle" asp-controller="PriceScraping" method="post" style="display: inline-block;">
+                    <button type="submit" class="Button-Page-Small-r">Usuń dane Google</button>
+                </form>
+            </div>
             <div class="chart-box">
                 <div class="chart-container-cam">
                     <div class="progress-bar">
@@ -126,7 +124,12 @@
                 </div>
             </div>
         </div>
-        <div class="Vert-table">
+</div>
+
+
+<div class="Vert">
+    <div class="Vert-full">
+        <div class="Vert-table" style="height:90vh;">
             <table id="initialTable" class="table-orders">
                 <thead>
                     <tr>
@@ -184,10 +187,12 @@
                     }
                 </tbody>
             </table>
-
         </div>
+
     </div>
 </div>
+
+
 
 
 @section Scripts {

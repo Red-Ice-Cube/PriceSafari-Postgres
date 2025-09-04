@@ -2957,7 +2957,6 @@ tr:last-child .sub-line {
     display: flex;
     align-items: center;
     justify-content: flex-start;
-    flex: 1;
     width: 100%;
     gap: 16px;
     font-size: 15px;
