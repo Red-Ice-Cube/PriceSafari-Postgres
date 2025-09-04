@@ -194,9 +194,8 @@ p {
 
 .Page-Box {
     display: flex;
-    padding: 24px;
     width: 100%;
-    min-width: 1490px;
+    min-width: 1560px;
     overflow: clip;
     height: 97vh;
     flex-direction: column;
@@ -207,6 +206,7 @@ p {
     align-self: stretch;
     background: #FFF;
     box-shadow: 0px 4px 4px 0px rgba(0, 0, 0, 0.15);
+    padding: 24px;
 }
 
 .Page-Box-Container {
@@ -215,11 +215,27 @@ p {
     align-items: flex-start;
     gap: 24px;
     flex: 1 0 0;
+
+    box-sizing: border-box;
+    overflow: hidden;
+}
+
+
+
+
+.Horizontal {
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+    gap: 8px;
+    flex: 1;
+    flex-wrap: wrap;
+    height: 100%;
 }
 
 .Page-Box-Category {
     display: flex;
-    min-width: 224px;
+    min-width: 240px;
     flex-direction: column;
     border-right: 1px solid #EDEDED;
     padding: 0px 20px 0px 0px;
@@ -1046,6 +1062,7 @@ img.lazy-load-flex {
     width: 100%;
     overflow-y: auto;
     height: 80vh;
+    margin-top:24px;
 }
 
     .Vert-table::-webkit-scrollbar {
@@ -1520,15 +1537,6 @@ img.lazy-load-flex {
     gap: 16px;
 }
 
-.Horizontal {
-    display: flex;
-    align-self: stretch;
-    justify-content: space-between;
-    width: 100%;
-    gap: 16px;
-    flex: 1;
-    flex-wrap: wrap;
-}
 
 .Horizontal-x {
     display: flex;
@@ -1673,8 +1681,9 @@ img.lazy-load-flex {
     display: flex;
     justify-content: flex-start;
     gap: 6px;
-    align-items: center;
+    align-items: flex-start;
     width: 100%;
+    height:40px;
 }
 
 .product-upper-box {
@@ -4289,7 +4298,7 @@ th small {
 .selection-container {
     display: inline-flex;
     gap: 6px;
-    align-items: center;
+    align-items: flex-start;
 }
 
 .SimpleHorizontal {

@@ -1453,7 +1453,7 @@
             selectProductButton.className = 'select-product-btn';
             selectProductButton.dataset.productId = item.productId;
             selectProductButton.style.pointerEvents = 'auto';
-            selectProductButton.style.marginLeft = '5px';
+        
 
             if (selectedProductIds.has(item.productId.toString())) {
                 selectProductButton.textContent = 'Wybrano';
