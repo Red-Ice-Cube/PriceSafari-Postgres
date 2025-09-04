@@ -313,26 +313,20 @@
             }
         });
 
-        // Skrypt do obsługi modalu bez AJAX-a
         $(document).ready(function () {
-            // Obsługa kliknięcia przycisku "Edytuj"
+
             $('.edit-btn').on('click', function () {
                 const scrapHistoryId = $(this).data('id');
                 const scrapHistoryDate = $(this).data('date');
 
-                // Konwersja formatu daty na YYYY-MM-DDTHH:mm
-                // Ten kod obcina sekundy, aby pasowały do inputu datetime-local
                 const formattedDate = scrapHistoryDate.substring(0, 16);
 
-                // Ustaw wartości pól w modal'u
                 $('#editId').val(scrapHistoryId);
                 $('#editDate').val(formattedDate);
 
-                // Pokaż modal
                 $('#editModal').modal('show');
             });
 
-            // Obsługa wysyłania formularza w modal'u
             $('#editModal').on('submit', '#editForm', function (e) {
                 e.preventDefault();
 
@@ -348,16 +342,13 @@
                     },
                     success: function (response) {
                         if (response.success) {
-                            // Znajdź wiersz w tabeli i zaktualizuj datę
+
                             const newDateFormatted = response.newDate;
                             $(`[data-id="${response.id}"]`).closest('tr').find('.scrap-history-date').text(newDateFormatted);
 
-                            // Zamknij modal i wyświetl komunikat
                             $('#editModal').modal('hide');
                             alert(response.message);
 
-                            // Opcjonalnie: przeładowanie strony, jeśli chcesz odświeżyć wszystko
-                            // location.reload();
                         } else {
                             alert(response.message);
                         }
