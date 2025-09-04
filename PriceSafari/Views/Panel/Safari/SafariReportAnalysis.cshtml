@@ -354,178 +354,172 @@
         }
 
         function updateProducts() {
-            const searchTerm = sanitizeString(searchInput.value.trim());
+        const searchTerm = sanitizeString(searchInput.value.trim());
+        const selectedFlags = Array.from(document.querySelectorAll('.flagFilter:checked')).map(cb => cb.value);
+        const selectedClasses = Array.from(document.querySelectorAll('.colorFilter:checked')).map(cb => cb.value);
+        const noClassificationFilter = selectedClasses.length === 0;
 
-            const selectedFlags = Array.from(document.querySelectorAll('.flagFilter:checked')).map(cb => cb.value);
-            const selectedClasses = Array.from(document.querySelectorAll('.colorFilter:checked')).map(cb => cb.value);
-            const noClassificationFilter = selectedClasses.length === 0;
+        const thresholdCheaper = parseFloat(threshold1Input.value) || 0;
+        const thresholdMoreExpensive = parseFloat(threshold2Input.value) || 0;
+        const usePriceDifference = usePriceDifferenceCheckbox.checked;
 
-            const thresholdCheaper = parseFloat(threshold1Input.value) || 0;
-            const thresholdMoreExpensive = parseFloat(threshold2Input.value) || 0;
-            const usePriceDifference = usePriceDifferenceCheckbox.checked;
+        // ZMIANA: Te zmienne będą teraz przechowywać sumy WSZYSTKICH produktów dla etykiet
+        let totalIdealCount = 0;
+        let totalGrayCount = 0;
+        let totalToHighCount = 0;
 
-            let prIdealCount = 0;
-            let prGrayCount = 0;
-            let prToHighCount = 0;
+        // NOWOŚĆ: Te zmienne będą zliczać tylko WIDOCZNE produkty dla wykresu
+        let chartIdealCount = 0;
+        let chartGrayCount = 0;
+        let chartToHighCount = 0;
 
-            let filteredProducts = [];
+        let filteredProducts = [];
 
-            allProducts.forEach(productBox => {
-                const productNameElement = productBox.querySelector('.price-box-column-name');
-                const productName = productNameElement.textContent.trim();
+        allProducts.forEach(productBox => {
+            const productNameElement = productBox.querySelector('.price-box-column-name');
+            const productName = productNameElement.textContent.trim();
+            const productFlags = productBox.getAttribute('data-flags').split(',');
+            const sanitizedProductName = sanitizeString(productName);
 
-                const productFlags = productBox.getAttribute('data-flags').split(',');
-                const sanitizedProductName = sanitizeString(productName);
+            const matchesSearch = sanitizedProductName.includes(searchTerm);
+            const matchesFlags = selectedFlags.length === 0 || selectedFlags.some(flagId => productFlags.includes(flagId));
 
-                const matchesSearch = sanitizedProductName.includes(searchTerm);
+            const priceDifference = parseFloat(productBox.getAttribute('data-pricedifference')) || 0;
+            const percentageDifferenceAttr = productBox.getAttribute('data-percdifference');
+            let percentageDifference = percentageDifferenceAttr !== 'null' ? parseFloat(percentageDifferenceAttr) : null;
+            let differenceValue = usePriceDifference ? priceDifference : (percentageDifference !== null ? percentageDifference : 0);
+            differenceValue = parseFloat(differenceValue.toFixed(2));
+            let colorClass = 'prGray';
 
-                const matchesFlags = selectedFlags.length === 0 || selectedFlags.some(flagId => productFlags.includes(flagId));
+            if (differenceValue <= -thresholdCheaper) {
+                colorClass = 'prIdeal';
+                totalIdealCount++; // Zliczaj zawsze do sumy ogólnej
+            } else if (differenceValue >= thresholdMoreExpensive) {
+                colorClass = 'prToHigh';
+                totalToHighCount++; // Zliczaj zawsze do sumy ogólnej
+            } else {
+                colorClass = 'prGray';
+                totalGrayCount++; // Zliczaj zawsze do sumy ogólnej
+            }
 
+            productBox.classList.remove('prToHigh', 'prIdeal', 'prGray');
+            productBox.classList.add(colorClass);
+            productBox.setAttribute('data-colorclass', colorClass);
+
+            const priceDiffDisplay = productBox.querySelector('.price-box-column-action');
+            if (priceDiffDisplay) {
+                const epsilon = 0.005;
                 const priceDifference = parseFloat(productBox.getAttribute('data-pricedifference')) || 0;
-                const percentageDifferenceAttr = productBox.getAttribute('data-percdifference');
                 let percentageDifference = percentageDifferenceAttr !== 'null' ? parseFloat(percentageDifferenceAttr) : null;
-                let differenceValue = usePriceDifference ? priceDifference : (percentageDifference !== null ? percentageDifference : 0);
-                differenceValue = parseFloat(differenceValue.toFixed(2));
-                let colorClass = 'prGray';
-
-                if (differenceValue <= -thresholdCheaper) {
-                    colorClass = 'prIdeal';
-                    prIdealCount++;
-                } else if (differenceValue >= thresholdMoreExpensive) {
-                    colorClass = 'prToHigh';
-                    prToHighCount++;
-                } else {
-                    colorClass = 'prGray';
-                    prGrayCount++;
-                }
-
-                productBox.classList.remove('prToHigh', 'prIdeal', 'prGray');
-                productBox.classList.add(colorClass);
-                productBox.setAttribute('data-colorclass', colorClass);
-
-                const priceDiffDisplay = productBox.querySelector('.price-box-column-action');
-                if (priceDiffDisplay) {
-                    const epsilon = 0.005;
-
-                    const priceDifference = parseFloat(productBox.getAttribute('data-pricedifference')) || 0;
-                    const percentageDifferenceAttr = productBox.getAttribute('data-percdifference');
-                    let percentageDifference = percentageDifferenceAttr !== 'null' ? parseFloat(percentageDifferenceAttr) : null;
-
-                    const myPriceAttr = productBox.getAttribute('data-ourcalculatedprice');
-                    const myPrice = myPriceAttr !== null && myPriceAttr !== 'null' ? parseFloat(myPriceAttr) : null;
-
-                    const marginPriceAttr = productBox.getAttribute('data-marginprice');
-                    const marginPrice = marginPriceAttr !== null && marginPriceAttr !== 'null' ? parseFloat(marginPriceAttr) : null;
-
-                    let marginAmount = null;
-                    let marginPercentage = null;
-
-                    if (marginPrice != null && myPrice != null) {
-                        marginAmount = myPrice - marginPrice;
-                        if (marginPrice !== 0) {
-                            marginPercentage = (marginAmount / marginPrice) * 100;
-                        } else {
-                            marginPercentage = null;
-                        }
-                    }
-
-                    let marginSign = '';
-                    let marginClass = 'priceBox-diff-margin';
-
-                    if (marginAmount != null) {
-                        if (marginAmount >= 0) {
-                            marginSign = '+';
-                            marginClass = 'priceBox-diff-margin';
-                        } else {
-                            marginSign = '-';
-                            marginClass = 'priceBox-diff-margin-minus';
-                        }
-                    }
-
-                    let marginInfoHtml = '';
-                    if (marginPrice != null) {
-                        const formattedMarginPrice = marginPrice.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' PLN';
-
-                        if (myPrice != null) {
-                            const formattedMarginAmount = marginSign + Math.abs(marginAmount).toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' PLN';
-                            const formattedMarginPercentage = '(' + marginSign + Math.abs(marginPercentage).toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%)';
-
-                            marginInfoHtml =
-                                '<div class="' + marginClass + '">' +
-                                '<p>Cena zakupu: ' + formattedMarginPrice + '</p>' +
-                                '<p>Marża: ' + formattedMarginAmount + ' ' + formattedMarginPercentage + '</p>' +
-                                '</div>';
-                        } else {
-                            marginInfoHtml =
-                                '<div class="' + marginClass + '">' +
-                                '<p>Cena zakupu: ' + formattedMarginPrice + '</p>' +
-                                '</div>';
-                        }
-                    }
-
-                    let priceDiffText = '';
-
-                    if (myPrice === null || myPrice === 0) {
-                        priceDiffText = 'Brak naszej ceny';
+                const myPriceAttr = productBox.getAttribute('data-ourcalculatedprice');
+                const myPrice = myPriceAttr !== null && myPriceAttr !== 'null' ? parseFloat(myPriceAttr) : null;
+                const marginPriceAttr = productBox.getAttribute('data-marginprice');
+                const marginPrice = marginPriceAttr !== null && marginPriceAttr !== 'null' ? parseFloat(marginPriceAttr) : null;
+                let marginAmount = null;
+                let marginPercentage = null;
+                if (marginPrice != null && myPrice != null) {
+                    marginAmount = myPrice - marginPrice;
+                    if (marginPrice !== 0) {
+                        marginPercentage = (marginAmount / marginPrice) * 100;
                     } else {
-                        const roundedPriceDifference = parseFloat(priceDifference.toFixed(2));
-                        const roundedPercentageDifference = percentageDifference !== null ? parseFloat(percentageDifference.toFixed(2)) : null;
-
-                        if (Math.abs(roundedPriceDifference) < epsilon) {
-                            priceDiffText = 'Cena taka sama';
-                        } else if (roundedPriceDifference < 0) {
-                            const priceDiffFormatted = Math.abs(roundedPriceDifference).toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' PLN';
-                            const percentageDiffFormatted = roundedPercentageDifference !== null ? Math.abs(roundedPercentageDifference).toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%' : '';
-                            priceDiffText = `Prd. tańszy o: ${priceDiffFormatted} (${percentageDiffFormatted})`;
-                        } else if (roundedPriceDifference > 0) {
-                            const priceDiffFormatted = roundedPriceDifference.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' PLN';
-                            const percentageDiffFormatted = roundedPercentageDifference !== null ? roundedPercentageDifference.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%' : '';
-                            priceDiffText = `Prd. droższy o: ${priceDiffFormatted} (${percentageDiffFormatted})`;
-                        } else {
-                            priceDiffText = 'Brak danych';
-                        }
+                        marginPercentage = null;
                     }
-
-                    priceDiffDisplay.innerHTML = marginInfoHtml + '<div class="priceBox-diff ' + colorClass + '">' + priceDiffText + '</div>';
                 }
-
-                const matchesClassification = noClassificationFilter || selectedClasses.includes(colorClass);
-
-                if (matchesSearch && matchesFlags && matchesClassification) {
-                    productBox.style.display = 'block';
-                    filteredProducts.push({
-                        productBox: productBox,
-                        productNameElement: productNameElement,
-                        exactMatch: sanitizedProductName === searchTerm,
-                        matchIndex: sanitizedProductName.indexOf(searchTerm)
-                    });
+                let marginSign = '';
+                let marginClass = 'priceBox-diff-margin';
+                if (marginAmount != null) {
+                    if (marginAmount >= 0) {
+                        marginSign = '+';
+                        marginClass = 'priceBox-diff-margin';
+                    } else {
+                        marginSign = '-';
+                        marginClass = 'priceBox-diff-margin-minus';
+                    }
+                }
+                let marginInfoHtml = '';
+                if (marginPrice != null) {
+                    const formattedMarginPrice = marginPrice.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' PLN';
+                    if (myPrice != null) {
+                        const formattedMarginAmount = marginSign + Math.abs(marginAmount).toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' PLN';
+                        const formattedMarginPercentage = '(' + marginSign + Math.abs(marginPercentage).toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%)';
+                        marginInfoHtml =
+                            '<div class="' + marginClass + '">' +
+                            '<p>Cena zakupu: ' + formattedMarginPrice + '</p>' +
+                            '<p>Marża: ' + formattedMarginAmount + ' ' + formattedMarginPercentage + '</p>' +
+                            '</div>';
+                    } else {
+                        marginInfoHtml =
+                            '<div class="' + marginClass + '">' +
+                            '<p>Cena zakupu: ' + formattedMarginPrice + '</p>' +
+                            '</div>';
+                    }
+                }
+                let priceDiffText = '';
+                if (myPrice === null || myPrice === 0) {
+                    priceDiffText = 'Brak naszej ceny';
                 } else {
-                    productBox.style.display = 'none';
+                    const roundedPriceDifference = parseFloat(priceDifference.toFixed(2));
+                    const roundedPercentageDifference = percentageDifference !== null ? parseFloat(percentageDifference.toFixed(2)) : null;
+                    if (Math.abs(roundedPriceDifference) < epsilon) {
+                        priceDiffText = 'Cena taka sama';
+                    } else if (roundedPriceDifference < 0) {
+                        const priceDiffFormatted = Math.abs(roundedPriceDifference).toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' PLN';
+                        const percentageDiffFormatted = roundedPercentageDifference !== null ? Math.abs(roundedPercentageDifference).toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%' : '';
+                        priceDiffText = `Prd. tańszy o: ${priceDiffFormatted} (${percentageDiffFormatted})`;
+                    } else if (roundedPriceDifference > 0) {
+                        const priceDiffFormatted = roundedPriceDifference.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' PLN';
+                        const percentageDiffFormatted = roundedPercentageDifference !== null ? roundedPercentageDifference.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%' : '';
+                        priceDiffText = `Prd. droższy o: ${priceDiffFormatted} (${percentageDiffFormatted})`;
+                    } else {
+                        priceDiffText = 'Brak danych';
+                    }
                 }
-            });
+                priceDiffDisplay.innerHTML = marginInfoHtml + '<div class="priceBox-diff ' + colorClass + '">' + priceDiffText + '</div>';
+            }
 
-            filteredProducts.sort((a, b) => {
-                if (a.exactMatch && !b.exactMatch) return -1;
-                if (!a.exactMatch && b.exactMatch) return 1;
-                return a.matchIndex - b.matchIndex;
-            });
+            const matchesClassification = noClassificationFilter || selectedClasses.includes(colorClass);
 
-            filteredProducts.forEach(item => {
-                item.productNameElement.innerHTML = highlightMatches(item.productNameElement.textContent, searchInput.value);
-            });
+            if (matchesSearch && matchesFlags && matchesClassification) {
+                productBox.style.display = 'block';
+                filteredProducts.push({
+                    productBox: productBox,
+                    productNameElement: productNameElement,
+                    exactMatch: sanitizedProductName === searchTerm,
+                    matchIndex: sanitizedProductName.indexOf(searchTerm)
+                });
 
-            prIdealCountSpan.textContent = prIdealCount;
-            prGrayCountSpan.textContent = prGrayCount;
-            prToHighCountSpan.textContent = prToHighCount;
+                // NOWOŚĆ: Zliczaj do wykresu tylko jeśli produkt jest widoczny
+                if (colorClass === 'prIdeal') chartIdealCount++;
+                else if (colorClass === 'prToHigh') chartToHighCount++;
+                else chartGrayCount++;
 
-            initializeChart(prIdealCount, prGrayCount, prToHighCount);
+            } else {
+                productBox.style.display = 'none';
+            }
+        });
 
-            updateClassificationLabels();
+        filteredProducts.sort((a, b) => {
+            if (a.exactMatch && !b.exactMatch) return -1;
+            if (!a.exactMatch && b.exactMatch) return 1;
+            return a.matchIndex - b.matchIndex;
+        });
 
-            updateFlagCounts();
+        filteredProducts.forEach(item => {
+            item.productNameElement.innerHTML = highlightMatches(item.productNameElement.textContent, searchInput.value);
+        });
 
-            document.getElementById('displayedProductCount').textContent = filteredProducts.length;
-        }
+        // ZMIANA: Aktualizuj etykiety używając sum OGÓLNYCH
+        prIdealCountSpan.textContent = totalIdealCount;
+        prGrayCountSpan.textContent = totalGrayCount;
+        prToHighCountSpan.textContent = totalToHighCount;
+
+        // ZMIANA: Inicjalizuj wykres używając sum tylko z PRZEFILTROWANYCH produktów
+        initializeChart(chartIdealCount, chartGrayCount, chartToHighCount);
+
+        updateClassificationLabels();
+        updateFlagCounts();
+        document.getElementById('displayedProductCount').textContent = filteredProducts.length;
+    }
 
     let sortingState = {
         sortName: null,
