@@ -12,5 +12,7 @@
 
         public bool IsCeneoSubmitted { get; set; }
         public bool IsGoogleSubmitted { get; set; }
+        public int? AdminMessageId { get; set; }
+        public string AdminMessageContent { get; set; }
     }
 }

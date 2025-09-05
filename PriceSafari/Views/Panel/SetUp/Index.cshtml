@@ -47,7 +47,6 @@
         font-weight: 400;
     }
 
-
     .header-title {
         margin: 0;
         color: #4B4B4B;
@@ -312,6 +311,50 @@
             color: #6c757d;
             margin-bottom: 0;
         }
+
+    .admin-message-box {
+        background-color: #F8F9FA;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        transition: opacity 0.5s ease-out, transform 0.5s ease-out;
+    }
+
+        .admin-message-box.hiding {
+            opacity: 0;
+            transform: translateY(-20px);
+        }
+
+    .admin-message-header {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        margin-bottom: 1rem;
+    }
+
+        .admin-message-header i {
+            font-size: 1.8rem;
+            color: #222222;
+        }
+
+        .admin-message-header h4 {
+            margin: 0;
+            font-weight: 600;
+            color: #333;
+        }
+
+    .admin-message-content {
+        padding-left: 3.0rem;
+        line-height: 1.6;
+    }
+
+    .admin-message-footer {
+        padding-left: 3.0rem;
+        margin-top: 1.5rem;
+    }
+
 </style>
 <div class="Vert">
     <div class="Date">
@@ -322,6 +365,24 @@
 
 <div class="Vert">
     <div class="Vert-fluid">
+
+        @if (Model.AdminMessageId.HasValue)
+        {
+            <div class="admin-message-box" id="admin-message-box">
+                <div class="admin-message-header">
+                    <i class="fas fa-info-circle"></i>
+                    <h4>Ważna wiadomość od administratora</h4>
+                </div>
+                <div class="admin-message-content">
+                    @Html.Raw(Model.AdminMessageContent)
+                </div>
+                <div class="admin-message-footer">
+                    <button class="Button-Page-Small-bl" id="mark-as-read-btn" data-message-id="@Model.AdminMessageId">
+                        Oznacz jako przeczytaną
+                    </button>
+                </div>
+            </div>
+        }
         <div class="row g-4">
             <div class="col-12">
 
@@ -875,6 +936,43 @@
 
             setupFormListener('ceneo-form');
             setupFormListener('google-form');
+        });
+    </script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const markAsReadBtn = document.getElementById('mark-as-read-btn');
+
+            if (markAsReadBtn) {
+                markAsReadBtn.addEventListener('click', function () {
+                    const messageId = parseInt(this.dataset.messageId, 10);
+                    const messageBox = document.getElementById('admin-message-box');
+                    const antiForgeryToken = document.querySelector('input[name="__RequestVerificationToken"]').value;
+
+                    fetch('@Url.Action("MarkMessageAsRead", "SetUp")', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'RequestVerificationToken': antiForgeryToken
+                        },
+                        body: JSON.stringify({ messageId: messageId })
+                    })
+                    .then(response => {
+                        if (response.ok) {
+
+                            messageBox.classList.add('hiding');
+                            setTimeout(() => {
+                                messageBox.style.display = 'none';
+                            }, 500);
+                        } else {
+                            alert('Wystąpił błąd. Spróbuj odświeżyć stronę.');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Błąd:', error);
+                        alert('Wystąpił błąd sieciowy. Spróbuj ponownie.');
+                    });
+                });
+            }
         });
     </script>
 }

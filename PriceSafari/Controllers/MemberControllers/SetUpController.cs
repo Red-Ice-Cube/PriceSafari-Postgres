@@ -1,6 +1,8 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using PriceSafari.Data;
 using PriceSafari.Models;
 using PriceSafari.Models.ViewModels;
 using PriceSafari.ViewModels;
@@ -15,18 +17,27 @@ namespace PriceSafari.Controllers
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly UserManager<PriceSafariUser> _userManager;
         private readonly ILogger<SetUpController> _logger;
+        private readonly PriceSafariContext _context; // <-- DODAJ TO POLE
 
-        public SetUpController(UserManager<PriceSafariUser> userManager, IHttpClientFactory httpClientFactory, ILogger<SetUpController> logger)
+        public SetUpController(
+            UserManager<PriceSafariUser> userManager,
+            IHttpClientFactory httpClientFactory,
+            ILogger<SetUpController> logger,
+            PriceSafariContext context) // <-- DODAJ W KONSTRUKTORZE
         {
             _httpClientFactory = httpClientFactory;
             _userManager = userManager;
             _logger = logger;
+            _context = context; // <-- ZAINICJALIZUJ POLE
         }
 
         public async Task<IActionResult> Index()
         {
             var user = await _userManager.GetUserAsync(User);
             if (user == null) return Challenge();
+
+            var unreadMessage = await _context.UserMessages
+            .FirstOrDefaultAsync(m => m.UserId == user.Id && !m.IsRead);
 
             var viewModel = new SetUpViewModel
             {
@@ -35,9 +46,10 @@ namespace PriceSafari.Controllers
                 PendingCeneoFeedUrl = user.PendingCeneoFeedUrl,
                 PendingStoreNameGoogle = user.PendingStoreNameGoogle,
                 PendingGoogleFeedUrl = user.PendingGoogleFeedUrl,
-
                 IsCeneoSubmitted = user.CeneoFeedSubmittedOn.HasValue,
-                IsGoogleSubmitted = user.GoogleFeedSubmittedOn.HasValue
+                IsGoogleSubmitted = user.GoogleFeedSubmittedOn.HasValue,
+                AdminMessageId = unreadMessage?.Id,
+                AdminMessageContent = unreadMessage?.Content
             };
 
             return View("~/Views/Panel/SetUp/Index.cshtml", viewModel);
@@ -88,6 +100,35 @@ namespace PriceSafari.Controllers
 
             return Json(new { success = false, message = "Wystąpił błąd podczas zapisu." });
         }
+
+
+        // Dodaj tę nową akcję na końcu klasy SetUpController
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> MarkMessageAsRead([FromBody] MarkAsReadRequest request)
+        {
+            var user = await _userManager.GetUserAsync(User);
+            var message = await _context.UserMessages
+                .FirstOrDefaultAsync(m => m.Id == request.MessageId && m.UserId == user.Id);
+
+            if (message == null)
+            {
+                return NotFound(new { success = false, message = "Nie znaleziono wiadomości." });
+            }
+
+            message.IsRead = true;
+            await _context.SaveChangesAsync();
+
+            return Ok(new { success = true, message = "Wiadomość została oznaczona jako przeczytana." });
+        }
+
+        // Dodaj klasę pomocniczą dla żądania
+        public class MarkAsReadRequest
+        {
+            public int MessageId { get; set; }
+        }
+
 
         [HttpPost]
         [ValidateAntiForgeryToken]
