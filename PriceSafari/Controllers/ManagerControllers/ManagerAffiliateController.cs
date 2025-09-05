@@ -114,8 +114,9 @@ namespace PriceSafari.Controllers.ManagerControllers
             }
 
             var user = await _context.Users
-                .Include(p => p.AffiliateVerification)
-                .FirstOrDefaultAsync(p => p.CodePAR == codePAR);
+              .Include(p => p.AffiliateVerification)
+              .Include(u => u.UserMessages) // <-- DODAJ TO
+              .FirstOrDefaultAsync(p => p.CodePAR == codePAR);
 
             if (user == null)
             {
@@ -124,6 +125,8 @@ namespace PriceSafari.Controllers.ManagerControllers
 
             var roles = await _userManager.GetRolesAsync(user);
             var primaryRole = roles.FirstOrDefault();
+
+            var message = user.UserMessages.FirstOrDefault();
 
             var managerUserProfileViewModel = new ManagerUserProfileViewModel
             {
@@ -144,13 +147,94 @@ namespace PriceSafari.Controllers.ManagerControllers
                 GoogleStoreName = user.PendingStoreNameGoogle,
                 GoogleFeedUrl = user.PendingGoogleFeedUrl,
                 GoogleFeedSubmittedOn = user.GoogleFeedSubmittedOn,
-
                 Role = primaryRole,
-                PhoneNumber = user.PhoneNumber
+                PhoneNumber = user.PhoneNumber,
+                UserMessageId = message?.Id,
+                UserMessageContent = message?.Content
             };
 
             return View("~/Views/ManagerPanel/Affiliates/UserProfile.cshtml", managerUserProfileViewModel);
         }
+
+
+
+
+
+
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> AddOrUpdateUserMessage([FromBody] UserMessageRequest request)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(new { message = "Nieprawidłowe dane." });
+            }
+
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.CodePAR == request.CodePAR);
+            if (user == null)
+            {
+                return NotFound(new { message = "Nie znaleziono użytkownika." });
+            }
+
+            var message = await _context.UserMessages.FirstOrDefaultAsync(m => m.UserId == user.Id);
+
+            if (message == null) // Dodaj nową wiadomość
+            {
+                message = new UserMessage
+                {
+                    UserId = user.Id,
+                    Content = request.Content,
+                    CreatedAt = DateTime.UtcNow,
+                    IsRead = false
+                };
+                _context.UserMessages.Add(message);
+            }
+            else // Zaktualizuj istniejącą
+            {
+                message.Content = request.Content;
+                message.IsRead = false; // Resetuj status 'przeczytane' po edycji
+                _context.UserMessages.Update(message);
+            }
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "Wiadomość została zapisana.", messageId = message.Id });
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> DeleteUserMessage([FromBody] UserMessageIdRequest request)
+        {
+            var message = await _context.UserMessages.FindAsync(request.MessageId);
+            if (message == null)
+            {
+                return NotFound(new { message = "Nie znaleziono wiadomości." });
+            }
+
+            _context.UserMessages.Remove(message);
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "Wiadomość została usunięta." });
+        }
+
+        // Klasy pomocnicze dla żądań
+        public class UserMessageRequest
+        {
+            public string CodePAR { get; set; }
+            public string Content { get; set; }
+        }
+
+        public class UserMessageIdRequest
+        {
+            public int MessageId { get; set; }
+        }
+
+
+
+
+
+
 
         [HttpPost]
         [ValidateAntiForgeryToken]

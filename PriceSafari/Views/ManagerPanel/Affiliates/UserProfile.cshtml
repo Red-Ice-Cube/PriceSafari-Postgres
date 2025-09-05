@@ -343,12 +343,32 @@
                     </div>
                 </div>
 
+
+
+                <div class="info-card" style="width: 100%;">
+                    <div class="info-card-header">Wiadomość dla Użytkownika</div>
+
+                    <div style="margin-top: 1rem;">
+                        <textarea id="messageEditor">@Html.Raw(Model.UserMessageContent)</textarea>
+                    </div>
+
+                    <div class="actions-container" style="margin-top: 1rem; justify-content: flex-end;">
+                        @if (Model.UserMessageId.HasValue)
+                        {
+                            <button id="deleteMessageBtn" class="btn btn-danger" data-message-id="@Model.UserMessageId">Usuń wiadomość</button>
+                        }
+                        <button id="saveMessageBtn" class="btn btn-primary" data-user-code-par="@Model.UserCode" data-message-id="@Model.UserMessageId">Zapisz wiadomość</button>
+                    </div>
+                    <small id="message-status-text" class="form-text text-muted" style="display:none; margin-top: 5px; text-align: right;"></small>
+                </div>
             </div>
 
         </div>
     </div>
 </div>
 @section Scripts {
+    <script src="https://cdn.tiny.cloud/1/rsom30sn5tjqgz1iq9v5dkrz3lh5neqdcxvhewzzttaolkgh/tinymce/6/tinymce.min.js" referrerpolicy="origin"></script>
+
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             const sendButton = document.getElementById('send-panel-ready-email-btn');
@@ -416,6 +436,99 @@
                     updateButtonState('error', 'Wystąpił błąd. Sprawdź konsolę deweloperską (F12) po szczegóły.');
                 });
             });
+        });
+    </script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            // 1. Inicjalizacja edytora TinyMCE
+            tinymce.init({
+                selector: '#messageEditor',
+                plugins: 'advlist autolink lists link image charmap print preview anchor searchreplace visualblocks code fullscreen insertdatetime media table paste code help wordcount',
+                toolbar: 'undo redo | formatselect | bold italic backcolor | alignleft aligncenter alignright alignjustify | bullist numlist outdent indent | removeformat | help',
+                height: 250
+            });
+
+            // 2. Pobranie elementów DOM i tokena
+            const saveBtn = document.getElementById('saveMessageBtn');
+            const deleteBtn = document.getElementById('deleteMessageBtn');
+            const statusText = document.getElementById('message-status-text');
+            const antiForgeryToken = document.querySelector('input[name="__RequestVerificationToken"]').value;
+
+            // 3. Logika zapisu wiadomości
+            if (saveBtn) {
+                saveBtn.addEventListener('click', function() {
+                    const content = tinymce.get('messageEditor').getContent();
+                    const codePAR = this.dataset.userCodePar;
+
+                    statusText.innerText = 'Zapisywanie...';
+                    statusText.style.display = 'block';
+
+                    fetch('@Url.Action("AddOrUpdateUserMessage", "ManagerAffiliate")', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'RequestVerificationToken': antiForgeryToken
+                        },
+                        body: JSON.stringify({ codePAR: codePAR, content: content })
+                    })
+                    .then(response => response.json().then(data => ({ status: response.status, body: data })))
+                    .then(({ status, body }) => {
+                        if (status === 200) {
+                            statusText.innerText = body.message;
+                            // Aktualizuj ID wiadomości na przycisku, aby następne kliknięcie było edycją
+                            this.dataset.messageId = body.messageId;
+                            // Jeśli przycisk usuwania nie istniał, odśwież stronę, aby się pojawił
+                             if (!document.getElementById('deleteMessageBtn')) {
+                                location.reload();
+                             }
+                        } else {
+                            statusText.innerText = `Błąd: ${body.message}`;
+                        }
+                    })
+                    .catch(error => {
+                        statusText.innerText = 'Wystąpił błąd sieciowy.';
+                        console.error('Error:', error);
+                    });
+                });
+            }
+
+            // 4. Logika usuwania wiadomości
+            if (deleteBtn) {
+                deleteBtn.addEventListener('click', function() {
+                    if (!confirm('Czy na pewno chcesz usunąć tę wiadomość?')) {
+                        return;
+                    }
+
+                    const messageId = parseInt(this.dataset.messageId, 10);
+                    statusText.innerText = 'Usuwanie...';
+                    statusText.style.display = 'block';
+
+                    fetch('@Url.Action("DeleteUserMessage", "ManagerAffiliate")', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'RequestVerificationToken': antiForgeryToken
+                        },
+                        body: JSON.stringify({ messageId: messageId })
+                    })
+                    .then(response => response.json().then(data => ({ status: response.status, body: data })))
+                    .then(({ status, body }) => {
+                        if (status === 200) {
+                            statusText.innerText = body.message;
+                            tinymce.get('messageEditor').setContent('');
+                            this.style.display = 'none'; // Ukryj przycisk usuwania
+                            saveBtn.dataset.messageId = ''; // Wyczyść ID z przycisku zapisu
+                        } else {
+                            statusText.innerText = `Błąd: ${body.message}`;
+                        }
+                    })
+                     .catch(error => {
+                        statusText.innerText = 'Wystąpił błąd sieciowy.';
+                        console.error('Error:', error);
+                    });
+                });
+            }
         });
     </script>
 }

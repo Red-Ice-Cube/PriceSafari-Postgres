@@ -31,5 +31,8 @@
 
         public string? Role { get; set; }
         public string? PhoneNumber { get; set; }
+
+        public int? UserMessageId { get; set; }
+        public string UserMessageContent { get; set; }
     }
 }

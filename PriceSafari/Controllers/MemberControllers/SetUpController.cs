@@ -89,12 +89,11 @@ namespace PriceSafari.Controllers
             return Json(new { success = false, message = "Wystąpił błąd podczas zapisu." });
         }
 
-
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> FetchXmlFeed([FromBody] FeedRequestModel model)
         {
-            // --- Walidacja URL (bez zmian, ale z lepszymi komunikatami) ---
+
             if (string.IsNullOrEmpty(model.Url) || !Uri.IsWellFormedUriString(model.Url, UriKind.Absolute))
                 return BadRequest("Podany adres URL jest nieprawidłowy. Sprawdź jego format.");
 
@@ -111,13 +110,12 @@ namespace PriceSafari.Controllers
                 var client = _httpClientFactory.CreateClient();
                 client.Timeout = TimeSpan.FromSeconds(120);
                 client.DefaultRequestHeaders.Accept.ParseAdd("application/xml, text/xml, */*");
-                // Ustawienie User-Agent może pomóc ominąć blokady niektórych serwerów
+
                 client.DefaultRequestHeaders.UserAgent.ParseAdd("PriceSafari-Feed-Validator/1.0");
 
                 var request = new HttpRequestMessage(HttpMethod.Get, uri);
                 var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
 
-                // --- NOWA, ROZBUDOWANA SEKCJA OBSŁUGI BŁĘDÓW HTTP ---
                 if (!response.IsSuccessStatusCode)
                 {
                     var statusCode = response.StatusCode;
@@ -125,15 +123,15 @@ namespace PriceSafari.Controllers
 
                     switch (statusCode)
                     {
-                        case System.Net.HttpStatusCode.NotFound: // 404
+                        case System.Net.HttpStatusCode.NotFound:
                             errorMessage = "Nie znaleziono pliku pod podanym adresem URL (błąd 404). Sprawdź, czy link jest poprawny i spróbuj ponownie.";
                             break;
-                        case System.Net.HttpStatusCode.Forbidden: // 403
-                        case System.Net.HttpStatusCode.Unauthorized: // 401
+                        case System.Net.HttpStatusCode.Forbidden:
+                        case System.Net.HttpStatusCode.Unauthorized:
                             errorMessage = "Dostęp do pliku jest zablokowany (błąd 401/403). Feed produktowy nie może być chroniony hasłem. Upewnij się, że jest on publicznie dostępny.";
                             break;
                         default:
-                            if ((int)statusCode >= 500 && (int)statusCode < 600) // Błędy serwera 5xx
+                            if ((int)statusCode >= 500 && (int)statusCode < 600)
                             {
                                 errorMessage = $"Wystąpił błąd na serwerze udostępniającym feed (błąd {(int)statusCode}). Spróbuj ponownie później lub skontaktuj się z administratorem swojego sklepu.";
                             }
@@ -148,9 +146,8 @@ namespace PriceSafari.Controllers
                     return StatusCode((int)statusCode, errorMessage);
                 }
 
-                // --- Sprawdzanie rozmiaru pliku (bez zmian) ---
                 long? contentLength = response.Content.Headers.ContentLength;
-                const long maxFileSize = 50 * 1024 * 1024; // 50 MB
+                const long maxFileSize = 50 * 1024 * 1024;
 
                 _logger.LogInformation("Odpowiedź z {Url}: Status={Status}, Content-Length={Length}",
                     model.Url, response.StatusCode, contentLength.HasValue ? contentLength.Value.ToString() : "nieznany");
@@ -166,13 +163,13 @@ namespace PriceSafari.Controllers
             catch (TaskCanceledException ex) when (ex.InnerException is TimeoutException || ex.CancellationToken.IsCancellationRequested)
             {
                 _logger.LogWarning(ex, "Przekroczono limit czasu (120s) podczas pobierania pliku z {Url}", model.Url);
-                // Zwracamy kod 408 Request Timeout, który jest bardziej adekwatny
+
                 return StatusCode(408, "Serwer źródłowy odpowiada zbyt wolno lub przekroczono limit czasu (2 minuty).");
             }
-            // --- NOWA, BARDZIEJ SZCZEGÓŁOWA OBSŁUGA WYJĄTKÓW SIECIOWYCH ---
+
             catch (HttpRequestException ex)
             {
-                // Ten wyjątek łapie błędy DNS, odmowę połączenia itp.
+
                 _logger.LogWarning(ex, "Błąd sieciowy podczas próby połączenia z {Url}", model.Url);
                 return StatusCode(503, "Nie można połączyć się z podanym adresem URL. Sprawdź, czy adres jest poprawny, czy serwer działa i czy nie ma problemów z siecią (np. DNS).");
             }
@@ -182,7 +179,7 @@ namespace PriceSafari.Controllers
                 return StatusCode(500, "Wystąpił nieoczekiwany wewnętrzny błąd. Spróbuj ponownie później.");
             }
         }
-        // Model zostaje bez zmian
+
         public class FeedRequestModel
         {
             public string Url { get; set; }
