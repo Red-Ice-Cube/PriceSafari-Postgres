@@ -115,7 +115,7 @@ namespace PriceSafari.Controllers.ManagerControllers
 
             var user = await _context.Users
               .Include(p => p.AffiliateVerification)
-              .Include(u => u.UserMessages) // <-- DODAJ TO
+              .Include(u => u.UserMessages)
               .FirstOrDefaultAsync(p => p.CodePAR == codePAR);
 
             if (user == null)
@@ -150,17 +150,13 @@ namespace PriceSafari.Controllers.ManagerControllers
                 Role = primaryRole,
                 PhoneNumber = user.PhoneNumber,
                 UserMessageId = message?.Id,
-                UserMessageContent = message?.Content
+                UserMessageContent = message?.Content,
+                UserMessageCreatedAt = message?.CreatedAt, // <-- Przypisz datę utworzenia
+                UserMessageIsRead = message?.IsRead ?? false
             };
 
             return View("~/Views/ManagerPanel/Affiliates/UserProfile.cshtml", managerUserProfileViewModel);
         }
-
-
-
-
-
-
 
         [HttpPost]
         [ValidateAntiForgeryToken]
@@ -179,7 +175,7 @@ namespace PriceSafari.Controllers.ManagerControllers
 
             var message = await _context.UserMessages.FirstOrDefaultAsync(m => m.UserId == user.Id);
 
-            if (message == null) // Dodaj nową wiadomość
+            if (message == null)
             {
                 message = new UserMessage
                 {
@@ -190,10 +186,10 @@ namespace PriceSafari.Controllers.ManagerControllers
                 };
                 _context.UserMessages.Add(message);
             }
-            else // Zaktualizuj istniejącą
+            else
             {
                 message.Content = request.Content;
-                message.IsRead = false; // Resetuj status 'przeczytane' po edycji
+                message.IsRead = false;
                 _context.UserMessages.Update(message);
             }
 
@@ -218,7 +214,6 @@ namespace PriceSafari.Controllers.ManagerControllers
             return Ok(new { message = "Wiadomość została usunięta." });
         }
 
-        // Klasy pomocnicze dla żądań
         public class UserMessageRequest
         {
             public string CodePAR { get; set; }
@@ -229,12 +224,6 @@ namespace PriceSafari.Controllers.ManagerControllers
         {
             public int MessageId { get; set; }
         }
-
-
-
-
-
-
 
         [HttpPost]
         [ValidateAntiForgeryToken]

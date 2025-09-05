@@ -34,5 +34,7 @@
 
         public int? UserMessageId { get; set; }
         public string UserMessageContent { get; set; }
+        public DateTime? UserMessageCreatedAt { get; set; }
+        public bool UserMessageIsRead { get; set; }
     }
 }

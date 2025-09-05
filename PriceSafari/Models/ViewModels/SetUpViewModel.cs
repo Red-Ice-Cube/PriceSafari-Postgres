@@ -14,5 +14,6 @@
         public bool IsGoogleSubmitted { get; set; }
         public int? AdminMessageId { get; set; }
         public string AdminMessageContent { get; set; }
+        public bool IsAdminMessageRead { get; set; }
     }
 }

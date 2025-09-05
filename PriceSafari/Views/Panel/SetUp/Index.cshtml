@@ -336,13 +336,13 @@
 
         .admin-message-header i {
             font-size: 1.8rem;
-            color: #222222;
+            color: #B4B4B4;
         }
 
         .admin-message-header h4 {
             margin: 0;
             font-weight: 600;
-            color: #333;
+            color: #212529;
         }
 
     .admin-message-content {
@@ -353,6 +353,11 @@
     .admin-message-footer {
         padding-left: 3.0rem;
         margin-top: 1.5rem;
+    }
+
+    a {
+        color: #41C7C7;
+        text-decoration: underline;
     }
 
 </style>
@@ -377,9 +382,18 @@
                     @Html.Raw(Model.AdminMessageContent)
                 </div>
                 <div class="admin-message-footer">
-                    <button class="Button-Page-Small-bl" id="mark-as-read-btn" data-message-id="@Model.AdminMessageId">
-                        Oznacz jako przeczytaną
-                    </button>
+                    @if (Model.IsAdminMessageRead)
+                    {
+                        <button class="Button-Page-Small-bl" id="mark-as-read-btn" data-message-id="@Model.AdminMessageId" disabled style="background-color: #28a745; border-color: #28a745; cursor: default;">
+                            <i class="fas fa-check"></i> Dziękujemy za informację
+                        </button>
+                    }
+                    else
+                    {
+                        <button class="Button-Page-Small-bl" id="mark-as-read-btn" data-message-id="@Model.AdminMessageId">
+                            Oznacz jako przeczytaną
+                        </button>
+                    }
                 </div>
             </div>
         }
@@ -942,11 +956,15 @@
         document.addEventListener('DOMContentLoaded', function () {
             const markAsReadBtn = document.getElementById('mark-as-read-btn');
 
-            if (markAsReadBtn) {
+            if (markAsReadBtn && !markAsReadBtn.disabled) { // Sprawdzamy, czy przycisk nie jest już wyłączony
                 markAsReadBtn.addEventListener('click', function () {
-                    const messageId = parseInt(this.dataset.messageId, 10);
-                    const messageBox = document.getElementById('admin-message-box');
+                    const button = this; // Zapisujemy referencję do przycisku
+                    const messageId = parseInt(button.dataset.messageId, 10);
                     const antiForgeryToken = document.querySelector('input[name="__RequestVerificationToken"]').value;
+
+                    // Zablokuj przycisk na czas wysyłania, aby uniknąć podwójnych kliknięć
+                    button.disabled = true;
+                    button.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Zapisywanie...';
 
                     fetch('@Url.Action("MarkMessageAsRead", "SetUp")', {
                         method: 'POST',
@@ -958,18 +976,24 @@
                     })
                     .then(response => {
                         if (response.ok) {
-
-                            messageBox.classList.add('hiding');
-                            setTimeout(() => {
-                                messageBox.style.display = 'none';
-                            }, 500);
+                            // Zmień styl i tekst przycisku po udanej operacji
+                            button.style.backgroundColor = '#28a745'; // Zielony kolor
+                            button.style.borderColor = '#28a745';
+                            button.style.cursor = 'default';
+                            button.innerHTML = '<i class="fas fa-check"></i> Dziękujemy za informację';
+                            // Atrybut disabled pozostaje true
                         } else {
+                            // W razie błędu odblokuj przycisk i przywróć tekst
                             alert('Wystąpił błąd. Spróbuj odświeżyć stronę.');
+                            button.disabled = false;
+                            button.textContent = 'Oznacz jako przeczytaną';
                         }
                     })
                     .catch(error => {
                         console.error('Błąd:', error);
                         alert('Wystąpił błąd sieciowy. Spróbuj ponownie.');
+                        button.disabled = false;
+                        button.textContent = 'Oznacz jako przeczytaną';
                     });
                 });
             }

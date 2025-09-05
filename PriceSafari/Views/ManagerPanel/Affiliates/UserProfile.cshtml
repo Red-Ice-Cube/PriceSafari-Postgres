@@ -343,10 +343,31 @@
                     </div>
                 </div>
 
-
-
-                <div class="info-card" style="width: 100%;">
+                <div class="info-card" style="width: 560px;">
                     <div class="info-card-header">Wiadomość dla Użytkownika</div>
+
+                    @if (Model.UserMessageId.HasValue)
+                    {
+                        <div style="padding-bottom: 1rem; border-bottom: 1px solid #e9ecef; margin-bottom: 1rem;">
+                            <div class="info-line" style="margin-bottom: 0.5rem;">
+                                <div class="info-line-icon"><i class="fas fa-calendar-alt"></i></div>
+                                <strong>Data utworzenia:</strong>
+                                <span>@Model.UserMessageCreatedAt?.ToString("g")</span>
+                            </div>
+                            <div class="info-line mb-0">
+                                <div class="info-line-icon"><i class="fas fa-eye"></i></div>
+                                <strong>Status przeczytania:</strong>
+                                @if (Model.UserMessageIsRead)
+                                {
+                                    <span class="status-badge status-active">Przeczytana</span>
+                                }
+                                else
+                                {
+                                    <span class="status-badge status-pending">Oczekuje</span>
+                                }
+                            </div>
+                        </div>
+                    }
 
                     <div style="margin-top: 1rem;">
                         <textarea id="messageEditor">@Html.Raw(Model.UserMessageContent)</textarea>
@@ -441,21 +462,19 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', function () {
-            // 1. Inicjalizacja edytora TinyMCE
+
             tinymce.init({
                 selector: '#messageEditor',
                 plugins: 'advlist autolink lists link image charmap print preview anchor searchreplace visualblocks code fullscreen insertdatetime media table paste code help wordcount',
                 toolbar: 'undo redo | formatselect | bold italic backcolor | alignleft aligncenter alignright alignjustify | bullist numlist outdent indent | removeformat | help',
-                height: 250
+                height: 590
             });
 
-            // 2. Pobranie elementów DOM i tokena
             const saveBtn = document.getElementById('saveMessageBtn');
             const deleteBtn = document.getElementById('deleteMessageBtn');
             const statusText = document.getElementById('message-status-text');
             const antiForgeryToken = document.querySelector('input[name="__RequestVerificationToken"]').value;
 
-            // 3. Logika zapisu wiadomości
             if (saveBtn) {
                 saveBtn.addEventListener('click', function() {
                     const content = tinymce.get('messageEditor').getContent();
@@ -476,9 +495,9 @@
                     .then(({ status, body }) => {
                         if (status === 200) {
                             statusText.innerText = body.message;
-                            // Aktualizuj ID wiadomości na przycisku, aby następne kliknięcie było edycją
+
                             this.dataset.messageId = body.messageId;
-                            // Jeśli przycisk usuwania nie istniał, odśwież stronę, aby się pojawił
+
                              if (!document.getElementById('deleteMessageBtn')) {
                                 location.reload();
                              }
@@ -493,7 +512,6 @@
                 });
             }
 
-            // 4. Logika usuwania wiadomości
             if (deleteBtn) {
                 deleteBtn.addEventListener('click', function() {
                     if (!confirm('Czy na pewno chcesz usunąć tę wiadomość?')) {
@@ -517,8 +535,8 @@
                         if (status === 200) {
                             statusText.innerText = body.message;
                             tinymce.get('messageEditor').setContent('');
-                            this.style.display = 'none'; // Ukryj przycisk usuwania
-                            saveBtn.dataset.messageId = ''; // Wyczyść ID z przycisku zapisu
+                            this.style.display = 'none';
+                            saveBtn.dataset.messageId = '';
                         } else {
                             statusText.innerText = `Błąd: ${body.message}`;
                         }

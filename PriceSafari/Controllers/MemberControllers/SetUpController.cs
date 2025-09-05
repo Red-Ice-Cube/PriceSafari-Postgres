@@ -36,8 +36,11 @@ namespace PriceSafari.Controllers
             var user = await _userManager.GetUserAsync(User);
             if (user == null) return Challenge();
 
-            var unreadMessage = await _context.UserMessages
-            .FirstOrDefaultAsync(m => m.UserId == user.Id && !m.IsRead);
+            var latestMessage = await _context.UserMessages
+                  .Where(m => m.UserId == user.Id)
+                  .OrderByDescending(m => m.CreatedAt)
+                  .FirstOrDefaultAsync();
+
 
             var viewModel = new SetUpViewModel
             {
@@ -48,8 +51,9 @@ namespace PriceSafari.Controllers
                 PendingGoogleFeedUrl = user.PendingGoogleFeedUrl,
                 IsCeneoSubmitted = user.CeneoFeedSubmittedOn.HasValue,
                 IsGoogleSubmitted = user.GoogleFeedSubmittedOn.HasValue,
-                AdminMessageId = unreadMessage?.Id,
-                AdminMessageContent = unreadMessage?.Content
+                AdminMessageId = latestMessage?.Id,
+                AdminMessageContent = latestMessage?.Content,
+                IsAdminMessageRead = latestMessage?.IsRead ?? false
             };
 
             return View("~/Views/Panel/SetUp/Index.cshtml", viewModel);
