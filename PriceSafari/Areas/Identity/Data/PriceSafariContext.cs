@@ -54,6 +54,7 @@ namespace PriceSafari.Data
         public DbSet<AllegroScrapedOffer> AllegroScrapedOffers { get; set; }
         public DbSet<AllegroScrapeHistory> AllegroScrapeHistories { get; set; } 
         public DbSet<AllegroPriceHistory> AllegroPriceHistories { get; set; }
+        public DbSet<UserMessage> UserMessages { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -232,6 +233,12 @@ namespace PriceSafari.Data
                 .WithOne(p => p.AllegroProduct) 
                 .HasForeignKey(p => p.AllegroProductId) 
                 .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<PriceSafariUser>()
+                  .HasMany(u => u.UserMessages)
+                  .WithOne(m => m.User)
+                  .HasForeignKey(m => m.UserId)
+                  .OnDelete(DeleteBehavior.Cascade);
         }
     }
 }

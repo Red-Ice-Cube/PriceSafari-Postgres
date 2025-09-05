@@ -61,4 +61,7 @@ public class PriceSafariUser : IdentityUser
                               .Select(s => s[random.Next(s.Length)]).ToArray();
         return new string(chars);
     }
+
+    public virtual ICollection<UserMessage> UserMessages { get; set; } = new List<UserMessage>();
+
 }
