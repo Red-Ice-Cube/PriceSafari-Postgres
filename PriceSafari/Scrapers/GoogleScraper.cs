@@ -92,8 +92,6 @@ public class GoogleScraper
 
             Console.WriteLine("Strona wyników Google Shopping załadowana pomyślnie.");
 
-            // ZMIANA: Czekamy na jeden z trzech możliwych selektorów.
-            // Używamy Promise.race, aby poczekać na PIERWSZY, który się pojawi.
             try
             {
                 await _page.WaitForSelectorAsync("div.sh-dgr__content, div.MtXiu, div.LrTUQ", new WaitForSelectorOptions { Timeout = 5000 });
@@ -104,7 +102,6 @@ public class GoogleScraper
                 return ScraperResult<List<string>>.Fail("Nie znaleziono boksów produktów.", cids);
             }
 
-            // ZMIANA: Wyszukujemy wszystkie trzy typy kontenerów.
             var productBoxes = await _page.QuerySelectorAllAsync("div.sh-dgr__content, div.MtXiu, div.LrTUQ");
 
             Console.WriteLine($"Znaleziono {productBoxes.Length} boksów produktów na stronie wyników.");
@@ -118,23 +115,20 @@ public class GoogleScraper
             {
                 if (cids.Count >= maxCIDsToExtract) break;
 
-                // ZMIANA: Ulepszona logika ekstrakcji, która działa dla wszystkich 3 wariantów.
                 string cid = await box.EvaluateFunctionAsync<string>(@"
-                element => {
-                   
-                    if (element.dataset.cid) return element.dataset.cid;
-                    
-                  
-                    const linkWithCid = element.querySelector('a[data-cid]');
-                    if (linkWithCid) return linkWithCid.dataset.cid;
-                    
-                   
-                    const linkWithDocid = element.querySelector('a[data-docid]');
-                    if (linkWithDocid) return linkWithDocid.dataset.docid;
-                    
-                    return null;
-                }
-            ");
+                 element => {
+
+                     if (element.dataset.cid) return element.dataset.cid;
+
+                     const linkWithCid = element.querySelector('a[data-cid]');
+                     if (linkWithCid) return linkWithCid.dataset.cid;
+
+                     const linkWithDocid = element.querySelector('a[data-docid]');
+                     if (linkWithDocid) return linkWithDocid.dataset.docid;
+
+                     return null;
+                 }
+                ");
 
                 if (!string.IsNullOrEmpty(cid))
                 {
@@ -185,13 +179,13 @@ public class GoogleScraper
 
     public async Task<ScraperResult<List<string>>> NavigateToProductPageAndExpandOffersAsync(string cid)
     {
-        // ... ta metoda pozostaje bez zmian ...
         Console.WriteLine($"Rozpoczynam zbieranie ofert produktu Google Shopping (CID: {cid})...");
         var allStoreUrls = new List<string>();
         IsCaptchaEncountered = false;
 
         int start = 0;
         const int pageSize = 20;
+        const int maxRetries = 2; // NOWE: Maksymalna liczba ponowień (1 próba + 2 ponowienia)
 
         try
         {
@@ -201,21 +195,68 @@ public class GoogleScraper
             while (true)
             {
                 var url = $"https://www.google.com/shopping/product/{cid}/offers?prds=cid:{cid},cond:1,cs:1,start:{start}&gl=pl&hl=pl";
-                Console.WriteLine($"– Nawigacja do: {url}");
-                await _page.GoToAsync(url, new NavigationOptions
-                {
-                    Timeout = 60000,
-                    WaitUntil = new[] { WaitUntilNavigation.Load }
-                });
 
-                var currentUrl = _page.Url;
-                if (currentUrl.Contains("/sorry/") || currentUrl.Contains("/captcha"))
+                // =============================================================
+                // NOWE: Pętla ponowień z logiką resetu przeglądarki
+                // =============================================================
+                bool navigationSuccess = false;
+                for (int attempt = 0; attempt <= maxRetries; attempt++)
                 {
-                    Console.WriteLine("❌ CAPTCHA napotkana podczas nawigacji.");
-                    IsCaptchaEncountered = true;
-                    return ScraperResult<List<string>>.Captcha(allStoreUrls);
+                    try
+                    {
+                        if (attempt > 0)
+                        {
+                            Console.WriteLine($"Próba {attempt + 1}/{maxRetries + 1}: Nawigacja nie powiodła się. Resetuję przeglądarkę.");
+                            await ResetBrowserAsync();
+                        }
+
+                        Console.WriteLine($"– Nawigacja do: {url} (Próba {attempt + 1})");
+                        await _page.GoToAsync(url, new NavigationOptions
+                        {
+                            Timeout = 60000,
+                            WaitUntil = new[] { WaitUntilNavigation.Load }
+                        });
+
+                        // ZMODYFIKOWANE: Weryfikacja URL po nawigacji
+                        var currentUrl = _page.Url;
+                        if (currentUrl.Contains("/sorry/") || currentUrl.Contains("/captcha"))
+                        {
+                            Console.WriteLine($"❌ CAPTCHA lub strona błędu wykryta na próbie {attempt + 1}.");
+                            IsCaptchaEncountered = true;
+                            // Kontynuuj pętlę, aby zresetować i spróbować ponownie
+                            continue;
+                        }
+
+                        // Sprawdzamy, czy nie zostaliśmy przekierowani na inną stronę (np. główną stronę produktu)
+                        if (!currentUrl.Contains(cid) || !currentUrl.Contains("/offers"))
+                        {
+                            Console.WriteLine($"❌ Wykryto przekierowanie na niespodziewany URL: {currentUrl}. Próbuję ponownie.");
+                            // Kontynuuj pętlę, aby zresetować i spróbować ponownie
+                            continue;
+                        }
+
+                        // Jeśli dotarliśmy tutaj, nawigacja się powiodła
+                        navigationSuccess = true;
+                        break; // Wyjdź z pętli ponowień
+                    }
+                    catch (Exception navEx)
+                    {
+                        Console.WriteLine($"❌ Błąd krytyczny podczas nawigacji (próba {attempt + 1}): {navEx.Message}");
+                        // Pętla będzie kontynuowana, co spowoduje reset w następnej iteracji
+                    }
                 }
 
+                // Jeśli po wszystkich próbach nawigacja się nie powiodła, przerwij scrapowanie tego produktu
+                if (!navigationSuccess)
+                {
+                    Console.WriteLine($"BŁĄD KRYTYCZNY: Nie udało się załadować strony ofert dla CID: {cid} po {maxRetries + 1} próbach.");
+                    return ScraperResult<List<string>>.Fail("Nie udało się załadować strony ofert po wielokrotnych próbach.", allStoreUrls);
+                }
+                // =============================================================
+                // Koniec nowej logiki
+                // =============================================================
+
+                // Istniejąca logika ekstrakcji danych (teraz wykonuje się tylko po udanej nawigacji)
                 var extractResult = await ExtractStoreOffersAsync(_page);
 
                 if (extractResult.CaptchaEncountered)
@@ -229,7 +270,7 @@ public class GoogleScraper
                 allStoreUrls.AddRange(urls);
 
                 if (urls.Count < pageSize)
-                    break;
+                    break; // To była ostatnia strona
 
                 start += pageSize;
             }
@@ -245,7 +286,7 @@ public class GoogleScraper
 
     public async Task<ScraperResult<List<string>>> ExtractStoreOffersAsync(IPage page)
     {
-        // ... ta metoda pozostaje bez zmian ...
+
         var storeUrls = new List<string>();
         IsCaptchaEncountered = false;
 
@@ -310,7 +351,7 @@ public class GoogleScraper
 
     private string ExtractStoreUrlFromGoogleRedirect(string googleRedirectUrl)
     {
-        // ... ta metoda pozostaje bez zmian ...
+
         try
         {
 
@@ -343,7 +384,7 @@ public class GoogleScraper
 
     public string CleanUrlParameters(string url)
     {
-        // ... ta metoda pozostaje bez zmian ...
+
         if (string.IsNullOrEmpty(url))
             return url;
 
@@ -385,7 +426,7 @@ public class GoogleScraper
 
     public async Task CloseBrowserAsync()
     {
-        // ... ta metoda pozostaje bez zmian ...
+
         if (_page != null && !_page.IsClosed)
         {
             try { await _page.CloseAsync(); } catch (Exception ex) { Console.WriteLine($"Błąd podczas zamykania strony: {ex.Message}"); }
@@ -398,14 +439,19 @@ public class GoogleScraper
         _page = null;
         IsCaptchaEncountered = false;
     }
+
+    public async Task ResetBrowserAsync()
+    {
+        Console.WriteLine("Wykonywanie PEŁNEGO RESETU PRZEGLĄDARKI...");
+        await CloseBrowserAsync();
+        await InitializeBrowserAsync();
+        Console.WriteLine("Pełny reset przeglądarki zakończony.");
+    }
 }
 
 
 
-
-
-
-// AKCJA SCRAPERA BEZ MODYFIKACJI DO TRYBU TRAFINIA POSREDNIEGO, TZN DOPASOWANIE DO NAZWY BOKSU KODU PRODUKTU
+// Kod bez restartu przegladarki gdy wykryje przekierowanie na Google Shopping
 
 //using PuppeteerSharp;
 //using System;
@@ -420,14 +466,6 @@ public class GoogleScraper
 //    public bool IsSuccess { get; set; }
 //    public bool CaptchaEncountered { get; set; }
 //    public string ErrorMessage { get; set; }
-
-//    public ScraperResult(T data)
-//    {
-//        Data = data;
-//        IsSuccess = true;
-//        CaptchaEncountered = false;
-//        ErrorMessage = null;
-//    }
 
 //    public ScraperResult(T data, bool isSuccess, bool captchaEncountered, string errorMessage = null)
 //    {
@@ -461,21 +499,19 @@ public class GoogleScraper
 //            Headless = false,
 //            Args = new[]
 //            {
-//              "--no-sandbox",
-//                    "--disable-setuid-sandbox",
-//                    "--disable-gpu",
-//                    "--disable-blink-features=AutomationControlled",
-//                    "--disable-software-rasterizer",
-//                    "--disable-extensions",
-//                    "--disable-dev-shm-usage",
-//                    "--disable-features=IsolateOrigins,site-per-process",
-//                    "--disable-infobars"
-
+//             "--no-sandbox",
+//             "--disable-setuid-sandbox",
+//             "--disable-gpu",
+//             "--disable-blink-features=AutomationControlled",
+//             "--disable-software-rasterizer",
+//             "--disable-extensions",
+//             "--disable-dev-shm-usage",
+//             "--disable-features=IsolateOrigins,site-per-process",
+//             "--disable-infobars"
 //            }
 //        });
 
 //        _page = await _browser.NewPageAsync();
-
 //    }
 
 //    public async Task<ScraperResult<List<string>>> SearchInitialProductCIDsAsync(string title, int maxCIDsToExtract = 10)
@@ -494,25 +530,17 @@ public class GoogleScraper
 //            var encodedTitle = HttpUtility.UrlEncode(title);
 //            var url = $"https://www.google.com/search?gl=pl&tbm=shop&q={encodedTitle}";
 
-//            await _page.GoToAsync(url, new NavigationOptions
-//            {
-//                Timeout = 60000,
-//                WaitUntil = new[] { WaitUntilNavigation.Load }
-//            });
+//            await _page.GoToAsync(url, new NavigationOptions { Timeout = 60000, WaitUntil = new[] { WaitUntilNavigation.Load } });
 
-//            var currentUrl = _page.Url;
-//            if (currentUrl.Contains("/sorry/") || currentUrl.Contains("/captcha"))
+//            if (_page.Url.Contains("/sorry/") || _page.Url.Contains("/captcha"))
 //            {
-//                Console.WriteLine("Natrafiono na stronę CAPTCHA podczas wyszukiwania.");
 //                IsCaptchaEncountered = true;
-
 //                return ScraperResult<List<string>>.Captcha(cids);
 //            }
 
 //            var rejectButton = await _page.QuerySelectorAsync("button[aria-label='Odrzuć wszystko']");
 //            if (rejectButton != null)
 //            {
-//                Console.WriteLine("Znaleziono przycisk 'Odrzuć wszystko'. Klikam...");
 //                await rejectButton.ClickAsync();
 //                await Task.Delay(1000);
 //            }
@@ -521,28 +549,15 @@ public class GoogleScraper
 
 //            try
 //            {
-//                await _page.WaitForSelectorAsync("div.sh-dgr__content", new WaitForSelectorOptions { Timeout = 100 });
+//                await _page.WaitForSelectorAsync("div.sh-dgr__content, div.MtXiu, div.LrTUQ", new WaitForSelectorOptions { Timeout = 5000 });
 //            }
-//            catch (WaitTaskTimeoutException)
+//            catch (WaitTaskTimeoutException ex)
 //            {
-
-//                try
-//                {
-//                    await _page.WaitForSelectorAsync("div.MtXiu", new WaitForSelectorOptions { Timeout = 500 });
-//                }
-//                catch (WaitTaskTimeoutException ex)
-//                {
-//                    Console.WriteLine($"Nie znaleziono boksów produktów (ani .sh-dgr__content ani .MtXiu) w określonym czasie: {ex.Message}. Strona mogła się zmienić lub brak wyników.");
-//                    return ScraperResult<List<string>>.Fail("Nie znaleziono boksów produktów.", cids);
-//                }
+//                Console.WriteLine($"Nie znaleziono żadnego znanego kontenera produktów w określonym czasie: {ex.Message}. Strona mogła się zmienić lub brak wyników.");
+//                return ScraperResult<List<string>>.Fail("Nie znaleziono boksów produktów.", cids);
 //            }
 
-//            var productBoxes = await _page.QuerySelectorAllAsync("div.sh-dgr__content");
-//            if (productBoxes.Length == 0)
-//            {
-
-//                productBoxes = await _page.QuerySelectorAllAsync("div.MtXiu.mZ9c3d.wYFOId.M919M.W5CKGc.wTrwWd");
-//            }
+//            var productBoxes = await _page.QuerySelectorAllAsync("div.sh-dgr__content, div.MtXiu, div.LrTUQ");
 
 //            Console.WriteLine($"Znaleziono {productBoxes.Length} boksów produktów na stronie wyników.");
 
@@ -551,47 +566,29 @@ public class GoogleScraper
 //                return ScraperResult<List<string>>.Success(cids);
 //            }
 
-//            int count = 0;
 //            foreach (var box in productBoxes)
 //            {
-//                if (count >= maxCIDsToExtract) break;
+//                if (cids.Count >= maxCIDsToExtract) break;
 
-//                string cid = null;
-//                var linkElement = await box.QuerySelectorAsync("a[data-cid]");
-//                if (linkElement != null)
-//                {
-//                    cid = await linkElement.EvaluateFunctionAsync<string>("element => element.getAttribute('data-cid')");
-//                }
-//                else
-//                {
+//                string cid = await box.EvaluateFunctionAsync<string>(@"
+//                element => {
 
-//                    cid = await box.EvaluateFunctionAsync<string>("element => element.getAttribute('data-cid')");
+//                    if (element.dataset.cid) return element.dataset.cid;
+
+//                    const linkWithCid = element.querySelector('a[data-cid]');
+//                    if (linkWithCid) return linkWithCid.dataset.cid;
+
+//                    const linkWithDocid = element.querySelector('a[data-docid]');
+//                    if (linkWithDocid) return linkWithDocid.dataset.docid;
+
+//                    return null;
 //                }
+//            ");
 
 //                if (!string.IsNullOrEmpty(cid))
 //                {
 //                    cids.Add(cid);
 //                    Console.WriteLine($"Ekstrahowano CID: {cid}");
-//                    count++;
-//                }
-//                else
-//                {
-
-//                    var productLink = await box.QuerySelectorAsync("a[data-docid]");
-//                    if (productLink != null)
-//                    {
-//                        cid = await productLink.EvaluateFunctionAsync<string>("element => element.getAttribute('data-docid')");
-//                        if (!string.IsNullOrEmpty(cid))
-//                        {
-//                            cids.Add(cid);
-//                            Console.WriteLine($"Ekstrahowano CID (z data-docid): {cid}");
-//                            count++;
-//                        }
-//                    }
-//                    else
-//                    {
-//                        Console.WriteLine("Nie udało się wyekstrahować CID z boksu produktu (ani data-cid, ani data-docid w linku).");
-//                    }
 //                }
 //            }
 //            return ScraperResult<List<string>>.Success(cids);
@@ -599,13 +596,45 @@ public class GoogleScraper
 //        catch (Exception ex)
 //        {
 //            Console.WriteLine($"Błąd podczas wyszukiwania i ekstrakcji CID-ów: {ex.Message}");
-
 //            return ScraperResult<List<string>>.Fail($"Błąd ekstrakcji CID: {ex.Message}", cids);
+//        }
+//    }
+
+//    public async Task<ScraperResult<string>> GetTitleFromProductPageAsync(string cid)
+//    {
+//        try
+//        {
+//            var url = $"https://www.google.com/shopping/product/{cid}";
+//            await _page.GoToAsync(url, new NavigationOptions { Timeout = 60000, WaitUntil = new[] { WaitUntilNavigation.Load } });
+
+//            if (_page.Url.Contains("/sorry/") || _page.Url.Contains("/captcha"))
+//            {
+//                IsCaptchaEncountered = true;
+//                return ScraperResult<string>.Captcha(string.Empty);
+//            }
+
+//            var titleElement = await _page.WaitForSelectorAsync("span.BvQan.sh-t__title-pdp", new WaitForSelectorOptions { Timeout = 5000 });
+//            if (titleElement != null)
+//            {
+//                var title = await titleElement.EvaluateFunctionAsync<string>("el => el.textContent.trim()");
+//                return ScraperResult<string>.Success(title);
+//            }
+
+//            return ScraperResult<string>.Fail("Nie znaleziono elementu z tytułem na stronie produktu.");
+//        }
+//        catch (WaitTaskTimeoutException)
+//        {
+//            return ScraperResult<string>.Fail("Timeout podczas oczekiwania na tytuł na stronie produktu.");
+//        }
+//        catch (Exception ex)
+//        {
+//            return ScraperResult<string>.Fail($"Błąd podczas pobierania tytułu: {ex.Message}");
 //        }
 //    }
 
 //    public async Task<ScraperResult<List<string>>> NavigateToProductPageAndExpandOffersAsync(string cid)
 //    {
+
 //        Console.WriteLine($"Rozpoczynam zbieranie ofert produktu Google Shopping (CID: {cid})...");
 //        var allStoreUrls = new List<string>();
 //        IsCaptchaEncountered = false;
@@ -665,6 +694,7 @@ public class GoogleScraper
 
 //    public async Task<ScraperResult<List<string>>> ExtractStoreOffersAsync(IPage page)
 //    {
+
 //        var storeUrls = new List<string>();
 //        IsCaptchaEncountered = false;
 
@@ -679,13 +709,13 @@ public class GoogleScraper
 
 //            try
 //            {
-//                await page.WaitForSelectorAsync("a.sh-osd__seller-link", new WaitForSelectorOptions { Timeout = 500 });
+//                await page.WaitForSelectorAsync("a.sh-osd__seller-link", new WaitForSelectorOptions { Timeout = 1000 });
 //            }
 //            catch (WaitTaskTimeoutException)
 //            {
 //                try
 //                {
-//                    await page.WaitForSelectorAsync("div.UAVKwf > a.UxuaJe.shntl.FkMp", new WaitForSelectorOptions { Timeout = 500 });
+//                    await page.WaitForSelectorAsync("div.UAVKwf > a.UxuaJe.shntl.FkMp", new WaitForSelectorOptions { Timeout = 1000 });
 //                }
 //                catch (WaitTaskTimeoutException ex)
 //                {
@@ -729,6 +759,7 @@ public class GoogleScraper
 
 //    private string ExtractStoreUrlFromGoogleRedirect(string googleRedirectUrl)
 //    {
+
 //        try
 //        {
 
@@ -742,24 +773,15 @@ public class GoogleScraper
 //            var queryParams = HttpUtility.ParseQueryString(uri.Query);
 //            var storeUrlEncoded = queryParams["q"] ?? queryParams["url"];
 
-//            Console.WriteLine($"DEBUG: W ExtractStoreUrlFromGoogleRedirect: Parametr 'q' lub 'url' (zakodowany) = {storeUrlEncoded}");
-
 //            if (!string.IsNullOrEmpty(storeUrlEncoded))
 //            {
 //                var storeUrl = System.Web.HttpUtility.UrlDecode(storeUrlEncoded);
-//                Console.WriteLine($"DEBUG: W ExtractStoreUrlFromGoogleRedirect: Odkodowany URL sklepu = {storeUrl}");
 //                return storeUrl;
 //            }
 //            else
 //            {
-//                Console.WriteLine($"DEBUG: Parametr 'q' ani 'url' nie znaleziony w query string. Zwracam cały URL jako fallback: {googleRedirectUrl}");
 //                return googleRedirectUrl;
 //            }
-//        }
-//        catch (UriFormatException ex)
-//        {
-//            Console.WriteLine($"BŁĄD: Nieprawidłowy format URL przekierowania w ExtractStoreUrlFromGoogleRedirect: '{googleRedirectUrl}'. Błąd: {ex.Message}. Zwracam go bez zmian.");
-//            return googleRedirectUrl;
 //        }
 //        catch (Exception ex)
 //        {
@@ -770,6 +792,7 @@ public class GoogleScraper
 
 //    public string CleanUrlParameters(string url)
 //    {
+
 //        if (string.IsNullOrEmpty(url))
 //            return url;
 
@@ -811,27 +834,14 @@ public class GoogleScraper
 
 //    public async Task CloseBrowserAsync()
 //    {
+
 //        if (_page != null && !_page.IsClosed)
 //        {
-//            try
-//            {
-//                await _page.CloseAsync();
-//            }
-//            catch (Exception ex)
-//            {
-//                Console.WriteLine($"Błąd podczas zamykania strony: {ex.Message}");
-//            }
+//            try { await _page.CloseAsync(); } catch (Exception ex) { Console.WriteLine($"Błąd podczas zamykania strony: {ex.Message}"); }
 //        }
 //        if (_browser != null)
 //        {
-//            try
-//            {
-//                await _browser.CloseAsync();
-//            }
-//            catch (Exception ex)
-//            {
-//                Console.WriteLine($"Błąd podczas zamykania przeglądarki: {ex.Message}");
-//            }
+//            try { await _browser.CloseAsync(); } catch (Exception ex) { Console.WriteLine($"Błąd podczas zamykania przeglądarki: {ex.Message}"); }
 //        }
 //        _browser = null;
 //        _page = null;
