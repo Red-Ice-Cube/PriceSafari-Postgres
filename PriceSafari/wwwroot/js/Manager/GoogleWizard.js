@@ -95,12 +95,10 @@ function buildXmlTree(node, parentPath) {
     }
 }
 
-
-// Dodaj to na początku pliku, np. pod zmienną proxyUrl
 const nsResolver = function (prefix) {
     const ns = {
         'g': 'http://base.google.com/ns/1.0'
-        // Jeśli plik używa innych prefiksów, dodaj je tutaj
+
     };
     return ns[prefix] || null;
 }
@@ -109,8 +107,10 @@ function createLi(node, parentPath) {
     li.classList.add("xml-node");
 
     let nodeName = node.nodeName;
+
     let nameAttr = node.getAttribute && node.getAttribute("name");
     if (nameAttr) {
+
         nodeName += `[@name="${nameAttr}"]`;
     }
 
@@ -121,6 +121,7 @@ function createLi(node, parentPath) {
     li.setAttribute("data-xpath", currentPath);
 
     let b = document.createElement("b");
+
     b.innerText = node.nodeName + (nameAttr ? ` (name="${nameAttr}")` : "");
     li.appendChild(b);
 
@@ -134,6 +135,10 @@ function createLi(node, parentPath) {
             attrLi.classList.add("xml-node");
             let attrPath = currentPath + `/@${attr.name}`;
             attrLi.setAttribute("data-xpath", attrPath);
+
+            let attrSpanLabel = document.createElement("i");
+            attrSpanLabel.innerText = `@${attr.name}: `;
+            attrLi.appendChild(attrSpanLabel);
 
             let attrSpan = document.createElement("span");
             attrSpan.innerText = `${attr.value}`;
@@ -151,6 +156,7 @@ function createLi(node, parentPath) {
         let ulVal = document.createElement("ul");
         let liVal = document.createElement("li");
         liVal.classList.add("xml-node");
+
         let valPath = currentPath + "/#value";
         liVal.setAttribute("data-xpath", valPath);
 
@@ -172,7 +178,6 @@ function createLi(node, parentPath) {
 
     return li;
 }
-
 document.addEventListener("click", function (e) {
     let el = e.target.closest(".xml-node");
     if (!el) return;
@@ -398,7 +403,6 @@ function parsePrice(value) {
     if (isNaN(floatVal)) return null;
     return floatVal.toFixed(2);
 }
-
 function extractProductsFromXml() {
     if (!xmlDoc) {
         alert("Brak XML do parsowania");
@@ -407,7 +411,6 @@ function extractProductsFromXml() {
 
     const mappedXPaths = Object.values(mappingForField)
         .filter(m => m && m.xpath)
-
         .map(m => m.xpath.replace('/#value', '').replace(/\/\@.*/, ''));
 
     if (mappedXPaths.length === 0) {
@@ -434,13 +437,24 @@ function extractProductsFromXml() {
         return;
     }
 
-    const productNodeName = commonPath[commonPath.length - 1];
-    console.log("Automatycznie wykryto węzeł produktu:", productNodeName);
+    // --- POCZĄTEK KLUCZOWEJ ZMIANY ---
 
-    let entries = xmlDoc.getElementsByTagName(productNodeName);
+    // 1. Zapisujemy pełną nazwę węzła, która może zawierać predykat, np. 'group[@name="other"]'
+    const productNodeNameWithPredicate = commonPath[commonPath.length - 1];
+
+    // 2. Tworzymy "czystą" nazwę tagu, usuwając predykat (wszystko od znaku '[')
+    const pureProductNodeName = productNodeNameWithPredicate.split('[')[0];
+
+    console.log("Automatycznie wykryto węzeł produktu (z predykatem):", productNodeNameWithPredicate);
+    console.log("Używany czysty tag name do wyszukania elementów:", pureProductNodeName);
+
+    // 3. Używamy CZYSTEJ nazwy tagu w getElementsByTagName
+    let entries = xmlDoc.getElementsByTagName(pureProductNodeName);
+
+    // --- KONIEC KLUCZOWEJ ZMIANY ---
 
     if (entries.length === 0) {
-        alert(`Nie znaleziono żadnych elementów o nazwie <${productNodeName}>. Sprawdź, czy mapowania są spójne.`);
+        alert(`Nie znaleziono żadnych elementów o nazwie <${pureProductNodeName}>. Sprawdź, czy mapowania są spójne.`);
         document.getElementById("productMapsPreview").textContent = "[]";
         return;
     }
@@ -455,15 +469,16 @@ function extractProductsFromXml() {
         let pm = {
             StoreId: storeId.toString(),
 
-            ExternalId: getVal(entryNode, "ExternalId", productNodeName),
-            Url: getVal(entryNode, "Url", productNodeName),
-            GoogleEan: getVal(entryNode, "GoogleEan", productNodeName),
-            GoogleImage: getVal(entryNode, "GoogleImage", productNodeName),
-            GoogleExportedName: getVal(entryNode, "GoogleExportedName", productNodeName),
-            GoogleExportedProducer: getVal(entryNode, "GoogleExportedProducer", productNodeName),
-            GoogleExportedProducerCode: getVal(entryNode, "GoogleExportedProducerCode", productNodeName),
-            GoogleXMLPrice: parsePrice(getVal(entryNode, "GoogleXMLPrice", productNodeName)),
-            GoogleDeliveryXMLPrice: parsePrice(getVal(entryNode, "GoogleDeliveryXMLPrice", productNodeName))
+            // 4. Do funkcji getVal przekazujemy PEŁNĄ nazwę z predykatem, bo jest ona potrzebna do poprawnego działania tej funkcji
+            ExternalId: getVal(entryNode, "ExternalId", productNodeNameWithPredicate),
+            Url: getVal(entryNode, "Url", productNodeNameWithPredicate),
+            GoogleEan: getVal(entryNode, "GoogleEan", productNodeNameWithPredicate),
+            GoogleImage: getVal(entryNode, "GoogleImage", productNodeNameWithPredicate),
+            GoogleExportedName: getVal(entryNode, "GoogleExportedName", productNodeNameWithPredicate),
+            GoogleExportedProducer: getVal(entryNode, "GoogleExportedProducer", productNodeNameWithPredicate),
+            GoogleExportedProducerCode: getVal(entryNode, "GoogleExportedProducerCode", productNodeNameWithPredicate),
+            GoogleXMLPrice: parsePrice(getVal(entryNode, "GoogleXMLPrice", productNodeNameWithPredicate)),
+            GoogleDeliveryXMLPrice: parsePrice(getVal(entryNode, "GoogleDeliveryXMLPrice", productNodeNameWithPredicate))
         };
 
         if (onlyEanProducts && (!pm.GoogleEan || !pm.GoogleEan.trim())) {
@@ -482,6 +497,7 @@ function extractProductsFromXml() {
         productMaps.push(pm);
     }
 
+    // ... reszta funkcji bez zmian ...
     console.log("Wyciągnięto productMaps(front):", productMaps);
     console.log("Liczba URLi zawierających parametry:", countUrlsWithParams);
 
@@ -630,43 +646,52 @@ document.getElementById("removeDuplicateEans").addEventListener("change", functi
 document.getElementById("removeDuplicateProducerCodes").addEventListener("change", function () {
     extractProductsFromXml();
 });
+
+
 function getVal(entryNode, fieldName, productNodeName) {
     const info = mappingForField[fieldName];
-
-    if (!info || !info.xpath || !productNodeName) {
+    if (!info || !info.xpath) {
         return null;
     }
 
-    let path = info.xpath;
+    let originalPath = info.xpath;
     const contextNode = entryNode;
 
-    const productNodePathPart = `/${productNodeName}/`;
-    const lastIndexOfProductNode = path.lastIndexOf(productNodePathPart);
+    const productNodeIdentifier = '/' + productNodeName;
+    const lastIndexOfProductNode = originalPath.lastIndexOf(productNodeIdentifier);
 
     let relativePath;
     if (lastIndexOfProductNode !== -1) {
-
-        relativePath = '.' + path.substring(lastIndexOfProductNode + productNodePathPart.length - 1);
+        let restOfPath = originalPath.substring(lastIndexOfProductNode + productNodeIdentifier.length);
+        relativePath = '.' + restOfPath;
     } else {
-        console.error(`Nie można ustalić ścieżki względnej dla "${path}" w oparciu o węzeł "${productNodeName}"`);
+        console.error(`Nie można ustalić ścieżki względnej dla "${originalPath}" w oparciu o węzeł "${productNodeName}"`);
         return null;
     }
 
-    if (relativePath.endsWith('/#value')) {
-
-        relativePath = relativePath.slice(0, -6) + 'text()';
-    }
-
-    relativePath = relativePath.replace(/\/\@/g, '@');
     try {
-        // ZMIANA TUTAJ: Zamiast 'null' wstaw 'nsResolver'
-        const result = xmlDoc.evaluate(relativePath, contextNode, nsResolver, XPathResult.STRING_TYPE, null);
-        return result.stringValue.trim();
+        if (originalPath.endsWith('/#value')) {
+            // PRZYPADEK 1: Pobieranie wartości tekstowej z elementu.
+            let elementPath = relativePath.slice(0, -7); // Usunięcie '/#value'
+            const result = xmlDoc.evaluate(elementPath, contextNode, nsResolver, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
+            const elementNode = result.singleNodeValue;
+            return elementNode ? elementNode.textContent.trim() : null;
+
+        } else {
+            // PRZYPADEK 2: Pobieranie wartości atrybutu.
+            // --- USUNIĘTO BŁĘDNĄ LINIĘ, KTÓRA ZAMIENIAŁA '/@' NA '@' ---
+            // Zmienna 'relativePath' ma już poprawny format, np. './@url' lub './imgs/main/@url'
+            const result = xmlDoc.evaluate(relativePath, contextNode, nsResolver, XPathResult.STRING_TYPE, null);
+            return result.stringValue.trim();
+        }
     } catch (e) {
         console.error(`Błąd wykonania XPath: "${relativePath}" w kontekście ${contextNode.tagName}`, e);
         return null;
     }
 }
+
+
+
 document.getElementById("saveProductMapsInDb").addEventListener("click", function () {
     let txt = document.getElementById("productMapsPreview").textContent.trim();
     if (!txt) {
