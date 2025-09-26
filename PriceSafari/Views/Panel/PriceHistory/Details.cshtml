@@ -117,6 +117,19 @@
         padding-left: 20px;
         overflow-y: auto;
     }
+
+
+
+
+    .stock-available {
+        color: #28a745; /* Zielony */
+        font-weight: 500;
+    }
+
+    .stock-unavailable {
+        color: #dc3545; /* Czerwony */
+        font-weight: 500;
+    }
 </style>
 
 <div class="Vert" data-store-name="@storeName">
@@ -233,7 +246,6 @@
                 <thead>
                     <tr>
                         <th></th>
-                      
                         <th id="storeHeader">Sklep (@totalOffers)</th>
                         <th>Cena</th>
                         <th>Różnica</th>
@@ -241,6 +253,7 @@
                         <th>Bid</th>
                         <th>Koszt wysyłki</th>
                         <th>Dostępność</th>
+                        <th>Ilość Ofert</th>
                         <th></th>
                     </tr>
                 </thead>
@@ -395,28 +408,56 @@
                                 }
                             </td>
                             <td>
-                                <div class="@availabilityClass">
-                                    @if (item.AvailabilityNum == 1)
+                                @if (item.IsGoogle)
+                                {
+                                    @if (item.GoogleInStock == true)
                                     {
-                                        <div>Wysyłka w 1 dzień</div>
+                                        <span class="stock-available">Dostępny</span>
                                     }
-                                    else if (item.AvailabilityNum == 3)
+                                    else if (item.GoogleInStock == false)
                                     {
-                                        <div>Wysyłka w 3 dni</div>
+                                        <span class="stock-unavailable">Niedostępny</span>
                                     }
-                                    else if (item.AvailabilityNum == 7)
+                                    else
                                     {
-                                        <div>Wysyłka w 7 dni</div>
+                                        <span class="BD">Brak danych</span>
                                     }
-                                    else if (item.AvailabilityNum == 14)
-                                    {
-                                        <div>Wysyłka w 14 dni</div>
-                                    }
-                                    else if (item.AvailabilityNum == null)
-                                    {
-                                        <div>Brak danych</div>
-                                    }
-                                </div>
+                                }
+                                else
+                                {
+                                    <div class="@availabilityClass">
+                                        @if (item.AvailabilityNum == 1)
+                                        {
+                                            <div>Wysyłka w 1 dzień</div>
+                                        }
+                                        else if (item.AvailabilityNum == 3)
+                                        {
+
+                                            <div>Wysyłka w 3 dni</div>
+                                        }
+                                        else if (item.AvailabilityNum == 7)
+                                        {
+
+                                            <div>Wysyłka w 7 dni</div>
+                                        }
+                                        else if (item.AvailabilityNum == 14)
+                                        {
+
+                                            <div>Wysyłka w 14 dni</div>
+                                        }
+                                        else if (item.AvailabilityNum == null)
+                                        {
+
+                                            <div>Brak danych</div>
+                                        }
+                                    </div>
+                                }
+                            </td>
+                            <td>
+                                @if (item.IsGoogle && item.GoogleOfferPerStoreCount.HasValue)
+                                {
+                                    @item.GoogleOfferPerStoreCount
+                                }
                             </td>
                             <td class="data-chanel">
                                 <img src="@Url.Content(item.IsGoogle ? "~/images/GoogleShopping.png" : "~/images/Ceneo.png")" alt="Channel Icon" style="width:24px; height:24px;" />

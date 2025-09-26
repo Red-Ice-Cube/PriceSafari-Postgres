@@ -1129,15 +1129,20 @@ namespace PriceSafari.Controllers.MemberControllers
                 .Select(pv => new { pv.SetPrice1, pv.SetPrice2 })
                 .FirstOrDefaultAsync() ?? new { SetPrice1 = 2.00m, SetPrice2 = 2.00m };
 
+            // NOWY KOD
             var pricesDataJson = JsonConvert.SerializeObject(
-                    prices.Select(p => new
-                    {
-                        store = p.StoreName,
-                        price = p.Price,
-                        isBidding = p.IsBidding,
-                        isGoogle = p.IsGoogle
-                    })
-              );
+                prices.Select(p => new
+                {
+                    store = p.StoreName,
+                    price = p.Price,
+                    isBidding = p.IsBidding,
+                    isGoogle = p.IsGoogle,
+                    // ### NOWE POLA DO PRZENIESIENIA ###
+                    inStock = p.GoogleInStock,
+                    offerCount = p.GoogleOfferPerStoreCount
+                })
+            );
+
 
             ViewBag.ScrapHistory = scrapHistory;
             ViewBag.ProductName = product.ProductName;
