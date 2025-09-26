@@ -132,10 +132,205 @@ public class GoogleMainPriceScraperController : Controller
         }
     }
 
+
+
+
+
+    // STARA METODA DLA STAREJ STRUKTURY GOOGLE SHOPPING
+
+
+
+
+    //private async Task<bool> PerformScrapingLogicInternalAsyncWithCaptchaFlag(CancellationToken cancellationToken)
+    //{
+    //    _logger.LogInformation($"Google PerformScrapingLogicInternalAsyncWithCaptchaFlag started. Consecutive CAPTCHA resets: {_consecutiveCaptchaResets}");
+    //    bool captchaDetectedInThisRun = false;
+
+    //    using (var scope = _serviceScopeFactory.CreateScope())
+    //    {
+    //        var dbContext = scope.ServiceProvider.GetRequiredService<PriceSafariContext>();
+    //        var settings = await dbContext.Settings.FirstOrDefaultAsync(CancellationToken.None);
+
+    //        if (settings == null)
+    //        {
+    //            _logger.LogError("Settings not found in the database.");
+    //            return captchaDetectedInThisRun;
+    //        }
+
+    //        var coOfrsToScrape = await dbContext.CoOfrs
+    //            .Where(c => !string.IsNullOrEmpty(c.GoogleOfferUrl) && !c.GoogleIsScraped)
+    //            .ToListAsync(cancellationToken);
+
+    //        if (cancellationToken.IsCancellationRequested)
+    //        {
+    //            _logger.LogInformation("Scraping (internal) cancelled before processing products.");
+    //            return captchaDetectedInThisRun;
+    //        }
+
+    //        if (!coOfrsToScrape.Any())
+    //        {
+    //            _logger.LogInformation("No Google products found to scrape (internal).");
+    //            await _hubContext.Clients.All.SendAsync("ReceiveGeneralMessage", "No Google products found to scrape.", CancellationToken.None);
+    //            lock (_networkResetProcessLock) { _consecutiveCaptchaResets = 0; }
+    //            return captchaDetectedInThisRun;
+    //        }
+
+    //        _logger.LogInformation($"Found {coOfrsToScrape.Count} Google products to scrape (internal).");
+    //        await _hubContext.Clients.All.SendAsync("ReceiveProgressUpdate", 0, coOfrsToScrape.Count, 0, 0, CancellationToken.None);
+
+    //        int totalScrapedCount = 0;
+    //        int totalRejectedCount = 0;
+    //        var stopwatch = new Stopwatch();
+    //        stopwatch.Start();
+    //        int maxConcurrentScrapers = settings.SemophoreGoogle > 0 ? settings.SemophoreGoogle : 1;
+    //        var semaphore = new SemaphoreSlim(maxConcurrentScrapers, maxConcurrentScrapers);
+    //        var tasks = new List<Task>();
+    //        var productQueue = new Queue<CoOfrClass>(coOfrsToScrape);
+
+    //        for (int i = 0; i < maxConcurrentScrapers; i++)
+    //        {
+    //            tasks.Add(Task.Run(async () =>
+    //            {
+    //                GoogleMainPriceScraper scraper = null;
+    //                try
+    //                {
+    //                    await semaphore.WaitAsync(cancellationToken);
+    //                    if (cancellationToken.IsCancellationRequested) return;
+
+    //                    scraper = new GoogleMainPriceScraper();
+    //                    await scraper.InitializeAsync(settings);
+    //                    if (cancellationToken.IsCancellationRequested) return;
+
+    //                    while (true)
+    //                    {
+    //                        if (cancellationToken.IsCancellationRequested) break;
+    //                        CoOfrClass coOfr = null;
+    //                        lock (productQueue) { if (productQueue.Count > 0) coOfr = productQueue.Dequeue(); }
+    //                        if (coOfr == null) break;
+
+    //                        try
+    //                        {
+
+    //                            using (var productTaskScope = _serviceScopeFactory.CreateScope())
+    //                            {
+    //                                var productDbContext = productTaskScope.ServiceProvider.GetRequiredService<PriceSafariContext>();
+
+    //                                _logger.LogDebug($"Task {Task.CurrentId}: Scraping {coOfr.GoogleOfferUrl}");
+    //                                var scrapedPrices = await scraper.ScrapePricesAsync(coOfr.GoogleOfferUrl);
+    //                                if (cancellationToken.IsCancellationRequested) break;
+
+    //                                var coOfrTracked = await productDbContext.CoOfrs.FindAsync(coOfr.Id);
+    //                                if (coOfrTracked == null)
+    //                                {
+    //                                    _logger.LogWarning($"Product with ID {coOfr.Id} not found in DB within product task scope.");
+    //                                    continue;
+    //                                }
+
+    //                                if (scrapedPrices.Any())
+    //                                {
+    //                                    foreach (var ph in scrapedPrices) ph.CoOfrClassId = coOfrTracked.Id;
+    //                                    productDbContext.CoOfrPriceHistories.AddRange(scrapedPrices);
+    //                                    coOfrTracked.GoogleIsScraped = true;
+    //                                    coOfrTracked.GooglePricesCount = scrapedPrices.Count;
+    //                                    coOfrTracked.GoogleIsRejected = false;
+
+    //                                }
+    //                                else
+    //                                {
+    //                                    coOfrTracked.GoogleIsScraped = true;
+    //                                    coOfrTracked.GoogleIsRejected = true;
+    //                                    coOfrTracked.GooglePricesCount = 0;
+    //                                    Interlocked.Increment(ref totalRejectedCount);
+    //                                }
+
+    //                                await productDbContext.SaveChangesAsync(CancellationToken.None);
+    //                                await _hubContext.Clients.All.SendAsync("ReceiveScrapingUpdate", coOfrTracked.Id, coOfrTracked.GoogleIsScraped, coOfrTracked.GoogleIsRejected, coOfrTracked.GooglePricesCount, "Google", CancellationToken.None);
+    //                            }
+
+    //                            Interlocked.Increment(ref totalScrapedCount);
+
+    //                            if (!cancellationToken.IsCancellationRequested)
+    //                            {
+    //                                double elapsedSeconds = stopwatch.Elapsed.TotalSeconds;
+
+    //                                int currentTotalRejected = Volatile.Read(ref totalRejectedCount);
+
+    //                                await _hubContext.Clients.All.SendAsync(
+    //                                    "ReceiveProgressUpdate",
+    //                                    totalScrapedCount,
+    //                                    coOfrsToScrape.Count,
+    //                                    elapsedSeconds,
+    //                                    currentTotalRejected,
+    //                                    CancellationToken.None
+    //                                );
+    //                            }
+    //                        }
+    //                        catch (CaptchaDetectedException ex)
+    //                        {
+    //                            _logger.LogWarning(ex, $"Task {Task.CurrentId}: CAPTCHA DETECTED by scraper for product {coOfr?.Id}.");
+    //                            captchaDetectedInThisRun = true;
+    //                            SignalCaptchaAndCancelTasks();
+    //                            break;
+    //                        }
+    //                        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+    //                        {
+    //                            _logger.LogInformation($"Task {Task.CurrentId}: Operation cancelled for product {coOfr?.Id}.");
+    //                            break;
+    //                        }
+    //                        catch (Exception ex)
+    //                        {
+    //                            _logger.LogError(ex, $"Task {Task.CurrentId}: Error scraping product {coOfr?.Id}.");
+    //                            if (coOfr != null) { }
+    //                        }
+    //                    }
+    //                }
+    //                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+    //                {
+    //                    _logger.LogInformation($"Task {Task.CurrentId} cancelled during setup.");
+    //                }
+    //                catch (Exception ex)
+    //                {
+    //                    _logger.LogError(ex, $"Task {Task.CurrentId}: Critical error in task execution.");
+    //                }
+    //                finally
+    //                {
+    //                    if (scraper != null) await scraper.CloseAsync();
+    //                    semaphore.Release();
+    //                    _logger.LogDebug($"Task {Task.CurrentId} finished, semaphore released.");
+    //                }
+    //            }));
+    //        }
+
+    //        await Task.WhenAll(tasks);
+    //        _logger.LogInformation("All Google scraping tasks have completed or been cancelled for this internal run.");
+    //        stopwatch.Stop();
+
+    //        if (!captchaDetectedInThisRun && !cancellationToken.IsCancellationRequested)
+    //        {
+    //            _logger.LogInformation("Internal scraping run completed successfully without CAPTCHA.");
+    //            await _hubContext.Clients.All.SendAsync("ReceiveGeneralMessage", "Google scraping run completed successfully.", CancellationToken.None);
+    //            lock (_networkResetProcessLock) { _consecutiveCaptchaResets = 0; }
+    //        }
+    //        else if (!captchaDetectedInThisRun && cancellationToken.IsCancellationRequested)
+    //        {
+    //            _logger.LogInformation("Internal scraping run was cancelled (likely manual stop).");
+
+    //        }
+
+    //    }
+    //    return captchaDetectedInThisRun;
+    //}
+
+
+
+
     private async Task<bool> PerformScrapingLogicInternalAsyncWithCaptchaFlag(CancellationToken cancellationToken)
     {
         _logger.LogInformation($"Google PerformScrapingLogicInternalAsyncWithCaptchaFlag started. Consecutive CAPTCHA resets: {_consecutiveCaptchaResets}");
-        bool captchaDetectedInThisRun = false;
+
+        // Ta flaga jest mniej istotna w nowym modelu, ale zostawiamy ją dla spójności z mechanizmem resetu sieci.
+        // Teraz będzie sygnalizować ogólny, uporczywy błąd, a niekoniecznie CAPTCHA.
+        bool persistentErrorDetected = false;
 
         using (var scope = _serviceScopeFactory.CreateScope())
         {
@@ -145,7 +340,7 @@ public class GoogleMainPriceScraperController : Controller
             if (settings == null)
             {
                 _logger.LogError("Settings not found in the database.");
-                return captchaDetectedInThisRun;
+                return persistentErrorDetected;
             }
 
             var coOfrsToScrape = await dbContext.CoOfrs
@@ -155,7 +350,7 @@ public class GoogleMainPriceScraperController : Controller
             if (cancellationToken.IsCancellationRequested)
             {
                 _logger.LogInformation("Scraping (internal) cancelled before processing products.");
-                return captchaDetectedInThisRun;
+                return persistentErrorDetected;
             }
 
             if (!coOfrsToScrape.Any())
@@ -163,7 +358,7 @@ public class GoogleMainPriceScraperController : Controller
                 _logger.LogInformation("No Google products found to scrape (internal).");
                 await _hubContext.Clients.All.SendAsync("ReceiveGeneralMessage", "No Google products found to scrape.", CancellationToken.None);
                 lock (_networkResetProcessLock) { _consecutiveCaptchaResets = 0; }
-                return captchaDetectedInThisRun;
+                return persistentErrorDetected;
             }
 
             _logger.LogInformation($"Found {coOfrsToScrape.Count} Google products to scrape (internal).");
@@ -173,6 +368,7 @@ public class GoogleMainPriceScraperController : Controller
             int totalRejectedCount = 0;
             var stopwatch = new Stopwatch();
             stopwatch.Start();
+
             int maxConcurrentScrapers = settings.SemophoreGoogle > 0 ? settings.SemophoreGoogle : 1;
             var semaphore = new SemaphoreSlim(maxConcurrentScrapers, maxConcurrentScrapers);
             var tasks = new List<Task>();
@@ -182,32 +378,39 @@ public class GoogleMainPriceScraperController : Controller
             {
                 tasks.Add(Task.Run(async () =>
                 {
-                    GoogleMainPriceScraper scraper = null;
+                    // Inicjalizacja scrapera jest teraz bardzo lekka.
+                    GoogleMainPriceScraper scraper;
                     try
                     {
                         await semaphore.WaitAsync(cancellationToken);
                         if (cancellationToken.IsCancellationRequested) return;
 
+                        // Tworzymy instancję scrapera. Nie wymaga on już inicjalizacji z ustawieniami.
                         scraper = new GoogleMainPriceScraper();
-                        await scraper.InitializeAsync(settings);
-                        if (cancellationToken.IsCancellationRequested) return;
 
                         while (true)
                         {
                             if (cancellationToken.IsCancellationRequested) break;
+
                             CoOfrClass coOfr = null;
-                            lock (productQueue) { if (productQueue.Count > 0) coOfr = productQueue.Dequeue(); }
+                            lock (productQueue)
+                            {
+                                if (productQueue.Count > 0) coOfr = productQueue.Dequeue();
+                            }
                             if (coOfr == null) break;
 
                             try
                             {
-
                                 using (var productTaskScope = _serviceScopeFactory.CreateScope())
                                 {
                                     var productDbContext = productTaskScope.ServiceProvider.GetRequiredService<PriceSafariContext>();
 
                                     _logger.LogDebug($"Task {Task.CurrentId}: Scraping {coOfr.GoogleOfferUrl}");
-                                    var scrapedPrices = await scraper.ScrapePricesAsync(coOfr.GoogleOfferUrl);
+
+                                    // **KLUCZOWA ZMIANA**: Wywołujemy nową wersję metody scrapującej,
+                                    // przekazując cały obiekt 'coOfr', a nie tylko URL.
+                                    var scrapedPrices = await scraper.ScrapePricesAsync(coOfr);
+
                                     if (cancellationToken.IsCancellationRequested) break;
 
                                     var coOfrTracked = await productDbContext.CoOfrs.FindAsync(coOfr.Id);
@@ -220,11 +423,11 @@ public class GoogleMainPriceScraperController : Controller
                                     if (scrapedPrices.Any())
                                     {
                                         foreach (var ph in scrapedPrices) ph.CoOfrClassId = coOfrTracked.Id;
-                                        productDbContext.CoOfrPriceHistories.AddRange(scrapedPrices);
+
+                                        productDbContext.CoOfrPriceHistories.AddRange((IEnumerable<CoOfrPriceHistoryClass>)scrapedPrices);
                                         coOfrTracked.GoogleIsScraped = true;
                                         coOfrTracked.GooglePricesCount = scrapedPrices.Count;
                                         coOfrTracked.GoogleIsRejected = false;
-
                                     }
                                     else
                                     {
@@ -243,7 +446,6 @@ public class GoogleMainPriceScraperController : Controller
                                 if (!cancellationToken.IsCancellationRequested)
                                 {
                                     double elapsedSeconds = stopwatch.Elapsed.TotalSeconds;
-
                                     int currentTotalRejected = Volatile.Read(ref totalRejectedCount);
 
                                     await _hubContext.Clients.All.SendAsync(
@@ -256,13 +458,9 @@ public class GoogleMainPriceScraperController : Controller
                                     );
                                 }
                             }
-                            catch (CaptchaDetectedException ex)
-                            {
-                                _logger.LogWarning(ex, $"Task {Task.CurrentId}: CAPTCHA DETECTED by scraper for product {coOfr?.Id}.");
-                                captchaDetectedInThisRun = true;
-                                SignalCaptchaAndCancelTasks();
-                                break;
-                            }
+                            // **ZMIANA**: Usunęliśmy blok 'catch (CaptchaDetectedException)'.
+                            // Nowy scraper obsługuje błędy sieciowe wewnętrznie przez ponowienia.
+                            // Ogólny blok 'catch' przechwyci ewentualne inne, nieoczekiwane błędy.
                             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
                             {
                                 _logger.LogInformation($"Task {Task.CurrentId}: Operation cancelled for product {coOfr?.Id}.");
@@ -270,8 +468,8 @@ public class GoogleMainPriceScraperController : Controller
                             }
                             catch (Exception ex)
                             {
-                                _logger.LogError(ex, $"Task {Task.CurrentId}: Error scraping product {coOfr?.Id}.");
-                                if (coOfr != null) { }
+                                _logger.LogError(ex, $"Task {Task.CurrentId}: Error scraping product {coOfr?.Id}. Product will be skipped.");
+                                // W przyszłości można by tu oznaczać produkt jako odrzucony
                             }
                         }
                     }
@@ -285,7 +483,7 @@ public class GoogleMainPriceScraperController : Controller
                     }
                     finally
                     {
-                        if (scraper != null) await scraper.CloseAsync();
+                        // **ZMIANA**: Nie ma już metody CloseAsync(), więc zwalniamy tylko semafor.
                         semaphore.Release();
                         _logger.LogDebug($"Task {Task.CurrentId} finished, semaphore released.");
                     }
@@ -296,21 +494,25 @@ public class GoogleMainPriceScraperController : Controller
             _logger.LogInformation("All Google scraping tasks have completed or been cancelled for this internal run.");
             stopwatch.Stop();
 
-            if (!captchaDetectedInThisRun && !cancellationToken.IsCancellationRequested)
+            if (!persistentErrorDetected && !cancellationToken.IsCancellationRequested)
             {
-                _logger.LogInformation("Internal scraping run completed successfully without CAPTCHA.");
+                _logger.LogInformation("Internal scraping run completed successfully.");
                 await _hubContext.Clients.All.SendAsync("ReceiveGeneralMessage", "Google scraping run completed successfully.", CancellationToken.None);
                 lock (_networkResetProcessLock) { _consecutiveCaptchaResets = 0; }
             }
-            else if (!captchaDetectedInThisRun && cancellationToken.IsCancellationRequested)
+            else if (!persistentErrorDetected && cancellationToken.IsCancellationRequested)
             {
                 _logger.LogInformation("Internal scraping run was cancelled (likely manual stop).");
-
             }
 
         }
-        return captchaDetectedInThisRun;
+        return persistentErrorDetected;
     }
+
+
+
+
+
 
     private async Task HandleCaptchaNetworkResetAndRestartAsync()
     {
