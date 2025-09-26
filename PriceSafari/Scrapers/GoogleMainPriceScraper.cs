@@ -422,7 +422,7 @@ public class GoogleMainPriceScraper
 
             if (lastFetchCount == pageSize)
             {
-                await Task.Delay(new Random().Next(800, 1500));
+                await Task.Delay(new Random().Next(300, 700));
             }
 
         } while (lastFetchCount == pageSize);
