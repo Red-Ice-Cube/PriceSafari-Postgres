@@ -993,6 +993,10 @@ namespace PriceSafari.Controllers.MemberControllers
             return Json(new { success = true, message = "Price values updated successfully." });
         }
 
+
+
+
+
         public async Task<IActionResult> Details(int scrapId, int productId)
         {
             var scrapHistory = await _context.ScrapHistories.FindAsync(scrapId);
@@ -1124,6 +1128,24 @@ namespace PriceSafari.Controllers.MemberControllers
                 }
             }
 
+            // ### POCZĄTEK ZMIANY ###
+
+            string? newGoogleUrl = null;
+            if (!string.IsNullOrEmpty(product.GoogleUrl) && !string.IsNullOrEmpty(product.ProductName))
+            {
+                // 1. Wyciągamy ID produktu (CID) ze starego linku
+                string? productIdCid = ExtractProductIdFromUrl(product.GoogleUrl);
+
+                if (!string.IsNullOrEmpty(productIdCid))
+                {
+                    // 2. Przygotowujemy nazwę produktu do wstawienia w URL (zamiana spacji na '+')
+                    string productNameForUrl = System.Net.WebUtility.UrlEncode(product.ProductName);
+
+                    // 3. Tworzymy nowy, działający link
+                    newGoogleUrl = $"https://www.google.com/search?q={productNameForUrl}&udm=28#oshopproduct=cid:{productIdCid},pvt:hg,pvo:3&oshop=apv";
+                }
+            }
+      
             var priceValues = await _context.PriceValues
                 .Where(pv => pv.StoreId == storeId)
                 .Select(pv => new { pv.SetPrice1, pv.SetPrice2 })
@@ -1148,7 +1170,7 @@ namespace PriceSafari.Controllers.MemberControllers
             ViewBag.ProductName = product.ProductName;
             ViewBag.Url = product.OfferUrl;
             ViewBag.StoreId = storeId;
-            ViewBag.GoogleUrl = product.GoogleUrl;
+            ViewBag.GoogleUrl = newGoogleUrl ?? product.GoogleUrl;
             ViewBag.StoreName = storeName;
             ViewBag.SetPrice1 = priceValues.SetPrice1;
             ViewBag.SetPrice2 = priceValues.SetPrice2;
@@ -1165,6 +1187,16 @@ namespace PriceSafari.Controllers.MemberControllers
 
             return View("~/Views/Panel/PriceHistory/Details.cshtml", prices);
         }
+
+        // Dodaj tę metodę gdzieś wewnątrz klasy swojego kontrolera
+        private string? ExtractProductIdFromUrl(string url)
+        {
+            if (string.IsNullOrEmpty(url)) return null;
+            var match = System.Text.RegularExpressions.Regex.Match(url, @"product/(\d+)");
+            return match.Success ? match.Groups[1].Value : null;
+        }
+
+
 
         [HttpGet]
         public async Task<IActionResult> PriceTrend(int productId)
