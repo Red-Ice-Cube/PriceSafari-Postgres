@@ -340,6 +340,10 @@
 
 
 
+
+
+
+
 using PriceSafari.Models;
 using System;
 using System.Collections.Generic;
@@ -352,8 +356,8 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 
-// Rekord do przechowywania tymczasowych danych z nowego API
-public record TempOffer(string Seller, string Price, string Url, string? Delivery, string Condition);
+// ZMIANA: Rekord rozbudowany o pole IsInStock
+public record TempOffer(string Seller, string Price, string Url, string? Delivery, bool IsInStock);
 
 public class GoogleMainPriceScraper
 {
@@ -362,17 +366,12 @@ public class GoogleMainPriceScraper
     static GoogleMainPriceScraper()
     {
         _httpClient = new HttpClient();
-        _httpClient.DefaultRequestHeaders.Add(
-            "User-Agent",
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/107.0.0.0 Safari/537.36"
-        );
+        _httpClient.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/107.0.0.0 Safari/537.36");
     }
 
     public async Task<List<CoOfrPriceHistoryClass>> ScrapePricesAsync(CoOfrClass coOfr)
     {
         var finalPriceHistory = new List<CoOfrPriceHistoryClass>();
-
-        // Ta metoda musi istnieć, aby poniższa linia działała
         string? catalogId = ExtractProductId(coOfr.GoogleOfferUrl);
 
         if (string.IsNullOrEmpty(catalogId))
@@ -405,47 +404,44 @@ public class GoogleMainPriceScraper
                 }
                 catch (HttpRequestException)
                 {
-                    if (attempt == maxRetries)
-                    {
-                        Console.WriteLine($"[BŁĄD KRYTYCZNY] Nie udało się pobrać ofert z {currentUrl} po {maxRetries} próbach.");
-                    }
-                    else
-                    {
-                        await Task.Delay(2500);
-                    }
+                    if (attempt == maxRetries) Console.WriteLine($"[BŁĄD KRYTYCZNY] Nie udało się pobrać ofert z {currentUrl} po {maxRetries} próbach.");
+                    else await Task.Delay(2500);
                 }
             }
-
             lastFetchCount = newOffers.Count;
             allFoundOffers.AddRange(newOffers);
             startIndex += pageSize;
-
-            if (lastFetchCount == pageSize)
-            {
-                await Task.Delay(new Random().Next(300, 700));
-            }
-
+            if (lastFetchCount == pageSize) await Task.Delay(new Random().Next(300, 700));
         } while (lastFetchCount == pageSize);
 
-        var acceptedOffers = allFoundOffers.Where(o => o.Condition == "Nowy").ToList();
-        var groupedBySeller = acceptedOffers.GroupBy(o => o.Seller);
-        var finalList = new List<TempOffer>();
+        // ### NOWA LOGIKA GRUPOWANIA I ZLICZANIA ###
+        // 1. Grupujemy wszystkie znalezione (i już odfiltrowane z używanych) oferty po nazwie sklepu.
+        var groupedBySeller = allFoundOffers.GroupBy(o => o.Seller);
 
+        var finalOffersToProcess = new List<(TempOffer offer, int count)>();
+
+        // 2. Dla każdej grupy (sklepu) zliczamy oferty i wybieramy najtańszą.
         foreach (var group in groupedBySeller)
         {
+            int storeOfferCount = group.Count();
             var cheapestOffer = group.OrderBy(o => ParsePrice(o.Price)).First();
-            finalList.Add(cheapestOffer);
+            finalOffersToProcess.Add((cheapestOffer, storeOfferCount));
         }
 
         int positionCounter = 1;
-        foreach (var offer in finalList.OrderBy(o => ParsePrice(o.Price)))
+
+        // 3. Sortujemy finalną listę po cenie i tworzymy obiekty do zapisu w bazie.
+        foreach (var item in finalOffersToProcess.OrderBy(i => ParsePrice(i.offer.Price)))
         {
             finalPriceHistory.Add(new CoOfrPriceHistoryClass
             {
-                GoogleStoreName = offer.Seller,
-                GooglePrice = ParsePrice(offer.Price),
-                GooglePriceWithDelivery = ParsePrice(offer.Price) + ParseDeliveryPrice(offer.Delivery),
+                GoogleStoreName = item.offer.Seller,
+                GooglePrice = ParsePrice(item.offer.Price),
+                GooglePriceWithDelivery = ParsePrice(item.offer.Price) + ParseDeliveryPrice(item.offer.Delivery),
                 GooglePosition = (positionCounter++).ToString(),
+                // ### NOWE POLA ###
+                GoogleInStock = item.offer.IsInStock,
+                GoogleOfferPerStoreCount = item.count
             });
         }
 
@@ -453,9 +449,6 @@ public class GoogleMainPriceScraper
     }
 
     #region Helper Methods
-
-    // ### POPRAWKA ###
-    // Ta metoda została ponownie dodana.
     private string? ExtractProductId(string url)
     {
         if (string.IsNullOrEmpty(url)) return null;
@@ -482,11 +475,9 @@ public class GoogleMainPriceScraper
         }
         return ParsePrice(deliveryText);
     }
-
     #endregion
 }
 
-// Druga klasa (parser) pozostaje bez zmian
 public static class GoogleShoppingApiParser
 {
     private static readonly Regex PricePattern = new(@"\d[\d\s,.]*\s*(?:PLN|zł)", RegexOptions.Compiled);
@@ -516,7 +507,6 @@ public static class GoogleShoppingApiParser
             int offerLikeChildren = node.EnumerateArray().Count(IsPotentialSingleOffer);
             if (offerLikeChildren > 5) return node;
         }
-
         if (node.ValueKind == JsonValueKind.Array)
         {
             foreach (var element in node.EnumerateArray())
@@ -556,7 +546,7 @@ public static class GoogleShoppingApiParser
     private static TempOffer? ParseSingleOffer(JsonElement offerData)
     {
         string? seller = null, price = null, url = null, delivery = null;
-        string condition = "Nowy";
+        bool isInStock = true;
 
         try
         {
@@ -564,6 +554,20 @@ public static class GoogleShoppingApiParser
                 .Where(e => e.ValueKind == JsonValueKind.String)
                 .Select(e => e.GetString()!)
                 .ToList();
+
+            // ### ZMIANA 1: ODRZUCANIE OFERT UŻYWANYCH ###
+            var usedKeywords = new[] { "pre-owned", "used", "używany", "outlet", "renewed", "refurbished", "odnowiony" };
+            if (flatStrings.Any(text => usedKeywords.Any(keyword => text.Contains(keyword, StringComparison.OrdinalIgnoreCase))))
+            {
+                return null; // Odrzuć ofertę, jeśli jest używana
+            }
+
+            // ### ZMIANA 2: SPRAWDZANIE DOSTĘPNOŚCI ###
+            var outOfStockKeywords = new[] { "out of stock", "niedostępny", "brak w magazynie" };
+            if (flatStrings.Any(text => outOfStockKeywords.Any(keyword => text.Contains(keyword, StringComparison.OrdinalIgnoreCase))))
+            {
+                isInStock = false;
+            }
 
             url = flatStrings.FirstOrDefault(s => s.StartsWith("https://") && !s.Contains("google.com") && !s.Contains("gstatic.com"));
             price = flatStrings.FirstOrDefault(s => PricePattern.IsMatch(s) && !s.Trim().StartsWith("+"));
@@ -573,7 +577,6 @@ public static class GoogleShoppingApiParser
             {
                 rawDeliveryText = flatStrings.FirstOrDefault(s => s.Contains("dostawa", StringComparison.OrdinalIgnoreCase) || s.Contains("delivery", StringComparison.OrdinalIgnoreCase));
             }
-
             if (rawDeliveryText != null)
             {
                 if (rawDeliveryText.Contains("Bezpłatna", StringComparison.OrdinalIgnoreCase) || rawDeliveryText.Contains("Free", StringComparison.OrdinalIgnoreCase) || rawDeliveryText.Contains("Darmowa", StringComparison.OrdinalIgnoreCase))
@@ -583,12 +586,6 @@ public static class GoogleShoppingApiParser
                     Match priceMatch = PricePattern.Match(rawDeliveryText);
                     if (priceMatch.Success) delivery = priceMatch.Value.Trim();
                 }
-            }
-
-            var usedKeywords = new[] { "pre-owned", "used", "używany", "outlet", "renewed", "refurbished", "odnowiony" };
-            if (flatStrings.Any(text => usedKeywords.Any(keyword => text.Contains(keyword, StringComparison.OrdinalIgnoreCase))))
-            {
-                condition = "Używany/Inny";
             }
 
             if (offerData.ValueKind == JsonValueKind.Array)
@@ -605,7 +602,8 @@ public static class GoogleShoppingApiParser
 
             if (seller != null && price != null && url != null)
             {
-                return new TempOffer(seller, price, url, delivery, condition);
+                // ZMIANA 3: Zwracamy nowy obiekt TempOffer z polem IsInStock
+                return new TempOffer(seller, price, url, delivery, isInStock);
             }
         }
         catch { /* Ignorujemy błędy parsowania pojedynczej oferty */ }

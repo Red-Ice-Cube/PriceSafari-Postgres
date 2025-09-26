@@ -20,5 +20,8 @@ namespace PriceSafari.Models
         public int? AvailabilityNum { get; set; }
 
         public bool IsGoogle { get; set; }
+
+        public bool? GoogleInStock { get; set; }
+        public int? GoogleOfferPerStoreCount { get; set; }
     }
 }
