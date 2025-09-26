@@ -150,7 +150,9 @@ public class StoreProcessingService
                         IsBidding = "Google",
                         ShippingCostNum = shippingCostNum,
                         ScrapHistory = scrapHistory,
-                        IsGoogle = true
+                        IsGoogle = true,
+                        GoogleInStock = coOfrPrice.GoogleInStock,
+                        GoogleOfferPerStoreCount = coOfrPrice.GoogleOfferPerStoreCount
                     };
                     priceHistoriesBag.Add(priceHistoryGoogle);
 
@@ -182,7 +184,8 @@ public class StoreProcessingService
                         IsBidding = "GoogleFeed",
                         ShippingCostNum = fallbackShippingCost,
                         ScrapHistory = scrapHistory,
-                        IsGoogle = true
+                        IsGoogle = true,
+
                     };
                     priceHistoriesBag.Add(priceHistoryFromFeed);
 
