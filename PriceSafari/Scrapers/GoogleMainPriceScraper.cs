@@ -411,7 +411,7 @@ public class GoogleMainPriceScraper
             lastFetchCount = newOffers.Count;
             allFoundOffers.AddRange(newOffers);
             startIndex += pageSize;
-            if (lastFetchCount == pageSize) await Task.Delay(new Random().Next(300, 700));
+            if (lastFetchCount == pageSize) await Task.Delay(new Random().Next(300, 500));
         } while (lastFetchCount == pageSize);
 
         // ### NOWA LOGIKA GRUPOWANIA I ZLICZANIA ###
