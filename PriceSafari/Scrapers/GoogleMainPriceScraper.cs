@@ -583,7 +583,7 @@ public static class GoogleShoppingApiParser
             }
 
             // 3. Ekstrakcja podstawowych danych
-            string? url = flatStrings.FirstOrDefault(s => s.StartsWith("https://") && !s.Contains("google.com") && !s.Contains("gstatic.com"));
+            string? url = flatStrings.FirstOrDefault(s => s.StartsWith("http") && !s.Contains("google.com") && !s.Contains("gstatic.com"));
             string? price = flatStrings.FirstOrDefault(s => PricePattern.IsMatch(s) && !s.Trim().StartsWith("+"));
 
             // 4. ULEPSZONA, WIELOPOZIOMOWA LOGIKA ZNAJDOWANIA SPRZEDAWCY
