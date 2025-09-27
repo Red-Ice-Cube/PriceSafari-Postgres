@@ -344,19 +344,19 @@
 
 
 
+
+
+
 using PriceSafari.Models;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
 using System.Net.Http;
 using System.Text.Json;
 using System.Text.RegularExpressions;
-using System.Threading;
 using System.Threading.Tasks;
 
-// ZMIANA: Rekord rozbudowany o pole IsInStock
 public record TempOffer(string Seller, string Price, string Url, string? Delivery, bool IsInStock);
 
 public class GoogleMainPriceScraper
@@ -411,16 +411,12 @@ public class GoogleMainPriceScraper
             lastFetchCount = newOffers.Count;
             allFoundOffers.AddRange(newOffers);
             startIndex += pageSize;
-            if (lastFetchCount == pageSize) await Task.Delay(new Random().Next(300, 500));
+            if (lastFetchCount == pageSize) await Task.Delay(new Random().Next(500, 800));
         } while (lastFetchCount == pageSize);
 
-        // ### NOWA LOGIKA GRUPOWANIA I ZLICZANIA ###
-        // 1. Grupujemy wszystkie znalezione (i już odfiltrowane z używanych) oferty po nazwie sklepu.
         var groupedBySeller = allFoundOffers.GroupBy(o => o.Seller);
-
         var finalOffersToProcess = new List<(TempOffer offer, int count)>();
 
-        // 2. Dla każdej grupy (sklepu) zliczamy oferty i wybieramy najtańszą.
         foreach (var group in groupedBySeller)
         {
             int storeOfferCount = group.Count();
@@ -430,7 +426,6 @@ public class GoogleMainPriceScraper
 
         int positionCounter = 1;
 
-        // 3. Sortujemy finalną listę po cenie i tworzymy obiekty do zapisu w bazie.
         foreach (var item in finalOffersToProcess.OrderBy(i => ParsePrice(i.offer.Price)))
         {
             finalPriceHistory.Add(new CoOfrPriceHistoryClass
@@ -439,7 +434,6 @@ public class GoogleMainPriceScraper
                 GooglePrice = ParsePrice(item.offer.Price),
                 GooglePriceWithDelivery = ParsePrice(item.offer.Price) + ParseDeliveryPrice(item.offer.Delivery),
                 GooglePosition = (positionCounter++).ToString(),
-                // ### NOWE POLA ###
                 GoogleInStock = item.offer.IsInStock,
                 GoogleOfferPerStoreCount = item.count
             });
@@ -484,69 +478,87 @@ public static class GoogleShoppingApiParser
 
     public static List<TempOffer> Parse(string rawResponse)
     {
-        string cleanedJson = rawResponse.StartsWith(")]}'") ? rawResponse.Substring(5) : rawResponse;
-        using JsonDocument doc = JsonDocument.Parse(cleanedJson);
-        var allOffers = new List<TempOffer>();
-        JsonElement? offersContainer = FindOffersContainer(doc.RootElement.Clone());
+        if (string.IsNullOrWhiteSpace(rawResponse)) return new List<TempOffer>();
 
-        if (offersContainer.HasValue)
+        try
         {
-            foreach (JsonElement potentialOffer in offersContainer.Value.EnumerateArray())
-            {
-                TempOffer? offer = ParseSingleOffer(potentialOffer);
-                if (offer != null) allOffers.Add(offer);
-            }
+            string cleanedJson = rawResponse.StartsWith(")]}'") ? rawResponse.Substring(5) : rawResponse;
+            using JsonDocument doc = JsonDocument.Parse(cleanedJson);
+            JsonElement root = doc.RootElement.Clone();
+
+            var allOffers = new List<TempOffer>();
+            FindAndParseAllOffers(root, root, allOffers);
+            return allOffers;
         }
-        return allOffers;
+        catch (JsonException)
+        {
+            return new List<TempOffer>();
+        }
     }
 
-    private static JsonElement? FindOffersContainer(JsonElement node)
+    private static void FindAndParseAllOffers(JsonElement root, JsonElement node, List<TempOffer> allOffers)
     {
         if (node.ValueKind == JsonValueKind.Array)
         {
-            int offerLikeChildren = node.EnumerateArray().Count(IsPotentialSingleOffer);
-            if (offerLikeChildren > 5) return node;
+            if (node.EnumerateArray().Any(IsPotentialSingleOffer))
+            {
+                foreach (JsonElement potentialOffer in node.EnumerateArray())
+                {
+                    TempOffer? offer = ParseSingleOffer(root, potentialOffer);
+                    if (offer != null)
+                    {
+                        if (!allOffers.Any(o => o.Url == offer.Url))
+                        {
+                            allOffers.Add(offer);
+                        }
+                    }
+                }
+            }
         }
+
         if (node.ValueKind == JsonValueKind.Array)
         {
             foreach (var element in node.EnumerateArray())
             {
-                var found = FindOffersContainer(element);
-                if (found.HasValue) return found;
+                FindAndParseAllOffers(root, element, allOffers);
             }
         }
         else if (node.ValueKind == JsonValueKind.Object)
         {
             foreach (var property in node.EnumerateObject())
             {
-                var found = FindOffersContainer(property.Value);
-                if (found.HasValue) return found;
+                FindAndParseAllOffers(root, property.Value, allOffers);
             }
         }
-        return null;
     }
 
     private static bool IsPotentialSingleOffer(JsonElement node)
     {
-        if (node.ValueKind != JsonValueKind.Array || node.GetArrayLength() < 5) return false;
-        bool hasUrl = false, hasPrice = false;
-        foreach (var item in Flatten(node))
+        JsonElement offerData = node;
+        if (node.ValueKind == JsonValueKind.Array && node.GetArrayLength() > 0 && node[0].ValueKind == JsonValueKind.Array)
         {
-            if (item.ValueKind == JsonValueKind.String)
-            {
-                string s = item.GetString()!;
-                if (!hasUrl && s.StartsWith("http")) hasUrl = true;
-                if (!hasPrice && PricePattern.IsMatch(s)) hasPrice = true;
-            }
-            if (hasUrl && hasPrice) return true;
+            offerData = node[0];
         }
+
+        if (offerData.ValueKind != JsonValueKind.Array || offerData.GetArrayLength() < 4) return false;
+
+        var flatStrings = Flatten(offerData)
+            .Where(e => e.ValueKind == JsonValueKind.String)
+            .Select(e => e.GetString()!)
+            .ToList();
+
+        if (flatStrings.Any(s => s.StartsWith("https://") && !s.Contains("google"))) return true;
+
         return false;
     }
 
-    private static TempOffer? ParseSingleOffer(JsonElement offerData)
+    private static TempOffer? ParseSingleOffer(JsonElement root, JsonElement offerContainer)
     {
-        string? seller = null, price = null, url = null, delivery = null;
-        bool isInStock = true;
+        JsonElement offerData = (offerContainer.ValueKind == JsonValueKind.Array && offerContainer.GetArrayLength() > 0 && offerContainer[0].ValueKind == JsonValueKind.Array)
+                                ? offerContainer[0]
+                                : offerContainer;
+
+        if (offerData.ValueKind != JsonValueKind.Array) return null;
 
         try
         {
@@ -555,28 +567,93 @@ public static class GoogleShoppingApiParser
                 .Select(e => e.GetString()!)
                 .ToList();
 
-            // ### ZMIANA 1: ODRZUCANIE OFERT UŻYWANYCH ###
+            // 1. ODRZUCANIE OFERT UŻYWANYCH
             var usedKeywords = new[] { "pre-owned", "used", "używany", "outlet", "renewed", "refurbished", "odnowiony" };
             if (flatStrings.Any(text => usedKeywords.Any(keyword => text.Contains(keyword, StringComparison.OrdinalIgnoreCase))))
             {
-                return null; // Odrzuć ofertę, jeśli jest używana
+                return null;
             }
 
-            // ### ZMIANA 2: SPRAWDZANIE DOSTĘPNOŚCI ###
-            var outOfStockKeywords = new[] { "out of stock", "niedostępny", "brak w magazynie" };
+            // 2. SPRAWDZANIE DOSTĘPNOŚCI
+            bool isInStock = true;
+            var outOfStockKeywords = new[] { "out of stock", "niedostępny", "brak w magazynie", "asortyment niedostępny" };
             if (flatStrings.Any(text => outOfStockKeywords.Any(keyword => text.Contains(keyword, StringComparison.OrdinalIgnoreCase))))
             {
                 isInStock = false;
             }
 
-            url = flatStrings.FirstOrDefault(s => s.StartsWith("https://") && !s.Contains("google.com") && !s.Contains("gstatic.com"));
-            price = flatStrings.FirstOrDefault(s => PricePattern.IsMatch(s) && !s.Trim().StartsWith("+"));
+            // 3. Ekstrakcja podstawowych danych
+            string? url = flatStrings.FirstOrDefault(s => s.StartsWith("https://") && !s.Contains("google.com") && !s.Contains("gstatic.com"));
+            string? price = flatStrings.FirstOrDefault(s => PricePattern.IsMatch(s) && !s.Trim().StartsWith("+"));
 
-            string? rawDeliveryText = flatStrings.FirstOrDefault(s => s.Trim().StartsWith("+") && PricePattern.IsMatch(s));
-            if (rawDeliveryText == null)
+            // 4. ULEPSZONA, WIELOPOZIOMOWA LOGIKA ZNAJDOWANIA SPRZEDAWCY
+            string? seller = null;
+
+            // Metoda 1 (Priorytet): Szukaj jawnej nazwy sprzedawcy w głównym bloku
+            var offerElements = offerData.EnumerateArray().ToList();
+            for (int i = 0; i < offerElements.Count - 1; i++)
             {
-                rawDeliveryText = flatStrings.FirstOrDefault(s => s.Contains("dostawa", StringComparison.OrdinalIgnoreCase) || s.Contains("delivery", StringComparison.OrdinalIgnoreCase));
+                if (offerElements[i].ValueKind == JsonValueKind.Number &&
+                    offerElements[i + 1].ValueKind == JsonValueKind.String)
+                {
+                    string potentialSeller = offerElements[i + 1].GetString()!;
+                    if (!potentialSeller.StartsWith("http") && !PricePattern.IsMatch(potentialSeller) && potentialSeller.Length > 2)
+                    {
+                        seller = potentialSeller;
+                        break;
+                    }
+                }
             }
+
+            // Metoda 2: Wzorzec [nazwa, ID_sklepu] (teraz jako fallback)
+            if (seller == null)
+            {
+                var sellerNode = offerData.EnumerateArray()
+                   .FirstOrDefault(item => item.ValueKind == JsonValueKind.Array
+                                         && item.GetArrayLength() > 1
+                                         && item[0].ValueKind == JsonValueKind.String
+                                         && item[1].ValueKind == JsonValueKind.String
+                                         && item[1].GetString()!.All(char.IsDigit));
+                if (sellerNode.ValueKind != JsonValueKind.Undefined)
+                {
+                    var potentialSeller = sellerNode[0].GetString()!;
+                    if (!int.TryParse(potentialSeller, out _))
+                    {
+                        seller = potentialSeller;
+                    }
+                }
+            }
+
+            // Metoda 3 (Ostateczność): Szukanie po ID w całym dokumencie
+            if (seller == null && url != null)
+            {
+                var docIdMatch = Regex.Match(url, @"shopping_docid(?:%253D|=)(\d+)|docid(?:%3D|=)(\d+)");
+                if (docIdMatch.Success)
+                {
+                    string offerId = docIdMatch.Groups[1].Success ? docIdMatch.Groups[1].Value : docIdMatch.Groups[2].Value;
+                    var sellerInfoNodes = FindNodesById(root, offerId);
+                    foreach (var sellerInfoNode in sellerInfoNodes)
+                    {
+                        if (sellerInfoNode.ValueKind == JsonValueKind.Array && sellerInfoNode.GetArrayLength() > 1 && sellerInfoNode[1].ValueKind == JsonValueKind.Array)
+                        {
+                            var potentialSellerName = sellerInfoNode[1].EnumerateArray()
+                                .FirstOrDefault(e => e.ValueKind == JsonValueKind.String);
+
+                            if (potentialSellerName.ValueKind == JsonValueKind.String)
+                            {
+                                seller = potentialSellerName.GetString();
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 5. Ekstrakcja informacji o dostawie
+            string? delivery = null;
+            string? rawDeliveryText = flatStrings.FirstOrDefault(s => s.Trim().StartsWith("+") && PricePattern.IsMatch(s))
+                                   ?? flatStrings.FirstOrDefault(s => s.Contains("dostawa", StringComparison.OrdinalIgnoreCase) || s.Contains("delivery", StringComparison.OrdinalIgnoreCase));
+
             if (rawDeliveryText != null)
             {
                 if (rawDeliveryText.Contains("Bezpłatna", StringComparison.OrdinalIgnoreCase) || rawDeliveryText.Contains("Free", StringComparison.OrdinalIgnoreCase) || rawDeliveryText.Contains("Darmowa", StringComparison.OrdinalIgnoreCase))
@@ -588,27 +665,40 @@ public static class GoogleShoppingApiParser
                 }
             }
 
-            if (offerData.ValueKind == JsonValueKind.Array)
+            // 6. Zwróć ofertę tylko jeśli mamy wszystkie kluczowe dane
+            if (!string.IsNullOrWhiteSpace(seller) && price != null && url != null)
             {
-                foreach (var item in offerData.EnumerateArray())
-                {
-                    if (item.ValueKind == JsonValueKind.Array && item.GetArrayLength() > 1 && item[0].ValueKind == JsonValueKind.String && item[1].ValueKind == JsonValueKind.String && item[1].GetString()!.All(char.IsDigit))
-                    {
-                        seller = item[0].GetString();
-                        break;
-                    }
-                }
-            }
-
-            if (seller != null && price != null && url != null)
-            {
-                // ZMIANA 3: Zwracamy nowy obiekt TempOffer z polem IsInStock
                 return new TempOffer(seller, price, url, delivery, isInStock);
             }
         }
         catch { /* Ignorujemy błędy parsowania pojedynczej oferty */ }
 
         return null;
+    }
+
+    private static List<JsonElement> FindNodesById(JsonElement node, string id)
+    {
+        var results = new List<JsonElement>();
+        var stack = new Stack<JsonElement>();
+        stack.Push(node);
+
+        while (stack.Count > 0)
+        {
+            var current = stack.Pop();
+            if (current.ValueKind == JsonValueKind.Array)
+            {
+                if (current.EnumerateArray().Any(e => e.ValueKind == JsonValueKind.String && e.GetString() == id))
+                {
+                    results.Add(current);
+                }
+                foreach (var element in current.EnumerateArray().Reverse()) stack.Push(element);
+            }
+            else if (current.ValueKind == JsonValueKind.Object)
+            {
+                foreach (var property in current.EnumerateObject()) stack.Push(property.Value);
+            }
+        }
+        return results;
     }
 
     private static IEnumerable<JsonElement> Flatten(JsonElement node)
