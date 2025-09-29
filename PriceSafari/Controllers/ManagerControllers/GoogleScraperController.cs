@@ -128,322 +128,6 @@ public class GoogleScraperController : Controller
         }
     }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    //public async Task<IActionResult> StartScrapingForProducts_StandardAsync(
-    //    int storeId,
-    //    int numberOfConcurrentScrapers = 5,
-    //    int maxCidsToProcessPerProduct = 3,
-    //    SearchTermSource searchTermSource = SearchTermSource.ProductName,
-    //    string productNamePrefix = null,
-    //     bool allowManualCaptchaSolving = false)
-
-    //{
-    //    if (_isScrapingActive)
-    //    {
-    //        return Conflict("Proces scrapowania jest już globalnie aktywny.");
-    //    }
-    //    _isScrapingActive = true;
-
-    //    if (maxCidsToProcessPerProduct <= 0)
-    //    {
-    //        _isScrapingActive = false;
-    //        return BadRequest("Liczba CIDów do przetworzenia musi być dodatnia.");
-    //    }
-    //    if (searchTermSource == SearchTermSource.ProductName && string.IsNullOrEmpty(productNamePrefix))
-    //    {
-
-    //    }
-
-    //    int restartAttempt = 0;
-    //    const int MAX_RESTARTS_ON_CAPTCHA = 100;
-    //    bool overallOperationSuccess = false;
-    //    string finalMessage = $"Proces scrapowania dla sklepu {storeId} zainicjowany.";
-    //    bool lastAttemptEndedDueToCaptcha = false;
-
-    //    lock (_lockTimer)
-    //    {
-    //        if (_batchSaveTimer == null)
-    //        {
-    //            _batchSaveTimer = new Timer(async _ => await TimerBatchUpdateCallback(CancellationToken.None), null, TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(30));
-    //            Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] Timer do zapisu wsadowego globalnie uruchomiony.");
-    //        }
-    //    }
-
-    //    try
-    //    {
-    //        do
-    //        {
-    //            bool captchaDetectedInCurrentAttempt = false;
-    //            _currentGlobalScrapingOperationCts = new CancellationTokenSource();
-    //            _currentCaptchaGlobalCts = new CancellationTokenSource();
-    //            var activeScrapingTasks = new List<Task>();
-    //            overallOperationSuccess = false;
-
-    //            List<GoogleScraper> scraperInstancesForThisAttempt = new List<GoogleScraper>();
-    //            ConcurrentBag<GoogleScraper> availableScrapersPool = null;
-
-    //            if (restartAttempt > 0)
-    //            {
-    //                Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] === Próba restartu scrapowania nr {restartAttempt} po CAPTCHA dla sklepu {storeId} ===");
-    //                await Task.Delay(TimeSpan.FromSeconds(5), CancellationToken.None);
-    //            }
-
-    //            Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] Rozpoczynam próbę scrapowania nr {restartAttempt} dla sklepu ID: {storeId}.");
-
-    //            try
-    //            {
-    //                using (var initialScope = _scopeFactory.CreateScope())
-    //                {
-    //                    var context = initialScope.ServiceProvider.GetRequiredService<PriceSafariContext>();
-    //                    var store = await context.Stores.AsNoTracking().FirstOrDefaultAsync(s => s.StoreId == storeId);
-    //                    if (store == null) { finalMessage = "Sklep nie znaleziony."; _isScrapingActive = false; return NotFound(finalMessage); }
-    //                }
-    //                if (numberOfConcurrentScrapers <= 0) { finalMessage = "Liczba scraperów musi być dodatnia."; _isScrapingActive = false; return BadRequest(finalMessage); }
-
-    //                var initTasks = new List<Task>();
-    //                for (int i = 0; i < numberOfConcurrentScrapers; i++)
-    //                {
-    //                    var sc = new GoogleScraper();
-    //                    scraperInstancesForThisAttempt.Add(sc);
-    //                    initTasks.Add(sc.InitializeBrowserAsync());
-    //                }
-    //                await Task.WhenAll(initTasks);
-    //                availableScrapersPool = new ConcurrentBag<GoogleScraper>(scraperInstancesForThisAttempt);
-    //                Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [Próba {restartAttempt}] Utworzono i zainicjowano {scraperInstancesForThisAttempt.Count} instancji scrapera do puli.");
-
-    //                InitializeMasterProductListIfNeeded(storeId, restartAttempt > 0);
-
-    //                var semaphore = new SemaphoreSlim(numberOfConcurrentScrapers, numberOfConcurrentScrapers);
-    //                var linkedCtsForAttempt = CancellationTokenSource.CreateLinkedTokenSource(_currentGlobalScrapingOperationCts.Token, _currentCaptchaGlobalCts.Token);
-
-    //                while (!_currentGlobalScrapingOperationCts.IsCancellationRequested &&
-    //                       !_currentCaptchaGlobalCts.IsCancellationRequested &&
-    //                       !_masterProductStateList.Values.Any(p => p.Status == ProductStatus.CaptchaHalt)) // <-- DODAJ TEN WARUNEK
-    //                {
-    //                    List<int> pendingProductIds;
-    //                    lock (_lockMasterListInit)
-    //                    {
-    //                        pendingProductIds = _masterProductStateList
-    //                            .Where(kvp => kvp.Value.Status == ProductStatus.Pending && kvp.Value.ProcessingByTaskId == null)
-    //                            .Select(kvp => kvp.Key).ToList();
-    //                    }
-
-    //                    if (!pendingProductIds.Any())
-    //                    {
-    //                        if (activeScrapingTasks.Any(t => !t.IsCompleted))
-    //                        {
-    //                            Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [Próba {restartAttempt}] Brak produktów. Czekam na zadania...");
-    //                            try { await Task.WhenAny(activeScrapingTasks.Where(t => !t.IsCompleted).ToArray()); } catch (OperationCanceledException) { }
-    //                            activeScrapingTasks.RemoveAll(t => t.IsCompleted || t.IsCanceled || t.IsFaulted);
-    //                        }
-    //                        else
-    //                        {
-    //                            Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [Próba {restartAttempt}] Brak produktów i zadań. Kończę próbę.");
-    //                            overallOperationSuccess = true;
-    //                            break;
-    //                        }
-    //                    }
-    //                    else
-    //                    {
-    //                        bool taskStartedThisIteration = false;
-    //                        while (pendingProductIds.Any() && !linkedCtsForAttempt.Token.IsCancellationRequested &&
-    //                               await semaphore.WaitAsync(TimeSpan.FromMilliseconds(100), linkedCtsForAttempt.Token))
-    //                        {
-    //                            if (linkedCtsForAttempt.Token.IsCancellationRequested) { semaphore.Release(); break; }
-    //                            int selectedProductId; ProductProcessingState productStateToProcess;
-    //                            lock (_lockMasterListInit)
-    //                            {
-    //                                if (!pendingProductIds.Any()) { semaphore.Release(); break; }
-    //                                int randomIndex = _random.Next(pendingProductIds.Count); selectedProductId = pendingProductIds[randomIndex];
-    //                                pendingProductIds.RemoveAt(randomIndex);
-    //                                if (!_masterProductStateList.TryGetValue(selectedProductId, out productStateToProcess)) { semaphore.Release(); continue; }
-    //                            }
-    //                            bool canProcess = false;
-    //                            lock (productStateToProcess)
-    //                            {
-    //                                if (productStateToProcess.Status == ProductStatus.Pending && productStateToProcess.ProcessingByTaskId == null)
-    //                                { productStateToProcess.Status = ProductStatus.Processing; productStateToProcess.ProcessingByTaskId = Task.CurrentId ?? Thread.CurrentThread.ManagedThreadId; canProcess = true; }
-    //                            }
-
-    //                            if (canProcess)
-    //                            {
-    //                                GoogleScraper assignedScraper = null;
-    //                                if (!availableScrapersPool.TryTake(out assignedScraper))
-    //                                {
-    //                                    Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [Próba {restartAttempt}] KRYTYCZNE: Brak wolnego scrapera w puli! Semafor pozwolił, ale pula pusta. Produkt ID: {selectedProductId}");
-    //                                    lock (productStateToProcess) { productStateToProcess.Status = ProductStatus.Pending; productStateToProcess.ProcessingByTaskId = null; }
-    //                                    semaphore.Release();
-    //                                    continue;
-    //                                }
-
-    //                                taskStartedThisIteration = true;
-    //                                Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [Próba {restartAttempt}] Produkt ID {selectedProductId} ({productStateToProcess.ProductNameInStoreForGoogle}) wzięty do przetwarzania przez scrapera.");
-    //                                var task = Task.Run(async () =>
-    //                                {
-    //                                    try
-    //                                    {
-    //                                        await ProcessSingleProductAsync(
-    //                                           productStateToProcess,
-    //                                           assignedScraper,
-    //                                           storeId,
-    //                                           _masterProductStateList,
-    //                                           _currentCaptchaGlobalCts,
-    //                                           maxCidsToProcessPerProduct,
-    //                                           searchTermSource,
-    //                                           productNamePrefix,
-    //                                           allowManualCaptchaSolving
-    //                                        );
-    //                                    }
-    //                                    catch (OperationCanceledException oce) when (oce.CancellationToken == _currentCaptchaGlobalCts.Token)
-    //                                    { Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [Próba {restartAttempt}] Zadanie dla ID {productStateToProcess.ProductId} anulowane przez CAPTCHA signal."); }
-    //                                    catch (OperationCanceledException)
-    //                                    { Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [Próba {restartAttempt}] Zadanie dla ID {productStateToProcess.ProductId} anulowane (ogólnie)."); lock (productStateToProcess) { productStateToProcess.UpdateStatus(ProductStatus.Pending); } }
-    //                                    catch (Exception ex)
-    //                                    { Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [Próba {restartAttempt}] BŁĄD w zadaniu dla ID {productStateToProcess.ProductId}: {ex.Message}"); lock (productStateToProcess) { productStateToProcess.UpdateStatus(ProductStatus.Error); } }
-    //                                    finally
-    //                                    {
-    //                                        lock (productStateToProcess)
-    //                                        { productStateToProcess.ProcessingByTaskId = null; if (productStateToProcess.Status == ProductStatus.Processing) { productStateToProcess.UpdateStatus(ProductStatus.Pending); } }
-
-    //                                        availableScrapersPool.Add(assignedScraper);
-    //                                        semaphore.Release();
-    //                                        Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [Próba {restartAttempt}] Zadanie dla ID {productStateToProcess.ProductId} zakończone. Scraper zwrócony. Slot zwolniony. Status: {productStateToProcess.Status}");
-    //                                    }
-    //                                }, linkedCtsForAttempt.Token);
-    //                                activeScrapingTasks.Add(task);
-    //                            }
-    //                            else { semaphore.Release(); }
-    //                        }
-    //                        if (!taskStartedThisIteration && pendingProductIds.Any() && activeScrapingTasks.Any(t => !t.IsCompleted) && !linkedCtsForAttempt.Token.IsCancellationRequested)
-    //                        { await Task.Delay(TimeSpan.FromMilliseconds(200), linkedCtsForAttempt.Token); }
-    //                    }
-    //                    activeScrapingTasks.RemoveAll(t => t.IsCompleted || t.IsCanceled || t.IsFaulted);
-
-    //                    if (_currentCaptchaGlobalCts.IsCancellationRequested)
-    //                    { captchaDetectedInCurrentAttempt = true; Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [Próba {restartAttempt}] CAPTCHA. Przerywam pętlę."); break; }
-    //                    if (_currentGlobalScrapingOperationCts.IsCancellationRequested) { Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [Próba {restartAttempt}] Globalne zatrzymanie. Przerywam pętlę."); break; }
-    //                }
-
-    //                Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [Próba {restartAttempt}] Główna pętla zakończona. Czekam na zadania...");
-    //                try { await Task.WhenAll(activeScrapingTasks.ToArray()); } catch (OperationCanceledException) { Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [Próba {restartAttempt}] Task.WhenAll: Zadania anulowane."); }
-    //                Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [Próba {restartAttempt}] Wszystkie zadania dla tej próby zakończone.");
-    //            }
-    //            catch (OperationCanceledException)
-    //            { Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [Próba {restartAttempt}] Operacja ANULOWANA."); if (_currentCaptchaGlobalCts.IsCancellationRequested) captchaDetectedInCurrentAttempt = true; }
-    //            catch (Exception ex)
-    //            { Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [Próba {restartAttempt}] BŁĄD KRYTYCZNY: {ex.Message}"); captchaDetectedInCurrentAttempt = false; finalMessage = $"Błąd krytyczny (sklep {storeId}): {ex.Message}"; break; }
-    //            finally
-    //            {
-    //                Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [Próba {restartAttempt}] Finally dla próby...");
-
-    //                // ### ZMIANA NR 2: Modyfikacja sposobu wykrywania CAPTCHA ###
-    //                // Sprawdzamy nie tylko czy token został anulowany, ale też czy jakikolwiek produkt
-    //                // został oznaczony jako zatrzymany przez CAPTCHA. Jest to potrzebne dla trybu ręcznego.
-    //                bool captchaSignaledByToken = _currentCaptchaGlobalCts.IsCancellationRequested;
-    //                bool captchaSignaledByProductStatus = _masterProductStateList.Values.Any(p => p.Status == ProductStatus.CaptchaHalt);
-    //                captchaDetectedInCurrentAttempt = captchaSignaledByToken || captchaSignaledByProductStatus;
-
-    //                if (captchaDetectedInCurrentAttempt && !captchaSignaledByToken)
-    //                {
-    //                    Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [Próba {restartAttempt}] Wykryto CAPTCHA w trybie ręcznym (status produktu). Anuluję pozostałe zadania tej próby.");
-    //                }
-
-    //                // Anulujemy operacje tej próby, jeśli wykryto CAPTCHA w jakikolwiek sposób, aby zakończyć pozostałe wątki.
-    //                if (captchaDetectedInCurrentAttempt && !_currentGlobalScrapingOperationCts.IsCancellationRequested)
-    //                {
-    //                    _currentGlobalScrapingOperationCts.Cancel();
-    //                }
-
-    //                var remainingTasks = activeScrapingTasks.Where(t => !t.IsCompleted).ToArray();
-    //                if (remainingTasks.Any())
-    //                {
-    //                    Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [Próba {restartAttempt}] Czekam na {remainingTasks.Length} zadań w finally próby...");
-    //                    try { await Task.WhenAll(remainingTasks); } catch (OperationCanceledException) { }
-    //                }
-
-    //                Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [Próba {restartAttempt}] Końcowy zapis zmian...");
-    //                await BatchUpdateDatabaseAsync(true, CancellationToken.None);
-
-
-    //                _currentGlobalScrapingOperationCts?.Dispose();
-    //                _currentCaptchaGlobalCts?.Dispose();
-    //                Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [Próba {restartAttempt}] Zakończono finally dla próby (przeglądarki wciąż otwarte).");
-    //            }
-
-
-    //            lastAttemptEndedDueToCaptcha = captchaDetectedInCurrentAttempt;
-
-    //            if (lastAttemptEndedDueToCaptcha)
-    //            {
-    //                restartAttempt++;
-    //                if (restartAttempt <= MAX_RESTARTS_ON_CAPTCHA)
-    //                {
-    //                    if (allowManualCaptchaSolving)
-    //                    {
-    //                        Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] !!!!!!!!!!!! CAPTCHA W TRYBIE RĘCZNYM !!!!!!!!!!!!");
-    //                        Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] Użytkowniku, masz 30 sekund na rozwiązanie CAPTCHA w otwartym oknie przeglądarki.");
-    //                        await Task.Delay(TimeSpan.FromSeconds(30));
-    //                        Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] Czas na rozwiązanie CAPTCHA minął. Kontynuuję scrapowanie.");
-    //                    }
-    //                    else
-    //                    {
-    //                        Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] CAPTCHA. Próba {restartAttempt - 1} nieudana. Reset sieci...");
-    //                        bool networkResetSuccess = await _networkControlService.TriggerNetworkDisableAndResetAsync();
-    //                        Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] Reset sieci: {(networkResetSuccess ? "OK" : "FAIL")}.");
-    //                        if (!networkResetSuccess) { finalMessage = $"Reset sieci FAIL po CAPTCHA. Stop po {restartAttempt - 1} próbach."; break; }
-    //                    }
-    //                }
-    //                else { finalMessage = $"MAX ({MAX_RESTARTS_ON_CAPTCHA}) restartów po CAPTCHA. Stop."; break; }
-    //            }
-    //            else if (overallOperationSuccess) { finalMessage = $"Sklep {storeId} OK."; break; }
-    //            else if (_currentGlobalScrapingOperationCts.IsCancellationRequested) { finalMessage = $"Sklep {storeId} STOP (sygnał)."; break; }
-
-    //            // ### KROK 2: DODAJEMY ZAMYKANIE PRZEGLĄDAREK TUTAJ ###
-    //            // Ten kod wykona się po każdej próbie, niezależnie od jej wyniku (CAPTCHA, sukces, błąd),
-    //            // ale PO obsłudze 30-sekundowego opóźnienia.
-    //            Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] Sprzątanie po próbie {restartAttempt - 1}: Zamykanie {scraperInstancesForThisAttempt.Count} instancji scrapera.");
-    //            foreach (var sc in scraperInstancesForThisAttempt) { await sc.CloseBrowserAsync(); }
-    //            scraperInstancesForThisAttempt.Clear();
-
-    //        } while (lastAttemptEndedDueToCaptcha && restartAttempt <= MAX_RESTARTS_ON_CAPTCHA);
-    //    }
-    //    finally
-    //    {
-    //        Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] OSTATECZNE finally...");
-    //        lock (_lockTimer)
-    //        {
-    //            if (_batchSaveTimer != null) { _batchSaveTimer.Dispose(); _batchSaveTimer = null; Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] Globalny timer Zatrzymany."); }
-    //        }
-    //        _isScrapingActive = false;
-    //        _currentGlobalScrapingOperationCts?.Dispose(); _currentCaptchaGlobalCts?.Dispose();
-    //        Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] Flaga _isScrapingActive=false. Gotowy na nowe żądanie.");
-    //    }
-    //    Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] Ostateczny status: {finalMessage}");
-    //    return Content(finalMessage);
-
-    //}
-
-
-
-
-
-
-
-
-
     public async Task<IActionResult> StartScrapingForProducts_StandardAsync(
     int storeId,
     int numberOfConcurrentScrapers = 5,
@@ -479,9 +163,6 @@ public class GoogleScraperController : Controller
         {
             if (allowManualCaptchaSolving)
             {
-                // =================================================================
-                // #region TRYB RĘCZNY (jedno uruchomienie, bez restartów)
-                // =================================================================
 
                 Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] Uruchamiam scrapowanie w TRYBIE RĘCZNYM. Operacja nie będzie automatycznie restartowana.");
 
@@ -541,7 +222,7 @@ public class GoogleScraperController : Controller
 
                         lock (_lockMasterListInit)
                         {
-                            // Ponownie pobieramy listę, bo mogła się zmienić w trakcie oczekiwania na semafor
+
                             var currentPendingIds = _masterProductStateList
                                 .Where(kvp => kvp.Value.Status == ProductStatus.Pending && kvp.Value.ProcessingByTaskId == null)
                                 .Select(kvp => kvp.Key).ToList();
@@ -613,13 +294,10 @@ public class GoogleScraperController : Controller
                     _currentGlobalScrapingOperationCts?.Dispose();
                     _currentCaptchaGlobalCts?.Dispose();
                 }
-                // #endregion
+
             }
             else
             {
-                // =================================================================
-                // #region TRYB AUTOMATYCZNY (z pętlą do-while i restartami)
-                // =================================================================
 
                 int restartAttempt = 0;
                 const int MAX_RESTARTS_ON_CAPTCHA = 100;
@@ -805,7 +483,7 @@ public class GoogleScraperController : Controller
                     scraperInstancesForThisAttempt.Clear();
 
                 } while (lastAttemptEndedDueToCaptcha && restartAttempt <= MAX_RESTARTS_ON_CAPTCHA);
-                // #endregion
+
             }
         }
         finally
@@ -816,7 +494,7 @@ public class GoogleScraperController : Controller
                 if (_batchSaveTimer != null) { _batchSaveTimer.Dispose(); _batchSaveTimer = null; Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] Globalny timer Zatrzymany."); }
             }
             _isScrapingActive = false;
-            // Te tokeny mogły już zostać usunięte w pętli, ale `Dispose` jest idempotentne
+
             _currentGlobalScrapingOperationCts?.Dispose();
             _currentCaptchaGlobalCts?.Dispose();
             Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] Flaga _isScrapingActive=false. Gotowy na nowe żądanie.");
@@ -825,12 +503,6 @@ public class GoogleScraperController : Controller
         Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] Ostateczny status: {finalMessage}");
         return Content(finalMessage);
     }
-
-
-
-
-
-
 
     private async Task<IActionResult> StartScrapingForProducts_FirstMatchAsync(int storeId, int numberOfConcurrentScrapers, SearchTermSource searchTermSource, string productNamePrefix)
     {
@@ -1569,7 +1241,7 @@ public class GoogleScraperController : Controller
     string namePrefix,
     bool allowManualCaptchaSolving)
     {
-        // W trybie ręcznym ignorujemy początkowe anulowanie, bo zadania mogą startować z opóźnieniem
+
         if (captchaCts.IsCancellationRequested && !allowManualCaptchaSolving)
         {
             lock (productState) { productState.UpdateStatus(ProductStatus.CaptchaHalt); }
@@ -1629,16 +1301,15 @@ public class GoogleScraperController : Controller
 
         try
         {
-        // Etykieta, do której wracamy, jeśli CAPTCHA pojawi się w trakcie przetwarzania ofert
+
         RestartProductProcessing:
 
-            // Pętla do ponawiania operacji po ręcznym rozwiązaniu CAPTCHA
             bool cidSearchCompleted = false;
             ScraperResult<List<string>> cidResult = null;
 
             while (!cidSearchCompleted)
             {
-                // W trybie automatycznym sprawdzamy token na początku każdej próby
+
                 if (captchaCts.IsCancellationRequested && !allowManualCaptchaSolving)
                 {
                     lock (productState) { productState.UpdateStatus(ProductStatus.CaptchaHalt); }
@@ -1654,17 +1325,17 @@ public class GoogleScraperController : Controller
                         bool solved = await HandleManualCaptchaAsync(scraper, TimeSpan.FromMinutes(5));
                         if (solved)
                         {
-                            // CAPTCHA rozwiązana, ponów próbę wyszukania CIDów
+
                             continue;
                         }
                         else
                         {
-                            // Timeout, oznacz produkt jako błąd i zakończ
+
                             lock (productState) { productState.UpdateStatus(ProductStatus.Error); }
                             return;
                         }
                     }
-                    else // Tryb automatyczny
+                    else
                     {
                         if (!captchaCts.IsCancellationRequested) captchaCts.Cancel();
                         lock (productState) { productState.UpdateStatus(ProductStatus.CaptchaHalt); }
@@ -1672,10 +1343,8 @@ public class GoogleScraperController : Controller
                     }
                 }
 
-                // Jeśli doszliśmy tutaj, wyszukiwanie CID zakończyło się (sukcesem lub porażką, ale bez CAPTCHA)
                 cidSearchCompleted = true;
             }
-
 
             if (!cidResult.IsSuccess || !cidResult.Data.Any())
             {
@@ -1704,7 +1373,9 @@ public class GoogleScraperController : Controller
 
                     Console.WriteLine($"\n[{DateTime.Now:HH:mm:ss}] [{Thread.CurrentThread.ManagedThreadId}] ID {productState.ProductId}: Przetwarzam CID: {cid}");
 
-                    ScraperResult<List<string>> offersResult = await scraper.NavigateToProductPageAndExpandOffersAsync(cid);
+                 
+                    ScraperResult<List<string>> offersResult = await scraper.FindStoreUrlsFromApiAsync(cid);
+                  
 
                     if (offersResult.CaptchaEncountered)
                     {
@@ -1714,7 +1385,7 @@ public class GoogleScraperController : Controller
                             if (solved)
                             {
                                 Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [{Thread.CurrentThread.ManagedThreadId}] CAPTCHA rozwiązana podczas sprawdzania ofert. Restartuję przetwarzanie dla produktu ID: {productState.ProductId}");
-                                // Użycie goto do wyjścia z zagnieżdżonych pętli i rozpoczęcia całego procesu od nowa dla tego produktu
+
                                 goto RestartProductProcessing;
                             }
                             else
@@ -1723,7 +1394,7 @@ public class GoogleScraperController : Controller
                                 return;
                             }
                         }
-                        else // Tryb automatyczny
+                        else
                         {
                             if (!captchaCts.IsCancellationRequested) captchaCts.Cancel();
                             lock (productState) { productState.UpdateStatus(ProductStatus.CaptchaHalt); }
@@ -1761,7 +1432,6 @@ public class GoogleScraperController : Controller
                     await Task.Delay(TimeSpan.FromMilliseconds(_random.Next(200, 400)), CancellationToken.None);
                 }
 
-                // Oznacz produkt inicjujący jako "Nie znaleziony" tylko jeśli nie został dopasowany bezpośrednio
                 if (!initiatingProductDirectlyMatchedInThisTask)
                 {
                     lock (productState)
@@ -1787,19 +1457,18 @@ public class GoogleScraperController : Controller
         }
         finally
         {
-            // W bloku finally upewniamy się, że produkt nie utknie w stanie "Processing"
+
             lock (productState)
             {
                 if (productState.Status == ProductStatus.Processing)
                 {
-                    // Jeśli jakimś cudem nie został ustawiony żaden inny status, wracamy do Pending
+
                     productState.UpdateStatus(ProductStatus.Pending);
                 }
             }
             Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [{Thread.CurrentThread.ManagedThreadId}] --- Koniec ProcessSingle dla ID {productState.ProductId}. Finalny Status: {productState.Status} ---");
         }
     }
-
 
     private async Task<bool> HandleManualCaptchaAsync(GoogleScraper scraper, TimeSpan timeout)
     {
@@ -1808,30 +1477,28 @@ public class GoogleScraperController : Controller
 
         while (!Cts.Token.IsCancellationRequested)
         {
-            // Sprawdzamy, czy strona nadal jest stroną CAPTCHA
+
             if (scraper.CurrentPage != null && !scraper.CurrentPage.Url.Contains("/sorry/") && !scraper.CurrentPage.Url.Contains("/captcha"))
             {
                 Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [{Thread.CurrentThread.ManagedThreadId}] Wygląda na to, że CAPTCHA została rozwiązana. Wznawiam pracę wątku.");
-                return true; // Sukces, CAPTCHA rozwiązana
+                return true;
             }
 
             try
             {
-                // Czekamy 10 sekund przed kolejnym sprawdzeniem
+
                 await Task.Delay(TimeSpan.FromSeconds(10), Cts.Token);
             }
             catch (OperationCanceledException)
             {
-                // Przerwanie pętli z powodu timeoutu
+
                 break;
             }
         }
 
         Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [{Thread.CurrentThread.ManagedThreadId}] Minął czas na rozwiązanie CAPTCHA. Wątek nie będzie kontynuowany.");
-        return false; // Porażka, timeout
+        return false;
     }
-
-
 
     [HttpGet]
     public async Task<IActionResult> ProductList(int storeId)
@@ -2040,4 +1707,3 @@ public class GoogleScraperController : Controller
         return Ok();
     }
 }
-
