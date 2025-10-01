@@ -3,6 +3,46 @@
 @{
     Layout = "~/Views/Shared/_PanelLayout.cshtml";
 }
+<style>
+
+    .Button-select {
+        display: inline-flex;
+        padding: 6px 18px;
+        align-items: center;
+        justify-content: center;
+        border-radius: 24px;
+        text-decoration: none;
+        border: 1px solid #B1B1B1;
+        background-color: #EFEFEF;
+        gap: 4px;
+        transition: all 0.2s ease-in-out;
+    }
+
+        .Button-select:not(.button-disabled):hover {
+            background-color: #222222;
+            border: 1px solid #000;
+        }
+
+        .Button-select img {
+            width: 22px;
+            height: 22px;
+            transition: transform 0.2s ease-in-out;
+        }
+
+    .button-disabled {
+        pointer-events: none;
+        cursor: default;
+        opacity: 0.6;
+    }
+
+    .icon-disabled {
+        filter: grayscale(100%);
+    }
+
+    .Button-select:not(.button-disabled):hover img:not(.icon-disabled) {
+        transform: scale(1.12);
+    }
+</style>
 
 <div class="Vert">
     <div class="Vert-full">
@@ -17,15 +57,16 @@
                         <tr>
                             <th></th>
                             <th>Kanał</th>
-                            <th>Ostatnie scrapowanie</th>
-                            <th>Czas od ostatniego scrapowania</th>
-                            <th>Akcje</th>
+                            <th>Ostatnia analiza</th>
+                            <th>Czas od ostatniej analizy</th>
+                            <th>Źródło danych</th>
                         </tr>
                     </thead>
                     <tbody>
                         @foreach (var store in Model)
                         {
-                            <tr class="store-row" style="cursor:pointer;" data-url="@Url.Action("Index", "PriceHistory", new { storeId = store.StoreId })" data-last-scrape="@store.LastScrapeDate?.ToString("o")">
+
+                            <tr class="store-row" data-last-scrape="@store.LastScrapeDate?.ToString("o")">
                                 <td>
                                     <img src="@store.LogoUrl" class="img-container" alt="@store.StoreName" />
                                 </td>
@@ -35,10 +76,25 @@
                                 <td>@store.LastScrapeDate?.ToString("g")</td>
                                 <td class="time-since-last-scrape"></td>
                                 <td>
-                                    @if (!string.IsNullOrEmpty(store.StoreNameAllegro))
-                                    {
-                                        <a href="@Url.Action("Index", "AllegroPriceHistory", new { storeId = store.StoreId })" class="Button-Page-Small-b">Allegro</a>
-                                    }
+                                    <a href="@Url.Action("Index", "PriceHistory", new { storeId = store.StoreId })"
+                                       class="Button-select @(!(store.OnCeneo || store.OnGoogle) ? "button-disabled" : "")"
+                                       style="margin-right: 4px;"
+                                       title="Porównywarki cenowe">
+
+                                        <img src="/images/Ceneo.png" alt="Ceneo"
+                                             class="@(store.OnCeneo ? "" : "icon-disabled")" />
+
+                                        <img src="/images/GoogleShopping.png" alt="Google Shopping"
+                                             class="@(store.OnGoogle ? "" : "icon-disabled")" />
+                                    </a>
+
+                                    <a href="@Url.Action("Index", "AllegroPriceHistory", new { storeId = store.StoreId })"
+                                       class="Button-select @(!store.OnAllegro ? "button-disabled" : "")"
+                                       title="Allegro">
+
+                                        <img src="/images/AllegroIcon.png" alt="Allegro"
+                                             class="@(store.OnAllegro ? "" : "icon-disabled")" />
+                                    </a>
                                 </td>
                             </tr>
                         }
@@ -58,12 +114,6 @@
         document.addEventListener('DOMContentLoaded', function () {
             var rows = document.querySelectorAll('.store-row');
             rows.forEach(function (row) {
-                row.addEventListener('click', function (e) {
-       
-                    if (!e.target.classList.contains('Button-Page-Small-b')) {
-                        window.location.href = row.getAttribute('data-url');
-                    }
-                });
 
                 var lastScrapeDate = row.getAttribute('data-last-scrape');
                 if (lastScrapeDate) {

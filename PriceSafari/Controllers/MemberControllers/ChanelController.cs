@@ -14,13 +14,12 @@ namespace PriceSafari.Controllers.MemberControllers
     public class ChanelController : Controller
     {
         private readonly PriceSafariContext _context;
-   
 
         public ChanelController(PriceSafariContext context)
         {
             _context = context;
-     
         }
+
         [HttpGet]
         public async Task<IActionResult> Index()
         {
@@ -41,8 +40,11 @@ namespace PriceSafari.Controllers.MemberControllers
                 LogoUrl = store.StoreLogoUrl,
                 LastScrapeDate = store.ScrapHistories.OrderByDescending(sh => sh.Date).FirstOrDefault()?.Date,
 
-                // --- ZMIANA W LINII PONIŻEJ ---
-                StoreNameAllegro = store.StoreNameAllegro // Przypisanie wartości do modelu widoku
+                // --- ZMIANY TUTAJ ---
+                // Przypisujemy nowe wartości do modelu widoku
+                OnCeneo = store.OnCeneo,
+                OnGoogle = store.OnGoogle,
+                OnAllegro = store.OnAllegro
 
             }).ToList();
 
