@@ -10,7 +10,6 @@
 <form asp-action="EditStore" method="post" class="mt-4">
     <input type="hidden" asp-for="StoreId" />
 
-    <!-- Podstawowe dane sklepu -->
     <div class="card mb-4">
         <div class="card-header">
             <h4>Dane podstawowe</h4>
@@ -31,7 +30,7 @@
         </div>
     </div>
 
-    <!-- Konfiguracja API i integracji -->
+
     <div class="card mb-4">
         <div class="card-header">
             <h4>Konfiguracja API i integracji</h4>
@@ -71,7 +70,6 @@
         </div>
     </div>
 
-    <!-- Integracje Google i Ceneo -->
     <div class="card mb-4">
         <div class="card-header">
             <h4>Integracje Google i Ceneo</h4>
@@ -97,7 +95,7 @@
             </div>
         </div>
     </div>
-    <!-- Integracje Google i Ceneo -->
+  
     <div class="card mb-4">
         <div class="card-header">
             <h4>Allegro</h4>
@@ -106,25 +104,20 @@
             <div class="form-row">
                 <div class="col-md-6 mb-3">
                     <label asp-for="StoreNameAllegro">Nazwa sklepu w Allegro</label>
-                    <input asp-for="StoreNameAllegro" class="form-control"  />
+                    <input asp-for="StoreNameAllegro" class="form-control" />
                     <span asp-validation-for="StoreNameAllegro" class="text-danger"></span>
                 </div>
-                
+
             </div>
 
         </div>
     </div>
-    <!-- Pozostałe ustawienia -->
+
     <div class="card mb-4">
         <div class="card-header">
             <h4>Pozostałe ustawienia</h4>
         </div>
         <div class="card-body">
-            <div class="form-group">
-                <label asp-for="GoogleMiG">GoogleMiG</label>
-                <input asp-for="GoogleMiG" class="form-control" placeholder="Wpisz, jeśli korzystasz z GoogleMiG" />
-                <span asp-validation-for="GoogleMiG" class="text-danger"></span>
-            </div>
 
             <div class="form-row">
                 <div class="col-md-6 mb-3">
@@ -154,9 +147,31 @@
                 </div>
             </div>
         </div>
+
+        <div class="card-header">
+            <h4>Aktywne źródła</h4>
+        </div>
+        <div class="card-body">
+            <div class="form-group form-check">
+                <input asp-for="UseGoogleXMLFeedPrice" class="form-check-input" type="checkbox" />
+                <label asp-for="UseGoogleXMLFeedPrice" class="form-check-label">Ceneo</label>
+                <span asp-validation-for="UseGoogleXMLFeedPrice" class="text-danger"></span>
+            </div>
+            <div class="form-group form-check">
+                <input asp-for="UseGoogleXMLFeedPrice" class="form-check-input" type="checkbox" />
+                <label asp-for="UseGoogleXMLFeedPrice" class="form-check-label">Google</label>
+                <span asp-validation-for="UseGoogleXMLFeedPrice" class="text-danger"></span>
+            </div>
+            <div class="form-group form-check">
+                <input asp-for="UseGoogleXMLFeedPrice" class="form-check-input" type="checkbox" />
+                <label asp-for="UseGoogleXMLFeedPrice" class="form-check-label">Allegro</label>
+                <span asp-validation-for="UseGoogleXMLFeedPrice" class="text-danger"></span>
+            </div>
+
+        </div>
+
     </div>
 
-    <!-- Przycisk zapisu -->
     <button type="submit" class="btn btn-primary">Zapisz</button>
 </form>
 

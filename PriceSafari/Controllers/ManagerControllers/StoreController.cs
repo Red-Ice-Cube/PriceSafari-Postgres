@@ -96,7 +96,6 @@ namespace PriceSafari.Controllers.ManagerControllers
             existingStore.StoreLogoUrl = store.StoreLogoUrl;
             existingStore.ProductMapXmlUrl = store.ProductMapXmlUrl;
             existingStore.ProductMapXmlUrlGoogle = store.ProductMapXmlUrlGoogle;
-            existingStore.GoogleMiG = store.GoogleMiG;
             existingStore.DiscountPercentage = store.DiscountPercentage ?? 0;
             existingStore.RemainingScrapes = store.RemainingScrapes;
             existingStore.ProductsToScrap = store.ProductsToScrap;
@@ -105,6 +104,10 @@ namespace PriceSafari.Controllers.ManagerControllers
             existingStore.StoreNameGoogle = store.StoreNameGoogle;
             existingStore.StoreNameCeneo = store.StoreNameCeneo;
             existingStore.UseGoogleXMLFeedPrice = store.UseGoogleXMLFeedPrice;
+
+            existingStore.OnCeneo = store.OnCeneo;
+            existingStore.OnGoogle = store.OnGoogle;
+            existingStore.OnAllegro = store.OnAllegro;
 
             if (existingStore.PlanId != store.PlanId)
             {
@@ -227,9 +230,6 @@ namespace PriceSafari.Controllers.ManagerControllers
             {
                 int chunkSize = 100;
 
-                // --- KROK 1: Usuwanie danych z tabel pośredniczących ze złożonymi relacjami ---
-
-                // 1a. Usuwanie ProductFlags
                 Console.WriteLine($"Rozpoczynam usuwanie [ProductFlags] dla StoreId={storeId}...");
                 int totalProductFlagsDeleted = 0;
                 while (true)
@@ -246,7 +246,6 @@ namespace PriceSafari.Controllers.ManagerControllers
                     Console.WriteLine($"[ProductFlags] - usunięto {deleted} rekordów (łącznie {totalProductFlagsDeleted}).");
                 }
 
-                // 1b. ROZWIĄZANIE DLA STARSZYCH BAZ SQL: Przetwarzanie listy ID za pomocą XML zamiast OPENJSON
                 Console.WriteLine($"Rozpoczynam usuwanie [AllegroOffersToScrape] dla StoreId={storeId}...");
                 int totalOffersDeleted = 0;
                 while (true)
@@ -275,7 +274,6 @@ namespace PriceSafari.Controllers.ManagerControllers
                     Console.WriteLine($"[AllegroOffersToScrape] - usunięto {deleted} rekordów (łącznie {totalOffersDeleted}).");
                 }
 
-                // --- KROK 2: Usuwanie pozostałych danych zależnych ---
                 await DeleteInChunksAsync("Products", "StoreId", storeId, chunkSize);
                 await DeleteInChunksAsync("Categories", "StoreId", storeId, chunkSize);
                 await DeleteInChunksAsync("ScrapHistories", "StoreId", storeId, chunkSize);
@@ -287,7 +285,6 @@ namespace PriceSafari.Controllers.ManagerControllers
                 await DeleteInChunksAsync("AllegroProducts", "StoreId", storeId, chunkSize);
                 await DeleteInChunksAsync("AllegroScrapeHistories", "StoreId", storeId, chunkSize);
 
-                // --- KROK 3: Usuwanie samego sklepu ---
                 int deletedStores = await _context.Database.ExecuteSqlRawAsync(
                     "DELETE FROM [Stores] WHERE StoreId = {0}",
                     storeId
@@ -329,8 +326,6 @@ namespace PriceSafari.Controllers.ManagerControllers
             }
             return totalDeleted;
         }
-
-
 
         [HttpGet]
         public async Task<IActionResult> ProductList(int storeId)
