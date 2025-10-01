@@ -6,21 +6,24 @@
     var lastScrapDates = ViewBag.LastScrapDates as Dictionary<int, DateTime?>;
 }
 
+
+
+
 @functions {
-    // Przykładowa funkcja określająca plik graficzny planu
+
     public string GetPlanImageFile(PriceSafari.Models.StoreClass store)
     {
         if (store.Plan == null)
-            return "NoPlan.png"; // np. ikonka "brak planu"
+            return "NoPlan.png";
 
         var plan = store.Plan;
         if (plan.IsTestPlan)
         {
-            return "Free.png";  // ikona planu testowego/darmowego
+            return "Free.png";
         }
         else
         {
-            // Możesz dostosować do własnej logiki (np. w zależności od ProductsToScrap)
+
             var products = store.ProductsToScrap ?? 0;
             if (products <= 500)
                 return "Lite.png";
@@ -36,6 +39,23 @@
     }
 }
 
+
+<style>
+    .channel-icons {
+        margin-top: 5px;
+    }
+
+    .channel-icon {
+        width: 20px;
+        height: 20px;
+        margin-right: 4px;
+    }
+
+    .icon-disabled {
+        filter: grayscale(100%);
+        opacity: 0.6;
+    }
+</style>
 
 <h2>Lista Sklepów</h2>
 
@@ -58,20 +78,16 @@
     <tbody>
         @foreach (var store in Model)
         {
-            // Ustal plik graficzny planu:
+
             var planImage = GetPlanImageFile(store);
             var planName = store.Plan?.PlanName ?? "Brak Planu";
 
-            // Sprawdź, czy plan jest testowy:
             bool isTestPlan = store.Plan?.IsTestPlan ?? false;
 
-            // Czy sklep jest aktywny?
-            bool isActive = store.IsActive; // bazuje na store.RemainingScrapes > 0
+            bool isActive = store.IsActive;
 
-            // Pozostałe zeskrobania
             int remainingScrapes = store.RemainingScrapes;
 
-            // Ilość produktów w planie
             int productsInPlan = store.Plan?.ProductsToScrap ?? 0;
 
             <tr>
@@ -87,8 +103,26 @@
                         <!-- Nazwa sklepu -->
                         <strong>@store.StoreName</strong>
                     </div>
+          
+                   
+
+                    <div class="channel-icons">
+                        <img src="~/images/Ceneo.png"
+                             alt="Ceneo"
+                             title="Ceneo"
+                             class="channel-icon @(store.OnCeneo ? "" : "icon-disabled")" />
+
+                        <img src="~/images/GoogleShopping.png"
+                             alt="Google"
+                             title="Google"
+                             class="channel-icon @(store.OnGoogle ? "" : "icon-disabled")" />
+
+                        <img src="~/images/AllegroIcon.png"
+                             alt="Allegro"
+                             title="Allegro"
+                             class="channel-icon @(store.OnAllegro ? "" : "icon-disabled")" />
+                    </div>
                     <div class="mt-1" style="font-size:0.9em;">
-                        <!-- Grafika planu -->
                         <img src="~/images/@planImage" alt="@planName" style="height:20px; margin-right:5px;" />
                         @planName
                         @if (isTestPlan)
@@ -96,6 +130,8 @@
                             <span class="Validation Validation-accepted">Free</span>
                         }
                     </div>
+     
+                  
                 </td>
 
                 <!-- 2) Parametry planu (ilość w planie, aktywność, pozostałe zeskrobania) -->
@@ -121,8 +157,6 @@
 
                 <!-- 3) Akcje (wszystkie przyciski) -->
                 <td>
-                   
-                  
 
                     <div class="mt-1">
                         <select class="category-depth-select mb-1" data-store-id="@store.StoreId" style="width:auto;">
@@ -170,7 +204,7 @@
 
                         <a asp-controller="AllegroPriceHistory" asp-action="Index" asp-route-storeId="@store.StoreId"
                            class="btn btn-sm btn-warning" style="background-color:coral" title="Analizuj wyniki z Allegro">
-                             Allegro CENY
+                            Allegro CENY
                         </a>
                     </div>
 
@@ -182,7 +216,7 @@
                     {
                         var lastScrap = lastScrapDates[store.StoreId].Value;
                         var timeDiff = DateTime.Now - lastScrap;
-                        // Obliczamy całkowitą liczbę godzin (uwzględniając dni)
+
                         var hours = (int)timeDiff.TotalHours;
                         var minutes = timeDiff.Minutes;
                         <span>@lastScrap.ToString("yyyy-MM-dd HH:mm")</span>
@@ -194,7 +228,6 @@
                         <span>Brak danych</span>
                     }
                 </td>
-
 
                 <!-- 5) Postęp (progress bar) -->
                 <td>
