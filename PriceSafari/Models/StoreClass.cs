@@ -45,6 +45,10 @@ namespace PriceSafari.Models
 
         public string? StoreNameAllegro { get; set; }
 
+        public bool OnCeneo { get; set; } = false;
+        public bool OnGoogle { get; set; } = false;
+        public bool OnAllegro { get; set; } = false;
+
 
 
         // Navigation properties
