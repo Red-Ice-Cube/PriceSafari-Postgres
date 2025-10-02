@@ -1613,7 +1613,8 @@ public class GoogleScraperController : Controller
                 p.FoundOnGoogle,
                 p.GoogleUrl,
                 p.Ean,
-                p.ProducerCode
+                p.ProducerCode,
+                p.GoogleGid
             }).ToList();
 
             return Json(jsonProducts);

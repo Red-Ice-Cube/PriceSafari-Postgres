@@ -85,6 +85,7 @@
             <th>Product URL</th>
             <th>Found on Google</th>
             <th>Google URL</th>
+            <th>GID</th>
         </tr>
     </thead>
     <tbody id="productTable">
@@ -324,6 +325,7 @@
                     var ean = product.ean || '';
 
                     var producerCode = product.producerCode || '';
+                    var googleGid = product.googleGid || '';
 
        
                     var row = '<tr id="productRow-' + product.productId + '">' +
@@ -333,6 +335,7 @@
                         '<td><a href="' + product.url + '" target="_blank">' + product.url + '</a></td>' +
                         '<td>' + foundOnGoogleBadge + '</td>' +
                         '<td><a href="' + googleUrl + '" target="_blank">' + googleUrl + '</a></td>' +
+                        '<td><a href="' + googleGid + '" target="_blank">' + googleGid + '</a></td>' +
                         '</tr>';
 
                     $('#productTable').append(row);

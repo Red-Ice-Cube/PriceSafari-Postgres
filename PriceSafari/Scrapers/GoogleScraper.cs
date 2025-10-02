@@ -519,7 +519,7 @@ public class GoogleScraper
         _page = await _browser.NewPageAsync();
     }
 
-    public async Task<ScraperResult<List<GoogleProductIdentifier>>> SearchInitialProductIdentifiersAsync(string title, int maxItemsToExtract = 10)
+    public async Task<ScraperResult<List<GoogleProductIdentifier>>> SearchInitialProductIdentifiersAsync(string title, int maxItemsToExtract = 20)
 
     {
         var identifiers = new List<GoogleProductIdentifier>();
