@@ -135,122 +135,168 @@
     .hidden {
         display: none;
     }
+
+    .Page-Box-Container {
+        display: flex; 
+        align-items: flex-start; 
+        gap: 20px; 
+    }
 </style>
 
 <div class="Vert">
-    <div class="Vert-full">
+    <div class="Page-Box">
         <div class="price-box-space">
-            <div class="Order-Container-Title">
-                Lista produktów @ViewBag.StoreName
-                <div class="bar-List">
-                    <div>
-                        <strong>Wszystkie produky: </strong><span id="total-products"></span>
-                    </div>
-                    <div>
-                        <strong>Max monitorowanych produktów: </strong><span>@ViewBag.ProductCount</span>
-                    </div>
-                    <div>
-                        <strong>Monitorowane produkty: </strong><span id="scrapable-count"></span>
-                    </div>
-                </div>
-            </div>
+            <div class="Page-Box-Container">
 
-            <div>
-                <button type="button" class="Button-Page-Small-gr" id="uploadMarginsButton">
-                    Ceny zakupu
-                </button>
+                <div class="Page-Box-Category" >
 
-                <select id="categoryDropdown" class="DropDown" style="width:150px;">
-                    <option value="all">Wszystkie</option>
-                </select>
-                <input type="text" id="productSearch" placeholder="Wyszukaj produkt" />
-                <div>
-                    @if (TempData["SuccessMessage"] != null)
-                    {
-                        <div class="alert alert-success" style="margin-top:8px;">
-                            @TempData["SuccessMessage"]
+                    <div><img src="@ViewBag.StoreLogoUrl" class="img-container" /></div>
+                    <div class="store-section" style="width:220px;">
+
+
+               
+                       
+                        <div class="reportStats" style="margin-top:4px;">
+                            <span class="ProductCount-g">
+                                <span id="scrapable-count">0</span> / <span>@ViewBag.ProductCount</span>
+                            </span>
+                            <span class="legendBox" style="width:128px;">Monitorowane prd.</span>
                         </div>
-                    }
-                    @if (TempData["ErrorMessage"] != null)
-                    {
-                        <div class="alert alert-danger" style="margin-top:8px;">
-                            @TempData["ErrorMessage"]
+
+                        <div class="reportStats" style="margin-top:4px;">
+                            <span class="ProductCount-bl">
+                                <span id="total-products">0</span>
+                            </span>
+                            <span class="legendBox" style="width:128px;">Wszystkie prd.</span>
                         </div>
-                    }
+
+
+
+                        <div class="form-check" style="margin-top:16px;">
+                                <input class="form-check-input status-filter" type="checkbox" id="active" value="active" data-status="active">
+                                <label class="form-check-label" for="active">Aktywny (<span id="count-active">0</span>) </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input status-filter" type="checkbox" id="active-rejected" value="active-rejected" data-status="active-rejected">
+                                <label class="form-check-label" for="active-rejected">Odrzucony (<span id="count-active-rejected">0</span>) </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input status-filter" type="checkbox" id="inactive" value="inactive" data-status="inactive">
+                                <label class="form-check-label" for="inactive">Nieaktywny (<span id="count-inactive">0</span>) </label>
+                            </div>
+
+                            <div class="form-check">
+                                <input class="form-check-input status-filter" type="checkbox" id="inactive-rejected" value="inactive-rejected" data-status="inactive-rejected">
+                                <label class="form-check-label" for="inactive-rejected">Wyłączony (<span id="count-inactive-rejected">0</span>) </label>
+                            </div>
+                 
+
+                            <div class="form-check">
+                                <input class="form-check-input status-filter" type="checkbox" id="google" value="google" data-status="google">
+                                <label class="form-check-label" for="google">Google (<span id="count-google">0</span>)</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input status-filter" type="checkbox" id="ceneo" value="ceneo" data-status="ceneo">
+                                <label class="form-check-label" for="ceneo">Ceneo (<span id="count-ceneo">0</span>)</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input status-filter" type="checkbox" id="google-ceneo" value="google-ceneo" data-status="google-ceneo">
+                                <label class="form-check-label" for="google-ceneo">Google i Ceneo (<span id="count-google-ceneo">0</span>)</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input status-filter" type="checkbox" id="not-found" value="not-found" data-status="not-found">
+                                <label class="form-check-label" for="not-found">Nie znalezione (<span id="count-not-found">0</span>)</label>
+                            </div>
+                   
+                       
+                            <button id="select-all" class="Button-Page-Small" style="height:33px; margin-top:16px;">
+                            <span class="dot green-dot"></span>Zaznacz widoczne prd.
+                            </button>
+                            <button id="deselect-all" class="Button-Page-Small" style="height:33px;margin-top:4px;">
+                            <span class="dot red-dot"></span>Odznacz widoczne prd.
+                            </button>
+                        
+                    </div>
+
+                    <!-- Flags Filter -->
+                    <div class="filterBox">
+                        <div class="Category-Container-Select" style="margin-top:-2px;">Flagi</div>
+                        <div class="store-section" id="flagContainer">
+                            <div class="flag-filters">
+                                <div id="flagFilterList">
+                                    <!-- Checkboxy flag zostaną wygenerowane przez JavaScript -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            <div class="Horizontal" style="gap:0px;">
+
+
+
+
+
+
+
+                    <div class="order-upper-box">
+
+                        <input type="text" id="productSearch" style="max-width:150px; height:33.99px;" placeholder="Wyszukaj produkt">
+
+                        
+
+                        <select id="categoryDropdown" class="DropDown" style="max-width:150px; height:33.99px;">(30)<option value="all">Wszystkie</option></select>
+
+           
+
+
+                        <div class="SimpleSpace" style="justify-content:flex-end; margin-right: 12px;">
+                            <div>
+                                @if (TempData["SuccessMessage"] != null)
+                                {
+                                    <div class="alert alert-success" style="margin-top:8px;">
+                                        @TempData["SuccessMessage"]
+                                    </div>
+                                }
+                                @if (TempData["ErrorMessage"] != null)
+                                {
+                                    <div class="alert alert-danger" style="margin-top:8px;">
+                                        @TempData["ErrorMessage"]
+                                    </div>
+                                }
+                            </div>
+                            <button type="button" class="Button-Page-Small-gr" id="uploadMarginsButton">
+                                Ceny zakupu
+                            </button>
+
+                        </div>
+
+                    </div>
+
+
+                    <div class="Vert-table" style="margin-top:0px; height: 84vh;">
+                    <table class="table-orders">
+                        <thead>
+                            <tr>
+                                <th>Produkt (<span id="displayed-count"></span>)</th>
+                                <th></th>
+                                <th>EAN</th>
+                                <th>Zakup</th>
+                                <th>Oferta</th>
+                                <th>Monitoring</th>
+                                <th>Status</th>
+
+                            </tr>
+                        </thead>
+                        <tbody id="product-list">
+                        </tbody>
+                    </table>
                 </div>
             </div>
-        </div>
-
-        <div class="price-box-space">
-            <div style="display:flex; gap:6px;">
-                <div class="store-section">
-                    <div class="form-check">
-                        <input class="form-check-input status-filter" type="checkbox" id="active" value="active" data-status="active">
-                        <label class="form-check-label" for="active">Aktywny (<span id="count-active">0</span>) </label>
-                    </div>
-                    <div class="form-check">
-                        <input class="form-check-input status-filter" type="checkbox" id="active-rejected" value="active-rejected" data-status="active-rejected">
-                        <label class="form-check-label" for="active-rejected">Odrzucony (<span id="count-active-rejected">0</span>) </label>
-                    </div>
-                    <div class="form-check">
-                        <input class="form-check-input status-filter" type="checkbox" id="inactive" value="inactive" data-status="inactive">
-                        <label class="form-check-label" for="inactive">Nieaktywny (<span id="count-inactive">0</span>) </label>
-                    </div>
-
-                    <div class="form-check">
-                        <input class="form-check-input status-filter" type="checkbox" id="inactive-rejected" value="inactive-rejected" data-status="inactive-rejected">
-                        <label class="form-check-label" for="inactive-rejected">Wyłączony (<span id="count-inactive-rejected">0</span>) </label>
-                    </div>
-                </div>
-
-                <div class="store-section">
-                    <div class="form-check">
-                        <input class="form-check-input status-filter" type="checkbox" id="google" value="google" data-status="google">
-                        <label class="form-check-label" for="google">Google (<span id="count-google">0</span>)</label>
-                    </div>
-                    <div class="form-check">
-                        <input class="form-check-input status-filter" type="checkbox" id="ceneo" value="ceneo" data-status="ceneo">
-                        <label class="form-check-label" for="ceneo">Ceneo (<span id="count-ceneo">0</span>)</label>
-                    </div>
-                    <div class="form-check">
-                        <input class="form-check-input status-filter" type="checkbox" id="google-ceneo" value="google-ceneo" data-status="google-ceneo">
-                        <label class="form-check-label" for="google-ceneo">Google i Ceneo (<span id="count-google-ceneo">0</span>)</label>
-                    </div>
-                    <div class="form-check">
-                        <input class="form-check-input status-filter" type="checkbox" id="not-found" value="not-found" data-status="not-found">
-                        <label class="form-check-label" for="not-found">Nie znalezione (<span id="count-not-found">0</span>)</label>
-                    </div>
-                </div>
-            </div>
-            <div style="display:flex; gap:6px; justify-content:flex-end; flex-wrap:wrap; align-content: flex-end; margin-right:12px;">
-                <button id="select-all" class="Button-Page-Small" style="height:33px;">
-                    <span class="dot green-dot"></span>Zaznacz widoczne
-                </button>
-                <button id="deselect-all" class="Button-Page-Small" style="height:33px;">
-                    <span class="dot red-dot"></span>Odznacz widoczne
-                </button>
-            </div>
-        </div>
-
-        <div class="Vert-table">
-            <table class="table-orders">
-                <thead>
-                    <tr>
-                        <th>Produkt (<span id="displayed-count"></span>)</th>
-                        <th></th>
-                        <th>EAN/GTIN</th>
-                        <th>Cena zakupu</th>
-                        <th>Oferta</th>
-                        <th>Monitoring</th>
-                        <th>Status</th>
-
-                    </tr>
-                </thead>
-                <tbody id="product-list">
-                </tbody>
-            </table>
+               
         </div>
     </div>
+</div>
 </div>
 
 <div class="modal fade" id="uploadMarginsModal" tabindex="-1" role="dialog" aria-labelledby="uploadMarginsModalLabel" aria-hidden="true">
