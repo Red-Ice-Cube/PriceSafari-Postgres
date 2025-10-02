@@ -439,6 +439,11 @@
 //}
 
 
+
+
+
+
+
 using PuppeteerSharp;
 using System;
 using System.Collections.Generic;
@@ -447,6 +452,8 @@ using System.Net.Http;
 using System.Text.Json;
 using System.Threading.Tasks;
 using System.Web;
+
+public record GoogleProductIdentifier(string Cid, string Gid);
 
 public class ScraperResult<T>
 {
@@ -471,7 +478,7 @@ public class ScraperResult<T>
 public class GoogleScraper
 {
     private static readonly HttpClient _httpClient;
-    // <<< POPRAWKA: Dodana brakująca deklaracja Random >>>
+
     private static readonly Random _random = new Random();
 
     static GoogleScraper()
@@ -512,10 +519,12 @@ public class GoogleScraper
         _page = await _browser.NewPageAsync();
     }
 
-    public async Task<ScraperResult<List<string>>> SearchInitialProductCIDsAsync(string title, int maxCIDsToExtract = 10)
+    public async Task<ScraperResult<List<GoogleProductIdentifier>>> SearchInitialProductIdentifiersAsync(string title, int maxItemsToExtract = 10)
+
     {
-        var cids = new List<string>();
-        Console.WriteLine($"Navigating to Google Shopping with product title: {title} to extract initial CIDs.");
+        var identifiers = new List<GoogleProductIdentifier>();
+        Console.WriteLine($"Navigating to Google Shopping with product title: {title} to extract initial Identifiers (CID, GID).");
+
         IsCaptchaEncountered = false;
 
         try
@@ -533,9 +542,10 @@ public class GoogleScraper
             if (_page.Url.Contains("/sorry/") || _page.Url.Contains("/captcha"))
             {
                 IsCaptchaEncountered = true;
-                return ScraperResult<List<string>>.Captcha(cids);
-            }
 
+                return ScraperResult<List<GoogleProductIdentifier>>.Captcha(identifiers);
+
+            }
             var rejectButton = await _page.QuerySelectorAsync("button[aria-label='Odrzuć wszystko']");
             if (rejectButton != null)
             {
@@ -552,7 +562,9 @@ public class GoogleScraper
             catch (WaitTaskTimeoutException ex)
             {
                 Console.WriteLine($"Nie znaleziono żadnego znanego kontenera produktów w określonym czasie: {ex.Message}. Strona mogła się zmienić lub brak wyników.");
-                return ScraperResult<List<string>>.Fail("Nie znaleziono boksów produktów.", cids);
+
+                return ScraperResult<List<GoogleProductIdentifier>>.Fail("Nie znaleziono boksów produktów.", identifiers);
+
             }
 
             var productBoxes = await _page.QuerySelectorAllAsync("div.sh-dgr__content, div.MtXiu, div.LrTUQ");
@@ -561,36 +573,47 @@ public class GoogleScraper
 
             if (productBoxes.Length == 0)
             {
-                return ScraperResult<List<string>>.Success(cids);
+
+                return ScraperResult<List<GoogleProductIdentifier>>.Success(identifiers);
+
             }
 
             foreach (var box in productBoxes)
             {
-                if (cids.Count >= maxCIDsToExtract) break;
 
-                string cid = await box.EvaluateFunctionAsync<string>(@"
+                if (identifiers.Count >= maxItemsToExtract) break;
+
+                var idData = await box.EvaluateFunctionAsync<JsonElement>(@"
                     element => {
-                       if (element.dataset.cid) return element.dataset.cid;
-                       const linkWithCid = element.querySelector('a[data-cid]');
-                       if (linkWithCid) return linkWithCid.dataset.cid;
-                       const linkWithDocid = element.querySelector('a[data-docid]');
-                       if (linkWithDocid) return linkWithDocid.dataset.docid;
-                       return null;
+                        const cid = element.dataset.cid || 
+                                   element.querySelector('a[data-cid]')?.dataset.cid || 
+                                   element.querySelector('a[data-docid]')?.dataset.docid;
+                        const gid = element.dataset.gid;
+                        return { cid, gid };
                     }
                 ");
 
-                if (!string.IsNullOrEmpty(cid))
+                var cid = idData.TryGetProperty("cid", out var cidProp) ? cidProp.GetString() : null;
+                var gid = idData.TryGetProperty("gid", out var gidProp) ? gidProp.GetString() : null;
+
+                if (!string.IsNullOrEmpty(cid) && !string.IsNullOrEmpty(gid))
                 {
-                    cids.Add(cid);
-                    Console.WriteLine($"Ekstrahowano CID: {cid}");
+
+                    identifiers.Add(new GoogleProductIdentifier(cid, gid));
+                    Console.WriteLine($"Ekstrahowano CID: {cid}, GID: {gid}");
+
                 }
             }
-            return ScraperResult<List<string>>.Success(cids);
+
+            return ScraperResult<List<GoogleProductIdentifier>>.Success(identifiers);
+
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Błąd podczas wyszukiwania i ekstrakcji CID-ów: {ex.Message}");
-            return ScraperResult<List<string>>.Fail($"Błąd ekstrakcji CID: {ex.Message}", cids);
+            Console.WriteLine($"Błąd podczas wyszukiwania i ekstrakcji identyfikatorów: {ex.Message}");
+
+            return ScraperResult<List<GoogleProductIdentifier>>.Fail($"Błąd ekstrakcji: {ex.Message}", identifiers);
+
         }
     }
 
@@ -626,12 +649,12 @@ public class GoogleScraper
         }
     }
 
-    public async Task<ScraperResult<List<string>>> FindStoreUrlsFromApiAsync(string cid)
+    public async Task<ScraperResult<List<string>>> FindStoreUrlsFromApiAsync(string cid, string gid)
     {
-        Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] Rozpoczynam zbieranie URL-i z API dla CID: {cid}");
+        Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] Rozpoczynam zbieranie URL-i z API dla CID: {cid}, GID: {gid}");
         var allStoreUrls = new List<string>();
 
-        string urlTemplate = $"https://www.google.com/async/oapv?udm=28&yv=3&q=1&async_context=MORE_STORES&pvorigin=3&cs=1&async=catalogid:{cid},pvo:3,fs:%2Fshopping%2Foffers,sori:{{0}},mno:10,isp:true,query:1,pvt:hg,_fmt:jspb";
+        string urlTemplate = $"https://www.google.com/async/oapv?udm=28&yv=3&q=1&async_context=MORE_STORES&pvorigin=3&cs=1&async=gpcid:{gid},catalogid:{cid},pvo:3,fs:%2Fshopping%2Foffers,sori:{{0}},mno:10,isp:true,query:1,pvt:hg,_fmt:jspb";
 
         int startIndex = 0;
         const int pageSize = 10;
@@ -790,7 +813,6 @@ public class GoogleScraper
         Console.WriteLine("Pełny reset przeglądarki zakończony.");
     }
 
-    // Zagnieżdżona klasa parsera
     public static class GoogleApiUrlParser
     {
         public static List<string> Parse(string rawResponse)

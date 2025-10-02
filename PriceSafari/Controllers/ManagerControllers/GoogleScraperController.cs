@@ -51,10 +51,12 @@ public class GoogleScraperController : Controller
         private ProductStatus _status;
         private string _googleUrl;
         private string _cid;
-
+        private string _googleGid;
         public ProductStatus Status { get => _status; set { if (_status != value) { _status = value; IsDirty = true; } } }
         public string GoogleUrl { get => _googleUrl; set { if (_googleUrl != value) { _googleUrl = value; IsDirty = true; } } }
         public string Cid { get => _cid; set { if (_cid != value) { _cid = value; IsDirty = true; } } }
+        public string GoogleGid { get => _googleGid; set { if (_googleGid != value) { _googleGid = value; IsDirty = true; } } }
+        // ZMIANA KONIEC
         public int? ProcessingByTaskId { get; set; }
         public bool IsDirty { get; set; }
 
@@ -66,13 +68,20 @@ public class GoogleScraperController : Controller
             ProductNameInStoreForGoogle = product.ProductNameInStoreForGoogle;
             Ean = product.Ean;
             ProducerCode = product.ProducerCode;
-            if (product.FoundOnGoogle == true) { _status = ProductStatus.Found; _googleUrl = product.GoogleUrl; }
+            if (product.FoundOnGoogle == true)
+            {
+                _status = ProductStatus.Found;
+                _googleUrl = product.GoogleUrl;
+
+                // --- TUTAJ NALEŻY DODAĆ ZMIANĘ ---
+                _googleGid = product.GoogleGid; // Dodaj tę linię
+            }
             else if (product.FoundOnGoogle == false) { _status = ProductStatus.NotFound; }
             else { _status = ProductStatus.Pending; }
             IsDirty = false;
         }
 
-        public void UpdateStatus(ProductStatus newStatus, string googleUrl = null, string cid = null)
+        public void UpdateStatus(ProductStatus newStatus, string googleUrl = null, string cid = null, string gid = null)
         {
             if (this.Status == ProductStatus.Found && (newStatus == ProductStatus.NotFound || newStatus == ProductStatus.Error))
             {
@@ -80,7 +89,12 @@ public class GoogleScraperController : Controller
                 return;
             }
             this.Status = newStatus;
-            if (newStatus == ProductStatus.Found) { this.GoogleUrl = googleUrl; this.Cid = cid; }
+            if (newStatus == ProductStatus.Found)
+            {
+                this.GoogleUrl = googleUrl;
+                this.Cid = cid;
+                this.GoogleGid = gid; // Przypisujemy GID
+            }
         }
     }
 
@@ -638,9 +652,10 @@ public class GoogleScraperController : Controller
 
         Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [Tryb Szybki] Przetwarzam ID: {productState.ProductId}, Szukam: '{searchTermBase}'");
 
-        var cidResult = await scraper.SearchInitialProductCIDsAsync(searchTermBase, maxCIDsToExtract: 1);
+        var identifierResult = await scraper.SearchInitialProductIdentifiersAsync(searchTermBase, maxItemsToExtract: 1);
+        // ZMIANA KONIEC
 
-        if (cidResult.CaptchaEncountered)
+        if (identifierResult.CaptchaEncountered)
         {
             Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [Tryb Szybki] CAPTCHA! Zatrzymuję operację.");
             if (!cts.IsCancellationRequested) cts.Cancel();
@@ -648,15 +663,21 @@ public class GoogleScraperController : Controller
             return;
         }
 
-        if (cidResult.IsSuccess && cidResult.Data.Any())
+        if (identifierResult.IsSuccess && identifierResult.Data.Any())
         {
-            var firstCid = cidResult.Data.First();
+            // ZMIANA START: Pobieramy cały obiekt identyfikatora i z niego wyciągamy CID oraz GID.
+            var firstIdentifier = identifierResult.Data.First();
+            var firstCid = firstIdentifier.Cid;
+            var firstGid = firstIdentifier.Gid;
             var googleUrl = $"https://www.google.com/shopping/product/{firstCid}";
+
             lock (productState)
             {
-                productState.UpdateStatus(ProductStatus.Found, googleUrl, firstCid);
+                // Przekazujemy GID do metody aktualizującej status.
+                productState.UpdateStatus(ProductStatus.Found, googleUrl, firstCid, firstGid);
             }
-            Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [Tryb Szybki] ✓ Znaleziono dla ID {productState.ProductId}. CID: {firstCid}");
+            Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [Tryb Szybki] ✓ Znaleziono dla ID {productState.ProductId}. CID: {firstCid}, GID: {firstGid}");
+            // ZMIANA KONIEC
         }
         else
         {
@@ -903,7 +924,12 @@ public class GoogleScraperController : Controller
         return Content(finalMessage);
     }
 
-    private async Task ProcessSingleProduct_IntermediateMatchAsync(ProductProcessingState productState, GoogleScraper scraper, SearchTermSource termSource, CancellationTokenSource cts, int maxCidsToExtract)
+    private async Task ProcessSingleProduct_IntermediateMatchAsync(
+        ProductProcessingState productState,
+        GoogleScraper scraper,
+        SearchTermSource termSource,
+        CancellationTokenSource cts,
+        int maxItemsToExtract)
     {
         if (cts.IsCancellationRequested) return;
 
@@ -940,31 +966,31 @@ public class GoogleScraperController : Controller
 
         Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [Tryb Pośredni] Przetwarzam ID: {productState.ProductId}. Szukam w Google: '{searchTermForGoogle}', Weryfikuję w tytule: '{comparisonTerm}'");
 
-        var cidsResult = await scraper.SearchInitialProductCIDsAsync(searchTermForGoogle, maxCIDsToExtract: maxCidsToExtract);
+        var identifierResult = await scraper.SearchInitialProductIdentifiersAsync(searchTermForGoogle, maxItemsToExtract: maxItemsToExtract);
 
-        if (cts.IsCancellationRequested || cidsResult.CaptchaEncountered)
+        if (cts.IsCancellationRequested || identifierResult.CaptchaEncountered)
         {
-            if (cidsResult.CaptchaEncountered && !cts.IsCancellationRequested) cts.Cancel();
+            if (identifierResult.CaptchaEncountered && !cts.IsCancellationRequested) cts.Cancel();
             lock (productState) { productState.UpdateStatus(ProductStatus.CaptchaHalt); }
             return;
         }
 
-        if (!cidsResult.IsSuccess || !cidsResult.Data.Any())
+        if (!identifierResult.IsSuccess || !identifierResult.Data.Any())
         {
             lock (productState) { productState.UpdateStatus(ProductStatus.NotFound); }
             Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [Tryb Pośredni] ✗ Nie znaleziono żadnych wyników dla '{searchTermForGoogle}'.");
             return;
         }
 
-        string foundCid = null;
+        GoogleProductIdentifier foundIdentifier = null;
         string cleanedComparisonTerm = comparisonTerm.Replace(" ", "").Trim();
 
-        foreach (var cid in cidsResult.Data)
+        foreach (var identifier in identifierResult.Data)
         {
             if (cts.IsCancellationRequested) break;
 
-            Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [Tryb Pośredni] Weryfikuję CID: {cid} dla produktu ID: {productState.ProductId}");
-            var titleResult = await scraper.GetTitleFromProductPageAsync(cid);
+            Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [Tryb Pośredni] Weryfikuję CID: {identifier.Cid} (GID: {identifier.Gid}) dla produktu ID: {productState.ProductId}");
+            var titleResult = await scraper.GetTitleFromProductPageAsync(identifier.Cid);
 
             if (titleResult.CaptchaEncountered)
             {
@@ -979,8 +1005,8 @@ public class GoogleScraperController : Controller
 
                 if (cleanedTitle.Contains(cleanedComparisonTerm, StringComparison.OrdinalIgnoreCase))
                 {
-                    foundCid = cid;
-                    Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [Tryb Pośredni] ✓ ZNALEZIONO DOPASOWANIE. Tytuł: '{titleResult.Data}' zawiera kod '{comparisonTerm}'. CID: {foundCid}");
+                    foundIdentifier = identifier;
+                    Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [Tryb Pośredni] ✓ ZNALEZIONO DOPASOWANIE. Tytuł: '{titleResult.Data}' zawiera kod '{comparisonTerm}'. CID: {foundIdentifier.Cid}, GID: {foundIdentifier.Gid}");
                     break;
                 }
                 else
@@ -990,18 +1016,18 @@ public class GoogleScraperController : Controller
             }
         }
 
-        if (foundCid != null)
+        if (foundIdentifier != null)
         {
-            var googleUrl = $"https://www.google.com/shopping/product/{foundCid}";
+            var googleUrl = $"https://www.google.com/shopping/product/{foundIdentifier.Cid}";
             lock (productState)
             {
-                productState.UpdateStatus(ProductStatus.Found, googleUrl, foundCid);
+                productState.UpdateStatus(ProductStatus.Found, googleUrl, foundIdentifier.Cid, foundIdentifier.Gid);
             }
         }
         else
         {
             lock (productState) { productState.UpdateStatus(ProductStatus.NotFound); }
-            Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [Tryb Pośredni] ✗ Nie znaleziono dopasowania w żadnym z {cidsResult.Data.Count} sprawdzonych CID-ów.");
+            Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [Tryb Pośredni] ✗ Nie znaleziono dopasowania w żadnym z {identifierResult.Data.Count} sprawdzonych identyfikatorów.");
         }
     }
 
@@ -1162,6 +1188,7 @@ public class GoogleScraperController : Controller
                 ProductStatus currentStatusSnapshot = default;
                 string currentGoogleUrlSnapshot = null;
                 string currentCidSnapshot = null;
+                string currentGidSnapshot = null;
                 bool processThisProduct = false;
 
                 lock (productState)
@@ -1172,6 +1199,7 @@ public class GoogleScraperController : Controller
                         currentStatusSnapshot = productState.Status;
                         currentGoogleUrlSnapshot = productState.GoogleUrl;
                         currentCidSnapshot = productState.Cid;
+                        currentGidSnapshot = productState.GoogleGid;
                     }
                 }
 
@@ -1188,18 +1216,26 @@ public class GoogleScraperController : Controller
                     {
                         if (currentStatusSnapshot == ProductStatus.Found)
                         {
-                            if (dbProduct.FoundOnGoogle != true || dbProduct.GoogleUrl != currentGoogleUrlSnapshot)
-                            { dbProduct.FoundOnGoogle = true; dbProduct.GoogleUrl = currentGoogleUrlSnapshot; changedInDb = true; }
+                            // ZMIANA START: Dodajemy sprawdzenie i przypisanie GoogleGid
+                            if (dbProduct.FoundOnGoogle != true || dbProduct.GoogleUrl != currentGoogleUrlSnapshot || dbProduct.GoogleGid != currentGidSnapshot)
+                            {
+                                dbProduct.FoundOnGoogle = true;
+                                dbProduct.GoogleUrl = currentGoogleUrlSnapshot;
+                                dbProduct.GoogleGid = currentGidSnapshot; // Zapisujemy GID
+                                changedInDb = true;
+                            }
+                            // ZMIANA KONIEC
                         }
                         else if (currentStatusSnapshot == ProductStatus.NotFound)
                         {
-                            if (dbProduct.FoundOnGoogle != false || dbProduct.GoogleUrl != null)
-                            { dbProduct.FoundOnGoogle = false; dbProduct.GoogleUrl = null; changedInDb = true; }
-                        }
-                        else if (currentStatusSnapshot == ProductStatus.Error)
-                        {
-                            if (dbProduct.FoundOnGoogle != false)
-                            { dbProduct.FoundOnGoogle = false; dbProduct.GoogleUrl = $"Error State @ {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss Z}"; changedInDb = true; }
+                            // ZMIANA START: Czyścimy również GoogleGid
+                            if (dbProduct.FoundOnGoogle != false || dbProduct.GoogleUrl != null || dbProduct.GoogleGid != null)
+                            {
+                                dbProduct.FoundOnGoogle = false;
+                                dbProduct.GoogleUrl = null;
+                                dbProduct.GoogleGid = null; // Czyścimy GID
+                                changedInDb = true;
+                            }
                         }
                         else if (currentStatusSnapshot == ProductStatus.CaptchaHalt)
                         {
@@ -1230,6 +1266,7 @@ public class GoogleScraperController : Controller
         }
     }
 
+
     private async Task ProcessSingleProductAsync(
     ProductProcessingState productState,
     GoogleScraper scraper,
@@ -1241,7 +1278,6 @@ public class GoogleScraperController : Controller
     string namePrefix,
     bool allowManualCaptchaSolving)
     {
-
         if (captchaCts.IsCancellationRequested && !allowManualCaptchaSolving)
         {
             lock (productState) { productState.UpdateStatus(ProductStatus.CaptchaHalt); }
@@ -1301,36 +1337,32 @@ public class GoogleScraperController : Controller
 
         try
         {
-
         RestartProductProcessing:
 
-            bool cidSearchCompleted = false;
-            ScraperResult<List<string>> cidResult = null;
+            bool identifierSearchCompleted = false;
+            ScraperResult<List<GoogleProductIdentifier>> identifierResult = null;
 
-            while (!cidSearchCompleted)
+            while (!identifierSearchCompleted)
             {
-
                 if (captchaCts.IsCancellationRequested && !allowManualCaptchaSolving)
                 {
                     lock (productState) { productState.UpdateStatus(ProductStatus.CaptchaHalt); }
                     return;
                 }
 
-                cidResult = await scraper.SearchInitialProductCIDsAsync(searchTermBase, maxCidsToSearch);
+                identifierResult = await scraper.SearchInitialProductIdentifiersAsync(searchTermBase, maxCidsToSearch);
 
-                if (cidResult.CaptchaEncountered)
+                if (identifierResult.CaptchaEncountered)
                 {
                     if (allowManualCaptchaSolving)
                     {
                         bool solved = await HandleManualCaptchaAsync(scraper, TimeSpan.FromMinutes(5));
                         if (solved)
                         {
-
                             continue;
                         }
                         else
                         {
-
                             lock (productState) { productState.UpdateStatus(ProductStatus.Error); }
                             return;
                         }
@@ -1343,18 +1375,18 @@ public class GoogleScraperController : Controller
                     }
                 }
 
-                cidSearchCompleted = true;
+                identifierSearchCompleted = true;
             }
 
-            if (!cidResult.IsSuccess || !cidResult.Data.Any())
+            if (!identifierResult.IsSuccess || !identifierResult.Data.Any())
             {
-                Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [{Thread.CurrentThread.ManagedThreadId}] Nie znaleziono CID/błąd dla '{searchTermBase}' (ID {productState.ProductId}). Msg: {cidResult.ErrorMessage}");
+                Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [{Thread.CurrentThread.ManagedThreadId}] Nie znaleziono identyfikatorów/błąd dla '{searchTermBase}' (ID {productState.ProductId}). Msg: {identifierResult.ErrorMessage}");
                 lock (productState) { productState.UpdateStatus(ProductStatus.NotFound); }
             }
             else
             {
-                List<string> initialCIDs = cidResult.Data;
-                Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [{Thread.CurrentThread.ManagedThreadId}] Znaleziono {initialCIDs.Count} CID dla ID {productState.ProductId}. Sprawdzam oferty.");
+                List<GoogleProductIdentifier> initialIdentifiers = identifierResult.Data;
+                Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [{Thread.CurrentThread.ManagedThreadId}] Znaleziono {initialIdentifiers.Count} identyfikatorów dla ID {productState.ProductId}. Sprawdzam oferty.");
 
                 Dictionary<string, ProductProcessingState> localEligibleProductsMap;
                 lock (_lockMasterListInit)
@@ -1367,15 +1399,13 @@ public class GoogleScraperController : Controller
                 bool initiatingProductDirectlyMatchedInThisTask = false;
                 lock (productState) { if (productState.Status == ProductStatus.Found) initiatingProductDirectlyMatchedInThisTask = true; }
 
-                foreach (var cid in initialCIDs)
+                foreach (var identifier in initialIdentifiers)
                 {
                     if (captchaCts.IsCancellationRequested && !allowManualCaptchaSolving) break;
 
-                    Console.WriteLine($"\n[{DateTime.Now:HH:mm:ss}] [{Thread.CurrentThread.ManagedThreadId}] ID {productState.ProductId}: Przetwarzam CID: {cid}");
+                    Console.WriteLine($"\n[{DateTime.Now:HH:mm:ss}] [{Thread.CurrentThread.ManagedThreadId}] ID {productState.ProductId}: Przetwarzam CID: {identifier.Cid}, GID: {identifier.Gid}");
 
-                 
-                    ScraperResult<List<string>> offersResult = await scraper.FindStoreUrlsFromApiAsync(cid);
-                  
+                    ScraperResult<List<string>> offersResult = await scraper.FindStoreUrlsFromApiAsync(identifier.Cid, identifier.Gid);
 
                     if (offersResult.CaptchaEncountered)
                     {
@@ -1385,7 +1415,6 @@ public class GoogleScraperController : Controller
                             if (solved)
                             {
                                 Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [{Thread.CurrentThread.ManagedThreadId}] CAPTCHA rozwiązana podczas sprawdzania ofert. Restartuję przetwarzanie dla produktu ID: {productState.ProductId}");
-
                                 goto RestartProductProcessing;
                             }
                             else
@@ -1404,16 +1433,16 @@ public class GoogleScraperController : Controller
 
                     if (offersResult.IsSuccess && offersResult.Data.Any())
                     {
-                        Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [{Thread.CurrentThread.ManagedThreadId}] ID {productState.ProductId}, CID {cid}: Znaleziono {offersResult.Data.Count} ofert.");
+                        Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [{Thread.CurrentThread.ManagedThreadId}] ID {productState.ProductId}, CID {identifier.Cid}: Znaleziono {offersResult.Data.Count} ofert.");
                         foreach (var cleanedOfferUrl in offersResult.Data)
                         {
                             if (localEligibleProductsMap.TryGetValue(cleanedOfferUrl, out var matchedState))
                             {
                                 lock (matchedState)
                                 {
-                                    string googleProductPageUrl = $"https://www.google.com/shopping/product/{cid}";
-                                    matchedState.UpdateStatus(ProductStatus.Found, googleProductPageUrl, cid);
-                                    Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [{Thread.CurrentThread.ManagedThreadId}] ✓ DOPASOWANO! {cleanedOfferUrl} → ID {matchedState.ProductId}. CID: {cid}");
+                                    string googleProductPageUrl = $"https://www.google.com/shopping/product/{identifier.Cid}";
+                                    matchedState.UpdateStatus(ProductStatus.Found, googleProductPageUrl, identifier.Cid, identifier.Gid);
+                                    Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [{Thread.CurrentThread.ManagedThreadId}] ✓ DOPASOWANO! {cleanedOfferUrl} → ID {matchedState.ProductId}. CID: {identifier.Cid}, GID: {identifier.Gid}");
 
                                     if (matchedState.ProductId == productState.ProductId)
                                     {
@@ -1425,7 +1454,7 @@ public class GoogleScraperController : Controller
                     }
                     else
                     {
-                        Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [{Thread.CurrentThread.ManagedThreadId}] ID {productState.ProductId}, CID {cid}: Brak ofert lub błąd. Msg: {offersResult.ErrorMessage}");
+                        Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [{Thread.CurrentThread.ManagedThreadId}] ID {productState.ProductId}, CID {identifier.Cid}: Brak ofert lub błąd. Msg: {offersResult.ErrorMessage}");
                     }
 
                     if (captchaCts.IsCancellationRequested && !allowManualCaptchaSolving) break;
@@ -1457,12 +1486,10 @@ public class GoogleScraperController : Controller
         }
         finally
         {
-
             lock (productState)
             {
                 if (productState.Status == ProductStatus.Processing)
                 {
-
                     productState.UpdateStatus(ProductStatus.Pending);
                 }
             }
