@@ -372,6 +372,8 @@ public class GoogleMainPriceScraper
     public async Task<List<CoOfrPriceHistoryClass>> ScrapePricesAsync(CoOfrClass coOfr)
     {
         var finalPriceHistory = new List<CoOfrPriceHistoryClass>();
+
+        // Krok 1: Wyodrębnij ID katalogu (CID) z URL-a. To pozostaje bez zmian.
         string? catalogId = ExtractProductId(coOfr.GoogleOfferUrl);
 
         if (string.IsNullOrEmpty(catalogId))
@@ -380,7 +382,20 @@ public class GoogleMainPriceScraper
             return finalPriceHistory;
         }
 
-        string urlTemplate = $"https://www.google.com/async/oapv?udm=28&yv=3&q=1&async_context=MORE_STORES&pvorigin=3&cs=1&async=catalogid:{catalogId},pvo:3,fs:%2Fshopping%2Foffers,sori:{{0}},mno:10,isp:true,query:1,pvt:hg,_fmt:jspb";
+        // Krok 2: Dynamiczne tworzenie szablonu URL na podstawie obecności GoogleGid.
+        string urlTemplate;
+        if (!string.IsNullOrEmpty(coOfr.GoogleGid))
+        {
+            // Jeśli GID istnieje, użyj nowego formatu z `gpcid`.
+            Console.WriteLine($"Używam GID: {coOfr.GoogleGid} dla CID: {catalogId}");
+            urlTemplate = $"https://www.google.com/async/oapv?udm=28&yv=3&q=1&async_context=MORE_STORES&pvorigin=3&cs=1&async=gpcid:{coOfr.GoogleGid},catalogid:{catalogId},pvo:3,fs:%2Fshopping%2Foffers,sori:{{0}},mno:10,isp:true,query:1,pvt:hg,_fmt:jspb";
+        }
+        else
+        {
+            // Jeśli GID nie istnieje, użyj starego, bezpiecznego formatu.
+            Console.WriteLine($"GID nie znaleziony dla CID: {catalogId}. Używam zapytania bez gpcid.");
+            urlTemplate = $"https://www.google.com/async/oapv?udm=28&yv=3&q=1&async_context=MORE_STORES&pvorigin=3&cs=1&async=catalogid:{catalogId},pvo:3,fs:%2Fshopping%2Foffers,sori:{{0}},mno:10,isp:true,query:1,pvt:hg,_fmt:jspb";
+        }
 
         var allFoundOffers = new List<TempOffer>();
         int startIndex = 0;
@@ -399,13 +414,19 @@ public class GoogleMainPriceScraper
                 {
                     string rawResponse = await _httpClient.GetStringAsync(currentUrl);
                     newOffers = GoogleShoppingApiParser.Parse(rawResponse);
-                    if (newOffers.Any()) break;
+                    if (newOffers.Any() || rawResponse.Length < 100) break; // Wyjdź z pętli prób, jeśli są oferty lub odpowiedź jest "pusta"
                     if (attempt < maxRetries) await Task.Delay(2000);
                 }
-                catch (HttpRequestException)
+                catch (HttpRequestException ex)
                 {
-                    if (attempt == maxRetries) Console.WriteLine($"[BŁĄD KRYTYCZNY] Nie udało się pobrać ofert z {currentUrl} po {maxRetries} próbach.");
-                    else await Task.Delay(2500);
+                    if (attempt == maxRetries)
+                    {
+                        Console.WriteLine($"[BŁĄD KRYTYCZNY] Nie udało się pobrać ofert z {currentUrl} po {maxRetries} próbach. Błąd: {ex.Message}");
+                    }
+                    else
+                    {
+                        await Task.Delay(2500);
+                    }
                 }
             }
             lastFetchCount = newOffers.Count;

@@ -5,7 +5,8 @@ public class CoOfrClass
     [Key]
     public int Id { get; set; }
     public string? OfferUrl { get; set; } //Ceneo ofer
-    public string? GoogleOfferUrl { get; set; } //Ceneo ofer
+    public string? GoogleOfferUrl { get; set; } 
+    public string? GoogleGid { get; set; } 
     public List<int> ProductIds { get; set; } = new List<int>();
     public List<int> ProductIdsGoogle { get; set; } = new List<int>();
     public bool IsScraped { get; set; }

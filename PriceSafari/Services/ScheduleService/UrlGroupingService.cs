@@ -18,7 +18,6 @@ namespace PriceSafari.Services.ScheduleService
 
         public async Task<(int totalProducts, List<string> distinctStoreNames)> GroupAndSaveUniqueUrls(List<int> storeIds)
         {
-
             var allProducts = await _context.Products
                 .Include(p => p.Store)
                 .Where(p => p.IsScrapable && p.Store.RemainingScrapes > 0)
@@ -50,15 +49,20 @@ namespace PriceSafari.Services.ScheduleService
                 var offerUrl = kvp.Key;
                 var productList = kvp.Value;
 
-                var chosenGoogleUrl = productList
-                    .Select(p => p.GoogleUrl)
-                    .FirstOrDefault(gu => !string.IsNullOrEmpty(gu));
+                // ZMIANA START: Znajdujemy jeden produkt-reprezentant, aby pobrać z niego spójne dane Google.
+                var representativeProduct = productList.FirstOrDefault(p => !string.IsNullOrEmpty(p.GoogleUrl));
+                var chosenGoogleUrl = representativeProduct?.GoogleUrl;
+                var chosenGoogleGid = representativeProduct?.GoogleGid;
+                // ZMIANA KONIEC
 
-                var coOfr = CreateCoOfrClass(productList, offerUrl, chosenGoogleUrl);
+                // ZMIANA START: Przekazujemy `chosenGoogleGid` do metody tworzącej obiekt.
+                var coOfr = CreateCoOfrClass(productList, offerUrl, chosenGoogleUrl, chosenGoogleGid);
                 coOfrs.Add(coOfr);
+                // ZMIANA KONIEC
             }
 
             var groupsByGoogleUrlForNoOffer = productsWithoutOffer
+                .Where(p => !string.IsNullOrEmpty(p.GoogleUrl)) // Grupujemy tylko te, które mają GoogleUrl
                 .GroupBy(p => p.GoogleUrl ?? "")
                 .ToDictionary(g => g.Key, g => g.ToList());
 
@@ -67,30 +71,47 @@ namespace PriceSafari.Services.ScheduleService
                 var googleUrl = kvp.Key;
                 var productList = kvp.Value;
 
-                var coOfr = CreateCoOfrClass(
-                    productList,
-                    null,
-                    string.IsNullOrEmpty(googleUrl) ? null : googleUrl
-                );
+                // ZMIANA START: Pobieramy GID z pierwszego produktu w grupie (powinny być takie same).
+                var representativeGid = productList.FirstOrDefault()?.GoogleGid;
+                // ZMIANA KONIEC
+
+                // ZMIANA START: Przekazujemy `representativeGid` do metody tworzącej obiekt.
+                var coOfr = CreateCoOfrClass(productList, null, googleUrl, representativeGid);
+                coOfrs.Add(coOfr);
+                // ZMIANA KONIEC
+            }
+
+            // Obsługa produktów bez żadnego URL
+            var productsWithNoUrl = productsWithoutOffer.Where(p => string.IsNullOrEmpty(p.GoogleUrl)).ToList();
+            if (productsWithNoUrl.Any())
+            {
+                // Traktujemy je jako jedną "bezadresową" grupę
+                var coOfr = CreateCoOfrClass(productsWithNoUrl, null, null, null);
                 coOfrs.Add(coOfr);
             }
 
+            // Usunięcie starych i dodanie nowych zgrupowanych ofert
             _context.CoOfrs.RemoveRange(_context.CoOfrs);
-            _context.CoOfrs.AddRange(coOfrs);
+            await _context.SaveChangesAsync(); // Upewnijmy się, że usunięcie zostało wykonane
 
+            _context.CoOfrs.AddRange(coOfrs);
             await _context.SaveChangesAsync();
+
             return (totalProducts, distinctStoreNames);
         }
 
-        private CoOfrClass CreateCoOfrClass(List<ProductClass> productList, string? offerUrl, string? googleUrl)
+        // ZMIANA START: Dodajemy parametr `googleGid` do sygnatury metody.
+        private CoOfrClass CreateCoOfrClass(List<ProductClass> productList, string? offerUrl, string? googleUrl, string? googleGid)
         {
             if (string.IsNullOrEmpty(offerUrl)) offerUrl = null;
             if (string.IsNullOrEmpty(googleUrl)) googleUrl = null;
+            if (string.IsNullOrEmpty(googleGid)) googleGid = null;
 
             var coOfr = new CoOfrClass
             {
                 OfferUrl = offerUrl,
                 GoogleOfferUrl = googleUrl,
+                GoogleGid = googleGid, // Przypisanie GID
                 ProductIds = new List<int>(),
                 ProductIdsGoogle = new List<int>(),
                 StoreNames = new List<string>(),
@@ -101,9 +122,11 @@ namespace PriceSafari.Services.ScheduleService
                 GoogleIsRejected = false
             };
 
+            var uniqueStoreNames = new HashSet<string>();
+            var uniqueStoreProfiles = new HashSet<string>();
+
             foreach (var product in productList)
             {
-
                 coOfr.ProductIds.Add(product.ProductId);
 
                 if (!string.IsNullOrEmpty(googleUrl) && product.GoogleUrl == googleUrl)
@@ -111,11 +134,18 @@ namespace PriceSafari.Services.ScheduleService
                     coOfr.ProductIdsGoogle.Add(product.ProductId);
                 }
 
-                coOfr.StoreNames.Add(product.Store.StoreName);
-                coOfr.StoreProfiles.Add(product.Store.StoreProfile);
+                if (product.Store != null)
+                {
+                    uniqueStoreNames.Add(product.Store.StoreName);
+                    uniqueStoreProfiles.Add(product.Store.StoreProfile);
+                }
             }
+
+            coOfr.StoreNames = uniqueStoreNames.ToList();
+            coOfr.StoreProfiles = uniqueStoreProfiles.ToList();
 
             return coOfr;
         }
+        // ZMIANA KONIEC
     }
 }
