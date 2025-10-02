@@ -137,9 +137,9 @@
     }
 
     .Page-Box-Container {
-        display: flex; 
-        align-items: flex-start; 
-        gap: 20px; 
+        display: flex;
+        align-items: flex-start;
+        gap: 20px;
     }
 </style>
 
@@ -148,14 +148,11 @@
         <div class="price-box-space">
             <div class="Page-Box-Container">
 
-                <div class="Page-Box-Category" >
+                <div class="Page-Box-Category">
 
                     <div><img src="@ViewBag.StoreLogoUrl" class="img-container" /></div>
                     <div class="store-section" style="width:220px;">
 
-
-               
-                       
                         <div class="reportStats" style="margin-top:4px;">
                             <span class="ProductCount-g">
                                 <span id="scrapable-count">0</span> / <span>@ViewBag.ProductCount</span>
@@ -170,52 +167,48 @@
                             <span class="legendBox" style="width:128px;">Wszystkie prd.</span>
                         </div>
 
-
-
                         <div class="form-check" style="margin-top:16px;">
-                                <input class="form-check-input status-filter" type="checkbox" id="active" value="active" data-status="active">
-                                <label class="form-check-label" for="active">Aktywny (<span id="count-active">0</span>) </label>
-                            </div>
-                            <div class="form-check">
-                                <input class="form-check-input status-filter" type="checkbox" id="active-rejected" value="active-rejected" data-status="active-rejected">
-                                <label class="form-check-label" for="active-rejected">Odrzucony (<span id="count-active-rejected">0</span>) </label>
-                            </div>
-                            <div class="form-check">
-                                <input class="form-check-input status-filter" type="checkbox" id="inactive" value="inactive" data-status="inactive">
-                                <label class="form-check-label" for="inactive">Nieaktywny (<span id="count-inactive">0</span>) </label>
-                            </div>
+                            <input class="form-check-input status-filter" type="checkbox" id="active" value="active" data-status="active">
+                            <label class="form-check-label" for="active">Aktywny (<span id="count-active">0</span>) </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input status-filter" type="checkbox" id="active-rejected" value="active-rejected" data-status="active-rejected">
+                            <label class="form-check-label" for="active-rejected">Odrzucony (<span id="count-active-rejected">0</span>) </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input status-filter" type="checkbox" id="inactive" value="inactive" data-status="inactive">
+                            <label class="form-check-label" for="inactive">Nieaktywny (<span id="count-inactive">0</span>) </label>
+                        </div>
 
-                            <div class="form-check">
-                                <input class="form-check-input status-filter" type="checkbox" id="inactive-rejected" value="inactive-rejected" data-status="inactive-rejected">
-                                <label class="form-check-label" for="inactive-rejected">Wyłączony (<span id="count-inactive-rejected">0</span>) </label>
-                            </div>
-                 
+                        <div class="form-check">
+                            <input class="form-check-input status-filter" type="checkbox" id="inactive-rejected" value="inactive-rejected" data-status="inactive-rejected">
+                            <label class="form-check-label" for="inactive-rejected">Wyłączony (<span id="count-inactive-rejected">0</span>) </label>
+                        </div>
 
-                            <div class="form-check">
-                                <input class="form-check-input status-filter" type="checkbox" id="google" value="google" data-status="google">
-                                <label class="form-check-label" for="google">Google (<span id="count-google">0</span>)</label>
-                            </div>
-                            <div class="form-check">
-                                <input class="form-check-input status-filter" type="checkbox" id="ceneo" value="ceneo" data-status="ceneo">
-                                <label class="form-check-label" for="ceneo">Ceneo (<span id="count-ceneo">0</span>)</label>
-                            </div>
-                            <div class="form-check">
-                                <input class="form-check-input status-filter" type="checkbox" id="google-ceneo" value="google-ceneo" data-status="google-ceneo">
-                                <label class="form-check-label" for="google-ceneo">Google i Ceneo (<span id="count-google-ceneo">0</span>)</label>
-                            </div>
-                            <div class="form-check">
-                                <input class="form-check-input status-filter" type="checkbox" id="not-found" value="not-found" data-status="not-found">
-                                <label class="form-check-label" for="not-found">Nie znalezione (<span id="count-not-found">0</span>)</label>
-                            </div>
-                   
-                       
-                            <button id="select-all" class="Button-Page-Small" style="height:33px; margin-top:16px;">
+                        <div class="form-check">
+                            <input class="form-check-input status-filter" type="checkbox" id="google" value="google" data-status="google">
+                            <label class="form-check-label" for="google">Google (<span id="count-google">0</span>)</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input status-filter" type="checkbox" id="ceneo" value="ceneo" data-status="ceneo">
+                            <label class="form-check-label" for="ceneo">Ceneo (<span id="count-ceneo">0</span>)</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input status-filter" type="checkbox" id="google-ceneo" value="google-ceneo" data-status="google-ceneo">
+                            <label class="form-check-label" for="google-ceneo">Google i Ceneo (<span id="count-google-ceneo">0</span>)</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input status-filter" type="checkbox" id="not-found" value="not-found" data-status="not-found">
+                            <label class="form-check-label" for="not-found">Nie znalezione (<span id="count-not-found">0</span>)</label>
+                        </div>
+
+                        <button id="select-all" class="Button-Page-Small" style="height:33px; margin-top:16px;">
                             <span class="dot green-dot"></span>Zaznacz widoczne prd.
-                            </button>
-                            <button id="deselect-all" class="Button-Page-Small" style="height:33px;margin-top:4px;">
+                        </button>
+                        <button id="deselect-all" class="Button-Page-Small" style="height:33px;margin-top:4px;">
                             <span class="dot red-dot"></span>Odznacz widoczne prd.
-                            </button>
-                        
+                        </button>
+
                     </div>
 
                     <!-- Flags Filter -->
@@ -231,24 +224,13 @@
                     </div>
 
                 </div>
-            <div class="Horizontal" style="gap:0px;">
-
-
-
-
-
-
+                <div class="Horizontal" style="gap:0px;">
 
                     <div class="order-upper-box">
 
                         <input type="text" id="productSearch" style="max-width:150px; height:33.99px;" placeholder="Wyszukaj produkt">
 
-                        
-
-                        <select id="categoryDropdown" class="DropDown" style="max-width:150px; height:33.99px;">(30)<option value="all">Wszystkie</option></select>
-
-           
-
+                        <select id="producerDropdown" class="DropDown" style="max-width:200px; height:33.99px;">(30)<option value="all">Producent - Wszyscy</option></select>
 
                         <div class="SimpleSpace" style="justify-content:flex-end; margin-right: 12px;">
                             <div>
@@ -273,30 +255,29 @@
 
                     </div>
 
-
                     <div class="Vert-table" style="margin-top:0px; height: 84vh;">
-                    <table class="table-orders">
-                        <thead>
-                            <tr>
-                                <th>Produkt (<span id="displayed-count"></span>)</th>
-                                <th></th>
-                                <th>EAN</th>
-                                <th>Zakup</th>
-                                <th>Oferta</th>
-                                <th>Monitoring</th>
-                                <th>Status</th>
+                        <table class="table-orders">
+                            <thead>
+                                <tr>
+                                    <th>Produkt (<span id="displayed-count"></span>)</th>
+                                    <th></th>
+                                    <th>EAN</th>
+                                    <th>Zakup</th>
+                                    <th>Oferta</th>
+                                    <th>Monitoring</th>
+                                    <th>Status</th>
 
-                            </tr>
-                        </thead>
-                        <tbody id="product-list">
-                        </tbody>
-                    </table>
+                                </tr>
+                            </thead>
+                            <tbody id="product-list">
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
+
             </div>
-               
         </div>
     </div>
-</div>
 </div>
 
 <div class="modal fade" id="uploadMarginsModal" tabindex="-1" role="dialog" aria-labelledby="uploadMarginsModalLabel" aria-hidden="true">
@@ -375,10 +356,11 @@
             var selectAllButton = document.getElementById('select-all');
             var deselectAllButton = document.getElementById('deselect-all');
             var searchInput = document.getElementById('productSearch');
-            var categoryDropdown = document.getElementById('categoryDropdown');
+            var categoryDropdown = document.getElementById('producerDropdown');
 
-            var lastScrollPosition = 0;
-            var selectedCategory = 'all';
+                var lastScrollPosition = 0;
+
+            var selectedProducer = 'all';
 
             var platformStatuses = ['google', 'ceneo', 'google-ceneo', 'not-found'];
 
@@ -410,15 +392,19 @@
                 return `${day}-${month}-${year} ${hours}:${minutes}`;
             }
 
-            function saveState() {
+             function saveState() {
                 lastScrollPosition = window.scrollY;
-                selectedCategory = categoryDropdown.value;
+
+                selectedProducer = producerDropdown.value;
+
             }
 
             function restoreState() {
-                if (categoryDropdown) {
-                    categoryDropdown.value = selectedCategory;
+
+                if (producerDropdown) {
+                    producerDropdown.value = selectedProducer;
                 }
+
                 window.scrollTo(0, lastScrollPosition);
             }
 
@@ -428,24 +414,24 @@
                 return txt.value;
             }
 
-            function populateCategoryDropdown(categoriesWithCount) {
-                categoriesWithCount.sort((a, b) => b.count - a.count);
-                categoryDropdown.innerHTML = '<option value="all">Wszystkie (' + allProducts.length + ')</option>';
-                categoriesWithCount.forEach(category => {
-                    var decodedCategoryName = decodeHTML(category.name);
+            function populateProducerDropdown(producersWithCount) {
+                producersWithCount.sort((a, b) => b.count - a.count);
+                producerDropdown.innerHTML = '<option value="all">Producent - Wszyscy (' + allProducts.length + ')</option>';
+                producersWithCount.forEach(producer => {
+                    var decodedProducerName = decodeHTML(producer.name);
                     var option = document.createElement('option');
-                    option.value = decodedCategoryName;
-                    option.textContent = `${decodedCategoryName} (${category.count})`;
-                    categoryDropdown.appendChild(option);
+                    option.value = decodedProducerName;
+                    option.textContent = `${decodedProducerName} (${producer.count})`;
+                    producerDropdown.appendChild(option);
                 });
                 restoreState();
             }
 
-            function filterProductsByCategory(products, category) {
-                if (category === 'all') {
+           function filterProductsByProducer(products, producer) {
+                if (producer === 'all') {
                     return products;
                 }
-                return products.filter(product => decodeHTML(product.category) === category);
+                return products.filter(product => decodeHTML(product.producer || "Brak") === producer);
             }
 
             function filterProductsByName(products, name) {
@@ -514,7 +500,7 @@
                     var platformStatus = getProductPlatformStatus(product);
                     var isNotFound = platformStatus.notFound;
                     var highlightedProductName = highlightMatches(product.productName, searchTerm);
-                    var category = product.category || '';
+                    var producer = product.producer || '';
                     var offerUrlButton = product.offerUrl ? `<a href="${product.offerUrl}" class="Button-Page-Small" style="width: 150px;" target="_blank">Ceneo</a>` : '';
                     var googleUrlButton = product.googleUrl ? `<a href="${product.googleUrl}" class="Button-Page-Small" style="width: 150px;" target="_blank">Google</a>` : '';
                     var storeSpecificOfferButton = product.url ? `<a href="${product.url}" class="Button-Page-Small" style="width: 150px;" target="_blank">${storeNameForButton}</a>` : '';
@@ -560,7 +546,7 @@
                     }
 
                     row.innerHTML = `
-                        <td><p>${highlightedProductName}</p><p>${category}</p></td>
+                        <td><p>${highlightedProductName}</p><p>${producer}</p></td>
                         <td>${imageCell}</td>
                         <td>${ean}</td>
                         <td>${purchasePriceHtml}</td>
@@ -640,26 +626,30 @@
                         return includeProduct;
                     });
                 }
-                filteredProducts = filterProductsByCategory(filteredProducts, selectedCategory);
+                filteredProducts = filterProductsByProducer(filteredProducts, selectedProducer);
                 renderProducts(filteredProducts, searchTerm);
                 updateCounters(filteredProducts);
             }
 
-            function fetchProducts() {
+             function fetchProducts() {
                 fetch('@Url.Action("GetProducts", "Product")?storeId=' + storeId)
                     .then(response => response.json())
                     .then(data => {
                         allProducts = data;
-                        populateCategoryDropdown(allProducts.reduce((acc, product) => {
-                            let category = product.category || "Inne";
-                            let categoryObj = acc.find(cat => cat.name === category);
-                            if (categoryObj) {
-                                categoryObj.count++;
+
+                        const producersWithCount = allProducts.reduce((acc, product) => {
+                            let producer = product.producer || "Brak";
+                            let producerObj = acc.find(p => p.name === producer);
+                            if (producerObj) {
+                                producerObj.count++;
                             } else {
-                                acc.push({ name: category, count: 1 });
+                                acc.push({ name: producer, count: 1 });
                             }
                             return acc;
-                        }, []));
+                        }, []);
+
+                        populateProducerDropdown(producersWithCount);
+
                         updateCounters(allProducts);
                         filterRows();
                     })
@@ -685,7 +675,7 @@
             });
 
             searchInput.addEventListener('input', filterRows);
-            categoryDropdown.addEventListener('change', function () {
+           producerDropdown.addEventListener('change', function () {
                 saveState();
                 filterRows();
             });

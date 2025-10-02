@@ -91,6 +91,7 @@ namespace PriceSafari.Controllers
                     p.ProductId,
                     p.ProductName,
                     p.Category,
+                    p.Producer,
                     p.OfferUrl,
                     p.IsScrapable,
                     p.IsRejected,
