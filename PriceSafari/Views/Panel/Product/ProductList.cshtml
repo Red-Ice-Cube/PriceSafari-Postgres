@@ -392,6 +392,31 @@
                 return `${day}-${month}-${year} ${hours}:${minutes}`;
             }
 
+
+
+
+                    function createNewGoogleUrl(product) {
+            if (!product.googleUrl || !product.productName) {
+                return product.googleUrl || ''; // Zwróć stary URL lub pusty string, jeśli brakuje danych
+            }
+
+            // 1. Wyciągnij CID ze starego URL-a
+            const match = product.googleUrl.match(/product\/(\d+)/);
+            const productIdCid = match ? match[1] : null;
+
+            if (productIdCid) {
+                // 2. Przygotuj nazwę produktu
+                const productNameForUrl = encodeURIComponent(product.productName);
+
+                // 3. Zbuduj i zwróć nowy URL
+                return `https://www.google.com/search?q=${productNameForUrl}&udm=28#oshopproduct=cid:${productIdCid},pvt:hg,pvo:3&oshop=apv`;
+            }
+
+            return product.googleUrl; // Zwróć stary URL jako fallback
+        }
+
+
+
              function saveState() {
                 lastScrollPosition = window.scrollY;
 
@@ -487,111 +512,160 @@
                 return text.replace(regex, '<span style="color: #9400D3; font-weight: 600;">$1</span>');
             }
 
-            function renderProducts(products, searchTerm = "") {
-                var tbody = document.getElementById('product-list');
-                tbody.innerHTML = '';
-                products.forEach(function (product) {
-                    var row = document.createElement('tr');
-                    row.classList.add('product-row');
-                    row.setAttribute('data-product-id', product.productId);
-                    row.setAttribute('data-scrapable', product.isScrapable);
-                    row.setAttribute('data-rejected', product.isRejected);
 
-                    var platformStatus = getProductPlatformStatus(product);
-                    var isNotFound = platformStatus.notFound;
-                    var highlightedProductName = highlightMatches(product.productName, searchTerm);
-                    var producer = product.producer || '';
-                    var offerUrlButton = product.offerUrl ? `<a href="${product.offerUrl}" class="Button-Page-Small" style="width: 150px;" target="_blank">Ceneo</a>` : '';
-                    var googleUrlButton = product.googleUrl ? `<a href="${product.googleUrl}" class="Button-Page-Small" style="width: 150px;" target="_blank">Google</a>` : '';
-                    var storeSpecificOfferButton = product.url ? `<a href="${product.url}" class="Button-Page-Small" style="width: 150px;" target="_blank">${storeNameForButton}</a>` : '';
-                    var ean = product.ean || '';
-                    var imageUrl = product.mainUrl || '';
-                    var imageCell = imageUrl ? `<img src="${imageUrl}" style="width: 90px; height: 90px; object-fit: contain; background-color: white;" />` : `<div style="width: 90px; height: 90px;"></div>`;
 
-                    var hasPrice = product.marginPrice != null && product.marginPrice.toString().trim() !== '';
-                    var priceValue = hasPrice ? parseFloat(product.marginPrice).toFixed(2) : '';
 
-                    var purchasePriceHtml = `
-                        <div class="price-display-container">
-                            <span class="price-text">${hasPrice ? priceValue + ' PLN' : 'Brak'}</span>
-                            <span class="price-actions">
-                                <i class="fas fa-plus add-price-btn ${hasPrice ? 'hidden' : ''}" title="Dodaj cenę"></i>
-                                <i class="fas fa-pencil-alt edit-price-btn ${!hasPrice ? 'hidden' : ''}" title="Edytuj cenę"></i>
-                                <i class="fas fa-trash-alt delete-price-btn ${!hasPrice ? 'hidden' : ''}" title="Usuń cenę"></i>
-                            </span>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                    function renderProducts(products, searchTerm = "") {
+            var tbody = document.getElementById('product-list');
+            tbody.innerHTML = '';
+            products.forEach(function (product) {
+                var row = document.createElement('tr');
+                row.classList.add('product-row');
+                row.setAttribute('data-product-id', product.productId);
+                row.setAttribute('data-scrapable', product.isScrapable);
+                row.setAttribute('data-rejected', product.isRejected);
+
+                var platformStatus = getProductPlatformStatus(product);
+                var isNotFound = platformStatus.notFound;
+                var highlightedProductName = highlightMatches(product.productName, searchTerm);
+                var producer = product.producer || '';
+
+                // ====================================================================
+                // POPRAWKA ZNAJDUJE SIĘ TUTAJ
+                // ====================================================================
+
+                // Krok 1: Wywołujemy funkcję pomocniczą, aby stworzyć nowy link dla bieżącego produktu.
+                var newGoogleUrl = createNewGoogleUrl(product);
+
+                // Krok 2: Używamy nowo utworzonej zmiennej do zbudowania przycisku.
+                var offerUrlButton = product.offerUrl ? `<a href="${product.offerUrl}" class="Button-Page-Small" style="width: 150px;" target="_blank">Ceneo</a>` : '';
+                var googleUrlButton = newGoogleUrl ? `<a href="${newGoogleUrl}" class="Button-Page-Small" style="width: 150px;" target="_blank">Google</a>` : '';
+
+                // ====================================================================
+
+                var storeSpecificOfferButton = product.url ? `<a href="${product.url}" class="Button-Page-Small" style="width: 150px;" target="_blank">${storeNameForButton}</a>` : '';
+                var ean = product.ean || '';
+                var imageUrl = product.mainUrl || '';
+                var imageCell = imageUrl ? `<img src="${imageUrl}" style="width: 90px; height: 90px; object-fit: contain; background-color: white;" />` : `<div style="width: 90px; height: 90px;"></div>`;
+
+                var hasPrice = product.marginPrice != null && product.marginPrice.toString().trim() !== '';
+                var priceValue = hasPrice ? parseFloat(product.marginPrice).toFixed(2) : '';
+
+                var purchasePriceHtml = `
+                    <div class="price-display-container">
+                        <span class="price-text">${hasPrice ? priceValue + ' PLN' : 'Brak'}</span>
+                        <span class="price-actions">
+                            <i class="fas fa-plus add-price-btn ${hasPrice ? 'hidden' : ''}" title="Dodaj cenę"></i>
+                            <i class="fas fa-pencil-alt edit-price-btn ${!hasPrice ? 'hidden' : ''}" title="Edytuj cenę"></i>
+                            <i class="fas fa-trash-alt delete-price-btn ${!hasPrice ? 'hidden' : ''}" title="Usuń cenę"></i>
+                        </span>
+                    </div>
+                    <div class="price-edit-container hidden">
+                        <input type="number" step="0.01" class="price-edit-input" value="${priceValue}">
+                        <span class="price-actions">
+                            <i class="fas fa-check save-price-btn" title="Zapisz"></i>
+                            <i class="fas fa-times cancel-edit-btn" title="Anuluj"></i>
+                        </span>
+                    </div>
+                `;
+
+                var statusBoxClass = "";
+                var statusText = "";
+                if (product.isScrapable && product.isRejected) {
+                    statusBoxClass = "StatusBoxProduct-1";
+                    statusText = "Odrzucony";
+                } else if (product.isScrapable) {
+                    statusBoxClass = "StatusBoxProduct-2";
+                    statusText = "Aktywny";
+                } else if (product.isRejected) {
+                    statusBoxClass = "StatusBoxProduct-3";
+                    statusText = "Wyłączony";
+                } else {
+                    statusBoxClass = "StatusBoxProduct-4";
+                    statusText = "Nieaktywny";
+                }
+
+                row.innerHTML = `
+                    <td><p>${highlightedProductName}</p><p>${producer}</p></td>
+                    <td>${imageCell}</td>
+                    <td>${ean}</td>
+                    <td>${purchasePriceHtml}</td>
+                    <td>
+                        <div style="display: flex; flex-direction: column; align-items: flex-start; gap: 5px;">
+                            ${offerUrlButton}
+                            ${googleUrlButton}
+                            ${storeSpecificOfferButton}
                         </div>
-                        <div class="price-edit-container hidden">
-                            <input type="number" step="0.01" class="price-edit-input" value="${priceValue}">
-                            <span class="price-actions">
-                                <i class="fas fa-check save-price-btn" title="Zapisz"></i>
-                                <i class="fas fa-times cancel-edit-btn" title="Anuluj"></i>
-                            </span>
-                        </div>
-                    `;
+                    </td>
+                    <td>
+                        <input type="checkbox" class="scrapable-checkbox" data-product-id="${product.productId}"
+                               ${product.isScrapable ? "checked" : ""}
+                               ${isNotFound ? "disabled" : ""} />
+                    </td>
+                    <td><div class="${statusBoxClass}">${statusText}</div></td>`;
 
-                    var statusBoxClass = "";
-                    var statusText = "";
-                    if (product.isScrapable && product.isRejected) {
-                        statusBoxClass = "StatusBoxProduct-1";
-                        statusText = "Odrzucony";
-                    } else if (product.isScrapable) {
-                        statusBoxClass = "StatusBoxProduct-2";
-                        statusText = "Aktywny";
-                    } else if (product.isRejected) {
-                        statusBoxClass = "StatusBoxProduct-3";
-                        statusText = "Wyłączony";
-                    } else {
-                        statusBoxClass = "StatusBoxProduct-4";
-                        statusText = "Nieaktywny";
-                    }
-
-                    row.innerHTML = `
-                        <td><p>${highlightedProductName}</p><p>${producer}</p></td>
-                        <td>${imageCell}</td>
-                        <td>${ean}</td>
-                        <td>${purchasePriceHtml}</td>
-                        <td>
-                            <div style="display: flex; flex-direction: column; align-items: flex-start; gap: 5px;">
-                                ${offerUrlButton}
-                                ${googleUrlButton}
-                                ${storeSpecificOfferButton}
-                            </div>
-                        </td>
-                        <td>
-                            <input type="checkbox" class="scrapable-checkbox" data-product-id="${product.productId}"
-                                   ${product.isScrapable ? "checked" : ""}
-                                   ${isNotFound ? "disabled" : ""} />
-                        </td>
-                        <td><div class="${statusBoxClass}">${statusText}</div></td>`;
-
-                    if (!isNotFound) {
-                        row.querySelector('.scrapable-checkbox').addEventListener('change', function () {
-                            saveState();
-                            var productId = this.getAttribute('data-product-id');
-                            fetch('@Url.Action("UpdateScrapableProduct", "Product")?storeId=' + storeId, {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify(productId)
-                            })
-                            .then(response => response.json())
-                            .then(data => {
-                                if (!data.success) {
-                                    alert(data.message || 'Wystąpił błąd podczas aktualizacji statusu scrapowania.');
-                                    this.checked = !this.checked;
-                                } else {
-                                    fetchProducts();
-                                }
-                            })
-                            .catch(error => {
-                                console.error('There was a problem with your fetch operation:', error);
-                            });
+                if (!isNotFound) {
+                    row.querySelector('.scrapable-checkbox').addEventListener('change', function () {
+                        saveState();
+                        var productId = this.getAttribute('data-product-id');
+                        fetch('@Url.Action("UpdateScrapableProduct", "Product")?storeId=' + storeId, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(productId)
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (!data.success) {
+                                alert(data.message || 'Wystąpił błąd podczas aktualizacji statusu scrapowania.');
+                                this.checked = !this.checked;
+                            } else {
+                                fetchProducts();
+                            }
+                        })
+                        .catch(error => {
+                            console.error('There was a problem with your fetch operation:', error);
                         });
-                    }
-                    tbody.appendChild(row);
-                });
-                document.getElementById('displayed-count').textContent = products.length;
-                window.scrollTo(0, lastScrollPosition);
-            }
+                    });
+                }
+                tbody.appendChild(row);
+            });
+            document.getElementById('displayed-count').textContent = products.length;
+            window.scrollTo(0, lastScrollPosition);
+        }
 
             function filterRows() {
                 var selectedStatuses = Array.from(document.querySelectorAll('.status-filter:checked'))
