@@ -392,7 +392,7 @@
                 return `${day}-${month}-${year} ${hours}:${minutes}`;
             }
 
-                    function createNewGoogleUrl(product) {
+                     function createNewGoogleUrl(product) {
             if (!product.googleUrl || !product.productName) {
                 return product.googleUrl || '';
             }
@@ -401,10 +401,9 @@
             const productIdCid = match ? match[1] : null;
 
             if (productIdCid) {
-
                 const productNameForUrl = encodeURIComponent(product.productName);
-
-                return `https:
+              
+                return `https://www.google.com/shopping/product/${productIdCid}/offers?q=${productNameForUrl}`;
             }
 
             return product.googleUrl;
