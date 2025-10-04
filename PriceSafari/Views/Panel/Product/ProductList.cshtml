@@ -392,30 +392,23 @@
                 return `${day}-${month}-${year} ${hours}:${minutes}`;
             }
 
-
-
-
                     function createNewGoogleUrl(product) {
             if (!product.googleUrl || !product.productName) {
-                return product.googleUrl || ''; // Zwróć stary URL lub pusty string, jeśli brakuje danych
+                return product.googleUrl || '';
             }
 
-            // 1. Wyciągnij CID ze starego URL-a
             const match = product.googleUrl.match(/product\/(\d+)/);
             const productIdCid = match ? match[1] : null;
 
             if (productIdCid) {
-                // 2. Przygotuj nazwę produktu
+
                 const productNameForUrl = encodeURIComponent(product.productName);
 
-                // 3. Zbuduj i zwróć nowy URL
-                return `https://www.google.com/search?q=${productNameForUrl}&udm=28#oshopproduct=cid:${productIdCid},pvt:hg,pvo:3&oshop=apv`;
+                return `https:
             }
 
-            return product.googleUrl; // Zwróć stary URL jako fallback
+            return product.googleUrl;
         }
-
-
 
              function saveState() {
                 lastScrollPosition = window.scrollY;
@@ -512,43 +505,6 @@
                 return text.replace(regex, '<span style="color: #9400D3; font-weight: 600;">$1</span>');
             }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
                     function renderProducts(products, searchTerm = "") {
             var tbody = document.getElementById('product-list');
             tbody.innerHTML = '';
@@ -564,18 +520,10 @@
                 var highlightedProductName = highlightMatches(product.productName, searchTerm);
                 var producer = product.producer || '';
 
-                // ====================================================================
-                // POPRAWKA ZNAJDUJE SIĘ TUTAJ
-                // ====================================================================
-
-                // Krok 1: Wywołujemy funkcję pomocniczą, aby stworzyć nowy link dla bieżącego produktu.
                 var newGoogleUrl = createNewGoogleUrl(product);
 
-                // Krok 2: Używamy nowo utworzonej zmiennej do zbudowania przycisku.
                 var offerUrlButton = product.offerUrl ? `<a href="${product.offerUrl}" class="Button-Page-Small" style="width: 150px;" target="_blank">Ceneo</a>` : '';
                 var googleUrlButton = newGoogleUrl ? `<a href="${newGoogleUrl}" class="Button-Page-Small" style="width: 150px;" target="_blank">Google</a>` : '';
-
-                // ====================================================================
 
                 var storeSpecificOfferButton = product.url ? `<a href="${product.url}" class="Button-Page-Small" style="width: 150px;" target="_blank">${storeNameForButton}</a>` : '';
                 var ean = product.ean || '';
