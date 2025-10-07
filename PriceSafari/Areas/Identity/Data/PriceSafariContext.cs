@@ -239,6 +239,12 @@ namespace PriceSafari.Data
                   .WithOne(m => m.User)
                   .HasForeignKey(m => m.UserId)
                   .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<AllegroProductClass>()
+               .HasOne(ap => ap.Store)
+               .WithMany(s => s.AllegroProducts)
+               .HasForeignKey(ap => ap.StoreId)
+               .OnDelete(DeleteBehavior.Cascade);
         }
     }
 }

@@ -1,5 +1,460 @@
-﻿@*
-    For more information on enabling MVC for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860
-*@
+﻿@using PriceSafari.Models.ViewModels
 @{
+    ViewData["Title"] = "Lista Produktów Allegro";
+    Layout = "~/Views/Shared/_PanelLayout.cshtml";
+}
+
+<style>
+    .StatusBoxProduct {
+        display: inline-flex;
+        padding-left: 26px;
+        border-radius: 0px 24px 24px 0px;
+        height: 40px;
+        width: 110px;
+        align-items: center;
+        justify-content: flex-start;
+        border: 1px solid #ccc;
+        font-size: 14px;
+        font-weight: 500;
+        background: #F6F6F6;
+    }
+
+    .StatusBoxProduct-1 {
+        color: rgba(255, 204, 0, 1);
+    }
+
+    .StatusBoxProduct-2 {
+        color: rgba(30, 148, 71, 1);
+    }
+
+    .StatusBoxProduct-3 {
+        color: rgba(189, 33, 19, 1);
+    }
+
+    .StatusBoxProduct-4 {
+        color: rgba(45, 45, 45, 1);
+    }
+
+    .scrapable-checkbox {
+        appearance: none;
+        width: 40px;
+        height: 40px;
+        background-color: rgba(189, 33, 19, 1);
+        border-radius: 24px;
+        position: relative;
+        cursor: pointer;
+        transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out;
+        outline: none;
+    }
+
+        .scrapable-checkbox.rejected {
+            background-color: rgba(255, 204, 0, 1);
+        }
+
+        .scrapable-checkbox:checked:not(.rejected) {
+            background-color: #1E9447;
+        }
+
+        .scrapable-checkbox:disabled {
+            background-color: #555555;
+            cursor: not-allowed;
+        }
+
+    .dot {
+        height: 12px;
+        width: 12px;
+        border-radius: 50%;
+        display: inline-block;
+        margin-right: 8px;
+        vertical-align: middle;
+    }
+
+    .green-dot {
+        background-color: green;
+    }
+
+    .red-dot {
+        background-color: red;
+    }
+
+    .price-actions {
+        display: inline-flex;
+        gap: 8px;
+        margin-left: 10px;
+        margin-bottom: 1px;
+        vertical-align: middle;
+    }
+
+        .price-actions i {
+            cursor: pointer;
+            color: #555;
+            font-size: 12px;
+        }
+
+            .price-actions i:hover {
+                color: #000;
+            }
+
+    .price-edit-input {
+        width: 80px;
+        padding: 2px 5px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+    }
+
+    .hidden {
+        display: none;
+    }
+
+    .Page-Box-Container {
+        display: flex;
+        align-items: flex-start;
+        gap: 20px;
+    }
+
+    .flags-container {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-start;
+        flex-grow: 1;
+        gap: 2px;
+        padding-right: 2px;
+    }
+</style>
+
+<div class="Vert">
+    <div class="Page-Box">
+        <div class="price-box-space">
+            <div class="Page-Box-Container">
+
+                <div class="Page-Box-Category">
+                    <div><img src="@ViewBag.StoreLogoUrl" class="img-container" /></div>
+                    <div class="store-section" style="width:220px;">
+
+                        <div class="reportStats" style="margin-top:4px;">
+                            <span class="ProductCount-g">
+                                <span id="scrapable-count">0</span> / <span>@ViewBag.ProductCount</span>
+                            </span>
+                            <span class="legendBox" style="width:128px;">Monitorowane prd.</span>
+                        </div>
+                        <div class="reportStats" style="margin-top:4px;">
+                            <span class="ProductCount-bl">
+                                <span id="total-products">0</span>
+                            </span>
+                            <span class="legendBox" style="width:128px;">Wszystkie prd.</span>
+                        </div>
+
+                        <div class="form-check" style="margin-top:16px;">
+                            <input class="form-check-input status-filter" type="checkbox" id="active" value="active" data-status="active">
+                            <label class="form-check-label" for="active">Aktywny (<span id="count-active">0</span>) </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input status-filter" type="checkbox" id="active-rejected" value="active-rejected" data-status="active-rejected">
+                            <label class="form-check-label" for="active-rejected">Odrzucony (<span id="count-active-rejected">0</span>) </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input status-filter" type="checkbox" id="inactive" value="inactive" data-status="inactive">
+                            <label class="form-check-label" for="inactive">Nieaktywny (<span id="count-inactive">0</span>) </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input status-filter" type="checkbox" id="inactive-rejected" value="inactive-rejected" data-status="inactive-rejected">
+                            <label class="form-check-label" for="inactive-rejected">Wyłączony (<span id="count-inactive-rejected">0</span>) </label>
+                        </div>
+
+                        <button id="select-all" class="Button-Page-Small" style="height:33px; margin-top:16px;">
+                            <span class="dot green-dot"></span>Zaznacz widoczne
+                        </button>
+                        <button id="deselect-all" class="Button-Page-Small" style="height:33px;margin-top:4px;">
+                            <span class="dot red-dot"></span>Odznacz widoczne
+                        </button>
+
+                    </div>
+                    <div class="filterBox">
+                        <div class="Category-Container-Select" style="margin-top:-2px;">Flagi</div>
+                        <div class="store-section" id="flagContainer">
+                            <div class="flag-filters">
+                                <div id="flagFilterList"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="Horizontal" style="gap:0px;">
+                    <div class="order-upper-box">
+                        <input type="text" id="productSearch" style="max-width:150px; height:33.99px;" placeholder="Wyszukaj produkt">
+                        <div class="SimpleSpace" style="justify-content:flex-end; margin-right: 12px;">
+                        </div>
+                    </div>
+
+                    <div class="Vert-table" style="margin-top:0px; height: 84vh;">
+                        <table class="table-orders">
+                            <thead>
+                                <tr>
+                                    <th>Produkt (<span id="displayed-count"></span>)</th>
+                                    <th>Zakup</th>
+                                    <th>Oferta</th>
+                                    <th>Monitoring</th>
+                                    <th>Flagi</th>
+                                </tr>
+                            </thead>
+                            <tbody id="product-list">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <script>
+        var allProducts = [];
+        var flags = @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(ViewBag.Flags ?? new List<FlagViewModel>()));
+
+        document.addEventListener('DOMContentLoaded', function () {
+            var storeId = @ViewBag.StoreId;
+            var selectAllButton = document.getElementById('select-all');
+            var deselectAllButton = document.getElementById('deselect-all');
+            var searchInput = document.getElementById('productSearch');
+
+            var selectedFlagsInclude = new Set();
+            var selectedFlagsExclude = new Set();
+
+            function getProductStatus(product) {
+                if (product.isScrapable && product.isRejected) return "active-rejected";
+                if (product.isScrapable) return "active";
+                if (product.isRejected) return "inactive-rejected";
+                return "inactive";
+            }
+
+            function updateCounters(products) {
+                const activeRejectedCount = allProducts.filter(p => p.isScrapable && p.isRejected).length;
+                const activeCount = allProducts.filter(p => p.isScrapable && !p.isRejected).length;
+                const inactiveRejectedCount = allProducts.filter(p => !p.isScrapable && p.isRejected).length;
+                const inactiveCount = allProducts.filter(p => !p.isScrapable && !p.isRejected).length;
+
+                document.getElementById('count-active-rejected').textContent = activeRejectedCount;
+                document.getElementById('count-active').textContent = activeCount;
+                document.getElementById('count-inactive-rejected').textContent = inactiveRejectedCount;
+                document.getElementById('count-inactive').textContent = inactiveCount;
+                document.getElementById('scrapable-count').textContent = activeRejectedCount + activeCount;
+                document.getElementById('total-products').textContent = allProducts.length;
+            }
+
+            function renderProducts(products, searchTerm = "") {
+                var tbody = document.getElementById('product-list');
+                tbody.innerHTML = '';
+                products.forEach(function (product) {
+                    var row = document.createElement('tr');
+                    var highlightedProductName = searchTerm ? product.allegroProductName.replace(new RegExp(searchTerm, 'gi'), '<span style="color: #9400D3; font-weight: 600;">$&</span>') : product.allegroProductName;
+                    var offerUrlButton = product.allegroOfferUrl ? `<a href="${product.allegroOfferUrl}" class="Button-Page-Small" style="width: 150px;" target="_blank">Allegro</a>` : '';
+
+                    var statusBoxClass = "";
+                    var statusText = "";
+                    var checkboxStatusClass = "";
+
+                    if (product.isScrapable && product.isRejected) {
+                        statusBoxClass = "StatusBoxProduct-1";
+                        statusText = "Odrzucony";
+                        checkboxStatusClass = "rejected";
+                    } else if (product.isScrapable) {
+                        statusBoxClass = "StatusBoxProduct-2";
+                        statusText = "Aktywny";
+                    } else if (product.isRejected) {
+                        statusBoxClass = "StatusBoxProduct-3";
+                        statusText = "Wyłączony";
+                    } else {
+                        statusBoxClass = "StatusBoxProduct-4";
+                        statusText = "Nieaktywny";
+                    }
+
+                    var flagsCellContent = createFlagsContainer(product).outerHTML;
+
+                    row.innerHTML = `
+                        <td><p>${highlightedProductName}</p></td>
+                        <td>Brak</td>
+                        <td>${offerUrlButton}</td>
+                        <td>
+                            <div style="position: relative; width: 130px; height: 40px;">
+                                <input type="checkbox" class="scrapable-checkbox ${checkboxStatusClass}" data-product-id="${product.allegroProductId}"
+                                    style="position: absolute; top: 0; left: 0; z-index: 2;"
+                                    ${product.isScrapable ? "checked" : ""}/>
+                                <div class="StatusBoxProduct ${statusBoxClass}" style="position: absolute; top: 0; left: 20px; z-index: 1;">
+                                    ${statusText}
+                                </div>
+                            </div>
+                        </td>
+                        <td>${flagsCellContent}</td>`;
+
+                    row.querySelector('.scrapable-checkbox').addEventListener('change', function () {
+                        var productId = this.getAttribute('data-product-id');
+                        fetch('@Url.Action("UpdateScrapableProduct", "AllegroProduct")?storeId=' + storeId, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(productId)
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (!data.success) {
+                                alert(data.message || 'Error updating status.');
+                                this.checked = !this.checked;
+                            } else {
+                                fetchProducts();
+                            }
+                        });
+                    });
+                    tbody.appendChild(row);
+                });
+                document.getElementById('displayed-count').textContent = products.length;
+            }
+
+            function filterRows() {
+                var selectedStatuses = Array.from(document.querySelectorAll('.status-filter:checked')).map(cb => cb.dataset.status);
+                var searchTerm = searchInput.value.toLowerCase();
+                var filteredProducts = allProducts.filter(p => {
+                    const nameMatch = p.allegroProductName.toLowerCase().includes(searchTerm);
+                    const statusMatch = selectedStatuses.length === 0 || selectedStatuses.includes(getProductStatus(p));
+                    return nameMatch && statusMatch;
+                });
+
+                let productsBeforeFlagFilter = [...filteredProducts];
+
+                if (selectedFlagsExclude.size > 0) {
+                    filteredProducts = filteredProducts.filter(item => {
+                        if (selectedFlagsExclude.has('noFlag') && (!item.flagIds || item.flagIds.length === 0)) return false;
+                        if (item.flagIds) {
+                            for (const excl of selectedFlagsExclude) {
+                                if (excl !== 'noFlag' && item.flagIds.includes(parseInt(excl))) return false;
+                            }
+                        }
+                        return true;
+                    });
+                }
+                if (selectedFlagsInclude.size > 0) {
+                    filteredProducts = filteredProducts.filter(item => {
+                        if (selectedFlagsInclude.has('noFlag') && (!item.flagIds || item.flagIds.length === 0)) return true;
+                        if (item.flagIds) return item.flagIds.some(fid => selectedFlagsInclude.has(fid.toString()));
+                        return false;
+                    });
+                }
+
+                renderProducts(filteredProducts, searchInput.value);
+                updateAndRenderFlagFilters(productsBeforeFlagFilter);
+            }
+
+            function fetchProducts() {
+                fetch('@Url.Action("GetAllegroProducts", "AllegroProduct")?storeId=' + storeId)
+                    .then(response => response.json())
+                    .then(data => {
+                        allProducts = data;
+                        updateCounters(allProducts);
+                        filterRows();
+                    });
+            }
+
+            document.querySelectorAll('.status-filter').forEach(cb => cb.addEventListener('change', filterRows));
+            searchInput.addEventListener('input', filterRows);
+            selectAllButton.addEventListener('click', () => updateMultiple(true));
+            deselectAllButton.addEventListener('click', () => updateMultiple(false));
+
+            function updateMultiple(shouldBeScrapable) {
+                var productIds = Array.from(document.querySelectorAll('.product-row'))
+                    .map(row => row.querySelector('.scrapable-checkbox'))
+                    .filter(cb => !cb.disabled && cb.checked !== shouldBeScrapable)
+                    .map(cb => parseInt(cb.dataset.productId));
+
+                if (productIds.length > 0) {
+                    const action = shouldBeScrapable ? "UpdateMultipleScrapableProducts" : "ResetMultipleScrapableProducts";
+                    fetch(`@Url.Action("${action}", "AllegroProduct")?storeId=${storeId}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(productIds)
+                    })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.success) fetchProducts();
+                        else alert('Error: ' + data.message);
+                    });
+                }
+            }
+
+            // Funkcje flag
+            function hexToRgba(hex, alpha) {
+                let r = 0, g = 0, b = 0;
+                if (hex.length == 4) { r = parseInt(hex[1] + hex[1], 16); g = parseInt(hex[2] + hex[2], 16); b = parseInt(hex[3] + hex[3], 16); }
+                else if (hex.length == 7) { r = parseInt(hex[1] + hex[2], 16); g = parseInt(hex[3] + hex[4], 16); b = parseInt(hex[5] + hex[6], 16); }
+                return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+            }
+            function createFlagsContainer(product) {
+                const flagsContainer = document.createElement('div');
+                flagsContainer.className = 'flags-container';
+                if (product.flagIds && product.flagIds.length > 0) {
+                    product.flagIds.forEach(flagId => {
+                        const flag = flags.find(f => f.FlagId === flagId);
+                        if (flag) {
+                            const flagSpan = document.createElement('span');
+                            flagSpan.className = 'flag';
+                            flagSpan.style.color = flag.FlagColor;
+                            flagSpan.style.border = '2px solid ' + flag.FlagColor;
+                            flagSpan.style.backgroundColor = hexToRgba(flag.FlagColor, 0.3);
+                            flagSpan.innerHTML = flag.FlagName;
+                            flagsContainer.appendChild(flagSpan);
+                        }
+                    });
+                }
+                return flagsContainer;
+            }
+            function updateAndRenderFlagFilters(products) {
+                const flagCounts = {};
+                let noFlagCount = 0;
+                products.forEach(p => {
+                    if (!p.flagIds || p.flagIds.length === 0) noFlagCount++;
+                    else p.flagIds.forEach(id => flagCounts[id] = (flagCounts[id] || 0) + 1);
+                });
+
+                const flagContainer = document.getElementById('flagFilterList');
+                if (!flagContainer) return;
+                flagContainer.innerHTML = '';
+
+                if (flags) {
+                    flags.forEach(flag => {
+                        const count = flagCounts[flag.FlagId] || 0;
+                        const includeChecked = selectedFlagsInclude.has(String(flag.FlagId)) ? 'checked' : '';
+                        const excludeChecked = selectedFlagsExclude.has(String(flag.FlagId)) ? 'checked' : '';
+                        const html = `<div class="flag-filter-group">...</div>`; // skrócone dla zwięzłości
+                        flagContainer.insertAdjacentHTML('beforeend', `<div class="flag-filter-group"><div class="form-check form-check-inline check-include" style="margin-right:0px;"><input class="form-check-input flagFilterInclude" type="checkbox" id="flagCheckboxInclude_${flag.FlagId}" value="${flag.FlagId}" ${includeChecked}></div><div class="form-check form-check-inline check-exclude" style="margin-right:0px; padding-left:16px;"><input class="form-check-input flagFilterExclude" type="checkbox" id="flagCheckboxExclude_${flag.FlagId}" value="${flag.FlagId}" ${excludeChecked}></div><span class="flag-name-count" style="font-size:14px; font-weight: 400;">${flag.FlagName} (${count})</span></div>`);
+                    });
+                }
+                const noFlagIncludeChecked = selectedFlagsInclude.has('noFlag') ? 'checked' : '';
+                const noFlagExcludeChecked = selectedFlagsExclude.has('noFlag') ? 'checked' : '';
+                flagContainer.insertAdjacentHTML('beforeend', `<div class="flag-filter-group"><div class="form-check form-check-inline check-include" style="margin-right:0px;"><input class="form-check-input flagFilterInclude" type="checkbox" id="flagCheckboxInclude_noFlag" value="noFlag" ${noFlagIncludeChecked}></div><div class="form-check form-check-inline check-exclude" style="margin-right:0px; padding-left:16px;"><input class="form-check-input flagFilterExclude" type="checkbox" id="flagCheckboxExclude_noFlag" value="noFlag" ${noFlagExcludeChecked}></div><span class="flag-name-count" style="font-size:14px; font-weight: 400;">Brak flagi (${noFlagCount})</span></div>`);
+
+                document.querySelectorAll('.flagFilterInclude, .flagFilterExclude').forEach(checkbox => {
+                    checkbox.addEventListener('change', function () {
+                        const flagValue = this.value;
+                        const isInclude = this.classList.contains('flagFilterInclude');
+                        if (isInclude) {
+                            if (this.checked) {
+                                document.getElementById(`flagCheckboxExclude_${flagValue}`).checked = false;
+                                selectedFlagsExclude.delete(flagValue);
+                                selectedFlagsInclude.add(flagValue);
+                            } else { selectedFlagsInclude.delete(flagValue); }
+                        } else {
+                            if (this.checked) {
+                                document.getElementById(`flagCheckboxInclude_${flagValue}`).checked = false;
+                                selectedFlagsInclude.delete(flagValue);
+                                selectedFlagsExclude.add(flagValue);
+                            } else { selectedFlagsExclude.delete(flagValue); }
+                        }
+                        filterRows();
+                    });
+                });
+            }
+
+            fetchProducts();
+        });
+    </script>
 }

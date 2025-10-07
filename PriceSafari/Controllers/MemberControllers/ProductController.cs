@@ -32,7 +32,15 @@ namespace PriceSafari.Controllers
 
             var storeIds = await userStoresQuery.Select(s => s.StoreId).ToListAsync();
 
+            // Zliczamy produkty z porównywarek
             var scrapableCounts = await _context.Products
+                .Where(p => storeIds.Contains(p.StoreId) && p.IsScrapable)
+                .GroupBy(p => p.StoreId)
+                .Select(g => new { StoreId = g.Key, Count = g.Count() })
+                .ToDictionaryAsync(x => x.StoreId, x => x.Count);
+
+            // Zliczamy produkty Allegro
+            var allegroScrapableCounts = await _context.AllegroProducts
                 .Where(p => storeIds.Contains(p.StoreId) && p.IsScrapable)
                 .GroupBy(p => p.StoreId)
                 .Select(g => new { StoreId = g.Key, Count = g.Count() })
@@ -47,11 +55,19 @@ namespace PriceSafari.Controllers
                 LogoUrl = store.StoreLogoUrl,
 
                 ProductCount = scrapableCounts.TryGetValue(store.StoreId, out var count) ? count : 0,
-                AllowedProducts = store.ProductsToScrap
+                AllowedProducts = store.ProductsToScrap,
+                AllegroProductCount = allegroScrapableCounts.TryGetValue(store.StoreId, out var allegroCount) ? allegroCount : 0,
+                AllegroAllowedProducts = store.ProductsToScrapAllegro,
+
+                OnCeneo = store.OnCeneo,
+                OnGoogle = store.OnGoogle,
+                OnAllegro = store.OnAllegro
             }).ToList();
 
             return View("~/Views/Panel/Product/StoreList.cshtml", storeDetails);
         }
+
+        // Reszta kontrolera bez zmian...
 
         [HttpGet]
         public async Task<IActionResult> ProductList(int storeId)

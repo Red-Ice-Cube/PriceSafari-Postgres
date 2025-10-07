@@ -818,6 +818,46 @@ img.lazy-load {
     display: block;
 }
 
+
+.Button-select {
+    display: inline-flex;
+    padding: 6px 18px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 24px;
+    text-decoration: none;
+    border: 1px solid #B1B1B1;
+    background-color: #EFEFEF;
+    gap: 4px;
+    transition: all 0.2s ease-in-out;
+}
+
+    .Button-select:not(.button-disabled):hover {
+        background-color: #222222;
+        border: 1px solid #000;
+    }
+
+    .Button-select img {
+        width: 22px;
+        height: 22px;
+        transition: transform 0.2s ease-in-out;
+    }
+
+.button-disabled {
+    pointer-events: none;
+    cursor: default;
+    opacity: 0.6;
+}
+
+.icon-disabled {
+    filter: grayscale(100%);
+}
+
+.Button-select:not(.button-disabled):hover img:not(.icon-disabled) {
+    transform: scale(1.12);
+}
+
+
 img.lazy-load-flex {
     visibility: hidden;
 }

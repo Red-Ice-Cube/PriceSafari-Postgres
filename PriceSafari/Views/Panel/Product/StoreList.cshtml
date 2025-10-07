@@ -4,6 +4,17 @@
     Layout = "~/Views/Shared/_PanelLayout.cshtml";
 }
 
+<style>
+    .button-disabled {
+        pointer-events: none;
+        opacity: 0.5;
+    }
+
+    .icon-disabled {
+        filter: grayscale(100%);
+    }
+</style>
+
 <div class="Vert">
     <div class="Vert-full">
         <div class="Order-Container-Title">
@@ -17,20 +28,47 @@
                         <tr>
                             <th></th>
                             <th>Sklep</th>
-                            <th>Ilość Monitorowanych Produktów</th>
-                            <th>Dozwolona Ilość Produktów</th>
+                            <th>Porównywarki Cenowe</th>
+                            <th>Allegro</th>
                         </tr>
                     </thead>
                     <tbody>
                         @foreach (var store in Model)
                         {
-                            <tr class="store-row" style="cursor:pointer;" data-url="@Url.Action("ProductList", "Product", new { storeId = store.StoreId })">
+                            <tr class="store-row">
                                 <td>
                                     <img src="@store.LogoUrl" class="img-container" alt="@store.StoreName" />
                                 </td>
                                 <td>@store.StoreName</td>
-                                <td>@store.ProductCount</td>
-                                <td>@store.AllowedProducts</td>
+                                <td>
+                                    <div style="display: flex; align-items: center; gap: 15px;">
+                                        <a href="@Url.Action("ProductList", "Product", new { storeId = store.StoreId })"
+                                           class="Button-select @(!(store.OnCeneo || store.OnGoogle) ? "button-disabled" : "")"
+                                           title="Produkty z porównywarek cenowych">
+
+                                            <img src="/images/Ceneo.png" alt="Ceneo" class="@(store.OnCeneo ? "" : "icon-disabled")" />
+                                            <img src="/images/GoogleShopping.png" alt="Google Shopping" class="@(store.OnGoogle ? "" : "icon-disabled")" />
+                                        </a>
+                                        <div>
+                                            <p style="margin: 0; font-weight: 500;">@store.ProductCount / @store.AllowedProducts</p>
+                                            <p style="margin: 0; font-size: 0.8em; color: #777;">Monitorowane produkty</p>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div style="display: flex; align-items: center; gap: 15px;">
+                                        <a href="@Url.Action("AllegroProductList", "AllegroProduct", new { storeId = store.StoreId })"
+                                           class="Button-select @(!store.OnAllegro ? "button-disabled" : "")"
+                                           title="Produkty z marketplace">
+
+                                            <img src="/images/AllegroIcon.png" alt="Allegro" class="@(store.OnAllegro ? "" : "icon-disabled")" />
+                                        </a>
+                                        <div>
+                                            <p style="margin: 0; font-weight: 500;">@store.AllegroProductCount / @store.AllegroAllowedProducts</p>
+                                            <p style="margin: 0; font-size: 0.8em; color: #777;">Monitorowane produkty</p>
+                                        </div>
+                                    </div>
+                                </td>
                             </tr>
                         }
                     </tbody>
@@ -39,20 +77,7 @@
         }
         else
         {
-            <p>Konto nadal jest konfigurowane.</p>
+            <p>Brak sklepów do wyświetlenia.</p>
         }
     </div>
 </div>
-
-@section Scripts {
-    <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            var rows = document.querySelectorAll('.store-row');
-            rows.forEach(function (row) {
-                row.addEventListener('click', function (e) {
-                    window.location.href = row.getAttribute('data-url');
-                });
-            });
-        });
-    </script>
-}

@@ -40,8 +40,7 @@ namespace PriceSafari.Controllers.MemberControllers
                 LogoUrl = store.StoreLogoUrl,
                 LastScrapeDate = store.ScrapHistories.OrderByDescending(sh => sh.Date).FirstOrDefault()?.Date,
 
-                // --- ZMIANY TUTAJ ---
-                // Przypisujemy nowe wartości do modelu widoku
+
                 OnCeneo = store.OnCeneo,
                 OnGoogle = store.OnGoogle,
                 OnAllegro = store.OnAllegro
