@@ -68,6 +68,18 @@ namespace PriceSafari.Controllers
             ViewBag.ProductCount = store.ProductsToScrap;
             ViewBag.StoreId = storeId;
 
+            // ### DODANE: Pobranie flag (tylko z porównywarek) i przekazanie do widoku ###
+            var flags = await _context.Flags
+                .Where(f => !f.IsMarketplace)
+                .Select(f => new FlagViewModel
+                {
+                    FlagId = f.FlagId,
+                    FlagName = f.FlagName,
+                    FlagColor = f.FlagColor
+                })
+                .ToListAsync();
+            ViewBag.Flags = flags;
+
             return View("~/Views/Panel/Product/ProductList.cshtml");
         }
 
@@ -85,27 +97,30 @@ namespace PriceSafari.Controllers
             }
 
             var products = await _context.Products
-                .Where(p => p.StoreId == storeId)
-                .Select(p => new
-                {
-                    p.ProductId,
-                    p.ProductName,
-                    p.Category,
-                    p.Producer,
-                    p.OfferUrl,
-                    p.IsScrapable,
-                    p.IsRejected,
-                    p.Url,
-                    p.Ean,
-                    p.MarginPrice,
-                    p.MainUrl,
-                    p.GoogleUrl,
-
-                    AddedDate = p.AddedDate,
-                    FoundOnGoogleDate = p.FoundOnGoogleDate,
-                    FoundOnCeneoDate = p.FoundOnCeneoDate
-                })
-                .ToListAsync();
+                  .Where(p => p.StoreId == storeId)
+                  // ### DODANE: Dołączenie flag do produktu ###
+                  .Include(p => p.ProductFlags)
+                  .Select(p => new
+                  {
+                      p.ProductId,
+                      p.ProductName,
+                      p.Category,
+                      p.Producer,
+                      p.OfferUrl,
+                      p.IsScrapable,
+                      p.IsRejected,
+                      p.Url,
+                      p.Ean,
+                      p.MarginPrice,
+                      p.MainUrl,
+                      p.GoogleUrl,
+                      AddedDate = p.AddedDate,
+                      FoundOnGoogleDate = p.FoundOnGoogleDate,
+                      FoundOnCeneoDate = p.FoundOnCeneoDate,
+                      // ### DODANE: Lista ID flag dla każdego produktu ###
+                      FlagIds = p.ProductFlags.Select(pf => pf.FlagId).ToList()
+                  })
+                  .ToListAsync();
 
             return Json(products);
         }
@@ -569,19 +584,11 @@ namespace PriceSafari.Controllers
             }
         }
 
-
-
-
-
         public class UpdatePurchasePriceViewModel
         {
             public int ProductId { get; set; }
-            public decimal? NewPrice { get; set; } 
+            public decimal? NewPrice { get; set; }
         }
-
-
-
-        // Umieść tę metodę wewnątrz klasy ProductController
 
         [HttpPost]
         [ValidateAntiForgeryToken]
@@ -592,7 +599,6 @@ namespace PriceSafari.Controllers
                 return BadRequest(new { success = false, message = "Nieprawidłowe dane." });
             }
 
-            // Walidacja ceny - nie może być ujemna
             if (model.NewPrice.HasValue && model.NewPrice < 0)
             {
                 return BadRequest(new { success = false, message = "Cena nie może być ujemna." });
@@ -600,14 +606,12 @@ namespace PriceSafari.Controllers
 
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
-            // Sprawdzenie dostępu użytkownika do sklepu
             var hasAccess = await _context.UserStores.AnyAsync(us => us.UserId == userId && us.StoreId == storeId);
             if (!hasAccess)
             {
                 return Forbid();
             }
 
-            // Znalezienie produktu
             var product = await _context.Products.FirstOrDefaultAsync(p => p.ProductId == model.ProductId && p.StoreId == storeId);
             if (product == null)
             {
@@ -616,7 +620,7 @@ namespace PriceSafari.Controllers
 
             try
             {
-                // Ustawienie nowej ceny (lub null w przypadku usunięcia)
+
                 product.MarginPrice = model.NewPrice;
                 await _context.SaveChangesAsync();
 

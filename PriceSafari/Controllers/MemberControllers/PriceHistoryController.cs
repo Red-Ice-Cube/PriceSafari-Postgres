@@ -91,7 +91,7 @@ namespace PriceSafari.Controllers.MemberControllers
 
             var flags = await _context.Flags
                .Where(f => f.StoreId == storeId.Value && f.IsMarketplace == false)
-               .Select(f => new FlagViewModel // Projekcja na prosty ViewModel
+               .Select(f => new FlagViewModel 
                {
                    FlagId = f.FlagId,
                    FlagName = f.FlagName,

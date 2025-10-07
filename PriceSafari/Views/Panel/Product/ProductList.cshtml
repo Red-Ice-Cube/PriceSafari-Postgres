@@ -1,4 +1,5 @@
-﻿@{
+﻿@using PriceSafari.Models.ViewModels
+@{
     ViewData["Title"] = "Lista Produktów";
     Layout = "~/Views/Shared/_PanelLayout.cshtml";
 }
@@ -6,9 +7,10 @@
 <style>
     .StatusBoxProduct-1 {
         display: inline-flex;
-        padding: 2px 5px;
-        border-radius: 4px;
-        width: 90px;
+        padding-left: 20px;
+        border-radius: 0px 24px 24px 0px;
+        height:44px;
+        width: 110px;
         align-items: center;
         justify-content: center;
         background: rgba(128, 0, 128, 0.3);
@@ -20,11 +22,12 @@
 
     .StatusBoxProduct-2 {
         display: inline-flex;
-        padding: 2px 5px;
-        border-radius: 4px;
+        padding-left:20px;
+        height: 44px;
+        border-radius: 0px 24px 24px 0px;
         align-items: center;
         justify-content: center;
-        width: 90px;
+        width: 110px;
         background: rgba(14, 126, 135, 0.3);
         border: solid 2px rgba(14, 126, 135, 1);
         font-size: 14px;
@@ -34,10 +37,11 @@
 
     .StatusBoxProduct-3 {
         display: inline-flex;
-        padding: 2px 5px;
-        border-radius: 4px;
+        padding-left: 20px;
+        border-radius: 0px 24px 24px 0px;
+        height: 44px;
         align-items: center;
-        width: 90px;
+        width: 110px;
         justify-content: center;
         background: rgba(238, 17, 17, 0.3);
         border: solid 2px rgba(238, 17, 17, 1);
@@ -48,10 +52,11 @@
 
     .StatusBoxProduct-4 {
         display: inline-flex;
-        padding: 2px 5px;
-        border-radius: 4px;
+        padding-left: 20px;
+        border-radius: 0px 24px 24px 0px;
+        height: 44px;
         align-items: center;
-        width: 90px;
+        width: 110px;
         justify-content: center;
         background: rgba(128, 128, 128, 0.3);
         border: solid 2px rgba(128, 128, 128, 1);
@@ -261,11 +266,12 @@
                                 <tr>
                                     <th>Produkt (<span id="displayed-count"></span>)</th>
                                     <th></th>
-                                    <th>EAN</th>
+                                 
                                     <th>Zakup</th>
                                     <th>Oferta</th>
                                     <th>Monitoring</th>
-                                    <th>Status</th>
+                            
+                                    <th>Flagi</th>
 
                                 </tr>
                             </thead>
@@ -350,6 +356,8 @@
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
     <script>
         var allProducts = [];
+       var flags = @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(ViewBag.Flags ?? new List<FlagViewModel>()));
+
 
         document.addEventListener('DOMContentLoaded', function () {
             var storeId = @ViewBag.StoreId;
@@ -357,6 +365,8 @@
             var deselectAllButton = document.getElementById('deselect-all');
             var searchInput = document.getElementById('productSearch');
             var categoryDropdown = document.getElementById('producerDropdown');
+                   var selectedFlagsInclude = new Set();
+        var selectedFlagsExclude = new Set();
 
                 var lastScrollPosition = 0;
 
@@ -365,7 +375,7 @@
             var platformStatuses = ['google', 'ceneo', 'google-ceneo', 'not-found'];
 
             const storeNameFromViewBag = '@(ViewBag.StoreName ?? "Oferta Sklepu")';
-            const storeNameForButton = decodeHTML(storeNameFromViewBag);
+           
 
             function getProductPlatformStatus(product) {
                 var hasGoogle = product.googleUrl && product.googleUrl.trim() !== '';
@@ -471,6 +481,128 @@
                 }
             }
 
+
+                 function hexToRgba(hex, alpha) {
+            let r = 0, g = 0, b = 0;
+            if (hex.length == 4) {
+                r = parseInt(hex[1] + hex[1], 16);
+                g = parseInt(hex[2] + hex[2], 16);
+                b = parseInt(hex[3] + hex[3], 16);
+            } else if (hex.length == 7) {
+                r = parseInt(hex[1] + hex[2], 16);
+                g = parseInt(hex[3] + hex[4], 16);
+                b = parseInt(hex[5] + hex[6], 16);
+            }
+            return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+        }
+
+        // ### DODANE: Funkcja do tworzenia kontenera z flagami dla produktu ###
+        function createFlagsContainer(product) {
+            const flagsContainer = document.createElement('div');
+            flagsContainer.className = 'flags-container';
+            if (product.flagIds && product.flagIds.length > 0) {
+                product.flagIds.forEach(function (flagId) {
+                    const flag = flags.find(f => f.FlagId === flagId);
+                    if (flag) {
+                        const flagSpan = document.createElement('span');
+                        flagSpan.className = 'flag';
+                        flagSpan.style.color = flag.FlagColor;
+                        flagSpan.style.border = '2px solid ' + flag.FlagColor;
+                        flagSpan.style.backgroundColor = hexToRgba(flag.FlagColor, 0.3);
+                        flagSpan.innerHTML = flag.FlagName;
+                        flagsContainer.appendChild(flagSpan);
+                    }
+                });
+            }
+            return flagsContainer;
+        }
+
+        // ### DODANE: Funkcja do renderowania i aktualizacji filtrów flag ###
+        function updateAndRenderFlagFilters(products) {
+            const flagCounts = {};
+            let noFlagCount = 0;
+
+            products.forEach(product => {
+                if (!product.flagIds || product.flagIds.length === 0) {
+                    noFlagCount++;
+                } else {
+                    product.flagIds.forEach(flagId => {
+                        flagCounts[flagId] = (flagCounts[flagId] || 0) + 1;
+                    });
+                }
+            });
+
+            const flagContainer = document.getElementById('flagFilterList');
+            if (!flagContainer) return;
+            flagContainer.innerHTML = '';
+
+            if (typeof flags !== 'undefined' && flags) {
+                flags.forEach(flag => {
+                    const count = flagCounts[flag.FlagId] || 0;
+                    const includeChecked = selectedFlagsInclude.has(String(flag.FlagId)) ? 'checked' : '';
+                    const excludeChecked = selectedFlagsExclude.has(String(flag.FlagId)) ? 'checked' : '';
+
+                    const flagElementHTML = `
+                        <div class="flag-filter-group">
+                            <div class="form-check form-check-inline check-include" style="margin-right:0px;">
+                                <input class="form-check-input flagFilterInclude" type="checkbox" id="flagCheckboxInclude_${flag.FlagId}" value="${flag.FlagId}" ${includeChecked} title="Pokaż wszystkie produkty z tą flagą">
+                            </div>
+                            <div class="form-check form-check-inline check-exclude" style="margin-right:0px; padding-left:16px;">
+                                <input class="form-check-input flagFilterExclude" type="checkbox" id="flagCheckboxExclude_${flag.FlagId}" value="${flag.FlagId}" ${excludeChecked} title="Ukryj wszystkie produkty z tą flagą">
+                            </div>
+                            <span class="flag-name-count" style="font-size:14px; font-weight: 400;">
+                                ${flag.FlagName} (${count})
+                            </span>
+                        </div>`;
+                    flagContainer.insertAdjacentHTML('beforeend', flagElementHTML);
+                });
+            }
+
+            // Dodaj opcję dla produktów bez flag
+            const noFlagIncludeChecked = selectedFlagsInclude.has('noFlag') ? 'checked' : '';
+            const noFlagExcludeChecked = selectedFlagsExclude.has('noFlag') ? 'checked' : '';
+            const noFlagElementHTML = `
+                <div class="flag-filter-group">
+                    <div class="form-check form-check-inline check-include" style="margin-right:0px;">
+                        <input class="form-check-input flagFilterInclude" type="checkbox" id="flagCheckboxInclude_noFlag" value="noFlag" ${noFlagIncludeChecked} title="Pokaż wszystkie produkty bez flagi">
+                    </div>
+                    <div class="form-check form-check-inline check-exclude" style="margin-right:0px; padding-left:16px;">
+                        <input class="form-check-input flagFilterExclude" type="checkbox" id="flagCheckboxExclude_noFlag" value="noFlag" ${noFlagExcludeChecked} title="Ukryj wszystkie produkty bez flagi">
+                    </div>
+                    <span class="flag-name-count" style="font-size:14px; font-weight: 400;">
+                        Brak flagi (${noFlagCount})
+                    </span>
+                </div>`;
+            flagContainer.insertAdjacentHTML('beforeend', noFlagElementHTML);
+
+            // Dodaj listenery do nowo utworzonych checkboxów
+            document.querySelectorAll('.flagFilterInclude, .flagFilterExclude').forEach(checkbox => {
+                checkbox.addEventListener('change', function () {
+                    const flagValue = this.value;
+                    const isInclude = this.classList.contains('flagFilterInclude');
+
+                    if (isInclude) {
+                        if (this.checked) {
+                            document.getElementById(`flagCheckboxExclude_${flagValue}`).checked = false;
+                            selectedFlagsExclude.delete(flagValue);
+                            selectedFlagsInclude.add(flagValue);
+                        } else {
+                            selectedFlagsInclude.delete(flagValue);
+                        }
+                    } else { // isExclude
+                        if (this.checked) {
+                            document.getElementById(`flagCheckboxInclude_${flagValue}`).checked = false;
+                            selectedFlagsInclude.delete(flagValue);
+                            selectedFlagsExclude.add(flagValue);
+                        } else {
+                            selectedFlagsExclude.delete(flagValue);
+                        }
+                    }
+                    filterRows();
+                });
+            });
+        }
+
             function updateCounters(products) {
                 var activeRejectedCount = allProducts.filter(p => p.isScrapable && p.isRejected).length;
                 var activeCount = allProducts.filter(p => p.isScrapable && !p.isRejected).length;
@@ -517,20 +649,23 @@
                 var platformStatus = getProductPlatformStatus(product);
                 var isNotFound = platformStatus.notFound;
                 var highlightedProductName = highlightMatches(product.productName, searchTerm);
-                var producer = product.producer || '';
+                  var producer = product.producer ? `<b>Producent:</b> ${product.producer}` : '';
+                 var ean = product.ean ? `<b>EAN:</b> ${product.ean}` : '';
+
 
                 var newGoogleUrl = createNewGoogleUrl(product);
 
-                var offerUrlButton = product.offerUrl ? `<a href="${product.offerUrl}" class="Button-Page-Small" style="width: 150px;" target="_blank">Ceneo</a>` : '';
-                var googleUrlButton = newGoogleUrl ? `<a href="${newGoogleUrl}" class="Button-Page-Small" style="width: 150px;" target="_blank">Google</a>` : '';
+                var offerUrlButton = product.offerUrl ? `<a href="${product.offerUrl}" class="Button-Page-Small" style="width: 100px;" target="_blank">Ceneo</a>` : '';
+                var googleUrlButton = newGoogleUrl ? `<a href="${newGoogleUrl}" class="Button-Page-Small" style="width: 100px;" target="_blank">Google</a>` : '';
 
-                var storeSpecificOfferButton = product.url ? `<a href="${product.url}" class="Button-Page-Small" style="width: 150px;" target="_blank">${storeNameForButton}</a>` : '';
-                var ean = product.ean || '';
+                var storeSpecificOfferButton = product.url ? `<a href="${product.url}" class="Button-Page-Small" style="width: 100px;" target="_blank">Strona</a>` : '';
+              
                 var imageUrl = product.mainUrl || '';
                 var imageCell = imageUrl ? `<img src="${imageUrl}" style="width: 90px; height: 90px; object-fit: contain; background-color: white;" />` : `<div style="width: 90px; height: 90px;"></div>`;
 
                 var hasPrice = product.marginPrice != null && product.marginPrice.toString().trim() !== '';
                 var priceValue = hasPrice ? parseFloat(product.marginPrice).toFixed(2) : '';
+                 var flagsCellContent = createFlagsContainer(product).outerHTML;
 
                 var purchasePriceHtml = `
                     <div class="price-display-container">
@@ -566,25 +701,30 @@
                     statusText = "Nieaktywny";
                 }
 
-                row.innerHTML = `
-                    <td><p>${highlightedProductName}</p><p>${producer}</p></td>
-                    <td>${imageCell}</td>
-                    <td>${ean}</td>
-                    <td>${purchasePriceHtml}</td>
-                    <td>
-                        <div style="display: flex; flex-direction: column; align-items: flex-start; gap: 5px;">
-                            ${offerUrlButton}
-                            ${googleUrlButton}
-                            ${storeSpecificOfferButton}
-                        </div>
-                    </td>
-                    <td>
-                        <input type="checkbox" class="scrapable-checkbox" data-product-id="${product.productId}"
-                               ${product.isScrapable ? "checked" : ""}
-                               ${isNotFound ? "disabled" : ""} />
-                    </td>
-                    <td><div class="${statusBoxClass}">${statusText}</div></td>`;
-
+                   row.innerHTML = `
+             <td>
+                 <p style="margin-bottom: 8px;">${highlightedProductName}</p>
+                 <p style="font-size: 0.9em; color: #555;">${producer}</p>
+                 <p style="font-size: 0.9em; color: #555;">${ean}</p>
+             </td>
+             <td>${imageCell}</td>
+             <td>${purchasePriceHtml}</td>
+             <td>
+                 <div style="display: flex; flex-direction: column; align-items: flex-start; gap: 5px;">
+                     ${offerUrlButton}
+                     ${googleUrlButton}
+                     ${storeSpecificOfferButton}
+                 </div>
+             </td>
+                         <td>
+                 <div style="display: flex; align-items: center;">
+                     <input type="checkbox" class="scrapable-checkbox" data-product-id="${product.productId}"
+                            ${product.isScrapable ? "checked" : ""}
+                            ${isNotFound ? "disabled" : ""} />
+                     <div class="${statusBoxClass}" StylePropertyMap="margin-left:-8px;">${statusText}</div>
+                 </div>
+             </td>
+                         <td>${flagsCellContent}</td>`;
                 if (!isNotFound) {
                     row.querySelector('.scrapable-checkbox').addEventListener('change', function () {
                         saveState();
@@ -647,10 +787,42 @@
                         return includeProduct;
                     });
                 }
+
+                   let productsBeforeFlagFilter = [...filteredProducts]; // Kopia do liczenia
+
+         if (selectedFlagsExclude.size > 0) {
+             filteredProducts = filteredProducts.filter(item => {
+                 if (selectedFlagsExclude.has('noFlag') && (!item.flagIds || item.flagIds.length === 0)) {
+                     return false;
+                 }
+                 if (item.flagIds) {
+                     for (const excl of selectedFlagsExclude) {
+                         if (excl !== 'noFlag' && item.flagIds.includes(parseInt(excl))) {
+                             return false;
+                         }
+                     }
+                 }
+                 return true;
+             });
+         }
+
+         if (selectedFlagsInclude.size > 0) {
+             filteredProducts = filteredProducts.filter(item => {
+                 if (selectedFlagsInclude.has('noFlag') && (!item.flagIds || item.flagIds.length === 0)) {
+                     return true;
+                 }
+                 if (item.flagIds) {
+                     return item.flagIds.some(fid => selectedFlagsInclude.has(fid.toString()));
+                 }
+                 return false;
+             });
+         }
                 filteredProducts = filterProductsByProducer(filteredProducts, selectedProducer);
+
                 renderProducts(filteredProducts, searchTerm);
                 updateCounters(filteredProducts);
-            }
+                   updateAndRenderFlagFilters(productsBeforeFlagFilter);
+             }
 
              function fetchProducts() {
                 fetch('@Url.Action("GetProducts", "Product")?storeId=' + storeId)
@@ -671,7 +843,7 @@
 
                         populateProducerDropdown(producersWithCount);
 
-                        updateCounters(allProducts);
+             
                         filterRows();
                     })
                     .catch(error => {
