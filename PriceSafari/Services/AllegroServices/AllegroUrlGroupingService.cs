@@ -22,10 +22,11 @@ namespace PriceSafari.Services.AllegroServices
                 _logger.LogInformation("Rozpoczynam proces grupowania URL-i ofert Allegro...");
 
                 var allProducts = await _context.AllegroProducts
-                    .AsNoTracking()
-                    .ToListAsync();
+                 .Where(p => p.IsScrapable)
+                 .AsNoTracking()
+                 .ToListAsync();
 
-                if (!allProducts.Any())
+            if (!allProducts.Any())
                 {
                     _logger.LogWarning("Nie znaleziono żadnych produktów Allegro do przetworzenia.");
                     return (0, 0);
@@ -43,14 +44,13 @@ namespace PriceSafari.Services.AllegroServices
                     {
                         AllegroOfferUrl = group.Key,
                         AllegroProductIds = group.Select(p => p.AllegroProductId).ToList(),
-                        AddedDate = DateTime.UtcNow
+                        AddedDate = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, TimeZoneInfo.FindSystemTimeZoneById("Central European Standard Time"))
                     };
                     offersToSave.Add(newOffer);
                 }
 
                 _logger.LogInformation("Znaleziono {UrlCount} unikalnych URL-i z {ProductCount} produktów.", offersToSave.Count, allProducts.Count);
 
-                // Używamy ExecuteDeleteAsync dla maksymalnej wydajności (EF Core 7+)
                 _logger.LogInformation("Czyszczenie istniejących danych w tabeli pośredniej...");
                 await _context.AllegroOffersToScrape.ExecuteDeleteAsync();
 
