@@ -21,26 +21,32 @@ namespace PriceSafari.Controllers
             _context = context;
             _logger = logger;
         }
-
         [HttpGet]
         public async Task<IActionResult> StoreList()
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
-            var userStores = await _context.UserStores
+            var userStoresQuery = _context.UserStores
                 .Where(us => us.UserId == userId)
-                .Include(us => us.StoreClass)
-                .ThenInclude(s => s.Products)
-                .ToListAsync();
+                .Select(us => us.StoreClass);
 
-            var stores = userStores.Select(us => us.StoreClass).ToList();
+            var storeIds = await userStoresQuery.Select(s => s.StoreId).ToListAsync();
+
+            var scrapableCounts = await _context.Products
+                .Where(p => storeIds.Contains(p.StoreId) && p.IsScrapable)
+                .GroupBy(p => p.StoreId)
+                .Select(g => new { StoreId = g.Key, Count = g.Count() })
+                .ToDictionaryAsync(x => x.StoreId, x => x.Count);
+
+            var stores = await userStoresQuery.ToListAsync();
 
             var storeDetails = stores.Select(store => new ChanelViewModel
             {
                 StoreId = store.StoreId,
                 StoreName = store.StoreName,
                 LogoUrl = store.StoreLogoUrl,
-                ProductCount = store.Products.Count(p => p.IsScrapable),
+
+                ProductCount = scrapableCounts.TryGetValue(store.StoreId, out var count) ? count : 0,
                 AllowedProducts = store.ProductsToScrap
             }).ToList();
 
@@ -68,7 +74,6 @@ namespace PriceSafari.Controllers
             ViewBag.ProductCount = store.ProductsToScrap;
             ViewBag.StoreId = storeId;
 
-            // ### DODANE: Pobranie flag (tylko z porównywarek) i przekazanie do widoku ###
             var flags = await _context.Flags
                 .Where(f => !f.IsMarketplace)
                 .Select(f => new FlagViewModel
@@ -98,7 +103,7 @@ namespace PriceSafari.Controllers
 
             var products = await _context.Products
                   .Where(p => p.StoreId == storeId)
-                  // ### DODANE: Dołączenie flag do produktu ###
+
                   .Include(p => p.ProductFlags)
                   .Select(p => new
                   {
@@ -117,7 +122,7 @@ namespace PriceSafari.Controllers
                       AddedDate = p.AddedDate,
                       FoundOnGoogleDate = p.FoundOnGoogleDate,
                       FoundOnCeneoDate = p.FoundOnCeneoDate,
-                      // ### DODANE: Lista ID flag dla każdego produktu ###
+
                       FlagIds = p.ProductFlags.Select(pf => pf.FlagId).ToList()
                   })
                   .ToListAsync();
