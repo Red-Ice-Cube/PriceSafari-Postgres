@@ -82,9 +82,9 @@
         </div>
     </div>
 </div>
-
 <div class="row">
-    <div class="col-lg-6 mb-4">
+    @* Zmieniono z col-lg-6 na col-lg-4 *@
+    <div class="col-lg-4 mb-4">
         <div class="card shadow h-100">
             <div class="card-header py-3">
                 <h6 class="m-0 font-weight-bold text-primary">Struktura monitorowanych danych</h6>
@@ -96,7 +96,8 @@
             </div>
         </div>
     </div>
-    <div class="col-lg-6 mb-4">
+    @* Zmieniono z col-lg-6 na col-lg-4 *@
+    <div class="col-lg-4 mb-4">
         <div class="card shadow h-100">
             <div class="card-header py-3">
                 <h6 class="m-0 font-weight-bold text-primary">Największe tabele w bazie danych</h6>
@@ -118,6 +119,52 @@
             </div>
         </div>
     </div>
+
+    @* === POCZĄTEK NOWEJ KARTY === *@
+    <div class="col-lg-4 mb-4">
+        <div class="card shadow h-100">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Szczegółowa Struktura Bazy Danych</h6>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <tbody>
+                            <tr>
+                                <td><span class="text-primary mr-2">■</span>Dane w tabelach</td>
+                                <td class="text-right font-weight-bold">@Model.SpaceDetails.DataMB.ToString("N2") MB</td>
+                            </tr>
+                            <tr>
+                                <td><span class="text-success mr-2">■</span>Indeksy</td>
+                                <td class="text-right font-weight-bold">@Model.SpaceDetails.IndexSizeMB.ToString("N2") MB</td>
+                            </tr>
+                            <tr>
+                                <td><span class="text-danger mr-2">■</span>Dziennik Transakcji (.ldf)</td>
+                                <td class="text-right font-weight-bold">@Model.SpaceDetails.LogFileMB.ToString("N2") MB</td>
+                            </tr>
+                            <tr>
+                                <td><span class="text-warning mr-2">■</span>Zarezerwowane, niewykorzystane</td>
+                                <td class="text-right font-weight-bold">@Model.SpaceDetails.UnusedMB.ToString("N2") MB</td>
+                            </tr>
+                            <tr>
+                                <td><span class="text-info mr-2">■</span>Niezarezerwowane, wolne</td>
+                                <td class="text-right font-weight-bold">@Model.SpaceDetails.UnallocatedSpaceMB.ToString("N2") MB</td>
+                            </tr>
+                            <tr class="table-active">
+                                <td><strong>Suma komponentów</strong></td>
+                                @{
+                                    var componentSum = Model.SpaceDetails.DataMB + Model.SpaceDetails.IndexSizeMB + Model.SpaceDetails.LogFileMB + Model.SpaceDetails.UnusedMB + Model.SpaceDetails.UnallocatedSpaceMB;
+                                }
+                                <td class="text-right font-weight-bold">@componentSum.ToString("N2") MB</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <small class="text-muted">Suma może nieznacznie różnić się od całkowitego rozmiaru bazy z powodu zaokrągleń.</small>
+                </div>
+            </div>
+        </div>
+    </div>
+    @* === KONIEC NOWEJ KARTY === *@
 </div>
 
 <div class="card shadow mb-4">

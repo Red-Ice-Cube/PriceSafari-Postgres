@@ -103,7 +103,7 @@ namespace PriceSafari.Controllers.ManagerControllers
             // --- 4. Pobranie dodatkowych informacji diagnostycznych ---
             var totalDbSize = await GetTotalDatabaseSizeMB();
             var topTables = await GetTopTableSizesAsync(10);
-
+            var spaceDetails = await GetDatabaseSpaceDetailsAsync();
             // --- 5. Finalizacja i budowa ViewModelu ---
             var storeSummaries = storeSummariesDict.Values.OrderByDescending(s => s.TotalUsedSpaceMB + s.TotalAllegroPriceHistoriesUsedSpaceMB + s.TotalGlobalPriceReportsUsedSpaceMB).ToList();
             var viewModel = new DatabaseSizeSummaryViewModel
@@ -116,7 +116,8 @@ namespace PriceSafari.Controllers.ManagerControllers
                 TotalGlobalPriceReportsCount = storeSummaries.Sum(s => s.TotalGlobalPriceReportsCount),
                 TotalGlobalPriceReportsUsedSpaceMB = storeSummaries.Sum(s => s.TotalGlobalPriceReportsUsedSpaceMB),
                 TotalAllegroPriceHistories = storeSummaries.Sum(s => s.TotalAllegroPriceHistoriesCount),
-                TotalAllegroPriceHistoriesUsedSpaceMB = storeSummaries.Sum(s => s.TotalAllegroPriceHistoriesUsedSpaceMB)
+                TotalAllegroPriceHistoriesUsedSpaceMB = storeSummaries.Sum(s => s.TotalAllegroPriceHistoriesUsedSpaceMB),
+                SpaceDetails = spaceDetails
             };
 
             return View("~/Views/ManagerPanel/DatabaseSize/Index.cshtml", viewModel);
@@ -394,6 +395,71 @@ namespace PriceSafari.Controllers.ManagerControllers
             return Json(new { success = false, message = "Wystąpił błąd walidacji." });
         }
 
+        // W pliku DatabaseSizeController.cs
+
+        private async Task<DatabaseSpaceDetailsViewModel> GetDatabaseSpaceDetailsAsync()
+        {
+            var details = new DatabaseSpaceDetailsViewModel();
+            // Pobieramy obiekt połączenia, ale bez bloku 'using', aby go nie zniszczyć
+            var connection = _context.Database.GetDbConnection();
+
+            try
+            {
+                // Ręcznie otwieramy połączenie
+                await connection.OpenAsync();
+
+                // 1. Pobierz rozmiar pliku logu
+                using (var logCommand = connection.CreateCommand())
+                {
+                    logCommand.CommandText = "SELECT CAST(SUM(size) * 8.0 / 1024 AS DECIMAL(18, 2)) FROM sys.database_files WHERE type_desc = 'LOG'";
+                    var logSizeResult = await logCommand.ExecuteScalarAsync();
+                    if (logSizeResult != null && logSizeResult != DBNull.Value)
+                    {
+                        details.LogFileMB = Convert.ToDecimal(logSizeResult);
+                    }
+                }
+
+                // 2. Pobierz dane o danych, indeksach i wolnym miejscu z sp_spaceused
+                using (var spaceUsedCommand = connection.CreateCommand())
+                {
+                    spaceUsedCommand.CommandText = "EXEC sp_spaceused";
+                    using (var reader = await spaceUsedCommand.ExecuteReaderAsync())
+                    {
+                        if (await reader.ReadAsync())
+                        {
+                            // Pierwszy zestaw wyników: database_size, unallocated space
+                            var unallocatedString = reader["unallocated space"].ToString();
+                            decimal unallocatedMB = 0;
+                            decimal.TryParse(unallocatedString?.Replace(" MB", "").Replace(",", "."), NumberStyles.Any, CultureInfo.InvariantCulture, out unallocatedMB);
+                            details.UnallocatedSpaceMB = unallocatedMB;
+                        }
+
+                        if (await reader.NextResultAsync() && await reader.ReadAsync())
+                        {
+                            // Drugi zestaw wyników: reserved, data, index_size, unused (w KB)
+                            long.TryParse(reader["data"].ToString()?.Replace(" KB", "").Replace(",", ""), out long dataKB);
+                            long.TryParse(reader["index_size"].ToString()?.Replace(" KB", "").Replace(",", ""), out long indexKB);
+                            long.TryParse(reader["unused"].ToString()?.Replace(" KB", "").Replace(",", ""), out long unusedKB);
+
+                            details.DataMB = Math.Round(dataKB / 1024.0m, 2);
+                            details.IndexSizeMB = Math.Round(indexKB / 1024.0m, 2);
+                            details.UnusedMB = Math.Round(unusedKB / 1024.0m, 2);
+                        }
+                    }
+                }
+            }
+            finally
+            {
+                // Upewniamy się, że połączenie jest zamknięte, niezależnie od wszystkiego
+                if (connection.State == System.Data.ConnectionState.Open)
+                {
+                    await connection.CloseAsync();
+                }
+            }
+
+            return details;
+        }
+
         #endregion
     }
 
@@ -402,6 +468,16 @@ namespace PriceSafari.Controllers.ManagerControllers
     {
         public string TableName { get; set; }
         public decimal SizeMB { get; set; }
+    }
+
+
+    public class DatabaseSpaceDetailsViewModel
+    {
+        public decimal DataMB { get; set; }
+        public decimal IndexSizeMB { get; set; }
+        public decimal UnusedMB { get; set; }
+        public decimal UnallocatedSpaceMB { get; set; }
+        public decimal LogFileMB { get; set; }
     }
 
     public class DatabaseSizeSummaryViewModel
@@ -415,6 +491,7 @@ namespace PriceSafari.Controllers.ManagerControllers
         public int TotalAllegroPriceHistories { get; set; }
         public decimal TotalAllegroPriceHistoriesUsedSpaceMB { get; set; }
         public List<TableUsageInfo> TopTables { get; set; }
+        public DatabaseSpaceDetailsViewModel SpaceDetails { get; set; }
     }
 
     public class StoreSummaryViewModel
