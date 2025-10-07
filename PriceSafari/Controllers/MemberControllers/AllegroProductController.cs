@@ -4,7 +4,6 @@ using Microsoft.EntityFrameworkCore;
 using PriceSafari.Data;
 using System.Security.Claims;
 using PriceSafari.Models.ViewModels;
-using System.Globalization;
 using PriceSafari.Models;
 
 namespace PriceSafari.Controllers
@@ -25,9 +24,7 @@ namespace PriceSafari.Controllers
         public async Task<IActionResult> AllegroProductList(int storeId)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-
-            var userStore = await _context.UserStores
-                .FirstOrDefaultAsync(us => us.UserId == userId && us.StoreId == storeId);
+            var userStore = await _context.UserStores.FirstOrDefaultAsync(us => us.UserId == userId && us.StoreId == storeId);
 
             if (userStore == null)
             {
@@ -39,10 +36,9 @@ namespace PriceSafari.Controllers
 
             ViewBag.StoreName = store.StoreName;
             ViewBag.StoreLogoUrl = store.StoreLogoUrl;
-            ViewBag.ProductCount = store.ProductsToScrapAllegro; // Limit dla Allegro
+            ViewBag.ProductCount = store.ProductsToScrapAllegro;
             ViewBag.StoreId = storeId;
 
-            // Pobieramy flagi przeznaczone dla marketplace (Allegro)
             var flags = await _context.Flags
                 .Where(f => f.IsMarketplace)
                 .Select(f => new FlagViewModel
@@ -61,9 +57,7 @@ namespace PriceSafari.Controllers
         public async Task<IActionResult> GetAllegroProducts(int storeId)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-
-            var userStore = await _context.UserStores
-                .FirstOrDefaultAsync(us => us.UserId == userId && us.StoreId == storeId);
+            var userStore = await _context.UserStores.FirstOrDefaultAsync(us => us.UserId == userId && us.StoreId == storeId);
 
             if (userStore == null)
             {
@@ -90,10 +84,10 @@ namespace PriceSafari.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> UpdateScrapableProduct(int storeId, [FromBody] int allegroProductId)
+        // ### ZMIANA 1: Zmiana nazwy akcji ###
+        public async Task<IActionResult> UpdateScrapableAllegroProduct(int storeId, [FromBody] int allegroProductId)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-
             var userStore = await _context.UserStores.FirstOrDefaultAsync(us => us.UserId == userId && us.StoreId == storeId);
             if (userStore == null) return Forbid();
 
@@ -115,27 +109,22 @@ namespace PriceSafari.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> UpdateMultipleScrapableProducts(int storeId, [FromBody] List<int> productIds)
+        // ### ZMIANA 2: Zmiana nazwy akcji ###
+        public async Task<IActionResult> UpdateMultipleScrapableAllegroProducts(int storeId, [FromBody] List<int> productIds)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-
-            var userStore = await _context.UserStores
-                .FirstOrDefaultAsync(us => us.UserId == userId && us.StoreId == storeId);
-
+            var userStore = await _context.UserStores.FirstOrDefaultAsync(us => us.UserId == userId && us.StoreId == storeId);
             if (userStore == null) return Forbid();
 
             var store = await _context.Stores.Include(s => s.AllegroProducts).FirstOrDefaultAsync(s => s.StoreId == storeId);
             if (store == null) return NotFound();
 
             int currentScrapableCount = store.AllegroProducts.Count(p => p.IsScrapable);
-            int availableCount = (int)(store.ProductsToScrapAllegro - currentScrapableCount);
+            int availableCount = (store.ProductsToScrapAllegro ?? int.MaxValue) - currentScrapableCount;
 
-            var productsToUpdate = store.AllegroProducts.Where(p => productIds.Contains(p.AllegroProductId)).ToList();
+            var productsToUpdateQuery = _context.AllegroProducts.Where(p => p.StoreId == storeId && productIds.Contains(p.AllegroProductId) && !p.IsScrapable);
 
-            if (productsToUpdate.Count > availableCount)
-            {
-                productsToUpdate = productsToUpdate.Take(availableCount).ToList();
-            }
+            var productsToUpdate = await productsToUpdateQuery.Take(availableCount).ToListAsync();
 
             foreach (var product in productsToUpdate)
             {
@@ -144,16 +133,18 @@ namespace PriceSafari.Controllers
 
             await _context.SaveChangesAsync();
 
-            if (productsToUpdate.Count < productIds.Count)
+            int requestedCountToUpdate = await productsToUpdateQuery.CountAsync();
+            if (productsToUpdate.Count < requestedCountToUpdate)
             {
-                return Json(new { success = true, message = $"Zaktualizowano {productsToUpdate.Count} z {productIds.Count} produktów. Przekroczono limit." });
+                return Json(new { success = true, message = $"Zaktualizowano {productsToUpdate.Count} z {requestedCountToUpdate} produktów. Przekroczono limit." });
             }
 
             return Json(new { success = true });
         }
 
         [HttpPost]
-        public async Task<IActionResult> ResetMultipleScrapableProducts(int storeId, [FromBody] List<int> productIds)
+        // ### ZMIANA 3: Zmiana nazwy akcji ###
+        public async Task<IActionResult> ResetMultipleScrapableAllegroProducts(int storeId, [FromBody] List<int> productIds)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             var userStore = await _context.UserStores.FirstOrDefaultAsync(us => us.UserId == userId && us.StoreId == storeId);

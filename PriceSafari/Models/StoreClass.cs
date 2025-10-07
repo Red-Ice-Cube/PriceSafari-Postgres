@@ -59,6 +59,7 @@ namespace PriceSafari.Models
         public ICollection<ScrapHistoryClass> ScrapHistories { get; set; } = new List<ScrapHistoryClass>();
         public ICollection<ProductClass> Products { get; set; } = new List<ProductClass>();
         public ICollection<AllegroProductClass> AllegroProducts { get; set; } = new List<AllegroProductClass>();
+        public ICollection<AllegroScrapeHistory> AllegroScrapeHistories { get; set; } = new List<AllegroScrapeHistory>();
 
         public ICollection<CategoryClass> Categories { get; set; } = new List<CategoryClass>();
         public ICollection<PriceValueClass> PriceValues { get; set; } = new List<PriceValueClass>();

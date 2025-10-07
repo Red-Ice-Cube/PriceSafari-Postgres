@@ -4,6 +4,16 @@
     Layout = "~/Views/Shared/_PanelLayout.cshtml";
 }
 
+<style>
+    .button-disabled {
+        pointer-events: none;
+        opacity: 0.5;
+    }
+
+    .icon-disabled {
+        filter: grayscale(100%);
+    }
+</style>
 
 <div class="Vert">
     <div class="Vert-full">
@@ -16,46 +26,76 @@
                 <table class="table-orders">
                     <thead>
                         <tr>
+                            <th>Sklep</th>
                             <th></th>
-                            <th>Kanał</th>
-                            <th>Ostatnia analiza</th>
-                            <th>Czas od ostatniej analizy</th>
-                            <th>Źródło danych</th>
+                            <th>Porównywarki Cenowe</th>
+                            <th>Marketplace</th>
                         </tr>
                     </thead>
                     <tbody>
                         @foreach (var store in Model)
                         {
-
-                            <tr class="store-row" data-last-scrape="@store.LastScrapeDate?.ToString("o")">
+                            <tr class="store-row">
                                 <td>
                                     <img src="@store.LogoUrl" class="img-container" alt="@store.StoreName" />
                                 </td>
+                                <td>@store.StoreName</td>
                                 <td>
-                                    @store.StoreName
+                                    <div style="display: flex; align-items: center; gap: 15px;">
+                                        <a href="@Url.Action("Index", "PriceHistory", new { storeId = store.StoreId })"
+                                           class="Button-select @(!(store.OnCeneo || store.OnGoogle) ? "button-disabled" : "")"
+                                           title="Historia cen z porównywarek">
+
+                                            <img src="/images/Ceneo.png" alt="Ceneo" class="@(store.OnCeneo ? "" : "icon-disabled")" />
+                                            <img src="/images/GoogleShopping.png" alt="Google Shopping" class="@(store.OnGoogle ? "" : "icon-disabled")" />
+                                        </a>
+                                        <div>
+                                            @if (store.LastScrapeDate.HasValue)
+                                            {
+                                                @* ZMIANA: Na górze jest teraz czas "temu" *@
+                                                <p style="margin: 0; font-weight: 500;"
+                                                   class="time-since-scrape"
+                                                   data-scrape-date="@store.LastScrapeDate?.ToString("o")">
+                                                    Obliczanie...
+                                                </p>
+                                                @* ZMIANA: Na dole jest pełna data *@
+                                                <p style="margin: 0; font-size: 0.8em; color: #777;">@store.LastScrapeDate?.ToString("g")</p>
+                                            }
+                                            else
+                                            {
+                                                <p style="margin: 0; font-weight: 500;">Nieaktywne</p>
+                                                <p style="margin: 0; font-size: 0.8em; color: #777;">Brak danych</p>
+                                            }
+                                        </div>
+                                    </div>
                                 </td>
-                                <td>@store.LastScrapeDate?.ToString("g")</td>
-                                <td class="time-since-last-scrape"></td>
                                 <td>
-                                    <a href="@Url.Action("Index", "PriceHistory", new { storeId = store.StoreId })"
-                                       class="Button-select @(!(store.OnCeneo || store.OnGoogle) ? "button-disabled" : "")"
-                                       style="margin-right: 4px;"
-                                       title="Porównywarki cenowe">
+                                    <div style="display: flex; align-items: center; gap: 15px;">
+                                        <a href="@Url.Action("Index", "AllegroPriceHistory", new { storeId = store.StoreId })"
+                                           class="Button-select @(!store.OnAllegro ? "button-disabled" : "")"
+                                           title="Historia cen z Allegro">
 
-                                        <img src="/images/Ceneo.png" alt="Ceneo"
-                                             class="@(store.OnCeneo ? "" : "icon-disabled")" />
-
-                                        <img src="/images/GoogleShopping.png" alt="Google Shopping"
-                                             class="@(store.OnGoogle ? "" : "icon-disabled")" />
-                                    </a>
-
-                                    <a href="@Url.Action("Index", "AllegroPriceHistory", new { storeId = store.StoreId })"
-                                       class="Button-select @(!store.OnAllegro ? "button-disabled" : "")"
-                                       title="Allegro">
-
-                                        <img src="/images/AllegroIcon.png" alt="Allegro"
-                                             class="@(store.OnAllegro ? "" : "icon-disabled")" />
-                                    </a>
+                                            <img src="/images/AllegroIcon.png" alt="Allegro" class="@(store.OnAllegro ? "" : "icon-disabled")" />
+                                        </a>
+                                        <div>
+                                            @if (store.AllegroLastScrapeDate.HasValue)
+                                            {
+                                                @* ZMIANA: Na górze jest teraz czas "temu" *@
+                                                <p style="margin: 0; font-weight: 500;"
+                                                   class="time-since-scrape"
+                                                   data-scrape-date="@store.AllegroLastScrapeDate?.ToString("o")">
+                                                    Obliczanie...
+                                                </p>
+                                                @* ZMIANA: Na dole jest pełna data *@
+                                                <p style="margin: 0; font-size: 0.8em; color: #777;">@store.AllegroLastScrapeDate?.ToString("g")</p>
+                                            }
+                                            else
+                                            {
+                                                <p style="margin: 0; font-weight: 500;">Nieaktywne</p>
+                                                <p style="margin: 0; font-size: 0.8em; color: #777;">Brak danych</p>
+                                            }
+                                        </div>
+                                    </div>
                                 </td>
                             </tr>
                         }
@@ -73,21 +113,43 @@
 @section Scripts {
     <script>
         document.addEventListener('DOMContentLoaded', function () {
-            var rows = document.querySelectorAll('.store-row');
-            rows.forEach(function (row) {
+            var timeElements = document.querySelectorAll('.time-since-scrape');
 
-                var lastScrapeDate = row.getAttribute('data-last-scrape');
-                if (lastScrapeDate) {
-                    var lastScrape = new Date(lastScrapeDate);
-                    var now = new Date();
-                    var diff = Math.abs(now - lastScrape);
-                    var hours = Math.floor(diff / 36e5);
-                    var minutes = Math.floor((diff % 36e5) / 60000);
-                    row.querySelector('.time-since-last-scrape').textContent = `${hours} godzin ${minutes} minut`;
-                } else {
-                    row.querySelector('.time-since-last-scrape').textContent = 'Brak danych';
-                }
-            });
+            function updateTimers() {
+                timeElements.forEach(function (element) {
+                    var lastScrapeDate = element.getAttribute('data-scrape-date');
+                    if (lastScrapeDate) {
+                        var lastScrape = new Date(lastScrapeDate);
+                        var now = new Date();
+                        var diff = Math.abs(now - lastScrape);
+
+                        var days = Math.floor(diff / (1000 * 60 * 60 * 24));
+                        diff -= days * (1000 * 60 * 60 * 24);
+
+                        var hours = Math.floor(diff / (1000 * 60 * 60));
+                        diff -= hours * (1000 * 60 * 60);
+
+                        var minutes = Math.floor(diff / (1000 * 60));
+
+                        let timeString = '';
+                        if (days > 0) {
+                            timeString += `${days} d `;
+                        }
+                        if (hours > 0 || days > 0) {
+                            timeString += `${hours} godz. `;
+                        }
+                        timeString += `${minutes} min temu`;
+
+                        // ZMIANA: Dodano tekst "Wykonano analizę" przed czasem
+                        element.textContent = `Zebrano dane ${timeString}`;
+                    } else {
+                        element.textContent = 'Błąd w dacie';
+                    }
+                });
+            }
+
+            updateTimers();
+            setInterval(updateTimers, 60000);
         });
     </script>
 }

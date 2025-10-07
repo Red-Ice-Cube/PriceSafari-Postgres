@@ -28,7 +28,9 @@ namespace PriceSafari.Controllers.MemberControllers
             var userStores = await _context.UserStores
                 .Where(us => us.UserId == userId)
                 .Include(us => us.StoreClass)
-                .ThenInclude(s => s.ScrapHistories)
+                    .ThenInclude(s => s.ScrapHistories) // Dołączenie historii dla Ceneo/Google
+                .Include(us => us.StoreClass)
+                    .ThenInclude(s => s.AllegroScrapeHistories) // <-- DOŁĄCZENIE HISTORII DLA ALLEGRO
                 .ToListAsync();
 
             var stores = userStores.Select(us => us.StoreClass).ToList();
@@ -38,13 +40,16 @@ namespace PriceSafari.Controllers.MemberControllers
                 StoreId = store.StoreId,
                 StoreName = store.StoreName,
                 LogoUrl = store.StoreLogoUrl,
+
+                // Pobranie ostatniej daty dla Ceneo/Google
                 LastScrapeDate = store.ScrapHistories.OrderByDescending(sh => sh.Date).FirstOrDefault()?.Date,
 
+                // <-- POBRANIE OSTATNIEJ DATY DLA ALLEGRO
+                AllegroLastScrapeDate = store.AllegroScrapeHistories.OrderByDescending(ash => ash.Date).FirstOrDefault()?.Date,
 
                 OnCeneo = store.OnCeneo,
                 OnGoogle = store.OnGoogle,
                 OnAllegro = store.OnAllegro
-
             }).ToList();
 
             return View("~/Views/Panel/Chanel/Index.cshtml", storeDetails);

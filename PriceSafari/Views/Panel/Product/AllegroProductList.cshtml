@@ -291,7 +291,7 @@
 
                     row.querySelector('.scrapable-checkbox').addEventListener('change', function () {
                         var productId = this.getAttribute('data-product-id');
-                        fetch('@Url.Action("UpdateScrapableProduct", "AllegroProduct")?storeId=' + storeId, {
+                      fetch('@Url.Action("UpdateScrapableAllegroProduct", "AllegroProduct")?storeId=' + storeId, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify(productId)
@@ -360,28 +360,41 @@
             selectAllButton.addEventListener('click', () => updateMultiple(true));
             deselectAllButton.addEventListener('click', () => updateMultiple(false));
 
-            function updateMultiple(shouldBeScrapable) {
-                var productIds = Array.from(document.querySelectorAll('.product-row'))
-                    .map(row => row.querySelector('.scrapable-checkbox'))
-                    .filter(cb => !cb.disabled && cb.checked !== shouldBeScrapable)
-                    .map(cb => parseInt(cb.dataset.productId));
 
-                if (productIds.length > 0) {
-                    const action = shouldBeScrapable ? "UpdateMultipleScrapableProducts" : "ResetMultipleScrapableProducts";
-                    fetch(`@Url.Action("${action}", "AllegroProduct")?storeId=${storeId}`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(productIds)
-                    })
-                    .then(res => res.json())
-                    .then(data => {
-                        if (data.success) fetchProducts();
-                        else alert('Error: ' + data.message);
-                    });
-                }
+                 function updateMultiple(shouldBeScrapable) {
+            
+            var productIds = Array.from(document.querySelectorAll('#product-list .scrapable-checkbox'))
+                .filter(cb => !cb.disabled && cb.checked !== shouldBeScrapable)
+                .map(cb => parseInt(cb.dataset.productId));
+
+            if (productIds.length > 0) {
+                
+
+              
+                const action = shouldBeScrapable ? "UpdateMultipleScrapableAllegroProducts" : "ResetMultipleScrapableAllegroProducts";
+
+         
+                const url = `@Url.Action("Index", "AllegroProduct")`.replace("Index", action) + `?storeId=${storeId}`;
+
+          
+                fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(productIds)
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.message) {
+                        alert(data.message);
+                    }
+                    if (data.success) {
+                        fetchProducts();
+                    }
+                });
+
             }
-
-            // Funkcje flag
+        }
+         
             function hexToRgba(hex, alpha) {
                 let r = 0, g = 0, b = 0;
                 if (hex.length == 4) { r = parseInt(hex[1] + hex[1], 16); g = parseInt(hex[2] + hex[2], 16); b = parseInt(hex[3] + hex[3], 16); }
@@ -424,7 +437,7 @@
                         const count = flagCounts[flag.FlagId] || 0;
                         const includeChecked = selectedFlagsInclude.has(String(flag.FlagId)) ? 'checked' : '';
                         const excludeChecked = selectedFlagsExclude.has(String(flag.FlagId)) ? 'checked' : '';
-                        const html = `<div class="flag-filter-group">...</div>`; // skrócone dla zwięzłości
+                        const html = `<div class="flag-filter-group">...</div>`; 
                         flagContainer.insertAdjacentHTML('beforeend', `<div class="flag-filter-group"><div class="form-check form-check-inline check-include" style="margin-right:0px;"><input class="form-check-input flagFilterInclude" type="checkbox" id="flagCheckboxInclude_${flag.FlagId}" value="${flag.FlagId}" ${includeChecked}></div><div class="form-check form-check-inline check-exclude" style="margin-right:0px; padding-left:16px;"><input class="form-check-input flagFilterExclude" type="checkbox" id="flagCheckboxExclude_${flag.FlagId}" value="${flag.FlagId}" ${excludeChecked}></div><span class="flag-name-count" style="font-size:14px; font-weight: 400;">${flag.FlagName} (${count})</span></div>`);
                     });
                 }
