@@ -14,7 +14,7 @@ namespace PriceSafari.ScrapersControllers
         private readonly PriceSafariContext _context;
         private readonly IHubContext<ScrapingHub> _hubContext;
         private const string ApiKey = "2764udhnJUDI8392j83jfi2ijdo1949rncowp89i3rnfiiui1203kfnf9030rfpPkUjHyHt";
-        private const int BatchSize = 400;
+        private const int BatchSize =600;
 
         public AllegroScrapeApiController(PriceSafariContext context, IHubContext<ScrapingHub> hubContext)
         {
@@ -51,6 +51,18 @@ namespace PriceSafari.ScrapersControllers
 
             if (!offersToScrape.Any())
             {
+
+                var anyTasksStillProcessing = await _context.AllegroOffersToScrape.AnyAsync(o => o.IsProcessing);
+
+                if (!anyTasksStillProcessing && AllegroScrapeManager.CurrentStatus == ScrapingProcessStatus.Running)
+                {
+                    AllegroScrapeManager.CurrentStatus = ScrapingProcessStatus.Idle;
+                    AllegroScrapeManager.ScrapingStartTime = null;
+                    await _hubContext.Clients.All.SendAsync("UpdateScrapingProcessStatus", new { status = "Idle" });
+
+                    return Ok(new { message = "No pending tasks available. Scraping process has been completed and stopped." });
+                }
+
                 return Ok(new { message = "No pending tasks available." });
             }
 
@@ -60,13 +72,18 @@ namespace PriceSafari.ScrapersControllers
             }
             await _context.SaveChangesAsync();
 
+            foreach (var offer in offersToScrape)
+            {
+                await _hubContext.Clients.All.SendAsync("UpdateAllegroOfferRow", offer);
+            }
+
             scraper.Status = ScraperLiveStatus.Busy;
+            scraper.CurrentTaskId = offersToScrape.FirstOrDefault()?.Id;
             await _hubContext.Clients.All.SendAsync("UpdateDetailScraperStatus", scraper);
 
             var tasksForPython = offersToScrape.Select(o => new { taskId = o.Id, url = o.AllegroOfferUrl });
             return Ok(tasksForPython);
         }
-
 
         [HttpPost("submit-batch-results")]
         public async Task<IActionResult> SubmitBatchResults([FromBody] List<UrlResultDto> batchResults)

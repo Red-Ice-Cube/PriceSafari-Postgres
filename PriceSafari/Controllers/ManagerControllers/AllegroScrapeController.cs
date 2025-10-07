@@ -32,16 +32,22 @@ namespace PriceSafari.Controllers.ManagerControllers
         [HttpGet]
         public async Task<IActionResult> Index()
         {
+            var preparedOffers = await _context.AllegroOffersToScrape.ToListAsync();
+
+            var stats = new ScrapingStatsViewModel
+            {
+                TotalUrls = preparedOffers.Count,
+                ScrapedUrls = preparedOffers.Count(o => o.IsScraped),
+                RejectedUrls = preparedOffers.Count(o => o.IsRejected),
+                TotalPricesCollected = preparedOffers.Sum(o => o.CollectedPricesCount)
+            };
+
             var viewModel = new AllegroScrapeViewModel
             {
-
-                PreparedOffers = await _context.AllegroOffersToScrape
-                    .OrderBy(o => o.Id)
-
-                    .ToListAsync(),
-
+                PreparedOffers = preparedOffers.OrderBy(o => o.Id).ToList(),
                 CurrentStatus = AllegroScrapeManager.CurrentStatus,
-                ActiveScrapers = AllegroScrapeManager.ActiveScrapers.Values
+                ActiveScrapers = AllegroScrapeManager.ActiveScrapers.Values,
+                Stats = stats
             };
             return View("~/Views/ManagerPanel/AllegroScrape/Index.cshtml", viewModel);
         }
@@ -74,9 +80,14 @@ namespace PriceSafari.Controllers.ManagerControllers
             }
 
             AllegroScrapeManager.CurrentStatus = ScrapingProcessStatus.Running;
-            TempData["SuccessMessage"] = "Proces scrapowania ofert został uruchomiony.";
-            await _hubContext.Clients.All.SendAsync("UpdateScrapingProcessStatus", new { status = "Running" });
-
+            AllegroScrapeManager.ScrapingStartTime = DateTime.UtcNow;
+            TempData["SuccessMessage"] = "Proces scrapowania ofert został zatrzymany.";
+            await _hubContext.Clients.All.SendAsync("UpdateScrapingProcessStatus", new
+            {
+                status = "Idle",
+                startTime = AllegroScrapeManager.ScrapingStartTime,
+                endTime = AllegroScrapeManager.ScrapingEndTime
+            });
             return RedirectToAction(nameof(Index));
         }
 
@@ -85,6 +96,8 @@ namespace PriceSafari.Controllers.ManagerControllers
         public async Task<IActionResult> StopScraping()
         {
             AllegroScrapeManager.CurrentStatus = ScrapingProcessStatus.Idle;
+            AllegroScrapeManager.ScrapingStartTime = null;
+
             TempData["SuccessMessage"] = "Proces scrapowania ofert został zatrzymany.";
             await _hubContext.Clients.All.SendAsync("UpdateScrapingProcessStatus", new { status = "Idle" });
             return RedirectToAction(nameof(Index));
@@ -153,6 +166,14 @@ namespace PriceSafari.Controllers.ManagerControllers
             TempData["SuccessMessage"] = $"Przetworzono dane dla sklepu '{_context.Stores.Find(storeId)?.StoreName}'. Zapisano {savedOffers} czystych ofert z {processedUrls} unikalnych URL-i.";
 
             return RedirectToAction("Index", "Store");
+        }
+
+        public class ScrapingStatsViewModel
+        {
+            public int TotalUrls { get; set; }
+            public int ScrapedUrls { get; set; }
+            public int RejectedUrls { get; set; }
+            public int TotalPricesCollected { get; set; }
         }
     }
 }

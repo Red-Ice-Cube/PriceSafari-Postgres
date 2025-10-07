@@ -20,5 +20,7 @@ namespace PriceSafari.ScrapersControllers
         public static ScrapingProcessStatus CurrentStatus { get; set; } = ScrapingProcessStatus.Idle;
 
         public static readonly ConcurrentDictionary<string, HybridScraperClient> ActiveScrapers = new();
+        public static DateTime? ScrapingStartTime { get; set; }
+        public static DateTime? ScrapingEndTime { get; set; }
     }
 }
