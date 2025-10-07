@@ -5,72 +5,41 @@
 }
 
 <style>
-    .StatusBoxProduct-1 {
+    .StatusBoxProduct {
         display: inline-flex;
-        padding-left: 20px;
+        padding-left: 26px;
         border-radius: 0px 24px 24px 0px;
-        height:44px;
+        height: 40px;
         width: 110px;
         align-items: center;
-        justify-content: center;
-        background: rgba(128, 0, 128, 0.3);
-        border: solid 2px rgba(128, 0, 128, 1);
+        justify-content: flex-start;
+        border: 1px solid #ccc;
         font-size: 14px;
         font-weight: 500;
-        color: rgba(128, 0, 128, 1);
+        background: #F6F6F6;
+    }
+
+    .StatusBoxProduct-1 {
+        color: #FFCC00;
     }
 
     .StatusBoxProduct-2 {
-        display: inline-flex;
-        padding-left:20px;
-        height: 44px;
-        border-radius: 0px 24px 24px 0px;
-        align-items: center;
-        justify-content: center;
-        width: 110px;
-        background: rgba(14, 126, 135, 0.3);
-        border: solid 2px rgba(14, 126, 135, 1);
-        font-size: 14px;
-        font-weight: 500;
-        color: rgba(14, 126, 135, 1);
+        color: rgba(30, 148, 71, 1);
     }
 
     .StatusBoxProduct-3 {
-        display: inline-flex;
-        padding-left: 20px;
-        border-radius: 0px 24px 24px 0px;
-        height: 44px;
-        align-items: center;
-        width: 110px;
-        justify-content: center;
-        background: rgba(238, 17, 17, 0.3);
-        border: solid 2px rgba(238, 17, 17, 1);
-        font-size: 14px;
-        font-weight: 500;
-        color: rgba(238, 17, 17, 1);
+        color: rgba(189, 33, 19, 1);
     }
 
     .StatusBoxProduct-4 {
-        display: inline-flex;
-        padding-left: 20px;
-        border-radius: 0px 24px 24px 0px;
-        height: 44px;
-        align-items: center;
-        width: 110px;
-        justify-content: center;
-        background: rgba(128, 128, 128, 0.3);
-        border: solid 2px rgba(128, 128, 128, 1);
-        font-size: 14px;
-        font-weight: 500;
-        color: rgba(128, 128, 128, 1);
+        color: rgba(45, 45, 45, 1);
     }
 
     .scrapable-checkbox {
         appearance: none;
-        width: 44px;
-        height: 44px;
-        background-color: red;
-        border: 2px solid black;
+        width: 40px;
+        height: 40px;
+        background-color: rgba(189, 33, 19, 1);
         border-radius: 24px;
         position: relative;
         cursor: pointer;
@@ -78,14 +47,16 @@
         outline: none;
     }
 
-        .scrapable-checkbox:checked {
-            background-color: green;
-            border-color: black;
+        .scrapable-checkbox.rejected {
+            background-color: #FFCC00;
+        }
+
+        .scrapable-checkbox:checked:not(.rejected) {
+            background-color: #1E9447;
         }
 
         .scrapable-checkbox:disabled {
             background-color: #555555;
-            border-color: #333333;
             cursor: not-allowed;
         }
 
@@ -266,11 +237,11 @@
                                 <tr>
                                     <th>Produkt (<span id="displayed-count"></span>)</th>
                                     <th></th>
-                                 
+
                                     <th>Zakup</th>
                                     <th>Oferta</th>
                                     <th>Monitoring</th>
-                            
+
                                     <th>Flagi</th>
 
                                 </tr>
@@ -355,668 +326,669 @@
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
     <script>
-        var allProducts = [];
-       var flags = @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(ViewBag.Flags ?? new List<FlagViewModel>()));
+         var allProducts = [];
+        var flags = @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(ViewBag.Flags ?? new List<FlagViewModel>()));
 
+         document.addEventListener('DOMContentLoaded', function () {
+             var storeId = @ViewBag.StoreId;
+             var selectAllButton = document.getElementById('select-all');
+             var deselectAllButton = document.getElementById('deselect-all');
+             var searchInput = document.getElementById('productSearch');
+             var categoryDropdown = document.getElementById('producerDropdown');
+                    var selectedFlagsInclude = new Set();
+         var selectedFlagsExclude = new Set();
 
-        document.addEventListener('DOMContentLoaded', function () {
-            var storeId = @ViewBag.StoreId;
-            var selectAllButton = document.getElementById('select-all');
-            var deselectAllButton = document.getElementById('deselect-all');
-            var searchInput = document.getElementById('productSearch');
-            var categoryDropdown = document.getElementById('producerDropdown');
-                   var selectedFlagsInclude = new Set();
-        var selectedFlagsExclude = new Set();
+                 var lastScrollPosition = 0;
 
-                var lastScrollPosition = 0;
+             var selectedProducer = 'all';
 
-            var selectedProducer = 'all';
+             var platformStatuses = ['google', 'ceneo', 'google-ceneo', 'not-found'];
 
-            var platformStatuses = ['google', 'ceneo', 'google-ceneo', 'not-found'];
+             const storeNameFromViewBag = '@(ViewBag.StoreName ?? "Oferta Sklepu")';
 
-            const storeNameFromViewBag = '@(ViewBag.StoreName ?? "Oferta Sklepu")';
-           
-
-            function getProductPlatformStatus(product) {
-                var hasGoogle = product.googleUrl && product.googleUrl.trim() !== '';
-                var hasCeneo = product.offerUrl && product.offerUrl.trim() !== '';
-                var hasBoth = hasGoogle && hasCeneo;
-                var notFound = !hasGoogle && !hasCeneo;
-                return {
-                    hasGoogle: hasGoogle,
-                    hasCeneo: hasCeneo,
-                    hasBoth: hasBoth,
-                    notFound: notFound
-                };
-            }
-
-            function formatDate(dateString) {
-                if (!dateString) return "";
-                const d = new Date(dateString);
-                if (isNaN(d.getTime())) return "";
-                const day = String(d.getDate()).padStart(2, '0');
-                const month = String(d.getMonth() + 1).padStart(2, '0');
-                const year = d.getFullYear();
-                const hours = String(d.getHours()).padStart(2, '0');
-                const minutes = String(d.getMinutes()).padStart(2, '0');
-                return `${day}-${month}-${year} ${hours}:${minutes}`;
-            }
-
-                     function createNewGoogleUrl(product) {
-            if (!product.googleUrl || !product.productName) {
-                return product.googleUrl || '';
-            }
-
-            const match = product.googleUrl.match(/product\/(\d+)/);
-            const productIdCid = match ? match[1] : null;
-
-            if (productIdCid) {
-                const productNameForUrl = encodeURIComponent(product.productName);
-              
-                return `https://www.google.com/shopping/product/${productIdCid}/offers?q=${productNameForUrl}`;
-            }
-
-            return product.googleUrl;
-        }
-
-             function saveState() {
-                lastScrollPosition = window.scrollY;
-
-                selectedProducer = producerDropdown.value;
-
-            }
-
-            function restoreState() {
-
-                if (producerDropdown) {
-                    producerDropdown.value = selectedProducer;
-                }
-
-                window.scrollTo(0, lastScrollPosition);
-            }
-
-            function decodeHTML(html) {
-                var txt = document.createElement("textarea");
-                txt.innerHTML = html;
-                return txt.value;
-            }
-
-            function populateProducerDropdown(producersWithCount) {
-                producersWithCount.sort((a, b) => b.count - a.count);
-                producerDropdown.innerHTML = '<option value="all">Producent - Wszyscy (' + allProducts.length + ')</option>';
-                producersWithCount.forEach(producer => {
-                    var decodedProducerName = decodeHTML(producer.name);
-                    var option = document.createElement('option');
-                    option.value = decodedProducerName;
-                    option.textContent = `${decodedProducerName} (${producer.count})`;
-                    producerDropdown.appendChild(option);
-                });
-                restoreState();
-            }
-
-           function filterProductsByProducer(products, producer) {
-                if (producer === 'all') {
-                    return products;
-                }
-                return products.filter(product => decodeHTML(product.producer || "Brak") === producer);
-            }
-
-            function filterProductsByName(products, name) {
-                const sanitizedInput = name.replace(/[^a-zA-Z0-9\s.-]/g, '').trim().toLowerCase();
-                return products.filter(product => {
-                    const sanitizedProductName = product.productName.toLowerCase().replace(/[^a-zA-Z0-9\s.-]/g, '').trim();
-                    return sanitizedProductName.includes(sanitizedInput);
-                });
-            }
-
-            function getProductStatus(product) {
-                if (product.isScrapable && product.isRejected) {
-                    return "active-rejected";
-                } else if (product.isScrapable) {
-                    return "active";
-                } else if (product.isRejected) {
-                    return "inactive-rejected";
-                } else {
-                    return "inactive";
-                }
-            }
-
-
-                 function hexToRgba(hex, alpha) {
-            let r = 0, g = 0, b = 0;
-            if (hex.length == 4) {
-                r = parseInt(hex[1] + hex[1], 16);
-                g = parseInt(hex[2] + hex[2], 16);
-                b = parseInt(hex[3] + hex[3], 16);
-            } else if (hex.length == 7) {
-                r = parseInt(hex[1] + hex[2], 16);
-                g = parseInt(hex[3] + hex[4], 16);
-                b = parseInt(hex[5] + hex[6], 16);
-            }
-            return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-        }
-
-        // ### DODANE: Funkcja do tworzenia kontenera z flagami dla produktu ###
-        function createFlagsContainer(product) {
-            const flagsContainer = document.createElement('div');
-            flagsContainer.className = 'flags-container';
-            if (product.flagIds && product.flagIds.length > 0) {
-                product.flagIds.forEach(function (flagId) {
-                    const flag = flags.find(f => f.FlagId === flagId);
-                    if (flag) {
-                        const flagSpan = document.createElement('span');
-                        flagSpan.className = 'flag';
-                        flagSpan.style.color = flag.FlagColor;
-                        flagSpan.style.border = '2px solid ' + flag.FlagColor;
-                        flagSpan.style.backgroundColor = hexToRgba(flag.FlagColor, 0.3);
-                        flagSpan.innerHTML = flag.FlagName;
-                        flagsContainer.appendChild(flagSpan);
-                    }
-                });
-            }
-            return flagsContainer;
-        }
-
-        // ### DODANE: Funkcja do renderowania i aktualizacji filtrów flag ###
-        function updateAndRenderFlagFilters(products) {
-            const flagCounts = {};
-            let noFlagCount = 0;
-
-            products.forEach(product => {
-                if (!product.flagIds || product.flagIds.length === 0) {
-                    noFlagCount++;
-                } else {
-                    product.flagIds.forEach(flagId => {
-                        flagCounts[flagId] = (flagCounts[flagId] || 0) + 1;
-                    });
-                }
-            });
-
-            const flagContainer = document.getElementById('flagFilterList');
-            if (!flagContainer) return;
-            flagContainer.innerHTML = '';
-
-            if (typeof flags !== 'undefined' && flags) {
-                flags.forEach(flag => {
-                    const count = flagCounts[flag.FlagId] || 0;
-                    const includeChecked = selectedFlagsInclude.has(String(flag.FlagId)) ? 'checked' : '';
-                    const excludeChecked = selectedFlagsExclude.has(String(flag.FlagId)) ? 'checked' : '';
-
-                    const flagElementHTML = `
-                        <div class="flag-filter-group">
-                            <div class="form-check form-check-inline check-include" style="margin-right:0px;">
-                                <input class="form-check-input flagFilterInclude" type="checkbox" id="flagCheckboxInclude_${flag.FlagId}" value="${flag.FlagId}" ${includeChecked} title="Pokaż wszystkie produkty z tą flagą">
-                            </div>
-                            <div class="form-check form-check-inline check-exclude" style="margin-right:0px; padding-left:16px;">
-                                <input class="form-check-input flagFilterExclude" type="checkbox" id="flagCheckboxExclude_${flag.FlagId}" value="${flag.FlagId}" ${excludeChecked} title="Ukryj wszystkie produkty z tą flagą">
-                            </div>
-                            <span class="flag-name-count" style="font-size:14px; font-weight: 400;">
-                                ${flag.FlagName} (${count})
-                            </span>
-                        </div>`;
-                    flagContainer.insertAdjacentHTML('beforeend', flagElementHTML);
-                });
-            }
-
-            // Dodaj opcję dla produktów bez flag
-            const noFlagIncludeChecked = selectedFlagsInclude.has('noFlag') ? 'checked' : '';
-            const noFlagExcludeChecked = selectedFlagsExclude.has('noFlag') ? 'checked' : '';
-            const noFlagElementHTML = `
-                <div class="flag-filter-group">
-                    <div class="form-check form-check-inline check-include" style="margin-right:0px;">
-                        <input class="form-check-input flagFilterInclude" type="checkbox" id="flagCheckboxInclude_noFlag" value="noFlag" ${noFlagIncludeChecked} title="Pokaż wszystkie produkty bez flagi">
-                    </div>
-                    <div class="form-check form-check-inline check-exclude" style="margin-right:0px; padding-left:16px;">
-                        <input class="form-check-input flagFilterExclude" type="checkbox" id="flagCheckboxExclude_noFlag" value="noFlag" ${noFlagExcludeChecked} title="Ukryj wszystkie produkty bez flagi">
-                    </div>
-                    <span class="flag-name-count" style="font-size:14px; font-weight: 400;">
-                        Brak flagi (${noFlagCount})
-                    </span>
-                </div>`;
-            flagContainer.insertAdjacentHTML('beforeend', noFlagElementHTML);
-
-            // Dodaj listenery do nowo utworzonych checkboxów
-            document.querySelectorAll('.flagFilterInclude, .flagFilterExclude').forEach(checkbox => {
-                checkbox.addEventListener('change', function () {
-                    const flagValue = this.value;
-                    const isInclude = this.classList.contains('flagFilterInclude');
-
-                    if (isInclude) {
-                        if (this.checked) {
-                            document.getElementById(`flagCheckboxExclude_${flagValue}`).checked = false;
-                            selectedFlagsExclude.delete(flagValue);
-                            selectedFlagsInclude.add(flagValue);
-                        } else {
-                            selectedFlagsInclude.delete(flagValue);
-                        }
-                    } else { // isExclude
-                        if (this.checked) {
-                            document.getElementById(`flagCheckboxInclude_${flagValue}`).checked = false;
-                            selectedFlagsInclude.delete(flagValue);
-                            selectedFlagsExclude.add(flagValue);
-                        } else {
-                            selectedFlagsExclude.delete(flagValue);
-                        }
-                    }
-                    filterRows();
-                });
-            });
-        }
-
-            function updateCounters(products) {
-                var activeRejectedCount = allProducts.filter(p => p.isScrapable && p.isRejected).length;
-                var activeCount = allProducts.filter(p => p.isScrapable && !p.isRejected).length;
-                var inactiveRejectedCount = allProducts.filter(p => !p.isScrapable && p.isRejected).length;
-                var inactiveCount = allProducts.filter(p => !p.isScrapable && !p.isRejected).length;
-
-                document.getElementById('count-active-rejected').textContent = activeRejectedCount;
-                document.getElementById('count-active').textContent = activeCount;
-                document.getElementById('count-inactive-rejected').textContent = inactiveRejectedCount;
-                document.getElementById('count-inactive').textContent = inactiveCount;
-
-                var scrapableCount = activeRejectedCount + activeCount;
-                document.getElementById('scrapable-count').textContent = scrapableCount;
-                document.getElementById('total-products').textContent = allProducts.length;
-
-                var googleCount = allProducts.filter(p => getProductPlatformStatus(p).hasGoogle).length;
-                var ceneoCount = allProducts.filter(p => getProductPlatformStatus(p).hasCeneo).length;
-                var googleCeneoCount = allProducts.filter(p => getProductPlatformStatus(p).hasBoth).length;
-                var notFoundCount = allProducts.filter(p => getProductPlatformStatus(p).notFound).length;
-
-                document.getElementById('count-google').textContent = googleCount;
-                document.getElementById('count-ceneo').textContent = ceneoCount;
-                document.getElementById('count-google-ceneo').textContent = googleCeneoCount;
-                document.getElementById('count-not-found').textContent = notFoundCount;
-            }
-
-            function highlightMatches(text, searchTerm) {
-                if (!searchTerm) return text;
-                const sanitizedSearchTerm = searchTerm.replace(/[^a-zA-Z0-9\s.-]/g, '');
-                const regex = new RegExp(`(${sanitizedSearchTerm})`, 'gi');
-                return text.replace(regex, '<span style="color: #9400D3; font-weight: 600;">$1</span>');
-            }
-
-                    function renderProducts(products, searchTerm = "") {
-            var tbody = document.getElementById('product-list');
-            tbody.innerHTML = '';
-            products.forEach(function (product) {
-                var row = document.createElement('tr');
-                row.classList.add('product-row');
-                row.setAttribute('data-product-id', product.productId);
-                row.setAttribute('data-scrapable', product.isScrapable);
-                row.setAttribute('data-rejected', product.isRejected);
-
-                var platformStatus = getProductPlatformStatus(product);
-                var isNotFound = platformStatus.notFound;
-                var highlightedProductName = highlightMatches(product.productName, searchTerm);
-                  var producer = product.producer ? `<b>Producent:</b> ${product.producer}` : '';
-                 var ean = product.ean ? `<b>EAN:</b> ${product.ean}` : '';
-
-
-                var newGoogleUrl = createNewGoogleUrl(product);
-
-                var offerUrlButton = product.offerUrl ? `<a href="${product.offerUrl}" class="Button-Page-Small" style="width: 100px;" target="_blank">Ceneo</a>` : '';
-                var googleUrlButton = newGoogleUrl ? `<a href="${newGoogleUrl}" class="Button-Page-Small" style="width: 100px;" target="_blank">Google</a>` : '';
-
-                var storeSpecificOfferButton = product.url ? `<a href="${product.url}" class="Button-Page-Small" style="width: 100px;" target="_blank">Strona</a>` : '';
-              
-                var imageUrl = product.mainUrl || '';
-                var imageCell = imageUrl ? `<img src="${imageUrl}" style="width: 90px; height: 90px; object-fit: contain; background-color: white;" />` : `<div style="width: 90px; height: 90px;"></div>`;
-
-                var hasPrice = product.marginPrice != null && product.marginPrice.toString().trim() !== '';
-                var priceValue = hasPrice ? parseFloat(product.marginPrice).toFixed(2) : '';
-                 var flagsCellContent = createFlagsContainer(product).outerHTML;
-
-                var purchasePriceHtml = `
-                    <div class="price-display-container">
-                        <span class="price-text">${hasPrice ? priceValue + ' PLN' : 'Brak'}</span>
-                        <span class="price-actions">
-                            <i class="fas fa-plus add-price-btn ${hasPrice ? 'hidden' : ''}" title="Dodaj cenę"></i>
-                            <i class="fas fa-pencil-alt edit-price-btn ${!hasPrice ? 'hidden' : ''}" title="Edytuj cenę"></i>
-                            <i class="fas fa-trash-alt delete-price-btn ${!hasPrice ? 'hidden' : ''}" title="Usuń cenę"></i>
-                        </span>
-                    </div>
-                    <div class="price-edit-container hidden">
-                        <input type="number" step="0.01" class="price-edit-input" value="${priceValue}">
-                        <span class="price-actions">
-                            <i class="fas fa-check save-price-btn" title="Zapisz"></i>
-                            <i class="fas fa-times cancel-edit-btn" title="Anuluj"></i>
-                        </span>
-                    </div>
-                `;
-
-                var statusBoxClass = "";
-                var statusText = "";
-                if (product.isScrapable && product.isRejected) {
-                    statusBoxClass = "StatusBoxProduct-1";
-                    statusText = "Odrzucony";
-                } else if (product.isScrapable) {
-                    statusBoxClass = "StatusBoxProduct-2";
-                    statusText = "Aktywny";
-                } else if (product.isRejected) {
-                    statusBoxClass = "StatusBoxProduct-3";
-                    statusText = "Wyłączony";
-                } else {
-                    statusBoxClass = "StatusBoxProduct-4";
-                    statusText = "Nieaktywny";
-                }
-
-                   row.innerHTML = `
-             <td>
-                 <p style="margin-bottom: 8px;">${highlightedProductName}</p>
-                 <p style="font-size: 0.9em; color: #555;">${producer}</p>
-                 <p style="font-size: 0.9em; color: #555;">${ean}</p>
-             </td>
-             <td>${imageCell}</td>
-             <td>${purchasePriceHtml}</td>
-             <td>
-                 <div style="display: flex; flex-direction: column; align-items: flex-start; gap: 5px;">
-                     ${offerUrlButton}
-                     ${googleUrlButton}
-                     ${storeSpecificOfferButton}
-                 </div>
-             </td>
-                         <td>
-                 <div style="display: flex; align-items: center;">
-                     <input type="checkbox" class="scrapable-checkbox" data-product-id="${product.productId}"
-                            ${product.isScrapable ? "checked" : ""}
-                            ${isNotFound ? "disabled" : ""} />
-                     <div class="${statusBoxClass}" StylePropertyMap="margin-left:-8px;">${statusText}</div>
-                 </div>
-             </td>
-                         <td>${flagsCellContent}</td>`;
-                if (!isNotFound) {
-                    row.querySelector('.scrapable-checkbox').addEventListener('change', function () {
-                        saveState();
-                        var productId = this.getAttribute('data-product-id');
-                        fetch('@Url.Action("UpdateScrapableProduct", "Product")?storeId=' + storeId, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify(productId)
-                        })
-                        .then(response => response.json())
-                        .then(data => {
-                            if (!data.success) {
-                                alert(data.message || 'Wystąpił błąd podczas aktualizacji statusu scrapowania.');
-                                this.checked = !this.checked;
-                            } else {
-                                fetchProducts();
-                            }
-                        })
-                        .catch(error => {
-                            console.error('There was a problem with your fetch operation:', error);
-                        });
-                    });
-                }
-                tbody.appendChild(row);
-            });
-            document.getElementById('displayed-count').textContent = products.length;
-            window.scrollTo(0, lastScrollPosition);
-        }
-
-            function filterRows() {
-                var selectedStatuses = Array.from(document.querySelectorAll('.status-filter:checked'))
-                    .map(checkbox => checkbox.getAttribute('data-status'));
-                var searchTerm = searchInput.value;
-                var filteredProducts = filterProductsByName(allProducts, searchTerm);
-                var existingStatuses = ['active', 'inactive', 'active-rejected', 'inactive-rejected'];
-                var selectedExistingStatuses = selectedStatuses.filter(status => existingStatuses.includes(status));
-                var selectedPlatformStatuses = selectedStatuses.filter(status => platformStatuses.includes(status));
-
-                if (selectedExistingStatuses.length > 0) {
-                    filteredProducts = filteredProducts.filter(product => {
-                        var productStatus = getProductStatus(product);
-                        return selectedExistingStatuses.includes(productStatus);
-                    });
-                }
-
-                if (selectedPlatformStatuses.length > 0) {
-                    filteredProducts = filteredProducts.filter(product => {
-                        var platformStatus = getProductPlatformStatus(product);
-                        if (selectedPlatformStatuses.includes('not-found')) return platformStatus.notFound;
-                        if (selectedPlatformStatuses.includes('google-ceneo')) return platformStatus.hasBoth;
-                        var includeProduct = false;
-                        if (selectedPlatformStatuses.includes('google') && platformStatus.hasGoogle) includeProduct = true;
-                        if (selectedPlatformStatuses.includes('ceneo') && platformStatus.hasCeneo) includeProduct = true;
-                        if (selectedPlatformStatuses.includes('google') && selectedPlatformStatuses.includes('ceneo')) {
-                        } else if (selectedPlatformStatuses.includes('google')) {
-                            return platformStatus.hasGoogle;
-                        } else if (selectedPlatformStatuses.includes('ceneo')) {
-                            return platformStatus.hasCeneo;
-                        }
-                        return includeProduct;
-                    });
-                }
-
-                   let productsBeforeFlagFilter = [...filteredProducts]; // Kopia do liczenia
-
-         if (selectedFlagsExclude.size > 0) {
-             filteredProducts = filteredProducts.filter(item => {
-                 if (selectedFlagsExclude.has('noFlag') && (!item.flagIds || item.flagIds.length === 0)) {
-                     return false;
-                 }
-                 if (item.flagIds) {
-                     for (const excl of selectedFlagsExclude) {
-                         if (excl !== 'noFlag' && item.flagIds.includes(parseInt(excl))) {
-                             return false;
-                         }
-                     }
-                 }
-                 return true;
-             });
-         }
-
-         if (selectedFlagsInclude.size > 0) {
-             filteredProducts = filteredProducts.filter(item => {
-                 if (selectedFlagsInclude.has('noFlag') && (!item.flagIds || item.flagIds.length === 0)) {
-                     return true;
-                 }
-                 if (item.flagIds) {
-                     return item.flagIds.some(fid => selectedFlagsInclude.has(fid.toString()));
-                 }
-                 return false;
-             });
-         }
-                filteredProducts = filterProductsByProducer(filteredProducts, selectedProducer);
-
-                renderProducts(filteredProducts, searchTerm);
-                updateCounters(filteredProducts);
-                   updateAndRenderFlagFilters(productsBeforeFlagFilter);
+             function getProductPlatformStatus(product) {
+                 var hasGoogle = product.googleUrl && product.googleUrl.trim() !== '';
+                 var hasCeneo = product.offerUrl && product.offerUrl.trim() !== '';
+                 var hasBoth = hasGoogle && hasCeneo;
+                 var notFound = !hasGoogle && !hasCeneo;
+                 return {
+                     hasGoogle: hasGoogle,
+                     hasCeneo: hasCeneo,
+                     hasBoth: hasBoth,
+                     notFound: notFound
+                 };
              }
 
-             function fetchProducts() {
-                fetch('@Url.Action("GetProducts", "Product")?storeId=' + storeId)
-                    .then(response => response.json())
-                    .then(data => {
-                        allProducts = data;
+             function formatDate(dateString) {
+                 if (!dateString) return "";
+                 const d = new Date(dateString);
+                 if (isNaN(d.getTime())) return "";
+                 const day = String(d.getDate()).padStart(2, '0');
+                 const month = String(d.getMonth() + 1).padStart(2, '0');
+                 const year = d.getFullYear();
+                 const hours = String(d.getHours()).padStart(2, '0');
+                 const minutes = String(d.getMinutes()).padStart(2, '0');
+                 return `${day}-${month}-${year} ${hours}:${minutes}`;
+             }
 
-                        const producersWithCount = allProducts.reduce((acc, product) => {
-                            let producer = product.producer || "Brak";
-                            let producerObj = acc.find(p => p.name === producer);
-                            if (producerObj) {
-                                producerObj.count++;
-                            } else {
-                                acc.push({ name: producer, count: 1 });
-                            }
-                            return acc;
-                        }, []);
+                      function createNewGoogleUrl(product) {
+             if (!product.googleUrl || !product.productName) {
+                 return product.googleUrl || '';
+             }
 
-                        populateProducerDropdown(producersWithCount);
+             const match = product.googleUrl.match(/product\/(\d+)/);
+             const productIdCid = match ? match[1] : null;
 
-             
-                        filterRows();
-                    })
-                    .catch(error => {
-                        console.error('Error fetching products:', error);
-                    });
-            }
+             if (productIdCid) {
+                 const productNameForUrl = encodeURIComponent(product.productName);
 
-            document.querySelectorAll('.status-filter').forEach(function (checkbox) {
-                checkbox.addEventListener('change', function () {
-                    if ((this.id === 'not-found' || this.id === 'google-ceneo') && this.checked) {
-                        platformStatuses.forEach(function (statusId) {
-                            if (statusId !== this.id && document.getElementById(statusId)) {
-                                document.getElementById(statusId).checked = false;
-                            }
-                        }.bind(this));
-                    } else if (this.checked && (this.id === 'google' || this.id === 'ceneo')) {
-                        if (document.getElementById('not-found')) document.getElementById('not-found').checked = false;
-                        if (document.getElementById('google-ceneo')) document.getElementById('google-ceneo').checked = false;
-                    }
-                    filterRows();
-                });
-            });
+                 return `https:
+             }
 
-            searchInput.addEventListener('input', filterRows);
-           producerDropdown.addEventListener('change', function () {
-                saveState();
-                filterRows();
-            });
+             return product.googleUrl;
+         }
 
-            selectAllButton.addEventListener('click', function () {
-                var productIds = [];
-                document.querySelectorAll('.scrapable-checkbox').forEach(function (checkbox) {
-                    if (!checkbox.disabled && !checkbox.checked) {
-                        checkbox.checked = true;
-                        productIds.push(parseInt(checkbox.getAttribute('data-product-id')));
-                    }
-                });
-                if (productIds.length > 0) {
-                    fetch('@Url.Action("UpdateMultipleScrapableProducts", "Product")?storeId=' + storeId, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(productIds)
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.success) {
-                            fetchProducts();
-                        } else {
-                            alert('Błąd podczas aktualizacji produktów: ' + data.message);
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Problem z operacją fetch:', error);
-                    });
-                }
-            });
+              function saveState() {
+                 lastScrollPosition = window.scrollY;
 
-            deselectAllButton.addEventListener('click', function () {
-                var productIds = [];
-                document.querySelectorAll('.scrapable-checkbox:checked:not(:disabled)').forEach(function (checkbox) {
-                    checkbox.checked = false;
-                    productIds.push(parseInt(checkbox.getAttribute('data-product-id')));
-                });
-                if (productIds.length > 0) {
-                    fetch('@Url.Action("ResetMultipleScrapableProducts", "Product")?storeId=' + storeId, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(productIds)
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.success) {
-                            fetchProducts();
-                        } else {
-                            alert('Błąd podczas resetowania produktów: ' + data.message);
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Problem z operacją fetch:', error);
-                    });
-                }
-            });
+                 selectedProducer = producerDropdown.value;
 
-            const productListBody = document.getElementById('product-list');
-            const formWithToken = document.getElementById('uploadMarginsForm');
-            const requestVerificationToken = formWithToken ? formWithToken.querySelector('input[name="__RequestVerificationToken"]').value : null;
+             }
 
-            function toggleEditMode(productId, isEditing) {
-                const row = productListBody.querySelector(`tr[data-product-id='${productId}']`);
-                if (row) {
-                    const displayContainer = row.querySelector('.price-display-container');
-                    const editContainer = row.querySelector('.price-edit-container');
-                    displayContainer.classList.toggle('hidden', isEditing);
-                    editContainer.classList.toggle('hidden', !isEditing);
-                    if (isEditing) {
-                        const input = editContainer.querySelector('.price-edit-input');
-                        input.focus();
-                        input.select();
-                    }
-                }
-            }
+             function restoreState() {
 
-            productListBody.addEventListener('click', function(e) {
-                const target = e.target;
-                const row = target.closest('tr.product-row');
-                if (!row) return;
-                const productId = row.getAttribute('data-product-id');
+                 if (producerDropdown) {
+                     producerDropdown.value = selectedProducer;
+                 }
 
-                if (target.classList.contains('edit-price-btn') || target.classList.contains('add-price-btn')) {
-                    toggleEditMode(productId, true);
-                }
+                 window.scrollTo(0, lastScrollPosition);
+             }
 
-                if (target.classList.contains('cancel-edit-btn')) {
-                    toggleEditMode(productId, false);
-                }
+             function decodeHTML(html) {
+                 var txt = document.createElement("textarea");
+                 txt.innerHTML = html;
+                 return txt.value;
+             }
 
-                if (target.classList.contains('save-price-btn')) {
-                    const input = row.querySelector('.price-edit-input');
-                    const newPrice = input.value.trim().replace(',', '.');
-                    if (newPrice === '' || isNaN(newPrice) || parseFloat(newPrice) < 0) {
-                        alert('Proszę podać poprawną, nieujemną cenę.');
-                        return;
-                    }
-                    updatePurchasePrice(productId, parseFloat(newPrice));
-                }
+             function populateProducerDropdown(producersWithCount) {
+                 producersWithCount.sort((a, b) => b.count - a.count);
+                 producerDropdown.innerHTML = '<option value="all">Producent - Wszyscy (' + allProducts.length + ')</option>';
+                 producersWithCount.forEach(producer => {
+                     var decodedProducerName = decodeHTML(producer.name);
+                     var option = document.createElement('option');
+                     option.value = decodedProducerName;
+                     option.textContent = `${decodedProducerName} (${producer.count})`;
+                     producerDropdown.appendChild(option);
+                 });
+                 restoreState();
+             }
 
-                if (target.classList.contains('delete-price-btn')) {
-                    if (confirm('Czy na pewno chcesz usunąć cenę zakupu dla tego produktu?')) {
-                        updatePurchasePrice(productId, null);
-                    }
-                }
-            });
+            function filterProductsByProducer(products, producer) {
+                 if (producer === 'all') {
+                     return products;
+                 }
+                 return products.filter(product => decodeHTML(product.producer || "Brak") === producer);
+             }
 
-            function updatePurchasePrice(productId, newPrice) {
-                if (!requestVerificationToken) {
-                    alert('Błąd bezpieczeństwa: Nie znaleziono tokenu weryfikacyjnego.');
-                    return;
-                }
+             function filterProductsByName(products, name) {
+                 const sanitizedInput = name.replace(/[^a-zA-Z0-9\s.-]/g, '').trim().toLowerCase();
+                 return products.filter(product => {
+                     const sanitizedProductName = product.productName.toLowerCase().replace(/[^a-zA-Z0-9\s.-]/g, '').trim();
+                     return sanitizedProductName.includes(sanitizedInput);
+                 });
+             }
 
-                fetch(`@Url.Action("UpdatePurchasePrice", "Product")?storeId=${storeId}`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json',
-                        'RequestVerificationToken': requestVerificationToken
-                    },
-                    body: JSON.stringify({
-                        ProductId: parseInt(productId),
-                        NewPrice: newPrice
-                    })
-                })
-                .then(response => {
-                    if (!response.ok) {
-                        return response.json().then(err => { throw new Error(err.message || 'Błąd serwera'); });
-                    }
-                    return response.json();
-                })
-                .then(data => {
-                    if (data.success) {
-                        saveState();
-                        fetchProducts();
-                    } else {
-                        alert('Błąd: ' + (data.message || 'Nie udało się zaktualizować ceny.'));
-                    }
-                })
-                .catch(error => {
-                    console.error('Błąd podczas aktualizacji ceny:', error);
-                    alert('Wystąpił błąd komunikacji: ' + error.message);
-                });
-            }
+             function getProductStatus(product) {
+                 if (product.isScrapable && product.isRejected) {
+                     return "active-rejected";
+                 } else if (product.isScrapable) {
+                     return "active";
+                 } else if (product.isRejected) {
+                     return "inactive-rejected";
+                 } else {
+                     return "inactive";
+                 }
+             }
 
-            fetchProducts();
-        });
+                  function hexToRgba(hex, alpha) {
+             let r = 0, g = 0, b = 0;
+             if (hex.length == 4) {
+                 r = parseInt(hex[1] + hex[1], 16);
+                 g = parseInt(hex[2] + hex[2], 16);
+                 b = parseInt(hex[3] + hex[3], 16);
+             } else if (hex.length == 7) {
+                 r = parseInt(hex[1] + hex[2], 16);
+                 g = parseInt(hex[3] + hex[4], 16);
+                 b = parseInt(hex[5] + hex[6], 16);
+             }
+             return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+         }
+
+         function createFlagsContainer(product) {
+             const flagsContainer = document.createElement('div');
+             flagsContainer.className = 'flags-container';
+             if (product.flagIds && product.flagIds.length > 0) {
+                 product.flagIds.forEach(function (flagId) {
+                     const flag = flags.find(f => f.FlagId === flagId);
+                     if (flag) {
+                         const flagSpan = document.createElement('span');
+                         flagSpan.className = 'flag';
+                         flagSpan.style.color = flag.FlagColor;
+                         flagSpan.style.border = '2px solid ' + flag.FlagColor;
+                         flagSpan.style.backgroundColor = hexToRgba(flag.FlagColor, 0.3);
+                         flagSpan.innerHTML = flag.FlagName;
+                         flagsContainer.appendChild(flagSpan);
+                     }
+                 });
+             }
+             return flagsContainer;
+         }
+
+         function updateAndRenderFlagFilters(products) {
+             const flagCounts = {};
+             let noFlagCount = 0;
+
+             products.forEach(product => {
+                 if (!product.flagIds || product.flagIds.length === 0) {
+                     noFlagCount++;
+                 } else {
+                     product.flagIds.forEach(flagId => {
+                         flagCounts[flagId] = (flagCounts[flagId] || 0) + 1;
+                     });
+                 }
+             });
+
+             const flagContainer = document.getElementById('flagFilterList');
+             if (!flagContainer) return;
+             flagContainer.innerHTML = '';
+
+             if (typeof flags !== 'undefined' && flags) {
+                 flags.forEach(flag => {
+                     const count = flagCounts[flag.FlagId] || 0;
+                     const includeChecked = selectedFlagsInclude.has(String(flag.FlagId)) ? 'checked' : '';
+                     const excludeChecked = selectedFlagsExclude.has(String(flag.FlagId)) ? 'checked' : '';
+
+                     const flagElementHTML = `
+                         <div class="flag-filter-group">
+                             <div class="form-check form-check-inline check-include" style="margin-right:0px;">
+                                 <input class="form-check-input flagFilterInclude" type="checkbox" id="flagCheckboxInclude_${flag.FlagId}" value="${flag.FlagId}" ${includeChecked} title="Pokaż wszystkie produkty z tą flagą">
+                             </div>
+                             <div class="form-check form-check-inline check-exclude" style="margin-right:0px; padding-left:16px;">
+                                 <input class="form-check-input flagFilterExclude" type="checkbox" id="flagCheckboxExclude_${flag.FlagId}" value="${flag.FlagId}" ${excludeChecked} title="Ukryj wszystkie produkty z tą flagą">
+                             </div>
+                             <span class="flag-name-count" style="font-size:14px; font-weight: 400;">
+                                 ${flag.FlagName} (${count})
+                             </span>
+                         </div>`;
+                     flagContainer.insertAdjacentHTML('beforeend', flagElementHTML);
+                 });
+             }
+
+             const noFlagIncludeChecked = selectedFlagsInclude.has('noFlag') ? 'checked' : '';
+             const noFlagExcludeChecked = selectedFlagsExclude.has('noFlag') ? 'checked' : '';
+             const noFlagElementHTML = `
+                 <div class="flag-filter-group">
+                     <div class="form-check form-check-inline check-include" style="margin-right:0px;">
+                         <input class="form-check-input flagFilterInclude" type="checkbox" id="flagCheckboxInclude_noFlag" value="noFlag" ${noFlagIncludeChecked} title="Pokaż wszystkie produkty bez flagi">
+                     </div>
+                     <div class="form-check form-check-inline check-exclude" style="margin-right:0px; padding-left:16px;">
+                         <input class="form-check-input flagFilterExclude" type="checkbox" id="flagCheckboxExclude_noFlag" value="noFlag" ${noFlagExcludeChecked} title="Ukryj wszystkie produkty bez flagi">
+                     </div>
+                     <span class="flag-name-count" style="font-size:14px; font-weight: 400;">
+                         Brak flagi (${noFlagCount})
+                     </span>
+                 </div>`;
+             flagContainer.insertAdjacentHTML('beforeend', noFlagElementHTML);
+
+             document.querySelectorAll('.flagFilterInclude, .flagFilterExclude').forEach(checkbox => {
+                 checkbox.addEventListener('change', function () {
+                     const flagValue = this.value;
+                     const isInclude = this.classList.contains('flagFilterInclude');
+
+                     if (isInclude) {
+                         if (this.checked) {
+                             document.getElementById(`flagCheckboxExclude_${flagValue}`).checked = false;
+                             selectedFlagsExclude.delete(flagValue);
+                             selectedFlagsInclude.add(flagValue);
+                         } else {
+                             selectedFlagsInclude.delete(flagValue);
+                         }
+                     } else {
+                         if (this.checked) {
+                             document.getElementById(`flagCheckboxInclude_${flagValue}`).checked = false;
+                             selectedFlagsInclude.delete(flagValue);
+                             selectedFlagsExclude.add(flagValue);
+                         } else {
+                             selectedFlagsExclude.delete(flagValue);
+                         }
+                     }
+                     filterRows();
+                 });
+             });
+         }
+
+             function updateCounters(products) {
+                 var activeRejectedCount = allProducts.filter(p => p.isScrapable && p.isRejected).length;
+                 var activeCount = allProducts.filter(p => p.isScrapable && !p.isRejected).length;
+                 var inactiveRejectedCount = allProducts.filter(p => !p.isScrapable && p.isRejected).length;
+                 var inactiveCount = allProducts.filter(p => !p.isScrapable && !p.isRejected).length;
+
+                 document.getElementById('count-active-rejected').textContent = activeRejectedCount;
+                 document.getElementById('count-active').textContent = activeCount;
+                 document.getElementById('count-inactive-rejected').textContent = inactiveRejectedCount;
+                 document.getElementById('count-inactive').textContent = inactiveCount;
+
+                 var scrapableCount = activeRejectedCount + activeCount;
+                 document.getElementById('scrapable-count').textContent = scrapableCount;
+                 document.getElementById('total-products').textContent = allProducts.length;
+
+                 var googleCount = allProducts.filter(p => getProductPlatformStatus(p).hasGoogle).length;
+                 var ceneoCount = allProducts.filter(p => getProductPlatformStatus(p).hasCeneo).length;
+                 var googleCeneoCount = allProducts.filter(p => getProductPlatformStatus(p).hasBoth).length;
+                 var notFoundCount = allProducts.filter(p => getProductPlatformStatus(p).notFound).length;
+
+                 document.getElementById('count-google').textContent = googleCount;
+                 document.getElementById('count-ceneo').textContent = ceneoCount;
+                 document.getElementById('count-google-ceneo').textContent = googleCeneoCount;
+                 document.getElementById('count-not-found').textContent = notFoundCount;
+             }
+
+             function highlightMatches(text, searchTerm) {
+                 if (!searchTerm) return text;
+                 const sanitizedSearchTerm = searchTerm.replace(/[^a-zA-Z0-9\s.-]/g, '');
+                 const regex = new RegExp(`(${sanitizedSearchTerm})`, 'gi');
+                 return text.replace(regex, '<span style="color: #9400D3; font-weight: 600;">$1</span>');
+             }
+
+                     function renderProducts(products, searchTerm = "") {
+             var tbody = document.getElementById('product-list');
+             tbody.innerHTML = '';
+             products.forEach(function (product) {
+                 var row = document.createElement('tr');
+                 row.classList.add('product-row');
+                 row.setAttribute('data-product-id', product.productId);
+                 row.setAttribute('data-scrapable', product.isScrapable);
+                 row.setAttribute('data-rejected', product.isRejected);
+
+                 var platformStatus = getProductPlatformStatus(product);
+                 var isNotFound = platformStatus.notFound;
+                 var highlightedProductName = highlightMatches(product.productName, searchTerm);
+                   var producer = product.producer ? `<b>Producent:</b> ${product.producer}` : '';
+                  var ean = product.ean ? `<b>EAN:</b> ${product.ean}` : '';
+
+                 var newGoogleUrl = createNewGoogleUrl(product);
+
+                 var offerUrlButton = product.offerUrl ? `<a href="${product.offerUrl}" class="Button-Page-Small" style="width: 100px;" target="_blank">Ceneo</a>` : '';
+                 var googleUrlButton = newGoogleUrl ? `<a href="${newGoogleUrl}" class="Button-Page-Small" style="width: 100px;" target="_blank">Google</a>` : '';
+
+                 var storeSpecificOfferButton = product.url ? `<a href="${product.url}" class="Button-Page-Small" style="width: 100px;" target="_blank">Strona</a>` : '';
+
+                 var imageUrl = product.mainUrl || '';
+                 var imageCell = imageUrl ? `<img src="${imageUrl}" style="width: 90px; height: 90px; object-fit: contain; background-color: white;" />` : `<div style="width: 90px; height: 90px;"></div>`;
+
+                 var hasPrice = product.marginPrice != null && product.marginPrice.toString().trim() !== '';
+                 var priceValue = hasPrice ? parseFloat(product.marginPrice).toFixed(2) : '';
+                  var flagsCellContent = createFlagsContainer(product).outerHTML;
+
+                 var purchasePriceHtml = `
+                     <div class="price-display-container">
+                         <span class="price-text">${hasPrice ? priceValue + ' PLN' : 'Brak'}</span>
+                         <span class="price-actions">
+                             <i class="fas fa-plus add-price-btn ${hasPrice ? 'hidden' : ''}" title="Dodaj cenę"></i>
+                             <i class="fas fa-pencil-alt edit-price-btn ${!hasPrice ? 'hidden' : ''}" title="Edytuj cenę"></i>
+                             <i class="fas fa-trash-alt delete-price-btn ${!hasPrice ? 'hidden' : ''}" title="Usuń cenę"></i>
+                         </span>
+                     </div>
+                     <div class="price-edit-container hidden">
+                         <input type="number" step="0.01" class="price-edit-input" value="${priceValue}">
+                         <span class="price-actions">
+                             <i class="fas fa-check save-price-btn" title="Zapisz"></i>
+                             <i class="fas fa-times cancel-edit-btn" title="Anuluj"></i>
+                         </span>
+                     </div>
+                 `;
+
+                var statusBoxClass = "";
+          var statusText = "";
+
+          var checkboxStatusClass = "";
+
+          if (product.isScrapable && product.isRejected) {
+              statusBoxClass = "StatusBoxProduct-1";
+              statusText = "Odrzucony";
+
+              checkboxStatusClass = "rejected";
+          } else if (product.isScrapable) {
+              statusBoxClass = "StatusBoxProduct-2";
+              statusText = "Aktywny";
+          } else if (product.isRejected) {
+              statusBoxClass = "StatusBoxProduct-3";
+              statusText = "Wyłączony";
+          } else {
+              statusBoxClass = "StatusBoxProduct-4";
+              statusText = "Nieaktywny";
+          }
+
+          row.innerHTML = `
+              <td>
+               <div style="width:420px;">
+                  <p style="margin-bottom: 8px;">${highlightedProductName}</p>
+                  <p style="font-size: 0.9em; color: #555;">${producer}</p>
+                  <p style="font-size: 0.9em; color: #555;">${ean}</p>
+                     </div>
+              </td>
+              <td>${imageCell}</td>
+              <td>${purchasePriceHtml}</td>
+              <td>
+                  <div style="display: flex; flex-direction: column; align-items: flex-start; gap: 5px;">
+                      ${offerUrlButton}
+                      ${googleUrlButton}
+                      ${storeSpecificOfferButton}
+                  </div>
+              </td>
+              <td>
+                  <div style="position: relative; width: 130px; height: 40px;">
+                      <input type="checkbox" class="scrapable-checkbox ${checkboxStatusClass}" data-product-id="${product.productId}"
+                             style="position: absolute; top: 0; left: 0; z-index: 2;"
+                             ${product.isScrapable ? "checked" : ""}
+                             ${isNotFound ? "disabled" : ""} />
+                      <div class="StatusBoxProduct ${statusBoxClass}" style="position: absolute; top: 0; left: 20px; z-index: 1;">
+                          ${statusText}
+                      </div>
+                  </div>
+              </td>
+              <td>${flagsCellContent}</td>`;
+                 if (!isNotFound) {
+                     row.querySelector('.scrapable-checkbox').addEventListener('change', function () {
+                         saveState();
+                         var productId = this.getAttribute('data-product-id');
+                         fetch('@Url.Action("UpdateScrapableProduct", "Product")?storeId=' + storeId, {
+                             method: 'POST',
+                             headers: { 'Content-Type': 'application/json' },
+                             body: JSON.stringify(productId)
+                         })
+                         .then(response => response.json())
+                         .then(data => {
+                             if (!data.success) {
+                                 alert(data.message || 'Wystąpił błąd podczas aktualizacji statusu scrapowania.');
+                                 this.checked = !this.checked;
+                             } else {
+                                 fetchProducts();
+                             }
+                         })
+                         .catch(error => {
+                             console.error('There was a problem with your fetch operation:', error);
+                         });
+                     });
+                 }
+                 tbody.appendChild(row);
+             });
+             document.getElementById('displayed-count').textContent = products.length;
+             window.scrollTo(0, lastScrollPosition);
+         }
+
+             function filterRows() {
+                 var selectedStatuses = Array.from(document.querySelectorAll('.status-filter:checked'))
+                     .map(checkbox => checkbox.getAttribute('data-status'));
+                 var searchTerm = searchInput.value;
+                 var filteredProducts = filterProductsByName(allProducts, searchTerm);
+                 var existingStatuses = ['active', 'inactive', 'active-rejected', 'inactive-rejected'];
+                 var selectedExistingStatuses = selectedStatuses.filter(status => existingStatuses.includes(status));
+                 var selectedPlatformStatuses = selectedStatuses.filter(status => platformStatuses.includes(status));
+
+                 if (selectedExistingStatuses.length > 0) {
+                     filteredProducts = filteredProducts.filter(product => {
+                         var productStatus = getProductStatus(product);
+                         return selectedExistingStatuses.includes(productStatus);
+                     });
+                 }
+
+                 if (selectedPlatformStatuses.length > 0) {
+                     filteredProducts = filteredProducts.filter(product => {
+                         var platformStatus = getProductPlatformStatus(product);
+                         if (selectedPlatformStatuses.includes('not-found')) return platformStatus.notFound;
+                         if (selectedPlatformStatuses.includes('google-ceneo')) return platformStatus.hasBoth;
+                         var includeProduct = false;
+                         if (selectedPlatformStatuses.includes('google') && platformStatus.hasGoogle) includeProduct = true;
+                         if (selectedPlatformStatuses.includes('ceneo') && platformStatus.hasCeneo) includeProduct = true;
+                         if (selectedPlatformStatuses.includes('google') && selectedPlatformStatuses.includes('ceneo')) {
+                         } else if (selectedPlatformStatuses.includes('google')) {
+                             return platformStatus.hasGoogle;
+                         } else if (selectedPlatformStatuses.includes('ceneo')) {
+                             return platformStatus.hasCeneo;
+                         }
+                         return includeProduct;
+                     });
+                 }
+
+                    let productsBeforeFlagFilter = [...filteredProducts];
+
+          if (selectedFlagsExclude.size > 0) {
+              filteredProducts = filteredProducts.filter(item => {
+                  if (selectedFlagsExclude.has('noFlag') && (!item.flagIds || item.flagIds.length === 0)) {
+                      return false;
+                  }
+                  if (item.flagIds) {
+                      for (const excl of selectedFlagsExclude) {
+                          if (excl !== 'noFlag' && item.flagIds.includes(parseInt(excl))) {
+                              return false;
+                          }
+                      }
+                  }
+                  return true;
+              });
+          }
+
+          if (selectedFlagsInclude.size > 0) {
+              filteredProducts = filteredProducts.filter(item => {
+                  if (selectedFlagsInclude.has('noFlag') && (!item.flagIds || item.flagIds.length === 0)) {
+                      return true;
+                  }
+                  if (item.flagIds) {
+                      return item.flagIds.some(fid => selectedFlagsInclude.has(fid.toString()));
+                  }
+                  return false;
+              });
+          }
+                 filteredProducts = filterProductsByProducer(filteredProducts, selectedProducer);
+
+                 renderProducts(filteredProducts, searchTerm);
+                 updateCounters(filteredProducts);
+                    updateAndRenderFlagFilters(productsBeforeFlagFilter);
+              }
+
+              function fetchProducts() {
+                 fetch('@Url.Action("GetProducts", "Product")?storeId=' + storeId)
+                     .then(response => response.json())
+                     .then(data => {
+                         allProducts = data;
+
+                         const producersWithCount = allProducts.reduce((acc, product) => {
+                             let producer = product.producer || "Brak";
+                             let producerObj = acc.find(p => p.name === producer);
+                             if (producerObj) {
+                                 producerObj.count++;
+                             } else {
+                                 acc.push({ name: producer, count: 1 });
+                             }
+                             return acc;
+                         }, []);
+
+                         populateProducerDropdown(producersWithCount);
+
+                         filterRows();
+                     })
+                     .catch(error => {
+                         console.error('Error fetching products:', error);
+                     });
+             }
+
+             document.querySelectorAll('.status-filter').forEach(function (checkbox) {
+                 checkbox.addEventListener('change', function () {
+                     if ((this.id === 'not-found' || this.id === 'google-ceneo') && this.checked) {
+                         platformStatuses.forEach(function (statusId) {
+                             if (statusId !== this.id && document.getElementById(statusId)) {
+                                 document.getElementById(statusId).checked = false;
+                             }
+                         }.bind(this));
+                     } else if (this.checked && (this.id === 'google' || this.id === 'ceneo')) {
+                         if (document.getElementById('not-found')) document.getElementById('not-found').checked = false;
+                         if (document.getElementById('google-ceneo')) document.getElementById('google-ceneo').checked = false;
+                     }
+                     filterRows();
+                 });
+             });
+
+             searchInput.addEventListener('input', filterRows);
+            producerDropdown.addEventListener('change', function () {
+                 saveState();
+                 filterRows();
+             });
+
+             selectAllButton.addEventListener('click', function () {
+                 var productIds = [];
+                 document.querySelectorAll('.scrapable-checkbox').forEach(function (checkbox) {
+                     if (!checkbox.disabled && !checkbox.checked) {
+                         checkbox.checked = true;
+                         productIds.push(parseInt(checkbox.getAttribute('data-product-id')));
+                     }
+                 });
+                 if (productIds.length > 0) {
+                     fetch('@Url.Action("UpdateMultipleScrapableProducts", "Product")?storeId=' + storeId, {
+                         method: 'POST',
+                         headers: { 'Content-Type': 'application/json' },
+                         body: JSON.stringify(productIds)
+                     })
+                     .then(response => response.json())
+                     .then(data => {
+                         if (data.success) {
+                             fetchProducts();
+                         } else {
+                             alert('Błąd podczas aktualizacji produktów: ' + data.message);
+                         }
+                     })
+                     .catch(error => {
+                         console.error('Problem z operacją fetch:', error);
+                     });
+                 }
+             });
+
+             deselectAllButton.addEventListener('click', function () {
+                 var productIds = [];
+                 document.querySelectorAll('.scrapable-checkbox:checked:not(:disabled)').forEach(function (checkbox) {
+                     checkbox.checked = false;
+                     productIds.push(parseInt(checkbox.getAttribute('data-product-id')));
+                 });
+                 if (productIds.length > 0) {
+                     fetch('@Url.Action("ResetMultipleScrapableProducts", "Product")?storeId=' + storeId, {
+                         method: 'POST',
+                         headers: { 'Content-Type': 'application/json' },
+                         body: JSON.stringify(productIds)
+                     })
+                     .then(response => response.json())
+                     .then(data => {
+                         if (data.success) {
+                             fetchProducts();
+                         } else {
+                             alert('Błąd podczas resetowania produktów: ' + data.message);
+                         }
+                     })
+                     .catch(error => {
+                         console.error('Problem z operacją fetch:', error);
+                     });
+                 }
+             });
+
+             const productListBody = document.getElementById('product-list');
+             const formWithToken = document.getElementById('uploadMarginsForm');
+             const requestVerificationToken = formWithToken ? formWithToken.querySelector('input[name="__RequestVerificationToken"]').value : null;
+
+             function toggleEditMode(productId, isEditing) {
+                 const row = productListBody.querySelector(`tr[data-product-id='${productId}']`);
+                 if (row) {
+                     const displayContainer = row.querySelector('.price-display-container');
+                     const editContainer = row.querySelector('.price-edit-container');
+                     displayContainer.classList.toggle('hidden', isEditing);
+                     editContainer.classList.toggle('hidden', !isEditing);
+                     if (isEditing) {
+                         const input = editContainer.querySelector('.price-edit-input');
+                         input.focus();
+                         input.select();
+                     }
+                 }
+             }
+
+             productListBody.addEventListener('click', function(e) {
+                 const target = e.target;
+                 const row = target.closest('tr.product-row');
+                 if (!row) return;
+                 const productId = row.getAttribute('data-product-id');
+
+                 if (target.classList.contains('edit-price-btn') || target.classList.contains('add-price-btn')) {
+                     toggleEditMode(productId, true);
+                 }
+
+                 if (target.classList.contains('cancel-edit-btn')) {
+                     toggleEditMode(productId, false);
+                 }
+
+                 if (target.classList.contains('save-price-btn')) {
+                     const input = row.querySelector('.price-edit-input');
+                     const newPrice = input.value.trim().replace(',', '.');
+                     if (newPrice === '' || isNaN(newPrice) || parseFloat(newPrice) < 0) {
+                         alert('Proszę podać poprawną, nieujemną cenę.');
+                         return;
+                     }
+                     updatePurchasePrice(productId, parseFloat(newPrice));
+                 }
+
+                 if (target.classList.contains('delete-price-btn')) {
+                     if (confirm('Czy na pewno chcesz usunąć cenę zakupu dla tego produktu?')) {
+                         updatePurchasePrice(productId, null);
+                     }
+                 }
+             });
+
+             function updatePurchasePrice(productId, newPrice) {
+                 if (!requestVerificationToken) {
+                     alert('Błąd bezpieczeństwa: Nie znaleziono tokenu weryfikacyjnego.');
+                     return;
+                 }
+
+                 fetch(`@Url.Action("UpdatePurchasePrice", "Product")?storeId=${storeId}`, {
+                     method: 'POST',
+                     headers: {
+                         'Content-Type': 'application/json',
+                         'Accept': 'application/json',
+                         'RequestVerificationToken': requestVerificationToken
+                     },
+                     body: JSON.stringify({
+                         ProductId: parseInt(productId),
+                         NewPrice: newPrice
+                     })
+                 })
+                 .then(response => {
+                     if (!response.ok) {
+                         return response.json().then(err => { throw new Error(err.message || 'Błąd serwera'); });
+                     }
+                     return response.json();
+                 })
+                 .then(data => {
+                     if (data.success) {
+                         saveState();
+                         fetchProducts();
+                     } else {
+                         alert('Błąd: ' + (data.message || 'Nie udało się zaktualizować ceny.'));
+                     }
+                 })
+                 .catch(error => {
+                     console.error('Błąd podczas aktualizacji ceny:', error);
+                     alert('Wystąpił błąd komunikacji: ' + error.message);
+                 });
+             }
+
+             fetchProducts();
+         });
     </script>
 
     <script>
