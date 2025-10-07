@@ -24,7 +24,13 @@ namespace PriceSafari.Services.AllegroServices
         public async Task<(int processedUrls, int savedOffers)> ProcessScrapedDataForStoreAsync(int storeId)
         {
             var userStore = await _context.Stores.FindAsync(storeId);
-            if (userStore == null || string.IsNullOrEmpty(userStore.StoreNameAllegro))
+            if (userStore == null || userStore.RemainingScrapes <= 0)
+            {
+                // Zwróć 0, jeśli sklep nie istnieje lub nie ma już tokenów
+                return (0, 0);
+            }
+
+            if (string.IsNullOrEmpty(userStore.StoreNameAllegro))
             {
                 return (0, 0);
             }

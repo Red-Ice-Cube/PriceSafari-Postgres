@@ -19,7 +19,7 @@ namespace PriceSafari.Controllers.ManagerControllers
         [HttpGet]
         public async Task<IActionResult> DeviceStatus()
         {
-            // Pobieramy wszystkie wpisy, sortujemy od najnowszego do najstarszego
+         
             var deviceStatuses = await _context.DeviceStatuses
                 .OrderByDescending(d => d.LastCheck)
                 .ToListAsync();

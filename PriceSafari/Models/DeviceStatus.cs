@@ -18,5 +18,6 @@
         public bool UrlScalEnabled { get; set; }
         public bool GooCrawEnabled { get; set; }
         public bool CenCrawEnabled { get; set; }
+        public bool AleBaseScalEnabled { get; set; }
     }
 }

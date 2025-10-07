@@ -2,9 +2,7 @@
 
 @{
     Layout = "~/Views/Shared/_PanelLayout.cshtml";
-    // lub inna ścieżka do Twojego layoutu
 
-    // Wygeneruj listę unikalnych nazw urządzeń (DeviceName) z modelu
     var distinctDeviceNames = Model
         .Where(m => !string.IsNullOrWhiteSpace(m.DeviceName))
         .Select(m => m.DeviceName)
@@ -13,19 +11,20 @@
 }
 
 <style>
-    /* Styl podstawowej tabeli */
+
     .table-orders {
         width: 100%;
         border-collapse: collapse;
     }
+
     .bg-yes {
-        background-color: #c6f6c6; 
+        background-color: #c6f6c6;
         color: #000;
         font-weight: bold;
     }
 
     .bg-no {
-        background-color: #f9c6c6; 
+        background-color: #f9c6c6;
         color: #000;
         font-weight: bold;
     }
@@ -97,35 +96,32 @@
                         <th>UrlScal</th>
                         <th>Google Crawler</th>
                         <th>Ceneo Crawler</th>
+                        <th>Allegro Scalanie</th>
                     </tr>
                 </thead>
                 <tbody>
                     @foreach (var item in Model)
                     {
                         <tr>
-                            <!-- Nazwa urządzenia -->
                             <td class="td-deviceName">@item.DeviceName</td>
-                            <!-- Ostatni meldunek -->
                             <td>@item.LastCheck</td>
-                            <!-- Online? (komórka na zielono jeśli tak, czerwono jeśli nie) -->
                             <td class="@(item.IsOnline ? "bg-yes" : "bg-no")">
                                 @(item.IsOnline ? "tak" : "nie")
                             </td>
-                            <!-- BaseScal -->
                             <td class="@(item.BaseScalEnabled ? "bg-yes" : "bg-no")">
                                 @(item.BaseScalEnabled ? "tak" : "nie")
                             </td>
-                            <!-- UrlScal -->
                             <td class="@(item.UrlScalEnabled ? "bg-yes" : "bg-no")">
                                 @(item.UrlScalEnabled ? "tak" : "nie")
                             </td>
-                            <!-- GooCraw -->
                             <td class="@(item.GooCrawEnabled ? "bg-yes" : "bg-no")">
                                 @(item.GooCrawEnabled ? "tak" : "nie")
                             </td>
-                            <!-- CenCraw -->
                             <td class="@(item.CenCrawEnabled ? "bg-yes" : "bg-no")">
                                 @(item.CenCrawEnabled ? "tak" : "nie")
+                            </td>
+                            <td class="@(item.AleBaseScalEnabled ? "bg-yes" : "bg-no")">
+                                @(item.AleBaseScalEnabled ? "tak" : "nie")
                             </td>
                         </tr>
                     }
@@ -137,11 +133,7 @@
 
 @section Scripts {
     <script>
-        /*
-         * Filtrowanie TYLKO po nazwie urządzenia:
-         * Gdy użytkownik wybierze coś z dropdownu (deviceNameFilter),
-         * pokazujemy tylko wiersze o pasującej nazwie (lub wszystkie, gdy pusto).
-         */
+
         const dropdown = document.getElementById('deviceNameFilter');
         const table    = document.getElementById('deviceTable');
         const rows     = Array.from(table.querySelectorAll('tbody tr'));
@@ -150,14 +142,12 @@
             const selectedName = dropdown.value.trim().toLowerCase();
 
             rows.forEach(row => {
-                // Odczyt nazwy urządzenia (z kolumny <td class="td-deviceName">)
+
                 const deviceNameCell = row.querySelector('.td-deviceName');
                 if (!deviceNameCell) return;
 
                 const rowDeviceName = deviceNameCell.textContent.trim().toLowerCase();
 
-                // Jeżeli dropdown jest pusty (value=""), pokazujemy wszystkie
-                // Jeżeli jest wybrana konkretna nazwa, pokazujemy tylko wiersze z tą nazwą
                 if (selectedName === "" || rowDeviceName === selectedName) {
                     row.style.display = "";
                 } else {

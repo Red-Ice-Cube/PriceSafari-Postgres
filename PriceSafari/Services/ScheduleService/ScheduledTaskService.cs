@@ -1,9 +1,9 @@
-﻿
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using PriceSafari.Data;
 using PriceSafari.Models;
 using PriceSafari.Models.SchedulePlan;
+using PriceSafari.Services.AllegroServices;
 using PriceSafari.Services.ScheduleService;
 
 public class ScheduledTaskService : BackgroundService
@@ -26,6 +26,7 @@ public class ScheduledTaskService : BackgroundService
         var urlScalKey = Environment.GetEnvironmentVariable("URL_SCAL");
         var gooCrawKey = Environment.GetEnvironmentVariable("GOO_CRAW");
         var cenCrawKey = Environment.GetEnvironmentVariable("CEN_CRAW");
+        var aleBaseScalKey = Environment.GetEnvironmentVariable("ALE_BASE_SCAL"); // <--- NOWA ZMIENNA
 
         var deviceName = Environment.GetEnvironmentVariable("DEVICE_NAME") ?? "UnknownDevice";
 
@@ -36,14 +37,13 @@ public class ScheduledTaskService : BackgroundService
                 using var scope = _scopeFactory.CreateScope();
                 var context = scope.ServiceProvider.GetRequiredService<PriceSafariContext>();
 
-                // 1) Wczytujemy tylko SchedulePlan (bez Include) – chcemy poznać ID DayDetail
                 var plan = await context.SchedulePlans
                     .AsNoTracking()
                     .FirstOrDefaultAsync(stoppingToken);
 
                 if (plan != null)
                 {
-                    // 2) Określamy, który DayDetailId (int?) nas interesuje
+
                     var dayOfWeek = DateTime.Now.DayOfWeek;
                     int? neededDayDetailId = dayOfWeek switch
                     {
@@ -59,9 +59,9 @@ public class ScheduledTaskService : BackgroundService
 
                     if (neededDayDetailId.HasValue)
                     {
-                        // 3) Wczytujemy TYLKO ten pojedynczy DayDetail
+
                         var dayDetail = await context.DayDetails
-                          
+
                             .Where(d => d.Id == neededDayDetailId.Value)
                             .Include(d => d.Tasks)
                                 .ThenInclude(t => t.TaskStores)
@@ -76,7 +76,6 @@ public class ScheduledTaskService : BackgroundService
                             _logger.LogInformation("Sprawdzanie zadań dla dnia {DayOfWeek} o {Time}.",
                                 dayOfWeek, DateTime.Now);
 
-                            // Logowanie nadchodzących zadań (start <= 3h)
                             foreach (var t in dayDetail.Tasks)
                             {
                                 if ((t.LastRunDate == null || t.LastRunDate.Value.Date < today)
@@ -92,7 +91,6 @@ public class ScheduledTaskService : BackgroundService
                                 }
                             }
 
-                            // Zadania do uruchomienia
                             var tasksToRun = dayDetail.Tasks
                                 .Where(t => (t.LastRunDate == null || t.LastRunDate.Value.Date < today)
                                             && nowTime >= t.StartTime
@@ -100,27 +98,25 @@ public class ScheduledTaskService : BackgroundService
                                 .OrderBy(t => t.StartTime)
                                 .ToList();
 
-                            // 4) Uruchamianie zadań
                             foreach (var t in tasksToRun)
                             {
-             
+
                                 bool canRunAnything =
-                                    (t.UrlEnabled && urlScalKey == "49276583") ||
-                                    (t.CeneoEnabled && cenCrawKey == "56981467") ||
-                                    (t.GoogleEnabled && gooCrawKey == "03713857") ||
-                                    (t.BaseEnabled && baseScalKey == "34692471");
+                                (t.UrlEnabled && urlScalKey == "49276583") ||
+                                (t.CeneoEnabled && cenCrawKey == "56981467") ||
+                                (t.GoogleEnabled && gooCrawKey == "03713857") ||
+                                (t.BaseEnabled && baseScalKey == "34692471") ||
+                                (t.AleBaseEnabled && aleBaseScalKey == "19892023");
 
                                 if (!canRunAnything)
                                 {
-                             
+
                                     _logger.LogInformation(
                                         "Urządzenie '{DeviceName}' nie ma odpowiednich kluczy, aby wykonać zadanie '{SessionName}'. Pomijam.",
                                         deviceName, t.SessionName);
 
-                                    continue; // przeskakujemy do następnego zadania
+                                    continue;
                                 }
-
-                              
 
                                 _logger.LogInformation(
                                     "Rozpoczynam wykonywanie zadania '{SessionName}' (StartTime: {StartTime}) na urządzeniu '{DeviceName}'.",
@@ -128,9 +124,36 @@ public class ScheduledTaskService : BackgroundService
 
                                 t.LastRunDate = DateTime.Now;
                                 context.ScheduleTasks.Update(t);
+
+                                if (t.BaseEnabled || t.AleBaseEnabled) // Token jest konsumowany tylko przez akcje scalania
+                                {
+                                    var storeIdsInTask = t.TaskStores.Select(ts => ts.StoreId).Distinct().ToList();
+                                    if (storeIdsInTask.Any())
+                                    {
+                                        var storesToUpdate = await context.Stores
+                                            .Where(s => storeIdsInTask.Contains(s.StoreId))
+                                            .ToListAsync(stoppingToken);
+
+                                        int tokensConsumed = 0;
+                                        foreach (var store in storesToUpdate)
+                                        {
+                                            if (store.RemainingScrapes > 0)
+                                            {
+                                                store.RemainingScrapes--;
+                                                tokensConsumed++;
+                                            }
+                                        }
+
+                                        if (tokensConsumed > 0)
+                                        {
+                                            _logger.LogInformation("Zadanie '{SessionName}': Zużyto {TokensConsumed} token(ów) analizy.", t.SessionName, tokensConsumed);
+                                        }
+                                    }
+                                }
+                                // --------------------------------------------------------
+
                                 await context.SaveChangesAsync(stoppingToken);
 
-                                // Teraz uruchamiasz TYLKO te subtaski, do których urządzenie posiada klucz i które są włączone:
                                 if (t.UrlEnabled && urlScalKey == "49276583")
                                 {
                                     await RunUrlScalAsync(context, deviceName, t, stoppingToken);
@@ -147,8 +170,11 @@ public class ScheduledTaskService : BackgroundService
                                 {
                                     await RunBaseScalAsync(context, deviceName, t, stoppingToken);
                                 }
+                                if (t.AleBaseEnabled && aleBaseScalKey == "19892023")
+                                {
+                                    await RunAleBaseScalAsync(context, deviceName, t, stoppingToken);
+                                }
 
-                                // Opcjonalne opóźnienie między zadaniami (żeby nie lecieć "wszystko naraz")
                                 await Task.Delay(TimeSpan.FromSeconds(10), stoppingToken);
                             }
 
@@ -156,12 +182,11 @@ public class ScheduledTaskService : BackgroundService
                     }
                 }
 
-                // 5) Aktualizujemy status urządzenia co jakiś interwał
                 if (DateTime.Now - _lastDeviceCheck >= _deviceCheckInterval)
                 {
                     _lastDeviceCheck = DateTime.Now;
                     await UpdateDeviceStatusAsync(context, deviceName, baseScalKey, urlScalKey,
-                        gooCrawKey, cenCrawKey, stoppingToken);
+                        gooCrawKey, cenCrawKey, aleBaseScalKey, stoppingToken);
                 }
             }
             catch (Exception ex)
@@ -169,12 +194,9 @@ public class ScheduledTaskService : BackgroundService
                 _logger.LogError(ex, "Wystąpił błąd podczas wykonywania zaplanowanych zadań.");
             }
 
-            // Co minutę ponawiamy
             await Task.Delay(TimeSpan.FromSeconds(60), stoppingToken);
         }
     }
-
-    // =========================== POMOCNICZE METODY ===========================
 
     private async Task RunUrlScalAsync(PriceSafariContext context, string deviceName, ScheduleTask task, CancellationToken ct)
     {
@@ -303,7 +325,7 @@ public class ScheduledTaskService : BackgroundService
                 {
                     case GoogleScraperService.GoogleScrapingResult.Success:
                         finishedGoogleLog.Comment += $" | Sukces. Zmielono: {resultDto.TotalScraped} produktów, odrzucono: {resultDto.TotalRejected}. Napotkano CAPCHE: xxx razy.";
-                        //finishedGoogleLog.Comment += $" | Sukces. Zmielono: {resultDto.TotalScraped} produktów, odrzucono: {resultDto.TotalRejected}. Napotkano CAPCHE: {resultDto.CaptchaResets} razy.";
+
                         break;
                     case GoogleScraperService.GoogleScrapingResult.NoProductsToScrape:
                         finishedGoogleLog.Comment += " | Brak produktów do scrapowania.";
@@ -378,6 +400,54 @@ public class ScheduledTaskService : BackgroundService
         }
     }
 
+    private async Task RunAleBaseScalAsync(PriceSafariContext context, string deviceName, ScheduleTask task, CancellationToken ct)
+    {
+        var log = new TaskExecutionLog
+        {
+            DeviceName = deviceName,
+            OperationName = "ALE_BASE_SCAL",
+            StartTime = DateTime.Now,
+            Comment = $"Rozpoczęcie scalania Allegro | SessionName={task.SessionName}; Sklepy: {string.Join(", ", task.TaskStores.Select(ts => ts.Store.StoreName))}"
+        };
+        context.TaskExecutionLogs.Add(log);
+        await context.SaveChangesAsync(ct);
+
+        int logId = log.Id;
+        int processedStoreCount = 0;
+
+        try
+        {
+            var allegroProcessingService = context.GetService<AllegroProcessingService>();
+            foreach (var stRel in task.TaskStores)
+            {
+                // Serwis wewnętrznie sprawdzi, czy sklep ma tokeny (RemainingScrapes > 0)
+                await allegroProcessingService.ProcessScrapedDataForStoreAsync(stRel.StoreId);
+                processedStoreCount++;
+            }
+
+            var finishedLog = await context.TaskExecutionLogs.FindAsync(new object[] { logId }, ct);
+            if (finishedLog != null)
+            {
+                finishedLog.EndTime = DateTime.Now;
+                finishedLog.Comment += $" | Sukces scalania Allegro. Przetworzono {processedStoreCount} sklepów.";
+                context.TaskExecutionLogs.Update(finishedLog);
+                await context.SaveChangesAsync(ct);
+            }
+        }
+        catch (Exception ex)
+        {
+            var finishedLog = await context.TaskExecutionLogs.FindAsync(new object[] { logId }, ct);
+            if (finishedLog != null)
+            {
+                finishedLog.EndTime = DateTime.Now;
+                finishedLog.Comment += $" | Wystąpił błąd scalania Allegro: {ex.Message}";
+                context.TaskExecutionLogs.Update(finishedLog);
+                await context.SaveChangesAsync(ct);
+            }
+        }
+    }
+
+
     private async Task UpdateDeviceStatusAsync(
         PriceSafariContext context,
         string deviceName,
@@ -385,17 +455,21 @@ public class ScheduledTaskService : BackgroundService
         string urlScalKey,
         string gooCrawKey,
         string cenCrawKey,
+        string aleBaseScalKey,
+
         CancellationToken ct)
     {
         const string BASE_SCAL_EXPECTED = "34692471";
         const string URL_SCAL_EXPECTED = "49276583";
         const string GOO_CRAW_EXPECTED = "03713857";
         const string CEN_CRAW_EXPECTED = "56981467";
+        const string ALE_BASE_SCAL_EXPECTED = "19892023";
 
         bool hasBaseScal = (baseScalKey == BASE_SCAL_EXPECTED);
         bool hasUrlScal = (urlScalKey == URL_SCAL_EXPECTED);
         bool hasGooCraw = (gooCrawKey == GOO_CRAW_EXPECTED);
         bool hasCenCraw = (cenCrawKey == CEN_CRAW_EXPECTED);
+        bool hasAleBaseScal = (aleBaseScalKey == ALE_BASE_SCAL_EXPECTED);
 
         var newStatus = new DeviceStatus
         {
@@ -405,7 +479,8 @@ public class ScheduledTaskService : BackgroundService
             BaseScalEnabled = hasBaseScal,
             UrlScalEnabled = hasUrlScal,
             GooCrawEnabled = hasGooCraw,
-            CenCrawEnabled = hasCenCraw
+            CenCrawEnabled = hasCenCraw,
+            AleBaseScalEnabled = hasAleBaseScal
         };
 
         await context.DeviceStatuses.AddAsync(newStatus, ct);

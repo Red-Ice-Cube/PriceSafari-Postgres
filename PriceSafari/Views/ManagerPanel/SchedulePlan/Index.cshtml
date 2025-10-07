@@ -70,9 +70,41 @@
             font-weight: bold;
             padding: 6px 12px;
         }
+
+    /* Style dla flag T/F */
+    .flag-container {
+        display: flex;
+        gap: 8px; /* Odstęp między flagami */
+        align-items: center;
+        flex-wrap: wrap; /* Zawijanie wierszy w razie potrzeby */
+        margin-top: 4px;
+    }
+
+    .flag {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px; /* Odstęp między etykietą a kwadratem */
+    }
+
+    .flag-box {
+        width: 20px;
+        height: 20px;
+        line-height: 20px;
+        text-align: center;
+        color: white;
+        font-weight: bold;
+        border-radius: 4px;
+    }
+
+    .flag-true {
+        background-color: #28a745; /* Zielony */
+    }
+
+    .flag-false {
+        background-color: #dc3545; /* Czerwony */
+    }
 </style>
 
-<!-- Tabela podsumowująca wystąpienia sklepów w ciągu 7 dni -->
 <table class="excel-table">
     <caption>Wystąpienia w ciągu 7 dni</caption>
     <thead>
@@ -102,8 +134,6 @@
         }
     </tbody>
 </table>
-
-
 
 <table class="excel-table">
     <thead>
@@ -165,8 +195,24 @@
                                 <strong>@task.SessionName</strong><br />
                                 @($"{task.StartTime:hh\\:mm} - {task.EndTime:hh\\:mm}")<br />
                                 Sklepy: @string.Join(", ", task.TaskStores.Select(ts => ts.Store.StoreName))<br />
-                                Base=@(task.BaseEnabled ? "T" : "F"), Url=@(task.UrlEnabled ? "T" : "F"),
-                                Goo=@(task.GoogleEnabled ? "T" : "F"), Cen=@(task.CeneoEnabled ? "T" : "F")
+
+                                <div class="flag-container">
+                                    <div class="flag">
+                                        Base Scal: <span class="flag-box @(task.BaseEnabled ? "flag-true" : "flag-false")">@(task.BaseEnabled ? "T" : "F")</span>
+                                    </div>
+                                    <div class="flag">
+                                        Url Group: <span class="flag-box @(task.UrlEnabled ? "flag-true" : "flag-false")">@(task.UrlEnabled ? "T" : "F")</span>
+                                    </div>
+                                    <div class="flag">
+                                        Google Scrap: <span class="flag-box @(task.GoogleEnabled ? "flag-true" : "flag-false")">@(task.GoogleEnabled ? "T" : "F")</span>
+                                    </div>
+                                    <div class="flag">
+                                        Ceneo Scrap: <span class="flag-box @(task.CeneoEnabled ? "flag-true" : "flag-false")">@(task.CeneoEnabled ? "T" : "F")</span>
+                                    </div>
+                                    <div class="flag">
+                                        Alegro Base Scal: <span class="flag-box @(task.AleBaseEnabled ? "flag-true" : "flag-false")">@(task.AleBaseEnabled ? "T" : "F")</span>
+                                    </div>
+                                </div>
 
                                 <hr />
                                 <a asp-action="EditTask" asp-route-taskId="@task.Id" class="btn btn-sm btn-info">

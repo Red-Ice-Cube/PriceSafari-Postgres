@@ -16,6 +16,7 @@ namespace PriceSafari.Models.ViewModels.SchedulePlanViewModels
         public bool UrlEnabled { get; set; }
         public bool GoogleEnabled { get; set; }
         public bool CeneoEnabled { get; set; }
+        public bool AleBaseEnabled { get; set; }
 
         // Lista sklepów (checkboxy)
         public List<StoreCheckboxItem> Stores { get; set; }

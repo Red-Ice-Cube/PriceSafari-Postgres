@@ -269,8 +269,8 @@ public class StoreProcessingService
             currentIndex += CHUNK_SIZE;
         }
 
-        store.RemainingScrapes--;
-        await _context.SaveChangesAsync();
+        //store.RemainingScrapes--;
+        //await _context.SaveChangesAsync();
 
         if (fallbackUsedList.Count > 0)
         {
