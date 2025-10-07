@@ -24,6 +24,10 @@ namespace PriceSafari.Models
         public decimal? MarginPrice { get; set; }
 
 
+        public bool IsScrapable { get; set; } = false;  //dodalem teraz
+        public bool IsRejected { get; set; } = false; //dodalem teraz
+
+
         public ICollection<ProductFlag> ProductFlags { get; set; } = new List<ProductFlag>();
     }
 }

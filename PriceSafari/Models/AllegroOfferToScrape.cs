@@ -21,14 +21,10 @@ namespace PriceSafari.Models
 
         public int CollectedPricesCount { get; set; } = 0;
 
-        /// <summary>
-        /// NOWA FLAGA: Oznacza, że zadanie zostało pobrane przez scrapera i jest w trakcie przetwarzania.
-        /// </summary>
+   
         public bool IsProcessing { get; set; } = false;
 
-        /// <summary>
-        /// NOWA WŁAŚCIWOŚĆ NAWIGACYJNA: Kolekcja zescrapowanych ofert dla tego URL-a.
-        /// </summary>
+    
         public virtual ICollection<AllegroScrapedOffer> ScrapedOffers { get; set; } = new List<AllegroScrapedOffer>();
     }
 }
