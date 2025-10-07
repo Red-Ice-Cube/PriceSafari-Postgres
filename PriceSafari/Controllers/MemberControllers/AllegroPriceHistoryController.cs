@@ -92,7 +92,6 @@ namespace PriceSafari.Controllers.MemberControllers
                  .Include(aph => aph.AllegroProduct)
                  .ToListAsync();
 
-
             var productIds = priceData.Select(p => p.AllegroProductId).Distinct().ToList();
             var productFlagsDictionary = await _context.ProductFlags
                 .Where(pf => productIds.Contains(pf.AllegroProductId.Value))
@@ -346,8 +345,6 @@ namespace PriceSafari.Controllers.MemberControllers
             });
         }
 
-        // W pliku: /Controllers/MemberControllers/AllegroPriceHistoryController.cs
-
         [HttpGet]
         public async Task<IActionResult> GetPriceTrendData(int productId)
         {
@@ -369,7 +366,6 @@ namespace PriceSafari.Controllers.MemberControllers
                 }
             }
 
-            // Pobieramy dane z ostatnich 30 dni (lub inny wybrany okres)
             var lastScraps = await _context.AllegroScrapeHistories
                 .Where(sh => sh.StoreId == storeId)
                 .OrderByDescending(sh => sh.Date)
@@ -401,7 +397,7 @@ namespace PriceSafari.Controllers.MemberControllers
                     {
                         StoreName = ph.SellerName,
                         Price = ph.Price,
-                        Sales = ph.Popularity ?? 0, // Używamy Popularity jako sprzedaży
+                        Sales = ph.Popularity ?? 0,
                         Source = "allegro",
                         IdAllegro = ph.IdAllegro,
                         IsBestPriceGuarantee = ph.IsBestPriceGuarantee,
@@ -413,7 +409,7 @@ namespace PriceSafari.Controllers.MemberControllers
                 return new DailyTrendPointViewModel
                 {
                     ScrapDate = scrap.Date.ToString("yyyy-MM-dd"),
-                    TotalSales = dailyOffers.Sum(o => o.Sales), // Sumujemy sprzedaż z danego dnia
+                    TotalSales = dailyOffers.Sum(o => o.Sales),
                     Offers = dailyOffers
                 };
             }).ToList();
@@ -428,10 +424,6 @@ namespace PriceSafari.Controllers.MemberControllers
             return Json(viewModel);
         }
 
-
-
-        // Plik: /ViewModels/AllegroTrendDataViewModel.cs (lub na dole kontrolera)
-
         public class AllegroTrendDataViewModel
         {
             public string ProductName { get; set; }
@@ -442,15 +434,15 @@ namespace PriceSafari.Controllers.MemberControllers
         public class DailyTrendPointViewModel
         {
             public string ScrapDate { get; set; }
-            public int TotalSales { get; set; } // Całkowita sprzedaż w danym dniu
-            public List<OfferTrendPointViewModel> Offers { get; set; } // Zmieniono nazwę z PricesByStore
+            public int TotalSales { get; set; }
+            public List<OfferTrendPointViewModel> Offers { get; set; }
         }
 
         public class OfferTrendPointViewModel
         {
             public string StoreName { get; set; }
             public decimal Price { get; set; }
-            public int Sales { get; set; } // Sprzedaż dla tej konkretnej oferty
+            public int Sales { get; set; }
             public string Source { get; set; }
             public long IdAllegro { get; set; }
             public bool IsBestPriceGuarantee { get; set; }
