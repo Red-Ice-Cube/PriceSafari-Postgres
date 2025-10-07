@@ -3081,8 +3081,8 @@ tr:last-child .sub-line {
 }
 
     .status-filter:checked#active {
-        background-color: rgba(14, 126, 135, 0.7);
-        border: 2px solid rgba(14, 126, 135, 1);
+        background-color: rgba(30, 148, 71, 0.7);
+        border: 2px solid rgba(30, 148, 71, 1);
     }
 
     .status-filter:checked#inactive {
@@ -3091,8 +3091,8 @@ tr:last-child .sub-line {
     }
 
     .status-filter:checked#active-rejected {
-        background-color: rgba(128, 0, 128, 0.7);
-        border: 2px solid rgba(128, 0, 128, 1);
+        background-color: rgba(255, 204, 0, 0.7);
+        border: 2px solid rgba(255, 204, 0, 1);
     }
 
     .status-filter:checked#inactive-rejected {
