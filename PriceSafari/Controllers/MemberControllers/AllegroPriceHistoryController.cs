@@ -87,9 +87,11 @@ namespace PriceSafari.Controllers.MemberControllers
             }
 
             var priceData = await _context.AllegroPriceHistories
-                .Where(aph => aph.AllegroScrapeHistoryId == latestScrap.Id)
-                .Include(aph => aph.AllegroProduct)
-                .ToListAsync();
+
+                 .Where(aph => aph.AllegroScrapeHistoryId == latestScrap.Id && aph.AllegroProduct.IsScrapable)
+                 .Include(aph => aph.AllegroProduct)
+                 .ToListAsync();
+
 
             var productIds = priceData.Select(p => p.AllegroProductId).Distinct().ToList();
             var productFlagsDictionary = await _context.ProductFlags
