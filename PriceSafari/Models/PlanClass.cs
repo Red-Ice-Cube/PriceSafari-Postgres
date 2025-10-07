@@ -30,12 +30,15 @@ namespace PriceSafari.Models
         [Range(1, int.MaxValue, ErrorMessage = "Ilość zeskrobań musi być większa od zera.")]
         public int ScrapesPerInvoice { get; set; }
 
-        // Nowe właściwości:
+    
         [Display(Name = "Źródło Ceneo")]
         public bool Ceneo { get; set; } = false;
 
         [Display(Name = "Źródło Google Shopping")]
         public bool GoogleShopping { get; set; } = false;
+
+        [Display(Name = "Źródło Allegro")]
+        public bool Allegro { get; set; } = false;
 
         [Display(Name = "Informacje")]
         public string Info { get; set; }

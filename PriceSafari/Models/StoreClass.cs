@@ -23,7 +23,7 @@ namespace PriceSafari.Models
         public int? ProductsToScrap { get; set; }
 
 
-        public int? ProductsToScrapAllegro { get; set; } = 0;  //dodalem to 
+        public int? ProductsToScrapAllegro { get; set; } = 0; 
 
 
         [Display(Name = "Plan")]
@@ -35,10 +35,13 @@ namespace PriceSafari.Models
         [Display(Name = "Procent Rabatu")]
         public decimal? DiscountPercentage { get; set; } = 0;
 
-        [Display(Name = "Pozostała Ilość Zeskrobań")]
+        [Display(Name = "Pozostała Ilość Analiz")]
         public int RemainingScrapes { get; set; } = 0;
 
         public bool IsActive => RemainingScrapes > 0;
+
+
+
 
         public string? StoreNameGoogle { get; set; }   
         public string? StoreNameCeneo { get; set; }   
@@ -55,7 +58,7 @@ namespace PriceSafari.Models
 
 
 
-        // Navigation properties
+        
         public ICollection<ScrapHistoryClass> ScrapHistories { get; set; } = new List<ScrapHistoryClass>();
         public ICollection<ProductClass> Products { get; set; } = new List<ProductClass>();
         public ICollection<AllegroProductClass> AllegroProducts { get; set; } = new List<AllegroProductClass>();
