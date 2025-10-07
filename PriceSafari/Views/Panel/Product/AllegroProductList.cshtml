@@ -181,7 +181,7 @@
 
                 <div class="Horizontal" style="gap:0px;">
                     <div class="order-upper-box">
-                        <input type="text" id="productSearch" style="max-width:150px; height:33.99px;" placeholder="Wyszukaj produkt">
+                        <input type="text" id="productSearch" style="max-width:150px; height:34px;" placeholder="Wyszukaj produkt">
                         <div class="SimpleSpace" style="justify-content:flex-end; margin-right: 12px;">
                         </div>
                     </div>
@@ -250,7 +250,7 @@
                 products.forEach(function (product) {
                     var row = document.createElement('tr');
                     var highlightedProductName = searchTerm ? product.allegroProductName.replace(new RegExp(searchTerm, 'gi'), '<span style="color: #9400D3; font-weight: 600;">$&</span>') : product.allegroProductName;
-                    var offerUrlButton = product.allegroOfferUrl ? `<a href="${product.allegroOfferUrl}" class="Button-Page-Small" style="width: 150px;" target="_blank">Allegro</a>` : '';
+                    var offerUrlButton = product.allegroOfferUrl ? `<a href="${product.allegroOfferUrl}" rel="noopener noreferrer" class="Button-Page-Small" style="width: 150px;" target="_blank">Allegro</a>` : '';
 
                     var statusBoxClass = "";
                     var statusText = "";
