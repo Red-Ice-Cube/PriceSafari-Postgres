@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore.Infrastructure;
 using PriceSafari.Data;
 using PriceSafari.Models;
 using PriceSafari.Models.SchedulePlan;
+using PriceSafari.ScrapersControllers;
 using PriceSafari.Services.AllegroServices;
 using PriceSafari.Services.ScheduleService;
 
@@ -29,7 +30,6 @@ public class ScheduledTaskService : BackgroundService
         var aleBaseScalKey = Environment.GetEnvironmentVariable("ALE_BASE_SCAL");
         var urlScalAleKey = Environment.GetEnvironmentVariable("URL_SCAL_ALE");
         var aleCrawKey = Environment.GetEnvironmentVariable("ALE_CRAW");
-
 
         var deviceName = Environment.GetEnvironmentVariable("DEVICE_NAME") ?? "UnknownDevice";
 
@@ -197,7 +197,7 @@ public class ScheduledTaskService : BackgroundService
                 {
                     _lastDeviceCheck = DateTime.Now;
                     await UpdateDeviceStatusAsync(context, deviceName, baseScalKey, urlScalKey,
-                        gooCrawKey, cenCrawKey, aleBaseScalKey, urlScalAleKey, aleCrawKey, stoppingToken); 
+                        gooCrawKey, cenCrawKey, aleBaseScalKey, urlScalAleKey, aleCrawKey, stoppingToken);
                 }
             }
             catch (Exception ex)
@@ -270,16 +270,23 @@ public class ScheduledTaskService : BackgroundService
         try
         {
             var ceneoScraperService = context.GetService<CeneoScraperService>();
+
             var resultDto = await ceneoScraperService.StartScrapingWithCaptchaHandlingAsync(ct);
 
             var finishedLog = await context.TaskExecutionLogs.FindAsync(ceneoLogId, ct);
             if (finishedLog != null)
             {
                 finishedLog.EndTime = DateTime.Now;
+
+                double totalSeconds = (finishedLog.EndTime.Value - finishedLog.StartTime).TotalSeconds;
+                double urlsPerSecond = (totalSeconds > 0 && resultDto.TotalUrlsToScrape > 0)
+                    ? resultDto.TotalUrlsToScrape / totalSeconds
+                    : 0;
+
                 switch (resultDto.Result)
                 {
                     case CeneoScraperService.CeneoScrapingResult.Success:
-                        finishedLog.Comment += $" | Sukces. Zmielono {resultDto.ScrapedCount} produktów. Odrzucono: {resultDto.RejectedCount}.";
+                        finishedLog.Comment += $" | Sukces. Zmielono {resultDto.ScrapedCount}/{resultDto.TotalUrlsToScrape} produktów. Odrzucono: {resultDto.RejectedCount}. Średnia prędkość: {urlsPerSecond:F2} URL/sek.";
                         break;
                     case CeneoScraperService.CeneoScrapingResult.NoUrlsFound:
                         finishedLog.Comment += " | Brak URL do scrapowania (NoUrlsFound).";
@@ -326,17 +333,23 @@ public class ScheduledTaskService : BackgroundService
         try
         {
             var googleScraperService = context.GetService<GoogleScraperService>();
+
             var resultDto = await googleScraperService.StartScraping();
 
             var finishedGoogleLog = await context.TaskExecutionLogs.FindAsync(googleLogId, ct);
             if (finishedGoogleLog != null)
             {
                 finishedGoogleLog.EndTime = DateTime.Now;
+
+                double totalSeconds = (finishedGoogleLog.EndTime.Value - finishedGoogleLog.StartTime).TotalSeconds;
+                double urlsPerSecond = (totalSeconds > 0 && resultDto.TotalUrlsToScrape > 0)
+                    ? resultDto.TotalUrlsToScrape / totalSeconds
+                    : 0;
+
                 switch (resultDto.Result)
                 {
                     case GoogleScraperService.GoogleScrapingResult.Success:
-                        finishedGoogleLog.Comment += $" | Sukces. Zmielono: {resultDto.TotalScraped} produktów, odrzucono: {resultDto.TotalRejected}. Napotkano CAPCHE: xxx razy.";
-
+                        finishedGoogleLog.Comment += $" | Sukces. Zmielono: {resultDto.TotalScraped}/{resultDto.TotalUrlsToScrape} produktów, odrzucono: {resultDto.TotalRejected}. Średnia prędkość: {urlsPerSecond:F2} URL/sek.";
                         break;
                     case GoogleScraperService.GoogleScrapingResult.NoProductsToScrape:
                         finishedGoogleLog.Comment += " | Brak produktów do scrapowania.";
@@ -475,7 +488,7 @@ public class ScheduledTaskService : BackgroundService
         try
         {
             var storeIds = task.TaskStores.Select(ts => ts.StoreId).ToList();
-            var allegroUrlGroupingService = context.GetService<AllegroUrlGroupingService>(); // Pobranie serwisu
+            var allegroUrlGroupingService = context.GetService<AllegroUrlGroupingService>();
 
             var (urlsPrepared, totalProducts, processedStoreNames) = await allegroUrlGroupingService.GroupAndSaveUrls(storeIds);
 
@@ -517,20 +530,48 @@ public class ScheduledTaskService : BackgroundService
         try
         {
             var allegroScrapingService = context.GetService<AllegroScrapingService>();
-            var (success, message) = await allegroScrapingService.StartScrapingProcessAsync();
+
+            var (success, message, totalUrls) = await allegroScrapingService.StartScrapingProcessAsync();
+
+            if (!success || totalUrls == 0)
+            {
+                var initialLog = await context.TaskExecutionLogs.FindAsync(new object[] { logId }, ct);
+                if (initialLog != null)
+                {
+                    initialLog.EndTime = DateTime.Now;
+                    initialLog.Comment += success ? $" | {message}" : $" | Błąd startu: {message}";
+                    context.TaskExecutionLogs.Update(initialLog);
+                    await context.SaveChangesAsync(ct);
+                }
+                return;
+            }
+
+            while (AllegroScrapeManager.CurrentStatus == ScrapingProcessStatus.Running && !ct.IsCancellationRequested)
+            {
+
+                await Task.Delay(TimeSpan.FromSeconds(30), ct);
+            }
+
+            var stats = await context.AllegroOffersToScrape
+                .GroupBy(o => 1)
+                .Select(g => new
+                {
+                    Scraped = g.Count(o => o.IsScraped),
+                    Rejected = g.Count(o => o.IsRejected)
+                })
+                .FirstOrDefaultAsync(ct);
+
+            int finalScraped = stats?.Scraped ?? 0;
+            int finalRejected = stats?.Rejected ?? 0;
 
             var finishedLog = await context.TaskExecutionLogs.FindAsync(new object[] { logId }, ct);
             if (finishedLog != null)
             {
                 finishedLog.EndTime = DateTime.Now;
-                if (success)
-                {
-                    finishedLog.Comment += $" | Sukces. {message}";
-                }
-                else
-                {
-                    finishedLog.Comment += $" | Ostrzeżenie. {message}";
-                }
+                double totalSeconds = (finishedLog.EndTime.Value - finishedLog.StartTime).TotalSeconds;
+                double urlsPerSecond = (totalSeconds > 0 && totalUrls > 0) ? totalUrls / totalSeconds : 0;
+
+                finishedLog.Comment += $" | Zakończono. Przetworzono {finalScraped}/{totalUrls} ofert. Odrzucono: {finalRejected}. Średnia prędkość: {urlsPerSecond:F2} URL/sek.";
                 context.TaskExecutionLogs.Update(finishedLog);
                 await context.SaveChangesAsync(ct);
             }
@@ -541,7 +582,7 @@ public class ScheduledTaskService : BackgroundService
             if (finishedLog != null)
             {
                 finishedLog.EndTime = DateTime.Now;
-                finishedLog.Comment += $" | Wystąpił krytyczny błąd podczas uruchamiania scrapowania Allegro: {ex.Message}";
+                finishedLog.Comment += $" | Wystąpił krytyczny błąd podczas scrapowania Allegro: {ex.Message}";
                 context.TaskExecutionLogs.Update(finishedLog);
                 await context.SaveChangesAsync(ct);
             }

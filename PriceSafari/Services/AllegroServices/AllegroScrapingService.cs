@@ -21,8 +21,7 @@ namespace PriceSafari.Services.AllegroServices
             _hubContext = hubContext;
             _logger = logger;
         }
-
-        public async Task<(bool success, string message)> StartScrapingProcessAsync()
+        public async Task<(bool success, string message, int totalUrls)> StartScrapingProcessAsync()
         {
             _logger.LogInformation("Próba uruchomienia procesu scrapowania Allegro...");
 
@@ -31,15 +30,21 @@ namespace PriceSafari.Services.AllegroServices
             {
                 const string errorMsg = "Nie można uruchomić procesu. Żaden scraper nie jest aktywny (online).";
                 _logger.LogWarning(errorMsg);
-                return (false, errorMsg);
+                return (false, errorMsg, 0);
             }
 
-            var hasUrlsToScrape = await _context.AllegroOffersToScrape.AnyAsync(o => !o.IsScraped && !o.IsRejected);
-            if (!hasUrlsToScrape)
+            // Pobieramy listę ofert, aby poznać ich dokładną liczbę
+            var urlsToScrape = await _context.AllegroOffersToScrape
+                .Where(o => !o.IsScraped && !o.IsRejected)
+                .ToListAsync();
+
+            int totalUrls = urlsToScrape.Count;
+
+            if (totalUrls == 0)
             {
                 const string infoMsg = "Brak oczekujących URL-i do scrapowania. Proces nie został uruchomiony.";
                 _logger.LogInformation(infoMsg);
-                return (true, infoMsg);
+                return (true, infoMsg, 0);
             }
 
             var orphanedTasks = await _context.AllegroOffersToScrape
@@ -68,7 +73,9 @@ namespace PriceSafari.Services.AllegroServices
 
             const string successMsg = "Proces scrapowania ofert Allegro został pomyślnie uruchomiony.";
             _logger.LogInformation(successMsg);
-            return (true, successMsg);
+
+            // Zwracamy również policzoną liczbę URL-i
+            return (true, successMsg, totalUrls);
         }
     }
 }
