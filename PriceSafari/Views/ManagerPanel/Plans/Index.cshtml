@@ -22,7 +22,8 @@
         <tr>
             <th>Nazwa Planu</th>
             <th>Cena Netto</th>
-            <th>Produkty do Zeskrobania</th>
+            <th>Produkty do Zeskrobania (Ceneo, Google)</th>
+            <th>Produkty do Zeskrobania (Allegro)</th>
             <th>Plan Testowy</th>
             <th>Źródło Danych</th>
             <th>Informacje</th>
@@ -36,6 +37,7 @@
                 <td>@plan.PlanName</td>
                 <td>@plan.NetPrice.ToString("C")</td>
                 <td>@plan.ProductsToScrap</td>
+                <td>@plan.ProductsToScrapAllegro</td>
                 <td>
                     @if (plan.IsTestPlan)
                     {
