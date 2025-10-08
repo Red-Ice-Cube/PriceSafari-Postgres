@@ -20,5 +20,6 @@
         public bool CenCrawEnabled { get; set; }
         public bool AleBaseScalEnabled { get; set; }
         public bool UrlScalAleEnabled { get; set; }
+        public bool AleCrawEnabled { get; set; }
     }
 }

@@ -28,6 +28,7 @@ public class ScheduledTaskService : BackgroundService
         var cenCrawKey = Environment.GetEnvironmentVariable("CEN_CRAW");
         var aleBaseScalKey = Environment.GetEnvironmentVariable("ALE_BASE_SCAL");
         var urlScalAleKey = Environment.GetEnvironmentVariable("URL_SCAL_ALE");
+        var aleCrawKey = Environment.GetEnvironmentVariable("ALE_CRAW");
 
 
         var deviceName = Environment.GetEnvironmentVariable("DEVICE_NAME") ?? "UnknownDevice";
@@ -109,7 +110,8 @@ public class ScheduledTaskService : BackgroundService
                                 (t.GoogleEnabled && gooCrawKey == "03713857") ||
                                 (t.BaseEnabled && baseScalKey == "34692471") ||
                                 (t.AleBaseEnabled && aleBaseScalKey == "19892023") ||
-                                 (t.UrlScalAleEnabled && urlScalAleKey == "20231989");
+                                (t.UrlScalAleEnabled && urlScalAleKey == "20231989") ||
+                                (t.AleCrawEnabled && aleCrawKey == "98765432");
 
                                 if (!canRunAnything)
                                 {
@@ -180,7 +182,10 @@ public class ScheduledTaskService : BackgroundService
                                 {
                                     await RunUrlScalAleAsync(context, deviceName, t, stoppingToken);
                                 }
-
+                                if (t.AleCrawEnabled && aleCrawKey == "98765432")
+                                {
+                                    await RunAleCrawAsync(context, deviceName, t, stoppingToken);
+                                }
                                 await Task.Delay(TimeSpan.FromSeconds(10), stoppingToken);
                             }
 
@@ -192,7 +197,7 @@ public class ScheduledTaskService : BackgroundService
                 {
                     _lastDeviceCheck = DateTime.Now;
                     await UpdateDeviceStatusAsync(context, deviceName, baseScalKey, urlScalKey,
-                        gooCrawKey, cenCrawKey, aleBaseScalKey, urlScalAleKey, stoppingToken);
+                        gooCrawKey, cenCrawKey, aleBaseScalKey, urlScalAleKey, aleCrawKey, stoppingToken); 
                 }
             }
             catch (Exception ex)
@@ -495,7 +500,53 @@ public class ScheduledTaskService : BackgroundService
             }
         }
     }
+    private async Task RunAleCrawAsync(PriceSafariContext context, string deviceName, ScheduleTask task, CancellationToken ct)
+    {
+        var log = new TaskExecutionLog
+        {
+            DeviceName = deviceName,
+            OperationName = "ALE_CRAW",
+            StartTime = DateTime.Now,
+            Comment = $"Inicjowanie procesu scrapowania Allegro | SessionName={task.SessionName}"
+        };
+        context.TaskExecutionLogs.Add(log);
+        await context.SaveChangesAsync(ct);
 
+        int logId = log.Id;
+
+        try
+        {
+            var allegroScrapingService = context.GetService<AllegroScrapingService>();
+            var (success, message) = await allegroScrapingService.StartScrapingProcessAsync();
+
+            var finishedLog = await context.TaskExecutionLogs.FindAsync(new object[] { logId }, ct);
+            if (finishedLog != null)
+            {
+                finishedLog.EndTime = DateTime.Now;
+                if (success)
+                {
+                    finishedLog.Comment += $" | Sukces. {message}";
+                }
+                else
+                {
+                    finishedLog.Comment += $" | Ostrzeżenie. {message}";
+                }
+                context.TaskExecutionLogs.Update(finishedLog);
+                await context.SaveChangesAsync(ct);
+            }
+        }
+        catch (Exception ex)
+        {
+            var finishedLog = await context.TaskExecutionLogs.FindAsync(new object[] { logId }, ct);
+            if (finishedLog != null)
+            {
+                finishedLog.EndTime = DateTime.Now;
+                finishedLog.Comment += $" | Wystąpił krytyczny błąd podczas uruchamiania scrapowania Allegro: {ex.Message}";
+                context.TaskExecutionLogs.Update(finishedLog);
+                await context.SaveChangesAsync(ct);
+            }
+        }
+    }
 
     private async Task UpdateDeviceStatusAsync(
         PriceSafariContext context,
@@ -505,8 +556,8 @@ public class ScheduledTaskService : BackgroundService
         string gooCrawKey,
         string cenCrawKey,
         string aleBaseScalKey,
-           string urlScalAleKey,
-
+        string urlScalAleKey,
+        string aleCrawKey,
         CancellationToken ct)
     {
         const string BASE_SCAL_EXPECTED = "34692471";
@@ -515,6 +566,7 @@ public class ScheduledTaskService : BackgroundService
         const string CEN_CRAW_EXPECTED = "56981467";
         const string ALE_BASE_SCAL_EXPECTED = "19892023";
         const string URL_SCAL_ALE_EXPECTED = "20231989";
+        const string ALE_CRAW_EXPECTED = "98765432";
 
         bool hasBaseScal = (baseScalKey == BASE_SCAL_EXPECTED);
         bool hasUrlScal = (urlScalKey == URL_SCAL_EXPECTED);
@@ -522,7 +574,7 @@ public class ScheduledTaskService : BackgroundService
         bool hasCenCraw = (cenCrawKey == CEN_CRAW_EXPECTED);
         bool hasAleBaseScal = (aleBaseScalKey == ALE_BASE_SCAL_EXPECTED);
         bool hasUrlScalAle = (urlScalAleKey == URL_SCAL_ALE_EXPECTED);
-
+        bool hasAleCraw = (aleCrawKey == ALE_CRAW_EXPECTED);
         var newStatus = new DeviceStatus
         {
             DeviceName = deviceName,
@@ -533,7 +585,8 @@ public class ScheduledTaskService : BackgroundService
             GooCrawEnabled = hasGooCraw,
             CenCrawEnabled = hasCenCraw,
             AleBaseScalEnabled = hasAleBaseScal,
-            UrlScalAleEnabled = hasUrlScalAle
+            UrlScalAleEnabled = hasUrlScalAle,
+            AleCrawEnabled = hasAleCraw
         };
 
         await context.DeviceStatuses.AddAsync(newStatus, ct);
