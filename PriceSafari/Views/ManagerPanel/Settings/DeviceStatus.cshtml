@@ -93,10 +93,11 @@
                         <th>Ostatni meldunek</th>
                         <th>Online</th>
                         <th>BaseScal</th>
-                        <th>UrlScal</th>
+                        <th>URL</th>
                         <th>Google Crawler</th>
                         <th>Ceneo Crawler</th>
                         <th>Allegro Scalanie</th>
+                        <th>Allegro URL</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -122,6 +123,9 @@
                             </td>
                             <td class="@(item.AleBaseScalEnabled ? "bg-yes" : "bg-no")">
                                 @(item.AleBaseScalEnabled ? "tak" : "nie")
+                            </td>
+                            <td class="@(item.UrlScalAleEnabled ? "bg-yes" : "bg-no")">
+                                @(item.UrlScalAleEnabled ? "tak" : "nie")
                             </td>
                         </tr>
                     }

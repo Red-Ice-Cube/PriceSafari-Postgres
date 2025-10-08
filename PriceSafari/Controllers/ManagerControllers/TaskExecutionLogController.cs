@@ -24,12 +24,10 @@ namespace PriceSafari.Controllers.ManagerControllers
                 .OrderByDescending(t => t.StartTime)
                 .ToListAsync();
 
-            // Możesz też użyć innej ścieżki widoku w ManagerPanel
+        
             return View("~/Views/ManagerPanel/Settings/TaskExecutionLog.cshtml", logs);
         }
 
-        // POST: /TaskExecutionLog/ClearAll
-        // Usuwa wszystkie wpisy
         [HttpPost]
         public async Task<IActionResult> ClearAll()
         {
@@ -40,8 +38,7 @@ namespace PriceSafari.Controllers.ManagerControllers
             return RedirectToAction(nameof(TaskExecutionLog));
         }
 
-        // GET: /TaskExecutionLog/Delete/5
-        // Usuwa pojedynczy wpis na podstawie Id
+
         [HttpGet]
         public async Task<IActionResult> Delete(int id)
         {
