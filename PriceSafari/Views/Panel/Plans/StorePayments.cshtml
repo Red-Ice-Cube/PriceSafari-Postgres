@@ -5,51 +5,159 @@
 @{
     Layout = "~/Views/Shared/_PanelLayout.cshtml";
     var jsonSettings = new JsonSerializerSettings
-            {
-                ContractResolver = new CamelCasePropertyNamesContractResolver()
-            };
+    {
+        ContractResolver = new CamelCasePropertyNamesContractResolver()
+    };
     var paymentDataListJson = JsonConvert.SerializeObject(Model.PaymentDataList, jsonSettings);
 
-    // Dobieramy plik graficzny planu na podstawie danych
     string planImageFile = "";
-    if (Model.IsTestPlan)
+    if (Model.IsTestPlan) planImageFile = "Free.png";
+    else if (Model.ProductsToScrap <= 500) planImageFile = "Lite.png";
+    else if (Model.ProductsToScrap <= 1000) planImageFile = "Basic.png";
+    else if (Model.ProductsToScrap <= 4000) planImageFile = "Pro.png";
+    else if (Model.ProductsToScrap <= 10000) planImageFile = "Ultimate.png";
+    else planImageFile = "Enterprise.png";
+
+    // Obliczenia ceny do użycia w modalu i widoku głównym
+    decimal discountedPrice = Model.PlanPrice;
+    if (Model.DiscountValue.HasValue && Model.DiscountValue.Value > 0)
     {
-        planImageFile = "Free.png";
-    }
-    else
-    {
-        if (Model.ProductsToScrap <= 500)
-            planImageFile = "Lite.png";
-        else if (Model.ProductsToScrap <= 1000)
-            planImageFile = "Basic.png";
-        else if (Model.ProductsToScrap <= 4000)
-            planImageFile = "Pro.png";
-        else if (Model.ProductsToScrap <= 10000)
-            planImageFile = "Ultimate.png";
-        else
-            planImageFile = "Enterprise.png";
+        var discountAmount = Model.PlanPrice * (Model.DiscountValue.Value / 100);
+        discountedPrice = Model.PlanPrice - discountAmount;
     }
 }
 
 <style>
-    .modal-split {
+    .details-container {
         display: flex;
-        gap: 32px;
+        gap: 30px;
         width: 100%;
+        margin-top: 24px;
+        align-items: stretch;
     }
 
+    .details-main {
+        flex: 3;
+    }
+
+    .details-sidebar {
+        flex: 2;
+    }
+
+    .info-card {
+        border: 1px solid #e9ecef;
+        border-radius: 8px;
+        background-color: #fff;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .info-card-header {
+        padding: 16px 20px;
+        background-color: #f8f9fa;
+        border-bottom: 1px solid #e9ecef;
+        font-size: 17px;
+        font-weight: 500;
+    }
+
+    .info-card-body {
+        padding: 20px;
+        flex-grow: 1;
+    }
+
+    .info-card-footer {
+        padding: 20px;
+        background-color: #f8f9fa;
+        border-top: 1px solid #e9ecef;
+    }
+
+    .info-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 14px 0;
+        border-bottom: 1px solid #f1f3f5;
+    }
+
+        .info-row:last-child {
+            border-bottom: none;
+            padding-bottom: 0;
+        }
+
+        .info-row:first-child {
+            padding-top: 0;
+        }
+
+    .info-label {
+        color: #6c757d;
+    }
+
+    .info-value {
+        color: #212529;
+        font-weight: 500;
+        text-align: right;
+    }
+
+        .info-value img {
+            height: 20px;
+            width: 20px;
+            margin-left: 5px;
+        }
+
+    .price-display {
+        display: flex;
+        align-items: baseline;
+        margin-bottom: 8px;
+    }
+
+        .price-display .final-price-amount {
+            color: #212529;
+            font-weight: 600;
+            font-size: 28px;
+            line-height: 1;
+        }
+
+        .price-display .final-price-label {
+            font-size: 16px;
+            font-weight: 400;
+            color: #6c757d;
+            margin-left: 8px;
+        }
+
+        .price-display .original-price {
+            text-decoration: line-through;
+            font-size: 18px;
+            color: #6c757d;
+            margin-left: 12px;
+        }
+
+    .discount-info {
+        font-weight: 500;
+        color: #28a745;
+    }
+
+    /* Modal styles */
     .modal-dialog {
-        max-width: 1200px;
+        min-width: 1000px; 
     }
 
     .modal-content {
-        width: 100%;
+        min-width: 1000px; 
     }
 
-    .store-details-title {
-        font-size: 22px;
-        font-weight: 300;
-        margin-bottom: 16px;
+
+    .modal-split {
+        display: flex;
+        gap: 24px;
+        padding: 1rem;
+    }
+
+    .modal-split-left {
+        flex: 5;
+    }
+
+    .modal-split-right {
+        flex: 4;
     }
 
     .space-100 {
@@ -60,31 +168,35 @@
         margin-bottom: 24px;
     }
 
-
-
     .custom-info-table {
         border-collapse: separate;
         border-spacing: 0;
-        width: auto;
-        margin: 10px 0;
-        border: 1px solid #ddd;
+        width: 100%;
+        border: 1px solid #e9ecef;
         border-radius: 8px;
         overflow: hidden;
     }
 
         .custom-info-table th,
         .custom-info-table td {
-            padding: 8px 12px;
-            border-bottom: 1px solid #ddd;
+            padding: 10px 14px;
+            border-bottom: 1px solid #e9ecef;
         }
 
         .custom-info-table th {
-            background-color: #f9f9f9;
+            background-color: #f8f9fa;
             text-align: left;
-            font-weight: bold;
+            font-weight: normal;
+            color: #6c757d;
+            width: 120px;
         }
 
-        .custom-info-table tr:last-child td {
+        .custom-info-table td {
+            font-weight: 500;
+        }
+
+        .custom-info-table tr:last-child td,
+        .custom-info-table tr:last-child th {
             border-bottom: none;
         }
 </style>
@@ -92,263 +204,234 @@
 <div class="Vert">
     <div class="Vert-full">
         <div class="store-details">
-            <img src="~/images/@planImageFile" alt="@Model.PlanName" style="height:36px; margin-bottom:24px;" />
-         
-            <div class="store-details-title">Plan @Model.PlanName dla @Model.StoreName</div>
-                
-            <table class="custom-info-table">
-                <tr>
-                    <th>Maksymalna ilość produktów</th>
-                    <td>Do @Model.ProductsToScrap SKU</td>
-                </tr>
-                <tr>
-                    <th>Pakiet analiz</th>
-                    <td>@Model.ScrapesPerInvoice</td>
-                </tr>
-                <tr>
-                    <th>Dane historyczne</th>
-                    <td>30 analiz</td>
-                </tr>
-                <tr>
-                    <th>Źródło danych</th>
-                    <td>
-                        @if (Model.Ceneo && Model.GoogleShopping)
+            <h2 style="font-size: 26px; font-weight: 300;">Plan @Model.PlanName | <img src="~/images/@planImageFile" alt="@Model.PlanName" style="height:32px; margin-bottom:6px;" /></h2>
+
+            <div class="details-container">
+
+                <div class="details-sidebar info-card">
+                    <div class="info-card-header">
+                        Koszt planu
+                    </div>
+                    <div class="info-card-body">
+                        <div class="price-display">
+                            <span class="final-price-amount">@discountedPrice.ToString("C")</span>
+                            <span class="final-price-label">netto</span>
+                            @if (Model.DiscountValue.HasValue && Model.DiscountValue.Value > 0)
+                            {
+                                <span class="original-price">@Model.PlanPrice.ToString("C")</span>
+                            }
+                        </div>
+                        @if (Model.DiscountValue.HasValue && Model.DiscountValue.Value > 0)
                         {
-                            <img src="~/images/Ceneo.png" alt="Ceneo" style="height:18px;width:18px;" />
-                            <img src="~/images/GoogleShopping.png" alt="Google Shopping" style="height:18px;width:18px;" />
+                            <div class="discount-info">
+                                Rabat: @Model.DiscountValue.Value.ToString("F2")%
+                            </div>
                         }
-                        else if (Model.Ceneo)
+
+                        @if (!string.IsNullOrWhiteSpace(Model.Info))
                         {
-                            <img src="~/images/Ceneo.png" alt="Ceneo" style="height:18px;width:18px;" />
+                            <hr style="margin: 20px 0;">
+                            <div class="info-description">
+                                <p style="color: #6c757d; font-size: 0.9em; margin-bottom: 0;">@Model.Info</p>
+                            </div>
                         }
-                        else if (Model.GoogleShopping)
+                    </div>
+                    <div class="info-card-footer">
+                        @if (Model.IsTestPlan)
                         {
-                            <img src="~/images/GoogleShopping.png" alt="Google Shopping" style="height:18px;width:18px;" />
+                            <p class="mb-0"><strong>Generowanie faktur niedostępne w planie testowym.</strong></p>
+                        }
+                        else if (Model.HasUnpaidInvoice)
+                        {
+                            <p class="mb-0"><strong>Proforma została już wygenerowana.</strong> Sprawdź w historii poniżej.</p>
                         }
                         else
                         {
-                            <span>Brak</span>
+                            <button type="button" class="Button-Page-Small-bl" data-toggle="modal" data-target="#generateProformaModal">
+                                Wygeneruj Proformę
+                            </button>
                         }
-                    </td>
-                </tr>
-                <tr>
-                    <th>Informacje</th>
-                    <td>@Model.Info</td>
-                </tr>
-              
-            </table>
-
-            @if (Model.DiscountValue.HasValue && Model.DiscountValue.Value > 0)
-            {
-                var discountAmount = Model.PlanPrice * (Model.DiscountValue.Value / 100);
-                var discountedPrice = Model.PlanPrice - discountAmount;
-                <div style="display:flex; flex-direction:column; align-items:flex-start; margin-bottom:10px;">
-                    <div>
-                        <p style="color: darkgreen; font-weight: bold;">@discountedPrice.ToString("C")</p>
-                        <p style="text-decoration: line-through; font-weight: normal; color: #222222;">@Model.PlanPrice.ToString("C")</p>
-                    </div>
-                    <div style="font-weight:500; color: #222222; margin-top: 4px;">
-                        Rabat: @Model.DiscountValue.Value.ToString("F2")%
                     </div>
                 </div>
-            }
-            else
-            {
-                <p>Kwota: @Model.PlanPrice.ToString("C") Netto</p>
-            }
+                <div class="details-main info-card">
+                    <div class="info-card-header">
+                        Szczegóły planu
+                    </div>
+                    <div class="info-card-body">
+                        <div class="info-row">
+                            <span class="info-label">Źródło danych</span>
+                            <span class="info-value">
+                                @if (Model.Ceneo)
+                                {
+                                    <img src="~/images/Ceneo.png" alt="Ceneo" title="Ceneo" />
+                                }
+                                @if (Model.GoogleShopping)
+                                {
+                                    <img src="~/images/GoogleShopping.png" alt="Google Shopping" title="Google Shopping" />
+                                }
+                                @if (Model.Allegro)
+                                {
+                                    <img src="~/images/AllegroIcon.png" alt="Allegro" title="Allegro" />
+                                }
+                            </span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Limity produktów</span>
+                            <span class="info-value">
+                                <div>Do <b>@Model.ProductsToScrap</b> SKU w porównywarkach</div>
+                                @if (Model.Allegro)
+                                {
+                                    <div class="mt-1">Do <b>@Model.ProductsToScrapAllegro</b> SKU na marketplace</div>
+                                }
+                            </span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Pakiet analiz</span>
+                            <span class="info-value">@Model.ScrapesPerInvoice aktualizacji danych</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Dane historyczne</span>
+                            <span class="info-value">30 analiz historycznych</span>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
         </div>
 
-        <!-- Button to open modal -->
-        <div>
-            @if (Model.IsTestPlan)
-            {
-                <p><strong>Generowanie lub dodawanie faktur jest niedostępne w planie testowym.</strong></p>
-            }
-            else if (Model.HasUnpaidInvoice)
-            {
-                <p><strong>Proforma została już wygenerowana.</strong></p>
-            }
-            else
-            {
-                <button type="button" class="Button-Page-Small-bl" data-toggle="modal" data-target="#generateProformaModal">
-                    Wygeneruj Proformę
-                </button>
-            }
-        </div>
-
-        <!-- Modal for Generating Proforma -->
         <div class="modal fade" id="generateProformaModal" tabindex="-1" role="dialog" aria-labelledby="generateProformaModalLabel" aria-hidden="true">
             <div class="modal-dialog" role="document">
                 <div class="modal-content">
-                    <!-- Modal Header -->
                     <div class="modal-header">
                         <h5 class="modal-title" id="generateProformaModalLabel">Generowanie Proformy</h5>
                         <button type="button" class="close" data-dismiss="modal" aria-label="Zamknij">
                             <span aria-hidden="true">&times;</span>
                         </button>
                     </div>
-                    <!-- Modal Body -->
-                    <div class="modal-split">
-                        <div class="modal-body">
-                            <!-- Managing Billing Data -->
-                            <div class="form-group">
-                                <select id="paymentDataSelect" class="form-control" style="margin-top:0px;">
-                                    <option value="">Wybierz adres rozliczeniowy</option>
-                                    @foreach (var data in Model.PaymentDataList)
-                                    {
-                                        <option value="@data.PaymentDataId">@data.CompanyName</option>
-                                    }
-                                </select>
-                                <div class="space-100">
-                                    <div>
-                                        <button type="button" class="Button-Page-Small-bl" id="addPaymentDataButton">+ Adres rozliczeniowy</button>
+                    <div class="modal-body">
+                        <div class="modal-split">
+                            <div class="modal-split-left">
+                                <div class="form-group">
+                                    <select id="paymentDataSelect" class="form-control" style="margin-top:0px;">
+                                        <option value="">Wybierz istniejące dane do faktury</option>
+                                        @foreach (var data in Model.PaymentDataList)
+                                        {
+                                            <option value="@data.PaymentDataId">@data.CompanyName</option>
+                                        }
+                                    </select>
+                                    <div class="space-100">
+                                        <div>
+                                            <button type="button" class="Button-Page-Small-bl" id="addPaymentDataButton">+ Nowe dane</button>
+                                        </div>
+                                        <div>
+                                            <button type="button" class="Button-Page-Small" id="editPaymentDataButton" style="display:none;">Edytuj</button>
+                                            <button type="button" class="Button-Page-Small-r" id="deletePaymentDataButton" style="display:none;">Usuń</button>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <button type="button" class="Button-Page-Small" id="editPaymentDataButton" style="display:none;">Edytuj</button>
-                                        <button type="button" class="Button-Page-Small-r" id="deletePaymentDataButton" style="display:none;">Usuń</button>
+                                </div>
+
+                                <div id="paymentDataDetails" style="display:none;">
+                                    <table class="custom-info-table">
+                                        <tr>
+                                            <th>Nazwa firmy</th>
+                                            <td id="companyName"></td>
+                                        </tr>
+                                        <tr>
+                                            <th>Adres</th>
+                                            <td id="address"></td>
+                                        </tr>
+                                        <tr>
+                                            <th>Kod pocztowy</th>
+                                            <td id="postalCode"></td>
+                                        </tr>
+                                        <tr>
+                                            <th>Miasto</th>
+                                            <td id="city"></td>
+                                        </tr>
+                                        <tr>
+                                            <th>NIP</th>
+                                            <td id="nip"></td>
+                                        </tr>
+                                    </table>
+                                </div>
+
+                                <div id="paymentDataFormContainer" style="display:none;">
+                                    <form id="paymentDataForm">
+                                        <input type="hidden" id="PaymentDataId" name="PaymentDataId" value="" />
+                                        <div class="form-group">
+                                            <label for="CompanyName">Nazwa firmy</label>
+                                            <input type="text" class="form-control" id="CompanyName" name="CompanyName" required />
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="Address">Adres</label>
+                                            <input type="text" class="form-control" id="Address" name="Address" required />
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="PostalCode">Kod pocztowy</label>
+                                            <input type="text" class="form-control" id="PostalCode" name="PostalCode" required />
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="City">Miasto</label>
+                                            <input type="text" class="form-control" id="City" name="City" required />
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="NIP">NIP</label>
+                                            <input type="text" class="form-control" id="NIP" name="NIP" required />
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="InvoiceAutoMail">E-mail do automatycznej wysyłki faktur (opcjonalny)</label>
+                                            <input type="email" class="form-control" id="InvoiceAutoMail" name="InvoiceAutoMail" />
+                                        </div>
+                                        <div class="form-group form-check">
+                                            <input type="checkbox" class="form-check-input" id="InvoiceAutoMailSend" name="InvoiceAutoMailSend" value="true" />
+                                            <label class="form-check-label" for="InvoiceAutoMailSend">Automatyczna wysyłka faktur na e-mail</label>
+                                        </div>
+                                        <div style="margin-top:16px;">
+                                            <button type="button" class="Button-Page-Small-bl" id="savePaymentDataButton">Zapisz dane</button>
+                                            <button type="button" class="Button-Page-Small" id="cancelPaymentDataButton">Anuluj</button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                            <div class="modal-split-right">
+                                <div class="info-card" style="height: 100%;">
+                                    <div class="info-card-header">
+                                        Podsumowanie planu
+                                    </div>
+                                    <div class="info-card-body">
+                                        <p style="font-weight: 500; font-size: 1.1em; margin-bottom: 14px;">
+                                           
+                                            Plan @Model.PlanName
+                                        </p>
+
+                                        <div class="price-display">
+                                            <span class="final-price-amount">@discountedPrice.ToString("C")</span>
+                                            <span class="final-price-label">netto</span>
+                                            @if (Model.DiscountValue.HasValue && Model.DiscountValue.Value > 0)
+                                            {
+                                                <span class="original-price">@Model.PlanPrice.ToString("C")</span>
+                                            }
+                                        </div>
+                                        @if (Model.DiscountValue.HasValue && Model.DiscountValue.Value > 0)
+                                        {
+                                            <div class="discount-info" style="margin-bottom: 20px;">
+                                                Rabat: @Model.DiscountValue.Value.ToString("F2")%
+                                            </div>
+                                        }
+
+                                        
                                     </div>
                                 </div>
                             </div>
-
-                            <!-- Display Billing Data Details in a custom table -->
-                            <div id="paymentDataDetails" style="display:none;">
-                                <table class="custom-info-table">
-                                    <tr>
-                                        <th>Nazwa firmy</th>
-                                        <td id="companyName"></td>
-                                    </tr>
-                                    <tr>
-                                        <th>Adres</th>
-                                        <td id="address"></td>
-                                    </tr>
-                                    <tr>
-                                        <th>Kod pocztowy</th>
-                                        <td id="postalCode"></td>
-                                    </tr>
-                                    <tr>
-                                        <th>Miasto</th>
-                                        <td id="city"></td>
-                                    </tr>
-                                    <tr>
-                                        <th>NIP</th>
-                                        <td id="nip"></td>
-                                    </tr>
-                                </table>
-                            </div>
-
-                            <!-- Form for Adding/Editing Billing Data -->
-                            <div id="paymentDataFormContainer" style="display:none;">
-                                <form id="paymentDataForm">
-                                    <input type="hidden" id="PaymentDataId" name="PaymentDataId" value="" />
-                                    <div class="form-group">
-                                        <label for="CompanyName">Nazwa firmy</label>
-                                        <input type="text" class="form-control" id="CompanyName" name="CompanyName" required />
-                                    </div>
-                                    <div class="form-group">
-                                        <label for="Address">Adres</label>
-                                        <input type="text" class="form-control" id="Address" name="Address" required />
-                                    </div>
-                                    <div class="form-group">
-                                        <label for="PostalCode">Kod pocztowy</label>
-                                        <input type="text" class="form-control" id="PostalCode" name="PostalCode" required />
-                                    </div>
-                                    <div class="form-group">
-                                        <label for="City">Miasto</label>
-                                        <input type="text" class="form-control" id="City" name="City" required />
-                                    </div>
-                                    <div class="form-group">
-                                        <label for="NIP">NIP</label>
-                                        <input type="text" class="form-control" id="NIP" name="NIP" required />
-                                    </div>
-                                    <div class="form-group">
-                                        <label for="InvoiceAutoMail">E-mail do automatycznej wysyłki faktur (opcjonalny)</label>
-                                        <input type="email" class="form-control" id="InvoiceAutoMail" name="InvoiceAutoMail" />
-                                    </div>
-                                    <div class="form-group form-check">
-                                        <input type="checkbox" class="form-check-input" id="InvoiceAutoMailSend" name="InvoiceAutoMailSend" value="true" />
-                                        <label class="form-check-label" for="InvoiceAutoMailSend">Automatyczna wysyłka faktur na e-mail</label>
-                                    </div>
-                                    <div style="margin-top:16px;">
-                                        <button type="button" class="Button-Page-Small-bl" id="savePaymentDataButton">Zapisz dane</button>
-                                        <button type="button" class="Button-Page-Small" id="cancelPaymentDataButton">Anuluj</button>
-                                    </div>
-                                </form>
-                            </div>
-                        </div>
-                        <div class="modal-body">
-                            <div class="store-details">
-                                <img src="~/images/@planImageFile" alt="@Model.PlanName" style="height:36px; margin-bottom:24px;" />
-                                <div class="store-details-title">Plan @Model.PlanName dla @Model.StoreName</div>
-                                @if (Model.DiscountValue.HasValue && Model.DiscountValue.Value > 0)
-                                {
-                                    var discountAmount = Model.PlanPrice * (Model.DiscountValue.Value / 100);
-                                    var discountedPrice = Model.PlanPrice - discountAmount;
-                                    <div style="display:flex; flex-direction:column; align-items:flex-start; margin-bottom:10px;">
-                                        <div>
-                                            <p style="color: darkgreen; font-weight: bold;">@discountedPrice.ToString("C")</p>
-                                            <p style="text-decoration: line-through; font-weight: normal; color: #222222;">@Model.PlanPrice.ToString("C")</p>
-                                        </div>
-                                        <div style="font-weight:500; color: #222222; margin-top: 4px;">
-                                            Rabat: @Model.DiscountValue.Value.ToString("F2")%
-                                        </div>
-                                    </div>
-                                }
-                                else
-                                {
-                                    <p>Kwota: @Model.PlanPrice.ToString("C") Netto</p>
-                                }
-                                <table class="custom-info-table">
-                                    <tr>
-                                        <th>Maksymalna ilość produktów</th>
-                                        <td>@Model.ProductsToScrap</td>
-                                    </tr>
-                                    <tr>
-                                        <th>Pakiet analiz</th>
-                                        <td>@Model.ScrapesPerInvoice</td>
-                                    </tr>
-                                    <tr>
-                                        <th>Dane historyczne</th>
-                                        <td>30 analiz</td>
-                                    </tr>
-                                    <tr>
-                                        <th>Źródło danych</th>
-                                        <td>
-                                            @if (Model.Ceneo && Model.GoogleShopping)
-                                            {
-                                                <img src="~/images/Ceneo.png" alt="Ceneo" style="height:18px;width:18px;" />
-                                                <img src="~/images/GoogleShopping.png" alt="Google Shopping" style="height:18px;width:18px;" />
-                                            }
-                                            else if (Model.Ceneo)
-                                            {
-                                                <img src="~/images/Ceneo.png" alt="Ceneo" style="height:18px;width:18px;" />
-                                            }
-                                            else if (Model.GoogleShopping)
-                                            {
-                                                <img src="~/images/GoogleShopping.png" alt="Google Shopping" style="height:18px;width:18px;" />
-                                            }
-                                            else
-                                            {
-                                                <span>Brak</span>
-                                            }
-                                        </td>
-                                    </tr>
-                                    <tr>
-                                        <th>Informacje</th>
-                                        <td>@Model.Info</td>
-                                    </tr>
-                                  
-                                </table>
-                            </div>
                         </div>
                     </div>
-                    <!-- Modal Footer -->
                     <div class="modal-footer">
-                        <form id="generateProformaForm" method="post" asp-action="GenerateProforma">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Anuluj</button>
+                        <form id="generateProformaForm" method="post" asp-action="GenerateProforma" style="margin:0;">
                             <input type="hidden" name="storeId" value="@Model.StoreId" />
                             <input type="hidden" id="paymentDataId" name="paymentDataId" value="" />
-                            <button type="submit" class="btn btn-success" id="generateProformaButton" disabled>Generuj Proformę</button>
+                            <button type="submit" class="btn btn-success" id="generateProformaButton" disabled>Generuj i pobierz Proformę</button>
                         </form>
-                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Anuluj</button>
                     </div>
                 </div>
             </div>
@@ -356,7 +439,8 @@
 
         @if (Model.Invoices != null && Model.Invoices.Any())
         {
-            <div class="Vert-table">
+            <div class="Vert-table" style="margin-top: 30px;">
+                <h3 style="font-weight: 400; margin-bottom: 20px;">Historia płatności</h3>
                 <table class="table-orders">
                     <thead>
                         <tr>
@@ -417,7 +501,7 @@
         }
         else
         {
-            <p>Brak historii faktur dla tego sklepu.</p>
+            <p style="margin-top: 40px;">Brak historii faktur dla tego sklepu.</p>
         }
     </div>
 </div>
@@ -545,7 +629,7 @@
             $("#cancelPaymentDataButton").click(function () {
                 hideForm();
                 var paymentDataId = $("#paymentDataId").val();
-                if (paymentDataId) {
+                if (paymentDataId && $("#paymentDataSelect").val()) { // Only show details if an item is selected
                     populatePaymentData(paymentDataId);
                 } else {
                     hideDetails();
@@ -566,16 +650,7 @@
                     data: formData,
                     success: function (response) {
                         if (response.success) {
-                            var newPaymentData = {
-                                paymentDataId: response.paymentData.paymentDataId,
-                                companyName: response.paymentData.companyName,
-                                address: response.paymentData.address,
-                                postalCode: response.paymentData.postalCode,
-                                city: response.paymentData.city,
-                                nip: response.paymentData.nip,
-                                invoiceAutoMail: response.paymentData.invoiceAutoMail,
-                                invoiceAutoMailSend: response.paymentData.invoiceAutoMailSend
-                            };
+                            var newPaymentData = response.paymentData;
                             var existingData = paymentDataList.find(x => x.paymentDataId == newPaymentData.paymentDataId);
                             if (existingData) {
                                 Object.assign(existingData, newPaymentData);

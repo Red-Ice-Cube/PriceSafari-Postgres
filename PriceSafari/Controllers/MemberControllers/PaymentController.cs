@@ -116,6 +116,7 @@ namespace PriceSafari.Controllers.MemberControllers
                 PlanPrice = store.Plan?.NetPrice ?? 0,
 
                 ProductsToScrap = store.ProductsToScrap ?? 0,
+                ProductsToScrapAllegro = store.ProductsToScrapAllegro ?? 0,
                 ScrapesPerInvoice = store.Plan?.ScrapesPerInvoice ?? 0,
                 HasUnpaidInvoice = store.Invoices.Any(i => !i.IsPaid),
                 DiscountValue = store.DiscountPercentage,
@@ -124,6 +125,7 @@ namespace PriceSafari.Controllers.MemberControllers
 
                 Ceneo = store.Plan?.Ceneo ?? false,
                 GoogleShopping = store.Plan?.GoogleShopping ?? false,
+                Allegro = store.Plan?.Allegro ?? false,
                 Info = store.Plan?.Info ?? string.Empty
             };
 

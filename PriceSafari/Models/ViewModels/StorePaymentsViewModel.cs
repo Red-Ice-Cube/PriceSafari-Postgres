@@ -11,6 +11,7 @@ namespace PriceSafari.Models.ViewModels
         public string PlanName { get; set; }
         public decimal PlanPrice { get; set; }
         public int ProductsToScrap { get; set; }
+        public int ProductsToScrapAllegro { get; set; }
         public int ScrapesPerInvoice { get; set; }
         public bool HasUnpaidInvoice { get; set; }
         public bool IsTestPlan { get; set; }
@@ -21,6 +22,7 @@ namespace PriceSafari.Models.ViewModels
         // Nowe pola
         public bool Ceneo { get; set; }
         public bool GoogleShopping { get; set; }
+        public bool Allegro { get; set; }
         public string Info { get; set; }
     }
 }
