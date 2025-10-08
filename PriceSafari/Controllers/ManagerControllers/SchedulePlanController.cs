@@ -185,6 +185,7 @@ namespace PriceSafari.Controllers
                 GoogleEnabled = model.GoogleEnabled,
                 CeneoEnabled = model.CeneoEnabled,
                 AleBaseEnabled = model.AleBaseEnabled,
+                UrlScalAleEnabled = model.UrlScalAleEnabled,
                 DayDetailId = dayDetailId
             };
             _context.ScheduleTasks.Add(newTask);
@@ -234,6 +235,7 @@ namespace PriceSafari.Controllers
                 GoogleEnabled = task.GoogleEnabled,
                 CeneoEnabled = task.CeneoEnabled,
                 AleBaseEnabled = task.AleBaseEnabled,
+                UrlScalAleEnabled = task.UrlScalAleEnabled,
                 Stores = allStores.Select(s => new StoreCheckboxItem
                 {
                     StoreId = s.StoreId,
@@ -323,6 +325,7 @@ namespace PriceSafari.Controllers
             task.GoogleEnabled = model.GoogleEnabled;
             task.CeneoEnabled = model.CeneoEnabled;
             task.AleBaseEnabled = model.AleBaseEnabled;
+            task.UrlScalAleEnabled = model.UrlScalAleEnabled;
 
             // Aktualizacja sklepów (M:N)
             // 1) Usuwamy te, których już nie zaznaczono
