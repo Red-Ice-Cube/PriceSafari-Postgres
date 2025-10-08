@@ -305,6 +305,7 @@ namespace PriceSafari.Controllers.MemberControllers
                 NetAmount = netPrice,
                 ScrapesIncluded = store.Plan.ScrapesPerInvoice,
                 UrlsIncluded = store.Plan.ProductsToScrap,
+                UrlsIncludedAllegro = store.Plan.ProductsToScrapAllegro,
                 IsPaid = false,
                 CompanyName = paymentData.CompanyName,
                 Address = paymentData.Address,

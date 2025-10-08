@@ -20,14 +20,18 @@ namespace PriceSafari.Models
         [Display(Name = "Plan Testowy")]
         public bool IsTestPlan { get; set; } = false;
 
-        [Required(ErrorMessage = "Liczba produktów do zeskrobania jest wymagana.")]
-        [Display(Name = "Produkty do Zeskrobania")]
+        [Display(Name = "Maks prod. do analizy (porównywarki cenowe)")]
         [Range(1, int.MaxValue, ErrorMessage = "Liczba produktów musi być większa od zera.")]
-        public int ProductsToScrap { get; set; }
+        public int? ProductsToScrap { get; set; } // Zmiana na int? i usunięcie [Required]
 
-        [Required(ErrorMessage = "Liczba zeskrobań jest wymagana.")]
-        [Display(Name = "Ilość Zeskrobań")]
-        [Range(1, int.MaxValue, ErrorMessage = "Ilość zeskrobań musi być większa od zera.")]
+        [Display(Name = "Maks prod. do analizy (marketplace)")]
+        [Range(1, int.MaxValue, ErrorMessage = "Liczba produktów musi być większa od zera.")]
+        public int? ProductsToScrapAllegro { get; set; }
+
+
+        [Required(ErrorMessage = "Liczba analiz jest wymagana.")]
+        [Display(Name = "Ilość analiz")]
+        [Range(1, int.MaxValue, ErrorMessage = "Ilość analiz musi być większa od zera.")]
         public int ScrapesPerInvoice { get; set; }
 
     

@@ -43,8 +43,11 @@ namespace PriceSafari.Models
         [Display(Name = "Ilość Pakietów")]
         public int ScrapesIncluded { get; set; }
 
-        [Display(Name = "Maksymalna ilość produktów")]
-        public int UrlsIncluded { get; set; }
+        [Display(Name = "Maksymalna ilość produktów (Porównywarki cenowe)")]
+        public int? UrlsIncluded { get; set; }
+
+        [Display(Name = "Maksymalna ilość produktów (Marketplace)")]
+        public int? UrlsIncludedAllegro { get; set; } 
 
 
 

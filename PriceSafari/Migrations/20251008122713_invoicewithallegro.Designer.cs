@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using PriceSafari.Data;
 
@@ -11,9 +12,11 @@ using PriceSafari.Data;
 namespace PriceSafari.Migrations
 {
     [DbContext(typeof(PriceSafariContext))]
-    partial class PriceSafariContextModelSnapshot : ModelSnapshot
+    [Migration("20251008122713_invoicewithallegro")]
+    partial class invoicewithallegro
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -883,7 +886,7 @@ namespace PriceSafari.Migrations
                     b.Property<int>("StoreId")
                         .HasColumnType("int");
 
-                    b.Property<int?>("UrlsIncluded")
+                    b.Property<int>("UrlsIncluded")
                         .HasColumnType("int");
 
                     b.Property<int?>("UrlsIncludedAllegro")
@@ -951,10 +954,7 @@ namespace PriceSafari.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<int?>("ProductsToScrap")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("ProductsToScrapAllegro")
+                    b.Property<int>("ProductsToScrap")
                         .HasColumnType("int");
 
                     b.Property<int>("ScrapesPerInvoice")
