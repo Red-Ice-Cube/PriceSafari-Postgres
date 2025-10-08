@@ -26,7 +26,9 @@ public class ScheduledTaskService : BackgroundService
         var urlScalKey = Environment.GetEnvironmentVariable("URL_SCAL");
         var gooCrawKey = Environment.GetEnvironmentVariable("GOO_CRAW");
         var cenCrawKey = Environment.GetEnvironmentVariable("CEN_CRAW");
-        var aleBaseScalKey = Environment.GetEnvironmentVariable("ALE_BASE_SCAL"); // <--- NOWA ZMIENNA
+        var aleBaseScalKey = Environment.GetEnvironmentVariable("ALE_BASE_SCAL");
+        var urlScalAleKey = Environment.GetEnvironmentVariable("URL_SCAL_ALE");
+
 
         var deviceName = Environment.GetEnvironmentVariable("DEVICE_NAME") ?? "UnknownDevice";
 
@@ -106,7 +108,8 @@ public class ScheduledTaskService : BackgroundService
                                 (t.CeneoEnabled && cenCrawKey == "56981467") ||
                                 (t.GoogleEnabled && gooCrawKey == "03713857") ||
                                 (t.BaseEnabled && baseScalKey == "34692471") ||
-                                (t.AleBaseEnabled && aleBaseScalKey == "19892023");
+                                (t.AleBaseEnabled && aleBaseScalKey == "19892023") ||
+                                 (t.UrlScalAleEnabled && urlScalAleKey == "20231989");
 
                                 if (!canRunAnything)
                                 {
@@ -125,7 +128,7 @@ public class ScheduledTaskService : BackgroundService
                                 t.LastRunDate = DateTime.Now;
                                 context.ScheduleTasks.Update(t);
 
-                                if (t.BaseEnabled || t.AleBaseEnabled) // Token jest konsumowany tylko przez akcje scalania
+                                if (t.BaseEnabled || t.AleBaseEnabled)
                                 {
                                     var storeIdsInTask = t.TaskStores.Select(ts => ts.StoreId).Distinct().ToList();
                                     if (storeIdsInTask.Any())
@@ -150,7 +153,6 @@ public class ScheduledTaskService : BackgroundService
                                         }
                                     }
                                 }
-                                // --------------------------------------------------------
 
                                 await context.SaveChangesAsync(stoppingToken);
 
@@ -174,6 +176,10 @@ public class ScheduledTaskService : BackgroundService
                                 {
                                     await RunAleBaseScalAsync(context, deviceName, t, stoppingToken);
                                 }
+                                if (t.UrlScalAleEnabled && urlScalAleKey == "20231989")
+                                {
+                                    await RunUrlScalAleAsync(context, deviceName, t, stoppingToken);
+                                }
 
                                 await Task.Delay(TimeSpan.FromSeconds(10), stoppingToken);
                             }
@@ -186,7 +192,7 @@ public class ScheduledTaskService : BackgroundService
                 {
                     _lastDeviceCheck = DateTime.Now;
                     await UpdateDeviceStatusAsync(context, deviceName, baseScalKey, urlScalKey,
-                        gooCrawKey, cenCrawKey, aleBaseScalKey, stoppingToken);
+                        gooCrawKey, cenCrawKey, aleBaseScalKey, urlScalAleKey, stoppingToken);
                 }
             }
             catch (Exception ex)
@@ -420,7 +426,7 @@ public class ScheduledTaskService : BackgroundService
             var allegroProcessingService = context.GetService<AllegroProcessingService>();
             foreach (var stRel in task.TaskStores)
             {
-                // Serwis wewnętrznie sprawdzi, czy sklep ma tokeny (RemainingScrapes > 0)
+
                 await allegroProcessingService.ProcessScrapedDataForStoreAsync(stRel.StoreId);
                 processedStoreCount++;
             }
@@ -447,6 +453,49 @@ public class ScheduledTaskService : BackgroundService
         }
     }
 
+    private async Task RunUrlScalAleAsync(PriceSafariContext context, string deviceName, ScheduleTask task, CancellationToken ct)
+    {
+        var log = new TaskExecutionLog
+        {
+            DeviceName = deviceName,
+            OperationName = "URL_SCAL_ALE",
+            StartTime = DateTime.Now,
+            Comment = $"Początek grupowania URL Allegro | SessionName={task.SessionName}; Sklepy: {string.Join(", ", task.TaskStores.Select(ts => ts.Store.StoreName))}"
+        };
+        context.TaskExecutionLogs.Add(log);
+        await context.SaveChangesAsync(ct);
+
+        int logId = log.Id;
+
+        try
+        {
+            var storeIds = task.TaskStores.Select(ts => ts.StoreId).ToList();
+            var allegroUrlGroupingService = context.GetService<AllegroUrlGroupingService>(); // Pobranie serwisu
+
+            var (urlsPrepared, totalProducts, processedStoreNames) = await allegroUrlGroupingService.GroupAndSaveUrls(storeIds);
+
+            var finishedLog = await context.TaskExecutionLogs.FindAsync(new object[] { logId }, ct);
+            if (finishedLog != null)
+            {
+                finishedLog.EndTime = DateTime.Now;
+                finishedLog.Comment += $" | Sukces. Przygotowano {urlsPrepared} URL-i z {totalProducts} produktów. Przetworzone sklepy: {string.Join(", ", processedStoreNames)}.";
+                context.TaskExecutionLogs.Update(finishedLog);
+                await context.SaveChangesAsync(ct);
+            }
+        }
+        catch (Exception ex)
+        {
+            var finishedLog = await context.TaskExecutionLogs.FindAsync(new object[] { logId }, ct);
+            if (finishedLog != null)
+            {
+                finishedLog.EndTime = DateTime.Now;
+                finishedLog.Comment += $" | Wystąpił błąd podczas grupowania URL Allegro: {ex.Message}";
+                context.TaskExecutionLogs.Update(finishedLog);
+                await context.SaveChangesAsync(ct);
+            }
+        }
+    }
+
 
     private async Task UpdateDeviceStatusAsync(
         PriceSafariContext context,
@@ -456,6 +505,7 @@ public class ScheduledTaskService : BackgroundService
         string gooCrawKey,
         string cenCrawKey,
         string aleBaseScalKey,
+           string urlScalAleKey,
 
         CancellationToken ct)
     {
@@ -464,12 +514,14 @@ public class ScheduledTaskService : BackgroundService
         const string GOO_CRAW_EXPECTED = "03713857";
         const string CEN_CRAW_EXPECTED = "56981467";
         const string ALE_BASE_SCAL_EXPECTED = "19892023";
+        const string URL_SCAL_ALE_EXPECTED = "20231989";
 
         bool hasBaseScal = (baseScalKey == BASE_SCAL_EXPECTED);
         bool hasUrlScal = (urlScalKey == URL_SCAL_EXPECTED);
         bool hasGooCraw = (gooCrawKey == GOO_CRAW_EXPECTED);
         bool hasCenCraw = (cenCrawKey == CEN_CRAW_EXPECTED);
         bool hasAleBaseScal = (aleBaseScalKey == ALE_BASE_SCAL_EXPECTED);
+        bool hasUrlScalAle = (urlScalAleKey == URL_SCAL_ALE_EXPECTED);
 
         var newStatus = new DeviceStatus
         {
@@ -480,7 +532,8 @@ public class ScheduledTaskService : BackgroundService
             UrlScalEnabled = hasUrlScal,
             GooCrawEnabled = hasGooCraw,
             CenCrawEnabled = hasCenCraw,
-            AleBaseScalEnabled = hasAleBaseScal
+            AleBaseScalEnabled = hasAleBaseScal,
+            UrlScalAleEnabled = hasUrlScalAle
         };
 
         await context.DeviceStatuses.AddAsync(newStatus, ct);

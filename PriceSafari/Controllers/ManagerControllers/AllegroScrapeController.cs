@@ -103,14 +103,14 @@ namespace PriceSafari.Controllers.ManagerControllers
             return RedirectToAction(nameof(Index));
         }
 
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> PrepareUrls()
-        {
-            var (urlsPrepared, totalProducts) = await _groupingService.GroupAndSaveUrls();
-            TempData["SuccessMessage"] = $"Przygotowano {urlsPrepared} unikalnych URL-i z {totalProducts} zebranych produktów.";
-            return RedirectToAction(nameof(Index));
-        }
+        //[HttpPost]
+        //[ValidateAntiForgeryToken]
+        //public async Task<IActionResult> PrepareUrls()
+        //{
+        //    var (urlsPrepared, totalProducts) = await _groupingService.GroupAndSaveUrls();
+        //    TempData["SuccessMessage"] = $"Przygotowano {urlsPrepared} unikalnych URL-i z {totalProducts} zebranych produktów.";
+        //    return RedirectToAction(nameof(Index));
+        //}
 
         [HttpPost]
         [ValidateAntiForgeryToken]

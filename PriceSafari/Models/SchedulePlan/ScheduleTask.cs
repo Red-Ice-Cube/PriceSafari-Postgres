@@ -23,7 +23,7 @@ namespace PriceSafari.Models.SchedulePlan
         public bool GoogleEnabled { get; set; }
         public bool CeneoEnabled { get; set; }
         public bool AleBaseEnabled { get; set; }
-
+        public bool UrlScalAleEnabled { get; set; }
 
         public int DayDetailId { get; set; }
         public DayDetail DayDetail { get; set; }

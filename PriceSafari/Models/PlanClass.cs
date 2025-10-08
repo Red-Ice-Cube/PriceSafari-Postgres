@@ -22,7 +22,7 @@ namespace PriceSafari.Models
 
         [Display(Name = "Maks prod. do analizy (porównywarki cenowe)")]
         [Range(1, int.MaxValue, ErrorMessage = "Liczba produktów musi być większa od zera.")]
-        public int? ProductsToScrap { get; set; } // Zmiana na int? i usunięcie [Required]
+        public int? ProductsToScrap { get; set; } 
 
         [Display(Name = "Maks prod. do analizy (marketplace)")]
         [Range(1, int.MaxValue, ErrorMessage = "Liczba produktów musi być większa od zera.")]
@@ -47,7 +47,6 @@ namespace PriceSafari.Models
         [Display(Name = "Informacje")]
         public string Info { get; set; }
 
-        // Nawigacyjne właściwości
         public ICollection<StoreClass> Stores { get; set; } = new List<StoreClass>();
         public ICollection<InvoiceClass> Invoices { get; set; } = new List<InvoiceClass>();
     }

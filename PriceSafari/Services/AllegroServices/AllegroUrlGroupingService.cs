@@ -6,62 +6,83 @@ namespace PriceSafari.Services.AllegroServices
 {
     public class AllegroUrlGroupingService
     {
+        private readonly PriceSafariContext _context;
+        private readonly ILogger<AllegroUrlGroupingService> _logger;
 
-        
-            private readonly PriceSafariContext _context;
-            private readonly ILogger<AllegroUrlGroupingService> _logger;
+        public AllegroUrlGroupingService(PriceSafariContext context, ILogger<AllegroUrlGroupingService> logger)
+        {
+            _context = context;
+            _logger = logger;
+        }
 
-            public AllegroUrlGroupingService(PriceSafariContext context, ILogger<AllegroUrlGroupingService> logger)
+        // ZMIANA: Metoda przyjmuje teraz listę ID sklepów do przetworzenia
+        public async Task<(int urlsPrepared, int totalProducts, List<string> processedStoreNames)> GroupAndSaveUrls(List<int> storeIds)
+        {
+            _logger.LogInformation("Rozpoczynam proces grupowania URL-i ofert Allegro dla wybranych sklepów...");
+
+            if (storeIds == null || !storeIds.Any())
             {
-                _context = context;
-                _logger = logger;
+                _logger.LogWarning("Lista ID sklepów jest pusta. Przerwanie operacji.");
+                return (0, 0, new List<string>());
             }
 
-            public async Task<(int urlsPrepared, int totalProducts)> GroupAndSaveUrls()
-            {
-                _logger.LogInformation("Rozpoczynam proces grupowania URL-i ofert Allegro...");
+            // ZMIANA: Weryfikacja sklepów przed przetworzeniem
+            var validStores = await _context.Stores
+                .Where(s => storeIds.Contains(s.StoreId) && s.OnAllegro && s.RemainingScrapes > 0)
+                .Select(s => new { s.StoreId, s.StoreName })
+                .ToListAsync();
 
-                var allProducts = await _context.AllegroProducts
-                 .Where(p => p.IsScrapable)
-                 .AsNoTracking()
-                 .ToListAsync();
+            var validStoreIds = validStores.Select(s => s.StoreId).ToList();
+            var validStoreNames = validStores.Select(s => s.StoreName).ToList();
+
+            if (!validStoreIds.Any())
+            {
+                _logger.LogWarning("Żaden ze wskazanych sklepów nie spełnia kryteriów (OnAllegro=true, RemainingScrapes>0).");
+                return (0, 0, new List<string>());
+            }
+
+            _logger.LogInformation("Sklepy zakwalifikowane do grupowania URL Allegro: {StoreNames}", string.Join(", ", validStoreNames));
+
+            // ZMIANA: Pobieranie produktów tylko dla zweryfikowanych sklepów
+            var allProducts = await _context.AllegroProducts
+               .Where(p => validStoreIds.Contains(p.StoreId) && p.IsScrapable)
+               .AsNoTracking()
+               .ToListAsync();
 
             if (!allProducts.Any())
-                {
-                    _logger.LogWarning("Nie znaleziono żadnych produktów Allegro do przetworzenia.");
-                    return (0, 0);
-                }
-
-                var groupedByUrl = allProducts
-                    .Where(p => !string.IsNullOrWhiteSpace(p.AllegroOfferUrl))
-                    .GroupBy(p => p.AllegroOfferUrl);
-
-                var offersToSave = new List<AllegroOfferToScrape>();
-
-                foreach (var group in groupedByUrl)
-                {
-                    var newOffer = new AllegroOfferToScrape
-                    {
-                        AllegroOfferUrl = group.Key,
-                        AllegroProductIds = group.Select(p => p.AllegroProductId).ToList(),
-                        AddedDate = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, TimeZoneInfo.FindSystemTimeZoneById("Central European Standard Time"))
-                    };
-                    offersToSave.Add(newOffer);
-                }
-
-                _logger.LogInformation("Znaleziono {UrlCount} unikalnych URL-i z {ProductCount} produktów.", offersToSave.Count, allProducts.Count);
-
-                _logger.LogInformation("Czyszczenie istniejących danych w tabeli pośredniej...");
-                await _context.AllegroOffersToScrape.ExecuteDeleteAsync();
-
-                _logger.LogInformation("Zapisywanie nowych, zgrupowanych danych...");
-                await _context.AllegroOffersToScrape.AddRangeAsync(offersToSave);
-                await _context.SaveChangesAsync();
-
-                _logger.LogInformation("Proces grupowania zakończony pomyślnie.");
-                return (offersToSave.Count, allProducts.Count);
+            {
+                _logger.LogWarning("Nie znaleziono żadnych produktów Allegro do przetworzenia dla podanych sklepów.");
+                return (0, 0, validStoreNames);
             }
-        
 
+            var groupedByUrl = allProducts
+                .Where(p => !string.IsNullOrWhiteSpace(p.AllegroOfferUrl))
+                .GroupBy(p => p.AllegroOfferUrl);
+
+            var offersToSave = new List<AllegroOfferToScrape>();
+
+            foreach (var group in groupedByUrl)
+            {
+                var newOffer = new AllegroOfferToScrape
+                {
+                    AllegroOfferUrl = group.Key,
+                    AllegroProductIds = group.Select(p => p.AllegroProductId).ToList(),
+                    AddedDate = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, TimeZoneInfo.FindSystemTimeZoneById("Central European Standard Time"))
+                };
+                offersToSave.Add(newOffer);
+            }
+
+            _logger.LogInformation("Znaleziono {UrlCount} unikalnych URL-i z {ProductCount} produktów.", offersToSave.Count, allProducts.Count);
+
+            _logger.LogInformation("Czyszczenie istniejących danych w tabeli pośredniej...");
+            await _context.AllegroOffersToScrape.ExecuteDeleteAsync();
+
+            _logger.LogInformation("Zapisywanie nowych, zgrupowanych danych...");
+            await _context.AllegroOffersToScrape.AddRangeAsync(offersToSave);
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation("Proces grupowania zakończony pomyślnie.");
+            return (offersToSave.Count, allProducts.Count, validStoreNames);
+        }
     }
 }
