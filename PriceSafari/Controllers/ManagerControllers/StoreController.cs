@@ -108,6 +108,7 @@ namespace PriceSafari.Controllers.ManagerControllers
             existingStore.OnCeneo = store.OnCeneo;
             existingStore.OnGoogle = store.OnGoogle;
             existingStore.OnAllegro = store.OnAllegro;
+            existingStore.ProductsToScrapAllegro = store.ProductsToScrapAllegro;
 
             if (existingStore.PlanId != store.PlanId)
             {
