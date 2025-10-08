@@ -108,10 +108,10 @@ public class ScheduledTaskService : BackgroundService
                                 (t.UrlEnabled && urlScalKey == "49276583") ||
                                 (t.CeneoEnabled && cenCrawKey == "56981467") ||
                                 (t.GoogleEnabled && gooCrawKey == "03713857") ||
-                                (t.BaseEnabled && baseScalKey == "34692471") ||
-                                (t.AleBaseEnabled && aleBaseScalKey == "19892023") ||
+                                (t.BaseEnabled && baseScalKey == "34692471") ||                   
                                 (t.UrlScalAleEnabled && urlScalAleKey == "20231989") ||
-                                (t.AleCrawEnabled && aleCrawKey == "98765432");
+                                (t.AleCrawEnabled && aleCrawKey == "98765432") ||
+                                (t.AleBaseEnabled && aleBaseScalKey == "19892023");
 
                                 if (!canRunAnything)
                                 {
@@ -174,17 +174,21 @@ public class ScheduledTaskService : BackgroundService
                                 {
                                     await RunBaseScalAsync(context, deviceName, t, stoppingToken);
                                 }
-                                if (t.AleBaseEnabled && aleBaseScalKey == "19892023")
-                                {
-                                    await RunAleBaseScalAsync(context, deviceName, t, stoppingToken);
-                                }
                                 if (t.UrlScalAleEnabled && urlScalAleKey == "20231989")
                                 {
                                     await RunUrlScalAleAsync(context, deviceName, t, stoppingToken);
                                 }
+
+                                // 2. Uruchomienie crawlera Allegro
                                 if (t.AleCrawEnabled && aleCrawKey == "98765432")
                                 {
                                     await RunAleCrawAsync(context, deviceName, t, stoppingToken);
+                                }
+
+                                // 3. Scalanie bazy danych Allegro
+                                if (t.AleBaseEnabled && aleBaseScalKey == "19892023")
+                                {
+                                    await RunAleBaseScalAsync(context, deviceName, t, stoppingToken);
                                 }
                                 await Task.Delay(TimeSpan.FromSeconds(10), stoppingToken);
                             }
