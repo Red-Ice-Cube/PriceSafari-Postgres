@@ -30,7 +30,7 @@ window.openCompetitorsModal = async function () {
 };
 
 async function fetchPresets() {
-    const url = `/PriceHistory/GetPresets?storeId=${storeId}`;
+    const url = `/api/Presets/list/${storeId}`;
     try {
         const resp = await fetch(url);
         return await resp.json();
@@ -116,8 +116,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
 async function deactivateAllPresets() {
     try {
-        const resp = await fetch(`/PriceHistory/DeactivateAllPresets?storeId=${storeId}`, {
-            method: "POST"
+        const resp = await fetch(`/api/Presets/deactivate-all`, {
+            method: "POST",
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(storeId) // Wysyłamy storeId w ciele żądania
         });
         const data = await resp.json();
         if (!data.success) {
@@ -220,7 +222,7 @@ async function loadSelectedPreset(presetId) {
         return;
     }
     try {
-        const resp = await fetch(`/PriceHistory/GetPresetDetails?presetId=${presetId}`);
+        const resp = await fetch(`/api/Presets/details/${presetId}`);
         const preset = await resp.json();
         window.currentPreset = {
             presetId: preset.presetId,
@@ -345,8 +347,10 @@ async function loadSelectedPreset(presetId) {
         deleteBtn.onclick = async function () {
             if (confirm("Czy na pewno chcesz usunąć ten preset?")) {
                 try {
-                    const resp = await fetch(`/PriceHistory/DeletePreset?presetId=${window.currentPreset.presetId}`, {
-                        method: "POST"
+                    const resp = await fetch(`/api/Presets/delete`, {
+                        method: "POST",
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(window.currentPreset.presetId) 
                     });
                     const data = await resp.json();
                     if (data.success) {
@@ -396,7 +400,7 @@ function determineSourceVal(isGoogle, isCeneo) {
 
 async function loadCompetitors(ourSource) {
     try {
-        const url = `/PriceHistory/GetCompetitorStoresData?storeId=${storeId}&ourSource=${ourSource}`;
+        const url = `/api/Presets/competitor-data/${storeId}?ourSource=${ourSource}`;
         const response = await fetch(url);
         const data = await response.json();
         if (!data.data) {
@@ -565,7 +569,7 @@ document.addEventListener("DOMContentLoaded", () => {
             competitors: []
         };
         try {
-            const resp = await fetch("/PriceHistory/SaveOrUpdatePreset", {
+            const resp = await fetch("/api/Presets/save", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(newPreset)
@@ -639,7 +643,7 @@ async function saveOrUpdatePreset() {
     if (!window.currentPreset) return;
     if (!window.currentPreset.presetId) return;
     try {
-        const resp = await fetch("/PriceHistory/SaveOrUpdatePreset", {
+        const resp = await fetch("/api/Presets/save", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(window.currentPreset)

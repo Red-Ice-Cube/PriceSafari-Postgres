@@ -1,0 +1,316 @@
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using PriceSafari.Data;
+using PriceSafari.Models;
+using PriceSafari.Models.ViewModels;
+using PriceSafari.ViewModels; // Upewnij się, że ta przestrzeń nazw jest poprawna
+using System.Security.Claims;
+using Newtonsoft.Json;
+
+namespace PriceSafari.Controllers.MemberControllers
+{
+    [Authorize(Roles = "Admin, Manager, Member")]
+    [ApiController] // Dobrą praktyką dla kontrolerów API jest użycie tego atrybutu
+    [Route("api/[controller]")] // Przykładowy routing dla API
+    public class PresetsController : ControllerBase
+    {
+        private readonly PriceSafariContext _context;
+        private readonly UserManager<PriceSafariUser> _userManager;
+
+        public PresetsController(PriceSafariContext context, UserManager<PriceSafariUser> userManager)
+        {
+            _context = context;
+            _userManager = userManager;
+        }
+
+
+
+        private async Task<bool> UserHasAccessToStore(int storeId)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var user = await _userManager.FindByIdAsync(userId);
+            var isAdminOrManager = await _userManager.IsInRoleAsync(user, "Admin") || await _userManager.IsInRoleAsync(user, "Manager");
+
+            if (!isAdminOrManager)
+            {
+                var hasAccess = await _context.UserStores.AnyAsync(us => us.UserId == userId && us.StoreId == storeId);
+                return hasAccess;
+            }
+
+            return true;
+        }
+
+
+        [HttpGet("list/{storeId}")]
+        public async Task<IActionResult> GetPresets(int storeId)
+        {
+            if (!await UserHasAccessToStore(storeId))
+            {
+                return BadRequest("Nie ma takiego sklepu lub brak dostępu.");
+            }
+
+            var presets = await _context.CompetitorPresets
+                .Where(p => p.StoreId == storeId)
+                .Select(p => new
+                {
+                    p.PresetId,
+                    p.PresetName,
+                    p.NowInUse
+                })
+                .ToListAsync();
+
+            return Ok(presets);
+        }
+
+        [HttpGet("details/{presetId}")]
+        public async Task<IActionResult> GetPresetDetails(int presetId)
+        {
+            var preset = await _context.CompetitorPresets
+                .Include(p => p.CompetitorItems)
+                .FirstOrDefaultAsync(p => p.PresetId == presetId);
+
+            if (preset == null)
+                return NotFound("Preset nie istnieje.");
+
+            if (!await UserHasAccessToStore(preset.StoreId))
+                return BadRequest("Brak dostępu do sklepu.");
+
+            var result = new
+            {
+                presetId = preset.PresetId,
+                presetName = preset.PresetName,
+                nowInUse = preset.NowInUse,
+                sourceGoogle = preset.SourceGoogle,
+                sourceCeneo = preset.SourceCeneo,
+                useUnmarkedStores = preset.UseUnmarkedStores,
+                competitorItems = preset.CompetitorItems
+                    .Select(ci => new
+                    {
+                        ci.StoreName,
+                        ci.IsGoogle,
+                        ci.UseCompetitor
+                    }).ToList()
+            };
+
+            return Ok(result);
+        }
+
+
+        [HttpGet("competitor-data/{storeId}")]
+        public async Task<IActionResult> GetCompetitorStoresData(int storeId, string ourSource = "All")
+        {
+            if (!await UserHasAccessToStore(storeId))
+            {
+                return BadRequest(new { error = "Nie ma takiego sklepu" });
+            }
+
+            var storeName = await _context.Stores
+                .Where(s => s.StoreId == storeId)
+                .Select(s => s.StoreName)
+                .FirstOrDefaultAsync();
+
+            var latestScrap = await _context.ScrapHistories
+                .Where(sh => sh.StoreId == storeId)
+                .OrderByDescending(sh => sh.Date)
+                .Select(sh => new { sh.Id, sh.Date })
+                .FirstOrDefaultAsync();
+
+            if (latestScrap == null)
+            {
+                return Ok(new { data = new List<object>() });
+            }
+
+            var basePricesQuery = _context.PriceHistories
+                .Where(ph => ph.ScrapHistoryId == latestScrap.Id);
+
+            // POPRAWKA: Uproszczony switch dla typu bool
+            switch (ourSource?.ToLower())
+            {
+                case "google":
+                    basePricesQuery = basePricesQuery.Where(ph => ph.IsGoogle);
+                    break;
+                case "ceneo":
+                    // Skoro IsGoogle to bool, warunek '== null' był błędny.
+                    // Poprawny warunek to po prostu sprawdzenie 'false'.
+                    basePricesQuery = basePricesQuery.Where(ph => !ph.IsGoogle);
+                    break;
+            }
+
+            var myProductIds = await basePricesQuery
+                .Where(ph => ph.StoreName.ToLower() == storeName.ToLower())
+                .Select(ph => ph.ProductId)
+                .Distinct()
+                .ToListAsync();
+
+            if (!myProductIds.Any())
+            {
+                // NOWA LOGIKA: Bez obsługi null, bo IsGoogle to bool
+                var storeCounts = await basePricesQuery
+                    .GroupBy(ph => new { ph.StoreName, ph.IsGoogle }) // <<< USUNIĘTO '?? false'
+                    .Select(g => new
+                    {
+                        StoreName = g.Key.StoreName,
+                        DataSource = g.Key.IsGoogle ? "Google" : "Ceneo",
+                        CommonProductsCount = g.Count()
+                    })
+                    .OrderByDescending(s => s.CommonProductsCount)
+                    .ToListAsync();
+
+                return Ok(new { data = storeCounts, analysisType = "fullScan" });
+            }
+            else
+            {
+                // ORYGINALNA LOGIKA: Również bez zbędnej obsługi null
+                var competitorPrices = await basePricesQuery
+                    .Where(ph => ph.StoreName.ToLower() != storeName.ToLower())
+                    .ToListAsync();
+
+                var competitors = competitorPrices
+                    .GroupBy(ph => new { NormalizedName = ph.StoreName.ToLower(), ph.IsGoogle }) // <<< USUNIĘTO '?? false'
+                    .Select(g =>
+                    {
+                        var storeNameInGroup = g.First().StoreName;
+                        bool isGoogle = g.Key.IsGoogle;
+
+                        var competitorProductIds = g
+                            .Select(x => x.ProductId)
+                            .Distinct();
+
+                        int commonProductsCount = myProductIds
+                            .Count(pid => competitorProductIds.Contains(pid));
+
+                        return new
+                        {
+                            StoreName = storeNameInGroup,
+                            DataSource = isGoogle ? "Google" : "Ceneo",
+                            CommonProductsCount = commonProductsCount
+                        };
+                    })
+                    .Where(c => c.CommonProductsCount >= 1)
+                    .OrderByDescending(c => c.CommonProductsCount)
+                    .ToList();
+
+                return Ok(new { data = competitors, analysisType = "commonProducts" });
+            }
+        }
+
+        [HttpPost("save")]
+        public async Task<IActionResult> SaveOrUpdatePreset([FromBody] CompetitorPresetViewModel model)
+        {
+            if (!await UserHasAccessToStore(model.StoreId))
+            {
+                return BadRequest("Brak dostępu do sklepu.");
+            }
+
+            CompetitorPresetClass preset;
+            if (model.PresetId == 0)
+            {
+                preset = new CompetitorPresetClass
+                {
+                    StoreId = model.StoreId,
+                };
+                _context.CompetitorPresets.Add(preset);
+            }
+            else
+            {
+                preset = await _context.CompetitorPresets
+                    .Include(p => p.CompetitorItems)
+                    .FirstOrDefaultAsync(p => p.PresetId == model.PresetId);
+
+                if (preset == null)
+                    return BadRequest("Taki preset nie istnieje.");
+
+                if (preset.StoreId != model.StoreId)
+                    return BadRequest("Błędny storeId dla tego presetu.");
+            }
+
+            preset.PresetName = string.IsNullOrWhiteSpace(model.PresetName)
+                ? "No Name"
+                : model.PresetName.Trim();
+
+            if (model.NowInUse)
+            {
+                var others = await _context.CompetitorPresets
+                    .Where(p => p.StoreId == model.StoreId && p.PresetId != model.PresetId && p.NowInUse)
+                    .ToListAsync();
+
+                foreach (var o in others)
+                    o.NowInUse = false;
+            }
+            preset.NowInUse = model.NowInUse;
+
+            preset.SourceGoogle = model.SourceGoogle;
+            preset.SourceCeneo = model.SourceCeneo;
+            preset.UseUnmarkedStores = model.UseUnmarkedStores;
+
+            if (model.Competitors != null)
+            {
+                preset.CompetitorItems.Clear();
+
+                foreach (var c in model.Competitors)
+                {
+                    preset.CompetitorItems.Add(new CompetitorPresetItem
+                    {
+                        StoreName = c.StoreName,
+                        IsGoogle = c.IsGoogle,
+                        UseCompetitor = c.UseCompetitor
+                    });
+                }
+            }
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new
+            {
+                success = true,
+                presetId = preset.PresetId
+            });
+        }
+
+        [HttpPost("deactivate-all")]
+        public async Task<IActionResult> DeactivateAllPresets(int storeId)
+        {
+            if (!await UserHasAccessToStore(storeId))
+            {
+                return BadRequest("Brak dostępu do sklepu.");
+            }
+
+            var activePresets = await _context.CompetitorPresets
+                .Where(p => p.StoreId == storeId && p.NowInUse)
+                .ToListAsync();
+
+            foreach (var preset in activePresets)
+            {
+                preset.NowInUse = false;
+            }
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new { success = true });
+        }
+
+        [HttpPost("delete")]
+        public async Task<IActionResult> DeletePreset(int presetId)
+        {
+            var preset = await _context.CompetitorPresets
+                .Include(p => p.CompetitorItems)
+                .FirstOrDefaultAsync(p => p.PresetId == presetId);
+
+            if (preset == null)
+                return NotFound("Preset nie istnieje.");
+
+            if (!await UserHasAccessToStore(preset.StoreId))
+                return BadRequest("Brak dostępu do sklepu.");
+
+            _context.CompetitorPresetItems.RemoveRange(preset.CompetitorItems);
+
+            _context.CompetitorPresets.Remove(preset);
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new { success = true });
+        }
+    }
+}
