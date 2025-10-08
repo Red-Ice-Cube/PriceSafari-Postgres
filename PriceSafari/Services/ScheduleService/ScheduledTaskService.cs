@@ -575,7 +575,7 @@ public class ScheduledTaskService : BackgroundService
                 double totalSeconds = (finishedLog.EndTime.Value - finishedLog.StartTime).TotalSeconds;
                 double urlsPerSecond = (totalSeconds > 0 && totalUrls > 0) ? totalUrls / totalSeconds : 0;
 
-                finishedLog.Comment += $" | Zakończono. Przetworzono {finalScraped}/{totalUrls} ofert. Odrzucono: {finalRejected}. Średnia prędkość: {urlsPerSecond:F2} URL/sek.";
+                finishedLog.Comment += $" | Sukces. Przetworzono {finalScraped}/{totalUrls} ofert. Odrzucono: {finalRejected}. Średnia prędkość: {urlsPerSecond:F2} URL/sek.";
                 context.TaskExecutionLogs.Update(finishedLog);
                 await context.SaveChangesAsync(ct);
             }
