@@ -7,6 +7,14 @@
 
 <h2>Plany</h2>
 
+<style>
+    .source-icon {
+        height: 30px;
+        width: 30px;
+        margin-right: 5px; 
+    }
+</style>
+
 <a asp-action="Create" class="btn btn-success">Dodaj Nowy Plan</a>
 
 <table class="table">
@@ -39,20 +47,20 @@
                     }
                 </td>
                 <td>
-                    @if (plan.Ceneo && plan.GoogleShopping)
+                    @if (plan.Ceneo)
                     {
-                        <img src="~/images/Ceneo.png" alt="Ceneo" style="height:30px;width:30px;" />
-                        <img src="~/images/GoogleShopping.png" alt="Google Shopping" style="height:30px;width:30px;" />
+                        <img src="~/images/Ceneo.png" alt="Ceneo" class="source-icon" />
                     }
-                    else if (plan.Ceneo)
+                    @if (plan.GoogleShopping)
                     {
-                        <img src="~/images/Ceneo.png" alt="Ceneo" style="height:30px;width:30px;" />
+                        <img src="~/images/GoogleShopping.png" alt="Google Shopping" class="source-icon" />
                     }
-                    else if (plan.GoogleShopping)
+                    @if (plan.Allegro)
                     {
-                        <img src="~/images/GoogleShopping.png" alt="Google Shopping" style="height:30px;width:30px;" />
+                        <img src="~/images/AllegroIcon.png" alt="Allegro" class="source-icon" />
                     }
-                    else
+
+                    @if (!plan.Ceneo && !plan.GoogleShopping && !plan.Allegro)
                     {
                         <span>Brak</span>
                     }
