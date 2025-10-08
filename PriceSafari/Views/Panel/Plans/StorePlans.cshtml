@@ -7,20 +7,50 @@
 @functions {
     public string GetAnalysesText(int count)
     {
-        if (count == 1)
-        {
-            return $"{count} analiza";
-        }
-        else if (count >= 2 && count <= 4)
-        {
-            return $"{count} analizy";
-        }
-        else
-        {
-            return $"{count} analiz";
-        }
+        if (count == 1) return $"{count} analiza";
+        if (count >= 2 && count <= 4) return $"{count} analizy";
+        return $"{count} analiz";
     }
 }
+
+<style>
+    /* Styl do wyszarzania nieaktywnych ikon */
+    .icon-disabled {
+        filter: grayscale(100%);
+        opacity: 0.6;
+    }
+
+    /* Klasa pomocnicza dla kontenera z ikonami, wzorowana na Twoim przykładzie */
+    .channels-container {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px; /* Odstęp między ikonami */
+        padding: 6px 12px;
+        background-color: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 30px;
+    }
+
+        .channels-container img {
+            height: 22px;
+            width: 22px;
+        }
+
+    .limits-text p {
+        margin: 0;
+        line-height: 1.2;
+    }
+
+    .limits-text .limit-value {
+        font-weight: 500;
+        font-size: 0.9em;
+    }
+
+    .limits-text .limit-description {
+        font-size: 0.8em;
+        color: #6c757d;
+    }
+</style>
 
 <div class="Vert">
     <div class="Vert-full">
@@ -34,51 +64,28 @@
                     <thead>
                         <tr>
                             <th>Plan</th>
-                          
                             <th>Sklep</th>
                             <th></th>
-                            <th>Ilość produktów w planie</th>
-                            <th>Źródło Danych</th>
-                            <th>Pozostałe pakiety</th>
-                         
+                            <th>Kanały i Limity Produktów</th>
+                            <th>Pozostałe analizy</th>
                         </tr>
                     </thead>
                     <tbody>
                         @foreach (var store in Model)
                         {
                             string validationClass = "Validation";
-                            if (store.LeftScrapes > 10)
-                            {
-                                validationClass += " Validation-accepted";
-                            }
-                            else if (store.LeftScrapes >= 5 && store.LeftScrapes <= 9)
-                            {
-                                validationClass += " Validation-company";
-                            }
-                            else if (store.LeftScrapes >= 1 && store.LeftScrapes <= 4)
-                            {
-                                validationClass += " Validation-cancelled";
-                            }
+                            if (store.LeftScrapes > 10) validationClass += " Validation-accepted";
+                            else if (store.LeftScrapes >= 5) validationClass += " Validation-company";
+                            else if (store.LeftScrapes >= 1) validationClass += " Validation-cancelled";
 
-                            // Określenie pliku graficznego planu:
                             string planImageFile = "";
-                            if (store.IsTestPlan)
-                            {
-                                planImageFile = "Free.png";
-                            }
-                            else
-                            {
-                                if (store.ProductsToScrap <= 500)
-                                    planImageFile = "Lite.png";
-                                else if (store.ProductsToScrap <= 1000)
-                                    planImageFile = "Basic.png";
-                                else if (store.ProductsToScrap <= 4000)
-                                    planImageFile = "Pro.png";
-                                else if (store.ProductsToScrap <= 10000)
-                                    planImageFile = "Ultimate.png";
-                                else
-                                    planImageFile = "Enterprise.png";
-                            }
+                            if (store.IsTestPlan) planImageFile = "Free.png";
+                            else if (store.ProductsToScrap <= 500) planImageFile = "Lite.png";
+                            else if (store.ProductsToScrap <= 1000) planImageFile = "Basic.png";
+                            else if (store.ProductsToScrap <= 4000) planImageFile = "Pro.png";
+                            else if (store.ProductsToScrap <= 10000) planImageFile = "Ultimate.png";
+                            else planImageFile = "Enterprise.png";
+
                             <tr class="store-row" style="cursor:pointer;" data-url="@Url.Action("StorePayments", "Payment", new { storeId = store.StoreId })">
                                 <td>
                                     <img src="~/images/@planImageFile" alt="@store.PlanName" style="height:22px;" />
@@ -87,40 +94,42 @@
                                         <div class="Validation Validation-accepted" style="display:inline-block; margin-left:5px;">Plan Testowy</div>
                                     }
                                 </td>
-                               
                                 <td>
                                     <img src="@store.LogoUrl" class="img-container" alt="@store.StoreName" />
                                 </td>
                                 <td>
                                     @store.StoreName
                                 </td>
-                                <td>
-                                   Do @store.ProductsToScrap SKU
-                                </td>
-                                <td>
 
-                                    @if (store.Ceneo && store.GoogleShopping)
-                                    {
-                                        <img src="~/images/Ceneo.png" alt="Ceneo" style="height:24px;width:24px;" />
-                                        <img src="~/images/GoogleShopping.png" alt="Google Shopping" style="height:24px;width:24px;" />
-                                    }
-                                    else if (store.Ceneo)
-                                    {
-                                        <img src="~/images/Ceneo.png" alt="Ceneo" style="height:24px;width:24px;" />
-                                    }
-                                    else if (store.GoogleShopping)
-                                    {
-                                        <img src="~/images/GoogleShopping.png" alt="Google Shopping" style="height:24px;width:24px;" />
-                                    }
-                                    else
-                                    {
-                                        <span>Brak</span>
-                                    }
+                                <td>
+                                    <div style="display: flex; align-items: center; gap: 15px;">
+
+                                        <div class="channels-container">
+                                            <img src="~/images/Ceneo.png" alt="Ceneo" class="@(store.Ceneo ? "" : "icon-disabled")" title="Ceneo" />
+                                            <img src="~/images/GoogleShopping.png" alt="Google Shopping" class="@(store.GoogleShopping ? "" : "icon-disabled")" title="Google Shopping" />
+                                            <img src="~/images/AllegroIcon.png" alt="Allegro" class="@(store.Allegro ? "" : "icon-disabled")" title="Allegro" />
+                                        </div>
+
+                                        <div class="limits-text">
+                                            <div>
+                                                <span class="limit-value">Do @store.ProductsToScrap SKU</span>
+                                                <span class="limit-description" style="margin-left: 1px;">w porównywarkach</span>
+                                            </div>
+                                            @if (store.Allegro)
+                                            {
+                                                <div>
+                                                    <span class="limit-value">Do @store.ProductsToScrapAllegro SKU</span>
+                                                    <span class="limit-description" style="margin-left: 1px;">na marketplace</span>
+                                                </div>
+                                            }
+                                        </div>
+
+                                    </div>
                                 </td>
+
                                 <td>
                                     <div class="@validationClass">@GetAnalysesText(store.LeftScrapes)</div>
                                 </td>
-                               
                             </tr>
                         }
                     </tbody>

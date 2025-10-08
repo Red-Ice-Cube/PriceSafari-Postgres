@@ -7,7 +7,6 @@ using PriceSafari.Models;
 using PriceSafari.Models.ViewModels;
 using System.Security.Claims;
 
-
 namespace PriceSafari.Controllers.MemberControllers
 {
     [Authorize(Roles = "Member, PreMember")]
@@ -22,27 +21,24 @@ namespace PriceSafari.Controllers.MemberControllers
             _userManager = userManager;
         }
 
-
         [HttpGet]
         public async Task<IActionResult> StorePlans()
         {
             if (User.IsInRole("PreMember"))
             {
-                // ZMIANA: Logika dla PreMember
+
                 var user = await _userManager.GetUserAsync(User);
                 if (user == null)
                 {
-                    // Mało prawdopodobne dla zalogowanego użytkownika, ale dobre zabezpieczenie
+
                     return Challenge();
                 }
 
-                // Przygotuj ViewModel dla widoku konfiguracji
                 var viewModel = new AwaitingConfigurationViewModel
                 {
-                    // Użyj nazwy sklepu z Ceneo lub Google, jeśli istnieje. W przeciwnym razie użyj placeholdera.
+
                     StoreName = user.PendingStoreNameCeneo ?? user.PendingStoreNameGoogle ?? "Twój Sklep (w konfiguracji)",
 
-                    // Sprawdź, czy użytkownik podał już URL do feeda
                     HasCeneoFeed = !string.IsNullOrWhiteSpace(user.PendingCeneoFeedUrl),
                     HasGoogleFeed = !string.IsNullOrWhiteSpace(user.PendingGoogleFeedUrl)
                 };
@@ -50,7 +46,6 @@ namespace PriceSafari.Controllers.MemberControllers
                 return View("~/Views/Panel/Plans/AwaitingConfiguration.cshtml", viewModel);
             }
 
-            // Dotychczasowa logika dla roli "Member" pozostaje bez zmian
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
             var userStores = await _context.UserStores
@@ -72,9 +67,11 @@ namespace PriceSafari.Controllers.MemberControllers
                     PlanPrice = store.Plan?.NetPrice ?? 0,
                     IsTestPlan = store.Plan?.IsTestPlan ?? false,
                     ProductsToScrap = store.ProductsToScrap ?? 0,
+                    ProductsToScrapAllegro = store.ProductsToScrapAllegro ?? 0,
                     LeftScrapes = store.RemainingScrapes,
                     Ceneo = store.Plan?.Ceneo ?? false,
                     GoogleShopping = store.Plan?.GoogleShopping ?? false,
+                    Allegro = store.Plan?.Allegro ?? false,
                     Info = store.Plan?.Info ?? string.Empty
                 };
             }).ToList();
@@ -87,7 +84,6 @@ namespace PriceSafari.Controllers.MemberControllers
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
-            // Sprawdzenie, czy sklep należy do użytkownika
             var userStore = await _context.UserStores
                 .FirstOrDefaultAsync(us => us.UserId == userId && us.StoreId == storeId);
 
@@ -106,12 +102,10 @@ namespace PriceSafari.Controllers.MemberControllers
                 return NotFound("Sklep nie został znaleziony.");
             }
 
-            // Pobierz zapisane dane rozliczeniowe użytkownika
             var paymentDataList = await _context.UserPaymentDatas
                 .Where(p => p.UserId == userId)
                 .ToListAsync();
 
-            // Przygotowanie modelu widoku – wykorzystujemy nowe pola z planu (Ceneo, GoogleShopping, Info)
             var viewModel = new StorePaymentsViewModel
             {
                 StoreId = store.StoreId,
@@ -120,14 +114,14 @@ namespace PriceSafari.Controllers.MemberControllers
                 PlanName = store.Plan?.PlanName ?? "Brak Planu",
                 IsTestPlan = store.Plan?.IsTestPlan ?? false,
                 PlanPrice = store.Plan?.NetPrice ?? 0,
-                // Jeśli plan istnieje, pobieramy ProductsToScrap z planu, w przeciwnym wypadku 0
+
                 ProductsToScrap = store.ProductsToScrap ?? 0,
                 ScrapesPerInvoice = store.Plan?.ScrapesPerInvoice ?? 0,
                 HasUnpaidInvoice = store.Invoices.Any(i => !i.IsPaid),
                 DiscountValue = store.DiscountPercentage,
                 Invoices = store.Invoices.OrderByDescending(i => i.IssueDate).ToList(),
                 PaymentDataList = paymentDataList,
-                // Nowe pola:
+
                 Ceneo = store.Plan?.Ceneo ?? false,
                 GoogleShopping = store.Plan?.GoogleShopping ?? false,
                 Info = store.Plan?.Info ?? string.Empty
@@ -136,7 +130,6 @@ namespace PriceSafari.Controllers.MemberControllers
             return View("~/Views/Panel/Plans/StorePayments.cshtml", viewModel);
         }
 
-
         [HttpPost]
         public async Task<IActionResult> SaveOrUpdatePaymentData(UserPaymentDataViewModel model)
         {
@@ -144,11 +137,10 @@ namespace PriceSafari.Controllers.MemberControllers
 
             if (!ModelState.IsValid)
             {
-                // Return validation errors
+
                 return BadRequest(ModelState);
             }
 
-            // Upewniamy się, że jeśli nie ma e-maila, to auto-wysyłka jest wyłączona
             if (string.IsNullOrWhiteSpace(model.InvoiceAutoMail))
             {
                 model.InvoiceAutoMailSend = false;
@@ -158,7 +150,7 @@ namespace PriceSafari.Controllers.MemberControllers
 
             if (model.PaymentDataId.HasValue && model.PaymentDataId > 0)
             {
-                // Update existing data
+
                 paymentDataEntity = await _context.UserPaymentDatas
                     .FirstOrDefaultAsync(pd => pd.UserId == userId && pd.PaymentDataId == model.PaymentDataId.Value);
 
@@ -179,7 +171,7 @@ namespace PriceSafari.Controllers.MemberControllers
             }
             else
             {
-                // Add new data
+
                 paymentDataEntity = new UserPaymentData
                 {
                     UserId = userId,
@@ -196,8 +188,6 @@ namespace PriceSafari.Controllers.MemberControllers
 
             await _context.SaveChangesAsync();
 
-            // Teraz paymentDataEntity.PaymentDataId jest już ustawione przez bazę w przypadku nowego wpisu.
-            // Upewniamy się, że model ma ustawione poprawne PaymentDataId na potrzeby odpowiedzi:
             model.PaymentDataId = paymentDataEntity.PaymentDataId;
 
             return Ok(new
@@ -217,9 +207,6 @@ namespace PriceSafari.Controllers.MemberControllers
             });
         }
 
-
-
-        // POST: Payment/DeletePaymentData
         [HttpPost]
         public async Task<IActionResult> DeletePaymentData(int paymentDataId)
         {
@@ -264,7 +251,6 @@ namespace PriceSafari.Controllers.MemberControllers
 
             var plan = store.Plan;
 
-            // Jeśli plan darmowy lub testowy
             if (plan.NetPrice == 0 || plan.IsTestPlan)
             {
                 store.RemainingScrapes = plan.ScrapesPerInvoice;
@@ -279,7 +265,6 @@ namespace PriceSafari.Controllers.MemberControllers
                 return RedirectToAction("StorePayments", new { storeId = storeId });
             }
 
-            // Sprawdź, czy nie ma już nieopłaconej faktury
             if (store.Invoices.Any(i => !i.IsPaid))
             {
                 TempData["Error"] = "Istnieje już wygenerowana proforma dla tego sklepu.";
@@ -295,7 +280,6 @@ namespace PriceSafari.Controllers.MemberControllers
                 return RedirectToAction("StorePayments", new { storeId = storeId });
             }
 
-            // Wylicz cenę netto z rabatem
             decimal netPrice = store.Plan.NetPrice;
             decimal appliedDiscountPercentage = 0;
             decimal appliedDiscountAmount = 0;
@@ -307,12 +291,10 @@ namespace PriceSafari.Controllers.MemberControllers
                 netPrice = netPrice - appliedDiscountAmount;
             }
 
-            // Najpierw pobierzmy numer proformy
             int proformaNumber = await GetNextProformaNumberAsync();
             var currentYear = DateTime.Now.Year;
             var proformaNumberFormatted = $"FP/PS/{proformaNumber.ToString("D6")}/sDB/{currentYear}";
 
-            // Tworzymy nową proformę z gotowym numerem
             var invoice = new InvoiceClass
             {
                 StoreId = storeId,
@@ -329,11 +311,11 @@ namespace PriceSafari.Controllers.MemberControllers
                 NIP = paymentData.NIP,
                 AppliedDiscountPercentage = appliedDiscountPercentage,
                 AppliedDiscountAmount = appliedDiscountAmount,
-                InvoiceNumber = proformaNumberFormatted // ustawiamy przed zapisaniem
+                InvoiceNumber = proformaNumberFormatted
             };
 
             _context.Invoices.Add(invoice);
-            await _context.SaveChangesAsync(); // teraz zapisze bez problemu, bo InvoiceNumber nie jest NULL
+            await _context.SaveChangesAsync();
 
             TempData["Success"] = "Proforma została wygenerowana.";
             return RedirectToAction("StorePayments", new { storeId = storeId });
@@ -355,14 +337,11 @@ namespace PriceSafari.Controllers.MemberControllers
             return counter.LastProformaNumber;
         }
 
-
-
         [HttpGet]
         public async Task<IActionResult> InvoicePdf(int invoiceId)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
-            // Pobierz fakturę i sprawdź, czy należy do użytkownika
             var invoice = await _context.Invoices
                 .Include(i => i.Store)
                     .ThenInclude(s => s.UserStores)
@@ -374,7 +353,6 @@ namespace PriceSafari.Controllers.MemberControllers
                 return NotFound("Faktura nie została znaleziona.");
             }
 
-            // Wygeneruj PDF
             var pdfBytes = GenerateInvoicePdf(invoice);
 
             return File(pdfBytes, "application/pdf", $"{invoice.InvoiceNumber}.pdf");
@@ -382,13 +360,11 @@ namespace PriceSafari.Controllers.MemberControllers
 
         private byte[] GenerateInvoicePdf(InvoiceClass invoice)
         {
-            // Get the absolute path to the logo image
+
             var logoImagePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "cid", "signature.png");
             var document = new InvoiceDocument(invoice, logoImagePath);
             return document.GeneratePdf();
         }
-
-
 
     }
 }
