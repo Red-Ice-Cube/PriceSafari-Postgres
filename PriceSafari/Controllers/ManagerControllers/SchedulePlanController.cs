@@ -20,13 +20,12 @@ namespace PriceSafari.Controllers
             _context = context;
         }
 
-
         [HttpGet]
         public async Task<IActionResult> Index()
         {
-            // Najpierw próbujemy pobrać istniejący plan (ze wszystkimi powiązanymi danymi)
+
             var plan = await _context.SchedulePlans
-                .AsSplitQuery() // dzieli ładowanie Include’ów na kilka zapytań
+                .AsSplitQuery()
                 .Include(sp => sp.Monday).ThenInclude(d => d.Tasks).ThenInclude(t => t.TaskStores).ThenInclude(ts => ts.Store)
                 .Include(sp => sp.Tuesday).ThenInclude(d => d.Tasks).ThenInclude(t => t.TaskStores).ThenInclude(ts => ts.Store)
                 .Include(sp => sp.Wednesday).ThenInclude(d => d.Tasks).ThenInclude(t => t.TaskStores).ThenInclude(ts => ts.Store)
@@ -36,7 +35,6 @@ namespace PriceSafari.Controllers
                 .Include(sp => sp.Sunday).ThenInclude(d => d.Tasks).ThenInclude(t => t.TaskStores).ThenInclude(ts => ts.Store)
                 .FirstOrDefaultAsync();
 
-            // Jeśli nie ma planu w bazie – tworzymy nowy
             if (plan == null)
             {
                 var newPlan = new SchedulePlan
@@ -51,10 +49,8 @@ namespace PriceSafari.Controllers
                 };
 
                 _context.SchedulePlans.Add(newPlan);
-                await _context.SaveChangesAsync(); // Zapis do bazy
+                await _context.SaveChangesAsync();
 
-                // Na nowo wczytujemy (tym razem już z ID) i wypełniamy powiązania,
-                // aby przekazać gotowy obiekt do widoku
                 plan = await _context.SchedulePlans
                     .AsSplitQuery()
                     .Include(sp => sp.Monday).ThenInclude(d => d.Tasks).ThenInclude(t => t.TaskStores).ThenInclude(ts => ts.Store)
@@ -67,17 +63,13 @@ namespace PriceSafari.Controllers
                     .FirstOrDefaultAsync();
             }
 
-            // Zwracamy widok z załadowanym planem
             return View("~/Views/ManagerPanel/SchedulePlan/Index.cshtml", plan);
         }
-
-
-        // ========== Tworzenie Zadania ==========
 
         [HttpGet]
         public IActionResult AddTask(int dayDetailId, int hour, int min)
         {
-            // Ustal domyślny StartTime
+
             var h = Math.Clamp(hour, 0, 23);
             var m = Math.Clamp(min, 0, 59);
 
@@ -86,7 +78,7 @@ namespace PriceSafari.Controllers
             var vm = new AddTaskViewModel
             {
                 SessionName = "",
-                StartTime = $"{h:00}:{m:00}",   // np. "13:40"
+                StartTime = $"{h:00}:{m:00}",
                 EndTime = "",
                 Stores = allStores
                     .Select(s => new StoreCheckboxItem
@@ -104,17 +96,17 @@ namespace PriceSafari.Controllers
         [HttpPost]
         public async Task<IActionResult> AddTask(int dayDetailId, AddTaskViewModel model)
         {
-            // Parsowanie StartTime
+
             if (!TimeSpan.TryParse(model.StartTime, out var startTs))
             {
                 ModelState.AddModelError("StartTime", "Nieprawidłowy format godziny (HH:mm).");
             }
-            // Parsowanie EndTime
+
             if (!TimeSpan.TryParse(model.EndTime, out var endTs))
             {
                 ModelState.AddModelError("EndTime", "Nieprawidłowy format godziny (HH:mm).");
             }
-            // Walidacja
+
             if (endTs <= startTs)
             {
                 ModelState.AddModelError("EndTime", "Godzina końca musi być późniejsza niż start.");
@@ -122,7 +114,7 @@ namespace PriceSafari.Controllers
 
             if (!ModelState.IsValid)
             {
-                // Odtwarzamy listę sklepów
+
                 var allStores = _context.Stores.ToList();
                 model.Stores = allStores.Select(s =>
                 {
@@ -139,7 +131,6 @@ namespace PriceSafari.Controllers
                 return View("~/Views/ManagerPanel/SchedulePlan/AddTask.cshtml", model);
             }
 
-            // Sprawdzenie kolizji (opcjonalnie)
             var dayDetail = await _context.DayDetails
                 .Include(d => d.Tasks)
                 .FirstOrDefaultAsync(d => d.Id == dayDetailId);
@@ -150,14 +141,13 @@ namespace PriceSafari.Controllers
             }
 
             bool collision = dayDetail.Tasks.Any(t =>
-                // [startTs, endTs) vs [t.StartTime, t.EndTime)
+
                 (startTs < t.EndTime) && (endTs > t.StartTime)
             );
             if (collision)
             {
                 ModelState.AddModelError("", "Przedział czasowy jest już zajęty.");
 
-                // Odtwarzamy checkboxy
                 var allStores = _context.Stores.ToList();
                 model.Stores = allStores.Select(s =>
                 {
@@ -174,7 +164,6 @@ namespace PriceSafari.Controllers
                 return View("~/Views/ManagerPanel/SchedulePlan/AddTask.cshtml", model);
             }
 
-            // Tworzymy zadanie
             var newTask = new ScheduleTask
             {
                 SessionName = model.SessionName,
@@ -186,12 +175,12 @@ namespace PriceSafari.Controllers
                 CeneoEnabled = model.CeneoEnabled,
                 AleBaseEnabled = model.AleBaseEnabled,
                 UrlScalAleEnabled = model.UrlScalAleEnabled,
+                AleCrawEnabled = model.AleCrawEnabled,
                 DayDetailId = dayDetailId
             };
             _context.ScheduleTasks.Add(newTask);
             await _context.SaveChangesAsync();
 
-            // Przypisywanie sklepów
             var selectedStoreIds = model.Stores
                 .Where(x => x.IsSelected)
                 .Select(x => x.StoreId)
@@ -210,8 +199,6 @@ namespace PriceSafari.Controllers
             return RedirectToAction("Index");
         }
 
-        // ========== Edycja Zadania ==========
-
         [HttpGet]
         public async Task<IActionResult> EditTask(int taskId)
         {
@@ -222,7 +209,6 @@ namespace PriceSafari.Controllers
 
             if (task == null) return NotFound();
 
-            // Przygotowujemy ViewModel podobny do AddTaskViewModel
             var allStores = _context.Stores.ToList();
 
             var vm = new AddTaskViewModel
@@ -236,6 +222,7 @@ namespace PriceSafari.Controllers
                 CeneoEnabled = task.CeneoEnabled,
                 AleBaseEnabled = task.AleBaseEnabled,
                 UrlScalAleEnabled = task.UrlScalAleEnabled,
+                AleCrawEnabled = task.AleCrawEnabled,
                 Stores = allStores.Select(s => new StoreCheckboxItem
                 {
                     StoreId = s.StoreId,
@@ -251,7 +238,7 @@ namespace PriceSafari.Controllers
         [HttpPost]
         public async Task<IActionResult> EditTask(int taskId, AddTaskViewModel model)
         {
-            // Walidacja Start/End Time
+
             if (!TimeSpan.TryParse(model.StartTime, out var startTs))
             {
                 ModelState.AddModelError("StartTime", "Błędny format godziny.");
@@ -267,7 +254,7 @@ namespace PriceSafari.Controllers
 
             if (!ModelState.IsValid)
             {
-                // Odtwarzamy checkboxy
+
                 var allStores = _context.Stores.ToList();
                 model.Stores = allStores.Select(s => new StoreCheckboxItem
                 {
@@ -287,7 +274,6 @@ namespace PriceSafari.Controllers
 
             if (task == null) return NotFound();
 
-            // Sprawdzenie kolizji w DayDetail
             var dayDetail = await _context.DayDetails
                 .Include(d => d.Tasks)
                 .FirstOrDefaultAsync(d => d.Id == task.DayDetailId);
@@ -295,7 +281,7 @@ namespace PriceSafari.Controllers
             if (dayDetail == null) return NotFound();
 
             bool collision = dayDetail.Tasks
-                .Where(x => x.Id != taskId) // pomijamy edytowany task
+                .Where(x => x.Id != taskId)
                 .Any(t =>
                     (startTs < t.EndTime) && (endTs > t.StartTime)
                 );
@@ -303,7 +289,6 @@ namespace PriceSafari.Controllers
             {
                 ModelState.AddModelError("", "Przedział czasowy już zajęty.");
 
-                // Odtwarzamy checkboxy
                 var allStores = _context.Stores.ToList();
                 model.Stores = allStores.Select(s => new StoreCheckboxItem
                 {
@@ -316,7 +301,6 @@ namespace PriceSafari.Controllers
                 return View("~/Views/ManagerPanel/SchedulePlan/EditTask.cshtml", model);
             }
 
-            // Aktualizujemy
             task.SessionName = model.SessionName;
             task.StartTime = startTs;
             task.EndTime = endTs;
@@ -326,9 +310,8 @@ namespace PriceSafari.Controllers
             task.CeneoEnabled = model.CeneoEnabled;
             task.AleBaseEnabled = model.AleBaseEnabled;
             task.UrlScalAleEnabled = model.UrlScalAleEnabled;
+            task.AleCrawEnabled = model.AleCrawEnabled;
 
-            // Aktualizacja sklepów (M:N)
-            // 1) Usuwamy te, których już nie zaznaczono
             foreach (var existingRel in task.TaskStores.ToList())
             {
                 if (!model.Stores.Any(s => s.IsSelected && s.StoreId == existingRel.StoreId))
@@ -336,7 +319,7 @@ namespace PriceSafari.Controllers
                     _context.ScheduleTaskStores.Remove(existingRel);
                 }
             }
-            // 2) Dodajemy te, których wcześniej nie było
+
             var newSelected = model.Stores
                 .Where(x => x.IsSelected)
                 .Select(x => x.StoreId)
@@ -358,8 +341,6 @@ namespace PriceSafari.Controllers
 
             return RedirectToAction("Index");
         }
-
-        // ========== Usunięcie Zadania ==========
 
         [HttpPost]
         public async Task<IActionResult> DeleteTask(int taskId)

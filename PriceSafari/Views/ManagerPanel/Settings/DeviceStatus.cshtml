@@ -98,6 +98,7 @@
                         <th>Ceneo Crawler</th>
                         <th>Allegro Scalanie</th>
                         <th>Allegro URL</th>
+                        <th>Allegro Crawler</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -126,6 +127,9 @@
                             </td>
                             <td class="@(item.UrlScalAleEnabled ? "bg-yes" : "bg-no")">
                                 @(item.UrlScalAleEnabled ? "tak" : "nie")
+                            </td>
+                            <td class="@(item.UrlScalAleEnabled ? "bg-yes" : "bg-no")">
+                                @(item.AleCrawEnabled ? "tak" : "nie")
                             </td>
                         </tr>
                     }
