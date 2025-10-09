@@ -800,12 +800,13 @@
     <script src="https://cdn.jsdelivr.net/npm/exceljs@4.3.0/dist/exceljs.min.js"></script>
 
     <script>
-        var priceHistoryPageContext = 'index';
-        var storeId = '@storeId';
-        var flags = @Html.Raw(Json.Serialize(ViewBag.Flags ?? new List<FlagViewModel>()));
-        var scrapDateJS = "@scrapDate";
-        var myStoreNameJS = "@store";
-        var globalLatestScrapId = "@scrapId";
+        const storeId = @ViewBag.StoreId;
+        const presetTypeContext = 0; // 0 = PriceComparison
+        const priceHistoryPageContext = 'index';
+        const flags = @Html.Raw(Json.Serialize(ViewBag.Flags ?? new List<FlagViewModel>()));
+        const scrapDateJS = "@scrapDate";
+        const myStoreNameJS = "@store";
+        const globalLatestScrapId = "@scrapId";
 
         $(document).ready(function () {
             var $usePriceWithDeliveryInput = $('#usePriceWithDeliveryInput');

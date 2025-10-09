@@ -30,7 +30,7 @@ window.openCompetitorsModal = async function () {
 };
 
 async function fetchPresets() {
-    const url = `/api/Presets/list/${storeId}`;
+    const url = `/api/Presets/list/${storeId}?type=${presetTypeContext}`;
     try {
         const resp = await fetch(url);
         return await resp.json();
@@ -418,29 +418,55 @@ function determineSourceVal(isGoogle, isCeneo) {
     return "All";
 }
 
-async function loadCompetitors(ourSource) {
+// W pliku: CompetitorModal.js
+
+async function loadCompetitors() { // Usunęliśmy argument 'ourSource', nie jest już potrzebny
     try {
-        const url = `/api/Presets/competitor-data/${storeId}?ourSource=${ourSource}`;
+        let url = '';
+        if (presetTypeContext === 0) { // 0 = PriceComparison
+            // Dla porównywarek używamy starego endpointu
+            const sourceVal = determineSourceVal(
+                document.getElementById("googleCheckbox").checked,
+                document.getElementById("ceneoCheckbox").checked
+            );
+            url = `/api/Presets/competitor-data/${storeId}?ourSource=${sourceVal}`;
+        } else if (presetTypeContext === 1) { // 1 = Marketplace (Allegro)
+            // Dla Allegro używamy nowego endpointu
+            url = `/api/Presets/allegro-competitors/${storeId}`;
+        } else {
+            return; // Nieznany kontekst
+        }
+
         const response = await fetch(url);
         const data = await response.json();
+
         if (!data.data) {
-            console.warn("Brak data");
+            console.warn("Brak danych konkurentów");
             return;
         }
-        const googleData = data.data.filter(x => x.dataSource === "Google");
-        const ceneoData = data.data.filter(x => x.dataSource === "Ceneo");
 
-        const gBody = document.getElementById("googleCompetitorsTableBody");
-        const cBody = document.getElementById("ceneoCompetitorsTableBody");
-        if (gBody) gBody.innerHTML = "";
-        if (cBody) cBody.innerHTML = "";
+        if (presetTypeContext === 0) {
+            const googleData = data.data.filter(x => x.dataSource === "Google");
+            const ceneoData = data.data.filter(x => x.dataSource === "Ceneo");
 
-        googleData.forEach(i => gBody.appendChild(createRow(i)));
-        ceneoData.forEach(i => cBody.appendChild(createRow(i)));
+            document.getElementById("googleCompetitorsTableBody").innerHTML = "";
+            document.getElementById("ceneoCompetitorsTableBody").innerHTML = "";
+            googleData.forEach(i => document.getElementById("googleCompetitorsTableBody").appendChild(createRow(i)));
+            ceneoData.forEach(i => document.getElementById("ceneoCompetitorsTableBody").appendChild(createRow(i)));
+
+        } else if (presetTypeContext === 1) {
+            // TUTAJ MUSISZ MIEĆ OSOBNĄ TABELĘ W HTML-u DLA ALLEGRO
+            const allegroBody = document.getElementById("allegroCompetitorsTableBody");
+            if (allegroBody) {
+                allegroBody.innerHTML = "";
+                data.data.forEach(i => allegroBody.appendChild(createRow(i)));
+            }
+        }
 
         markPresetCompetitors();
+
     } catch (err) {
-        console.error(err);
+        console.error("Błąd w loadCompetitors:", err);
     }
 }
 
@@ -587,7 +613,7 @@ document.addEventListener("DOMContentLoaded", () => {
             presetId: 0,
             storeId: storeId,
             presetName,
-            type: 0,
+            type: presetTypeContext, 
             nowInUse: false,
             sourceGoogle: true,
             sourceCeneo: true,

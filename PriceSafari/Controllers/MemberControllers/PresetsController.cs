@@ -41,22 +41,25 @@ namespace PriceSafari.Controllers.MemberControllers
         }
 
         [HttpGet("list/{storeId}")]
-        public async Task<IActionResult> GetPresets(int storeId)
+        public async Task<IActionResult> GetPresets(int storeId, [FromQuery] PresetType? type)
         {
             if (!await UserHasAccessToStore(storeId))
             {
                 return BadRequest("Nie ma takiego sklepu lub brak dostępu.");
             }
 
-            var presets = await _context.CompetitorPresets
-                .Where(p => p.StoreId == storeId)
-                .Select(p => new
-                {
-                    p.PresetId,
-                    p.PresetName,
-                    p.NowInUse
-                })
-                .ToListAsync();
+            var query = _context.CompetitorPresets.Where(p => p.StoreId == storeId);
+
+            if (type.HasValue)
+            {
+                query = query.Where(p => p.Type == type.Value);
+            }
+
+            var presets = await query.Select(p => new {
+                p.PresetId,
+                p.PresetName,
+                p.NowInUse
+            }).ToListAsync();
 
             return Ok(presets);
         }
@@ -190,6 +193,73 @@ namespace PriceSafari.Controllers.MemberControllers
                 return Ok(new { data = competitors, analysisType = "commonProducts" });
             }
         }
+
+
+
+
+        // W pliku: PresetsController.cs
+
+        [HttpGet("allegro-competitors/{storeId}")]
+        public async Task<IActionResult> GetAllegroCompetitorsData(int storeId)
+        {
+            if (!await UserHasAccessToStore(storeId))
+            {
+                return BadRequest(new { error = "Nie ma takiego sklepu lub brak dostępu." });
+            }
+
+            // Pobierz nazwę sprzedawcy Allegro dla danego sklepu
+            var storeAllegroName = await _context.Stores
+                .Where(s => s.StoreId == storeId)
+                .Select(s => s.StoreNameAllegro)
+                .FirstOrDefaultAsync();
+
+            if (string.IsNullOrEmpty(storeAllegroName))
+            {
+                return BadRequest(new { error = "Sklep nie ma skonfigurowanej nazwy sprzedawcy Allegro." });
+            }
+
+            // Znajdź ostatnie skanowanie Allegro
+            var latestScrap = await _context.AllegroScrapeHistories
+                .Where(sh => sh.StoreId == storeId)
+                .OrderByDescending(sh => sh.Date)
+                .Select(sh => sh.Id)
+                .FirstOrDefaultAsync();
+
+            if (latestScrap == 0)
+            {
+                return Ok(new { data = new List<object>() });
+            }
+
+            // Pobierz wszystkie oferty z ostatniego skanowania
+            var allOffers = await _context.AllegroPriceHistories
+                .Where(aph => aph.AllegroScrapeHistoryId == latestScrap)
+                .Select(aph => new { aph.SellerName, aph.AllegroProductId })
+                .ToListAsync();
+
+            // Wyciągnij ID produktów, które oferuje nasz sklep
+            var myProductIds = allOffers
+                .Where(o => o.SellerName.Equals(storeAllegroName, StringComparison.OrdinalIgnoreCase))
+                .Select(o => o.AllegroProductId)
+                .ToHashSet();
+
+            // Policz wspólne produkty dla każdego konkurenta
+            var competitors = allOffers
+                .Where(o => !o.SellerName.Equals(storeAllegroName, StringComparison.OrdinalIgnoreCase))
+                .GroupBy(o => o.SellerName)
+                .Select(g => new
+                {
+                    StoreName = g.Key,
+                    DataSource = "Allegro", // Zwracamy string, tak jak w GetCompetitorStoresData
+                    CommonProductsCount = g.Select(o => o.AllegroProductId).Distinct().Count(pid => myProductIds.Contains(pid))
+                })
+                .Where(c => c.CommonProductsCount > 0)
+                .OrderByDescending(c => c.CommonProductsCount)
+                .ToList();
+
+            return Ok(new { data = competitors });
+        }
+
+
 
         [HttpPost("save")]
         public async Task<IActionResult> SaveOrUpdatePreset([FromBody] CompetitorPresetViewModel model)

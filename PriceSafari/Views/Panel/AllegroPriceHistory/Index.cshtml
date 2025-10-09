@@ -69,6 +69,11 @@
                     <select id="producerFilterDropdown" class="DropDown" style="max-width:150px; height:33.99px;">
                         <option value="">Wszystkie marki</option>
                     </select>
+
+                    <button type="button" class="Button-Page-Small" style="white-space: nowrap; height:33.99px;" id="presetButton" onclick="openCompetitorsModal()">
+                        Presety
+                    </button>
+
                     <button type="button" class="Button-Page-Small" style="justify-self:flex-end; margin-right:4px; height:33.99px;" data-toggle="modal" data-target="#infoModal">
                         <i class="fa fa-info-circle"></i>
                     </button>
@@ -178,17 +183,99 @@
 <div id="globalUpdate" style="display: none; position: fixed; width: 500px; top: 30px; left: 50%; transform: translateX(-50%); background: #006400; color: white; padding: 24px; text-align: left; border-radius: 10px; z-index: 10000;"></div>
 
 
+<div class="modal-sim fade" id="competitorModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog-sim" role="document">
+        <div class="modal-simulation">
+
+            <div class="modal-header">
+                <div class="price-box-column-name">Presety - Allegro</div>
+                <div style="display:flex; gap:10px;">
+                    <button id="addNewPresetBtn" class="Button-Page-Small-bl">Dodaj nowy preset</button>
+                    <button type="button" class="close" data-dismiss="modal" style="width:33px; height:33px;" aria-label="Zamknij">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="modal-body">
+                <div style="display:flex; justify-content:space-between; gap:24px;">
+
+                    <div style="display:flex; flex-direction:column;">
+                        <select id="presetSelect" style="width:460px;" class="DropDown"></select>
+                        <div style="display:flex; justify-content:space-between; margin-top:10px; width:460px;">
+                            <div>
+                                <span id="activateButtonContainer"></span>
+                            </div>
+                            <div style="display:flex; gap:5px;">
+                                <span id="editButtonContainer"></span>
+                                <span id="deleteButtonContainer"></span>
+                            </div>
+                        </div>
+
+                        <div id="newPresetSection" style="display:none; margin-bottom: 20px;"></div>
+
+                        <div style="display:flex; flex-direction:column; width:460px; border: 1px solid #EDEDED; padding:16px; border-radius:4px; margin-top:12px;">
+                            <input type="text" id="competitorSearchInput" class="storeSearch" placeholder="Wyszukaj sprzedawcę" />
+
+                            <div style="display:flex; justify-content:space-between; margin-top: 10px;">
+                                <div>
+                                    <div class="Category-Container-Select">Niezdefiniowani sprzedawcy</div>
+                                    <div class="store-section">
+                                        <div class="form-check">
+                                            <input class="form-check-input bidFilter" type="checkbox" id="useUnmarkedStoresCheckbox">
+                                            <label class="form-check-label" style="display:flex; justify-content:center;" for="useUnmarkedStoresCheckbox">Wyświetlaj</label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style="display:flex; flex-direction:column; width:460px; margin-top:24px;">
+                            <p style="margin-bottom:24px; font-size:15px;">
+                                <strong>Presety Allegro filtrują widocznych sprzedawców.</strong><br><br>
+                                Aktywny preset wpływa na widok główny. Jeśli wykluczysz sprzedawcę, który ma najniższą cenę, system wskaże kolejnego najtańszego jako punkt odniesienia.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div style="flex: 1;">
+                        <div class="table-scroll" style="max-height: 80vh; min-height: 80vh; overflow: auto;">
+                            <table class="table-orders" style="width: 100%; min-width: 500px; white-space: nowrap; table-layout: auto;">
+                                <thead>
+                                    <tr>
+                                        <th>
+                                            <img src="/images/AllegroIcon.png" alt="Allegro Icon" style="width:17px; height:17px; margin-right:6px; margin-bottom:4px;">
+                                            Sprzedawcy Allegro
+                                        </th>
+                                        <th>Wspólne produkty</th>
+                                        <th>Akcje</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="allegroCompetitorsTableBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 @section Scripts {
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+
     <script>
-        // Przekazanie zmiennych z C# do JS
-        var storeId = @storeId;
-        var scrapDateJS = "@scrapDate";
-        var myStoreNameJS = "@storeName";
-        var flags = @Html.Raw(Json.Serialize(ViewBag.Flags ?? new List<FlagViewModel>()));
+        // Zmienne zadeklarowane TYLKO RAZ w jednym miejscu
+        const storeId = @storeId;
+        const presetTypeContext = 1; // Kontekst dla Allegro
+        const scrapDateJS = "@scrapDate";
+        const myStoreNameJS = "@storeName";
+        const flags = @Html.Raw(Json.Serialize(ViewBag.Flags ?? new List<FlagViewModel>()));
     </script>
+
     <script src="~/js/member/AllegroPriceHistory.js"></script>
+    <script src="~/js/member/CompetitorModal.js"></script>
 }
