@@ -221,9 +221,13 @@ namespace PriceSafari.Controllers.MemberControllers
                                 ShippingCostNum = (ph != null ? ph.ShippingCostNum : (decimal?)null)
                             };
 
+            // Plik: PriceHistoryController.cs
+            // Metoda: GetPrices
+
+            // ZMIANA: Dodajemy warunek "&& cp.Type == PresetType.PriceComparison"
             var activePreset = await _context.CompetitorPresets
                 .Include(x => x.CompetitorItems)
-                .FirstOrDefaultAsync(cp => cp.StoreId == storeId && cp.NowInUse);
+                .FirstOrDefaultAsync(cp => cp.StoreId == storeId && cp.NowInUse && cp.Type == PresetType.PriceComparison);
 
             string activePresetName = null;
 

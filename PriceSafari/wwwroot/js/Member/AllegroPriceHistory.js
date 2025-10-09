@@ -1053,8 +1053,6 @@
                 document.getElementById('usePriceDifference').checked = usePriceDifference;
                 updateUnits(usePriceDifference);
 
-                // <<< NOWY KOD START >>>
-                // Aktualizacja tekstu na przycisku presetów na podstawie danych z backendu
                 if (data.presetName) {
                     const presetButton = document.getElementById('presetButton');
                     if (presetButton) {
@@ -1065,7 +1063,6 @@
                         }
                     }
                 }
-                // <<< NOWY KOD KONIEC >>>
 
                 allPrices = data.prices.map(p => ({ ...p, ...convertPriceValue(p) }));
 
@@ -1083,10 +1080,18 @@
 
                 updateFlagCounts(allPrices);
                 updateSelectionUI();
+
             })
             .catch(error => console.error("Błąd ładowania danych:", error))
             .finally(hideLoading);
+
+        // <<< DODAJ TĘ LINIĘ >>>
+        // Wystawiamy funkcję loadPrices do globalnego zasięgu (window),
+        // aby skrypt CompetitorModal.js mógł ją znaleźć i wywołać.
+        window.loadPrices = loadPrices;
     }
+
+
     let globalNotificationTimeoutId, globalUpdateTimeoutId;
 
     function showGlobalNotification(message) {
