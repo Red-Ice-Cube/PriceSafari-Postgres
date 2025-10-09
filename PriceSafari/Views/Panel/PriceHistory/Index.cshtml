@@ -801,7 +801,7 @@
 
     <script>
         const storeId = @ViewBag.StoreId;
-        const presetTypeContext = 0; // 0 = PriceComparison
+        const presetTypeContext = 0; 
         const priceHistoryPageContext = 'index';
         const flags = @Html.Raw(Json.Serialize(ViewBag.Flags ?? new List<FlagViewModel>()));
         const scrapDateJS = "@scrapDate";

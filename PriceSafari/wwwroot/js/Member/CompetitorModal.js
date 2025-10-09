@@ -172,9 +172,7 @@ async function loadBaseView() {
         const deleteBtn = document.getElementById("deletePresetBtn");
         if (deleteBtn) deleteBtn.style.display = "none";
 
-        // === ZMIANY TUTAJ ===
-        // Sprawdzamy kontekst, zanim odwołamy się do elementów specyficznych dla porównywarek
-        if (presetTypeContext === 0) { // 0 = PriceComparison
+        if (presetTypeContext === 0) {
             const googleCheckbox = document.getElementById("googleCheckbox");
             if (googleCheckbox) {
                 googleCheckbox.checked = window.currentPreset.sourceGoogle;
@@ -188,7 +186,6 @@ async function loadBaseView() {
             }
         }
 
-        // Zawsze sprawdzamy, czy element istnieje, zanim go użyjemy
         const useUnmarkedStoresCheckbox = document.getElementById("useUnmarkedStoresCheckbox");
         if (useUnmarkedStoresCheckbox) {
             useUnmarkedStoresCheckbox.checked = window.currentPreset.useUnmarkedStores;
@@ -223,7 +220,7 @@ async function loadBaseView() {
             }
         }
 
-        await loadCompetitors(); // Wywołanie bez argumentu "All"
+        await loadCompetitors();
     } catch (err) {
         console.error("loadBaseView error", err);
     } finally {
@@ -391,7 +388,7 @@ async function loadSelectedPreset(presetId) {
             };
         }
 
-        if (presetTypeContext === 0) { // Tylko dla PriceComparison
+        if (presetTypeContext === 0) {
             const googleChk = document.getElementById("googleCheckbox");
             if (googleChk) {
                 googleChk.checked = !!preset.sourceGoogle;
@@ -426,21 +423,19 @@ function determineSourceVal(isGoogle, isCeneo) {
     return "All";
 }
 
-// W pliku: CompetitorModal.js
-
 async function loadCompetitors() {
     try {
         let url = '';
-        if (presetTypeContext === 0) { // PriceComparison
+        if (presetTypeContext === 0) {
             const sourceVal = determineSourceVal(
                 document.getElementById("googleCheckbox").checked,
                 document.getElementById("ceneoCheckbox").checked
             );
             url = `/api/Presets/competitor-data/${storeId}?ourSource=${sourceVal}`;
-        } else if (presetTypeContext === 1) { // Marketplace
+        } else if (presetTypeContext === 1) {
             url = `/api/Presets/allegro-competitors/${storeId}`;
         } else {
-            return; // Nieznany kontekst
+            return;
         }
 
         const response = await fetch(url);
@@ -461,7 +456,7 @@ async function loadCompetitors() {
             ceneoData.forEach(i => document.getElementById("ceneoCompetitorsTableBody").appendChild(createRow(i)));
 
         } else if (presetTypeContext === 1) {
-            // TUTAJ MUSISZ MIEĆ OSOBNĄ TABELĘ W HTML-u DLA ALLEGRO
+
             const allegroBody = document.getElementById("allegroCompetitorsTableBody");
             if (allegroBody) {
                 allegroBody.innerHTML = "";
@@ -478,9 +473,9 @@ async function loadCompetitors() {
 
 function createRow(item) {
     const tr = document.createElement("tr");
-
     tr.dataset.originalStoreName = item.storeName;
     tr.dataset.storeName = item.storeName;
+    tr.dataset.dataSource = item.dataSource;
 
     const tdStore = document.createElement("td");
     tdStore.textContent = item.storeName;
@@ -491,11 +486,13 @@ function createRow(item) {
     tr.appendChild(tdCommon);
 
     let sourceActive = true;
-    if (item.dataSource === "Google" && !window.currentPreset.sourceGoogle) {
-        sourceActive = false;
-    }
-    if (item.dataSource === "Ceneo" && !window.currentPreset.sourceCeneo) {
-        sourceActive = false;
+    if (presetTypeContext === 0) {
+        if (item.dataSource === "Google" && !window.currentPreset.sourceGoogle) {
+            sourceActive = false;
+        }
+        if (item.dataSource === "Ceneo" && !window.currentPreset.sourceCeneo) {
+            sourceActive = false;
+        }
     }
 
     const tdAction = document.createElement("td");
@@ -503,38 +500,36 @@ function createRow(item) {
         tr.style.backgroundColor = "#cccccc";
         tdAction.textContent = "Niedostępne";
     } else {
+
+        const isGoogleForButtons = item.dataSource === 'Google';
+
         const addBtn = document.createElement("button");
-        addBtn.classList.add("filterCompetitors-true");
+        addBtn.className = "filterCompetitors-true";
         addBtn.style.marginRight = "5px";
         addBtn.addEventListener("click", () => {
-            toggleCompetitorUsage(item.storeName, (item.dataSource === "Google"), true);
+            toggleCompetitorUsage(item.storeName, isGoogleForButtons, true);
         });
         addBtn.innerHTML = '<i class="fas fa-check"></i>';
         tdAction.appendChild(addBtn);
 
         const remBtn = document.createElement("button");
-        remBtn.classList.add("filterCompetitors-false");
+        remBtn.className = "filterCompetitors-false";
         remBtn.style.marginRight = "5px";
         remBtn.addEventListener("click", () => {
-            toggleCompetitorUsage(item.storeName, (item.dataSource === "Google"), false);
+            toggleCompetitorUsage(item.storeName, isGoogleForButtons, false);
         });
         remBtn.innerHTML = '<i class="fas fa-times"></i>';
         tdAction.appendChild(remBtn);
 
         const clearBtn = document.createElement("button");
-        clearBtn.classList.add("filterCompetitors-back");
+        clearBtn.className = "filterCompetitors-back";
         clearBtn.addEventListener("click", () => {
-            clearCompetitorUsage(item.storeName, (item.dataSource === "Google"));
+            clearCompetitorUsage(item.storeName, isGoogleForButtons);
         });
         clearBtn.innerHTML = '<i class="fas fa-undo"></i>';
         tdAction.appendChild(clearBtn);
     }
-
     tr.appendChild(tdAction);
-
-    tr.dataset.storeName = item.storeName;
-    tr.dataset.dataSource = item.dataSource;
-
     return tr;
 }
 
@@ -544,58 +539,98 @@ function toggleCompetitorUsage(storeName, isGoogle, useCompetitor) {
         return;
     }
 
-    const dataSourceValue = isGoogle ? 0 : 1;
+    let dataSourceValue;
+    if (presetTypeContext === 0) {
+        dataSourceValue = isGoogle ? 0 : 1;
+    } else {
+        dataSourceValue = 2;
+    }
 
     let comp = window.currentPreset.competitors.find(c =>
         c.storeName.toLowerCase() === storeName.toLowerCase() && c.dataSource === dataSourceValue
     );
-    if (!comp) {
 
+    if (!comp) {
         comp = { storeName, dataSource: dataSourceValue, useCompetitor };
         window.currentPreset.competitors.push(comp);
     } else {
         comp.useCompetitor = useCompetitor;
     }
+
     saveOrUpdatePreset();
     refreshRowColor(storeName, isGoogle);
 }
+
 function clearCompetitorUsage(storeName, isGoogle) {
     if (!window.currentPreset || !window.currentPreset.presetId) {
         alert("Stwórz własny preset, aby wprowadzać zmiany.");
         return;
     }
-    const dataSourceValue = isGoogle ? 0 : 1;
+
+    let dataSourceValue;
+    if (presetTypeContext === 0) {
+        dataSourceValue = isGoogle ? 0 : 1;
+    } else {
+        dataSourceValue = 2;
+    }
+
     const idx = window.currentPreset.competitors.findIndex(c =>
         c.storeName.toLowerCase() === storeName.toLowerCase() && c.dataSource === dataSourceValue
     );
+
     if (idx !== -1) {
         window.currentPreset.competitors.splice(idx, 1);
     }
+
     saveOrUpdatePreset();
     refreshRowColor(storeName, isGoogle);
 }
 
 function markPresetCompetitors() {
-    document.querySelectorAll("#googleCompetitorsTableBody tr").forEach(tr => {
-        refreshRowColor(tr.dataset.storeName, true);
-    });
-    document.querySelectorAll("#ceneoCompetitorsTableBody tr").forEach(tr => {
-        refreshRowColor(tr.dataset.storeName, false);
-    });
+    if (presetTypeContext === 0) {
+        document.querySelectorAll("#googleCompetitorsTableBody tr").forEach(tr => {
+            refreshRowColor(tr.dataset.storeName, true);
+        });
+        document.querySelectorAll("#ceneoCompetitorsTableBody tr").forEach(tr => {
+            refreshRowColor(tr.dataset.storeName, false);
+        });
+    } else if (presetTypeContext === 1) {
+        document.querySelectorAll("#allegroCompetitorsTableBody tr").forEach(tr => {
+            refreshRowColor(tr.dataset.storeName, null);
+        });
+    }
 }
 
 function refreshRowColor(storeName, isGoogle) {
-    const ds = isGoogle ? "Google" : "Ceneo";
-    const row = document.querySelector(`tr[data-store-name="${storeName}"][data-data-source="${ds}"]`);
+    let row;
+    let dataSourceValue;
+
+    if (presetTypeContext === 0) {
+        const ds = isGoogle ? "Google" : "Ceneo";
+        row = document.querySelector(`tr[data-store-name="${storeName}"][data-data-source="${ds}"]`);
+        dataSourceValue = isGoogle ? 0 : 1;
+    } else if (presetTypeContext === 1) {
+        row = document.querySelector(`tr[data-store-name="${storeName}"][data-data-source="Allegro"]`);
+        dataSourceValue = 2;
+    }
+
     if (!row || !window.currentPreset) return;
-    let sourceActive = true;
-    if (ds === "Google" && !window.currentPreset.sourceGoogle) sourceActive = false;
-    if (ds === "Ceneo" && !window.currentPreset.sourceCeneo) sourceActive = false;
-    if (!sourceActive) return;
-    const dataSourceValue = isGoogle ? 0 : 1;
+
+    if (presetTypeContext === 0) {
+        let sourceActive = true;
+        if (isGoogle && !window.currentPreset.sourceGoogle) sourceActive = false;
+        if (!isGoogle && !window.currentPreset.sourceCeneo) sourceActive = false;
+        if (!sourceActive) {
+
+            row.style.backgroundColor = "#cccccc";
+            return;
+        }
+    }
+
     const item = window.currentPreset.competitors.find(ci =>
         ci.storeName.toLowerCase() === storeName.toLowerCase() && ci.dataSource === dataSourceValue
     );
+
     const useUnmarked = window.currentPreset.useUnmarkedStores;
     if (item) {
         row.style.backgroundColor = item.useCompetitor ? "#7AD37A" : "#FC8686";
@@ -619,7 +654,7 @@ document.addEventListener("DOMContentLoaded", () => {
             presetId: 0,
             storeId: storeId,
             presetName,
-            type: presetTypeContext, 
+            type: presetTypeContext,
             nowInUse: false,
             sourceGoogle: true,
             sourceCeneo: true,
