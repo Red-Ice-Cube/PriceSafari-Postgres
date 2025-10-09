@@ -1053,6 +1053,20 @@
                 document.getElementById('usePriceDifference').checked = usePriceDifference;
                 updateUnits(usePriceDifference);
 
+                // <<< NOWY KOD START >>>
+                // Aktualizacja tekstu na przycisku presetów na podstawie danych z backendu
+                if (data.presetName) {
+                    const presetButton = document.getElementById('presetButton');
+                    if (presetButton) {
+                        if (data.presetName === 'PriceSafari') {
+                            presetButton.textContent = 'Presety - Widok standardowy PriceSafari';
+                        } else {
+                            presetButton.textContent = 'Presety - ' + data.presetName;
+                        }
+                    }
+                }
+                // <<< NOWY KOD KONIEC >>>
+
                 allPrices = data.prices.map(p => ({ ...p, ...convertPriceValue(p) }));
 
                 const producerDropdown = document.getElementById('producerFilterDropdown');
@@ -1069,12 +1083,10 @@
 
                 updateFlagCounts(allPrices);
                 updateSelectionUI();
-
             })
             .catch(error => console.error("Błąd ładowania danych:", error))
             .finally(hideLoading);
     }
-
     let globalNotificationTimeoutId, globalUpdateTimeoutId;
 
     function showGlobalNotification(message) {

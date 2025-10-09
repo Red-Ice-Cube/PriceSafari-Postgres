@@ -81,16 +81,31 @@ namespace PriceSafari.Controllers.MemberControllers
                 .OrderByDescending(sh => sh.Date)
                 .FirstOrDefaultAsync();
 
-            if (latestScrap == null)
+            if (latestScrap == null || store == null)
             {
-                return Json(new { myStoreName = store?.StoreName, prices = new List<object>() });
+                return Json(new { myStoreName = store?.StoreNameAllegro, prices = new List<object>() });
             }
 
-            var priceData = await _context.AllegroPriceHistories
+            // <<< ZMIANA START 1/3: Pobieranie aktywnego presetu >>>
+            var activePreset = await _context.CompetitorPresets
+                .Include(p => p.CompetitorItems)
+                .FirstOrDefaultAsync(p => p.StoreId == storeId.Value && p.NowInUse && p.Type == PresetType.Marketplace);
 
-                 .Where(aph => aph.AllegroScrapeHistoryId == latestScrap.Id && aph.AllegroProduct.IsScrapable)
-                 .Include(aph => aph.AllegroProduct)
-                 .ToListAsync();
+            string activePresetName = activePreset?.PresetName;
+
+            // Słownik z regułami tworzymy raz, przed pętlą - dla wydajności
+            var competitorRules = activePreset?.CompetitorItems
+                .Where(ci => ci.DataSource == DataSourceType.Allegro)
+                .ToDictionary(
+                    ci => ci.StoreName.ToLower().Trim(),
+                    ci => ci.UseCompetitor
+                );
+            // <<< ZMIANA KONIEC 1/3 >>>
+
+            var priceData = await _context.AllegroPriceHistories
+                .Where(aph => aph.AllegroScrapeHistoryId == latestScrap.Id && aph.AllegroProduct.IsScrapable)
+                .Include(aph => aph.AllegroProduct)
+                .ToListAsync();
 
             var productIds = priceData.Select(p => p.AllegroProductId).Distinct().ToList();
             var productFlagsDictionary = await _context.ProductFlags
@@ -103,7 +118,6 @@ namespace PriceSafari.Controllers.MemberControllers
                 .Select(g =>
                 {
                     var product = g.Key;
-
                     long? targetOfferId = null;
                     if (!string.IsNullOrEmpty(product.AllegroOfferUrl))
                     {
@@ -116,24 +130,56 @@ namespace PriceSafari.Controllers.MemberControllers
 
                     var myOffer = targetOfferId.HasValue
                         ? g.FirstOrDefault(p => p.IdAllegro == targetOfferId.Value && p.SellerName.Equals(store.StoreNameAllegro, StringComparison.OrdinalIgnoreCase))
-                        : null;
+                        : g.FirstOrDefault(p => p.SellerName.Equals(store.StoreNameAllegro, StringComparison.OrdinalIgnoreCase));
 
-                    var competitors = g.Where(p => !p.SellerName.Equals(store.StoreNameAllegro, StringComparison.OrdinalIgnoreCase)).ToList();
-                    var bestCompetitor = competitors.OrderBy(p => p.Price).FirstOrDefault();
+                    // <<< ZMIANA START 2/3: Filtrowanie konkurencji >>>
+                    List<AllegroPriceHistory> filteredCompetitors;
+                    if (activePreset != null && competitorRules != null)
+                    {
+                        filteredCompetitors = g.Where(p =>
+                        {
+                            // Zawsze wykluczamy nasze własne oferty
+                            if (p.SellerName.Equals(store.StoreNameAllegro, StringComparison.OrdinalIgnoreCase))
+                            {
+                                return false;
+                            }
+                            var sellerNameLower = (p.SellerName ?? "").ToLower().Trim();
+
+                            // Sprawdzamy regułę w presecie
+                            if (competitorRules.TryGetValue(sellerNameLower, out bool useCompetitor))
+                            {
+                                return useCompetitor; // Zastosuj regułę (true = pokaż, false = ukryj)
+                            }
+
+                            // Jeśli nie ma reguły, zastosuj ustawienie dla "nieoznaczonych"
+                            return activePreset.UseUnmarkedStores;
+                        }).ToList();
+                    }
+                    else
+                    {
+                        // Brak aktywnego presetu - zachowujemy wszystkich konkurentów (oryginalna logika)
+                        filteredCompetitors = g.Where(p => !p.SellerName.Equals(store.StoreNameAllegro, StringComparison.OrdinalIgnoreCase)).ToList();
+                    }
+
+                    var bestCompetitor = filteredCompetitors.OrderBy(p => p.Price).FirstOrDefault();
+                    // <<< ZMIANA KONIEC 2/3 >>>
 
                     var allMyOffersInGroup = g.Where(p => p.SellerName.Equals(store.StoreNameAllegro, StringComparison.OrdinalIgnoreCase));
-
                     var myOffersGroupKey = string.Join(",", allMyOffersInGroup.Select(o => o.IdAllegro).OrderBy(id => id));
 
+                    // Obliczamy popularność na podstawie wszystkich ofert, a nie tylko przefiltrowanych
                     var totalPopularity = g.Sum(p => p.Popularity ?? 0);
-
-                    var myPopularity = g
-                        .Where(p => p.SellerName.Equals(store.StoreNameAllegro, StringComparison.OrdinalIgnoreCase))
+                    var myPopularity = g.Where(p => p.SellerName.Equals(store.StoreNameAllegro, StringComparison.OrdinalIgnoreCase))
                         .Sum(p => p.Popularity ?? 0);
+                    var marketSharePercentage = (totalPopularity > 0) ? ((decimal)myPopularity / totalPopularity) * 100 : 0;
 
-                    var marketSharePercentage = (totalPopularity > 0)
-                        ? ((decimal)myPopularity / totalPopularity) * 100
-                        : 0;
+                    // Obliczamy liczbę ofert i sklepów na podstawie przefiltrowanej listy
+                    var visibleSellers = new HashSet<string>(filteredCompetitors.Select(c => c.SellerName));
+                    if (myOffer != null)
+                    {
+                        visibleSellers.Add(myOffer.SellerName);
+                    }
+                    var visibleOfferCount = filteredCompetitors.Count() + (myOffer != null ? 1 : 0);
 
                     return new
                     {
@@ -143,8 +189,10 @@ namespace PriceSafari.Controllers.MemberControllers
                         MyPrice = myOffer?.Price,
                         LowestPrice = bestCompetitor?.Price,
                         StoreName = bestCompetitor?.SellerName,
-                        StoreCount = g.Select(p => p.SellerName).Distinct().Count(),
-                        TotalOfferCount = g.Count(),
+
+                        // Używamy przefiltrowanych wartości
+                        StoreCount = visibleSellers.Count,
+                        TotalOfferCount = visibleOfferCount,
 
                         TotalPopularity = totalPopularity,
                         MyTotalPopularity = myPopularity,
@@ -171,7 +219,7 @@ namespace PriceSafari.Controllers.MemberControllers
                         MyIsSponsored = myOffer?.Sponsored ?? false,
 
                         IsRejected = false,
-                        OnlyMe = (myOffer != null && !competitors.Any()),
+                        OnlyMe = (myOffer != null && !filteredCompetitors.Any()), // Sprawdzamy względem przefiltrowanej listy
                         Savings = (myOffer != null && bestCompetitor != null && myOffer.Price < bestCompetitor.Price) ? bestCompetitor.Price - myOffer.Price : (decimal?)null,
                         PriceDifference = (myOffer != null && bestCompetitor != null) ? myOffer.Price - bestCompetitor.Price : (decimal?)null,
                         PercentageDifference = (myOffer != null && bestCompetitor != null && bestCompetitor.Price > 0) ? ((myOffer.Price - bestCompetitor.Price) / bestCompetitor.Price) * 100 : (decimal?)null,
@@ -194,10 +242,13 @@ namespace PriceSafari.Controllers.MemberControllers
                 setPrice1 = priceSettings?.AllegroSetPrice1 ?? 2.00m,
                 setPrice2 = priceSettings?.AllegroSetPrice2 ?? 2.00m,
                 stepPrice = priceSettings?.AllegroPriceStep ?? 2.00m,
-                usePriceDifference = priceSettings?.AllegroUsePriceDiff ?? true
+                usePriceDifference = priceSettings?.AllegroUsePriceDiff ?? true,
+
+                // <<< ZMIANA START 3/3: Dodanie nazwy presetu do odpowiedzi >>>
+                presetName = activePresetName ?? "PriceSafari"
+                // <<< ZMIANA KONIEC 3/3 >>>
             });
         }
-
         public class PriceSettingsViewModel
         {
             public int StoreId { get; set; }
