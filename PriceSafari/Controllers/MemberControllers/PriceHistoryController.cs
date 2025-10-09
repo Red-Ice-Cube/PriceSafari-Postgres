@@ -743,8 +743,9 @@ namespace PriceSafari.Controllers.MemberControllers
             }
 
             var activePreset = await _context.CompetitorPresets
-                .Include(x => x.CompetitorItems)
-                .FirstOrDefaultAsync(cp => cp.StoreId == storeId && cp.NowInUse);
+               .Include(x => x.CompetitorItems)
+               .FirstOrDefaultAsync(cp => cp.StoreId == storeId && cp.NowInUse && cp.Type == PresetType.PriceComparison);
+            // <<< ZMIANA KONIEC >>>
 
             string activePresetName = null;
 
@@ -941,8 +942,10 @@ namespace PriceSafari.Controllers.MemberControllers
             }
 
             var activePreset = await _context.CompetitorPresets
-                .Include(x => x.CompetitorItems)
-                .FirstOrDefaultAsync(cp => cp.StoreId == storeId && cp.NowInUse);
+               .Include(x => x.CompetitorItems)
+               .FirstOrDefaultAsync(cp => cp.StoreId == storeId && cp.NowInUse && cp.Type == PresetType.PriceComparison);
+            // <<< ZMIANA KONIEC >>>
+
 
             var lastScraps = await _context.ScrapHistories
                 .Where(sh => sh.StoreId == storeId)
