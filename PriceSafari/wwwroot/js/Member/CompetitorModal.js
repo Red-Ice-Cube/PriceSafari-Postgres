@@ -161,57 +161,69 @@ async function loadBaseView() {
         };
 
         const newPresetSection = document.getElementById("newPresetSection");
-        newPresetSection.style.display = "block";
+        if (newPresetSection) newPresetSection.style.display = "block";
 
         const presetNameInput = document.getElementById("presetNameInput");
-        if (presetNameInput) {
-            presetNameInput.style.display = "none";
-        }
+        if (presetNameInput) presetNameInput.style.display = "none";
+
         const editBtn = document.getElementById("editPresetBtn");
-        if (editBtn) {
-            editBtn.style.display = "none";
-        }
+        if (editBtn) editBtn.style.display = "none";
+
         const deleteBtn = document.getElementById("deletePresetBtn");
-        if (deleteBtn) {
-            deleteBtn.style.display = "none";
+        if (deleteBtn) deleteBtn.style.display = "none";
+
+        // === ZMIANY TUTAJ ===
+        // Sprawdzamy kontekst, zanim odwołamy się do elementów specyficznych dla porównywarek
+        if (presetTypeContext === 0) { // 0 = PriceComparison
+            const googleCheckbox = document.getElementById("googleCheckbox");
+            if (googleCheckbox) {
+                googleCheckbox.checked = window.currentPreset.sourceGoogle;
+                googleCheckbox.disabled = true;
+            }
+
+            const ceneoCheckbox = document.getElementById("ceneoCheckbox");
+            if (ceneoCheckbox) {
+                ceneoCheckbox.checked = window.currentPreset.sourceCeneo;
+                ceneoCheckbox.disabled = true;
+            }
         }
 
-        const googleCheckbox = document.getElementById("googleCheckbox");
-        googleCheckbox.checked = window.currentPreset.sourceGoogle;
-        googleCheckbox.disabled = true;
-        const ceneoCheckbox = document.getElementById("ceneoCheckbox");
-        ceneoCheckbox.checked = window.currentPreset.sourceCeneo;
-        ceneoCheckbox.disabled = true;
+        // Zawsze sprawdzamy, czy element istnieje, zanim go użyjemy
         const useUnmarkedStoresCheckbox = document.getElementById("useUnmarkedStoresCheckbox");
-        useUnmarkedStoresCheckbox.checked = window.currentPreset.useUnmarkedStores;
-        useUnmarkedStoresCheckbox.disabled = true;
+        if (useUnmarkedStoresCheckbox) {
+            useUnmarkedStoresCheckbox.checked = window.currentPreset.useUnmarkedStores;
+            useUnmarkedStoresCheckbox.disabled = true;
+        }
 
         let activateBtn = document.getElementById("activatePresetBtn");
         if (!activateBtn) {
-            activateBtn = document.createElement("button");
-            activateBtn.id = "activatePresetBtn";
-            document.getElementById("activateButtonContainer").appendChild(activateBtn);
+            const container = document.getElementById("activateButtonContainer");
+            if (container) {
+                activateBtn = document.createElement("button");
+                activateBtn.id = "activatePresetBtn";
+                container.appendChild(activateBtn);
+            }
         }
 
-        activateBtn.className = "Button-Page-Small";
-
-        if (window.currentPreset.nowInUse) {
-            activateBtn.textContent = "Aktywny";
-            activateBtn.disabled = true;
-            activateBtn.classList.add("active-preset");
-        } else {
-            activateBtn.classList.remove("active-preset");
-            activateBtn.textContent = "Ustaw jako aktywny";
-            activateBtn.disabled = false;
-
-            activateBtn.onclick = async function () {
-                await deactivateAllPresets();
-                await loadBaseView();
-                await refreshPresetDropdown();
-            };
+        if (activateBtn) {
+            activateBtn.className = "Button-Page-Small";
+            if (window.currentPreset.nowInUse) {
+                activateBtn.textContent = "Aktywny";
+                activateBtn.disabled = true;
+                activateBtn.classList.add("active-preset");
+            } else {
+                activateBtn.classList.remove("active-preset");
+                activateBtn.textContent = "Ustaw jako aktywny";
+                activateBtn.disabled = false;
+                activateBtn.onclick = async function () {
+                    await deactivateAllPresets();
+                    await loadBaseView();
+                    await refreshPresetDropdown();
+                };
+            }
         }
 
-        await loadCompetitors("All");
+        await loadCompetitors(); // Wywołanie bez argumentu "All"
     } catch (err) {
         console.error("loadBaseView error", err);
     } finally {
@@ -245,13 +257,15 @@ async function loadSelectedPreset(presetId) {
             useUnmarkedStores: preset.useUnmarkedStores,
             competitors: (preset.competitorItems || []).map(ci => ({
                 storeName: ci.storeName,
-
                 dataSource: ci.dataSource,
                 useCompetitor: ci.useCompetitor
             }))
         };
 
-        document.getElementById("newPresetSection").style.display = "block";
+        const newPresetSection = document.getElementById("newPresetSection");
+        if (newPresetSection) {
+            newPresetSection.style.display = "block";
+        }
 
         const presetNameInput = document.getElementById("presetNameInput");
         if (presetNameInput) {
@@ -262,50 +276,44 @@ async function loadSelectedPreset(presetId) {
 
         let activateBtn = document.getElementById("activatePresetBtn");
         if (!activateBtn) {
-            activateBtn = document.createElement("button");
-            activateBtn.id = "activatePresetBtn";
-            document.getElementById("activateButtonContainer").appendChild(activateBtn);
+            const container = document.getElementById("activateButtonContainer");
+            if (container) {
+                activateBtn = document.createElement("button");
+                activateBtn.id = "activatePresetBtn";
+                container.appendChild(activateBtn);
+            }
         }
 
-        activateBtn.className = "Button-Page-Small";
-
-        if (window.currentPreset.nowInUse) {
-            activateBtn.textContent = "Aktywny";
-            activateBtn.disabled = true;
-            activateBtn.classList.add("active-preset");
-        } else {
-            activateBtn.textContent = "Ustaw jako aktywny";
-            activateBtn.disabled = false;
-            activateBtn.classList.remove("active-preset");
-
-            activateBtn.onclick = function () {
-                window.currentPreset.nowInUse = true;
-                saveOrUpdatePreset().then(() => {
-                    refreshPresetDropdown();
-                });
+        if (activateBtn) {
+            activateBtn.className = "Button-Page-Small";
+            if (window.currentPreset.nowInUse) {
                 activateBtn.textContent = "Aktywny";
                 activateBtn.disabled = true;
                 activateBtn.classList.add("active-preset");
-            };
+            } else {
+                activateBtn.textContent = "Ustaw jako aktywny";
+                activateBtn.disabled = false;
+                activateBtn.classList.remove("active-preset");
+                activateBtn.onclick = function () {
+                    window.currentPreset.nowInUse = true;
+                    saveOrUpdatePreset().then(() => {
+                        refreshPresetDropdown();
+                    });
+                    activateBtn.textContent = "Aktywny";
+                    activateBtn.disabled = true;
+                    activateBtn.classList.add("active-preset");
+                };
+            }
         }
 
         let editBtn = document.getElementById("editPresetBtn");
-        if (editBtn) {
-            if (editBtn.parentElement.id !== "editButtonContainer") {
-                editBtn.parentElement.removeChild(editBtn);
-                document.getElementById("editButtonContainer").appendChild(editBtn);
-            }
-            editBtn.innerHTML = '<i class="fas fa-pen" style="color:#4e4e4e; font-size:16px;"></i>';
-            editBtn.title = "Zmień nazwę presetu";
-            editBtn.style.border = "none";
-            editBtn.style.borderRadius = "4px";
-            editBtn.style.width = "33px";
-            editBtn.style.height = "33px";
-            editBtn.style.background = "#e3e3e3";
-            editBtn.style.cursor = "pointer";
-        } else {
+        const editContainer = document.getElementById("editButtonContainer");
+        if (editContainer && !editBtn) {
             editBtn = document.createElement("button");
             editBtn.id = "editPresetBtn";
+            editContainer.appendChild(editBtn);
+        }
+        if (editBtn) {
             editBtn.innerHTML = '<i class="fas fa-pen" style="color:#4e4e4e; font-size:16px;"></i>';
             editBtn.title = "Zmień nazwę presetu";
             editBtn.style.border = "none";
@@ -314,36 +322,35 @@ async function loadSelectedPreset(presetId) {
             editBtn.style.height = "33px";
             editBtn.style.background = "#e3e3e3";
             editBtn.style.cursor = "pointer";
-            document.getElementById("editButtonContainer").appendChild(editBtn);
+            editBtn.style.display = "inline-block";
+            editBtn.onclick = async function () {
+                if (!window.currentPreset || !window.currentPreset.presetId) {
+                    alert("Nie można zmienić nazwy presetu.");
+                    return;
+                }
+                let newName = prompt("Podaj nową nazwę presetu (max 50 znaków):", window.currentPreset.presetName);
+                if (newName && newName.trim() !== "") {
+                    newName = newName.trim();
+                    if (newName.length > 50) {
+                        newName = newName.substring(0, 50);
+                        alert("Nazwa została przycięta do 50 znaków.");
+                    }
+                    window.currentPreset.presetName = newName;
+                    await saveOrUpdatePreset();
+                    await refreshPresetDropdown();
+                    alert("Zmieniono nazwę presetu.");
+                }
+            };
         }
 
-        editBtn.style.display = "inline-block";
-        editBtn.onclick = async function () {
-            if (!window.currentPreset || !window.currentPreset.presetId) {
-                alert("Nie można zmienić nazwy presetu.");
-                return;
-            }
-
-            let newName = prompt("Podaj nową nazwę presetu (max 50 znaków):", window.currentPreset.presetName);
-
-            if (newName && newName.trim() !== "") {
-                newName = newName.trim();
-                if (newName.length > 50) {
-                    newName = newName.substring(0, 50);
-                    alert("Nazwa została przycięta do 50 znaków.");
-                }
-
-                window.currentPreset.presetName = newName;
-                await saveOrUpdatePreset();
-                await refreshPresetDropdown();
-                alert("Zmieniono nazwę presetu.");
-            }
-        };
-
         let deleteBtn = document.getElementById("deletePresetBtn");
-        if (!deleteBtn) {
+        const deleteContainer = document.getElementById("deleteButtonContainer");
+        if (deleteContainer && !deleteBtn) {
             deleteBtn = document.createElement("button");
             deleteBtn.id = "deletePresetBtn";
+            deleteContainer.appendChild(deleteBtn);
+        }
+        if (deleteBtn) {
             deleteBtn.innerHTML = '<i class="fa fa-trash" style="color:red; font-size:20px;"></i>';
             deleteBtn.title = "Usuń preset";
             deleteBtn.style.border = "none";
@@ -352,58 +359,59 @@ async function loadSelectedPreset(presetId) {
             deleteBtn.style.height = "33px";
             deleteBtn.style.background = "#e3e3e3";
             deleteBtn.style.cursor = "pointer";
-            document.getElementById("deleteButtonContainer").appendChild(deleteBtn);
-        }
+            deleteBtn.style.display = "inline-block";
+            deleteBtn.onclick = async function () {
+                if (confirm("Czy na pewno chcesz usunąć ten preset?")) {
+                    try {
+                        const resp = await fetch(`/api/Presets/delete/${window.currentPreset.presetId}`, {
+                            method: "POST",
+                            headers: { 'Content-Type': 'application/json' }
+                        });
 
-        deleteBtn.style.display = "inline-block";
-        deleteBtn.onclick = async function () {
-            if (confirm("Czy na pewno chcesz usunąć ten preset?")) {
-                try {
+                        if (!resp.ok) {
+                            const errorText = await resp.text();
+                            console.error("Błąd usuwania:", errorText);
+                            alert("Błąd serwera podczas usuwania presetu.");
+                            return;
+                        }
 
-                    const resp = await fetch(`/api/Presets/delete/${window.currentPreset.presetId}`, {
-                        method: "POST",
-                        headers: { 'Content-Type': 'application/json' }
-
-                    });
-
-                    if (!resp.ok) {
-                        const errorText = await resp.text();
-                        console.error("Błąd usuwania:", errorText);
-                        alert("Błąd serwera podczas usuwania presetu.");
-                        return;
+                        const data = await resp.json();
+                        if (data.success) {
+                            alert("Preset został usunięty.");
+                            await refreshPresetDropdown();
+                            document.getElementById("presetSelect").value = "BASE";
+                            await loadBaseView();
+                        } else {
+                            alert("Błąd usuwania presetu: " + (data.message || ""));
+                        }
+                    } catch (err) {
+                        console.error("deletePreset error", err);
                     }
-
-                    const data = await resp.json();
-                    if (data.success) {
-                        alert("Preset został usunięty.");
-                        await refreshPresetDropdown();
-                        document.getElementById("presetSelect").value = "BASE";
-                        await loadBaseView();
-                    } else {
-                        alert("Błąd usuwania presetu: " + (data.message || ""));
-                    }
-                } catch (err) {
-                    console.error("deletePreset error", err);
                 }
+            };
+        }
+
+        if (presetTypeContext === 0) { // Tylko dla PriceComparison
+            const googleChk = document.getElementById("googleCheckbox");
+            if (googleChk) {
+                googleChk.checked = !!preset.sourceGoogle;
+                googleChk.disabled = false;
             }
-        };
+            const ceneoChk = document.getElementById("ceneoCheckbox");
+            if (ceneoChk) {
+                ceneoChk.checked = !!preset.sourceCeneo;
+                ceneoChk.disabled = false;
+            }
+        }
 
-        const googleChk = document.getElementById("googleCheckbox");
-        if (googleChk) {
-            googleChk.checked = !!preset.sourceGoogle;
-            googleChk.disabled = false;
-        }
-        const ceneoChk = document.getElementById("ceneoCheckbox");
-        if (ceneoChk) {
-            ceneoChk.checked = !!preset.sourceCeneo;
-            ceneoChk.disabled = false;
-        }
         const useUnmarkedStoresCheckbox = document.getElementById("useUnmarkedStoresCheckbox");
-        useUnmarkedStoresCheckbox.checked = window.currentPreset.useUnmarkedStores;
-        useUnmarkedStoresCheckbox.disabled = false;
+        if (useUnmarkedStoresCheckbox) {
+            useUnmarkedStoresCheckbox.checked = window.currentPreset.useUnmarkedStores;
+            useUnmarkedStoresCheckbox.disabled = false;
+        }
 
-        const sourceVal = determineSourceVal(!!preset.sourceGoogle, !!preset.sourceCeneo);
-        await loadCompetitors(sourceVal);
+        await loadCompetitors();
+
     } catch (err) {
         console.error("loadSelectedPreset error", err);
     } finally {
@@ -420,18 +428,16 @@ function determineSourceVal(isGoogle, isCeneo) {
 
 // W pliku: CompetitorModal.js
 
-async function loadCompetitors() { // Usunęliśmy argument 'ourSource', nie jest już potrzebny
+async function loadCompetitors() {
     try {
         let url = '';
-        if (presetTypeContext === 0) { // 0 = PriceComparison
-            // Dla porównywarek używamy starego endpointu
+        if (presetTypeContext === 0) { // PriceComparison
             const sourceVal = determineSourceVal(
                 document.getElementById("googleCheckbox").checked,
                 document.getElementById("ceneoCheckbox").checked
             );
             url = `/api/Presets/competitor-data/${storeId}?ourSource=${sourceVal}`;
-        } else if (presetTypeContext === 1) { // 1 = Marketplace (Allegro)
-            // Dla Allegro używamy nowego endpointu
+        } else if (presetTypeContext === 1) { // Marketplace
             url = `/api/Presets/allegro-competitors/${storeId}`;
         } else {
             return; // Nieznany kontekst
