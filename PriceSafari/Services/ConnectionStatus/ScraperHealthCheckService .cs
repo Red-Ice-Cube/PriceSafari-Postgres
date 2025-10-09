@@ -10,9 +10,8 @@ namespace PriceSafari.Services.ConnectionStatus
         private readonly IHubContext<ScrapingHub> _hubContext;
         private Timer? _timer = null;
 
-        // Ustawiamy próg na 45 sekund, zgodnie z twoją prośbą
-        private const int DefaultInactivityThresholdSeconds = 45;
-        private const int NetworkResetInactivityThresholdSeconds = 120; // To zostaje dla scrapera #1
+        private const int DefaultInactivityThresholdSeconds = 120;
+        private const int NetworkResetInactivityThresholdSeconds = 180;
 
         public ScraperHealthCheckService(ILogger<ScraperHealthCheckService> logger, IHubContext<ScrapingHub> hubContext)
         {
@@ -31,7 +30,6 @@ namespace PriceSafari.Services.ConnectionStatus
         {
             var now = DateTime.UtcNow;
 
-            // --- Sprawdzanie Scraperów #1 (Gatherers) ---
             var gathererScrapers = AllegroTaskManager.ActiveScrapers.Values
                 .Where(s => s.Status != ScraperLiveStatus.Offline).ToList();
 
@@ -61,25 +59,22 @@ namespace PriceSafari.Services.ConnectionStatus
                 }
             }
 
-            // --- NOWA SEKCJA: Sprawdzanie Scraperów #2 (Detail Scrapers) ---
             var detailScrapers = AllegroScrapeManager.ActiveScrapers.Values
                 .Where(s => s.Status != ScraperLiveStatus.Offline).ToList();
 
             foreach (var scraper in detailScrapers)
             {
-                // Dla tego typu scrapera używamy jednego, stałego progu
+
                 if ((now - scraper.LastCheckIn).TotalSeconds > DefaultInactivityThresholdSeconds)
                 {
                     _logger.LogWarning($"Scraper OFERTOWY '{scraper.Name}' przekroczył limit czasu. Oznaczam jako Offline.");
                     scraper.Status = ScraperLiveStatus.Offline;
 
-                    // Używamy dedykowanego eventu dla tego typu scrapera
                     _ = _hubContext.Clients.All.SendAsync("UpdateDetailScraperStatus", scraper);
                 }
             }
         }
 
-        // Metody StopAsync i Dispose bez zmian
         public Task StopAsync(CancellationToken stoppingToken)
         {
             _logger.LogInformation("Scraper Health Check Service is stopping.");

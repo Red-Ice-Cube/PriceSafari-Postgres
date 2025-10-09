@@ -33,7 +33,6 @@ namespace PriceSafari.Services.AllegroServices
                 return (false, errorMsg, 0);
             }
 
-            // Pobieramy listę ofert, aby poznać ich dokładną liczbę
             var urlsToScrape = await _context.AllegroOffersToScrape
                 .Where(o => !o.IsScraped && !o.IsRejected)
                 .ToListAsync();
@@ -74,7 +73,6 @@ namespace PriceSafari.Services.AllegroServices
             const string successMsg = "Proces scrapowania ofert Allegro został pomyślnie uruchomiony.";
             _logger.LogInformation(successMsg);
 
-            // Zwracamy również policzoną liczbę URL-i
             return (true, successMsg, totalUrls);
         }
     }
