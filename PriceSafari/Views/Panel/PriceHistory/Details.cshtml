@@ -118,11 +118,7 @@
         overflow-y: auto;
     }
 
-
-
-
     .stock-available {
-       
         border-radius: 4px;
         padding: 2px 5px;
         display: inline-flex;
@@ -132,7 +128,6 @@
         font-weight: 500;
         color: #fff;
         background-color: #006400;
-
     }
 
     .stock-unavailable {
@@ -256,7 +251,6 @@
             </div>
         </div>
 
-
         <div id="priceTableContainer" class="Vert-table" style="display: block;">
             <table class="table-orders" id="priceTable">
                 <thead>
@@ -313,7 +307,7 @@
                         }
 
                         var colorClass = getColorClass(priceDifference, isUniqueBestPrice, isSharedBestPrice, savings);
-                        var shippingCost = ""; // Zmienna do przechowywania tekstu wyświetlanego w tabeli
+                        var shippingCost = "";
                         if (item.ShippingCostNum == null)
                         {
                             shippingCost = "Brak danych";
@@ -322,9 +316,9 @@
                         {
                             shippingCost = "Free";
                         }
-                        else // Gdy ShippingCostNum > 0 (teraz już wiemy, że to koszt wysyłki)
+                        else
                         {
-                            shippingCost = $"{item.ShippingCostNum} PLN"; // <--- TERAZ ZAWSZE WYŚWIETLAMY WARTOSĆ BEZPOŚREDNIO
+                            shippingCost = $"{item.ShippingCostNum} PLN";
                         }
 
                         string getAvailabilityClass(int? availabilityNum)

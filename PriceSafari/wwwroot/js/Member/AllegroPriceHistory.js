@@ -1085,12 +1085,8 @@
             .catch(error => console.error("Błąd ładowania danych:", error))
             .finally(hideLoading);
 
-        // <<< DODAJ TĘ LINIĘ >>>
-        // Wystawiamy funkcję loadPrices do globalnego zasięgu (window),
-        // aby skrypt CompetitorModal.js mógł ją znaleźć i wywołać.
         window.loadPrices = loadPrices;
     }
-
 
     let globalNotificationTimeoutId, globalUpdateTimeoutId;
 

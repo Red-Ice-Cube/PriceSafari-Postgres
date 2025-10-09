@@ -1,4 +1,4 @@
-﻿using PriceSafari.Models; // Upewnij się, że ten using jest dodany, aby mieć dostęp do enumów!
+﻿using PriceSafari.Models;
 using System.Collections.Generic;
 
 namespace PriceSafari.Models.ViewModels
@@ -9,7 +9,7 @@ namespace PriceSafari.Models.ViewModels
         public int StoreId { get; set; }
         public string PresetName { get; set; }
 
-        public PresetType Type { get; set; } // <-- ZMIANA: Dodano typ presetu
+        public PresetType Type { get; set; }
 
         public bool NowInUse { get; set; }
         public bool SourceGoogle { get; set; }
@@ -23,8 +23,7 @@ namespace PriceSafari.Models.ViewModels
     {
         public string StoreName { get; set; }
 
-        // public bool IsGoogle { get; set; } // <-- ZMIANA: Usunięto
-        public DataSourceType DataSource { get; set; } // <-- ZMIANA: Dodano źródło danych
+        public DataSourceType DataSource { get; set; }
 
         public bool UseCompetitor { get; set; }
     }

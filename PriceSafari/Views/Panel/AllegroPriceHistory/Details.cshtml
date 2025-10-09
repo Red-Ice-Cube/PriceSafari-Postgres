@@ -1,6 +1,4 @@
-﻿
-
-@{
+﻿@{
     Layout = "~/Views/Shared/_PanelLayout.cshtml";
     ViewData["Title"] = "Szczegóły Cen Allegro";
     var storeId = ViewBag.StoreId;
@@ -151,12 +149,28 @@
         </div>
 
         <div style="display: flex; width: 100%; gap: 48px;  align-items: flex-end; justify-content:space-between;">
-            @if (!string.IsNullOrEmpty(allegroOfferUrl))
-            {
-                <a href="@allegroOfferUrl" class="Button-Page-Small" style="margin-bottom: 8px;" target="_blank" rel="noopener noreferrer">
-                    <img src="/images/AllegroIcon.png" alt="Allegro Icon" style="width:18px; height:18px; margin-right: 5px;" /> Zobacz na Allegro
-                </a>
-            }
+
+            <div style="display:flex; justify-content:center; gap:6px; height:34px;">
+                <button type="button" class="Button-Page-Small" style="white-space: nowrap;" id="presetButton" onclick="openCompetitorsModal()">
+                    <span id="activePresetDisplay">
+                        @if (!string.IsNullOrEmpty(ViewBag.ActivePresetName as string))
+                        {
+                            @:Presety - @ViewBag.ActivePresetName
+                        }
+                        else
+                        {
+                            @:Presety - Widok PriceSafari
+                        }
+                    </span>
+                </button>
+                @if (!string.IsNullOrEmpty(allegroOfferUrl))
+                {
+                    <a href="@allegroOfferUrl" class="Button-Page-Small" style="margin-bottom: 8px;" target="_blank" rel="noopener noreferrer">
+                        <img src="/images/AllegroIcon.png" alt="Allegro Icon" style="width:18px; height:18px; margin-right: 5px;" /> Zobacz na Allegro
+                    </a>
+                }
+            </div>
+
             <div id="chartContainer" style="flex-shrink: 0; width: 50%; height: 130px;">
                 <canvas id="priceBarChart"></canvas>
             </div>
@@ -215,6 +229,84 @@
     </div>
 </div>
 
+<div class="modal-sim fade" id="competitorModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog-sim" role="document">
+        <div class="modal-simulation">
+
+            <div class="modal-header">
+                <div class="price-box-column-name">Presety - Allegro</div>
+                <div style="display:flex; gap:10px;">
+                    <button id="addNewPresetBtn" class="Button-Page-Small-bl">Dodaj nowy preset</button>
+                    <button type="button" class="close" data-dismiss="modal" style="width:33px; height:33px;" aria-label="Zamknij">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="modal-body">
+                <div style="display:flex; justify-content:space-between; gap:24px;">
+
+                    <div style="display:flex; flex-direction:column;">
+                        <select id="presetSelect" style="width:460px;" class="DropDown"></select>
+                        <div style="display:flex; justify-content:space-between; margin-top:10px; width:460px;">
+                            <div>
+                                <span id="activateButtonContainer"></span>
+                            </div>
+                            <div style="display:flex; gap:5px;">
+                                <span id="editButtonContainer"></span>
+                                <span id="deleteButtonContainer"></span>
+                            </div>
+                        </div>
+
+                        <div id="newPresetSection" style="display:none; margin-bottom: 20px;"></div>
+
+                        <div style="display:flex; flex-direction:column; width:460px; border: 1px solid #EDEDED; padding:16px; border-radius:4px; margin-top:12px;">
+                            <input type="text" id="competitorSearchInput" class="storeSearch" placeholder="Wyszukaj sprzedawcę" />
+
+                            <div style="display:flex; justify-content:space-between; margin-top: 10px;">
+                                <div>
+                                    <div class="Category-Container-Select">Niezdefiniowani sprzedawcy</div>
+                                    <div class="store-section">
+                                        <div class="form-check">
+                                            <input class="form-check-input bidFilter" type="checkbox" id="useUnmarkedStoresCheckbox">
+                                            <label class="form-check-label" style="display:flex; justify-content:center;" for="useUnmarkedStoresCheckbox">Wyświetlaj</label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style="display:flex; flex-direction:column; width:460px; margin-top:24px;">
+                            <p style="margin-bottom:24px; font-size:15px;">
+                                <strong>Presety Allegro filtrują widocznych sprzedawców.</strong><br><br>
+                                Aktywny preset wpływa na widok główny. Jeśli wykluczysz sprzedawcę, który ma najniższą cenę, system wskaże kolejnego najtańszego jako punkt odniesienia.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div style="flex: 1;">
+                        <div class="table-scroll" style="max-height: 80vh; min-height: 80vh; overflow: auto;">
+                            <table class="table-orders" style="width: 100%; min-width: 500px; white-space: nowrap; table-layout: auto;">
+                                <thead>
+                                    <tr>
+                                        <th>
+                                            <img src="/images/AllegroIcon.png" alt="Allegro Icon" style="width:17px; height:17px; margin-right:6px; margin-bottom:4px;">
+                                            Sprzedawcy Allegro
+                                        </th>
+                                        <th>Wspólne produkty</th>
+                                        <th>Akcje</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="allegroCompetitorsTableBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div id="loadingOverlay" class="loading-overlay" style="display: none;">
     <div class="loader"></div>
 </div>
@@ -226,6 +318,14 @@
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
+
+    <script>
+         var priceHistoryPageContext = 'details';
+        var storeId = @storeId;
+
+        const presetTypeContext = 1;
+    </script>
+    <script src="~/js/member/CompetitorModal.js"></script>
 
     <script>
 
@@ -511,29 +611,39 @@
             }
 
             showLoadingState();
-            fetch(`/AllegroPriceHistory/GetProductPriceDetails?storeId=${storeId}&productId=${productId}`)
-                .then(response => response.ok ? response.json() : Promise.reject('Błąd sieci'))
-                .then(result => {
-                    if (loadingOverlay) loadingOverlay.style.display = 'none';
-                    let offers = result?.data ?? [];
-                    if (offers.length > 0) {
-                        offers.sort((a, b) => {
-                            if (a.price !== b.price) return a.price - b.price;
-                            const scoreA = (a.topOffer || a.superPrice || a.isBestPriceGuarantee) ? 0 : 1;
-                            const scoreB = (b.topOffer || b.superPrice || b.isBestPriceGuarantee) ? 0 : 1;
-                            if (scoreA !== scoreB) return scoreA - scoreB;
-                            const totalA = a.price + (a.deliveryCost || 0);
-                            const totalB = b.price + (b.deliveryCost || 0);
-                            if (totalA !== totalB) return totalA - totalB;
-                            return a.sellerName.localeCompare(b.sellerName);
-                        });
-                        renderTable(offers, result.totalProductPopularity, result.setPrice1, result.setPrice2);
-                        drawBarChart(offers);
-                        updateLastScrapeDate(result.lastScrapeDate);
-                    } else {
-                        showEmptyState();
-                    }
+           fetch(`/AllegroPriceHistory/GetProductPriceDetails?storeId=${storeId}&productId=${productId}`)
+        .then(response => response.ok ? response.json() : Promise.reject('Błąd sieci'))
+        .then(result => {
+            if (loadingOverlay) loadingOverlay.style.display = 'none';
+            let offers = result?.data ?? [];
+
+            const presetDisplay = document.getElementById('activePresetDisplay');
+            if (presetDisplay) {
+                if (result.activePresetName) {
+                    presetDisplay.textContent = 'Presety - ' + result.activePresetName;
+                } else {
+                    presetDisplay.textContent = 'Presety - Widok PriceSafari';
+                }
+            }
+
+            if (offers.length > 0) {
+                offers.sort((a, b) => {
+                    if (a.price !== b.price) return a.price - b.price;
+                    const scoreA = (a.topOffer || a.superPrice || a.isBestPriceGuarantee) ? 0 : 1;
+                    const scoreB = (b.topOffer || b.superPrice || b.isBestPriceGuarantee) ? 0 : 1;
+                    if (scoreA !== scoreB) return scoreA - scoreB;
+                    const totalA = a.price + (a.deliveryCost || 0);
+                    const totalB = b.price + (b.deliveryCost || 0);
+                    if (totalA !== totalB) return totalA - totalB;
+                    return a.sellerName.localeCompare(b.sellerName);
                 });
+                renderTable(offers, result.totalProductPopularity, result.setPrice1, result.setPrice2);
+                drawBarChart(offers);
+                updateLastScrapeDate(result.lastScrapeDate);
+            } else {
+                showEmptyState();
+            }
+        });
         });
 
         document.addEventListener("DOMContentLoaded", function () {

@@ -194,11 +194,6 @@ namespace PriceSafari.Controllers.MemberControllers
             }
         }
 
-
-
-
-        // W pliku: PresetsController.cs
-
         [HttpGet("allegro-competitors/{storeId}")]
         public async Task<IActionResult> GetAllegroCompetitorsData(int storeId)
         {
@@ -207,7 +202,6 @@ namespace PriceSafari.Controllers.MemberControllers
                 return BadRequest(new { error = "Nie ma takiego sklepu lub brak dostępu." });
             }
 
-            // Pobierz nazwę sprzedawcy Allegro dla danego sklepu
             var storeAllegroName = await _context.Stores
                 .Where(s => s.StoreId == storeId)
                 .Select(s => s.StoreNameAllegro)
@@ -218,7 +212,6 @@ namespace PriceSafari.Controllers.MemberControllers
                 return BadRequest(new { error = "Sklep nie ma skonfigurowanej nazwy sprzedawcy Allegro." });
             }
 
-            // Znajdź ostatnie skanowanie Allegro
             var latestScrap = await _context.AllegroScrapeHistories
                 .Where(sh => sh.StoreId == storeId)
                 .OrderByDescending(sh => sh.Date)
@@ -230,26 +223,23 @@ namespace PriceSafari.Controllers.MemberControllers
                 return Ok(new { data = new List<object>() });
             }
 
-            // Pobierz wszystkie oferty z ostatniego skanowania
             var allOffers = await _context.AllegroPriceHistories
                 .Where(aph => aph.AllegroScrapeHistoryId == latestScrap)
                 .Select(aph => new { aph.SellerName, aph.AllegroProductId })
                 .ToListAsync();
 
-            // Wyciągnij ID produktów, które oferuje nasz sklep
             var myProductIds = allOffers
                 .Where(o => o.SellerName.Equals(storeAllegroName, StringComparison.OrdinalIgnoreCase))
                 .Select(o => o.AllegroProductId)
                 .ToHashSet();
 
-            // Policz wspólne produkty dla każdego konkurenta
             var competitors = allOffers
                 .Where(o => !o.SellerName.Equals(storeAllegroName, StringComparison.OrdinalIgnoreCase))
                 .GroupBy(o => o.SellerName)
                 .Select(g => new
                 {
                     StoreName = g.Key,
-                    DataSource = "Allegro", // Zwracamy string, tak jak w GetCompetitorStoresData
+                    DataSource = "Allegro",
                     CommonProductsCount = g.Select(o => o.AllegroProductId).Distinct().Count(pid => myProductIds.Contains(pid))
                 })
                 .Where(c => c.CommonProductsCount > 0)
@@ -258,8 +248,6 @@ namespace PriceSafari.Controllers.MemberControllers
 
             return Ok(new { data = competitors });
         }
-
-
 
         [HttpPost("save")]
         public async Task<IActionResult> SaveOrUpdatePreset([FromBody] CompetitorPresetViewModel model)

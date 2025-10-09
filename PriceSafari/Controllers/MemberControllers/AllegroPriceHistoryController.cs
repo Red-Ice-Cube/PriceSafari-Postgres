@@ -86,21 +86,18 @@ namespace PriceSafari.Controllers.MemberControllers
                 return Json(new { myStoreName = store?.StoreNameAllegro, prices = new List<object>() });
             }
 
-            // <<< ZMIANA START 1/3: Pobieranie aktywnego presetu >>>
             var activePreset = await _context.CompetitorPresets
                 .Include(p => p.CompetitorItems)
                 .FirstOrDefaultAsync(p => p.StoreId == storeId.Value && p.NowInUse && p.Type == PresetType.Marketplace);
 
             string activePresetName = activePreset?.PresetName;
 
-            // Słownik z regułami tworzymy raz, przed pętlą - dla wydajności
             var competitorRules = activePreset?.CompetitorItems
                 .Where(ci => ci.DataSource == DataSourceType.Allegro)
                 .ToDictionary(
                     ci => ci.StoreName.ToLower().Trim(),
                     ci => ci.UseCompetitor
                 );
-            // <<< ZMIANA KONIEC 1/3 >>>
 
             var priceData = await _context.AllegroPriceHistories
                 .Where(aph => aph.AllegroScrapeHistoryId == latestScrap.Id && aph.AllegroProduct.IsScrapable)
@@ -132,48 +129,42 @@ namespace PriceSafari.Controllers.MemberControllers
                         ? g.FirstOrDefault(p => p.IdAllegro == targetOfferId.Value && p.SellerName.Equals(store.StoreNameAllegro, StringComparison.OrdinalIgnoreCase))
                         : g.FirstOrDefault(p => p.SellerName.Equals(store.StoreNameAllegro, StringComparison.OrdinalIgnoreCase));
 
-                    // <<< ZMIANA START 2/3: Filtrowanie konkurencji >>>
                     List<AllegroPriceHistory> filteredCompetitors;
                     if (activePreset != null && competitorRules != null)
                     {
                         filteredCompetitors = g.Where(p =>
                         {
-                            // Zawsze wykluczamy nasze własne oferty
+
                             if (p.SellerName.Equals(store.StoreNameAllegro, StringComparison.OrdinalIgnoreCase))
                             {
                                 return false;
                             }
                             var sellerNameLower = (p.SellerName ?? "").ToLower().Trim();
 
-                            // Sprawdzamy regułę w presecie
                             if (competitorRules.TryGetValue(sellerNameLower, out bool useCompetitor))
                             {
-                                return useCompetitor; // Zastosuj regułę (true = pokaż, false = ukryj)
+                                return useCompetitor;
                             }
 
-                            // Jeśli nie ma reguły, zastosuj ustawienie dla "nieoznaczonych"
                             return activePreset.UseUnmarkedStores;
                         }).ToList();
                     }
                     else
                     {
-                        // Brak aktywnego presetu - zachowujemy wszystkich konkurentów (oryginalna logika)
+
                         filteredCompetitors = g.Where(p => !p.SellerName.Equals(store.StoreNameAllegro, StringComparison.OrdinalIgnoreCase)).ToList();
                     }
 
                     var bestCompetitor = filteredCompetitors.OrderBy(p => p.Price).FirstOrDefault();
-                    // <<< ZMIANA KONIEC 2/3 >>>
 
                     var allMyOffersInGroup = g.Where(p => p.SellerName.Equals(store.StoreNameAllegro, StringComparison.OrdinalIgnoreCase));
                     var myOffersGroupKey = string.Join(",", allMyOffersInGroup.Select(o => o.IdAllegro).OrderBy(id => id));
 
-                    // Obliczamy popularność na podstawie wszystkich ofert, a nie tylko przefiltrowanych
                     var totalPopularity = g.Sum(p => p.Popularity ?? 0);
                     var myPopularity = g.Where(p => p.SellerName.Equals(store.StoreNameAllegro, StringComparison.OrdinalIgnoreCase))
                         .Sum(p => p.Popularity ?? 0);
                     var marketSharePercentage = (totalPopularity > 0) ? ((decimal)myPopularity / totalPopularity) * 100 : 0;
 
-                    // Obliczamy liczbę ofert i sklepów na podstawie przefiltrowanej listy
                     var visibleSellers = new HashSet<string>(filteredCompetitors.Select(c => c.SellerName));
                     if (myOffer != null)
                     {
@@ -190,7 +181,6 @@ namespace PriceSafari.Controllers.MemberControllers
                         LowestPrice = bestCompetitor?.Price,
                         StoreName = bestCompetitor?.SellerName,
 
-                        // Używamy przefiltrowanych wartości
                         StoreCount = visibleSellers.Count,
                         TotalOfferCount = visibleOfferCount,
 
@@ -219,7 +209,7 @@ namespace PriceSafari.Controllers.MemberControllers
                         MyIsSponsored = myOffer?.Sponsored ?? false,
 
                         IsRejected = false,
-                        OnlyMe = (myOffer != null && !filteredCompetitors.Any()), // Sprawdzamy względem przefiltrowanej listy
+                        OnlyMe = (myOffer != null && !filteredCompetitors.Any()),
                         Savings = (myOffer != null && bestCompetitor != null && myOffer.Price < bestCompetitor.Price) ? bestCompetitor.Price - myOffer.Price : (decimal?)null,
                         PriceDifference = (myOffer != null && bestCompetitor != null) ? myOffer.Price - bestCompetitor.Price : (decimal?)null,
                         PercentageDifference = (myOffer != null && bestCompetitor != null && bestCompetitor.Price > 0) ? ((myOffer.Price - bestCompetitor.Price) / bestCompetitor.Price) * 100 : (decimal?)null,
@@ -244,9 +234,8 @@ namespace PriceSafari.Controllers.MemberControllers
                 stepPrice = priceSettings?.AllegroPriceStep ?? 2.00m,
                 usePriceDifference = priceSettings?.AllegroUsePriceDiff ?? true,
 
-                // <<< ZMIANA START 3/3: Dodanie nazwy presetu do odpowiedzi >>>
                 presetName = activePresetName ?? "PriceSafari"
-                // <<< ZMIANA KONIEC 3/3 >>>
+
             });
         }
         public class PriceSettingsViewModel
@@ -301,7 +290,6 @@ namespace PriceSafari.Controllers.MemberControllers
 
             return View("~/Views/Panel/AllegroPriceHistory/Details.cshtml");
         }
-
         [HttpGet]
         public async Task<IActionResult> GetProductPriceDetails(int storeId, int productId)
         {
@@ -323,14 +311,50 @@ namespace PriceSafari.Controllers.MemberControllers
                 return Json(new { data = new List<object>() });
             }
 
+            var activePreset = await _context.CompetitorPresets
+                .Include(p => p.CompetitorItems)
+                .FirstOrDefaultAsync(p => p.StoreId == storeId && p.NowInUse && p.Type == PresetType.Marketplace);
+
+            string activePresetName = activePreset?.PresetName;
+
+            var competitorRules = activePreset?.CompetitorItems
+                .Where(ci => ci.DataSource == DataSourceType.Allegro)
+                .ToDictionary(ci => ci.StoreName.ToLower().Trim(), ci => ci.UseCompetitor);
+
             var allOffersForProduct = await _context.AllegroPriceHistories
                 .Where(aph => aph.AllegroScrapeHistoryId == latestScrap.Id &&
-                              aph.AllegroProductId == productId &&
-                              aph.Price > 0)
-                .OrderBy(aph => aph.Price)
+                                aph.AllegroProductId == productId &&
+                                aph.Price > 0)
                 .ToListAsync();
 
-            var myOfferIdsInList = allOffersForProduct
+            List<AllegroPriceHistory> filteredOffers;
+            if (activePreset != null && competitorRules != null)
+            {
+                var ourStoreNameLower = store.StoreNameAllegro.ToLower().Trim();
+                filteredOffers = allOffersForProduct.Where(p =>
+                {
+                    if (p.SellerName.Equals(store.StoreNameAllegro, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return true;
+                    }
+                    var sellerNameLower = (p.SellerName ?? "").ToLower().Trim();
+
+                    if (competitorRules.TryGetValue(sellerNameLower, out bool useCompetitor))
+                    {
+                        return useCompetitor;
+                    }
+
+                    return activePreset.UseUnmarkedStores;
+                }).ToList();
+            }
+            else
+            {
+                filteredOffers = allOffersForProduct;
+            }
+
+            filteredOffers = filteredOffers.OrderBy(o => o.Price).ToList();
+
+            var myOfferIdsInList = filteredOffers
                 .Where(aph => aph.SellerName.Equals(store.StoreNameAllegro, StringComparison.OrdinalIgnoreCase))
                 .Select(aph => aph.IdAllegro)
                 .ToList();
@@ -343,18 +367,16 @@ namespace PriceSafari.Controllers.MemberControllers
             var navigationMap = new Dictionary<long, int>();
             foreach (var offerId in myOfferIdsInList)
             {
-
                 var matchingProduct = allMyProducts.FirstOrDefault(p =>
                     !string.IsNullOrEmpty(p.AllegroOfferUrl) && p.AllegroOfferUrl.EndsWith($"-{offerId}")
                 );
-
                 if (matchingProduct != null)
                 {
                     navigationMap[offerId] = matchingProduct.AllegroProductId;
                 }
             }
 
-            var dataForJson = allOffersForProduct.Select(aph => new {
+            var dataForJson = filteredOffers.Select(aph => new {
                 aph.SellerName,
                 aph.Price,
                 aph.SuperSeller,
@@ -368,7 +390,6 @@ namespace PriceSafari.Controllers.MemberControllers
                 aph.Promoted,
                 aph.Sponsored,
                 aph.IdAllegro,
-
                 TargetProductId = navigationMap.ContainsKey(aph.IdAllegro) ? navigationMap[aph.IdAllegro] : (int?)null
             }).ToList();
 
@@ -383,16 +404,17 @@ namespace PriceSafari.Controllers.MemberControllers
             }
 
             var priceSettings = await _context.PriceValues.FirstOrDefaultAsync(pv => pv.StoreId == storeId);
-            var totalPopularity = allOffersForProduct.Sum(o => o.Popularity ?? 0);
+            var totalPopularity = filteredOffers.Sum(o => o.Popularity ?? 0);
 
             return Json(new
             {
-                mainOfferId = mainOfferId,
+                mainOfferId,
                 data = dataForJson,
                 totalProductPopularity = totalPopularity,
                 lastScrapeDate = latestScrap.Date,
                 setPrice1 = priceSettings?.AllegroSetPrice1 ?? 0.01m,
-                setPrice2 = priceSettings?.AllegroSetPrice2 ?? 2.00m
+                setPrice2 = priceSettings?.AllegroSetPrice2 ?? 2.00m,
+                activePresetName = activePresetName
             });
         }
 
@@ -407,6 +429,9 @@ namespace PriceSafari.Controllers.MemberControllers
             if (!await UserHasAccessToStore(storeId))
                 return Unauthorized(new { Error = "Brak dostępu do sklepu." });
 
+            var store = await _context.Stores.FindAsync(storeId);
+            if (store == null) return NotFound("Store not found.");
+
             long? mainOfferId = null;
             if (!string.IsNullOrEmpty(product.AllegroOfferUrl))
             {
@@ -416,6 +441,14 @@ namespace PriceSafari.Controllers.MemberControllers
                     mainOfferId = parsedId;
                 }
             }
+
+            var activePreset = await _context.CompetitorPresets
+                .Include(p => p.CompetitorItems)
+                .FirstOrDefaultAsync(p => p.StoreId == storeId && p.NowInUse && p.Type == PresetType.Marketplace);
+
+            var competitorRules = activePreset?.CompetitorItems
+                .Where(ci => ci.DataSource == DataSourceType.Allegro)
+                .ToDictionary(ci => ci.StoreName.ToLower().Trim(), ci => ci.UseCompetitor);
 
             var lastScraps = await _context.AllegroScrapeHistories
                 .Where(sh => sh.StoreId == storeId)
@@ -442,8 +475,30 @@ namespace PriceSafari.Controllers.MemberControllers
                 .ToListAsync();
 
             var timelineData = lastScraps.Select(scrap => {
-                var dailyOffers = priceHistories
-                    .Where(ph => ph.AllegroScrapeHistoryId == scrap.Id)
+                var allDailyOffers = priceHistories
+                    .Where(ph => ph.AllegroScrapeHistoryId == scrap.Id);
+
+                List<AllegroPriceHistory> filteredDailyOffers;
+                if (activePreset != null && competitorRules != null)
+                {
+                    filteredDailyOffers = allDailyOffers.Where(p =>
+                    {
+                        if (p.SellerName.Equals(store.StoreNameAllegro, StringComparison.OrdinalIgnoreCase))
+                            return true;
+
+                        var sellerNameLower = (p.SellerName ?? "").ToLower().Trim();
+                        if (competitorRules.TryGetValue(sellerNameLower, out bool useCompetitor))
+                            return useCompetitor;
+
+                        return activePreset.UseUnmarkedStores;
+                    }).ToList();
+                }
+                else
+                {
+                    filteredDailyOffers = allDailyOffers.ToList();
+                }
+
+                var dailyOffersForJson = filteredDailyOffers
                     .Select(ph => new OfferTrendPointViewModel
                     {
                         StoreName = ph.SellerName,
@@ -460,8 +515,8 @@ namespace PriceSafari.Controllers.MemberControllers
                 return new DailyTrendPointViewModel
                 {
                     ScrapDate = scrap.Date.ToString("yyyy-MM-dd"),
-                    TotalSales = dailyOffers.Sum(o => o.Sales),
-                    Offers = dailyOffers
+                    TotalSales = dailyOffersForJson.Sum(o => o.Sales),
+                    Offers = dailyOffersForJson
                 };
             }).ToList();
 

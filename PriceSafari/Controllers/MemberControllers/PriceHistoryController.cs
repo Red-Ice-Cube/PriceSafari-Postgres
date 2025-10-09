@@ -91,7 +91,7 @@ namespace PriceSafari.Controllers.MemberControllers
 
             var flags = await _context.Flags
                .Where(f => f.StoreId == storeId.Value && f.IsMarketplace == false)
-               .Select(f => new FlagViewModel 
+               .Select(f => new FlagViewModel
                {
                    FlagId = f.FlagId,
                    FlagName = f.FlagName,
@@ -668,8 +668,8 @@ namespace PriceSafari.Controllers.MemberControllers
         }
 
 
-      
-        
+
+
 
         [HttpPost]
         public async Task<IActionResult> SavePriceValues([FromBody] PriceValuesViewModel model)
@@ -853,7 +853,7 @@ namespace PriceSafari.Controllers.MemberControllers
                     newGoogleUrl = $"https://www.google.com/search?q={productNameForUrl}&udm=28#oshopproduct=cid:{productIdCid},pvt:hg,pvo:3&oshop=apv";
                 }
             }
-      
+
             var priceValues = await _context.PriceValues
                 .Where(pv => pv.StoreId == storeId)
                 .Select(pv => new { pv.SetPrice1, pv.SetPrice2 })
