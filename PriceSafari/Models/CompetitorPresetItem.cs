@@ -8,18 +8,33 @@ namespace PriceSafari.Models
         [Key]
         public int CompetitorPresetItemId { get; set; }
 
-        // Powiązanie z "główną" tabelą presetów
+       
         public int PresetId { get; set; }
         [ForeignKey(nameof(PresetId))]
         public CompetitorPresetClass Preset { get; set; }
 
-        // Nazwa sklepu w danym źródle
+ 
         public string StoreName { get; set; }
 
-        // True => Google, False => Ceneo
-        public bool IsGoogle { get; set; }
 
-        // Czy używać tego konkurenta do porównania
+        public DataSourceType DataSource { get; set; }
+
+
         public bool UseCompetitor { get; set; } = false;
+    }
+
+
+    public enum PresetType
+    {
+        PriceComparison, 
+        Marketplace      
+    }
+
+
+    public enum DataSourceType
+    {
+        Google,
+        Ceneo,
+        Allegro
     }
 }

@@ -81,6 +81,7 @@ namespace PriceSafari.Controllers.MemberControllers
             {
                 presetId = preset.PresetId,
                 presetName = preset.PresetName,
+                type = preset.Type, 
                 nowInUse = preset.NowInUse,
                 sourceGoogle = preset.SourceGoogle,
                 sourceCeneo = preset.SourceCeneo,
@@ -89,7 +90,7 @@ namespace PriceSafari.Controllers.MemberControllers
                     .Select(ci => new
                     {
                         ci.StoreName,
-                        ci.IsGoogle,
+                        ci.DataSource, 
                         ci.UseCompetitor
                     }).ToList()
             };
@@ -210,6 +211,7 @@ namespace PriceSafari.Controllers.MemberControllers
                 preset = new CompetitorPresetClass
                 {
                     StoreId = model.StoreId,
+                    Type = model.Type // <-- DODANE: Ustawiamy typ przy tworzeniu
                 };
                 _context.CompetitorPresets.Add(preset);
             }
@@ -219,55 +221,46 @@ namespace PriceSafari.Controllers.MemberControllers
                     .Include(p => p.CompetitorItems)
                     .FirstOrDefaultAsync(p => p.PresetId == model.PresetId);
 
-                if (preset == null)
-                    return BadRequest("Taki preset nie istnieje.");
-
-                if (preset.StoreId != model.StoreId)
-                    return BadRequest("Błędny storeId dla tego presetu.");
+                if (preset == null) return BadRequest("Taki preset nie istnieje.");
+                if (preset.StoreId != model.StoreId) return BadRequest("Błędny storeId dla tego presetu.");
             }
 
-            preset.PresetName = string.IsNullOrWhiteSpace(model.PresetName)
-                ? "No Name"
-                : model.PresetName.Trim();
+            preset.PresetName = string.IsNullOrWhiteSpace(model.PresetName) ? "No Name" : model.PresetName.Trim();
 
             if (model.NowInUse)
             {
+                // Upewnij się, że deaktywujesz tylko presety tego samego typu
                 var others = await _context.CompetitorPresets
-                    .Where(p => p.StoreId == model.StoreId && p.PresetId != model.PresetId && p.NowInUse)
+                    .Where(p => p.StoreId == model.StoreId && p.Type == model.Type && p.PresetId != preset.PresetId && p.NowInUse)
                     .ToListAsync();
-
-                foreach (var o in others)
-                    o.NowInUse = false;
+                foreach (var o in others) o.NowInUse = false;
             }
             preset.NowInUse = model.NowInUse;
 
+            // Te pola mają sens tylko dla PriceComparison, ale możemy je zapisywać dla obu
             preset.SourceGoogle = model.SourceGoogle;
             preset.SourceCeneo = model.SourceCeneo;
             preset.UseUnmarkedStores = model.UseUnmarkedStores;
 
+            preset.CompetitorItems.Clear(); // Najpierw czyścimy stare elementy
             if (model.Competitors != null)
             {
-                preset.CompetitorItems.Clear();
-
                 foreach (var c in model.Competitors)
                 {
                     preset.CompetitorItems.Add(new CompetitorPresetItem
                     {
                         StoreName = c.StoreName,
-                        IsGoogle = c.IsGoogle,
+                        // IsGoogle = c.IsGoogle, <-- USUNIĘTE
+                        DataSource = c.DataSource, // <-- DODANE
                         UseCompetitor = c.UseCompetitor
                     });
                 }
             }
 
             await _context.SaveChangesAsync();
-
-            return Ok(new
-            {
-                success = true,
-                presetId = preset.PresetId
-            });
+            return Ok(new { success = true, presetId = preset.PresetId });
         }
+
 
         [HttpPost("deactivate-all")]
         public async Task<IActionResult> DeactivateAllPresets(int storeId)

@@ -266,22 +266,12 @@ namespace PriceSafari.Controllers.MemberControllers
 
             }
 
-            if (activePreset != null)
+            if (activePreset != null && activePreset.Type == PresetType.PriceComparison) // Sprawdzamy, czy preset jest właściwego typu!
             {
                 var competitorItemsDict = activePreset.CompetitorItems
-                    .GroupBy(ci => new
-                    {
-                        Store = ci.StoreName.ToLower().Trim(),
-                        Source = ci.IsGoogle
-                    })
-                    .Select(g => g.First())
                     .ToDictionary(
-                        x => new
-                        {
-                            Store = x.StoreName.ToLower().Trim(),
-                            Source = x.IsGoogle
-                        },
-                        x => x.UseCompetitor
+                        ci => (Store: ci.StoreName.ToLower().Trim(), Source: ci.DataSource), // <-- ZMIANA KLUCZA
+                        ci => ci.UseCompetitor
                     );
 
                 var storeNameLower = storeName.ToLower().Trim();
@@ -289,19 +279,16 @@ namespace PriceSafari.Controllers.MemberControllers
 
                 foreach (var row in rawPrices)
                 {
-                    if (row.StoreName != null &&
-                        row.StoreName.ToLower().Trim() == storeNameLower)
+                    if (row.StoreName != null && row.StoreName.ToLower().Trim() == storeNameLower)
                     {
                         filteredPrices.Add(row);
                         continue;
                     }
 
-                    bool googleFlag = (row.IsGoogle == true);
-                    var key = new
-                    {
-                        Store = (row.StoreName ?? "").ToLower().Trim(),
-                        Source = googleFlag
-                    };
+                    // Konwertujemy bool? IsGoogle na nasz enum DataSourceType
+                    DataSourceType currentSource = row.IsGoogle == true ? DataSourceType.Google : DataSourceType.Ceneo;
+
+                    var key = (Store: (row.StoreName ?? "").ToLower().Trim(), Source: currentSource); // <-- ZMIANA KLUCZA
 
                     if (competitorItemsDict.TryGetValue(key, out bool useCompetitor))
                     {
@@ -313,7 +300,6 @@ namespace PriceSafari.Controllers.MemberControllers
                             filteredPrices.Add(row);
                     }
                 }
-
                 rawPrices = filteredPrices;
             }
 
@@ -779,42 +765,29 @@ namespace PriceSafari.Controllers.MemberControllers
 
             List<PriceHistoryClass> filteredPrices;
 
-            if (activePreset != null)
+            if (activePreset != null && activePreset.Type == PresetType.PriceComparison) // Sprawdzamy typ presetu
             {
                 var competitorItemsDict = activePreset.CompetitorItems
-                        .GroupBy(ci => new
-                        {
-                            Store = ci.StoreName.ToLower().Trim(),
-                            Source = ci.IsGoogle
-                        })
-                        .Select(g => g.First())
-                        .ToDictionary(
-                            x => new
-                            {
-                                Store = x.StoreName.ToLower().Trim(),
-                                Source = x.IsGoogle
-                            },
-                            x => x.UseCompetitor
-                        );
+                    .ToDictionary(
+                        ci => (Store: ci.StoreName.ToLower().Trim(), Source: ci.DataSource), // <-- ZMIANA KLUCZA
+                        ci => ci.UseCompetitor
+                    );
 
                 var storeNameLower = storeName.ToLower().Trim();
                 filteredPrices = new List<PriceHistoryClass>();
 
                 foreach (var priceEntry in rawPrices)
                 {
-                    if (priceEntry.StoreName != null &&
-                        priceEntry.StoreName.ToLower().Trim() == storeNameLower)
+                    if (priceEntry.StoreName != null && priceEntry.StoreName.ToLower().Trim() == storeNameLower)
                     {
                         filteredPrices.Add(priceEntry);
                         continue;
                     }
 
-                    bool googleFlag = (priceEntry.IsGoogle == true);
-                    var key = new
-                    {
-                        Store = (priceEntry.StoreName ?? "").ToLower().Trim(),
-                        Source = googleFlag
-                    };
+                    // Konwertujemy bool IsGoogle na nasz enum DataSourceType
+                    DataSourceType currentSource = priceEntry.IsGoogle == true ? DataSourceType.Google : DataSourceType.Ceneo;
+
+                    var key = (Store: (priceEntry.StoreName ?? "").ToLower().Trim(), Source: currentSource); // <-- ZMIANA KLUCZA
 
                     if (competitorItemsDict.TryGetValue(key, out bool useCompetitor))
                     {
@@ -1009,14 +982,12 @@ namespace PriceSafari.Controllers.MemberControllers
 
             List<PriceHistoryClass> finalFilteredHistories;
 
-            if (activePreset != null)
+            if (activePreset != null && activePreset.Type == PresetType.PriceComparison) // Sprawdzamy typ presetu
             {
                 var competitorItemsDict = activePreset.CompetitorItems
-                    .GroupBy(ci => new { Store = ci.StoreName.ToLower().Trim(), Source = ci.IsGoogle })
-                    .Select(g => g.First())
                     .ToDictionary(
-                        x => new { Store = x.StoreName.ToLower().Trim(), Source = x.IsGoogle },
-                        x => x.UseCompetitor
+                        ci => (Store: ci.StoreName.ToLower().Trim(), Source: ci.DataSource), // <-- ZMIANA KLUCZA
+                        ci => ci.UseCompetitor
                     );
 
                 var storeNameLower = storeName.ToLower().Trim();
@@ -1024,16 +995,14 @@ namespace PriceSafari.Controllers.MemberControllers
 
                 foreach (var priceEntry in rawFilteredHistories)
                 {
-                    if (priceEntry.StoreName != null &&
-                        priceEntry.StoreName.ToLower().Trim() == storeNameLower)
+                    if (priceEntry.StoreName != null && priceEntry.StoreName.ToLower().Trim() == storeNameLower)
                     {
                         finalFilteredHistories.Add(priceEntry);
                         continue;
                     }
 
-                    bool googleFlag = (priceEntry.IsGoogle == true);
-
-                    var key = new { Store = (priceEntry.StoreName ?? "").ToLower().Trim(), Source = googleFlag };
+                    DataSourceType currentSource = priceEntry.IsGoogle == true ? DataSourceType.Google : DataSourceType.Ceneo;
+                    var key = (Store: (priceEntry.StoreName ?? "").ToLower().Trim(), Source: currentSource); // <-- ZMIANA KLUCZA
 
                     if (competitorItemsDict.TryGetValue(key, out bool useCompetitor))
                     {
