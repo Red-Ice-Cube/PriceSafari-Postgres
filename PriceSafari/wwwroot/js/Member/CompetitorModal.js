@@ -116,11 +116,20 @@ document.addEventListener("DOMContentLoaded", () => {
 
 async function deactivateAllPresets() {
     try {
-        const resp = await fetch(`/api/Presets/deactivate-all`, {
+
+        const resp = await fetch(`/api/Presets/deactivate-all/${storeId}`, {
             method: "POST",
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(storeId) // Wysyłamy storeId w ciele żądania
+            headers: { 'Content-Type': 'application/json' }
+
         });
+
+        if (!resp.ok) {
+            const errorText = await resp.text();
+            console.error("Błąd deaktywacji:", errorText);
+            alert("Błąd serwera podczas deaktywacji presetów.");
+            return;
+        }
+
         const data = await resp.json();
         if (!data.success) {
             alert("Błąd deaktywacji presetów: " + (data.message || ""));
@@ -224,17 +233,20 @@ async function loadSelectedPreset(presetId) {
     try {
         const resp = await fetch(`/api/Presets/details/${presetId}`);
         const preset = await resp.json();
+
         window.currentPreset = {
             presetId: preset.presetId,
             storeId: storeId,
             presetName: preset.presetName,
+            type: preset.type,
             nowInUse: preset.nowInUse,
             sourceGoogle: preset.sourceGoogle,
             sourceCeneo: preset.sourceCeneo,
             useUnmarkedStores: preset.useUnmarkedStores,
             competitors: (preset.competitorItems || []).map(ci => ({
                 storeName: ci.storeName,
-                isGoogle: ci.isGoogle,
+
+                dataSource: ci.dataSource,
                 useCompetitor: ci.useCompetitor
             }))
         };
@@ -347,17 +359,25 @@ async function loadSelectedPreset(presetId) {
         deleteBtn.onclick = async function () {
             if (confirm("Czy na pewno chcesz usunąć ten preset?")) {
                 try {
-                    const resp = await fetch(`/api/Presets/delete`, {
+
+                    const resp = await fetch(`/api/Presets/delete/${window.currentPreset.presetId}`, {
                         method: "POST",
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(window.currentPreset.presetId) 
+                        headers: { 'Content-Type': 'application/json' }
+
                     });
+
+                    if (!resp.ok) {
+                        const errorText = await resp.text();
+                        console.error("Błąd usuwania:", errorText);
+                        alert("Błąd serwera podczas usuwania presetu.");
+                        return;
+                    }
+
                     const data = await resp.json();
                     if (data.success) {
                         alert("Preset został usunięty.");
                         await refreshPresetDropdown();
-                        const presetSelect = document.getElementById("presetSelect");
-                        presetSelect.value = "BASE";
+                        document.getElementById("presetSelect").value = "BASE";
                         await loadBaseView();
                     } else {
                         alert("Błąd usuwania presetu: " + (data.message || ""));
@@ -491,11 +511,15 @@ function toggleCompetitorUsage(storeName, isGoogle, useCompetitor) {
         alert("Stwórz własny preset, aby wprowadzać zmiany.");
         return;
     }
+
+    const dataSourceValue = isGoogle ? 0 : 1;
+
     let comp = window.currentPreset.competitors.find(c =>
-        c.storeName.toLowerCase() === storeName.toLowerCase() && c.isGoogle === isGoogle
+        c.storeName.toLowerCase() === storeName.toLowerCase() && c.dataSource === dataSourceValue
     );
     if (!comp) {
-        comp = { storeName, isGoogle, useCompetitor };
+
+        comp = { storeName, dataSource: dataSourceValue, useCompetitor };
         window.currentPreset.competitors.push(comp);
     } else {
         comp.useCompetitor = useCompetitor;
@@ -503,14 +527,14 @@ function toggleCompetitorUsage(storeName, isGoogle, useCompetitor) {
     saveOrUpdatePreset();
     refreshRowColor(storeName, isGoogle);
 }
-
 function clearCompetitorUsage(storeName, isGoogle) {
     if (!window.currentPreset || !window.currentPreset.presetId) {
         alert("Stwórz własny preset, aby wprowadzać zmiany.");
         return;
     }
+    const dataSourceValue = isGoogle ? 0 : 1;
     const idx = window.currentPreset.competitors.findIndex(c =>
-        c.storeName.toLowerCase() === storeName.toLowerCase() && c.isGoogle === isGoogle
+        c.storeName.toLowerCase() === storeName.toLowerCase() && c.dataSource === dataSourceValue
     );
     if (idx !== -1) {
         window.currentPreset.competitors.splice(idx, 1);
@@ -536,8 +560,9 @@ function refreshRowColor(storeName, isGoogle) {
     if (ds === "Google" && !window.currentPreset.sourceGoogle) sourceActive = false;
     if (ds === "Ceneo" && !window.currentPreset.sourceCeneo) sourceActive = false;
     if (!sourceActive) return;
+    const dataSourceValue = isGoogle ? 0 : 1;
     const item = window.currentPreset.competitors.find(ci =>
-        ci.storeName.toLowerCase() === storeName.toLowerCase() && ci.isGoogle === isGoogle
+        ci.storeName.toLowerCase() === storeName.toLowerCase() && ci.dataSource === dataSourceValue
     );
     const useUnmarked = window.currentPreset.useUnmarkedStores;
     if (item) {
@@ -562,6 +587,7 @@ document.addEventListener("DOMContentLoaded", () => {
             presetId: 0,
             storeId: storeId,
             presetName,
+            type: 0,
             nowInUse: false,
             sourceGoogle: true,
             sourceCeneo: true,
