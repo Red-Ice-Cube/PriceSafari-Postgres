@@ -17,7 +17,7 @@ public class CoOfrClass
     public bool GoogleIsRejected { get; set; }
     public bool IsGoogle { get; set; }
 
-    // NOWE POLE - "NA BRUDNO"
+    // Wartposci Brudonopisu nastepnie przepisane do extendedInfo
     public int? CeneoSalesCount { get; set; }
 
     // Add these two new properties
