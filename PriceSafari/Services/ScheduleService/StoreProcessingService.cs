@@ -58,6 +58,9 @@ public class StoreProcessingService
         var priceHistoriesBag = new ConcurrentBag<PriceHistoryClass>();
         var updatedProductsBag = new ConcurrentBag<ProductClass>();
         var fallbackUsedList = new ConcurrentBag<(string ProductName, decimal Price, decimal? ShippingTotal)>();
+        var extendedInfoBag = new ConcurrentBag<PriceHistoryExtendedInfoClass>();
+
+        var processedProductsForExtendedInfo = new ConcurrentDictionary<int, bool>();
 
         await Task.Run(() => Parallel.ForEach(products, product =>
         {
@@ -67,6 +70,21 @@ public class StoreProcessingService
                                    || co.ProductIdsGoogle.Contains(product.ProductId));
             if (coOfr == null)
                 return;
+
+            if (processedProductsForExtendedInfo.TryAdd(product.ProductId, true))
+            {
+
+                if (coOfr.CeneoSalesCount.HasValue)
+                {
+                    var extendedInfo = new PriceHistoryExtendedInfoClass
+                    {
+                        ProductId = product.ProductId,
+                        ScrapHistory = scrapHistory,
+                        CeneoSalesCount = coOfr.CeneoSalesCount.Value
+                    };
+                    extendedInfoBag.Add(extendedInfo);
+                }
+            }
 
             var coOfrId = coOfr.Id;
 
@@ -218,6 +236,17 @@ public class StoreProcessingService
         scrapHistory.PriceCount = priceHistoriesBag.Count;
 
         _context.ScrapHistories.Add(scrapHistory);
+        await _context.SaveChangesAsync();
+
+        foreach (var extendedInfo in extendedInfoBag)
+        {
+            extendedInfo.ScrapHistoryId = scrapHistory.Id;
+        }
+
+        if (extendedInfoBag.Any())
+        {
+            _context.PriceHistoryExtendedInfos.AddRange(extendedInfoBag);
+        }
 
         var priceHistoriesAll = priceHistoriesBag.ToList();
         const int CHUNK_SIZE = 1000;
@@ -268,9 +297,6 @@ public class StoreProcessingService
 
             currentIndex += CHUNK_SIZE;
         }
-
-        //store.RemainingScrapes--;
-        //await _context.SaveChangesAsync();
 
         if (fallbackUsedList.Count > 0)
         {
