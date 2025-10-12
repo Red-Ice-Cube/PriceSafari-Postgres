@@ -142,9 +142,7 @@ HandleCaptchaAndScrapePricesAsync(
             var rejectedProducts = new List<(string Reason, string Url)>();
             string log;
 
-            // <<< ZMIANA START >>>
-            int? finalSalesCount = null; // Zmienna na ostateczny wynik salesCount
-                                         // <<< ZMIANA KONIEC >>>
+            int? finalSalesCount = null;
 
             try
             {
@@ -178,19 +176,15 @@ HandleCaptchaAndScrapePricesAsync(
                 var totalOffersCount = await GetTotalOffersCountAsync();
                 Console.WriteLine($"Total number of offers: {totalOffersCount}");
 
-                // <<< ZMIANA START >>>
-                // 1. Wczytujemy oferty z bieżącej strony I odbieramy salesCount
                 var (mainPrices, mainSalesCount, scrapeLog, scrapeRejectedProducts) = await ScrapePricesFromCurrentPage(url, true, getCeneoName);
                 priceResults.AddRange(mainPrices);
                 log = scrapeLog;
                 rejectedProducts.AddRange(scrapeRejectedProducts);
 
-                // Jeśli znaleziono salesCount, zapisujemy go
                 if (mainSalesCount.HasValue)
                 {
                     finalSalesCount = mainSalesCount;
                 }
-                // <<< ZMIANA KONIEC >>>
 
                 if (totalOffersCount > 15)
                 {
@@ -198,17 +192,14 @@ HandleCaptchaAndScrapePricesAsync(
                     await _page.GoToAsync(sortedUrl, new NavigationOptions { WaitUntil = new[] { WaitUntilNavigation.DOMContentLoaded } });
                     await _page.WaitForSelectorAsync("li.product-offers__list__item", new WaitForSelectorOptions { Timeout = 3000 });
 
-                    // <<< ZMIANA START >>>
                     var (sortedPrices, sortedSalesCount, sortedLog, sortedRejectedProducts) = await ScrapePricesFromCurrentPage(sortedUrl, false, getCeneoName);
                     log += sortedLog;
                     rejectedProducts.AddRange(sortedRejectedProducts);
 
-                    // Jeśli do tej pory nie mieliśmy salesCount, a teraz go znaleźliśmy, zapisujemy
                     if (!finalSalesCount.HasValue && sortedSalesCount.HasValue)
                     {
                         finalSalesCount = sortedSalesCount;
                     }
-                    // <<< ZMIANA KONIEC >>>
 
                     foreach (var sortedPrice in sortedPrices)
                     {
@@ -230,19 +221,16 @@ HandleCaptchaAndScrapePricesAsync(
                             Timeout = 3000
                         });
 
-                        // <<< ZMIANA START >>>
                         var (fastestDeliveryPrices, fastestDeliverySalesCount, fastestDeliveryLog, fastestDeliveryRejectedProducts)
                             = await ScrapePricesFromCurrentPage(fastestDeliveryUrl, false, getCeneoName);
 
                         log += fastestDeliveryLog;
                         rejectedProducts.AddRange(fastestDeliveryRejectedProducts);
 
-                        // Jeśli do tej pory nie mieliśmy salesCount, a teraz go znaleźliśmy, zapisujemy
                         if (!finalSalesCount.HasValue && fastestDeliverySalesCount.HasValue)
                         {
                             finalSalesCount = fastestDeliverySalesCount;
                         }
-                        // <<< ZMIANA KONIEC >>>
 
                         foreach (var fdp in fastestDeliveryPrices)
                         {
@@ -277,16 +265,13 @@ HandleCaptchaAndScrapePricesAsync(
                             Timeout = 3000
                         });
 
-                        // <<< ZMIANA START >>>
                         var (storePrices, storeSalesCount, storeLog, storeRejectedProducts)
                             = await ScrapePricesFromCurrentPage(storeSpecificUrl, false, getCeneoName);
 
-                        // Jeśli do tej pory nie mieliśmy salesCount, a teraz go znaleźliśmy, zapisujemy
                         if (!finalSalesCount.HasValue && storeSalesCount.HasValue)
                         {
                             finalSalesCount = storeSalesCount;
                         }
-                        // <<< ZMIANA KONIEC >>>
 
                         var storeSpecificOffers = storePrices
                             .Where(p => p.storeName.Equals(store.StoreName, StringComparison.OrdinalIgnoreCase))
@@ -348,7 +333,7 @@ HandleCaptchaAndScrapePricesAsync(
             return totalOffersCount;
         }
 
-        private async Task<(List<(string storeName, decimal price, decimal? shippingCostNum, int? availabilityNum, string isBidding, string? position, string? ceneoName)> Prices,int? salesCount,string Log,List<(string Reason, string Url)> RejectedProducts)>
+        private async Task<(List<(string storeName, decimal price, decimal? shippingCostNum, int? availabilityNum, string isBidding, string? position, string? ceneoName)> Prices, int? salesCount, string Log, List<(string Reason, string Url)> RejectedProducts)>
             ScrapePricesFromCurrentPage(string url, bool includePosition, bool getCeneoName)
         {
             var prices = new List<(string storeName, decimal price, decimal? shippingCostNum, int? availabilityNum, string isBidding, string? position, string? ceneoName)>();
@@ -357,10 +342,8 @@ HandleCaptchaAndScrapePricesAsync(
             string log;
             int positionCounter = 1;
 
-            // <<< ZMIANA START >>>
-            int? salesCount = null; // Zmienna na wynik
-            bool salesCountFound = false; // Flaga, żeby pobrać wartość tylko raz
-                                          // <<< ZMIANA KONIEC >>>
+            int? salesCount = null;
+            bool salesCountFound = false;
 
             if (_page == null)
             {
@@ -376,8 +359,7 @@ HandleCaptchaAndScrapePricesAsync(
 
                 foreach (var offerNode in offerNodes)
                 {
-                    // <<< ZMIANA START >>>
-                    // Logika pobierania liczby sprzedaży z kontenera oferty
+
                     if (!salesCountFound)
                     {
                         var offerContainer = await offerNode.QuerySelectorAsync("div.product-offer__container");
@@ -389,7 +371,7 @@ HandleCaptchaAndScrapePricesAsync(
                             if (!string.IsNullOrEmpty(salesAttributeValue) && int.TryParse(salesAttributeValue, out int parsedSalesCount))
                             {
                                 salesCount = parsedSalesCount;
-                                salesCountFound = true; // Znaleziono, nie szukaj więcej
+                                salesCountFound = true;
                             }
                         }
                     }

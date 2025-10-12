@@ -111,19 +111,6 @@ namespace PriceSafari.Controllers.MemberControllers
             return View("~/Views/Panel/PriceHistory/Index.cshtml");
         }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
         [HttpGet]
         public async Task<IActionResult> GetPrices(int? storeId)
         {
@@ -221,10 +208,6 @@ namespace PriceSafari.Controllers.MemberControllers
                                 ShippingCostNum = (ph != null ? ph.ShippingCostNum : (decimal?)null)
                             };
 
-            // Plik: PriceHistoryController.cs
-            // Metoda: GetPrices
-
-            // ZMIANA: Dodajemy warunek "&& cp.Type == PresetType.PriceComparison"
             var activePreset = await _context.CompetitorPresets
                 .Include(x => x.CompetitorItems)
                 .FirstOrDefaultAsync(cp => cp.StoreId == storeId && cp.NowInUse && cp.Type == PresetType.PriceComparison);
@@ -270,11 +253,11 @@ namespace PriceSafari.Controllers.MemberControllers
 
             }
 
-            if (activePreset != null && activePreset.Type == PresetType.PriceComparison) // Sprawdzamy, czy preset jest właściwego typu!
+            if (activePreset != null && activePreset.Type == PresetType.PriceComparison)
             {
                 var competitorItemsDict = activePreset.CompetitorItems
                     .ToDictionary(
-                        ci => (Store: ci.StoreName.ToLower().Trim(), Source: ci.DataSource), // <-- ZMIANA KLUCZA
+                        ci => (Store: ci.StoreName.ToLower().Trim(), Source: ci.DataSource),
                         ci => ci.UseCompetitor
                     );
 
@@ -289,10 +272,9 @@ namespace PriceSafari.Controllers.MemberControllers
                         continue;
                     }
 
-                    // Konwertujemy bool? IsGoogle na nasz enum DataSourceType
                     DataSourceType currentSource = row.IsGoogle == true ? DataSourceType.Google : DataSourceType.Ceneo;
 
-                    var key = (Store: (row.StoreName ?? "").ToLower().Trim(), Source: currentSource); // <-- ZMIANA KLUCZA
+                    var key = (Store: (row.StoreName ?? "").ToLower().Trim(), Source: currentSource);
 
                     if (competitorItemsDict.TryGetValue(key, out bool useCompetitor))
                     {
@@ -307,8 +289,13 @@ namespace PriceSafari.Controllers.MemberControllers
                 rawPrices = filteredPrices;
             }
 
-            // Nowy, wydajny kod
             var productIds = rawPrices.Select(p => p.ProductId).ToList();
+
+            var extendedInfoData = await _context.PriceHistoryExtendedInfos
+                .Where(e => e.ScrapHistoryId == latestScrap.Id && productIds.Contains(e.ProductId))
+                .ToListAsync();
+
+            var extendedInfoDict = extendedInfoData.ToDictionary(e => e.ProductId);
 
             var productFlagsDictionary = await _context.ProductFlags
                 .Where(pf => pf.ProductId.HasValue && productIds.Contains(pf.ProductId.Value))
@@ -384,6 +371,8 @@ namespace PriceSafari.Controllers.MemberControllers
 
                     bool? bestPriceIncludesDeliveryFlag = null;
                     bool? myPriceIncludesDeliveryFlag = null;
+
+                    extendedInfoDict.TryGetValue(g.Key, out var extendedInfo);
 
                     if (priceValues.UsePriceWithDelivery)
                     {
@@ -621,7 +610,8 @@ namespace PriceSafari.Controllers.MemberControllers
                         BestPriceIncludesDelivery = bestPriceIncludesDeliveryFlag,
                         MyPriceIncludesDelivery = myPriceIncludesDeliveryFlag,
                         BestPriceDeliveryCost = priceValues.UsePriceWithDelivery ? bestPriceEntry?.ShippingCostNum : null,
-                        MyPriceDeliveryCost = priceValues.UsePriceWithDelivery ? myPriceEntry?.ShippingCostNum : null
+                        MyPriceDeliveryCost = priceValues.UsePriceWithDelivery ? myPriceEntry?.ShippingCostNum : null,
+                        CeneoSalesCount = extendedInfo?.CeneoSalesCount
                     };
                 })
                 .Where(p => p != null)
@@ -667,10 +657,6 @@ namespace PriceSafari.Controllers.MemberControllers
             public decimal? ShippingCostNum { get; set; }
         }
 
-
-
-
-
         [HttpPost]
         public async Task<IActionResult> SavePriceValues([FromBody] PriceValuesViewModel model)
         {
@@ -713,10 +699,6 @@ namespace PriceSafari.Controllers.MemberControllers
             return Json(new { success = true, message = "Price values updated successfully." });
         }
 
-
-
-
-
         public async Task<IActionResult> Details(int scrapId, int productId)
         {
             var scrapHistory = await _context.ScrapHistories.FindAsync(scrapId);
@@ -745,7 +727,6 @@ namespace PriceSafari.Controllers.MemberControllers
             var activePreset = await _context.CompetitorPresets
                .Include(x => x.CompetitorItems)
                .FirstOrDefaultAsync(cp => cp.StoreId == storeId && cp.NowInUse && cp.Type == PresetType.PriceComparison);
-            // <<< ZMIANA KONIEC >>>
 
             string activePresetName = null;
 
@@ -770,11 +751,11 @@ namespace PriceSafari.Controllers.MemberControllers
 
             List<PriceHistoryClass> filteredPrices;
 
-            if (activePreset != null && activePreset.Type == PresetType.PriceComparison) // Sprawdzamy typ presetu
+            if (activePreset != null && activePreset.Type == PresetType.PriceComparison)
             {
                 var competitorItemsDict = activePreset.CompetitorItems
                     .ToDictionary(
-                        ci => (Store: ci.StoreName.ToLower().Trim(), Source: ci.DataSource), // <-- ZMIANA KLUCZA
+                        ci => (Store: ci.StoreName.ToLower().Trim(), Source: ci.DataSource),
                         ci => ci.UseCompetitor
                     );
 
@@ -789,10 +770,9 @@ namespace PriceSafari.Controllers.MemberControllers
                         continue;
                     }
 
-                    // Konwertujemy bool IsGoogle na nasz enum DataSourceType
                     DataSourceType currentSource = priceEntry.IsGoogle == true ? DataSourceType.Google : DataSourceType.Ceneo;
 
-                    var key = (Store: (priceEntry.StoreName ?? "").ToLower().Trim(), Source: currentSource); // <-- ZMIANA KLUCZA
+                    var key = (Store: (priceEntry.StoreName ?? "").ToLower().Trim(), Source: currentSource);
 
                     if (competitorItemsDict.TryGetValue(key, out bool useCompetitor))
                     {
@@ -836,20 +816,17 @@ namespace PriceSafari.Controllers.MemberControllers
                 }
             }
 
-            // ### POCZĄTEK ZMIANY ###
-
             string? newGoogleUrl = null;
             if (!string.IsNullOrEmpty(product.GoogleUrl) && !string.IsNullOrEmpty(product.ProductName))
             {
-                // 1. Wyciągamy ID produktu (CID) ze starego linku
+
                 string? productIdCid = ExtractProductIdFromUrl(product.GoogleUrl);
 
                 if (!string.IsNullOrEmpty(productIdCid))
                 {
-                    // 2. Przygotowujemy nazwę produktu do wstawienia w URL (zamiana spacji na '+')
+
                     string productNameForUrl = System.Net.WebUtility.UrlEncode(product.ProductName);
 
-                    // 3. Tworzymy nowy, działający link
                     newGoogleUrl = $"https://www.google.com/search?q={productNameForUrl}&udm=28#oshopproduct=cid:{productIdCid},pvt:hg,pvo:3&oshop=apv";
                 }
             }
@@ -859,7 +836,6 @@ namespace PriceSafari.Controllers.MemberControllers
                 .Select(pv => new { pv.SetPrice1, pv.SetPrice2 })
                 .FirstOrDefaultAsync() ?? new { SetPrice1 = 2.00m, SetPrice2 = 2.00m };
 
-            // NOWY KOD
             var pricesDataJson = JsonConvert.SerializeObject(
                 prices.Select(p => new
                 {
@@ -867,12 +843,11 @@ namespace PriceSafari.Controllers.MemberControllers
                     price = p.Price,
                     isBidding = p.IsBidding,
                     isGoogle = p.IsGoogle,
-                    // ### NOWE POLA DO PRZENIESIENIA ###
+
                     inStock = p.GoogleInStock,
                     offerCount = p.GoogleOfferPerStoreCount
                 })
             );
-
 
             ViewBag.ScrapHistory = scrapHistory;
             ViewBag.ProductName = product.ProductName;
@@ -896,15 +871,12 @@ namespace PriceSafari.Controllers.MemberControllers
             return View("~/Views/Panel/PriceHistory/Details.cshtml", prices);
         }
 
-        // Dodaj tę metodę gdzieś wewnątrz klasy swojego kontrolera
         private string? ExtractProductIdFromUrl(string url)
         {
             if (string.IsNullOrEmpty(url)) return null;
             var match = System.Text.RegularExpressions.Regex.Match(url, @"product/(\d+)");
             return match.Success ? match.Groups[1].Value : null;
         }
-
-
 
         [HttpGet]
         public async Task<IActionResult> PriceTrend(int productId)
@@ -944,8 +916,6 @@ namespace PriceSafari.Controllers.MemberControllers
             var activePreset = await _context.CompetitorPresets
                .Include(x => x.CompetitorItems)
                .FirstOrDefaultAsync(cp => cp.StoreId == storeId && cp.NowInUse && cp.Type == PresetType.PriceComparison);
-            // <<< ZMIANA KONIEC >>>
-
 
             var lastScraps = await _context.ScrapHistories
                 .Where(sh => sh.StoreId == storeId)
@@ -989,11 +959,11 @@ namespace PriceSafari.Controllers.MemberControllers
 
             List<PriceHistoryClass> finalFilteredHistories;
 
-            if (activePreset != null && activePreset.Type == PresetType.PriceComparison) // Sprawdzamy typ presetu
+            if (activePreset != null && activePreset.Type == PresetType.PriceComparison)
             {
                 var competitorItemsDict = activePreset.CompetitorItems
                     .ToDictionary(
-                        ci => (Store: ci.StoreName.ToLower().Trim(), Source: ci.DataSource), // <-- ZMIANA KLUCZA
+                        ci => (Store: ci.StoreName.ToLower().Trim(), Source: ci.DataSource),
                         ci => ci.UseCompetitor
                     );
 
@@ -1009,7 +979,7 @@ namespace PriceSafari.Controllers.MemberControllers
                     }
 
                     DataSourceType currentSource = priceEntry.IsGoogle == true ? DataSourceType.Google : DataSourceType.Ceneo;
-                    var key = (Store: (priceEntry.StoreName ?? "").ToLower().Trim(), Source: currentSource); // <-- ZMIANA KLUCZA
+                    var key = (Store: (priceEntry.StoreName ?? "").ToLower().Trim(), Source: currentSource);
 
                     if (competitorItemsDict.TryGetValue(key, out bool useCompetitor))
                     {
@@ -1428,11 +1398,6 @@ namespace PriceSafari.Controllers.MemberControllers
             public string? ProducerCode { get; set; }
         }
 
-
-
-
-
-
         private async Task<List<(int ProductId, decimal Price, bool IsGoogle, string StoreName, decimal? ShippingCostNum)>>
         GetPriceHistoriesInChunksAsync(List<int> productIds, int scrapId)
         {
@@ -1532,8 +1497,6 @@ namespace PriceSafari.Controllers.MemberControllers
             public string Store { get; set; }
             public bool Source { get; set; }
         }
-
-
 
     }
 }

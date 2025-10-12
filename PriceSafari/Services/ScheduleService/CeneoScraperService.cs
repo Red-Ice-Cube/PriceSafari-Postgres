@@ -200,17 +200,13 @@ namespace PriceSafari.Services.ScheduleService
 
                                     var coOfr = coOfrs.First(co => co.OfferUrl == url);
 
-                                    // <<< ZMIANA START >>>
-                                    // Odbieramy teraz 4 wartości, w tym 'salesCount'
                                     var (prices, salesCount, log, rejectedProducts) = await captchaScraper.HandleCaptchaAndScrapePricesAsync(
                                         url,
                                         settings.GetCeneoName,
                                         coOfr.StoreNames,
                                         coOfr.StoreProfiles
                                     );
-                                    // <<< ZMIANA KONIEC >>>
 
-                               
                                     Console.WriteLine(log);
 
                                     var currentUrl = captchaScraper.Page.Url ?? "";
@@ -240,13 +236,10 @@ namespace PriceSafari.Services.ScheduleService
 
                                         await scopedContext.CoOfrPriceHistories.AddRangeAsync(priceHistories, cancellationToken);
 
-                                        // <<< ZMIANA START >>>
-                                        // Przypisujemy pobraną wartość do obiektu coOfr przed jego aktualizacją
                                         if (salesCount.HasValue)
                                         {
                                             coOfr.CeneoSalesCount = salesCount.Value;
                                         }
-                                        // <<< ZMIANA KONIEC >>>
 
                                         coOfr.IsScraped = true;
                                         coOfr.PricesCount = priceHistories.Count;
