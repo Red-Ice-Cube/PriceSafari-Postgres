@@ -59,7 +59,6 @@ namespace PriceSafari.Scrapers
 
                 await _page.SetJavaScriptEnabledAsync(settings.JavaScript);
 
-                // Ukrywanie webdrivera i pluginów
                 await _page.EvaluateFunctionOnNewDocumentAsync(@"() => {
                     Object.defineProperty(navigator, 'webdriver', { get: () => false, configurable: true });
                     Object.defineProperty(navigator, 'plugins', {
@@ -72,7 +71,6 @@ namespace PriceSafari.Scrapers
                     });
                 }");
 
-                // Ustawienie rozdzielczości
                 var commonResolutions = new List<(int width, int height)>
                 {
                     (1366, 768)
@@ -82,7 +80,6 @@ namespace PriceSafari.Scrapers
                 var randomResolution = commonResolutions[random.Next(commonResolutions.Count)];
                 await _page.SetViewportAsync(new ViewPortOptions { Width = randomResolution.width, Height = randomResolution.height });
 
-                // Usunięcie arkuszy stylów
                 await _page.EvaluateFunctionOnNewDocumentAsync(@"() => {
                     [...document.querySelectorAll('link[rel=stylesheet], style')].forEach(e => e.remove());
                     const origCreateElement = document.createElement;
@@ -102,7 +99,7 @@ namespace PriceSafari.Scrapers
             catch (Exception ex)
             {
                 Console.WriteLine($"Error in InitializeBrowserAsync: {ex.Message}");
-                throw; // Rethrow the exception to be handled by the caller
+                throw;
             }
         }
 
@@ -111,7 +108,6 @@ namespace PriceSafari.Scrapers
             if (_page == null)
                 throw new InvalidOperationException("Page is not initialized. Call InitializeBrowserAsync first.");
 
-            // Ustawiamy cookies
             if (sessionData.Cookies != null && sessionData.Cookies.Any())
             {
                 await _page.SetCookieAsync(sessionData.Cookies);
@@ -130,18 +126,25 @@ namespace PriceSafari.Scrapers
             }
         }
 
-        public async Task<(List<(string storeName, decimal price, decimal? shippingCostNum, int? availabilityNum, string isBidding, string? position, string? ceneoName)> Prices,
-                           string Log,
-                           List<(string Reason, string Url)> RejectedProducts)>
-        HandleCaptchaAndScrapePricesAsync(
-            string url,
-            bool getCeneoName,
-            List<string> storeNames,
-            List<string> storeProfiles)
+        public async Task<(
+    List<(string storeName, decimal price, decimal? shippingCostNum, int? availabilityNum, string isBidding, string? position, string? ceneoName)> Prices,
+    int? salesCount,
+    string Log,
+    List<(string Reason, string Url)> RejectedProducts
+)>
+HandleCaptchaAndScrapePricesAsync(
+    string url,
+    bool getCeneoName,
+    List<string> storeNames,
+    List<string> storeProfiles)
         {
             var priceResults = new List<(string storeName, decimal price, decimal? shippingCostNum, int? availabilityNum, string isBidding, string? position, string? ceneoName)>();
             var rejectedProducts = new List<(string Reason, string Url)>();
             string log;
+
+            // <<< ZMIANA START >>>
+            int? finalSalesCount = null; // Zmienna na ostateczny wynik salesCount
+                                         // <<< ZMIANA KONIEC >>>
 
             try
             {
@@ -149,7 +152,7 @@ namespace PriceSafari.Scrapers
                 {
                     log = "The URL provided is null or empty.";
                     Console.WriteLine(log);
-                    return (priceResults, log, rejectedProducts);
+                    return (priceResults, null, log, rejectedProducts);
                 }
 
                 if (_page == null)
@@ -157,69 +160,64 @@ namespace PriceSafari.Scrapers
                     throw new Exception("Browser page is not initialized.");
                 }
 
-                // Główne przejście na stronę (krótki timeout)
                 await _page.GoToAsync(url, new NavigationOptions
                 {
                     WaitUntil = new[] { WaitUntilNavigation.DOMContentLoaded }
                 });
 
-                await _page.WaitForSelectorAsync("li.product-offers__list__item", new WaitForSelectorOptions
-                {
-                    Timeout = 3000
-                });
-
+                await _page.WaitForSelectorAsync("li.product-offers__list__item", new WaitForSelectorOptions { Timeout = 3000 });
                 var currentUrl = _page.Url;
-                // Sprawdzamy, czy trafiliśmy na Captchę.
+
                 if (currentUrl.Contains("/Captcha/Add", StringComparison.OrdinalIgnoreCase))
                 {
                     var logMsg = "Captcha encountered at " + currentUrl;
                     Console.WriteLine(logMsg);
-
-                    return (new List<(string, decimal, decimal?, int?, string, string?, string?)>(),
-                            logMsg,
-                            new List<(string Reason, string Url)> { ("Captcha", url) });
+                    return (new List<(string, decimal, decimal?, int?, string, string?, string?)>(), null, logMsg, new List<(string Reason, string Url)> { ("Captcha", url) });
                 }
 
-                // Liczba wszystkich ofert
                 var totalOffersCount = await GetTotalOffersCountAsync();
                 Console.WriteLine($"Total number of offers: {totalOffersCount}");
 
-                // 1) Wczytujemy oferty z bieżącej strony
-                var (mainPrices, scrapeLog, scrapeRejectedProducts) = await ScrapePricesFromCurrentPage(url, true, getCeneoName);
+                // <<< ZMIANA START >>>
+                // 1. Wczytujemy oferty z bieżącej strony I odbieramy salesCount
+                var (mainPrices, mainSalesCount, scrapeLog, scrapeRejectedProducts) = await ScrapePricesFromCurrentPage(url, true, getCeneoName);
                 priceResults.AddRange(mainPrices);
                 log = scrapeLog;
                 rejectedProducts.AddRange(scrapeRejectedProducts);
 
-                // 2) Jeżeli > 15 ofert, wtedy dopiero sprawdzamy strony z sortowaniem i fastestDelivery
+                // Jeśli znaleziono salesCount, zapisujemy go
+                if (mainSalesCount.HasValue)
+                {
+                    finalSalesCount = mainSalesCount;
+                }
+                // <<< ZMIANA KONIEC >>>
+
                 if (totalOffersCount > 15)
                 {
                     var sortedUrl = $"{url};0281-0.htm";
-                    await _page.GoToAsync(sortedUrl, new NavigationOptions
-                    {
-                        WaitUntil = new[] { WaitUntilNavigation.DOMContentLoaded }
-                    });
-                    await _page.WaitForSelectorAsync("li.product-offers__list__item", new WaitForSelectorOptions
-                    {
-                        Timeout = 3000
-                    });
+                    await _page.GoToAsync(sortedUrl, new NavigationOptions { WaitUntil = new[] { WaitUntilNavigation.DOMContentLoaded } });
+                    await _page.WaitForSelectorAsync("li.product-offers__list__item", new WaitForSelectorOptions { Timeout = 3000 });
 
-                    var (sortedPrices, sortedLog, sortedRejectedProducts) = await ScrapePricesFromCurrentPage(sortedUrl, false, getCeneoName);
+                    // <<< ZMIANA START >>>
+                    var (sortedPrices, sortedSalesCount, sortedLog, sortedRejectedProducts) = await ScrapePricesFromCurrentPage(sortedUrl, false, getCeneoName);
                     log += sortedLog;
                     rejectedProducts.AddRange(sortedRejectedProducts);
 
-                    // Dokładamy oferty jeśli nie ma identycznych
+                    // Jeśli do tej pory nie mieliśmy salesCount, a teraz go znaleźliśmy, zapisujemy
+                    if (!finalSalesCount.HasValue && sortedSalesCount.HasValue)
+                    {
+                        finalSalesCount = sortedSalesCount;
+                    }
+                    // <<< ZMIANA KONIEC >>>
+
                     foreach (var sortedPrice in sortedPrices)
                     {
-                        // Porównujemy również nazwę sklepu case-insensitive, jeżeli chcesz
-                        if (!priceResults.Any(p =>
-                            p.price == sortedPrice.price &&
-                            p.storeName.Equals(sortedPrice.storeName, StringComparison.OrdinalIgnoreCase)))
+                        if (!priceResults.Any(p => p.price == sortedPrice.price && p.storeName.Equals(sortedPrice.storeName, StringComparison.OrdinalIgnoreCase)))
                         {
                             priceResults.Add(sortedPrice);
                         }
                     }
 
-                    // Jeśli wciąż mamy mniej ofert, a totalOffersCount > 15
                     var fastestDeliveryUrl = $"{url};0282-1;02516.htm";
                     if (priceResults.Count < totalOffersCount)
                     {
@@ -232,11 +230,19 @@ namespace PriceSafari.Scrapers
                             Timeout = 3000
                         });
 
-                        var (fastestDeliveryPrices, fastestDeliveryLog, fastestDeliveryRejectedProducts)
+                        // <<< ZMIANA START >>>
+                        var (fastestDeliveryPrices, fastestDeliverySalesCount, fastestDeliveryLog, fastestDeliveryRejectedProducts)
                             = await ScrapePricesFromCurrentPage(fastestDeliveryUrl, false, getCeneoName);
 
                         log += fastestDeliveryLog;
                         rejectedProducts.AddRange(fastestDeliveryRejectedProducts);
+
+                        // Jeśli do tej pory nie mieliśmy salesCount, a teraz go znaleźliśmy, zapisujemy
+                        if (!finalSalesCount.HasValue && fastestDeliverySalesCount.HasValue)
+                        {
+                            finalSalesCount = fastestDeliverySalesCount;
+                        }
+                        // <<< ZMIANA KONIEC >>>
 
                         foreach (var fdp in fastestDeliveryPrices)
                         {
@@ -249,10 +255,8 @@ namespace PriceSafari.Scrapers
                         }
                     }
 
-                    // 3) Jeżeli mamy powyżej 15 ofert, to sprawdzamy szczegółowe linki sklepów, ale tylko wtedy, jeśli rzeczywiście czegoś brakuje
-                    //    i porównujemy nazwę sklepu case-insensitive
                     var foundStoreNames = priceResults
-                        .Select(p => p.storeName.ToLowerInvariant()) // <-- zbieramy w formie lowercase
+                        .Select(p => p.storeName.ToLowerInvariant())
                         .Distinct()
                         .ToList();
 
@@ -273,11 +277,17 @@ namespace PriceSafari.Scrapers
                             Timeout = 3000
                         });
 
-                        var (storePrices, storeLog, storeRejectedProducts)
+                        // <<< ZMIANA START >>>
+                        var (storePrices, storeSalesCount, storeLog, storeRejectedProducts)
                             = await ScrapePricesFromCurrentPage(storeSpecificUrl, false, getCeneoName);
 
-                        // Filtrujemy tutaj *te* oferty, które faktycznie pasują do sklepu, 
-                        // ale już case-insensitive:
+                        // Jeśli do tej pory nie mieliśmy salesCount, a teraz go znaleźliśmy, zapisujemy
+                        if (!finalSalesCount.HasValue && storeSalesCount.HasValue)
+                        {
+                            finalSalesCount = storeSalesCount;
+                        }
+                        // <<< ZMIANA KONIEC >>>
+
                         var storeSpecificOffers = storePrices
                             .Where(p => p.storeName.Equals(store.StoreName, StringComparison.OrdinalIgnoreCase))
                             .Select(p => (
@@ -301,7 +311,7 @@ namespace PriceSafari.Scrapers
                 }
                 else
                 {
-                    // Jeżeli <= 15 ofert, to wszystko mamy na jednej stronie
+
                     log += "No need for additional pages or store-specific URLs (<= 15 offers). ";
                 }
 
@@ -314,7 +324,7 @@ namespace PriceSafari.Scrapers
                 rejectedProducts.Add(($"Exception: {ex.Message}", url));
             }
 
-            return (priceResults, log, rejectedProducts);
+            return (priceResults, finalSalesCount, log, rejectedProducts);
         }
 
         private async Task<int> GetTotalOffersCountAsync()
@@ -338,16 +348,19 @@ namespace PriceSafari.Scrapers
             return totalOffersCount;
         }
 
-        private async Task<(List<(string storeName, decimal price, decimal? shippingCostNum, int? availabilityNum, string isBidding, string? position, string? ceneoName)> Prices,
-                             string Log,
-                             List<(string Reason, string Url)> RejectedProducts)>
-        ScrapePricesFromCurrentPage(string url, bool includePosition, bool getCeneoName)
+        private async Task<(List<(string storeName, decimal price, decimal? shippingCostNum, int? availabilityNum, string isBidding, string? position, string? ceneoName)> Prices,int? salesCount,string Log,List<(string Reason, string Url)> RejectedProducts)>
+            ScrapePricesFromCurrentPage(string url, bool includePosition, bool getCeneoName)
         {
             var prices = new List<(string storeName, decimal price, decimal? shippingCostNum, int? availabilityNum, string isBidding, string? position, string? ceneoName)>();
             var rejectedProducts = new List<(string Reason, string Url)>();
             var storeOffers = new Dictionary<string, (decimal price, decimal? shippingCostNum, int? availabilityNum, string isBidding, string? position, string? ceneoName)>();
             string log;
             int positionCounter = 1;
+
+            // <<< ZMIANA START >>>
+            int? salesCount = null; // Zmienna na wynik
+            bool salesCountFound = false; // Flaga, żeby pobrać wartość tylko raz
+                                          // <<< ZMIANA KONIEC >>>
 
             if (_page == null)
             {
@@ -363,6 +376,23 @@ namespace PriceSafari.Scrapers
 
                 foreach (var offerNode in offerNodes)
                 {
+                    // <<< ZMIANA START >>>
+                    // Logika pobierania liczby sprzedaży z kontenera oferty
+                    if (!salesCountFound)
+                    {
+                        var offerContainer = await offerNode.QuerySelectorAsync("div.product-offer__container");
+                        if (offerContainer != null)
+                        {
+                            var salesAttributeValue = await offerContainer.EvaluateFunctionAsync<string>(
+                                "(element) => element.getAttribute('data-productrecentlypurchased')"
+                            );
+                            if (!string.IsNullOrEmpty(salesAttributeValue) && int.TryParse(salesAttributeValue, out int parsedSalesCount))
+                            {
+                                salesCount = parsedSalesCount;
+                                salesCountFound = true; // Znaleziono, nie szukaj więcej
+                            }
+                        }
+                    }
                     var parentList = await offerNode.EvaluateFunctionAsync<string>("el => el.closest('ul')?.className");
                     if (!string.IsNullOrEmpty(parentList) && parentList.Contains("similar-offers"))
                     {
@@ -387,15 +417,13 @@ namespace PriceSafari.Scrapers
                     string? position = includePosition ? positionCounter.ToString() : null;
                     positionCounter++;
 
-                    // Collect product name from each individual offer
                     string? ceneoProductName = getCeneoName
                         ? await GetCeneoProductNameFromOfferNodeAsync((ElementHandle)offerNode)
                         : null;
 
-                    // Jeśli już mamy daną nazwę sklepu, porównujemy case-insensitive
                     if (storeOffers.ContainsKey(storeName))
                     {
-                        // Jeżeli nowa cena jest niższa niż zapisana, nadpisujemy
+
                         if (priceValue.Value < storeOffers[storeName].price)
                         {
                             storeOffers[storeName] = (priceValue.Value, shippingCostNum, availabilityNum, isBidding, position, ceneoProductName);
@@ -407,7 +435,6 @@ namespace PriceSafari.Scrapers
                     }
                 }
 
-                // Konwertujemy dictionary do listy
                 prices = storeOffers.Select(x => (
                     x.Key,
                     x.Value.price,
@@ -426,7 +453,7 @@ namespace PriceSafari.Scrapers
                 rejectedProducts.Add(("No offer nodes found", url));
             }
 
-            return (prices, log, rejectedProducts);
+            return (prices, salesCount, log, rejectedProducts);
         }
 
         private async Task<string> GetStoreNameFromOfferNodeAsync(ElementHandle offerNode)
@@ -443,7 +470,7 @@ namespace PriceSafari.Scrapers
                     var offerParameter = await storeLink.EvaluateFunctionAsync<string>("el => el.getAttribute('offer-parameter')");
                     if (!string.IsNullOrEmpty(offerParameter))
                     {
-                        // offer-parameter="sklepy/Be-effective.pl-s40263;offer12345"
+
                         var match = Regex.Match(offerParameter, @"sklepy/([^;]+);");
                         if (match.Success)
                         {
@@ -459,7 +486,6 @@ namespace PriceSafari.Scrapers
                 }
             }
 
-            // **Tutaj** wymuszamy lowercase, by wszystko w priceResults było w małych literach
             if (!string.IsNullOrEmpty(storeName))
             {
                 storeName = storeName.ToLowerInvariant();
@@ -562,7 +588,7 @@ namespace PriceSafari.Scrapers
                 Console.WriteLine($"Error scraping product name from offer node: {ex.Message}");
             }
 
-            return null; // Returns null if no name is found
+            return null;
         }
     }
 }

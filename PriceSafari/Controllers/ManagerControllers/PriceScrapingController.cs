@@ -7,6 +7,7 @@ using PriceSafari.Hubs;
 using PriceSafari.Models;
 using PriceSafari.Scrapers;
 using PriceSafari.Services.ControlXY;
+using PriceSafari.Services.ScheduleService;
 using PuppeteerSharp;
 using System.Diagnostics;
 
@@ -22,8 +23,9 @@ public class PriceScrapingController : Controller
     private static CancellationTokenSource _cancellationTokenSource = new CancellationTokenSource();
     private readonly StoreProcessingService _storeProcessingService;
     private readonly ControlXYService _controlXYService;
+    private readonly CeneoScraperService _ceneoScraperService;
 
-    public PriceScrapingController(PriceSafariContext context, IHubContext<ScrapingHub> hubContext, IServiceProvider serviceProvider, HttpClient httpClient, IHttpClientFactory httpClientFactory, StoreProcessingService storeProcessingService, ControlXYService controlXYService)
+    public PriceScrapingController(PriceSafariContext context, IHubContext<ScrapingHub> hubContext, IServiceProvider serviceProvider, HttpClient httpClient, IHttpClientFactory httpClientFactory, StoreProcessingService storeProcessingService, ControlXYService controlXYService,CeneoScraperService ceneoScraperService)
     {
         _context = context;
         _hubContext = hubContext;
@@ -32,6 +34,7 @@ public class PriceScrapingController : Controller
         _httpClientFactory = httpClientFactory;
         _storeProcessingService = storeProcessingService;
         _controlXYService = controlXYService;
+        _ceneoScraperService = ceneoScraperService;
     }
    
     [HttpPost]
@@ -238,182 +241,60 @@ public class PriceScrapingController : Controller
     }
 
 
-
     [HttpPost]
     public async Task<IActionResult> StartScrapingWithCaptchaHandling()
     {
         ResetCancellationToken();
         var cancellationToken = _cancellationTokenSource.Token;
 
-        var settings = await _context.Settings.FirstOrDefaultAsync();
-        if (settings == null)
+        try
         {
-            Console.WriteLine("Settings not found.");
-            return NotFound("Settings not found.");
-        }
+            // <<< ZMIANA START >>>
+            // Wywołujemy metodę z serwisu, przekazując CancellationToken
+            var result = await _ceneoScraperService.StartScrapingWithCaptchaHandlingAsync(cancellationToken);
 
-        var resolveCaptchaScraper = new ResolveCaptchaScraper();
-        await resolveCaptchaScraper.InitializeNormalBrowserAsync();
-
-        
-        await resolveCaptchaScraper.NavigateToCaptchaAsync();
-
-      
-        if (settings.ControlXY)
-        {
-            await _hubContext.Clients.All.SendAsync("ReceiveControlXYCountdown", 10);
-            await Task.Delay(TimeSpan.FromSeconds(9));
-            _controlXYService.StartControlXY();
-        }
-
-        await resolveCaptchaScraper.WaitAndNavigateToCeneoAsync();
-
-    
-
-     
-        var captchaSessionData = await resolveCaptchaScraper.GetSessionDataAsync();
-
-    
-        await resolveCaptchaScraper.CloseBrowserAsync();
-
-       
-        var coOfrs = await _context.CoOfrs
-            .Where(co => !co.IsScraped && !string.IsNullOrEmpty(co.OfferUrl))
-            .ToListAsync();
-
-        var urls = coOfrs.Select(co => co.OfferUrl).ToList();
-        var urlQueue = new Queue<string>(urls);
-
-        if (!urls.Any())
-        {
-            Console.WriteLine("No URLs found to scrape.");
-            return NotFound("No URLs found to scrape.");
-        }
-
-        int captchaSpeed = settings.Semophore;
-        bool getCeneoName = settings.GetCeneoName;
-        int totalPrices = 0;
-        int scrapedCount = 0;
-        int rejectedCount = 0;
-        var stopwatch = new Stopwatch();
-        stopwatch.Start();
-
-        var tasks = new List<Task>();
-
-        using (var semaphore = new SemaphoreSlim(captchaSpeed))
-        {
-            for (int i = 0; i < captchaSpeed; i++)
+            // Zwracamy wynik operacji w odpowiedzi HTTP
+            switch (result.Result)
             {
-                tasks.Add(Task.Run(async () =>
-                {
-                    await semaphore.WaitAsync(cancellationToken);
-                    try
+                case CeneoScraperService.CeneoScrapingResult.Success:
+                    return Ok(new
                     {
-                        var httpClient = _httpClientFactory.CreateClient();
-                        var captchaScraper = new CaptchaScraper(httpClient);
+                        Message = result.Message,
+                        ScrapedCount = result.ScrapedCount,
+                        RejectedCount = result.RejectedCount
+                    });
 
-                        await captchaScraper.InitializeBrowserAsync(settings);
+                case CeneoScraperService.CeneoScrapingResult.NoUrlsFound:
+                    return NotFound(new { Message = result.Message });
 
-                        // Ustawiamy tylko cookies
-                        await captchaScraper.Page.SetCookieAsync(captchaSessionData.Cookies);
+                case CeneoScraperService.CeneoScrapingResult.SettingsNotFound:
+                    return NotFound(new { Message = result.Message });
 
-                        while (urlQueue.Count > 0)
-                        {
-                            string url;
-                            lock (urlQueue)
-                            {
-                                if (urlQueue.Count == 0) break;
-                                url = urlQueue.Dequeue();
-                            }
-
-                            try
-                            {
-                                var coOfr = coOfrs.First(co => co.OfferUrl == url);
-
-                                using var scope = _serviceProvider.CreateScope();
-                                var scopedContext = scope.ServiceProvider.GetRequiredService<PriceSafariContext>();
-
-                                var (prices, log, rejected) = await captchaScraper.HandleCaptchaAndScrapePricesAsync(
-                                    url, getCeneoName, coOfr.StoreNames, coOfr.StoreProfiles);
-                                Console.WriteLine(log);
-
-                                if (prices.Count > 0)
-                                {
-                                    var priceHistories = prices.Select(priceData => new CoOfrPriceHistoryClass
-                                    {
-                                        CoOfrClassId = coOfr.Id,
-                                        StoreName = priceData.storeName,
-                                        Price = priceData.price,
-                                        ShippingCostNum = priceData.shippingCostNum,
-                                        AvailabilityNum = priceData.availabilityNum,
-                                        IsBidding = priceData.isBidding,
-                                        Position = priceData.position,
-                                        ExportedName = priceData.ceneoName
-                                    }).ToList();
-
-                                    await scopedContext.CoOfrPriceHistories.AddRangeAsync(priceHistories);
-                                    coOfr.IsScraped = true;
-                                    coOfr.PricesCount = priceHistories.Count;
-                                    coOfr.IsRejected = false;
-                                    scopedContext.CoOfrs.Update(coOfr);
-                                    await scopedContext.SaveChangesAsync();
-
-                                    Interlocked.Add(ref totalPrices, priceHistories.Count);
-                                }
-                                else
-                                {
-                                    coOfr.IsScraped = true;
-                                    coOfr.IsRejected = true;
-                                    coOfr.PricesCount = 0;
-                                    scopedContext.CoOfrs.Update(coOfr);
-                                    await scopedContext.SaveChangesAsync();
-
-                                    Console.WriteLine($"No prices found for URL: {url}. Marked as rejected.");
-                                    Interlocked.Increment(ref rejectedCount);
-                                }
-
-                                Interlocked.Increment(ref scrapedCount);
-                                await _hubContext.Clients.All.SendAsync("ReceiveScrapingUpdate", coOfr.OfferUrl, coOfr.IsScraped, coOfr.IsRejected, coOfr.PricesCount);
-                                await _hubContext.Clients.All.SendAsync("ReceiveProgressUpdate", scrapedCount, coOfrs.Count, stopwatch.Elapsed.TotalSeconds, rejectedCount);
-
-                                if (cancellationToken.IsCancellationRequested)
-                                {
-                                    Console.WriteLine("Scraping canceled.");
-                                    await captchaScraper.CloseBrowserAsync();
-                                    return;
-                                }
-                            }
-                            catch (Exception ex)
-                            {
-                                var log = $"Error scraping URL: {url}. Exception: {ex.Message}";
-                                Console.WriteLine(log);
-                            }
-                        }
-
-                        await captchaScraper.CloseBrowserAsync();
-                    }
-                    finally
+                case CeneoScraperService.CeneoScrapingResult.Error:
+                    return StatusCode(500, new
                     {
-                        semaphore.Release();
-                    }
-                }, cancellationToken));
-            }
+                        Message = result.Message,
+                        ScrapedCount = result.ScrapedCount,
+                        RejectedCount = result.RejectedCount
+                    });
 
-            try
-            {
-                await Task.WhenAll(tasks);
+                default:
+                    return BadRequest("Unknown scraping result.");
             }
-            catch (OperationCanceledException)
-            {
-                Console.WriteLine("Scraping was canceled.");
-            }
+            // <<< ZMIANA KONIEC >>>
         }
-
-        stopwatch.Stop();
-
-        return Ok(new { Message = "Scraping completed.", TotalPrices = totalPrices, RejectedCount = rejectedCount });
+        catch (OperationCanceledException)
+        {
+            // Obsługa, jeśli użytkownik kliknie "Stop"
+            return Ok(new { Message = "Scraping was canceled by the user." });
+        }
+        catch (Exception ex)
+        {
+            // Ogólna obsługa błędów
+            Console.WriteLine($"An unexpected error occurred in the controller: {ex.Message}");
+            return StatusCode(500, new { Message = "An unexpected server error occurred." });
+        }
     }
-
 
 
 
