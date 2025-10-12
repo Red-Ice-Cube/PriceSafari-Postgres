@@ -23,8 +23,10 @@ namespace PriceSafari.Models
 
         public string? ExportedName { get; set; }
 
+
+
         // nowe pola do danych z google scrapera
-      
+
         public string? GoogleStoreName { get; set; }
         public decimal? GooglePrice { get; set; }
         public string? GooglePosition { get; set; }

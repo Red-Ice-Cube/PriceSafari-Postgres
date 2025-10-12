@@ -50,7 +50,7 @@ namespace PriceSafari.Services.ScheduleService
              CeneoScrapingResult Result,
              int ScrapedCount,
              int RejectedCount,
-             int TotalUrlsToScrape, // <-- NOWE POLE
+             int TotalUrlsToScrape,
              string? Message
          );
 
@@ -60,7 +60,7 @@ namespace PriceSafari.Services.ScheduleService
             if (settings == null)
             {
                 Console.WriteLine("Settings not found.");
-                // ZMIANA: Dodaj 0 jako TotalUrlsToScrape
+
                 return new CeneoScrapingDto(CeneoScrapingResult.SettingsNotFound, 0, 0, 0, "Settings not found in DB.");
             }
 
@@ -68,13 +68,12 @@ namespace PriceSafari.Services.ScheduleService
                 .Where(co => !co.IsScraped && !string.IsNullOrEmpty(co.OfferUrl))
                 .ToListAsync(cancellationToken);
 
-            // NOWE: Pobierz całkowitą liczbę URL-i na początku
             int totalUrls = coOfrs.Count;
 
             if (!coOfrs.Any())
             {
                 Console.WriteLine("No URLs found to scrape.");
-                // ZMIANA: Dodaj totalUrls (które będzie 0) do DTO
+
                 return new CeneoScrapingDto(CeneoScrapingResult.NoUrlsFound, 0, 0, totalUrls, "No URLs found to scrape.");
             }
 
@@ -126,19 +125,19 @@ namespace PriceSafari.Services.ScheduleService
 
             if (_captchaDetected)
             {
-                // ZMIANA: Dodaj totalUrls do DTO
+
                 return new CeneoScrapingDto(
                     CeneoScrapingResult.Error,
                     totalScraped,
                     totalRejected,
-                    totalUrls, // <-- DODANE
+                    totalUrls,
                     $"Too many captcha attempts after {_captchaResolutions} tries."
                 );
             }
             else
             {
                 var msg = $"Scraping completed. Captcha solved/attempted {_captchaResolutions} time(s).";
-                // ZMIANA: Dodaj totalUrls do DTO
+
                 return new CeneoScrapingDto(CeneoScrapingResult.Success, totalScraped, totalRejected, totalUrls, msg);
             }
         }
@@ -315,4 +314,3 @@ namespace PriceSafari.Services.ScheduleService
         }
     }
 }
-

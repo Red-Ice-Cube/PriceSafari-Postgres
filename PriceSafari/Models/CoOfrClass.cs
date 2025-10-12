@@ -17,6 +17,9 @@ public class CoOfrClass
     public bool GoogleIsRejected { get; set; }
     public bool IsGoogle { get; set; }
 
+    // NOWE POLE - "NA BRUDNO"
+    public int? CeneoSalesCount { get; set; }
+
     // Add these two new properties
     public List<string> StoreNames { get; set; } = new List<string>();
     public List<string> StoreProfiles { get; set; } = new List<string>();
