@@ -1084,6 +1084,46 @@
         return valueToUse < setPrice2 ? "prMid" : "prToHigh";
     }
 
+    function createSalesTrendHtml(item) {
+        const trendStatus = item.salesTrendStatus;
+
+        if (trendStatus === 'NoData' || trendStatus === null) {
+            return `
+        <div class="price-box-column-offers-a">
+            <span class="data-channel">
+                <i class="fas fa-chart-line" style="font-size: 15px; color: grey; margin-top:1px;" title="Trend sprzedaży"></i>
+            </span>
+            <div class="offer-count-box">
+                <p>Brak danych</p>
+            </div>
+        </div>`;
+        }
+
+        const imagePath = '/images/';
+        const imageName = `Flag-${trendStatus}.svg`;
+
+        let trendText = '';
+
+        if (item.salesDifference !== 0 && item.salesDifference !== null) {
+            const sign = item.salesDifference > 0 ? '+' : '';
+            const percentageText = item.salesPercentageChange !== null ? ` (${sign}${item.salesPercentageChange.toFixed(2)}%)` : '';
+            trendText = `<p>${sign}${item.salesDifference}${percentageText}</p>`;
+        } else {
+
+            trendText = `<p>Bez zmian</p>`;
+        }
+
+        return `
+    <div class="price-box-column-offers-a">
+        <span class="data-channel" title="Trend sprzedaży">
+             <img src="${imagePath}${imageName}" alt="${trendStatus}" style="width:18px; height:18px;" />
+        </span>
+        <div class="offer-count-box">
+            ${trendText}
+        </div>
+    </div>`;
+    }
+
     function renderPrices(data) {
 
         const storedChanges = localStorage.getItem('selectedPriceChanges_' + storeId);
@@ -2022,17 +2062,9 @@
             </div>`;
             }
 
-            let placeholderHtml = `
-            <div class="price-box-column-offers-a">
-                <span class="data-channel">
-                    <i class="fas fa-chart-pie" style="font-size: 15px; color: grey; margin-top:1px;" title="Placeholder"></i>
-                </span>
-                <div class="offer-count-box">
-                    <p>Brak danych</p>
-                </div>
-            </div>`;
+            let salesTrendHtml = createSalesTrendHtml(item);
 
-            statsContainer.innerHTML = offerCountHtml + ceneoSalesHtml + placeholderHtml;
+            statsContainer.innerHTML = offerCountHtml + ceneoSalesHtml + salesTrendHtml;
             priceBoxData.appendChild(statsContainer);
             priceBoxData.appendChild(priceBoxColumnLowestPrice);
             priceBoxData.appendChild(priceBoxColumnMyPrice);

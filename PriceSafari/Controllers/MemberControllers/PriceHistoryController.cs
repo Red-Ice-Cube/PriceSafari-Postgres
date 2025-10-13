@@ -111,6 +111,9 @@ namespace PriceSafari.Controllers.MemberControllers
             return View("~/Views/Panel/PriceHistory/Index.cshtml");
         }
 
+
+
+
         [HttpGet]
         public async Task<IActionResult> GetPrices(int? storeId)
         {
@@ -152,6 +155,13 @@ namespace PriceSafari.Controllers.MemberControllers
                     setPrice2 = 2.00m
                 });
             }
+
+            // NOWY KOD: Znajdź ID poprzedniego scrapowania
+            var previousScrapId = await _context.ScrapHistories
+                .Where(sh => sh.StoreId == storeId && sh.Date < latestScrap.Date)
+                .OrderByDescending(sh => sh.Date)
+                .Select(sh => sh.Id)
+                .FirstOrDefaultAsync();
 
             var storeName = await _context.Stores
                 .Where(s => s.StoreId == storeId)
@@ -204,7 +214,6 @@ namespace PriceSafari.Controllers.MemberControllers
                                 IsGoogle = (ph != null ? ph.IsGoogle : (bool?)null),
                                 AvailabilityNum = (ph != null ? ph.AvailabilityNum : (int?)null),
                                 IsRejected = p.IsRejected,
-
                                 ShippingCostNum = (ph != null ? ph.ShippingCostNum : (decimal?)null)
                             };
 
@@ -236,21 +245,16 @@ namespace PriceSafari.Controllers.MemberControllers
 
             if (priceValues.UsePriceWithDelivery)
             {
-
                 foreach (var row in rawPrices)
                 {
-
                     if (row.Price.HasValue && row.ShippingCostNum.HasValue)
                     {
-
                         row.Price = row.Price.Value + row.ShippingCostNum.Value;
                     }
-
                 }
             }
             else
             {
-
             }
 
             if (activePreset != null && activePreset.Type == PresetType.PriceComparison)
@@ -273,7 +277,6 @@ namespace PriceSafari.Controllers.MemberControllers
                     }
 
                     DataSourceType currentSource = row.IsGoogle == true ? DataSourceType.Google : DataSourceType.Ceneo;
-
                     var key = (Store: (row.StoreName ?? "").ToLower().Trim(), Source: currentSource);
 
                     if (competitorItemsDict.TryGetValue(key, out bool useCompetitor))
@@ -289,13 +292,22 @@ namespace PriceSafari.Controllers.MemberControllers
                 rawPrices = filteredPrices;
             }
 
-            var productIds = rawPrices.Select(p => p.ProductId).ToList();
+            var productIds = rawPrices.Select(p => p.ProductId).Distinct().ToList();
 
             var extendedInfoData = await _context.PriceHistoryExtendedInfos
                 .Where(e => e.ScrapHistoryId == latestScrap.Id && productIds.Contains(e.ProductId))
                 .ToListAsync();
 
             var extendedInfoDict = extendedInfoData.ToDictionary(e => e.ProductId);
+
+            // NOWY KOD: Pobierz dane sprzedażowe z poprzedniego scrapowania
+            var previousExtendedInfoData = new Dictionary<int, PriceHistoryExtendedInfoClass>();
+            if (previousScrapId > 0)
+            {
+                previousExtendedInfoData = await _context.PriceHistoryExtendedInfos
+                    .Where(e => e.ScrapHistoryId == previousScrapId && productIds.Contains(e.ProductId))
+                    .ToDictionaryAsync(e => e.ProductId);
+            }
 
             var productFlagsDictionary = await _context.ProductFlags
                 .Where(pf => pf.ProductId.HasValue && productIds.Contains(pf.ProductId.Value))
@@ -358,10 +370,10 @@ namespace PriceSafari.Controllers.MemberControllers
                     var validPrices = g.Where(x => x.Price.HasValue).ToList();
 
                     bool onlyMe = validPrices.Count() > 0 &&
-                                  validPrices.All(x =>
-                                      x.StoreName != null &&
-                                      x.StoreName.ToLower() == storeName.ToLower()
-                                  );
+                                    validPrices.All(x =>
+                                        x.StoreName != null &&
+                                        x.StoreName.ToLower() == storeName.ToLower()
+                                    );
 
                     var bestPriceEntry = validPrices
                         .OrderBy(x => x.Price)
@@ -376,9 +388,7 @@ namespace PriceSafari.Controllers.MemberControllers
 
                     if (priceValues.UsePriceWithDelivery)
                     {
-
                         bestPriceIncludesDeliveryFlag = bestPriceEntry?.ShippingCostNum.HasValue;
-
                         myPriceIncludesDeliveryFlag = myPriceEntry?.ShippingCostNum.HasValue;
                     }
 
@@ -549,6 +559,52 @@ namespace PriceSafari.Controllers.MemberControllers
                         }
                     }
 
+                    // NOWY KOD: Logika obliczania trendu sprzedaży
+                    SalesTrendStatus salesTrendStatus = SalesTrendStatus.NoData;
+                    int? salesDifference = null;
+                    decimal? salesPercentageChange = null;
+
+                    previousExtendedInfoData.TryGetValue(g.Key, out var previousExtendedInfo);
+
+                    if (extendedInfo?.CeneoSalesCount != null && previousExtendedInfo?.CeneoSalesCount != null)
+                    {
+                        int currentSales = extendedInfo.CeneoSalesCount.Value;
+                        int previousSales = previousExtendedInfo.CeneoSalesCount.Value;
+
+                        salesDifference = currentSales - previousSales;
+
+                        if (previousSales > 0)
+                        {
+                            salesPercentageChange = Math.Round(((decimal)salesDifference.Value / previousSales) * 100, 2);
+                        }
+                        else if (salesDifference > 0)
+                        {
+                            salesPercentageChange = 100m;
+                        }
+
+                        // Przykładowe progi do definicji małej/dużej zmiany
+                        const decimal smallChangeThreshold = 10.0m;
+
+                        if (salesDifference == 0)
+                        {
+                            salesTrendStatus = SalesTrendStatus.NoChange;
+                        }
+                        else if (salesDifference > 0)
+                        {
+                            if (salesPercentageChange.HasValue && Math.Abs(salesPercentageChange.Value) > smallChangeThreshold)
+                                salesTrendStatus = SalesTrendStatus.SalesUpBig;
+                            else
+                                salesTrendStatus = SalesTrendStatus.SalesUpSmall;
+                        }
+                        else // Spadek
+                        {
+                            if (salesPercentageChange.HasValue && Math.Abs(salesPercentageChange.Value) > smallChangeThreshold)
+                                salesTrendStatus = SalesTrendStatus.SalesDownBig;
+                            else
+                                salesTrendStatus = SalesTrendStatus.SalesDownSmall;
+                        }
+                    }
+
                     return new
                     {
                         ProductId = product.ProductId,
@@ -611,7 +667,12 @@ namespace PriceSafari.Controllers.MemberControllers
                         MyPriceIncludesDelivery = myPriceIncludesDeliveryFlag,
                         BestPriceDeliveryCost = priceValues.UsePriceWithDelivery ? bestPriceEntry?.ShippingCostNum : null,
                         MyPriceDeliveryCost = priceValues.UsePriceWithDelivery ? myPriceEntry?.ShippingCostNum : null,
-                        CeneoSalesCount = extendedInfo?.CeneoSalesCount
+                        CeneoSalesCount = extendedInfo?.CeneoSalesCount,
+
+                        // NOWY KOD: Dodane pola do obiektu JSON
+                        SalesTrendStatus = salesTrendStatus.ToString(),
+                        SalesDifference = salesDifference,
+                        SalesPercentageChange = salesPercentageChange
                     };
                 })
                 .Where(p => p != null)
@@ -640,6 +701,7 @@ namespace PriceSafari.Controllers.MemberControllers
             });
         }
 
+
         public class PriceRowDto
         {
             public int ProductId { get; set; }
@@ -655,6 +717,16 @@ namespace PriceSafari.Controllers.MemberControllers
             public int? AvailabilityNum { get; set; }
             public bool IsRejected { get; set; }
             public decimal? ShippingCostNum { get; set; }
+        }
+
+        public enum SalesTrendStatus
+        {
+            NoData,         // Brak danych do porównania
+            NoChange,       // Brak zmian
+            SalesUpSmall,   // Mały wzrost
+            SalesUpBig,     // Duży wzrost
+            SalesDownSmall, // Mały spadek
+            SalesDownBig    // Duży spadek
         }
 
         [HttpPost]
