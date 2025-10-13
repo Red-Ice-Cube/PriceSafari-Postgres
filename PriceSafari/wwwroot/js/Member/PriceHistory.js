@@ -43,6 +43,15 @@
     const selectAllVisibleBtn = document.getElementById('selectAllVisibleBtn');
     const deselectAllVisibleBtn = document.getElementById('deselectAllVisibleBtn');
 
+    // Funkcja pomocnicza do poprawnego odmieniania słowa "oferta"
+    function getOfferText(count) {
+        if (count === 1) return `${count} Oferta`;
+        const lastDigit = count % 10;
+        if (count > 10 && count < 20) return `${count} Ofert`;
+        if ([2, 3, 4].includes(lastDigit)) return `${count} Oferty`;
+        return `${count} Ofert`;
+    }
+
     function updateVisibleProductSelectionButtons() {
         const visibleButtons = document.querySelectorAll('#priceContainer .select-product-btn');
         visibleButtons.forEach(btn => {
@@ -256,8 +265,8 @@
 
             showGlobalUpdate(
                 `<p style="margin-bottom:8px; font-size:16px; font-weight:bold;">Masowa zmiana zakończona!</p>
-             <p>Dodano: <strong>${countAdded}</strong> SKU</p>
-             <p>Odrzucono: <strong>${countRejected}</strong> SKU</p>`
+                  <p>Dodano: <strong>${countAdded}</strong> SKU</p>
+                  <p>Odrzucono: <strong>${countRejected}</strong> SKU</p>`
             );
         }, 500);
     }
@@ -899,17 +908,17 @@
                 const excludeChecked = selectedFlagsExclude.has(String(flag.flagId)) ? 'checked' : '';
 
                 const flagElementHTML = `
-            <div class="flag-filter-group">
-                <div class="form-check form-check-inline check-include" style="margin-right:0px;">
-                    <input class="form-check-input flagFilterInclude" type="checkbox" id="flagCheckboxInclude_${flag.flagId}" value="${flag.flagId}" ${includeChecked} title="Pokaż wszystkie produkty z tą flagą">
-                </div>
-                <div class="form-check form-check-inline check-exclude" style="margin-right:0px; padding-left:16px;">
-                    <input class="form-check-input flagFilterExclude" type="checkbox" id="flagCheckboxExclude_${flag.flagId}" value="${flag.flagId}" ${excludeChecked} title="Ukryj wszystkie produkty z tą flagą">
-                </div>
-                <span class="flag-name-count" style="font-size:14px; font-weight: 400;">
-                    ${flag.flagName} (${count})
-                </span>
-            </div>`;
+                <div class="flag-filter-group">
+                    <div class="form-check form-check-inline check-include" style="margin-right:0px;">
+                        <input class="form-check-input flagFilterInclude" type="checkbox" id="flagCheckboxInclude_${flag.flagId}" value="${flag.flagId}" ${includeChecked} title="Pokaż wszystkie produkty z tą flagą">
+                    </div>
+                    <div class="form-check form-check-inline check-exclude" style="margin-right:0px; padding-left:16px;">
+                        <input class="form-check-input flagFilterExclude" type="checkbox" id="flagCheckboxExclude_${flag.flagId}" value="${flag.flagId}" ${excludeChecked} title="Ukryj wszystkie produkty z tą flagą">
+                    </div>
+                    <span class="flag-name-count" style="font-size:14px; font-weight: 400;">
+                        ${flag.flagName} (${count})
+                    </span>
+                </div>`;
                 flagContainer.insertAdjacentHTML('beforeend', flagElementHTML);
             });
         }
@@ -1076,17 +1085,32 @@
         return valueToUse < setPrice2 ? "prMid" : "prToHigh";
     }
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     function renderPrices(data) {
 
         const storedChanges = localStorage.getItem('selectedPriceChanges_' + storeId);
         if (storedChanges) {
             try {
                 const parsedData = JSON.parse(storedChanges);
-
                 if (Array.isArray(parsedData)) {
                     selectedPriceChanges = parsedData;
                 } else {
-
                     console.warn("Dane 'selectedPriceChanges' w localStorage nie są tablicą. Używam pustej tablicy.");
                     selectedPriceChanges = [];
                 }
@@ -1108,13 +1132,19 @@
         const paginatedData = data.slice(startIndex, endIndex);
 
         function activateChangeButton(button, priceBox, newPrice) {
+            // 1. Zapisujemy HTML kolorowego kwadratu, zanim go nadpiszemy
+            const colorSquare = button.querySelector('span[class^="color-square-"]');
+            const colorSquareHTML = colorSquare ? colorSquare.outerHTML : '';
+
             button.classList.add('active');
             button.style.backgroundColor = "#333333";
             button.style.color = "#f5f5f5";
-            button.textContent = "Dodano |";
+
+            // 2. Ustawiamy nową zawartość, wstawiając z powrotem zapisany kwadrat
+            button.innerHTML = colorSquareHTML + " Dodano |";
 
             const removeLink = document.createElement('span');
-            removeLink.innerHTML = " <i class='fa fa-trash' style='font-size:14px; display:flex; color:white; margin-left:4px; margin-top:3px;'></i>";
+            removeLink.innerHTML = " <i class='fa fa-trash' style='font-size:12px; display:flex; color:white; margin-left:4px; margin-top:3px;'></i>";
 
             removeLink.style.textDecoration = "none";
             removeLink.style.cursor = "pointer";
@@ -1123,22 +1153,21 @@
                 button.classList.remove('active');
                 button.style.backgroundColor = "";
                 button.style.color = "";
-                button.textContent = "Zmień cenę";
+                button.innerHTML = button.dataset.originalText || "Zmień cenę";
                 priceBox.classList.remove('price-changed');
 
                 const productId = priceBox ? priceBox.dataset.productId : null;
-
                 const removeEvent = new CustomEvent('priceBoxChangeRemove', {
                     detail: { productId }
                 });
                 document.dispatchEvent(removeEvent);
             });
+
             button.appendChild(removeLink);
             priceBox.classList.add('price-changed');
         }
 
         function attachPriceChangeListener(button, suggestedPrice, priceBox, productId, productName, currentPriceValue, item) {
-
             let requiredField = '';
             let requiredLabel = '';
             switch (marginSettings.identifierForSimulation) {
@@ -1158,7 +1187,6 @@
             }
 
             if (!requiredField || requiredField.toString().trim() === "") {
-
                 button.disabled = true;
                 button.title = `Produkt musi mieć zmapowany ${requiredLabel}`;
                 return;
@@ -1171,7 +1199,7 @@
                     if (item.marginPrice == null) {
                         showGlobalNotification(
                             `<p style="margin:8px 0; font-weight:bold;">Zmiana ceny nie została dodana</p>
-                         <p>Symulacja cenowa z narzutem jest włączona – produkt musi posiadać cenę zakupu.</p>`
+                         <p>Symulacja cenowa z narzutem jest włączona – produkt musi posiadać cenę zakupu.</p>`
                         );
                         return;
                     }
@@ -1185,7 +1213,6 @@
                     let newPriceForMarginCalculation = suggestedPrice;
 
                     if (marginSettings.usePriceWithDelivery && item.myPriceIncludesDelivery) {
-
                         const myDeliveryCost = item.myPriceDeliveryCost != null && !isNaN(parseFloat(item.myPriceDeliveryCost)) ? parseFloat(item.myPriceDeliveryCost) : 0;
                         newPriceForMarginCalculation = suggestedPrice - myDeliveryCost;
                     }
@@ -1199,7 +1226,7 @@
                         if (item.marginPrice == null) {
                             showGlobalNotification(
                                 `<p style="margin:8px 0; font-weight:bold;">Zmiana ceny nie została dodana</p>
-                         <p>Symulacja cenowa z narzutem jest włączona – produkt musi posiadać cenę zakupu.</p>`
+                     <p>Symulacja cenowa z narzutem jest włączona – produkt musi posiadać cenę zakupu.</p>`
                             );
                             return;
                         }
@@ -1238,21 +1265,18 @@
 
                                     let reason = "";
                                     if (oldMargin >= marginSettings.minimalMarginPercent) {
-
                                         reason = `Zmiana obniża narzut z <strong>${oldMargin}%</strong> (który spełniał minimum) do <strong>${newMargin}%</strong>, czyli poniżej wymaganego progu <strong>${marginSettings.minimalMarginPercent}%</strong>.`;
                                     } else if (newMargin <= oldMargin) {
-
                                         reason = `Nowy narzut (<strong>${newMargin}%</strong>) jest poniżej wymaganego minimum (<strong>${marginSettings.minimalMarginPercent}%</strong>) i nie stanowi poprawy (lub jest pogorszeniem) poprzedniego, już niskiego narzutu (<strong>${oldMargin}%</strong>).`;
                                     } else {
-
                                         reason = `Nowy narzut (<strong>${newMargin}%</strong>) jest poniżej wymaganego minimum (<strong>${marginSettings.minimalMarginPercent}%</strong>), a warunki poprawy nie zostały spełnione (poprzedni narzut: <strong>${oldMargin}%</strong>).`;
                                     }
 
                                     showGlobalNotification(
                                         `<p style="margin:8px 0; font-weight:bold;">Zmiana ceny nie została dodana</p>
-                                 <p>${reason}</p>
-                                 <p>Cena zakupu wynosi <strong>${item.marginPrice.toFixed(2)} PLN</strong>.</p>
-                                   <p>Sugerowana cena: <strong>${suggestedPriceDisplay}</strong>.</p>`
+                                    <p>${reason}</p>
+                                    <p>Cena zakupu wynosi <strong>${item.marginPrice.toFixed(2)} PLN</strong>.</p>
+                                     <p>Sugerowana cena: <strong>${suggestedPriceDisplay}</strong>.</p>`
                                     );
                                     return;
                                 }
@@ -1262,12 +1286,11 @@
                         if (marginSettings.enforceMinimalMargin) {
 
                             if (newMargin < 0) {
-
                                 if (!(oldMargin < 0 && newMargin > oldMargin)) {
                                     showGlobalNotification(
                                         `<p style="margin:8px 0; font-weight:bold;">Zmiana ceny nie została dodana</p>
-                                 <p>Nowa cena <strong>${suggestedPriceDisplay}</strong> spowoduje ujemny narzut (nowy narzut: <strong>${newMargin}%</strong>).</p>
-                                 <p>Cena zakupu wynosi <strong>${item.marginPrice.toFixed(2)} PLN</strong>. Zmiana nie może zostać zastosowana.</p>`
+                                    <p>Nowa cena <strong>${suggestedPriceDisplay}</strong> spowoduje ujemny narzut (nowy narzut: <strong>${newMargin}%</strong>).</p>
+                                    <p>Cena zakupu wynosi <strong>${item.marginPrice.toFixed(2)} PLN</strong>. Zmiana nie może zostać zastosowana.</p>`
                                     );
                                     return;
                                 }
@@ -1276,8 +1299,8 @@
                             if (marginSettings.minimalMarginPercent < 0 && newMargin > marginSettings.minimalMarginPercent) {
                                 showGlobalNotification(
                                     `<p style="margin:8px 0; font-weight:bold;">Zmiana ceny nie została dodana</p>
-                             <p>Nowa cena <strong>${suggestedPriceDisplay}</strong> ustawi narzut (<strong>${newMargin}%</strong>), który jest powyżej dopuszczalnego progu straty (<strong>${marginSettings.minimalMarginPercent}%</strong>).</p>
-                             <p>Nowy narzut wynosi <strong>${newMargin}%</strong>.</p>`
+                                  <p>Nowa cena <strong>${suggestedPriceDisplay}</strong> ustawi narzut (<strong>${newMargin}%</strong>), który jest powyżej dopuszczalnego progu straty (<strong>${marginSettings.minimalMarginPercent}%</strong>).</p>
+                                  <p>Nowy narzut wynosi <strong>${newMargin}%</strong>.</p>`
                                 );
                                 return;
                             }
@@ -1285,14 +1308,12 @@
                     }
 
                     if (marginSettings.enforceMinimalMargin) {
-
                         if (newMargin < 0) {
-
                             if (!(oldMargin < 0 && newMargin > oldMargin)) {
                                 showGlobalNotification(
                                     `<p style="margin:8px 0; font-weight:bold;">Zmiana ceny nie została dodana</p>
-                                 <p>Nowa cena <strong>${suggestedPrice.toFixed(2)} PLN</strong> spowoduje ujemny narzut (nowy narzut: <strong>${newMargin}%</strong>).</p>
-                                 <p>Cena zakupu wynosi <strong>${item.marginPrice.toFixed(2)} PLN</strong>. Zmiana nie może zostać zastosowana.</p>`
+                                    <p>Nowa cena <strong>${suggestedPrice.toFixed(2)} PLN</strong> spowoduje ujemny narzut (nowy narzut: <strong>${newMargin}%</strong>).</p>
+                                    <p>Cena zakupu wynosi <strong>${item.marginPrice.toFixed(2)} PLN</strong>. Zmiana nie może zostać zastosowana.</p>`
                                 );
                                 return;
                             }
@@ -1301,8 +1322,8 @@
                         if (marginSettings.minimalMarginPercent < 0 && newMargin > marginSettings.minimalMarginPercent) {
                             showGlobalNotification(
                                 `<p style="margin:8px 0; font-weight:bold;">Zmiana ceny nie została dodana</p>
-                             <p>Nowa cena <strong>${suggestedPrice.toFixed(2)} PLN</strong> ustawi narzut (<strong>${newMargin}%</strong>), który jest powyżej dopuszczalnego progu straty (<strong>${marginSettings.minimalMarginPercent}%</strong>).</p>
-                             <p>Nowy narzut wynosi <strong>${newMargin}%</strong>.</p>`
+                                  <p>Nowa cena <strong>${suggestedPrice.toFixed(2)} PLN</strong> ustawi narzut (<strong>${newMargin}%</strong>), który jest powyżej dopuszczalnego progu straty (<strong>${marginSettings.minimalMarginPercent}%</strong>).</p>
+                                  <p>Nowy narzut wynosi <strong>${newMargin}%</strong>.</p>`
                             );
                             return;
                         }
@@ -1365,7 +1386,6 @@
                         }
                     }
                 }
-
                 showGlobalUpdate(message);
             });
 
@@ -1379,7 +1399,6 @@
         }
 
         paginatedData.forEach(item => {
-
             const highlightedProductName = highlightMatches(item.productName, currentProductSearchTerm);
             const highlightedStoreName = highlightMatches(item.storeName, currentStoreSearchTerm);
             const deliveryClass = getDeliveryClass(item.delivery);
@@ -1453,7 +1472,6 @@
             selectProductButton.className = 'select-product-btn';
             selectProductButton.dataset.productId = item.productId;
             selectProductButton.style.pointerEvents = 'auto';
-        
 
             if (selectedProductIds.has(item.productId.toString())) {
                 selectProductButton.textContent = 'Wybrano';
@@ -1475,31 +1493,15 @@
                     this.textContent = 'Wybrano';
                     this.classList.add('selected');
                 }
-
                 saveSelectionToStorage(selectedProductIds);
-
                 updateSelectionUI();
             });
 
             priceBoxSpace.appendChild(selectProductButton);
-
             priceBoxSpace.appendChild(priceBoxColumnCategory);
 
             const externalInfoContainer = document.createElement('div');
             externalInfoContainer.className = 'price-box-externalInfo';
-
-            const priceBoxColumnStoreCount = document.createElement('div');
-            priceBoxColumnStoreCount.className = 'price-box-column-offers';
-            priceBoxColumnStoreCount.innerHTML =
-                ((item.sourceGoogle || item.sourceCeneo) ?
-                    '<span class="data-channel">' +
-                    (item.sourceGoogle ? `<img src="/images/GoogleShopping.png" alt="Google Icon" style="width:15px; height:15px;" />` : '') +
-                    (item.sourceCeneo ? `<img src="/images/Ceneo.png" alt="Ceneo Icon" style="width:15px; height:15px;" />` : '') +
-                    '</span>' : ''
-                ) +
-                '<div class="offer-count-box">' + item.storeCount + ' Ofert</div>';
-
-            externalInfoContainer.appendChild(priceBoxColumnStoreCount);
 
             if (marginPrice != null) {
                 const formattedMarginPrice = marginPrice.toLocaleString('pl-PL', {
@@ -1508,17 +1510,11 @@
                 }) + ' PLN';
 
                 const purchasePriceBox = document.createElement('div');
-
-                purchasePriceBox.className = myPrice != null
-                    ? 'price-box-diff-margin ' + marginClass
-                    : 'priceBox-diff-margin-neutral';
-
+                purchasePriceBox.className = myPrice != null ? 'price-box-diff-margin ' + marginClass : 'priceBox-diff-margin-neutral';
                 purchasePriceBox.innerHTML = '<p>Cena zakupu: ' + formattedMarginPrice + '</p>';
-
                 externalInfoContainer.appendChild(purchasePriceBox);
 
                 if (myPrice != null) {
-
                     const formattedMarginAmount = marginSign + Math.abs(marginAmount).toLocaleString('pl-PL', {
                         minimumFractionDigits: 2,
                         maximumFractionDigits: 2
@@ -1527,23 +1523,17 @@
                         minimumFractionDigits: 2,
                         maximumFractionDigits: 2
                     }) + '%)';
-
                     const marginBox = document.createElement('div');
                     marginBox.className = 'price-box-diff-margin ' + marginClass;
                     marginBox.innerHTML = '<p>Narzut: ' + formattedMarginAmount + ' ' + formattedMarginPercentage + '</p>';
-
                     externalInfoContainer.appendChild(marginBox);
                 } else {
-
                     const marginBox = document.createElement('div');
-
                     marginBox.className = 'priceBox-diff-margin-neutral';
                     marginBox.innerHTML = '<p>Narzut: Brak informacji</p>';
-
                     externalInfoContainer.appendChild(marginBox);
                 }
             }
-
             priceBoxSpace.appendChild(externalInfoContainer);
 
             const priceBoxData = document.createElement('div');
@@ -1556,7 +1546,6 @@
             priceBoxColumnLowestPrice.className = 'price-box-column';
 
             if (item.colorClass === 'prOnlyMe') {
-
                 const noCompetitionText = document.createElement('div');
                 noCompetitionText.className = 'price-box-column-text';
 
@@ -1581,9 +1570,7 @@
 
                 priceBoxColumnLowestPrice.appendChild(noCompetitionText);
                 priceBoxColumnLowestPrice.appendChild(soloDetails);
-            }
-
-            else if (item.lowestPrice != null) {
+            } else if (item.lowestPrice != null) {
                 const priceBoxLowestText = document.createElement('div');
                 priceBoxLowestText.className = 'price-box-column-text';
 
@@ -1672,7 +1659,6 @@
                 if (item.externalPrice !== null) {
                     const externalPriceDifference = (item.externalPrice - myPrice).toFixed(2);
                     const isPriceDecrease = item.externalPrice < myPrice;
-
                     const priceChangeContainer = document.createElement('div');
                     priceChangeContainer.style.display = 'flex';
                     priceChangeContainer.style.justifyContent = 'space-between';
@@ -1771,10 +1757,8 @@
                 priceBoxColumnMyPrice.appendChild(priceBoxMyText);
                 priceBoxColumnMyPrice.appendChild(priceBoxMyDetails);
             } else {
-
                 const priceBoxMyText = document.createElement('div');
                 priceBoxMyText.className = 'price-box-column-text';
-
                 const mainText = document.createElement('span');
                 mainText.style.fontWeight = '500';
                 mainText.textContent = 'Brak Twojej oferty';
@@ -1790,444 +1774,211 @@
                 const noOfferBadge = document.createElement('span');
                 noOfferBadge.className = 'Position';
                 noOfferBadge.style.backgroundColor = '#9C9C9C';
-
                 noOfferBadge.textContent = 'Brak Twojej oferty - Cena niedostępna';
                 detailsContainer.appendChild(noOfferBadge);
 
                 priceBoxColumnMyPrice.appendChild(priceBoxMyText);
                 priceBoxColumnMyPrice.appendChild(detailsContainer);
-
             }
 
             const priceBoxColumnInfo = document.createElement('div');
             priceBoxColumnInfo.className = 'price-box-column-action';
             priceBoxColumnInfo.innerHTML = '';
 
-            if (item.colorClass === 'prNoOffer') {
-
-            } else {
-
+            if (item.colorClass !== 'prNoOffer') {
                 if (item.colorClass === "prToLow" || item.colorClass === "prIdeal") {
                     if (myPrice != null && savings != null) {
                         const savingsValue = parseFloat(savings.replace(',', '.'));
                         const upArrowClass = item.colorClass === 'prToLow' ? 'arrow-up-black' : 'arrow-up-turquoise';
-
                         const suggestedPrice1 = myPrice + savingsValue;
                         const amountToSuggestedPrice1 = savingsValue;
-                        const percentageToSuggestedPrice1 = (amountToSuggestedPrice1 / myPrice) * 100;
+                        const percentageToSuggestedPrice1 = myPrice > 0 ? (amountToSuggestedPrice1 / myPrice) * 100 : 0;
 
-                        let suggestedPrice2, amountToSuggestedPrice2, percentageToSuggestedPrice2;
-                        let arrowClass2 = upArrowClass;
+                        let suggestedPrice2, amountToSuggestedPrice2, percentageToSuggestedPrice2, arrowClass2 = upArrowClass;
 
                         if (usePriceDifference) {
-                            if (savingsValue < 1) {
-                                suggestedPrice2 = suggestedPrice1 - setStepPrice;
-                                amountToSuggestedPrice2 = suggestedPrice2 - myPrice;
-                                percentageToSuggestedPrice2 = (amountToSuggestedPrice2 / myPrice) * 100;
-                                if (amountToSuggestedPrice2 < 0) { arrowClass2 = 'arrow-down-turquoise'; }
-                            } else {
-                                suggestedPrice2 = suggestedPrice1 - setStepPrice;
-                                amountToSuggestedPrice2 = amountToSuggestedPrice1 - setStepPrice;
-                                percentageToSuggestedPrice2 = (amountToSuggestedPrice2 / myPrice) * 100;
-                                if (amountToSuggestedPrice2 < 0) { arrowClass2 = 'arrow-down-turquoise'; }
-                            }
+                            suggestedPrice2 = suggestedPrice1 - setStepPrice;
                         } else {
-                            const percentageStep = setStepPrice / 100;
-                            if (savingsValue < 1) {
-                                suggestedPrice2 = suggestedPrice1 * (1 - percentageStep);
-                                amountToSuggestedPrice2 = suggestedPrice2 - myPrice;
-                                percentageToSuggestedPrice2 = (amountToSuggestedPrice2 / myPrice) * 100;
-                                if (amountToSuggestedPrice2 < 0) { arrowClass2 = 'arrow-down-turquoise'; }
-                            } else {
-                                suggestedPrice2 = suggestedPrice1 * (1 - percentageStep);
-                                amountToSuggestedPrice2 = amountToSuggestedPrice1 - (myPrice * percentageStep);
-                                percentageToSuggestedPrice2 = (amountToSuggestedPrice2 / myPrice) * 100;
-                                if (amountToSuggestedPrice2 < 0) { arrowClass2 = 'arrow-down-turquoise'; }
-                            }
+                            suggestedPrice2 = suggestedPrice1 * (1 - (setStepPrice / 100));
                         }
-
-                        const amount1Formatted = (amountToSuggestedPrice1 >= 0 ? '+' : '') + amountToSuggestedPrice1.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' PLN';
-                        const percentage1Formatted = '(' + (percentageToSuggestedPrice1 >= 0 ? '+' : '') + percentageToSuggestedPrice1.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%)';
-                        const newSuggestedPrice1Formatted = suggestedPrice1.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' PLN';
-
-                        const amount2Formatted = (amountToSuggestedPrice2 >= 0 ? '+' : '') + amountToSuggestedPrice2.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' PLN';
-                        const percentage2Formatted = '(' + (percentageToSuggestedPrice2 >= 0 ? '+' : '') + percentageToSuggestedPrice2.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%)';
-                        const newSuggestedPrice2Formatted = suggestedPrice2.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' PLN';
+                        amountToSuggestedPrice2 = suggestedPrice2 - myPrice;
+                        percentageToSuggestedPrice2 = myPrice > 0 ? (amountToSuggestedPrice2 / myPrice) * 100 : 0;
+                        if (amountToSuggestedPrice2 < 0) { arrowClass2 = 'arrow-down-turquoise'; }
 
                         const matchPriceBox = document.createElement('div');
                         matchPriceBox.className = 'price-box-column';
-
                         const matchPriceLine = document.createElement('div');
                         matchPriceLine.className = 'price-action-line';
-
-                        const upArrow = document.createElement('span');
-                        upArrow.className = upArrowClass;
-                        const increaseText = document.createElement('span');
-                        increaseText.innerHTML = amount1Formatted + ' ' + percentage1Formatted;
-                        const newPriceText = document.createElement('div');
-                        newPriceText.innerHTML = '= ' + newSuggestedPrice1Formatted;
-                        const colorSquare = document.createElement('span');
-                        colorSquare.className = 'color-square-green';
-
-                        matchPriceLine.appendChild(upArrow);
-                        matchPriceLine.appendChild(increaseText);
-                        matchPriceLine.appendChild(newPriceText);
-                        matchPriceLine.appendChild(colorSquare);
-
+                        matchPriceLine.innerHTML = `
+                        <span class="${upArrowClass}"></span>
+                        <div class="price-diff-stack">
+                            <span class="diff-amount small-font">${amountToSuggestedPrice1 >= 0 ? '+' : ''}${amountToSuggestedPrice1.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">PLN</span></span>
+                            <span class="diff-percentage small-font">${percentageToSuggestedPrice1 >= 0 ? '+' : ''}${percentageToSuggestedPrice1.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">%</span></span>
+                        </div>
+                        <div class="small-font">= ${suggestedPrice1.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">PLN</span></div>
+                    `;
                         const matchPriceBtn = document.createElement('button');
                         matchPriceBtn.className = 'simulate-change-btn';
-                        matchPriceBtn.textContent = 'Zmień cenę';
-                        matchPriceBtn.dataset.originalText = 'Zmień cenę';
-
+                        const matchBtnContent = `<span class="color-square-green"></span> Zmień cenę`;
+                        matchPriceBtn.innerHTML = matchBtnContent;
+                        matchPriceBtn.dataset.originalText = matchBtnContent;
                         attachPriceChangeListener(matchPriceBtn, suggestedPrice1, box, item.productId, item.productName, myPrice, item);
-
                         matchPriceLine.appendChild(matchPriceBtn);
-
                         matchPriceBox.appendChild(matchPriceLine);
 
                         const strategicPriceBox = document.createElement('div');
                         strategicPriceBox.className = 'price-box-column';
-
                         const strategicPriceLine = document.createElement('div');
                         strategicPriceLine.className = 'price-action-line';
-
-                        const arrow2Elem = document.createElement('span');
-                        arrow2Elem.className = arrowClass2;
-                        const increaseText2 = document.createElement('span');
-                        increaseText2.innerHTML = amount2Formatted + ' ' + percentage2Formatted;
-                        const newPriceText2 = document.createElement('div');
-                        newPriceText2.innerHTML = '= ' + newSuggestedPrice2Formatted;
-                        const colorSquare2 = document.createElement('span');
-                        colorSquare2.className = 'color-square-turquoise';
-
-                        strategicPriceLine.appendChild(arrow2Elem);
-                        strategicPriceLine.appendChild(increaseText2);
-                        strategicPriceLine.appendChild(newPriceText2);
-                        strategicPriceLine.appendChild(colorSquare2);
-
+                        strategicPriceLine.innerHTML = `
+                        <span class="${arrowClass2}"></span>
+                        <div class="price-diff-stack">
+                            <span class="diff-amount small-font">${amountToSuggestedPrice2 >= 0 ? '+' : ''}${amountToSuggestedPrice2.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">PLN</span></span>
+                            <span class="diff-percentage small-font">${percentageToSuggestedPrice2 >= 0 ? '+' : ''}${percentageToSuggestedPrice2.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">%</span></span>
+                        </div>
+                        <div class="small-font">= ${suggestedPrice2.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">PLN</span></div>
+                    `;
                         const strategicPriceBtn = document.createElement('button');
                         strategicPriceBtn.className = 'simulate-change-btn';
-                        strategicPriceBtn.textContent = 'Zmień cenę';
-                        strategicPriceBtn.dataset.originalText = 'Zmień cenę';
-
+                        const strategicBtnContent = `<span class="color-square-turquoise"></span> Zmień cenę`;
+                        strategicPriceBtn.innerHTML = strategicBtnContent;
+                        strategicPriceBtn.dataset.originalText = strategicBtnContent;
                         attachPriceChangeListener(strategicPriceBtn, suggestedPrice2, box, item.productId, item.productName, myPrice, item);
-
                         strategicPriceLine.appendChild(strategicPriceBtn);
-
                         strategicPriceBox.appendChild(strategicPriceLine);
 
                         priceBoxColumnInfo.appendChild(matchPriceBox);
                         priceBoxColumnInfo.appendChild(strategicPriceBox);
-
-                    } else {
-                        const diffClass = item.colorClass + ' ' + 'priceBox-diff';
-                        priceBoxColumnInfo.innerHTML += '<div class="' + diffClass + '">Podnieś: N/A</div>';
                     }
-
-                } else if (item.colorClass === "prMid") {
+                } else if (item.colorClass === "prMid" || item.colorClass === "prToHigh") {
                     if (myPrice != null && lowestPrice != null) {
                         const amountToMatchLowestPrice = myPrice - lowestPrice;
-                        const percentageToMatchLowestPrice = (amountToMatchLowestPrice / myPrice) * 100;
-
-                        let strategicPrice;
+                        const percentageToMatchLowestPrice = myPrice > 0 ? (amountToMatchLowestPrice / myPrice) * 100 : 0;
+                        let strategicPrice, amountToBeatLowestPrice, percentageToBeatLowestPrice;
                         if (usePriceDifference) {
                             strategicPrice = lowestPrice - setStepPrice;
                         } else {
                             strategicPrice = lowestPrice * (1 - setStepPrice / 100);
                         }
-                        const amountToBeatLowestPrice = myPrice - strategicPrice;
-                        const percentageToBeatLowestPrice = (amountToBeatLowestPrice / myPrice) * 100;
-
-                        const amountMatchFormatted = amountToMatchLowestPrice.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' PLN';
-                        const percentageMatchFormatted = '(-' + percentageToMatchLowestPrice.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%)';
-                        const newSuggestedPriceMatch = lowestPrice.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' PLN';
-
-                        const amountBeatFormatted = amountToBeatLowestPrice.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' PLN';
-                        const percentageBeatFormatted = '(-' + percentageToBeatLowestPrice.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%)';
-                        const newSuggestedPriceBeat = strategicPrice.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' PLN';
+                        amountToBeatLowestPrice = myPrice - strategicPrice;
+                        percentageToBeatLowestPrice = myPrice > 0 ? (amountToBeatLowestPrice / myPrice) * 100 : 0;
+                        const arrowClass = item.colorClass === "prMid" ? "arrow-down-yellow" : "arrow-down-red";
 
                         const matchPriceBox = document.createElement('div');
                         matchPriceBox.className = 'price-box-column';
-
                         const matchPriceLine = document.createElement('div');
                         matchPriceLine.className = 'price-action-line';
-
-                        const downArrow = document.createElement('span');
-                        downArrow.className = 'arrow-down-yellow';
-                        const reduceText = document.createElement('span');
-                        reduceText.innerHTML = '-' + amountMatchFormatted + ' ' + percentageMatchFormatted;
-                        const newPriceText = document.createElement('div');
-                        newPriceText.innerHTML = '= ' + newSuggestedPriceMatch;
-                        const colorSquare = document.createElement('span');
-                        colorSquare.className = 'color-square-green';
-
-                        matchPriceLine.appendChild(downArrow);
-                        matchPriceLine.appendChild(reduceText);
-                        matchPriceLine.appendChild(newPriceText);
-                        matchPriceLine.appendChild(colorSquare);
-
+                        matchPriceLine.innerHTML = `
+                        <span class="${arrowClass}"></span>
+                        <div class="price-diff-stack">
+                            <span class="diff-amount small-font">-${amountToMatchLowestPrice.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">PLN</span></span>
+                            <span class="diff-percentage small-font">-${percentageToMatchLowestPrice.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">%</span></span>
+                        </div>
+                        <div class="small-font">= ${lowestPrice.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">PLN</span></div>
+                    `;
                         const matchPriceBtn = document.createElement('button');
                         matchPriceBtn.className = 'simulate-change-btn';
-                        matchPriceBtn.textContent = 'Zmień cenę';
-                        matchPriceBtn.dataset.originalText = 'Zmień cenę';
-
+                        const matchBtnContent = `<span class="color-square-green"></span> Zmień cenę`;
+                        matchPriceBtn.innerHTML = matchBtnContent;
+                        matchPriceBtn.dataset.originalText = matchBtnContent;
                         attachPriceChangeListener(matchPriceBtn, lowestPrice, box, item.productId, item.productName, myPrice, item);
                         matchPriceLine.appendChild(matchPriceBtn);
-
                         matchPriceBox.appendChild(matchPriceLine);
 
                         const strategicPriceBox = document.createElement('div');
                         strategicPriceBox.className = 'price-box-column';
-
                         const strategicPriceLine = document.createElement('div');
                         strategicPriceLine.className = 'price-action-line';
-
-                        const downArrow2 = document.createElement('span');
-                        downArrow2.className = 'arrow-down-yellow';
-                        const reduceText2 = document.createElement('span');
-                        reduceText2.innerHTML = '-' + amountBeatFormatted + ' ' + percentageBeatFormatted;
-                        const newPriceText2 = document.createElement('div');
-                        newPriceText2.innerHTML = '= ' + newSuggestedPriceBeat;
-                        const colorSquare2 = document.createElement('span');
-                        colorSquare2.className = 'color-square-turquoise';
-
-                        strategicPriceLine.appendChild(downArrow2);
-                        strategicPriceLine.appendChild(reduceText2);
-                        strategicPriceLine.appendChild(newPriceText2);
-                        strategicPriceLine.appendChild(colorSquare2);
-
+                        strategicPriceLine.innerHTML = `
+                        <span class="${arrowClass}"></span>
+                        <div class="price-diff-stack">
+                            <span class="diff-amount small-font">-${amountToBeatLowestPrice.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">PLN</span></span>
+                            <span class="diff-percentage small-font">-${percentageToBeatLowestPrice.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">%</span></span>
+                        </div>
+                        <div class="small-font">= ${strategicPrice.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">PLN</span></div>
+                    `;
                         const strategicPriceBtn = document.createElement('button');
                         strategicPriceBtn.className = 'simulate-change-btn';
-                        strategicPriceBtn.textContent = 'Zmień cenę';
-                        strategicPriceBtn.dataset.originalText = 'Zmień cenę';
-
+                        const strategicBtnContent = `<span class="color-square-turquoise"></span> Zmień cenę`;
+                        strategicPriceBtn.innerHTML = strategicBtnContent;
+                        strategicPriceBtn.dataset.originalText = strategicBtnContent;
                         attachPriceChangeListener(strategicPriceBtn, strategicPrice, box, item.productId, item.productName, myPrice, item);
-
                         strategicPriceLine.appendChild(strategicPriceBtn);
-
                         strategicPriceBox.appendChild(strategicPriceLine);
 
                         priceBoxColumnInfo.appendChild(matchPriceBox);
                         priceBoxColumnInfo.appendChild(strategicPriceBox);
-
-                    } else {
-                        const diffClass = item.colorClass + ' ' + 'priceBox-diff';
-                        priceBoxColumnInfo.innerHTML += '<div class="' + diffClass + '">Obniż: N/A</div>';
                     }
-
-                } else if (item.colorClass === "prToHigh") {
-                    if (myPrice != null && lowestPrice != null) {
-                        const amountToMatchLowestPrice = myPrice - lowestPrice;
-                        const percentageToMatchLowestPrice = (amountToMatchLowestPrice / myPrice) * 100;
-
-                        let strategicPrice;
-                        if (usePriceDifference) {
-                            strategicPrice = lowestPrice - setStepPrice;
-                        } else {
-                            strategicPrice = lowestPrice * (1 - setStepPrice / 100);
-                        }
-                        const amountToBeatLowestPrice = myPrice - strategicPrice;
-                        const percentageToBeatLowestPrice = (amountToBeatLowestPrice / myPrice) * 100;
-
-                        const amountMatchFormatted = amountToMatchLowestPrice.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' PLN';
-                        const percentageMatchFormatted = '(-' + percentageToMatchLowestPrice.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%)';
-                        const newSuggestedPriceMatch = lowestPrice.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' PLN';
-
-                        const amountBeatFormatted = amountToBeatLowestPrice.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' PLN';
-                        const percentageBeatFormatted = '(-' + percentageToBeatLowestPrice.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%)';
-                        const newSuggestedPriceBeat = strategicPrice.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' PLN';
-
-                        const matchPriceBox = document.createElement('div');
-                        matchPriceBox.className = 'price-box-column';
-
-                        const matchPriceLine = document.createElement('div');
-                        matchPriceLine.className = 'price-action-line';
-
-                        const downArrow = document.createElement('span');
-                        downArrow.className = 'arrow-down-red';
-                        const reduceText = document.createElement('span');
-                        reduceText.innerHTML = '-' + amountMatchFormatted + ' ' + percentageMatchFormatted;
-                        const newPriceText = document.createElement('div');
-                        newPriceText.innerHTML = '= ' + newSuggestedPriceMatch;
-                        const colorSquare = document.createElement('span');
-                        colorSquare.className = 'color-square-green';
-
-                        matchPriceLine.appendChild(downArrow);
-                        matchPriceLine.appendChild(reduceText);
-                        matchPriceLine.appendChild(newPriceText);
-                        matchPriceLine.appendChild(colorSquare);
-
-                        const matchPriceBtn = document.createElement('button');
-                        matchPriceBtn.className = 'simulate-change-btn';
-                        matchPriceBtn.textContent = 'Zmień cenę';
-                        matchPriceBtn.dataset.originalText = 'Zmień cenę';
-
-                        attachPriceChangeListener(matchPriceBtn, lowestPrice, box, item.productId, item.productName, myPrice, item);
-
-                        matchPriceLine.appendChild(matchPriceBtn);
-
-                        matchPriceBox.appendChild(matchPriceLine);
-
-                        const strategicPriceBox = document.createElement('div');
-                        strategicPriceBox.className = 'price-box-column';
-
-                        const strategicPriceLine = document.createElement('div');
-                        strategicPriceLine.className = 'price-action-line';
-
-                        const downArrow2 = document.createElement('span');
-                        downArrow2.className = 'arrow-down-red';
-                        const reduceText2 = document.createElement('span');
-                        reduceText2.innerHTML = '-' + amountBeatFormatted + ' ' + percentageBeatFormatted;
-                        const newPriceText2 = document.createElement('div');
-                        newPriceText2.innerHTML = '= ' + newSuggestedPriceBeat;
-                        const colorSquare2 = document.createElement('span');
-                        colorSquare2.className = 'color-square-turquoise';
-
-                        strategicPriceLine.appendChild(downArrow2);
-                        strategicPriceLine.appendChild(reduceText2);
-                        strategicPriceLine.appendChild(newPriceText2);
-                        strategicPriceLine.appendChild(colorSquare2);
-
-                        const strategicPriceBtn = document.createElement('button');
-                        strategicPriceBtn.className = 'simulate-change-btn';
-                        strategicPriceBtn.textContent = 'Zmień cenę';
-                        strategicPriceBtn.dataset.originalText = 'Zmień cenę';
-
-                        attachPriceChangeListener(strategicPriceBtn, strategicPrice, box, item.productId, item.productName, myPrice, item);
-
-                        strategicPriceLine.appendChild(strategicPriceBtn);
-
-                        strategicPriceBox.appendChild(strategicPriceLine);
-
-                        priceBoxColumnInfo.appendChild(matchPriceBox);
-                        priceBoxColumnInfo.appendChild(strategicPriceBox);
-
-                    } else {
-                        const diffClass = item.colorClass + ' ' + 'priceBox-diff';
-                        priceBoxColumnInfo.innerHTML += '<div class="' + diffClass + '">Obniż: N/A</div>';
-                    }
-
                 } else if (item.colorClass === "prGood") {
                     if (myPrice != null) {
                         const amountToSuggestedPrice1 = 0;
                         const percentageToSuggestedPrice1 = 0;
                         const suggestedPrice1 = myPrice;
+                        let amountToSuggestedPrice2, percentageToSuggestedPrice2, suggestedPrice2, downArrowClass = 'arrow-down-green';
 
-                        const amount1Formatted = '+0,00 PLN';
-                        const percentage1Formatted = '(+0,00%)';
-                        const newSuggestedPrice1Formatted = '= ' + suggestedPrice1.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' PLN';
-
-                        let amountToSuggestedPrice2, percentageToSuggestedPrice2, suggestedPrice2;
-                        let amount2Formatted, percentage2Formatted, newSuggestedPrice2Formatted;
-                        let downArrowClass, colorSquare2Class;
-
-                        if (item.storeCount === 1) {
+                        if (item.storeCount > 1) {
+                            if (usePriceDifference) {
+                                suggestedPrice2 = myPrice - setStepPrice;
+                            } else {
+                                let reduction = myPrice * (setStepPrice / 100);
+                                if (reduction < 0.01) reduction = 0.01;
+                                suggestedPrice2 = myPrice - reduction;
+                            }
+                            amountToSuggestedPrice2 = suggestedPrice2 - myPrice;
+                            percentageToSuggestedPrice2 = myPrice > 0 ? (amountToSuggestedPrice2 / myPrice) * 100 : 0;
+                        } else {
+                            suggestedPrice2 = myPrice;
                             amountToSuggestedPrice2 = 0;
                             percentageToSuggestedPrice2 = 0;
-                            suggestedPrice2 = myPrice;
-
-                            amount2Formatted = '+0,00 PLN';
-                            percentage2Formatted = '(+0,00%)';
-                            newSuggestedPrice2Formatted = '= ' + suggestedPrice2.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' PLN';
-
                             downArrowClass = 'no-change-icon-turquoise';
-                            colorSquare2Class = 'color-square-turquoise';
-                        } else {
-                            if (usePriceDifference) {
-                                amountToSuggestedPrice2 = -setStepPrice;
-                                suggestedPrice2 = myPrice + amountToSuggestedPrice2;
-                                percentageToSuggestedPrice2 = (amountToSuggestedPrice2 / myPrice) * 100;
-                            } else {
-                                const percentageReduction = setStepPrice / 100;
-                                amountToSuggestedPrice2 = -myPrice * percentageReduction;
-                                if (Math.abs(amountToSuggestedPrice2) < 0.01) {
-                                    amountToSuggestedPrice2 = -0.01;
-                                }
-                                suggestedPrice2 = myPrice + amountToSuggestedPrice2;
-                                percentageToSuggestedPrice2 = (amountToSuggestedPrice2 / myPrice) * 100;
-                            }
-
-                            amount2Formatted = (amountToSuggestedPrice2 >= 0 ? '+' : '') + amountToSuggestedPrice2.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' PLN';
-                            percentage2Formatted = '(' + (percentageToSuggestedPrice2 >= 0 ? '+' : '') + percentageToSuggestedPrice2.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%)';
-                            newSuggestedPrice2Formatted = '= ' + suggestedPrice2.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' PLN';
-
-                            downArrowClass = 'arrow-down-green';
-                            colorSquare2Class = 'color-square-turquoise';
                         }
 
                         const matchPriceBox = document.createElement('div');
                         matchPriceBox.className = 'price-box-column';
-
                         const matchPriceLine = document.createElement('div');
                         matchPriceLine.className = 'price-action-line';
-
-                        const noChangeIcon = document.createElement('span');
-                        noChangeIcon.className = 'no-change-icon';
-                        const noChangeText = document.createElement('span');
-                        noChangeText.innerHTML = amount1Formatted + ' ' + percentage1Formatted;
-                        const newPriceText = document.createElement('div');
-                        newPriceText.innerHTML = newSuggestedPrice1Formatted;
-                        const colorSquare = document.createElement('span');
-                        colorSquare.className = 'color-square-green';
-
-                        matchPriceLine.appendChild(noChangeIcon);
-                        matchPriceLine.appendChild(noChangeText);
-                        matchPriceLine.appendChild(newPriceText);
-                        matchPriceLine.appendChild(colorSquare);
-
+                        matchPriceLine.innerHTML = `
+                        <span class="no-change-icon"></span>
+                        <div class="price-diff-stack">
+                            <span class="diff-amount small-font">+${amountToSuggestedPrice1.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">PLN</span></span>
+                            <span class="diff-percentage small-font">+${percentageToSuggestedPrice1.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">%</span></span>
+                        </div>
+                        <div class="small-font">= ${suggestedPrice1.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">PLN</span></div>
+                    `;
                         const matchPriceBtn = document.createElement('button');
                         matchPriceBtn.className = 'simulate-change-btn';
-                        matchPriceBtn.textContent = 'Zmień cenę';
-                        matchPriceBtn.dataset.originalText = 'Zmień cenę';
-
+                        const matchBtnContent = `<span class="color-square-green"></span> Zmień cenę`;
+                        matchPriceBtn.innerHTML = matchBtnContent;
+                        matchPriceBtn.dataset.originalText = matchBtnContent;
                         attachPriceChangeListener(matchPriceBtn, suggestedPrice1, box, item.productId, item.productName, myPrice, item);
-
                         matchPriceLine.appendChild(matchPriceBtn);
-
                         matchPriceBox.appendChild(matchPriceLine);
 
                         const strategicPriceBox = document.createElement('div');
                         strategicPriceBox.className = 'price-box-column';
-
                         const strategicPriceLine = document.createElement('div');
                         strategicPriceLine.className = 'price-action-line';
-
-                        const downArrow = document.createElement('span');
-                        downArrow.className = downArrowClass;
-                        const reduceText = document.createElement('span');
-                        reduceText.innerHTML = amount2Formatted + ' ' + percentage2Formatted;
-                        const newPriceText2 = document.createElement('div');
-                        newPriceText2.innerHTML = newSuggestedPrice2Formatted;
-                        const colorSquare2 = document.createElement('span');
-                        colorSquare2.className = colorSquare2Class;
-
-                        strategicPriceLine.appendChild(downArrow);
-                        strategicPriceLine.appendChild(reduceText);
-                        strategicPriceLine.appendChild(newPriceText2);
-                        strategicPriceLine.appendChild(colorSquare2);
-
+                        strategicPriceLine.innerHTML = `
+                        <span class="${downArrowClass}"></span>
+                        <div class="price-diff-stack">
+                            <span class="diff-amount small-font">${amountToSuggestedPrice2.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">PLN</span></span>
+                            <span class="diff-percentage small-font">${percentageToSuggestedPrice2.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">%</span></span>
+                        </div>
+                        <div class="small-font">= ${suggestedPrice2.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">PLN</span></div>
+                    `;
                         const strategicPriceBtn = document.createElement('button');
                         strategicPriceBtn.className = 'simulate-change-btn';
-                        strategicPriceBtn.textContent = 'Zmień cenę';
-                        strategicPriceBtn.dataset.originalText = 'Zmień cenę';
-
+                        const strategicBtnContent = `<span class="color-square-turquoise"></span> Zmień cenę`;
+                        strategicPriceBtn.innerHTML = strategicBtnContent;
+                        strategicPriceBtn.dataset.originalText = strategicBtnContent;
                         attachPriceChangeListener(strategicPriceBtn, suggestedPrice2, box, item.productId, item.productName, myPrice, item);
                         strategicPriceLine.appendChild(strategicPriceBtn);
-
                         strategicPriceBox.appendChild(strategicPriceLine);
 
                         priceBoxColumnInfo.appendChild(matchPriceBox);
                         priceBoxColumnInfo.appendChild(strategicPriceBox);
-
-                    } else {
-                        const diffClass = item.colorClass + ' ' + 'priceBox-diff-top';
-                        priceBoxColumnInfo.innerHTML += '<div class="' + diffClass + '">Jesteś w najlepszych cenach</div>';
                     }
-
-                } else {
-
                 }
-
             }
 
             priceBoxData.appendChild(colorBar);
@@ -2237,19 +1988,67 @@
                 productImage.dataset.src = item.imgUrl;
                 productImage.alt = item.productName;
                 productImage.className = 'lazy-load';
-                productImage.style.width = '114px';
-                productImage.style.height = '114px';
-                productImage.style.marginRight = '5px';
-                productImage.style.marginLeft = '5px';
+                productImage.style.width = '111px';
+                productImage.style.height = '111px';
+                productImage.style.marginRight = '3px';
+                productImage.style.marginLeft = '3px';
                 productImage.style.backgroundColor = '#ffffff';
                 productImage.style.border = '1px solid #e3e3e3';
                 productImage.style.borderRadius = '4px';
-                productImage.style.padding = '10px';
+                productImage.style.padding = '6px';
                 productImage.style.display = 'block';
 
                 priceBoxData.appendChild(productImage);
             }
 
+            const statsContainer = document.createElement('div');
+            statsContainer.className = 'price-box-stats-container';
+
+            let offerCountHtml = `
+            <div class="price-box-column-offers-a">
+                <span class="data-channel">
+                    ${(item.sourceGoogle ? `<img src="/images/GoogleShopping.png" alt="Google Icon" style="width:15px; height:15px;" />` : '')}
+                    ${(item.sourceCeneo ? `<img src="/images/Ceneo.png" alt="Ceneo Icon" style="width:15px; height:15px;" />` : '')}
+                </span>
+                <div class="offer-count-box">${getOfferText(item.storeCount)}</div>
+            </div>`;
+
+            const ceneoTooltip = 'Ilość zakupionych produktów przez ostatnie 90 dni na Ceneo';
+            let ceneoSalesHtml = '';
+            if (item.ceneoSalesCount > 0) {
+                ceneoSalesHtml = `
+            <div class="price-box-column-offers-a">
+                <span class="data-channel">
+                    <i class="fas fa-shopping-cart" style="font-size: 15px; color: grey; margin-top:1px;" title="${ceneoTooltip}"></i>
+                </span>
+                <div class="offer-count-box">
+                    <p>${item.ceneoSalesCount} osb. kupiło</p>
+                </div>
+            </div>`;
+            } else {
+                ceneoSalesHtml = `
+            <div class="price-box-column-offers-a">
+                <span class="data-channel">
+                    <i class="fas fa-shopping-cart" style="font-size: 15px; color: grey; margin-top:1px;" title="${ceneoTooltip}"></i>
+                </span>
+                <div class="offer-count-box">
+                    <p>Brak danych</p>
+                </div>
+            </div>`;
+            }
+
+            let placeholderHtml = `
+            <div class="price-box-column-offers-a">
+                <span class="data-channel">
+                    <i class="fas fa-chart-pie" style="font-size: 15px; color: grey; margin-top:1px;" title="Placeholder"></i>
+                </span>
+                <div class="offer-count-box">
+                    <p>Brak danych</p>
+                </div>
+            </div>`;
+
+            statsContainer.innerHTML = offerCountHtml + ceneoSalesHtml + placeholderHtml;
+            priceBoxData.appendChild(statsContainer);
             priceBoxData.appendChild(priceBoxColumnLowestPrice);
             priceBoxData.appendChild(priceBoxColumnMyPrice);
             priceBoxData.appendChild(priceBoxColumnInfo);
@@ -2305,11 +2104,12 @@
                 }
             }
         }
-
         lazyLoadImages.forEach(img => { observer.observe(img); });
-
         document.getElementById('displayedProductCount').textContent = data.length;
     }
+
+
+
 
     function getDeliveryClass(days) {
         if (days <= 1) return 'Availability1Day';

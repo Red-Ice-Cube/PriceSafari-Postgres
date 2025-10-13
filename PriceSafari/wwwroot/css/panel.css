@@ -3174,10 +3174,10 @@ tr:last-child .sub-line {
     flex-direction: column;
     justify-content: space-between;
     gap: 4px;
-    padding: 10px;
+    padding: 5px 10px;
     border-radius: 4px;
-    margin-left: 5px;
-    margin-right: 5px;
+    margin-left: 3px;
+    margin-right: 3px;
     background: rgb(245, 245, 245);
     border: 1px solid #e3e3e3;
     min-width: 260px;
@@ -3188,7 +3188,7 @@ tr:last-child .sub-line {
     display: flex;
     flex-direction: column;
     align-items: flex-start;
-    gap: 10px;
+    gap: 6px;
     min-width: 240px;
 }
 
@@ -3266,9 +3266,9 @@ tr:last-child .sub-line {
 .price-box-column-offers-a {
     display: flex;
     border-radius: 4px;
-    padding: 4px 10px;
-    width: 158px;
-    height: 31px;
+    padding: 5px 10px;
+    width: 144px;
+   
     align-items: center;
     justify-content: space-between;
     background: rgb(245, 245, 245);
@@ -3281,9 +3281,9 @@ tr:last-child .sub-line {
 .price-box-stats-container{
     display:flex;
     flex-direction:column;
-    gap:9px;
-    margin-left:5px;
-    margin-right:5px;
+    gap:6px;
+    margin-left:3px;
+    margin-right:3px;
 }
 
 .offer-count-box{
@@ -3291,11 +3291,44 @@ tr:last-child .sub-line {
 }
 
 
+/* Kontener dla dwupoziomowego wyświetlania różnicy ceny */
+.price-diff-stack {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    text-align: center;
+    margin: 0 4px; /* Odstęp od strzałki i znaku równości */
+}
 
+/* Górna część - kwota w PLN */
+.diff-amount {
+    margin-bottom: -1px;
+    border-bottom: 1px solid #cccccc;
+    width: 100%;
+}
+
+/* Dolna część - procenty */
+.diff-percentage {
+    margin-top: -1px;
+}
+
+/* Klasa dla lekko zmniejszonej czcionki (główne liczby) */
+.small-font {
+    font-size: 14px;
+    font-weight: 500;
+}
+
+/* Klasa dla bardzo małej czcionki (jednostki PLN i %) */
+.unit {
+    font-size: 10px;
+    font-weight: 400;
+    vertical-align: middle;
+}
 
 
 .price-box-column-text {
-    font-size: 15px;
+    font-size: 14px;
     font-weight: 400;
     min-width: 160px;
 }
@@ -3310,7 +3343,7 @@ tr:last-child .sub-line {
     width: 16px;
     height: 100%;
     min-height: 30px;
-    margin-right: 5px;
+    margin-right: 3px;
     border-radius: 4px;
 }
 
@@ -4507,7 +4540,7 @@ th small {
     border-radius: 4px;
     background-color: rgba(117, 152, 112, 0.7);
     display: inline-block;
-    margin-left: 14px;
+
 }
 
 .no-change-icon::before {
@@ -4533,7 +4566,7 @@ th small {
 
 .color-square-turquoise {
     display: inline-block;
-    margin-left: 14px;
+
     vertical-align: middle;
 }
 
@@ -4667,16 +4700,15 @@ small {
     color: #333;
     border: 1px solid #e3e3e3;
     align-items: center;
-    justify-content: center;
+    justify-content: flex-start;
     border-radius: 4px;
     cursor: pointer;
-    margin-left: 10px;
-    height: 50px;
-    margin-top: -10px;
-    margin-bottom: -10px;
-    margin-right: -10px;
-    width: 100px;
-    opacity: 0.85;
+    gap: 6px;
+    padding: 4px;
+    margin-left:6px;
+    width: 110px;
+    opacity: 0.95;
+    font-size: 14px;
 }
 
     .simulate-change-btn:hover {
