@@ -4696,18 +4696,18 @@ small {
 
 .simulate-change-btn {
     display: flex;
-    background-color: #e3e3e3;
+    background-color: rgb(245, 245, 245);
     color: #333;
-    border: 1px solid #e3e3e3;
+    border: none;
     align-items: center;
     justify-content: flex-start;
     border-radius: 4px;
     cursor: pointer;
     gap: 6px;
     padding: 4px;
-    margin-left:6px;
+    margin-left: 6px;
     width: 110px;
-    opacity: 0.95;
+    opacity: 1;
     font-size: 14px;
 }
 
