@@ -1122,7 +1122,7 @@
             button.style.backgroundColor = "#333333";
             button.style.color = "#f5f5f5";
 
-            button.innerHTML = colorSquareHTML + " Dodano |";
+            button.innerHTML = colorSquareHTML + " Dodano";
 
             const removeLink = document.createElement('span');
             removeLink.innerHTML = " <i class='fa fa-trash' style='font-size:12px; display:flex; color:white; margin-left:4px; margin-top:3px;'></i>";
