@@ -3316,7 +3316,7 @@ tr:last-child .sub-line {
 /* Klasa dla lekko zmniejszonej czcionki (główne liczby) */
 .small-font {
     font-size: 14px;
-    font-weight: 500;
+    font-weight: 400;
 }
 
 /* Klasa dla bardzo małej czcionki (jednostki PLN i %) */

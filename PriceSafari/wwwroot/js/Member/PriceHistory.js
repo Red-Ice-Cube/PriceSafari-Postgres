@@ -43,7 +43,6 @@
     const selectAllVisibleBtn = document.getElementById('selectAllVisibleBtn');
     const deselectAllVisibleBtn = document.getElementById('deselectAllVisibleBtn');
 
-    // Funkcja pomocnicza do poprawnego odmieniania słowa "oferta"
     function getOfferText(count) {
         if (count === 1) return `${count} Oferta`;
         const lastDigit = count % 10;
@@ -1085,23 +1084,6 @@
         return valueToUse < setPrice2 ? "prMid" : "prToHigh";
     }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     function renderPrices(data) {
 
         const storedChanges = localStorage.getItem('selectedPriceChanges_' + storeId);
@@ -1132,7 +1114,7 @@
         const paginatedData = data.slice(startIndex, endIndex);
 
         function activateChangeButton(button, priceBox, newPrice) {
-            // 1. Zapisujemy HTML kolorowego kwadratu, zanim go nadpiszemy
+
             const colorSquare = button.querySelector('span[class^="color-square-"]');
             const colorSquareHTML = colorSquare ? colorSquare.outerHTML : '';
 
@@ -1140,7 +1122,6 @@
             button.style.backgroundColor = "#333333";
             button.style.color = "#f5f5f5";
 
-            // 2. Ustawiamy nową zawartość, wstawiając z powrotem zapisany kwadrat
             button.innerHTML = colorSquareHTML + " Dodano |";
 
             const removeLink = document.createElement('span');
@@ -1551,6 +1532,7 @@
 
                 const mainText = document.createElement('span');
                 mainText.style.fontWeight = '500';
+                mainText.style.fontSize = '17px';
                 mainText.textContent = 'Brak ofert konkurencji';
                 noCompetitionText.appendChild(mainText);
 
@@ -1565,6 +1547,7 @@
                 soloBadge.className = 'Position';
                 soloBadge.style.backgroundColor = '#9C9C9C';
                 soloBadge.style.color = 'white';
+
                 soloBadge.textContent = 'Brak ofert konkurencji - Produkt solo';
                 soloDetails.appendChild(soloBadge);
 
@@ -1761,7 +1744,9 @@
                 priceBoxMyText.className = 'price-box-column-text';
                 const mainText = document.createElement('span');
                 mainText.style.fontWeight = '500';
+
                 mainText.textContent = 'Brak Twojej oferty';
+                mainText.style.fontSize = '17px';
                 priceBoxMyText.appendChild(mainText);
 
                 const storeNameDiv = document.createElement('div');
@@ -1988,8 +1973,8 @@
                 productImage.dataset.src = item.imgUrl;
                 productImage.alt = item.productName;
                 productImage.className = 'lazy-load';
-                productImage.style.width = '111px';
-                productImage.style.height = '111px';
+                productImage.style.width = '112px';
+                productImage.style.height = '112px';
                 productImage.style.marginRight = '3px';
                 productImage.style.marginLeft = '3px';
                 productImage.style.backgroundColor = '#ffffff';
@@ -2107,9 +2092,6 @@
         lazyLoadImages.forEach(img => { observer.observe(img); });
         document.getElementById('displayedProductCount').textContent = data.length;
     }
-
-
-
 
     function getDeliveryClass(days) {
         if (days <= 1) return 'Availability1Day';
