@@ -318,7 +318,6 @@
     <div class="price-box-space">
         <div class="price-box-column-name">${highlightedProductName}</div>
         <div class="flags-container"></div> </div>
-    ${myOfferIdHtml}
             <div class="price-box-data">
                 <div class="color-bar ${item.colorClass}"></div>
                 <div class="price-box-stats-container">
@@ -420,23 +419,40 @@
 
             container.appendChild(box);
 
-            const flagsContainer = createFlagsContainer(item);
-            const placeholder = box.querySelector('.flags-container');
-            if (placeholder) {
-                placeholder.replaceWith(flagsContainer);
-            }
-            const priceBoxSpace = box.querySelector('.price-box-space');
 
+            // ✅ NOWY KOD DO WKLEJENIA W TO MIEJSCE
+            // 1. Pobierz elementy stworzone w szablonie
+            const priceBoxSpace = box.querySelector('.price-box-space');
+            const priceBoxColumnName = box.querySelector('.price-box-column-name');
+            const flagsPlaceholder = box.querySelector('.flags-container');
+
+            // 2. Wyczyść kontener price-box-space, bo zbudujemy go od nowa
+            priceBoxSpace.innerHTML = '';
+
+            // 3. Stwórz lewą i prawą kolumnę
+            const leftColumn = document.createElement('div');
+            leftColumn.className = 'price-box-left-column';
+
+            const rightColumn = document.createElement('div');
+            rightColumn.className = 'price-box-right-column';
+
+            // 4. Stwórz i dodaj elementy do lewej kolumny
+            const flagsContainer = createFlagsContainer(item);
+            leftColumn.appendChild(priceBoxColumnName); // Przenieś istniejącą nazwę
+            leftColumn.appendChild(flagsContainer);    // Dodaj flagi
+
+            // 5. Stwórz i dodaj elementy do prawej kolumny
+            // Przycisk "Zaznacz"
             const selectProductButton = document.createElement('button');
             selectProductButton.className = 'select-product-btn';
             selectProductButton.dataset.productId = item.productId;
+            selectProductButton.style.pointerEvents = 'auto'; // Upewnij się, że przycisk jest klikalny
             if (selectedProductIds.has(item.productId.toString())) {
                 selectProductButton.textContent = 'Wybrano';
                 selectProductButton.classList.add('selected');
             } else {
                 selectProductButton.textContent = 'Zaznacz';
             }
-
             selectProductButton.addEventListener('click', function (event) {
                 event.stopPropagation();
                 const productId = this.dataset.productId;
@@ -453,9 +469,24 @@
                 updateSelectionUI();
             });
 
-            if (priceBoxSpace) {
-                priceBoxSpace.appendChild(selectProductButton);
+            // ApiBox z ID oferty
+            const apiBox = document.createElement('span');
+            apiBox.className = 'ApiBox';
+            if (item.myIdAllegro) {
+                apiBox.innerHTML = `ID ${item.myIdAllegro}`;
+            } else {
+                apiBox.innerHTML = 'Brak ID';
             }
+
+            rightColumn.appendChild(selectProductButton);
+            rightColumn.appendChild(apiBox);
+
+            // 6. Dodaj gotowe kolumny do kontenera price-box-space
+            priceBoxSpace.appendChild(leftColumn);
+            priceBoxSpace.appendChild(rightColumn);
+
+
+
 
             box.addEventListener('click', function (event) {
                 if (event.target.closest('button, a, img')) {
