@@ -400,11 +400,11 @@
 
         if (storedChangesJSON) {
             try {
-                // Zakładamy, że drugi skrypt zapisuje dane w formacie { scrapId: '...', changes: [...] }
+
                 const parsedData = JSON.parse(storedChangesJSON);
                 if (parsedData && Array.isArray(parsedData.changes)) {
                     parsedData.changes.forEach(change => activeChangesMap.set(String(change.productId), change));
-                } else if (Array.isArray(parsedData)) { // Fallback dla starego formatu
+                } else if (Array.isArray(parsedData)) {
                     parsedData.forEach(change => activeChangesMap.set(String(change.productId), change));
                 }
             } catch (err) {
@@ -420,31 +420,27 @@
 
             const activeChange = activeChangesMap.get(String(productId));
 
-            // Przypadek 1: Produkt MA aktywną zmianę w localStorage
             if (activeChange) {
-                // Jeśli price-box nie ma jeszcze klasy, dodaj ją
+
                 if (!priceBox.classList.contains('price-changed')) {
                     priceBox.classList.add('price-changed');
                 }
 
-                // Sprawdzamy, czy jakikolwiek przycisk jest już aktywny
                 const isActiveButtonPresent = priceBox.querySelector('.simulate-change-btn.active');
 
-                // Jeśli żaden przycisk nie jest aktywny, musimy jakiś aktywować
                 if (!isActiveButtonPresent) {
-                    // Znajdujemy pierwszy dostępny przycisk zmiany ceny
+
                     const firstButton = priceBox.querySelector('.simulate-change-btn');
                     if (firstButton) {
                         const actionLine = firstButton.closest('.price-action-line');
-                        // Aktywujemy go, używając Twojej istniejącej funkcji `activateChangeButton`
-                        // Ta funkcja poprawnie ustawi tekst "Dodano" i doda ikonę kosza
+
                         activateChangeButton(firstButton, actionLine, priceBox);
                     }
                 }
             }
-            // Przypadek 2: Produkt NIE MA aktywnej zmiany, ale UI wciąż pokazuje, że ma
+
             else if (priceBox.classList.contains('price-changed')) {
-                // Ta część Twojego kodu działała poprawnie, więc ją zostawiamy
+
                 priceBox.classList.remove('price-changed');
                 const activeButtons = priceBox.querySelectorAll('.simulate-change-btn.active');
                 activeButtons.forEach(button => {
@@ -1379,12 +1375,12 @@
         if (storedChangesJSON) {
             try {
                 const parsedData = JSON.parse(storedChangesJSON);
-                // NOWA, POPRAWNA LOGIKA
+
                 if (parsedData && parsedData.scrapId && Array.isArray(parsedData.changes)) {
-                    // Poprawnie wyciągamy tablicę 'changes' z obiektu
+
                     selectedPriceChanges = parsedData.changes;
                 } else {
-                    // Jeśli format jest nieznany, czyścimy, by uniknąć błędów
+
                     console.warn("Nieznany lub stary format danych 'selectedPriceChanges' w localStorage. Czyszczenie.");
                     selectedPriceChanges = [];
                     localStorage.removeItem('selectedPriceChanges_' + storeId);
@@ -1435,46 +1431,19 @@
             const priceBoxSpace = document.createElement('div');
             priceBoxSpace.className = 'price-box-space';
 
+            const leftColumn = document.createElement('div');
+            leftColumn.className = 'price-box-left-column';
+
             const priceBoxColumnName = document.createElement('div');
             priceBoxColumnName.className = 'price-box-column-name';
             priceBoxColumnName.innerHTML = highlightedProductName;
-
-            const priceBoxColumnCategory = document.createElement('div');
-            priceBoxColumnCategory.className = 'price-box-column-category';
-
-            const apiBox = document.createElement('span');
-            apiBox.className = 'ApiBox';
-
-            let identifierValue, identifierLabel, displayedIdentifier;
-            switch (marginSettings.identifierForSimulation) {
-                case 'ID':
-                    identifierValue = item.externalId ? item.externalId.toString() : null;
-                    identifierLabel = 'ID';
-                    break;
-                case 'ProducerCode':
-                    identifierValue = item.producerCode || null;
-                    identifierLabel = 'KOD';
-                    break;
-                case 'EAN':
-                default:
-                    identifierValue = item.ean || null;
-                    identifierLabel = 'EAN';
-                    break;
-            }
-
-            if (identifierValue) {
-                displayedIdentifier = highlightMatches(identifierValue, currentProductSearchTerm, 'highlighted-text-yellow');
-                apiBox.innerHTML = `${identifierLabel} ${displayedIdentifier}`;
-            } else {
-                apiBox.innerHTML = `Brak ${identifierLabel}`;
-            }
-
-            priceBoxColumnCategory.appendChild(apiBox);
-
             const flagsContainer = createFlagsContainer(item);
 
-            priceBoxSpace.appendChild(priceBoxColumnName);
-            priceBoxSpace.appendChild(flagsContainer);
+            leftColumn.appendChild(priceBoxColumnName);
+            leftColumn.appendChild(flagsContainer);
+
+            const rightColumn = document.createElement('div');
+            rightColumn.className = 'price-box-right-column';
 
             const selectProductButton = document.createElement('button');
             selectProductButton.className = 'select-product-btn';
@@ -1505,8 +1474,38 @@
                 updateSelectionUI();
             });
 
-            priceBoxSpace.appendChild(selectProductButton);
-            priceBoxSpace.appendChild(priceBoxColumnCategory);
+            const apiBox = document.createElement('span');
+            apiBox.className = 'ApiBox';
+
+            let identifierValue, identifierLabel, displayedIdentifier;
+            switch (marginSettings.identifierForSimulation) {
+                case 'ID':
+                    identifierValue = item.externalId ? item.externalId.toString() : null;
+                    identifierLabel = 'ID';
+                    break;
+                case 'ProducerCode':
+                    identifierValue = item.producerCode || null;
+                    identifierLabel = 'KOD';
+                    break;
+                case 'EAN':
+                default:
+                    identifierValue = item.ean || null;
+                    identifierLabel = 'EAN';
+                    break;
+            }
+
+            if (identifierValue) {
+                displayedIdentifier = highlightMatches(identifierValue, currentProductSearchTerm, 'highlighted-text-yellow');
+                apiBox.innerHTML = `${identifierLabel} ${displayedIdentifier}`;
+            } else {
+                apiBox.innerHTML = `Brak ${identifierLabel}`;
+            }
+
+            rightColumn.appendChild(selectProductButton);
+            rightColumn.appendChild(apiBox);
+
+            priceBoxSpace.appendChild(leftColumn);
+            priceBoxSpace.appendChild(rightColumn);
 
             const externalInfoContainer = document.createElement('div');
             externalInfoContainer.className = 'price-box-externalInfo';
@@ -2066,7 +2065,7 @@
             priceBoxData.appendChild(priceBoxColumnInfo);
 
             box.appendChild(priceBoxSpace);
-            box.appendChild(priceBoxColumnCategory);
+
             box.appendChild(externalInfoContainer);
             box.appendChild(priceBoxData);
 

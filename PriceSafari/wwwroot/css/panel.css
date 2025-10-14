@@ -215,13 +215,9 @@ p {
     align-items: flex-start;
     gap: 24px;
     flex: 1 0 0;
-
     box-sizing: border-box;
     overflow: hidden;
 }
-
-
-
 
 .Horizontal {
     display: flex;
@@ -266,10 +262,6 @@ p {
     font-weight: 300;
     margin-bottom: 24px;
 }
-
-
-
-
 
 .Flex-Column {
     display: flex;
@@ -818,7 +810,6 @@ img.lazy-load {
     display: block;
 }
 
-
 .Button-select {
     display: inline-flex;
     padding: 6px 18px;
@@ -856,7 +847,6 @@ img.lazy-load {
 .Button-select:not(.button-disabled):hover img:not(.icon-disabled) {
     transform: scale(1.12);
 }
-
 
 img.lazy-load-flex {
     visibility: hidden;
@@ -990,7 +980,6 @@ img.lazy-load-flex {
 
 .reportStats {
     display: flex;
-
 }
 
 .reportStats-Text {
@@ -999,7 +988,6 @@ img.lazy-load-flex {
     font-weight: 400;
     gap: 8px;
 }
-
 
 .Statistics-box-data {
     display: flex;
@@ -1135,7 +1123,7 @@ img.lazy-load-flex {
     width: 100%;
     overflow-y: auto;
     height: 80vh;
-    margin-top:24px;
+    margin-top: 24px;
 }
 
     .Vert-table::-webkit-scrollbar {
@@ -1283,11 +1271,6 @@ img.lazy-load-flex {
 .prIdeal:hover {
     background-color: rgba(0, 145, 123, 0.15);
 }
-
-
-
-
-
 
 .p-category {
     color: #282828;
@@ -1610,7 +1593,6 @@ img.lazy-load-flex {
     gap: 16px;
 }
 
-
 .Horizontal-x {
     display: flex;
     align-self: stretch;
@@ -1756,7 +1738,7 @@ img.lazy-load-flex {
     gap: 6px;
     align-items: flex-start;
     width: 100%;
-    height:40px;
+    height: 40px;
 }
 
 .product-upper-box {
@@ -2049,7 +2031,6 @@ img.lazy-load-flex {
     align-items: center;
     gap: 10px;
     flex: 1 0 0;
-
 }
 
 .Sidebar-box-item-left {
@@ -2681,12 +2662,10 @@ tr:last-child .sub-line {
     border-radius: 8px;
     font-size: 14px;
     font-weight: 400;
-    border: 1px solid #FFD700; 
-    background: rgba(255, 215, 0, 0.12); 
+    border: 1px solid #FFD700;
+    background: rgba(255, 215, 0, 0.12);
     color: #FFD700;
 }
-
-
 
 .ManagerStyle {
     display: inline-flex;
@@ -3058,10 +3037,6 @@ tr:last-child .sub-line {
     height: 16px;
 }
 
-
-
-
-
 .colorFilter {
     outline: none;
     background-color: white;
@@ -3166,7 +3141,6 @@ tr:last-child .sub-line {
 
 .price-box-data {
     display: flex;
-
 }
 
 .price-box-column {
@@ -3222,6 +3196,14 @@ tr:last-child .sub-line {
     font-size: 22px;
 }
 
+.price-box-left-column {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    flex-grow: 1;
+    min-width: 0;
+}
+
 .price-box-column-name-com {
     display: flex;
     min-width: 350px;
@@ -3268,7 +3250,6 @@ tr:last-child .sub-line {
     border-radius: 4px;
     padding: 5px 10px;
     width: 142px;
-   
     align-items: center;
     justify-content: space-between;
     background: rgb(245, 245, 245);
@@ -3278,64 +3259,50 @@ tr:last-child .sub-line {
     color: #4e4e4e;
 }
 
-.price-box-stats-container{
-    display:flex;
-    flex-direction:column;
-    gap:6px;
-    margin-left:3px;
-    margin-right:3px;
+.price-box-stats-container {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-left: 3px;
+    margin-right: 3px;
 }
 
-.offer-count-box{
-    text-wrap:nowrap;
+.offer-count-box {
+    text-wrap: nowrap;
 }
 
-
-/* Kontener dla dwupoziomowego wyświetlania różnicy ceny */
 .price-diff-stack {
     display: flex;
     flex-direction: column;
     align-items: flex-start;
     justify-content: center;
     text-align: center;
-    margin: 0 4px; /* Odstęp od strzałki i znaku równości */
+    margin: 0 4px;
 }
 
-/* Górna część - kwota w PLN */
 .diff-amount {
     margin-bottom: -1px;
     border-bottom: 1px solid #cccccc;
     width: 100%;
 }
 
-/* Dolna część - procenty */
 .diff-percentage {
     margin-top: -1px;
 }
 
-/* Klasa dla lekko zmniejszonej czcionki (główne liczby) */
 .small-font {
     font-size: 14px;
     font-weight: 400;
 }
 
-/* Klasa dla bardzo małej czcionki (jednostki PLN i %) */
 .unit {
     font-size: 10px;
     font-weight: 400;
     vertical-align: middle;
 }
 
-
-
-
-
-
-
-/* Dodaj ten kod do swojego pliku CSS */
-
 .price-action-line {
-    cursor: pointer; /* Zmienia kursor na "łapkę" po najechaniu */
+    cursor: pointer;
     transition: background-color 0.2s ease-in-out;
 }
 
@@ -3345,16 +3312,13 @@ tr:last-child .sub-line {
     border: 1px solid #000 !important;
 }
 
-        .price-box-column.active * {
-            color: #ffffff !important;
-        }
-
-    .price-action-line .simulate-change-btn {
-        pointer-events: none; /* Wyłączamy klikanie na sam przycisk, bo cały kontener jest już klikalny */
+    .price-box-column.active * {
+        color: #ffffff !important;
     }
 
-
-
+.price-action-line .simulate-change-btn {
+    pointer-events: none;
+}
 
 .price-box-column-text {
     font-size: 14px;
@@ -3408,7 +3372,6 @@ tr:last-child .sub-line {
     background-color: rgba(230, 230, 230, 0.7);
 }
 
-
 .priceBox-diff-up {
     display: inline-flex;
     align-self: center;
@@ -3437,7 +3400,6 @@ tr:last-child .sub-line {
     color: #AB2520 !important;
 }
 
-
 .priceBox-diff-neutral {
     display: inline-flex;
     align-self: center;
@@ -3451,7 +3413,6 @@ tr:last-child .sub-line {
     background: rgba(40, 40, 40, 0.20);
     color: rgba(40, 40, 40, 1) !important;
 }
-
 
 .uniqueBestPriceBox {
     display: flex;
@@ -3534,8 +3495,6 @@ tr:last-child .sub-line {
     color: #AB2520 !important;
 }
 
-
-
 .priceBox-diff-margin-neutral {
     display: flex;
     padding: 4px 12px;
@@ -3549,8 +3508,6 @@ tr:last-child .sub-line {
     color: rgba(40, 40, 40, 1) !important;
     min-width: 260px;
 }
-
-
 
 .priceBox-diff-margin {
     display: flex;
@@ -3701,6 +3658,12 @@ tr:last-child .sub-line {
     border: none;
 }
 
+.price-box-right-column {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
 .highlighted-text-yellow {
     color: #F0D400;
 }
@@ -3731,7 +3694,7 @@ tr:last-child .sub-line {
 .Delivery2,
 .Delivery3,
 .TopOffer,
-.SuperPrice{
+.SuperPrice {
     border-radius: 4px;
     padding: 2px 5px;
     display: inline-flex;
@@ -3784,7 +3747,7 @@ tr:last-child .sub-line {
 
 .Smart-Allegro {
     background: #422A76;
-    height:20.5px;
+    height: 20.5px;
 }
 
 .TopOffer {
@@ -3794,9 +3757,11 @@ tr:last-child .sub-line {
 .Delivery1 {
     background: #006400;
 }
+
 .Delivery2 {
     background: #FFA500;
 }
+
 .Delivery3 {
     background: #000000;
 }
@@ -3804,7 +3769,6 @@ tr:last-child .sub-line {
 .SuperPrice {
     background: #107B1E;
 }
-
 
 .PromoInfo {
     display: inline-flex;
@@ -3814,7 +3778,6 @@ tr:last-child .sub-line {
     font-weight: 500;
     color: #969696;
 }
-
 
 .positionFilter {
     outline: none;
@@ -3911,8 +3874,6 @@ tr:last-child .sub-line {
     margin-top: 4px;
     font-size: 14px;
 }
-
-
 
     .price-range-settings label {
         margin-right: 4px;
@@ -4428,7 +4389,6 @@ th small {
     width: 100%;
 }
 
-
 .selection-container {
     display: inline-flex;
     gap: 6px;
@@ -4569,7 +4529,6 @@ th small {
     border-radius: 4px;
     background-color: rgba(117, 152, 112, 0.7);
     display: inline-block;
-
 }
 
 .no-change-icon::before {
@@ -4595,7 +4554,6 @@ th small {
 
 .color-square-turquoise {
     display: inline-block;
-
     vertical-align: middle;
 }
 
@@ -4725,7 +4683,7 @@ small {
 
 .simulate-change-btn {
     display: flex;
-    background-color:transparent;
+    background-color: transparent;
     border: none;
     align-items: center;
     justify-content: flex-start;
@@ -4736,7 +4694,6 @@ small {
     opacity: 1;
     font-size: 14px;
 }
-
 
 .priceChangeSummary {
     display: inline-flex;
@@ -4869,11 +4826,6 @@ small {
     border: none;
     cursor: pointer;
 }
-
-
-
-
-
 
 #extendedExportCheckbox {
     opacity: 0;
