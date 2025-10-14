@@ -396,15 +396,19 @@
 
     function refreshPriceBoxStates() {
         const storedChangesJSON = localStorage.getItem('selectedPriceChanges_' + storeId);
-        let activeChangesProductIds = new Set();
+        let activeChangesMap = new Map();
 
         if (storedChangesJSON) {
             try {
-                const parsedChanges = JSON.parse(storedChangesJSON);
-                parsedChanges.forEach(change => activeChangesProductIds.add(String(change.productId)));
+                // Zakładamy, że drugi skrypt zapisuje dane w formacie { scrapId: '...', changes: [...] }
+                const parsedData = JSON.parse(storedChangesJSON);
+                if (parsedData && Array.isArray(parsedData.changes)) {
+                    parsedData.changes.forEach(change => activeChangesMap.set(String(change.productId), change));
+                } else if (Array.isArray(parsedData)) { // Fallback dla starego formatu
+                    parsedData.forEach(change => activeChangesMap.set(String(change.productId), change));
+                }
             } catch (err) {
                 console.error("Błąd parsowania selectedPriceChanges w refreshPriceBoxStates:", err);
-
             }
         }
 
@@ -414,28 +418,45 @@
             const productId = priceBox.dataset.productId;
             if (!productId) return;
 
-            const isProductStillTrackedForChange = activeChangesProductIds.has(String(productId));
+            const activeChange = activeChangesMap.get(String(productId));
 
-            if (priceBox.classList.contains('price-changed') && !isProductStillTrackedForChange) {
+            // Przypadek 1: Produkt MA aktywną zmianę w localStorage
+            if (activeChange) {
+                // Jeśli price-box nie ma jeszcze klasy, dodaj ją
+                if (!priceBox.classList.contains('price-changed')) {
+                    priceBox.classList.add('price-changed');
+                }
 
+                // Sprawdzamy, czy jakikolwiek przycisk jest już aktywny
+                const isActiveButtonPresent = priceBox.querySelector('.simulate-change-btn.active');
+
+                // Jeśli żaden przycisk nie jest aktywny, musimy jakiś aktywować
+                if (!isActiveButtonPresent) {
+                    // Znajdujemy pierwszy dostępny przycisk zmiany ceny
+                    const firstButton = priceBox.querySelector('.simulate-change-btn');
+                    if (firstButton) {
+                        const actionLine = firstButton.closest('.price-action-line');
+                        // Aktywujemy go, używając Twojej istniejącej funkcji `activateChangeButton`
+                        // Ta funkcja poprawnie ustawi tekst "Dodano" i doda ikonę kosza
+                        activateChangeButton(firstButton, actionLine, priceBox);
+                    }
+                }
+            }
+            // Przypadek 2: Produkt NIE MA aktywnej zmiany, ale UI wciąż pokazuje, że ma
+            else if (priceBox.classList.contains('price-changed')) {
+                // Ta część Twojego kodu działała poprawnie, więc ją zostawiamy
                 priceBox.classList.remove('price-changed');
-
                 const activeButtons = priceBox.querySelectorAll('.simulate-change-btn.active');
                 activeButtons.forEach(button => {
-                    button.classList.remove('active');
-                    button.style.backgroundColor = "";
-                    button.style.color = "";
-
-                    while (button.firstChild) {
-                        button.removeChild(button.firstChild);
+                    const actionLine = button.closest('.price-action-line');
+                    if (actionLine && actionLine.parentElement) {
+                        actionLine.parentElement.classList.remove('active');
                     }
-                    button.textContent = button.dataset.originalText || "Zmień cenę";
+                    button.classList.remove('active');
+                    button.innerHTML = button.dataset.originalText || "Zmień cenę";
                 });
-            } else if (!priceBox.classList.contains('price-changed') && isProductStillTrackedForChange) {
-
             }
         });
-
     }
 
     window.refreshPriceBoxStates = refreshPriceBoxStates;
@@ -1124,17 +1145,249 @@
     </div>`;
     }
 
-    function renderPrices(data) {
+    function activateChangeButton(button, actionLine, priceBox) {
 
-        const storedChanges = localStorage.getItem('selectedPriceChanges_' + storeId);
-        if (storedChanges) {
+        const priceBoxColumn = actionLine.parentElement;
+        if (priceBoxColumn) {
+
+            priceBoxColumn.classList.add('active');
+        }
+
+        const colorSquare = button.querySelector('span[class^="color-square-"]');
+        const colorSquareHTML = colorSquare ? colorSquare.outerHTML : '';
+
+        button.classList.add('active');
+        button.innerHTML = colorSquareHTML + " Dodano";
+
+        const removeLink = document.createElement('span');
+        removeLink.innerHTML = " <i class='fa fa-trash' style='font-size:12px; display:flex; color:white; margin-left:4px; margin-top:3px;'></i>";
+
+        removeLink.style.textDecoration = "none";
+        removeLink.style.cursor = "pointer";
+        removeLink.style.pointerEvents = 'auto';
+
+        removeLink.addEventListener('click', function (ev) {
+            ev.stopPropagation();
+
+            if (priceBoxColumn) {
+                priceBoxColumn.classList.remove('active');
+            }
+
+            button.classList.remove('active');
+            button.innerHTML = button.dataset.originalText || "Zmień cenę";
+            priceBox.classList.remove('price-changed');
+
+            const productId = priceBox ? priceBox.dataset.productId : null;
+            const removeEvent = new CustomEvent('priceBoxChangeRemove', {
+                detail: { productId }
+            });
+            document.dispatchEvent(removeEvent);
+        });
+
+        button.appendChild(removeLink);
+        priceBox.classList.add('price-changed');
+    }
+
+    function attachPriceChangeListener(actionLine, suggestedPrice, priceBox, productId, productName, currentPriceValue, item) {
+        let requiredField = '';
+        let requiredLabel = '';
+        switch (marginSettings.identifierForSimulation) {
+            case 'ID':
+                requiredField = item.externalId;
+                requiredLabel = "ID";
+                break;
+            case 'ProducerCode':
+                requiredField = item.producerCode;
+                requiredLabel = "Kod producenta";
+                break;
+            case 'EAN':
+            default:
+                requiredField = item.ean;
+                requiredLabel = "EAN";
+                break;
+        }
+
+        const button = actionLine.querySelector('.simulate-change-btn');
+
+        if (!requiredField || requiredField.toString().trim() === "") {
+            if (button) button.disabled = true;
+            actionLine.title = `Produkt musi mieć zmapowany ${requiredLabel}`;
+            actionLine.style.cursor = 'not-allowed';
+            actionLine.style.opacity = '0.6';
+            return;
+        }
+
+        actionLine.addEventListener('click', function (e) {
+            e.stopPropagation();
+
+            const currentButton = this.querySelector('.simulate-change-btn');
+
+            if (priceBox.classList.contains('price-changed') || (currentButton && currentButton.classList.contains('active'))) {
+                console.log("Zmiana ceny już aktywna dla produktu", productId);
+                return;
+            }
+
+            if (marginSettings.useMarginForSimulation) {
+                if (item.marginPrice == null) {
+                    showGlobalNotification(
+                        `<p style="margin:8px 0; font-weight:bold;">Zmiana ceny nie została dodana</p>
+                     <p>Symulacja cenowa z narzutem jest włączona – produkt musi posiadać cenę zakupu.</p>`
+                    );
+                    return;
+                }
+
+                let oldPriceForMarginCalculation = currentPriceValue;
+                if (marginSettings.usePriceWithDelivery && item.myPriceIncludesDelivery) {
+                    const oldDeliveryCost = item.myPriceDeliveryCost != null && !isNaN(parseFloat(item.myPriceDeliveryCost)) ? parseFloat(item.myPriceDeliveryCost) : 0;
+                    oldPriceForMarginCalculation = currentPriceValue - oldDeliveryCost;
+                }
+
+                let newPriceForMarginCalculation = suggestedPrice;
+                if (marginSettings.usePriceWithDelivery && item.myPriceIncludesDelivery) {
+                    const myDeliveryCost = item.myPriceDeliveryCost != null && !isNaN(parseFloat(item.myPriceDeliveryCost)) ? parseFloat(item.myPriceDeliveryCost) : 0;
+                    newPriceForMarginCalculation = suggestedPrice - myDeliveryCost;
+                }
+
+                let oldMargin = ((oldPriceForMarginCalculation - item.marginPrice) / item.marginPrice) * 100;
+                let newMargin = ((newPriceForMarginCalculation - item.marginPrice) / item.marginPrice) * 100;
+                oldMargin = parseFloat(oldMargin.toFixed(2));
+                newMargin = parseFloat(newMargin.toFixed(2));
+
+                if (marginSettings.useMarginForSimulation) {
+                    if (item.marginPrice == null) {
+                        showGlobalNotification(
+                            `<p style="margin:8px 0; font-weight:bold;">Zmiana ceny nie została dodana</p>
+                         <p>Symulacja cenowa z narzutem jest włączona – produkt musi posiadać cenę zakupu.</p>`
+                        );
+                        return;
+                    }
+
+                    let suggestedPriceDisplay = suggestedPrice.toFixed(2) + ' PLN';
+                    if (marginSettings.usePriceWithDelivery && item.myPriceIncludesDelivery) {
+                        const myDeliveryCost = item.myPriceDeliveryCost != null && !isNaN(parseFloat(item.myPriceDeliveryCost)) ? parseFloat(item.myPriceDeliveryCost) : 0;
+                        const actualProductPrice = suggestedPrice - myDeliveryCost;
+                        suggestedPriceDisplay = `${suggestedPrice.toFixed(2)} PLN (z dostawą) | ${actualProductPrice.toFixed(2)} PLN (bez dostawy)`;
+                    }
+
+                    if (marginSettings.minimalMarginPercent > 0) {
+                        if (newMargin < marginSettings.minimalMarginPercent) {
+                            if (!(newMargin > oldMargin && oldMargin < marginSettings.minimalMarginPercent)) {
+                                let reason = "";
+                                if (oldMargin >= marginSettings.minimalMarginPercent) {
+                                    reason = `Zmiana obniża narzut z <strong>${oldMargin}%</strong> (który spełniał minimum) do <strong>${newMargin}%</strong>, czyli poniżej wymaganego progu <strong>${marginSettings.minimalMarginPercent}%</strong>.`;
+                                } else if (newMargin <= oldMargin) {
+                                    reason = `Nowy narzut (<strong>${newMargin}%</strong>) jest poniżej wymaganego minimum (<strong>${marginSettings.minimalMarginPercent}%</strong>) i nie stanowi poprawy (lub jest pogorszeniem) poprzedniego, już niskiego narzutu (<strong>${oldMargin}%</strong>).`;
+                                } else {
+                                    reason = `Nowy narzut (<strong>${newMargin}%</strong>) jest poniżej wymaganego minimum (<strong>${marginSettings.minimalMarginPercent}%</strong>), a warunki poprawy nie zostały spełnione (poprzedni narzut: <strong>${oldMargin}%</strong>).`;
+                                }
+                                showGlobalNotification(
+                                    `<p style="margin:8px 0; font-weight:bold;">Zmiana ceny nie została dodana</p>
+                                 <p>${reason}</p>
+                                 <p>Cena zakupu wynosi <strong>${item.marginPrice.toFixed(2)} PLN</strong>.</p>
+                                 <p>Sugerowana cena: <strong>${suggestedPriceDisplay}</strong>.</p>`
+                                );
+                                return;
+                            }
+                        }
+                    }
+
+                    if (marginSettings.enforceMinimalMargin) {
+                        if (newMargin < 0) {
+                            if (!(oldMargin < 0 && newMargin > oldMargin)) {
+                                showGlobalNotification(
+                                    `<p style="margin:8px 0; font-weight:bold;">Zmiana ceny nie została dodana</p>
+                                 <p>Nowa cena <strong>${suggestedPriceDisplay}</strong> spowoduje ujemny narzut (nowy narzut: <strong>${newMargin}%</strong>).</p>
+                                 <p>Cena zakupu wynosi <strong>${item.marginPrice.toFixed(2)} PLN</strong>. Zmiana nie może zostać zastosowana.</p>`
+                                );
+                                return;
+                            }
+                        }
+                        if (marginSettings.minimalMarginPercent < 0 && newMargin > marginSettings.minimalMarginPercent) {
+                            showGlobalNotification(
+                                `<p style="margin:8px 0; font-weight:bold;">Zmiana ceny nie została dodana</p>
+                             <p>Nowa cena <strong>${suggestedPriceDisplay}</strong> ustawi narzut (<strong>${newMargin}%</strong>), który jest powyżej dopuszczalnego progu straty (<strong>${marginSettings.minimalMarginPercent}%</strong>).</p>
+                             <p>Nowy narzut wynosi <strong>${newMargin}%</strong>.</p>`
+                            );
+                            return;
+                        }
+                    }
+                }
+            }
+
+            const priceChangeEvent = new CustomEvent('priceBoxChange', {
+                detail: {
+                    productId,
+                    productName,
+                    currentPrice: currentPriceValue,
+                    newPrice: suggestedPrice,
+                    storeId: storeId,
+                    scrapId: item.scrapId
+                }
+            });
+            document.dispatchEvent(priceChangeEvent);
+
+            activateChangeButton(currentButton, this, priceBox);
+
+            let message = `<p style="margin-bottom:8px; font-size:16px; font-weight:bold;">Zmiana ceny dodana</p>`;
+            message += `<p style="margin:4px 0;"><strong>Produkt:</strong> ${productName}</p>`;
+            let displayPriceLabel = "Nowa cena";
+            let newPriceWithoutDelivery = suggestedPrice;
+
+            if (marginSettings.usePriceWithDelivery && item.myPriceIncludesDelivery) {
+                displayPriceLabel = "Nowa cena (z dostawą)";
+                const myDeliveryCost = item.myPriceDeliveryCost != null && !isNaN(parseFloat(item.myPriceDeliveryCost)) ? parseFloat(item.myPriceDeliveryCost) : 0;
+                newPriceWithoutDelivery = suggestedPrice - myDeliveryCost;
+            }
+            message += `<p style="margin:4px 0;"><strong>${displayPriceLabel}:</strong> ${suggestedPrice.toFixed(2)} PLN</p>`;
+            if (marginSettings.usePriceWithDelivery && item.myPriceIncludesDelivery) {
+                message += `<p style="margin:4px 0;"><strong>Nowa cena (bez dostawy):</strong> ${newPriceWithoutDelivery.toFixed(2)} PLN</p>`;
+            }
+            if (marginSettings.useMarginForSimulation) {
+                let finalPriceForMarginCalculation = suggestedPrice;
+                if (marginSettings.usePriceWithDelivery && item.myPriceIncludesDelivery) {
+                    const myDeliveryCost = item.myPriceDeliveryCost != null && !isNaN(parseFloat(item.myPriceDeliveryCost)) ? parseFloat(item.myPriceDeliveryCost) : 0;
+                    finalPriceForMarginCalculation = suggestedPrice - myDeliveryCost;
+                }
+                let finalMargin = ((finalPriceForMarginCalculation - item.marginPrice) / item.marginPrice) * 100;
+                finalMargin = parseFloat(finalMargin.toFixed(2));
+                message += `<p style="margin:4px 0;"><strong>Nowy narzut:</strong> ${finalMargin}%</p>`;
+                message += `<p style="margin:4px 0;"><strong>Cena zakupu:</strong> ${item.marginPrice.toFixed(2)} PLN</p>`;
+                if (marginSettings.enforceMinimalMargin) {
+                    if (marginSettings.minimalMarginPercent > 0) {
+                        message += `<p style="margin:4px 0;"><strong>Minimalny wymagany narzut:</strong> ${marginSettings.minimalMarginPercent}%</p>`;
+                    } else if (marginSettings.minimalMarginPercent < 0) {
+                        message += `<p style="margin:4px 0;"><strong>Maksymalne obniżenie narzutu:</strong> ${marginSettings.minimalMarginPercent}%</p>`;
+                    }
+                }
+            }
+            showGlobalUpdate(message);
+        });
+
+        const existingChange = selectedPriceChanges.find(change =>
+            parseInt(change.productId) === parseInt(productId) &&
+
+            parseFloat(change.newPrice).toFixed(2) === parseFloat(suggestedPrice).toFixed(2)
+        );
+
+        if (existingChange) {
+            activateChangeButton(button, actionLine, priceBox);
+        }
+    }
+
+    function renderPrices(data) {
+        const storedChangesJSON = localStorage.getItem('selectedPriceChanges_' + storeId);
+        if (storedChangesJSON) {
             try {
-                const parsedData = JSON.parse(storedChanges);
-                if (Array.isArray(parsedData)) {
-                    selectedPriceChanges = parsedData;
+                const parsedData = JSON.parse(storedChangesJSON);
+                // NOWA, POPRAWNA LOGIKA
+                if (parsedData && parsedData.scrapId && Array.isArray(parsedData.changes)) {
+                    // Poprawnie wyciągamy tablicę 'changes' z obiektu
+                    selectedPriceChanges = parsedData.changes;
                 } else {
-                    console.warn("Dane 'selectedPriceChanges' w localStorage nie są tablicą. Używam pustej tablicy.");
+                    // Jeśli format jest nieznany, czyścimy, by uniknąć błędów
+                    console.warn("Nieznany lub stary format danych 'selectedPriceChanges' w localStorage. Czyszczenie.");
                     selectedPriceChanges = [];
+                    localStorage.removeItem('selectedPriceChanges_' + storeId);
                 }
             } catch (err) {
                 console.error("Błąd parsowania danych z localStorage:", err);
@@ -1152,272 +1405,6 @@
         const startIndex = (currentPage - 1) * itemsPerPage;
         const endIndex = currentPage * itemsPerPage;
         const paginatedData = data.slice(startIndex, endIndex);
-
-        function activateChangeButton(button, priceBox, newPrice) {
-
-            const colorSquare = button.querySelector('span[class^="color-square-"]');
-            const colorSquareHTML = colorSquare ? colorSquare.outerHTML : '';
-
-            button.classList.add('active');
-            button.style.backgroundColor = "#333333";
-            button.style.color = "#f5f5f5";
-
-            button.innerHTML = colorSquareHTML + " Dodano";
-
-            const removeLink = document.createElement('span');
-            removeLink.innerHTML = " <i class='fa fa-trash' style='font-size:12px; display:flex; color:white; margin-left:4px; margin-top:3px;'></i>";
-
-            removeLink.style.textDecoration = "none";
-            removeLink.style.cursor = "pointer";
-            removeLink.addEventListener('click', function (ev) {
-                ev.stopPropagation();
-                button.classList.remove('active');
-                button.style.backgroundColor = "";
-                button.style.color = "";
-                button.innerHTML = button.dataset.originalText || "Zmień cenę";
-                priceBox.classList.remove('price-changed');
-
-                const productId = priceBox ? priceBox.dataset.productId : null;
-                const removeEvent = new CustomEvent('priceBoxChangeRemove', {
-                    detail: { productId }
-                });
-                document.dispatchEvent(removeEvent);
-            });
-
-            button.appendChild(removeLink);
-            priceBox.classList.add('price-changed');
-        }
-
-        function attachPriceChangeListener(button, suggestedPrice, priceBox, productId, productName, currentPriceValue, item) {
-            let requiredField = '';
-            let requiredLabel = '';
-            switch (marginSettings.identifierForSimulation) {
-                case 'ID':
-                    requiredField = item.externalId;
-                    requiredLabel = "ID";
-                    break;
-                case 'ProducerCode':
-                    requiredField = item.producerCode;
-                    requiredLabel = "Kod producenta";
-                    break;
-                case 'EAN':
-                default:
-                    requiredField = item.ean;
-                    requiredLabel = "EAN";
-                    break;
-            }
-
-            if (!requiredField || requiredField.toString().trim() === "") {
-                button.disabled = true;
-                button.title = `Produkt musi mieć zmapowany ${requiredLabel}`;
-                return;
-            }
-
-            button.addEventListener('click', function (e) {
-                e.stopPropagation();
-
-                if (marginSettings.useMarginForSimulation) {
-                    if (item.marginPrice == null) {
-                        showGlobalNotification(
-                            `<p style="margin:8px 0; font-weight:bold;">Zmiana ceny nie została dodana</p>
-                         <p>Symulacja cenowa z narzutem jest włączona – produkt musi posiadać cenę zakupu.</p>`
-                        );
-                        return;
-                    }
-
-                    let oldPriceForMarginCalculation = currentPriceValue;
-                    if (marginSettings.usePriceWithDelivery && item.myPriceIncludesDelivery) {
-                        const oldDeliveryCost = item.myPriceDeliveryCost != null && !isNaN(parseFloat(item.myPriceDeliveryCost)) ? parseFloat(item.myPriceDeliveryCost) : 0;
-                        oldPriceForMarginCalculation = currentPriceValue - oldDeliveryCost;
-                    }
-
-                    let newPriceForMarginCalculation = suggestedPrice;
-
-                    if (marginSettings.usePriceWithDelivery && item.myPriceIncludesDelivery) {
-                        const myDeliveryCost = item.myPriceDeliveryCost != null && !isNaN(parseFloat(item.myPriceDeliveryCost)) ? parseFloat(item.myPriceDeliveryCost) : 0;
-                        newPriceForMarginCalculation = suggestedPrice - myDeliveryCost;
-                    }
-
-                    let oldMargin = ((oldPriceForMarginCalculation - item.marginPrice) / item.marginPrice) * 100;
-                    let newMargin = ((newPriceForMarginCalculation - item.marginPrice) / item.marginPrice) * 100;
-                    oldMargin = parseFloat(oldMargin.toFixed(2));
-                    newMargin = parseFloat(newMargin.toFixed(2));
-
-                    if (marginSettings.useMarginForSimulation) {
-                        if (item.marginPrice == null) {
-                            showGlobalNotification(
-                                `<p style="margin:8px 0; font-weight:bold;">Zmiana ceny nie została dodana</p>
-                     <p>Symulacja cenowa z narzutem jest włączona – produkt musi posiadać cenę zakupu.</p>`
-                            );
-                            return;
-                        }
-
-                        let oldPriceForMarginCalculation = currentPriceValue;
-                        if (marginSettings.usePriceWithDelivery && item.myPriceIncludesDelivery) {
-                            const oldDeliveryCost = item.myPriceDeliveryCost != null && !isNaN(parseFloat(item.myPriceDeliveryCost)) ? parseFloat(item.myPriceDeliveryCost) : 0;
-                            oldPriceForMarginCalculation = currentPriceValue - oldDeliveryCost;
-                        }
-
-                        let newPriceForMarginCalculation = suggestedPrice;
-
-                        if (marginSettings.usePriceWithDelivery && item.myPriceIncludesDelivery) {
-                            const myDeliveryCost = item.myPriceDeliveryCost != null && !isNaN(parseFloat(item.myPriceDeliveryCost)) ? parseFloat(item.myPriceDeliveryCost) : 0;
-                            newPriceForMarginCalculation = suggestedPrice - myDeliveryCost;
-                        }
-
-                        let oldMargin = ((oldPriceForMarginCalculation - item.marginPrice) / item.marginPrice) * 100;
-                        let newMargin = ((newPriceForMarginCalculation - item.marginPrice) / item.marginPrice) * 100;
-                        oldMargin = parseFloat(oldMargin.toFixed(2));
-                        newMargin = parseFloat(newMargin.toFixed(2));
-
-                        let suggestedPriceDisplay = suggestedPrice.toFixed(2) + ' PLN';
-                        if (marginSettings.usePriceWithDelivery && item.myPriceIncludesDelivery) {
-                            const myDeliveryCost = item.myPriceDeliveryCost != null && !isNaN(parseFloat(item.myPriceDeliveryCost)) ? parseFloat(item.myPriceDeliveryCost) : 0;
-                            const actualProductPrice = suggestedPrice - myDeliveryCost;
-                            suggestedPriceDisplay = `${suggestedPrice.toFixed(2)} PLN (z dostawą) | ${actualProductPrice.toFixed(2)} PLN (bez dostawy)`;
-                        }
-
-                        if (marginSettings.minimalMarginPercent > 0) {
-                            if (newMargin < marginSettings.minimalMarginPercent) {
-
-                                if (newMargin > oldMargin && oldMargin < marginSettings.minimalMarginPercent) {
-
-                                } else {
-
-                                    let reason = "";
-                                    if (oldMargin >= marginSettings.minimalMarginPercent) {
-                                        reason = `Zmiana obniża narzut z <strong>${oldMargin}%</strong> (który spełniał minimum) do <strong>${newMargin}%</strong>, czyli poniżej wymaganego progu <strong>${marginSettings.minimalMarginPercent}%</strong>.`;
-                                    } else if (newMargin <= oldMargin) {
-                                        reason = `Nowy narzut (<strong>${newMargin}%</strong>) jest poniżej wymaganego minimum (<strong>${marginSettings.minimalMarginPercent}%</strong>) i nie stanowi poprawy (lub jest pogorszeniem) poprzedniego, już niskiego narzutu (<strong>${oldMargin}%</strong>).`;
-                                    } else {
-                                        reason = `Nowy narzut (<strong>${newMargin}%</strong>) jest poniżej wymaganego minimum (<strong>${marginSettings.minimalMarginPercent}%</strong>), a warunki poprawy nie zostały spełnione (poprzedni narzut: <strong>${oldMargin}%</strong>).`;
-                                    }
-
-                                    showGlobalNotification(
-                                        `<p style="margin:8px 0; font-weight:bold;">Zmiana ceny nie została dodana</p>
-                                    <p>${reason}</p>
-                                    <p>Cena zakupu wynosi <strong>${item.marginPrice.toFixed(2)} PLN</strong>.</p>
-                                     <p>Sugerowana cena: <strong>${suggestedPriceDisplay}</strong>.</p>`
-                                    );
-                                    return;
-                                }
-                            }
-                        }
-
-                        if (marginSettings.enforceMinimalMargin) {
-
-                            if (newMargin < 0) {
-                                if (!(oldMargin < 0 && newMargin > oldMargin)) {
-                                    showGlobalNotification(
-                                        `<p style="margin:8px 0; font-weight:bold;">Zmiana ceny nie została dodana</p>
-                                    <p>Nowa cena <strong>${suggestedPriceDisplay}</strong> spowoduje ujemny narzut (nowy narzut: <strong>${newMargin}%</strong>).</p>
-                                    <p>Cena zakupu wynosi <strong>${item.marginPrice.toFixed(2)} PLN</strong>. Zmiana nie może zostać zastosowana.</p>`
-                                    );
-                                    return;
-                                }
-                            }
-
-                            if (marginSettings.minimalMarginPercent < 0 && newMargin > marginSettings.minimalMarginPercent) {
-                                showGlobalNotification(
-                                    `<p style="margin:8px 0; font-weight:bold;">Zmiana ceny nie została dodana</p>
-                                  <p>Nowa cena <strong>${suggestedPriceDisplay}</strong> ustawi narzut (<strong>${newMargin}%</strong>), który jest powyżej dopuszczalnego progu straty (<strong>${marginSettings.minimalMarginPercent}%</strong>).</p>
-                                  <p>Nowy narzut wynosi <strong>${newMargin}%</strong>.</p>`
-                                );
-                                return;
-                            }
-                        }
-                    }
-
-                    if (marginSettings.enforceMinimalMargin) {
-                        if (newMargin < 0) {
-                            if (!(oldMargin < 0 && newMargin > oldMargin)) {
-                                showGlobalNotification(
-                                    `<p style="margin:8px 0; font-weight:bold;">Zmiana ceny nie została dodana</p>
-                                    <p>Nowa cena <strong>${suggestedPrice.toFixed(2)} PLN</strong> spowoduje ujemny narzut (nowy narzut: <strong>${newMargin}%</strong>).</p>
-                                    <p>Cena zakupu wynosi <strong>${item.marginPrice.toFixed(2)} PLN</strong>. Zmiana nie może zostać zastosowana.</p>`
-                                );
-                                return;
-                            }
-                        }
-
-                        if (marginSettings.minimalMarginPercent < 0 && newMargin > marginSettings.minimalMarginPercent) {
-                            showGlobalNotification(
-                                `<p style="margin:8px 0; font-weight:bold;">Zmiana ceny nie została dodana</p>
-                                  <p>Nowa cena <strong>${suggestedPrice.toFixed(2)} PLN</strong> ustawi narzut (<strong>${newMargin}%</strong>), który jest powyżej dopuszczalnego progu straty (<strong>${marginSettings.minimalMarginPercent}%</strong>).</p>
-                                  <p>Nowy narzut wynosi <strong>${newMargin}%</strong>.</p>`
-                            );
-                            return;
-                        }
-                    }
-                }
-
-                if (priceBox.classList.contains('price-changed') || button.classList.contains('active')) {
-                    console.log("Zmiana ceny już aktywna dla produktu", productId);
-                    return;
-                }
-
-                const priceChangeEvent = new CustomEvent('priceBoxChange', {
-                    detail: {
-                        productId,
-                        productName,
-                        currentPrice: currentPriceValue,
-                        newPrice: suggestedPrice,
-                        storeId: storeId,
-                        scrapId: item.scrapId
-                    }
-                });
-                document.dispatchEvent(priceChangeEvent);
-
-                activateChangeButton(button, priceBox, suggestedPrice);
-                let message = `<p style="margin-bottom:8px; font-size:16px; font-weight:bold;">Zmiana ceny dodana</p>`;
-                message += `<p style="margin:4px 0;"><strong>Produkt:</strong> ${productName}</p>`;
-
-                let displayPriceLabel = "Nowa cena";
-                let newPriceWithoutDelivery = suggestedPrice;
-
-                if (marginSettings.usePriceWithDelivery && item.myPriceIncludesDelivery) {
-                    displayPriceLabel = "Nowa cena (z dostawą)";
-                    const myDeliveryCost = item.myPriceDeliveryCost != null && !isNaN(parseFloat(item.myPriceDeliveryCost)) ? parseFloat(item.myPriceDeliveryCost) : 0;
-                    newPriceWithoutDelivery = suggestedPrice - myDeliveryCost;
-                }
-
-                message += `<p style="margin:4px 0;"><strong>${displayPriceLabel}:</strong> ${suggestedPrice.toFixed(2)} PLN</p>`;
-
-                if (marginSettings.usePriceWithDelivery && item.myPriceIncludesDelivery) {
-                    message += `<p style="margin:4px 0;"><strong>Nowa cena (bez dostawy):</strong> ${newPriceWithoutDelivery.toFixed(2)} PLN</p>`;
-                }
-
-                if (marginSettings.useMarginForSimulation) {
-                    let finalPriceForMarginCalculation = suggestedPrice;
-
-                    if (marginSettings.usePriceWithDelivery && item.myPriceIncludesDelivery) {
-                        const myDeliveryCost = item.myPriceDeliveryCost != null && !isNaN(parseFloat(item.myPriceDeliveryCost)) ? parseFloat(item.myPriceDeliveryCost) : 0;
-                        finalPriceForMarginCalculation = suggestedPrice - myDeliveryCost;
-                    }
-
-                    let finalMargin = ((finalPriceForMarginCalculation - item.marginPrice) / item.marginPrice) * 100;
-                    finalMargin = parseFloat(finalMargin.toFixed(2));
-                    message += `<p style="margin:4px 0;"><strong>Nowy narzut:</strong> ${finalMargin}%</p>`;
-                    message += `<p style="margin:4px 0;"><strong>Cena zakupu:</strong> ${item.marginPrice.toFixed(2)} PLN</p>`;
-                    if (marginSettings.enforceMinimalMargin) {
-                        if (marginSettings.minimalMarginPercent > 0) {
-                            message += `<p style="margin:4px 0;"><strong>Minimalny wymagany narzut:</strong> ${marginSettings.minimalMarginPercent}%</p>`;
-                        } else if (marginSettings.minimalMarginPercent < 0) {
-                            message += `<p style="margin:4px 0;"><strong>Maksymalne obniżenie narzutu:</strong> ${marginSettings.minimalMarginPercent}%</p>`;
-                        }
-                    }
-                }
-                showGlobalUpdate(message);
-            });
-
-            const existingChange = selectedPriceChanges.find(change =>
-                parseInt(change.productId) === parseInt(productId) &&
-                parseFloat(change.newPrice) === parseFloat(suggestedPrice)
-            );
-            if (existingChange) {
-                activateChangeButton(button, priceBox, suggestedPrice);
-            }
-        }
 
         paginatedData.forEach(item => {
             const highlightedProductName = highlightMatches(item.productName, currentProductSearchTerm);
@@ -1828,49 +1815,53 @@
                         }
                         amountToSuggestedPrice2 = suggestedPrice2 - myPrice;
                         percentageToSuggestedPrice2 = myPrice > 0 ? (amountToSuggestedPrice2 / myPrice) * 100 : 0;
-                        if (amountToSuggestedPrice2 < 0) { arrowClass2 = 'arrow-down-turquoise'; }
+                        if (amountToSuggestedPrice2 < 0) {
+                            arrowClass2 = 'arrow-down-turquoise';
+                        }
 
                         const matchPriceBox = document.createElement('div');
                         matchPriceBox.className = 'price-box-column';
                         const matchPriceLine = document.createElement('div');
                         matchPriceLine.className = 'price-action-line';
                         matchPriceLine.innerHTML = `
-                        <span class="${upArrowClass}"></span>
-                        <div class="price-diff-stack">
-                            <span class="diff-amount small-font">${amountToSuggestedPrice1 >= 0 ? '+' : ''}${amountToSuggestedPrice1.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">PLN</span></span>
-                            <span class="diff-percentage small-font">${percentageToSuggestedPrice1 >= 0 ? '+' : ''}${percentageToSuggestedPrice1.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">%</span></span>
-                        </div>
-                        <div class="small-font">= ${suggestedPrice1.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">PLN</span></div>
-                    `;
+                <span class="${upArrowClass}"></span>
+                <div class="price-diff-stack">
+                    <span class="diff-amount small-font">${amountToSuggestedPrice1 >= 0 ? '+' : ''}${amountToSuggestedPrice1.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">PLN</span></span>
+                    <span class="diff-percentage small-font">${percentageToSuggestedPrice1 >= 0 ? '+' : ''}${percentageToSuggestedPrice1.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">%</span></span>
+                </div>
+                <div class="small-font">= ${suggestedPrice1.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">PLN</span></div>
+            `;
                         const matchPriceBtn = document.createElement('button');
                         matchPriceBtn.className = 'simulate-change-btn';
                         const matchBtnContent = `<span class="color-square-green"></span> Zmień cenę`;
                         matchPriceBtn.innerHTML = matchBtnContent;
                         matchPriceBtn.dataset.originalText = matchBtnContent;
-                        attachPriceChangeListener(matchPriceBtn, suggestedPrice1, box, item.productId, item.productName, myPrice, item);
                         matchPriceLine.appendChild(matchPriceBtn);
                         matchPriceBox.appendChild(matchPriceLine);
+
+                        attachPriceChangeListener(matchPriceLine, suggestedPrice1, box, item.productId, item.productName, myPrice, item);
 
                         const strategicPriceBox = document.createElement('div');
                         strategicPriceBox.className = 'price-box-column';
                         const strategicPriceLine = document.createElement('div');
                         strategicPriceLine.className = 'price-action-line';
                         strategicPriceLine.innerHTML = `
-                        <span class="${arrowClass2}"></span>
-                        <div class="price-diff-stack">
-                            <span class="diff-amount small-font">${amountToSuggestedPrice2 >= 0 ? '+' : ''}${amountToSuggestedPrice2.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">PLN</span></span>
-                            <span class="diff-percentage small-font">${percentageToSuggestedPrice2 >= 0 ? '+' : ''}${percentageToSuggestedPrice2.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">%</span></span>
-                        </div>
-                        <div class="small-font">= ${suggestedPrice2.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">PLN</span></div>
-                    `;
+                <span class="${arrowClass2}"></span>
+                <div class="price-diff-stack">
+                    <span class="diff-amount small-font">${amountToSuggestedPrice2 >= 0 ? '+' : ''}${amountToSuggestedPrice2.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">PLN</span></span>
+                    <span class="diff-percentage small-font">${percentageToSuggestedPrice2 >= 0 ? '+' : ''}${percentageToSuggestedPrice2.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">%</span></span>
+                </div>
+                <div class="small-font">= ${suggestedPrice2.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">PLN</span></div>
+            `;
                         const strategicPriceBtn = document.createElement('button');
                         strategicPriceBtn.className = 'simulate-change-btn';
                         const strategicBtnContent = `<span class="color-square-turquoise"></span> Zmień cenę`;
                         strategicPriceBtn.innerHTML = strategicBtnContent;
                         strategicPriceBtn.dataset.originalText = strategicBtnContent;
-                        attachPriceChangeListener(strategicPriceBtn, suggestedPrice2, box, item.productId, item.productName, myPrice, item);
                         strategicPriceLine.appendChild(strategicPriceBtn);
                         strategicPriceBox.appendChild(strategicPriceLine);
+
+                        attachPriceChangeListener(strategicPriceLine, suggestedPrice2, box, item.productId, item.productName, myPrice, item);
 
                         priceBoxColumnInfo.appendChild(matchPriceBox);
                         priceBoxColumnInfo.appendChild(strategicPriceBox);
@@ -1894,42 +1885,44 @@
                         const matchPriceLine = document.createElement('div');
                         matchPriceLine.className = 'price-action-line';
                         matchPriceLine.innerHTML = `
-                        <span class="${arrowClass}"></span>
-                        <div class="price-diff-stack">
-                            <span class="diff-amount small-font">-${amountToMatchLowestPrice.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">PLN</span></span>
-                            <span class="diff-percentage small-font">-${percentageToMatchLowestPrice.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">%</span></span>
-                        </div>
-                        <div class="small-font">= ${lowestPrice.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">PLN</span></div>
-                    `;
+                <span class="${arrowClass}"></span>
+                <div class="price-diff-stack">
+                    <span class="diff-amount small-font">-${amountToMatchLowestPrice.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">PLN</span></span>
+                    <span class="diff-percentage small-font">-${percentageToMatchLowestPrice.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">%</span></span>
+                </div>
+                <div class="small-font">= ${lowestPrice.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">PLN</span></div>
+            `;
                         const matchPriceBtn = document.createElement('button');
                         matchPriceBtn.className = 'simulate-change-btn';
                         const matchBtnContent = `<span class="color-square-green"></span> Zmień cenę`;
                         matchPriceBtn.innerHTML = matchBtnContent;
                         matchPriceBtn.dataset.originalText = matchBtnContent;
-                        attachPriceChangeListener(matchPriceBtn, lowestPrice, box, item.productId, item.productName, myPrice, item);
                         matchPriceLine.appendChild(matchPriceBtn);
                         matchPriceBox.appendChild(matchPriceLine);
+
+                        attachPriceChangeListener(matchPriceLine, lowestPrice, box, item.productId, item.productName, myPrice, item);
 
                         const strategicPriceBox = document.createElement('div');
                         strategicPriceBox.className = 'price-box-column';
                         const strategicPriceLine = document.createElement('div');
                         strategicPriceLine.className = 'price-action-line';
                         strategicPriceLine.innerHTML = `
-                        <span class="${arrowClass}"></span>
-                        <div class="price-diff-stack">
-                            <span class="diff-amount small-font">-${amountToBeatLowestPrice.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">PLN</span></span>
-                            <span class="diff-percentage small-font">-${percentageToBeatLowestPrice.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">%</span></span>
-                        </div>
-                        <div class="small-font">= ${strategicPrice.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">PLN</span></div>
-                    `;
+                <span class="${arrowClass}"></span>
+                <div class="price-diff-stack">
+                    <span class="diff-amount small-font">-${amountToBeatLowestPrice.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">PLN</span></span>
+                    <span class="diff-percentage small-font">-${percentageToBeatLowestPrice.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">%</span></span>
+                </div>
+                <div class="small-font">= ${strategicPrice.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">PLN</span></div>
+            `;
                         const strategicPriceBtn = document.createElement('button');
                         strategicPriceBtn.className = 'simulate-change-btn';
                         const strategicBtnContent = `<span class="color-square-turquoise"></span> Zmień cenę`;
                         strategicPriceBtn.innerHTML = strategicBtnContent;
                         strategicPriceBtn.dataset.originalText = strategicBtnContent;
-                        attachPriceChangeListener(strategicPriceBtn, strategicPrice, box, item.productId, item.productName, myPrice, item);
                         strategicPriceLine.appendChild(strategicPriceBtn);
                         strategicPriceBox.appendChild(strategicPriceLine);
+
+                        attachPriceChangeListener(strategicPriceLine, strategicPrice, box, item.productId, item.productName, myPrice, item);
 
                         priceBoxColumnInfo.appendChild(matchPriceBox);
                         priceBoxColumnInfo.appendChild(strategicPriceBox);
@@ -1963,42 +1956,44 @@
                         const matchPriceLine = document.createElement('div');
                         matchPriceLine.className = 'price-action-line';
                         matchPriceLine.innerHTML = `
-                        <span class="no-change-icon"></span>
-                        <div class="price-diff-stack">
-                            <span class="diff-amount small-font">+${amountToSuggestedPrice1.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">PLN</span></span>
-                            <span class="diff-percentage small-font">+${percentageToSuggestedPrice1.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">%</span></span>
-                        </div>
-                        <div class="small-font">= ${suggestedPrice1.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">PLN</span></div>
-                    `;
+                <span class="no-change-icon"></span>
+                <div class="price-diff-stack">
+                    <span class="diff-amount small-font">+${amountToSuggestedPrice1.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">PLN</span></span>
+                    <span class="diff-percentage small-font">+${percentageToSuggestedPrice1.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">%</span></span>
+                </div>
+                <div class="small-font">= ${suggestedPrice1.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">PLN</span></div>
+            `;
                         const matchPriceBtn = document.createElement('button');
                         matchPriceBtn.className = 'simulate-change-btn';
                         const matchBtnContent = `<span class="color-square-green"></span> Zmień cenę`;
                         matchPriceBtn.innerHTML = matchBtnContent;
                         matchPriceBtn.dataset.originalText = matchBtnContent;
-                        attachPriceChangeListener(matchPriceBtn, suggestedPrice1, box, item.productId, item.productName, myPrice, item);
                         matchPriceLine.appendChild(matchPriceBtn);
                         matchPriceBox.appendChild(matchPriceLine);
+
+                        attachPriceChangeListener(matchPriceLine, suggestedPrice1, box, item.productId, item.productName, myPrice, item);
 
                         const strategicPriceBox = document.createElement('div');
                         strategicPriceBox.className = 'price-box-column';
                         const strategicPriceLine = document.createElement('div');
                         strategicPriceLine.className = 'price-action-line';
                         strategicPriceLine.innerHTML = `
-                        <span class="${downArrowClass}"></span>
-                        <div class="price-diff-stack">
-                            <span class="diff-amount small-font">${amountToSuggestedPrice2.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">PLN</span></span>
-                            <span class="diff-percentage small-font">${percentageToSuggestedPrice2.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">%</span></span>
-                        </div>
-                        <div class="small-font">= ${suggestedPrice2.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">PLN</span></div>
-                    `;
+                <span class="${downArrowClass}"></span>
+                <div class="price-diff-stack">
+                    <span class="diff-amount small-font">${amountToSuggestedPrice2.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">PLN</span></span>
+                    <span class="diff-percentage small-font">${percentageToSuggestedPrice2.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">%</span></span>
+                </div>
+                <div class="small-font">= ${suggestedPrice2.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">PLN</span></div>
+            `;
                         const strategicPriceBtn = document.createElement('button');
                         strategicPriceBtn.className = 'simulate-change-btn';
                         const strategicBtnContent = `<span class="color-square-turquoise"></span> Zmień cenę`;
                         strategicPriceBtn.innerHTML = strategicBtnContent;
                         strategicPriceBtn.dataset.originalText = strategicBtnContent;
-                        attachPriceChangeListener(strategicPriceBtn, suggestedPrice2, box, item.productId, item.productName, myPrice, item);
                         strategicPriceLine.appendChild(strategicPriceBtn);
                         strategicPriceBox.appendChild(strategicPriceLine);
+
+                        attachPriceChangeListener(strategicPriceLine, suggestedPrice2, box, item.productId, item.productName, myPrice, item);
 
                         priceBoxColumnInfo.appendChild(matchPriceBox);
                         priceBoxColumnInfo.appendChild(strategicPriceBox);

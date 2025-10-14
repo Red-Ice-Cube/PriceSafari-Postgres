@@ -3153,7 +3153,7 @@ tr:last-child .sub-line {
     width: 100%;
     flex-direction: column;
     display: flex;
-    gap: 4px;
+    gap: 6px;
     cursor: pointer;
     box-sizing: border-box;
     transition: border 0.3s ease, box-shadow 0.3s ease;
@@ -3166,7 +3166,7 @@ tr:last-child .sub-line {
 
 .price-box-data {
     display: flex;
-    margin-top: 6px;
+
 }
 
 .price-box-column {
@@ -3267,7 +3267,7 @@ tr:last-child .sub-line {
     display: flex;
     border-radius: 4px;
     padding: 5px 10px;
-    width: 144px;
+    width: 142px;
    
     align-items: center;
     justify-content: space-between;
@@ -3325,6 +3325,35 @@ tr:last-child .sub-line {
     font-weight: 400;
     vertical-align: middle;
 }
+
+
+
+
+
+
+
+/* Dodaj ten kod do swojego pliku CSS */
+
+.price-action-line {
+    cursor: pointer; /* Zmienia kursor na "łapkę" po najechaniu */
+    transition: background-color 0.2s ease-in-out;
+}
+
+.price-box-column.active {
+    background-color: #333 !important;
+    color: #ffffff !important;
+    border: 1px solid #000 !important;
+}
+
+        .price-box-column.active * {
+            color: #ffffff !important;
+        }
+
+    .price-action-line .simulate-change-btn {
+        pointer-events: none; /* Wyłączamy klikanie na sam przycisk, bo cały kontener jest już klikalny */
+    }
+
+
 
 
 .price-box-column-text {
@@ -3647,8 +3676,8 @@ tr:last-child .sub-line {
     flex-wrap: wrap;
     justify-content: flex-end;
     flex-grow: 1;
-    gap: 4px;
-    padding-right: 4px;
+    gap: 6px;
+    padding-right: 6px;
 }
 
 .flag-filter-group {
@@ -4592,8 +4621,8 @@ th small {
 .price-box-externalInfo {
     display: flex;
     align-items: center;
-    margin-left: 26px;
-    gap: 10px;
+    margin-left: 22px;
+    gap: 6px;
     margin-top: 4px;
 }
 
@@ -4696,24 +4725,18 @@ small {
 
 .simulate-change-btn {
     display: flex;
-    background-color: rgb(245, 245, 245);
-    color: #333;
+    background-color:transparent;
     border: none;
     align-items: center;
     justify-content: flex-start;
     border-radius: 4px;
     cursor: pointer;
     gap: 6px;
-    padding: 4px;
-    margin-left: 6px;
-    width: 110px;
+    width: 106px;
     opacity: 1;
     font-size: 14px;
 }
 
-    .simulate-change-btn:hover {
-        opacity: 1;
-    }
 
 .priceChangeSummary {
     display: inline-flex;
