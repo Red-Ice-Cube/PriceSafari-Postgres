@@ -754,14 +754,17 @@
                 if (!params || params.length === 0 || !params[0].axisValue) return defaultCustomTooltipContent;
                 return currentChartType === 'price' ? generatePriceTooltipHtml(params) : generateSalesTooltipHtml(params);
             }
+        function generatePriceTooltipHtml(params) {
+            const date = params[0].axisValue;
 
-           function generatePriceTooltipHtml(params) {
-                const date = params[0].axisValue;
-                let items = [];
-                params.forEach(p => { if (p.data.originalOffer && !hiddenStores.includes(p.seriesName.toLowerCase().trim())) items.push({ ...p.data.originalOffer, _markerColor: p.color }) });
-                items.sort((a, b) => a.price - b.price);
+            const formattedDate = new Date(date).toLocaleString('pl-PL', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 
-                let html = `<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;"><div style="font-weight:bold;">Data: ${date}</div><div class="seg-toggle"><button class="${!showOnlyCheapest ? 'button-active' : 'button-inactive'} seg-btn-left" onclick="setCheapestMode(false)">Wszystkie</button><button class="${showOnlyCheapest ? 'button-active' : 'button-inactive'} seg-btn-right" onclick="setCheapestMode(true)">Najtańsze</button></div></div>`;
+            let items = [];
+            params.forEach(p => { if (p.data.originalOffer && !hiddenStores.includes(p.seriesName.toLowerCase().trim())) items.push({ ...p.data.originalOffer, _markerColor: p.color }) });
+            items.sort((a, b) => a.price - b.price);
+
+            let html = `<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;"><div style="font-weight:bold;">${formattedDate}</div><div class="seg-toggle"><button class="${!showOnlyCheapest ? 'button-active' : 'button-inactive'} seg-btn-left" onclick="setCheapestMode(false)">Wszystkie</button><button class="${showOnlyCheapest ? 'button-active' : 'button-inactive'} seg-btn-right" onclick="setCheapestMode(true)">Najtańsze</button></div></div>`;
+
                 if (items.length > 0) {
                     html += `<table style="width:100%; border-collapse:collapse; font-size: 0.85rem;">`;
                     items.forEach(item => {
@@ -784,29 +787,36 @@
                 return html;
             }
 
-        function generateSalesTooltipHtml(params) {
-                   const date = params[0].axisValue;
-                   let items = [], totalSales = 0;
-                   params.forEach(p => {
-                       if (p.seriesName === 'Sprzedaż w katalogu') totalSales = p.value;
-                       else if (p.data.originalOffer && !hiddenStores.includes(p.seriesName.toLowerCase().trim())) items.push({ ...p.data.originalOffer, _markerColor: p.color });
-                   });
+                function generateSalesTooltipHtml(params) {
+                const date = params[0].axisValue;
+                const formattedDate = new Date(date).toLocaleString('pl-PL', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 
-                   items.sort((a, b) => {
-                       if(b.sales !== a.sales) return b.sales - a.sales;
-                       const scoreA = (a.topOffer || a.superPrice || a.isBestPriceGuarantee) ? 0 : 1;
-                       const scoreB = (b.topOffer || b.superPrice || b.isBestPriceGuarantee) ? 0 : 1;
-                       if (scoreA !== scoreB) return scoreA - scoreB;
-                       return a.storeName.localeCompare(b.storeName);
-                   });
+                let items = [], totalSales = 0;
 
-                   let html = `<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                               <div style="font-weight:bold;">Data: ${date}</div>
-                               <div class="seg-toggle">
-                                   <button class="${salesChartMode === 'offers' ? 'button-active' : 'button-inactive'} seg-btn-left" onclick="setSalesChartMode('offers')">Oferty</button>
-                                   <button class="${salesChartMode === 'combined' ? 'button-active' : 'button-inactive'} seg-btn-right" onclick="setSalesChartMode('combined')">Łącznie</button>
-                               </div>
-                           </div>`;
+                params.forEach(p => {
+                    if (p.seriesName === 'Sprzedaż w katalogu') {
+                        totalSales = p.value;
+                    }
+                    else if (p.data.originalOffer && !hiddenStores.includes(p.seriesName.toLowerCase().trim())) {
+                        items.push({ ...p.data.originalOffer, _markerColor: p.color });
+                    }
+                });
+
+                items.sort((a, b) => {
+                    if(b.sales !== a.sales) return b.sales - a.sales;
+                    const scoreA = (a.topOffer || a.superPrice || a.isBestPriceGuarantee) ? 0 : 1;
+                    const scoreB = (b.topOffer || b.superPrice || b.isBestPriceGuarantee) ? 0 : 1;
+                    if (scoreA !== scoreB) return scoreA - scoreB;
+                    return a.storeName.localeCompare(b.storeName);
+                });
+
+                    let html = `<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <div style="font-weight:bold;">${formattedDate}</div>
+                    <div class="seg-toggle">
+                        <button class="${salesChartMode === 'offers' ? 'button-active' : 'button-inactive'} seg-btn-left" onclick="setSalesChartMode('offers')">Oferty</button>
+                        <button class="${salesChartMode === 'combined' ? 'button-active' : 'button-inactive'} seg-btn-right" onclick="setSalesChartMode('combined')">Łącznie</button>
+                    </div>
+                </div>`;
 
                    html += `<div style="padding:4px 0;margin-bottom:8px;border-bottom:1px solid #ccc;display:flex;justify-content:space-between;"><strong>Sprzedaż w katalogu:</strong><strong>${totalSales} szt.</strong></div>`;
 
@@ -989,7 +999,34 @@
                 const polishMonths = ['sty', 'lut', 'mar', 'kwi', 'maj', 'cze', 'lip', 'sie', 'wrz', 'paź', 'lis', 'gru'];
                 return {
                     tooltip: { trigger: 'axis', axisPointer: { type: 'cross', snap: true, label: { backgroundColor: '#6a7985' } }, formatter: p => { lastHoverParams = p; updateCustomTooltipPanel(generateTooltipPanelHtml(p)); return ''; } },
-                    xAxis: { type: 'category', data: allDates, boundaryGap: false, axisLabel: { formatter: v => { try { const d = v.split('-'); return `${parseInt(d[2])} ${polishMonths[parseInt(d[1])-1]}` } catch { return v; } } } },
+                          xAxis: {
+            type: 'category',
+            data: allDates,
+            boundaryGap: false,
+                        axisLabel: {
+                            formatter: (function () {
+                                let lastDate = null;
+                                const polishMonths = ['sty', 'lut', 'mar', 'kwi', 'maj', 'cze', 'lip', 'sie', 'wrz', 'paź', 'lis', 'gru'];
+
+                                return function (value, index) {
+                                    try {
+                                        const [datePart, timePart] = value.split(' ');
+                                        const [year, month, day] = datePart.split('-');
+
+                                        if (datePart !== lastDate) {
+                                            lastDate = datePart;
+                                            return `${parseInt(day)} ${polishMonths[parseInt(month)-1]}\n${timePart}`;
+                                        } else {
+
+                                            return timePart;
+                                        }
+                                    } catch (e) {
+                                        return value;
+                                    }
+                                };
+                            })()
+                        }
+                    },
                     yAxis: { type: 'value', min: yMin, max: yMax, scale: true, axisLabel: { show: false }, splitLine: { lineStyle: { color: '#E8E8E8', type: 'dashed' } } },
                     grid: { left: '3%', right: '4%', bottom: '80px', containLabel: true },
                     series: series,

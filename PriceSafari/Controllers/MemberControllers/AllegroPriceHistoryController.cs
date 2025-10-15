@@ -514,7 +514,7 @@ namespace PriceSafari.Controllers.MemberControllers
 
                 return new DailyTrendPointViewModel
                 {
-                    ScrapDate = scrap.Date.ToString("yyyy-MM-dd"),
+                    ScrapDate = scrap.Date.ToString("yyyy-MM-dd HH:00"),
                     TotalSales = dailyOffersForJson.Sum(o => o.Sales),
                     Offers = dailyOffersForJson
                 };
