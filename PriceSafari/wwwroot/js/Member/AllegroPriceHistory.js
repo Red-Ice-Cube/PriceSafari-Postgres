@@ -266,6 +266,63 @@
         return `rgba(${r}, ${g}, ${b}, ${alpha})`;
     }
 
+    function activateChangeButton(button, actionLine, priceBox) {
+        const priceBoxColumn = actionLine.parentElement;
+        if (priceBoxColumn) {
+            priceBoxColumn.classList.add('active');
+        }
+
+        const colorSquare = button.querySelector('span[class^="color-square-"]');
+        const colorSquareHTML = colorSquare ? colorSquare.outerHTML : '';
+
+        button.classList.add('active');
+        button.innerHTML = colorSquareHTML + " Dodano";
+
+        const removeLink = document.createElement('span');
+        removeLink.innerHTML = " <i class='fa fa-trash' style='font-size:12px; display:flex; color:white; margin-left:4px; margin-top:3px;'></i>";
+        removeLink.style.cursor = "pointer";
+        removeLink.style.pointerEvents = 'auto';
+
+        removeLink.addEventListener('click', function (ev) {
+            ev.stopPropagation();
+
+            if (priceBoxColumn) {
+                priceBoxColumn.classList.remove('active');
+            }
+
+            button.classList.remove('active');
+            button.innerHTML = button.dataset.originalText || "Zmień cenę";
+            priceBox.classList.remove('price-changed');
+
+        });
+
+        button.appendChild(removeLink);
+        priceBox.classList.add('price-changed');
+    }
+
+    function attachPriceChangeListener(actionLine, suggestedPrice, priceBox, productId, productName, currentPriceValue, item) {
+        const button = actionLine.querySelector('.simulate-change-btn');
+        if (!button) return;
+
+        actionLine.addEventListener('click', function (e) {
+            e.stopPropagation();
+
+            const currentButton = this.querySelector('.simulate-change-btn');
+
+            if (priceBox.classList.contains('price-changed') || (currentButton && currentButton.classList.contains('active'))) {
+                console.log("Zmiana ceny już aktywna dla produktu", productId);
+                return;
+            }
+
+            activateChangeButton(currentButton, this, priceBox);
+
+            let message = `<p style="margin-bottom:8px; font-size:16px; font-weight:bold;">Zmiana ceny dodana (wizualnie)</p>`;
+            message += `<p style="margin:4px 0;"><strong>Produkt:</strong> ${productName}</p>`;
+            message += `<p style="margin:4px 0;"><strong>Nowa cena:</strong> ${suggestedPrice.toFixed(2)} PLN</p>`;
+            showGlobalUpdate(message);
+        });
+    }
+
     function renderPrices(data) {
         const container = document.getElementById('priceContainer');
         container.innerHTML = '';
@@ -315,9 +372,10 @@
             box.dataset.detailsUrl = `/AllegroPriceHistory/Details?storeId=${storeId}&productId=${item.productId}`;
             box.style.cursor = 'pointer';
             box.innerHTML = `
-    <div class="price-box-space">
-        <div class="price-box-column-name">${highlightedProductName}</div>
-        <div class="flags-container"></div> </div>
+            <div class="price-box-space">
+                <div class="price-box-column-name">${highlightedProductName}</div>
+                <div class="flags-container"></div>
+            </div>
             <div class="price-box-data">
                 <div class="color-bar ${item.colorClass}"></div>
                 <div class="price-box-stats-container">
@@ -347,73 +405,72 @@
                 <div class="price-box-column">
                     ${(item.onlyMe || lowestPrice == null) ?
                     `<div class="price-box-column-text">
-                            <div><span style="font-weight: 500;">Brak konkurencji</span></div>
-                        </div>` :
+                                <div><span style="font-weight: 500;">Brak konkurencji</span></div>
+                            </div>` :
                     `
-                    <div class="price-box-column-text">
-                        <div>
-                            <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
-                                <span style="font-weight: 500; font-size: 17px; ${competitorPriceStyle}">${lowestPrice.toFixed(2)} PLN</span>
-                                ${competitorPriceIcon}
-                                ${competitorSuperPriceBadge}
-                            </div>
+                        <div class="price-box-column-text">
                             <div>
-                                ${highlightedStoreName || ''}
-                                ${item.isSuperSeller ? `<img src="/images/SuperSeller.png" alt="Super Sprzedawca" title="Super Sprzedawca" style="width: 18px; height: 18px; vertical-align: middle; margin-bottom: 1px;">` : ''}
-                            </div>
-                            <div style="height: 16.5px; margin-top:-2px; display:flex; align-content:center;">${competitorPromoInfoBadge}</div>
-                        </div>
-                    </div>
-                    <div class="price-box-column-text">
-                        <div class="data-channel">
-                            ${item.isTopOffer ? `<div class="TopOffer">Top oferta</div>` : ''}
-                            ${item.isSmart ? `
-                                <div class="Smart-Allegro">
-                                    <img src="/images/Smart.png" alt="Smart!" title="Smart!" style="height: 15px; width: auto; margin-left: 2px;">
+                                <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                                    <span style="font-weight: 500; font-size: 17px; ${competitorPriceStyle}">${lowestPrice.toFixed(2)} PLN</span>
+                                    ${competitorPriceIcon}
+                                    ${competitorSuperPriceBadge}
                                 </div>
-                            ` : ''}
-                            ${renderDeliveryInfo(item.deliveryTime)}
+                                <div>
+                                    ${highlightedStoreName || ''}
+                                    ${item.isSuperSeller ? `<img src="/images/SuperSeller.png" alt="Super Sprzedawca" title="Super Sprzedawca" style="width: 18px; height: 18px; vertical-align: middle; margin-bottom: 1px;">` : ''}
+                                </div>
+                                <div style="height: 16.5px; margin-top:-2px; display:flex; align-content:center;">${competitorPromoInfoBadge}</div>
+                            </div>
                         </div>
-                    </div>
-                    `
+                        <div class="price-box-column-text">
+                            <div class="data-channel">
+                                ${item.isTopOffer ? `<div class="TopOffer">Top oferta</div>` : ''}
+                                ${item.isSmart ? `
+                                    <div class="Smart-Allegro">
+                                        <img src="/images/Smart.png" alt="Smart!" title="Smart!" style="height: 15px; width: auto; margin-left: 2px;">
+                                    </div>
+                                ` : ''}
+                                ${renderDeliveryInfo(item.deliveryTime)}
+                            </div>
+                        </div>
+                        `
                 }
                 </div>
                 <div class="price-box-column">
                     ${myPrice != null ?
                     `
-                    <div class="price-box-column-text">
-                        <div>
-                            <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
-                                <span style="font-weight: 500; font-size: 17px; ${myPriceStyle}">${myPrice.toFixed(2)} PLN</span>
-                                ${myPriceIcon}
-                                ${mySuperPriceBadge}
-                            </div>
+                        <div class="price-box-column-text">
                             <div>
-                                ${highlightedMyStoreName}
-                                ${item.myIsSuperSeller ? `<img src="/images/SuperSeller.png" alt="Super Sprzedawca" title="Super Sprzedawca" style="width: 18px; height: 18px; vertical-align: middle; margin-bottom: 1px;">` : ''}
-                            </div>
-                            <div style="height: 16.5px; margin-top:-2px; display:flex; align-content:center;">${myPromoInfoBadge}</div>
-                        </div>
-                    </div>
-                    <div class="price-box-column-text">
-                        <div class="data-channel">
-
-                            ${item.myIsTopOffer ? `<div class="TopOffer">Top oferta</div>` : ''}
-                            ${item.myIsSmart ? `
-                                <div class="Smart-Allegro">
-                                    <img src="/images/Smart.png" alt="Smart!" title="Smart!" style="height: 15px; width: auto; margin-left: 2px;">
+                                <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                                    <span style="font-weight: 500; font-size: 17px; ${myPriceStyle}">${myPrice.toFixed(2)} PLN</span>
+                                    ${myPriceIcon}
+                                    ${mySuperPriceBadge}
                                 </div>
-                            ` : ''}
-                            ${renderDeliveryInfo(item.myDeliveryTime)}
+                                <div>
+                                    ${highlightedMyStoreName}
+                                    ${item.myIsSuperSeller ? `<img src="/images/SuperSeller.png" alt="Super Sprzedawca" title="Super Sprzedawca" style="width: 18px; height: 18px; vertical-align: middle; margin-bottom: 1px;">` : ''}
+                                </div>
+                                <div style="height: 16.5px; margin-top:-2px; display:flex; align-content:center;">${myPromoInfoBadge}</div>
+                            </div>
                         </div>
+                        <div class="price-box-column-text">
+                            <div class="data-channel">
+                                ${item.myIsTopOffer ? `<div class="TopOffer">Top oferta</div>` : ''}
+                                ${item.myIsSmart ? `
+                                    <div class="Smart-Allegro">
+                                        <img src="/images/Smart.png" alt="Smart!" title="Smart!" style="height: 15px; width: auto; margin-left: 2px;">
+                                    </div>
+                                ` : ''}
+                                ${renderDeliveryInfo(item.myDeliveryTime)}
+                            </div>
                         </div>
-                    ` :
+                        ` :
                     `<div class="price-box-column-text">
                             <div><span style="font-weight: 500;">Brak Twojej oferty</span></div>
                         </div>`
                 }
                 </div>
-                <div class="price-box-column-action" id="infoCol-${item.productId}"></div>
+                <div class="price-box-column-action"></div>
             </div>
         `;
 
@@ -421,7 +478,6 @@
 
             const priceBoxSpace = box.querySelector('.price-box-space');
             const priceBoxColumnName = box.querySelector('.price-box-column-name');
-            const flagsPlaceholder = box.querySelector('.flags-container');
 
             priceBoxSpace.innerHTML = '';
 
@@ -482,85 +538,139 @@
                 window.open(this.dataset.detailsUrl, '_blank');
             });
 
-            const infoCol = document.getElementById(`infoCol-${item.productId}`);
-            if (!infoCol || item.onlyMe || item.isRejected || myPrice === null || lowestPrice === null) {
+            const infoCol = box.querySelector('.price-box-column-action');
 
-            } else {
-
+            if (infoCol && !item.onlyMe && !item.isRejected && myPrice !== null && lowestPrice !== null) {
                 if (item.colorClass === "prToLow" || item.colorClass === "prIdeal") {
                     const savingsValue = parseFloat(item.savings);
                     const upArrowClass = item.colorClass === 'prToLow' ? 'arrow-up-black' : 'arrow-up-turquoise';
                     const suggestedPrice1 = myPrice + savingsValue;
-                    const amount1 = savingsValue;
-                    const percentage1 = myPrice > 0 ? (amount1 / myPrice) * 100 : 0;
-                    let suggestedPrice2, amount2, percentage2;
-                    let arrowClass2 = upArrowClass;
+                    const amountToSuggestedPrice1 = savingsValue;
+                    const percentageToSuggestedPrice1 = myPrice > 0 ? (amountToSuggestedPrice1 / myPrice) * 100 : 0;
+
+                    let suggestedPrice2, amountToSuggestedPrice2, percentageToSuggestedPrice2, arrowClass2 = upArrowClass;
+
                     if (usePriceDifference) {
                         suggestedPrice2 = suggestedPrice1 - setStepPrice;
                     } else {
                         suggestedPrice2 = suggestedPrice1 * (1 - (setStepPrice / 100));
                     }
-                    amount2 = suggestedPrice2 - myPrice;
-                    percentage2 = myPrice > 0 ? (amount2 / myPrice) * 100 : 0;
-                    if (amount2 < 0) arrowClass2 = 'arrow-down-turquoise';
+                    amountToSuggestedPrice2 = suggestedPrice2 - myPrice;
+                    percentageToSuggestedPrice2 = myPrice > 0 ? (amountToSuggestedPrice2 / myPrice) * 100 : 0;
+                    if (amountToSuggestedPrice2 < 0) {
+                        arrowClass2 = 'arrow-down-turquoise';
+                    }
 
-                    infoCol.innerHTML = `
-                <div class="price-box-column">
-                    <div class="price-action-line">
-                        <span class="${upArrowClass}"></span>
-                        <span>${amount1 >= 0 ? '+' : ''}${amount1.toFixed(2)} PLN (${percentage1 >= 0 ? '+' : ''}${percentage1.toFixed(2)}%)</span>
-                        <div>= ${suggestedPrice1.toFixed(2)} PLN</div>
-                        <span class="color-square-green"></span>
+                    const matchPriceBox = document.createElement('div');
+                    matchPriceBox.className = 'price-box-column';
+                    const matchPriceLine = document.createElement('div');
+                    matchPriceLine.className = 'price-action-line';
+                    matchPriceLine.innerHTML = `
+                    <span class="${upArrowClass}"></span>
+                    <div class="price-diff-stack">
+                        <span class="diff-amount small-font">${amountToSuggestedPrice1 >= 0 ? '+' : ''}${amountToSuggestedPrice1.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">PLN</span></span>
+                        <span class="diff-percentage small-font">${percentageToSuggestedPrice1 >= 0 ? '+' : ''}${percentageToSuggestedPrice1.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">%</span></span>
                     </div>
-                </div>
-                <div class="price-box-column">
-                    <div class="price-action-line">
-                        <span class="${arrowClass2}"></span>
-                        <span>${amount2 >= 0 ? '+' : ''}${amount2.toFixed(2)} PLN (${percentage2 >= 0 ? '+' : ''}${percentage2.toFixed(2)}%)</span>
-                        <div>= ${suggestedPrice2.toFixed(2)} PLN</div>
-                        <span class="color-square-turquoise"></span>
-                    </div>
-                </div>
+                    <div class="small-font">= ${suggestedPrice1.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">PLN</span></div>
                 `;
+                    const matchPriceBtn = document.createElement('button');
+                    matchPriceBtn.className = 'simulate-change-btn';
+                    const matchBtnContent = `<span class="color-square-green"></span> Zmień cenę`;
+                    matchPriceBtn.innerHTML = matchBtnContent;
+                    matchPriceBtn.dataset.originalText = matchBtnContent;
+                    matchPriceLine.appendChild(matchPriceBtn);
+                    matchPriceBox.appendChild(matchPriceLine);
+                    attachPriceChangeListener(matchPriceLine, suggestedPrice1, box, item.productId, item.productName, myPrice, item);
+
+                    const strategicPriceBox = document.createElement('div');
+                    strategicPriceBox.className = 'price-box-column';
+                    const strategicPriceLine = document.createElement('div');
+                    strategicPriceLine.className = 'price-action-line';
+                    strategicPriceLine.innerHTML = `
+                    <span class="${arrowClass2}"></span>
+                    <div class="price-diff-stack">
+                        <span class="diff-amount small-font">${amountToSuggestedPrice2 >= 0 ? '+' : ''}${amountToSuggestedPrice2.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">PLN</span></span>
+                        <span class="diff-percentage small-font">${percentageToSuggestedPrice2 >= 0 ? '+' : ''}${percentageToSuggestedPrice2.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">%</span></span>
+                    </div>
+                    <div class="small-font">= ${suggestedPrice2.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">PLN</span></div>
+                `;
+                    const strategicPriceBtn = document.createElement('button');
+                    strategicPriceBtn.className = 'simulate-change-btn';
+                    const strategicBtnContent = `<span class="color-square-turquoise"></span> Zmień cenę`;
+                    strategicPriceBtn.innerHTML = strategicBtnContent;
+                    strategicPriceBtn.dataset.originalText = strategicBtnContent;
+                    strategicPriceLine.appendChild(strategicPriceBtn);
+                    strategicPriceBox.appendChild(strategicPriceLine);
+                    attachPriceChangeListener(strategicPriceLine, suggestedPrice2, box, item.productId, item.productName, myPrice, item);
+
+                    infoCol.appendChild(matchPriceBox);
+                    infoCol.appendChild(strategicPriceBox);
+
                 } else if (item.colorClass === "prMid" || item.colorClass === "prToHigh") {
-                    const amountToMatch = myPrice - lowestPrice;
-                    const percentageToMatch = myPrice > 0 ? (amountToMatch / myPrice) * 100 : 0;
-                    let strategicPrice, amountToBeat, percentageToBeat;
+                    const amountToMatchLowestPrice = myPrice - lowestPrice;
+                    const percentageToMatchLowestPrice = myPrice > 0 ? (amountToMatchLowestPrice / myPrice) * 100 : 0;
+                    let strategicPrice, amountToBeatLowestPrice, percentageToBeatLowestPrice;
                     if (usePriceDifference) {
                         strategicPrice = lowestPrice - setStepPrice;
                     } else {
-                        strategicPrice = lowestPrice * (1 - (setStepPrice / 100));
+                        strategicPrice = lowestPrice * (1 - setStepPrice / 100);
                     }
-                    amountToBeat = myPrice - strategicPrice;
-                    percentageToBeat = myPrice > 0 ? (amountToBeat / myPrice) * 100 : 0;
+                    amountToBeatLowestPrice = myPrice - strategicPrice;
+                    percentageToBeatLowestPrice = myPrice > 0 ? (amountToBeatLowestPrice / myPrice) * 100 : 0;
                     const arrowClass = item.colorClass === "prMid" ? "arrow-down-yellow" : "arrow-down-red";
 
-                    infoCol.innerHTML = `
-                <div class="price-box-column">
-                    <div class="price-action-line">
-                        <span class="${arrowClass}"></span>
-                        <span>-${amountToMatch.toFixed(2)} PLN (-${percentageToMatch.toFixed(2)}%)</span>
-                        <div>= ${lowestPrice.toFixed(2)} PLN</div>
-                        <span class="color-square-green"></span>
+                    const matchPriceBox = document.createElement('div');
+                    matchPriceBox.className = 'price-box-column';
+                    const matchPriceLine = document.createElement('div');
+                    matchPriceLine.className = 'price-action-line';
+                    matchPriceLine.innerHTML = `
+                    <span class="${arrowClass}"></span>
+                    <div class="price-diff-stack">
+                        <span class="diff-amount small-font">-${amountToMatchLowestPrice.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">PLN</span></span>
+                        <span class="diff-percentage small-font">-${percentageToMatchLowestPrice.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">%</span></span>
                     </div>
-                </div>
-                <div class="price-box-column">
-                    <div class="price-action-line">
-                        <span class="${arrowClass}"></span>
-                        <span>-${amountToBeat.toFixed(2)} PLN (-${percentageToBeat.toFixed(2)}%)</span>
-                        <div>= ${strategicPrice.toFixed(2)} PLN</div>
-                        <span class="color-square-turquoise"></span>
-                    </div>
-                </div>
+                    <div class="small-font">= ${lowestPrice.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">PLN</span></div>
                 `;
-                } else if (item.colorClass === "prGood") {
-                    const amount1 = 0;
-                    const percentage1 = 0;
-                    const suggestedPrice1 = myPrice;
-                    let suggestedPrice2, amount2, percentage2;
-                    let downArrowClass = 'arrow-down-green';
+                    const matchPriceBtn = document.createElement('button');
+                    matchPriceBtn.className = 'simulate-change-btn';
+                    const matchBtnContent = `<span class="color-square-green"></span> Zmień cenę`;
+                    matchPriceBtn.innerHTML = matchBtnContent;
+                    matchPriceBtn.dataset.originalText = matchBtnContent;
+                    matchPriceLine.appendChild(matchPriceBtn);
+                    matchPriceBox.appendChild(matchPriceLine);
+                    attachPriceChangeListener(matchPriceLine, lowestPrice, box, item.productId, item.productName, myPrice, item);
 
-                    if (item.storeCount > 1) {
+                    const strategicPriceBox = document.createElement('div');
+                    strategicPriceBox.className = 'price-box-column';
+                    const strategicPriceLine = document.createElement('div');
+                    strategicPriceLine.className = 'price-action-line';
+                    strategicPriceLine.innerHTML = `
+                    <span class="${arrowClass}"></span>
+                    <div class="price-diff-stack">
+                        <span class="diff-amount small-font">-${amountToBeatLowestPrice.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">PLN</span></span>
+                        <span class="diff-percentage small-font">-${percentageToBeatLowestPrice.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">%</span></span>
+                    </div>
+                    <div class="small-font">= ${strategicPrice.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">PLN</span></div>
+                `;
+                    const strategicPriceBtn = document.createElement('button');
+                    strategicPriceBtn.className = 'simulate-change-btn';
+                    const strategicBtnContent = `<span class="color-square-turquoise"></span> Zmień cenę`;
+                    strategicPriceBtn.innerHTML = strategicBtnContent;
+                    strategicPriceBtn.dataset.originalText = strategicBtnContent;
+                    strategicPriceLine.appendChild(strategicPriceBtn);
+                    strategicPriceBox.appendChild(strategicPriceLine);
+                    attachPriceChangeListener(strategicPriceLine, strategicPrice, box, item.productId, item.productName, myPrice, item);
+
+                    infoCol.appendChild(matchPriceBox);
+                    infoCol.appendChild(strategicPriceBox);
+
+                } else if (item.colorClass === "prGood") {
+                    const amountToSuggestedPrice1 = 0;
+                    const percentageToSuggestedPrice1 = 0;
+                    const suggestedPrice1 = myPrice;
+                    let amountToSuggestedPrice2, percentageToSuggestedPrice2, suggestedPrice2, downArrowClass = 'arrow-down-green';
+
+                    if (item.totalOfferCount > 1) {
                         if (usePriceDifference) {
                             suggestedPrice2 = myPrice - setStepPrice;
                         } else {
@@ -568,35 +678,62 @@
                             if (reduction < 0.01) reduction = 0.01;
                             suggestedPrice2 = myPrice - reduction;
                         }
-                        amount2 = suggestedPrice2 - myPrice;
-                        percentage2 = myPrice > 0 ? (amount2 / myPrice) * 100 : 0;
+                        amountToSuggestedPrice2 = suggestedPrice2 - myPrice;
+                        percentageToSuggestedPrice2 = myPrice > 0 ? (amountToSuggestedPrice2 / myPrice) * 100 : 0;
                     } else {
                         suggestedPrice2 = myPrice;
-                        amount2 = 0;
-                        percentage2 = 0;
+                        amountToSuggestedPrice2 = 0;
+                        percentageToSuggestedPrice2 = 0;
                         downArrowClass = 'no-change-icon-turquoise';
                     }
 
-                    infoCol.innerHTML = `
-                <div class="price-box-column">
-                    <div class="price-action-line">
-                        <span class="no-change-icon"></span>
-                        <span>+${amount1.toFixed(2)} PLN (+${percentage1.toFixed(2)}%)</span>
-                        <div>= ${suggestedPrice1.toFixed(2)} PLN</div>
-                        <span class="color-square-green"></span>
+                    const matchPriceBox = document.createElement('div');
+                    matchPriceBox.className = 'price-box-column';
+                    const matchPriceLine = document.createElement('div');
+                    matchPriceLine.className = 'price-action-line';
+                    matchPriceLine.innerHTML = `
+                    <span class="no-change-icon"></span>
+                    <div class="price-diff-stack">
+                        <span class="diff-amount small-font">+${amountToSuggestedPrice1.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">PLN</span></span>
+                        <span class="diff-percentage small-font">+${percentageToSuggestedPrice1.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">%</span></span>
                     </div>
-                </div>
-                <div class="price-box-column">
-                    <div class="price-action-line">
-                        <span class="${downArrowClass}"></span>
-                        <span>${amount2.toFixed(2)} PLN (${percentage2.toFixed(2)}%)</span>
-                        <div>= ${suggestedPrice2.toFixed(2)} PLN</div>
-                        <span class="color-square-turquoise"></span>
-                    </div>
-                </div>
+                    <div class="small-font">= ${suggestedPrice1.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">PLN</span></div>
                 `;
+                    const matchPriceBtn = document.createElement('button');
+                    matchPriceBtn.className = 'simulate-change-btn';
+                    const matchBtnContent = `<span class="color-square-green"></span> Zmień cenę`;
+                    matchPriceBtn.innerHTML = matchBtnContent;
+                    matchPriceBtn.dataset.originalText = matchBtnContent;
+                    matchPriceLine.appendChild(matchPriceBtn);
+                    matchPriceBox.appendChild(matchPriceLine);
+                    attachPriceChangeListener(matchPriceLine, suggestedPrice1, box, item.productId, item.productName, myPrice, item);
+
+                    const strategicPriceBox = document.createElement('div');
+                    strategicPriceBox.className = 'price-box-column';
+                    const strategicPriceLine = document.createElement('div');
+                    strategicPriceLine.className = 'price-action-line';
+                    strategicPriceLine.innerHTML = `
+                    <span class="${downArrowClass}"></span>
+                    <div class="price-diff-stack">
+                        <span class="diff-amount small-font">${amountToSuggestedPrice2.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">PLN</span></span>
+                        <span class="diff-percentage small-font">${percentageToSuggestedPrice2.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">%</span></span>
+                    </div>
+                    <div class="small-font">= ${suggestedPrice2.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">PLN</span></div>
+                `;
+                    const strategicPriceBtn = document.createElement('button');
+                    strategicPriceBtn.className = 'simulate-change-btn';
+                    const strategicBtnContent = `<span class="color-square-turquoise"></span> Zmień cenę`;
+                    strategicPriceBtn.innerHTML = strategicBtnContent;
+                    strategicPriceBtn.dataset.originalText = strategicBtnContent;
+                    strategicPriceLine.appendChild(strategicPriceBtn);
+                    strategicPriceBox.appendChild(strategicPriceLine);
+                    attachPriceChangeListener(strategicPriceLine, suggestedPrice2, box, item.productId, item.productName, myPrice, item);
+
+                    infoCol.appendChild(matchPriceBox);
+                    infoCol.appendChild(strategicPriceBox);
                 }
             }
+
         });
 
         renderPaginationControls(data.length);
