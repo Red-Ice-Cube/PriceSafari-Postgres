@@ -754,7 +754,18 @@ async function saveOrUpdatePreset() {
 }
 
 function filterCompetitors(searchTerm) {
-    const allRows = document.querySelectorAll("#googleCompetitorsTableBody tr, #ceneoCompetitorsTableBody tr");
+    let selector;
+
+    if (presetTypeContext === 0) {
+        selector = "#googleCompetitorsTableBody tr, #ceneoCompetitorsTableBody tr";
+    } else if (presetTypeContext === 1) {
+        selector = "#allegroCompetitorsTableBody tr";
+    } else {
+
+        return;
+    }
+
+    const allRows = document.querySelectorAll(selector);
 
     allRows.forEach(tr => {
         const originalStoreName = tr.dataset.originalStoreName || "";

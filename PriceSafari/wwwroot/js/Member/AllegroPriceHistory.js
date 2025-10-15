@@ -419,34 +419,26 @@
 
             container.appendChild(box);
 
-
-            // ✅ NOWY KOD DO WKLEJENIA W TO MIEJSCE
-            // 1. Pobierz elementy stworzone w szablonie
             const priceBoxSpace = box.querySelector('.price-box-space');
             const priceBoxColumnName = box.querySelector('.price-box-column-name');
             const flagsPlaceholder = box.querySelector('.flags-container');
 
-            // 2. Wyczyść kontener price-box-space, bo zbudujemy go od nowa
             priceBoxSpace.innerHTML = '';
 
-            // 3. Stwórz lewą i prawą kolumnę
             const leftColumn = document.createElement('div');
             leftColumn.className = 'price-box-left-column';
 
             const rightColumn = document.createElement('div');
             rightColumn.className = 'price-box-right-column';
 
-            // 4. Stwórz i dodaj elementy do lewej kolumny
             const flagsContainer = createFlagsContainer(item);
-            leftColumn.appendChild(priceBoxColumnName); // Przenieś istniejącą nazwę
-            leftColumn.appendChild(flagsContainer);    // Dodaj flagi
+            leftColumn.appendChild(priceBoxColumnName);
+            leftColumn.appendChild(flagsContainer);
 
-            // 5. Stwórz i dodaj elementy do prawej kolumny
-            // Przycisk "Zaznacz"
             const selectProductButton = document.createElement('button');
             selectProductButton.className = 'select-product-btn';
             selectProductButton.dataset.productId = item.productId;
-            selectProductButton.style.pointerEvents = 'auto'; // Upewnij się, że przycisk jest klikalny
+            selectProductButton.style.pointerEvents = 'auto';
             if (selectedProductIds.has(item.productId.toString())) {
                 selectProductButton.textContent = 'Wybrano';
                 selectProductButton.classList.add('selected');
@@ -469,7 +461,6 @@
                 updateSelectionUI();
             });
 
-            // ApiBox z ID oferty
             const apiBox = document.createElement('span');
             apiBox.className = 'ApiBox';
             if (item.myIdAllegro) {
@@ -481,12 +472,8 @@
             rightColumn.appendChild(selectProductButton);
             rightColumn.appendChild(apiBox);
 
-            // 6. Dodaj gotowe kolumny do kontenera price-box-space
             priceBoxSpace.appendChild(leftColumn);
             priceBoxSpace.appendChild(rightColumn);
-
-
-
 
             box.addEventListener('click', function (event) {
                 if (event.target.closest('button, a, img')) {
