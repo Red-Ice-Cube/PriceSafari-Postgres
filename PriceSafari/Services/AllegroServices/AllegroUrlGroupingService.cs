@@ -1,6 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using PriceSafari.Data;
 using PriceSafari.Models;
+using System.Linq;
 
 namespace PriceSafari.Services.AllegroServices
 {
@@ -15,7 +16,24 @@ namespace PriceSafari.Services.AllegroServices
             _logger = logger;
         }
 
-        // ZMIANA: Metoda przyjmuje teraz listę ID sklepów do przetworzenia
+        private long ExtractOfferIdFromUrl(string url)
+        {
+            if (string.IsNullOrWhiteSpace(url))
+            {
+                return 0;
+            }
+
+            var lastPart = url.Split('-').LastOrDefault();
+
+            if (long.TryParse(lastPart, out long offerId))
+            {
+                return offerId;
+            }
+
+            _logger.LogWarning("Nie udało się wyodrębnić ID oferty z URL: {Url}", url);
+            return 0;
+        }
+
         public async Task<(int urlsPrepared, int totalProducts, List<string> processedStoreNames)> GroupAndSaveUrls(List<int> storeIds)
         {
             _logger.LogInformation("Rozpoczynam proces grupowania URL-i ofert Allegro dla wybranych sklepów...");
@@ -26,7 +44,6 @@ namespace PriceSafari.Services.AllegroServices
                 return (0, 0, new List<string>());
             }
 
-            // ZMIANA: Weryfikacja sklepów przed przetworzeniem
             var validStores = await _context.Stores
                 .Where(s => storeIds.Contains(s.StoreId) && s.OnAllegro && s.RemainingScrapes > 0)
                 .Select(s => new { s.StoreId, s.StoreName })
@@ -43,7 +60,6 @@ namespace PriceSafari.Services.AllegroServices
 
             _logger.LogInformation("Sklepy zakwalifikowane do grupowania URL Allegro: {StoreNames}", string.Join(", ", validStoreNames));
 
-            // ZMIANA: Pobieranie produktów tylko dla zweryfikowanych sklepów
             var allProducts = await _context.AllegroProducts
                .Where(p => validStoreIds.Contains(p.StoreId) && p.IsScrapable)
                .AsNoTracking()
@@ -63,9 +79,18 @@ namespace PriceSafari.Services.AllegroServices
 
             foreach (var group in groupedByUrl)
             {
+                var offerUrl = group.Key;
+                var offerId = ExtractOfferIdFromUrl(offerUrl);
+
+                if (offerId == 0)
+                {
+                    continue;
+                }
+
                 var newOffer = new AllegroOfferToScrape
                 {
-                    AllegroOfferUrl = group.Key,
+                    AllegroOfferUrl = offerUrl,
+                    AllegroOfferId = offerId,
                     AllegroProductIds = group.Select(p => p.AllegroProductId).ToList(),
                     AddedDate = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, TimeZoneInfo.FindSystemTimeZoneById("Central European Standard Time"))
                 };

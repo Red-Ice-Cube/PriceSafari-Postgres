@@ -21,7 +21,9 @@ namespace PriceSafari.Models
         public DateTime AddedDate { get; set; } = DateTime.UtcNow;
 
 
-        public decimal? MarginPrice { get; set; }
+        public decimal? AllegroMarginPrice { get; set; }
+
+        public string? AllegroEan { get; set; }
 
 
         public bool IsScrapable { get; set; } = false;  

@@ -1,5 +1,6 @@
-﻿using System.ComponentModel.DataAnnotations;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace PriceSafari.Models
 {
@@ -10,6 +11,9 @@ namespace PriceSafari.Models
 
         [Required]
         public string AllegroOfferUrl { get; set; }
+
+        //nowa warttosc
+        public long AllegroOfferId { get; set; }
 
         public List<int> AllegroProductIds { get; set; } = new List<int>();
 
@@ -24,7 +28,24 @@ namespace PriceSafari.Models
    
         public bool IsProcessing { get; set; } = false;
 
-    
+
+        //nowe rzeczy
+
+        public bool? IsApiProcessed { get; set; }
+
+        [Column(TypeName = "decimal(18, 2)")]
+        public decimal? ApiAllegroPrice { get; set; }
+
+        [Column(TypeName = "decimal(18, 2)")]
+        public decimal? ApiAllegroPriceFromUser { get; set; }
+
+
+        [Column(TypeName = "decimal(18, 2)")]
+        public decimal? ApiAllegroCommission { get; set; }
+
+        public bool? AnyPromoActive { get; set; }
+
+
         public virtual ICollection<AllegroScrapedOffer> ScrapedOffers { get; set; } = new List<AllegroScrapedOffer>();
     }
 }
