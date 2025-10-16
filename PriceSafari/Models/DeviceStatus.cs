@@ -21,5 +21,6 @@
         public bool AleBaseScalEnabled { get; set; }
         public bool UrlScalAleEnabled { get; set; }
         public bool AleCrawEnabled { get; set; }
+        public bool AleApiBotEnabled { get; set; }
     }
 }

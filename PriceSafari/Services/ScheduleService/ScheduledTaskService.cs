@@ -30,6 +30,7 @@ public class ScheduledTaskService : BackgroundService
         var aleBaseScalKey = Environment.GetEnvironmentVariable("ALE_BASE_SCAL");
         var urlScalAleKey = Environment.GetEnvironmentVariable("URL_SCAL_ALE");
         var aleCrawKey = Environment.GetEnvironmentVariable("ALE_CRAW");
+        var aleApiBotKey = Environment.GetEnvironmentVariable("ALE_API_BOT");
 
         var deviceName = Environment.GetEnvironmentVariable("DEVICE_NAME") ?? "UnknownDevice";
 
@@ -46,7 +47,6 @@ public class ScheduledTaskService : BackgroundService
 
                 if (plan != null)
                 {
-
                     var dayOfWeek = DateTime.Now.DayOfWeek;
                     int? neededDayDetailId = dayOfWeek switch
                     {
@@ -62,9 +62,7 @@ public class ScheduledTaskService : BackgroundService
 
                     if (neededDayDetailId.HasValue)
                     {
-
                         var dayDetail = await context.DayDetails
-
                             .Where(d => d.Id == neededDayDetailId.Value)
                             .Include(d => d.Tasks)
                                 .ThenInclude(t => t.TaskStores)
@@ -96,30 +94,28 @@ public class ScheduledTaskService : BackgroundService
 
                             var tasksToRun = dayDetail.Tasks
                                 .Where(t => (t.LastRunDate == null || t.LastRunDate.Value.Date < today)
-                                            && nowTime >= t.StartTime
-                                            && nowTime < t.StartTime.Add(TimeSpan.FromMinutes(5)))
+                                             && nowTime >= t.StartTime
+                                             && nowTime < t.StartTime.Add(TimeSpan.FromMinutes(5)))
                                 .OrderBy(t => t.StartTime)
                                 .ToList();
 
                             foreach (var t in tasksToRun)
                             {
-
                                 bool canRunAnything =
                                 (t.UrlEnabled && urlScalKey == "49276583") ||
                                 (t.CeneoEnabled && cenCrawKey == "56981467") ||
                                 (t.GoogleEnabled && gooCrawKey == "03713857") ||
-                                (t.BaseEnabled && baseScalKey == "34692471") ||                   
+                                (t.BaseEnabled && baseScalKey == "34692471") ||
                                 (t.UrlScalAleEnabled && urlScalAleKey == "20231989") ||
                                 (t.AleCrawEnabled && aleCrawKey == "98765432") ||
-                                (t.AleBaseEnabled && aleBaseScalKey == "19892023");
+                                (t.AleBaseEnabled && aleBaseScalKey == "19892023") ||
+                                (t.AleApiBotEnabled && aleApiBotKey == "81047289");
 
                                 if (!canRunAnything)
                                 {
-
                                     _logger.LogInformation(
                                         "Urządzenie '{DeviceName}' nie ma odpowiednich kluczy, aby wykonać zadanie '{SessionName}'. Pomijam.",
                                         deviceName, t.SessionName);
-
                                     continue;
                                 }
 
@@ -148,7 +144,6 @@ public class ScheduledTaskService : BackgroundService
                                                 tokensConsumed++;
                                             }
                                         }
-
                                         if (tokensConsumed > 0)
                                         {
                                             _logger.LogInformation("Zadanie '{SessionName}': Zużyto {TokensConsumed} token(ów) analizy.", t.SessionName, tokensConsumed);
@@ -158,41 +153,42 @@ public class ScheduledTaskService : BackgroundService
 
                                 await context.SaveChangesAsync(stoppingToken);
 
+                                // --- Uruchamianie poszczególnych zadań ---
+
                                 if (t.UrlEnabled && urlScalKey == "49276583")
-                                {
                                     await RunUrlScalAsync(context, deviceName, t, stoppingToken);
-                                }
+
                                 if (t.CeneoEnabled && cenCrawKey == "56981467")
-                                {
                                     await RunCeneoAsync(context, deviceName, t, stoppingToken);
-                                }
+
                                 if (t.GoogleEnabled && gooCrawKey == "03713857")
-                                {
                                     await RunGoogleAsync(context, deviceName, t, stoppingToken);
-                                }
+
                                 if (t.BaseEnabled && baseScalKey == "34692471")
-                                {
                                     await RunBaseScalAsync(context, deviceName, t, stoppingToken);
-                                }
+
                                 if (t.UrlScalAleEnabled && urlScalAleKey == "20231989")
-                                {
                                     await RunUrlScalAleAsync(context, deviceName, t, stoppingToken);
-                                }
 
-                                // 2. Uruchomienie crawlera Allegro
                                 if (t.AleCrawEnabled && aleCrawKey == "98765432")
-                                {
                                     await RunAleCrawAsync(context, deviceName, t, stoppingToken);
+
+                                // #### ZMIANA KOLEJNOŚCI ####
+
+                                // KROK 1: Odpytywanie API Allegro o dodatkowe dane
+                                if (t.AleApiBotEnabled && aleApiBotKey == "81047289")
+                                {
+                                    await RunAleApiBotAsync(context, deviceName, t, stoppingToken);
                                 }
 
-                                // 3. Scalanie bazy danych Allegro
+                                // KROK 2 (NA KOŃCU): Scalanie wszystkich danych Allegro do tabel historycznych
                                 if (t.AleBaseEnabled && aleBaseScalKey == "19892023")
                                 {
                                     await RunAleBaseScalAsync(context, deviceName, t, stoppingToken);
                                 }
+
                                 await Task.Delay(TimeSpan.FromSeconds(10), stoppingToken);
                             }
-
                         }
                     }
                 }
@@ -201,7 +197,7 @@ public class ScheduledTaskService : BackgroundService
                 {
                     _lastDeviceCheck = DateTime.Now;
                     await UpdateDeviceStatusAsync(context, deviceName, baseScalKey, urlScalKey,
-                        gooCrawKey, cenCrawKey, aleBaseScalKey, urlScalAleKey, aleCrawKey, stoppingToken);
+                        gooCrawKey, cenCrawKey, aleBaseScalKey, urlScalAleKey, aleCrawKey, aleApiBotKey, stoppingToken);
                 }
             }
             catch (Exception ex)
@@ -593,17 +589,59 @@ public class ScheduledTaskService : BackgroundService
         }
     }
 
+
+    private async Task RunAleApiBotAsync(PriceSafariContext context, string deviceName, ScheduleTask task, CancellationToken ct)
+    {
+        var log = new TaskExecutionLog
+        {
+            DeviceName = deviceName,
+            OperationName = "ALE_API_BOT",
+            StartTime = DateTime.Now,
+            Comment = $"Rozpoczęcie pobierania danych z API Allegro | SessionName={task.SessionName}"
+        };
+        context.TaskExecutionLogs.Add(log);
+        await context.SaveChangesAsync(ct);
+        int logId = log.Id;
+
+        try
+        {
+            var allegroApiBotService = context.GetService<AllegroApiBotService>();
+            await allegroApiBotService.ProcessOffersForActiveStoresAsync();
+
+            var finishedLog = await context.TaskExecutionLogs.FindAsync(new object[] { logId }, ct);
+            if (finishedLog != null)
+            {
+                finishedLog.EndTime = DateTime.Now;
+                finishedLog.Comment += " | Pomyślnie zakończono proces pobierania danych z API.";
+                context.TaskExecutionLogs.Update(finishedLog);
+                await context.SaveChangesAsync(ct);
+            }
+        }
+        catch (Exception ex)
+        {
+            var finishedLog = await context.TaskExecutionLogs.FindAsync(new object[] { logId }, ct);
+            if (finishedLog != null)
+            {
+                finishedLog.EndTime = DateTime.Now;
+                finishedLog.Comment += $" | Wystąpił błąd: {ex.Message}";
+                context.TaskExecutionLogs.Update(finishedLog);
+                await context.SaveChangesAsync(ct);
+            }
+        }
+    }
+
     private async Task UpdateDeviceStatusAsync(
-        PriceSafariContext context,
-        string deviceName,
-        string baseScalKey,
-        string urlScalKey,
-        string gooCrawKey,
-        string cenCrawKey,
-        string aleBaseScalKey,
-        string urlScalAleKey,
-        string aleCrawKey,
-        CancellationToken ct)
+         PriceSafariContext context,
+         string deviceName,
+         string baseScalKey,
+         string urlScalKey,
+         string gooCrawKey,
+         string cenCrawKey,
+         string aleBaseScalKey,
+         string urlScalAleKey,
+         string aleCrawKey,
+         string aleApiBotKey,
+         CancellationToken ct)
     {
         const string BASE_SCAL_EXPECTED = "34692471";
         const string URL_SCAL_EXPECTED = "49276583";
@@ -612,6 +650,7 @@ public class ScheduledTaskService : BackgroundService
         const string ALE_BASE_SCAL_EXPECTED = "19892023";
         const string URL_SCAL_ALE_EXPECTED = "20231989";
         const string ALE_CRAW_EXPECTED = "98765432";
+        const string ALE_API_BOT_EXPECTED = "81047289";
 
         bool hasBaseScal = (baseScalKey == BASE_SCAL_EXPECTED);
         bool hasUrlScal = (urlScalKey == URL_SCAL_EXPECTED);
@@ -620,6 +659,8 @@ public class ScheduledTaskService : BackgroundService
         bool hasAleBaseScal = (aleBaseScalKey == ALE_BASE_SCAL_EXPECTED);
         bool hasUrlScalAle = (urlScalAleKey == URL_SCAL_ALE_EXPECTED);
         bool hasAleCraw = (aleCrawKey == ALE_CRAW_EXPECTED);
+        bool hasAleApiBot = (aleApiBotKey == ALE_API_BOT_EXPECTED);
+
         var newStatus = new DeviceStatus
         {
             DeviceName = deviceName,
@@ -631,7 +672,8 @@ public class ScheduledTaskService : BackgroundService
             CenCrawEnabled = hasCenCraw,
             AleBaseScalEnabled = hasAleBaseScal,
             UrlScalAleEnabled = hasUrlScalAle,
-            AleCrawEnabled = hasAleCraw
+            AleCrawEnabled = hasAleCraw,
+            AleApiBotEnabled = hasAleApiBot
         };
 
         await context.DeviceStatuses.AddAsync(newStatus, ct);
