@@ -217,7 +217,7 @@ namespace PriceSafari.Data
                 .HasMany(h => h.PriceHistories)
                 .WithOne(p => p.AllegroScrapeHistory)
                 .HasForeignKey(p => p.AllegroScrapeHistoryId)
-                .OnDelete(DeleteBehavior.Cascade);
+                .OnDelete(DeleteBehavior.Restrict);
 
             modelBuilder.Entity<AllegroProductClass>()
 
@@ -244,19 +244,16 @@ namespace PriceSafari.Data
 
             modelBuilder.Entity<AllegroPriceHistoryExtendedInfoClass>(entity =>
             {
-
-                entity.HasIndex(e => new { e.AllegroProductId, e.ScrapHistoryId })
-                      .IsUnique();
-
+        
                 entity.HasOne(ext => ext.AllegroProduct)
                       .WithMany()
                       .HasForeignKey(ext => ext.AllegroProductId)
-                      .OnDelete(DeleteBehavior.Cascade);
+                      .OnDelete(DeleteBehavior.NoAction); // <-- ZMIANA
 
                 entity.HasOne(ext => ext.ScrapHistory)
                       .WithMany()
                       .HasForeignKey(ext => ext.ScrapHistoryId)
-                      .OnDelete(DeleteBehavior.Cascade);
+                      .OnDelete(DeleteBehavior.Cascade); // <-- BEZ ZMIAN
             });
         }
     }

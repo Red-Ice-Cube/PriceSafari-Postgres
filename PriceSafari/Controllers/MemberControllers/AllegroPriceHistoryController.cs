@@ -219,7 +219,7 @@ namespace PriceSafari.Controllers.MemberControllers
 
                         Ean = (string)null,
                         ExternalId = (int?)null,
-                        MarginPrice = product.MarginPrice,
+                        MarginPrice = product.AllegroMarginPrice,
                         ImgUrl = (string)null,
                     };
                 }).ToList();

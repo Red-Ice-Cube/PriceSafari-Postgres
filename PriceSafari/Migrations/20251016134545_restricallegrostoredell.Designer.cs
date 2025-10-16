@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using PriceSafari.Data;
 
@@ -11,9 +12,11 @@ using PriceSafari.Data;
 namespace PriceSafari.Migrations
 {
     [DbContext(typeof(PriceSafariContext))]
-    partial class PriceSafariContextModelSnapshot : ModelSnapshot
+    [Migration("20251016134545_restricallegrostoredell")]
+    partial class restricallegrostoredell
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -436,41 +439,6 @@ namespace PriceSafari.Migrations
                     b.HasIndex("AllegroScrapeHistoryId");
 
                     b.ToTable("AllegroPriceHistories");
-                });
-
-            modelBuilder.Entity("PriceSafari.Models.AllegroPriceHistoryExtendedInfoClass", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("AllegroProductId")
-                        .HasColumnType("int");
-
-                    b.Property<bool?>("AnyPromoActive")
-                        .HasColumnType("bit");
-
-                    b.Property<decimal?>("ApiAllegroCommission")
-                        .HasColumnType("decimal(18, 2)");
-
-                    b.Property<decimal?>("ApiAllegroPrice")
-                        .HasColumnType("decimal(18, 2)");
-
-                    b.Property<decimal?>("ApiAllegroPriceFromUser")
-                        .HasColumnType("decimal(18, 2)");
-
-                    b.Property<int>("ScrapHistoryId")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("AllegroProductId");
-
-                    b.HasIndex("ScrapHistoryId");
-
-                    b.ToTable("AllegroPriceHistoryExtendedInfos");
                 });
 
             modelBuilder.Entity("PriceSafari.Models.AllegroProductClass", b =>
@@ -2214,25 +2182,6 @@ namespace PriceSafari.Migrations
                     b.Navigation("AllegroProduct");
 
                     b.Navigation("AllegroScrapeHistory");
-                });
-
-            modelBuilder.Entity("PriceSafari.Models.AllegroPriceHistoryExtendedInfoClass", b =>
-                {
-                    b.HasOne("PriceSafari.Models.AllegroProductClass", "AllegroProduct")
-                        .WithMany()
-                        .HasForeignKey("AllegroProductId")
-                        .OnDelete(DeleteBehavior.NoAction)
-                        .IsRequired();
-
-                    b.HasOne("PriceSafari.Models.AllegroScrapeHistory", "ScrapHistory")
-                        .WithMany()
-                        .HasForeignKey("ScrapHistoryId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("AllegroProduct");
-
-                    b.Navigation("ScrapHistory");
                 });
 
             modelBuilder.Entity("PriceSafari.Models.AllegroProductClass", b =>

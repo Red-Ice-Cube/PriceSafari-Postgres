@@ -74,7 +74,7 @@ namespace PriceSafari.Controllers
                     p.AllegroOfferUrl,
                     p.IsScrapable,
                     p.IsRejected,
-                    p.MarginPrice,
+                    p.AllegroMarginPrice,
                     p.AddedDate,
                     FlagIds = p.ProductFlags.Select(pf => pf.FlagId).ToList()
                 })

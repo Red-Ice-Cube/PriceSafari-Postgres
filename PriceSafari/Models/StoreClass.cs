@@ -56,9 +56,16 @@ namespace PriceSafari.Models
         public bool OnGoogle { get; set; } = false;
         public bool OnAllegro { get; set; } = false;
 
+        [Display(Name = "Pobieraj dane z API Allegro")]
+        public bool FetchExtendedAllegroData { get; set; } = false;
+
+        [Display(Name = "Token API Allegro")]
+        public string? AllegroApiToken { get; set; }
+
+        [Display(Name = "Token Allegro jest aktywny")]
+        public bool IsAllegroTokenActive { get; set; } = false;
 
 
-        
         public ICollection<ScrapHistoryClass> ScrapHistories { get; set; } = new List<ScrapHistoryClass>();
         public ICollection<ProductClass> Products { get; set; } = new List<ProductClass>();
         public ICollection<AllegroProductClass> AllegroProducts { get; set; } = new List<AllegroProductClass>();
