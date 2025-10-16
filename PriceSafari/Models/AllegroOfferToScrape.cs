@@ -15,6 +15,10 @@ namespace PriceSafari.Models
         //nowa warttosc
         public long AllegroOfferId { get; set; }
 
+        public int StoreId { get; set; }
+        [ForeignKey("StoreId")]
+        public virtual StoreClass Store { get; set; }
+
         public List<int> AllegroProductIds { get; set; } = new List<int>();
 
         public bool IsScraped { get; set; } = false;
