@@ -81,6 +81,7 @@ public class Program
         builder.Services.AddScoped<INetworkControlService, NetworkControlService>();
         builder.Services.AddScoped<AllegroUrlGroupingService>();
         builder.Services.AddScoped<AllegroScrapingService>();
+        builder.Services.AddScoped<AllegroApiBotService>();
         builder.Services.AddScoped<AllegroProcessingService>();
        
         GlobalFontSettings.UseWindowsFontsUnderWindows = true;
