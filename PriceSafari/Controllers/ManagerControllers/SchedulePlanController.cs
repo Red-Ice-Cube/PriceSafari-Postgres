@@ -176,6 +176,7 @@ namespace PriceSafari.Controllers
                 AleBaseEnabled = model.AleBaseEnabled,
                 UrlScalAleEnabled = model.UrlScalAleEnabled,
                 AleCrawEnabled = model.AleCrawEnabled,
+                AleApiBotEnabled = model.AleApiBotEnabled,
                 DayDetailId = dayDetailId
             };
             _context.ScheduleTasks.Add(newTask);
@@ -223,6 +224,7 @@ namespace PriceSafari.Controllers
                 AleBaseEnabled = task.AleBaseEnabled,
                 UrlScalAleEnabled = task.UrlScalAleEnabled,
                 AleCrawEnabled = task.AleCrawEnabled,
+                AleApiBotEnabled = task.AleApiBotEnabled,
                 Stores = allStores.Select(s => new StoreCheckboxItem
                 {
                     StoreId = s.StoreId,
@@ -311,6 +313,7 @@ namespace PriceSafari.Controllers
             task.AleBaseEnabled = model.AleBaseEnabled;
             task.UrlScalAleEnabled = model.UrlScalAleEnabled;
             task.AleCrawEnabled = model.AleCrawEnabled;
+            task.AleApiBotEnabled = model.AleApiBotEnabled;
 
             foreach (var existingRel in task.TaskStores.ToList())
             {

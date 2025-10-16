@@ -40,12 +40,12 @@
             <div class="mb-4 p-3 border rounded bg-light">
                 <h6 class="fw-bold">⚙️ Porównywarki Cenowe (Ceneo / Google)</h6>
                 <div class="d-flex flex-wrap align-items-center mt-3">
-                    
+
                     <div class="form-check me-3">
                         <input asp-for="UrlEnabled" class="form-check-input" />
                         <label class="form-check-label fw-bold">1. Przygotuj URL</label>
                     </div>
-                    
+
                     <span class="fs-4 mx-2 text-muted">→</span>
 
                     <div class="me-3">
@@ -86,16 +86,23 @@
 
                     <span class="fs-4 mx-2 text-muted">→</span>
 
+                    <div class="form-check me-3">
+                        <input asp-for="AleApiBotEnabled" class="form-check-input" />
+                        <label class="form-check-label fw-bold">2a. Pobierz dane z API</label>
+                    </div>
+
+                    <span class="fs-4 mx-2 text-muted">→</span>
+
                     <div class="form-check">
                         <input asp-for="AleBaseEnabled" class="form-check-input" />
                         <label class="form-check-label fw-bold">3. Scal wyniki</label>
                     </div>
                 </div>
             </div>
-            
+
             <h5 class="mt-4"><i class="fas fa-store me-2 text-primary"></i>Wybierz sklepy</h5>
             <hr class="mt-2 mb-4" />
-            
+
             <div class="table-responsive">
                 <table class="table table-hover table-striped">
                     <thead class="table-light">

@@ -20,6 +20,8 @@ namespace PriceSafari.Models.ViewModels.SchedulePlanViewModels
         public bool UrlScalAleEnabled { get; set; }
         public bool AleCrawEnabled { get; set; }
 
+        public bool AleApiBotEnabled { get; set; }
+
         // Lista sklepów (checkboxy)
         public List<StoreCheckboxItem> Stores { get; set; }
             = new List<StoreCheckboxItem>();

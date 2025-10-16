@@ -589,7 +589,6 @@ public class ScheduledTaskService : BackgroundService
         }
     }
 
-
     private async Task RunAleApiBotAsync(PriceSafariContext context, string deviceName, ScheduleTask task, CancellationToken ct)
     {
         var log = new TaskExecutionLog
@@ -612,7 +611,8 @@ public class ScheduledTaskService : BackgroundService
             if (finishedLog != null)
             {
                 finishedLog.EndTime = DateTime.Now;
-                finishedLog.Comment += " | Pomyślnie zakończono proces pobierania danych z API.";
+                // POPRAWKA: Dodano słowo "Sukces", aby widok poprawnie kolorował wiersz
+                finishedLog.Comment += " | Sukces. Pomyślnie zakończono proces pobierania danych z API.";
                 context.TaskExecutionLogs.Update(finishedLog);
                 await context.SaveChangesAsync(ct);
             }
