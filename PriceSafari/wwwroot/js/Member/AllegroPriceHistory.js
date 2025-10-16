@@ -1025,6 +1025,12 @@
 
         setTimeout(() => {
             let filtered = [...allPrices];
+
+      
+            if (isCatalogViewActive) {
+                filtered = groupAndFilterByCatalog(filtered);
+            }
+
             const productSearch = document.getElementById('productSearch').value.toLowerCase();
             if (productSearch) filtered = filtered.filter(p => p.productName && p.productName.toLowerCase().includes(productSearch));
 
@@ -1055,10 +1061,7 @@
                 });
             }
 
-            if (isCatalogViewActive) {
-                filtered = groupAndFilterByCatalog(filtered);
-            }
-
+     
             for (const [key, direction] of Object.entries(sortingState)) {
                 if (direction) {
                     filtered.sort((a, b) => {
