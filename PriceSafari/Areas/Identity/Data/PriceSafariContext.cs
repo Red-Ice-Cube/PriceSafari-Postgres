@@ -52,14 +52,15 @@ namespace PriceSafari.Data
         public DbSet<AllegroProductClass> AllegroProducts { get; set; }
         public DbSet<AllegroOfferToScrape> AllegroOffersToScrape { get; set; }
         public DbSet<AllegroScrapedOffer> AllegroScrapedOffers { get; set; }
-        public DbSet<AllegroScrapeHistory> AllegroScrapeHistories { get; set; } 
+        public DbSet<AllegroScrapeHistory> AllegroScrapeHistories { get; set; }
         public DbSet<AllegroPriceHistory> AllegroPriceHistories { get; set; }
         public DbSet<UserMessage> UserMessages { get; set; }
         public DbSet<PriceHistoryExtendedInfoClass> PriceHistoryExtendedInfos { get; set; }
+        public DbSet<AllegroPriceHistoryExtendedInfoClass> AllegroPriceHistoryExtendedInfos { get; set; }
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
-
 
             modelBuilder.Entity<PriceSafariUser>()
                 .HasOne(u => u.AffiliateVerification)
@@ -85,33 +86,28 @@ namespace PriceSafari.Data
                 .HasForeignKey(ph => ph.ProductId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            // W pliku PriceSafariContext.cs, w metodzie OnModelCreating
-
             modelBuilder.Entity<ProductFlag>()
                 .HasKey(pf => pf.ProductFlagId);
 
-            // Konfiguracja dla relacji ProductFlag <-> ProductClass (GŁÓWNA ŚCIEŻKA)
             modelBuilder.Entity<ProductFlag>()
                 .HasOne(pf => pf.Product)
                 .WithMany(p => p.ProductFlags)
                 .HasForeignKey(pf => pf.ProductId)
                 .IsRequired(false)
-                .OnDelete(DeleteBehavior.Cascade); // TYLKO TA RELACJA MA CASCADE
+                .OnDelete(DeleteBehavior.Cascade);
 
-            // Konfiguracja dla relacji ProductFlag <-> AllegroProductClass (PRZERWANIE CYKLU)
             modelBuilder.Entity<ProductFlag>()
                 .HasOne(pf => pf.AllegroProduct)
                 .WithMany(ap => ap.ProductFlags)
                 .HasForeignKey(pf => pf.AllegroProductId)
                 .IsRequired(false)
-                .OnDelete(DeleteBehavior.NoAction); // ZMIANA
+                .OnDelete(DeleteBehavior.NoAction);
 
-            // Konfiguracja dla relacji ProductFlag <-> FlagsClass (PRZERWANIE CYKLU)
             modelBuilder.Entity<ProductFlag>()
                 .HasOne(pf => pf.Flag)
                 .WithMany(f => f.ProductFlags)
                 .HasForeignKey(pf => pf.FlagId)
-                .OnDelete(DeleteBehavior.NoAction); // ZMIANA
+                .OnDelete(DeleteBehavior.NoAction);
 
             modelBuilder.Entity<PriceSafariUserStore>()
                 .HasKey(us => new { us.UserId, us.StoreId });
@@ -199,14 +195,12 @@ namespace PriceSafari.Data
                .HasForeignKey<SchedulePlan>(sp => sp.SundayId)
                .OnDelete(DeleteBehavior.Restrict);
 
-       
             modelBuilder.Entity<ScheduleTask>()
                 .HasOne(st => st.DayDetail)
                 .WithMany(dd => dd.Tasks)
                 .HasForeignKey(st => st.DayDetailId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-       
             modelBuilder.Entity<ScheduleTaskStore>()
                 .HasOne(sts => sts.ScheduleTask)
                 .WithMany(st => st.TaskStores)
@@ -219,19 +213,17 @@ namespace PriceSafari.Data
                 .HasForeignKey(sts => sts.StoreId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-
             modelBuilder.Entity<AllegroScrapeHistory>()
-                .HasMany(h => h.PriceHistories) 
-                .WithOne(p => p.AllegroScrapeHistory) 
-                .HasForeignKey(p => p.AllegroScrapeHistoryId) 
-                .OnDelete(DeleteBehavior.Cascade); 
+                .HasMany(h => h.PriceHistories)
+                .WithOne(p => p.AllegroScrapeHistory)
+                .HasForeignKey(p => p.AllegroScrapeHistoryId)
+                .OnDelete(DeleteBehavior.Cascade);
 
-        
             modelBuilder.Entity<AllegroProductClass>()
-                
+
                 .HasMany<AllegroPriceHistory>()
-                .WithOne(p => p.AllegroProduct) 
-                .HasForeignKey(p => p.AllegroProductId) 
+                .WithOne(p => p.AllegroProduct)
+                .HasForeignKey(p => p.AllegroProductId)
                 .OnDelete(DeleteBehavior.Restrict);
 
             modelBuilder.Entity<PriceSafariUser>()
@@ -249,6 +241,23 @@ namespace PriceSafari.Data
             modelBuilder.Entity<PriceHistoryExtendedInfoClass>()
                 .HasIndex(e => new { e.ProductId, e.ScrapHistoryId })
                 .IsUnique();
+
+            modelBuilder.Entity<AllegroPriceHistoryExtendedInfoClass>(entity =>
+            {
+
+                entity.HasIndex(e => new { e.AllegroProductId, e.ScrapHistoryId })
+                      .IsUnique();
+
+                entity.HasOne(ext => ext.AllegroProduct)
+                      .WithMany()
+                      .HasForeignKey(ext => ext.AllegroProductId)
+                      .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(ext => ext.ScrapHistory)
+                      .WithMany()
+                      .HasForeignKey(ext => ext.ScrapHistoryId)
+                      .OnDelete(DeleteBehavior.Cascade);
+            });
         }
     }
 }
