@@ -323,6 +323,35 @@
         });
     }
 
+    function createApiInfoHtml(item) {
+
+        if (item.apiAllegroPrice == null && item.apiAllegroPriceFromUser == null && item.apiAllegroCommission == null) {
+            return '';
+        }
+
+        const priceLine = item.apiAllegroPrice != null ? `<div>Cena z API: <strong>${item.apiAllegroPrice.toFixed(2)} PLN</strong></div>` : '';
+        const userPriceLine = item.apiAllegroPriceFromUser != null ? `<div>Cena w ofercie: <strong>${item.apiAllegroPriceFromUser.toFixed(2)} PLN</strong></div>` : '';
+        const commissionLine = item.apiAllegroCommission != null ? `<div style="color: #c0392b;">Złodziejstwo: <strong>${item.apiAllegroCommission.toFixed(2)} PLN</strong></div>` : '';
+
+        let campaignLine = '';
+        if (item.anyPromoActive != null) {
+            if (item.anyPromoActive) {
+                campaignLine = `<div style="color: #27ae60;">W kampanii: <strong>Tak</strong></div>`;
+            } else {
+                campaignLine = `<div style="color: #7f8c8d;">W kampanii: <strong>Nie</strong></div>`;
+            }
+        }
+
+        return `
+        <div class="api-info-container">
+            ${priceLine}
+            ${userPriceLine}
+            ${commissionLine}
+            ${campaignLine}
+        </div>
+    `;
+    }
+
     function renderPrices(data) {
         const container = document.getElementById('priceContainer');
         container.innerHTML = '';
@@ -451,6 +480,7 @@
                                     ${item.myIsSuperSeller ? `<img src="/images/SuperSeller.png" alt="Super Sprzedawca" title="Super Sprzedawca" style="width: 18px; height: 18px; vertical-align: middle; margin-bottom: 1px;">` : ''}
                                 </div>
                                 <div style="height: 16.5px; margin-top:-2px; display:flex; align-content:center;">${myPromoInfoBadge}</div>
+                                ${createApiInfoHtml(item)}
                             </div>
                         </div>
                         <div class="price-box-column-text">
@@ -1026,7 +1056,6 @@
         setTimeout(() => {
             let filtered = [...allPrices];
 
-      
             if (isCatalogViewActive) {
                 filtered = groupAndFilterByCatalog(filtered);
             }
@@ -1061,7 +1090,6 @@
                 });
             }
 
-     
             for (const [key, direction] of Object.entries(sortingState)) {
                 if (direction) {
                     filtered.sort((a, b) => {
