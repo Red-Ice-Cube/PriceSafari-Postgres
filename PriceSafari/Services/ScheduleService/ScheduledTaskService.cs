@@ -79,7 +79,7 @@ public class ScheduledTaskService : BackgroundService
 
                             foreach (var t in dayDetail.Tasks)
                             {
-                                if ((t.LastRunDate == null || t.LastRunDate.Value.Date < today)
+                                if ((t.LastRunDateOfTask == null || t.LastRunDateOfTask.Value.Date < today)
                                     && nowTime < t.StartTime)
                                 {
                                     double minutesToStart = (t.StartTime - nowTime).TotalMinutes;
@@ -93,7 +93,7 @@ public class ScheduledTaskService : BackgroundService
                             }
 
                             var tasksToRun = dayDetail.Tasks
-                                .Where(t => (t.LastRunDate == null || t.LastRunDate.Value.Date < today)
+                                .Where(t => (t.LastRunDateOfTask == null || t.LastRunDateOfTask.Value.Date < today)
                                              && nowTime >= t.StartTime
                                              && nowTime < t.StartTime.Add(TimeSpan.FromMinutes(5)))
                                 .OrderBy(t => t.StartTime)
@@ -123,7 +123,7 @@ public class ScheduledTaskService : BackgroundService
                                     "Rozpoczynam wykonywanie zadania '{SessionName}' (StartTime: {StartTime}) na urządzeniu '{DeviceName}'.",
                                     t.SessionName, t.StartTime, deviceName);
 
-                                t.LastRunDate = DateTime.Now;
+                                t.LastRunDateOfTask = DateTime.Now;
                                 context.ScheduleTasks.Update(t);
 
                                 if (t.BaseEnabled || t.AleBaseEnabled)

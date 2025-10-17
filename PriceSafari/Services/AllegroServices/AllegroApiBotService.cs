@@ -48,7 +48,7 @@ namespace PriceSafari.Services.AllegroServices
             {
                 _logger.LogInformation("Nie znaleziono aktywnych sklepów z włączoną opcją pobierania danych z API Allegro.");
                 result.Messages.Add("Brak aktywnych sklepów do przetworzenia.");
-                // Zwracamy sukces, bo brak sklepów to nie błąd
+
                 return result;
             }
 
@@ -61,7 +61,6 @@ namespace PriceSafari.Services.AllegroServices
             {
                 var storeResult = await ProcessOffersForSingleStore(store);
 
-                // Agregacja wyników
                 result.TotalOffersProcessed += storeResult.processedCount;
                 if (!storeResult.success)
                 {
@@ -110,11 +109,11 @@ namespace PriceSafari.Services.AllegroServices
                 _logger.LogInformation("Zakończono przetwarzanie i zapisano dane dla {Count} ofert dla sklepu {StoreName}.", offersToProcess.Count, store.StoreName);
                 return (true, offersToProcess.Count, string.Empty);
             }
-            // ZMIANA: Obsługa błędu autoryzacji
+
             catch (AllegroAuthException ex)
             {
                 _logger.LogError(ex, "Błąd autoryzacji API Allegro dla sklepu {StoreName}. Token może być nieważny.", store.StoreName);
-                // Oznaczamy oferty jako przetworzone, by nie próbować w nieskończoność
+
                 foreach (var offer in offersToProcess)
                 {
                     offer.IsApiProcessed = true;
@@ -156,7 +155,6 @@ namespace PriceSafari.Services.AllegroServices
             }
         }
 
-        // ZMIANA: Metoda GetOfferData rzuca teraz wyjątek przy błędzie 401
         private async Task<JsonNode?> GetOfferData(string accessToken, string offerId)
         {
             var request = new HttpRequestMessage(HttpMethod.Get, $"https://api.allegro.pl/sale/product-offers/{offerId}");
@@ -165,7 +163,6 @@ namespace PriceSafari.Services.AllegroServices
 
             var response = await _httpClient.SendAsync(request);
 
-            // KLUCZOWA ZMIANA: Wykrywanie nieważnego tokenu
             if (response.StatusCode == HttpStatusCode.Unauthorized)
             {
                 throw new AllegroAuthException($"Błąd autoryzacji (401) podczas pobierania oferty {offerId}. Token jest prawdopodobnie nieważny.");

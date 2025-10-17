@@ -29,7 +29,7 @@ namespace PriceSafari.Models.SchedulePlan
         public int DayDetailId { get; set; }
         public DayDetail DayDetail { get; set; }
 
-        public DateTime? LastRunDate { get; set; }
+        public DateTime? LastRunDateOfTask { get; set; }
 
 
     
