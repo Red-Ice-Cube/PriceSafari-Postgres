@@ -92,6 +92,9 @@ namespace PriceSafari.Services.AllegroServices
 
             try
             {
+                int batchSize = 100; // Zapisuj co 100 ofert
+                int processedCount = 0;
+
                 foreach (var offer in offersToProcess)
                 {
                     var apiData = await FetchApiDataForOffer(accessToken, offer.AllegroOfferId.ToString());
@@ -103,10 +106,18 @@ namespace PriceSafari.Services.AllegroServices
                         offer.AnyPromoActive = apiData.HasActivePromo;
                     }
                     offer.IsApiProcessed = true;
+                    processedCount++;
+
+                    // Jeśli osiągnęliśmy rozmiar partii lub to ostatnia oferta, zapisz zmiany
+                    if (processedCount % batchSize == 0 || processedCount == offersToProcess.Count)
+                    {
+                        await _context.SaveChangesAsync();
+                        _logger.LogInformation("Zapisano partię {BatchNum}/{TotalBatches} ofert dla sklepu {StoreName}.",
+                            (processedCount / batchSize), (offersToProcess.Count / batchSize) + 1, store.StoreName);
+                    }
                 }
 
-                await _context.SaveChangesAsync();
-                _logger.LogInformation("Zakończono przetwarzanie i zapisano dane dla {Count} ofert dla sklepu {StoreName}.", offersToProcess.Count, store.StoreName);
+                _logger.LogInformation("Zakończono przetwarzanie i zapisano łącznie dane dla {Count} ofert dla sklepu {StoreName}.", offersToProcess.Count, store.StoreName);
                 return (true, offersToProcess.Count, string.Empty);
             }
 
