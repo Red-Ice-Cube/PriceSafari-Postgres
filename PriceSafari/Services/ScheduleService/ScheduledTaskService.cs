@@ -153,8 +153,6 @@ public class ScheduledTaskService : BackgroundService
 
                                 await context.SaveChangesAsync(stoppingToken);
 
-                                // --- Uruchamianie poszczególnych zadań ---
-
                                 if (t.UrlEnabled && urlScalKey == "83208716")
                                     await RunUrlScalAsync(context, deviceName, t, stoppingToken);
 
@@ -173,15 +171,11 @@ public class ScheduledTaskService : BackgroundService
                                 if (t.AleCrawEnabled && aleCrawKey == "13894389")
                                     await RunAleCrawAsync(context, deviceName, t, stoppingToken);
 
-                                // #### ZMIANA KOLEJNOŚCI ####
-
-                                // KROK 1: Odpytywanie API Allegro o dodatkowe dane
                                 if (t.AleApiBotEnabled && aleApiBotKey == "00937384")
                                 {
                                     await RunAleApiBotAsync(context, deviceName, t, stoppingToken);
                                 }
 
-                                // KROK 2 (NA KOŃCU): Scalanie wszystkich danych Allegro do tabel historycznych
                                 if (t.AleBaseEnabled && aleBaseScalKey == "64920067")
                                 {
                                     await RunAleBaseScalAsync(context, deviceName, t, stoppingToken);
@@ -605,14 +599,25 @@ public class ScheduledTaskService : BackgroundService
         try
         {
             var allegroApiBotService = context.GetService<AllegroApiBotService>();
-            await allegroApiBotService.ProcessOffersForActiveStoresAsync();
+
+            var result = await allegroApiBotService.ProcessOffersForActiveStoresAsync();
 
             var finishedLog = await context.TaskExecutionLogs.FindAsync(new object[] { logId }, ct);
             if (finishedLog != null)
             {
                 finishedLog.EndTime = DateTime.Now;
-                // POPRAWKA: Dodano słowo "Sukces", aby widok poprawnie kolorował wiersz
-                finishedLog.Comment += " | Sukces. Pomyślnie zakończono proces pobierania danych z API.";
+
+                if (result.Success)
+                {
+                    finishedLog.Comment += $" | Sukces. Przetworzono {result.TotalOffersProcessed} ofert w {result.StoresProcessedCount} sklepach.";
+                }
+                else
+                {
+
+                    string errorMessages = string.Join("; ", result.Messages);
+                    finishedLog.Comment += $" | Błąd. Przetworzono {result.TotalOffersProcessed} ofert. Szczegóły: {errorMessages}";
+                }
+
                 context.TaskExecutionLogs.Update(finishedLog);
                 await context.SaveChangesAsync(ct);
             }
@@ -623,7 +628,7 @@ public class ScheduledTaskService : BackgroundService
             if (finishedLog != null)
             {
                 finishedLog.EndTime = DateTime.Now;
-                finishedLog.Comment += $" | Wystąpił błąd: {ex.Message}";
+                finishedLog.Comment += $" | Wystąpił krytyczny błąd: {ex.Message}";
                 context.TaskExecutionLogs.Update(finishedLog);
                 await context.SaveChangesAsync(ct);
             }
