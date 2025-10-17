@@ -110,6 +110,15 @@ namespace PriceSafari.Controllers.MemberControllers
                 .GroupBy(pf => pf.AllegroProductId.Value)
                 .ToDictionaryAsync(g => g.Key, g => g.Select(pf => pf.FlagId).ToList());
 
+          
+            var allExtendedInfo = await _context.AllegroPriceHistoryExtendedInfos
+                .Where(e => e.ScrapHistoryId == latestScrap.Id)
+                .ToListAsync();
+
+            var extendedInfoDictionary = allExtendedInfo
+                .GroupBy(e => e.AllegroProductId)
+                .ToDictionary(g => g.Key, g => g.First());
+
             var groupedData = priceData
                 .GroupBy(aph => aph.AllegroProduct)
                 .Select(g =>
@@ -134,24 +143,20 @@ namespace PriceSafari.Controllers.MemberControllers
                     {
                         filteredCompetitors = g.Where(p =>
                         {
-
                             if (p.SellerName.Equals(store.StoreNameAllegro, StringComparison.OrdinalIgnoreCase))
                             {
                                 return false;
                             }
                             var sellerNameLower = (p.SellerName ?? "").ToLower().Trim();
-
                             if (competitorRules.TryGetValue(sellerNameLower, out bool useCompetitor))
                             {
                                 return useCompetitor;
                             }
-
                             return activePreset.UseUnmarkedStores;
                         }).ToList();
                     }
                     else
                     {
-
                         filteredCompetitors = g.Where(p => !p.SellerName.Equals(store.StoreNameAllegro, StringComparison.OrdinalIgnoreCase)).ToList();
                     }
 
@@ -172,6 +177,10 @@ namespace PriceSafari.Controllers.MemberControllers
                     }
                     var visibleOfferCount = filteredCompetitors.Count() + (myOffer != null ? 1 : 0);
 
+                    // <<< NOWOŚĆ: Wyszukujemy dane rozszerzone dla bieżącego produktu w słowniku.
+                    // Jeśli ich nie ma, `extendedInfo` będzie nullem.
+                    var extendedInfo = extendedInfoDictionary.GetValueOrDefault(product.AllegroProductId);
+
                     return new
                     {
                         ProductId = product.AllegroProductId,
@@ -180,14 +189,11 @@ namespace PriceSafari.Controllers.MemberControllers
                         MyPrice = myOffer?.Price,
                         LowestPrice = bestCompetitor?.Price,
                         StoreName = bestCompetitor?.SellerName,
-
                         StoreCount = visibleSellers.Count,
                         TotalOfferCount = visibleOfferCount,
-
                         TotalPopularity = totalPopularity,
                         MyTotalPopularity = myPopularity,
                         MarketSharePercentage = marketSharePercentage,
-
                         DeliveryTime = bestCompetitor?.DeliveryTime,
                         IsSuperSeller = bestCompetitor?.SuperSeller ?? false,
                         IsSmart = bestCompetitor?.Smart ?? false,
@@ -196,7 +202,6 @@ namespace PriceSafari.Controllers.MemberControllers
                         IsSuperPrice = bestCompetitor?.SuperPrice ?? false,
                         IsPromoted = bestCompetitor?.Promoted ?? false,
                         IsSponsored = bestCompetitor?.Sponsored ?? false,
-
                         MyIdAllegro = myOffer?.IdAllegro,
                         MyOffersGroupKey = myOffersGroupKey,
                         MyDeliveryTime = myOffer?.DeliveryTime,
@@ -207,7 +212,6 @@ namespace PriceSafari.Controllers.MemberControllers
                         MyIsSuperPrice = myOffer?.SuperPrice ?? false,
                         MyIsPromoted = myOffer?.Promoted ?? false,
                         MyIsSponsored = myOffer?.Sponsored ?? false,
-
                         IsRejected = false,
                         OnlyMe = (myOffer != null && !filteredCompetitors.Any()),
                         Savings = (myOffer != null && bestCompetitor != null && myOffer.Price < bestCompetitor.Price) ? bestCompetitor.Price - myOffer.Price : (decimal?)null,
@@ -216,11 +220,18 @@ namespace PriceSafari.Controllers.MemberControllers
                         IsUniqueBestPrice = (myOffer != null && bestCompetitor != null && myOffer.Price < bestCompetitor.Price),
                         IsSharedBestPrice = (myOffer != null && bestCompetitor != null && myOffer.Price == bestCompetitor.Price),
                         FlagIds = productFlagsDictionary.GetValueOrDefault(product.AllegroProductId, new List<int>()),
-
                         Ean = (string)null,
                         ExternalId = (int?)null,
                         MarginPrice = product.AllegroMarginPrice,
                         ImgUrl = (string)null,
+
+                        // <<< NOWOŚĆ: Dodajemy nowe pola do obiektu JSON.
+                        // Używamy operatora '?.', aby bezpiecznie odwołać się do właściwości.
+                        // Jeśli `extendedInfo` jest null, wszystkie te pola też będą miały wartość null.
+                        ApiAllegroPrice = extendedInfo?.ApiAllegroPrice,
+                        ApiAllegroPriceFromUser = extendedInfo?.ApiAllegroPriceFromUser,
+                        ApiAllegroCommission = extendedInfo?.ApiAllegroCommission,
+                        AnyPromoActive = extendedInfo?.AnyPromoActive
                     };
                 }).ToList();
 
@@ -233,9 +244,7 @@ namespace PriceSafari.Controllers.MemberControllers
                 setPrice2 = priceSettings?.AllegroSetPrice2 ?? 2.00m,
                 stepPrice = priceSettings?.AllegroPriceStep ?? 2.00m,
                 usePriceDifference = priceSettings?.AllegroUsePriceDiff ?? true,
-
                 presetName = activePresetName ?? "PriceSafari"
-
             });
         }
         public class PriceSettingsViewModel
