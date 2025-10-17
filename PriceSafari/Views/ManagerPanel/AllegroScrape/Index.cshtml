@@ -108,6 +108,13 @@
                     @Html.AntiForgeryToken()
                     <button type="submit" class="btn btn-primary"><i class="fas fa-cogs"></i> Przygotuj / Scal URL-e</button>
                 </form>
+
+                <form asp-action="TriggerApiProcessing" method="post" class="d-inline">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="btn btn-secondary" title="Pobiera ceny, prowizje i promocje z API dla ofert aktywnych sklepów.">
+                        <i class="fas fa-database"></i> Pobierz Dane z Allegro API
+                    </button>
+                </form>
                 <form asp-action="DeleteAll" method="post" class="d-inline" onsubmit="return confirm('Czy na pewno chcesz usunąć WSZYSTKIE przygotowane oferty?');">
                     @Html.AntiForgeryToken()
                     <button type="submit" class="btn btn-outline-danger"><i class="fas fa-trash"></i> Usuń Wszystkie</button>

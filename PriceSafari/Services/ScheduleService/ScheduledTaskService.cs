@@ -102,14 +102,14 @@ public class ScheduledTaskService : BackgroundService
                             foreach (var t in tasksToRun)
                             {
                                 bool canRunAnything =
-                                (t.UrlEnabled && urlScalKey == "49276583") ||
-                                (t.CeneoEnabled && cenCrawKey == "56981467") ||
-                                (t.GoogleEnabled && gooCrawKey == "03713857") ||
-                                (t.BaseEnabled && baseScalKey == "34692471") ||
-                                (t.UrlScalAleEnabled && urlScalAleKey == "20231989") ||
-                                (t.AleCrawEnabled && aleCrawKey == "98765432") ||
-                                (t.AleBaseEnabled && aleBaseScalKey == "19892023") ||
-                                (t.AleApiBotEnabled && aleApiBotKey == "81047289");
+                                (t.UrlEnabled && urlScalKey == "83208716") ||
+                                (t.CeneoEnabled && cenCrawKey == "84011233") ||
+                                (t.GoogleEnabled && gooCrawKey == "63891743") ||
+                                (t.BaseEnabled && baseScalKey == "55380981") ||
+                                (t.UrlScalAleEnabled && urlScalAleKey == "74902379") ||
+                                (t.AleCrawEnabled && aleCrawKey == "13894389") ||
+                                (t.AleBaseEnabled && aleBaseScalKey == "64920067") ||
+                                (t.AleApiBotEnabled && aleApiBotKey == "00937384");
 
                                 if (!canRunAnything)
                                 {
@@ -155,34 +155,34 @@ public class ScheduledTaskService : BackgroundService
 
                                 // --- Uruchamianie poszczególnych zadań ---
 
-                                if (t.UrlEnabled && urlScalKey == "49276583")
+                                if (t.UrlEnabled && urlScalKey == "83208716")
                                     await RunUrlScalAsync(context, deviceName, t, stoppingToken);
 
-                                if (t.CeneoEnabled && cenCrawKey == "56981467")
+                                if (t.CeneoEnabled && cenCrawKey == "84011233")
                                     await RunCeneoAsync(context, deviceName, t, stoppingToken);
 
-                                if (t.GoogleEnabled && gooCrawKey == "03713857")
+                                if (t.GoogleEnabled && gooCrawKey == "63891743")
                                     await RunGoogleAsync(context, deviceName, t, stoppingToken);
 
-                                if (t.BaseEnabled && baseScalKey == "34692471")
+                                if (t.BaseEnabled && baseScalKey == "55380981")
                                     await RunBaseScalAsync(context, deviceName, t, stoppingToken);
 
-                                if (t.UrlScalAleEnabled && urlScalAleKey == "20231989")
+                                if (t.UrlScalAleEnabled && urlScalAleKey == "74902379")
                                     await RunUrlScalAleAsync(context, deviceName, t, stoppingToken);
 
-                                if (t.AleCrawEnabled && aleCrawKey == "98765432")
+                                if (t.AleCrawEnabled && aleCrawKey == "13894389")
                                     await RunAleCrawAsync(context, deviceName, t, stoppingToken);
 
                                 // #### ZMIANA KOLEJNOŚCI ####
 
                                 // KROK 1: Odpytywanie API Allegro o dodatkowe dane
-                                if (t.AleApiBotEnabled && aleApiBotKey == "81047289")
+                                if (t.AleApiBotEnabled && aleApiBotKey == "00937384")
                                 {
                                     await RunAleApiBotAsync(context, deviceName, t, stoppingToken);
                                 }
 
                                 // KROK 2 (NA KOŃCU): Scalanie wszystkich danych Allegro do tabel historycznych
-                                if (t.AleBaseEnabled && aleBaseScalKey == "19892023")
+                                if (t.AleBaseEnabled && aleBaseScalKey == "64920067")
                                 {
                                     await RunAleBaseScalAsync(context, deviceName, t, stoppingToken);
                                 }
@@ -643,14 +643,14 @@ public class ScheduledTaskService : BackgroundService
          string aleApiBotKey,
          CancellationToken ct)
     {
-        const string BASE_SCAL_EXPECTED = "34692471";
-        const string URL_SCAL_EXPECTED = "49276583";
-        const string GOO_CRAW_EXPECTED = "03713857";
-        const string CEN_CRAW_EXPECTED = "56981467";
-        const string ALE_BASE_SCAL_EXPECTED = "19892023";
-        const string URL_SCAL_ALE_EXPECTED = "20231989";
-        const string ALE_CRAW_EXPECTED = "98765432";
-        const string ALE_API_BOT_EXPECTED = "81047289";
+        const string BASE_SCAL_EXPECTED = "55380981";
+        const string URL_SCAL_EXPECTED = "83208716";
+        const string GOO_CRAW_EXPECTED = "63891743";
+        const string CEN_CRAW_EXPECTED = "84011233";
+        const string ALE_BASE_SCAL_EXPECTED = "64920067";
+        const string URL_SCAL_ALE_EXPECTED = "74902379";
+        const string ALE_CRAW_EXPECTED = "13894389";
+        const string ALE_API_BOT_EXPECTED = "00937384";
 
         bool hasBaseScal = (baseScalKey == BASE_SCAL_EXPECTED);
         bool hasUrlScal = (urlScalKey == URL_SCAL_EXPECTED);

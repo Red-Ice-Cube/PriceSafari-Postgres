@@ -8,6 +8,7 @@ using PriceSafari.Models.ManagerViewModels;
 using PriceSafari.ScrapersControllers;
 using PriceSafari.Services.AllegroServices;
 
+
 namespace PriceSafari.Controllers.ManagerControllers
 {
     [Authorize(Roles = "Admin")]
@@ -17,16 +18,18 @@ namespace PriceSafari.Controllers.ManagerControllers
         private readonly AllegroUrlGroupingService _groupingService;
         private readonly IHubContext<ScrapingHub> _hubContext;
         private readonly AllegroProcessingService _processingService;
-
+        private readonly AllegroApiBotService _apiBotService;
         public AllegroScrapeController(PriceSafariContext context,
-                                       AllegroUrlGroupingService groupingService,
-                                       IHubContext<ScrapingHub> hubContext,
-                                       AllegroProcessingService processingService)
+                                 AllegroUrlGroupingService groupingService,
+                                 IHubContext<ScrapingHub> hubContext,
+                                 AllegroProcessingService processingService,
+                                 AllegroApiBotService apiBotService) // DODAJ TEN PARAMETR
         {
             _context = context;
             _groupingService = groupingService;
             _hubContext = hubContext;
             _processingService = processingService;
+            _apiBotService = apiBotService; // DODAJ INICJALIZACJĘ
         }
 
         [HttpGet]
@@ -100,6 +103,21 @@ namespace PriceSafari.Controllers.ManagerControllers
 
             TempData["SuccessMessage"] = "Proces scrapowania ofert został zatrzymany.";
             await _hubContext.Clients.All.SendAsync("UpdateScrapingProcessStatus", new { status = "Idle" });
+            return RedirectToAction(nameof(Index));
+        }
+
+        // AllegroScrapeController.cs
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> TriggerApiProcessing()
+        {
+            // Wywołanie metody z serwisu
+            await _apiBotService.ProcessOffersForActiveStoresAsync();
+
+            TempData["SuccessMessage"] = "Uruchomiono proces pobierania danych z API Allegro dla aktywnych sklepów. Wyniki sprawdź w logach.";
+
+            // Przekierowanie z powrotem do widoku kontrolnego
             return RedirectToAction(nameof(Index));
         }
 
