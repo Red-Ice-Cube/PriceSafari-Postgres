@@ -26,7 +26,6 @@ namespace PriceSafari.Services.AllegroServices
             var userStore = await _context.Stores.FindAsync(storeId);
             if (userStore == null || userStore.RemainingScrapes <= 0)
             {
-                // Zwróć 0, jeśli sklep nie istnieje lub nie ma już tokenów
                 return (0, 0);
             }
 
@@ -120,10 +119,8 @@ namespace PriceSafari.Services.AllegroServices
 
                 foreach (var productId in productIdsForThisUrl)
                 {
-
                     if (productTargetOfferIds.TryGetValue(productId, out long? targetId) && targetId.HasValue)
                     {
-
                         if (!foundOfferIdsInGroup.Contains(targetId.Value))
                         {
                             productIdsToRejectForMissingMainOffer.Add(productId);
@@ -153,14 +150,19 @@ namespace PriceSafari.Services.AllegroServices
             _context.AllegroScrapeHistories.Add(scrapeHistory);
 
             var newPriceHistories = new List<AllegroPriceHistory>();
+            var newExtendedInfos = new List<AllegroPriceHistoryExtendedInfoClass>();
+
             foreach (var scrapedOffer in scrapedOffersData)
             {
                 var productIdsForThisStore = scrapedOffer.AllegroOfferToScrape.AllegroProductIds
                     .Intersect(storeProductIds)
                     .ToList();
 
+                var sourceOfferToScrape = scrapedOffer.AllegroOfferToScrape;
+
                 foreach (var productId in productIdsForThisStore)
                 {
+
                     newPriceHistories.Add(new AllegroPriceHistory
                     {
                         AllegroProductId = productId,
@@ -179,12 +181,32 @@ namespace PriceSafari.Services.AllegroServices
                         Sponsored = scrapedOffer.Sponsored,
                         IdAllegro = scrapedOffer.IdAllegro
                     });
+
+                    if (sourceOfferToScrape.IsApiProcessed == true)
+                    {
+
+                        newExtendedInfos.Add(new AllegroPriceHistoryExtendedInfoClass
+                        {
+                            AllegroProductId = productId,
+                            ScrapHistory = scrapeHistory,
+                            ApiAllegroPrice = sourceOfferToScrape.ApiAllegroPrice,
+                            ApiAllegroPriceFromUser = sourceOfferToScrape.ApiAllegroPriceFromUser,
+                            ApiAllegroCommission = sourceOfferToScrape.ApiAllegroCommission,
+                            AnyPromoActive = sourceOfferToScrape.AnyPromoActive
+                        });
+                    }
                 }
             }
 
             if (newPriceHistories.Any())
             {
                 await _context.AllegroPriceHistories.AddRangeAsync(newPriceHistories);
+            }
+
+            if (newExtendedInfos.Any())
+            {
+
+                await _context.AllegroPriceHistoryExtendedInfos.AddRangeAsync(newExtendedInfos);
             }
 
             scrapeHistory.ProcessedUrlsCount = relevantOffersForStore.Count;
