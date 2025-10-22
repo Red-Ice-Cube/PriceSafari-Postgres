@@ -338,53 +338,50 @@ public class GoogleScraper
             {
                 JsonElement root = doc.RootElement;
                 string mainTitle = null;
-                var offerTitles = new List<string>();
+                var offerTitles = new HashSet<string>(); // Używamy HashSet, aby automatycznie unikać duplikatów
 
-                // 1. Pobierz główny, zaufany tytuł (bez zmian)
+                // 1. Pobierz główny, zaufany tytuł
                 if (root.TryGetProperty("ProductDetailsResult", out var detailsResult) && detailsResult.ValueKind == JsonValueKind.Array)
                 {
-                    mainTitle = detailsResult.EnumerateArray().FirstOrDefault().GetString();
+                    var titleElement = detailsResult.EnumerateArray().FirstOrDefault();
+                    if (titleElement.ValueKind == JsonValueKind.String)
+                    {
+                        mainTitle = titleElement.GetString();
+                    }
                 }
 
-                // 2. Nowa, precyzyjna funkcja do wyszukiwania tytułów w strukturze ofert
-                void FindStructuredOfferTitles(JsonElement element)
+                // 2. NOWA, PRECYZYJNA funkcja do wyszukiwania tytułów ofert
+                void FindOfferTitlesRecursively(JsonElement element)
                 {
                     if (element.ValueKind == JsonValueKind.Array)
                     {
-                        bool isOfferBlock = false;
-                        var potentialTitles = new List<string>();
-
-                        // Sprawdź, czy ta tablica zawiera charakterystyczny element "ikony sprzedawcy"
-                        foreach (var item in element.EnumerateArray())
+                        // Sprawdzamy, czy tablica pasuje do wzorca "bloku oferty"
+                        // Wzorzec: [string, string, null, string, ...]
+                        if (element.GetArrayLength() > 4 &&
+                            element[0].ValueKind == JsonValueKind.String &&
+                            element[1].ValueKind == JsonValueKind.String &&
+                            element[2].ValueKind == JsonValueKind.Null && // KLUCZOWY WARUNEK!
+                            element[3].ValueKind == JsonValueKind.String)
                         {
-                            if (item.ValueKind == JsonValueKind.Array && item.ToString().Contains("faviconV2"))
+                            // Jeśli tak, przeszukaj tę tablicę w poszukiwaniu tytułów
+                            foreach (var item in element.EnumerateArray())
                             {
-                                isOfferBlock = true;
-                            }
-                            // Jednocześnie zbierz wszystkie potencjalne tytuły z tej tablicy
-                            else if (item.ValueKind == JsonValueKind.String)
-                            {
-                                potentialTitles.Add(item.GetString());
-                            }
-                        }
-
-                        // Jeśli to jest "blok oferty", przefiltruj i dodaj znalezione tytuły
-                        if (isOfferBlock)
-                        {
-                            foreach (var title in potentialTitles)
-                            {
-                                // Stosujemy tu lżejszy filtr, bo jesteśmy już w pewnym kontekście
-                                if (!string.IsNullOrWhiteSpace(title) && title.Contains(' ') && title.Length > 5 && title.Length < 250)
+                                if (item.ValueKind == JsonValueKind.String)
                                 {
-                                    offerTitles.Add(title);
+                                    string potentialTitle = item.GetString();
+                                    // Stosujemy prosty filtr, aby odrzucić śmieci
+                                    if (!string.IsNullOrWhiteSpace(potentialTitle) && potentialTitle.Contains(' ') && !potentialTitle.StartsWith("http"))
+                                    {
+                                        offerTitles.Add(potentialTitle);
+                                    }
                                 }
                             }
                         }
-                        else // Jeśli to nie blok oferty, przeszukaj jego podelementy
+                        else // Jeśli to nie jest blok oferty, kontynuuj rekurencyjne przeszukiwanie
                         {
                             foreach (var item in element.EnumerateArray())
                             {
-                                FindStructuredOfferTitles(item);
+                                FindOfferTitlesRecursively(item);
                             }
                         }
                     }
@@ -392,20 +389,20 @@ public class GoogleScraper
                     {
                         foreach (var property in element.EnumerateObject())
                         {
-                            FindStructuredOfferTitles(property.Value);
+                            FindOfferTitlesRecursively(property.Value);
                         }
                     }
                 }
 
                 // 3. Rozpocznij poszukiwania
-                FindStructuredOfferTitles(root);
+                FindOfferTitlesRecursively(root);
 
-                var productDetails = new GoogleProductDetails(mainTitle, offerTitles.Distinct().ToList());
+                var productDetails = new GoogleProductDetails(mainTitle, offerTitles.ToList());
                 var apiResult = new GoogleApiDetailsResult(productDetails, url, cleanedJson);
 
-                if (mainTitle == null && !offerTitles.Any())
+                if (string.IsNullOrEmpty(mainTitle) && !offerTitles.Any())
                 {
-                    return ScraperResult<GoogleApiDetailsResult>.Fail("Nie znaleziono ani głównego tytułu, ani tytułów ofert o poprawnej strukturze.");
+                    return ScraperResult<GoogleApiDetailsResult>.Fail("Nie znaleziono żadnych tytułów w odpowiedzi API.");
                 }
 
                 return ScraperResult<GoogleApiDetailsResult>.Success(apiResult);

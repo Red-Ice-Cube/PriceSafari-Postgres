@@ -1031,16 +1031,9 @@ public class GoogleScraperController : Controller
         string searchTermForGoogle;
         switch (termSource)
         {
-            case SearchTermSource.ProductName:
-                searchTermForGoogle = productState.ProductNameInStoreForGoogle;
-                break;
-            case SearchTermSource.Ean:
-                searchTermForGoogle = productState.Ean;
-                break;
-            case SearchTermSource.ProducerCode:
-            default:
-                searchTermForGoogle = productState.ProducerCode;
-                break;
+            case SearchTermSource.ProductName: searchTermForGoogle = productState.ProductNameInStoreForGoogle; break;
+            case SearchTermSource.Ean: searchTermForGoogle = productState.Ean; break;
+            case SearchTermSource.ProducerCode: default: searchTermForGoogle = productState.ProducerCode; break;
         }
 
         if (string.IsNullOrWhiteSpace(searchTermForGoogle))
@@ -1049,14 +1042,12 @@ public class GoogleScraperController : Controller
             return;
         }
 
-        // Krok 1: Stwórz słownik wszystkich "oczekujących" produktów, kluczując po kodzie producenta.
         Dictionary<string, ProductProcessingState> eligibleProductsMap;
         lock (_lockMasterListInit)
         {
             eligibleProductsMap = _masterProductStateList.Values
                 .Where(p => (p.Status == ProductStatus.Pending || p.Status == ProductStatus.Processing)
                             && !string.IsNullOrEmpty(p.ProducerCode))
-                // Używamy GroupBy i First, aby uniknąć duplikatów kodów producenta.
                 .GroupBy(p => p.ProducerCode.Replace(" ", "").Trim(), StringComparer.OrdinalIgnoreCase)
                 .ToDictionary(g => g.Key, g => g.First());
         }
@@ -1064,18 +1055,24 @@ public class GoogleScraperController : Controller
         if (!eligibleProductsMap.Any())
         {
             Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [Tryb Pośredni] Brak produktów oczekujących na dopasowanie po kodzie producenta.");
-            // Oznacz produkt inicjujący jako nieznaleziony, jeśli nie ma nic do sprawdzenia.
-            lock (productState)
-            {
-                if (productState.Status == ProductStatus.Processing)
-                {
-                    productState.UpdateStatus(ProductStatus.NotFound);
-                }
-            }
+            lock (productState) { if (productState.Status == ProductStatus.Processing) { productState.UpdateStatus(ProductStatus.NotFound); } }
             return;
         }
 
-        Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [Tryb Pośredni] ID: {productState.ProductId}. Szukam: '{searchTermForGoogle}'. Pula do sprawdzenia: {eligibleProductsMap.Count} kodów producenta.");
+        // ================== NOWY, BARDZIEJ SZCZEGÓŁOWY LOG #1 ==================
+        lock (_consoleLock)
+        {
+            Console.WriteLine($"\n[{DateTime.Now:HH:mm:ss}] [Tryb Pośredni] === Rozpoczynam przetwarzanie produktu ID: {productState.ProductId} ===");
+            Console.WriteLine($"  > Wyszukiwana fraza: '{searchTermForGoogle}'");
+            Console.WriteLine($"  > Pula kodów producenta do sprawdzenia ({eligibleProductsMap.Count} szt.):");
+            // Wypisz kilka pierwszych kodów dla wglądu
+            foreach (var code in eligibleProductsMap.Keys.Take(5))
+            {
+                Console.WriteLine($"    - {code}");
+            }
+            if (eligibleProductsMap.Count > 5) Console.WriteLine("    - ...");
+        }
+        // =======================================================================
 
         var identifierResult = await scraper.SearchInitialProductIdentifiersAsync(searchTermForGoogle, maxItemsToExtract: maxItemsToExtract);
 
@@ -1084,15 +1081,8 @@ public class GoogleScraperController : Controller
             if (allowManualCaptchaSolving)
             {
                 bool solved = await HandleManualCaptchaAsync(scraper, TimeSpan.FromMinutes(5));
-                if (solved)
-                {
-                    goto RestartProductProcessing;
-                }
-                else
-                {
-                    lock (productState) { productState.UpdateStatus(ProductStatus.Error, "Timeout ręcznego rozwiązania CAPTCHA"); }
-                    return;
-                }
+                if (solved) { goto RestartProductProcessing; }
+                else { lock (productState) { productState.UpdateStatus(ProductStatus.Error, "Timeout ręcznego rozwiązania CAPTCHA"); } return; }
             }
             else
             {
@@ -1106,13 +1096,7 @@ public class GoogleScraperController : Controller
 
         if (!identifierResult.IsSuccess || !identifierResult.Data.Any())
         {
-            lock (productState)
-            {
-                if (productState.Status == ProductStatus.Processing)
-                {
-                    productState.UpdateStatus(ProductStatus.NotFound);
-                }
-            }
+            lock (productState) { if (productState.Status == ProductStatus.Processing) { productState.UpdateStatus(ProductStatus.NotFound); } }
             return;
         }
 
@@ -1120,7 +1104,7 @@ public class GoogleScraperController : Controller
 
         foreach (var identifier in identifierResult.Data)
         {
-            if (cts.IsCancellationRequested || !eligibleProductsMap.Any()) break; // Jeśli wszystko znalezione, przerwij pętlę.
+            if (cts.IsCancellationRequested || !eligibleProductsMap.Any()) break;
 
             Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [Tryb Pośredni] Sprawdzam identyfikator CID: {identifier.Cid}, GID: {identifier.Gid}");
 
@@ -1143,7 +1127,6 @@ public class GoogleScraperController : Controller
 
             if (detailsResult.IsSuccess && detailsResult.Data?.Details != null)
             {
-                // Tworzymy jedną listę wszystkich tytułów do sprawdzenia
                 var allTitlesToCheck = new List<string>();
                 if (!string.IsNullOrEmpty(detailsResult.Data.Details.MainTitle))
                 {
@@ -1151,10 +1134,24 @@ public class GoogleScraperController : Controller
                 }
                 allTitlesToCheck.AddRange(detailsResult.Data.Details.OfferTitles);
 
-                // Sprawdzamy każdy tytuł z pulą kodów
+                // ================== NOWY, BARDZIEJ SZCZEGÓŁOWY LOG #2 ==================
+                lock (_consoleLock)
+                {
+                    Console.WriteLine($"  > Analizuję odpowiedź z URL: {detailsResult.Data.RequestUrl}");
+                    Console.ForegroundColor = ConsoleColor.Cyan;
+                    Console.WriteLine($"    > Tytuł główny: {detailsResult.Data.Details.MainTitle ?? "BRAK"}");
+                    Console.WriteLine($"    > Znalezione tytuły ofert ({detailsResult.Data.Details.OfferTitles.Count} szt.):");
+                    foreach (var offerTitle in detailsResult.Data.Details.OfferTitles)
+                    {
+                        Console.WriteLine($"      - {offerTitle}");
+                    }
+                    Console.ResetColor();
+                }
+                // =======================================================================
+
                 foreach (var title in allTitlesToCheck.Distinct())
                 {
-                    if (!eligibleProductsMap.Any()) break; // Optymalizacja: jeśli wszystko znalezione, kończymy
+                    if (!eligibleProductsMap.Any()) break;
 
                     string cleanedTitle = title.Replace(" ", "").Trim();
                     var codesToCheck = eligibleProductsMap.Keys.ToList();
@@ -1165,7 +1162,6 @@ public class GoogleScraperController : Controller
                         {
                             if (eligibleProductsMap.TryGetValue(cleanedCode, out var matchedState))
                             {
-                                // Znaleziono dopasowanie!
                                 lock (matchedState)
                                 {
                                     if (matchedState.Status != ProductStatus.Found)
@@ -1182,12 +1178,10 @@ public class GoogleScraperController : Controller
                                             Console.WriteLine($"  > Dopasowany kod: '{cleanedCode}'");
                                             Console.WriteLine($"  > W tytule: '{title}'");
                                             Console.WriteLine($"  > Dla produktu ID: {matchedState.ProductId}");
-                                            Console.WriteLine($"  > URL API: {detailsResult.Data.RequestUrl}");
                                         }
                                     }
                                 }
 
-                                // Usuwamy znaleziony produkt z puli do sprawdzenia.
                                 eligibleProductsMap.Remove(cleanedCode);
 
                                 if (matchedState.ProductId == productState.ProductId)
@@ -1201,7 +1195,6 @@ public class GoogleScraperController : Controller
             }
         }
 
-        // Na koniec sprawdź status produktu inicjującego.
         lock (productState)
         {
             if (!initiatingProductMatched && productState.Status == ProductStatus.Processing)
@@ -1211,8 +1204,6 @@ public class GoogleScraperController : Controller
             }
         }
     }
-
-
 
     [HttpPost("stop")]
     public IActionResult StopScraping()
