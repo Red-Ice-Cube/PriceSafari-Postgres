@@ -84,6 +84,7 @@
             <th>Kod Producenta</th>
             <th>Product URL</th>
             <th>Found on Google</th>
+            <th>Google URL stary</th>
             <th>Google URL</th>
             <th>GID</th>
         </tr>
@@ -330,6 +331,7 @@
                     '<td>' + (product.producerCode || '') + '</td>' +
                     '<td><a href="' + (product.url || '') + '" target="_blank">' + (product.url || '') + '</a></td>' +
                     '<td>' + foundOnGoogleBadge + '</td>' +
+                    '<td>' + product.googleUrl + '</td>' +
                     '<td>' + googleLinkHtml + '</td>' + // Wstawiamy gotowy link z backendu
                     '<td>' + (product.googleGid || '') + '</td>' + // To pole zostaje bez zmian
                     '</tr>';

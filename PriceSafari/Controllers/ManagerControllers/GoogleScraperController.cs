@@ -1813,13 +1813,17 @@ public class GoogleScraperController : Controller
 
             if (!string.IsNullOrEmpty(lastSegment))
             {
-                if (long.TryParse(lastSegment, out _))
+                // ================== POPRAWKA ==================
+                // Zmieniamy long.TryParse na ulong.TryParse, aby obsłużyć większe identyfikatory
+                if (ulong.TryParse(lastSegment, out _))
+                // ============================================
                 {
                     return lastSegment;
                 }
             }
         }
         catch (UriFormatException) { return null; }
+
         return null;
     }
     [HttpPost]
