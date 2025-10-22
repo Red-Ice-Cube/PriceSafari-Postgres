@@ -56,7 +56,7 @@ public class GoogleScraperController : Controller
         public string GoogleUrl { get => _googleUrl; set { if (_googleUrl != value) { _googleUrl = value; IsDirty = true; } } }
         public string Cid { get => _cid; set { if (_cid != value) { _cid = value; IsDirty = true; } } }
         public string GoogleGid { get => _googleGid; set { if (_googleGid != value) { _googleGid = value; IsDirty = true; } } }
-        // ZMIANA KONIEC
+
         public int? ProcessingByTaskId { get; set; }
         public bool IsDirty { get; set; }
 
@@ -73,8 +73,7 @@ public class GoogleScraperController : Controller
                 _status = ProductStatus.Found;
                 _googleUrl = product.GoogleUrl;
 
-                // --- TUTAJ NALEŻY DODAĆ ZMIANĘ ---
-                _googleGid = product.GoogleGid; // Dodaj tę linię
+                _googleGid = product.GoogleGid;
             }
             else if (product.FoundOnGoogle == false) { _status = ProductStatus.NotFound; }
             else { _status = ProductStatus.Pending; }
@@ -93,7 +92,7 @@ public class GoogleScraperController : Controller
             {
                 this.GoogleUrl = googleUrl;
                 this.Cid = cid;
-                this.GoogleGid = gid; // Przypisujemy GID
+                this.GoogleGid = gid;
             }
         }
     }
@@ -126,7 +125,6 @@ public class GoogleScraperController : Controller
         {
             Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] Wybrano tryb Pośredni (z weryfikacją nazwy). Uruchamiam scraper...");
 
-            // ZMIANA: Dodaj przekazanie parametru allowManualCaptchaSolving
             return await StartScrapingForProducts_IntermediateMatchAsync(storeId, numberOfConcurrentScrapers, searchTermSource, maxCidsToProcessPerProduct, allowManualCaptchaSolving);
         }
         else if (useFirstMatchLogic)
@@ -654,7 +652,6 @@ public class GoogleScraperController : Controller
         Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [Tryb Szybki] Przetwarzam ID: {productState.ProductId}, Szukam: '{searchTermBase}'");
 
         var identifierResult = await scraper.SearchInitialProductIdentifiersAsync(searchTermBase, maxItemsToExtract: 1);
-        // ZMIANA KONIEC
 
         if (identifierResult.CaptchaEncountered)
         {
@@ -666,7 +663,7 @@ public class GoogleScraperController : Controller
 
         if (identifierResult.IsSuccess && identifierResult.Data.Any())
         {
-            // ZMIANA START: Pobieramy cały obiekt identyfikatora i z niego wyciągamy CID oraz GID.
+
             var firstIdentifier = identifierResult.Data.First();
             var firstCid = firstIdentifier.Cid;
             var firstGid = firstIdentifier.Gid;
@@ -674,11 +671,11 @@ public class GoogleScraperController : Controller
 
             lock (productState)
             {
-                // Przekazujemy GID do metody aktualizującej status.
+
                 productState.UpdateStatus(ProductStatus.Found, googleUrl, firstCid, firstGid);
             }
             Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [Tryb Szybki] ✓ Znaleziono dla ID {productState.ProductId}. CID: {firstCid}, GID: {firstGid}");
-            // ZMIANA KONIEC
+
         }
         else
         {
@@ -694,7 +691,7 @@ public class GoogleScraperController : Controller
         int numberOfConcurrentScrapers,
         SearchTermSource searchTermSource,
         int maxCidsToProcess,
-        bool allowManualCaptchaSolving) // Dodany nowy parametr
+        bool allowManualCaptchaSolving)
     {
         if (_isScrapingActive)
         {
@@ -715,14 +712,12 @@ public class GoogleScraperController : Controller
 
         try
         {
-            // =======================================================================
-            // NOWA SEKCJA: Logika dla ręcznego rozwiązywania CAPTCHA (bez restartów)
-            // =======================================================================
+
             if (allowManualCaptchaSolving)
             {
                 Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [Tryb Pośredni] Uruchamiam scrapowanie w TRYBIE RĘCZNYM. Operacja nie będzie automatycznie restartowana.");
                 _currentGlobalScrapingOperationCts = new CancellationTokenSource();
-                _currentCaptchaGlobalCts = new CancellationTokenSource(); // Używane do pauzowania, ale nie do restartu
+                _currentCaptchaGlobalCts = new CancellationTokenSource();
                 var scraperInstances = new List<GoogleScraper>();
 
                 try
@@ -789,7 +784,7 @@ public class GoogleScraperController : Controller
                                     {
                                         await ProcessSingleProduct_IntermediateMatchAsync(
                                             productStateToProcess, assignedScraper, searchTermSource,
-                                            _currentCaptchaGlobalCts, maxCidsToProcess, allowManualCaptchaSolving); // Przekazujemy flagę
+                                            _currentCaptchaGlobalCts, maxCidsToProcess, allowManualCaptchaSolving);
                                     }
                                     finally
                                     {
@@ -826,9 +821,7 @@ public class GoogleScraperController : Controller
                     _currentCaptchaGlobalCts?.Dispose();
                 }
             }
-            // =======================================================================
-            // ISTNIEJĄCA LOGIKA: Dla automatycznego rozwiązywania CAPTCHA (z restartem)
-            // =======================================================================
+
             else
             {
                 int restartAttempt = 0;
@@ -874,7 +867,7 @@ public class GoogleScraperController : Controller
 
                         while (!_currentGlobalScrapingOperationCts.IsCancellationRequested && !_currentCaptchaGlobalCts.IsCancellationRequested)
                         {
-                            // ... (reszta pętli while bez zmian)
+
                             List<int> pendingProductIds;
                             lock (_lockMasterListInit)
                             {
@@ -924,7 +917,7 @@ public class GoogleScraperController : Controller
                                             {
                                                 await ProcessSingleProduct_IntermediateMatchAsync(
                                                     productStateToProcess, assignedScraper, searchTermSource,
-                                                    _currentCaptchaGlobalCts, maxCidsToProcess, allowManualCaptchaSolving); // Przekazujemy flagę
+                                                    _currentCaptchaGlobalCts, maxCidsToProcess, allowManualCaptchaSolving);
                                             }
                                             finally
                                             {
@@ -1006,15 +999,15 @@ public class GoogleScraperController : Controller
         Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] Ostateczny status (Tryb Pośredni): {finalMessage}");
         return Content(finalMessage);
     }
+
     private async Task ProcessSingleProduct_IntermediateMatchAsync(
-     ProductProcessingState productState,
-     GoogleScraper scraper,
-     SearchTermSource termSource,
-     CancellationTokenSource cts,
-     int maxItemsToExtract,
-     bool allowManualCaptchaSolving) // Dodany nowy parametr
+    ProductProcessingState productState,
+    GoogleScraper scraper,
+    SearchTermSource termSource,
+    CancellationTokenSource cts,
+    int maxItemsToExtract,
+    bool allowManualCaptchaSolving)
     {
-    // Etykieta do ponawiania próby po ręcznym rozwiązaniu CAPTCHA
     RestartProductProcessing:
 
         if (cts.IsCancellationRequested && !allowManualCaptchaSolving)
@@ -1023,13 +1016,7 @@ public class GoogleScraperController : Controller
             return;
         }
 
-        // ... (reszta kodu metody, aż do wywołania scrapera, pozostaje bez zmian)
         string searchTermForGoogle;
-        // ... (logika switch, if'y sprawdzające, itd.)
-
-        // --- Ta część kodu zostaje bez zmian ---
-        string comparisonTerm = productState.ProducerCode;
-
         switch (termSource)
         {
             case SearchTermSource.ProductName:
@@ -1046,89 +1033,142 @@ public class GoogleScraperController : Controller
 
         if (string.IsNullOrWhiteSpace(searchTermForGoogle))
         {
-            lock (productState) { productState.UpdateStatus(ProductStatus.Error, "Brak terminu do wyszukania (np. nazwy lub kodu)"); }
+            lock (productState) { productState.UpdateStatus(ProductStatus.Error, "Brak terminu do wyszukania."); }
             return;
         }
 
-        if (string.IsNullOrWhiteSpace(comparisonTerm))
+        Dictionary<string, ProductProcessingState> eligibleProductsMap;
+        lock (_lockMasterListInit)
         {
-            lock (productState) { productState.UpdateStatus(ProductStatus.Error, "Brak kodu producenta do weryfikacji tytułu"); }
+            eligibleProductsMap = _masterProductStateList.Values
+                .Where(p => (p.Status == ProductStatus.Pending || p.Status == ProductStatus.Processing)
+                            && !string.IsNullOrEmpty(p.ProducerCode))
+
+                .GroupBy(p => p.ProducerCode.Replace(" ", "").Trim(), StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.First());
+        }
+
+        if (!eligibleProductsMap.Any())
+        {
+            Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [Tryb Pośredni] Brak produktów oczekujących na dopasowanie po kodzie producenta.");
+
+            lock (productState)
+            {
+                if (productState.Status == ProductStatus.Processing)
+                {
+                    productState.UpdateStatus(ProductStatus.NotFound);
+                }
+            }
             return;
         }
-        // --- Koniec niezmienionej części ---
 
-        Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [Tryb Pośredni] Przetwarzam ID: {productState.ProductId}. Szukam w Google: '{searchTermForGoogle}'");
+        Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [Tryb Pośredni] ID: {productState.ProductId}. Szukam: '{searchTermForGoogle}'. Pula do sprawdzenia: {eligibleProductsMap.Count} kodów producenta.");
 
         var identifierResult = await scraper.SearchInitialProductIdentifiersAsync(searchTermForGoogle, maxItemsToExtract: maxItemsToExtract);
 
-        // ================== POCZĄTEK ZMIANY ==================
         if (identifierResult.CaptchaEncountered)
         {
             if (allowManualCaptchaSolving)
             {
-                // Oczekuj na ręczne rozwiązanie
                 bool solved = await HandleManualCaptchaAsync(scraper, TimeSpan.FromMinutes(5));
                 if (solved)
                 {
-                    // Jeśli rozwiązano, spróbuj ponownie od początku dla tego samego produktu
                     goto RestartProductProcessing;
                 }
                 else
                 {
-                    // Jeśli timeout, oznacz jako błąd i zakończ
                     lock (productState) { productState.UpdateStatus(ProductStatus.Error, "Timeout ręcznego rozwiązania CAPTCHA"); }
                     return;
                 }
             }
             else
             {
-                // Tryb automatyczny - anuluj operację
                 if (!cts.IsCancellationRequested) cts.Cancel();
                 lock (productState) { productState.UpdateStatus(ProductStatus.CaptchaHalt); }
                 return;
             }
         }
-        // =================== KONIEC ZMIANY ===================
 
         if (cts.IsCancellationRequested) return;
 
         if (!identifierResult.IsSuccess || !identifierResult.Data.Any())
         {
-            lock (productState) { productState.UpdateStatus(ProductStatus.NotFound); }
+            lock (productState)
+            {
+                if (productState.Status == ProductStatus.Processing)
+                {
+                    productState.UpdateStatus(ProductStatus.NotFound);
+                }
+            }
             return;
         }
 
-        // ... (reszta metody, czyli pętla foreach sprawdzająca tytuły, pozostaje bez zmian)
-        GoogleProductIdentifier foundIdentifier = null;
-        string cleanedComparisonTerm = comparisonTerm.Replace(" ", "").Trim();
+        bool initiatingProductMatched = false;
 
         foreach (var identifier in identifierResult.Data)
         {
             if (cts.IsCancellationRequested) break;
+            if (!eligibleProductsMap.Any()) break;
+
             var titleResult = await scraper.GetProductDetailsFromApiAsync(identifier.Cid, identifier.Gid);
+
+            if (titleResult.CaptchaEncountered)
+            {
+                if (allowManualCaptchaSolving)
+                {
+                    lock (productState) { productState.UpdateStatus(ProductStatus.Error, "CAPTCHA na poziomie API w trybie ręcznym"); }
+                    return;
+                }
+                else
+                {
+                    if (!cts.IsCancellationRequested) cts.Cancel();
+                    lock (productState) { productState.UpdateStatus(ProductStatus.CaptchaHalt); }
+                    return;
+                }
+            }
 
             if (titleResult.IsSuccess && !string.IsNullOrEmpty(titleResult.Data))
             {
                 string cleanedTitle = titleResult.Data.Replace(" ", "").Trim();
-                if (cleanedTitle.Contains(cleanedComparisonTerm, StringComparison.OrdinalIgnoreCase))
+
+                var codesToCheck = eligibleProductsMap.Keys.ToList();
+
+                foreach (var cleanedCode in codesToCheck)
                 {
-                    foundIdentifier = identifier;
-                    break;
+                    if (cleanedTitle.Contains(cleanedCode, StringComparison.OrdinalIgnoreCase))
+                    {
+                        if (eligibleProductsMap.TryGetValue(cleanedCode, out var matchedState))
+                        {
+
+                            lock (matchedState)
+                            {
+                                if (matchedState.Status != ProductStatus.Found)
+                                {
+                                    string googleUrl = $"https://www.google.com/shopping/product/{identifier.Cid}";
+                                    matchedState.UpdateStatus(ProductStatus.Found, googleUrl, identifier.Cid, identifier.Gid);
+                                    Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [Tryb Pośredni] ✓ ZNALEZIONO DOPASOWANIE (wielokrotne)! Tytuł: '{titleResult.Data}' zawiera kod '{cleanedCode}' -> Produkt ID {matchedState.ProductId}.");
+                                }
+                            }
+
+                            eligibleProductsMap.Remove(cleanedCode);
+
+                            if (matchedState.ProductId == productState.ProductId)
+                            {
+                                initiatingProductMatched = true;
+                            }
+                        }
+                    }
                 }
             }
         }
 
-        if (foundIdentifier != null)
+        lock (productState)
         {
-            var googleUrl = $"https://www.google.com/shopping/product/{foundIdentifier.Cid}";
-            lock (productState)
+            if (!initiatingProductMatched && productState.Status == ProductStatus.Processing)
             {
-                productState.UpdateStatus(ProductStatus.Found, googleUrl, foundIdentifier.Cid, foundIdentifier.Gid);
+                productState.UpdateStatus(ProductStatus.NotFound);
+                Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [Tryb Pośredni] ✗ Produkt inicjujący ID {productState.ProductId} NIE został dopasowany.");
             }
-        }
-        else
-        {
-            lock (productState) { productState.UpdateStatus(ProductStatus.NotFound); }
         }
     }
 
@@ -1317,24 +1357,24 @@ public class GoogleScraperController : Controller
                     {
                         if (currentStatusSnapshot == ProductStatus.Found)
                         {
-                            // ZMIANA START: Dodajemy sprawdzenie i przypisanie GoogleGid
+
                             if (dbProduct.FoundOnGoogle != true || dbProduct.GoogleUrl != currentGoogleUrlSnapshot || dbProduct.GoogleGid != currentGidSnapshot)
                             {
                                 dbProduct.FoundOnGoogle = true;
                                 dbProduct.GoogleUrl = currentGoogleUrlSnapshot;
-                                dbProduct.GoogleGid = currentGidSnapshot; // Zapisujemy GID
+                                dbProduct.GoogleGid = currentGidSnapshot;
                                 changedInDb = true;
                             }
-                            // ZMIANA KONIEC
+
                         }
                         else if (currentStatusSnapshot == ProductStatus.NotFound)
                         {
-                            // ZMIANA START: Czyścimy również GoogleGid
+
                             if (dbProduct.FoundOnGoogle != false || dbProduct.GoogleUrl != null || dbProduct.GoogleGid != null)
                             {
                                 dbProduct.FoundOnGoogle = false;
                                 dbProduct.GoogleUrl = null;
-                                dbProduct.GoogleGid = null; // Czyścimy GID
+                                dbProduct.GoogleGid = null;
                                 changedInDb = true;
                             }
                         }
@@ -1366,7 +1406,6 @@ public class GoogleScraperController : Controller
             { Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] BatchUpdate: Produkty IsDirty, ale brak zmian w kontekście DB."); }
         }
     }
-
 
     private async Task ProcessSingleProductAsync(
     ProductProcessingState productState,
@@ -1709,14 +1748,8 @@ public class GoogleScraperController : Controller
 
                 string generatedUrl = null;
 
-                // ================== POPRAWNA LOGIKA ==================
-
-                // 1. Wyciągamy CID ze starego formatu URL, bo tylko tam jest zapisany.
                 string productIdCid = ExtractProductIdFromUrl(p.GoogleUrl);
 
-                // =======================================================
-
-                // 2. Jeśli mamy CID i nazwę, budujemy nowy, działający link.
                 if (!string.IsNullOrEmpty(productIdCid) && !string.IsNullOrEmpty(p.ProductNameInStoreForGoogle))
                 {
                     string productNameForUrl = System.Net.WebUtility.UrlEncode(p.ProductNameInStoreForGoogle);
@@ -1729,10 +1762,10 @@ public class GoogleScraperController : Controller
                     p.ProductNameInStoreForGoogle,
                     p.Url,
                     p.FoundOnGoogle,
-                    p.GoogleUrl, // Oryginalne pole zostaje bez zmian
+                    p.GoogleUrl,
                     p.Ean,
                     p.ProducerCode,
-                    p.GoogleGid, // Oryginalne pole zostaje bez zmian
+                    p.GoogleGid,
                     GeneratedGoogleUrl = generatedUrl
                 };
             }).ToList();
@@ -1745,7 +1778,6 @@ public class GoogleScraperController : Controller
         return View("~/Views/ManagerPanel/GoogleScraper/GoogleProducts.cshtml", products);
     }
 
-    // Ta funkcja jest teraz niezbędna i musi pozostać w kontrolerze.
     private string ExtractProductIdFromUrl(string googleUrl)
     {
         if (string.IsNullOrEmpty(googleUrl) || !googleUrl.Contains("/product/"))
