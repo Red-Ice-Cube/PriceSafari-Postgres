@@ -116,7 +116,8 @@ public class GoogleScraperController : Controller
     string productNamePrefix = null,
     bool useFirstMatchLogic = false,
     bool ensureNameMatch = false,
-    bool allowManualCaptchaSolving = false)
+    bool allowManualCaptchaSolving = false,
+    bool appendProducerCode = false)
     {
         if (_isScrapingActive)
         {
@@ -127,19 +128,19 @@ public class GoogleScraperController : Controller
         {
             Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] Wybrano tryb Pośredni (z weryfikacją nazwy). Uruchamiam scraper...");
 
-            return await StartScrapingForProducts_IntermediateMatchAsync(storeId, productIds, numberOfConcurrentScrapers, searchTermSource, maxCidsToProcessPerProduct, allowManualCaptchaSolving);
+            return await StartScrapingForProducts_IntermediateMatchAsync(storeId, productIds, numberOfConcurrentScrapers, searchTermSource, maxCidsToProcessPerProduct, allowManualCaptchaSolving, appendProducerCode);
         }
         else if (useFirstMatchLogic)
         {
 
             Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] Wybrano tryb 'Pierwszy Trafiony'. Uruchamiam uproszczony scraper...");
-            return await StartScrapingForProducts_FirstMatchAsync(storeId, productIds, numberOfConcurrentScrapers, searchTermSource, productNamePrefix);
+            return await StartScrapingForProducts_FirstMatchAsync(storeId, productIds, numberOfConcurrentScrapers, searchTermSource, productNamePrefix, appendProducerCode);
         }
         else
         {
 
             Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] Wybrano tryb standardowy (dokładny). Uruchamiam pełny scraper...");
-            return await StartScrapingForProducts_StandardAsync(storeId, productIds, numberOfConcurrentScrapers, maxCidsToProcessPerProduct, searchTermSource, productNamePrefix, allowManualCaptchaSolving);
+            return await StartScrapingForProducts_StandardAsync(storeId, productIds, numberOfConcurrentScrapers, maxCidsToProcessPerProduct, searchTermSource, productNamePrefix, allowManualCaptchaSolving, appendProducerCode);
         }
     }
 
@@ -150,7 +151,8 @@ public class GoogleScraperController : Controller
     int maxCidsToProcessPerProduct = 3,
     SearchTermSource searchTermSource = SearchTermSource.ProductName,
     string productNamePrefix = null,
-    bool allowManualCaptchaSolving = false)
+    bool allowManualCaptchaSolving = false,
+    bool appendProducerCode = false)
     {
         if (_isScrapingActive)
         {
@@ -265,7 +267,7 @@ public class GoogleScraperController : Controller
                             var task = Task.Run(async () => {
                                 try
                                 {
-                                    await ProcessSingleProductAsync(productStateToProcess, assignedScraper, storeId, _masterProductStateList, _currentCaptchaGlobalCts, maxCidsToProcessPerProduct, searchTermSource, productNamePrefix, allowManualCaptchaSolving);
+                                    await ProcessSingleProductAsync(productStateToProcess, assignedScraper, storeId, _masterProductStateList, _currentCaptchaGlobalCts, maxCidsToProcessPerProduct, searchTermSource, productNamePrefix, allowManualCaptchaSolving, appendProducerCode);
                                 }
                                 catch (Exception ex)
                                 {
@@ -422,7 +424,7 @@ public class GoogleScraperController : Controller
                                     {
                                         try
                                         {
-                                            await ProcessSingleProductAsync(productStateToProcess, assignedScraper, storeId, _masterProductStateList, _currentCaptchaGlobalCts, maxCidsToProcessPerProduct, searchTermSource, productNamePrefix, allowManualCaptchaSolving);
+                                            await ProcessSingleProductAsync(productStateToProcess, assignedScraper, storeId, _masterProductStateList, _currentCaptchaGlobalCts, maxCidsToProcessPerProduct, searchTermSource, productNamePrefix, allowManualCaptchaSolving, appendProducerCode);
                                         }
                                         catch (Exception ex)
                                         {
@@ -520,7 +522,7 @@ public class GoogleScraperController : Controller
         return Content(finalMessage);
     }
 
-    private async Task<IActionResult> StartScrapingForProducts_FirstMatchAsync(int storeId, List<int> productIds, int numberOfConcurrentScrapers, SearchTermSource searchTermSource, string productNamePrefix)
+    private async Task<IActionResult> StartScrapingForProducts_FirstMatchAsync(int storeId, List<int> productIds, int numberOfConcurrentScrapers, SearchTermSource searchTermSource, string productNamePrefix, bool appendProducerCode = false)
     {
         _isScrapingActive = true;
         _currentGlobalScrapingOperationCts = new CancellationTokenSource();
@@ -586,7 +588,15 @@ public class GoogleScraperController : Controller
                     {
                         try
                         {
-                            await ProcessSingleProduct_FirstMatchAsync(productState, scraper, searchTermSource, productNamePrefix, _currentGlobalScrapingOperationCts);
+                            // TUTAJ BRAKUJE PRZEKAZANIA PARAMETRU
+                            await ProcessSingleProduct_FirstMatchAsync(
+                                productState,
+                                scraper,
+                                searchTermSource,
+                                productNamePrefix,
+                                _currentGlobalScrapingOperationCts,
+                                appendProducerCode // <-- DODAJ TEN PARAMETR
+                            );
                         }
                         finally
                         {
@@ -628,7 +638,7 @@ public class GoogleScraperController : Controller
         return Content("Proces 'Pierwszy Trafiony' zakończony.");
     }
 
-    private async Task ProcessSingleProduct_FirstMatchAsync(ProductProcessingState productState, GoogleScraper scraper, SearchTermSource termSource, string namePrefix, CancellationTokenSource cts)
+    private async Task ProcessSingleProduct_FirstMatchAsync(ProductProcessingState productState, GoogleScraper scraper, SearchTermSource termSource, string namePrefix, CancellationTokenSource cts, bool appendProducerCode)
     {
         if (cts.IsCancellationRequested) return;
 
@@ -641,8 +651,18 @@ public class GoogleScraperController : Controller
             case SearchTermSource.ProductName:
             default:
                 searchTermBase = productState.ProductNameInStoreForGoogle;
+
+                // ================== BRAKUJĄCA LOGIKA ==================
+                if (appendProducerCode && !string.IsNullOrWhiteSpace(productState.ProducerCode))
+                {
+                    searchTermBase = $"{searchTermBase} {productState.ProducerCode}";
+                }
+                // ======================================================
+
                 if (!string.IsNullOrWhiteSpace(namePrefix))
+                {
                     searchTermBase = $"{namePrefix} {searchTermBase}";
+                }
                 break;
         }
 
@@ -702,7 +722,8 @@ public class GoogleScraperController : Controller
         int numberOfConcurrentScrapers,
         SearchTermSource searchTermSource,
         int maxCidsToProcess,
-        bool allowManualCaptchaSolving)
+        bool allowManualCaptchaSolving,
+        bool appendProducerCode = false)
     {
         if (_isScrapingActive)
         {
@@ -795,7 +816,7 @@ public class GoogleScraperController : Controller
                                     {
                                         await ProcessSingleProduct_IntermediateMatchAsync(
                                             productStateToProcess, assignedScraper, searchTermSource,
-                                            _currentCaptchaGlobalCts, maxCidsToProcess, allowManualCaptchaSolving);
+                                            _currentCaptchaGlobalCts, maxCidsToProcess, allowManualCaptchaSolving, appendProducerCode);
                                     }
                                     finally
                                     {
@@ -928,7 +949,7 @@ public class GoogleScraperController : Controller
                                             {
                                                 await ProcessSingleProduct_IntermediateMatchAsync(
                                                     productStateToProcess, assignedScraper, searchTermSource,
-                                                    _currentCaptchaGlobalCts, maxCidsToProcess, allowManualCaptchaSolving);
+                                                    _currentCaptchaGlobalCts, maxCidsToProcess, allowManualCaptchaSolving, appendProducerCode);
                                             }
                                             finally
                                             {
@@ -1018,7 +1039,8 @@ public class GoogleScraperController : Controller
     SearchTermSource termSource,
     CancellationTokenSource cts,
     int maxItemsToExtract,
-    bool allowManualCaptchaSolving)
+    bool allowManualCaptchaSolving,
+    bool appendProducerCode)
     {
     RestartProductProcessing:
 
@@ -1031,9 +1053,25 @@ public class GoogleScraperController : Controller
         string searchTermForGoogle;
         switch (termSource)
         {
-            case SearchTermSource.ProductName: searchTermForGoogle = productState.ProductNameInStoreForGoogle; break;
-            case SearchTermSource.Ean: searchTermForGoogle = productState.Ean; break;
-            case SearchTermSource.ProducerCode: default: searchTermForGoogle = productState.ProducerCode; break;
+            case SearchTermSource.ProductName:
+                searchTermForGoogle = productState.ProductNameInStoreForGoogle;
+
+                // ================== TUTAJ DODAJ ZMIANĘ ==================
+                if (appendProducerCode && !string.IsNullOrWhiteSpace(productState.ProducerCode))
+                {
+                    searchTermForGoogle = $"{searchTermForGoogle} {productState.ProducerCode}";
+                }
+                // =======================================================
+                break;
+
+            case SearchTermSource.Ean:
+                searchTermForGoogle = productState.Ean;
+                break;
+
+            case SearchTermSource.ProducerCode:
+            default:
+                searchTermForGoogle = productState.ProducerCode;
+                break;
         }
 
         if (string.IsNullOrWhiteSpace(searchTermForGoogle))
@@ -1453,7 +1491,8 @@ public class GoogleScraperController : Controller
     int maxCidsToSearch,
     SearchTermSource termSource,
     string namePrefix,
-    bool allowManualCaptchaSolving)
+    bool allowManualCaptchaSolving,
+    bool appendProducerCode)
     {
         if (captchaCts.IsCancellationRequested && !allowManualCaptchaSolving)
         {
@@ -1495,6 +1534,14 @@ public class GoogleScraperController : Controller
             case SearchTermSource.ProductName:
             default:
                 searchTermBase = productState.ProductNameInStoreForGoogle;
+
+                // ================== NOWA LOGIKA ==================
+                if (appendProducerCode && !string.IsNullOrWhiteSpace(productState.ProducerCode))
+                {
+                    searchTermBase = $"{searchTermBase} {productState.ProducerCode}";
+                }
+                // ===============================================
+
                 if (!string.IsNullOrWhiteSpace(namePrefix))
                 {
                     searchTermBase = $"{namePrefix} {searchTermBase}";

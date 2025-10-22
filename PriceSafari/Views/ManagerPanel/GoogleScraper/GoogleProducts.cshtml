@@ -49,9 +49,18 @@
                 <option value="ProducerCode">Kod producenta</option>
             </select>
         </div>
-        <div class="col-md-3" id="productNamePrefixContainer">
-            <label for="productNamePrefix" class="form-label">Prefix dla nazwy produktu (opcjonalnie):</label>
-            <input type="text" class="form-control" id="productNamePrefix" placeholder="np. k3design.pl">
+        <div class="col-md-3" id="productNameOptionsContainer">
+            <div class="mb-2">
+                <label for="productNamePrefix" class="form-label">Prefix dla nazwy produktu (opcjonalnie):</label>
+                <input type="text" class="form-control" id="productNamePrefix" placeholder="jakis sklep">
+            </div>
+
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="appendProducerCode">
+                <label class="form-check-label" for="appendProducerCode">
+                    Dołącz kod producenta do nazwy
+                </label>
+            </div>
         </div>
     </div>
 </div>
@@ -99,14 +108,13 @@
             console.log("Document ready, loading products...");
             loadProducts();
 
-            $('#searchTermSource').change(function() {
-                if ($(this).val() === 'ProductName') {
-                    $('#productNamePrefixContainer').show();
-                } else {
-                    $('#productNamePrefixContainer').hide();
-
-                }
-            }).trigger('change');
+               $('#searchTermSource').change(function() {
+            if ($(this).val() === 'ProductName') {
+                $('#productNameOptionsContainer').show(); // Zmieniono ID
+            } else {
+                $('#productNameOptionsContainer').hide(); // Zmieniono ID
+            }
+        }).trigger('change');
 
             $('#selectAllProducts').click(function () {
                 $('.product-checkbox').prop('checked', this.checked);
@@ -175,29 +183,26 @@
             } else {
                 console.log("No products selected, starting scraping for all eligible products.");
             }
+        var termSource = $('#searchTermSource').val();
+                var prefix = $('#productNamePrefix').val();
 
-            // --- POCZĄTEK POPRAWKI ---
-            // Przywracamy deklaracje zmiennych, które były potrzebne poniżej
-            var termSource = $('#searchTermSource').val();
-            var prefix = $('#productNamePrefix').val();
-            // --- KONIEC POPRAWKI ---
+                       var scrapingData = {
+            storeId: '@storeId',
+            productIds: selectedProductIds,
+            numberOfConcurrentScrapers: parseInt($('#numberOfConcurrentScrapers').val(), 10),
+            maxCidsToProcessPerProduct: parseInt($('#maxCidsToProcessPerProduct').val(), 10),
+            searchTermSource: termSource,
+            useFirstMatchLogic: $('#useFirstMatchLogic').is(':checked'),
+            ensureNameMatch: $('#ensureNameMatch').is(':checked'),
+            allowManualCaptchaSolving: $('#allowManualCaptchaSolving').is(':checked'),
+            appendProducerCode: $('#appendProducerCode').is(':checked') // <-- DODAJ TĘ LINIĘ
+        };
 
-            var scrapingData = {
-                storeId: '@storeId',
-                productIds: selectedProductIds,
-                numberOfConcurrentScrapers: parseInt($('#numberOfConcurrentScrapers').val(), 10),
-                maxCidsToProcessPerProduct: parseInt($('#maxCidsToProcessPerProduct').val(), 10),
-                searchTermSource: termSource, // Używamy zadeklarowanej zmiennej
-                useFirstMatchLogic: $('#useFirstMatchLogic').is(':checked'),
-                ensureNameMatch: $('#ensureNameMatch').is(':checked'),
-                allowManualCaptchaSolving: $('#allowManualCaptchaSolving').is(':checked')
-            };
+                if (termSource === 'ProductName' && prefix && prefix.trim() !== '') {
+                    scrapingData.productNamePrefix = prefix;
+                }
 
-            if (termSource === 'ProductName' && prefix && prefix.trim() !== '') {
-                scrapingData.productNamePrefix = prefix;
-            }
-
-            $.ajax({
+                $.ajax({
                 type: "POST",
                 url: '@Url.Action("StartScrapingForProducts", "GoogleScraper")',
                 data: scrapingData,
