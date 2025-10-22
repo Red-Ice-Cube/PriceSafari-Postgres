@@ -296,54 +296,53 @@
                 });
             }
 
-            function updateTable(products) {
-                console.log("Updating product table...");
+                 function updateTable(products) {
+            console.log("Updating product table...");
 
-                $('#productTable').empty();
-                var foundCount = 0;
-                var pendingCount = 0;
-                var notFoundCount = 0;
+            $('#productTable').empty();
+            var foundCount = 0;
+            var pendingCount = 0;
+            var notFoundCount = 0;
 
-                $.each(products, function (index, product) {
-                    console.log("Processing product:", product);
+            $.each(products, function (index, product) {
+                var foundOnGoogleBadge = '<span class="badge bg-secondary">Pending</span>';
+                if (product.foundOnGoogle === true) {
+                    foundOnGoogleBadge = '<span class="badge bg-success">Found</span>';
+                    foundCount++;
+                } else if (product.foundOnGoogle === false) {
+                    foundOnGoogleBadge = '<span class="badge bg-danger">Not Found</span>';
+                    notFoundCount++;
+                } else {
+                    pendingCount++;
+                }
 
-                    var foundOnGoogleBadge = '<span class="badge bg-secondary">Pending</span>';
-                    if (product.foundOnGoogle === true) {
-                        foundOnGoogleBadge = '<span class="badge bg-success">Found</span>';
-                        foundCount++;
-                    } else if (product.foundOnGoogle === false) {
-                        foundOnGoogleBadge = '<span class="badge bg-danger">Not Found</span>';
-                        notFoundCount++;
-                    } else {
-                        pendingCount++;
-                    }
+                // ================== POCZĄTEK ZMIANY ==================
 
-                    var googleUrl = product.googleUrl || '';
+                // Backend już przygotował dla nas gotowy link w polu 'generatedGoogleUrl'
+                var googleLinkHtml = '';
+                if (product.generatedGoogleUrl) {
+                    googleLinkHtml = `<a href="${product.generatedGoogleUrl}" target="_blank">Zobacz w Google</a>`;
+                }
 
+                var row = '<tr id="productRow-' + product.productId + '">' +
+                    '<td>' + (product.productNameInStoreForGoogle || '') + '</td>' +
+                    '<td>' + (product.ean || '') + '</td>' +
+                    '<td>' + (product.producerCode || '') + '</td>' +
+                    '<td><a href="' + (product.url || '') + '" target="_blank">' + (product.url || '') + '</a></td>' +
+                    '<td>' + foundOnGoogleBadge + '</td>' +
+                    '<td>' + googleLinkHtml + '</td>' + // Wstawiamy gotowy link z backendu
+                    '<td>' + (product.googleGid || '') + '</td>' + // To pole zostaje bez zmian
+                    '</tr>';
 
+                // =================== KONIEC ZMIANY ===================
 
-                    var ean = product.ean || '';
+                $('#productTable').append(row);
+            });
 
-                    var producerCode = product.producerCode || '';
-                    var googleGid = product.googleGid || '';
+            updateProductCounts(foundCount, pendingCount, notFoundCount);
+        }
 
-       
-                    var row = '<tr id="productRow-' + product.productId + '">' +
-                        '<td>' + product.productNameInStoreForGoogle + '</td>' +
-                        '<td>' + ean + '</td>' +
-                        '<td>' + producerCode + '</td>' +
-                        '<td><a href="' + product.url + '" target="_blank">' + product.url + '</a></td>' +
-                        '<td>' + foundOnGoogleBadge + '</td>' +
-                        '<td><a href="' + googleUrl + '" target="_blank">' + googleUrl + '</a></td>' +
-                        '<td><a href="' + googleGid + '" target="_blank">' + googleGid + '</a></td>' +
-                        '</tr>';
-
-                    $('#productTable').append(row);
-                });
-
-                console.log("Updating counts: Found:", foundCount, "Pending:", pendingCount, "Not Found:", notFoundCount);
-                updateProductCounts(foundCount, pendingCount, notFoundCount);
-            }
+     
 
             function updateProductCounts(foundCount, pendingCount, notFoundCount) {
                 console.log("Updating UI counts...");

@@ -1705,17 +1705,36 @@ public class GoogleScraperController : Controller
 
         if (Request.Headers["X-Requested-With"] == "XMLHttpRequest")
         {
+            var jsonProducts = products.Select(p => {
 
-            var jsonProducts = products.Select(p => new
-            {
-                p.ProductId,
-                p.ProductNameInStoreForGoogle,
-                p.Url,
-                p.FoundOnGoogle,
-                p.GoogleUrl,
-                p.Ean,
-                p.ProducerCode,
-                p.GoogleGid
+                string generatedUrl = null;
+
+                // ================== POPRAWNA LOGIKA ==================
+
+                // 1. Wyciągamy CID ze starego formatu URL, bo tylko tam jest zapisany.
+                string productIdCid = ExtractProductIdFromUrl(p.GoogleUrl);
+
+                // =======================================================
+
+                // 2. Jeśli mamy CID i nazwę, budujemy nowy, działający link.
+                if (!string.IsNullOrEmpty(productIdCid) && !string.IsNullOrEmpty(p.ProductNameInStoreForGoogle))
+                {
+                    string productNameForUrl = System.Net.WebUtility.UrlEncode(p.ProductNameInStoreForGoogle);
+                    generatedUrl = $"https://www.google.com/search?q={productNameForUrl}&udm=28#oshopproduct=cid:{productIdCid},pvt:hg,pvo:3&oshop=apv";
+                }
+
+                return new
+                {
+                    p.ProductId,
+                    p.ProductNameInStoreForGoogle,
+                    p.Url,
+                    p.FoundOnGoogle,
+                    p.GoogleUrl, // Oryginalne pole zostaje bez zmian
+                    p.Ean,
+                    p.ProducerCode,
+                    p.GoogleGid, // Oryginalne pole zostaje bez zmian
+                    GeneratedGoogleUrl = generatedUrl
+                };
             }).ToList();
 
             return Json(jsonProducts);
@@ -1726,6 +1745,29 @@ public class GoogleScraperController : Controller
         return View("~/Views/ManagerPanel/GoogleScraper/GoogleProducts.cshtml", products);
     }
 
+    // Ta funkcja jest teraz niezbędna i musi pozostać w kontrolerze.
+    private string ExtractProductIdFromUrl(string googleUrl)
+    {
+        if (string.IsNullOrEmpty(googleUrl) || !googleUrl.Contains("/product/"))
+        {
+            return null;
+        }
+        try
+        {
+            var uri = new Uri(googleUrl);
+            string lastSegment = uri.Segments.LastOrDefault()?.Trim('/');
+
+            if (!string.IsNullOrEmpty(lastSegment))
+            {
+                if (long.TryParse(lastSegment, out _))
+                {
+                    return lastSegment;
+                }
+            }
+        }
+        catch (UriFormatException) { return null; }
+        return null;
+    }
     [HttpPost]
     public async Task<IActionResult> UpdatePendingProducts(int storeId)
     {
