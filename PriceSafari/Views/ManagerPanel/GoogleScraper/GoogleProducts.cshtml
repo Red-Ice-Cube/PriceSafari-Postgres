@@ -19,7 +19,6 @@
             </label>
         </div>
 
-
         <div class="form-check form-switch mt-3">
             <input class="form-check-input" type="checkbox" id="useFirstMatchLogic">
             <label class="form-check-label" for="useFirstMatchLogic">
@@ -60,13 +59,13 @@
 <div class="d-flex mb-3 flex-wrap">
 
     <button id="startScraping" class="btn btn-primary me-2 mb-2">Uruchom BOT z powyższymi opcjami</button>
- 
+
     <button id="stopScrapingButton" class="btn me-2 mb-2" style="background-color: purple; color: white;">Zatrzymaj BOTa</button>
 
     <button id="updatePendingStatuses" class="btn btn-secondary me-2 mb-2">Przelicz korekty</button>
     <button id="resetNotFoundStatuses" class="btn btn-warning me-2 mb-2">Resetuj nieznalezione</button>
     <button id="resetIncorrectGoogleStatuses" class="btn btn-danger me-2 mb-2">Resetuj Niepoprawnie znalezione produkty Google</button>
-    <button id="clearGoogleUrls" class="btn btn-danger mb-2">Wyczyść Google URLs</button> 
+    <button id="clearGoogleUrls" class="btn btn-danger mb-2">Wyczyść Google URLs</button>
 </div>
 
 <h3>Podsumowanie</h3>
@@ -79,20 +78,20 @@
 <table class="table table-bordered table-striped">
     <thead class="table-dark">
         <tr>
+            <th><input type="checkbox" id="selectAllProducts" /></th>
             <th>Product Name</th>
             <th>EAN</th>
             <th>Kod Producenta</th>
             <th>Product URL</th>
             <th>Found on Google</th>
-            <th>Google URL stary</th>
-            <th>Google URL</th>
-            <th>GID</th>
+            <th>Google URL (stary)</th>
+            <th>Google URL (nowy)</th>
+            <th>GID/CID</th>
         </tr>
     </thead>
     <tbody id="productTable">
     </tbody>
 </table>
-
 @section Scripts {
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script>
@@ -108,6 +107,10 @@
 
                 }
             }).trigger('change');
+
+            $('#selectAllProducts').click(function () {
+                $('.product-checkbox').prop('checked', this.checked);
+            });
 
             $('#startScraping').click(function () {
                 console.log("Start Scraping button clicked.");
@@ -159,51 +162,55 @@
                 });
             }
 
-                function startScraping() {
-                console.log("Sending POST request to start scraping...");
+                 function startScraping() {
+            console.log("Sending POST request to start scraping...");
 
-                var concurrentScrapers = $('#numberOfConcurrentScrapers').val();
-                var maxCids = $('#maxCidsToProcessPerProduct').val();
-                var termSource = $('#searchTermSource').val();
-                var prefix = $('#productNamePrefix').val();
+            var selectedProductIds = [];
+            $('.product-checkbox:checked').each(function () {
+                selectedProductIds.push(parseInt($(this).val(), 10));
+            });
 
-                // ZMIANA: Odczytanie stanu nowego przełącznika
-                var useFirstMatch = $('#useFirstMatchLogic').is(':checked');
-                 var ensureMatch = $('#ensureNameMatch').is(':checked');
-                  var manualCaptcha = $('#allowManualCaptchaSolving').is(':checked');
-
-                var scrapingData = {
-                    storeId: '@storeId',
-                    numberOfConcurrentScrapers: parseInt(concurrentScrapers, 10),
-                    maxCidsToProcessPerProduct: parseInt(maxCids, 10),
-                    searchTermSource: termSource,
-                    useFirstMatchLogic: useFirstMatch,
-                    ensureNameMatch: ensureMatch,
-                      allowManualCaptchaSolving: manualCaptcha
-                };
-
-                if (termSource === 'ProductName' && prefix && prefix.trim() !== '') {
-                    scrapingData.productNamePrefix = prefix;
-                }
-
-                $.ajax({
-                    type: "POST",
-                    url: '@Url.Action("StartScrapingForProducts", "GoogleScraper")',
-                    data: scrapingData,
-                    success: function (response) {
-                        console.log("Scraping started successfully. Response:", response);
-
-                        alert("Rozpoczęto scrapowanie: " + response);
-
-                    },
-                    error: function (xhr, status, error) {
-                        console.error("Error starting scraping: ", error);
-                        console.error("Response status: ", status);
-                        console.error("Response details: ", xhr.responseText);
-                        alert("Błąd podczas uruchamiania scrapowania: " + xhr.responseText);
-                    }
-                });
+            if (selectedProductIds.length > 0) {
+                console.log(`Starting scraping for ${selectedProductIds.length} selected products.`);
+            } else {
+                console.log("No products selected, starting scraping for all eligible products.");
             }
+
+            // --- POCZĄTEK POPRAWKI ---
+            // Przywracamy deklaracje zmiennych, które były potrzebne poniżej
+            var termSource = $('#searchTermSource').val();
+            var prefix = $('#productNamePrefix').val();
+            // --- KONIEC POPRAWKI ---
+
+            var scrapingData = {
+                storeId: '@storeId',
+                productIds: selectedProductIds,
+                numberOfConcurrentScrapers: parseInt($('#numberOfConcurrentScrapers').val(), 10),
+                maxCidsToProcessPerProduct: parseInt($('#maxCidsToProcessPerProduct').val(), 10),
+                searchTermSource: termSource, // Używamy zadeklarowanej zmiennej
+                useFirstMatchLogic: $('#useFirstMatchLogic').is(':checked'),
+                ensureNameMatch: $('#ensureNameMatch').is(':checked'),
+                allowManualCaptchaSolving: $('#allowManualCaptchaSolving').is(':checked')
+            };
+
+            if (termSource === 'ProductName' && prefix && prefix.trim() !== '') {
+                scrapingData.productNamePrefix = prefix;
+            }
+
+            $.ajax({
+                type: "POST",
+                url: '@Url.Action("StartScrapingForProducts", "GoogleScraper")',
+                data: scrapingData,
+                traditional: true,
+                success: function (response) {
+                    alert("Rozpoczęto scrapowanie: " + response);
+                },
+                error: function (xhr) {
+                    console.error("Error starting scraping: ", xhr.responseText);
+                    alert("Błąd podczas uruchamiania scrapowania: " + xhr.responseText);
+                }
+            });
+        }
 
             function stopScrapingProcess() {
                 console.log("Sending POST request to stop scraping...");
@@ -317,34 +324,27 @@
                     pendingCount++;
                 }
 
-                // ================== POCZĄTEK ZMIANY ==================
-
-                // Backend już przygotował dla nas gotowy link w polu 'generatedGoogleUrl'
                 var googleLinkHtml = '';
                 if (product.generatedGoogleUrl) {
                     googleLinkHtml = `<a href="${product.generatedGoogleUrl}" target="_blank">Zobacz w Google</a>`;
                 }
 
-                var row = '<tr id="productRow-' + product.productId + '">' +
-                    '<td>' + (product.productNameInStoreForGoogle || '') + '</td>' +
-                    '<td>' + (product.ean || '') + '</td>' +
-                    '<td>' + (product.producerCode || '') + '</td>' +
-                    '<td><a href="' + (product.url || '') + '" target="_blank">' + (product.url || '') + '</a></td>' +
-                    '<td>' + foundOnGoogleBadge + '</td>' +
-                    '<td>' + product.googleUrl + '</td>' +
-                    '<td>' + googleLinkHtml + '</td>' + // Wstawiamy gotowy link z backendu
-                    '<td>' + (product.googleGid || '') + '</td>' + // To pole zostaje bez zmian
-                    '</tr>';
+        var row = `<tr id="productRow-${product.productId}">
+                        <td><input type="checkbox" class="product-checkbox" value="${product.productId}" /></td>
+                        <td>${product.productNameInStoreForGoogle || ''}</td>
+                        <td>${product.ean || ''}</td>
+                        <td>${product.producerCode || ''}</td>
+                        <td><a href="${product.url || ''}" target="_blank">${product.url || ''}</a></td>
+                        <td>${foundOnGoogleBadge}</td>
+                        <td>${product.googleUrl || ''}</td>
+                        <td>${googleLinkHtml}</td>
+                        <td>${product.googleGid || ''}</td>
+                    </tr>`;
 
-                // =================== KONIEC ZMIANY ===================
-
-                $('#productTable').append(row);
-            });
-
+                    $('#productTable').append(row);
+                });
             updateProductCounts(foundCount, pendingCount, notFoundCount);
         }
-
-     
 
             function updateProductCounts(foundCount, pendingCount, notFoundCount) {
                 console.log("Updating UI counts...");

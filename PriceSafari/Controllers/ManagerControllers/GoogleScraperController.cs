@@ -108,14 +108,15 @@ public class GoogleScraperController : Controller
 
     [HttpPost]
     public async Task<IActionResult> StartScrapingForProducts(
-        int storeId,
-        int numberOfConcurrentScrapers = 5,
-        int maxCidsToProcessPerProduct = 3,
-        SearchTermSource searchTermSource = SearchTermSource.ProductName,
-        string productNamePrefix = null,
-        bool useFirstMatchLogic = false,
-        bool ensureNameMatch = false,
-         bool allowManualCaptchaSolving = false)
+    int storeId,
+    List<int> productIds, // DODAJ TEN PARAMETR
+    int numberOfConcurrentScrapers = 5,
+    int maxCidsToProcessPerProduct = 3,
+    SearchTermSource searchTermSource = SearchTermSource.ProductName,
+    string productNamePrefix = null,
+    bool useFirstMatchLogic = false,
+    bool ensureNameMatch = false,
+    bool allowManualCaptchaSolving = false)
     {
         if (_isScrapingActive)
         {
@@ -126,24 +127,25 @@ public class GoogleScraperController : Controller
         {
             Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] Wybrano tryb Pośredni (z weryfikacją nazwy). Uruchamiam scraper...");
 
-            return await StartScrapingForProducts_IntermediateMatchAsync(storeId, numberOfConcurrentScrapers, searchTermSource, maxCidsToProcessPerProduct, allowManualCaptchaSolving);
+            return await StartScrapingForProducts_IntermediateMatchAsync(storeId, productIds, numberOfConcurrentScrapers, searchTermSource, maxCidsToProcessPerProduct, allowManualCaptchaSolving);
         }
         else if (useFirstMatchLogic)
         {
 
             Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] Wybrano tryb 'Pierwszy Trafiony'. Uruchamiam uproszczony scraper...");
-            return await StartScrapingForProducts_FirstMatchAsync(storeId, numberOfConcurrentScrapers, searchTermSource, productNamePrefix);
+            return await StartScrapingForProducts_FirstMatchAsync(storeId, productIds, numberOfConcurrentScrapers, searchTermSource, productNamePrefix);
         }
         else
         {
 
             Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] Wybrano tryb standardowy (dokładny). Uruchamiam pełny scraper...");
-            return await StartScrapingForProducts_StandardAsync(storeId, numberOfConcurrentScrapers, maxCidsToProcessPerProduct, searchTermSource, productNamePrefix, allowManualCaptchaSolving);
+            return await StartScrapingForProducts_StandardAsync(storeId, productIds, numberOfConcurrentScrapers, maxCidsToProcessPerProduct, searchTermSource, productNamePrefix, allowManualCaptchaSolving);
         }
     }
 
     public async Task<IActionResult> StartScrapingForProducts_StandardAsync(
     int storeId,
+    List<int> productIds,
     int numberOfConcurrentScrapers = 5,
     int maxCidsToProcessPerProduct = 3,
     SearchTermSource searchTermSource = SearchTermSource.ProductName,
@@ -199,7 +201,7 @@ public class GoogleScraperController : Controller
                     var availableScrapersPool = new ConcurrentBag<GoogleScraper>(scraperInstances);
                     Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [Tryb Ręczny] Utworzono i zainicjowano {scraperInstances.Count} instancji scrapera do puli.");
 
-                    InitializeMasterProductListIfNeeded(storeId, false);
+                    InitializeMasterProductListIfNeeded(storeId, productIds, false);
 
                     var semaphore = new SemaphoreSlim(numberOfConcurrentScrapers, numberOfConcurrentScrapers);
 
@@ -358,7 +360,7 @@ public class GoogleScraperController : Controller
                         availableScrapersPool = new ConcurrentBag<GoogleScraper>(scraperInstancesForThisAttempt);
                         Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [Próba {restartAttempt}] Utworzono i zainicjowano {scraperInstancesForThisAttempt.Count} instancji scrapera do puli.");
 
-                        InitializeMasterProductListIfNeeded(storeId, restartAttempt > 0);
+                        InitializeMasterProductListIfNeeded(storeId, productIds, restartAttempt > 0);
 
                         var semaphore = new SemaphoreSlim(numberOfConcurrentScrapers, numberOfConcurrentScrapers);
                         var linkedCtsForAttempt = CancellationTokenSource.CreateLinkedTokenSource(_currentGlobalScrapingOperationCts.Token, _currentCaptchaGlobalCts.Token);
@@ -518,7 +520,7 @@ public class GoogleScraperController : Controller
         return Content(finalMessage);
     }
 
-    private async Task<IActionResult> StartScrapingForProducts_FirstMatchAsync(int storeId, int numberOfConcurrentScrapers, SearchTermSource searchTermSource, string productNamePrefix)
+    private async Task<IActionResult> StartScrapingForProducts_FirstMatchAsync(int storeId, List<int> productIds, int numberOfConcurrentScrapers, SearchTermSource searchTermSource, string productNamePrefix)
     {
         _isScrapingActive = true;
         _currentGlobalScrapingOperationCts = new CancellationTokenSource();
@@ -534,7 +536,7 @@ public class GoogleScraperController : Controller
         try
         {
 
-            InitializeMasterProductListIfNeeded(storeId, false, requireUrl: false);
+            InitializeMasterProductListIfNeeded(storeId, productIds, false, requireUrl: false);
 
             var scraperInstances = new List<GoogleScraper>();
             var initTasks = new List<Task>();
@@ -696,6 +698,7 @@ public class GoogleScraperController : Controller
     }
     private async Task<IActionResult> StartScrapingForProducts_IntermediateMatchAsync(
         int storeId,
+        List<int> productIds,
         int numberOfConcurrentScrapers,
         SearchTermSource searchTermSource,
         int maxCidsToProcess,
@@ -741,7 +744,7 @@ public class GoogleScraperController : Controller
                     var availableScrapersPool = new ConcurrentBag<GoogleScraper>(scraperInstances);
                     Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [Tryb Ręczny] Utworzono i zainicjowano {scraperInstances.Count} instancji scrapera do puli.");
 
-                    InitializeMasterProductListIfNeeded(storeId, false, requireUrl: false);
+                    InitializeMasterProductListIfNeeded(storeId, productIds, false, requireUrl: false);
 
                     var semaphore = new SemaphoreSlim(numberOfConcurrentScrapers, numberOfConcurrentScrapers);
                     var activeScrapingTasks = new List<Task>();
@@ -868,7 +871,7 @@ public class GoogleScraperController : Controller
                         await Task.WhenAll(initTasks);
                         availableScrapersPool = new ConcurrentBag<GoogleScraper>(scraperInstancesForThisAttempt);
 
-                        InitializeMasterProductListIfNeeded(storeId, restartAttempt > 0, requireUrl: false);
+                        InitializeMasterProductListIfNeeded(storeId, productIds, restartAttempt > 0, requireUrl: false);
 
                         var semaphore = new SemaphoreSlim(numberOfConcurrentScrapers, numberOfConcurrentScrapers);
                         var linkedCtsForAttempt = CancellationTokenSource.CreateLinkedTokenSource(_currentGlobalScrapingOperationCts.Token, _currentCaptchaGlobalCts.Token);
@@ -1251,83 +1254,87 @@ public class GoogleScraperController : Controller
         finally { if (lockTaken) { _timerCallbackSemaphore.Release(); } }
     }
 
-    private void InitializeMasterProductListIfNeeded(int storeId, bool isRestartAfterCaptcha, bool requireUrl = true)
+    private void InitializeMasterProductListIfNeeded(
+     int storeId,
+     List<int> productIds, // Dodany parametr
+     bool isRestartAfterCaptcha,
+     bool requireUrl = true)
     {
         lock (_lockMasterListInit)
         {
-            bool needsFullReinitialization = false;
+            // Jeśli przekazano listę ID, ZAWSZE reinicjalizujemy listę, aby przetworzyć tylko wybrane.
+            bool needsReinitialization = (productIds != null && productIds.Any())
+                || isRestartAfterCaptcha
+                || !_masterProductStateList.Any()
+                || _masterProductStateList.Values.All(p => p.Status != ProductStatus.Pending && p.Status != ProductStatus.Processing);
 
-            if (isRestartAfterCaptcha)
+            // Dodatkowa logika sprawdzająca, czy obecna lista jest dla właściwego sklepu
+            if (!needsReinitialization)
             {
-                Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] WYKRYTO RESTART PO CAPTCHA. Wymuszam pełną reinicjalizację _masterProductStateList dla sklepu ID: {storeId}.");
-                needsFullReinitialization = true;
-            }
-            else if (!_masterProductStateList.Any())
-            {
-                needsFullReinitialization = true;
-            }
-            else
-            {
-                var firstStateProduct = _masterProductStateList.Values.FirstOrDefault();
-                if (firstStateProduct != null)
+                var firstProduct = _masterProductStateList.Values.FirstOrDefault();
+                if (firstProduct != null)
                 {
-                    using (var scope = _scopeFactory.CreateScope())
+                    using var scope = _scopeFactory.CreateScope();
+                    var context = scope.ServiceProvider.GetRequiredService<PriceSafariContext>();
+                    var productInDb = context.Products.AsNoTracking().FirstOrDefault(p => p.ProductId == firstProduct.ProductId);
+                    if (productInDb == null || productInDb.StoreId != storeId)
                     {
-                        var context = scope.ServiceProvider.GetRequiredService<PriceSafariContext>();
-                        var productInDb = context.Set<ProductClass>().AsNoTracking().FirstOrDefault(p => p.ProductId == firstStateProduct.ProductId);
-                        if (productInDb == null || productInDb.StoreId != storeId)
-                        {
-                            needsFullReinitialization = true;
-                            Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] Wykryto zmianę sklepu/brak produktu w DB. Wymuszam pełną reinicjalizację _masterProductStateList.");
-                        }
-                        else if (_masterProductStateList.Values.All(p => p.Status != ProductStatus.Pending && p.Status != ProductStatus.Processing))
-                        {
-                            needsFullReinitialization = true;
-                            Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] Wszystkie produkty na liście przetworzone lub zatrzymane. Wymuszam pełną reinicjalizację.");
-                        }
+                        needsReinitialization = true;
                     }
                 }
-                else
-                {
-                    needsFullReinitialization = true;
-                }
             }
 
-            if (needsFullReinitialization)
+            if (needsReinitialization)
             {
-                Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] Inicjalizuję (pełna) _masterProductStateList dla sklepu ID: {storeId}...");
+                Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] Inicjalizuję _masterProductStateList dla sklepu ID: {storeId}...");
                 _masterProductStateList.Clear();
+
                 using (var scope = _scopeFactory.CreateScope())
                 {
                     var context = scope.ServiceProvider.GetRequiredService<PriceSafariContext>();
+                    IQueryable<ProductClass> query;
 
-                    var query = context.Set<ProductClass>().AsNoTracking()
-                        .Where(p => p.StoreId == storeId && p.OnGoogle);
-
-                    if (requireUrl)
+                    if (productIds != null && productIds.Any())
                     {
-                        Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] Inicjalizacja: Stosuję filtr wymagający URL produktu.");
-                        query = query.Where(p => !string.IsNullOrEmpty(p.Url));
+                        Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] Inicjalizacja: Wybrano {productIds.Count} konkretnych produktów do przetworzenia.");
+                        // Pobieramy tylko te produkty, które użytkownik zaznaczył
+                        query = context.Set<ProductClass>().AsNoTracking()
+                                    .Where(p => p.StoreId == storeId && productIds.Contains(p.ProductId));
                     }
                     else
                     {
-                        Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] Inicjalizacja: Pomijam filtr na URL produktu.");
+                        Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] Inicjalizacja: Brak wybranych produktów, przetwarzam wszystkie kwalifikujące się.");
+                        // Działamy jak dawniej - bierzemy wszystkie produkty ze sklepu
+                        query = context.Set<ProductClass>().AsNoTracking()
+                                    .Where(p => p.StoreId == storeId && p.OnGoogle);
+
+                        if (requireUrl)
+                        {
+                            query = query.Where(p => !string.IsNullOrEmpty(p.Url));
+                        }
                     }
 
                     var productsFromDb = query.ToList();
-
                     var tempScraperForCleaning = new GoogleScraper();
 
                     foreach (var dbProduct in productsFromDb)
                     {
-                        _masterProductStateList.TryAdd(dbProduct.ProductId, new ProductProcessingState(dbProduct, tempScraperForCleaning.CleanUrlParameters));
+                        var state = new ProductProcessingState(dbProduct, tempScraperForCleaning.CleanUrlParameters);
+
+                        // Jeśli produkt został wybrany ręcznie, wymuszamy jego ponowne sprawdzenie, resetując status
+                        if (productIds != null && productIds.Any())
+                        {
+                            state.Status = ProductStatus.Pending;
+                        }
+
+                        _masterProductStateList.TryAdd(dbProduct.ProductId, state);
                     }
                 }
                 Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] _masterProductStateList zainicjalizowana. Załadowano {_masterProductStateList.Count} produktów.");
             }
             else
             {
-                Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] _masterProductStateList jest już zainicjalizowana i nie wymaga pełnego odświeżenia dla sklepu {storeId}.");
+                Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] _masterProductStateList jest już zainicjalizowana i nie wymaga odświeżenia.");
             }
         }
     }
