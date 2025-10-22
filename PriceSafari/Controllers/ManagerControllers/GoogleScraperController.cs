@@ -25,6 +25,7 @@ public class GoogleScraperController : Controller
 
     private static CancellationTokenSource _currentGlobalScrapingOperationCts;
     private static CancellationTokenSource _currentCaptchaGlobalCts;
+    private static readonly object _consoleLock = new object(); 
 
     public GoogleScraperController(IServiceScopeFactory scopeFactory, INetworkControlService networkControlService, PriceSafariContext context)
     {
@@ -674,7 +675,14 @@ public class GoogleScraperController : Controller
 
                 productState.UpdateStatus(ProductStatus.Found, googleUrl, firstCid, firstGid);
             }
-            Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [Tryb Szybki] ✓ Znaleziono dla ID {productState.ProductId}. CID: {firstCid}, GID: {firstGid}");
+            lock (_consoleLock)
+            {
+                Console.Write($"[{DateTime.Now:HH:mm:ss}] [Tryb Szybki] ✓ ");
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.Write("Znaleziono");
+                Console.ResetColor();
+                Console.WriteLine($" dla ID {productState.ProductId}. CID: {firstCid}, GID: {firstGid}");
+            }
 
         }
         else
@@ -1146,7 +1154,14 @@ public class GoogleScraperController : Controller
                                 {
                                     string googleUrl = $"https://www.google.com/shopping/product/{identifier.Cid}";
                                     matchedState.UpdateStatus(ProductStatus.Found, googleUrl, identifier.Cid, identifier.Gid);
-                                    Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [Tryb Pośredni] ✓ ZNALEZIONO DOPASOWANIE (wielokrotne)! Tytuł: '{titleResult.Data}' zawiera kod '{cleanedCode}' -> Produkt ID {matchedState.ProductId}.");
+                                    lock (_consoleLock)
+                                    {
+                                        Console.Write($"[{DateTime.Now:HH:mm:ss}] [Tryb Pośredni] ✓ ZNALEZIONO ");
+                                        Console.ForegroundColor = ConsoleColor.Green;
+                                        Console.Write("DOPASOWANIE");
+                                        Console.ResetColor();
+                                        Console.WriteLine($" (wielokrotne)! Tytuł: '{titleResult.Data}' zawiera kod '{cleanedCode}' -> Produkt ID {matchedState.ProductId}.");
+                                    }
                                 }
                             }
 
@@ -1582,7 +1597,14 @@ public class GoogleScraperController : Controller
                                 {
                                     string googleProductPageUrl = $"https://www.google.com/shopping/product/{identifier.Cid}";
                                     matchedState.UpdateStatus(ProductStatus.Found, googleProductPageUrl, identifier.Cid, identifier.Gid);
-                                    Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [{Thread.CurrentThread.ManagedThreadId}] ✓ DOPASOWANO! {cleanedOfferUrl} → ID {matchedState.ProductId}. CID: {identifier.Cid}, GID: {identifier.Gid}");
+                                    lock (_consoleLock)
+                                    {
+                                        Console.Write($"[{DateTime.Now:HH:mm:ss}] [{Thread.CurrentThread.ManagedThreadId}] ✓ ");
+                                        Console.ForegroundColor = ConsoleColor.Green;
+                                        Console.Write("DOPASOWANO");
+                                        Console.ResetColor();
+                                        Console.WriteLine($"! {cleanedOfferUrl} → ID {matchedState.ProductId}. CID: {identifier.Cid}, GID: {identifier.Gid}");
+                                    }
 
                                     if (matchedState.ProductId == productState.ProductId)
                                     {
