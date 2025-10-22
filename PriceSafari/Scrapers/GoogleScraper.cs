@@ -13,7 +13,12 @@ using System.Threading.Tasks;
 using System.Web;
 
 public record GoogleProductIdentifier(string Cid, string Gid);
-public record GoogleProductDetails(string MainTitle, List<string> OfferTitles); // DODAJ TEN REKORD
+
+// Przechowuje tytuły znalezione w odpowiedzi API
+public record GoogleProductDetails(string MainTitle, List<string> OfferTitles);
+
+// Nowy rekord, który będzie zwracany - zawiera powyższe detale ORAZ dane do debugowania
+public record GoogleApiDetailsResult(GoogleProductDetails Details, string RequestUrl, string RawResponse);
 public class ScraperResult<T>
 {
     public T Data { get; set; }
@@ -309,9 +314,7 @@ public class GoogleScraper
     }
 
 
-
-
-    public async Task<ScraperResult<GoogleProductDetails>> GetProductDetailsFromApiAsync(string cid, string gid)
+    public async Task<ScraperResult<GoogleApiDetailsResult>> GetProductDetailsFromApiAsync(string cid, string gid)
     {
         var url = $"https://www.google.com/async/oapv?udm=28&yv=3&q=1&async_context=MORE_STORES&pvorigin=3&cs=1&async=gpcid:{gid},catalogid:{cid},pvo:3,sori:0,mno:10,isp:true,query:1,pvt:hg,_fmt:jspb";
 
@@ -321,12 +324,12 @@ public class GoogleScraper
 
             if (responseString.Contains("/sorry/Captcha") || responseString.Contains("unusual traffic"))
             {
-                return ScraperResult<GoogleProductDetails>.Captcha();
+                return ScraperResult<GoogleApiDetailsResult>.Captcha();
             }
 
             if (string.IsNullOrWhiteSpace(responseString))
             {
-                return ScraperResult<GoogleProductDetails>.Fail("API zwróciło pustą odpowiedź.");
+                return ScraperResult<GoogleApiDetailsResult>.Fail("API zwróciło pustą odpowiedź.");
             }
 
             string cleanedJson = responseString.StartsWith(")]}'") ? responseString.Substring(5) : responseString;
@@ -337,65 +340,82 @@ public class GoogleScraper
                 string mainTitle = null;
                 var offerTitles = new List<string>();
 
-                // Pobierz główny tytuł
+                // 1. Pobierz główny, zaufany tytuł (bez zmian)
                 if (root.TryGetProperty("ProductDetailsResult", out var detailsResult) && detailsResult.ValueKind == JsonValueKind.Array)
                 {
                     mainTitle = detailsResult.EnumerateArray().FirstOrDefault().GetString();
                 }
 
-                // Funkcja pomocnicza do rekurencyjnego szukania tytułów ofert
-                void FindOfferTitles(JsonElement element)
+                // 2. Nowa, precyzyjna funkcja do wyszukiwania tytułów w strukturze ofert
+                void FindStructuredOfferTitles(JsonElement element)
                 {
                     if (element.ValueKind == JsonValueKind.Array)
                     {
-                        // Szukamy specyficznej struktury oferty: [..., "Nazwa Sklepu", ..., "Tytuł Oferty", ...]
-                        // To jest heurystyka - zakładamy, że tytuł jest stringiem po nazwie sklepu.
-                        for (int i = 0; i < element.GetArrayLength() - 1; i++)
-                        {
-                            var current = element[i];
-                            var next = element[i + 1];
+                        bool isOfferBlock = false;
+                        var potentialTitles = new List<string>();
 
-                            // Heurystyka: jeśli element ma podelement z nazwą sklepu, a kolejny jest tytułem
-                            if (current.ValueKind == JsonValueKind.Array && current.ToString().Contains("favicon") && next.ValueKind == JsonValueKind.String)
+                        // Sprawdź, czy ta tablica zawiera charakterystyczny element "ikony sprzedawcy"
+                        foreach (var item in element.EnumerateArray())
+                        {
+                            if (item.ValueKind == JsonValueKind.Array && item.ToString().Contains("faviconV2"))
                             {
-                                offerTitles.Add(next.GetString());
+                                isOfferBlock = true;
+                            }
+                            // Jednocześnie zbierz wszystkie potencjalne tytuły z tej tablicy
+                            else if (item.ValueKind == JsonValueKind.String)
+                            {
+                                potentialTitles.Add(item.GetString());
                             }
                         }
 
-                        foreach (var item in element.EnumerateArray())
+                        // Jeśli to jest "blok oferty", przefiltruj i dodaj znalezione tytuły
+                        if (isOfferBlock)
                         {
-                            FindOfferTitles(item);
+                            foreach (var title in potentialTitles)
+                            {
+                                // Stosujemy tu lżejszy filtr, bo jesteśmy już w pewnym kontekście
+                                if (!string.IsNullOrWhiteSpace(title) && title.Contains(' ') && title.Length > 5 && title.Length < 250)
+                                {
+                                    offerTitles.Add(title);
+                                }
+                            }
+                        }
+                        else // Jeśli to nie blok oferty, przeszukaj jego podelementy
+                        {
+                            foreach (var item in element.EnumerateArray())
+                            {
+                                FindStructuredOfferTitles(item);
+                            }
                         }
                     }
                     else if (element.ValueKind == JsonValueKind.Object)
                     {
                         foreach (var property in element.EnumerateObject())
                         {
-                            FindOfferTitles(property.Value);
+                            FindStructuredOfferTitles(property.Value);
                         }
                     }
                 }
 
-                // Rozpocznij poszukiwania od korzenia dokumentu
-                FindOfferTitles(root);
+                // 3. Rozpocznij poszukiwania
+                FindStructuredOfferTitles(root);
+
+                var productDetails = new GoogleProductDetails(mainTitle, offerTitles.Distinct().ToList());
+                var apiResult = new GoogleApiDetailsResult(productDetails, url, cleanedJson);
 
                 if (mainTitle == null && !offerTitles.Any())
                 {
-                    return ScraperResult<GoogleProductDetails>.Fail("Nie znaleziono ani głównego tytułu, ani tytułów ofert.");
+                    return ScraperResult<GoogleApiDetailsResult>.Fail("Nie znaleziono ani głównego tytułu, ani tytułów ofert o poprawnej strukturze.");
                 }
 
-                // Zwracamy wszystkie unikalne tytuły
-                return ScraperResult<GoogleProductDetails>.Success(new GoogleProductDetails(mainTitle, offerTitles.Distinct().ToList()));
+                return ScraperResult<GoogleApiDetailsResult>.Success(apiResult);
             }
         }
         catch (Exception ex)
         {
-            return ScraperResult<GoogleProductDetails>.Fail($"Błąd podczas parsowania detali produktu: {ex.Message}");
+            return ScraperResult<GoogleApiDetailsResult>.Fail($"Błąd podczas parsowania detali produktu: {ex.Message}");
         }
     }
-
-
-
     public string CleanUrlParameters(string url)
     {
         if (string.IsNullOrEmpty(url))

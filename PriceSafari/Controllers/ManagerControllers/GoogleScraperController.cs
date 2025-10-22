@@ -1009,7 +1009,6 @@ public class GoogleScraperController : Controller
     }
 
 
-
     private async Task ProcessSingleProduct_IntermediateMatchAsync(
     ProductProcessingState productState,
     GoogleScraper scraper,
@@ -1120,6 +1119,8 @@ public class GoogleScraperController : Controller
         {
             if (cts.IsCancellationRequested || !eligibleProductsMap.Any()) break; // Jeśli wszystko znalezione, przerwij pętlę.
 
+            Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [Tryb Pośredni] Sprawdzam identyfikator CID: {identifier.Cid}, GID: {identifier.Gid}");
+
             var detailsResult = await scraper.GetProductDetailsFromApiAsync(identifier.Cid, identifier.Gid);
 
             if (detailsResult.CaptchaEncountered)
@@ -1137,15 +1138,15 @@ public class GoogleScraperController : Controller
                 }
             }
 
-            if (detailsResult.IsSuccess && detailsResult.Data != null)
+            if (detailsResult.IsSuccess && detailsResult.Data?.Details != null)
             {
                 // Tworzymy jedną listę wszystkich tytułów do sprawdzenia
                 var allTitlesToCheck = new List<string>();
-                if (!string.IsNullOrEmpty(detailsResult.Data.MainTitle))
+                if (!string.IsNullOrEmpty(detailsResult.Data.Details.MainTitle))
                 {
-                    allTitlesToCheck.Add(detailsResult.Data.MainTitle);
+                    allTitlesToCheck.Add(detailsResult.Data.Details.MainTitle);
                 }
-                allTitlesToCheck.AddRange(detailsResult.Data.OfferTitles);
+                allTitlesToCheck.AddRange(detailsResult.Data.Details.OfferTitles);
 
                 // Sprawdzamy każdy tytuł z pulą kodów
                 foreach (var title in allTitlesToCheck.Distinct())
@@ -1173,9 +1174,12 @@ public class GoogleScraperController : Controller
                                         {
                                             Console.Write($"[{DateTime.Now:HH:mm:ss}] [Tryb Pośredni] ✓ ZNALEZIONO ");
                                             Console.ForegroundColor = ConsoleColor.Green;
-                                            Console.Write("DOPASOWANIE");
+                                            Console.WriteLine("DOPASOWANIE (wielokrotne)!");
                                             Console.ResetColor();
-                                            Console.WriteLine($" (wielokrotne)! Tytuł oferty: '{title}' zawiera kod '{cleanedCode}' -> Produkt ID {matchedState.ProductId}.");
+                                            Console.WriteLine($"  > Dopasowany kod: '{cleanedCode}'");
+                                            Console.WriteLine($"  > W tytule: '{title}'");
+                                            Console.WriteLine($"  > Dla produktu ID: {matchedState.ProductId}");
+                                            Console.WriteLine($"  > URL API: {detailsResult.Data.RequestUrl}");
                                         }
                                     }
                                 }
@@ -1204,7 +1208,6 @@ public class GoogleScraperController : Controller
             }
         }
     }
-
 
 
 
