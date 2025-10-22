@@ -1008,6 +1008,8 @@ public class GoogleScraperController : Controller
         return Content(finalMessage);
     }
 
+
+
     private async Task ProcessSingleProduct_IntermediateMatchAsync(
     ProductProcessingState productState,
     GoogleScraper scraper,
@@ -1045,13 +1047,14 @@ public class GoogleScraperController : Controller
             return;
         }
 
+        // Krok 1: Stwórz słownik wszystkich "oczekujących" produktów, kluczując po kodzie producenta.
         Dictionary<string, ProductProcessingState> eligibleProductsMap;
         lock (_lockMasterListInit)
         {
             eligibleProductsMap = _masterProductStateList.Values
                 .Where(p => (p.Status == ProductStatus.Pending || p.Status == ProductStatus.Processing)
                             && !string.IsNullOrEmpty(p.ProducerCode))
-
+                // Używamy GroupBy i First, aby uniknąć duplikatów kodów producenta.
                 .GroupBy(p => p.ProducerCode.Replace(" ", "").Trim(), StringComparer.OrdinalIgnoreCase)
                 .ToDictionary(g => g.Key, g => g.First());
         }
@@ -1059,7 +1062,7 @@ public class GoogleScraperController : Controller
         if (!eligibleProductsMap.Any())
         {
             Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [Tryb Pośredni] Brak produktów oczekujących na dopasowanie po kodzie producenta.");
-
+            // Oznacz produkt inicjujący jako nieznaleziony, jeśli nie ma nic do sprawdzenia.
             lock (productState)
             {
                 if (productState.Status == ProductStatus.Processing)
@@ -1115,12 +1118,11 @@ public class GoogleScraperController : Controller
 
         foreach (var identifier in identifierResult.Data)
         {
-            if (cts.IsCancellationRequested) break;
-            if (!eligibleProductsMap.Any()) break;
+            if (cts.IsCancellationRequested || !eligibleProductsMap.Any()) break; // Jeśli wszystko znalezione, przerwij pętlę.
 
-            var titleResult = await scraper.GetProductDetailsFromApiAsync(identifier.Cid, identifier.Gid);
+            var detailsResult = await scraper.GetProductDetailsFromApiAsync(identifier.Cid, identifier.Gid);
 
-            if (titleResult.CaptchaEncountered)
+            if (detailsResult.CaptchaEncountered)
             {
                 if (allowManualCaptchaSolving)
                 {
@@ -1135,41 +1137,56 @@ public class GoogleScraperController : Controller
                 }
             }
 
-            if (titleResult.IsSuccess && !string.IsNullOrEmpty(titleResult.Data))
+            if (detailsResult.IsSuccess && detailsResult.Data != null)
             {
-                string cleanedTitle = titleResult.Data.Replace(" ", "").Trim();
-
-                var codesToCheck = eligibleProductsMap.Keys.ToList();
-
-                foreach (var cleanedCode in codesToCheck)
+                // Tworzymy jedną listę wszystkich tytułów do sprawdzenia
+                var allTitlesToCheck = new List<string>();
+                if (!string.IsNullOrEmpty(detailsResult.Data.MainTitle))
                 {
-                    if (cleanedTitle.Contains(cleanedCode, StringComparison.OrdinalIgnoreCase))
-                    {
-                        if (eligibleProductsMap.TryGetValue(cleanedCode, out var matchedState))
-                        {
+                    allTitlesToCheck.Add(detailsResult.Data.MainTitle);
+                }
+                allTitlesToCheck.AddRange(detailsResult.Data.OfferTitles);
 
-                            lock (matchedState)
+                // Sprawdzamy każdy tytuł z pulą kodów
+                foreach (var title in allTitlesToCheck.Distinct())
+                {
+                    if (!eligibleProductsMap.Any()) break; // Optymalizacja: jeśli wszystko znalezione, kończymy
+
+                    string cleanedTitle = title.Replace(" ", "").Trim();
+                    var codesToCheck = eligibleProductsMap.Keys.ToList();
+
+                    foreach (var cleanedCode in codesToCheck)
+                    {
+                        if (cleanedTitle.Contains(cleanedCode, StringComparison.OrdinalIgnoreCase))
+                        {
+                            if (eligibleProductsMap.TryGetValue(cleanedCode, out var matchedState))
                             {
-                                if (matchedState.Status != ProductStatus.Found)
+                                // Znaleziono dopasowanie!
+                                lock (matchedState)
                                 {
-                                    string googleUrl = $"https://www.google.com/shopping/product/{identifier.Cid}";
-                                    matchedState.UpdateStatus(ProductStatus.Found, googleUrl, identifier.Cid, identifier.Gid);
-                                    lock (_consoleLock)
+                                    if (matchedState.Status != ProductStatus.Found)
                                     {
-                                        Console.Write($"[{DateTime.Now:HH:mm:ss}] [Tryb Pośredni] ✓ ZNALEZIONO ");
-                                        Console.ForegroundColor = ConsoleColor.Green;
-                                        Console.Write("DOPASOWANIE");
-                                        Console.ResetColor();
-                                        Console.WriteLine($" (wielokrotne)! Tytuł: '{titleResult.Data}' zawiera kod '{cleanedCode}' -> Produkt ID {matchedState.ProductId}.");
+                                        string googleUrl = $"https://www.google.com/shopping/product/{identifier.Cid}";
+                                        matchedState.UpdateStatus(ProductStatus.Found, googleUrl, identifier.Cid, identifier.Gid);
+
+                                        lock (_consoleLock)
+                                        {
+                                            Console.Write($"[{DateTime.Now:HH:mm:ss}] [Tryb Pośredni] ✓ ZNALEZIONO ");
+                                            Console.ForegroundColor = ConsoleColor.Green;
+                                            Console.Write("DOPASOWANIE");
+                                            Console.ResetColor();
+                                            Console.WriteLine($" (wielokrotne)! Tytuł oferty: '{title}' zawiera kod '{cleanedCode}' -> Produkt ID {matchedState.ProductId}.");
+                                        }
                                     }
                                 }
-                            }
 
-                            eligibleProductsMap.Remove(cleanedCode);
+                                // Usuwamy znaleziony produkt z puli do sprawdzenia.
+                                eligibleProductsMap.Remove(cleanedCode);
 
-                            if (matchedState.ProductId == productState.ProductId)
-                            {
-                                initiatingProductMatched = true;
+                                if (matchedState.ProductId == productState.ProductId)
+                                {
+                                    initiatingProductMatched = true;
+                                }
                             }
                         }
                     }
@@ -1177,6 +1194,7 @@ public class GoogleScraperController : Controller
             }
         }
 
+        // Na koniec sprawdź status produktu inicjującego.
         lock (productState)
         {
             if (!initiatingProductMatched && productState.Status == ProductStatus.Processing)
@@ -1186,6 +1204,9 @@ public class GoogleScraperController : Controller
             }
         }
     }
+
+
+
 
     [HttpPost("stop")]
     public IActionResult StopScraping()

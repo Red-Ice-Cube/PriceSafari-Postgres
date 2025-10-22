@@ -13,7 +13,7 @@ using System.Threading.Tasks;
 using System.Web;
 
 public record GoogleProductIdentifier(string Cid, string Gid);
-
+public record GoogleProductDetails(string MainTitle, List<string> OfferTitles); // DODAJ TEN REKORD
 public class ScraperResult<T>
 {
     public T Data { get; set; }
@@ -308,11 +308,12 @@ public class GoogleScraper
         }
     }
 
-    public async Task<ScraperResult<string>> GetProductDetailsFromApiAsync(string cid, string gid)
-    {
 
-        var url = $"https://www.google.com/async/oapv?udm=28&yv=3&q=1&async_context=MORE_STORES&pvorigin=3&cs=1&async=gpcid:{gid},catalogid:{cid},pvo:3,sori:0,mno:3,pvt:hg,_fmt:jspb";
-    
+
+
+    public async Task<ScraperResult<GoogleProductDetails>> GetProductDetailsFromApiAsync(string cid, string gid)
+    {
+        var url = $"https://www.google.com/async/oapv?udm=28&yv=3&q=1&async_context=MORE_STORES&pvorigin=3&cs=1&async=gpcid:{gid},catalogid:{cid},pvo:3,sori:0,mno:10,isp:true,query:1,pvt:hg,_fmt:jspb";
 
         try
         {
@@ -320,13 +321,12 @@ public class GoogleScraper
 
             if (responseString.Contains("/sorry/Captcha") || responseString.Contains("unusual traffic"))
             {
-                Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [API Details] WYKRYTO CAPTCHA dla CID {cid}.");
-                return ScraperResult<string>.Captcha();
+                return ScraperResult<GoogleProductDetails>.Captcha();
             }
 
             if (string.IsNullOrWhiteSpace(responseString))
             {
-                return ScraperResult<string>.Fail("API zwróciło pustą odpowiedź.");
+                return ScraperResult<GoogleProductDetails>.Fail("API zwróciło pustą odpowiedź.");
             }
 
             string cleanedJson = responseString.StartsWith(")]}'") ? responseString.Substring(5) : responseString;
@@ -334,24 +334,68 @@ public class GoogleScraper
             using (JsonDocument doc = JsonDocument.Parse(cleanedJson))
             {
                 JsonElement root = doc.RootElement;
+                string mainTitle = null;
+                var offerTitles = new List<string>();
+
+                // Pobierz główny tytuł
                 if (root.TryGetProperty("ProductDetailsResult", out var detailsResult) && detailsResult.ValueKind == JsonValueKind.Array)
                 {
-                    var titleElement = detailsResult.EnumerateArray().FirstOrDefault();
-                    if (titleElement.ValueKind == JsonValueKind.String)
+                    mainTitle = detailsResult.EnumerateArray().FirstOrDefault().GetString();
+                }
+
+                // Funkcja pomocnicza do rekurencyjnego szukania tytułów ofert
+                void FindOfferTitles(JsonElement element)
+                {
+                    if (element.ValueKind == JsonValueKind.Array)
                     {
-                        var title = titleElement.GetString();
-                        return ScraperResult<string>.Success(title);
+                        // Szukamy specyficznej struktury oferty: [..., "Nazwa Sklepu", ..., "Tytuł Oferty", ...]
+                        // To jest heurystyka - zakładamy, że tytuł jest stringiem po nazwie sklepu.
+                        for (int i = 0; i < element.GetArrayLength() - 1; i++)
+                        {
+                            var current = element[i];
+                            var next = element[i + 1];
+
+                            // Heurystyka: jeśli element ma podelement z nazwą sklepu, a kolejny jest tytułem
+                            if (current.ValueKind == JsonValueKind.Array && current.ToString().Contains("favicon") && next.ValueKind == JsonValueKind.String)
+                            {
+                                offerTitles.Add(next.GetString());
+                            }
+                        }
+
+                        foreach (var item in element.EnumerateArray())
+                        {
+                            FindOfferTitles(item);
+                        }
+                    }
+                    else if (element.ValueKind == JsonValueKind.Object)
+                    {
+                        foreach (var property in element.EnumerateObject())
+                        {
+                            FindOfferTitles(property.Value);
+                        }
                     }
                 }
+
+                // Rozpocznij poszukiwania od korzenia dokumentu
+                FindOfferTitles(root);
+
+                if (mainTitle == null && !offerTitles.Any())
+                {
+                    return ScraperResult<GoogleProductDetails>.Fail("Nie znaleziono ani głównego tytułu, ani tytułów ofert.");
+                }
+
+                // Zwracamy wszystkie unikalne tytuły
+                return ScraperResult<GoogleProductDetails>.Success(new GoogleProductDetails(mainTitle, offerTitles.Distinct().ToList()));
             }
-            return ScraperResult<string>.Fail("Nie znaleziono klucza 'ProductDetailsResult' w odpowiedzi API.");
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [API Details] Błąd dla CID {cid}: {ex.Message}");
-            return ScraperResult<string>.Fail($"Błąd: {ex.Message}");
+            return ScraperResult<GoogleProductDetails>.Fail($"Błąd podczas parsowania detali produktu: {ex.Message}");
         }
     }
+
+
+
     public string CleanUrlParameters(string url)
     {
         if (string.IsNullOrEmpty(url))
