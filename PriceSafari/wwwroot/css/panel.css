@@ -3274,12 +3274,22 @@ tr:last-child .sub-line {
 
 .price-diff-stack {
     display: flex;
-    align-items: flex-start;
+   
+    border-radius: 4px;
+    align-items: center;
+   
+    background-color: rgba(40, 40, 40, 0.10);
 }
 
 .price-diff-stack-badge {
-    display: flex;
-    align-items: flex-start;
+    display: inline-block;
+    padding: 2px 5px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 500;
+    color: #ffffff !important;
+    background-color: grey;
+    margin-right:4px;
 }
 
 
@@ -3292,8 +3302,8 @@ tr:last-child .sub-line {
 }
 
 .small-font {
-    font-size: 14px;
-    font-weight: 400;
+    font-size: 12px;
+    font-weight: 500;
 }
 
 .unit {
@@ -3317,9 +3327,7 @@ tr:last-child .sub-line {
         color: #ffffff !important;
     }
 
-.price-action-line .simulate-change-btn {
-    pointer-events: none;
-}
+
 
 .price-box-column-text {
     font-size: 14px;
@@ -4802,17 +4810,23 @@ small {
 }
 
 .simulate-change-btn {
-    display: flex;
-    background-color: transparent;
-    border: none;
-    align-items: center;
-    justify-content: flex-start;
+    width: 100%;
     border-radius: 4px;
-    cursor: pointer;
-    gap: 6px;
-    width: 106px;
-    opacity: 1;
+    height: 100%;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
     font-size: 14px;
+    font-weight: 400;
+    background-color: #e3e3e3;
+    height:33px;
+    gap:8px;
+}
+
+.price-action-line .simulate-change-btn {
+    pointer-events: none;
 }
 
 .priceChangeSummary {

@@ -444,7 +444,7 @@
                         actionLine.parentElement.classList.remove('active');
                     }
                     button.classList.remove('active');
-                    button.innerHTML = button.dataset.originalText || "Zmień cenę";
+                    button.innerHTML = button.dataset.originalText || "Dodaj zmianę ceny";
                 });
             }
         });
@@ -1205,7 +1205,7 @@
             }
 
             button.classList.remove('active');
-            button.innerHTML = button.dataset.originalText || "Zmień cenę";
+            button.innerHTML = button.dataset.originalText || "Dodaj zmianę ceny";
             priceBox.classList.remove('price-changed');
 
             const productId = priceBox ? priceBox.dataset.productId : null;
@@ -1959,7 +1959,6 @@
             const priceBoxColumnInfo = document.createElement('div');
             priceBoxColumnInfo.className = 'price-box-column-action';
             priceBoxColumnInfo.innerHTML = '';
-
             if (item.colorClass !== 'prNoOffer') {
 
                 if (item.colorClass === "prToLow" || item.colorClass === "prIdeal") {
@@ -2002,7 +2001,23 @@
 
                         const priceDifferenceDisplay = document.createElement('div');
                         priceDifferenceDisplay.style.marginTop = '4px';
-                        priceDifferenceDisplay.innerHTML = `<div class="price-diff-stack" style="text-align: left;"><span class="diff-amount small-font">${totalChangeAmount >= 0 ? '+' : ''}${totalChangeAmount.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} PLN</span>&nbsp;<span class="diff-percentage small-font">(${percentageChange >= 0 ? '+' : ''}${percentageChange.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%)</span></div>`;
+
+                        let badgeText = '';
+                        if (totalChangeAmount > 0) {
+                            badgeText = 'Podwyżka';
+                        } else if (totalChangeAmount < 0) {
+                            badgeText = 'Obniżka';
+                        } else {
+                            badgeText = 'Brak zmiany';
+                        }
+                        const badgeHtml = `<div class="price-diff-stack-badge">${badgeText}</div>`;
+
+                        priceDifferenceDisplay.innerHTML =
+                            `<div class="price-diff-stack" style="text-align: left;">` +
+                            `${badgeHtml}` +
+                            `<span class="diff-amount small-font">${totalChangeAmount >= 0 ? '+' : ''}${totalChangeAmount.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} PLN</span>&nbsp;` +
+                            `<span class="diff-percentage small-font">(${percentageChange >= 0 ? '+' : ''}${percentageChange.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%)</span>` +
+                            `</div>`;
 
                         contentWrapper.appendChild(newPriceDisplay);
                         contentWrapper.appendChild(priceDifferenceDisplay);
@@ -2013,7 +2028,7 @@
 
                         const strategicPriceBtn = document.createElement('button');
                         strategicPriceBtn.className = 'simulate-change-btn';
-                        const strategicBtnContent = `<span class="color-square-turquoise"></span> Zmień cenę`;
+                        const strategicBtnContent = `<span class="color-square-turquoise"></span> Dodaj zmianę ceny`;
                         strategicPriceBtn.innerHTML = strategicBtnContent;
                         strategicPriceBtn.dataset.originalText = strategicBtnContent;
 
@@ -2027,17 +2042,14 @@
 
                     }
                 } else if (item.colorClass === "prMid" || item.colorClass === "prToHigh") {
-
                     if (myPrice != null && lowestPrice != null) {
                         let strategicPrice;
 
                         const currentSetStepPrice = parseFloat(document.getElementById('stepPrice').value) || 0;
 
                         if (usePriceDifference) {
-
                             strategicPrice = lowestPrice + currentSetStepPrice;
                         } else {
-
                             strategicPrice = lowestPrice * (1 + currentSetStepPrice / 100);
                         }
                         if (strategicPrice < 0.01) { strategicPrice = 0.01; }
@@ -2068,7 +2080,22 @@
                         const priceDifferenceDisplay = document.createElement('div');
                         priceDifferenceDisplay.style.marginTop = '4px';
 
-                        priceDifferenceDisplay.innerHTML = `<div class="price-diff-stack" style="text-align: left;"><span class="diff-amount small-font">${totalChangeAmount >= 0 ? '+' : ''}${totalChangeAmount.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} PLN</span>&nbsp;<span class="diff-percentage small-font">(${percentageChange >= 0 ? '+' : ''}${percentageChange.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%)</span></div>`;
+                        let badgeText = '';
+                        if (totalChangeAmount > 0) {
+                            badgeText = 'Podwyżka';
+                        } else if (totalChangeAmount < 0) {
+                            badgeText = 'Obniżka';
+                        } else {
+                            badgeText = 'Brak zmiany';
+                        }
+                        const badgeHtml = `<div class="price-diff-stack-badge">${badgeText}</div>`;
+
+                        priceDifferenceDisplay.innerHTML =
+                            `<div class="price-diff-stack" style="text-align: left;">` +
+                            `${badgeHtml}` +
+                            `<span class="diff-amount small-font">${totalChangeAmount >= 0 ? '+' : ''}${totalChangeAmount.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} PLN</span>&nbsp;` +
+                            `<span class="diff-percentage small-font">(${percentageChange >= 0 ? '+' : ''}${percentageChange.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%)</span>` +
+                            `</div>`;
 
                         contentWrapper.appendChild(newPriceDisplay);
                         contentWrapper.appendChild(priceDifferenceDisplay);
@@ -2079,7 +2106,7 @@
 
                         const strategicPriceBtn = document.createElement('button');
                         strategicPriceBtn.className = 'simulate-change-btn';
-                        const strategicBtnContent = `<span class="color-square-turquoise"></span> Zmień cenę`;
+                        const strategicBtnContent = `<span class="color-square-turquoise"></span> Dodaj zmianę ceny`;
                         strategicPriceBtn.innerHTML = strategicBtnContent;
                         strategicPriceBtn.dataset.originalText = strategicBtnContent;
 
@@ -2092,7 +2119,6 @@
                         priceBoxColumnInfo.appendChild(strategicPriceBox);
 
                     }
-
                 } else if (item.colorClass === "prGood") {
                     if (myPrice != null) {
                         const targetPriceGood = myPrice;
@@ -2135,7 +2161,23 @@
 
                         const priceDifferenceDisplay = document.createElement('div');
                         priceDifferenceDisplay.style.marginTop = '4px';
-                        priceDifferenceDisplay.innerHTML = `<div class="price-diff-stack" style="text-align: left;"><span class="diff-amount small-font">${amountToSuggestedPrice2 >= 0 ? '+' : ''}${amountToSuggestedPrice2.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} PLN</span>&nbsp;<span class="diff-percentage small-font">(${percentageToSuggestedPrice2 >= 0 ? '+' : ''}${percentageToSuggestedPrice2.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%)</span></div>`;
+
+                        let badgeText = '';
+                        if (amountToSuggestedPrice2 > 0) {
+                            badgeText = 'Podwyżka';
+                        } else if (amountToSuggestedPrice2 < 0) {
+                            badgeText = 'Obniżka';
+                        } else {
+                            badgeText = 'Brak zmiany';
+                        }
+                        const badgeHtml = `<div class="price-diff-stack-badge">${badgeText}</div>`;
+
+                        priceDifferenceDisplay.innerHTML =
+                            `<div class="price-diff-stack" style="text-align: left;">` +
+                            `${badgeHtml}` +
+                            `<span class="diff-amount small-font">${amountToSuggestedPrice2 >= 0 ? '+' : ''}${amountToSuggestedPrice2.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} PLN</span>&nbsp;` +
+                            `<span class="diff-percentage small-font">(${percentageToSuggestedPrice2 >= 0 ? '+' : ''}${percentageToSuggestedPrice2.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%)</span>` +
+                            `</div>`;
 
                         contentWrapper.appendChild(newPriceDisplay);
                         contentWrapper.appendChild(priceDifferenceDisplay);
@@ -2146,7 +2188,7 @@
 
                         const strategicPriceBtn = document.createElement('button');
                         strategicPriceBtn.className = 'simulate-change-btn';
-                        const strategicBtnContent = `<span class="color-square-turquoise"></span> Zmień cenę`;
+                        const strategicBtnContent = `<span class="color-square-turquoise"></span> Dodaj zmianę ceny`;
                         strategicPriceBtn.innerHTML = strategicBtnContent;
                         strategicPriceBtn.dataset.originalText = strategicBtnContent;
 
