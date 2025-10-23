@@ -395,15 +395,19 @@
 
         if (storedChangesJSON) {
             try {
-
                 const parsedData = JSON.parse(storedChangesJSON);
-                if (parsedData && Array.isArray(parsedData.changes)) {
+
+                if (parsedData && parsedData.scrapId && Array.isArray(parsedData.changes)) {
                     parsedData.changes.forEach(change => activeChangesMap.set(String(change.productId), change));
+
                 } else if (Array.isArray(parsedData)) {
+
+                    console.warn("Wykryto stary format danych selectedPriceChanges. Zalecana aktualizacja.");
                     parsedData.forEach(change => activeChangesMap.set(String(change.productId), change));
                 }
             } catch (err) {
                 console.error("Błąd parsowania selectedPriceChanges w refreshPriceBoxStates:", err);
+
             }
         }
 
@@ -424,7 +428,6 @@
                 const isActiveButtonPresent = priceBox.querySelector('.simulate-change-btn.active');
 
                 if (!isActiveButtonPresent) {
-
                     const firstButton = priceBox.querySelector('.simulate-change-btn');
                     if (firstButton) {
                         const actionLine = firstButton.closest('.price-action-line');
@@ -432,18 +435,16 @@
                         activateChangeButton(firstButton, actionLine, priceBox);
                     }
                 }
-            }
 
-            else if (priceBox.classList.contains('price-changed')) {
+            } else if (priceBox.classList.contains('price-changed')) {
 
                 priceBox.classList.remove('price-changed');
+
                 const activeButtons = priceBox.querySelectorAll('.simulate-change-btn.active');
                 activeButtons.forEach(button => {
-                    const actionLine = button.closest('.price-action-line');
-                    if (actionLine && actionLine.parentElement) {
-                        actionLine.parentElement.classList.remove('active');
-                    }
+
                     button.classList.remove('active');
+
                     button.innerHTML = button.dataset.originalText || "Dodaj zmianę ceny";
                 });
             }
@@ -1178,12 +1179,6 @@
 
     function activateChangeButton(button, actionLine, priceBox) {
 
-        const priceBoxColumn = actionLine.parentElement;
-        if (priceBoxColumn) {
-
-            priceBoxColumn.classList.add('active');
-        }
-
         const colorSquare = button.querySelector('span[class^="color-square-"]');
         const colorSquareHTML = colorSquare ? colorSquare.outerHTML : '';
 
@@ -1200,11 +1195,8 @@
         removeLink.addEventListener('click', function (ev) {
             ev.stopPropagation();
 
-            if (priceBoxColumn) {
-                priceBoxColumn.classList.remove('active');
-            }
-
             button.classList.remove('active');
+
             button.innerHTML = button.dataset.originalText || "Dodaj zmianę ceny";
             priceBox.classList.remove('price-changed');
 

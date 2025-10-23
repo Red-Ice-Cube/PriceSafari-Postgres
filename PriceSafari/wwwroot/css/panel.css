@@ -3156,7 +3156,6 @@ tr:last-child .sub-line {
     border: 1px solid #e3e3e3;
     min-width: 260px;
     min-height: 50px;
-
 }
 
 .price-box-column-action {
@@ -3274,10 +3273,8 @@ tr:last-child .sub-line {
 
 .price-diff-stack {
     display: flex;
-   
     border-radius: 4px;
     align-items: center;
-   
     background-color: rgba(40, 40, 40, 0.10);
 }
 
@@ -3289,16 +3286,13 @@ tr:last-child .sub-line {
     font-weight: 500;
     color: #ffffff !important;
     background-color: grey;
-    margin-right:4px;
+    margin-right: 4px;
 }
 
-
 .diff-amount {
-
 }
 
 .diff-percentage {
-
 }
 
 .small-font {
@@ -3316,18 +3310,6 @@ tr:last-child .sub-line {
     cursor: pointer;
     transition: background-color 0.2s ease-in-out;
 }
-
-.price-box-column.active {
-    background-color: #333 !important;
-    color: #ffffff !important;
-    border: 1px solid #000 !important;
-}
-
-    .price-box-column.active * {
-        color: #ffffff !important;
-    }
-
-
 
 .price-box-column-text {
     font-size: 14px;
@@ -3559,14 +3541,6 @@ tr:last-child .sub-line {
     color: rgba(171, 37, 32, 1) !important;
 }
 
-
-
-
-
-
-
-
-
 .price-badge {
     display: inline-block;
     padding: 2px 5px;
@@ -3596,7 +3570,6 @@ tr:last-child .sub-line {
     align-items: center;
 }
 
-/* Dodaj te nowe klasy dla tła */
 .price-box-diff-margin-ib-positive {
     background-color: rgba(0, 145, 123, 0.10);
 }
@@ -3614,21 +3587,6 @@ tr:last-child .sub-line {
     font-weight: 500;
     margin: 0;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 .priceBox-diff {
     display: flex;
@@ -4734,7 +4692,7 @@ th small {
     justify-content: center;
     width: 16px;
     height: 16px;
-    background-color: #555;
+    background-color: gray;
     color: white;
     border-radius: 3px;
     cursor: default;
@@ -4813,7 +4771,6 @@ small {
     width: 100%;
     border-radius: 4px;
     height: 100%;
-
     display: flex;
     align-items: center;
     justify-content: center;
@@ -4821,13 +4778,26 @@ small {
     font-size: 14px;
     font-weight: 400;
     background-color: #e3e3e3;
-    height:33px;
-    gap:8px;
+    height: 34px;
+    gap: 8px;
 }
 
 .price-action-line .simulate-change-btn {
     pointer-events: none;
 }
+
+.simulate-change-btn.active {
+    background-color: #505050;
+    color: #fff !important;
+}
+
+    .simulate-change-btn.active:hover {
+        background-color: #333;
+    }
+
+    .simulate-change-btn.active i.fa-trash {
+        color: #fff !important;
+    }
 
 .priceChangeSummary {
     display: inline-flex;
