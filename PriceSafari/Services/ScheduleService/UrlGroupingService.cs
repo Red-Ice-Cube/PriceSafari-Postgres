@@ -18,9 +18,10 @@ namespace PriceSafari.Services.ScheduleService
 
         public async Task<(int totalProducts, List<string> distinctStoreNames)> GroupAndSaveUniqueUrls(List<int> storeIds)
         {
+
             var allProducts = await _context.Products
                 .Include(p => p.Store)
-                .Where(p => p.IsScrapable && p.Store.RemainingScrapes > 0)
+                .Where(p => p.IsScrapable)
                 .AsNoTracking()
                 .ToListAsync();
 
@@ -49,20 +50,17 @@ namespace PriceSafari.Services.ScheduleService
                 var offerUrl = kvp.Key;
                 var productList = kvp.Value;
 
-                // ZMIANA START: Znajdujemy jeden produkt-reprezentant, aby pobrać z niego spójne dane Google.
                 var representativeProduct = productList.FirstOrDefault(p => !string.IsNullOrEmpty(p.GoogleUrl));
                 var chosenGoogleUrl = representativeProduct?.GoogleUrl;
                 var chosenGoogleGid = representativeProduct?.GoogleGid;
-                // ZMIANA KONIEC
 
-                // ZMIANA START: Przekazujemy `chosenGoogleGid` do metody tworzącej obiekt.
                 var coOfr = CreateCoOfrClass(productList, offerUrl, chosenGoogleUrl, chosenGoogleGid);
                 coOfrs.Add(coOfr);
-                // ZMIANA KONIEC
+
             }
 
             var groupsByGoogleUrlForNoOffer = productsWithoutOffer
-                .Where(p => !string.IsNullOrEmpty(p.GoogleUrl)) // Grupujemy tylko te, które mają GoogleUrl
+                .Where(p => !string.IsNullOrEmpty(p.GoogleUrl))
                 .GroupBy(p => p.GoogleUrl ?? "")
                 .ToDictionary(g => g.Key, g => g.ToList());
 
@@ -71,28 +69,23 @@ namespace PriceSafari.Services.ScheduleService
                 var googleUrl = kvp.Key;
                 var productList = kvp.Value;
 
-                // ZMIANA START: Pobieramy GID z pierwszego produktu w grupie (powinny być takie same).
                 var representativeGid = productList.FirstOrDefault()?.GoogleGid;
-                // ZMIANA KONIEC
 
-                // ZMIANA START: Przekazujemy `representativeGid` do metody tworzącej obiekt.
                 var coOfr = CreateCoOfrClass(productList, null, googleUrl, representativeGid);
                 coOfrs.Add(coOfr);
-                // ZMIANA KONIEC
+
             }
 
-            // Obsługa produktów bez żadnego URL
             var productsWithNoUrl = productsWithoutOffer.Where(p => string.IsNullOrEmpty(p.GoogleUrl)).ToList();
             if (productsWithNoUrl.Any())
             {
-                // Traktujemy je jako jedną "bezadresową" grupę
+
                 var coOfr = CreateCoOfrClass(productsWithNoUrl, null, null, null);
                 coOfrs.Add(coOfr);
             }
 
-            // Usunięcie starych i dodanie nowych zgrupowanych ofert
             _context.CoOfrs.RemoveRange(_context.CoOfrs);
-            await _context.SaveChangesAsync(); // Upewnijmy się, że usunięcie zostało wykonane
+            await _context.SaveChangesAsync();
 
             _context.CoOfrs.AddRange(coOfrs);
             await _context.SaveChangesAsync();
@@ -100,7 +93,6 @@ namespace PriceSafari.Services.ScheduleService
             return (totalProducts, distinctStoreNames);
         }
 
-        // ZMIANA START: Dodajemy parametr `googleGid` do sygnatury metody.
         private CoOfrClass CreateCoOfrClass(List<ProductClass> productList, string? offerUrl, string? googleUrl, string? googleGid)
         {
             if (string.IsNullOrEmpty(offerUrl)) offerUrl = null;
@@ -111,7 +103,7 @@ namespace PriceSafari.Services.ScheduleService
             {
                 OfferUrl = offerUrl,
                 GoogleOfferUrl = googleUrl,
-                GoogleGid = googleGid, // Przypisanie GID
+                GoogleGid = googleGid,
                 ProductIds = new List<int>(),
                 ProductIdsGoogle = new List<int>(),
                 StoreNames = new List<string>(),
@@ -146,6 +138,6 @@ namespace PriceSafari.Services.ScheduleService
 
             return coOfr;
         }
-        // ZMIANA KONIEC
+
     }
 }

@@ -120,29 +120,32 @@ public class ScheduledTaskService : BackgroundService
                                 }
 
                                 _logger.LogInformation(
-                                    "Rozpoczynam wykonywanie zadania '{SessionName}' (StartTime: {StartTime}) na urządzeniu '{DeviceName}'.",
-                                    t.SessionName, t.StartTime, deviceName);
+                             "Rozpoczynam wykonywanie zadania '{SessionName}' (StartTime: {StartTime}) na urządzeniu '{DeviceName}'.",
+                             t.SessionName, t.StartTime, deviceName);
 
                                 t.LastRunDateOfTask = DateTime.Now;
                                 context.ScheduleTasks.Update(t);
 
-                                if (t.BaseEnabled || t.AleBaseEnabled)
-                                {
-                                    var storeIdsInTask = t.TaskStores.Select(ts => ts.StoreId).Distinct().ToList();
-                                    if (storeIdsInTask.Any())
-                                    {
-                                        var storesToUpdate = await context.Stores
-                                            .Where(s => storeIdsInTask.Contains(s.StoreId))
-                                            .ToListAsync(stoppingToken);
+                                var storeIdsInTask = t.TaskStores.Select(ts => ts.StoreId).Distinct().ToList();
 
+                                var eligibleStores = await context.Stores
+                                    .Where(s => storeIdsInTask.Contains(s.StoreId) && s.RemainingScrapes > 0)
+                                    .ToListAsync(stoppingToken);
+
+                                var eligibleStoreIds = eligibleStores.Select(s => s.StoreId).ToList();
+
+                                if (t.BaseEnabled && baseScalKey == "55380981" ||
+                                    t.AleBaseEnabled && aleBaseScalKey == "64920067")
+                                {
+
+                                    if (eligibleStores.Any())
+                                    {
                                         int tokensConsumed = 0;
-                                        foreach (var store in storesToUpdate)
+                                        foreach (var store in eligibleStores)
                                         {
-                                            if (store.RemainingScrapes > 0)
-                                            {
-                                                store.RemainingScrapes--;
-                                                tokensConsumed++;
-                                            }
+
+                                            store.RemainingScrapes--;
+                                            tokensConsumed++;
                                         }
                                         if (tokensConsumed > 0)
                                         {
@@ -154,7 +157,10 @@ public class ScheduledTaskService : BackgroundService
                                 await context.SaveChangesAsync(stoppingToken);
 
                                 if (t.UrlEnabled && urlScalKey == "83208716")
-                                    await RunUrlScalAsync(context, deviceName, t, stoppingToken);
+                                {
+
+                                    await RunUrlScalAsync(context, deviceName, t, eligibleStoreIds, stoppingToken);
+                                }
 
                                 if (t.CeneoEnabled && cenCrawKey == "84011233")
                                     await RunCeneoAsync(context, deviceName, t, stoppingToken);
@@ -203,16 +209,16 @@ public class ScheduledTaskService : BackgroundService
         }
     }
 
-    private async Task RunUrlScalAsync(PriceSafariContext context, string deviceName, ScheduleTask task, CancellationToken ct)
+    private async Task RunUrlScalAsync(PriceSafariContext context, string deviceName, ScheduleTask task, List<int> storeIdsToGroup, CancellationToken ct)
     {
         var startLog = new TaskExecutionLog
         {
             DeviceName = deviceName,
             OperationName = "URL_SCALANIE",
             StartTime = DateTime.Now,
-            Comment = $"Początek grupowania URL | SessionName={task.SessionName}; Sklepy: {string.Join(", ", task.TaskStores.Select(ts => ts.Store.StoreName))}"
-        };
 
+            Comment = $"Początek grupowania URL | SessionName={task.SessionName}; Sklepy (w zadaniu): {string.Join(", ", task.TaskStores.Select(ts => ts.Store.StoreName))}"
+        };
         context.TaskExecutionLogs.Add(startLog);
         await context.SaveChangesAsync(ct);
 
@@ -220,15 +226,17 @@ public class ScheduledTaskService : BackgroundService
 
         try
         {
-            var storeIds = task.TaskStores.Select(sts => sts.StoreId).Distinct().ToList();
+
             var urlGroupingService = context.GetService<UrlGroupingService>();
-            var (totalProducts, distinctStoreNames) = await urlGroupingService.GroupAndSaveUniqueUrls(storeIds);
+
+            var (totalProducts, distinctStoreNames) = await urlGroupingService.GroupAndSaveUniqueUrls(storeIdsToGroup);
 
             var endLog = await context.TaskExecutionLogs.FindAsync(new object[] { logId }, ct);
             if (endLog != null)
             {
                 endLog.EndTime = DateTime.Now;
-                endLog.Comment += $" | Sukces grupowania URL. Sklepy: {string.Join(", ", distinctStoreNames)}. Łącznie {totalProducts} produktów.";
+
+                endLog.Comment += $" | Sukces grupowania URL. Sklepy (przetworzone): {string.Join(", ", distinctStoreNames)}. Łącznie {totalProducts} produktów.";
                 context.TaskExecutionLogs.Update(endLog);
                 await context.SaveChangesAsync(ct);
             }
