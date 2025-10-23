@@ -3141,7 +3141,6 @@ tr:last-child .sub-line {
 
 .price-box-data {
     display: flex;
-
 }
 
 .price-box-column {
@@ -3203,7 +3202,7 @@ tr:last-child .sub-line {
     gap: 10px;
     flex-grow: 1;
     min-width: 0;
-    margin-bottom:12px;
+    margin-bottom: 12px;
 }
 
 .price-box-column-name-com {
@@ -3923,20 +3922,17 @@ tr:last-child .sub-line {
     height: 26px;
     margin-left: 3px;
     border-radius: 4px;
-    display: inline-flex; /* Użyj flexbox */
-    align-items: center; /* <<< TO WYŚRODKUJE DZIECI W PIONIE */
+    display: inline-flex;
+    align-items: center;
     background-color: rgb(245, 245, 245);
     font-size: 13px;
     border: 1px solid #e3e3e3;
     font-weight: 400;
-    /* align-content: center; <<< USUŃ LUB ZAKOMENTUJ */
     padding-left: 4px;
     color: #4e4e4e;
-    gap: 5px; /* Zachowaj odstęp */
-    vertical-align: middle; /* Dobrze to zostawić dla pozycjonowania całego boxa */
+    gap: 5px;
+    vertical-align: middle;
 }
-
-
 
 .price-range-settings-stepPrice::before {
     display: inline-block;
@@ -4626,31 +4622,24 @@ th small {
     flex-direction: column;
 }
 
-
 .step-indicator {
-    display: inline-flex; /* Zmienione na inline-flex dla łatwiejszego centrowania */
-    align-items: center; /* Wyśrodkowanie ikony w pionie */
-    justify-content: center; /* Wyśrodkowanie ikony w poziomie */
-    width: 16px; /* Możesz dostosować rozmiar kwadratu */
-    height: 16px; /* Możesz dostosować rozmiar kwadratu */
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
     background-color: #555;
     color: white;
     border-radius: 3px;
-    /* text-align: center; - Niepotrzebne przy flexbox */
-    /* line-height: 13px; - Niepotrzebne przy flexbox */
-    /* font-size: 14px; - Ustawimy rozmiar ikony poniżej */
     cursor: default;
-    /* font-weight: 700; - Niepotrzebne dla ikon */
-    vertical-align: middle; /* Wyrównanie całego kwadratu z tekstem */
+    vertical-align: middle;
     box-sizing: border-box;
 }
 
-    /* Dodatkowy styl dla samej ikony wewnątrz wskaźnika */
     .step-indicator i {
-        font-size: 10px; /* Dostosuj rozmiar ikony, aby pasowała do kwadratu */
-        line-height: 1; /* Zapobiega dodatkowym odstępom */
+        font-size: 10px;
+        line-height: 1;
     }
-
 
 .modal-simulation {
     background-color: #fff;

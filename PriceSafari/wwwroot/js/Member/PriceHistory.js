@@ -565,29 +565,28 @@
         const valueStr = stepPriceInputIndicator.value.replace(',', '.');
         const value = parseFloat(valueStr);
 
-        let iconClass = ''; // Zmienna na klasę ikony
-        let titleText = ''; // Zmienna na tekst podpowiedzi
+        let iconClass = '';
+        let titleText = '';
 
         if (isNaN(value)) {
-            // Pusto, jeśli nie liczba
+
         } else if (value < 0) {
-            iconClass = 'fa-solid fa-minus'; // Ikona minusa
+            iconClass = 'fa-solid fa-minus';
             titleText = 'Obniżka (cena < konkurenta)';
         } else if (value > 0) {
-            iconClass = 'fa-solid fa-plus'; // Ikona plusa
+            iconClass = 'fa-solid fa-plus';
             titleText = 'Podwyżka (cena > konkurenta)';
-        } else { // value === 0
-            iconClass = 'fa-solid fa-equals'; // Ikona równości
+        } else {
+            iconClass = 'fa-solid fa-equals';
             titleText = 'Wyrównanie ceny (cena = konkurenta)';
         }
 
-        // Ustaw innerHTML z tagiem <i></i> lub wyczyść, jeśli brak ikony
         if (iconClass) {
             stepPriceIndicatorSpan.innerHTML = `<i class="${iconClass}"></i>`;
         } else {
             stepPriceIndicatorSpan.innerHTML = '';
         }
-        // Ustaw podpowiedź
+
         stepPriceIndicatorSpan.title = titleText;
     }
 
