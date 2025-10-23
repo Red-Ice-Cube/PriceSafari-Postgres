@@ -259,8 +259,8 @@
 
             showGlobalUpdate(
                 `<p style="margin-bottom:8px; font-size:16px; font-weight:bold;">Masowa zmiana zakończona!</p>
-                  <p>Dodano: <strong>${countAdded}</strong> SKU</p>
-                  <p>Odrzucono: <strong>${countRejected}</strong> SKU</p>`
+                 <p>Dodano: <strong>${countAdded}</strong> SKU</p>
+                 <p>Odrzucono: <strong>${countRejected}</strong> SKU</p>`
             );
         }, 500);
     }
@@ -1262,7 +1262,7 @@
                 if (item.marginPrice == null) {
                     showGlobalNotification(
                         `<p style="margin:8px 0; font-weight:bold;">Zmiana ceny nie została dodana</p>
-                     <p>Symulacja cenowa z narzutem jest włączona – produkt musi posiadać cenę zakupu.</p>`
+                       <p>Symulacja cenowa z narzutem jest włączona – produkt musi posiadać cenę zakupu.</p>`
                     );
                     return;
                 }
@@ -1288,7 +1288,7 @@
                     if (item.marginPrice == null) {
                         showGlobalNotification(
                             `<p style="margin:8px 0; font-weight:bold;">Zmiana ceny nie została dodana</p>
-                         <p>Symulacja cenowa z narzutem jest włączona – produkt musi posiadać cenę zakupu.</p>`
+                           <p>Symulacja cenowa z narzutem jest włączona – produkt musi posiadać cenę zakupu.</p>`
                         );
                         return;
                     }
@@ -1313,9 +1313,9 @@
                                 }
                                 showGlobalNotification(
                                     `<p style="margin:8px 0; font-weight:bold;">Zmiana ceny nie została dodana</p>
-                                 <p>${reason}</p>
-                                 <p>Cena zakupu wynosi <strong>${item.marginPrice.toFixed(2)} PLN</strong>.</p>
-                                 <p>Sugerowana cena: <strong>${suggestedPriceDisplay}</strong>.</p>`
+                                   <p>${reason}</p>
+                                   <p>Cena zakupu wynosi <strong>${item.marginPrice.toFixed(2)} PLN</strong>.</p>
+                                   <p>Sugerowana cena: <strong>${suggestedPriceDisplay}</strong>.</p>`
                                 );
                                 return;
                             }
@@ -1327,8 +1327,8 @@
                             if (!(oldMargin < 0 && newMargin > oldMargin)) {
                                 showGlobalNotification(
                                     `<p style="margin:8px 0; font-weight:bold;">Zmiana ceny nie została dodana</p>
-                                 <p>Nowa cena <strong>${suggestedPriceDisplay}</strong> spowoduje ujemny narzut (nowy narzut: <strong>${newMargin}%</strong>).</p>
-                                 <p>Cena zakupu wynosi <strong>${item.marginPrice.toFixed(2)} PLN</strong>. Zmiana nie może zostać zastosowana.</p>`
+                                   <p>Nowa cena <strong>${suggestedPriceDisplay}</strong> spowoduje ujemny narzut (nowy narzut: <strong>${newMargin}%</strong>).</p>
+                                   <p>Cena zakupu wynosi <strong>${item.marginPrice.toFixed(2)} PLN</strong>. Zmiana nie może zostać zastosowana.</p>`
                                 );
                                 return;
                             }
@@ -1336,8 +1336,8 @@
                         if (marginSettings.minimalMarginPercent < 0 && newMargin > marginSettings.minimalMarginPercent) {
                             showGlobalNotification(
                                 `<p style="margin:8px 0; font-weight:bold;">Zmiana ceny nie została dodana</p>
-                             <p>Nowa cena <strong>${suggestedPriceDisplay}</strong> ustawi narzut (<strong>${newMargin}%</strong>), który jest powyżej dopuszczalnego progu straty (<strong>${marginSettings.minimalMarginPercent}%</strong>).</p>
-                             <p>Nowy narzut wynosi <strong>${newMargin}%</strong>.</p>`
+                               <p>Nowa cena <strong>${suggestedPriceDisplay}</strong> ustawi narzut (<strong>${newMargin}%</strong>), który jest powyżej dopuszczalnego progu straty (<strong>${marginSettings.minimalMarginPercent}%</strong>).</p>
+                               <p>Nowy narzut wynosi <strong>${newMargin}%</strong>.</p>`
                             );
                             return;
                         }
@@ -1402,6 +1402,18 @@
 
         if (existingChange) {
             activateChangeButton(button, actionLine, priceBox);
+        }
+    }
+
+    function getMarginBadgeClass(marginClass) {
+        switch (marginClass) {
+            case 'priceBox-diff-margin-ins':
+                return 'price-badge-positive';
+            case 'priceBox-diff-margin-minus-ins':
+                return 'price-badge-negative';
+            case 'priceBox-diff-margin-neutral-ins':
+            default:
+                return 'price-badge-neutral';
         }
     }
 
@@ -1747,11 +1759,22 @@
                             maximumFractionDigits: 2
                         }) + ' PLN';
 
+                        const badgeClass = getMarginBadgeClass(marginClass);
+
+                        let bgMarginClass = 'price-box-diff-margin-ib-neutral';
+                        if (marginClass === 'priceBox-diff-margin-ins') {
+                            bgMarginClass = 'price-box-diff-margin-ib-positive';
+                        } else if (marginClass === 'priceBox-diff-margin-minus-ins') {
+                            bgMarginClass = 'price-box-diff-margin-ib-negative';
+                        }
+
                         const purchasePriceBox = document.createElement('div');
-                        purchasePriceBox.className = 'price-box-diff-margin ' + marginClass;
+
+                        purchasePriceBox.className = 'price-box-diff-margin-ib ' + bgMarginClass;
+
                         purchasePriceBox.style.marginTop = '4px';
-                        purchasePriceBox.innerHTML = '<p style="font-size: 12px;">Zakup: ' + formattedMarginPrice + '</p>';
-                        priceBoxMyText.appendChild(purchasePriceBox);
+
+                        purchasePriceBox.innerHTML = `<span class="price-badge ${badgeClass}">Cena zakup</span><p>${formattedMarginPrice}</p>`;
 
                         const formattedMarginAmount = marginSign + Math.abs(marginAmount).toLocaleString('pl-PL', {
                             minimumFractionDigits: 2,
@@ -1762,9 +1785,15 @@
                             maximumFractionDigits: 2
                         }) + '%)';
                         const marginBox = document.createElement('div');
-                        marginBox.className = 'price-box-diff-margin ' + marginClass;
-                        marginBox.innerHTML = '<p style="font-size: 12px;">Narzut: ' + formattedMarginAmount + ' ' + formattedMarginPercentage + '</p>';
+
+                        marginBox.className = 'price-box-diff-margin-ib ' + bgMarginClass;
+                        marginBox.style.marginTop = '3px';
+
+                        marginBox.innerHTML = `<span class="price-badge ${badgeClass}">Zysk (narzut)</span><p>${formattedMarginAmount} ${formattedMarginPercentage}</p>`;
+
                         priceBoxMyText.appendChild(marginBox);
+                        priceBoxMyText.appendChild(purchasePriceBox);
+
                     }
 
                 } else {
@@ -1803,11 +1832,22 @@
                             maximumFractionDigits: 2
                         }) + ' PLN';
 
+                        const badgeClass = getMarginBadgeClass(marginClass);
+
+                        let bgMarginClass = 'price-box-diff-margin-ib-neutral';
+                        if (marginClass === 'priceBox-diff-margin-ins') {
+                            bgMarginClass = 'price-box-diff-margin-ib-positive';
+                        } else if (marginClass === 'priceBox-diff-margin-minus-ins') {
+                            bgMarginClass = 'price-box-diff-margin-ib-negative';
+                        }
+
                         const purchasePriceBox = document.createElement('div');
-                        purchasePriceBox.className = 'price-box-diff-margin ' + marginClass;
+
+                        purchasePriceBox.className = 'price-box-diff-margin-ib ' + bgMarginClass;
+
                         purchasePriceBox.style.marginTop = '4px';
-                        purchasePriceBox.innerHTML = '<p style="font-size: 12px; ">Zakup: ' + formattedMarginPrice + '</p>';
-                        priceBoxMyText.appendChild(purchasePriceBox);
+
+                        purchasePriceBox.innerHTML = `<span class="price-badge ${badgeClass}">Cena zakupu</span><p>${formattedMarginPrice}</p>`;
 
                         const formattedMarginAmount = marginSign + Math.abs(marginAmount).toLocaleString('pl-PL', {
                             minimumFractionDigits: 2,
@@ -1818,9 +1858,15 @@
                             maximumFractionDigits: 2
                         }) + '%)';
                         const marginBox = document.createElement('div');
-                        marginBox.className = 'price-box-diff-margin ' + marginClass;
-                        marginBox.innerHTML = '<p style="font-size: 12px;">Narzut: ' + formattedMarginAmount + ' ' + formattedMarginPercentage + '</p>';
+
+                        marginBox.className = 'price-box-diff-margin-ib ' + bgMarginClass;
+                        marginBox.style.marginTop = '3px';
+
+                        marginBox.innerHTML = `<span class="price-badge ${badgeClass}">Zysk (narzut)</span><p>${formattedMarginAmount} ${formattedMarginPercentage}</p>`;
+
                         priceBoxMyText.appendChild(marginBox);
+                        priceBoxMyText.appendChild(purchasePriceBox);
+
                     }
 
                 }
@@ -1874,17 +1920,28 @@
                         maximumFractionDigits: 2
                     }) + ' PLN';
 
+                    const badgeClass = getMarginBadgeClass('priceBox-diff-margin-neutral-ins');
+
+                    const bgMarginClass = 'price-box-diff-margin-ib-neutral';
+
                     const purchasePriceBox = document.createElement('div');
 
-                    purchasePriceBox.className = 'priceBox-diff-margin-neutral-ins';
+                    purchasePriceBox.className = 'price-box-diff-margin-ib ' + bgMarginClass;
+
                     purchasePriceBox.style.marginTop = '4px';
-                    purchasePriceBox.innerHTML = '<p style="font-size: 12px; ">Zakup: ' + formattedMarginPrice + '</p>';
-                    priceBoxMyText.appendChild(purchasePriceBox);
+
+                    purchasePriceBox.innerHTML = `<span class="price-badge ${badgeClass}">Cena zakupu</span><p>${formattedMarginPrice}</p>`;
 
                     const marginBox = document.createElement('div');
-                    marginBox.className = 'priceBox-diff-margin-neutral-ins';
-                    marginBox.innerHTML = '<p style="font-size: 12px; ">Narzut: Brak informacji</p>';
+
+                    marginBox.className = 'price-box-diff-margin-ib ' + bgMarginClass;
+                    marginBox.style.marginTop = '3px';
+
+                    marginBox.innerHTML = `<span class="price-badge ${badgeClass}">Zysk (narzut)</span><p>Brak informacji</p>`;
+
                     priceBoxMyText.appendChild(marginBox);
+                    priceBoxMyText.appendChild(purchasePriceBox);
+
                 }
 
                 const detailsContainer = document.createElement('div');
@@ -2074,8 +2131,8 @@
                 productImage.dataset.src = item.imgUrl;
                 productImage.alt = item.productName;
                 productImage.className = 'lazy-load';
-                productImage.style.width = '112px';
-                productImage.style.height = '112px';
+                productImage.style.width = '154px';
+                productImage.style.height = '154px';
                 productImage.style.marginRight = '3px';
                 productImage.style.marginLeft = '3px';
                 productImage.style.backgroundColor = '#ffffff';
@@ -2097,6 +2154,16 @@
                     ${(item.sourceCeneo ? `<img src="/images/Ceneo.png" alt="Ceneo Icon" style="width:15px; height:15px;" />` : '')}
                 </span>
                 <div class="offer-count-box">${getOfferText(item.storeCount)}</div>
+            </div>`;
+
+            let myPricePositionHtml = `
+            <div class="price-box-column-offers-a">
+                <span class="data-channel" title="Pozycja cenowa twojej oferty">
+                    <i class="fas fa-trophy" style="font-size: 15px; color: grey; margin-top:1px;"></i>
+                </span>
+                <div class="offer-count-box">
+                    <p>${item.myPricePosition}</p>
+                </div>
             </div>`;
 
             const ceneoTooltip = 'Ilość zakupionych produktów przez ostatnie 90 dni na Ceneo';
@@ -2125,7 +2192,8 @@
 
             let salesTrendHtml = createSalesTrendHtml(item);
 
-            statsContainer.innerHTML = offerCountHtml + ceneoSalesHtml + salesTrendHtml;
+            statsContainer.innerHTML = offerCountHtml + myPricePositionHtml + ceneoSalesHtml + salesTrendHtml;
+
             priceBoxData.appendChild(statsContainer);
             priceBoxData.appendChild(priceBoxColumnLowestPrice);
             priceBoxData.appendChild(priceBoxColumnMyPrice);

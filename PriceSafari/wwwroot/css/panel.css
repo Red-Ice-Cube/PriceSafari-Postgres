@@ -3128,7 +3128,7 @@ tr:last-child .sub-line {
     width: 100%;
     flex-direction: column;
     display: flex;
-    gap: 6px;
+    gap: 24px;
     cursor: pointer;
     box-sizing: border-box;
     transition: border 0.3s ease, box-shadow 0.3s ease;
@@ -3258,6 +3258,7 @@ tr:last-child .sub-line {
     font-size: 14px;
     font-weight: 400;
     color: #4e4e4e;
+    height: 34px;
 }
 
 .price-box-stats-container {
@@ -3532,33 +3533,95 @@ tr:last-child .sub-line {
     gap: 4px;
     font-size: 14px;
     font-weight: 400;
-
     color: rgba(0, 145, 123, 1) !important;
-
 }
 
-
 .priceBox-diff-up-margin-ins {
-
     color: #00917B;
 }
 
 .priceBox-diff-down-margin-ins {
- 
     color: #AB2520 !important;
 }
 
 .priceBox-diff-margin-neutral-ins {
-
     color: rgba(40, 40, 40, 1) !important;
-
 }
 
 .priceBox-diff-margin-minus-ins {
-
     color: rgba(171, 37, 32, 1) !important;
-   
 }
+
+
+
+
+
+
+
+
+
+.price-badge {
+    display: inline-block;
+    padding: 2px 5px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 500;
+    color: #ffffff !important;
+    width: 76px;
+}
+
+.price-badge-positive {
+    background-color: rgba(0, 145, 123, 1);
+}
+
+.price-badge-negative {
+    background-color: rgba(171, 37, 32, 1);
+}
+
+.price-badge-neutral {
+    background-color: rgba(40, 40, 40, 1);
+}
+
+.price-box-diff-margin-ib {
+    display: flex;
+    gap: 4px;
+    border-radius: 4px;
+    align-items: center;
+}
+
+/* Dodaj te nowe klasy dla tła */
+.price-box-diff-margin-ib-positive {
+    background-color: rgba(0, 145, 123, 0.10);
+}
+
+.price-box-diff-margin-ib-negative {
+    background-color: rgba(171, 37, 32, 0.10);
+}
+
+.price-box-diff-margin-ib-neutral {
+    background-color: rgba(40, 40, 40, 0.10);
+}
+
+.price-box-diff-margin-ib > p {
+    font-size: 12PX;
+    font-weight: 500;
+    margin: 0;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 .priceBox-diff {
     display: flex;
