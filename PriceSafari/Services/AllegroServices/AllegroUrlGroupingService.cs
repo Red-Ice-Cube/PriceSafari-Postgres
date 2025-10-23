@@ -73,15 +73,14 @@ namespace PriceSafari.Services.AllegroServices
 
             var groupedByUrlAndStore = allProducts
                   .Where(p => !string.IsNullOrWhiteSpace(p.AllegroOfferUrl))
-                  .GroupBy(p => new { p.AllegroOfferUrl, p.StoreId }); // Grupujemy po URL i StoreId
+                  .GroupBy(p => new { p.AllegroOfferUrl, p.StoreId });
 
             var offersToSave = new List<AllegroOfferToScrape>();
 
-            // ZMIANA W PĘTLI
             foreach (var group in groupedByUrlAndStore)
             {
-                var offerUrl = group.Key.AllegroOfferUrl; // Pobieramy URL z klucza
-                var storeIdForOffer = group.Key.StoreId;   // Pobieramy StoreId z klucza
+                var offerUrl = group.Key.AllegroOfferUrl;
+                var storeIdForOffer = group.Key.StoreId;
                 var offerId = ExtractOfferIdFromUrl(offerUrl);
 
                 if (offerId == 0)
@@ -93,7 +92,7 @@ namespace PriceSafari.Services.AllegroServices
                 {
                     AllegroOfferUrl = offerUrl,
                     AllegroOfferId = offerId,
-                    StoreId = storeIdForOffer, // <-- PRZYPISANIE NOWEJ WARTOŚCI
+                    StoreId = storeIdForOffer,
                     AllegroProductIds = group.Select(p => p.AllegroProductId).ToList(),
                     AddedDate = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, TimeZoneInfo.FindSystemTimeZoneById("Central European Standard Time"))
                 };

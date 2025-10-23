@@ -24,11 +24,23 @@ namespace PriceSafari.Services.AllegroServices
         public async Task<(int processedUrls, int savedOffers)> ProcessScrapedDataForStoreAsync(int storeId)
         {
             var userStore = await _context.Stores.FindAsync(storeId);
+
+            // --- START MODYFIKACJI ---
+
+            // 1. Sprawdzamy, czy sklep istnieje I CZY MA TOKEN
             if (userStore == null || userStore.RemainingScrapes <= 0)
             {
-                return (0, 0);
+                return (0, 0); // Zakończ, jeśli nie ma tokenów
             }
 
+            // 2. KONSUMPCJA TOKENA
+            // Sprawdzamy, czy BaseScal (Ceneo/Google) już tego nie zrobił
+            userStore.RemainingScrapes--;
+            await _context.SaveChangesAsync(); // Zapisujemy zużycie tokena natychmiast
+
+            // --- KONIEC MODYFIKACJI ---
+
+            // 3. Kontynuujemy resztę logiki (bez zmian)
             if (string.IsNullOrEmpty(userStore.StoreNameAllegro))
             {
                 return (0, 0);

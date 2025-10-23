@@ -18,10 +18,9 @@ namespace PriceSafari.Services.ScheduleService
 
         public async Task<(int totalProducts, List<string> distinctStoreNames)> GroupAndSaveUniqueUrls(List<int> storeIds)
         {
-
             var allProducts = await _context.Products
                 .Include(p => p.Store)
-                .Where(p => p.IsScrapable)
+                .Where(p => p.IsScrapable && p.Store.RemainingScrapes > 0)
                 .AsNoTracking()
                 .ToListAsync();
 
