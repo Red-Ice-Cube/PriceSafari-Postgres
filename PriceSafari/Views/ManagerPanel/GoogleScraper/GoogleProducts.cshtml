@@ -32,6 +32,12 @@
                 <strong>Tryb Pośredni:</strong> Upewnij się, że w nazwie wyniku występuje wyszukiwany parametr (np. Kod produktu)
             </label>
         </div>
+        <div class="form-check form-switch mt-2 ms-4" id="compareOnlyCurrentProductCodeContainer" style="display: none;">
+            <input class="form-check-input" type="checkbox" id="compareOnlyCurrentProductCode">
+            <label class="form-check-label" for="compareOnlyCurrentProductCode">
+                Porównuj kod tylko aktualnie wyszukiwanego produktu (Ogranicza dopasowanie do własnego kodu. Zwiększa dokładność, zmniejsza szybkość).
+            </label>
+        </div>
         <div class="col-md-3">
             <label for="numberOfConcurrentScrapers" class="form-label">Liczba scraperów (wątków):</label>
             <input type="number" class="form-control" id="numberOfConcurrentScrapers" value="7" min="1">
@@ -105,137 +111,155 @@
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script>
         $(document).ready(function () {
-            console.log("Document ready, loading products...");
-            loadProducts();
+              console.log("Document ready, loading products...");
+              loadProducts();
 
-               $('#searchTermSource').change(function() {
-            if ($(this).val() === 'ProductName') {
-                $('#productNameOptionsContainer').show(); // Zmieniono ID
-            } else {
-                $('#productNameOptionsContainer').hide(); // Zmieniono ID
-            }
-        }).trigger('change');
+              // === NOWA FUNKCJA DO OBSŁUGI WIDOCZNOŚCI OPCJI POŚREDNICH ===
+              function toggleIntermediateOptions() {
+                  if ($('#ensureNameMatch').is(':checked')) {
+                      $('#compareOnlyCurrentProductCodeContainer').show();
+                  } else {
+                      $('#compareOnlyCurrentProductCodeContainer').hide();
+                  }
+              }
+              // ==========================================================
 
-            $('#selectAllProducts').click(function () {
-                $('.product-checkbox').prop('checked', this.checked);
-            });
+              // Obsługa zmiany źródła terminu wyszukiwania (ISTNIEJĄCY KOD)
+              $('#searchTermSource').change(function() {
+                  if ($(this).val() === 'ProductName') {
+                      $('#productNameOptionsContainer').show();
+                  } else {
+                      $('#productNameOptionsContainer').hide();
+                  }
+              }).trigger('change');
 
-            $('#startScraping').click(function () {
-                console.log("Start Scraping button clicked.");
-                startScraping();
-            });
+              // === NOWA OBSŁUGA DLA PRZEŁĄCZNIKA TRYBU POŚREDNIEGO ===
+              $('#ensureNameMatch').change(toggleIntermediateOptions).trigger('change');
+              // ====================================================
 
-            $('#stopScrapingButton').click(function () {
-                console.log("Stop Scraping button clicked.");
-                if (confirm("Czy na pewno chcesz zatrzymać proces scrapowania? Bieżące zmiany zostaną zapisane.")) {
-                    stopScrapingProcess();
-                }
-            });
+              $('#selectAllProducts').click(function () {
+                  $('.product-checkbox').prop('checked', this.checked);
+              });
 
-            $('#updatePendingStatuses').click(function () {
-                console.log("Update Pending Statuses button clicked.");
-                updatePendingProducts();
-            });
+              $('#startScraping').click(function () {
+                  console.log("Start Scraping button clicked.");
+                  startScraping();
+              });
 
-            $('#resetNotFoundStatuses').click(function () {
-                console.log("Reset Not Found Statuses button clicked.");
-                resetNotFoundProducts();
-            });
+              $('#stopScrapingButton').click(function () {
+                  console.log("Stop Scraping button clicked.");
+                  if (confirm("Czy na pewno chcesz zatrzymać proces scrapowania? Bieżące zmiany zostaną zapisane.")) {
+                      stopScrapingProcess();
+                  }
+              });
 
-             $('#resetIncorrectGoogleStatuses').click(function () {
-                console.log("Reset Incorrect Google Statuses button clicked.");
-                resetIncorrectGoogleStatuses();
-            });
+              $('#updatePendingStatuses').click(function () {
+                  console.log("Update Pending Statuses button clicked.");
+                  updatePendingProducts();
+              });
 
-            $('#clearGoogleUrls').click(function () {
-                console.log("Clear Google URLs button clicked.");
-                clearGoogleUrls();
-            });
+              $('#resetNotFoundStatuses').click(function () {
+                  console.log("Reset Not Found Statuses button clicked.");
+                  resetNotFoundProducts();
+              });
 
-            function loadProducts() {
-                console.log("Sending GET request to load products...");
-                $.ajax({
-                    type: "GET",
-                    url: '@Url.Action("GoogleProducts", "GoogleScraper")',
-                    data: { storeId: '@storeId' },
-                    success: function (products) {
-                        console.log("Received products from server:", products);
-                        updateTable(products);
-                    },
-                    error: function (xhr, status, error) {
-                        console.error("Error loading products: ", error);
-                        console.error("Response status: ", status);
-                        console.error("Response details: ", xhr.responseText);
-                    }
-                });
-            }
+              $('#resetIncorrectGoogleStatuses').click(function () {
+                  console.log("Reset Incorrect Google Statuses button clicked.");
+                  resetIncorrectGoogleStatuses();
+              });
 
-                 function startScraping() {
-            console.log("Sending POST request to start scraping...");
+              $('#clearGoogleUrls').click(function () {
+                  console.log("Clear Google URLs button clicked.");
+                  clearGoogleUrls();
+              });
 
-            var selectedProductIds = [];
-            $('.product-checkbox:checked').each(function () {
-                selectedProductIds.push(parseInt($(this).val(), 10));
-            });
+              function loadProducts() {
+                  console.log("Sending GET request to load products...");
+                  $.ajax({
+                      type: "GET",
+                      url: '@Url.Action("GoogleProducts", "GoogleScraper")',
+                      data: { storeId: '@storeId' },
+                      success: function (products) {
+                          console.log("Received products from server:", products);
+                          updateTable(products);
+                      },
+                      error: function (xhr, status, error) {
+                          console.error("Error loading products: ", error);
+                          console.error("Response status: ", status);
+                          console.error("Response details: ", xhr.responseText);
+                      }
+                  });
+              }
 
-            if (selectedProductIds.length > 0) {
-                console.log(`Starting scraping for ${selectedProductIds.length} selected products.`);
-            } else {
-                console.log("No products selected, starting scraping for all eligible products.");
-            }
-        var termSource = $('#searchTermSource').val();
-                var prefix = $('#productNamePrefix').val();
+          function startScraping() {
+              console.log("Sending POST request to start scraping...");
 
-                       var scrapingData = {
-            storeId: '@storeId',
-            productIds: selectedProductIds,
-            numberOfConcurrentScrapers: parseInt($('#numberOfConcurrentScrapers').val(), 10),
-            maxCidsToProcessPerProduct: parseInt($('#maxCidsToProcessPerProduct').val(), 10),
-            searchTermSource: termSource,
-            useFirstMatchLogic: $('#useFirstMatchLogic').is(':checked'),
-            ensureNameMatch: $('#ensureNameMatch').is(':checked'),
-            allowManualCaptchaSolving: $('#allowManualCaptchaSolving').is(':checked'),
-            appendProducerCode: $('#appendProducerCode').is(':checked') // <-- DODAJ TĘ LINIĘ
-        };
+              var selectedProductIds = [];
+              $('.product-checkbox:checked').each(function () {
+                  selectedProductIds.push(parseInt($(this).val(), 10));
+              });
 
-                if (termSource === 'ProductName' && prefix && prefix.trim() !== '') {
-                    scrapingData.productNamePrefix = prefix;
-                }
+              if (selectedProductIds.length > 0) {
+                  console.log(`Starting scraping for ${selectedProductIds.length} selected products.`);
+              } else {
+                  console.log("No products selected, starting scraping for all eligible products.");
+              }
+          var termSource = $('#searchTermSource').val();
+                  var prefix = $('#productNamePrefix').val();
 
-                $.ajax({
-                type: "POST",
-                url: '@Url.Action("StartScrapingForProducts", "GoogleScraper")',
-                data: scrapingData,
-                traditional: true,
-                success: function (response) {
-                    alert("Rozpoczęto scrapowanie: " + response);
-                },
-                error: function (xhr) {
-                    console.error("Error starting scraping: ", xhr.responseText);
-                    alert("Błąd podczas uruchamiania scrapowania: " + xhr.responseText);
-                }
-            });
-        }
+                         var scrapingData = {
+              storeId: '@storeId',
+              productIds: selectedProductIds,
+              numberOfConcurrentScrapers: parseInt($('#numberOfConcurrentScrapers').val(), 10),
+              maxCidsToProcessPerProduct: parseInt($('#maxCidsToProcessPerProduct').val(), 10),
+              searchTermSource: termSource,
+              useFirstMatchLogic: $('#useFirstMatchLogic').is(':checked'),
+              ensureNameMatch: $('#ensureNameMatch').is(':checked'),
+              // === DODANIE NOWEGO PARAMETRU ===
+              compareOnlyCurrentProductCode: $('#compareOnlyCurrentProductCode').is(':checked'),
+              // ===============================
+              allowManualCaptchaSolving: $('#allowManualCaptchaSolving').is(':checked'),
+              appendProducerCode: $('#appendProducerCode').is(':checked')
+          };
 
-            function stopScrapingProcess() {
-                console.log("Sending POST request to stop scraping...");
-                $.ajax({
-                    type: "POST",
-                    url: '@Url.Action("StopScraping", "GoogleScraper")',
+                  if (termSource === 'ProductName' && prefix && prefix.trim() !== '') {
+                      scrapingData.productNamePrefix = prefix;
+                  }
 
-                    success: function (response) {
-                        console.log("Stop request sent successfully. Response:", response);
-                        alert("Wysłano żądanie zatrzymania scrapowania. " + response);
+                  $.ajax({
+                  type: "POST",
+                  url: '@Url.Action("StartScrapingForProducts", "GoogleScraper")',
+                  data: scrapingData,
+                  traditional: true,
+                  success: function (response) {
+                      alert("Rozpoczęto scrapowanie: " + response);
+                  },
+                  error: function (xhr) {
+                      console.error("Error starting scraping: ", xhr.responseText);
+                      alert("Błąd podczas uruchamiania scrapowania: " + xhr.responseText);
+                  }
+              });
+          }
 
-                    },
-                    error: function (xhr, status, error) {
-                        console.error("Error sending stop request: ", error);
-                        console.error("Response status: ", status);
-                        console.error("Response details: ", xhr.responseText);
-                        alert("Błąd podczas wysyłania żądania zatrzymania: " + xhr.responseText);
-                    }
-                });
-            }
+              function stopScrapingProcess() {
+                  console.log("Sending POST request to stop scraping...");
+                  $.ajax({
+                      type: "POST",
+                      url: '@Url.Action("StopScraping", "GoogleScraper")',
+
+                      success: function (response) {
+                          console.log("Stop request sent successfully. Response:", response);
+                          alert("Wysłano żądanie zatrzymania scrapowania. " + response);
+
+                      },
+                      error: function (xhr, status, error) {
+                          console.error("Error sending stop request: ", error);
+                          console.error("Response status: ", status);
+                          console.error("Response details: ", xhr.responseText);
+                          alert("Błąd podczas wysyłania żądania zatrzymania: " + xhr.responseText);
+                      }
+                  });
+              }
 
             function updatePendingProducts() {
                 console.log("Sending POST request to update pending products...");
