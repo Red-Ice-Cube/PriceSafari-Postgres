@@ -236,12 +236,7 @@
             const buttons = box.querySelectorAll('.simulate-change-btn');
             if (!buttons || buttons.length === 0) return;
 
-            let targetButton;
-            if (changeType === 'match' && buttons[0]) {
-                targetButton = buttons[0];
-            } else if (changeType === 'strategic' && buttons[1]) {
-                targetButton = buttons[1];
-            }
+            let targetButton = buttons[0];
 
             if (!targetButton) return;
 
@@ -528,11 +523,15 @@
     function enforceLimits(input, min, max) {
         let value = parseFloat(input.value.replace(',', '.'));
         if (isNaN(value)) {
+
+            input.value = (min !== undefined) ? min.toFixed(2) : "0.00";
             return;
         }
-        if (value < min) {
+
+        if (min !== undefined && value < min) {
             input.value = min.toFixed(2);
-        } else if (value > max) {
+
+        } else if (max !== undefined && value > max) {
             input.value = max.toFixed(2);
         } else {
             input.value = value.toFixed(2);
@@ -544,20 +543,57 @@
     const stepPriceInput = document.getElementById("stepPrice");
 
     price1Input.addEventListener("blur", () => {
+
         enforceLimits(price1Input, 0.01);
-        if (parseFloat(stepPriceInput.value.replace(',', '.')) > parseFloat(price1Input.value.replace(',', '.'))) {
-            stepPriceInput.value = price1Input.value;
-        }
-        enforceLimits(stepPriceInput, 0.01, parseFloat(price1Input.value.replace(',', '.')));
     });
 
     price2Input.addEventListener("blur", () => {
+
         enforceLimits(price2Input, 0.01);
     });
 
     stepPriceInput.addEventListener("blur", () => {
-        enforceLimits(stepPriceInput, 0.01, parseFloat(price1Input.value.replace(',', '.')));
+
+        enforceLimits(stepPriceInput, -100.00, 1000.00);
     });
+    const stepPriceInputIndicator = document.getElementById('stepPrice');
+    const stepPriceIndicatorSpan = document.getElementById('stepPriceIndicator');
+
+    function updateStepPriceIndicator() {
+        if (!stepPriceInputIndicator || !stepPriceIndicatorSpan) return;
+
+        const valueStr = stepPriceInputIndicator.value.replace(',', '.');
+        const value = parseFloat(valueStr);
+
+        let iconClass = ''; // Zmienna na klasę ikony
+        let titleText = ''; // Zmienna na tekst podpowiedzi
+
+        if (isNaN(value)) {
+            // Pusto, jeśli nie liczba
+        } else if (value < 0) {
+            iconClass = 'fa-solid fa-minus'; // Ikona minusa
+            titleText = 'Obniżka (cena < konkurenta)';
+        } else if (value > 0) {
+            iconClass = 'fa-solid fa-plus'; // Ikona plusa
+            titleText = 'Podwyżka (cena > konkurenta)';
+        } else { // value === 0
+            iconClass = 'fa-solid fa-equals'; // Ikona równości
+            titleText = 'Wyrównanie ceny (cena = konkurenta)';
+        }
+
+        // Ustaw innerHTML z tagiem <i></i> lub wyczyść, jeśli brak ikony
+        if (iconClass) {
+            stepPriceIndicatorSpan.innerHTML = `<i class="${iconClass}"></i>`;
+        } else {
+            stepPriceIndicatorSpan.innerHTML = '';
+        }
+        // Ustaw podpowiedź
+        stepPriceIndicatorSpan.title = titleText;
+    }
+
+    stepPriceInputIndicator.addEventListener('input', updateStepPriceIndicator);
+    stepPriceInputIndicator.addEventListener('change', updateStepPriceIndicator);
+    setTimeout(updateStepPriceIndicator, 0);
 
     positionSlider.noUiSlider.on('update', function (values, handle) {
         const displayValues = values.map(value => {
@@ -1800,119 +1836,46 @@
                 if (item.colorClass === "prToLow" || item.colorClass === "prIdeal") {
                     if (myPrice != null && savings != null) {
                         const savingsValue = parseFloat(savings.replace(',', '.'));
-                        const upArrowClass = item.colorClass === 'prToLow' ? 'arrow-up-black' : 'arrow-up-turquoise';
-                        const suggestedPrice1 = myPrice + savingsValue;
-                        const amountToSuggestedPrice1 = savingsValue;
-                        const percentageToSuggestedPrice1 = myPrice > 0 ? (amountToSuggestedPrice1 / myPrice) * 100 : 0;
+                        const targetPriceRaise = myPrice + savingsValue;
+                        let strategicPrice;
+                        let arrowClassStrategic;
 
-                        let suggestedPrice2, amountToSuggestedPrice2, percentageToSuggestedPrice2, arrowClass2 = upArrowClass;
+                        const currentSetStepPrice = parseFloat(document.getElementById('stepPrice').value) || 0;
 
                         if (usePriceDifference) {
-                            suggestedPrice2 = suggestedPrice1 - setStepPrice;
+
+                            strategicPrice = targetPriceRaise + currentSetStepPrice;
                         } else {
-                            suggestedPrice2 = suggestedPrice1 * (1 - (setStepPrice / 100));
-                        }
-                        amountToSuggestedPrice2 = suggestedPrice2 - myPrice;
-                        percentageToSuggestedPrice2 = myPrice > 0 ? (amountToSuggestedPrice2 / myPrice) * 100 : 0;
-                        if (amountToSuggestedPrice2 < 0) {
-                            arrowClass2 = 'arrow-down-turquoise';
-                        }
 
-                        const matchPriceBox = document.createElement('div');
-                        matchPriceBox.className = 'price-box-column';
-                        const matchPriceLine = document.createElement('div');
-                        matchPriceLine.className = 'price-action-line';
-                        matchPriceLine.innerHTML = `
-                <span class="${upArrowClass}"></span>
-                <div class="price-diff-stack">
-                    <span class="diff-amount small-font">${amountToSuggestedPrice1 >= 0 ? '+' : ''}${amountToSuggestedPrice1.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">PLN</span></span>
-                    <span class="diff-percentage small-font">${percentageToSuggestedPrice1 >= 0 ? '+' : ''}${percentageToSuggestedPrice1.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">%</span></span>
-                </div>
-                <div class="small-font">= ${suggestedPrice1.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">PLN</span></div>
-            `;
-                        const matchPriceBtn = document.createElement('button');
-                        matchPriceBtn.className = 'simulate-change-btn';
-                        const matchBtnContent = `<span class="color-square-green"></span> Zmień cenę`;
-                        matchPriceBtn.innerHTML = matchBtnContent;
-                        matchPriceBtn.dataset.originalText = matchBtnContent;
-                        matchPriceLine.appendChild(matchPriceBtn);
-                        matchPriceBox.appendChild(matchPriceLine);
+                            strategicPrice = targetPriceRaise * (1 + (currentSetStepPrice / 100));
+                        }
+                        if (strategicPrice < 0.01) { strategicPrice = 0.01; }
 
-                        attachPriceChangeListener(matchPriceLine, suggestedPrice1, box, item.productId, item.productName, myPrice, item);
+                        const totalChangeAmount = strategicPrice - myPrice;
+                        const percentageChange = myPrice > 0 ? (totalChangeAmount / myPrice) * 100 : 0;
+
+                        if (totalChangeAmount > 0) {
+                            arrowClassStrategic = item.colorClass === 'prToLow' ? 'arrow-up-black' : 'arrow-up-turquoise';
+                        } else if (totalChangeAmount < 0) {
+                            arrowClassStrategic = 'arrow-down-turquoise';
+                        } else {
+                            arrowClassStrategic = 'no-change-icon-turquoise';
+                        }
 
                         const strategicPriceBox = document.createElement('div');
                         strategicPriceBox.className = 'price-box-column';
                         const strategicPriceLine = document.createElement('div');
                         strategicPriceLine.className = 'price-action-line';
+
                         strategicPriceLine.innerHTML = `
-                <span class="${arrowClass2}"></span>
-                <div class="price-diff-stack">
-                    <span class="diff-amount small-font">${amountToSuggestedPrice2 >= 0 ? '+' : ''}${amountToSuggestedPrice2.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">PLN</span></span>
-                    <span class="diff-percentage small-font">${percentageToSuggestedPrice2 >= 0 ? '+' : ''}${percentageToSuggestedPrice2.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">%</span></span>
-                </div>
-                <div class="small-font">= ${suggestedPrice2.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">PLN</span></div>
-            `;
-                        const strategicPriceBtn = document.createElement('button');
-                        strategicPriceBtn.className = 'simulate-change-btn';
-                        const strategicBtnContent = `<span class="color-square-turquoise"></span> Zmień cenę`;
-                        strategicPriceBtn.innerHTML = strategicBtnContent;
-                        strategicPriceBtn.dataset.originalText = strategicBtnContent;
-                        strategicPriceLine.appendChild(strategicPriceBtn);
-                        strategicPriceBox.appendChild(strategicPriceLine);
+                    <span class="${arrowClassStrategic}"></span> 
+                    <div class="price-diff-stack">
+                        <span class="diff-amount small-font">${totalChangeAmount >= 0 ? '+' : ''}${totalChangeAmount.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">PLN</span></span>
+                        <span class="diff-percentage small-font">${percentageChange >= 0 ? '+' : ''}${percentageChange.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">%</span></span>
+                    </div>
+                    <div class="small-font">= ${strategicPrice.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">PLN</span></div>
+                `;
 
-                        attachPriceChangeListener(strategicPriceLine, suggestedPrice2, box, item.productId, item.productName, myPrice, item);
-
-                        priceBoxColumnInfo.appendChild(matchPriceBox);
-                        priceBoxColumnInfo.appendChild(strategicPriceBox);
-                    }
-                } else if (item.colorClass === "prMid" || item.colorClass === "prToHigh") {
-                    if (myPrice != null && lowestPrice != null) {
-                        const amountToMatchLowestPrice = myPrice - lowestPrice;
-                        const percentageToMatchLowestPrice = myPrice > 0 ? (amountToMatchLowestPrice / myPrice) * 100 : 0;
-                        let strategicPrice, amountToBeatLowestPrice, percentageToBeatLowestPrice;
-                        if (usePriceDifference) {
-                            strategicPrice = lowestPrice - setStepPrice;
-                        } else {
-                            strategicPrice = lowestPrice * (1 - setStepPrice / 100);
-                        }
-                        amountToBeatLowestPrice = myPrice - strategicPrice;
-                        percentageToBeatLowestPrice = myPrice > 0 ? (amountToBeatLowestPrice / myPrice) * 100 : 0;
-                        const arrowClass = item.colorClass === "prMid" ? "arrow-down-yellow" : "arrow-down-red";
-
-                        const matchPriceBox = document.createElement('div');
-                        matchPriceBox.className = 'price-box-column';
-                        const matchPriceLine = document.createElement('div');
-                        matchPriceLine.className = 'price-action-line';
-                        matchPriceLine.innerHTML = `
-                <span class="${arrowClass}"></span>
-                <div class="price-diff-stack">
-                    <span class="diff-amount small-font">-${amountToMatchLowestPrice.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">PLN</span></span>
-                    <span class="diff-percentage small-font">-${percentageToMatchLowestPrice.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">%</span></span>
-                </div>
-                <div class="small-font">= ${lowestPrice.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">PLN</span></div>
-            `;
-                        const matchPriceBtn = document.createElement('button');
-                        matchPriceBtn.className = 'simulate-change-btn';
-                        const matchBtnContent = `<span class="color-square-green"></span> Zmień cenę`;
-                        matchPriceBtn.innerHTML = matchBtnContent;
-                        matchPriceBtn.dataset.originalText = matchBtnContent;
-                        matchPriceLine.appendChild(matchPriceBtn);
-                        matchPriceBox.appendChild(matchPriceLine);
-
-                        attachPriceChangeListener(matchPriceLine, lowestPrice, box, item.productId, item.productName, myPrice, item);
-
-                        const strategicPriceBox = document.createElement('div');
-                        strategicPriceBox.className = 'price-box-column';
-                        const strategicPriceLine = document.createElement('div');
-                        strategicPriceLine.className = 'price-action-line';
-                        strategicPriceLine.innerHTML = `
-                <span class="${arrowClass}"></span>
-                <div class="price-diff-stack">
-                    <span class="diff-amount small-font">-${amountToBeatLowestPrice.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">PLN</span></span>
-                    <span class="diff-percentage small-font">-${percentageToBeatLowestPrice.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">%</span></span>
-                </div>
-                <div class="small-font">= ${strategicPrice.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">PLN</span></div>
-            `;
                         const strategicPriceBtn = document.createElement('button');
                         strategicPriceBtn.className = 'simulate-change-btn';
                         const strategicBtnContent = `<span class="color-square-turquoise"></span> Zmień cenę`;
@@ -1922,68 +1885,103 @@
                         strategicPriceBox.appendChild(strategicPriceLine);
 
                         attachPriceChangeListener(strategicPriceLine, strategicPrice, box, item.productId, item.productName, myPrice, item);
-
-                        priceBoxColumnInfo.appendChild(matchPriceBox);
                         priceBoxColumnInfo.appendChild(strategicPriceBox);
                     }
-                } else if (item.colorClass === "prGood") {
-                    if (myPrice != null) {
-                        const amountToSuggestedPrice1 = 0;
-                        const percentageToSuggestedPrice1 = 0;
-                        const suggestedPrice1 = myPrice;
-                        let amountToSuggestedPrice2, percentageToSuggestedPrice2, suggestedPrice2, downArrowClass = 'arrow-down-green';
+                } else if (item.colorClass === "prMid" || item.colorClass === "prToHigh") {
+                    if (myPrice != null && lowestPrice != null) {
+                        let strategicPrice;
 
-                        if (item.storeCount > 1) {
-                            if (usePriceDifference) {
-                                suggestedPrice2 = myPrice - setStepPrice;
-                            } else {
-                                let reduction = myPrice * (setStepPrice / 100);
-                                if (reduction < 0.01) reduction = 0.01;
-                                suggestedPrice2 = myPrice - reduction;
-                            }
-                            amountToSuggestedPrice2 = suggestedPrice2 - myPrice;
-                            percentageToSuggestedPrice2 = myPrice > 0 ? (amountToSuggestedPrice2 / myPrice) * 100 : 0;
+                        const currentSetStepPrice = parseFloat(document.getElementById('stepPrice').value) || 0;
+
+                        if (usePriceDifference) {
+
+                            strategicPrice = lowestPrice + currentSetStepPrice;
                         } else {
-                            suggestedPrice2 = myPrice;
-                            amountToSuggestedPrice2 = 0;
-                            percentageToSuggestedPrice2 = 0;
-                            downArrowClass = 'no-change-icon-turquoise';
+
+                            strategicPrice = lowestPrice * (1 + currentSetStepPrice / 100);
                         }
+                        if (strategicPrice < 0.01) { strategicPrice = 0.01; }
 
-                        const matchPriceBox = document.createElement('div');
-                        matchPriceBox.className = 'price-box-column';
-                        const matchPriceLine = document.createElement('div');
-                        matchPriceLine.className = 'price-action-line';
-                        matchPriceLine.innerHTML = `
-                <span class="no-change-icon"></span>
-                <div class="price-diff-stack">
-                    <span class="diff-amount small-font">+${amountToSuggestedPrice1.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">PLN</span></span>
-                    <span class="diff-percentage small-font">+${percentageToSuggestedPrice1.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">%</span></span>
-                </div>
-                <div class="small-font">= ${suggestedPrice1.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">PLN</span></div>
-            `;
-                        const matchPriceBtn = document.createElement('button');
-                        matchPriceBtn.className = 'simulate-change-btn';
-                        const matchBtnContent = `<span class="color-square-green"></span> Zmień cenę`;
-                        matchPriceBtn.innerHTML = matchBtnContent;
-                        matchPriceBtn.dataset.originalText = matchBtnContent;
-                        matchPriceLine.appendChild(matchPriceBtn);
-                        matchPriceBox.appendChild(matchPriceLine);
+                        const totalChangeAmount = strategicPrice - myPrice;
+                        const percentageChange = myPrice > 0 ? (totalChangeAmount / myPrice) * 100 : 0;
 
-                        attachPriceChangeListener(matchPriceLine, suggestedPrice1, box, item.productId, item.productName, myPrice, item);
+                        let arrowClass;
+                        if (totalChangeAmount > 0) {
+                            arrowClass = item.colorClass === "prMid" ? "arrow-up-yellow" : "arrow-up-red";
+                        } else if (totalChangeAmount < 0) {
+                            arrowClass = item.colorClass === "prMid" ? "arrow-down-yellow" : "arrow-down-red";
+                        } else {
+                            arrowClass = 'no-change-icon';
+                        }
 
                         const strategicPriceBox = document.createElement('div');
                         strategicPriceBox.className = 'price-box-column';
                         const strategicPriceLine = document.createElement('div');
                         strategicPriceLine.className = 'price-action-line';
+
                         strategicPriceLine.innerHTML = `
-                <span class="${downArrowClass}"></span>
-                <div class="price-diff-stack">
-                    <span class="diff-amount small-font">${amountToSuggestedPrice2.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">PLN</span></span>
-                    <span class="diff-percentage small-font">${percentageToSuggestedPrice2.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">%</span></span>
-                </div>
-                <div class="small-font">= ${suggestedPrice2.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">PLN</span></div>
-            `;
+                    <span class="${arrowClass}"></span>
+                    <div class="price-diff-stack">
+                        <span class="diff-amount small-font">${totalChangeAmount >= 0 ? '+' : ''}${totalChangeAmount.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">PLN</span></span>
+                        <span class="diff-percentage small-font">${percentageChange >= 0 ? '+' : ''}${percentageChange.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">%</span></span>
+                    </div>
+                    <div class="small-font">= ${strategicPrice.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">PLN</span></div>
+                `;
+
+                        const strategicPriceBtn = document.createElement('button');
+                        strategicPriceBtn.className = 'simulate-change-btn';
+                        const strategicBtnContent = `<span class="color-square-turquoise"></span> Zmień cenę`;
+                        strategicPriceBtn.innerHTML = strategicBtnContent;
+                        strategicPriceBtn.dataset.originalText = strategicBtnContent;
+                        strategicPriceLine.appendChild(strategicPriceBtn);
+                        strategicPriceBox.appendChild(strategicPriceLine);
+
+                        attachPriceChangeListener(strategicPriceLine, strategicPrice, box, item.productId, item.productName, myPrice, item);
+                        priceBoxColumnInfo.appendChild(strategicPriceBox);
+                    }
+                } else if (item.colorClass === "prGood") {
+                    if (myPrice != null) {
+                        const targetPriceGood = myPrice;
+                        let amountToSuggestedPrice2, percentageToSuggestedPrice2, suggestedPrice2, arrowClassStrategic;
+
+                        const currentSetStepPrice = parseFloat(document.getElementById('stepPrice').value) || 0;
+
+                        if (item.storeCount > 1 || currentSetStepPrice > 0) {
+                            if (usePriceDifference) {
+                                suggestedPrice2 = targetPriceGood + currentSetStepPrice;
+                            } else {
+                                suggestedPrice2 = targetPriceGood * (1 + currentSetStepPrice / 100);
+                            }
+                        } else {
+                            suggestedPrice2 = targetPriceGood;
+                        }
+                        if (suggestedPrice2 < 0.01) { suggestedPrice2 = 0.01; }
+
+                        amountToSuggestedPrice2 = suggestedPrice2 - myPrice;
+                        percentageToSuggestedPrice2 = myPrice > 0 ? (amountToSuggestedPrice2 / myPrice) * 100 : 0;
+
+                        if (amountToSuggestedPrice2 > 0) {
+                            arrowClassStrategic = 'arrow-up-green';
+                        } else if (amountToSuggestedPrice2 < 0) {
+                            arrowClassStrategic = 'arrow-down-green';
+                        } else {
+                            arrowClassStrategic = 'no-change-icon-turquoise';
+                        }
+
+                        const strategicPriceBox = document.createElement('div');
+                        strategicPriceBox.className = 'price-box-column';
+                        const strategicPriceLine = document.createElement('div');
+                        strategicPriceLine.className = 'price-action-line';
+
+                        strategicPriceLine.innerHTML = `
+                    <span class="${arrowClassStrategic}"></span> 
+                    <div class="price-diff-stack">
+                        <span class="diff-amount small-font">${amountToSuggestedPrice2 >= 0 ? '+' : ''}${amountToSuggestedPrice2.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">PLN</span></span>
+                        <span class="diff-percentage small-font">${percentageToSuggestedPrice2 >= 0 ? '+' : ''}${percentageToSuggestedPrice2.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">%</span></span>
+                    </div>
+                    <div class="small-font">= ${suggestedPrice2.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">PLN</span></div>
+                `;
+
                         const strategicPriceBtn = document.createElement('button');
                         strategicPriceBtn.className = 'simulate-change-btn';
                         const strategicBtnContent = `<span class="color-square-turquoise"></span> Zmień cenę`;
@@ -1993,8 +1991,6 @@
                         strategicPriceBox.appendChild(strategicPriceLine);
 
                         attachPriceChangeListener(strategicPriceLine, suggestedPrice2, box, item.productId, item.productName, myPrice, item);
-
-                        priceBoxColumnInfo.appendChild(matchPriceBox);
                         priceBoxColumnInfo.appendChild(strategicPriceBox);
                     }
                 }

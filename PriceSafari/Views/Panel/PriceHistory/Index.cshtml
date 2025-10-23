@@ -121,10 +121,13 @@
                     </div>
                     <div class="price-range-settings">
                         <div class="price-range-settings-stepPrice"></div>
-                        <div class="legendBox">Krok cenowy</div>
+                        <div class="legendBox">
+                            Krok cenowy
+                            <div id="stepPriceIndicator" class="step-indicator"></div>
+                        </div>
                         <label for="stepPrice"></label>
-                        <input type="number" id="stepPrice" value="@ViewBag.PriceStep" step="0.01" min="0.01">
-                        <span id="unitLabelStepPrice" style="display:flex; align-items:center;"></span>
+                        <input type="number" id="stepPrice" value="2.00" step="0.01" min="-100.00">
+                        <span id="unitLabelStepPrice" style="display:flex; align-items:center;">PLN</span>
                     </div>
 
                     <div>
