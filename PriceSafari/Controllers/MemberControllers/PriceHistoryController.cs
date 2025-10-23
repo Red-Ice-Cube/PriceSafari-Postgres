@@ -112,8 +112,6 @@ namespace PriceSafari.Controllers.MemberControllers
         }
 
 
-
-
         [HttpGet]
         public async Task<IActionResult> GetPrices(int? storeId)
         {
@@ -156,7 +154,6 @@ namespace PriceSafari.Controllers.MemberControllers
                 });
             }
 
-            // NOWY KOD: Znajdź ID poprzedniego scrapowania
             var previousScrapId = await _context.ScrapHistories
                 .Where(sh => sh.StoreId == storeId && sh.Date < latestScrap.Date)
                 .OrderByDescending(sh => sh.Date)
@@ -300,7 +297,6 @@ namespace PriceSafari.Controllers.MemberControllers
 
             var extendedInfoDict = extendedInfoData.ToDictionary(e => e.ProductId);
 
-            // NOWY KOD: Pobierz dane sprzedażowe z poprzedniego scrapowania
             var previousExtendedInfoData = new Dictionary<int, PriceHistoryExtendedInfoClass>();
             if (previousScrapId > 0)
             {
@@ -367,6 +363,11 @@ namespace PriceSafari.Controllers.MemberControllers
                         .OrderByDescending(x => x.IsGoogle == false)
                         .FirstOrDefault();
 
+                    // --- NOWY KOD ---
+                    // Pobieramy cenę naszego sklepu do rankingu (przed domyślnym przypisaniem)
+                    var myPriceForRanking = myPriceEntry?.Price;
+                    // --- KONIEC NOWEGO KODU ---
+
                     var validPrices = g.Where(x => x.Price.HasValue).ToList();
 
                     bool onlyMe = validPrices.Count() > 0 &&
@@ -393,7 +394,7 @@ namespace PriceSafari.Controllers.MemberControllers
                     }
 
                     decimal? bestPrice = bestPriceEntry?.Price;
-                    decimal? myPrice = myPriceEntry?.Price ?? bestPrice;
+                    decimal? myPrice = myPriceEntry?.Price ?? bestPrice; // Tutaj zostaje domyślne przypisanie
                     decimal? priceDifference = null;
                     decimal? percentageDifference = null;
                     decimal? savings = null;
@@ -559,7 +560,6 @@ namespace PriceSafari.Controllers.MemberControllers
                         }
                     }
 
-                    // NOWY KOD: Logika obliczania trendu sprzedaży
                     SalesTrendStatus salesTrendStatus = SalesTrendStatus.NoData;
                     int? salesDifference = null;
                     decimal? salesPercentageChange = null;
@@ -582,7 +582,6 @@ namespace PriceSafari.Controllers.MemberControllers
                             salesPercentageChange = 100m;
                         }
 
-                        // Przykładowe progi do definicji małej/dużej zmiany
                         const decimal smallChangeThreshold = 10.0m;
 
                         if (salesDifference == 0)
@@ -596,7 +595,7 @@ namespace PriceSafari.Controllers.MemberControllers
                             else
                                 salesTrendStatus = SalesTrendStatus.SalesUpSmall;
                         }
-                        else // Spadek
+                        else
                         {
                             if (salesPercentageChange.HasValue && Math.Abs(salesPercentageChange.Value) > smallChangeThreshold)
                                 salesTrendStatus = SalesTrendStatus.SalesDownBig;
@@ -604,6 +603,47 @@ namespace PriceSafari.Controllers.MemberControllers
                                 salesTrendStatus = SalesTrendStatus.SalesDownSmall;
                         }
                     }
+
+                    // --- NOWY KOD ---
+                    // Logika do obliczania pozycji cenowej
+                    string myPricePositionString = null;
+                    var totalValidOffers = validPrices.Count();
+
+                    if (myPriceForRanking.HasValue && totalValidOffers > 0)
+                    {
+                        var myStorePriceValue = myPriceForRanking.Value;
+
+                        // Liczymy, ile ofert ma cenę ściśle niższą
+                        int pricesLower = validPrices.Count(vp => vp.Price.Value < myStorePriceValue);
+                        // Liczymy, ile ofert ma cenę równą
+                        int pricesEqual = validPrices.Count(vp => vp.Price.Value == myStorePriceValue);
+
+                        int rankStart = pricesLower + 1;
+                        int rankEnd = pricesLower + pricesEqual;
+
+                        if (rankStart == rankEnd)
+                        {
+                            // Jeśli nie ma remisów na naszej pozycji
+                            myPricePositionString = $"{rankStart}/{totalValidOffers}";
+                        }
+                        else
+                        {
+                            // Jeśli są remisy (np. 4-7)
+                            myPricePositionString = $"{rankStart}-{rankEnd}/{totalValidOffers}";
+                        }
+                    }
+                    else if (totalValidOffers > 0)
+                    {
+                        // Jeśli są oferty, ale naszego sklepu nie ma na liście (brak ceny)
+                        myPricePositionString = $"N/A / {totalValidOffers}";
+                    }
+                    else
+                    {
+                        // Jeśli nie ma żadnych ofert
+                        myPricePositionString = "N/A / 0";
+                    }
+                    // --- KONIEC NOWEGO KODU ---
+
 
                     return new
                     {
@@ -669,10 +709,14 @@ namespace PriceSafari.Controllers.MemberControllers
                         MyPriceDeliveryCost = priceValues.UsePriceWithDelivery ? myPriceEntry?.ShippingCostNum : null,
                         CeneoSalesCount = extendedInfo?.CeneoSalesCount,
 
-                        // NOWY KOD: Dodane pola do obiektu JSON
                         SalesTrendStatus = salesTrendStatus.ToString(),
                         SalesDifference = salesDifference,
-                        SalesPercentageChange = salesPercentageChange
+                        SalesPercentageChange = salesPercentageChange,
+
+                        // --- NOWY KOD ---
+                        // Dodanie nowej właściwości do obiektu zwracanego przez JSON
+                        MyPricePosition = myPricePositionString
+                        // --- KONIEC NOWEGO KODU ---
                     };
                 })
                 .Where(p => p != null)
@@ -685,7 +729,7 @@ namespace PriceSafari.Controllers.MemberControllers
                 productCount = allPrices.Count(),
                 priceCount = rawPrices.Count(),
                 myStoreName = storeName,
-                prices = allPrices,
+                prices = allPrices, // Ta lista zawiera teraz obiekty z 'MyPricePosition'
                 missedProductsCount = missedProductsCount,
                 setPrice1 = priceValues.SetPrice1,
                 setPrice2 = priceValues.SetPrice2,
@@ -700,7 +744,6 @@ namespace PriceSafari.Controllers.MemberControllers
                 latestScrapId = latestScrap?.Id
             });
         }
-
 
         public class PriceRowDto
         {
