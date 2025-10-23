@@ -1961,6 +1961,7 @@
             priceBoxColumnInfo.innerHTML = '';
 
             if (item.colorClass !== 'prNoOffer') {
+
                 if (item.colorClass === "prToLow" || item.colorClass === "prIdeal") {
                     if (myPrice != null && savings != null) {
                         const savingsValue = parseFloat(savings.replace(',', '.'));
@@ -1971,10 +1972,8 @@
                         const currentSetStepPrice = parseFloat(document.getElementById('stepPrice').value) || 0;
 
                         if (usePriceDifference) {
-
                             strategicPrice = targetPriceRaise + currentSetStepPrice;
                         } else {
-
                             strategicPrice = targetPriceRaise * (1 + (currentSetStepPrice / 100));
                         }
                         if (strategicPrice < 0.01) { strategicPrice = 0.01; }
@@ -1992,30 +1991,43 @@
 
                         const strategicPriceBox = document.createElement('div');
                         strategicPriceBox.className = 'price-box-column';
+
+                        const contentWrapper = document.createElement('div');
+                        contentWrapper.className = 'price-box-column-text';
+
+                        const newPriceDisplay = document.createElement('div');
+                        newPriceDisplay.style.display = 'flex';
+                        newPriceDisplay.style.alignItems = 'center';
+                        newPriceDisplay.innerHTML = `<span class="${arrowClassStrategic}" style="margin-right: 8px;"></span><div><span style="font-weight: 500; font-size: 17px;">${strategicPrice.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} PLN</span></div>`;
+
+                        const priceDifferenceDisplay = document.createElement('div');
+                        priceDifferenceDisplay.style.marginTop = '4px';
+                        priceDifferenceDisplay.innerHTML = `<div class="price-diff-stack" style="text-align: left;"><span class="diff-amount small-font">${totalChangeAmount >= 0 ? '+' : ''}${totalChangeAmount.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} PLN</span>&nbsp;<span class="diff-percentage small-font">(${percentageChange >= 0 ? '+' : ''}${percentageChange.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%)</span></div>`;
+
+                        contentWrapper.appendChild(newPriceDisplay);
+                        contentWrapper.appendChild(priceDifferenceDisplay);
+
                         const strategicPriceLine = document.createElement('div');
                         strategicPriceLine.className = 'price-action-line';
-
-                        strategicPriceLine.innerHTML = `
-                    <span class="${arrowClassStrategic}"></span> 
-                    <div class="price-diff-stack">
-                        <span class="diff-amount small-font">${totalChangeAmount >= 0 ? '+' : ''}${totalChangeAmount.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">PLN</span></span>
-                        <span class="diff-percentage small-font">${percentageChange >= 0 ? '+' : ''}${percentageChange.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">%</span></span>
-                    </div>
-                    <div class="small-font">= ${strategicPrice.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">PLN</span></div>
-                `;
+                        strategicPriceLine.style.marginTop = '8px';
 
                         const strategicPriceBtn = document.createElement('button');
                         strategicPriceBtn.className = 'simulate-change-btn';
                         const strategicBtnContent = `<span class="color-square-turquoise"></span> Zmień cenę`;
                         strategicPriceBtn.innerHTML = strategicBtnContent;
                         strategicPriceBtn.dataset.originalText = strategicBtnContent;
+
                         strategicPriceLine.appendChild(strategicPriceBtn);
+
+                        strategicPriceBox.appendChild(contentWrapper);
                         strategicPriceBox.appendChild(strategicPriceLine);
 
                         attachPriceChangeListener(strategicPriceLine, strategicPrice, box, item.productId, item.productName, myPrice, item);
                         priceBoxColumnInfo.appendChild(strategicPriceBox);
+
                     }
                 } else if (item.colorClass === "prMid" || item.colorClass === "prToHigh") {
+
                     if (myPrice != null && lowestPrice != null) {
                         let strategicPrice;
 
@@ -2044,29 +2056,43 @@
 
                         const strategicPriceBox = document.createElement('div');
                         strategicPriceBox.className = 'price-box-column';
+
+                        const contentWrapper = document.createElement('div');
+                        contentWrapper.className = 'price-box-column-text';
+
+                        const newPriceDisplay = document.createElement('div');
+                        newPriceDisplay.style.display = 'flex';
+                        newPriceDisplay.style.alignItems = 'center';
+                        newPriceDisplay.innerHTML = `<span class="${arrowClass}" style="margin-right: 8px;"></span><div><span style="font-weight: 500; font-size: 17px;">${strategicPrice.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} PLN</span></div>`;
+
+                        const priceDifferenceDisplay = document.createElement('div');
+                        priceDifferenceDisplay.style.marginTop = '4px';
+
+                        priceDifferenceDisplay.innerHTML = `<div class="price-diff-stack" style="text-align: left;"><span class="diff-amount small-font">${totalChangeAmount >= 0 ? '+' : ''}${totalChangeAmount.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} PLN</span>&nbsp;<span class="diff-percentage small-font">(${percentageChange >= 0 ? '+' : ''}${percentageChange.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%)</span></div>`;
+
+                        contentWrapper.appendChild(newPriceDisplay);
+                        contentWrapper.appendChild(priceDifferenceDisplay);
+
                         const strategicPriceLine = document.createElement('div');
                         strategicPriceLine.className = 'price-action-line';
-
-                        strategicPriceLine.innerHTML = `
-                    <span class="${arrowClass}"></span>
-                    <div class="price-diff-stack">
-                        <span class="diff-amount small-font">${totalChangeAmount >= 0 ? '+' : ''}${totalChangeAmount.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">PLN</span></span>
-                        <span class="diff-percentage small-font">${percentageChange >= 0 ? '+' : ''}${percentageChange.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">%</span></span>
-                    </div>
-                    <div class="small-font">= ${strategicPrice.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">PLN</span></div>
-                `;
+                        strategicPriceLine.style.marginTop = '8px';
 
                         const strategicPriceBtn = document.createElement('button');
                         strategicPriceBtn.className = 'simulate-change-btn';
                         const strategicBtnContent = `<span class="color-square-turquoise"></span> Zmień cenę`;
                         strategicPriceBtn.innerHTML = strategicBtnContent;
                         strategicPriceBtn.dataset.originalText = strategicBtnContent;
+
                         strategicPriceLine.appendChild(strategicPriceBtn);
+
+                        strategicPriceBox.appendChild(contentWrapper);
                         strategicPriceBox.appendChild(strategicPriceLine);
 
                         attachPriceChangeListener(strategicPriceLine, strategicPrice, box, item.productId, item.productName, myPrice, item);
                         priceBoxColumnInfo.appendChild(strategicPriceBox);
+
                     }
+
                 } else if (item.colorClass === "prGood") {
                     if (myPrice != null) {
                         const targetPriceGood = myPrice;
@@ -2098,28 +2124,40 @@
 
                         const strategicPriceBox = document.createElement('div');
                         strategicPriceBox.className = 'price-box-column';
+
+                        const contentWrapper = document.createElement('div');
+                        contentWrapper.className = 'price-box-column-text';
+
+                        const newPriceDisplay = document.createElement('div');
+                        newPriceDisplay.style.display = 'flex';
+                        newPriceDisplay.style.alignItems = 'center';
+                        newPriceDisplay.innerHTML = `<span class="${arrowClassStrategic}" style="margin-right: 8px;"></span><div><span style="font-weight: 500; font-size: 17px;">${suggestedPrice2.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} PLN</span></div>`;
+
+                        const priceDifferenceDisplay = document.createElement('div');
+                        priceDifferenceDisplay.style.marginTop = '4px';
+                        priceDifferenceDisplay.innerHTML = `<div class="price-diff-stack" style="text-align: left;"><span class="diff-amount small-font">${amountToSuggestedPrice2 >= 0 ? '+' : ''}${amountToSuggestedPrice2.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} PLN</span>&nbsp;<span class="diff-percentage small-font">(${percentageToSuggestedPrice2 >= 0 ? '+' : ''}${percentageToSuggestedPrice2.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%)</span></div>`;
+
+                        contentWrapper.appendChild(newPriceDisplay);
+                        contentWrapper.appendChild(priceDifferenceDisplay);
+
                         const strategicPriceLine = document.createElement('div');
                         strategicPriceLine.className = 'price-action-line';
-
-                        strategicPriceLine.innerHTML = `
-                    <span class="${arrowClassStrategic}"></span> 
-                    <div class="price-diff-stack">
-                        <span class="diff-amount small-font">${amountToSuggestedPrice2 >= 0 ? '+' : ''}${amountToSuggestedPrice2.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">PLN</span></span>
-                        <span class="diff-percentage small-font">${percentageToSuggestedPrice2 >= 0 ? '+' : ''}${percentageToSuggestedPrice2.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">%</span></span>
-                    </div>
-                    <div class="small-font">= ${suggestedPrice2.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">PLN</span></div>
-                `;
+                        strategicPriceLine.style.marginTop = '8px';
 
                         const strategicPriceBtn = document.createElement('button');
                         strategicPriceBtn.className = 'simulate-change-btn';
                         const strategicBtnContent = `<span class="color-square-turquoise"></span> Zmień cenę`;
                         strategicPriceBtn.innerHTML = strategicBtnContent;
                         strategicPriceBtn.dataset.originalText = strategicBtnContent;
+
                         strategicPriceLine.appendChild(strategicPriceBtn);
+
+                        strategicPriceBox.appendChild(contentWrapper);
                         strategicPriceBox.appendChild(strategicPriceLine);
 
                         attachPriceChangeListener(strategicPriceLine, suggestedPrice2, box, item.productId, item.productName, myPrice, item);
                         priceBoxColumnInfo.appendChild(strategicPriceBox);
+
                     }
                 }
             }
