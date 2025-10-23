@@ -3524,6 +3524,42 @@ tr:last-child .sub-line {
     min-width: 260px;
 }
 
+.priceBox-diff-margin-ins {
+    display: flex;
+    padding: 2px 2px;
+    flex-direction: column;
+    border-radius: 4px;
+    gap: 4px;
+    font-size: 14px;
+    font-weight: 400;
+
+    color: rgba(0, 145, 123, 1) !important;
+
+}
+
+
+.priceBox-diff-up-margin-ins {
+
+    color: #00917B;
+}
+
+.priceBox-diff-down-margin-ins {
+ 
+    color: #AB2520 !important;
+}
+
+.priceBox-diff-margin-neutral-ins {
+
+    color: rgba(40, 40, 40, 1) !important;
+
+}
+
+.priceBox-diff-margin-minus-ins {
+
+    color: rgba(171, 37, 32, 1) !important;
+   
+}
+
 .priceBox-diff {
     display: flex;
     padding: 4px 12px;

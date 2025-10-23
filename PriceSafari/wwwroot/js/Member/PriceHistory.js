@@ -789,7 +789,7 @@
                             }
                             marginAmount = priceForMarginCalculation - marginPrice;
                             marginPercentage = (marginPrice !== 0) ? (marginAmount / marginPrice) * 100 : null;
-                            marginClass = 'priceBox-diff-margin-neutral';
+                            marginClass = 'priceBox-diff-margin-neutral-ins';
                         }
                     } else {
 
@@ -827,7 +827,7 @@
                             marginAmount = priceForMarginCalculation - marginPrice;
                             marginPercentage = (marginPrice !== 0) ? (marginAmount / marginPrice) * 100 : null;
                             marginSign = marginAmount >= 0 ? '+' : '-';
-                            marginClass = marginAmount >= 0 ? 'priceBox-diff-margin' : 'priceBox-diff-margin-minus';
+                            marginClass = marginAmount >= 0 ? 'priceBox-diff-margin-ins' : 'priceBox-diff-margin-minus-ins';
                         }
                     }
 
@@ -1542,42 +1542,6 @@
             priceBoxSpace.appendChild(leftColumn);
             priceBoxSpace.appendChild(rightColumn);
 
-            const externalInfoContainer = document.createElement('div');
-            externalInfoContainer.className = 'price-box-externalInfo';
-
-            if (marginPrice != null) {
-                const formattedMarginPrice = marginPrice.toLocaleString('pl-PL', {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2
-                }) + ' PLN';
-
-                const purchasePriceBox = document.createElement('div');
-                purchasePriceBox.className = myPrice != null ? 'price-box-diff-margin ' + marginClass : 'priceBox-diff-margin-neutral';
-                purchasePriceBox.innerHTML = '<p>Cena zakupu: ' + formattedMarginPrice + '</p>';
-                externalInfoContainer.appendChild(purchasePriceBox);
-
-                if (myPrice != null) {
-                    const formattedMarginAmount = marginSign + Math.abs(marginAmount).toLocaleString('pl-PL', {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2
-                    }) + ' PLN';
-                    const formattedMarginPercentage = '(' + marginSign + Math.abs(marginPercentage).toLocaleString('pl-PL', {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2
-                    }) + '%)';
-                    const marginBox = document.createElement('div');
-                    marginBox.className = 'price-box-diff-margin ' + marginClass;
-                    marginBox.innerHTML = '<p>Narzut: ' + formattedMarginAmount + ' ' + formattedMarginPercentage + '</p>';
-                    externalInfoContainer.appendChild(marginBox);
-                } else {
-                    const marginBox = document.createElement('div');
-                    marginBox.className = 'priceBox-diff-margin-neutral';
-                    marginBox.innerHTML = '<p>Narzut: Brak informacji</p>';
-                    externalInfoContainer.appendChild(marginBox);
-                }
-            }
-            priceBoxSpace.appendChild(externalInfoContainer);
-
             const priceBoxData = document.createElement('div');
             priceBoxData.className = 'price-box-data';
 
@@ -1667,19 +1631,24 @@
                     }
                 }
 
+                const competitorIconHtml = (item.isGoogle != null ?
+                    '<span class="data-channel" style="display: inline-block; vertical-align: middle;"><img src="' +
+                    (item.isGoogle ? '/images/GoogleShopping.png' : '/images/Ceneo.png') +
+                    '" alt="Channel Icon" style="width:14px; height:14px; margin-right:4px;" /></span>' : ''
+                );
+
                 const storeNameDiv = document.createElement('div');
-                storeNameDiv.innerHTML = highlightedStoreName;
+                storeNameDiv.style.display = 'flex';
+                storeNameDiv.style.alignItems = 'center';
+                storeNameDiv.innerHTML = competitorIconHtml + `<span style="display: inline-block; vertical-align: middle;">${highlightedStoreName}</span>`;
                 priceBoxLowestText.appendChild(storeNameDiv);
 
                 const priceBoxLowestDetails = document.createElement('div');
                 priceBoxLowestDetails.className = 'price-box-column-text';
                 priceBoxLowestDetails.innerHTML =
-                    (item.isGoogle != null ?
-                        '<span class="data-channel"><img src="' +
-                        (item.isGoogle ? '/images/GoogleShopping.png' : '/images/Ceneo.png') +
-                        '" alt="Channel Icon" style="width:20px; height:20px; margin-right:4px;" /></div>' : ''
-                    ) +
+
                     (item.position !== null ?
+
                         (item.isGoogle ?
                             '<span class="Position-Google">Poz. Google ' + item.position + '</span>' :
                             '<span class="Position">Poz. Ceneo ' + item.position + '</span>'
@@ -1697,6 +1666,23 @@
             priceBoxColumnMyPrice.className = 'price-box-column';
 
             if (item.colorClass !== 'prNoOffer' && myPrice != null) {
+                const myIconHtml = (item.myIsGoogle != null ?
+                    '<span class="data-channel" style="display: inline-block; vertical-align: middle; margin-right: 4px;"><img src="' +
+                    (item.myIsGoogle ? '/images/GoogleShopping.png' : '/images/Ceneo.png') +
+                    '" alt="Channel Icon" style="width:14px; height:14px; margin-right:4px;" /></span>' : ''
+                );
+
+                const myDetailsHtml =
+                    (myPosition !== null ?
+                        (item.myIsGoogle ?
+                            '<span class="Position-Google">Poz. Google ' + myPosition + '</span>' :
+                            '<span class="Position">Poz. Ceneo ' + myPosition + '</span>'
+                        ) :
+                        '<span class="Position" style="background-color: #414141;">Schowany</span>'
+                    ) +
+                    (item.myIsBidding === "1" ? '<span class="Bidding">Bid</span>' : '') +
+                    (item.myDelivery != null ? '<span class="' + myDeliveryClass + '">Wysyłka w ' + (item.myDelivery == 1 ? '1 dzień' : item.myDelivery + ' dni') + '</span>' : '');
+
                 const priceBoxMyText = document.createElement('div');
                 priceBoxMyText.className = 'price-box-column-text';
 
@@ -1711,7 +1697,9 @@
                     const storeName = document.createElement('span');
                     storeName.style.fontWeight = '500';
                     storeName.style.marginRight = '20px';
-                    storeName.textContent = myStoreName;
+                    storeName.style.display = 'flex';
+                    storeName.style.alignItems = 'center';
+                    storeName.innerHTML = myIconHtml + `<span style="display: inline-block; vertical-align: middle;">${myStoreName}</span>`;
 
                     const priceDifferenceElem = document.createElement('span');
                     priceDifferenceElem.style.fontWeight = '500';
@@ -1752,6 +1740,33 @@
                             priceBoxMyText.insertBefore(myPriceDeliveryInfo, priceBoxMyText.children[1]);
                         }
                     }
+
+                    if (marginPrice != null) {
+                        const formattedMarginPrice = marginPrice.toLocaleString('pl-PL', {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2
+                        }) + ' PLN';
+
+                        const purchasePriceBox = document.createElement('div');
+                        purchasePriceBox.className = 'price-box-diff-margin ' + marginClass;
+                        purchasePriceBox.style.marginTop = '4px';
+                        purchasePriceBox.innerHTML = '<p style="font-size: 12px;">Zakup: ' + formattedMarginPrice + '</p>';
+                        priceBoxMyText.appendChild(purchasePriceBox);
+
+                        const formattedMarginAmount = marginSign + Math.abs(marginAmount).toLocaleString('pl-PL', {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2
+                        }) + ' PLN';
+                        const formattedMarginPercentage = '(' + marginSign + Math.abs(marginPercentage).toLocaleString('pl-PL', {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2
+                        }) + '%)';
+                        const marginBox = document.createElement('div');
+                        marginBox.className = 'price-box-diff-margin ' + marginClass;
+                        marginBox.innerHTML = '<p style="font-size: 12px;">Narzut: ' + formattedMarginAmount + ' ' + formattedMarginPercentage + '</p>';
+                        priceBoxMyText.appendChild(marginBox);
+                    }
+
                 } else {
                     const myPriceLine = document.createElement('div');
                     myPriceLine.style.display = 'flex';
@@ -1764,7 +1779,10 @@
                     myPriceLine.appendChild(myPriceSpan);
 
                     const storeNameDiv = document.createElement('div');
-                    storeNameDiv.textContent = myStoreName;
+
+                    storeNameDiv.style.display = 'flex';
+                    storeNameDiv.style.alignItems = 'center';
+                    storeNameDiv.innerHTML = myIconHtml + `<span style="display: inline-block; vertical-align: middle;">${myStoreName}</span>`;
 
                     priceBoxMyText.appendChild(myPriceLine);
                     if (marginSettings.usePriceWithDelivery) {
@@ -1778,28 +1796,64 @@
                         }
                     }
                     priceBoxMyText.appendChild(storeNameDiv);
+
+                    if (marginPrice != null) {
+                        const formattedMarginPrice = marginPrice.toLocaleString('pl-PL', {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2
+                        }) + ' PLN';
+
+                        const purchasePriceBox = document.createElement('div');
+                        purchasePriceBox.className = 'price-box-diff-margin ' + marginClass;
+                        purchasePriceBox.style.marginTop = '4px';
+                        purchasePriceBox.innerHTML = '<p style="font-size: 12px; ">Zakup: ' + formattedMarginPrice + '</p>';
+                        priceBoxMyText.appendChild(purchasePriceBox);
+
+                        const formattedMarginAmount = marginSign + Math.abs(marginAmount).toLocaleString('pl-PL', {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2
+                        }) + ' PLN';
+                        const formattedMarginPercentage = '(' + marginSign + Math.abs(marginPercentage).toLocaleString('pl-PL', {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2
+                        }) + '%)';
+                        const marginBox = document.createElement('div');
+                        marginBox.className = 'price-box-diff-margin ' + marginClass;
+                        marginBox.innerHTML = '<p style="font-size: 12px;">Narzut: ' + formattedMarginAmount + ' ' + formattedMarginPercentage + '</p>';
+                        priceBoxMyText.appendChild(marginBox);
+                    }
+
                 }
 
                 const priceBoxMyDetails = document.createElement('div');
                 priceBoxMyDetails.className = 'price-box-column-text';
-                priceBoxMyDetails.innerHTML =
-                    (item.myIsGoogle != null ?
-                        '<span class="data-channel"><img src="' +
-                        (item.myIsGoogle ? '/images/GoogleShopping.png' : '/images/Ceneo.png') +
-                        '" alt="Channel Icon" style="width:20px; height:20px; margin-right:4px;" /></div>' : ''
-                    ) +
-                    (myPosition !== null ?
-                        (item.myIsGoogle ?
-                            '<span class="Position-Google">Poz. Google ' + myPosition + '</span>' :
-                            '<span class="Position">Poz. Ceneo ' + myPosition + '</span>'
-                        ) :
-                        '<span class="Position" style="background-color: #414141;">Schowany</span>'
-                    ) +
-                    (item.myIsBidding === "1" ? '<span class="Bidding">Bid</span>' : '') +
-                    (item.myDelivery != null ? '<span class="' + myDeliveryClass + '">Wysyłka w ' + (item.myDelivery == 1 ? '1 dzień' : item.myDelivery + ' dni') + '</span>' : '');
+
+                let detailsHtmlParts = [];
+
+                if (myPosition !== null) {
+                    if (item.myIsGoogle) {
+                        detailsHtmlParts.push(`<span class="Position-Google">Poz. Google ${myPosition}</span>`);
+                    } else {
+                        detailsHtmlParts.push(`<span class="Position">Poz. Ceneo ${myPosition}</span>`);
+                    }
+                } else {
+                    detailsHtmlParts.push('<span class="Position" style="background-color: #414141;">Schowany</span>');
+                }
+
+                if (item.myIsBidding === "1") {
+                    detailsHtmlParts.push('<span class="Bidding">Bid</span>');
+                }
+
+                if (item.myDelivery != null) {
+                    const deliveryText = (item.myDelivery == 1 ? '1 dzień' : `${item.myDelivery} dni`);
+                    detailsHtmlParts.push(`<span class="${myDeliveryClass}">Wysyłka w ${deliveryText}</span>`);
+                }
+
+                priceBoxMyDetails.innerHTML = detailsHtmlParts.join(' ');
 
                 priceBoxColumnMyPrice.appendChild(priceBoxMyText);
                 priceBoxColumnMyPrice.appendChild(priceBoxMyDetails);
+
             } else {
                 const priceBoxMyText = document.createElement('div');
                 priceBoxMyText.className = 'price-box-column-text';
@@ -1814,6 +1868,25 @@
                 storeNameDiv.textContent = myStoreName;
                 priceBoxMyText.appendChild(storeNameDiv);
 
+                if (marginPrice != null) {
+                    const formattedMarginPrice = marginPrice.toLocaleString('pl-PL', {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2
+                    }) + ' PLN';
+
+                    const purchasePriceBox = document.createElement('div');
+
+                    purchasePriceBox.className = 'priceBox-diff-margin-neutral-ins';
+                    purchasePriceBox.style.marginTop = '4px';
+                    purchasePriceBox.innerHTML = '<p style="font-size: 12px; ">Zakup: ' + formattedMarginPrice + '</p>';
+                    priceBoxMyText.appendChild(purchasePriceBox);
+
+                    const marginBox = document.createElement('div');
+                    marginBox.className = 'priceBox-diff-margin-neutral-ins';
+                    marginBox.innerHTML = '<p style="font-size: 12px; ">Narzut: Brak informacji</p>';
+                    priceBoxMyText.appendChild(marginBox);
+                }
+
                 const detailsContainer = document.createElement('div');
                 detailsContainer.className = 'price-box-column-text';
 
@@ -1826,7 +1899,6 @@
                 priceBoxColumnMyPrice.appendChild(priceBoxMyText);
                 priceBoxColumnMyPrice.appendChild(detailsContainer);
             }
-
             const priceBoxColumnInfo = document.createElement('div');
             priceBoxColumnInfo.className = 'price-box-column-action';
             priceBoxColumnInfo.innerHTML = '';
@@ -2061,7 +2133,6 @@
 
             box.appendChild(priceBoxSpace);
 
-            box.appendChild(externalInfoContainer);
             box.appendChild(priceBoxData);
 
             container.appendChild(box);
