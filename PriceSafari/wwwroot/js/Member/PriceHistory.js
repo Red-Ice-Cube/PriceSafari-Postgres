@@ -417,7 +417,7 @@
             const productId = priceBox.dataset.productId;
             if (!productId) return;
 
-            const activeChange = activeChangesMap.get(String(productId)); // activeChange teraz zawiera stepPriceApplied i stepUnitApplied
+            const activeChange = activeChangesMap.get(String(productId));
 
             if (activeChange) {
                 if (!priceBox.classList.contains('price-changed')) {
@@ -429,9 +429,9 @@
                     const firstButton = priceBox.querySelector('.simulate-change-btn');
                     if (firstButton) {
                         const actionLine = firstButton.closest('.price-action-line');
-                        // --- ZMIENIONE: Przekaż dane kroku do activateChangeButton ---
+
                         activateChangeButton(firstButton, actionLine, priceBox, activeChange.stepPriceApplied, activeChange.stepUnitApplied);
-                        // --- KONIEC ZMIENIONEGO ---
+
                     }
                 }
             } else if (priceBox.classList.contains('price-changed')) {
@@ -440,7 +440,7 @@
                 const activeButtons = priceBox.querySelectorAll('.simulate-change-btn.active');
                 activeButtons.forEach(button => {
                     button.classList.remove('active');
-                    // Upewnij się, że przywracasz poprawny tekst bazowy
+
                     button.innerHTML = button.dataset.originalText || "Dodaj zmianę ceny";
                 });
             }
@@ -1175,26 +1175,27 @@
 
     function activateChangeButton(button, actionLine, priceBox, stepPriceApplied, stepUnitApplied) {
 
+        if (!button) {
+            console.error("Próba aktywacji nieistniejącego przycisku w priceBox:", priceBox);
+            return;
+        }
+
         const colorSquare = button.querySelector('span[class^="color-square-"]');
         const colorSquareHTML = colorSquare ? colorSquare.outerHTML : '';
 
-        // --- NOWE: Przygotuj tekst informacji o kroku cenowym ---
         let stepInfoText = "";
-        // Sprawdź, czy wartości kroku zostały przekazane (mogą być undefined przy pierwszym renderowaniu, jeśli logika nie została w pełni dostosowana)
+
         if (typeof stepPriceApplied !== 'undefined' && stepPriceApplied !== null && typeof stepUnitApplied !== 'undefined') {
-            // Użyj toLocaleString dla lepszego formatowania, np. przecinka dziesiętnego
             const formattedStepPrice = stepPriceApplied.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
             stepInfoText = ` Krok: ${formattedStepPrice}${stepUnitApplied}`;
         }
-        // --- KONIEC NOWEGO ---
 
         button.classList.add('active');
-        // Zmieniony tekst przycisku
+
         button.innerHTML = colorSquareHTML + stepInfoText + " Dodano";
 
         const removeLink = document.createElement('span');
         removeLink.innerHTML = " <i class='fa fa-trash' style='font-size:12px; display:flex; color:white; margin-left:4px; margin-top:3px;'></i>";
-
         removeLink.style.textDecoration = "none";
         removeLink.style.cursor = "pointer";
         removeLink.style.pointerEvents = 'auto';
@@ -1202,22 +1203,66 @@
         removeLink.addEventListener('click', function (ev) {
             ev.stopPropagation();
 
-            button.classList.remove('active');
-            // Przywróć oryginalny tekst (ważne!)
-            button.innerHTML = button.dataset.originalText || "Dodaj zmianę ceny"; // Upewnij się, że originalText jest ustawiony!
-            priceBox.classList.remove('price-changed');
+            const productId = priceBox.dataset.productId;
 
-            const productId = priceBox ? priceBox.dataset.productId : null;
+            selectedPriceChanges = selectedPriceChanges.filter(c => String(c.productId) !== String(productId));
+
             const removeEvent = new CustomEvent('priceBoxChangeRemove', {
                 detail: { productId }
             });
             document.dispatchEvent(removeEvent);
+
+            const item = allPrices.find(p => String(p.productId) === String(productId));
+            if (!item) {
+                console.error("Nie znaleziono danych produktu dla ID:", productId, "podczas usuwania zmiany.");
+                priceBox.classList.remove('price-changed');
+                const buttonToReset = actionLine.querySelector('.simulate-change-btn');
+                if (buttonToReset) {
+                    buttonToReset.classList.remove('active');
+                    buttonToReset.innerHTML = buttonToReset.dataset.originalText || "Dodaj zmianę ceny";
+                }
+                return;
+            }
+            const currentMyPrice = item.myPrice != null ? parseFloat(item.myPrice) : null;
+
+            const priceBoxColumnInfo = priceBox.querySelector('.price-box-column-action');
+            if (!priceBoxColumnInfo) {
+                console.error("Nie znaleziono kontenera .price-box-column-action dla ID:", productId, "podczas usuwania zmiany.");
+                priceBox.classList.remove('price-changed');
+                return;
+            }
+
+            const newSuggestionData = calculateCurrentSuggestion(item);
+
+            if (newSuggestionData) {
+                const suggestionRenderResult = renderSuggestionBlockHTML(item, newSuggestionData);
+
+                priceBoxColumnInfo.innerHTML = suggestionRenderResult.html;
+
+                const newActionLine = priceBoxColumnInfo.querySelector(suggestionRenderResult.actionLineSelector);
+                if (newActionLine) {
+                    const priceToAddOnClick = newSuggestionData.suggestedPrice;
+
+                    attachPriceChangeListener(newActionLine, priceToAddOnClick, priceBox, item.productId, item.productName, currentMyPrice, item);
+                } else {
+                    console.error("Nie znaleziono .price-action-line po re-renderowaniu sugestii dla ID:", productId);
+                }
+            } else {
+
+                priceBoxColumnInfo.innerHTML = '';
+                console.warn("Nie udało się obliczyć nowej sugestii po usunięciu dla ID:", productId);
+            }
+
+            priceBox.classList.remove('price-changed');
+
         });
 
         button.appendChild(removeLink);
-        priceBox.classList.add('price-changed');
-    }
 
+        if (!priceBox.classList.contains('price-changed')) {
+            priceBox.classList.add('price-changed');
+        }
+    }
     function attachPriceChangeListener(actionLine, suggestedPrice, priceBox, productId, productName, currentPriceValue, item) {
         let requiredField = '';
         let requiredLabel = '';
@@ -1347,7 +1392,6 @@
             const currentSetStepPrice = parseFloat(document.getElementById('stepPrice').value.replace(',', '.')) || 0;
             const currentUsePriceDifference = document.getElementById('usePriceDifference').checked;
             const stepUnit = currentUsePriceDifference ? 'PLN' : '%';
-            // --- KONIEC NOWEGO ---
 
             const priceChangeEvent = new CustomEvent('priceBoxChange', {
                 detail: {
@@ -1357,10 +1401,10 @@
                     newPrice: suggestedPrice,
                     storeId: storeId,
                     scrapId: item.scrapId,
-                    // --- NOWE: Dodaj informacje o kroku do eventu ---
+
                     stepPriceApplied: currentSetStepPrice,
                     stepUnitApplied: stepUnit
-                    // --- KONIEC NOWEGO ---
+
                 }
             });
             document.dispatchEvent(priceChangeEvent);
@@ -1404,11 +1448,11 @@
 
         const existingChange = selectedPriceChanges.find(change =>
             String(change.productId) === String(productId)
-            // Usunięto warunek sprawdzający newPrice, bo krok mógł się zmienić, a zmiana nadal istnieje
+
         );
 
         if (existingChange) {
-            // Przekaż zapisany krok cenowy do activateChangeButton
+
             activateChangeButton(button, actionLine, priceBox, existingChange.stepPriceApplied, existingChange.stepUnitApplied);
         }
     }
@@ -1423,6 +1467,146 @@
             default:
                 return 'price-badge-neutral';
         }
+    }
+
+    function calculateCurrentSuggestion(item) {
+        const currentMyPrice = item.myPrice != null ? parseFloat(item.myPrice) : null;
+        const currentLowestPrice = item.lowestPrice != null ? parseFloat(item.lowestPrice) : null;
+        const currentSavings = item.savings != null ? item.savings.toFixed(2) : "N/A";
+        const currentSetStepPrice = parseFloat(document.getElementById('stepPrice').value.replace(',', '.')) || 0;
+        const currentUsePriceDifference = document.getElementById('usePriceDifference').checked;
+
+        let suggestedPrice = null;
+        let basePriceForCalc = null;
+        let priceType = null;
+
+        if (item.colorClass === "prToLow" || item.colorClass === "prIdeal") {
+            if (currentMyPrice != null && currentSavings !== "N/A") {
+                const savingsValue = parseFloat(currentSavings.replace(',', '.'));
+                basePriceForCalc = currentMyPrice + savingsValue;
+                priceType = 'raise';
+            }
+        } else if (item.colorClass === "prMid" || item.colorClass === "prToHigh") {
+            if (currentMyPrice != null && currentLowestPrice != null) {
+                basePriceForCalc = currentLowestPrice;
+                priceType = 'lower';
+            }
+        } else if (item.colorClass === "prGood") {
+            if (currentMyPrice != null) {
+
+                basePriceForCalc = currentMyPrice;
+                if (item.storeCount > 1 || currentSetStepPrice > 0) {
+                    priceType = 'good_step';
+                } else {
+                    priceType = 'good_no_step';
+                }
+            }
+        }
+
+        if (basePriceForCalc !== null && priceType !== null) {
+            if (priceType === 'good_no_step') {
+                suggestedPrice = basePriceForCalc;
+            } else {
+                if (currentUsePriceDifference) {
+                    suggestedPrice = basePriceForCalc + currentSetStepPrice;
+                } else {
+                    suggestedPrice = basePriceForCalc * (1 + (currentSetStepPrice / 100));
+                }
+                if (suggestedPrice < 0.01) { suggestedPrice = 0.01; }
+            }
+        }
+
+        if (suggestedPrice === null) {
+            return null;
+        }
+
+        const totalChangeAmount = suggestedPrice - (currentMyPrice || 0);
+        const percentageChange = (currentMyPrice != null && currentMyPrice > 0) ? (totalChangeAmount / currentMyPrice) * 100 : 0;
+        let arrowClass = '';
+        if (priceType === 'raise') {
+            arrowClass = totalChangeAmount > 0 ? (item.colorClass === 'prToLow' ? 'arrow-up-black' : 'arrow-up-turquoise') : (totalChangeAmount < 0 ? 'arrow-down-turquoise' : 'no-change-icon-turquoise');
+        } else if (priceType === 'lower') {
+            arrowClass = totalChangeAmount > 0 ? (item.colorClass === "prMid" ? "arrow-up-yellow" : "arrow-up-red") : (totalChangeAmount < 0 ? (item.colorClass === "prMid" ? "arrow-down-yellow" : "arrow-down-red") : 'no-change-icon');
+        } else if (priceType === 'good_step' || priceType === 'good_no_step') {
+            arrowClass = totalChangeAmount > 0 ? 'arrow-up-green' : (totalChangeAmount < 0 ? 'arrow-down-green' : 'no-change-icon-turquoise');
+        }
+
+        return {
+            suggestedPrice: suggestedPrice,
+            totalChangeAmount: totalChangeAmount,
+            percentageChange: percentageChange,
+            arrowClass: arrowClass,
+            priceType: priceType
+        };
+    }
+
+    function renderSuggestionBlockHTML(item, suggestionData) {
+        if (!suggestionData) {
+            return '';
+        }
+
+        const { suggestedPrice, totalChangeAmount, percentageChange, arrowClass, priceType } = suggestionData;
+        const myPrice = item.myPrice != null ? parseFloat(item.myPrice) : null;
+
+        let squareColorClass = 'color-square-turquoise';
+        if (priceType === 'raise') squareColorClass = 'color-square-turquoise';
+        else if (priceType === 'lower') squareColorClass = 'color-square-turquoise';
+        else if (priceType && priceType.startsWith('good')) squareColorClass = 'color-square-turquoise';
+
+        const strategicPriceBox = document.createElement('div');
+        strategicPriceBox.className = 'price-box-column';
+
+        const contentWrapper = document.createElement('div');
+        contentWrapper.className = 'price-box-column-text';
+
+        const newPriceDisplay = document.createElement('div');
+        newPriceDisplay.style.display = 'flex';
+        newPriceDisplay.style.alignItems = 'center';
+        newPriceDisplay.innerHTML = `<span class="${arrowClass}" style="margin-right: 8px;"></span><div><span style="font-weight: 500; font-size: 17px;">${suggestedPrice.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} PLN</span></div>`;
+
+        const priceDifferenceDisplay = document.createElement('div');
+        priceDifferenceDisplay.style.marginTop = '3px';
+        let badgeText = '';
+        if (totalChangeAmount > 0) badgeText = 'Podwyżka';
+        else if (totalChangeAmount < 0) badgeText = 'Obniżka';
+        else badgeText = 'Brak zmiany';
+        const badgeHtml = `<div class="price-diff-stack-badge">${badgeText}</div>`;
+        priceDifferenceDisplay.innerHTML =
+            `<div class="price-diff-stack" style="text-align: left;">` +
+            `${badgeHtml}` +
+            `<span class="diff-amount small-font">${totalChangeAmount >= 0 ? '+' : ''}${totalChangeAmount.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} PLN</span>&nbsp;` +
+            `<span class="diff-percentage small-font">(${percentageChange >= 0 ? '+' : ''}${percentageChange.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%)</span>` +
+            `</div>`;
+
+        contentWrapper.appendChild(newPriceDisplay);
+        const priceChangeLabel = document.createElement('div');
+        priceChangeLabel.textContent = 'Zmiana ceny Twojej oferty';
+        priceChangeLabel.style.fontSize = '14px';
+        priceChangeLabel.style.color = '#212529';
+        contentWrapper.appendChild(priceChangeLabel);
+        contentWrapper.appendChild(priceDifferenceDisplay);
+
+        const strategicPriceLine = document.createElement('div');
+        strategicPriceLine.className = 'price-action-line';
+        strategicPriceLine.style.marginTop = '8px';
+
+        const strategicPriceBtn = document.createElement('button');
+        strategicPriceBtn.className = 'simulate-change-btn';
+
+        const strategicBtnContent = `<span class="${squareColorClass}"></span> Dodaj zmianę ceny`;
+        strategicPriceBtn.innerHTML = strategicBtnContent;
+        strategicPriceBtn.dataset.originalText = strategicBtnContent;
+
+        strategicPriceLine.appendChild(strategicPriceBtn);
+        strategicPriceBox.appendChild(contentWrapper);
+        strategicPriceBox.appendChild(strategicPriceLine);
+
+        return {
+            html: strategicPriceBox.outerHTML,
+            actionLineSelector: '.price-action-line',
+            suggestedPrice: suggestedPrice,
+            myPrice: myPrice
+        };
     }
 
     function renderPrices(data) {
@@ -1964,266 +2148,171 @@
                 priceBoxColumnMyPrice.appendChild(priceBoxMyText);
                 priceBoxColumnMyPrice.appendChild(detailsContainer);
             }
+
             const priceBoxColumnInfo = document.createElement('div');
             priceBoxColumnInfo.className = 'price-box-column-action';
             priceBoxColumnInfo.innerHTML = '';
+
+            const existingChange = selectedPriceChanges.find(change =>
+                String(change.productId) === String(item.productId)
+            );
+
             if (item.colorClass !== 'prNoOffer') {
+                let displaySuggestedPrice = null;
+
+                if (existingChange) {
+                    displaySuggestedPrice = existingChange.newPrice;
+
+                }
 
                 if (item.colorClass === "prToLow" || item.colorClass === "prIdeal") {
                     if (myPrice != null && savings != null) {
-                        const savingsValue = parseFloat(savings.replace(',', '.'));
-                        const targetPriceRaise = myPrice + savingsValue;
                         let strategicPrice;
-                        let arrowClassStrategic;
 
-                        const currentSetStepPrice = parseFloat(document.getElementById('stepPrice').value) || 0;
-
-                        if (usePriceDifference) {
-                            strategicPrice = targetPriceRaise + currentSetStepPrice;
+                        if (existingChange) {
+                            strategicPrice = displaySuggestedPrice;
                         } else {
-                            strategicPrice = targetPriceRaise * (1 + (currentSetStepPrice / 100));
-                        }
-                        if (strategicPrice < 0.01) { strategicPrice = 0.01; }
 
-                        const totalChangeAmount = strategicPrice - myPrice;
-                        const percentageChange = myPrice > 0 ? (totalChangeAmount / myPrice) * 100 : 0;
-
-                        if (totalChangeAmount > 0) {
-                            arrowClassStrategic = item.colorClass === 'prToLow' ? 'arrow-up-black' : 'arrow-up-turquoise';
-                        } else if (totalChangeAmount < 0) {
-                            arrowClassStrategic = 'arrow-down-turquoise';
-                        } else {
-                            arrowClassStrategic = 'no-change-icon-turquoise';
+                            const suggestionData = calculateCurrentSuggestion(item);
+                            if (suggestionData) {
+                                strategicPrice = suggestionData.suggestedPrice;
+                            } else {
+                                strategicPrice = null;
+                            }
                         }
 
-                        const strategicPriceBox = document.createElement('div');
-                        strategicPriceBox.className = 'price-box-column';
+                        if (strategicPrice !== null) {
 
-                        const contentWrapper = document.createElement('div');
-                        contentWrapper.className = 'price-box-column-text';
+                            const totalChangeAmount = strategicPrice - myPrice;
+                            const percentageChange = myPrice > 0 ? (totalChangeAmount / myPrice) * 100 : 0;
 
-                        const newPriceDisplay = document.createElement('div');
-                        newPriceDisplay.style.display = 'flex';
-                        newPriceDisplay.style.alignItems = 'center';
-                        newPriceDisplay.innerHTML = `<span class="${arrowClassStrategic}" style="margin-right: 8px;"></span><div><span style="font-weight: 500; font-size: 17px;">${strategicPrice.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} PLN</span></div>`;
+                            let arrowClassStrategic;
 
-                        const priceDifferenceDisplay = document.createElement('div');
-                        priceDifferenceDisplay.style.marginTop = '3px';
+                            if (totalChangeAmount > 0) {
+                                arrowClassStrategic = item.colorClass === 'prToLow' ? 'arrow-up-black' : 'arrow-up-turquoise';
+                            } else if (totalChangeAmount < 0) {
+                                arrowClassStrategic = 'arrow-down-turquoise';
+                            } else {
+                                arrowClassStrategic = 'no-change-icon-turquoise';
+                            }
 
-                        let badgeText = '';
-                        if (totalChangeAmount > 0) {
-                            badgeText = 'Podwyżka';
-                        } else if (totalChangeAmount < 0) {
-                            badgeText = 'Obniżka';
-                        } else {
-                            badgeText = 'Brak zmiany';
+                            const suggestionDataForRender = {
+                                suggestedPrice: strategicPrice,
+                                totalChangeAmount: totalChangeAmount,
+                                percentageChange: percentageChange,
+                                arrowClass: arrowClassStrategic,
+                                priceType: 'raise'
+                            };
+                            const suggestionRenderResult = renderSuggestionBlockHTML(item, suggestionDataForRender);
+                            priceBoxColumnInfo.innerHTML = suggestionRenderResult.html;
+
+                            const newActionLine = priceBoxColumnInfo.querySelector(suggestionRenderResult.actionLineSelector);
+                            if (newActionLine) {
+
+                                const currentSuggestionOnClick = calculateCurrentSuggestion(item);
+                                const priceToAddOnClick = currentSuggestionOnClick ? currentSuggestionOnClick.suggestedPrice : strategicPrice;
+
+                                attachPriceChangeListener(newActionLine, priceToAddOnClick, box, item.productId, item.productName, myPrice, item);
+                            }
                         }
-                        const badgeHtml = `<div class="price-diff-stack-badge">${badgeText}</div>`;
-
-                        priceDifferenceDisplay.innerHTML =
-                            `<div class="price-diff-stack" style="text-align: left;">` +
-                            `${badgeHtml}` +
-                            `<span class="diff-amount small-font">${totalChangeAmount >= 0 ? '+' : ''}${totalChangeAmount.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} PLN</span>&nbsp;` +
-                            `<span class="diff-percentage small-font">(${percentageChange >= 0 ? '+' : ''}${percentageChange.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%)</span>` +
-                            `</div>`;
-
-                        contentWrapper.appendChild(newPriceDisplay);
-                        const priceChangeLabel = document.createElement('div');
-                        priceChangeLabel.textContent = 'Zmiana ceny Twojej oferty';
-                        priceChangeLabel.style.fontSize = '14px'; // Możesz dostosować styl
-                        priceChangeLabel.style.color = '#212529';    // Możesz dostosować styl
-                        contentWrapper.appendChild(priceChangeLabel);
-                        contentWrapper.appendChild(priceDifferenceDisplay);
-
-                        const strategicPriceLine = document.createElement('div');
-                        strategicPriceLine.className = 'price-action-line';
-                        strategicPriceLine.style.marginTop = '8px';
-
-                        const strategicPriceBtn = document.createElement('button');
-                        strategicPriceBtn.className = 'simulate-change-btn';
-                        const strategicBtnContent = `<span class="color-square-turquoise"></span> Dodaj zmianę ceny`;
-                        strategicPriceBtn.innerHTML = strategicBtnContent;
-                        strategicPriceBtn.dataset.originalText = strategicBtnContent;
-
-                        strategicPriceLine.appendChild(strategicPriceBtn);
-
-                        strategicPriceBox.appendChild(contentWrapper);
-                        strategicPriceBox.appendChild(strategicPriceLine);
-
-                        attachPriceChangeListener(strategicPriceLine, strategicPrice, box, item.productId, item.productName, myPrice, item);
-                        priceBoxColumnInfo.appendChild(strategicPriceBox);
-
                     }
-                } else if (item.colorClass === "prMid" || item.colorClass === "prToHigh") {
+                }
+
+                else if (item.colorClass === "prMid" || item.colorClass === "prToHigh") {
                     if (myPrice != null && lowestPrice != null) {
                         let strategicPrice;
 
-                        const currentSetStepPrice = parseFloat(document.getElementById('stepPrice').value) || 0;
-
-                        if (usePriceDifference) {
-                            strategicPrice = lowestPrice + currentSetStepPrice;
+                        if (existingChange) {
+                            strategicPrice = displaySuggestedPrice;
                         } else {
-                            strategicPrice = lowestPrice * (1 + currentSetStepPrice / 100);
-                        }
-                        if (strategicPrice < 0.01) { strategicPrice = 0.01; }
 
-                        const totalChangeAmount = strategicPrice - myPrice;
-                        const percentageChange = myPrice > 0 ? (totalChangeAmount / myPrice) * 100 : 0;
-
-                        let arrowClass;
-                        if (totalChangeAmount > 0) {
-                            arrowClass = item.colorClass === "prMid" ? "arrow-up-yellow" : "arrow-up-red";
-                        } else if (totalChangeAmount < 0) {
-                            arrowClass = item.colorClass === "prMid" ? "arrow-down-yellow" : "arrow-down-red";
-                        } else {
-                            arrowClass = 'no-change-icon';
-                        }
-
-                        const strategicPriceBox = document.createElement('div');
-                        strategicPriceBox.className = 'price-box-column';
-
-                        const contentWrapper = document.createElement('div');
-                        contentWrapper.className = 'price-box-column-text';
-
-                        const newPriceDisplay = document.createElement('div');
-                        newPriceDisplay.style.display = 'flex';
-                        newPriceDisplay.style.alignItems = 'center';
-                        newPriceDisplay.innerHTML = `<span class="${arrowClass}" style="margin-right: 8px;"></span><div><span style="font-weight: 500; font-size: 17px;">${strategicPrice.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} PLN</span></div>`;
-
-                        const priceDifferenceDisplay = document.createElement('div');
-                        priceDifferenceDisplay.style.marginTop = '3px';
-
-                        let badgeText = '';
-                        if (totalChangeAmount > 0) {
-                            badgeText = 'Podwyżka';
-                        } else if (totalChangeAmount < 0) {
-                            badgeText = 'Obniżka';
-                        } else {
-                            badgeText = 'Brak zmiany';
-                        }
-                        const badgeHtml = `<div class="price-diff-stack-badge">${badgeText}</div>`;
-
-                        priceDifferenceDisplay.innerHTML =
-                            `<div class="price-diff-stack" style="text-align: left;">` +
-                            `${badgeHtml}` +
-                            `<span class="diff-amount small-font">${totalChangeAmount >= 0 ? '+' : ''}${totalChangeAmount.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} PLN</span>&nbsp;` +
-                            `<span class="diff-percentage small-font">(${percentageChange >= 0 ? '+' : ''}${percentageChange.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%)</span>` +
-                            `</div>`;
-
-                        contentWrapper.appendChild(newPriceDisplay);
-                        const priceChangeLabel = document.createElement('div');
-                        priceChangeLabel.textContent = 'Zmiana ceny Twojej oferty';
-                        priceChangeLabel.style.fontSize = '14px'; // Możesz dostosować styl
-                        priceChangeLabel.style.color = '#212529';    // Możesz dostosować styl
-                        contentWrapper.appendChild(priceChangeLabel);
-                        contentWrapper.appendChild(priceDifferenceDisplay);
-
-                        const strategicPriceLine = document.createElement('div');
-                        strategicPriceLine.className = 'price-action-line';
-                        strategicPriceLine.style.marginTop = '8px';
-
-                        const strategicPriceBtn = document.createElement('button');
-                        strategicPriceBtn.className = 'simulate-change-btn';
-                        const strategicBtnContent = `<span class="color-square-turquoise"></span> Dodaj zmianę ceny`;
-                        strategicPriceBtn.innerHTML = strategicBtnContent;
-                        strategicPriceBtn.dataset.originalText = strategicBtnContent;
-
-                        strategicPriceLine.appendChild(strategicPriceBtn);
-
-                        strategicPriceBox.appendChild(contentWrapper);
-                        strategicPriceBox.appendChild(strategicPriceLine);
-
-                        attachPriceChangeListener(strategicPriceLine, strategicPrice, box, item.productId, item.productName, myPrice, item);
-                        priceBoxColumnInfo.appendChild(strategicPriceBox);
-
-                    }
-                } else if (item.colorClass === "prGood") {
-                    if (myPrice != null) {
-                        const targetPriceGood = myPrice;
-                        let amountToSuggestedPrice2, percentageToSuggestedPrice2, suggestedPrice2, arrowClassStrategic;
-
-                        const currentSetStepPrice = parseFloat(document.getElementById('stepPrice').value) || 0;
-
-                        if (item.storeCount > 1 || currentSetStepPrice > 0) {
-                            if (usePriceDifference) {
-                                suggestedPrice2 = targetPriceGood + currentSetStepPrice;
+                            const suggestionData = calculateCurrentSuggestion(item);
+                            if (suggestionData) {
+                                strategicPrice = suggestionData.suggestedPrice;
                             } else {
-                                suggestedPrice2 = targetPriceGood * (1 + currentSetStepPrice / 100);
+                                strategicPrice = null;
                             }
-                        } else {
-                            suggestedPrice2 = targetPriceGood;
-                        }
-                        if (suggestedPrice2 < 0.01) { suggestedPrice2 = 0.01; }
-
-                        amountToSuggestedPrice2 = suggestedPrice2 - myPrice;
-                        percentageToSuggestedPrice2 = myPrice > 0 ? (amountToSuggestedPrice2 / myPrice) * 100 : 0;
-
-                        if (amountToSuggestedPrice2 > 0) {
-                            arrowClassStrategic = 'arrow-up-green';
-                        } else if (amountToSuggestedPrice2 < 0) {
-                            arrowClassStrategic = 'arrow-down-green';
-                        } else {
-                            arrowClassStrategic = 'no-change-icon-turquoise';
                         }
 
-                        const strategicPriceBox = document.createElement('div');
-                        strategicPriceBox.className = 'price-box-column';
+                        if (strategicPrice !== null) {
+                            const totalChangeAmount = strategicPrice - myPrice;
+                            const percentageChange = myPrice > 0 ? (totalChangeAmount / myPrice) * 100 : 0;
 
-                        const contentWrapper = document.createElement('div');
-                        contentWrapper.className = 'price-box-column-text';
+                            let arrowClass;
+                            if (totalChangeAmount > 0) {
+                                arrowClass = item.colorClass === "prMid" ? "arrow-up-yellow" : "arrow-up-red";
+                            } else if (totalChangeAmount < 0) {
+                                arrowClass = item.colorClass === "prMid" ? "arrow-down-yellow" : "arrow-down-red";
+                            } else {
+                                arrowClass = 'no-change-icon';
+                            }
 
-                        const newPriceDisplay = document.createElement('div');
-                        newPriceDisplay.style.display = 'flex';
-                        newPriceDisplay.style.alignItems = 'center';
-                        newPriceDisplay.innerHTML = `<span class="${arrowClassStrategic}" style="margin-right: 8px;"></span><div><span style="font-weight: 500; font-size: 17px;">${suggestedPrice2.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} PLN</span></div>`;
+                            const suggestionDataForRender = {
+                                suggestedPrice: strategicPrice,
+                                totalChangeAmount: totalChangeAmount,
+                                percentageChange: percentageChange,
+                                arrowClass: arrowClass,
+                                priceType: 'lower'
+                            };
+                            const suggestionRenderResult = renderSuggestionBlockHTML(item, suggestionDataForRender);
+                            priceBoxColumnInfo.innerHTML = suggestionRenderResult.html;
 
-                        const priceDifferenceDisplay = document.createElement('div');
-                        priceDifferenceDisplay.style.marginTop = '3px';
-
-                        let badgeText = '';
-                        if (amountToSuggestedPrice2 > 0) {
-                            badgeText = 'Podwyżka';
-                        } else if (amountToSuggestedPrice2 < 0) {
-                            badgeText = 'Obniżka';
-                        } else {
-                            badgeText = 'Brak zmiany';
+                            const newActionLine = priceBoxColumnInfo.querySelector(suggestionRenderResult.actionLineSelector);
+                            if (newActionLine) {
+                                const currentSuggestionOnClick = calculateCurrentSuggestion(item);
+                                const priceToAddOnClick = currentSuggestionOnClick ? currentSuggestionOnClick.suggestedPrice : strategicPrice;
+                                attachPriceChangeListener(newActionLine, priceToAddOnClick, box, item.productId, item.productName, myPrice, item);
+                            }
                         }
-                        const badgeHtml = `<div class="price-diff-stack-badge">${badgeText}</div>`;
+                    }
+                }
 
-                        priceDifferenceDisplay.innerHTML =
-                            `<div class="price-diff-stack" style="text-align: left;">` +
-                            `${badgeHtml}` +
-                            `<span class="diff-amount small-font">${amountToSuggestedPrice2 >= 0 ? '+' : ''}${amountToSuggestedPrice2.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} PLN</span>&nbsp;` +
-                            `<span class="diff-percentage small-font">(${percentageToSuggestedPrice2 >= 0 ? '+' : ''}${percentageToSuggestedPrice2.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%)</span>` +
-                            `</div>`;
+                else if (item.colorClass === "prGood") {
+                    if (myPrice != null) {
+                        let suggestedPrice2;
 
-                        contentWrapper.appendChild(newPriceDisplay);
-                        const priceChangeLabel = document.createElement('div');
-                        priceChangeLabel.textContent = 'Zmiana ceny Twojej oferty';
-                        priceChangeLabel.style.fontSize = '14px'; // Możesz dostosować styl
-                        priceChangeLabel.style.color = '#212529';    // Możesz dostosować styl
-                        
-                        contentWrapper.appendChild(priceChangeLabel);
-                        contentWrapper.appendChild(priceDifferenceDisplay);
+                        if (existingChange) {
+                            suggestedPrice2 = displaySuggestedPrice;
+                        } else {
 
-                        const strategicPriceLine = document.createElement('div');
-                        strategicPriceLine.className = 'price-action-line';
-                        strategicPriceLine.style.marginTop = '8px';
+                            const suggestionData = calculateCurrentSuggestion(item);
+                            if (suggestionData) {
+                                suggestedPrice2 = suggestionData.suggestedPrice;
+                            } else {
+                                suggestedPrice2 = null;
+                            }
+                        }
 
-                        const strategicPriceBtn = document.createElement('button');
-                        strategicPriceBtn.className = 'simulate-change-btn';
-                        const strategicBtnContent = `<span class="color-square-turquoise"></span> Dodaj zmianę ceny`;
-                        strategicPriceBtn.innerHTML = strategicBtnContent;
-                        strategicPriceBtn.dataset.originalText = strategicBtnContent;
+                        if (suggestedPrice2 !== null) {
+                            const amountToSuggestedPrice2 = suggestedPrice2 - myPrice;
+                            const percentageToSuggestedPrice2 = myPrice > 0 ? (amountToSuggestedPrice2 / myPrice) * 100 : 0;
 
-                        strategicPriceLine.appendChild(strategicPriceBtn);
+                            let arrowClassStrategic;
+                            if (amountToSuggestedPrice2 > 0) {
+                                arrowClassStrategic = 'arrow-up-green';
+                            } else if (amountToSuggestedPrice2 < 0) {
+                                arrowClassStrategic = 'arrow-down-green';
+                            } else {
+                                arrowClassStrategic = 'no-change-icon-turquoise';
+                            }
 
-                        strategicPriceBox.appendChild(contentWrapper);
-                        strategicPriceBox.appendChild(strategicPriceLine);
+                            const suggestionDataForRender = {
+                                suggestedPrice: suggestedPrice2,
+                                totalChangeAmount: amountToSuggestedPrice2,
+                                percentageChange: percentageToSuggestedPrice2,
+                                arrowClass: arrowClassStrategic,
+                                priceType: 'good'
+                            };
+                            const suggestionRenderResult = renderSuggestionBlockHTML(item, suggestionDataForRender);
+                            priceBoxColumnInfo.innerHTML = suggestionRenderResult.html;
 
-                        attachPriceChangeListener(strategicPriceLine, suggestedPrice2, box, item.productId, item.productName, myPrice, item);
-                        priceBoxColumnInfo.appendChild(strategicPriceBox);
-
+                            const newActionLine = priceBoxColumnInfo.querySelector(suggestionRenderResult.actionLineSelector);
+                            if (newActionLine) {
+                                const currentSuggestionOnClick = calculateCurrentSuggestion(item);
+                                const priceToAddOnClick = currentSuggestionOnClick ? currentSuggestionOnClick.suggestedPrice : suggestedPrice2;
+                                attachPriceChangeListener(newActionLine, priceToAddOnClick, box, item.productId, item.productName, myPrice, item);
+                            }
+                        }
                     }
                 }
             }
