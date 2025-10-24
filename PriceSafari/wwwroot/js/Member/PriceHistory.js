@@ -403,27 +403,31 @@
         currentPage = 1;
         window.scrollTo(0, 0);
     }
-
     function refreshPriceBoxStates() {
-        const storedChangesJSON = localStorage.getItem('selectedPriceChanges_' + storeId);
-        let activeChangesMap = new Map();
 
-        if (storedChangesJSON) {
+        const currentStoredChangesJSON = localStorage.getItem('selectedPriceChanges_' + storeId);
+        let currentActiveChangesMap = new Map();
+
+        if (currentStoredChangesJSON) {
             try {
-                const parsedData = JSON.parse(storedChangesJSON);
-
+                const parsedData = JSON.parse(currentStoredChangesJSON);
                 if (parsedData && parsedData.scrapId && Array.isArray(parsedData.changes)) {
-                    parsedData.changes.forEach(change => activeChangesMap.set(String(change.productId), change));
 
-                } else if (Array.isArray(parsedData)) {
+                    selectedPriceChanges = parsedData.changes;
 
-                    console.warn("Wykryto stary format danych selectedPriceChanges. Zalecana aktualizacja.");
-                    parsedData.forEach(change => activeChangesMap.set(String(change.productId), change));
+                    parsedData.changes.forEach(change => currentActiveChangesMap.set(String(change.productId), change));
+                } else {
+
+                    selectedPriceChanges = [];
+                    console.warn("Niepoprawny format danych w localStorage, czyszczenie selectedPriceChanges.");
                 }
             } catch (err) {
-                console.error("Błąd parsowania selectedPriceChanges w refreshPriceBoxStates:", err);
-
+                console.error("Błąd parsowania selectedPriceChanges na początku refreshPriceBoxStates:", err);
+                selectedPriceChanges = [];
             }
+        } else {
+
+            selectedPriceChanges = [];
         }
 
         const allPriceBoxes = document.querySelectorAll('#priceContainer .price-box');
@@ -432,36 +436,69 @@
             const productId = priceBox.dataset.productId;
             if (!productId) return;
 
-            const activeChange = activeChangesMap.get(String(productId));
+            const activeChange = currentActiveChangesMap.get(String(productId));
 
             if (activeChange) {
+
                 if (!priceBox.classList.contains('price-changed')) {
                     priceBox.classList.add('price-changed');
                 }
-
                 const isActiveButtonPresent = priceBox.querySelector('.simulate-change-btn.active');
                 if (!isActiveButtonPresent) {
                     const firstButton = priceBox.querySelector('.simulate-change-btn');
                     if (firstButton) {
                         const actionLine = firstButton.closest('.price-action-line');
 
-                        activateChangeButton(firstButton, actionLine, priceBox, activeChange.stepPriceApplied, activeChange.stepUnitApplied);
-
+                        if (actionLine) {
+                            activateChangeButton(firstButton, actionLine, priceBox, activeChange.stepPriceApplied, activeChange.stepUnitApplied);
+                        } else {
+                            console.error("Nie znaleziono actionLine dla przycisku w refreshPriceBoxStates (stan aktywny). ProductId:", productId);
+                        }
+                    } else {
+                        console.error("Nie znaleziono przycisku .simulate-change-btn w refreshPriceBoxStates (stan aktywny). ProductId:", productId);
                     }
                 }
             } else if (priceBox.classList.contains('price-changed')) {
 
                 priceBox.classList.remove('price-changed');
-                const activeButtons = priceBox.querySelectorAll('.simulate-change-btn.active');
-                activeButtons.forEach(button => {
-                    button.classList.remove('active');
 
-                    button.innerHTML = button.dataset.originalText || "Dodaj zmianę ceny";
-                });
+                const item = allPrices.find(p => String(p.productId) === String(productId));
+                const priceBoxColumnInfo = priceBox.querySelector('.price-box-column-action');
+
+                if (item && priceBoxColumnInfo) {
+                    const newSuggestionData = calculateCurrentSuggestion(item);
+
+                    if (newSuggestionData) {
+                        const suggestionRenderResult = renderSuggestionBlockHTML(item, newSuggestionData);
+                        priceBoxColumnInfo.innerHTML = suggestionRenderResult.html;
+
+                        const newActionLine = priceBoxColumnInfo.querySelector(suggestionRenderResult.actionLineSelector);
+                        if (newActionLine) {
+                            const currentMyPrice = item.myPrice != null ? parseFloat(item.myPrice) : null;
+
+                            attachPriceChangeListener(newActionLine, newSuggestionData.suggestedPrice, priceBox, item.productId, item.productName, currentMyPrice, item);
+                        } else {
+                            console.error("Nie znaleziono .price-action-line po re-renderowaniu sugestii (w refreshPriceBoxStates - reset) dla ID:", productId);
+                        }
+                    } else {
+
+                        priceBoxColumnInfo.innerHTML = '';
+                        console.warn("Nie udało się obliczyć nowej sugestii (w refreshPriceBoxStates - reset) dla ID:", productId);
+                    }
+                } else {
+
+                    console.warn("Nie znaleziono itemu lub priceBoxColumnInfo (w refreshPriceBoxStates - reset) dla ID:", productId, ". Resetuję tylko przyciski.");
+                    const activeButtons = priceBox.querySelectorAll('.simulate-change-btn.active');
+                    activeButtons.forEach(button => {
+                        button.classList.remove('active');
+
+                        const originalContent = button.dataset.originalText || '<span class="color-square-turquoise"></span> Dodaj zmianę ceny';
+                        button.innerHTML = originalContent;
+                    });
+                }
             }
         });
     }
-
     window.refreshPriceBoxStates = refreshPriceBoxStates;
 
     function renderPaginationControls(totalItems) {
