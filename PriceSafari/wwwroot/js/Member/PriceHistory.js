@@ -417,34 +417,30 @@
             const productId = priceBox.dataset.productId;
             if (!productId) return;
 
-            const activeChange = activeChangesMap.get(String(productId));
+            const activeChange = activeChangesMap.get(String(productId)); // activeChange teraz zawiera stepPriceApplied i stepUnitApplied
 
             if (activeChange) {
-
                 if (!priceBox.classList.contains('price-changed')) {
                     priceBox.classList.add('price-changed');
                 }
 
                 const isActiveButtonPresent = priceBox.querySelector('.simulate-change-btn.active');
-
                 if (!isActiveButtonPresent) {
                     const firstButton = priceBox.querySelector('.simulate-change-btn');
                     if (firstButton) {
                         const actionLine = firstButton.closest('.price-action-line');
-
-                        activateChangeButton(firstButton, actionLine, priceBox);
+                        // --- ZMIENIONE: Przekaż dane kroku do activateChangeButton ---
+                        activateChangeButton(firstButton, actionLine, priceBox, activeChange.stepPriceApplied, activeChange.stepUnitApplied);
+                        // --- KONIEC ZMIENIONEGO ---
                     }
                 }
-
             } else if (priceBox.classList.contains('price-changed')) {
 
                 priceBox.classList.remove('price-changed');
-
                 const activeButtons = priceBox.querySelectorAll('.simulate-change-btn.active');
                 activeButtons.forEach(button => {
-
                     button.classList.remove('active');
-
+                    // Upewnij się, że przywracasz poprawny tekst bazowy
                     button.innerHTML = button.dataset.originalText || "Dodaj zmianę ceny";
                 });
             }
@@ -1177,13 +1173,24 @@
     </div>`;
     }
 
-    function activateChangeButton(button, actionLine, priceBox) {
+    function activateChangeButton(button, actionLine, priceBox, stepPriceApplied, stepUnitApplied) {
 
         const colorSquare = button.querySelector('span[class^="color-square-"]');
         const colorSquareHTML = colorSquare ? colorSquare.outerHTML : '';
 
+        // --- NOWE: Przygotuj tekst informacji o kroku cenowym ---
+        let stepInfoText = "";
+        // Sprawdź, czy wartości kroku zostały przekazane (mogą być undefined przy pierwszym renderowaniu, jeśli logika nie została w pełni dostosowana)
+        if (typeof stepPriceApplied !== 'undefined' && stepPriceApplied !== null && typeof stepUnitApplied !== 'undefined') {
+            // Użyj toLocaleString dla lepszego formatowania, np. przecinka dziesiętnego
+            const formattedStepPrice = stepPriceApplied.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            stepInfoText = ` Krok: ${formattedStepPrice}${stepUnitApplied}`;
+        }
+        // --- KONIEC NOWEGO ---
+
         button.classList.add('active');
-        button.innerHTML = colorSquareHTML + " Dodano";
+        // Zmieniony tekst przycisku
+        button.innerHTML = colorSquareHTML + stepInfoText + " Dodano";
 
         const removeLink = document.createElement('span');
         removeLink.innerHTML = " <i class='fa fa-trash' style='font-size:12px; display:flex; color:white; margin-left:4px; margin-top:3px;'></i>";
@@ -1196,8 +1203,8 @@
             ev.stopPropagation();
 
             button.classList.remove('active');
-
-            button.innerHTML = button.dataset.originalText || "Dodaj zmianę ceny";
+            // Przywróć oryginalny tekst (ważne!)
+            button.innerHTML = button.dataset.originalText || "Dodaj zmianę ceny"; // Upewnij się, że originalText jest ustawiony!
             priceBox.classList.remove('price-changed');
 
             const productId = priceBox ? priceBox.dataset.productId : null;
@@ -1337,6 +1344,11 @@
                 }
             }
 
+            const currentSetStepPrice = parseFloat(document.getElementById('stepPrice').value.replace(',', '.')) || 0;
+            const currentUsePriceDifference = document.getElementById('usePriceDifference').checked;
+            const stepUnit = currentUsePriceDifference ? 'PLN' : '%';
+            // --- KONIEC NOWEGO ---
+
             const priceChangeEvent = new CustomEvent('priceBoxChange', {
                 detail: {
                     productId,
@@ -1344,12 +1356,16 @@
                     currentPrice: currentPriceValue,
                     newPrice: suggestedPrice,
                     storeId: storeId,
-                    scrapId: item.scrapId
+                    scrapId: item.scrapId,
+                    // --- NOWE: Dodaj informacje o kroku do eventu ---
+                    stepPriceApplied: currentSetStepPrice,
+                    stepUnitApplied: stepUnit
+                    // --- KONIEC NOWEGO ---
                 }
             });
             document.dispatchEvent(priceChangeEvent);
 
-            activateChangeButton(currentButton, this, priceBox);
+            activateChangeButton(currentButton, this, priceBox, currentSetStepPrice, stepUnit);
 
             let message = `<p style="margin-bottom:8px; font-size:16px; font-weight:bold;">Zmiana ceny dodana</p>`;
             message += `<p style="margin:4px 0;"><strong>Produkt:</strong> ${productName}</p>`;
@@ -1387,13 +1403,13 @@
         });
 
         const existingChange = selectedPriceChanges.find(change =>
-            parseInt(change.productId) === parseInt(productId) &&
-
-            parseFloat(change.newPrice).toFixed(2) === parseFloat(suggestedPrice).toFixed(2)
+            String(change.productId) === String(productId)
+            // Usunięto warunek sprawdzający newPrice, bo krok mógł się zmienić, a zmiana nadal istnieje
         );
 
         if (existingChange) {
-            activateChangeButton(button, actionLine, priceBox);
+            // Przekaż zapisany krok cenowy do activateChangeButton
+            activateChangeButton(button, actionLine, priceBox, existingChange.stepPriceApplied, existingChange.stepUnitApplied);
         }
     }
 
@@ -1992,7 +2008,7 @@
                         newPriceDisplay.innerHTML = `<span class="${arrowClassStrategic}" style="margin-right: 8px;"></span><div><span style="font-weight: 500; font-size: 17px;">${strategicPrice.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} PLN</span></div>`;
 
                         const priceDifferenceDisplay = document.createElement('div');
-                        priceDifferenceDisplay.style.marginTop = '4px';
+                        priceDifferenceDisplay.style.marginTop = '3px';
 
                         let badgeText = '';
                         if (totalChangeAmount > 0) {
@@ -2012,6 +2028,11 @@
                             `</div>`;
 
                         contentWrapper.appendChild(newPriceDisplay);
+                        const priceChangeLabel = document.createElement('div');
+                        priceChangeLabel.textContent = 'Zmiana ceny Twojej oferty';
+                        priceChangeLabel.style.fontSize = '14px'; // Możesz dostosować styl
+                        priceChangeLabel.style.color = '#212529';    // Możesz dostosować styl
+                        contentWrapper.appendChild(priceChangeLabel);
                         contentWrapper.appendChild(priceDifferenceDisplay);
 
                         const strategicPriceLine = document.createElement('div');
@@ -2070,7 +2091,7 @@
                         newPriceDisplay.innerHTML = `<span class="${arrowClass}" style="margin-right: 8px;"></span><div><span style="font-weight: 500; font-size: 17px;">${strategicPrice.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} PLN</span></div>`;
 
                         const priceDifferenceDisplay = document.createElement('div');
-                        priceDifferenceDisplay.style.marginTop = '4px';
+                        priceDifferenceDisplay.style.marginTop = '3px';
 
                         let badgeText = '';
                         if (totalChangeAmount > 0) {
@@ -2090,6 +2111,11 @@
                             `</div>`;
 
                         contentWrapper.appendChild(newPriceDisplay);
+                        const priceChangeLabel = document.createElement('div');
+                        priceChangeLabel.textContent = 'Zmiana ceny Twojej oferty';
+                        priceChangeLabel.style.fontSize = '14px'; // Możesz dostosować styl
+                        priceChangeLabel.style.color = '#212529';    // Możesz dostosować styl
+                        contentWrapper.appendChild(priceChangeLabel);
                         contentWrapper.appendChild(priceDifferenceDisplay);
 
                         const strategicPriceLine = document.createElement('div');
@@ -2152,7 +2178,7 @@
                         newPriceDisplay.innerHTML = `<span class="${arrowClassStrategic}" style="margin-right: 8px;"></span><div><span style="font-weight: 500; font-size: 17px;">${suggestedPrice2.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} PLN</span></div>`;
 
                         const priceDifferenceDisplay = document.createElement('div');
-                        priceDifferenceDisplay.style.marginTop = '4px';
+                        priceDifferenceDisplay.style.marginTop = '3px';
 
                         let badgeText = '';
                         if (amountToSuggestedPrice2 > 0) {
@@ -2172,6 +2198,12 @@
                             `</div>`;
 
                         contentWrapper.appendChild(newPriceDisplay);
+                        const priceChangeLabel = document.createElement('div');
+                        priceChangeLabel.textContent = 'Zmiana ceny Twojej oferty';
+                        priceChangeLabel.style.fontSize = '14px'; // Możesz dostosować styl
+                        priceChangeLabel.style.color = '#212529';    // Możesz dostosować styl
+                        
+                        contentWrapper.appendChild(priceChangeLabel);
                         contentWrapper.appendChild(priceDifferenceDisplay);
 
                         const strategicPriceLine = document.createElement('div');

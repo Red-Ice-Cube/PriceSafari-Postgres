@@ -61,13 +61,23 @@
     if (storedDataJSON) {
         try {
             const storedData = JSON.parse(storedDataJSON);
-
             if (storedData && storedData.scrapId && Array.isArray(storedData.changes)) {
-                selectedPriceChanges = storedData.changes;
-                sessionScrapId = storedData.scrapId;
+                // Sprawdzenie, czy dane mają nowy format - jeśli nie, można dodać logikę migracji lub czyszczenia
+                if (storedData.changes.length > 0 && typeof storedData.changes[0].stepPriceApplied === 'undefined') {
+                    console.warn("Wykryto stary format danych w LS (bez kroku cenowego). Zostanie on usunięty przy następnej zmianie.");
+                    // Można zdecydować o usunięciu starych danych od razu:
+                    // localStorage.removeItem(localStorageKey);
+                    // selectedPriceChanges = [];
+                    // sessionScrapId = null;
+                    // LUB pozwolić na nadpisanie przy kolejnym zapisie
+                    selectedPriceChanges = storedData.changes; // Tymczasowo załaduj stare dane
+                    sessionScrapId = storedData.scrapId;
+                } else {
+                    selectedPriceChanges = storedData.changes; // Załaduj dane w nowym formacie
+                    sessionScrapId = storedData.scrapId;
+                }
             } else {
-
-                console.warn("Wykryto stary format danych w LS. Zostanie on usunięty przy następnej zmianie.");
+                console.warn("Nieznany lub stary format danych w LS. Zostanie on usunięty przy następnej zmianie.");
                 localStorage.removeItem(localStorageKey);
             }
         } catch (err) {
@@ -148,20 +158,31 @@
     }
 
     document.addEventListener('priceBoxChange', function (event) {
-        const { productId, productName, currentPrice, newPrice, scrapId } = event.detail;
+        // --- ZMIENIONE: Pobierz nowe pola z detail ---
+        const { productId, productName, currentPrice, newPrice, scrapId, stepPriceApplied, stepUnitApplied } = event.detail;
+        // --- KONIEC ZMIENIONEGO ---
 
         if (selectedPriceChanges.length === 0) {
+            sessionScrapId = scrapId; // Ustaw scrapId tylko przy dodaniu pierwszego elementu
+        } else if (sessionScrapId !== scrapId) {
+            console.warn(`ScrapId w sesji (${sessionScrapId}) różni się od scrapId eventu (${scrapId}). Czyszczenie starych zmian.`);
+            selectedPriceChanges = []; // Wyczyść stare zmiany, jeśli scrapId się zmienił
             sessionScrapId = scrapId;
         }
 
+
         var existingIndex = selectedPriceChanges.findIndex(function (item) {
-            return parseInt(item.productId) === parseInt(productId);
+            return String(item.productId) === String(productId); // Porównuj jako stringi dla pewności
         });
 
+        // --- ZMIENIONE: Zapisz nowe pola ---
+        const changeData = { productId, productName, currentPrice, newPrice, stepPriceApplied, stepUnitApplied };
+        // --- KONIEC ZMIENIONEGO ---
+
         if (existingIndex > -1) {
-            selectedPriceChanges[existingIndex] = { productId, productName, currentPrice, newPrice };
+            selectedPriceChanges[existingIndex] = changeData; // Aktualizuj istniejący wpis
         } else {
-            selectedPriceChanges.push({ productId, productName, currentPrice, newPrice });
+            selectedPriceChanges.push(changeData); // Dodaj nowy wpis
         }
 
         savePriceChanges();
