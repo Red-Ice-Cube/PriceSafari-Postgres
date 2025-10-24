@@ -927,6 +927,7 @@
                 document.getElementById('price1').value = setPrice1;
                 document.getElementById('price2').value = setPrice2;
                 document.getElementById('stepPrice').value = setStepPrice;
+                updateStepPriceIndicator();
                 document.getElementById('missedProductsCount').textContent = missedProductsCount;
 
                 updateFlagCounts(allPrices);
@@ -1439,9 +1440,10 @@
 
             }
 
-            const currentSetStepPrice = parseFloat(document.getElementById('stepPrice').value.replace(',', '.')) || 0;
+            const currentSetStepPrice = setStepPrice; // <-- ZMIANA: Używamy zmiennej globalnej
             const currentUsePriceDifference = document.getElementById('usePriceDifference').checked;
             const stepUnit = currentUsePriceDifference ? 'PLN' : '%';
+            // ... (reszta kodu funkcji)
 
             const priceChangeEvent = new CustomEvent('priceBoxChange', {
                 detail: {
@@ -1578,7 +1580,7 @@
         const currentMyPrice = item.myPrice != null ? parseFloat(item.myPrice) : null;
         const currentLowestPrice = item.lowestPrice != null ? parseFloat(item.lowestPrice) : null;
         const currentSavings = item.savings != null ? item.savings.toFixed(2) : "N/A";
-        const currentSetStepPrice = parseFloat(document.getElementById('stepPrice').value.replace(',', '.')) || 0;
+        const currentSetStepPrice = setStepPrice; // <-- ZMIANA: Używamy zmiennej globalnej
         const currentUsePriceDifference = document.getElementById('usePriceDifference').checked;
 
         let suggestedPrice = null;
@@ -3208,10 +3210,10 @@
         setPrice2 = parseFloat(this.value);
 
     });
-    document.getElementById('stepPrice').addEventListener('input', function () {
-        setStepPrice = parseFloat(this.value);
+    //document.getElementById('stepPrice').addEventListener('input', function () {
+    //    setStepPrice = parseFloat(this.value);
 
-    });
+    //});
 
     document.getElementById('productSearch').addEventListener('input', function () {
         currentPage = 1;
