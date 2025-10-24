@@ -34,6 +34,21 @@
         minimalMarginPercent: 0.00
     };
 
+    function formatPricePL(value, includeUnit = true) {
+
+        if (value === null || value === undefined || isNaN(parseFloat(value))) {
+            return "N/A";
+        }
+        const numberValue = parseFloat(value);
+
+        const formatted = numberValue.toLocaleString('pl-PL', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        });
+
+        return includeUnit ? formatted + ' PLN' : formatted;
+    }
+
     let selectedFlagsInclude = new Set();
     let selectedFlagsExclude = new Set();
     let selectedProductIds = loadSelectionFromStorage();
@@ -1263,9 +1278,11 @@
             priceBox.classList.add('price-changed');
         }
     }
+
     function attachPriceChangeListener(actionLine, suggestedPrice, priceBox, productId, productName, currentPriceValue, item) {
         let requiredField = '';
         let requiredLabel = '';
+
         switch (marginSettings.identifierForSimulation) {
             case 'ID':
                 requiredField = item.externalId;
@@ -1303,10 +1320,11 @@
             }
 
             if (marginSettings.useMarginForSimulation) {
+
                 if (item.marginPrice == null) {
                     showGlobalNotification(
                         `<p style="margin:8px 0; font-weight:bold;">Zmiana ceny nie została dodana</p>
-                       <p>Symulacja cenowa z narzutem jest włączona – produkt musi posiadać cenę zakupu.</p>`
+                     <p>Symulacja cenowa z narzutem jest włączona – produkt musi posiadać cenę zakupu.</p>`
                     );
                     return;
                 }
@@ -1323,70 +1341,65 @@
                     newPriceForMarginCalculation = suggestedPrice - myDeliveryCost;
                 }
 
-                let oldMargin = ((oldPriceForMarginCalculation - item.marginPrice) / item.marginPrice) * 100;
-                let newMargin = ((newPriceForMarginCalculation - item.marginPrice) / item.marginPrice) * 100;
+                let oldMargin = (item.marginPrice !== 0) ? ((oldPriceForMarginCalculation - item.marginPrice) / item.marginPrice) * 100 : Infinity;
+                let newMargin = (item.marginPrice !== 0) ? ((newPriceForMarginCalculation - item.marginPrice) / item.marginPrice) * 100 : Infinity;
+
                 oldMargin = parseFloat(oldMargin.toFixed(2));
                 newMargin = parseFloat(newMargin.toFixed(2));
 
-                if (marginSettings.useMarginForSimulation) {
-                    if (item.marginPrice == null) {
-                        showGlobalNotification(
-                            `<p style="margin:8px 0; font-weight:bold;">Zmiana ceny nie została dodana</p>
-                           <p>Symulacja cenowa z narzutem jest włączona – produkt musi posiadać cenę zakupu.</p>`
-                        );
-                        return;
-                    }
+                let suggestedPriceDisplayFormatted = formatPricePL(suggestedPrice);
+                let actualProductPriceFormatted = '';
+                if (marginSettings.usePriceWithDelivery && item.myPriceIncludesDelivery) {
+                    const myDeliveryCost = item.myPriceDeliveryCost != null && !isNaN(parseFloat(item.myPriceDeliveryCost)) ? parseFloat(item.myPriceDeliveryCost) : 0;
+                    const actualProductPrice = suggestedPrice - myDeliveryCost;
+                    actualProductPriceFormatted = formatPricePL(actualProductPrice);
+                    suggestedPriceDisplayFormatted = `${formatPricePL(suggestedPrice)} (z dostawą) | ${actualProductPriceFormatted} (bez dostawy)`;
+                }
 
-                    let suggestedPriceDisplay = suggestedPrice.toFixed(2) + ' PLN';
-                    if (marginSettings.usePriceWithDelivery && item.myPriceIncludesDelivery) {
-                        const myDeliveryCost = item.myPriceDeliveryCost != null && !isNaN(parseFloat(item.myPriceDeliveryCost)) ? parseFloat(item.myPriceDeliveryCost) : 0;
-                        const actualProductPrice = suggestedPrice - myDeliveryCost;
-                        suggestedPriceDisplay = `${suggestedPrice.toFixed(2)} PLN (z dostawą) | ${actualProductPrice.toFixed(2)} PLN (bez dostawy)`;
-                    }
+                if (marginSettings.minimalMarginPercent > 0) {
+                    if (newMargin < marginSettings.minimalMarginPercent) {
 
-                    if (marginSettings.minimalMarginPercent > 0) {
-                        if (newMargin < marginSettings.minimalMarginPercent) {
-                            if (!(newMargin > oldMargin && oldMargin < marginSettings.minimalMarginPercent)) {
-                                let reason = "";
-                                if (oldMargin >= marginSettings.minimalMarginPercent) {
-                                    reason = `Zmiana obniża narzut z <strong>${oldMargin}%</strong> (który spełniał minimum) do <strong>${newMargin}%</strong>, czyli poniżej wymaganego progu <strong>${marginSettings.minimalMarginPercent}%</strong>.`;
-                                } else if (newMargin <= oldMargin) {
-                                    reason = `Nowy narzut (<strong>${newMargin}%</strong>) jest poniżej wymaganego minimum (<strong>${marginSettings.minimalMarginPercent}%</strong>) i nie stanowi poprawy (lub jest pogorszeniem) poprzedniego, już niskiego narzutu (<strong>${oldMargin}%</strong>).`;
-                                } else {
-                                    reason = `Nowy narzut (<strong>${newMargin}%</strong>) jest poniżej wymaganego minimum (<strong>${marginSettings.minimalMarginPercent}%</strong>), a warunki poprawy nie zostały spełnione (poprzedni narzut: <strong>${oldMargin}%</strong>).`;
-                                }
-                                showGlobalNotification(
-                                    `<p style="margin:8px 0; font-weight:bold;">Zmiana ceny nie została dodana</p>
-                                   <p>${reason}</p>
-                                   <p>Cena zakupu wynosi <strong>${item.marginPrice.toFixed(2)} PLN</strong>.</p>
-                                   <p>Sugerowana cena: <strong>${suggestedPriceDisplay}</strong>.</p>`
-                                );
-                                return;
+                        if (!(oldMargin < marginSettings.minimalMarginPercent && newMargin > oldMargin)) {
+                            let reason = "";
+                            if (oldMargin >= marginSettings.minimalMarginPercent) {
+                                reason = `Zmiana obniża narzut z <strong>${oldMargin}%</strong> (który spełniał minimum) do <strong>${newMargin}%</strong>, czyli poniżej wymaganego progu <strong>${marginSettings.minimalMarginPercent}%</strong>.`;
+                            } else {
+                                reason = `Nowy narzut (<strong>${newMargin}%</strong>) jest poniżej wymaganego minimum (<strong>${marginSettings.minimalMarginPercent}%</strong>) i nie stanowi poprawy (lub jest pogorszeniem) poprzedniego, już niskiego narzutu (<strong>${oldMargin}%</strong>).`;
                             }
-                        }
-                    }
-
-                    if (marginSettings.enforceMinimalMargin) {
-                        if (newMargin < 0) {
-                            if (!(oldMargin < 0 && newMargin > oldMargin)) {
-                                showGlobalNotification(
-                                    `<p style="margin:8px 0; font-weight:bold;">Zmiana ceny nie została dodana</p>
-                                   <p>Nowa cena <strong>${suggestedPriceDisplay}</strong> spowoduje ujemny narzut (nowy narzut: <strong>${newMargin}%</strong>).</p>
-                                   <p>Cena zakupu wynosi <strong>${item.marginPrice.toFixed(2)} PLN</strong>. Zmiana nie może zostać zastosowana.</p>`
-                                );
-                                return;
-                            }
-                        }
-                        if (marginSettings.minimalMarginPercent < 0 && newMargin > marginSettings.minimalMarginPercent) {
                             showGlobalNotification(
                                 `<p style="margin:8px 0; font-weight:bold;">Zmiana ceny nie została dodana</p>
-                               <p>Nowa cena <strong>${suggestedPriceDisplay}</strong> ustawi narzut (<strong>${newMargin}%</strong>), który jest powyżej dopuszczalnego progu straty (<strong>${marginSettings.minimalMarginPercent}%</strong>).</p>
-                               <p>Nowy narzut wynosi <strong>${newMargin}%</strong>.</p>`
+                             <p>${reason}</p>
+                             <p>Cena zakupu wynosi <strong>${formatPricePL(item.marginPrice)}</strong>.</p>
+                             <p>Sugerowana cena: <strong>${suggestedPriceDisplayFormatted}</strong>.</p>`
                             );
                             return;
                         }
                     }
+                } else if (marginSettings.enforceMinimalMargin) {
+                    if (newMargin < 0) {
+
+                        if (!(oldMargin < 0 && newMargin > oldMargin)) {
+                            showGlobalNotification(
+                                `<p style="margin:8px 0; font-weight:bold;">Zmiana ceny nie została dodana</p>
+                             <p>Nowa cena <strong>${suggestedPriceDisplayFormatted}</strong> spowoduje ujemny narzut (nowy narzut: <strong>${newMargin}%</strong>).</p>
+                             <p>Cena zakupu wynosi <strong>${formatPricePL(item.marginPrice)}</strong>. Zmiana nie może zostać zastosowana.</p>`
+                            );
+                            return;
+                        }
+                    }
+
+                    if (marginSettings.minimalMarginPercent < 0 && newMargin < marginSettings.minimalMarginPercent) {
+
+                        showGlobalNotification(
+                            `<p style="margin:8px 0; font-weight:bold;">Zmiana ceny nie została dodana</p>
+                         <p>Nowa cena <strong>${suggestedPriceDisplayFormatted}</strong> ustawi narzut (<strong>${newMargin}%</strong>), który jest poniżej dopuszczalnego progu straty (<strong>${marginSettings.minimalMarginPercent}%</strong>).</p>
+                         <p>Nowy narzut wynosi <strong>${newMargin}%</strong>.</p>`
+
+                        );
+                        return;
+                    }
                 }
+
             }
 
             const currentSetStepPrice = parseFloat(document.getElementById('stepPrice').value.replace(',', '.')) || 0;
@@ -1401,10 +1414,8 @@
                     newPrice: suggestedPrice,
                     storeId: storeId,
                     scrapId: item.scrapId,
-
                     stepPriceApplied: currentSetStepPrice,
                     stepUnitApplied: stepUnit
-
                 }
             });
             document.dispatchEvent(priceChangeEvent);
@@ -1413,37 +1424,46 @@
 
             let message = `<p style="margin-bottom:8px; font-size:16px; font-weight:bold;">Zmiana ceny dodana</p>`;
             message += `<p style="margin:4px 0;"><strong>Produkt:</strong> ${productName}</p>`;
+
             let displayPriceLabel = "Nowa cena";
-            let newPriceWithoutDelivery = suggestedPrice;
+            let newPriceWithoutDeliveryFormatted = formatPricePL(suggestedPrice);
 
             if (marginSettings.usePriceWithDelivery && item.myPriceIncludesDelivery) {
                 displayPriceLabel = "Nowa cena (z dostawą)";
                 const myDeliveryCost = item.myPriceDeliveryCost != null && !isNaN(parseFloat(item.myPriceDeliveryCost)) ? parseFloat(item.myPriceDeliveryCost) : 0;
-                newPriceWithoutDelivery = suggestedPrice - myDeliveryCost;
+                const newPriceWithoutDelivery = suggestedPrice - myDeliveryCost;
+                newPriceWithoutDeliveryFormatted = formatPricePL(newPriceWithoutDelivery);
             }
-            message += `<p style="margin:4px 0;"><strong>${displayPriceLabel}:</strong> ${suggestedPrice.toFixed(2)} PLN</p>`;
+
+            message += `<p style="margin:4px 0;"><strong>${displayPriceLabel}:</strong> ${formatPricePL(suggestedPrice)}</p>`;
+
             if (marginSettings.usePriceWithDelivery && item.myPriceIncludesDelivery) {
-                message += `<p style="margin:4px 0;"><strong>Nowa cena (bez dostawy):</strong> ${newPriceWithoutDelivery.toFixed(2)} PLN</p>`;
+
+                message += `<p style="margin:4px 0;"><strong>Nowa cena (bez dostawy):</strong> ${newPriceWithoutDeliveryFormatted}</p>`;
             }
-            if (marginSettings.useMarginForSimulation) {
+
+            if (marginSettings.useMarginForSimulation && item.marginPrice != null) {
                 let finalPriceForMarginCalculation = suggestedPrice;
                 if (marginSettings.usePriceWithDelivery && item.myPriceIncludesDelivery) {
                     const myDeliveryCost = item.myPriceDeliveryCost != null && !isNaN(parseFloat(item.myPriceDeliveryCost)) ? parseFloat(item.myPriceDeliveryCost) : 0;
                     finalPriceForMarginCalculation = suggestedPrice - myDeliveryCost;
                 }
-                let finalMargin = ((finalPriceForMarginCalculation - item.marginPrice) / item.marginPrice) * 100;
-                finalMargin = parseFloat(finalMargin.toFixed(2));
-                message += `<p style="margin:4px 0;"><strong>Nowy narzut:</strong> ${finalMargin}%</p>`;
-                message += `<p style="margin:4px 0;"><strong>Cena zakupu:</strong> ${item.marginPrice.toFixed(2)} PLN</p>`;
+
+                let finalMargin = (item.marginPrice !== 0) ? ((finalPriceForMarginCalculation - item.marginPrice) / item.marginPrice) * 100 : Infinity;
+
+                message += `<p style="margin:4px 0;"><strong>Nowy narzut:</strong> ${finalMargin.toFixed(2)}%</p>`;
+                message += `<p style="margin:4px 0;"><strong>Cena zakupu:</strong> ${formatPricePL(item.marginPrice)}</p>`;
+
                 if (marginSettings.enforceMinimalMargin) {
                     if (marginSettings.minimalMarginPercent > 0) {
                         message += `<p style="margin:4px 0;"><strong>Minimalny wymagany narzut:</strong> ${marginSettings.minimalMarginPercent}%</p>`;
                     } else if (marginSettings.minimalMarginPercent < 0) {
-                        message += `<p style="margin:4px 0;"><strong>Maksymalne obniżenie narzutu:</strong> ${marginSettings.minimalMarginPercent}%</p>`;
+                        message += `<p style="margin:4px 0;"><strong>Maksymalna dopuszczalna strata:</strong> ${marginSettings.minimalMarginPercent}%</p>`;
                     }
                 }
             }
             showGlobalUpdate(message);
+
         });
 
         const existingChange = selectedPriceChanges.find(change =>
@@ -1562,7 +1582,7 @@
         const newPriceDisplay = document.createElement('div');
         newPriceDisplay.style.display = 'flex';
         newPriceDisplay.style.alignItems = 'center';
-        newPriceDisplay.innerHTML = `<span class="${arrowClass}" style="margin-right: 8px;"></span><div><span style="font-weight: 500; font-size: 17px;">${suggestedPrice.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} PLN</span></div>`;
+        newPriceDisplay.innerHTML = `<span class="${arrowClass}" style="margin-right: 8px;"></span><div><span style="font-weight: 500; font-size: 17px;">${formatPricePL(suggestedPrice)}</span></div>`;
 
         const priceDifferenceDisplay = document.createElement('div');
         priceDifferenceDisplay.style.marginTop = '3px';
@@ -1574,7 +1594,7 @@
         priceDifferenceDisplay.innerHTML =
             `<div class="price-diff-stack" style="text-align: left;">` +
             `${badgeHtml}` +
-            `<span class="diff-amount small-font">${totalChangeAmount >= 0 ? '+' : ''}${totalChangeAmount.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} PLN</span>&nbsp;` +
+            `<span class="diff-amount small-font">${totalChangeAmount >= 0 ? '+' : ''}${formatPricePL(Math.abs(totalChangeAmount), false)} PLN</span>&nbsp;` +
             `<span class="diff-percentage small-font">(${percentageChange >= 0 ? '+' : ''}${percentageChange.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%)</span>` +
             `</div>`;
 
@@ -1793,7 +1813,7 @@
                 const priceSpan = document.createElement('span');
                 priceSpan.style.fontWeight = '500';
                 priceSpan.style.fontSize = '17px';
-                priceSpan.textContent = item.lowestPrice.toFixed(2) + ' PLN';
+                priceSpan.textContent = formatPricePL(lowestPrice);
                 priceLine.appendChild(priceSpan);
 
                 if (typeof item.externalBestPriceCount !== 'undefined' && item.externalBestPriceCount !== null) {
@@ -1908,7 +1928,8 @@
                     const priceDifferenceElem = document.createElement('span');
                     priceDifferenceElem.style.fontWeight = '500';
                     const arrow = '<span class="' + (isPriceDecrease ? 'arrow-down' : 'arrow-up') + '"></span>';
-                    priceDifferenceElem.innerHTML = arrow + (isPriceDecrease ? '-' : '+') + Math.abs(externalPriceDifference) + ' PLN ';
+
+                    priceDifferenceElem.innerHTML = arrow + (isPriceDecrease ? '-' : '') + parseFloat(externalPriceDifference).toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' PLN ';
 
                     priceChangeContainer.appendChild(storeName);
                     priceChangeContainer.appendChild(priceDifferenceElem);
@@ -1922,11 +1943,11 @@
                     oldPrice.style.fontWeight = '500';
                     oldPrice.style.textDecoration = 'line-through';
                     oldPrice.style.marginRight = '10px';
-                    oldPrice.textContent = myPrice.toFixed(2) + ' PLN';
+                    oldPrice.textContent = formatPricePL(myPrice);
 
                     const newPrice = document.createElement('span');
                     newPrice.style.fontWeight = '500';
-                    newPrice.textContent = item.externalPrice.toFixed(2) + ' PLN';
+                    newPrice.textContent = formatPricePL(item.externalPrice);
 
                     priceContainer.appendChild(oldPrice);
                     priceContainer.appendChild(newPrice);
@@ -1946,10 +1967,7 @@
                     }
 
                     if (marginPrice != null) {
-                        const formattedMarginPrice = marginPrice.toLocaleString('pl-PL', {
-                            minimumFractionDigits: 2,
-                            maximumFractionDigits: 2
-                        }) + ' PLN';
+                        const formattedMarginPrice = formatPricePL(marginPrice);
 
                         const badgeClass = getMarginBadgeClass(marginClass);
 
@@ -1968,10 +1986,7 @@
 
                         purchasePriceBox.innerHTML = `<span class="price-badge ${badgeClass}">Cena zakup</span><p>${formattedMarginPrice}</p>`;
 
-                        const formattedMarginAmount = marginSign + Math.abs(marginAmount).toLocaleString('pl-PL', {
-                            minimumFractionDigits: 2,
-                            maximumFractionDigits: 2
-                        }) + ' PLN';
+                        const formattedMarginAmount = marginSign + formatPricePL(Math.abs(marginAmount), false) + ' PLN';
                         const formattedMarginPercentage = '(' + marginSign + Math.abs(marginPercentage).toLocaleString('pl-PL', {
                             minimumFractionDigits: 2,
                             maximumFractionDigits: 2
@@ -1996,7 +2011,7 @@
                     const myPriceSpan = document.createElement('span');
                     myPriceSpan.style.fontWeight = '500';
                     myPriceSpan.style.fontSize = '17px';
-                    myPriceSpan.textContent = myPrice.toFixed(2) + ' PLN';
+                    myPriceSpan.textContent = formatPricePL(myPrice);
                     myPriceLine.appendChild(myPriceSpan);
 
                     const storeNameDiv = document.createElement('div');
@@ -2019,10 +2034,7 @@
                     priceBoxMyText.appendChild(storeNameDiv);
 
                     if (marginPrice != null) {
-                        const formattedMarginPrice = marginPrice.toLocaleString('pl-PL', {
-                            minimumFractionDigits: 2,
-                            maximumFractionDigits: 2
-                        }) + ' PLN';
+                        const formattedMarginPrice = formatPricePL(marginPrice);
 
                         const badgeClass = getMarginBadgeClass(marginClass);
 
@@ -2041,10 +2053,7 @@
 
                         purchasePriceBox.innerHTML = `<span class="price-badge ${badgeClass}">Cena zakupu</span><p>${formattedMarginPrice}</p>`;
 
-                        const formattedMarginAmount = marginSign + Math.abs(marginAmount).toLocaleString('pl-PL', {
-                            minimumFractionDigits: 2,
-                            maximumFractionDigits: 2
-                        }) + ' PLN';
+                        const formattedMarginAmount = marginSign + formatPricePL(Math.abs(marginAmount), false) + ' PLN';
                         const formattedMarginPercentage = '(' + marginSign + Math.abs(marginPercentage).toLocaleString('pl-PL', {
                             minimumFractionDigits: 2,
                             maximumFractionDigits: 2
@@ -2107,10 +2116,7 @@
                 priceBoxMyText.appendChild(storeNameDiv);
 
                 if (marginPrice != null) {
-                    const formattedMarginPrice = marginPrice.toLocaleString('pl-PL', {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2
-                    }) + ' PLN';
+                    const formattedMarginPrice = formatPricePL(marginPrice);
 
                     const badgeClass = getMarginBadgeClass('priceBox-diff-margin-neutral-ins');
 
@@ -2488,12 +2494,12 @@
         priceText.style.color = '#555';
 
         if (deliveryKnown) {
-
             const basePrice = numericTotalPrice - numericDeliveryCost;
-            priceText.textContent = `${basePrice.toFixed(2)} PLN | ${numericDeliveryCost.toFixed(2)} PLN`;
+
+            priceText.textContent = `${formatPricePL(basePrice, false)} PLN | ${formatPricePL(numericDeliveryCost, false)} PLN`;
         } else {
 
-            priceText.textContent = `${numericTotalPrice.toFixed(2)} PLN | Brak danych o wysyłce`;
+            priceText.textContent = `${formatPricePL(numericTotalPrice, false)} PLN | Brak danych o wysyłce`;
         }
 
         infoContainer.appendChild(truckIcon);
