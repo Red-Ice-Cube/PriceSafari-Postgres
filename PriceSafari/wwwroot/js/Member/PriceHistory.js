@@ -1477,6 +1477,54 @@
         }
     }
 
+    document.addEventListener('priceBoxChangeRemove', function (event) {
+        const { productId } = event.detail;
+        if (!productId) return;
+
+        const priceBox = document.querySelector(`#priceContainer .price-box[data-product-id="${productId}"]`);
+
+        if (priceBox) {
+            console.log(`Natychmiastowe resetowanie UI dla productId: ${productId} po zdarzeniu priceBoxChangeRemove.`);
+
+            priceBox.classList.remove('price-changed');
+
+            const activeButtons = priceBox.querySelectorAll('.simulate-change-btn.active');
+
+            activeButtons.forEach(button => {
+
+                button.classList.remove('active');
+
+                button.innerHTML = button.dataset.originalText || '<span class="color-square-turquoise"></span> Dodaj zmianę ceny';
+
+                const removeIcon = button.querySelector('span > i.fa-trash');
+                if (removeIcon) {
+                    removeIcon.parentElement.remove();
+                }
+            });
+
+            const item = allPrices.find(p => String(p.productId) === String(productId));
+            const priceBoxColumnInfo = priceBox.querySelector('.price-box-column-action');
+            if (item && priceBoxColumnInfo) {
+                const newSuggestionData = calculateCurrentSuggestion(item);
+                if (newSuggestionData) {
+                    const suggestionRenderResult = renderSuggestionBlockHTML(item, newSuggestionData);
+                    priceBoxColumnInfo.innerHTML = suggestionRenderResult.html;
+                    const newActionLine = priceBoxColumnInfo.querySelector(suggestionRenderResult.actionLineSelector);
+                    if (newActionLine) {
+                        const currentMyPrice = item.myPrice != null ? parseFloat(item.myPrice) : null;
+                        attachPriceChangeListener(newActionLine, newSuggestionData.suggestedPrice, priceBox, item.productId, item.productName, currentMyPrice, item);
+                    }
+                } else {
+                    priceBoxColumnInfo.innerHTML = '';
+                }
+            }
+
+        } else {
+
+            console.warn(`Nie znaleziono priceBox dla productId: ${productId} do zresetowania UI po priceBoxChangeRemove.`);
+        }
+    });
+
     function getMarginBadgeClass(marginClass) {
         switch (marginClass) {
             case 'priceBox-diff-margin-ins':
