@@ -3148,7 +3148,7 @@ tr:last-child .sub-line {
     flex-direction: column;
     justify-content: space-between;
     gap: 4px;
-    padding: 5px 10px;
+    padding: 6px;
     border-radius: 4px;
     margin-left: 3px;
     margin-right: 3px;
@@ -3247,7 +3247,7 @@ tr:last-child .sub-line {
 .price-box-column-offers-a {
     display: flex;
     border-radius: 4px;
-    padding: 5px 10px;
+    padding: 6px;
     width: 142px;
     align-items: center;
     justify-content: space-between;
@@ -3256,7 +3256,7 @@ tr:last-child .sub-line {
     font-size: 14px;
     font-weight: 400;
     color: #4e4e4e;
-    height: 34px;
+    height: 36px;
 }
 
 .price-box-stats-container {
@@ -3315,6 +3315,8 @@ tr:last-child .sub-line {
     font-size: 14px;
     font-weight: 400;
     min-width: 160px;
+
+
 }
 
 .price-box-column-text-api {

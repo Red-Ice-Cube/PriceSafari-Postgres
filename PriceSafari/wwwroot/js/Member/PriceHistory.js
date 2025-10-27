@@ -1345,7 +1345,7 @@
 
         if (typeof stepPriceApplied !== 'undefined' && stepPriceApplied !== null && typeof stepUnitApplied !== 'undefined') {
             const formattedStepPrice = stepPriceApplied.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-            stepInfoText = ` Krok: ${formattedStepPrice}${stepUnitApplied}`;
+            stepInfoText = ` Krok: ${formattedStepPrice} ${stepUnitApplied}`;
         }
 
         button.classList.add('active');
@@ -2060,18 +2060,17 @@
 
                 const priceBoxLowestDetails = document.createElement('div');
                 priceBoxLowestDetails.className = 'price-box-column-text';
+
                 priceBoxLowestDetails.innerHTML =
-
                     (item.position !== null ?
-
                         (item.isGoogle ?
                             '<span class="Position-Google">Poz. Google ' + item.position + '</span>' :
                             '<span class="Position">Poz. Ceneo ' + item.position + '</span>'
                         ) :
                         '<span class="Position" style="background-color: #414141;">Schowany</span>'
                     ) +
-                    (item.isBidding === "1" ? '<span class="Bidding">Bid</span>' : '') +
-                    (item.delivery != null ? '<span class="' + deliveryClass + '">Wysyłka w ' + (item.delivery == 1 ? '1 dzień' : item.delivery + ' dni') + '</span>' : '');
+                    (item.isBidding === "1" ? ' <span class="Bidding">Bid</span>' : '') +
+                    (item.delivery != null ? ' <span class="' + deliveryClass + '">Wysyłka w ' + (item.delivery == 1 ? '1 dzień' : item.delivery + ' dni') + '</span>' : '');
 
                 priceBoxColumnLowestPrice.appendChild(priceBoxLowestText);
                 priceBoxColumnLowestPrice.appendChild(priceBoxLowestDetails);
@@ -2521,8 +2520,8 @@
                 productImage.dataset.src = item.imgUrl;
                 productImage.alt = item.productName;
                 productImage.className = 'lazy-load';
-                productImage.style.width = '154px';
-                productImage.style.height = '154px';
+                productImage.style.width = '162px';
+                productImage.style.height = '162px';
                 productImage.style.marginRight = '3px';
                 productImage.style.marginLeft = '3px';
                 productImage.style.backgroundColor = '#ffffff';
