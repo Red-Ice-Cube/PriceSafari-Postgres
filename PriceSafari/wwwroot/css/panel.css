@@ -4770,16 +4770,19 @@ small {
 .simulate-change-btn {
     width: 100%;
     border-radius: 4px;
-    height: 100%;
     display: flex;
     align-items: center;
     justify-content: center;
-    border: none;
-    font-size: 14px;
-    font-weight: 400;
-    background-color: #e3e3e3;
-    height: 34px;
-    gap: 8px;
+     border: none;
+     font-size: 14px;
+     font-weight: 400;
+     background-color: #e3e3e3;
+     height: 34px;
+     gap: 8px;
+     -webkit-user-select: none;
+     -moz-user-select: none;
+     -ms-user-select: none;
+     user-select: none;
 }
 
 .price-action-line .simulate-change-btn {
@@ -4791,13 +4794,13 @@ small {
     color: #fff !important;
 }
 
-    .simulate-change-btn.active:hover {
-        background-color: #333;
-    }
+    .simulate-change-btn.active:hover {
+    background-color: #333;
+}
 
-    .simulate-change-btn.active i.fa-trash {
-        color: #fff !important;
-    }
+    .simulate-change-btn.active i.fa-trash {
+     color: #fff !important;
+}
 
 .priceChangeSummary {
     display: inline-flex;

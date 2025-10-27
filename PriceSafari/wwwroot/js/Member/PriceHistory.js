@@ -245,39 +245,144 @@
 
     function applyMassChange(changeType) {
 
-        const boxes = Array.from(document.querySelectorAll('#priceContainer .price-box'));
+        const productsToChange = currentlyFilteredPrices;
 
-        boxes.forEach(box => {
-            const buttons = box.querySelectorAll('.simulate-change-btn');
-            if (!buttons || buttons.length === 0) return;
+        if (!productsToChange || productsToChange.length === 0) {
+            showGlobalUpdate('<p>Brak produktów do zmiany po filtracji.</p>');
+            return;
+        }
 
-            let targetButton = buttons[0];
+        let countAdded = 0;
+        let countRejected = 0;
 
-            if (!targetButton) return;
+        let rejectionReasons = {};
 
-            targetButton.click();
-        });
+        const currentSetStepPrice = setStepPrice;
+        const currentUsePriceDifference = document.getElementById('usePriceDifference').checked;
+        const stepUnit = currentUsePriceDifference ? 'PLN' : '%';
 
-        setTimeout(() => {
+        productsToChange.forEach(item => {
 
-            const updatedBoxes = Array.from(document.querySelectorAll('#priceContainer .price-box'));
-            let countAdded = 0;
-            let countRejected = 0;
-            updatedBoxes.forEach(box => {
+            const isAlreadyChanged = selectedPriceChanges.some(c => String(c.productId) === String(item.productId));
+            if (isAlreadyChanged) {
 
-                if (box.classList.contains('price-changed')) {
-                    countAdded++;
-                } else {
+                countAdded++;
+                return;
+            }
+
+            const suggestionData = calculateCurrentSuggestion(item);
+            if (!suggestionData) {
+                countRejected++;
+                rejectionReasons['Brak sugestii'] = (rejectionReasons['Brak sugestii'] || 0) + 1;
+                return;
+            }
+            const suggestedPrice = suggestionData.suggestedPrice;
+            const currentPriceValue = item.myPrice != null ? parseFloat(item.myPrice) : null;
+
+            let requiredField = '';
+            let requiredLabel = '';
+            switch (marginSettings.identifierForSimulation) {
+                case 'ID':
+                    requiredField = item.externalId;
+                    requiredLabel = "ID";
+                    break;
+                case 'ProducerCode':
+                    requiredField = item.producerCode;
+                    requiredLabel = "Kod producenta";
+                    break;
+                case 'EAN':
+                default:
+                    requiredField = item.ean;
+                    requiredLabel = "EAN";
+                    break;
+            }
+            if (!requiredField || requiredField.toString().trim() === "") {
+                countRejected++;
+                rejectionReasons[`Brak identyfikatora (${requiredLabel})`] = (rejectionReasons[`Brak identyfikatora (${requiredLabel})`] || 0) + 1;
+                return;
+            }
+
+            if (marginSettings.useMarginForSimulation) {
+                if (item.marginPrice == null) {
                     countRejected++;
+                    rejectionReasons['Brak ceny zakupu'] = (rejectionReasons['Brak ceny zakupu'] || 0) + 1;
+                    return;
+                }
+
+                let oldPriceForMarginCalculation = currentPriceValue;
+                if (marginSettings.usePriceWithDelivery && item.myPriceIncludesDelivery) {
+                    const oldDeliveryCost = item.myPriceDeliveryCost != null && !isNaN(parseFloat(item.myPriceDeliveryCost)) ? parseFloat(item.myPriceDeliveryCost) : 0;
+                    oldPriceForMarginCalculation = currentPriceValue - oldDeliveryCost;
+                }
+
+                let newPriceForMarginCalculation = suggestedPrice;
+                if (marginSettings.usePriceWithDelivery && item.myPriceIncludesDelivery) {
+                    const myDeliveryCost = item.myPriceDeliveryCost != null && !isNaN(parseFloat(item.myPriceDeliveryCost)) ? parseFloat(item.myPriceDeliveryCost) : 0;
+                    newPriceForMarginCalculation = suggestedPrice - myDeliveryCost;
+                }
+
+                let oldMargin = (item.marginPrice !== 0) ? ((oldPriceForMarginCalculation - item.marginPrice) / item.marginPrice) * 100 : Infinity;
+                let newMargin = (item.marginPrice !== 0) ? ((newPriceForMarginCalculation - item.marginPrice) / item.marginPrice) * 100 : Infinity;
+                oldMargin = parseFloat(oldMargin.toFixed(2));
+                newMargin = parseFloat(newMargin.toFixed(2));
+
+                if (marginSettings.minimalMarginPercent > 0) {
+                    if (newMargin < marginSettings.minimalMarginPercent) {
+                        if (!(oldMargin < marginSettings.minimalMarginPercent && newMargin > oldMargin)) {
+                            countRejected++;
+                            rejectionReasons['Zbyt niski narzut'] = (rejectionReasons['Zbyt niski narzut'] || 0) + 1;
+                            return;
+                        }
+                    }
+                } else if (marginSettings.enforceMinimalMargin) {
+                    if (newMargin < 0) {
+                        if (!(oldMargin < 0 && newMargin > oldMargin)) {
+                            countRejected++;
+                            rejectionReasons['Ujemny narzut'] = (rejectionReasons['Ujemny narzut'] || 0) + 1;
+                            return;
+                        }
+                    }
+                    if (marginSettings.minimalMarginPercent < 0 && newMargin < marginSettings.minimalMarginPercent) {
+                        countRejected++;
+                        rejectionReasons['Przekroczona strata'] = (rejectionReasons['Przekroczona strata'] || 0) + 1;
+                        return;
+                    }
+                }
+            }
+
+            const priceChangeEvent = new CustomEvent('priceBoxChange', {
+                detail: {
+                    productId: item.productId,
+                    productName: item.productName,
+                    currentPrice: currentPriceValue,
+                    newPrice: suggestedPrice,
+                    storeId: storeId,
+                    scrapId: item.scrapId,
+                    stepPriceApplied: currentSetStepPrice,
+                    stepUnitApplied: stepUnit
                 }
             });
+            document.dispatchEvent(priceChangeEvent);
 
-            showGlobalUpdate(
-                `<p style="margin-bottom:8px; font-size:16px; font-weight:bold;">Masowa zmiana zakończona!</p>
-                 <p>Dodano: <strong>${countAdded}</strong> SKU</p>
-                 <p>Odrzucono: <strong>${countRejected}</strong> SKU</p>`
-            );
-        }, 500);
+            countAdded++;
+        });
+
+        refreshPriceBoxStates();
+
+        let summaryHtml = `<p style="margin-bottom:8px; font-size:16px; font-weight:bold;">Masowa zmiana zakończona!</p>
+                         <p>Przeanalizowano: <strong>${productsToChange.length}</strong> SKU</p>
+                         <p>Dodano/Zaktualizowano: <strong>${countAdded}</strong> SKU</p>
+                         <p>Odrzucono: <strong>${countRejected}</strong> SKU</p>`;
+
+        if (countRejected > 0) {
+            summaryHtml += `<p style="font-size:12px; margin-top:8px; border-top:1px solid #ccc; padding-top:5px;"><u>Powody odrzucenia:</u><br/>`;
+            for (const [reason, count] of Object.entries(rejectionReasons)) {
+                summaryHtml += `&bull; ${reason}: ${count}<br/>`;
+            }
+            summaryHtml += `</p>`;
+        }
+
+        showGlobalUpdate(summaryHtml);
     }
 
     let globalNotificationTimeoutId;
@@ -1440,10 +1545,9 @@
 
             }
 
-            const currentSetStepPrice = setStepPrice; // <-- ZMIANA: Używamy zmiennej globalnej
+            const currentSetStepPrice = setStepPrice;
             const currentUsePriceDifference = document.getElementById('usePriceDifference').checked;
             const stepUnit = currentUsePriceDifference ? 'PLN' : '%';
-            // ... (reszta kodu funkcji)
 
             const priceChangeEvent = new CustomEvent('priceBoxChange', {
                 detail: {
@@ -1580,7 +1684,7 @@
         const currentMyPrice = item.myPrice != null ? parseFloat(item.myPrice) : null;
         const currentLowestPrice = item.lowestPrice != null ? parseFloat(item.lowestPrice) : null;
         const currentSavings = item.savings != null ? item.savings.toFixed(2) : "N/A";
-        const currentSetStepPrice = setStepPrice; // <-- ZMIANA: Używamy zmiennej globalnej
+        const currentSetStepPrice = setStepPrice;
         const currentUsePriceDifference = document.getElementById('usePriceDifference').checked;
 
         let suggestedPrice = null;
@@ -3210,10 +3314,6 @@
         setPrice2 = parseFloat(this.value);
 
     });
-    //document.getElementById('stepPrice').addEventListener('input', function () {
-    //    setStepPrice = parseFloat(this.value);
-
-    //});
 
     document.getElementById('productSearch').addEventListener('input', function () {
         currentPage = 1;
