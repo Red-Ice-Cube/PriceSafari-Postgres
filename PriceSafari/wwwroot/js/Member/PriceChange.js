@@ -904,7 +904,7 @@
                     `="${String(row.externalId || '')}"`,
                     `="${String(row.ean || '')}"`,
                     `="${String(row.producerCode || '')}"`,
-                    `"${row.productName.replace(/"/g, '""')}"`, // Escape double quotes in name
+                    `"${row.productName.replace(/"/g, '""')}"`, 
                     `"${formatCsvRank(row.currentGoogleRanking)}"`,
                     `"${formatCsvRank(row.totalGoogleOffers)}"`,
                     `"${formatCsvRank(row.currentCeneoRanking)}"`,
