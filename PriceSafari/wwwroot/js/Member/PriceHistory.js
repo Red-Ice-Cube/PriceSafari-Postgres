@@ -1749,13 +1749,16 @@
 
     function renderSuggestionBlockHTML(item, suggestionData) {
         if (!suggestionData) {
-            return '';
+
+            return { html: '', actionLineSelector: null, suggestedPrice: null, myPrice: null };
         }
 
         const { suggestedPrice, totalChangeAmount, percentageChange, arrowClass, priceType } = suggestionData;
         const myPrice = item.myPrice != null ? parseFloat(item.myPrice) : null;
+        const marginPrice = item.marginPrice != null ? parseFloat(item.marginPrice) : null;
 
         let squareColorClass = 'color-square-turquoise';
+
         if (priceType === 'raise') squareColorClass = 'color-square-turquoise';
         else if (priceType === 'lower') squareColorClass = 'color-square-turquoise';
         else if (priceType && priceType.startsWith('good')) squareColorClass = 'color-square-turquoise';
@@ -1771,11 +1774,16 @@
         newPriceDisplay.style.alignItems = 'center';
         newPriceDisplay.innerHTML = `<span class="${arrowClass}" style="margin-right: 8px;"></span><div><span style="font-weight: 500; font-size: 17px;">${formatPricePL(suggestedPrice)}</span></div>`;
 
+        const priceChangeLabel = document.createElement('div');
+        priceChangeLabel.textContent = 'Zmiana ceny Twojej oferty';
+        priceChangeLabel.style.fontSize = '14px';
+        priceChangeLabel.style.color = '#212529';
+
         const priceDifferenceDisplay = document.createElement('div');
         priceDifferenceDisplay.style.marginTop = '3px';
         let badgeText = '';
-        if (totalChangeAmount > 0) badgeText = 'Podwyżka';
-        else if (totalChangeAmount < 0) badgeText = 'Obniżka';
+        if (totalChangeAmount > 0) badgeText = 'Podwyżka ceny';
+        else if (totalChangeAmount < 0) badgeText = 'Obniżka ceny';
         else badgeText = 'Brak zmiany';
         const badgeHtml = `<div class="price-diff-stack-badge">${badgeText}</div>`;
         priceDifferenceDisplay.innerHTML =
@@ -1786,12 +1794,46 @@
             `</div>`;
 
         contentWrapper.appendChild(newPriceDisplay);
-        const priceChangeLabel = document.createElement('div');
-        priceChangeLabel.textContent = 'Zmiana ceny Twojej oferty';
-        priceChangeLabel.style.fontSize = '14px';
-        priceChangeLabel.style.color = '#212529';
         contentWrapper.appendChild(priceChangeLabel);
         contentWrapper.appendChild(priceDifferenceDisplay);
+
+        if (marginPrice !== null && suggestedPrice !== null) {
+            let newPriceForMarginCalculation = suggestedPrice;
+
+            if (marginSettings.usePriceWithDelivery && item.myPriceIncludesDelivery) {
+                const myDeliveryCost = item.myPriceDeliveryCost != null && !isNaN(parseFloat(item.myPriceDeliveryCost)) ? parseFloat(item.myPriceDeliveryCost) : 0;
+                newPriceForMarginCalculation = suggestedPrice - myDeliveryCost;
+            }
+
+            const newMarginAmount = newPriceForMarginCalculation - marginPrice;
+            const newMarginPercentage = (marginPrice !== 0) ? (newMarginAmount / marginPrice) * 100 : null;
+
+            if (newMarginPercentage !== null) {
+                const newMarginSign = newMarginAmount >= 0 ? '+' : '-';
+
+                const newMarginClass = newMarginAmount >= 0 ? 'priceBox-diff-margin-ins' : 'priceBox-diff-margin-minus-ins';
+                const newBadgeClass = getMarginBadgeClass(newMarginClass);
+                let newBgMarginClass = 'price-box-diff-margin-ib-neutral';
+                if (newMarginClass === 'priceBox-diff-margin-ins') {
+                    newBgMarginClass = 'price-box-diff-margin-ib-positive';
+                } else if (newMarginClass === 'priceBox-diff-margin-minus-ins') {
+                    newBgMarginClass = 'price-box-diff-margin-ib-negative';
+                }
+
+                const formattedNewMarginAmount = newMarginSign + formatPricePL(Math.abs(newMarginAmount), false) + ' PLN';
+                const formattedNewMarginPercentage = '(' + newMarginSign + Math.abs(newMarginPercentage).toLocaleString('pl-PL', {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                }) + '%)';
+
+                const newMarginBox = document.createElement('div');
+                newMarginBox.className = 'price-box-diff-margin-ib ' + newBgMarginClass;
+                newMarginBox.style.marginTop = '5px';
+                newMarginBox.innerHTML = `<span class="price-badge ${newBadgeClass}">Nowy narzut</span><p>${formattedNewMarginAmount} ${formattedNewMarginPercentage}</p>`;
+
+                contentWrapper.appendChild(newMarginBox);
+            }
+        }
 
         const strategicPriceLine = document.createElement('div');
         strategicPriceLine.className = 'price-action-line';
@@ -1805,6 +1847,7 @@
         strategicPriceBtn.dataset.originalText = strategicBtnContent;
 
         strategicPriceLine.appendChild(strategicPriceBtn);
+
         strategicPriceBox.appendChild(contentWrapper);
         strategicPriceBox.appendChild(strategicPriceLine);
 
