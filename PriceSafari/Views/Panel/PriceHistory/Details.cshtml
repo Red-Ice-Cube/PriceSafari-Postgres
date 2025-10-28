@@ -321,32 +321,12 @@
                             shippingCost = $"{item.ShippingCostNum} PLN";
                         }
 
-                        string getAvailabilityClass(int? availabilityNum)
-                        {
-                            if (availabilityNum == null)
-                            {
-                                return "BD";
-                            }
-                            if (availabilityNum == 1)
-                            {
-                                return "Availability1Day";
-                            }
-                            if (availabilityNum == 3)
-                            {
-                                return "Availability3Days";
-                            }
-                            if (availabilityNum == 7)
-                            {
-                                return "Availability7Days";
-                            }
-                            if (availabilityNum == 14)
-                            {
-                                return "Availability14Days";
-                            }
-                            return "";
-                        }
 
-                        var availabilityClass = getAvailabilityClass(item.AvailabilityNum);
+
+
+
+
+
 
                         <tr class="price-row @colorClass" data-store-name="@item.StoreName" data-price="@item.Price.ToString(System.Globalization.CultureInfo.InvariantCulture)" data-position="@item.Position">
                             <td>
@@ -414,11 +394,12 @@
                                 }
                                 else
                                 {
-                                    <div class="PaidShipping">@shippingCost</div>
+                                    <div class="PaidShipping">@shippingCost</div> @* Zakładam, że zmienna shippingCost jest zdefiniowana gdzieś wyżej *@
                                 }
                             </td>
                             <td>
-                                @if (item.IsGoogle)
+                                @* <-- ZMODYFIKOWANA KOMÓRKA DOSTĘPNOŚCI --> *@
+                                @if (item.IsGoogle) // Sekcja Google bez zmian
                                 {
                                     @if (item.GoogleInStock == true)
                                     {
@@ -433,34 +414,21 @@
                                         <span class="BD">Brak danych</span>
                                     }
                                 }
-                                else
+                                else // ZMIENIONA Sekcja Ceneo
                                 {
-                                    <div class="@availabilityClass">
-                                        @if (item.AvailabilityNum == 1)
-                                        {
-                                            <div>Wysyłka w 1 dzień</div>
-                                        }
-                                        else if (item.AvailabilityNum == 3)
-                                        {
-
-                                            <div>Wysyłka w 3 dni</div>
-                                        }
-                                        else if (item.AvailabilityNum == 7)
-                                        {
-
-                                            <div>Wysyłka w 7 dni</div>
-                                        }
-                                        else if (item.AvailabilityNum == 14)
-                                        {
-
-                                            <div>Wysyłka w 14 dni</div>
-                                        }
-                                        else if (item.AvailabilityNum == null)
-                                        {
-
-                                            <div>Brak danych</div>
-                                        }
-                                    </div>
+                                    // Używamy item.CeneoInStock (bool?) zamiast item.AvailabilityNum (int?)
+                                    @if (item.CeneoInStock == true)
+                                    {
+                                        <span class="stock-available">Dostępny</span> @* Klasa CSS jak dla Google *@
+                                    }
+                                    else if (item.CeneoInStock == false)
+                                    {
+                                        <span class="stock-unavailable">Niedostępny</span> @* Klasa CSS jak dla Google *@
+                                    }
+                                    else // null
+                                    {
+                                        <span class="BD">Brak danych</span> @* Klasa CSS jak dla Google *@
+                                    }
                                 }
                             </td>
                             <td>
@@ -473,6 +441,16 @@
                                 <img src="@Url.Content(item.IsGoogle ? "~/images/GoogleShopping.png" : "~/images/Ceneo.png")" alt="Channel Icon" style="width:24px; height:24px;" />
                             </td>
                         </tr>
+
+
+
+
+
+
+
+
+
+
                     }
                 </tbody>
             </table>

@@ -125,7 +125,7 @@ public class StoreProcessingService
                         IsBidding = coOfrPrice.IsBidding,
                         Position = int.TryParse(coOfrPrice.Position, out var position) ? position : (int?)null,
                         ShippingCostNum = coOfrPrice.ShippingCostNum,
-                        AvailabilityNum = coOfrPrice.AvailabilityNum,
+                        CeneoInStock = coOfrPrice.CeneoInStock,
                         ScrapHistory = scrapHistory,
                         IsGoogle = false
                     };

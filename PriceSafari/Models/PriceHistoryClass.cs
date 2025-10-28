@@ -17,7 +17,8 @@ namespace PriceSafari.Models
         public int ScrapHistoryId { get; set; }
         public ScrapHistoryClass ScrapHistory { get; set; }
         public decimal? ShippingCostNum { get; set; }
-        public int? AvailabilityNum { get; set; }
+
+        public bool? CeneoInStock { get; set; }
 
         public bool IsGoogle { get; set; }
 

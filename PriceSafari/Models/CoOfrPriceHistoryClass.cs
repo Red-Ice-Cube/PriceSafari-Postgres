@@ -13,21 +13,23 @@ namespace PriceSafari.Models
         public CoOfrClass CoOfr { get; set; }
 
 
-        //dane z cene scrapera 
-        public string? StoreName { get; set; }
+        //dane z cene scrapera 
+        public string? StoreName { get; set; }
         public decimal? Price { get; set; }
         public string? IsBidding { get; set; }
         public string? Position { get; set; }
         public decimal? ShippingCostNum { get; set; }
-        public int? AvailabilityNum { get; set; }
+
+        // ZMIANA: Z 'int? AvailabilityNum' na 'bool? CeneoInStock'
+        public bool? CeneoInStock { get; set; }
 
         public string? ExportedName { get; set; }
 
 
 
-        // nowe pola do danych z google scrapera
+        // nowe pola do danych z google scrapera
 
-        public string? GoogleStoreName { get; set; }
+        public string? GoogleStoreName { get; set; }
         public decimal? GooglePrice { get; set; }
         public string? GooglePosition { get; set; }
         public decimal? GooglePriceWithDelivery { get; set; }

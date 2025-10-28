@@ -32,18 +32,18 @@ namespace PriceSafari.Scrapers
                 {
                     Headless = settings.HeadLess,
                     Args = new[]
-                    {
-                        "--no-sandbox",
-                        "--disable-setuid-sandbox",
-                        "--disable-gpu",
-                        "--disable-blink-features=AutomationControlled",
-                        "--disable-software-rasterizer",
-                        "--disable-extensions",
-                        "--disable-dev-shm-usage",
-                        "--disable-features=IsolateOrigins,site-per-process",
-                        "--disable-infobars",
-                        "--blink-settings=imagesEnabled=false"
-                    }
+                  {
+            "--no-sandbox",
+            "--disable-setuid-sandbox",
+            "--disable-gpu",
+            "--disable-blink-features=AutomationControlled",
+            "--disable-software-rasterizer",
+            "--disable-extensions",
+            "--disable-dev-shm-usage",
+            "--disable-features=IsolateOrigins,site-per-process",
+            "--disable-infobars",
+            "--blink-settings=imagesEnabled=false"
+          }
                 });
 
                 if (_browser == null)
@@ -60,37 +60,37 @@ namespace PriceSafari.Scrapers
                 await _page.SetJavaScriptEnabledAsync(settings.JavaScript);
 
                 await _page.EvaluateFunctionOnNewDocumentAsync(@"() => {
-                    Object.defineProperty(navigator, 'webdriver', { get: () => false, configurable: true });
-                    Object.defineProperty(navigator, 'plugins', {
-                        get: () => [
-                            { name: 'Chrome PDF Viewer' },
-                            { name: 'Native Client' },
-                            { name: 'Widevine Content Decryption Module' }
-                        ],
-                        configurable: true
-                    });
-                }");
+                    Object.defineProperty(navigator, 'webdriver', { get: () => false, configurable: true });
+                    Object.defineProperty(navigator, 'plugins', {
+                        get: () => [
+                            { name: 'Chrome PDF Viewer' },
+                            { name: 'Native Client' },
+                            { name: 'Widevine Content Decryption Module' }
+                        ],
+                        configurable: true
+                    });
+                }");
 
                 var commonResolutions = new List<(int width, int height)>
-                {
-                    (1366, 768)
-                };
+        {
+          (1366, 768)
+        };
 
                 var random = new Random();
                 var randomResolution = commonResolutions[random.Next(commonResolutions.Count)];
                 await _page.SetViewportAsync(new ViewPortOptions { Width = randomResolution.width, Height = randomResolution.height });
 
                 await _page.EvaluateFunctionOnNewDocumentAsync(@"() => {
-                    [...document.querySelectorAll('link[rel=stylesheet], style')].forEach(e => e.remove());
-                    const origCreateElement = document.createElement;
-                    document.createElement = function(tagName, ...args) {
-                        const el = origCreateElement.call(document, tagName, ...args);
-                        if (tagName.toLowerCase() === 'link' || tagName.toLowerCase() === 'style') {
-                            el.setAttribute('disabled', 'true');
-                        }
-                        return el;
-                    };
-                }");
+                    [...document.querySelectorAll('link[rel=stylesheet], style')].forEach(e => e.remove());
+                    const origCreateElement = document.createElement;
+                    document.createElement = function(tagName, ...args) {
+                        const el = origCreateElement.call(document, tagName, ...args);
+                        if (tagName.toLowerCase() === 'link' || tagName.toLowerCase() === 'style') {
+                            el.setAttribute('disabled', 'true');
+                        }
+                        return el;
+                    };
+                }");
 
                 Console.WriteLine($"Bot gotowy, teraz rozgrzewka przez {settings.WarmUpTime} sekund...");
                 await Task.Delay(settings.WarmUpTime * 1000);
@@ -127,18 +127,20 @@ namespace PriceSafari.Scrapers
         }
 
         public async Task<(
-    List<(string storeName, decimal price, decimal? shippingCostNum, int? availabilityNum, string isBidding, string? position, string? ceneoName)> Prices,
-    int? salesCount,
-    string Log,
-    List<(string Reason, string Url)> RejectedProducts
-)>
-HandleCaptchaAndScrapePricesAsync(
-    string url,
-    bool getCeneoName,
-    List<string> storeNames,
-    List<string> storeProfiles)
+    // ZMIANA: Z 'int? availabilityNum' na 'bool? ceneoInStock'
+        List<(string storeName, decimal price, decimal? shippingCostNum, bool? ceneoInStock, string isBidding, string? position, string? ceneoName)> Prices,
+      int? salesCount,
+      string Log,
+      List<(string Reason, string Url)> RejectedProducts
+    )>
+    HandleCaptchaAndScrapePricesAsync(
+      string url,
+      bool getCeneoName,
+      List<string> storeNames,
+      List<string> storeProfiles)
         {
-            var priceResults = new List<(string storeName, decimal price, decimal? shippingCostNum, int? availabilityNum, string isBidding, string? position, string? ceneoName)>();
+            // ZMIANA: Z 'int? availabilityNum' na 'bool? ceneoInStock'
+            var priceResults = new List<(string storeName, decimal price, decimal? shippingCostNum, bool? ceneoInStock, string isBidding, string? position, string? ceneoName)>();
             var rejectedProducts = new List<(string Reason, string Url)>();
             string log;
 
@@ -170,7 +172,8 @@ HandleCaptchaAndScrapePricesAsync(
                 {
                     var logMsg = "Captcha encountered at " + currentUrl;
                     Console.WriteLine(logMsg);
-                    return (new List<(string, decimal, decimal?, int?, string, string?, string?)>(), null, logMsg, new List<(string Reason, string Url)> { ("Captcha", url) });
+                    // ZMIANA: Z 'int?' na 'bool?' w typie krotki
+                    return (new List<(string, decimal, decimal?, bool?, string, string?, string?)>(), null, logMsg, new List<(string Reason, string Url)> { ("Captcha", url) });
                 }
 
                 var totalOffersCount = await GetTotalOffersCountAsync();
@@ -222,7 +225,7 @@ HandleCaptchaAndScrapePricesAsync(
                         });
 
                         var (fastestDeliveryPrices, fastestDeliverySalesCount, fastestDeliveryLog, fastestDeliveryRejectedProducts)
-                            = await ScrapePricesFromCurrentPage(fastestDeliveryUrl, false, getCeneoName);
+                          = await ScrapePricesFromCurrentPage(fastestDeliveryUrl, false, getCeneoName);
 
                         log += fastestDeliveryLog;
                         rejectedProducts.AddRange(fastestDeliveryRejectedProducts);
@@ -235,8 +238,8 @@ HandleCaptchaAndScrapePricesAsync(
                         foreach (var fdp in fastestDeliveryPrices)
                         {
                             if (!priceResults.Any(p =>
-                                p.price == fdp.price &&
-                                p.storeName.Equals(fdp.storeName, StringComparison.OrdinalIgnoreCase)))
+                              p.price == fdp.price &&
+                              p.storeName.Equals(fdp.storeName, StringComparison.OrdinalIgnoreCase)))
                             {
                                 priceResults.Add(fdp);
                             }
@@ -244,9 +247,9 @@ HandleCaptchaAndScrapePricesAsync(
                     }
 
                     var foundStoreNames = priceResults
-                        .Select(p => p.storeName.ToLowerInvariant())
-                        .Distinct()
-                        .ToList();
+                      .Select(p => p.storeName.ToLowerInvariant())
+                      .Distinct()
+                      .ToList();
 
                     var desiredStores = storeNames.Zip(storeProfiles, (name, profile) => new { StoreName = name, StoreProfile = profile }).ToList();
                     var notFoundStores = desiredStores.Where(ds => !foundStoreNames.Contains(ds.StoreName.ToLowerInvariant())).ToList();
@@ -266,7 +269,7 @@ HandleCaptchaAndScrapePricesAsync(
                         });
 
                         var (storePrices, storeSalesCount, storeLog, storeRejectedProducts)
-                            = await ScrapePricesFromCurrentPage(storeSpecificUrl, false, getCeneoName);
+                          = await ScrapePricesFromCurrentPage(storeSpecificUrl, false, getCeneoName);
 
                         if (!finalSalesCount.HasValue && storeSalesCount.HasValue)
                         {
@@ -274,17 +277,17 @@ HandleCaptchaAndScrapePricesAsync(
                         }
 
                         var storeSpecificOffers = storePrices
-                            .Where(p => p.storeName.Equals(store.StoreName, StringComparison.OrdinalIgnoreCase))
-                            .Select(p => (
-                                p.storeName,
-                                p.price,
-                                p.shippingCostNum,
-                                p.availabilityNum,
-                                p.isBidding,
-                                position: (string?)null,
-                                p.ceneoName
-                            ))
-                            .ToList();
+                          .Where(p => p.storeName.Equals(store.StoreName, StringComparison.OrdinalIgnoreCase))
+                          .Select(p => (
+                            p.storeName,
+                            p.price,
+                            p.shippingCostNum,
+                            p.ceneoInStock, // ZMIANA: Z 'p.availabilityNum'
+                                            p.isBidding,
+                            position: (string?)null,
+                            p.ceneoName
+                          ))
+                          .ToList();
 
                         priceResults.AddRange(storeSpecificOffers);
 
@@ -333,12 +336,14 @@ HandleCaptchaAndScrapePricesAsync(
             return totalOffersCount;
         }
 
-        private async Task<(List<(string storeName, decimal price, decimal? shippingCostNum, int? availabilityNum, string isBidding, string? position, string? ceneoName)> Prices, int? salesCount, string Log, List<(string Reason, string Url)> RejectedProducts)>
-            ScrapePricesFromCurrentPage(string url, bool includePosition, bool getCeneoName)
+        private async Task<(List<(string storeName, decimal price, decimal? shippingCostNum, bool? ceneoInStock, string isBidding, string? position, string? ceneoName)> Prices, int? salesCount, string Log, List<(string Reason, string Url)> RejectedProducts)>
+          ScrapePricesFromCurrentPage(string url, bool includePosition, bool getCeneoName)
         {
-            var prices = new List<(string storeName, decimal price, decimal? shippingCostNum, int? availabilityNum, string isBidding, string? position, string? ceneoName)>();
+            // ZMIANA: Z 'int? availabilityNum' na 'bool? ceneoInStock'
+            var prices = new List<(string storeName, decimal price, decimal? shippingCostNum, bool? ceneoInStock, string isBidding, string? position, string? ceneoName)>();
             var rejectedProducts = new List<(string Reason, string Url)>();
-            var storeOffers = new Dictionary<string, (decimal price, decimal? shippingCostNum, int? availabilityNum, string isBidding, string? position, string? ceneoName)>();
+            // ZMIANA: Z 'int? availabilityNum' na 'bool? ceneoInStock'
+            var storeOffers = new Dictionary<string, (decimal price, decimal? shippingCostNum, bool? ceneoInStock, string isBidding, string? position, string? ceneoName)>();
             string log;
             int positionCounter = 1;
 
@@ -366,7 +371,7 @@ HandleCaptchaAndScrapePricesAsync(
                         if (offerContainer != null)
                         {
                             var salesAttributeValue = await offerContainer.EvaluateFunctionAsync<string>(
-                                "(element) => element.getAttribute('data-productrecentlypurchased')"
+                              "(element) => element.getAttribute('data-productrecentlypurchased')"
                             );
                             if (!string.IsNullOrEmpty(salesAttributeValue) && int.TryParse(salesAttributeValue, out int parsedSalesCount))
                             {
@@ -393,38 +398,41 @@ HandleCaptchaAndScrapePricesAsync(
                     }
 
                     decimal? shippingCostNum = await GetShippingCostFromOfferNodeAsync((ElementHandle)offerNode);
-                    int? availabilityNum = await GetAvailabilityFromOfferNodeAsync((ElementHandle)offerNode);
+                    // ZMIANA: Z 'int? availabilityNum' na 'bool? ceneoInStock'
+                    bool? ceneoInStock = await GetAvailabilityFromOfferNodeAsync((ElementHandle)offerNode);
                     var isBidding = await GetBiddingInfoFromOfferNodeAsync((ElementHandle)offerNode);
 
                     string? position = includePosition ? positionCounter.ToString() : null;
                     positionCounter++;
 
                     string? ceneoProductName = getCeneoName
-                        ? await GetCeneoProductNameFromOfferNodeAsync((ElementHandle)offerNode)
-                        : null;
+                      ? await GetCeneoProductNameFromOfferNodeAsync((ElementHandle)offerNode)
+                      : null;
 
                     if (storeOffers.ContainsKey(storeName))
                     {
 
                         if (priceValue.Value < storeOffers[storeName].price)
                         {
-                            storeOffers[storeName] = (priceValue.Value, shippingCostNum, availabilityNum, isBidding, position, ceneoProductName);
+                            // ZMIANA: Z 'availabilityNum' na 'ceneoInStock'
+                            storeOffers[storeName] = (priceValue.Value, shippingCostNum, ceneoInStock, isBidding, position, ceneoProductName);
                         }
                     }
                     else
                     {
-                        storeOffers[storeName] = (priceValue.Value, shippingCostNum, availabilityNum, isBidding, position, ceneoProductName);
+                        // ZMIANA: Z 'availabilityNum' na 'ceneoInStock'
+                        storeOffers[storeName] = (priceValue.Value, shippingCostNum, ceneoInStock, isBidding, position, ceneoProductName);
                     }
                 }
 
                 prices = storeOffers.Select(x => (
-                    x.Key,
-                    x.Value.price,
-                    x.Value.shippingCostNum,
-                    x.Value.availabilityNum,
-                    x.Value.isBidding,
-                    x.Value.position,
-                    x.Value.ceneoName
+                  x.Key,
+                  x.Value.price,
+                  x.Value.shippingCostNum,
+                  x.Value.ceneoInStock, // ZMIANA: Z 'x.Value.availabilityNum'
+                            x.Value.isBidding,
+                  x.Value.position,
+                  x.Value.ceneoName
                 )).ToList();
 
                 log = $"Successfully scraped prices and names from URL: {url}";
@@ -441,8 +449,8 @@ HandleCaptchaAndScrapePricesAsync(
         private async Task<string> GetStoreNameFromOfferNodeAsync(ElementHandle offerNode)
         {
             var storeName = await offerNode.QuerySelectorAsync("div.product-offer__store img") is ElementHandle imgElement
-                ? await imgElement.EvaluateFunctionAsync<string>("el => el.alt")
-                : null;
+              ? await imgElement.EvaluateFunctionAsync<string>("el => el.alt")
+              : null;
 
             if (string.IsNullOrWhiteSpace(storeName))
             {
@@ -487,7 +495,7 @@ HandleCaptchaAndScrapePricesAsync(
             }
 
             var priceText = (await priceNode.EvaluateFunctionAsync<string>("el => el.innerText")).Trim() +
-                            (await pennyNode.EvaluateFunctionAsync<string>("el => el.innerText")).Trim();
+                    (await pennyNode.EvaluateFunctionAsync<string>("el => el.innerText")).Trim();
             var priceValue = Regex.Replace(priceText, @"[^\d,.]", "").Replace(",", ".").Trim();
 
             if (!decimal.TryParse(priceValue, NumberStyles.Any, CultureInfo.InvariantCulture, out decimal price))
@@ -501,7 +509,7 @@ HandleCaptchaAndScrapePricesAsync(
         private async Task<decimal?> GetShippingCostFromOfferNodeAsync(ElementHandle offerNode)
         {
             var shippingNode = await offerNode.QuerySelectorAsync("div.free-delivery-label")
-                               ?? await offerNode.QuerySelectorAsync("span.product-delivery-info.js_deliveryInfo");
+                     ?? await offerNode.QuerySelectorAsync("span.product-delivery-info.js_deliveryInfo");
 
             if (shippingNode != null)
             {
@@ -514,7 +522,7 @@ HandleCaptchaAndScrapePricesAsync(
                 {
                     var shippingCostText = Regex.Match(shippingText, @"\d+[.,]?\d*").Value;
                     if (!string.IsNullOrEmpty(shippingCostText)
-                        && decimal.TryParse(shippingCostText.Replace(",", "."), NumberStyles.Any, CultureInfo.InvariantCulture, out decimal parsedShippingCost))
+                      && decimal.TryParse(shippingCostText.Replace(",", "."), NumberStyles.Any, CultureInfo.InvariantCulture, out decimal parsedShippingCost))
                     {
                         return parsedShippingCost;
                     }
@@ -523,28 +531,31 @@ HandleCaptchaAndScrapePricesAsync(
             return null;
         }
 
-        private async Task<int?> GetAvailabilityFromOfferNodeAsync(ElementHandle offerNode)
+        // ZMIANA: Cała metoda zaktualizowana do zwracania 'bool?' i nowej logiki
+        private async Task<bool?> GetAvailabilityFromOfferNodeAsync(ElementHandle offerNode)
         {
             var availabilityNode = await offerNode.QuerySelectorAsync("span.instock")
-                                   ?? await offerNode.QuerySelectorAsync("div.product-availability span");
+                       ?? await offerNode.QuerySelectorAsync("div.product-availability span");
 
             if (availabilityNode != null)
             {
                 var availabilityText = await availabilityNode.EvaluateFunctionAsync<string>("el => el.innerText");
-                if (availabilityText.Contains("Wysyłka w 1 dzień"))
+
+                // Reguła 1: true, jeśli "Wysyłka w 1 dzień"
+                if (availabilityText.Contains("Wysyłka w 1 dzień"))
                 {
-                    return 1;
+                    return true;
                 }
-                else if (availabilityText.Contains("Wysyłka do"))
+                // Reguła 2: false, jeśli "Wysyłka do X dni"
+                else if (availabilityText.Contains("Wysyłka do"))
                 {
-                    var daysText = Regex.Match(availabilityText, @"\d+").Value;
-                    if (int.TryParse(daysText, out int parsedDays))
-                    {
-                        return parsedDays;
-                    }
+                    return false;
                 }
-            }
-            return null;
+                // Reguła 3: null dla reszty (np. "Sprawdź w sklepie")
+            }
+
+            // Reguła 3 (cd.): null, jeśli nie znaleziono węzła lub tekst nie pasuje
+            return null;
         }
 
         private async Task<string> GetBiddingInfoFromOfferNodeAsync(ElementHandle offerNode)

@@ -228,7 +228,7 @@ namespace PriceSafari.Services.ScheduleService
                                             StoreName = priceData.storeName,
                                             Price = priceData.price,
                                             ShippingCostNum = priceData.shippingCostNum,
-                                            AvailabilityNum = priceData.availabilityNum,
+                                            CeneoInStock = priceData.ceneoInStock,
                                             IsBidding = priceData.isBidding,
                                             Position = priceData.position,
                                             ExportedName = priceData.ceneoName
