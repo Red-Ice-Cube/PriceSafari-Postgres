@@ -1338,22 +1338,19 @@
             return;
         }
 
-        const colorSquare = button.querySelector('span[class^="color-square-"]');
-        const colorSquareHTML = colorSquare ? colorSquare.outerHTML : '';
-
         let stepInfoText = "";
 
         if (typeof stepPriceApplied !== 'undefined' && stepPriceApplied !== null && typeof stepUnitApplied !== 'undefined') {
             const formattedStepPrice = stepPriceApplied.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-            stepInfoText = ` Krok: ${formattedStepPrice} ${stepUnitApplied}`;
+            stepInfoText = ` Krok cenowy ${formattedStepPrice} ${stepUnitApplied}`;
         }
 
         button.classList.add('active');
 
-        button.innerHTML = colorSquareHTML + stepInfoText + " Dodano";
+        button.innerHTML = stepInfoText + " | Dodano";
 
         const removeLink = document.createElement('span');
-        removeLink.innerHTML = " <i class='fa fa-trash' style='font-size:12px; display:flex; color:white; margin-left:4px; margin-top:3px;'></i>";
+        removeLink.innerHTML = " <i class='fa fa-trash' style='font-size:12px; display:flex; color:white; margin-top:3px;'></i>";
         removeLink.style.textDecoration = "none";
         removeLink.style.cursor = "pointer";
         removeLink.style.pointerEvents = 'auto';
@@ -1421,7 +1418,6 @@
             priceBox.classList.add('price-changed');
         }
     }
-
     function attachPriceChangeListener(actionLine, suggestedPrice, priceBox, productId, productName, currentPriceValue, item) {
         let requiredField = '';
         let requiredLabel = '';
