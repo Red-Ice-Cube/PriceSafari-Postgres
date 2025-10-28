@@ -137,13 +137,9 @@
         }
     });
 
-    const massMatchBtn = document.getElementById('massMatchBtn');
+  
     const massStrategicBtn = document.getElementById('massStrategicBtn');
 
-    massMatchBtn.addEventListener('click', function () {
-        applyMassChange('match');
-        $('#massChangeModal').modal('hide');
-    });
 
     massStrategicBtn.addEventListener('click', function () {
         applyMassChange('strategic');

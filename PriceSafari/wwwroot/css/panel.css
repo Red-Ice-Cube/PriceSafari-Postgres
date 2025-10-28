@@ -3315,8 +3315,6 @@ tr:last-child .sub-line {
     font-size: 14px;
     font-weight: 400;
     min-width: 160px;
-
-
 }
 
 .price-box-column-text-api {
@@ -3959,8 +3957,8 @@ tr:last-child .sub-line {
     }
 
     .price-range-settings .color-circle {
-        min-width: 16px;
-        max-width: 16px;
+        min-width: 18px;
+        max-width: 18px;
         height: 26px;
         margin-left: 3px;
         border-radius: 4px;
@@ -4002,19 +4000,19 @@ tr:last-child .sub-line {
 
 .price-range-settings-stepPrice::before {
     display: inline-block;
-    content: '\f309';
+    content: '\f07d';
     font-family: "Font Awesome 6 Free";
     font-weight: 800;
     font-size: 12px;
     color: #fff;
-    background-color: rgba(13, 110, 253, 0.7);
-    min-width: 16px;
-    max-width: 16px;
-    height: 24px;
+    background-color: rgba(113, 96, 232, 1);
+    min-width: 18px;
+    max-width: 18px;
+    height: 26px;
     border-radius: 4px;
     margin-left: 3px;
     text-align: center;
-    line-height: 24px;
+    line-height: 26px;
 }
 
 .store-section {
@@ -4621,25 +4619,22 @@ th small {
     font-size: 16px;
 }
 
-.color-square-turquoise {
+.color-square-turquoise::before {
     display: inline-block;
-    vertical-align: middle;
+    content: '\f07d';
+    font-family: "Font Awesome 6 Free";
+    font-weight: 800;
+    font-size: 12px;
+    color: #fff;
+    background-color: rgba(113, 96, 232, 1);
+    min-width: 18px;
+    max-width: 18px;
+    height: 26px;
+    border-radius: 4px;
+    margin-left: 3px;
+    text-align: center;
+    line-height: 26px;
 }
-
-    .color-square-turquoise::before {
-        content: '\f309';
-        font-family: "Font Awesome 6 Free";
-        font-weight: 900;
-        font-size: 12px;
-        color: #fff;
-        display: inline-block;
-        width: 16px;
-        height: 24px;
-        background-color: rgba(13, 110, 253, 0.7);
-        border-radius: 4px;
-        text-align: center;
-        line-height: 24px;
-    }
 
 .price-box-column span {
     margin-right: 5px;
@@ -4775,16 +4770,16 @@ small {
     display: flex;
     align-items: center;
     justify-content: center;
-     border: none;
-     font-size: 14px;
-     font-weight: 400;
-     background-color: #e3e3e3;
-     height: 34px;
-     gap: 8px;
-     -webkit-user-select: none;
-     -moz-user-select: none;
-     -ms-user-select: none;
-     user-select: none;
+    border: none;
+    font-size: 14px;
+    font-weight: 400;
+    background-color: #e3e3e3;
+    height: 34px;
+    gap: 8px;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
 }
 
 .price-action-line .simulate-change-btn {
@@ -4801,7 +4796,7 @@ small {
 }
 
     .simulate-change-btn.active i.fa-trash {
-     color: #fff !important;
+    color: #fff !important;
 }
 
 .priceChangeSummary {

@@ -407,40 +407,51 @@
 </div>
 
 <div class="modal fade" id="massChangeModal" tabindex="-1" role="dialog" aria-labelledby="massChangeModalLabel" aria-hidden="true">
-    <div class="modal-dialog" role="document">
-        <div class="modal-content">
+    <div class="modal-dialog" role="document" style="max-width:1000px;">
+        <div class="modal-content" style="width:900px;">
             <div class="modal-header">
                 <div class="price-box-column-name" id="massChangeModalLabel">Masowa zmiana cen</div>
                 <button type="button" class="close" data-dismiss="modal" aria-label="Close">
                     <span aria-hidden="true">&times;</span>
                 </button>
             </div>
+
             <div class="modal-body">
-                <p style="margin-bottom:36px;">
-                    Kliknięcie przycisku przeniesie wyświetlone obecnie produkty do wybranej grupy cenowej. Przeniesione zostaną jedynie produkty, które posiadają przynajmniej jedną ofertę konkurencyjną oraz kod EAN. Aby ograniczyć wyświetlaną grupę produktów, skorzystaj z filtrów.
+                <p style="margin-bottom:24px; line-height:1.6;">
+                    Kliknięcie tego przycisku wykona masową zmianę cen produktów
+                    (tylko w programie PriceSafari – nie wpływa to na ceny w Twoim sklepie).
+                    Zmiana obejmie tylko produkty z co najmniej jedną ofertą konkurencyjną i kodem EAN.
+                    Aby zawęzić listę produktów, skorzystaj z filtrów lub presetów.
+                    Dla przykładu wybierz grupę cen konkurencyjnych, czyli produkty,
+                    które Ty i najtańsi konkurenci sprzedajecie w tej samej cenie.
+                    <br><br>
+                    <strong>Przykład:</strong> ustaw krok cenowy na -0,01 PLN i kliknij
+                    <em>„Przelicz i zapisz”</em>.
+                    Następnie kliknięcie przycisku masowej zmiany cen obniży Twoje ceny
+                    o wybrany krok (tu: -0,01 PLN) względem najtańszego konkurenta.
+                    Dzięki temu Twoje produkty będą tańsze o 1 grosz, co uczyni Cię
+                    najtańszym sprzedawcą w tej grupie – zwiększając sprzedaż przy minimalnej utracie marży.
                 </p>
 
-                <div style="display:flex; justify-content:space-between; margin-bottom:24px;">
-                    <div class="color-square-green" style="margin:0px;"></div>
-                    <p style="width:500px;">
-                        Cena konkurencyjna oznacza, że Twoja oferta zrówna się ceną z inną lub innymi najtańszymi ofertami.
-                    </p>
-                </div>
-
-                <div style="display:flex; justify-content:space-between;">
-                    <div class="color-square-turquoise" style="margin:0px;"></div>
-                    <p style="width:500px;">
-                        Cena strategiczna oznacza, że Twoja oferta będzie najtańsza dla danego produktu oraz tańsza od konkurencji o określony krok cenowy.
+                <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                    <div class="color-square-turquoise" style="margin-top:4px; flex-shrink:0;"></div>
+                    <p style="width:800px; line-height:1.6; margin-left:12px;">
+                        Krok cenowy to różnica między Twoją ceną a ofertą najtańszego konkurenta.
+                        <br><br>
+                        <strong>Przykład:</strong> jeśli Twój produkt kosztuje 1000 PLN, a konkurent oferuje go za 900 PLN,
+                        to przy kroku -0,01 PLN Twoja cena po zmianie wyniesie 899,99 PLN.
+                        Przy kroku 0,00 PLN cena zrówna się z konkurencją (900 PLN),
+                        a przy 0,01 PLN wzrośnie do 900,01 PLN – będziesz droższy o 1 grosz.
                     </p>
                 </div>
             </div>
 
+
+
             <div class="modal-footer" style="justify-content:center;">
-                <button id="massMatchBtn" class="Button-Page-Small" style="width:300px;">
-                    Przenieś do ceny konkurencyjnej →<div class="color-square-green" style="margin:0px;"></div>
-                </button>
-                <button id="massStrategicBtn" class="Button-Page-Small" style="width:300px;">
-                    Przenieś do ceny strategicznej →<div class="color-square-turquoise" style="margin:0px;"></div>
+              
+                <button id="massStrategicBtn" class="Button-Page-Small" style="width:460px;">
+                    Zastosuj masową zmianę cen z wybranym krokiem cenowym →<div class="color-square-turquoise" style="margin:0px;"></div>
                 </button>
             </div>
         </div>
