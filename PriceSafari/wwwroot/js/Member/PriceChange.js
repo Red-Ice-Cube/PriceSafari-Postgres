@@ -435,14 +435,14 @@
 
         if (usePriceWithDeliveryFlag && effectivePrice !== null && shippingCost !== null && basePrice !== null) {
             block += `
-                      <div class="price-info-item" style="padding: 4px 12px; background: #f5f5f5; border: 1px solid #e3e3e3; border-radius: 5px; margin-bottom: 5px;">
-                           Cena z wysyłką | ${formattedEffectivePrice}
-                      </div>`;
+                          <div class="price-info-item" style="padding: 4px 12px; background: #f5f5f5; border: 1px solid #e3e3e3; border-radius: 5px; margin-bottom: 5px;">
+                                Cena z wysyłką | ${formattedEffectivePrice}
+                          </div>`;
 
             block += `
-                      <div class="price-info-item" style="padding: 4px 12px; background: #f5f5f5; border: 1px solid #e3e3e3; border-radius: 5px; margin-bottom: 5px;">
-                          Składowe | ${formatPricePL(basePrice, false)} PLN + ${formatPricePL(shippingCost, false)} PLN
-                      </div>`;
+                          <div class="price-info-item" style="padding: 4px 12px; background: #f5f5f5; border: 1px solid #e3e3e3; border-radius: 5px; margin-bottom: 5px;">
+                                Składowe | ${formatPricePL(basePrice, false)} PLN + ${formatPricePL(shippingCost, false)} PLN
+                          </div>`;
         }
 
         if (googleRank && googleRank !== "-") {
@@ -457,10 +457,10 @@
         if (ceneoRank && ceneoRank !== "-") {
             const ceneoOffersText = ceneoOffers > 0 ? ceneoOffers : '-';
             block += `
-               <div class="price-info-item" style="padding: 4px 12px; background: #f5f5f5; border: 1px solid #e3e3e3; border-radius: 5px; margin-bottom: 5px;">
-                   Poz. cenowa | <img src="/images/Ceneo.png" alt="Ceneo Icon" style="width:16px; height:16px; vertical-align: middle; margin-right: 3px;" />
-                   ${ceneoRank} / ${ceneoOffersText}
-               </div>`;
+                  <div class="price-info-item" style="padding: 4px 12px; background: #f5f5f5; border: 1px solid #e3e3e3; border-radius: 5px; margin-bottom: 5px;">
+                      Poz. cenowa | <img src="/images/Ceneo.png" alt="Ceneo Icon" style="width:16px; height:16px; vertical-align: middle; margin-right: 3px;" />
+                      ${ceneoRank} / ${ceneoOffersText}
+                  </div>`;
         }
 
         if (marginPercent != null && marginValue != null) {
@@ -472,9 +472,9 @@
                 ? "priceBox-diff-margin"
                 : "priceBox-diff-margin-minus";
             block += `
-                   <div class="price-info-item"> <div class="price-box-diff-margin ${cls}" style="margin-top: 5px;"> <p>Narzut: ${formattedMarginValue} (${sign}${formattedMarginPercent}%)</p>
-                       </div>
-                   </div>`;
+                      <div class="price-info-item"> <div class="price-box-diff-margin ${cls}" style="margin-top: 5px;"> <p>Narzut: ${formattedMarginValue} (${sign}${formattedMarginPercent}%)</p>
+                          </div>
+                      </div>`;
         }
 
         block += '</div>';
@@ -640,9 +640,9 @@
 
                         if (isPriceStepAdjustment && Math.abs(diff) < 0.05) {
                             effectDetails += `<div>
-                                           <span style="color: green; font-weight: 400; font-size: 16px;">▼</span>
-                                           <span style="color: #222222; font-weight: 400; font-size: 16px;"> Obniżka krk. ceno.</span>
-                                           </div>`;
+                                            <span style="color: green; font-weight: 400; font-size: 16px;">▼</span>
+                                            <span style="color: #222222; font-weight: 400; font-size: 16px;"> Obniżka krk. ceno.</span>
+                                            </div>`;
                         } else {
                             if (opp.googleFinalScore != null) {
                                 effectDetails += createDonutChart(opp.googleFinalScore, "/images/GoogleShopping.png");
@@ -653,21 +653,21 @@
 
                             if (opp.googleFinalScore == null && opp.ceneoFinalScore == null && !isPriceStepAdjustment) {
                                 effectDetails += `<div>
-                                                <span style="color: green; font-weight: 400; font-size: 16px;">▼</span>
-                                                <span style="color: #222222; font-weight: 400; font-size: 16px;"> Obniżka</span>
-                                                </div>`;
+                                                    <span style="color: green; font-weight: 400; font-size: 16px;">▼</span>
+                                                    <span style="color: #222222; font-weight: 400; font-size: 16px;"> Obniżka</span>
+                                                    </div>`;
                             }
                         }
                     } else if (opp.basePriceChangeType === 'increase') {
                         effectDetails += `<div>
-                                       <span style="color: red; font-weight: 400; font-size: 16px;">▲</span>
-                                       <span style="color: #222222; font-weight: 400; font-size: 16px;"> Podwyżka ceny</span>
-                                       </div>`;
+                                            <span style="color: red; font-weight: 400; font-size: 16px;">▲</span>
+                                            <span style="color: #222222; font-weight: 400; font-size: 16px;"> Podwyżka ceny</span>
+                                            </div>`;
                     } else {
                         effectDetails += `<div>
-                                       <span style="color: gray; font-weight: 400; font-size: 16px;">●</span>
-                                       <span style="color: #222222; font-weight: 400; font-size: 16px;"> Bez zmian</span>
-                                       </div>`;
+                                            <span style="color: gray; font-weight: 400; font-size: 16px;">●</span>
+                                            <span style="color: #222222; font-weight: 400; font-size: 16px;"> Bez zmian</span>
+                                            </div>`;
                     }
 
                     return {
@@ -766,33 +766,33 @@
             const formattedDiffPercent = Math.abs(row.diffPercent).toFixed(2);
 
             html += `<tr data-product-id="${row.productId}"> ${imageCell}
-                           <td class="align-middle"> <a
-                                   href="/PriceHistory/Details?scrapId=${row.scrapId}&productId=${row.productId}"
-                                   target="_blank"
-                                   rel="noopener noreferrer"
-                                   class="simulationProductTitle"
-                                   title="Zobacz szczegóły produktu"
-                                   style="text-decoration: none; color: inherit;"
-                               >
-                                   <div class="price-info-item" style="font-size:110%; margin-bottom:8px; font-weight: 500;"> ${row.productName}
-                                   </div>
-                               </a>
-                               ${eanInfo}
-                               ${extIdInfo}
-                               ${producerCodeInfo}
-                           </td>
-                           <td class="align-middle">${row.currentBlock}</td> <td class="align-middle" style="font-size: 1em; white-space: nowrap; text-align: center;"> <div>${row.arrow} ${formattedDiff} PLN</div>
-                               <div style="font-size: 0.9em; color: #555;">(${formattedDiffPercent}%)</div>
-                           </td>
-                           <td class="align-middle">${row.newBlock}</td> <td class="align-middle" style="white-space: normal; text-align: center;"> ${row.effectDetails}
-                           </td>
-                           <td class="align-middle text-center"> <button class="remove-change-btn"
-                                       data-product-id="${row.productId}"
-                                       title="Usuń tę zmianę z symulacji"
-                                       style="background: none; border: none; padding: 5px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer;">
-                                   <i class="fa fa-trash" style="font-size: 19px; color: #555;"></i> </button>
-                           </td>
-                      </tr>`;
+                                <td class="align-middle"> <a
+                                        href="/PriceHistory/Details?scrapId=${row.scrapId}&productId=${row.productId}"
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        class="simulationProductTitle"
+                                        title="Zobacz szczegóły produktu"
+                                        style="text-decoration: none; color: inherit;"
+                                    >
+                                        <div class="price-info-item" style="font-size:110%; margin-bottom:8px; font-weight: 500;"> ${row.productName}
+                                        </div>
+                                    </a>
+                                    ${eanInfo}
+                                    ${extIdInfo}
+                                    ${producerCodeInfo}
+                                </td>
+                                <td class="align-middle">${row.currentBlock}</td> <td class="align-middle" style="font-size: 1em; white-space: nowrap; text-align: center;"> <div>${row.arrow} ${formattedDiff} PLN</div>
+                                    <div style="font-size: 0.9em; color: #555;">(${formattedDiffPercent}%)</div>
+                                </td>
+                                <td class="align-middle">${row.newBlock}</td> <td class="align-middle" style="white-space: normal; text-align: center;"> ${row.effectDetails}
+                                </td>
+                                <td class="align-middle text-center"> <button class="remove-change-btn"
+                                        data-product-id="${row.productId}"
+                                        title="Usuń tę zmianę z symulacji"
+                                        style="background: none; border: none; padding: 5px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer;">
+                                    <i class="fa fa-trash" style="font-size: 19px; color: #555;"></i> </button>
+                                </td>
+                            </tr>`;
         });
 
         tbody.innerHTML = html;
@@ -838,12 +838,10 @@
         const disclaimerModal = document.getElementById("exportDisclaimerModal");
         if (disclaimerModal) {
 
-            const extendedCheckbox = document.getElementById("extendedExportCheckbox");
-            if (extendedCheckbox) extendedCheckbox.checked = false;
 
             disclaimerModal.style.display = 'block';
             disclaimerModal.classList.add('show');
-
+            disclaimerModal.setAttribute('aria-hidden', 'false');
         }
     }
 
@@ -853,21 +851,32 @@
         if (disclaimerModal) {
             disclaimerModal.style.display = 'none';
             disclaimerModal.classList.remove('show');
+            disclaimerModal.setAttribute('aria-hidden', 'true');
         }
     }
 
     const disclaimerConfirmButton = document.getElementById("disclaimerConfirmButton");
     if (disclaimerConfirmButton) {
         disclaimerConfirmButton.addEventListener("click", function () {
-            const isExtendedExport = document.getElementById("extendedExportCheckbox")?.checked === true;
-            closeExportDisclaimer();
+            console.log("[DEBUG] Kliknięto 'Kontynuuj' w modalu ostrzeżenia.");
 
-            if (pendingExportType === "csv") {
+            const isExtendedExport = document.getElementById("extendedExportCheckbox")?.checked === true;
+
+            const currentExportType = pendingExportType;
+
+            console.log(`[DEBUG] Zmienne przed sprawdzeniem typu: currentExportType = ${currentExportType}, isExtendedExport = ${isExtendedExport}`);
+
+            if (currentExportType === "csv") {
+                console.log("[DEBUG] Wywołuję exportToCsv...");
                 exportToCsv(isExtendedExport);
-            } else if (pendingExportType === "excel") {
+            } else if (currentExportType === "excel") {
+                console.log("[DEBUG] Wywołuję exportToExcelXLSX...");
                 exportToExcelXLSX(isExtendedExport);
+            } else {
+                console.warn("[DEBUG] Nieznany lub pusty currentExportType:", currentExportType);
             }
 
+            closeExportDisclaimer();
         });
     }
 
@@ -904,7 +913,7 @@
                     `="${String(row.externalId || '')}"`,
                     `="${String(row.ean || '')}"`,
                     `="${String(row.producerCode || '')}"`,
-                    `"${row.productName.replace(/"/g, '""')}"`, 
+                    `"${row.productName.replace(/"/g, '""')}"`,
                     `"${formatCsvRank(row.currentGoogleRanking)}"`,
                     `"${formatCsvRank(row.totalGoogleOffers)}"`,
                     `"${formatCsvRank(row.currentCeneoRanking)}"`,
@@ -968,137 +977,143 @@
             return;
         }
 
-        const workbook = new ExcelJS.Workbook();
-        const worksheet = workbook.addWorksheet("Zmiany Cen");
-        const dateStr = getCurrentDateString();
-        let fileName = "";
+        try {
+            const workbook = new ExcelJS.Workbook();
+            const worksheet = workbook.addWorksheet("Zmiany Cen");
+            const dateStr = getCurrentDateString();
+            let fileName = "";
 
-        const plNumberFormat = '#,##0.00';
+            const plNumberFormat = '#,##0.00';
 
-        if (isExtended) {
-            let columns = [
-                { header: "ID", key: "externalId", width: 18, style: { numFmt: "@" } },
-                { header: "EAN", key: "ean", width: 18, style: { numFmt: "@" } },
-                { header: "KOD", key: "producerCode", width: 20, style: { numFmt: "@" } },
-                { header: "Nazwa produktu", key: "productName", width: 40 },
-                { header: "Obecna poz. Google", key: "currentGoogleRanking", width: 20 },
-                { header: "Oferty Google", key: "totalGoogleOffers", width: 15, style: { numFmt: '0' } },
-                { header: "Obecna poz. Ceneo", key: "currentCeneoRanking", width: 20 },
-                { header: "Oferty Ceneo", key: "totalCeneoOffers", width: 15, style: { numFmt: '0' } },
-                { header: "Obecna cena oferty", key: "baseCurrentPrice", width: 20, style: { numFmt: plNumberFormat } }
-            ];
-
-            if (usePriceWithDeliverySetting) {
-                columns.push(
-                    { header: "Obecny koszt wysyłki", key: "ourStoreShippingCost", width: 22, style: { numFmt: plNumberFormat } },
-                    { header: "Obecna cena z wysyłką", key: "effectiveCurrentPrice", width: 25, style: { numFmt: plNumberFormat } }
-                );
-            }
-
-            columns.push(
-                { header: "Obecny narzut (%)", key: "currentMargin", width: 18, style: { numFmt: plNumberFormat } },
-                { header: "Obecny narzut (PLN)", key: "currentMarginValue", width: 18, style: { numFmt: plNumberFormat } },
-                { header: "Nowa cena oferty", key: "baseNewPrice", width: 20, style: { numFmt: plNumberFormat } }
-            );
-
-            if (usePriceWithDeliverySetting) {
-                columns.push(
-                    { header: "Nowy koszt wysyłki", key: "newShippingCost", width: 22, style: { numFmt: plNumberFormat } },
-                    { header: "Nowa cena z wysyłką", key: "effectiveNewPrice", width: 25, style: { numFmt: plNumberFormat } }
-                );
-            }
-
-            columns.push(
-                { header: "Nowy narzut (%)", key: "newMargin", width: 18, style: { numFmt: plNumberFormat } },
-                { header: "Nowy narzut (PLN)", key: "newMarginValue", width: 18, style: { numFmt: plNumberFormat } },
-                { header: "Nowa poz. Google", key: "newGoogleRanking", width: 20 },
-                { header: "Nowa liczba ofert Google", key: "newTotalGoogleOffers", width: 25, style: { numFmt: '0' } },
-                { header: "Nowa poz. Ceneo", key: "newCeneoRanking", width: 20 },
-                { header: "Nowa liczba ofert Ceneo", key: "newTotalCeneoOffers", width: 25, style: { numFmt: '0' } }
-            );
-            worksheet.columns = columns;
-
-            originalRowsData.forEach(row => {
-
-                const safeParseFloat = (val) => {
-                    const num = parseFloat(val);
-                    return isNaN(num) ? null : num;
-                };
-
-                const safeParseInt = (val) => {
-                    const num = parseInt(val, 10);
-                    return isNaN(num) ? null : num;
-                };
-
-                let rowData = {
-                    externalId: String(row.externalId || ''),
-                    ean: String(row.ean || ''),
-                    producerCode: String(row.producerCode || ''),
-                    productName: row.productName,
-
-                    currentGoogleRanking: row.currentGoogleRanking !== null ? String(row.currentGoogleRanking) : '',
-                    totalGoogleOffers: safeParseInt(row.totalGoogleOffers),
-                    currentCeneoRanking: row.currentCeneoRanking !== null ? String(row.currentCeneoRanking) : '',
-                    totalCeneoOffers: safeParseInt(row.totalCeneoOffers),
-
-                    baseCurrentPrice: safeParseFloat(row.baseCurrentPrice),
-                    currentMargin: safeParseFloat(row.currentMargin),
-                    currentMarginValue: safeParseFloat(row.currentMarginValue),
-                    baseNewPrice: safeParseFloat(row.baseNewPrice),
-                    newMargin: safeParseFloat(row.newMargin),
-                    newMarginValue: safeParseFloat(row.newMarginValue),
-
-                    newGoogleRanking: row.newGoogleRanking !== null ? String(row.newGoogleRanking) : '',
-                    newTotalGoogleOffers: safeParseInt(row.totalGoogleOffers),
-                    newCeneoRanking: row.newCeneoRanking !== null ? String(row.newCeneoRanking) : '',
-                    newTotalCeneoOffers: safeParseInt(row.totalCeneoOffers)
-                };
+            if (isExtended) {
+                let columns = [
+                    { header: "ID", key: "externalId", width: 18, style: { numFmt: "@" } },
+                    { header: "EAN", key: "ean", width: 18, style: { numFmt: "@" } },
+                    { header: "KOD", key: "producerCode", width: 20, style: { numFmt: "@" } },
+                    { header: "Nazwa produktu", key: "productName", width: 40 },
+                    { header: "Obecna poz. Google", key: "currentGoogleRanking", width: 20 },
+                    { header: "Oferty Google", key: "totalGoogleOffers", width: 15, style: { numFmt: '0' } },
+                    { header: "Obecna poz. Ceneo", key: "currentCeneoRanking", width: 20 },
+                    { header: "Oferty Ceneo", key: "totalCeneoOffers", width: 15, style: { numFmt: '0' } },
+                    { header: "Obecna cena oferty", key: "baseCurrentPrice", width: 20, style: { numFmt: plNumberFormat } }
+                ];
 
                 if (usePriceWithDeliverySetting) {
-                    rowData.ourStoreShippingCost = safeParseFloat(row.ourStoreShippingCost);
-                    rowData.effectiveCurrentPrice = safeParseFloat(row.effectiveCurrentPrice);
-                    rowData.newShippingCost = safeParseFloat(row.ourStoreShippingCost);
-                    rowData.effectiveNewPrice = safeParseFloat(row.effectiveNewPrice);
+                    columns.push(
+                        { header: "Obecny koszt wysyłki", key: "ourStoreShippingCost", width: 22, style: { numFmt: plNumberFormat } },
+                        { header: "Obecna cena z wysyłką", key: "effectiveCurrentPrice", width: 25, style: { numFmt: plNumberFormat } }
+                    );
                 }
 
-                worksheet.addRow(rowData);
-            });
-            fileName = `PriceSafari-${dateStr}-${currentOurStoreName}-rozszerzony.xlsx`;
+                columns.push(
+                    { header: "Obecny narzut (%)", key: "currentMargin", width: 18, style: { numFmt: plNumberFormat } },
+                    { header: "Obecny narzut (PLN)", key: "currentMarginValue", width: 18, style: { numFmt: plNumberFormat } },
+                    { header: "Nowa cena oferty", key: "baseNewPrice", width: 20, style: { numFmt: plNumberFormat } }
+                );
 
-        } else {
-            worksheet.columns = [
-                { header: "ID", key: "externalId", width: 18, style: { numFmt: "@" } },
-                { header: "EAN", key: "ean", width: 18, style: { numFmt: "@" } },
-                { header: "KOD", key: "producerCode", width: 20, style: { numFmt: "@" } },
-                { header: "CENA", key: "newPrice", width: 15, style: { numFmt: plNumberFormat } }
-            ];
-            originalRowsData.forEach(row => {
-                const safeParseFloat = (val) => {
-                    const num = parseFloat(val);
-                    return isNaN(num) ? null : num;
-                };
-                worksheet.addRow({
-                    externalId: String(row.externalId || ""),
-                    ean: String(row.ean || ""),
-                    producerCode: String(row.producerCode || ""),
-                    newPrice: safeParseFloat(row.baseNewPrice)
+                if (usePriceWithDeliverySetting) {
+                    columns.push(
+                        { header: "Nowy koszt wysyłki", key: "newShippingCost", width: 22, style: { numFmt: plNumberFormat } },
+                        { header: "Nowa cena z wysyłką", key: "effectiveNewPrice", width: 25, style: { numFmt: plNumberFormat } }
+                    );
+                }
+
+                columns.push(
+                    { header: "Nowy narzut (%)", key: "newMargin", width: 18, style: { numFmt: plNumberFormat } },
+                    { header: "Nowy narzut (PLN)", key: "newMarginValue", width: 18, style: { numFmt: plNumberFormat } },
+                    { header: "Nowa poz. Google", key: "newGoogleRanking", width: 20 },
+                    { header: "Nowa liczba ofert Google", key: "newTotalGoogleOffers", width: 25, style: { numFmt: '0' } },
+                    { header: "Nowa poz. Ceneo", key: "newCeneoRanking", width: 20 },
+                    { header: "Nowa liczba ofert Ceneo", key: "newTotalCeneoOffers", width: 25, style: { numFmt: '0' } }
+                );
+                worksheet.columns = columns;
+
+                originalRowsData.forEach(row => {
+
+                    const safeParseFloat = (val) => {
+                        const num = parseFloat(val);
+                        return isNaN(num) ? null : num;
+                    };
+
+                    const safeParseInt = (val) => {
+                        const num = parseInt(val, 10);
+                        return isNaN(num) ? null : num;
+                    };
+
+                    let rowData = {
+                        externalId: String(row.externalId || ''),
+                        ean: String(row.ean || ''),
+                        producerCode: String(row.producerCode || ''),
+                        productName: row.productName,
+
+                        currentGoogleRanking: row.currentGoogleRanking !== null ? String(row.currentGoogleRanking) : '',
+                        totalGoogleOffers: safeParseInt(row.totalGoogleOffers),
+                        currentCeneoRanking: row.currentCeneoRanking !== null ? String(row.currentCeneoRanking) : '',
+                        totalCeneoOffers: safeParseInt(row.totalCeneoOffers),
+
+                        baseCurrentPrice: safeParseFloat(row.baseCurrentPrice),
+                        currentMargin: safeParseFloat(row.currentMargin),
+                        currentMarginValue: safeParseFloat(row.currentMarginValue),
+                        baseNewPrice: safeParseFloat(row.baseNewPrice),
+                        newMargin: safeParseFloat(row.newMargin),
+                        newMarginValue: safeParseFloat(row.newMarginValue),
+
+                        newGoogleRanking: row.newGoogleRanking !== null ? String(row.newGoogleRanking) : '',
+                        newTotalGoogleOffers: safeParseInt(row.totalGoogleOffers),
+                        newCeneoRanking: row.newCeneoRanking !== null ? String(row.newCeneoRanking) : '',
+                        newTotalCeneoOffers: safeParseInt(row.totalCeneoOffers)
+                    };
+
+                    if (usePriceWithDeliverySetting) {
+                        rowData.ourStoreShippingCost = safeParseFloat(row.ourStoreShippingCost);
+                        rowData.effectiveCurrentPrice = safeParseFloat(row.effectiveCurrentPrice);
+                        rowData.newShippingCost = safeParseFloat(row.ourStoreShippingCost);
+                        rowData.effectiveNewPrice = safeParseFloat(row.effectiveNewPrice);
+                    }
+
+                    worksheet.addRow(rowData);
                 });
-            });
-            fileName = `PriceSafari-${dateStr}-${currentOurStoreName}-bazowa.xlsx`;
-        }
+                fileName = `PriceSafari-${dateStr}-${currentOurStoreName}-rozszerzony.xlsx`;
 
-        const buffer = await workbook.xlsx.writeBuffer();
-        const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
-        const link = document.createElement("a");
-        link.href = URL.createObjectURL(blob);
-        link.download = fileName;
-        link.style.display = 'none';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        setTimeout(() => {
-            URL.revokeObjectURL(link.href);
-        }, 1000);
+            } else {
+                worksheet.columns = [
+                    { header: "ID", key: "externalId", width: 18, style: { numFmt: "@" } },
+                    { header: "EAN", key: "ean", width: 18, style: { numFmt: "@" } },
+                    { header: "KOD", key: "producerCode", width: 20, style: { numFmt: "@" } },
+                    { header: "CENA", key: "newPrice", width: 15, style: { numFmt: plNumberFormat } }
+                ];
+                originalRowsData.forEach(row => {
+                    const safeParseFloat = (val) => {
+                        const num = parseFloat(val);
+                        return isNaN(num) ? null : num;
+                    };
+                    worksheet.addRow({
+                        externalId: String(row.externalId || ""),
+                        ean: String(row.ean || ""),
+                        producerCode: String(row.producerCode || ""),
+                        newPrice: safeParseFloat(row.baseNewPrice)
+                    });
+                });
+                fileName = `PriceSafari-${dateStr}-${currentOurStoreName}-bazowa.xlsx`;
+            }
+
+            const buffer = await workbook.xlsx.writeBuffer();
+            const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.download = fileName;
+            link.style.display = 'none';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            setTimeout(() => {
+                URL.revokeObjectURL(link.href);
+            }, 1000);
+
+        } catch (err) {
+            console.error("Błąd podczas generowania pliku Excel:", err);
+            alert("Wystąpił błąd podczas generowania pliku Excel: " + err.message);
+        }
     }
 
     var simulateButton = document.getElementById("simulateButton");
@@ -1112,10 +1127,12 @@
     if (exportToCsvButton) {
         exportToCsvButton.addEventListener("click", function () {
 
-            if (originalRowsData.length > 0 || selectedPriceChanges.length > 0) {
+            if (originalRowsData.length > 0) {
+                console.log('Kliknięto Eksport CSV w modalu. Dane:', originalRowsData);
                 showExportDisclaimer("csv");
             } else {
-                alert("Brak danych do wyeksportowania.");
+
+                alert("Brak danych do wyeksportowania. (Musisz najpierw uruchomić symulację)");
             }
         });
     }
@@ -1129,10 +1146,12 @@
                 return;
             }
 
-            if (originalRowsData.length > 0 || selectedPriceChanges.length > 0) {
+            if (originalRowsData.length > 0) {
+                console.log('Kliknięto Eksport Excel w modalu. Dane:', originalRowsData);
                 showExportDisclaimer("excel");
             } else {
-                alert("Brak danych do wyeksportowania.");
+
+                alert("Brak danych do wyeksportowania. (Musisz najpierw uruchomić symulację)");
             }
         });
     }
@@ -1182,4 +1201,4 @@
 
     updatePriceChangeSummary();
 
-}); 
+});
