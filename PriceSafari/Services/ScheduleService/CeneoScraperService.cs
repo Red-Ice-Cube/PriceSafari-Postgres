@@ -21,7 +21,7 @@ namespace PriceSafari.Services.ScheduleService
 
         private int _captchaResolutions = 0;
 
-        private readonly List<CaptchaScraper> _activeScrapers = new();
+        private readonly List<CeneoScraper> _activeScrapers = new();
 
         public CeneoScraperService(
             PriceSafariContext context,
@@ -167,11 +167,11 @@ namespace PriceSafari.Services.ScheduleService
                     tasks.Add(Task.Run(async () =>
                     {
                         await semaphore.WaitAsync(cancellationToken);
-                        CaptchaScraper? captchaScraper = null;
+                        CeneoScraper? captchaScraper = null;
                         try
                         {
                             var httpClient = _httpClientFactory.CreateClient();
-                            captchaScraper = new CaptchaScraper(httpClient);
+                            captchaScraper = new CeneoScraper(httpClient);
 
                             lock (_activeScrapers)
                                 _activeScrapers.Add(captchaScraper);

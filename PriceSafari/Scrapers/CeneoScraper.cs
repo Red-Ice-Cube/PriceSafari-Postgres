@@ -6,13 +6,13 @@ using static PriceScrapingController;
 
 namespace PriceSafari.Scrapers
 {
-    public class CaptchaScraper
+    public class CeneoScraper
     {
         private Browser _browser;
         private Page _page;
         private readonly HttpClient _httpClient;
 
-        public CaptchaScraper(HttpClient httpClient)
+        public CeneoScraper(HttpClient httpClient)
         {
             _httpClient = httpClient;
         }
