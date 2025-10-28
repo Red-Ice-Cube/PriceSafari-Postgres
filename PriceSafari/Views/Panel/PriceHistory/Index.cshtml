@@ -172,49 +172,40 @@
                         <div id="offerRangeSlider"></div>
                     </div>
 
-                    <div class="Category-Container-Select">Ceneo - Twój sklep </div>
+                    <div class="Category-Container-Select">Dostępność - Twój sklep</div>
                     <div class="store-section">
                         <div class="filter-category">
-
                             <div class="form-check">
-                                <input class="form-check-input deliveryFilterMyStore" type="checkbox" id="delivery1MyStore" value="1">
-                                <label class="form-check-label" for="delivery1MyStore">Wysyłka w 1 dzień</label>
+                                <input class="form-check-input stockFilterMyStore" type="checkbox" id="stockAvailableMyStore" value="true">
+                                <label class="form-check-label" for="stockAvailableMyStore">Dostępny</label>
                             </div>
                             <div class="form-check">
-                                <input class="form-check-input deliveryFilterMyStore" type="checkbox" id="delivery3MyStore" value="3">
-                                <label class="form-check-label" for="delivery3MyStore">Wysyłka w 3 dni</label>
+                                <input class="form-check-input stockFilterMyStore" type="checkbox" id="stockUnavailableMyStore" value="false">
+                                <label class="form-check-label" for="stockUnavailableMyStore">Niedostępny</label>
                             </div>
                             <div class="form-check">
-                                <input class="form-check-input deliveryFilterMyStore" type="checkbox" id="delivery7MyStore" value="7">
-                                <label class="form-check-label" for="delivery7MyStore">Wysyłka w 7 dni</label>
-                            </div>
-                            <div class="form-check">
-                                <input class="form-check-input deliveryFilterMyStore" type="checkbox" id="delivery14MyStore" value="14">
-                                <label class="form-check-label" for="delivery14MyStore">Wysyłka w 14 dni</label>
+                                <input class="form-check-input stockFilterMyStore" type="checkbox" id="stockNoDataMyStore" value="null">
+                                <label class="form-check-label" for="stockNoDataMyStore">Brak danych</label>
                             </div>
                         </div>
-                        <div class="Category-Container-Select">Ceneo - konkurencja</div>
-                        <div class="store-section">
-                            <div class="filter-category">
-
-                                <div class="form-check">
-                                    <input class="form-check-input deliveryFilterCompetitor" type="checkbox" id="delivery1Competitor" value="1">
-                                    <label class="form-check-label" for="delivery1Competitor">Wysyłka w 1 dzień</label>
-                                </div>
-                                <div class="form-check">
-                                    <input class="form-check-input deliveryFilterCompetitor" type="checkbox" id="delivery3Competitor" value="3">
-                                    <label class="form-check-label" for="delivery3Competitor">Wysyłka w 3 dni</label>
-                                </div>
-                                <div class="form-check">
-                                    <input class="form-check-input deliveryFilterCompetitor" type="checkbox" id="delivery7Competitor" value="7">
-                                    <label class="form-check-label" for="delivery7Competitor">Wysyłka w 7 dni</label>
-                                </div>
-                                <div class="form-check">
-                                    <input class="form-check-input deliveryFilterCompetitor" type="checkbox" id="delivery14Competitor" value="14">
-                                    <label class="form-check-label" for="delivery14Competitor">Wysyłka w 14 dni</label>
-                                </div>
+                    </div>
+                    <div class="Category-Container-Select">Dostępność - konkurencja</div>
+                    <div class="store-section">
+                        <div class="filter-category">
+                            <div class="form-check">
+                                <input class="form-check-input stockFilterCompetitor" type="checkbox" id="stockAvailableCompetitor" value="true">
+                                <label class="form-check-label" for="stockAvailableCompetitor">Dostępny</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input stockFilterCompetitor" type="checkbox" id="stockUnavailableCompetitor" value="false">
+                                <label class="form-check-label" for="stockUnavailableCompetitor">Niedostępny</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input stockFilterCompetitor" type="checkbox" id="stockNoDataCompetitor" value="null">
+                                <label class="form-check-label" for="stockNoDataCompetitor">Brak danych</label>
                             </div>
                         </div>
+                    </div>
 
                         <div class="Category-Container-Select">Podejrzanie niska cena</div>
                         <div class="store-section">
@@ -227,7 +218,7 @@
                             </div>
                         </div>
 
-                    </div>
+                   
 
                 </div>
 

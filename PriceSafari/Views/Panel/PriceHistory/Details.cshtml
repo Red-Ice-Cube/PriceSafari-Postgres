@@ -118,29 +118,7 @@
         overflow-y: auto;
     }
 
-    .stock-available {
-        border-radius: 4px;
-        padding: 2px 5px;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 11px;
-        font-weight: 500;
-        color: #fff;
-        background-color: #006400;
-    }
-
-    .stock-unavailable {
-        border-radius: 4px;
-        padding: 2px 5px;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 11px;
-        font-weight: 500;
-        color: #fff;
-        background-color: #D34545;
-    }
+ 
 </style>
 
 <div class="Vert" data-store-name="@storeName">
@@ -176,7 +154,7 @@
 
                 <div class="price-box-column-name" style="align-content:flex-end;">
                     <div class="store-section">
-                        <!-- Zawsze wyświetlamy sortowanie po cenie -->
+      
                         <div class="form-check">
                             <input class="form-check-input sortFilter" type="radio" name="sortOption" id="sortPrice" value="price" checked>
                             <label class="form-check-label" for="sortPrice">Sortuj po cenie</label>
@@ -394,12 +372,12 @@
                                 }
                                 else
                                 {
-                                    <div class="PaidShipping">@shippingCost</div> @* Zakładam, że zmienna shippingCost jest zdefiniowana gdzieś wyżej *@
+                                    <div class="PaidShipping">@shippingCost</div> 
                                 }
                             </td>
                             <td>
-                                @* <-- ZMODYFIKOWANA KOMÓRKA DOSTĘPNOŚCI --> *@
-                                @if (item.IsGoogle) // Sekcja Google bez zmian
+                               
+                                @if (item.IsGoogle) 
                                 {
                                     @if (item.GoogleInStock == true)
                                     {
@@ -414,20 +392,20 @@
                                         <span class="BD">Brak danych</span>
                                     }
                                 }
-                                else // ZMIENIONA Sekcja Ceneo
+                                else 
                                 {
-                                    // Używamy item.CeneoInStock (bool?) zamiast item.AvailabilityNum (int?)
+                                 
                                     @if (item.CeneoInStock == true)
                                     {
-                                        <span class="stock-available">Dostępny</span> @* Klasa CSS jak dla Google *@
+                                        <span class="stock-available">Dostępny</span> 
                                     }
                                     else if (item.CeneoInStock == false)
                                     {
-                                        <span class="stock-unavailable">Niedostępny</span> @* Klasa CSS jak dla Google *@
+                                        <span class="stock-unavailable">Niedostępny</span> 
                                     }
-                                    else // null
+                                    else 
                                     {
-                                        <span class="BD">Brak danych</span> @* Klasa CSS jak dla Google *@
+                                        <span class="BD">Brak danych</span> 
                                     }
                                 }
                             </td>

@@ -4209,6 +4209,31 @@ tr:last-child .sub-line {
     margin: auto;
 }
 
+.stock-available {
+    border-radius: 4px;
+    padding: 2px 5px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 500;
+    color: #fff;
+    background-color: #006400;
+}
+
+.stock-unavailable {
+    border-radius: 4px;
+    padding: 2px 5px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 500;
+    color: #fff;
+    background-color: #D34545;
+}
+
+
 .name-cell {
     max-width: 150px;
 }

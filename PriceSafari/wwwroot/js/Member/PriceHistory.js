@@ -49,6 +49,17 @@
         return includeUnit ? formatted + ' PLN' : formatted;
     }
 
+    function getStockStatusBadge(inStock) {
+        if (inStock === true) {
+            return '<span class="stock-available">Dostępny</span>';
+        } else if (inStock === false) {
+            return '<span class="stock-unavailable">Niedostępny</span>';
+        } else {
+
+            return '<span class="BD">Brak danych</span>';
+        }
+    }
+
     let selectedFlagsInclude = new Set();
     let selectedFlagsExclude = new Set();
     let selectedProductIds = loadSelectionFromStorage();
@@ -1180,8 +1191,15 @@
         const selectedColors = Array.from(document.querySelectorAll('.colorFilter:checked')).map(checkbox => checkbox.value);
         const selectedBid = document.getElementById('bidFilter').checked;
         const suspiciouslyLowFilter = document.getElementById('suspiciouslyLowFilter').checked;
-        const selectedDeliveryMyStore = Array.from(document.querySelectorAll('.deliveryFilterMyStore:checked')).map(checkbox => parseInt(checkbox.value));
-        const selectedDeliveryCompetitor = Array.from(document.querySelectorAll('.deliveryFilterCompetitor:checked')).map(checkbox => parseInt(checkbox.value));
+
+        const selectedStockMyStore = Array.from(document.querySelectorAll('.stockFilterMyStore:checked')).map(checkbox => {
+            if (checkbox.value === 'null') return null;
+            return checkbox.value === 'true';
+        });
+        const selectedStockCompetitor = Array.from(document.querySelectorAll('.stockFilterCompetitor:checked')).map(checkbox => {
+            if (checkbox.value === 'null') return null;
+            return checkbox.value === 'true';
+        });
         const selectedExternalPrice = Array.from(document.querySelectorAll('.externalPriceFilter:checked')).map(checkbox => checkbox.value);
 
         const positionSliderValues = positionSlider.noUiSlider.get();
@@ -1257,12 +1275,12 @@
             filteredPrices = filteredPrices.filter(item => item.myIsBidding === "1");
         }
 
-        if (selectedDeliveryMyStore.length) {
-            filteredPrices = filteredPrices.filter(item => selectedDeliveryMyStore.includes(item.myDelivery));
+        if (selectedStockMyStore.length) {
+            filteredPrices = filteredPrices.filter(item => selectedStockMyStore.includes(item.myEntryInStock));
         }
 
-        if (selectedDeliveryCompetitor.length) {
-            filteredPrices = filteredPrices.filter(item => selectedDeliveryCompetitor.includes(item.delivery));
+        if (selectedStockCompetitor.length) {
+            filteredPrices = filteredPrices.filter(item => selectedStockCompetitor.includes(item.bestEntryInStock));
         }
 
         if (selectedExternalPrice.includes("yes")) {
@@ -1888,13 +1906,11 @@
         paginatedData.forEach(item => {
             const highlightedProductName = highlightMatches(item.productName, currentProductSearchTerm);
             const highlightedStoreName = highlightMatches(item.storeName, currentStoreSearchTerm);
-            const deliveryClass = getDeliveryClass(item.delivery);
 
             const myPrice = item.myPrice != null ? parseFloat(item.myPrice) : null;
             const lowestPrice = item.lowestPrice != null ? parseFloat(item.lowestPrice) : null;
             const savings = item.savings != null ? item.savings.toFixed(2) : "N/A";
             const myPosition = item.myPosition;
-            const myDeliveryClass = getDeliveryClass(item.myDelivery);
             const marginAmount = item.marginAmount;
             const marginPercentage = item.marginPercentage;
             const marginSign = item.marginSign;
@@ -2104,7 +2120,7 @@
                         '<span class="Position" style="background-color: #414141;">Schowany</span>'
                     ) +
                     (item.isBidding === "1" ? ' <span class="Bidding">Bid</span>' : '') +
-                    (item.delivery != null ? ' <span class="' + deliveryClass + '">Wysyłka w ' + (item.delivery == 1 ? '1 dzień' : item.delivery + ' dni') + '</span>' : '');
+                    ' ' + getStockStatusBadge(item.bestEntryInStock);
 
                 priceBoxColumnLowestPrice.appendChild(priceBoxLowestText);
                 priceBoxColumnLowestPrice.appendChild(priceBoxLowestDetails);
@@ -2280,13 +2296,13 @@
                 } else {
                     detailsHtmlParts.push('<span class="Position" style="background-color: #414141;">Schowany</span>');
                 }
+
                 if (item.myIsBidding === "1") {
                     detailsHtmlParts.push('<span class="Bidding">Bid</span>');
                 }
-                if (item.myDelivery != null) {
-                    const deliveryText = (item.myDelivery == 1 ? '1 dzień' : `${item.myDelivery} dni`);
-                    detailsHtmlParts.push(`<span class="${myDeliveryClass}">Wysyłka w ${deliveryText}</span>`);
-                }
+
+                detailsHtmlParts.push(getStockStatusBadge(item.myEntryInStock));
+
                 priceBoxMyDetails.innerHTML = detailsHtmlParts.join(' ');
 
                 priceBoxColumnMyPrice.appendChild(priceBoxMyText);
@@ -2635,13 +2651,6 @@
         }
         lazyLoadImages.forEach(img => { observer.observe(img); });
         document.getElementById('displayedProductCount').textContent = data.length;
-    }
-
-    function getDeliveryClass(days) {
-        if (days <= 1) return 'Availability1Day';
-        if (days <= 3) return 'Availability3Days';
-        if (days <= 7) return 'Availability7Days';
-        return 'Availability14Days';
     }
 
     function createDeliveryInfoDisplay(totalPrice, deliveryCost, includesDelivery) {
@@ -3141,7 +3150,7 @@
 
     document.getElementById('productSearch').addEventListener('input', debouncedFilterPrices);
 
-    document.querySelectorAll('.colorFilter, .flagFilter, .positionFilter, .deliveryFilterMyStore, .deliveryFilterCompetitor, .externalPriceFilter')
+    document.querySelectorAll('.colorFilter, .flagFilter, .positionFilter, .stockFilterMyStore, .stockFilterCompetitor, .externalPriceFilter')
         .forEach(function (checkbox) {
             checkbox.addEventListener('change', function () {
                 showLoading();
