@@ -127,7 +127,7 @@ namespace PriceSafari.Scrapers
         }
 
         public async Task<(
-    // ZMIANA: Z 'int? availabilityNum' na 'bool? ceneoInStock'
+
         List<(string storeName, decimal price, decimal? shippingCostNum, bool? ceneoInStock, string isBidding, string? position, string? ceneoName)> Prices,
       int? salesCount,
       string Log,
@@ -139,8 +139,8 @@ namespace PriceSafari.Scrapers
       List<string> storeNames,
       List<string> storeProfiles)
         {
-            // ZMIANA: Z 'int? availabilityNum' na 'bool? ceneoInStock'
-            var priceResults = new List<(string storeName, decimal price, decimal? shippingCostNum, bool? ceneoInStock, string isBidding, string? position, string? ceneoName)>();
+
+            var priceResults = new List<(string storeName, decimal price, decimal? shippingCostNum, bool? ceneoInStock, string isBidding, string? position, string? ceneoName)>();
             var rejectedProducts = new List<(string Reason, string Url)>();
             string log;
 
@@ -172,8 +172,8 @@ namespace PriceSafari.Scrapers
                 {
                     var logMsg = "Captcha encountered at " + currentUrl;
                     Console.WriteLine(logMsg);
-                    // ZMIANA: Z 'int?' na 'bool?' w typie krotki
-                    return (new List<(string, decimal, decimal?, bool?, string, string?, string?)>(), null, logMsg, new List<(string Reason, string Url)> { ("Captcha", url) });
+
+                    return (new List<(string, decimal, decimal?, bool?, string, string?, string?)>(), null, logMsg, new List<(string Reason, string Url)> { ("Captcha", url) });
                 }
 
                 var totalOffersCount = await GetTotalOffersCountAsync();
@@ -282,7 +282,7 @@ namespace PriceSafari.Scrapers
                             p.storeName,
                             p.price,
                             p.shippingCostNum,
-                            p.ceneoInStock, // ZMIANA: Z 'p.availabilityNum'
+                            p.ceneoInStock,
                                             p.isBidding,
                             position: (string?)null,
                             p.ceneoName
@@ -339,11 +339,11 @@ namespace PriceSafari.Scrapers
         private async Task<(List<(string storeName, decimal price, decimal? shippingCostNum, bool? ceneoInStock, string isBidding, string? position, string? ceneoName)> Prices, int? salesCount, string Log, List<(string Reason, string Url)> RejectedProducts)>
           ScrapePricesFromCurrentPage(string url, bool includePosition, bool getCeneoName)
         {
-            // ZMIANA: Z 'int? availabilityNum' na 'bool? ceneoInStock'
-            var prices = new List<(string storeName, decimal price, decimal? shippingCostNum, bool? ceneoInStock, string isBidding, string? position, string? ceneoName)>();
+
+            var prices = new List<(string storeName, decimal price, decimal? shippingCostNum, bool? ceneoInStock, string isBidding, string? position, string? ceneoName)>();
             var rejectedProducts = new List<(string Reason, string Url)>();
-            // ZMIANA: Z 'int? availabilityNum' na 'bool? ceneoInStock'
-            var storeOffers = new Dictionary<string, (decimal price, decimal? shippingCostNum, bool? ceneoInStock, string isBidding, string? position, string? ceneoName)>();
+
+            var storeOffers = new Dictionary<string, (decimal price, decimal? shippingCostNum, bool? ceneoInStock, string isBidding, string? position, string? ceneoName)>();
             string log;
             int positionCounter = 1;
 
@@ -398,8 +398,8 @@ namespace PriceSafari.Scrapers
                     }
 
                     decimal? shippingCostNum = await GetShippingCostFromOfferNodeAsync((ElementHandle)offerNode);
-                    // ZMIANA: Z 'int? availabilityNum' na 'bool? ceneoInStock'
-                    bool? ceneoInStock = await GetAvailabilityFromOfferNodeAsync((ElementHandle)offerNode);
+
+                    bool? ceneoInStock = await GetAvailabilityFromOfferNodeAsync((ElementHandle)offerNode);
                     var isBidding = await GetBiddingInfoFromOfferNodeAsync((ElementHandle)offerNode);
 
                     string? position = includePosition ? positionCounter.ToString() : null;
@@ -414,14 +414,14 @@ namespace PriceSafari.Scrapers
 
                         if (priceValue.Value < storeOffers[storeName].price)
                         {
-                            // ZMIANA: Z 'availabilityNum' na 'ceneoInStock'
-                            storeOffers[storeName] = (priceValue.Value, shippingCostNum, ceneoInStock, isBidding, position, ceneoProductName);
+
+                            storeOffers[storeName] = (priceValue.Value, shippingCostNum, ceneoInStock, isBidding, position, ceneoProductName);
                         }
                     }
                     else
                     {
-                        // ZMIANA: Z 'availabilityNum' na 'ceneoInStock'
-                        storeOffers[storeName] = (priceValue.Value, shippingCostNum, ceneoInStock, isBidding, position, ceneoProductName);
+
+                        storeOffers[storeName] = (priceValue.Value, shippingCostNum, ceneoInStock, isBidding, position, ceneoProductName);
                     }
                 }
 
@@ -429,7 +429,7 @@ namespace PriceSafari.Scrapers
                   x.Key,
                   x.Value.price,
                   x.Value.shippingCostNum,
-                  x.Value.ceneoInStock, // ZMIANA: Z 'x.Value.availabilityNum'
+                  x.Value.ceneoInStock,
                             x.Value.isBidding,
                   x.Value.position,
                   x.Value.ceneoName
@@ -531,31 +531,44 @@ namespace PriceSafari.Scrapers
             return null;
         }
 
-        // ZMIANA: Cała metoda zaktualizowana do zwracania 'bool?' i nowej logiki
-        private async Task<bool?> GetAvailabilityFromOfferNodeAsync(ElementHandle offerNode)
+        private async Task<bool?> GetAvailabilityFromOfferNodeAsync(ElementHandle offerNode)
         {
-            var availabilityNode = await offerNode.QuerySelectorAsync("span.instock")
-                       ?? await offerNode.QuerySelectorAsync("div.product-availability span");
+
+            var availabilityNode = await offerNode.QuerySelectorAsync(
+                "span.instock, span.onrequest, span.shipmentday-fastestdelivery, span.shipmentday-otherdeliveries, div.product-availability span"
+            );
 
             if (availabilityNode != null)
             {
                 var availabilityText = await availabilityNode.EvaluateFunctionAsync<string>("el => el.innerText");
 
-                // Reguła 1: true, jeśli "Wysyłka w 1 dzień"
-                if (availabilityText.Contains("Wysyłka w 1 dzień"))
+                if (string.IsNullOrWhiteSpace(availabilityText))
+                {
+                    return null;
+                }
+
+                availabilityText = availabilityText.Trim();
+
+                if (availabilityText.Contains("Sprawdź w sklepie"))
+                {
+                    return null;
+                }
+
+                if (availabilityText.Contains("Wysyłka w 1 dzień") ||
+                    availabilityText.Contains("Wysyłka jutro") ||
+                    availabilityText.Contains("Wysyłka pojutrze"))
                 {
                     return true;
                 }
-                // Reguła 2: false, jeśli "Wysyłka do X dni"
-                else if (availabilityText.Contains("Wysyłka do"))
+
+                if (availabilityText.StartsWith("Wysyłka"))
                 {
                     return false;
                 }
-                // Reguła 3: null dla reszty (np. "Sprawdź w sklepie")
-            }
 
-            // Reguła 3 (cd.): null, jeśli nie znaleziono węzła lub tekst nie pasuje
-            return null;
+            }
+
+            return null;
         }
 
         private async Task<string> GetBiddingInfoFromOfferNodeAsync(ElementHandle offerNode)
