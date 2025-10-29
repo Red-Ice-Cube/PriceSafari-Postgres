@@ -24,7 +24,6 @@ namespace PriceSafari.Controllers.ManagerControllers
         {
             var storeSummariesDict = new Dictionary<int, StoreSummaryViewModel>();
 
-            // --- 1. Agregacja danych dla PriceHistories (ULEPSZONA LOGIKA) ---
             var (_, totalPhDataKB) = await GetTableSpaceUsageKB("PriceHistories");
             var phPerStore = await _context.PriceHistories
                 .GroupBy(ph => new { ph.ScrapHistory.StoreId, ph.ScrapHistory.Store.StoreName })
@@ -44,7 +43,6 @@ namespace PriceSafari.Controllers.ManagerControllers
                 };
             }
 
-            // --- 2. Agregacja danych dla GlobalPriceReports (ULEPSZONA LOGIKA) ---
             var (_, totalGprDataKB) = await GetTableSpaceUsageKB("GlobalPriceReports");
             var gprPerStore = await _context.GlobalPriceReports
                 .GroupBy(gpr => new { gpr.PriceSafariReport.StoreId, gpr.PriceSafariReport.Store.StoreName })
@@ -72,7 +70,6 @@ namespace PriceSafari.Controllers.ManagerControllers
                 }
             }
 
-            // --- 3. Agregacja danych dla AllegroPriceHistories (ULEPSZONA LOGIKA) ---
             var (_, totalAphDataKB) = await GetTableSpaceUsageKB("AllegroPriceHistories");
             var aphPerStore = await _context.AllegroPriceHistories
                 .GroupBy(aph => new { aph.AllegroScrapeHistory.StoreId, aph.AllegroScrapeHistory.Store.StoreName })
@@ -100,11 +97,10 @@ namespace PriceSafari.Controllers.ManagerControllers
                 }
             }
 
-            // --- 4. Pobranie dodatkowych informacji diagnostycznych ---
             var totalDbSize = await GetTotalDatabaseSizeMB();
             var topTables = await GetTopTableSizesAsync(10);
             var spaceDetails = await GetDatabaseSpaceDetailsAsync();
-            // --- 5. Finalizacja i budowa ViewModelu ---
+
             var storeSummaries = storeSummariesDict.Values.OrderByDescending(s => s.TotalUsedSpaceMB + s.TotalAllegroPriceHistoriesUsedSpaceMB + s.TotalGlobalPriceReportsUsedSpaceMB).ToList();
             var viewModel = new DatabaseSizeSummaryViewModel
             {
@@ -249,13 +245,22 @@ namespace PriceSafari.Controllers.ManagerControllers
         {
             if (selectedIds != null && selectedIds.Any())
             {
-                var entitiesToRemove = await _context.AllegroScrapeHistories.Where(ash => selectedIds.Contains(ash.Id)).ToListAsync();
+
+                var entitiesToRemove = await _context.AllegroScrapeHistories
+                    .Where(ash => selectedIds.Contains(ash.Id))
+                    .ToListAsync();
+
                 if (entitiesToRemove.Any())
                 {
+
                     _context.AllegroScrapeHistories.RemoveRange(entitiesToRemove);
+
                     await _context.SaveChangesAsync();
+
+                    TempData["SuccessMessage"] = $"Pomyślnie usunięto {entitiesToRemove.Count} wpisów historii i wszystkie powiązane dane.";
                 }
             }
+
             return RedirectToAction(nameof(StoreDetails), new { storeId });
         }
         #endregion
@@ -349,10 +354,6 @@ namespace PriceSafari.Controllers.ManagerControllers
             return result;
         }
 
-
-
-
-        // Akcja GET, która zwraca częściowy widok dla modalu
         [HttpGet]
         public async Task<IActionResult> EditScrapHistoryModal(int id, int storeId)
         {
@@ -395,20 +396,17 @@ namespace PriceSafari.Controllers.ManagerControllers
             return Json(new { success = false, message = "Wystąpił błąd walidacji." });
         }
 
-        // W pliku DatabaseSizeController.cs
-
         private async Task<DatabaseSpaceDetailsViewModel> GetDatabaseSpaceDetailsAsync()
         {
             var details = new DatabaseSpaceDetailsViewModel();
-            // Pobieramy obiekt połączenia, ale bez bloku 'using', aby go nie zniszczyć
+
             var connection = _context.Database.GetDbConnection();
 
             try
             {
-                // Ręcznie otwieramy połączenie
+
                 await connection.OpenAsync();
 
-                // 1. Pobierz rozmiar pliku logu
                 using (var logCommand = connection.CreateCommand())
                 {
                     logCommand.CommandText = "SELECT CAST(SUM(size) * 8.0 / 1024 AS DECIMAL(18, 2)) FROM sys.database_files WHERE type_desc = 'LOG'";
@@ -419,7 +417,6 @@ namespace PriceSafari.Controllers.ManagerControllers
                     }
                 }
 
-                // 2. Pobierz dane o danych, indeksach i wolnym miejscu z sp_spaceused
                 using (var spaceUsedCommand = connection.CreateCommand())
                 {
                     spaceUsedCommand.CommandText = "EXEC sp_spaceused";
@@ -427,7 +424,7 @@ namespace PriceSafari.Controllers.ManagerControllers
                     {
                         if (await reader.ReadAsync())
                         {
-                            // Pierwszy zestaw wyników: database_size, unallocated space
+
                             var unallocatedString = reader["unallocated space"].ToString();
                             decimal unallocatedMB = 0;
                             decimal.TryParse(unallocatedString?.Replace(" MB", "").Replace(",", "."), NumberStyles.Any, CultureInfo.InvariantCulture, out unallocatedMB);
@@ -436,7 +433,7 @@ namespace PriceSafari.Controllers.ManagerControllers
 
                         if (await reader.NextResultAsync() && await reader.ReadAsync())
                         {
-                            // Drugi zestaw wyników: reserved, data, index_size, unused (w KB)
+
                             long.TryParse(reader["data"].ToString()?.Replace(" KB", "").Replace(",", ""), out long dataKB);
                             long.TryParse(reader["index_size"].ToString()?.Replace(" KB", "").Replace(",", ""), out long indexKB);
                             long.TryParse(reader["unused"].ToString()?.Replace(" KB", "").Replace(",", ""), out long unusedKB);
@@ -450,7 +447,7 @@ namespace PriceSafari.Controllers.ManagerControllers
             }
             finally
             {
-                // Upewniamy się, że połączenie jest zamknięte, niezależnie od wszystkiego
+
                 if (connection.State == System.Data.ConnectionState.Open)
                 {
                     await connection.CloseAsync();
@@ -469,7 +466,6 @@ namespace PriceSafari.Controllers.ManagerControllers
         public string TableName { get; set; }
         public decimal SizeMB { get; set; }
     }
-
 
     public class DatabaseSpaceDetailsViewModel
     {
@@ -547,10 +543,9 @@ namespace PriceSafari.Controllers.ManagerControllers
     {
         public int Id { get; set; }
         public DateTime Date { get; set; }
-        public int StoreId { get; set; } // Dodaj to pole, aby przekazać ID sklepu po edycji.
+        public int StoreId { get; set; }
     }
 
     #endregion
-
 
 }

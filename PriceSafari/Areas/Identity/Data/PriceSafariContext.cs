@@ -217,7 +217,7 @@ namespace PriceSafari.Data
                 .HasMany(h => h.PriceHistories)
                 .WithOne(p => p.AllegroScrapeHistory)
                 .HasForeignKey(p => p.AllegroScrapeHistoryId)
-                .OnDelete(DeleteBehavior.Restrict);
+                .OnDelete(DeleteBehavior.Cascade);
 
             modelBuilder.Entity<AllegroProductClass>()
 
