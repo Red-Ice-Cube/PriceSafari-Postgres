@@ -3256,7 +3256,7 @@ tr:last-child .sub-line {
     font-size: 14px;
     font-weight: 400;
     color: #4e4e4e;
-    height: 36px;
+    height: 41px;
 }
 
 .price-box-stats-container {
@@ -3290,7 +3290,7 @@ tr:last-child .sub-line {
 }
 
 .Campaign-stack {
-    background-color: rgba(242, 56, 173, 0.20);
+    background-color: rgba(69, 20, 207, 0.10);
     display: flex;
     border-radius: 4px;
     align-items: center;
@@ -3302,7 +3302,7 @@ tr:last-child .sub-line {
 }
 
 .campaign-stack-badge {
-    background-color: #F238AD;
+    background-color: rgba(69, 20, 207, 1);
     color: #fff !important;
     display: inline-block;
     padding: 2px 5px;

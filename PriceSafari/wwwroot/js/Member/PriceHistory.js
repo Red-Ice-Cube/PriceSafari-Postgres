@@ -2530,7 +2530,7 @@
                 productImage.alt = item.productName;
                 productImage.className = 'lazy-load';
                 productImage.style.width = '142px';
-                productImage.style.height = '162px';
+                productImage.style.height = '182px';
                 productImage.style.objectFit = 'contain';
                 productImage.style.objectPosition = 'center';
                 productImage.style.marginRight = '3px';

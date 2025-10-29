@@ -543,14 +543,7 @@
             arrowClass = 'no-change-icon-gray';
         }
 
-        let squareColorClass = 'color-square-gray';
-        if (priceType === 'raise' || priceType === 'ideal') {
-            squareColorClass = 'color-square-turquoise';
-        } else if (priceType === 'lower') {
-            squareColorClass = 'color-square-red';
-        } else if (priceType.startsWith('good')) {
-            squareColorClass = 'color-square-green';
-        }
+        let squareColorClass = 'color-square-turquoise';
 
         return {
             suggestedPrice: suggestedPrice,
