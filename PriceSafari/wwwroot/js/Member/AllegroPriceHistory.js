@@ -765,6 +765,29 @@
                 myPromoInfoText = ` <span class="AddPromoInfoBadge">Sponsorowane</span>`;
             }
 
+            let myPricePositionHtml = '';
+            if (item.myPricePosition) { // Sprawdzamy, czy pozycja istnieje
+                myPricePositionHtml = `
+    <div class="price-box-column-offers-a">
+        <span class="data-channel" title="Pozycja cenowa Twojej oferty">
+            <i class="fas fa-trophy" style="font-size: 15px; color: grey; margin-top:1px;"></i>
+        </span>
+        <div class="offer-count-box">
+            <p>${item.myPricePosition}</p> 
+        </div>
+    </div>`;
+            } else if (item.myPrice != null) { // Jeśli mamy cenę, ale brak pozycji (np. jedyna oferta)
+                myPricePositionHtml = `
+     <div class="price-box-column-offers-a">
+         <span class="data-channel" title="Pozycja cenowa Twojej oferty">
+             <i class="fas fa-trophy" style="font-size: 15px; color: grey; margin-top:1px;"></i>
+         </span>
+         <div class="offer-count-box">
+             <p>N/A</p> 
+         </div>
+     </div>`;
+            }
+
             const competitorPriceStyle = item.isBestPriceGuarantee ? 'color: #169A23;' : '';
             const competitorPriceIcon = item.isBestPriceGuarantee ? `<img src="/images/TopPrice.png" alt="Gwarancja Najniższej Ceny" title="Gwarancja Najniższej Ceny" style="width: 18px; height: 18px; vertical-align: middle;">` : '';
             const myPriceStyle = item.myIsBestPriceGuarantee ? 'color: #169A23;' : '';
@@ -835,6 +858,7 @@
                     </span>
                     <div class="offer-count-box">${getOfferText(item.totalOfferCount)}</div>
                 </div>
+                ${myPricePositionHtml}
                 <div class="price-box-column-offers-a">
                     <span class="data-channel">
                         <i class="fas fa-shopping-cart" style="font-size: 15px; color: grey; margin-top:1px;" title="Łączna sprzedaż ostatnich 30 dni"></i>

@@ -177,6 +177,33 @@ namespace PriceSafari.Controllers.MemberControllers
                     }
                     var visibleOfferCount = filteredCompetitors.Count() + (myOffer != null ? 1 : 0);
 
+                    // <<< POCZĄTEK NOWEGO KODU - OBLICZANIE POZYCJI CENOWEJ >>>
+
+                    // 1. Stwórz pełną listę widocznych ofert (konkurenci + Twoja)
+                    var allVisibleOffers = new List<AllegroPriceHistory>(filteredCompetitors);
+                    if (myOffer != null)
+                    {
+                        allVisibleOffers.Add(myOffer);
+                    }
+
+                    // 2. Posortuj pełną listę rosnąco po cenie
+                    var sortedOffers = allVisibleOffers.OrderBy(p => p.Price).ToList();
+
+                    // 3. Znajdź pozycję Twojej oferty i sformatuj string "X / Y"
+                    string myPricePosition = null;
+                    if (myOffer != null)
+                    {
+                        // Znajdujemy indeks (0-based) Twojej oferty na posortowanej liście
+                        int zeroBasedIndex = sortedOffers.FindIndex(p => p.IdAllegro == myOffer.IdAllegro);
+
+                        if (zeroBasedIndex != -1)
+                        {
+                            int myRank = zeroBasedIndex + 1; // Nasza pozycja "X" (1-based)
+                            myPricePosition = $"{myRank}/{visibleOfferCount}"; // Format "X / Y"
+                        }
+                    }
+                    // <<< KONIEC NOWEGO KODU >>>
+
                     var extendedInfo = extendedInfoDictionary.GetValueOrDefault(product.AllegroProductId);
 
                     return new
@@ -189,6 +216,7 @@ namespace PriceSafari.Controllers.MemberControllers
                         StoreName = bestCompetitor?.SellerName,
                         StoreCount = visibleSellers.Count,
                         TotalOfferCount = visibleOfferCount,
+                        MyPricePosition = myPricePosition, // <<< DODANA WŁAŚCIWOŚĆ
                         TotalPopularity = totalPopularity,
                         MyTotalPopularity = myPopularity,
                         MarketSharePercentage = marketSharePercentage,
