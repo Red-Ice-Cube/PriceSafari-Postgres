@@ -33,7 +33,7 @@ namespace PriceSafari.Models
         public bool IsProcessing { get; set; } = false;
 
 
-        //nowe rzeczy
+        
 
         public bool? IsApiProcessed { get; set; }
 
@@ -48,6 +48,7 @@ namespace PriceSafari.Models
         public decimal? ApiAllegroCommission { get; set; }
 
         public bool? AnyPromoActive { get; set; }
+        public string? AllegroEan { get; set; }
 
 
         public virtual ICollection<AllegroScrapedOffer> ScrapedOffers { get; set; } = new List<AllegroScrapedOffer>();
