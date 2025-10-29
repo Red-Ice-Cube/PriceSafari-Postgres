@@ -25,22 +25,15 @@ namespace PriceSafari.Services.AllegroServices
         {
             var userStore = await _context.Stores.FindAsync(storeId);
 
-            // --- START MODYFIKACJI ---
-
-            // 1. Sprawdzamy, czy sklep istnieje I CZY MA TOKEN
             if (userStore == null || userStore.RemainingScrapes <= 0)
             {
-                return (0, 0); // Zakończ, jeśli nie ma tokenów
+                return (0, 0);
             }
 
-            // 2. KONSUMPCJA TOKENA
-            // Sprawdzamy, czy BaseScal (Ceneo/Google) już tego nie zrobił
             userStore.RemainingScrapes--;
-            await _context.SaveChangesAsync(); // Zapisujemy zużycie tokena natychmiast
 
-            // --- KONIEC MODYFIKACJI ---
+            await _context.SaveChangesAsync();
 
-            // 3. Kontynuujemy resztę logiki (bez zmian)
             if (string.IsNullOrEmpty(userStore.StoreNameAllegro))
             {
                 return (0, 0);
@@ -166,14 +159,49 @@ namespace PriceSafari.Services.AllegroServices
 
             foreach (var scrapedOffer in scrapedOffersData)
             {
-                var productIdsForThisStore = scrapedOffer.AllegroOfferToScrape.AllegroProductIds
+                // ---------- ZMIANA START ----------
+                // 1. Znajdź ŚLEDZONY obiekt 'OfferToScrape' z listy załadowanej na początku metody.
+                var sourceOfferToScrape = allOffersToScrape.FirstOrDefault(o => o.Id == scrapedOffer.AllegroOfferToScrapeId);
+
+                // 2. Zabezpieczenie (choć nie powinno się zdarzyć)
+                if (sourceOfferToScrape == null)
+                {
+                    continue; // Pomiń, jeśli z jakiegoś powodu nie znaleziono obiektu nadrzędnego
+                }
+
+                // 3. Użyj śledzonego obiektu 'sourceOfferToScrape' do pobrania listy ID produktów
+                var productIdsForThisStore = sourceOfferToScrape.AllegroProductIds
                     .Intersect(storeProductIds)
                     .ToList();
+                // ---------- ZMIANA KONIEC ----------
 
-                var sourceOfferToScrape = scrapedOffer.AllegroOfferToScrape;
 
+                if (sourceOfferToScrape.IsApiProcessed == true && !string.IsNullOrEmpty(sourceOfferToScrape.AllegroEan))
+                {
+                    var newEan = sourceOfferToScrape.AllegroEan;
+
+                    // Ta logika była już poprawna - modyfikuje śledzoną listę 'storeProducts'
+                    var productsToUpdateEan = storeProducts
+                        .Where(p => productIdsForThisStore.Contains(p.AllegroProductId))
+                        .ToList();
+
+                    foreach (var product in productsToUpdateEan)
+                    {
+                        if (product.AllegroEan != newEan)
+                        {
+                            product.AllegroEan = newEan;
+                        }
+                    }
+                }
+
+                // Reszta pętli (dodawanie do historii cen) bez zmian...
                 foreach (var productId in productIdsForThisStore)
                 {
+
+                    if (allProductIdsToReject.Contains(productId))
+                    {
+                        continue;
+                    }
 
                     newPriceHistories.Add(new AllegroPriceHistory
                     {
@@ -217,7 +245,6 @@ namespace PriceSafari.Services.AllegroServices
 
             if (newExtendedInfos.Any())
             {
-
                 await _context.AllegroPriceHistoryExtendedInfos.AddRangeAsync(newExtendedInfos);
             }
 

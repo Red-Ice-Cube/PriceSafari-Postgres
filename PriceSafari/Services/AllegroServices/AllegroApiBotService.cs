@@ -11,13 +11,13 @@ using System.Text.Json.Nodes;
 
 namespace PriceSafari.Services.AllegroServices
 {
-    // ZMIANA 1: Dodanie pola 'Ean' do rekordu
+   
     public record AllegroApiData(
         decimal? BasePrice,
         decimal? FinalPrice,
         decimal? Commission,
         bool HasActivePromo,
-        string? Ean // <-- NOWE POLE
+        string? Ean 
     );
 
     public class AllegroApiBotService
@@ -101,12 +101,11 @@ namespace PriceSafari.Services.AllegroServices
                     var apiData = await FetchApiDataForOffer(accessToken, offer.AllegroOfferId.ToString());
                     if (apiData != null)
                     {
-                        // ZMIANA 2: Przypisanie nowych danych do encji
                         offer.ApiAllegroPriceFromUser = apiData.BasePrice;
                         offer.ApiAllegroPrice = apiData.FinalPrice;
                         offer.ApiAllegroCommission = apiData.Commission;
                         offer.AnyPromoActive = apiData.HasActivePromo;
-                        offer.AllegroEan = apiData.Ean; // <-- PRZYPISANIE EAN
+                        offer.AllegroEan = apiData.Ean; 
                     }
                     offer.IsApiProcessed = true;
                     processedCount++;
@@ -142,7 +141,7 @@ namespace PriceSafari.Services.AllegroServices
             }
         }
 
-        // ZMIANA 3: Modyfikacja metody pobierającej dane
+  
         private async Task<AllegroApiData?> FetchApiDataForOffer(string accessToken, string offerId)
         {
             try
