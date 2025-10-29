@@ -252,7 +252,7 @@
                                     <th>Produkt (<span id="displayed-count"></span>)</th>
                                     <th></th>
                                  
-                                    <th>Zakup</th>
+                                    <th>Cena zakupu</th>
                                     <th>Oferta</th>
                                     <th>Monitoring</th>
                             
@@ -446,13 +446,24 @@
                 return products.filter(product => decodeHTML(product.producer || "Brak") === producer);
             }
 
-            function filterProductsByName(products, name) {
-                const sanitizedInput = name.replace(/[^a-zA-Z0-9\s.-]/g, '').trim().toLowerCase();
-                return products.filter(product => {
-                    const sanitizedProductName = product.productName.toLowerCase().replace(/[^a-zA-Z0-9\s.-]/g, '').trim();
-                    return sanitizedProductName.includes(sanitizedInput);
-                });
-            }
+           function filterProductsByName(products, name) {
+                 const sanitizedInput = name.replace(/[^a-zA-Z0-9\s.-]/g, '').trim().toLowerCase();
+
+         
+                 if (sanitizedInput === '') {
+                     return products;
+                 }
+
+                 return products.filter(product => {
+                  
+                     const sanitizedProductName = product.productName.toLowerCase().replace(/[^a-zA-Z0-9\s.-]/g, '').trim();
+
+                     const sanitizedEan = (product.ean || '').toLowerCase().replace(/[^a-zA-Z0-9\s.-]/g, '').trim();
+
+
+                     return sanitizedProductName.includes(sanitizedInput) || sanitizedEan.includes(sanitizedInput);
+                 });
+             }
 
             function getProductStatus(product) {
                 if (product.isScrapable && product.isRejected) {
@@ -481,7 +492,7 @@
             return `rgba(${r}, ${g}, ${b}, ${alpha})`;
         }
 
-        // ### DODANE: Funkcja do tworzenia kontenera z flagami dla produktu ###
+
         function createFlagsContainer(product) {
             const flagsContainer = document.createElement('div');
             flagsContainer.className = 'flags-container';
@@ -502,7 +513,7 @@
             return flagsContainer;
         }
 
-        // ### DODANE: Funkcja do renderowania i aktualizacji filtrów flag ###
+
         function updateAndRenderFlagFilters(products) {
             const flagCounts = {};
             let noFlagCount = 0;
@@ -543,7 +554,7 @@
                 });
             }
 
-            // Dodaj opcję dla produktów bez flag
+           
             const noFlagIncludeChecked = selectedFlagsInclude.has('noFlag') ? 'checked' : '';
             const noFlagExcludeChecked = selectedFlagsExclude.has('noFlag') ? 'checked' : '';
             const noFlagElementHTML = `
@@ -560,7 +571,7 @@
                 </div>`;
             flagContainer.insertAdjacentHTML('beforeend', noFlagElementHTML);
 
-            // Dodaj listenery do nowo utworzonych checkboxów
+       
             document.querySelectorAll('.flagFilterInclude, .flagFilterExclude').forEach(checkbox => {
                 checkbox.addEventListener('change', function () {
                     const flagValue = this.value;
@@ -574,7 +585,7 @@
                         } else {
                             selectedFlagsInclude.delete(flagValue);
                         }
-                    } else { // isExclude
+                    } else { 
                         if (this.checked) {
                             document.getElementById(`flagCheckboxInclude_${flagValue}`).checked = false;
                             selectedFlagsInclude.delete(flagValue);
@@ -633,9 +644,16 @@
 
                 var platformStatus = getProductPlatformStatus(product);
                 var isNotFound = platformStatus.notFound;
-                var highlightedProductName = highlightMatches(product.productName, searchTerm);
-                  var producer = product.producer ? `<b>Producent:</b> ${product.producer}` : '';
-                 var ean = product.ean ? `<b>EAN:</b> ${product.ean}` : '';
+                 var highlightedProductName = highlightMatches(product.productName, searchTerm);
+                   var producer = product.producer ? `<b>Producent:</b> ${product.producer}` : '';
+
+             
+                   var ean = '';
+                   if (product.ean) {
+                     
+                       const highlightedEan = highlightMatches(product.ean, searchTerm);
+                       ean = `<b>EAN:</b> ${highlightedEan}`;
+                   }
 
 
                 var newGoogleUrl = createNewGoogleUrl(product);
@@ -672,13 +690,13 @@
 
                var statusBoxClass = "";
          var statusText = "";
-         // ### DODANE: Zmienna do przechowywania dodatkowej klasy dla checkboxa ###
+
          var checkboxStatusClass = "";
 
          if (product.isScrapable && product.isRejected) {
              statusBoxClass = "StatusBoxProduct-1";
              statusText = "Odrzucony";
-             // ### DODANE: Przypisanie klasy, gdy status to "Odrzucony" ###
+        
              checkboxStatusClass = "rejected";
          } else if (product.isScrapable) {
              statusBoxClass = "StatusBoxProduct-2";
@@ -783,7 +801,7 @@
                     });
                 }
 
-                   let productsBeforeFlagFilter = [...filteredProducts]; // Kopia do liczenia
+                   let productsBeforeFlagFilter = [...filteredProducts]; 
 
          if (selectedFlagsExclude.size > 0) {
              filteredProducts = filteredProducts.filter(item => {
