@@ -94,8 +94,12 @@
     }
 
     let sortingState = {
-        sortName: null, sortPrice: null, sortRaiseAmount: null,
-        sortRaisePercentage: null, sortLowerAmount: null, sortLowerPercentage: null,
+        sortName: null,
+        sortPrice: null,
+        sortRaiseAmount: null,
+        sortRaisePercentage: null,
+        sortLowerAmount: null,
+        sortLowerPercentage: null,
     };
 
     let isCatalogViewActive = false;
@@ -118,8 +122,14 @@
     }
 
     function convertPriceValue(price) {
-        if (price.isRejected) return { valueToUse: null, colorClass: 'prNoOffer' };
-        if (price.onlyMe) return { valueToUse: null, colorClass: 'prOnlyMe' };
+        if (price.isRejected) return {
+            valueToUse: null,
+            colorClass: 'prNoOffer'
+        };
+        if (price.onlyMe) return {
+            valueToUse: null,
+            colorClass: 'prOnlyMe'
+        };
 
         let valueForColor;
         if (usePriceDifference) {
@@ -132,10 +142,16 @@
             }
         }
 
-        if (valueForColor == null) return { valueToUse: null, colorClass: 'prNoOffer' };
+        if (valueForColor == null) return {
+            valueToUse: null,
+            colorClass: 'prNoOffer'
+        };
 
         const colorClass = getColorClass(valueForColor, price.isUniqueBestPrice, price.isSharedBestPrice);
-        return { valueToUse: valueForColor, colorClass: colorClass };
+        return {
+            valueToUse: valueForColor,
+            colorClass: colorClass
+        };
     }
 
     function getOfferText(count) {
@@ -148,13 +164,20 @@
 
     function getDefaultButtonLabel(key) {
         switch (key) {
-            case 'sortName': return 'A-Z';
-            case 'sortPrice': return 'Cena';
-            case 'sortRaiseAmount': return 'Podnieś PLN';
-            case 'sortRaisePercentage': return 'Podnieś %';
-            case 'sortLowerAmount': return 'Obniż PLN';
-            case 'sortLowerPercentage': return 'Obniż %';
-            default: return '';
+            case 'sortName':
+                return 'A-Z';
+            case 'sortPrice':
+                return 'Cena';
+            case 'sortRaiseAmount':
+                return 'Podnieś PLN';
+            case 'sortRaisePercentage':
+                return 'Podnieś %';
+            case 'sortLowerAmount':
+                return 'Obniż PLN';
+            case 'sortLowerPercentage':
+                return 'Obniż %';
+            default:
+                return '';
         }
     }
 
@@ -185,12 +208,23 @@
         if (deliveryTime === null || deliveryTime === undefined) {
             return '';
         }
-        let text = '', className = '';
+        let text = '',
+            className = '';
         switch (deliveryTime) {
-            case 1: text = 'Dostawa jutro'; className = 'Delivery1'; break;
-            case 2: text = 'Dostawa pojutrze'; className = 'Delivery2'; break;
-            case 3: text = 'Długa dostawa'; className = 'Delivery3'; break;
-            default: return '';
+            case 1:
+                text = 'Dostawa jutro';
+                className = 'Delivery1';
+                break;
+            case 2:
+                text = 'Dostawa pojutrze';
+                className = 'Delivery2';
+                break;
+            case 3:
+                text = 'Długa dostawa';
+                className = 'Delivery3';
+                break;
+            default:
+                return '';
         }
         return `<div class="${className}">${text}</div>`;
     }
@@ -284,7 +318,9 @@
     }
 
     function hexToRgba(hex, alpha) {
-        let r = 0, g = 0, b = 0;
+        let r = 0,
+            g = 0,
+            b = 0;
         if (hex.length == 4) {
             r = parseInt(hex[1] + hex[1], 16);
             g = parseInt(hex[2] + hex[2], 16);
@@ -301,7 +337,8 @@
         if (!stepPriceInput || !stepPriceIndicatorSpan) return;
         const valueStr = stepPriceInput.value.replace(',', '.');
         const value = parseFloat(valueStr);
-        let iconClass = '', titleText = '';
+        let iconClass = '',
+            titleText = '';
 
         if (isNaN(value)) {
 
@@ -349,7 +386,10 @@
 
         let stepInfoText = "";
         if (typeof stepPriceApplied !== 'undefined' && stepPriceApplied !== null && typeof stepUnitApplied !== 'undefined') {
-            const formattedStepPrice = stepPriceApplied.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            const formattedStepPrice = stepPriceApplied.toLocaleString('pl-PL', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            });
             stepInfoText = ` Krok ${formattedStepPrice} ${stepUnitApplied} |`;
         }
 
@@ -427,9 +467,9 @@
         const currentSetStepPrice = setStepPrice;
         const currentUsePriceDifference = usePriceDifference;
 
-        const basePriceForChangeCalc = item.apiAllegroPriceFromUser != null
-            ? parseFloat(item.apiAllegroPriceFromUser)
-            : currentMyPrice;
+        const basePriceForChangeCalc = item.apiAllegroPriceFromUser != null ?
+            parseFloat(item.apiAllegroPriceFromUser) :
+            currentMyPrice;
 
         let suggestedPrice = null;
         let basePriceForCalc = null;
@@ -475,7 +515,9 @@
                 } else {
                     suggestedPrice = basePriceForCalc * (1 + (currentSetStepPrice / 100));
                 }
-                if (suggestedPrice < 0.01) { suggestedPrice = 0.01; }
+                if (suggestedPrice < 0.01) {
+                    suggestedPrice = 0.01;
+                }
                 suggestedPrice = parseFloat(suggestedPrice.toFixed(2));
             }
         } else if (priceType === 'onlyMe' || priceType === 'noOffer') {
@@ -524,10 +566,22 @@
 
         if (!suggestionData || suggestionData.suggestedPrice === null || suggestionData.priceType === 'noOffer') {
 
-            return { html: '<div class="price-box-column">Brak sugestii</div>', actionLineSelector: null, suggestedPrice: null, myPrice: item.myPrice };
+            return {
+                html: '<div class="price-box-column">Brak sugestii</div>',
+                actionLineSelector: null,
+                suggestedPrice: null,
+                myPrice: item.myPrice
+            };
         }
 
-        const { suggestedPrice, totalChangeAmount, percentageChange, arrowClass, priceType, squareColorClass } = suggestionData;
+        const {
+            suggestedPrice,
+            totalChangeAmount,
+            percentageChange,
+            arrowClass,
+            priceType,
+            squareColorClass
+        } = suggestionData;
         const myPrice = item.myPrice != null ? parseFloat(item.myPrice) : null;
 
         if (priceType === 'onlyMe') {
@@ -589,9 +643,9 @@
         if (item.marginPrice != null && suggestedPrice != null) {
             const marginPrice = parseFloat(item.marginPrice);
 
-            const commission = includeCommissionInMargin && item.apiAllegroCommission != null
-                ? parseFloat(item.apiAllegroCommission)
-                : 0;
+            const commission = includeCommissionInMargin && item.apiAllegroCommission != null ?
+                parseFloat(item.apiAllegroCommission) :
+                0;
 
             const newNetPrice = suggestedPrice - commission;
 
@@ -650,32 +704,20 @@
 
     function createApiInfoHtml(item) {
 
-        const commissionLine = item.apiAllegroCommission != null ? `<div style="color: #c0392b;">Prowizja: <strong>${item.apiAllegroCommission.toFixed(2)} PLN</strong></div>` : '';
-
         let campaignLine = '';
 
         if (item.anyPromoActive === true && item.apiAllegroPriceFromUser != null) {
 
             const formattedPromoPrice = formatPricePL(item.apiAllegroPriceFromUser, false);
 
-            campaignLine = `
-            <div class="Campaign-stack" style="text-align: left; margin-top: 3px;">
-                <span class="campaign-stack-badge">Kampania Allegro | Twoja cena</span>
-                <p>${formattedPromoPrice} PLN</p>
-            </div>
-        `;
+            campaignLine = `<div class="Campaign-stack" style="text-align: left; margin-top: 3px;"><span class="campaign-stack-badge">Kampania Allegro | Twoja cena</span><p>${formattedPromoPrice} PLN</p></div>`;
         }
 
-        if (commissionLine === '' && campaignLine === '') {
+        if (campaignLine === '') {
             return '';
         }
 
-        return `
-    <div class="api-info-container">
-        ${commissionLine}
-        ${campaignLine}
-    </div>
-    `;
+        return `<div class="api-info-container">${campaignLine}</div>`;
     }
 
     function renderPrices(data) {
@@ -761,8 +803,19 @@
                 </div>
                `;
             }
+            let commissionHtml = '';
+            if (item.apiAllegroCommission != null) {
+                const formattedCommission = formatPricePL(item.apiAllegroCommission, false);
+                commissionHtml = `
+                <div class="Commission-stack" style="text-align: left; margin-top: 3px;">
+                    <span class="commission-stack-badge">Koszt Allegro</span>
+                    <p>${formattedCommission} PLN</p>
+                </div>
+                `;
+            }
 
             const box = document.createElement('div');
+
             box.className = 'price-box ' + item.colorClass;
             box.dataset.productId = item.productId;
             box.dataset.detailsUrl = `/AllegroPriceHistory/Details?storeId=${storeId}&productId=${item.productId}`;
@@ -848,8 +901,7 @@
                                 ${highlightedMyStoreName}
                         ${item.myIsSuperSeller ? `<img src="/images/SuperSeller.png" alt="Super Sprzedawca" title="Super Sprzedawca" style="width: 16px; height: 16px; vertical-align: middle;">` : ''}
                                 ${myPromoInfoText} </div>
-                             ${createApiInfoHtml(item)}
-                            ${marginHtml}
+                             ${marginHtml}${commissionHtml}${createApiInfoHtml(item)}
                         </div>
                     </div>
                     <div class="price-box-column-text">
@@ -1049,8 +1101,12 @@
 
         fetch('/ProductFlags/GetFlagCountsForProducts', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ allegroProductIds: Array.from(selectedProductIds, id => parseInt(id)) })
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                allegroProductIds: Array.from(selectedProductIds, id => parseInt(id))
+            })
         })
             .then(response => response.json())
             .then(counts => {
@@ -1135,7 +1191,9 @@
         showLoading();
         fetch('/ProductFlags/UpdateFlagsForMultipleProducts', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+                'Content-Type': 'application/json'
+            },
             body: JSON.stringify(data)
         })
             .then(response => response.json())
@@ -1182,8 +1240,18 @@
     }
 
     function renderChart(data) {
-        const colorCounts = { prNoOffer: 0, prOnlyMe: 0, prToHigh: 0, prMid: 0, prGood: 0, prIdeal: 0, prToLow: 0 };
-        data.forEach(item => { if (colorCounts.hasOwnProperty(item.colorClass)) colorCounts[item.colorClass]++; });
+        const colorCounts = {
+            prNoOffer: 0,
+            prOnlyMe: 0,
+            prToHigh: 0,
+            prMid: 0,
+            prGood: 0,
+            prIdeal: 0,
+            prToLow: 0
+        };
+        data.forEach(item => {
+            if (colorCounts.hasOwnProperty(item.colorClass)) colorCounts[item.colorClass]++;
+        });
         const chartData = Object.values(colorCounts);
         const ctx = document.getElementById('colorChart');
         if (!ctx) return;
@@ -1204,7 +1272,8 @@
                             'rgba(224, 168, 66, 0.8)',
                             'rgba(117, 152, 112, 0.8)',
                             'rgba(13, 110, 253, 0.8)',
-                            'rgba(6, 6, 6, 0.8)'],
+                            'rgba(6, 6, 6, 0.8)'
+                        ],
                         borderColor: [
                             'rgba(230, 230, 230, 1)',
                             'rgba(180, 180, 180, 1)',
@@ -1220,10 +1289,22 @@
                     }]
                 },
                 options: {
-                    responsive: true, maintainAspectRatio: false, cutout: '65%', layout: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '65%',
+                    layout: {
                         padding: 4
                     },
-                    plugins: { legend: { display: false }, tooltip: { callbacks: { label: (c) => `Produkty: ${c.parsed}` } } }
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: (c) => `Produkty: ${c.parsed}`
+                            }
+                        }
+                    }
                 }
             });
         }
@@ -1232,8 +1313,18 @@
     const debouncedRenderChart = debounce(renderChart, 300);
 
     function updateColorCounts(data) {
-        const counts = { prNoOffer: 0, prOnlyMe: 0, prToHigh: 0, prMid: 0, prGood: 0, prIdeal: 0, prToLow: 0 };
-        data.forEach(item => { if (counts.hasOwnProperty(item.colorClass)) counts[item.colorClass]++; });
+        const counts = {
+            prNoOffer: 0,
+            prOnlyMe: 0,
+            prToHigh: 0,
+            prMid: 0,
+            prGood: 0,
+            prIdeal: 0,
+            prToLow: 0
+        };
+        data.forEach(item => {
+            if (counts.hasOwnProperty(item.colorClass)) counts[item.colorClass]++;
+        });
 
         document.querySelector('label[for="prNoOfferCheckbox"]').textContent = `Cena niedostępna (${counts.prNoOffer})`;
         document.querySelector('label[for="prOnlyMeCheckbox"]').textContent = `Cena solo (${counts.prOnlyMe})`;
@@ -1290,12 +1381,29 @@
                     filtered.sort((a, b) => {
                         let valA, valB;
                         switch (key) {
-                            case 'sortName': valA = a.productName; valB = b.productName; break;
-                            case 'sortPrice': valA = a.lowestPrice; valB = b.lowestPrice; break;
-                            case 'sortRaiseAmount': valA = a.savings; valB = b.savings; break;
-                            case 'sortRaisePercentage': case 'sortLowerPercentage': valA = a.percentageDifference; valB = b.percentageDifference; break;
-                            case 'sortLowerAmount': valA = a.priceDifference; valB = b.priceDifference; break;
-                            default: return 0;
+                            case 'sortName':
+                                valA = a.productName;
+                                valB = b.productName;
+                                break;
+                            case 'sortPrice':
+                                valA = a.lowestPrice;
+                                valB = b.lowestPrice;
+                                break;
+                            case 'sortRaiseAmount':
+                                valA = a.savings;
+                                valB = b.savings;
+                                break;
+                            case 'sortRaisePercentage':
+                            case 'sortLowerPercentage':
+                                valA = a.percentageDifference;
+                                valB = b.percentageDifference;
+                                break;
+                            case 'sortLowerAmount':
+                                valA = a.priceDifference;
+                                valB = b.priceDifference;
+                                break;
+                            default:
+                                return 0;
                         }
                         if (valA == null) return 1;
                         if (valB == null) return -1;
@@ -1368,7 +1476,10 @@
         document.getElementById('usePriceDifference').addEventListener('change', function () {
             usePriceDifference = this.checked;
             updateUnits(usePriceDifference);
-            allPrices = allPrices.map(p => ({ ...p, ...convertPriceValue(p) }));
+            allPrices = allPrices.map(p => ({
+                ...p,
+                ...convertPriceValue(p)
+            }));
             filterAndSortPrices();
         });
 
@@ -1419,11 +1530,19 @@
             const price2 = parseFloat(document.getElementById('price2').value.replace(',', '.'));
             const stepPrice = parseFloat(document.getElementById('stepPrice').value.replace(',', '.'));
             const usePriceDiff = document.getElementById('usePriceDifference').checked;
-            const data = { StoreId: storeId, SetPrice1: price1, SetPrice2: price2, PriceStep: stepPrice, UsePriceDifference: usePriceDiff };
+            const data = {
+                StoreId: storeId,
+                SetPrice1: price1,
+                SetPrice2: price2,
+                PriceStep: stepPrice,
+                UsePriceDifference: usePriceDiff
+            };
 
             fetch('/AllegroPriceHistory/SavePriceValues', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json'
+                },
                 body: JSON.stringify(data)
             })
                 .then(res => res.json())
@@ -1438,8 +1557,13 @@
 
     }
 
-    function showLoading() { document.getElementById("loadingOverlay").style.display = "flex"; }
-    function hideLoading() { document.getElementById("loadingOverlay").style.display = "none"; }
+    function showLoading() {
+        document.getElementById("loadingOverlay").style.display = "flex";
+    }
+
+    function hideLoading() {
+        document.getElementById("loadingOverlay").style.display = "none";
+    }
 
     function loadPrices() {
         showLoading();
@@ -1481,15 +1605,15 @@
 
                     const marginPrice = p.marginPrice != null ? parseFloat(p.marginPrice) : null;
 
-                    const basePriceForCurrentMargin = p.apiAllegroPriceFromUser != null
-                        ? parseFloat(p.apiAllegroPriceFromUser)
-                        : (p.myPrice != null ? parseFloat(p.myPrice) : null);
+                    const basePriceForCurrentMargin = p.apiAllegroPriceFromUser != null ?
+                        parseFloat(p.apiAllegroPriceFromUser) :
+                        (p.myPrice != null ? parseFloat(p.myPrice) : null);
 
                     if (marginPrice != null && basePriceForCurrentMargin != null) {
 
-                        const commission = includeCommissionInMargin && p.apiAllegroCommission != null
-                            ? parseFloat(p.apiAllegroCommission)
-                            : 0;
+                        const commission = includeCommissionInMargin && p.apiAllegroCommission != null ?
+                            parseFloat(p.apiAllegroCommission) :
+                            0;
 
                         const netPrice = basePriceForCurrentMargin - commission;
 

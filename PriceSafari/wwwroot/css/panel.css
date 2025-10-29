@@ -3321,6 +3321,34 @@ tr:last-child .sub-line {
     text-align: center;
 }
 
+
+
+
+
+.Commission-stack {
+    background-color: rgba(178, 178, 178, 0.20);
+    display: flex;
+    border-radius: 4px;
+    align-items: center;
+    font-size: 12PX;
+    font-weight: 500;
+    color: #000000;
+    gap: 4px;
+    padding-right: 4px;
+}
+
+.commission-stack-badge {
+    background-color: #7E7E7E;
+    color: #fff !important;
+    display: inline-block;
+    padding: 2px 5px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 500;
+    margin-right: 4px;
+    width:77px;
+}
+
 .diff-amount {
 }
 
