@@ -3289,6 +3289,38 @@ tr:last-child .sub-line {
     margin-right: 4px;
 }
 
+.Campaign-stack {
+    background-color: rgba(242, 56, 173, 0.20);
+    display: flex;
+    border-radius: 4px;
+    align-items: center;
+    font-size: 12PX;
+    font-weight: 500;
+    color: #000000;
+    gap: 4px;
+    padding-right: 4px;
+}
+
+.campaign-stack-badge {
+    background-color: #F238AD;
+    color: #fff !important;
+    display: inline-block;
+    padding: 2px 5px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 500;
+    margin-right: 4px;
+}
+
+.AddPromoInfoBadge {
+    display: inline-flex;
+    font-size: 11px;
+    font-weight: 500;
+    color: #9A9A9A !important;
+    align-self: center;
+    text-align: center;
+}
+
 .diff-amount {
 }
 
@@ -4232,7 +4264,6 @@ tr:last-child .sub-line {
     color: #fff;
     background-color: #D34545;
 }
-
 
 .name-cell {
     max-width: 150px;

@@ -9,6 +9,9 @@
     let setStepPrice = 2.00;
     let usePriceDifference = document.getElementById('usePriceDifference').checked;
 
+    let includeCommissionInMargin = false;
+    const includeCommissionMarginToggle = document.getElementById('includeCommissionMargin');
+
     let selectedProductId = null;
     let selectedFlagsInclude = new Set();
     let selectedFlagsExclude = new Set();
@@ -29,6 +32,18 @@
             maximumFractionDigits: 2
         });
         return includeUnit ? formatted + ' PLN' : formatted;
+    }
+
+    function getMarginBadgeClass(marginClass) {
+        switch (marginClass) {
+            case 'priceBox-diff-margin-ins':
+                return 'price-badge-positive';
+            case 'priceBox-diff-margin-minus-ins':
+                return 'price-badge-negative';
+            case 'priceBox-diff-margin-neutral-ins':
+            default:
+                return 'price-badge-neutral';
+        }
     }
 
     function saveSelectionToStorage(selectionSet) {
@@ -412,6 +427,10 @@
         const currentSetStepPrice = setStepPrice;
         const currentUsePriceDifference = usePriceDifference;
 
+        const basePriceForChangeCalc = item.apiAllegroPriceFromUser != null
+            ? parseFloat(item.apiAllegroPriceFromUser)
+            : currentMyPrice;
+
         let suggestedPrice = null;
         let basePriceForCalc = null;
         let priceType = null;
@@ -421,31 +440,24 @@
             suggestedPrice = currentMyPrice;
         } else if (item.onlyMe || currentLowestPrice === null) {
             priceType = 'onlyMe';
-
             basePriceForCalc = currentMyPrice;
             suggestedPrice = currentMyPrice;
         } else if (item.colorClass === "prToLow" || item.colorClass === "prIdeal") {
-
             if (currentMyPrice != null && currentSavings != null) {
-
                 basePriceForCalc = currentMyPrice + currentSavings;
                 priceType = 'raise';
             } else if (currentMyPrice != null) {
-
                 basePriceForCalc = currentMyPrice;
                 priceType = 'raise';
             }
         } else if (item.colorClass === "prMid" || item.colorClass === "prToHigh") {
-
             if (currentLowestPrice != null) {
                 basePriceForCalc = currentLowestPrice;
                 priceType = 'lower';
             }
         } else if (item.colorClass === "prGood") {
-
             if (currentMyPrice != null) {
                 basePriceForCalc = currentMyPrice;
-
                 if (item.totalOfferCount > 1 || currentSetStepPrice < 0) {
                     priceType = 'good_step';
                 } else {
@@ -463,12 +475,10 @@
                 } else {
                     suggestedPrice = basePriceForCalc * (1 + (currentSetStepPrice / 100));
                 }
-
                 if (suggestedPrice < 0.01) { suggestedPrice = 0.01; }
                 suggestedPrice = parseFloat(suggestedPrice.toFixed(2));
             }
         } else if (priceType === 'onlyMe' || priceType === 'noOffer') {
-
             suggestedPrice = currentMyPrice;
             if (priceType === 'onlyMe') basePriceForCalc = currentMyPrice;
         }
@@ -477,14 +487,13 @@
             return null;
         }
 
-        const totalChangeAmount = suggestedPrice - (currentMyPrice || 0);
-        const percentageChange = (currentMyPrice != null && currentMyPrice > 0) ? (totalChangeAmount / currentMyPrice) * 100 : 0;
+        const totalChangeAmount = suggestedPrice - (basePriceForChangeCalc || 0);
+        const percentageChange = (basePriceForChangeCalc != null && basePriceForChangeCalc > 0) ? (totalChangeAmount / basePriceForChangeCalc) * 100 : 0;
 
         let arrowClass = '';
         if (priceType === 'raise') {
             arrowClass = totalChangeAmount > 0 ? (item.colorClass === 'prToLow' ? 'arrow-up-black' : 'arrow-up-turquoise') : (totalChangeAmount < 0 ? 'arrow-down-turquoise' : 'no-change-icon-turquoise');
         } else if (priceType === 'lower') {
-
             arrowClass = totalChangeAmount > 0 ? (item.colorClass === "prMid" ? "arrow-up-yellow" : "arrow-up-red") : (totalChangeAmount < 0 ? (item.colorClass === "prMid" ? "arrow-down-yellow" : "arrow-down-red") : 'no-change-icon');
         } else if (priceType === 'good_step' || priceType === 'good_no_step') {
             arrowClass = totalChangeAmount > 0 ? 'arrow-up-green' : (totalChangeAmount < 0 ? 'arrow-down-green' : 'no-change-icon-turquoise');
@@ -577,6 +586,44 @@
             contentWrapper.appendChild(priceDifferenceDisplay);
         }
 
+        if (item.marginPrice != null && suggestedPrice != null) {
+            const marginPrice = parseFloat(item.marginPrice);
+
+            const commission = includeCommissionInMargin && item.apiAllegroCommission != null
+                ? parseFloat(item.apiAllegroCommission)
+                : 0;
+
+            const newNetPrice = suggestedPrice - commission;
+
+            const newMarginAmount = newNetPrice - marginPrice;
+            const newMarginPercentage = (marginPrice !== 0) ? (newMarginAmount / marginPrice) * 100 : null;
+
+            if (newMarginPercentage !== null) {
+                const newMarginSign = newMarginAmount >= 0 ? '+' : '-';
+                const newMarginClass = newMarginAmount > 0 ? 'priceBox-diff-margin-ins' : (newMarginAmount < 0 ? 'priceBox-diff-margin-minus-ins' : 'priceBox-diff-margin-neutral-ins');
+                const newBadgeClass = getMarginBadgeClass(newMarginClass);
+                let newBgMarginClass = 'price-box-diff-margin-ib-neutral';
+                if (newMarginClass === 'priceBox-diff-margin-ins') {
+                    newBgMarginClass = 'price-box-diff-margin-ib-positive';
+                } else if (newMarginClass === 'priceBox-diff-margin-minus-ins') {
+                    newBgMarginClass = 'price-box-diff-margin-ib-negative';
+                }
+
+                const formattedNewMarginAmount = newMarginSign + formatPricePL(Math.abs(newMarginAmount), false) + ' PLN';
+                const formattedNewMarginPercentage = '(' + newMarginSign + Math.abs(newMarginPercentage).toLocaleString('pl-PL', {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                }) + '%)';
+
+                const newMarginBox = document.createElement('div');
+                newMarginBox.className = 'price-box-diff-margin-ib ' + newBgMarginClass;
+                newMarginBox.style.marginTop = '3px';
+                newMarginBox.innerHTML = `<span class="price-badge ${newBadgeClass}">Nowy narzut</span><p>${formattedNewMarginAmount} ${formattedNewMarginPercentage}</p>`;
+
+                contentWrapper.appendChild(newMarginBox);
+            }
+        }
+
         const actionLine = document.createElement('div');
         actionLine.className = 'price-action-line';
         actionLine.style.marginTop = '8px';
@@ -603,30 +650,31 @@
 
     function createApiInfoHtml(item) {
 
-        if (item.apiAllegroPrice == null && item.apiAllegroPriceFromUser == null && item.apiAllegroCommission == null) {
+        const commissionLine = item.apiAllegroCommission != null ? `<div style="color: #c0392b;">Prowizja: <strong>${item.apiAllegroCommission.toFixed(2)} PLN</strong></div>` : '';
+
+        let campaignLine = '';
+
+        if (item.anyPromoActive === true && item.apiAllegroPriceFromUser != null) {
+
+            const formattedPromoPrice = formatPricePL(item.apiAllegroPriceFromUser, false);
+
+            campaignLine = `
+            <div class="Campaign-stack" style="text-align: left; margin-top: 3px;">
+                <span class="campaign-stack-badge">Kampania Allegro | Twoja cena</span>
+                <p>${formattedPromoPrice} PLN</p>
+            </div>
+        `;
+        }
+
+        if (commissionLine === '' && campaignLine === '') {
             return '';
         }
 
-        const priceLine = item.apiAllegroPrice != null ? `<div>Cena z API: <strong>${item.apiAllegroPrice.toFixed(2)} PLN</strong></div>` : '';
-        const userPriceLine = item.apiAllegroPriceFromUser != null ? `<div>Cena w ofercie: <strong>${item.apiAllegroPriceFromUser.toFixed(2)} PLN</strong></div>` : '';
-        const commissionLine = item.apiAllegroCommission != null ? `<div style="color: #c0392b;">Złodziejstwo: <strong>${item.apiAllegroCommission.toFixed(2)} PLN</strong></div>` : '';
-
-        let campaignLine = '';
-        if (item.anyPromoActive != null) {
-            if (item.anyPromoActive) {
-                campaignLine = `<div style="color: #27ae60;">W kampanii: <strong>Tak</strong></div>`;
-            } else {
-                campaignLine = `<div style="color: #7f8c8d;">W kampanii: <strong>Nie</strong></div>`;
-            }
-        }
-
         return `
-        <div class="api-info-container">
-            ${priceLine}
-            ${userPriceLine}
-            ${commissionLine}
-            ${campaignLine}
-        </div>
+    <div class="api-info-container">
+        ${commissionLine}
+        ${campaignLine}
+    </div>
     `;
     }
 
@@ -655,131 +703,175 @@
             `;
             }
             const competitorSuperPriceBadge = item.isSuperPrice ? `<div class="SuperPrice">SUPERCENA</div>` : '';
-            let competitorPromoInfoBadge = '';
+
+            let competitorPromoInfoText = '';
             if (item.isPromoted) {
-                competitorPromoInfoBadge = `<div class="PromoInfo">Promowane</div>`;
+                competitorPromoInfoText = ` <span class="AddPromoInfoBadge">Promowane</span>`;
             } else if (item.isSponsored) {
-                competitorPromoInfoBadge = `<div class="PromoInfo">Sponsorowane</div>`;
+                competitorPromoInfoText = ` <span class="AddPromoInfoBadge">Sponsorowane</span>`;
             }
+
             const mySuperPriceBadge = item.myIsSuperPrice ? `<div class="SuperPrice">SUPERCENA</div>` : '';
-            let myPromoInfoBadge = '';
+
+            const competitorTopOfferBadge = item.isTopOffer ? `<div class="TopOffer">Top oferta</div>` : '';
+            const myTopOfferBadge = item.myIsTopOffer ? `<div class="TopOffer">Top oferta</div>` : '';
+
+            let myPromoInfoText = '';
             if (item.myIsPromoted) {
-                myPromoInfoBadge = `<div class="PromoInfo">Promowane</div>`;
-            } else if (item.isSponsored) {
-                myPromoInfoBadge = `<div class="PromoInfo">Sponsorowane</div>`;
+                myPromoInfoText = ` <span class="AddPromoInfoBadge">Promowane</span>`;
+            } else if (item.myIsSponsored) {
+                myPromoInfoText = ` <span class="AddPromoInfoBadge">Sponsorowane</span>`;
             }
+
             const competitorPriceStyle = item.isBestPriceGuarantee ? 'color: #169A23;' : '';
-            const competitorPriceIcon = item.isBestPriceGuarantee ? `<img src="/images/TopPrice.png" alt="Gwarancja Najniższej Ceny" title="Gwarancja Najniższej Ceny" style="width: 18px; height: 18px; vertical-align: middle; margin-top: -5px;">` : '';
+            const competitorPriceIcon = item.isBestPriceGuarantee ? `<img src="/images/TopPrice.png" alt="Gwarancja Najniższej Ceny" title="Gwarancja Najniższej Ceny" style="width: 18px; height: 18px; vertical-align: middle;">` : '';
             const myPriceStyle = item.myIsBestPriceGuarantee ? 'color: #169A23;' : '';
-            const myPriceIcon = item.myIsBestPriceGuarantee ? `<img src="/images/TopPrice.png" alt="Gwarancja Najniższej Ceny" title="Gwarancja Najniższej Ceny" style="width: 18px; height: 18px; vertical-align: middle;  margin-top: -5px;">` : '';
+            const myPriceIcon = item.myIsBestPriceGuarantee ? `<img src="/images/TopPrice.png" alt="Gwarancja Najniższej Ceny" title="Gwarancja Najniższej Ceny" style="width: 18px; height: 18px; vertical-align: middle;">` : '';
+
+            let marginHtml = '';
+            if (item.marginPrice != null && item.marginAmount != null) {
+                const formattedMarginPrice = formatPricePL(item.marginPrice);
+                const badgeClass = getMarginBadgeClass(item.marginClass);
+
+                let bgMarginClass = 'price-box-diff-margin-ib-neutral';
+                if (item.marginClass === 'priceBox-diff-margin-ins') {
+                    bgMarginClass = 'price-box-diff-margin-ib-positive';
+                } else if (item.marginClass === 'priceBox-diff-margin-minus-ins') {
+                    bgMarginClass = 'price-box-diff-margin-ib-negative';
+                }
+
+                const formattedMarginAmount = item.marginSign + formatPricePL(Math.abs(item.marginAmount), false) + ' PLN';
+                const formattedMarginPercentage = '(' + item.marginSign + Math.abs(item.marginPercentage).toLocaleString('pl-PL', {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                }) + '%)';
+
+                marginHtml = `
+                <div class="price-box-diff-margin-ib ${bgMarginClass}" style="margin-top: 4px;">
+                    <span class="price-badge ${badgeClass}">Cena zakupu</span><p>${formattedMarginPrice}</p>
+                </div>
+                <div class="price-box-diff-margin-ib ${bgMarginClass}" style="margin-top: 3px;">
+                    <span class="price-badge ${badgeClass}">Zysk (narzut)</span><p>${formattedMarginAmount} ${formattedMarginPercentage}</p>
+                </div>
+            `;
+            } else if (item.marginPrice != null) {
+                marginHtml = `
+                <div class="price-box-diff-margin-ib price-box-diff-margin-ib-neutral" style="margin-top: 4px;">
+                    <span class="price-badge price-badge-neutral">Cena zakupu</span><p>${formatPricePL(item.marginPrice)}</p>
+                </div>
+               `;
+            }
 
             const box = document.createElement('div');
             box.className = 'price-box ' + item.colorClass;
             box.dataset.productId = item.productId;
             box.dataset.detailsUrl = `/AllegroPriceHistory/Details?storeId=${storeId}&productId=${item.productId}`;
             box.style.cursor = 'pointer';
+
             box.innerHTML = `
-            <div class="price-box-space">
-                <div class="price-box-column-name">${highlightedProductName}</div>
-                <div class="flags-container"></div>
+        <div class="price-box-space">
+            <div class="price-box-column-name">${highlightedProductName}</div>
+            <div class="flags-container"></div>
+        </div>
+        <div class="price-box-data">
+            <div class="color-bar ${item.colorClass}"></div>
+            <div class="price-box-stats-container">
+                <div class="price-box-column-offers-a">
+                    <span class="data-channel">
+                        <img src="/images/AllegroIcon.png" alt="Allegro Icon" style="width:15px; height:15px;" />
+                    </span>
+                    <div class="offer-count-box">${getOfferText(item.totalOfferCount)}</div>
+                </div>
+                <div class="price-box-column-offers-a">
+                    <span class="data-channel">
+                        <i class="fas fa-shopping-cart" style="font-size: 15px; color: grey; margin-top:1px;" title="Łączna sprzedaż ostatnich 30 dni"></i>
+                    </span>
+                    <div class="offer-count-box">
+                        <p>${item.totalPopularity} osb. kupiło</p>
+                    </div>
+                </div>
+                <div class="price-box-column-offers-a">
+                    <span class="data-channel">
+                        <i class="fas fa-chart-pie" style="font-size: 15px; color: grey; margin-top:1px;" title="Twój udział w rynku w ostatnich 30 dniach"></i>
+                    </span>
+                    <div class="offer-count-box">
+                        <p>${item.myTotalPopularity} osb. (${item.marketSharePercentage.toFixed(2)}%)</p>
+                    </div>
+                </div>
             </div>
-            <div class="price-box-data">
-                <div class="color-bar ${item.colorClass}"></div>
-                <div class="price-box-stats-container">
-                    <div class="price-box-column-offers-a">
-                        <span class="data-channel">
-                            <img src="/images/AllegroIcon.png" alt="Allegro Icon" style="width:15px; height:15px;" />
-                        </span>
-                        <div class="offer-count-box">${getOfferText(item.totalOfferCount)}</div>
-                    </div>
-                    <div class="price-box-column-offers-a">
-                        <span class="data-channel">
-                            <i class="fas fa-shopping-cart" style="font-size: 15px; color: grey; margin-top:1px;" title="Łączna sprzedaż ostatnich 30 dni"></i>
-                        </span>
-                        <div class="offer-count-box">
-                            <p>${item.totalPopularity} osb. kupiło</p>
-                        </div>
-                    </div>
-                    <div class="price-box-column-offers-a">
-                        <span class="data-channel">
-                            <i class="fas fa-chart-pie" style="font-size: 15px; color: grey; margin-top:1px;" title="Twój udział w rynku w ostatnich 30 dniach"></i>
-                        </span>
-                        <div class="offer-count-box">
-                            <p>${item.myTotalPopularity} osb. (${item.marketSharePercentage.toFixed(2)}%)</p>
-                        </div>
-                    </div>
-                </div>
-                <div class="price-box-column">
-                    ${(item.onlyMe || lowestPrice == null) ?
+            <div class="price-box-column">
+                ${(item.onlyMe || lowestPrice == null) ?
                     `<div class="price-box-column-text">
-                                <div><span style="font-weight: 500;">Brak konkurencji</span></div>
-                            </div>` :
+                    <div><span style="font-weight: 500;">Brak konkurencji</span></div>
+                </div>` :
                     `
-                        <div class="price-box-column-text">
+                    <div class="price-box-column-text">
+                        <div>
+                            <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                                <span style="font-weight: 500; font-size: 17px; ${competitorPriceStyle}">${lowestPrice.toFixed(2)} PLN</span>
+                                ${competitorPriceIcon}
+                                ${competitorSuperPriceBadge}
+                                ${competitorTopOfferBadge}
+                            </div>
                             <div>
-                                <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
-                                    <span style="font-weight: 500; font-size: 17px; ${competitorPriceStyle}">${lowestPrice.toFixed(2)} PLN</span>
-                                    ${competitorPriceIcon}
-                                    ${competitorSuperPriceBadge}
-                                </div>
-                                <div>
-                                    ${highlightedStoreName || ''}
-                                    ${item.isSuperSeller ? `<img src="/images/SuperSeller.png" alt="Super Sprzedawca" title="Super Sprzedawca" style="width: 18px; height: 18px; vertical-align: middle; margin-bottom: 1px;">` : ''}
-                                </div>
-                                <div style="height: 16.5px; margin-top:-2px; display:flex; align-content:center;">${competitorPromoInfoBadge}</div>
+                                ${highlightedStoreName || ''}
+                                ${item.isSuperSeller ? `<img src="/images/SuperSeller.png" alt="Super Sprzedawca" title="Super Sprzedawca" style="width: 16px; height: 16px; vertical-align: middle;">` : ''}
+                                ${competitorPromoInfoText} </div>
                             </div>
+                    </div>
+                    <div class="price-box-column-text">
+                        <div class="data-channel">
+
+                            ${item.isSmart ? `
+                                <div class="Smart-Allegro">
+                                    <img src="/images/Smart.png" alt="Smart!" title="Smart!" style="height: 15px; width: auto; margin-left: 2px;">
+                                </div>
+                            ` : ''}
+                            ${renderDeliveryInfo(item.deliveryTime)}
                         </div>
-                        <div class="price-box-column-text">
-                            <div class="data-channel">
-                                ${item.isTopOffer ? `<div class="TopOffer">Top oferta</div>` : ''}
-                                ${item.isSmart ? `
-                                    <div class="Smart-Allegro">
-                                        <img src="/images/Smart.png" alt="Smart!" title="Smart!" style="height: 15px; width: auto; margin-left: 2px;">
-                                    </div>
-                                ` : ''}
-                                ${renderDeliveryInfo(item.deliveryTime)}
-                            </div>
-                        </div>
-                        `
-                }
-                </div>
-                <div class="price-box-column">
-                    ${myPrice != null ?
+                    </div>
                     `
-                        <div class="price-box-column-text">
-                            <div>
-                                <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
-                                    <span style="font-weight: 500; font-size: 17px; ${myPriceStyle}">${myPrice.toFixed(2)} PLN</span>
-                                    ${myPriceIcon}
-                                    ${mySuperPriceBadge}
-                                </div>
-                                <div>
-                                    ${highlightedMyStoreName}
-                                    ${item.myIsSuperSeller ? `<img src="/images/SuperSeller.png" alt="Super Sprzedawca" title="Super Sprzedawca" style="width: 18px; height: 18px; vertical-align: middle; margin-bottom: 1px;">` : ''}
-                                </div>
-                                <div style="height: 16.5px; margin-top:-2px; display:flex; align-content:center;">${myPromoInfoBadge}</div>
-                                ${createApiInfoHtml(item)}
-                            </div>
-                        </div>
-                        <div class="price-box-column-text">
-                            <div class="data-channel">
-                                ${item.myIsTopOffer ? `<div class="TopOffer">Top oferta</div>` : ''}
-                                ${item.myIsSmart ? `
-                                    <div class="Smart-Allegro">
-                                        <img src="/images/Smart.png" alt="Smart!" title="Smart!" style="height: 15px; width: auto; margin-left: 2px;">
-                                    </div>
-                                ` : ''}
-                                ${renderDeliveryInfo(item.myDeliveryTime)}
-                            </div>
-                        </div>
-                        ` :
-                    `<div class="price-box-column-text">
-                                <div><span style="font-weight: 500;">Brak Twojej oferty</span></div>
-                            </div>`
                 }
-                </div>
-                <div class="price-box-column-action"></div>
             </div>
+            <div class="price-box-column">
+                ${myPrice != null ?
+                    `
+                    <div class="price-box-column-text">
+                        <div>
+                            <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                                <span style="font-weight: 500; font-size: 17px; ${myPriceStyle}">${myPrice.toFixed(2)} PLN</span>
+                                ${myPriceIcon}
+                                ${mySuperPriceBadge}
+                                ${myTopOfferBadge}
+                            </div>
+                            <div>
+                                ${highlightedMyStoreName}
+                        ${item.myIsSuperSeller ? `<img src="/images/SuperSeller.png" alt="Super Sprzedawca" title="Super Sprzedawca" style="width: 16px; height: 16px; vertical-align: middle;">` : ''}
+                                ${myPromoInfoText} </div>
+                             ${createApiInfoHtml(item)}
+                            ${marginHtml}
+                        </div>
+                    </div>
+                    <div class="price-box-column-text">
+                        <div class="data-channel">
+
+                            ${item.myIsSmart ? `
+                                <div class="Smart-Allegro">
+                                    <img src="/images/Smart.png" alt="Smart!" title="Smart!" style="height: 15px; width: auto; margin-left: 2px;">
+                                </div>
+                            ` : ''}
+                            ${renderDeliveryInfo(item.myDeliveryTime)}
+                        </div>
+                    </div>
+                    ` :
+                    `<div class="price-box-column-text">
+                    <div><span style="font-weight: 500;">Brak Twojej oferty</span></div>
+                    ${marginHtml}
+                </div>`
+                }
+            </div>
+            <div class="price-box-column-action"></div>
+        </div>
         `;
 
             container.appendChild(box);
@@ -860,18 +952,13 @@
 
                 if (newActionLine) {
                     const myPrice = item.myPrice != null ? parseFloat(item.myPrice) : null;
-
                     attachPriceChangeListener(newActionLine, suggestionRenderResult.suggestedPrice, box, item.productId, item.productName, myPrice, item);
                 } else if (suggestionRenderResult.html && suggestionRenderResult.actionLineSelector) {
-
                     console.error("Nie można znaleźć actionLine za pomocą selektora:", suggestionRenderResult.actionLineSelector, "dla produktu ID:", item.productId);
                 }
-
             } else {
-
                 infoCol.innerHTML = '<div class="price-box-column">Brak danych do sugestii</div>';
             }
-
         });
 
         renderPaginationControls(data.length);
@@ -1285,6 +1372,14 @@
             filterAndSortPrices();
         });
 
+        if (includeCommissionMarginToggle) {
+            includeCommissionMarginToggle.addEventListener('change', function () {
+                includeCommissionInMargin = this.checked;
+
+                loadPrices();
+            });
+        }
+
         Object.keys(sortingState).forEach(key => {
             const button = document.getElementById(key);
             if (button) {
@@ -1376,7 +1471,52 @@
                     }
                 }
 
-                allPrices = data.prices.map(p => ({ ...p, ...convertPriceValue(p) }));
+                allPrices = data.prices.map(p => {
+                    const priceData = convertPriceValue(p);
+
+                    let marginAmount = null;
+                    let marginPercentage = null;
+                    let marginSign = '';
+                    let marginClass = '';
+
+                    const marginPrice = p.marginPrice != null ? parseFloat(p.marginPrice) : null;
+
+                    const basePriceForCurrentMargin = p.apiAllegroPriceFromUser != null
+                        ? parseFloat(p.apiAllegroPriceFromUser)
+                        : (p.myPrice != null ? parseFloat(p.myPrice) : null);
+
+                    if (marginPrice != null && basePriceForCurrentMargin != null) {
+
+                        const commission = includeCommissionInMargin && p.apiAllegroCommission != null
+                            ? parseFloat(p.apiAllegroCommission)
+                            : 0;
+
+                        const netPrice = basePriceForCurrentMargin - commission;
+
+                        marginAmount = netPrice - marginPrice;
+                        marginPercentage = (marginPrice !== 0) ? (marginAmount / marginPrice) * 100 : null;
+                        marginSign = marginAmount >= 0 ? '+' : '';
+
+                        if (marginAmount > 0) {
+                            marginClass = 'priceBox-diff-margin-ins';
+                        } else if (marginAmount < 0) {
+                            marginClass = 'priceBox-diff-margin-minus-ins';
+                            marginSign = '-';
+                        } else {
+                            marginClass = 'priceBox-diff-margin-neutral-ins';
+                        }
+                    }
+
+                    return {
+                        ...p,
+                        ...priceData,
+                        marginPrice: marginPrice,
+                        marginAmount: marginAmount,
+                        marginPercentage: marginPercentage,
+                        marginSign: marginSign,
+                        marginClass: marginClass
+                    };
+                });
 
                 const producerDropdown = document.getElementById('producerFilterDropdown');
                 while (producerDropdown.options.length > 1) {
