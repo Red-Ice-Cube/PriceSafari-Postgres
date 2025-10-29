@@ -168,33 +168,12 @@ namespace PriceSafari.Controllers
             return Json(new { success = true });
         }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> SetAllegroMargins(int storeId, IFormFile uploadedFile) // Zmieniona nazwa akcji
+        public async Task<IActionResult> SetAllegroMargins(int storeId, IFormFile uploadedFile)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            _logger.LogInformation("Wywołanie SetAllegroMargins: StoreId={StoreId}, UserId={UserId}, FileName={FileName}, FileSize={FileSize}", // Zmieniona nazwa w logu
+            _logger.LogInformation("Wywołanie SetAllegroMargins: StoreId={StoreId}, UserId={UserId}, FileName={FileName}, FileSize={FileSize}",
                                      storeId, userId, uploadedFile?.FileName, uploadedFile?.Length);
 
             var userStore = await _context.UserStores
@@ -204,7 +183,6 @@ namespace PriceSafari.Controllers
                 _logger.LogWarning("Brak dostępu użytkownika {UserId} do sklepu {StoreId} (SetAllegroMargins)", userId, storeId);
                 return Forbid();
             }
-
 
             if (uploadedFile == null || uploadedFile.Length == 0)
             {
@@ -237,30 +215,29 @@ namespace PriceSafari.Controllers
             try
             {
                 _logger.LogInformation("Rozpoczynam parsowanie pliku Excel dla Allegro");
-                var marginData = await ParseExcelFile(uploadedFile); // Użycie skopiowanej metody pomocniczej
+                var marginData = await ParseExcelFile(uploadedFile);
                 if (marginData == null || !marginData.Any())
                 {
                     _logger.LogWarning("Plik dla Allegro nie zawiera poprawnych danych o cenach zakupu.");
                     TempData["ErrorMessage"] = "Plik nie zawiera poprawnych danych.";
-                    return RedirectToAction("AllegroProductList", new { storeId }); // Przekierowanie do listy Allegro
+                    return RedirectToAction("AllegroProductList", new { storeId });
                 }
                 _logger.LogInformation("Pobrano {Count} wpisów cen zakupu z pliku dla Allegro", marginData.Count);
 
-                // ZMIANA: Pobieramy AllegroProducts zamiast Products
                 var products = await _context.AllegroProducts
-                    .Where(p => p.StoreId == storeId && !string.IsNullOrEmpty(p.AllegroEan)) // Używamy AllegroEan
+                    .Where(p => p.StoreId == storeId && !string.IsNullOrEmpty(p.AllegroEan))
                     .ToListAsync();
                 _logger.LogInformation("Znaleziono {Count} produktów Allegro do potencjalnej aktualizacji", products.Count);
 
                 int updatedCount = 0;
                 foreach (var prod in products)
                 {
-                    // ZMIANA: Sprawdzamy AllegroEan i aktualizujemy AllegroMarginPrice
+
                     if (marginData.TryGetValue(prod.AllegroEan, out var marginValue))
                     {
-                        // Logika pozostaje ta sama - jeśli znajdzie pasujący EAN, aktualizuje cenę
+
                         _logger.LogInformation("Aktualizuję produkt Allegro EAN={Ean} Cena zakupu={Margin}", prod.AllegroEan, marginValue);
-                        prod.AllegroMarginPrice = marginValue; // Aktualizacja AllegroMarginPrice
+                        prod.AllegroMarginPrice = marginValue;
                         updatedCount++;
                     }
                 }
@@ -269,23 +246,22 @@ namespace PriceSafari.Controllers
                 _logger.LogInformation("Zaktualizowano ceny zakupu dla {UpdatedCount} produktów Allegro", updatedCount);
 
                 TempData["SuccessMessage"] = $"Ceny zakupu zostały zaktualizowane dla {updatedCount} produktów Allegro.";
-                return RedirectToAction("AllegroProductList", new { storeId }); // Przekierowanie do listy Allegro
+                return RedirectToAction("AllegroProductList", new { storeId });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Błąd podczas SetAllegroMargins"); // Zmieniona nazwa w logu
+                _logger.LogError(ex, "Błąd podczas SetAllegroMargins");
                 TempData["ErrorMessage"] = $"Wystąpił błąd: {ex.Message}";
-                return RedirectToAction("AllegroProductList", new { storeId }); // Przekierowanie do listy Allegro
+                return RedirectToAction("AllegroProductList", new { storeId });
             }
         }
 
-        // NOWA AKCJA (SKOPIOWANA I ZMODYFIKOWANA Z ProductController.ClearAllPurchasePrices)
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> ClearAllAllegroPurchasePrices(int storeId) // Zmieniona nazwa akcji
+        public async Task<IActionResult> ClearAllAllegroPurchasePrices(int storeId)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            _logger.LogInformation("Próba usunięcia wszystkich cen zakupu Allegro dla StoreId={StoreId} przez UserId={UserId}", storeId, userId); // Zmiana w logu
+            _logger.LogInformation("Próba usunięcia wszystkich cen zakupu Allegro dla StoreId={StoreId} przez UserId={UserId}", storeId, userId);
 
             var userStore = await _context.UserStores
                 .FirstOrDefaultAsync(us => us.UserId == userId && us.StoreId == storeId);
@@ -304,7 +280,7 @@ namespace PriceSafari.Controllers
 
             try
             {
-                // ZMIANA: Pobieramy AllegroProducts
+
                 var productsInStore = await _context.AllegroProducts
                     .Where(p => p.StoreId == storeId)
                     .ToListAsync();
@@ -314,7 +290,7 @@ namespace PriceSafari.Controllers
                 {
                     foreach (var product in productsInStore)
                     {
-                        // ZMIANA: Zerujemy AllegroMarginPrice
+
                         if (product.AllegroMarginPrice != null)
                         {
                             product.AllegroMarginPrice = null;
@@ -323,38 +299,25 @@ namespace PriceSafari.Controllers
                     }
                     await _context.SaveChangesAsync();
                     _logger.LogInformation("Pomyślnie usunięto ceny zakupu dla {ClearedCount} produktów Allegro w StoreId={StoreId}.", clearedCount, storeId);
-                    TempData["SuccessMessage"] = $"Pomyślnie usunięto ceny zakupu dla {clearedCount} produktów Allegro."; // Zmiana w komunikacie
-                                                                                                                          // Zwracamy JSON, bo wołamy to przez fetch z modala
+                    TempData["SuccessMessage"] = $"Pomyślnie usunięto ceny zakupu dla {clearedCount} produktów Allegro.";
+
                     return Json(new { success = true, message = $"Pomyślnie usunięto ceny zakupu dla {clearedCount} produktów Allegro." });
                 }
                 else
                 {
                     _logger.LogInformation("Nie znaleziono produktów Allegro w StoreId={StoreId} do usunięcia cen.", storeId);
-                    TempData["SuccessMessage"] = "Brak produktów Allegro w sklepie, nie usunięto żadnych cen zakupu."; // Zmiana w komunikacie
-                                                                                                                       // Zwracamy JSON
+                    TempData["SuccessMessage"] = "Brak produktów Allegro w sklepie, nie usunięto żadnych cen zakupu.";
+
                     return Json(new { success = true, message = "Brak produktów Allegro w sklepie, nie usunięto żadnych cen zakupu." });
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Błąd podczas ClearAllAllegroPurchasePrices dla StoreId={StoreId}.", storeId); // Zmiana w logu
-                                                                                                                    // Zwracamy JSON z błędem
+                _logger.LogError(ex, "Błąd podczas ClearAllAllegroPurchasePrices dla StoreId={StoreId}.", storeId);
+
                 return StatusCode(500, new { success = false, message = "Wystąpił wewnętrzny błąd serwera podczas usuwania cen zakupu Allegro." });
             }
         }
-
-
-
-
-
-
-
-
-
-
-
-
-
 
         private async Task<Dictionary<string, decimal>> ParseExcelFile(IFormFile file)
         {
