@@ -183,6 +183,9 @@
                     <div class="order-upper-box">
                         <input type="text" id="productSearch" style="max-width:150px; height:34px;" placeholder="Wyszukaj produkt">
                         <div class="SimpleSpace" style="justify-content:flex-end; margin-right: 12px;">
+                            <button type="button" class="Button-Page-Small-gr" id="uploadMarginsButton">
+                                Ceny zakupu
+                            </button>
                         </div>
                     </div>
 
@@ -203,6 +206,66 @@
                     </div>
                 </div>
             </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="uploadAllegroMarginsModal" tabindex="-1" role="dialog" aria-labelledby="uploadAllegroMarginsModalLabel" aria-hidden="true">
+    <div class="modal-dialog" style="max-width:1050px" role="document">
+        <div class="modal-content" style="margin:5% auto; width:850px;">
+            <form asp-action="SetAllegroMargins" asp-controller="AllegroProduct" asp-route-storeId="@ViewBag.StoreId" method="post" enctype="multipart/form-data" id="uploadAllegroMarginsForm">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="uploadAllegroMarginsModalLabel">Ceny zakupu (Allegro)</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Zamknij">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    @if (!ViewData.ModelState.IsValid)
+                    {
+                        <div class="alert alert-danger">
+                            @Html.ValidationSummary()
+                        </div>
+                    }
+                    <div id="modalAllegroProductStats" style="margin-bottom: 20px; padding: 10px; border: 1px solid #eee; border-radius: 4px; background-color: #f9f9f9;">
+                        <h6 style="margin-bottom: 10px; font-weight: bold; color: #333;">Statystyki Produktów Allegro:</h6>
+                        <ul class="list-unstyled" style="font-size: 0.9em; line-height: 1.6;">
+                            <li>Całkowita liczba produktów Allegro w sklepie: <strong id="stat-allegro-total-products" class="float-right">Ładowanie...</strong></li>
+                            <li>Produkty z przypisaną ceną zakupu: <strong id="stat-allegro-products-with-purchase-price" class="float-right">Ładowanie...</strong></li>
+                            <hr style="margin: 5px 0;" />
+                            <li>Produkty aktywne w monitoringu: <strong id="stat-allegro-active-monitoring-products" class="float-right">Ładowanie...</strong></li>
+                            <li style="padding-left: 15px;"><span style="font-size:0.9em;">↳ z kodem EAN:</span> <strong id="stat-allegro-active-monitoring-with-ean" class="float-right">Ładowanie...</strong></li>
+                            <li style="padding-left: 15px;"><span style="font-size:0.9em;">↳ z wgraną ceną zakupu:</span> <strong id="stat-allegro-active-monitoring-with-purchase-price" class="float-right">Ładowanie...</strong></li>
+                        </ul>
+                    </div>
+
+                    <p>Proszę wgrać plik Excel zawierający następujące kolumny:</p>
+                    <ul>
+                        <li><strong>EAN</strong>: Kod EAN produktu Allegro.</li>
+                        <li><strong>CENA</strong>: Cena zakupu produktu BRUTTO (w formacie liczbowym, np. 44,51).</li>
+                    </ul>
+                    <p>Plik może zawierać dodatkowe kolumny, ale tylko 'EAN' i 'CENA' zostaną użyte.</p>
+                    <div class="mb-3">
+                        <label for="uploadedAllegroFile" class="form-label">Wybierz plik (.xls, .xlsx)</label>
+                        <input type="file" name="uploadedFile" id="uploadedAllegroFile" class="form-control" accept=".xls,.xlsx" required />
+                    </div>
+                    <p>
+                        <strong>Aktualizacja cen zakupu:</strong>
+                        Jeśli ceny zakupu są już wgrane i chcesz je zaktualizować, wgraj nowy plik. Spowoduje to nadpisanie cen dla produktów, których kody EAN pasują do wpisów w nowym pliku.
+                    </p>
+                    <p style="margin-top:20px;">
+                        <strong>Ważne:</strong>
+                        Jeżeli nowy plik nie zawiera produktów (kodów EAN), dla których wcześniej istniała cena zakupu, ich dotychczasowe ceny nie zostaną zmienione ani usunięte.
+                        Aby mieć pewność, że w systemie znajdują się wyłącznie ceny z nowego pliku (a stare ceny dla produktów nieobecnych w nowym pliku zostały usunięte), najpierw skorzystaj z opcji "Usuń wszystkie ceny zakupu", a dopiero potem wgraj nowy plik.
+                    </p>
+                    <div id="uploadAllegroClientError" class="alert alert-danger" style="display: none; margin-top: 10px;"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="Button-Page-Small" data-dismiss="modal">Anuluj</button>
+                    <button type="button" class="Button-Page-Small-r" id="clearAllAllegroMarginsButton" style="margin-right: auto;">Usuń wszystkie ceny zakupu</button>
+                    <button type="submit" class="Button-Page-Small-b" id="submitUploadAllegroMarginsButton">Wgraj ceny zakupu</button>
+                </div>
+            </form>
         </div>
     </div>
 </div>
@@ -355,6 +418,236 @@
                 updateAndRenderFlagFilters(productsBeforeFlagFilter);
             }
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+             const uploadMarginsModal = document.getElementById('uploadAllegroMarginsModal');
+         const uploadMarginsForm = document.getElementById('uploadAllegroMarginsForm');
+         const uploadedFileField = document.getElementById('uploadedAllegroFile');
+         const submitUploadButton = document.getElementById('submitUploadAllegroMarginsButton');
+         const uploadClientError = document.getElementById('uploadAllegroClientError');
+         const originalButtonText = submitUploadButton ? submitUploadButton.innerHTML : 'Wgraj ceny zakupu';
+         const clearAllMarginsButton = document.getElementById('clearAllAllegroMarginsButton');
+         const storeIdForMargins = storeId; // Używamy istniejącej zmiennej storeId
+
+         // Listener dla głównego przycisku otwierającego modal (tego dodanego w HTML)
+         const uploadMarginsButton = document.getElementById('uploadMarginsButton');
+        if (uploadMarginsButton && uploadMarginsModal) {
+             uploadMarginsButton.addEventListener('click', function () {
+                 if (uploadMarginsForm) uploadMarginsForm.reset();
+                 if (uploadClientError) {
+                     uploadClientError.style.display = 'none';
+                     uploadClientError.textContent = '';
+                 }
+                 if (submitUploadButton) {
+                     submitUploadButton.disabled = false;
+                     submitUploadButton.innerHTML = originalButtonText;
+                 }
+                 updateAllegroModalStats(); // Wywołaj nową funkcję do statystyk Allegro
+                 $('#uploadAllegroMarginsModal').modal('show'); // Otwórz modal Allegro
+             });
+         }
+
+         // Walidacja i obsługa wysyłania formularza
+          if (uploadMarginsForm && uploadedFileField && submitUploadButton && uploadClientError) {
+             uploadMarginsForm.addEventListener('submit', function (event) {
+                 uploadClientError.style.display = 'none';
+                 uploadClientError.textContent = '';
+
+                 if (!uploadedFileField.files || uploadedFileField.files.length === 0) {
+                     event.preventDefault();
+                     uploadClientError.textContent = 'Proszę wybrać plik.';
+                     uploadClientError.style.display = 'block';
+                     return;
+                 }
+
+                 const fileName = uploadedFileField.files[0].name;
+                 const fileSize = uploadedFileField.files[0].size;
+                 const allowedExtensions = /(\.xls|\.xlsx)$/i;
+                 const maxFileSize = 10 * 1024 * 1024; // 10 MB
+
+                 if (!allowedExtensions.exec(fileName)) {
+                     event.preventDefault();
+                     uploadClientError.textContent = 'Niewspierany format pliku. Proszę wgrać plik Excel (.xls lub .xlsx).';
+                     uploadClientError.style.display = 'block';
+                     uploadedFileField.value = '';
+                     return;
+                 }
+
+                 if (fileSize > maxFileSize) {
+                     event.preventDefault();
+                     uploadClientError.textContent = 'Wielkość pliku nie może przekraczać 10 MB.';
+                     uploadClientError.style.display = 'block';
+                     uploadedFileField.value = '';
+                     return;
+                 }
+
+                 submitUploadButton.disabled = true;
+                 submitUploadButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Wgrywanie...';
+                 // Formularz zostanie wysłany standardowo po przejściu walidacji
+             });
+         }
+
+         // Obsługa przycisku "Usuń wszystkie ceny zakupu"
+          if (clearAllMarginsButton) {
+             clearAllMarginsButton.addEventListener('click', function() {
+                 if (!confirm('Jesteś pewien, że chcesz usunąć WSZYSTKIE ceny zakupu dla produktów Allegro w tym sklepie? Ta operacja jest nieodwracalna.')) {
+                     return;
+                 }
+
+                 this.disabled = true;
+                 const originalButtonHTML = this.innerHTML;
+                 this.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Usuwanie...';
+
+                 // Potrzebujemy tokena AntyForgery
+                  const formWithToken = document.getElementById('uploadAllegroMarginsForm'); // Użyj formularza Allegro
+                  let requestVerificationToken = null;
+                  if (formWithToken) {
+                      const tokenInput = formWithToken.querySelector('input[name="__RequestVerificationToken"]');
+                      if (tokenInput) {
+                          requestVerificationToken = tokenInput.value;
+                      }
+                  }
+
+                  if (!requestVerificationToken) {
+                      alert('Nie można znaleźć tokenu weryfikacyjnego. Operacja anulowana.');
+                      this.disabled = false;
+                      this.innerHTML = originalButtonHTML;
+                      console.error('__RequestVerificationToken not found on the page.');
+                      return;
+                  }
+
+                 // ZMIENIONY URL AKCJI
+                 fetch(`@Url.Action("ClearAllAllegroPurchasePrices", "AllegroProduct")?storeId=${storeIdForMargins}`, {
+                     method: 'POST',
+                     headers: {
+                         'Accept': 'application/json',
+                         'RequestVerificationToken': requestVerificationToken // Dodaj token
+                     }
+                 })
+                 .then(response => {
+                      if (!response.ok) {
+                          // Lepsza obsługa błędów serwera
+                          const contentType = response.headers.get("content-type");
+                          if (contentType && contentType.indexOf("application/json") !== -1) {
+                              return response.json().then(errData => {
+                                  throw new Error(errData.message || `Błąd serwera (JSON): ${response.status}`);
+                              });
+                          } else {
+                              return response.text().then(textData => {
+                                  throw new Error(`Błąd serwera (${response.status}). Odpowiedź nie była w formacie JSON.`);
+                              });
+                          }
+                      }
+                      // Sprawdźmy, czy odpowiedź jest JSONem
+                      const contentType = response.headers.get("content-type");
+                      if (contentType && contentType.indexOf("application/json") !== -1) {
+                          return response.json();
+                      } else {
+                          throw new Error('Serwer odpowiedział poprawnie, ale odpowiedź nie jest w formacie JSON.');
+                      }
+                 })
+                 .then(data => {
+                     if (data.success) {
+                          // Zamykamy modal i odświeżamy stronę lub tylko dane produktów
+                          $('#uploadAllegroMarginsModal').modal('hide');
+                          //window.location.reload(); // Najprostsze odświeżenie
+                           fetchProducts(); // Lepsze - tylko odświeżenie danych bez przeładowania strony
+                           alert(data.message || 'Ceny zakupu zostały usunięte.'); // Dodatkowy feedback
+                      } else {
+                          alert(data.message || 'Wystąpił błąd podczas usuwania cen zakupu.');
+                          this.disabled = false;
+                          this.innerHTML = originalButtonHTML;
+                      }
+                 })
+                 .catch(error => {
+                     console.error('Błąd podczas usuwania cen zakupu Allegro:', error);
+                     alert('Wystąpił błąd komunikacji: ' + error.message);
+                     this.disabled = false;
+                     this.innerHTML = originalButtonHTML;
+                 });
+             });
+         }
+
+         // Funkcja do aktualizacji statystyk w modalu Allegro
+         function updateAllegroModalStats() {
+              // ZMIENIONE SELEKTORY ID
+              const elTotal = document.getElementById('stat-allegro-total-products');
+              const elWithPrice = document.getElementById('stat-allegro-products-with-purchase-price');
+              const elActiveMon = document.getElementById('stat-allegro-active-monitoring-products');
+              const elActiveMonEan = document.getElementById('stat-allegro-active-monitoring-with-ean');
+              const elActiveMonPrice = document.getElementById('stat-allegro-active-monitoring-with-purchase-price');
+
+             // Użyj `allProducts` załadowanych przez fetchProducts()
+              if (!allProducts || allProducts.length === 0) {
+                  elTotal.textContent = '0';
+                  elWithPrice.textContent = '0 (0.0%)';
+                  elActiveMon.textContent = '0';
+                  elActiveMonEan.textContent = '0 (0.0%)';
+                  elActiveMonPrice.textContent = '0 (0.0%)';
+                  return;
+              }
+
+              const totalProducts = allProducts.length;
+               // ZMIENIONA NAZWA POLA CENY
+              const productsWithPurchasePrice = allProducts.filter(p => p.allegroMarginPrice != null && p.allegroMarginPrice.toString().trim() !== '').length;
+
+              const activeMonitoringProducts = allProducts.filter(p => p.isScrapable && !p.isRejected);
+              const activeMonitoringCount = activeMonitoringProducts.length;
+
+              // ZMIENIONA NAZWA POLA EAN
+              const activeMonitoringWithEan = activeMonitoringProducts.filter(p => p.allegroEan && p.allegroEan.trim() !== '').length;
+              // ZMIENIONA NAZWA POLA CENY
+              const activeMonitoringWithPurchasePrice = activeMonitoringProducts.filter(p => p.allegroMarginPrice != null && p.allegroMarginPrice.toString().trim() !== '').length;
+
+              elTotal.textContent = totalProducts;
+              elWithPrice.textContent = `${productsWithPurchasePrice} (${totalProducts > 0 ? ((productsWithPurchasePrice / totalProducts) * 100).toFixed(1) : '0.0'}%)`;
+              elActiveMon.textContent = activeMonitoringCount;
+              elActiveMonEan.textContent = `${activeMonitoringWithEan} (${activeMonitoringCount > 0 ? ((activeMonitoringWithEan / activeMonitoringCount) * 100).toFixed(1) : '0.0'}%)`;
+              elActiveMonPrice.textContent = `${activeMonitoringWithPurchasePrice} (${activeMonitoringCount > 0 ? ((activeMonitoringWithPurchasePrice / activeMonitoringCount) * 100).toFixed(1) : '0.0'}%)`;
+          }
+
+         // Resetowanie przycisku submit po zamknięciu modala
+          if (uploadMarginsModal) {
+              $(uploadMarginsModal).on('hidden.bs.modal', function () {
+                  if (uploadClientError) uploadClientError.style.display = 'none';
+                  if (submitUploadButton) {
+                      submitUploadButton.disabled = false;
+                      submitUploadButton.innerHTML = originalButtonText;
+                  }
+              });
+          }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
             function fetchProducts() {
                 fetch('@Url.Action("GetAllegroProducts", "AllegroProduct")?storeId=' + storeId)
                     .then(response => response.json())
@@ -400,6 +693,8 @@
             }
         }
 
+        
+
             function hexToRgba(hex, alpha) {
                 let r = 0, g = 0, b = 0;
                 if (hex.length == 4) { r = parseInt(hex[1] + hex[1], 16); g = parseInt(hex[2] + hex[2], 16); b = parseInt(hex[3] + hex[3], 16); }
@@ -425,6 +720,7 @@
                 }
                 return flagsContainer;
             }
+
             function updateAndRenderFlagFilters(products) {
                 const flagCounts = {};
                 let noFlagCount = 0;

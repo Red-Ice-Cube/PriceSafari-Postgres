@@ -1,10 +1,14 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using NPOI.HSSF.UserModel;
+using NPOI.SS.UserModel;
+using NPOI.XSSF.UserModel;
 using PriceSafari.Data;
-using System.Security.Claims;
-using PriceSafari.Models.ViewModels;
 using PriceSafari.Models;
+using PriceSafari.Models.ViewModels;
+using System.Globalization;
+using System.Security.Claims;
 
 namespace PriceSafari.Controllers
 {
@@ -162,6 +166,367 @@ namespace PriceSafari.Controllers
 
             await _context.SaveChangesAsync();
             return Json(new { success = true });
+        }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> SetAllegroMargins(int storeId, IFormFile uploadedFile) // Zmieniona nazwa akcji
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            _logger.LogInformation("Wywołanie SetAllegroMargins: StoreId={StoreId}, UserId={UserId}, FileName={FileName}, FileSize={FileSize}", // Zmieniona nazwa w logu
+                                     storeId, userId, uploadedFile?.FileName, uploadedFile?.Length);
+
+            var userStore = await _context.UserStores
+                .FirstOrDefaultAsync(us => us.UserId == userId && us.StoreId == storeId);
+            if (userStore == null)
+            {
+                _logger.LogWarning("Brak dostępu użytkownika {UserId} do sklepu {StoreId} (SetAllegroMargins)", userId, storeId);
+                return Forbid();
+            }
+
+
+            if (uploadedFile == null || uploadedFile.Length == 0)
+            {
+                _logger.LogWarning("Brak pliku w requestcie lub plik pusty");
+                TempData["ErrorMessage"] = "Proszę wgrać poprawny plik Excel.";
+                return RedirectToAction("ProductList", new { storeId });
+            }
+            if (uploadedFile.Length > 10 * 1024 * 1024)
+            {
+                _logger.LogWarning("Przekroczony rozmiar pliku: {Size} bajtów", uploadedFile.Length);
+                TempData["ErrorMessage"] = "Wielkość pliku nie może przekraczać 10 MB.";
+                return RedirectToAction("ProductList", new { storeId });
+            }
+            var ext = Path.GetExtension(uploadedFile.FileName).ToLowerInvariant();
+            if (ext != ".xls" && ext != ".xlsx")
+            {
+                _logger.LogWarning("Niewspierane rozszerzenie pliku: {Ext}", ext);
+                TempData["ErrorMessage"] = "Niewspierany format pliku. Proszę .xls lub .xlsx.";
+                return RedirectToAction("ProductList", new { storeId });
+            }
+            var mime = uploadedFile.ContentType;
+            if (mime != "application/vnd.ms-excel" &&
+                mime != "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+            {
+                _logger.LogWarning("Niewspierany typ MIME: {Mime}", mime);
+                TempData["ErrorMessage"] = "Niewspierany typ pliku. Proszę Excel.";
+                return RedirectToAction("ProductList", new { storeId });
+            }
+
+            try
+            {
+                _logger.LogInformation("Rozpoczynam parsowanie pliku Excel dla Allegro");
+                var marginData = await ParseExcelFile(uploadedFile); // Użycie skopiowanej metody pomocniczej
+                if (marginData == null || !marginData.Any())
+                {
+                    _logger.LogWarning("Plik dla Allegro nie zawiera poprawnych danych o cenach zakupu.");
+                    TempData["ErrorMessage"] = "Plik nie zawiera poprawnych danych.";
+                    return RedirectToAction("AllegroProductList", new { storeId }); // Przekierowanie do listy Allegro
+                }
+                _logger.LogInformation("Pobrano {Count} wpisów cen zakupu z pliku dla Allegro", marginData.Count);
+
+                // ZMIANA: Pobieramy AllegroProducts zamiast Products
+                var products = await _context.AllegroProducts
+                    .Where(p => p.StoreId == storeId && !string.IsNullOrEmpty(p.AllegroEan)) // Używamy AllegroEan
+                    .ToListAsync();
+                _logger.LogInformation("Znaleziono {Count} produktów Allegro do potencjalnej aktualizacji", products.Count);
+
+                int updatedCount = 0;
+                foreach (var prod in products)
+                {
+                    // ZMIANA: Sprawdzamy AllegroEan i aktualizujemy AllegroMarginPrice
+                    if (marginData.TryGetValue(prod.AllegroEan, out var marginValue))
+                    {
+                        // Logika pozostaje ta sama - jeśli znajdzie pasujący EAN, aktualizuje cenę
+                        _logger.LogInformation("Aktualizuję produkt Allegro EAN={Ean} Cena zakupu={Margin}", prod.AllegroEan, marginValue);
+                        prod.AllegroMarginPrice = marginValue; // Aktualizacja AllegroMarginPrice
+                        updatedCount++;
+                    }
+                }
+
+                await _context.SaveChangesAsync();
+                _logger.LogInformation("Zaktualizowano ceny zakupu dla {UpdatedCount} produktów Allegro", updatedCount);
+
+                TempData["SuccessMessage"] = $"Ceny zakupu zostały zaktualizowane dla {updatedCount} produktów Allegro.";
+                return RedirectToAction("AllegroProductList", new { storeId }); // Przekierowanie do listy Allegro
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Błąd podczas SetAllegroMargins"); // Zmieniona nazwa w logu
+                TempData["ErrorMessage"] = $"Wystąpił błąd: {ex.Message}";
+                return RedirectToAction("AllegroProductList", new { storeId }); // Przekierowanie do listy Allegro
+            }
+        }
+
+        // NOWA AKCJA (SKOPIOWANA I ZMODYFIKOWANA Z ProductController.ClearAllPurchasePrices)
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ClearAllAllegroPurchasePrices(int storeId) // Zmieniona nazwa akcji
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            _logger.LogInformation("Próba usunięcia wszystkich cen zakupu Allegro dla StoreId={StoreId} przez UserId={UserId}", storeId, userId); // Zmiana w logu
+
+            var userStore = await _context.UserStores
+                .FirstOrDefaultAsync(us => us.UserId == userId && us.StoreId == storeId);
+            if (userStore == null)
+            {
+                _logger.LogWarning("User {UserId} nie ma dostępu do StoreId {StoreId} (ClearAllAllegroPurchasePrices).", userId, storeId);
+                return Forbid();
+            }
+
+            var storeExists = await _context.Stores.AnyAsync(s => s.StoreId == storeId);
+            if (!storeExists)
+            {
+                _logger.LogWarning("Sklep o ID {StoreId} nie znaleziony (ClearAllAllegroPurchasePrices).", storeId);
+                return NotFound(new { success = false, message = "Sklep nie został znaleziony." });
+            }
+
+            try
+            {
+                // ZMIANA: Pobieramy AllegroProducts
+                var productsInStore = await _context.AllegroProducts
+                    .Where(p => p.StoreId == storeId)
+                    .ToListAsync();
+
+                int clearedCount = 0;
+                if (productsInStore.Any())
+                {
+                    foreach (var product in productsInStore)
+                    {
+                        // ZMIANA: Zerujemy AllegroMarginPrice
+                        if (product.AllegroMarginPrice != null)
+                        {
+                            product.AllegroMarginPrice = null;
+                            clearedCount++;
+                        }
+                    }
+                    await _context.SaveChangesAsync();
+                    _logger.LogInformation("Pomyślnie usunięto ceny zakupu dla {ClearedCount} produktów Allegro w StoreId={StoreId}.", clearedCount, storeId);
+                    TempData["SuccessMessage"] = $"Pomyślnie usunięto ceny zakupu dla {clearedCount} produktów Allegro."; // Zmiana w komunikacie
+                                                                                                                          // Zwracamy JSON, bo wołamy to przez fetch z modala
+                    return Json(new { success = true, message = $"Pomyślnie usunięto ceny zakupu dla {clearedCount} produktów Allegro." });
+                }
+                else
+                {
+                    _logger.LogInformation("Nie znaleziono produktów Allegro w StoreId={StoreId} do usunięcia cen.", storeId);
+                    TempData["SuccessMessage"] = "Brak produktów Allegro w sklepie, nie usunięto żadnych cen zakupu."; // Zmiana w komunikacie
+                                                                                                                       // Zwracamy JSON
+                    return Json(new { success = true, message = "Brak produktów Allegro w sklepie, nie usunięto żadnych cen zakupu." });
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Błąd podczas ClearAllAllegroPurchasePrices dla StoreId={StoreId}.", storeId); // Zmiana w logu
+                                                                                                                    // Zwracamy JSON z błędem
+                return StatusCode(500, new { success = false, message = "Wystąpił wewnętrzny błąd serwera podczas usuwania cen zakupu Allegro." });
+            }
+        }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        private async Task<Dictionary<string, decimal>> ParseExcelFile(IFormFile file)
+        {
+            var marginData = new Dictionary<string, decimal>();
+
+            using (var stream = new MemoryStream())
+            {
+                await file.CopyToAsync(stream);
+                stream.Position = 0;
+
+                var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
+                _logger.LogInformation("Ładowanie skoroszytu, rozszerzenie: {Ext}", extension);
+
+                IWorkbook workbook = extension switch
+                {
+                    ".xls" => new HSSFWorkbook(stream),
+                    ".xlsx" => new XSSFWorkbook(stream),
+                    _ => null
+                };
+                if (workbook == null)
+                {
+                    _logger.LogError("Nie udało się załadować skoroszytu");
+                    return null;
+                }
+                _logger.LogInformation("Skoroszyt załadowany: {Type}", workbook.GetType().Name);
+
+                var evaluator = workbook.GetCreationHelper().CreateFormulaEvaluator();
+                var sheet = workbook.GetSheetAt(0);
+                if (sheet == null)
+                {
+                    _logger.LogError("Brak arkusza w skoroszycie");
+                    return null;
+                }
+                _logger.LogInformation("Odczyt arkusza: {SheetName}", sheet.SheetName);
+
+                var eanHeaders = new[] { "EAN", "KODEAN" };
+                var priceHeaders = new[] { "CENA", "PRICE" };
+                int eanCol = -1, priceCol = -1;
+
+                var headerRow = sheet.GetRow(0);
+                if (headerRow == null)
+                {
+                    _logger.LogError("Brak wiersza nagłówkowego");
+                    return null;
+                }
+
+                for (int c = headerRow.FirstCellNum; c < headerRow.LastCellNum; c++)
+                {
+                    var cell = headerRow.GetCell(c);
+                    var txt = GetCellValue(cell, evaluator)?
+                                 .Trim()
+                                 .ToUpperInvariant()
+                                 .Replace(" ", "");
+                    if (eanHeaders.Contains(txt)) eanCol = c;
+                    if (priceHeaders.Contains(txt)) priceCol = c;
+                }
+                _logger.LogInformation("Znalezione kolumny — EAN: {EanCol}, CENA: {PriceCol}", eanCol, priceCol);
+
+                if (eanCol < 0 || priceCol < 0)
+                {
+                    _logger.LogError("Nie znaleziono wymaganych kolumn w nagłówku");
+                    return null;
+                }
+
+                for (int r = 1; r <= sheet.LastRowNum; r++)
+                {
+                    var row = sheet.GetRow(r);
+                    if (row == null) continue;
+
+                    var eCell = row.GetCell(eanCol);
+                    var pCell = row.GetCell(priceCol);
+
+                    var ean = GetCellValue(eCell, evaluator)?.Trim();
+                    var priceText = GetCellValue(pCell, evaluator)?.Trim();
+
+                    if (string.IsNullOrWhiteSpace(ean) || string.IsNullOrWhiteSpace(priceText))
+                        continue;
+
+                    _logger.LogDebug("Wiersz {Row}: EAN={Ean}, Cena surowa='{PriceText}'", r, ean, priceText);
+
+                    priceText = priceText.Replace(",", ".");
+                    if (decimal.TryParse(priceText,
+                                         NumberStyles.Any,
+                                         CultureInfo.InvariantCulture,
+                                         out var mVal))
+                    {
+                        _logger.LogDebug("Parsowanie OK: marża={Margin} dla EAN={Ean}", mVal, ean);
+                        if (!marginData.ContainsKey(ean))
+                            marginData.Add(ean, mVal);
+                        else
+                            _logger.LogWarning("Duplikat EAN: {Ean}, pomijam drugi wpis", ean);
+                    }
+                    else
+                    {
+                        _logger.LogWarning("Nie udało się sparsować ceny '{PriceText}' w wierszu {Row}", priceText, r);
+                    }
+                }
+            }
+
+            _logger.LogInformation("Zakończono parsowanie, znaleziono {Count} marż", marginData.Count);
+            return marginData.Count > 0 ? marginData : null;
+        }
+        private string GetCellValue(ICell cell, IFormulaEvaluator evaluator)
+        {
+            if (cell == null) return null;
+
+            if (cell.CellType == CellType.Formula &&
+                !string.IsNullOrEmpty(cell.CellFormula) &&
+                cell.CellFormula.Contains("["))
+            {
+
+                _logger.LogDebug("Formula external reference detected ('{Formula}'), using cached result.", cell.CellFormula);
+                return cell.CachedFormulaResultType switch
+                {
+                    CellType.Numeric => cell.NumericCellValue.ToString(CultureInfo.InvariantCulture),
+                    CellType.String => cell.StringCellValue,
+                    CellType.Boolean => cell.BooleanCellValue.ToString(),
+                    _ => null
+                };
+            }
+
+            try
+            {
+                if (cell.CellType == CellType.Formula)
+                {
+
+                    var eval = evaluator.Evaluate(cell);
+                    if (eval != null)
+                    {
+                        return eval.CellType switch
+                        {
+                            CellType.Numeric => eval.NumberValue.ToString(CultureInfo.InvariantCulture),
+                            CellType.String => eval.StringValue,
+                            CellType.Boolean => eval.BooleanValue.ToString(),
+                            _ => null
+                        };
+                    }
+
+                    _logger.LogDebug("Evaluate zwróciło null dla formuły '{Formula}', używam cached.", cell.CellFormula);
+                    return cell.CachedFormulaResultType switch
+                    {
+                        CellType.Numeric => cell.NumericCellValue.ToString(CultureInfo.InvariantCulture),
+                        CellType.String => cell.StringCellValue,
+                        CellType.Boolean => cell.BooleanCellValue.ToString(),
+                        _ => null
+                    };
+                }
+
+                return cell.CellType switch
+                {
+                    CellType.Numeric => cell.NumericCellValue.ToString(CultureInfo.InvariantCulture),
+                    CellType.String => cell.StringCellValue,
+                    CellType.Boolean => cell.BooleanCellValue.ToString(),
+                    _ => cell.ToString()
+                };
+            }
+            catch (Exception ex)
+            {
+
+                _logger.LogDebug(ex, "Błąd Evaluate() dla komórki formuły '{Formula}', używam cached.", cell.CellFormula);
+                if (cell.CellType == CellType.Formula)
+                {
+                    return cell.CachedFormulaResultType switch
+                    {
+                        CellType.Numeric => cell.NumericCellValue.ToString(CultureInfo.InvariantCulture),
+                        CellType.String => cell.StringCellValue,
+                        CellType.Boolean => cell.BooleanCellValue.ToString(),
+                        _ => null
+                    };
+                }
+                return null;
+            }
         }
     }
 }
