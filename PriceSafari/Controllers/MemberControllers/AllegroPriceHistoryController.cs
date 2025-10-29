@@ -110,7 +110,6 @@ namespace PriceSafari.Controllers.MemberControllers
                 .GroupBy(pf => pf.AllegroProductId.Value)
                 .ToDictionaryAsync(g => g.Key, g => g.Select(pf => pf.FlagId).ToList());
 
-          
             var allExtendedInfo = await _context.AllegroPriceHistoryExtendedInfos
                 .Where(e => e.ScrapHistoryId == latestScrap.Id)
                 .ToListAsync();
@@ -168,7 +167,8 @@ namespace PriceSafari.Controllers.MemberControllers
                     var totalPopularity = g.Sum(p => p.Popularity ?? 0);
                     var myPopularity = g.Where(p => p.SellerName.Equals(store.StoreNameAllegro, StringComparison.OrdinalIgnoreCase))
                         .Sum(p => p.Popularity ?? 0);
-                    var marketSharePercentage = (totalPopularity > 0) ? ((decimal)myPopularity / totalPopularity) * 100 : 0;
+
+                    var marketSharePercentage = (totalPopularity > 0) ? Math.Round(((decimal)myPopularity / totalPopularity) * 100, 2) : 0;
 
                     var visibleSellers = new HashSet<string>(filteredCompetitors.Select(c => c.SellerName));
                     if (myOffer != null)
@@ -177,8 +177,6 @@ namespace PriceSafari.Controllers.MemberControllers
                     }
                     var visibleOfferCount = filteredCompetitors.Count() + (myOffer != null ? 1 : 0);
 
-                    // <<< NOWOŚĆ: Wyszukujemy dane rozszerzone dla bieżącego produktu w słowniku.
-                    // Jeśli ich nie ma, `extendedInfo` będzie nullem.
                     var extendedInfo = extendedInfoDictionary.GetValueOrDefault(product.AllegroProductId);
 
                     return new
@@ -216,18 +214,20 @@ namespace PriceSafari.Controllers.MemberControllers
                         OnlyMe = (myOffer != null && !filteredCompetitors.Any()),
                         Savings = (myOffer != null && bestCompetitor != null && myOffer.Price < bestCompetitor.Price) ? bestCompetitor.Price - myOffer.Price : (decimal?)null,
                         PriceDifference = (myOffer != null && bestCompetitor != null) ? myOffer.Price - bestCompetitor.Price : (decimal?)null,
-                        PercentageDifference = (myOffer != null && bestCompetitor != null && bestCompetitor.Price > 0) ? ((myOffer.Price - bestCompetitor.Price) / bestCompetitor.Price) * 100 : (decimal?)null,
+
+                        PercentageDifference = (myOffer != null && bestCompetitor != null && bestCompetitor.Price > 0) ? Math.Round(((myOffer.Price - bestCompetitor.Price) / bestCompetitor.Price) * 100, 2) : (decimal?)null,
+
                         IsUniqueBestPrice = (myOffer != null && bestCompetitor != null && myOffer.Price < bestCompetitor.Price),
                         IsSharedBestPrice = (myOffer != null && bestCompetitor != null && myOffer.Price == bestCompetitor.Price),
                         FlagIds = productFlagsDictionary.GetValueOrDefault(product.AllegroProductId, new List<int>()),
-                        Ean = (string)null,
-                        ExternalId = (int?)null,
-                        MarginPrice = product.AllegroMarginPrice,
-                        ImgUrl = (string)null,
 
-                        // <<< NOWOŚĆ: Dodajemy nowe pola do obiektu JSON.
-                        // Używamy operatora '?.', aby bezpiecznie odwołać się do właściwości.
-                        // Jeśli `extendedInfo` jest null, wszystkie te pola też będą miały wartość null.
+                        Ean = product.AllegroEan,
+
+                        ExternalId = (int?)null,
+
+                        MarginPrice = product.AllegroMarginPrice,
+
+                        ImgUrl = (string)null,
                         ApiAllegroPrice = extendedInfo?.ApiAllegroPrice,
                         ApiAllegroPriceFromUser = extendedInfo?.ApiAllegroPriceFromUser,
                         ApiAllegroCommission = extendedInfo?.ApiAllegroCommission,
@@ -247,6 +247,7 @@ namespace PriceSafari.Controllers.MemberControllers
                 presetName = activePresetName ?? "PriceSafari"
             });
         }
+
         public class PriceSettingsViewModel
         {
             public int StoreId { get; set; }
