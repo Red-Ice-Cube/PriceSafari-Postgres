@@ -250,6 +250,11 @@
                 products.forEach(function (product) {
                     var row = document.createElement('tr');
                     var highlightedProductName = searchTerm ? product.allegroProductName.replace(new RegExp(searchTerm, 'gi'), '<span style="color: #9400D3; font-weight: 600;">$&</span>') : product.allegroProductName;
+
+                    var eanHtml = product.allegroEan
+                        ? `<b>EAN:</b> ${product.allegroEan}`
+                        : '<b style="color: #777;">EAN:</b> <span style="color: #777;">Brak</span>';
+
                     var offerUrlButton = product.allegroOfferUrl ? `<a href="${product.allegroOfferUrl}" rel="noopener noreferrer" class="Button-Page-Small" style="width: 150px;" target="_blank">Allegro</a>` : '';
 
                     var statusBoxClass = "";
@@ -274,14 +279,19 @@
                     var flagsCellContent = createFlagsContainer(product).outerHTML;
 
                     row.innerHTML = `
-                        <td><p>${highlightedProductName}</p></td>
+                        <td>
+                            <div style="width:420px;">
+                                <p style="margin-bottom: 8px;">${highlightedProductName}</p>
+                                <p style="font-size: 0.9em; color: #555;">${eanHtml}</p>
+                            </div>
+                        </td>
                         <td>Brak</td>
                         <td>${offerUrlButton}</td>
                         <td>
                             <div style="position: relative; width: 130px; height: 40px;">
                                 <input type="checkbox" class="scrapable-checkbox ${checkboxStatusClass}" data-product-id="${product.allegroProductId}"
-                                    style="position: absolute; top: 0; left: 0; z-index: 2;"
-                                    ${product.isScrapable ? "checked" : ""}/>
+                                       style="position: absolute; top: 0; left: 0; z-index: 2;"
+                                       ${product.isScrapable ? "checked" : ""}/>
                                 <div class="StatusBoxProduct ${statusBoxClass}" style="position: absolute; top: 0; left: 20px; z-index: 1;">
                                     ${statusText}
                                 </div>
@@ -360,23 +370,18 @@
             selectAllButton.addEventListener('click', () => updateMultiple(true));
             deselectAllButton.addEventListener('click', () => updateMultiple(false));
 
-
                  function updateMultiple(shouldBeScrapable) {
-            
+
             var productIds = Array.from(document.querySelectorAll('#product-list .scrapable-checkbox'))
                 .filter(cb => !cb.disabled && cb.checked !== shouldBeScrapable)
                 .map(cb => parseInt(cb.dataset.productId));
 
             if (productIds.length > 0) {
-                
 
-              
                 const action = shouldBeScrapable ? "UpdateMultipleScrapableAllegroProducts" : "ResetMultipleScrapableAllegroProducts";
 
-         
                 const url = `@Url.Action("Index", "AllegroProduct")`.replace("Index", action) + `?storeId=${storeId}`;
 
-          
                 fetch(url, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -394,7 +399,7 @@
 
             }
         }
-         
+
             function hexToRgba(hex, alpha) {
                 let r = 0, g = 0, b = 0;
                 if (hex.length == 4) { r = parseInt(hex[1] + hex[1], 16); g = parseInt(hex[2] + hex[2], 16); b = parseInt(hex[3] + hex[3], 16); }
@@ -437,7 +442,7 @@
                         const count = flagCounts[flag.FlagId] || 0;
                         const includeChecked = selectedFlagsInclude.has(String(flag.FlagId)) ? 'checked' : '';
                         const excludeChecked = selectedFlagsExclude.has(String(flag.FlagId)) ? 'checked' : '';
-                        const html = `<div class="flag-filter-group">...</div>`; 
+                        const html = `<div class="flag-filter-group">...</div>`;
                         flagContainer.insertAdjacentHTML('beforeend', `<div class="flag-filter-group"><div class="form-check form-check-inline check-include" style="margin-right:0px;"><input class="form-check-input flagFilterInclude" type="checkbox" id="flagCheckboxInclude_${flag.FlagId}" value="${flag.FlagId}" ${includeChecked}></div><div class="form-check form-check-inline check-exclude" style="margin-right:0px; padding-left:16px;"><input class="form-check-input flagFilterExclude" type="checkbox" id="flagCheckboxExclude_${flag.FlagId}" value="${flag.FlagId}" ${excludeChecked}></div><span class="flag-name-count" style="font-size:14px; font-weight: 400;">${flag.FlagName} (${count})</span></div>`);
                     });
                 }

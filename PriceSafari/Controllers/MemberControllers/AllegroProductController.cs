@@ -76,6 +76,7 @@ namespace PriceSafari.Controllers
                     p.IsRejected,
                     p.AllegroMarginPrice,
                     p.AddedDate,
+                    p.AllegroEan,
                     FlagIds = p.ProductFlags.Select(pf => pf.FlagId).ToList()
                 })
                 .ToListAsync();
@@ -84,7 +85,7 @@ namespace PriceSafari.Controllers
         }
 
         [HttpPost]
-        // ### ZMIANA 1: Zmiana nazwy akcji ###
+
         public async Task<IActionResult> UpdateScrapableAllegroProduct(int storeId, [FromBody] int allegroProductId)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -109,7 +110,7 @@ namespace PriceSafari.Controllers
         }
 
         [HttpPost]
-        // ### ZMIANA 2: Zmiana nazwy akcji ###
+
         public async Task<IActionResult> UpdateMultipleScrapableAllegroProducts(int storeId, [FromBody] List<int> productIds)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -143,7 +144,7 @@ namespace PriceSafari.Controllers
         }
 
         [HttpPost]
-        // ### ZMIANA 3: Zmiana nazwy akcji ###
+
         public async Task<IActionResult> ResetMultipleScrapableAllegroProducts(int storeId, [FromBody] List<int> productIds)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
