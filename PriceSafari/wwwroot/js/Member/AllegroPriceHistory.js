@@ -15,6 +15,22 @@
 
     const selectionStorageKey = `selectedAllegroProducts_${storeId}`;
 
+    const stepPriceInput = document.getElementById("stepPrice");
+
+    const stepPriceIndicatorSpan = document.getElementById('stepPriceIndicator');
+
+    function formatPricePL(value, includeUnit = true) {
+        if (value === null || value === undefined || isNaN(parseFloat(value))) {
+            return "N/A";
+        }
+        const numberValue = parseFloat(value);
+        const formatted = numberValue.toLocaleString('pl-PL', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        });
+        return includeUnit ? formatted + ' PLN' : formatted;
+    }
+
     function saveSelectionToStorage(selectionSet) {
         localStorage.setItem(selectionStorageKey, JSON.stringify(Array.from(selectionSet)));
     }
@@ -266,35 +282,92 @@
         return `rgba(${r}, ${g}, ${b}, ${alpha})`;
     }
 
-    function activateChangeButton(button, actionLine, priceBox) {
-        const priceBoxColumn = actionLine.parentElement;
-        if (priceBoxColumn) {
-            priceBoxColumn.classList.add('active');
+    function updateStepPriceIndicator() {
+        if (!stepPriceInput || !stepPriceIndicatorSpan) return;
+        const valueStr = stepPriceInput.value.replace(',', '.');
+        const value = parseFloat(valueStr);
+        let iconClass = '', titleText = '';
+
+        if (isNaN(value)) {
+
+            iconClass = 'fa-solid fa-question';
+            titleText = 'Niepoprawna wartość';
+        } else if (value < 0) {
+            iconClass = 'fa-solid fa-minus';
+            titleText = 'Obniżka (cena < konkurenta)';
+        } else if (value > 0) {
+            iconClass = 'fa-solid fa-plus';
+            titleText = 'Podwyżka (cena > konkurenta)';
+        } else {
+            iconClass = 'fa-solid fa-equals';
+            titleText = 'Wyrównanie ceny (cena = konkurenta)';
         }
 
-        const colorSquare = button.querySelector('span[class^="color-square-"]');
-        const colorSquareHTML = colorSquare ? colorSquare.outerHTML : '';
+        if (iconClass) {
+            stepPriceIndicatorSpan.innerHTML = `<i class="${iconClass}"></i>`;
+        } else {
+            stepPriceIndicatorSpan.innerHTML = '';
+        }
+        stepPriceIndicatorSpan.title = titleText;
+    }
+
+    function enforceLimits(input, min, max) {
+        let value = parseFloat(input.value.replace(',', '.'));
+        if (isNaN(value)) {
+
+            input.value = (min !== undefined) ? min.toFixed(2) : "0.00";
+            return;
+        }
+
+        if (min !== undefined && value < min) {
+            input.value = min.toFixed(2);
+        } else if (max !== undefined && value > max) {
+            input.value = max.toFixed(2);
+        } else {
+
+            input.value = value.toFixed(2);
+        }
+    }
+
+    function activateChangeButton(button, actionLine, priceBox, stepPriceApplied, stepUnitApplied) {
+        if (!button) return;
+
+        let stepInfoText = "";
+        if (typeof stepPriceApplied !== 'undefined' && stepPriceApplied !== null && typeof stepUnitApplied !== 'undefined') {
+            const formattedStepPrice = stepPriceApplied.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            stepInfoText = ` Krok ${formattedStepPrice} ${stepUnitApplied} |`;
+        }
 
         button.classList.add('active');
-        button.innerHTML = colorSquareHTML + " Dodano";
+
+        if (!button.dataset.originalText) {
+            button.dataset.originalText = button.innerHTML;
+        }
+
+        button.innerHTML = `${stepInfoText} Dodano`;
 
         const removeLink = document.createElement('span');
         removeLink.innerHTML = " <i class='fa fa-trash' style='font-size:12px; display:flex; color:white; margin-left:4px; margin-top:3px;'></i>";
         removeLink.style.cursor = "pointer";
         removeLink.style.pointerEvents = 'auto';
 
-        removeLink.addEventListener('click', function (ev) {
+        let isRemoveListenerAttached = false;
+
+        const removeClickListener = function (ev) {
             ev.stopPropagation();
-
-            if (priceBoxColumn) {
-                priceBoxColumn.classList.remove('active');
-            }
-
             button.classList.remove('active');
-            button.innerHTML = button.dataset.originalText || "Zmień cenę";
+            button.innerHTML = button.dataset.originalText;
             priceBox.classList.remove('price-changed');
+            removeLink.removeEventListener('click', removeClickListener);
+            isRemoveListenerAttached = false;
 
-        });
+            console.log("Usunięto zmianę dla produktu ID:", priceBox.dataset.productId);
+        };
+
+        if (!isRemoveListenerAttached) {
+            removeLink.addEventListener('click', removeClickListener);
+            isRemoveListenerAttached = true;
+        }
 
         button.appendChild(removeLink);
         priceBox.classList.add('price-changed');
@@ -304,23 +377,228 @@
         const button = actionLine.querySelector('.simulate-change-btn');
         if (!button) return;
 
-        actionLine.addEventListener('click', function (e) {
+        const newActionLine = actionLine.cloneNode(true);
+
+        actionLine.parentNode.replaceChild(newActionLine, actionLine);
+
+        const newButton = newActionLine.querySelector('.simulate-change-btn');
+
+        newActionLine.addEventListener('click', function (e) {
             e.stopPropagation();
 
-            const currentButton = this.querySelector('.simulate-change-btn');
-
-            if (priceBox.classList.contains('price-changed') || (currentButton && currentButton.classList.contains('active'))) {
+            if (priceBox.classList.contains('price-changed') || (newButton && newButton.classList.contains('active'))) {
                 console.log("Zmiana ceny już aktywna dla produktu", productId);
                 return;
             }
 
-            activateChangeButton(currentButton, this, priceBox);
+            const currentSetStepPrice = setStepPrice;
+            const currentUsePriceDifference = usePriceDifference;
+            const stepUnit = currentUsePriceDifference ? 'PLN' : '%';
+
+            activateChangeButton(newButton, this, priceBox, currentSetStepPrice, stepUnit);
 
             let message = `<p style="margin-bottom:8px; font-size:16px; font-weight:bold;">Zmiana ceny dodana (wizualnie)</p>`;
             message += `<p style="margin:4px 0;"><strong>Produkt:</strong> ${productName}</p>`;
-            message += `<p style="margin:4px 0;"><strong>Nowa cena:</strong> ${suggestedPrice.toFixed(2)} PLN</p>`;
+            message += `<p style="margin:4px 0;"><strong>Nowa cena:</strong> ${formatPricePL(suggestedPrice)}</p>`;
             showGlobalUpdate(message);
+
         });
+    }
+
+    function calculateCurrentSuggestion(item) {
+        const currentMyPrice = item.myPrice != null ? parseFloat(item.myPrice) : null;
+        const currentLowestPrice = item.lowestPrice != null ? parseFloat(item.lowestPrice) : null;
+        const currentSavings = item.savings != null ? parseFloat(item.savings) : null;
+        const currentSetStepPrice = setStepPrice;
+        const currentUsePriceDifference = usePriceDifference;
+
+        let suggestedPrice = null;
+        let basePriceForCalc = null;
+        let priceType = null;
+
+        if (item.isRejected || currentMyPrice === null) {
+            priceType = 'noOffer';
+            suggestedPrice = currentMyPrice;
+        } else if (item.onlyMe || currentLowestPrice === null) {
+            priceType = 'onlyMe';
+
+            basePriceForCalc = currentMyPrice;
+            suggestedPrice = currentMyPrice;
+        } else if (item.colorClass === "prToLow" || item.colorClass === "prIdeal") {
+
+            if (currentMyPrice != null && currentSavings != null) {
+
+                basePriceForCalc = currentMyPrice + currentSavings;
+                priceType = 'raise';
+            } else if (currentMyPrice != null) {
+
+                basePriceForCalc = currentMyPrice;
+                priceType = 'raise';
+            }
+        } else if (item.colorClass === "prMid" || item.colorClass === "prToHigh") {
+
+            if (currentLowestPrice != null) {
+                basePriceForCalc = currentLowestPrice;
+                priceType = 'lower';
+            }
+        } else if (item.colorClass === "prGood") {
+
+            if (currentMyPrice != null) {
+                basePriceForCalc = currentMyPrice;
+
+                if (item.totalOfferCount > 1 || currentSetStepPrice < 0) {
+                    priceType = 'good_step';
+                } else {
+                    priceType = 'good_no_step';
+                }
+            }
+        }
+
+        if (basePriceForCalc !== null && priceType !== null && priceType !== 'noOffer' && priceType !== 'onlyMe') {
+            if (priceType === 'good_no_step') {
+                suggestedPrice = basePriceForCalc;
+            } else {
+                if (currentUsePriceDifference) {
+                    suggestedPrice = basePriceForCalc + currentSetStepPrice;
+                } else {
+                    suggestedPrice = basePriceForCalc * (1 + (currentSetStepPrice / 100));
+                }
+
+                if (suggestedPrice < 0.01) { suggestedPrice = 0.01; }
+                suggestedPrice = parseFloat(suggestedPrice.toFixed(2));
+            }
+        } else if (priceType === 'onlyMe' || priceType === 'noOffer') {
+
+            suggestedPrice = currentMyPrice;
+            if (priceType === 'onlyMe') basePriceForCalc = currentMyPrice;
+        }
+
+        if (suggestedPrice === null) {
+            return null;
+        }
+
+        const totalChangeAmount = suggestedPrice - (currentMyPrice || 0);
+        const percentageChange = (currentMyPrice != null && currentMyPrice > 0) ? (totalChangeAmount / currentMyPrice) * 100 : 0;
+
+        let arrowClass = '';
+        if (priceType === 'raise') {
+            arrowClass = totalChangeAmount > 0 ? (item.colorClass === 'prToLow' ? 'arrow-up-black' : 'arrow-up-turquoise') : (totalChangeAmount < 0 ? 'arrow-down-turquoise' : 'no-change-icon-turquoise');
+        } else if (priceType === 'lower') {
+
+            arrowClass = totalChangeAmount > 0 ? (item.colorClass === "prMid" ? "arrow-up-yellow" : "arrow-up-red") : (totalChangeAmount < 0 ? (item.colorClass === "prMid" ? "arrow-down-yellow" : "arrow-down-red") : 'no-change-icon');
+        } else if (priceType === 'good_step' || priceType === 'good_no_step') {
+            arrowClass = totalChangeAmount > 0 ? 'arrow-up-green' : (totalChangeAmount < 0 ? 'arrow-down-green' : 'no-change-icon-turquoise');
+        } else if (priceType === 'onlyMe' || priceType === 'noOffer') {
+            arrowClass = 'no-change-icon-gray';
+        }
+
+        let squareColorClass = 'color-square-gray';
+        if (priceType === 'raise' || priceType === 'ideal') {
+            squareColorClass = 'color-square-turquoise';
+        } else if (priceType === 'lower') {
+            squareColorClass = 'color-square-red';
+        } else if (priceType.startsWith('good')) {
+            squareColorClass = 'color-square-green';
+        }
+
+        return {
+            suggestedPrice: suggestedPrice,
+            totalChangeAmount: totalChangeAmount,
+            percentageChange: percentageChange,
+            arrowClass: arrowClass,
+            priceType: priceType,
+            squareColorClass: squareColorClass
+        };
+    }
+
+    function renderSuggestionBlockHTML(item, suggestionData) {
+
+        if (!suggestionData || suggestionData.suggestedPrice === null || suggestionData.priceType === 'noOffer') {
+
+            return { html: '<div class="price-box-column">Brak sugestii</div>', actionLineSelector: null, suggestedPrice: null, myPrice: item.myPrice };
+        }
+
+        const { suggestedPrice, totalChangeAmount, percentageChange, arrowClass, priceType, squareColorClass } = suggestionData;
+        const myPrice = item.myPrice != null ? parseFloat(item.myPrice) : null;
+
+        if (priceType === 'onlyMe') {
+            return {
+                html: '<div class="price-box-column"><div class="price-box-column-text">Jesteś jedynym sprzedawcą</div></div>',
+                actionLineSelector: null,
+                suggestedPrice: null,
+                myPrice: item.myPrice
+            };
+        }
+
+        if (totalChangeAmount === 0 && priceType === 'good_no_step') {
+            return {
+                html: '<div class="price-box-column"><div class="price-box-column-text">Cena optymalna (brak zmian)</div></div>',
+                actionLineSelector: null,
+                suggestedPrice: null,
+                myPrice: item.myPrice
+            };
+        }
+
+        const suggestionBox = document.createElement('div');
+        suggestionBox.className = 'price-box-column';
+
+        const contentWrapper = document.createElement('div');
+        contentWrapper.className = 'price-box-column-text';
+
+        const newPriceDisplay = document.createElement('div');
+        newPriceDisplay.style.display = 'flex';
+        newPriceDisplay.style.alignItems = 'center';
+        newPriceDisplay.innerHTML = `<span class="${arrowClass}" style="margin-right: 8px;"></span><div><span style="font-weight: 500; font-size: 17px;">${formatPricePL(suggestedPrice)}</span></div>`;
+
+        const priceChangeLabel = document.createElement('div');
+        priceChangeLabel.textContent = 'Zmiana ceny Twojej oferty';
+        priceChangeLabel.style.fontSize = '14px';
+        priceChangeLabel.style.color = '#212529';
+
+        const priceDifferenceDisplay = document.createElement('div');
+        priceDifferenceDisplay.style.marginTop = '3px';
+        let badgeText = '';
+        if (totalChangeAmount > 0) badgeText = 'Podwyżka ceny';
+        else if (totalChangeAmount < 0) badgeText = 'Obniżka ceny';
+        else badgeText = 'Brak zmiany';
+        const badgeHtml = `<div class="price-diff-stack-badge">${badgeText}</div>`;
+
+        priceDifferenceDisplay.innerHTML =
+            `<div class="price-diff-stack" style="text-align: left;">` +
+            `${badgeHtml}` +
+            `<span class="diff-amount small-font">${totalChangeAmount >= 0 ? '+' : ''}${formatPricePL(totalChangeAmount, false)} PLN</span>&nbsp;` +
+            `<span class="diff-percentage small-font">(${percentageChange >= 0 ? '+' : ''}${percentageChange.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%)</span>` +
+            `</div>`;
+
+        contentWrapper.appendChild(newPriceDisplay);
+        contentWrapper.appendChild(priceChangeLabel);
+
+        if (totalChangeAmount !== 0) {
+            contentWrapper.appendChild(priceDifferenceDisplay);
+        }
+
+        const actionLine = document.createElement('div');
+        actionLine.className = 'price-action-line';
+        actionLine.style.marginTop = '8px';
+
+        const actionButton = document.createElement('button');
+        actionButton.className = 'simulate-change-btn';
+
+        const buttonContent = `<span class="${squareColorClass}"></span> Dodaj zmianę ceny`;
+        actionButton.innerHTML = buttonContent;
+        actionButton.dataset.originalText = buttonContent;
+
+        actionLine.appendChild(actionButton);
+
+        suggestionBox.appendChild(contentWrapper);
+        suggestionBox.appendChild(actionLine);
+
+        return {
+            html: suggestionBox.outerHTML,
+            actionLineSelector: '.price-action-line',
+            suggestedPrice: suggestedPrice,
+            myPrice: myPrice
+        };
     }
 
     function createApiInfoHtml(item) {
@@ -393,7 +671,7 @@
             const competitorPriceStyle = item.isBestPriceGuarantee ? 'color: #169A23;' : '';
             const competitorPriceIcon = item.isBestPriceGuarantee ? `<img src="/images/TopPrice.png" alt="Gwarancja Najniższej Ceny" title="Gwarancja Najniższej Ceny" style="width: 18px; height: 18px; vertical-align: middle; margin-top: -5px;">` : '';
             const myPriceStyle = item.myIsBestPriceGuarantee ? 'color: #169A23;' : '';
-            const myPriceIcon = item.myIsBestPriceGuarantee ? `<img src="/images/TopPrice.png" alt="Gwarancja Najniższej Ceny" title="Gwarancja Najniższej Ceny" style="width: 18px; height: 18px; vertical-align: middle;  margin-top: -5px;">` : '';
+            const myPriceIcon = item.myIsBestPriceGuarantee ? `<img src="/images/TopPrice.png" alt="Gwarancja Najniższej Ceny" title="Gwarancja Najniższej Ceny" style="width: 18px; height: 18px; vertical-align: middle;  margin-top: -5px;">` : '';
 
             const box = document.createElement('div');
             box.className = 'price-box ' + item.colorClass;
@@ -496,8 +774,8 @@
                         </div>
                         ` :
                     `<div class="price-box-column-text">
-                            <div><span style="font-weight: 500;">Brak Twojej oferty</span></div>
-                        </div>`
+                                <div><span style="font-weight: 500;">Brak Twojej oferty</span></div>
+                            </div>`
                 }
                 </div>
                 <div class="price-box-column-action"></div>
@@ -530,6 +808,7 @@
                 selectProductButton.classList.add('selected');
             } else {
                 selectProductButton.textContent = 'Zaznacz';
+                selectProductButton.classList.remove('selected');
             }
             selectProductButton.addEventListener('click', function (event) {
                 event.stopPropagation();
@@ -569,199 +848,28 @@
             });
 
             const infoCol = box.querySelector('.price-box-column-action');
+            infoCol.innerHTML = '';
 
-            if (infoCol && !item.onlyMe && !item.isRejected && myPrice !== null && lowestPrice !== null) {
-                if (item.colorClass === "prToLow" || item.colorClass === "prIdeal") {
-                    const savingsValue = parseFloat(item.savings);
-                    const upArrowClass = item.colorClass === 'prToLow' ? 'arrow-up-black' : 'arrow-up-turquoise';
-                    const suggestedPrice1 = myPrice + savingsValue;
-                    const amountToSuggestedPrice1 = savingsValue;
-                    const percentageToSuggestedPrice1 = myPrice > 0 ? (amountToSuggestedPrice1 / myPrice) * 100 : 0;
+            const suggestionData = calculateCurrentSuggestion(item);
 
-                    let suggestedPrice2, amountToSuggestedPrice2, percentageToSuggestedPrice2, arrowClass2 = upArrowClass;
+            if (suggestionData) {
+                const suggestionRenderResult = renderSuggestionBlockHTML(item, suggestionData);
+                infoCol.innerHTML = suggestionRenderResult.html;
 
-                    if (usePriceDifference) {
-                        suggestedPrice2 = suggestedPrice1 - setStepPrice;
-                    } else {
-                        suggestedPrice2 = suggestedPrice1 * (1 - (setStepPrice / 100));
-                    }
-                    amountToSuggestedPrice2 = suggestedPrice2 - myPrice;
-                    percentageToSuggestedPrice2 = myPrice > 0 ? (amountToSuggestedPrice2 / myPrice) * 100 : 0;
-                    if (amountToSuggestedPrice2 < 0) {
-                        arrowClass2 = 'arrow-down-turquoise';
-                    }
+                const newActionLine = infoCol.querySelector(suggestionRenderResult.actionLineSelector);
 
-                    const matchPriceBox = document.createElement('div');
-                    matchPriceBox.className = 'price-box-column';
-                    const matchPriceLine = document.createElement('div');
-                    matchPriceLine.className = 'price-action-line';
-                    matchPriceLine.innerHTML = `
-                    <span class="${upArrowClass}"></span>
-                    <div class="price-diff-stack">
-                        <span class="diff-amount small-font">${amountToSuggestedPrice1 >= 0 ? '+' : ''}${amountToSuggestedPrice1.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">PLN</span></span>
-                        <span class="diff-percentage small-font">${percentageToSuggestedPrice1 >= 0 ? '+' : ''}${percentageToSuggestedPrice1.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">%</span></span>
-                    </div>
-                    <div class="small-font">= ${suggestedPrice1.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">PLN</span></div>
-                `;
-                    const matchPriceBtn = document.createElement('button');
-                    matchPriceBtn.className = 'simulate-change-btn';
-                    const matchBtnContent = `<span class="color-square-green"></span> Zmień cenę`;
-                    matchPriceBtn.innerHTML = matchBtnContent;
-                    matchPriceBtn.dataset.originalText = matchBtnContent;
-                    matchPriceLine.appendChild(matchPriceBtn);
-                    matchPriceBox.appendChild(matchPriceLine);
-                    attachPriceChangeListener(matchPriceLine, suggestedPrice1, box, item.productId, item.productName, myPrice, item);
+                if (newActionLine) {
+                    const myPrice = item.myPrice != null ? parseFloat(item.myPrice) : null;
 
-                    const strategicPriceBox = document.createElement('div');
-                    strategicPriceBox.className = 'price-box-column';
-                    const strategicPriceLine = document.createElement('div');
-                    strategicPriceLine.className = 'price-action-line';
-                    strategicPriceLine.innerHTML = `
-                    <span class="${arrowClass2}"></span>
-                    <div class="price-diff-stack">
-                        <span class="diff-amount small-font">${amountToSuggestedPrice2 >= 0 ? '+' : ''}${amountToSuggestedPrice2.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">PLN</span></span>
-                        <span class="diff-percentage small-font">${percentageToSuggestedPrice2 >= 0 ? '+' : ''}${percentageToSuggestedPrice2.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">%</span></span>
-                    </div>
-                    <div class="small-font">= ${suggestedPrice2.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">PLN</span></div>
-                `;
-                    const strategicPriceBtn = document.createElement('button');
-                    strategicPriceBtn.className = 'simulate-change-btn';
-                    const strategicBtnContent = `<span class="color-square-turquoise"></span> Zmień cenę`;
-                    strategicPriceBtn.innerHTML = strategicBtnContent;
-                    strategicPriceBtn.dataset.originalText = strategicBtnContent;
-                    strategicPriceLine.appendChild(strategicPriceBtn);
-                    strategicPriceBox.appendChild(strategicPriceLine);
-                    attachPriceChangeListener(strategicPriceLine, suggestedPrice2, box, item.productId, item.productName, myPrice, item);
+                    attachPriceChangeListener(newActionLine, suggestionRenderResult.suggestedPrice, box, item.productId, item.productName, myPrice, item);
+                } else if (suggestionRenderResult.html && suggestionRenderResult.actionLineSelector) {
 
-                    infoCol.appendChild(matchPriceBox);
-                    infoCol.appendChild(strategicPriceBox);
-
-                } else if (item.colorClass === "prMid" || item.colorClass === "prToHigh") {
-                    const amountToMatchLowestPrice = myPrice - lowestPrice;
-                    const percentageToMatchLowestPrice = myPrice > 0 ? (amountToMatchLowestPrice / myPrice) * 100 : 0;
-                    let strategicPrice, amountToBeatLowestPrice, percentageToBeatLowestPrice;
-                    if (usePriceDifference) {
-                        strategicPrice = lowestPrice - setStepPrice;
-                    } else {
-                        strategicPrice = lowestPrice * (1 - setStepPrice / 100);
-                    }
-                    amountToBeatLowestPrice = myPrice - strategicPrice;
-                    percentageToBeatLowestPrice = myPrice > 0 ? (amountToBeatLowestPrice / myPrice) * 100 : 0;
-                    const arrowClass = item.colorClass === "prMid" ? "arrow-down-yellow" : "arrow-down-red";
-
-                    const matchPriceBox = document.createElement('div');
-                    matchPriceBox.className = 'price-box-column';
-                    const matchPriceLine = document.createElement('div');
-                    matchPriceLine.className = 'price-action-line';
-                    matchPriceLine.innerHTML = `
-                    <span class="${arrowClass}"></span>
-                    <div class="price-diff-stack">
-                        <span class="diff-amount small-font">-${amountToMatchLowestPrice.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">PLN</span></span>
-                        <span class="diff-percentage small-font">-${percentageToMatchLowestPrice.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">%</span></span>
-                    </div>
-                    <div class="small-font">= ${lowestPrice.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">PLN</span></div>
-                `;
-                    const matchPriceBtn = document.createElement('button');
-                    matchPriceBtn.className = 'simulate-change-btn';
-                    const matchBtnContent = `<span class="color-square-green"></span> Zmień cenę`;
-                    matchPriceBtn.innerHTML = matchBtnContent;
-                    matchPriceBtn.dataset.originalText = matchBtnContent;
-                    matchPriceLine.appendChild(matchPriceBtn);
-                    matchPriceBox.appendChild(matchPriceLine);
-                    attachPriceChangeListener(matchPriceLine, lowestPrice, box, item.productId, item.productName, myPrice, item);
-
-                    const strategicPriceBox = document.createElement('div');
-                    strategicPriceBox.className = 'price-box-column';
-                    const strategicPriceLine = document.createElement('div');
-                    strategicPriceLine.className = 'price-action-line';
-                    strategicPriceLine.innerHTML = `
-                    <span class="${arrowClass}"></span>
-                    <div class="price-diff-stack">
-                        <span class="diff-amount small-font">-${amountToBeatLowestPrice.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">PLN</span></span>
-                        <span class="diff-percentage small-font">-${percentageToBeatLowestPrice.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">%</span></span>
-                    </div>
-                    <div class="small-font">= ${strategicPrice.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">PLN</span></div>
-                `;
-                    const strategicPriceBtn = document.createElement('button');
-                    strategicPriceBtn.className = 'simulate-change-btn';
-                    const strategicBtnContent = `<span class="color-square-turquoise"></span> Zmień cenę`;
-                    strategicPriceBtn.innerHTML = strategicBtnContent;
-                    strategicPriceBtn.dataset.originalText = strategicBtnContent;
-                    strategicPriceLine.appendChild(strategicPriceBtn);
-                    strategicPriceBox.appendChild(strategicPriceLine);
-                    attachPriceChangeListener(strategicPriceLine, strategicPrice, box, item.productId, item.productName, myPrice, item);
-
-                    infoCol.appendChild(matchPriceBox);
-                    infoCol.appendChild(strategicPriceBox);
-
-                } else if (item.colorClass === "prGood") {
-                    const amountToSuggestedPrice1 = 0;
-                    const percentageToSuggestedPrice1 = 0;
-                    const suggestedPrice1 = myPrice;
-                    let amountToSuggestedPrice2, percentageToSuggestedPrice2, suggestedPrice2, downArrowClass = 'arrow-down-green';
-
-                    if (item.totalOfferCount > 1) {
-                        if (usePriceDifference) {
-                            suggestedPrice2 = myPrice - setStepPrice;
-                        } else {
-                            let reduction = myPrice * (setStepPrice / 100);
-                            if (reduction < 0.01) reduction = 0.01;
-                            suggestedPrice2 = myPrice - reduction;
-                        }
-                        amountToSuggestedPrice2 = suggestedPrice2 - myPrice;
-                        percentageToSuggestedPrice2 = myPrice > 0 ? (amountToSuggestedPrice2 / myPrice) * 100 : 0;
-                    } else {
-                        suggestedPrice2 = myPrice;
-                        amountToSuggestedPrice2 = 0;
-                        percentageToSuggestedPrice2 = 0;
-                        downArrowClass = 'no-change-icon-turquoise';
-                    }
-
-                    const matchPriceBox = document.createElement('div');
-                    matchPriceBox.className = 'price-box-column';
-                    const matchPriceLine = document.createElement('div');
-                    matchPriceLine.className = 'price-action-line';
-                    matchPriceLine.innerHTML = `
-                    <span class="no-change-icon"></span>
-                    <div class="price-diff-stack">
-                        <span class="diff-amount small-font">+${amountToSuggestedPrice1.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">PLN</span></span>
-                        <span class="diff-percentage small-font">+${percentageToSuggestedPrice1.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">%</span></span>
-                    </div>
-                    <div class="small-font">= ${suggestedPrice1.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">PLN</span></div>
-                `;
-                    const matchPriceBtn = document.createElement('button');
-                    matchPriceBtn.className = 'simulate-change-btn';
-                    const matchBtnContent = `<span class="color-square-green"></span> Zmień cenę`;
-                    matchPriceBtn.innerHTML = matchBtnContent;
-                    matchPriceBtn.dataset.originalText = matchBtnContent;
-                    matchPriceLine.appendChild(matchPriceBtn);
-                    matchPriceBox.appendChild(matchPriceLine);
-                    attachPriceChangeListener(matchPriceLine, suggestedPrice1, box, item.productId, item.productName, myPrice, item);
-
-                    const strategicPriceBox = document.createElement('div');
-                    strategicPriceBox.className = 'price-box-column';
-                    const strategicPriceLine = document.createElement('div');
-                    strategicPriceLine.className = 'price-action-line';
-                    strategicPriceLine.innerHTML = `
-                    <span class="${downArrowClass}"></span>
-                    <div class="price-diff-stack">
-                        <span class="diff-amount small-font">${amountToSuggestedPrice2.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">PLN</span></span>
-                        <span class="diff-percentage small-font">${percentageToSuggestedPrice2.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">%</span></span>
-                    </div>
-                    <div class="small-font">= ${suggestedPrice2.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="unit">PLN</span></div>
-                `;
-                    const strategicPriceBtn = document.createElement('button');
-                    strategicPriceBtn.className = 'simulate-change-btn';
-                    const strategicBtnContent = `<span class="color-square-turquoise"></span> Zmień cenę`;
-                    strategicPriceBtn.innerHTML = strategicBtnContent;
-                    strategicPriceBtn.dataset.originalText = strategicBtnContent;
-                    strategicPriceLine.appendChild(strategicPriceBtn);
-                    strategicPriceBox.appendChild(strategicPriceLine);
-                    attachPriceChangeListener(strategicPriceLine, suggestedPrice2, box, item.productId, item.productName, myPrice, item);
-
-                    infoCol.appendChild(matchPriceBox);
-                    infoCol.appendChild(strategicPriceBox);
+                    console.error("Nie można znaleźć actionLine za pomocą selektora:", suggestionRenderResult.actionLineSelector, "dla produktu ID:", item.productId);
                 }
+
+            } else {
+
+                infoCol.innerHTML = '<div class="price-box-column">Brak danych do sugestii</div>';
             }
 
         });
@@ -1196,10 +1304,25 @@
             }
         });
 
+        if (stepPriceInput) {
+            stepPriceInput.addEventListener("blur", () => {
+
+                enforceLimits(stepPriceInput, -100.00, 1000.00);
+
+                setStepPrice = parseFloat(stepPriceInput.value.replace(',', '.'));
+                updateStepPriceIndicator();
+            });
+            stepPriceInput.addEventListener('input', updateStepPriceIndicator);
+            stepPriceInput.addEventListener('change', updateStepPriceIndicator);
+
+            setTimeout(updateStepPriceIndicator, 0);
+        }
+
         document.getElementById('savePriceValues').addEventListener('click', function () {
-            const price1 = parseFloat(document.getElementById('price1').value);
-            const price2 = parseFloat(document.getElementById('price2').value);
-            const stepPrice = parseFloat(document.getElementById('stepPrice').value);
+
+            const price1 = parseFloat(document.getElementById('price1').value.replace(',', '.'));
+            const price2 = parseFloat(document.getElementById('price2').value.replace(',', '.'));
+            const stepPrice = parseFloat(document.getElementById('stepPrice').value.replace(',', '.'));
             const usePriceDiff = document.getElementById('usePriceDifference').checked;
             const data = { StoreId: storeId, SetPrice1: price1, SetPrice2: price2, PriceStep: stepPrice, UsePriceDifference: usePriceDiff };
 
@@ -1235,7 +1358,10 @@
                 usePriceDifference = data.usePriceDifference;
                 document.getElementById('price1').value = setPrice1.toFixed(2);
                 document.getElementById('price2').value = setPrice2.toFixed(2);
+
                 document.getElementById('stepPrice').value = setStepPrice.toFixed(2);
+                updateStepPriceIndicator();
+
                 document.getElementById('usePriceDifference').checked = usePriceDifference;
                 updateUnits(usePriceDifference);
 
