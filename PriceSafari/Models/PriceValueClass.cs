@@ -39,7 +39,6 @@
         public decimal AllegroSetPrice1 { get; set; } = 2.00m;
         public decimal AllegroSetPrice2 { get; set; } = 2.00m;
 
-        //nowe elementy dla allegro
 
       
 
@@ -49,7 +48,8 @@
         public bool AllegroEnforceMinimalMargin { get; set; } = true;
         public decimal AllegroMinimalMarginPercent { get; set; } = 0.00m;
 
-
+        //nowe element allegro - czy uwzgledniac prowizje w zmianie ceny
+        public bool AllegroIncludeCommisionInPriceChange { get; set; } = false;
 
 
 

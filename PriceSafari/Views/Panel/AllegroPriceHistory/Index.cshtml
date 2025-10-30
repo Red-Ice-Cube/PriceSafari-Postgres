@@ -58,12 +58,6 @@
                     </div>
                     <button class="Button-Page-Small" style="margin-top: 4px;" id="savePriceValues">Zapisz progi</button>
 
-                    <div class="form-check" style="margin-top: 10px; padding-left: 24px;">
-                        <input class="form-check-input" type="checkbox" id="includeCommissionMargin" value="" style="margin-left: -24px;">
-                        <label class="form-check-label" for="includeCommissionMargin" style="font-size:14px; font-weight: 400;">
-                            Uwzględnij prowizję w narzucie
-                        </label>
-                    </div>
                 </div>
                 <div class="filterBox">
                     <div class="Category-Container-Select" style="margin-top:-2px;">Flagi <a asp-controller="Flags" asp-action="List" asp-route-storeId="@ViewBag.StoreId" class="link-line">+ Dodaj Flage</a></div>
@@ -298,7 +292,7 @@
                 </p>
                 <form id="allegroMarginSettingsForm">
                     <div style="display:flex; gap:6px; justify-content: space-between;">
-                        <div class="form-group" style="margin-bottom:24px; width:350px;">
+                        <div class="form-group" style="margin-bottom:24px; width:250px;">
                             <label for="allegroIdentifierForSimulationInput">Element nawigacyjny dla produktów</label>
                             <select class="form-control" id="allegroIdentifierForSimulationInput">
                                 <option value="EAN">EAN</option>
@@ -306,8 +300,8 @@
                          
                             </select>
                         </div>
-                        <div class="form-group" style="margin-bottom:24px;  width:350px;">
-                            <label for="allegroUseMarginForSimulationInput">Symuluj tylko produkty z ceną zakupu</label>
+                        <div class="form-group" style="margin-bottom:24px; width:250px;">
+                            <label for="allegroUseMarginForSimulationInput">Symuluj tylko produkty z znaną ceną zakupu</label>
                             <select class="form-control" id="allegroUseMarginForSimulationInput">
                                 <option value="true">Tak</option>
                                 <option value="false">Nie</option>
@@ -315,17 +309,25 @@
                         </div>
                     </div>
                     <div style="display:flex; gap:6px; justify-content: space-between;">
-                        <div class="form-group" style="margin-bottom:24px; width:350px;">
+                        <div class="form-group" style="margin-bottom:24px; width:250px;">
                             <label for="allegroEnforceMinimalMarginInput">Zablokuj spadek poniżej ceny zakupu</label>
                             <select class="form-control" id="allegroEnforceMinimalMarginInput">
                                 <option value="true">Tak</option>
                                 <option value="false">Nie</option>
                             </select>
                         </div>
-                        <div class="form-group" style="margin-bottom:24px; width:350px;">
-                            <label for="allegroMinimalMarginPercentInput">Minimalny narzut (%)</label>
-                            <input type="number" class="form-control" id="allegroMinimalMarginPercentInput" step="0.01" value="0.00">
+                        <div class="form-group" style="margin-bottom:24px; width:250px;">
+                            <label for="allegroIncludeCommisionInPriceChangeInput">Uwzględnij koszt Allegro (prowizję) w zysku (narzucie)</label>
+                            <select class="form-control" id="allegroIncludeCommisionInPriceChangeInput">
+                                <option value="true">Tak</option>
+                                <option value="false">Nie</option>
+                            </select>
                         </div>
+                    </div>
+                 
+                    <div class="form-group" style="margin-bottom:24px;">
+                        <label for="allegroMinimalMarginPercentInput">Minimalny narzut (%)</label>
+                        <input type="number" class="form-control" id="allegroMinimalMarginPercentInput" step="0.01" value="0.00">
                     </div>
                 </form>
             </div>
@@ -370,7 +372,33 @@
                 </button>
             </div>
             <div class="modal-body">
-                <p>Wklej tutaj treść wyjaśniającą masową zmianę...</p>
+                <p style="margin-bottom:24px; line-height:1.6;">
+                    Kliknięcie tego przycisku wykona masową zmianę cen produktów
+                    (tylko w programie PriceSafari – nie wpływa to na ceny w Twoim sklepie).
+                    Zmiana obejmie tylko produkty z co najmniej jedną ofertą konkurencyjną i kodem EAN.
+                    Aby zawęzić listę produktów, skorzystaj z filtrów lub presetów.
+                    Dla przykładu wybierz grupę cen konkurencyjnych, czyli produkty,
+                    które Ty i najtańsi konkurenci sprzedajecie w tej samej cenie.
+                    <br><br>
+                    <strong>Przykład:</strong> ustaw krok cenowy na -0,01 PLN i kliknij
+                    <em>„Przelicz i zapisz”</em>.
+                    Następnie kliknięcie przycisku masowej zmiany cen obniży Twoje ceny
+                    o wybrany krok (tu: -0,01 PLN) względem najtańszego konkurenta.
+                    Dzięki temu Twoje produkty będą tańsze o 1 grosz, co uczyni Cię
+                    najtańszym sprzedawcą w tej grupie – zwiększając sprzedaż przy minimalnej utracie marży.
+                </p>
+
+                <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                    <div class="color-square-turquoise" style="margin-top:4px; flex-shrink:0;"></div>
+                    <p style="width:800px; line-height:1.6; margin-left:12px;">
+                        Krok cenowy to różnica między Twoją ceną a ofertą najtańszego konkurenta.
+                        <br><br>
+                        <strong>Przykład:</strong> jeśli Twój produkt kosztuje 1000 PLN, a konkurent oferuje go za 900 PLN,
+                        to przy kroku -0,01 PLN Twoja cena po zmianie wyniesie 899,99 PLN.
+                        Przy kroku 0,00 PLN cena zrówna się z konkurencją (900 PLN),
+                        a przy 0,01 PLN wzrośnie do 900,01 PLN – będziesz droższy o 1 grosz.
+                    </p>
+                </div>
             </div>
             <div class="modal-footer" style="justify-content:center;">
                 <button id="massStrategicBtn" class="Button-Page-Small" style="width:460px;">

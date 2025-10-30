@@ -13,11 +13,9 @@
         identifierForSimulation: 'ID',
         useMarginForSimulation: true,
         enforceMinimalMargin: true,
-        minimalMarginPercent: 0.00
+        minimalMarginPercent: 0.00,
+        includeCommissionInPriceChange: false
     };
-
-    let includeCommissionInMargin = false;
-    const includeCommissionMarginToggle = document.getElementById('includeCommissionMargin');
 
     let selectedProductId = null;
     let selectedFlagsInclude = new Set();
@@ -303,7 +301,7 @@
                     <div class="form-check form-check-inline check-exclude" style="margin-right:0px; padding-left:16px;">
                         <input class="form-check-input flagFilterExclude" type="checkbox" id="flagExclude_${flag.flagId}" value="${flag.flagId}" ${excludeChecked}>
                     </div>
-                    <span class="flag-name-count">${flag.flagName} (${count})</span>
+                        <span class="flag-name-count" style="font-size:14px; font-weight: 400;">${flag.flagName} (${count})</span>
                 </div>`;
                 flagContainer.insertAdjacentHTML('beforeend', flagElementHTML);
             });
@@ -319,7 +317,7 @@
             <div class="form-check form-check-inline check-exclude" style="margin-right:0px; padding-left:16px;">
                 <input class="form-check-input flagFilterExclude" type="checkbox" id="flagExclude_noFlag" value="noFlag" ${noFlagExcludeChecked}>
             </div>
-            <span class="flag-name-count">Brak flagi (${noFlagCount})</span>
+            <span class="flag-name-count" style="font-size:14px; font-weight: 400;">Brak flagi (${noFlagCount})</span>
         </div>`;
         flagContainer.insertAdjacentHTML('beforeend', noFlagElementHTML);
 
@@ -497,7 +495,7 @@
                 }
 
                 const marginPrice = parseFloat(item.marginPrice);
-                const commission = includeCommissionInMargin && item.apiAllegroCommission != null ? parseFloat(item.apiAllegroCommission) : 0;
+                const commission = allegroMarginSettings.includeCommissionInPriceChange && item.apiAllegroCommission != null ? parseFloat(item.apiAllegroCommission) : 0;
                 const newNetPrice = suggestedPrice - commission;
                 const newMarginAmount = newNetPrice - marginPrice;
                 const newMarginPercentage = (marginPrice !== 0) ? (newMarginAmount / marginPrice) * 100 : 0;
@@ -758,7 +756,7 @@
         if (item.marginPrice != null && suggestedPrice != null) {
             const marginPrice = parseFloat(item.marginPrice);
 
-            const commission = includeCommissionInMargin && item.apiAllegroCommission != null ?
+            const commission = allegroMarginSettings.includeCommissionInPriceChange && item.apiAllegroCommission != null ?
                 parseFloat(item.apiAllegroCommission) :
                 0;
 
@@ -1786,7 +1784,7 @@
                 }
 
                 const marginPrice = parseFloat(item.marginPrice);
-                const commission = includeCommissionInMargin && item.apiAllegroCommission != null ? parseFloat(item.apiAllegroCommission) : 0;
+                const commission = allegroMarginSettings.includeCommissionInPriceChange && item.apiAllegroCommission != null ? parseFloat(item.apiAllegroCommission) : 0;
 
                 const newNetPrice = suggestedPrice - commission;
                 const newMarginAmount = newNetPrice - marginPrice;
@@ -1916,14 +1914,6 @@
             filterAndSortPrices();
         });
 
-        if (includeCommissionMarginToggle) {
-            includeCommissionMarginToggle.addEventListener('change', function () {
-                includeCommissionInMargin = this.checked;
-
-                loadPrices();
-            });
-        }
-
         Object.keys(sortingState).forEach(key => {
             const button = document.getElementById(key);
             if (button) {
@@ -2009,6 +1999,7 @@
                 document.getElementById('allegroUseMarginForSimulationInput').value = allegroMarginSettings.useMarginForSimulation.toString();
                 document.getElementById('allegroEnforceMinimalMarginInput').value = allegroMarginSettings.enforceMinimalMargin.toString();
                 document.getElementById('allegroMinimalMarginPercentInput').value = allegroMarginSettings.minimalMarginPercent;
+                document.getElementById('allegroIncludeCommisionInPriceChangeInput').value = allegroMarginSettings.includeCommissionInPriceChange.toString();
 
                 $('#allegroMarginSettingsModal').modal('show');
             });
@@ -2023,7 +2014,8 @@
                     AllegroIdentifierForSimulation: document.getElementById('allegroIdentifierForSimulationInput').value,
                     AllegroUseMarginForSimulation: document.getElementById('allegroUseMarginForSimulationInput').value === 'true',
                     AllegroEnforceMinimalMargin: document.getElementById('allegroEnforceMinimalMarginInput').value === 'true',
-                    AllegroMinimalMarginPercent: parseFloat(document.getElementById('allegroMinimalMarginPercentInput').value.replace(',', '.'))
+                    AllegroMinimalMarginPercent: parseFloat(document.getElementById('allegroMinimalMarginPercentInput').value.replace(',', '.')),
+                    AllegroIncludeCommisionInPriceChange: document.getElementById('allegroIncludeCommisionInPriceChangeInput').value === 'true'
                 };
 
                 showLoading();
@@ -2117,6 +2109,7 @@
                 allegroMarginSettings.useMarginForSimulation = data.allegroUseMarginForSimulation;
                 allegroMarginSettings.enforceMinimalMargin = data.allegroEnforceMinimalMargin;
                 allegroMarginSettings.minimalMarginPercent = data.allegroMinimalMarginPercent;
+                allegroMarginSettings.includeCommissionInPriceChange = data.allegroIncludeCommisionInPriceChange;
 
                 document.getElementById('price1').value = setPrice1.toFixed(2);
                 document.getElementById('price2').value = setPrice2.toFixed(2);
@@ -2139,7 +2132,7 @@
                     const basePriceForCurrentMargin = p.apiAllegroPriceFromUser != null ? parseFloat(p.apiAllegroPriceFromUser) : (p.myPrice != null ? parseFloat(p.myPrice) : null);
 
                     if (marginPrice != null && basePriceForCurrentMargin != null) {
-                        const commission = includeCommissionInMargin && p.apiAllegroCommission != null ? parseFloat(p.apiAllegroCommission) : 0;
+                        const commission = allegroMarginSettings.includeCommissionInPriceChange && p.apiAllegroCommission != null ? parseFloat(p.apiAllegroCommission) : 0;
                         const netPrice = basePriceForCurrentMargin - commission;
                         marginAmount = netPrice - marginPrice;
                         marginPercentage = (marginPrice !== 0) ? (marginAmount / marginPrice) * 100 : null;
