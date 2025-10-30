@@ -1,11 +1,5 @@
 ﻿document.addEventListener("DOMContentLoaded", function () {
 
-    /**
-     * Formatuje liczbę jako polską walutę (PLN).
-     * @param {number | null | undefined} value - Wartość do sformatowania.
-     * @param {boolean} [includeUnit=true] - Czy dołączyć " PLN" na końcu.
-     * @returns {string} Sformatowana cena lub "-".
-     */
     function formatPricePL(value, includeUnit = true) {
         if (value === null || value === undefined || isNaN(parseFloat(value))) {
             return "-";
@@ -18,25 +12,14 @@
         return includeUnit ? formatted + ' PLN' : formatted;
     }
 
-    /**
-     * Zwraca kolor HSL na podstawie wyniku (0-100). 0 = czerwony, 100 = zielony.
-     * @param {number} score - Wynik od 0 do 100.
-     * @returns {string} Kolor HSL.
-     */
     function getColorForScore(score) {
-        const hue = (score / 100) * 120; // 0=czerwony, 120=zielony
+        const hue = (score / 100) * 120;
         return `hsl(${hue}, 70%, 45%)`;
     }
 
-    /**
-     * Tworzy kod HTML dla wykresu kołowego (donut) z ikoną w środku.
-     * @param {number} score - Wynik (0-100) do wyświetlenia.
-     * @param {string} iconPath - Ścieżka do ikony (np. /images/AllegroIcon.png).
-     * @returns {string} Kod HTML wykresu.
-     */
     function createDonutChart(score, iconPath) {
         const color = getColorForScore(score);
-        const percentage = Math.max(0, Math.min(100, score)); // Ogranicz do 0-100
+        const percentage = Math.max(0, Math.min(100, score));
         const roundedScore = Math.round(score);
 
         return `
@@ -80,20 +63,16 @@
         `;
     }
 
-    // Użyj unikalnego klucza dla Allegro
     const localStorageKey = `selectedAllegroPriceChanges_${storeId}`;
     var selectedPriceChanges = [];
     var sessionScrapId = null;
 
-    /**
-     * Ładuje zapisane zmiany cen z Local Storage przy starcie skryptu.
-     */
     function loadChangesFromStorage() {
         const storedDataJSON = localStorage.getItem(localStorageKey);
         if (storedDataJSON) {
             try {
                 const storedData = JSON.parse(storedDataJSON);
-                // Sprawdza, czy format danych jest poprawny
+
                 if (storedData && storedData.scrapId && Array.isArray(storedData.changes)) {
                     selectedPriceChanges = storedData.changes;
                     sessionScrapId = storedData.scrapId;
@@ -108,14 +87,9 @@
     }
 
     let currentOurStoreName = storeId || "Sklep";
-    let globalLatestScrapId = null; // Ustawiane przez openSimulationModal
-    let usePriceWithDeliverySetting = false; // Zawsze false dla Allegro w tej implementacji
-    let originalRowsData = []; // Przechowuje pełne dane dla wierszy w modale
-
-    /**
-     * Aktualizuje pasek podsumowania (summaryBar) pokazujący liczbę zmian cen.
-     * @param {boolean} [forceClear=false] - Czy wymusić wyczyszczenie danych.
-     */
+    let globalLatestScrapId = null;
+    let usePriceWithDeliverySetting = false;
+    let originalRowsData = [];
     function updatePriceChangeSummary(forceClear = false) {
         if (forceClear) {
             selectedPriceChanges = [];
@@ -129,14 +103,13 @@
         var summaryText = document.getElementById("summaryText");
 
         if (summaryBar && summaryText) {
-            if (totalCount > 0) {
-                summaryText.innerHTML =
-                    `<div class='price-change-up' style='display: inline-block;'><span style='color: red;'>▲</span> ${increasedCount}</div>` +
-                    `<div class='price-change-down' style='display: inline-block;'><span style='color: green;'>▼</span> ${decreasedCount}</div>`;
-                summaryBar.style.display = 'flex'; // Pokaż pasek
-            } else {
-                summaryBar.style.display = 'none'; // Ukryj pasek
-            }
+
+            summaryText.innerHTML =
+                `<div class='price-change-up' style='display: inline-block;'><span style='color: red;'>▲</span> ${increasedCount}</div>` +
+                `<div class='price-change-down' style='display: inline-block;'><span style='color: green;'>▼</span> ${decreasedCount}</div>`;
+
+            summaryBar.style.display = 'flex';
+
         }
 
         var simulateButton = document.getElementById("simulateButton");
@@ -147,9 +120,6 @@
         }
     }
 
-    /**
-     * Zapisuje aktualny stan `selectedPriceChanges` i `sessionScrapId` do Local Storage.
-     */
     function savePriceChanges() {
         const dataToStore = {
             scrapId: sessionScrapId,
@@ -158,9 +128,6 @@
         localStorage.setItem(localStorageKey, JSON.stringify(dataToStore));
     }
 
-    /**
-     * Czyści wszystkie zapisane zmiany cen (z pamięci i Local Storage) i aktualizuje UI.
-     */
     function clearPriceChanges() {
         selectedPriceChanges = [];
         sessionScrapId = null;
@@ -176,7 +143,6 @@
 
         originalRowsData = [];
 
-        // Odśwież widok główny (wywołaj funkcję z AllegroPriceHistory.js)
         if (typeof window.refreshPriceBoxStates === 'function') {
             window.refreshPriceBoxStates();
         }
@@ -187,7 +153,6 @@
         clearChangesButton.addEventListener("click", clearPriceChanges);
     }
 
-    // Nasłuchuje na event z AllegroPriceHistory.js, jeśli LS został wyczyszczony z powodu starego scrapId
     document.addEventListener('simulationDataCleared', function () {
         console.log("Otrzymano 'simulationDataCleared': Czyszczenie danych symulacji w AllegroPriceChange.js.");
         selectedPriceChanges = [];
@@ -195,7 +160,6 @@
         updatePriceChangeSummary();
     });
 
-    // Nasłuchuje na event 'priceBoxChange' (z AllegroPriceHistory.js)
     document.addEventListener('priceBoxChange', function (event) {
         const { productId, productName, currentPrice, newPrice, scrapId, stepPriceApplied, stepUnitApplied } = event.detail;
 
@@ -228,7 +192,6 @@
         updatePriceChangeSummary();
     });
 
-    // Nasłuchuje na event 'priceBoxChangeRemove' (z AllegroPriceHistory.js)
     document.addEventListener('priceBoxChangeRemove', function (event) {
         const { productId } = event.detail;
         const productIdStr = String(productId);
@@ -237,7 +200,6 @@
         savePriceChanges();
         updatePriceChangeSummary();
 
-        // Usuń wiersz z modala, jeśli jest otwarty
         const rowElement = document.querySelector(`#simulationTbody tr button[data-product-id='${productIdStr}']`)?.closest('tr');
         if (rowElement) {
             rowElement.remove();
@@ -266,11 +228,6 @@
         if (overlay) overlay.style.display = "none";
     }
 
-    /**
-     * Parsuje string rankingu (np. "1-2/10" lub "3/5") do obiektu.
-     * @param {string} rankStr - String rankingu.
-     * @returns {{rank: number | null, isRange: boolean, rangeSize: number}}
-     */
     function parseRankingString(rankStr) {
         if (!rankStr || rankStr === "-") {
             return { rank: null, isRange: false, rangeSize: 1 };
@@ -300,12 +257,6 @@
         return { rank: rankVal, isRange: isRange, rangeSize: rangeSize };
     }
 
-    /**
-     * Oblicza "wynik opłacalności" dla zmiany ceny (tylko dla Allegro).
-     * @param {object} item - Obiekt zmiany z selectedPriceChanges.
-     * @param {object} simResult - Wynik symulacji dla tego produktu.
-     * @returns {object} Obiekt z wynikami opłacalności.
-     */
     function computeOpportunityScore(item, simResult) {
         if (!simResult) {
             return { cost: 0, costFrac: 0, allegroGained: 0, allegroFinalScore: null, basePriceChangeType: 'unknown' };
@@ -345,12 +296,12 @@
 
             let gainedPos = effectiveOldRank - newRankData.rank;
             if (gainedPos <= 0 && !isOldRankRangeImprovement) return null;
-            if (gainedPos <= 0 && isOldRankRangeImprovement) gainedPos = 0.5; // Mały bonus za zawężenie zakresu
+            if (gainedPos <= 0 && isOldRankRangeImprovement) gainedPos = 0.5;
 
             let jumpFrac = gainedPos * Math.log10(totalOffers + 1);
 
             if (isOldRankRangeImprovement && gainedPos > 0) {
-                jumpFrac *= 0.8; // Modyfikator niepewności
+                jumpFrac *= 0.8;
             }
 
             let rankRounded = Math.round(newRankData.rank);
@@ -361,10 +312,10 @@
             }
 
             let effectiveCostFrac = (costFrac < 0.000001) ? 0.000001 : costFrac;
-            let costFracAdjusted = Math.pow(effectiveCostFrac, 0.5); // Spłaszczenie wpływu kosztu
+            let costFracAdjusted = Math.pow(effectiveCostFrac, 0.5);
             let offset = 0.0001;
             let raw = (jumpFrac + placeBonus) / (costFracAdjusted + offset);
-            let val = Math.log10(raw + 1) * 35; // Skala logarytmiczna
+            let val = Math.log10(raw + 1) * 35;
             val = Math.max(0, Math.min(100, val));
             return val;
         }
@@ -389,9 +340,6 @@
         };
     }
 
-    /**
-     * Buduje blok HTML z informacjami o cenie, rankingu i marży (wersja dla Allegro).
-     */
     function buildPriceBlock(basePrice, marginPercent, marginValue, allegroRank, allegroOffers) {
         const formattedBasePrice = formatPricePL(basePrice);
         let block = '<div class="price-info-box">';
@@ -400,8 +348,6 @@
             <div class="price-info-item" style="padding: 4px 12px; background: #f5f5f5; border: 1px solid #e3e3e3; border-radius: 5px; margin-bottom: 5px;">
                 Cena oferty | ${formattedBasePrice}
             </div>`;
-
-        // Brak kosztów wysyłki w tej implementacji
 
         if (allegroRank && allegroRank !== "-") {
             const allegroOffersText = allegroOffers > 0 ? allegroOffers : '-';
@@ -427,9 +373,6 @@
         return block;
     }
 
-    /**
-     * Otwiera modal symulacji, pobiera dane z backendu i renderuje tabelę.
-     */
     function openSimulationModal() {
         if (selectedPriceChanges.length === 0) {
             const tableContainer = document.getElementById("simulationModalBody");
@@ -455,7 +398,6 @@
             };
         });
 
-        // Krok 1: Pobierz szczegóły produktu (nazwa, ean, etc.)
         fetch('/AllegroPriceHistory/GetPriceChangeDetails', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -468,7 +410,6 @@
             .then(productDetails => {
                 var hasImage = productDetails.some(prod => prod.imageUrl && prod.imageUrl.trim() !== "");
 
-                // Krok 2: Uruchom symulację
                 return fetch('/AllegroPriceHistory/SimulatePriceChange', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -481,12 +422,12 @@
                         return response.json();
                     })
                     .then(data => {
-                        return { productDetails, data, hasImage }; // Przekaż wszystko do następnego .then()
+                        return { productDetails, data, hasImage };
                     });
             })
             .then(({ productDetails, data, hasImage }) => {
 
-                usePriceWithDeliverySetting = data.usePriceWithDelivery === true; // Będzie false
+                usePriceWithDeliverySetting = data.usePriceWithDelivery === true;
                 if (data.ourStoreName) {
                     currentOurStoreName = data.ourStoreName;
                 }
@@ -496,7 +437,6 @@
 
                 var simulationResults = data.simulationResults || [];
 
-                // Zbuduj tabelę
                 let tableHtml = '<table class="table-orders" id="simulationTable"><thead><tr>';
                 if (hasImage) {
                     tableHtml += '<th>Produkt</th>';
@@ -514,7 +454,6 @@
                     tableContainer.innerHTML = tableHtml;
                 }
 
-                // Przygotuj dane wierszy
                 originalRowsData = selectedPriceChanges.map(function (item, index) {
                     const productIdStr = String(item.productId);
                     const prodDetail = productDetails.find(x => String(x.productId) === productIdStr);
@@ -523,7 +462,7 @@
                     const name = prodDetail ? prodDetail.productName : item.productName || 'Brak nazwy';
                     const imageUrl = prodDetail ? prodDetail.imageUrl : "";
                     const ean = simResult ? simResult.ean : (prodDetail ? String(prodDetail.ean || '') : '');
-                    const externalId = simResult ? simResult.externalId : null; // Allegro nie używa externalId w ten sam sposób
+                    const externalId = simResult ? simResult.externalId : null;
                     const producerCode = simResult ? simResult.producerCode : null;
 
                     const currentPriceNum = parseFloat(item.currentPrice);
@@ -535,7 +474,6 @@
                     if (diff > 0.005) arrow = '<span style="color: red;">▲</span>';
                     else if (diff < -0.005) arrow = '<span style="color: green;">▼</span>';
 
-                    // Użyj nowej, uproszczonej funkcji buildPriceBlock
                     let currentBlock = buildPriceBlock(
                         simResult ? simResult.baseCurrentPrice : null,
                         simResult ? simResult.currentMargin : null,
@@ -551,7 +489,6 @@
                         simResult ? simResult.totalAllegroOffers : null
                     );
 
-                    // Użyj nowej, uproszczonej funkcji computeOpportunityScore
                     let opp = computeOpportunityScore(item, simResult);
                     let bestScore = (opp && opp.allegroFinalScore != null) ? opp.allegroFinalScore : 0;
 
@@ -586,26 +523,23 @@
                         productId: productIdStr,
                         scrapId: globalLatestScrapId,
 
-                        // Dane bazowe
                         baseCurrentPrice: simResult ? simResult.baseCurrentPrice : null,
                         baseNewPrice: simResult ? simResult.baseNewPrice : null,
                         effectiveCurrentPrice: item.currentPrice,
                         effectiveNewPrice: item.newPrice,
 
-                        // Marże
                         currentMargin: simResult ? simResult.currentMargin : null,
                         currentMarginValue: simResult ? simResult.currentMarginValue : null,
                         newMargin: simResult ? simResult.newMargin : null,
                         newMarginValue: simResult ? simResult.newMarginValue : null,
 
-                        // Dane Allegro
                         currentAllegroRanking: simResult ? simResult.currentAllegroRanking : null,
                         newAllegroRanking: simResult ? simResult.newAllegroRanking : null,
                         totalAllegroOffers: simResult ? simResult.totalAllegroOffers : null
                     };
                 });
 
-                renderRows(originalRowsData); // Renderuj wiersze
+                renderRows(originalRowsData);
 
                 const simulationModal = document.getElementById("simulationModal");
                 if (simulationModal) {
@@ -632,10 +566,6 @@
             });
     }
 
-    /**
-     * Renderuje wiersze w tabeli symulacji.
-     * @param {Array<object>} rows - Tablica obiektów `originalRowsData`.
-     */
     function renderRows(rows) {
         const tbody = document.getElementById("simulationTbody");
         if (!tbody) return;
@@ -656,7 +586,7 @@
             }
 
             let eanInfo = row.ean ? `<div class="price-info-item">EAN: ${row.ean}</div>` : "";
-            // Użyj externalId jako ID Allegro (jeśli jest)
+
             let idInfo = row.externalId ? `<div class="price-info-item">ID: ${row.externalId}</div>` : (row.ean ? "" : "<div class='price-info-item'>Brak ID/EAN</div>");
             let producerCodeInfo = row.producerCode ? `<div class="price-info-item">Kod: ${row.producerCode}</div>` : "";
 
@@ -700,12 +630,11 @@
 
         tbody.innerHTML = html;
 
-        // Ponowne podpięcie listenerów usuwania
         tbody.querySelectorAll('.remove-change-btn').forEach(btn => {
             btn.addEventListener('click', function (e) {
                 e.stopPropagation();
                 const prodId = this.getAttribute('data-product-id');
-                // Wywołaj event globalny, który obsłuży reszta logiki
+
                 const removeEvent = new CustomEvent('priceBoxChangeRemove', {
                     detail: { productId: prodId }
                 });
@@ -714,9 +643,6 @@
         });
     }
 
-    /**
-     * Sortuje wiersze po wyniku opłacalności (malejąco).
-     */
     function sortRowsByScoreDesc(rows) {
         return rows.sort((a, b) => {
             const scoreA = a.finalScore !== null ? a.finalScore : -1;
@@ -725,14 +651,11 @@
         });
     }
 
-    // ----- PODPIĘCIE GŁÓWNYCH EVENTÓW MODALA -----
-
     var simulateButton = document.getElementById("simulateButton");
     if (simulateButton) {
         simulateButton.addEventListener("click", openSimulationModal);
     }
 
-    // Przycisk sortowania w modalu (jeśli istnieje)
     const bestScoreBtn = document.getElementById("bestScoreButton");
     if (bestScoreBtn) {
         bestScoreBtn.addEventListener("click", function () {
@@ -743,7 +666,6 @@
         });
     }
 
-    // Przyciski zamykania modala symulacji
     var closeSimulationModalButtons = document.querySelectorAll('#simulationModal .close, #simulationModal [data-dismiss="modal"]');
     closeSimulationModalButtons.forEach(function (btn) {
         btn.addEventListener('click', function () {
@@ -752,14 +674,13 @@
                 simulationModal.style.display = 'none';
                 simulationModal.classList.remove('show');
             }
-            // Odśwież stan przycisków na stronie głównej
+
             if (typeof window.refreshPriceBoxStates === 'function') {
                 window.refreshPriceBoxStates();
             }
         });
     });
 
-    // Zamykanie modala symulacji kliknięciem w tło
     window.addEventListener('click', function (event) {
         const simulationModal = document.getElementById("simulationModal");
         if (event.target == simulationModal) {
@@ -773,8 +694,7 @@
         }
     });
 
-    // ----- INICJALIZACJA -----
-    loadChangesFromStorage(); // Załaduj zapisane zmiany
-    updatePriceChangeSummary(); // Zaktualizuj UI paska podsumowania
+    loadChangesFromStorage();
+    updatePriceChangeSummary();
 
 });
