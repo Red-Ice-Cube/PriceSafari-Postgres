@@ -217,9 +217,7 @@
                     console.warn(`Wykryto przestarzałe dane symulacji. Zapisany scrapId: ${storedData.scrapId}, Obecny scrapId: ${currentScrapId}. Czyszczenie localStorage.`);
                     localStorage.removeItem(localStorageKey);
 
-                    if (typeof updatePriceChangeSummary === 'function') {
-                        updatePriceChangeSummary(true);
-                    }
+                    document.dispatchEvent(new CustomEvent('simulationDataCleared'));
                 }
             } catch (e) {
 

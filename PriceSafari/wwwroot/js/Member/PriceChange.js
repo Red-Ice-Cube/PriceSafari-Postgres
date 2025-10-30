@@ -182,6 +182,13 @@
         });
     }
 
+    document.addEventListener('simulationDataCleared', function () {
+        console.log("Otrzymano 'simulationDataCleared': Czyszczenie danych symulacji w skrypcie modala.");
+        selectedPriceChanges = [];
+        sessionScrapId = null;
+        updatePriceChangeSummary(); 
+    });
+
     document.addEventListener('priceBoxChange', function (event) {
         const { productId, productName, currentPrice, newPrice, scrapId, stepPriceApplied, stepUnitApplied } = event.detail;
 

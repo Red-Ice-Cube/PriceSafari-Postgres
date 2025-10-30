@@ -877,7 +877,7 @@
                     `
                     <div class="price-box-column-text">
                         <div>
-                            <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                            <div style="display: flex; align-items: center; gap: 4px; flex-wrap: wrap;">
                                 <span style="font-weight: 500; font-size: 17px; ${competitorPriceStyle}">${lowestPrice.toFixed(2)} PLN</span>
                                 ${competitorPriceIcon}
                                 ${competitorSuperPriceBadge}
@@ -908,7 +908,7 @@
                     `
                     <div class="price-box-column-text">
                         <div>
-                            <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                            <div style="display: flex; align-items: center; gap: 4px; flex-wrap: wrap;">
                                 <span style="font-weight: 500; font-size: 17px; ${myPriceStyle}">${myPrice.toFixed(2)} PLN</span>
                                 ${myPriceIcon}
                                 ${mySuperPriceBadge}

@@ -3758,8 +3758,8 @@ tr:last-child .sub-line {
     flex-wrap: wrap;
     justify-content: flex-end;
     flex-grow: 1;
-    gap: 6px;
-    padding-right: 6px;
+    gap: 3px;
+    padding-right: 3px;
 }
 
 .flag-filter-group {
@@ -3786,7 +3786,7 @@ tr:last-child .sub-line {
 .price-box-right-column {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 3px;
 }
 
 .highlighted-text-yellow {
