@@ -146,6 +146,7 @@
         if (typeof window.refreshPriceBoxStates === 'function') {
             window.refreshPriceBoxStates();
         }
+
     }
 
     const clearChangesButton = document.getElementById("clearChangesButton");
@@ -197,6 +198,11 @@
         const productIdStr = String(productId);
 
         selectedPriceChanges = selectedPriceChanges.filter(item => item.productId !== productIdStr);
+
+        if (selectedPriceChanges.length === 0) {
+            sessionScrapId = null;
+        }
+
         savePriceChanges();
         updatePriceChangeSummary();
 
@@ -214,7 +220,7 @@
                 simulationTable.remove();
                 tableContainer.innerHTML = '<p style="text-align: center; padding: 20px; font-size: 16px;">Brak produktów do symulacji.</p>';
             }
-            sessionScrapId = null;
+
         }
     });
 

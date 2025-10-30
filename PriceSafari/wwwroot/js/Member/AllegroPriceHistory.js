@@ -1722,6 +1722,8 @@
         });
     }
 
+    window.refreshPriceBoxStates = refreshPriceBoxStates;
+
     function applyMassChange(changeType) {
         const productsToChange = currentlyFilteredPrices;
         if (!productsToChange || productsToChange.length === 0) {
@@ -1855,6 +1857,7 @@
     document.addEventListener('priceBoxChangeRemove', function (event) {
         const { productId } = event.detail;
         if (!productId) return;
+        selectedPriceChanges = selectedPriceChanges.filter(c => String(c.productId) !== String(productId));
         const priceBox = document.querySelector(`#priceContainer .price-box[data-product-id="${productId}"]`);
         if (priceBox) {
             console.log(`Allegro: Natychmiastowe resetowanie UI dla productId: ${productId} po zdarzeniu priceBoxChangeRemove.`);
