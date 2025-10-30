@@ -3371,11 +3371,16 @@
             .then(response => response.json())
             .then(response => {
                 if (response.success) {
+
                     setPrice1 = price1;
                     setPrice2 = price2;
                     setStepPrice = stepPrice;
-                    usePriceDifferenceGlobal = usePriceDiff;
-                    loadPrices();
+                    usePriceDifference = usePriceDiff;
+
+                    updatePricesDebounced();
+
+                    showGlobalUpdate('<p style="margin-bottom:8px; font-size:16px; font-weight:bold;">Ustawienia zapisane</p><p>Przeliczam sugestie...</p>');
+
                 } else {
                     alert('Błąd zapisu wartości: ' + response.message);
                 }

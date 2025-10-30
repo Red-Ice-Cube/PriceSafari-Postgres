@@ -1980,7 +1980,21 @@
                 .then(res => res.json())
                 .then(result => {
                     if (result.success) {
-                        loadPrices();
+
+                        setPrice1 = price1;
+                        setPrice2 = price2;
+                        setStepPrice = stepPrice;
+                        usePriceDifference = usePriceDiff;
+
+                        allPrices = allPrices.map(p => ({
+                            ...p,
+                            ...convertPriceValue(p)
+                        }));
+
+                        filterAndSortPrices();
+
+                        showGlobalUpdate('<p style="margin-bottom:8px; font-size:16px; font-weight:bold;">Ustawienia zapisane</p><p>Przeliczam sugestie...</p>');
+
                     } else {
                         alert('Wystąpił błąd podczas zapisywania progów.');
                     }
