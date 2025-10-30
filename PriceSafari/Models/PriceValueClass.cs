@@ -43,7 +43,7 @@
 
       
 
-        public string AllegroIdentifierForSimulation { get; set; } = "EAN";
+        public string AllegroIdentifierForSimulation { get; set; } = "ID";
         public bool AllegroUseMarginForSimulation { get; set; } = true;
 
         public bool AllegroEnforceMinimalMargin { get; set; } = true;
