@@ -34,14 +34,14 @@
                         <div class="color-circle prMid-circle"></div>
                         <div class="legendBox">Próg c. subopt.</div>
                         <label for="price2"></label>
-                        <input type="number" id="price2"  step="0.01" min="0.01">
+                        <input type="number" id="price2" step="0.01" min="0.01">
                         <span id="unitLabel2" style="display:flex; align-items:center;"></span>
                     </div>
                     <div class="price-range-settings">
                         <div class="color-circle prIdeal-circle"></div>
                         <div class="legendBox">Próg c. strateg.</div>
                         <label for="price1"></label>
-                        <input type="number" id="price1"  step="0.01" min="0.01">
+                        <input type="number" id="price1" step="0.01" min="0.01">
                         <span id="unitLabel1" style="display:flex; align-items:center;"></span>
                     </div>
                     <div class="price-range-settings">
@@ -83,6 +83,9 @@
                         Presety
                     </button>
 
+                    <button type="button" class="Button-Page-Small" style="justify-self:flex-end; margin-right:4px; height:33.99px;" id="openAllegroMarginSettingsBtn" title="Ustawienia symulacji Allegro">
+                        <i class="fa fa-cog" aria-hidden="true"></i>
+                    </button>
                     <button type="button" class="Button-Page-Small" style="justify-self:flex-end; margin-right:4px; height:33.99px;" data-toggle="modal" data-target="#infoModal">
                         <i class="fa fa-info-circle"></i>
                     </button>
@@ -100,7 +103,6 @@
                         </div>
                     </div>
 
-               
                 </div>
                 <div id="sortingButtons">
                     <div class="ProductCount" id="displayedProductCount" style="width:120px;"></div>
@@ -270,6 +272,60 @@
     </div>
 </div>
 
+
+<div class="modal fade" id="allegroMarginSettingsModal" tabindex="-1" role="dialog" aria-labelledby="allegroMarginSettingsModalLabel" aria-hidden="true">
+    <div class="modal-dialog" style="max-width:800px" role="document">
+        <div class="modal-content" style="margin:10% auto;">
+            <div class="modal-header">
+                <div class="price-box-column-name" id="allegroMarginSettingsModalLabel">Konfiguracja symulacji Allegro</div>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Zamknij">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p style="margin-bottom:48px;">
+                    Ustawienia symulacji cenowej dla Allegro. Skonfiguruj poniższe opcje, aby określić, jak system ma podchodzić do walidacji marży i identyfikacji produktów podczas symulacji.
+                </p>
+                <form id="allegroMarginSettingsForm">
+                    <div style="display:flex; gap:6px; justify-content: space-between;">
+                        <div class="form-group" style="margin-bottom:24px; width:350px;">
+                            <label for="allegroIdentifierForSimulationInput">Element nawigacyjny dla produktów</label>
+                            <select class="form-control" id="allegroIdentifierForSimulationInput">
+                                <option value="EAN">EAN</option>
+                                <option value="ID">ID Oferty (niezalecane)</option>
+                                <option value="ProducerCode">Kod producenta (niezalecane)</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="margin-bottom:24px;  width:350px;">
+                            <label for="allegroUseMarginForSimulationInput">Symuluj tylko produkty z ceną zakupu</label>
+                            <select class="form-control" id="allegroUseMarginForSimulationInput">
+                                <option value="true">Tak</option>
+                                <option value="false">Nie</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div style="display:flex; gap:6px; justify-content: space-between;">
+                        <div class="form-group" style="margin-bottom:24px; width:350px;">
+                            <label for="allegroEnforceMinimalMarginInput">Zablokuj spadek poniżej ceny zakupu</label>
+                            <select class="form-control" id="allegroEnforceMinimalMarginInput">
+                                <option value="true">Tak</option>
+                                <option value="false">Nie</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="margin-bottom:24px; width:350px;">
+                            <label for="allegroMinimalMarginPercentInput">Minimalny narzut (%)</label>
+                            <input type="number" class="form-control" id="allegroMinimalMarginPercentInput" step="0.01" value="0.00">
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer" style="justify-content:space-between;">
+                <button type="button" class="Button-Page-Small" data-dismiss="modal">Anuluj</button>
+                <button type="button" class="Button-Page-Small-bl" id="saveAllegroMarginSettingsBtn">Zapisz ustawienia</button>
+            </div>
+        </div>
+    </div>
+</div>
 @section Scripts {
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
@@ -277,9 +333,9 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 
     <script>
-       
+
         const storeId = @storeId;
-        const presetTypeContext = 1; 
+        const presetTypeContext = 1;
         const scrapDateJS = "@scrapDate";
         const myStoreNameJS = "@storeName";
         const flags = @Html.Raw(Json.Serialize(ViewBag.Flags ?? new List<FlagViewModel>()));
