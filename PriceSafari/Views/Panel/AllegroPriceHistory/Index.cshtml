@@ -83,14 +83,12 @@
                         Presety
                     </button>
 
-                    <button type="button" class="Button-Page-Small" style="justify-self:flex-end; margin-right:4px; height:33.99px;" id="openAllegroMarginSettingsBtn" title="Ustawienia symulacji Allegro">
-                        <i class="fa fa-cog" aria-hidden="true"></i>
-                    </button>
+                  
                     <button type="button" class="Button-Page-Small" style="justify-self:flex-end; margin-right:4px; height:33.99px;" data-toggle="modal" data-target="#infoModal">
                         <i class="fa fa-info-circle"></i>
                     </button>
 
-                    <div class="SimpleSpace" style="justify-content:flex-end; margin-left: auto;">
+                    <div class="SimpleSpace" style="justify-content:flex-end; margin-right: 12px;">
                         <div id="selectionContainer" class="selection-container">
                             <span id="selectedProductsCounter" class="ProductCount" style="width:126px; height:33.99px;">Wybrano: 0</span>
                             <button id="selectAllVisibleBtn" class="Button-Page-Small" style="width:48px;" title="Zaznacz wszystkie widoczne produkty">
@@ -114,6 +112,18 @@
                     <button id="sortRaisePercentage">Podnieś %</button>
                     <button id="sortLowerAmount">Obniż PLN</button>
                     <button id="sortLowerPercentage">Obniż %</button>
+                </div>
+                <div class="buttonsContainer">
+                    <div id="priceChangeSummary" class="priceChangeSummary" style="justify-content: flex-end;">
+                        <div id="summaryText"></div>
+                        <button type="button" class="Button-Page-Small" style="height:33.99px;" id="openAllegroMarginSettingsBtn" title="Ustawienia symulacji Allegro">
+                            <i class="fa fa-cog" aria-hidden="true"></i>
+                        </button>
+                        <button id="openMassChangeModalBtn" class="Button-Page-Small" style="width:48px;" title="Masowa zmiana cen">
+                            <i class="fa fa-cubes" aria-hidden="true"></i>
+                        </button>
+                        <button id="simulateButton" disabled>Symuluj ceny</button>
+                    </div>
                 </div>
                 <div class="Vert-table">
                     <div id="priceContainer" class="price-container"></div>
@@ -326,6 +336,53 @@
         </div>
     </div>
 </div>
+
+
+<div class="modal-sim fade" id="simulationModal" tabindex="-1" role="dialog" aria-labelledby="simulationModalLabel">
+    <div class="modal-dialog-sim" role="document">
+        <div class="modal-simulation">
+            <div class="modal-header" style="border:none;">
+                <div class="price-box-column-name" id="simulationModalLabel">Symuluj ceny - Allegro</div>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Zamknij">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="table-scroll" id="simulationModalBody">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <div style="display:flex; width:100%; justify-content:space-between; align-items: center;">
+                    <button type="button" id="clearChangesButton" class="Button-Page-Small-r">Usuń wszystkie zmiany</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="massChangeModal" tabindex="-1" role="dialog" aria-labelledby="massChangeModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document" style="max-width:1000px;">
+        <div class="modal-content" style="width:900px;">
+            <div class="modal-header">
+                <div class="price-box-column-name" id="massChangeModalLabel">Masowa zmiana cen</div>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p>Wklej tutaj treść wyjaśniającą masową zmianę...</p>
+            </div>
+            <div class="modal-footer" style="justify-content:center;">
+                <button id="massStrategicBtn" class="Button-Page-Small" style="width:460px;">
+                    Zastosuj masową zmianę cen z wybranym krokiem cenowym →<div class="color-square-turquoise" style="margin:0px;"></div>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+
 @section Scripts {
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
@@ -343,6 +400,7 @@
 
     </script>
 
-    <script src="~/js/member/AllegroPriceHistory.js"></script>
-    <script src="~/js/member/CompetitorModal.js"></script>
+    <script src="~/js/member/AllegroPriceHistory.js" asp-append-version="true"></script>
+    <script src="~/js/member/AllegroPriceChange.js" asp-append-version="true"></script>
+    <script src="~/js/member/CompetitorModal.js" asp-append-version="true"></script>
 }

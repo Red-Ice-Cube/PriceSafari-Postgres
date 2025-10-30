@@ -267,7 +267,7 @@ namespace PriceSafari.Controllers.MemberControllers
                 stepPrice = priceSettings?.AllegroPriceStep ?? 2.00m,
                 usePriceDifference = priceSettings?.AllegroUsePriceDiff ?? true,
                 presetName = activePresetName ?? "PriceSafari",
-
+                latestScrapId = latestScrap?.Id,
                 allegroIdentifierForSimulation = priceSettings?.AllegroIdentifierForSimulation ?? "EAN",
                 allegroUseMarginForSimulation = priceSettings?.AllegroUseMarginForSimulation ?? true,
                 allegroEnforceMinimalMargin = priceSettings?.AllegroEnforceMinimalMargin ?? true,
@@ -332,6 +332,170 @@ namespace PriceSafari.Controllers.MemberControllers
             await _context.SaveChangesAsync();
             return Json(new { success = true });
         }
+
+
+
+
+        [HttpPost]
+        public IActionResult GetPriceChangeDetails([FromBody] List<int> productIds)
+        {
+            if (productIds == null || productIds.Count == 0)
+                return Json(new List<object>());
+
+            // Użyj AllegroProducts zamiast Products
+            var products = _context.AllegroProducts
+                .Where(p => productIds.Contains(p.AllegroProductId))
+                .Select(p => new
+                {
+                    productId = p.AllegroProductId,
+                    productName = p.AllegroProductName,
+                    imageUrl = (string)null, // AllegroProducts nie ma MainUrl w twoim kodzie, musisz to dostosować
+                    ean = p.AllegroEan
+                    // Możesz dodać inne potrzebne pola
+                })
+                .ToList();
+
+            return Json(products);
+        }
+
+
+
+
+        [HttpPost]
+        public async Task<IActionResult> SimulatePriceChange([FromBody] List<SimulationItem> simulationItems)
+        {
+            if (simulationItems == null || simulationItems.Count == 0)
+            {
+                return Json(new List<object>());
+            }
+
+            int firstProductId = simulationItems.First().ProductId;
+            var firstProduct = await _context.AllegroProducts
+                .Include(p => p.Store)
+                .FirstOrDefaultAsync(p => p.AllegroProductId == firstProductId);
+
+            if (firstProduct == null) return NotFound("Produkt nie znaleziony.");
+            if (!await UserHasAccessToStore(firstProduct.StoreId)) return Unauthorized("Brak dostępu do sklepu.");
+
+            int storeId = firstProduct.StoreId;
+            string ourStoreName = firstProduct.Store?.StoreNameAllegro ?? "";
+
+            var priceValues = await _context.PriceValues
+                .FirstOrDefaultAsync(pv => pv.StoreId == storeId);
+
+            var latestScrap = await _context.AllegroScrapeHistories
+                .Where(sh => sh.StoreId == storeId)
+                .OrderByDescending(sh => sh.Date)
+                .Select(sh => new { sh.Id })
+                .FirstOrDefaultAsync();
+
+            if (latestScrap == null) return BadRequest("Brak danych scrapowania dla sklepu.");
+
+            int latestScrapId = latestScrap.Id;
+            var productIds = simulationItems.Select(s => s.ProductId).Distinct().ToList();
+
+            // Użyj AllegroProducts
+            var productsData = await _context.AllegroProducts
+                .Where(p => productIds.Contains(p.AllegroProductId))
+                .Select(p => new {
+                    p.AllegroProductId,
+                    p.AllegroEan,
+                    p.AllegroMarginPrice,
+                    //p.IdAllegro - jeśli potrzebujesz, pobierz to z AllegroOfferUrl
+                })
+                .ToDictionaryAsync(p => p.AllegroProductId);
+
+            // Użyj AllegroPriceHistories
+            var allPriceHistories = await _context.AllegroPriceHistories
+                .Where(ph => ph.AllegroScrapeHistoryId == latestScrapId && productIds.Contains(ph.AllegroProductId))
+                .ToListAsync();
+
+            var priceHistoriesByProduct = allPriceHistories
+                .GroupBy(ph => ph.AllegroProductId)
+                .ToDictionary(g => g.Key, g => g.ToList());
+
+            string CalculateRanking(List<decimal> prices, decimal price)
+            {
+                prices.Sort();
+                int firstIndex = prices.IndexOf(price);
+                int lastIndex = prices.LastIndexOf(price);
+                if (firstIndex == -1) return "-";
+                return (firstIndex == lastIndex) ? (firstIndex + 1).ToString() : $"{firstIndex + 1}-{lastIndex + 1}";
+            }
+
+            var simulationResults = new List<object>();
+
+            foreach (var sim in simulationItems)
+            {
+                if (!productsData.TryGetValue(sim.ProductId, out var product)) continue;
+                if (!priceHistoriesByProduct.TryGetValue(sim.ProductId, out var allRecordsForProduct))
+                {
+                    allRecordsForProduct = new List<AllegroPriceHistory>();
+                }
+
+                bool weAreInAllegro = allRecordsForProduct.Any(ph => ph.SellerName == ourStoreName);
+                var competitorPrices = allRecordsForProduct
+                    .Where(ph => ph.SellerName != ourStoreName && ph.Price > 0)
+                    .Select(ph => ph.Price)
+                    .ToList();
+
+                var currentAllegroList = new List<decimal>(competitorPrices);
+                var newAllegroList = new List<decimal>(competitorPrices);
+
+                if (weAreInAllegro)
+                {
+                    currentAllegroList.Add(sim.CurrentPrice);
+                    newAllegroList.Add(sim.NewPrice);
+                }
+
+                int totalAllegroOffers = currentAllegroList.Count;
+                string currentAllegroRanking = weAreInAllegro && totalAllegroOffers > 0 ? CalculateRanking(currentAllegroList, sim.CurrentPrice) : "-";
+                string newAllegroRanking = weAreInAllegro && totalAllegroOffers > 0 ? CalculateRanking(newAllegroList, sim.NewPrice) : "-";
+
+                decimal? currentMargin = null, newMargin = null, currentMarginValue = null, newMarginValue = null;
+                if (product.AllegroMarginPrice.HasValue && product.AllegroMarginPrice.Value != 0)
+                {
+                    currentMarginValue = sim.CurrentPrice - product.AllegroMarginPrice.Value;
+                    newMarginValue = sim.NewPrice - product.AllegroMarginPrice.Value;
+                    currentMargin = Math.Round((currentMarginValue.Value / product.AllegroMarginPrice.Value) * 100, 2);
+                    newMargin = Math.Round((newMarginValue.Value / product.AllegroMarginPrice.Value) * 100, 2);
+                }
+
+                simulationResults.Add(new
+                {
+                    productId = product.AllegroProductId,
+                    ean = product.AllegroEan,
+                    producerCode = (string)null, // Brak w modelu Allegro
+                    externalId = (long?)null, // Brak w modelu Allegro
+
+                    baseCurrentPrice = sim.CurrentPrice,
+                    baseNewPrice = sim.NewPrice,
+
+                    // Zastąp pola Google/Ceneo polami Allegro
+                    currentAllegroRanking,
+                    newAllegroRanking,
+                    totalAllegroOffers = (totalAllegroOffers > 0 ? totalAllegroOffers : (int?)null),
+
+                    // Puste listy dla zgodności z PriceChange.js (lub dostosuj JS)
+                    allegroCurrentOffers = currentAllegroList.OrderBy(p => p).Select(p => new { Price = p, StoreName = "Konkurent" }).ToList(), // Uproszczone
+                    allegroNewOffers = newAllegroList.OrderBy(p => p).Select(p => new { Price = p, StoreName = "Konkurent" }).ToList(), // Uproszczone
+
+                    currentMargin,
+                    newMargin,
+                    currentMarginValue,
+                    newMarginValue
+                });
+            }
+
+            return Json(new
+            {
+                ourStoreName,
+                simulationResults,
+                usePriceWithDelivery = false, // Hardkodowane, twój kod Allegro nie wspiera tego
+                latestScrapId
+            });
+        }
+
 
         [HttpGet]
         public async Task<IActionResult> Details(int storeId, int productId)
@@ -625,6 +789,14 @@ namespace PriceSafari.Controllers.MemberControllers
             public bool AllegroUseMarginForSimulation { get; set; }
             public bool AllegroEnforceMinimalMargin { get; set; }
             public decimal AllegroMinimalMarginPercent { get; set; }
+        }
+
+        public class SimulationItem
+        {
+            public int ProductId { get; set; }
+            public decimal CurrentPrice { get; set; }
+            public decimal NewPrice { get; set; }
+            public int StoreId { get; set; }
         }
 
     }
