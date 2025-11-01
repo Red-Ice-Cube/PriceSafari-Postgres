@@ -63,6 +63,30 @@
                     <div class="Category-Container-Select" style="margin-top:-2px;">Flagi <a asp-controller="Flags" asp-action="List" asp-route-storeId="@ViewBag.StoreId" class="link-line">+ Dodaj Flage</a></div>
                     <div class="store-section" id="flagContainer">
                     </div>
+
+                    <div class="Category-Container-Select">Specjalne odznaki oferty</div>
+                    <div class="store-section">
+                        <div class="form-check">
+                            <input class="form-check-input myBadgeFilter" type="checkbox" id="myTopOfferFilter" value="myIsTopOffer">
+                            <label class="form-check-label" for="myTopOfferFilter" id="labelMyTopOffer">Top oferta</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input myBadgeFilter" type="checkbox" id="mySuperPriceFilter" value="myIsSuperPrice">
+                            <label class="form-check-label" for="mySuperPriceFilter" id="labelMySuperPrice">Super cena</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input myBadgeFilter" type="checkbox" id="myBestPriceFilter" value="myIsBestPriceGuarantee">
+                            <label class="form-check-label" for="myBestPriceFilter" id="labelMyBestPrice">Gwarancja najniższej ceny</label>
+                        </div>
+                    </div>
+                    <div class="Category-Container-Select">Oferty w kampanii</div>
+                    <div class="store-section">
+                        <div class="form-check">
+                            <input class="form-check-input myBadgeFilter" type="checkbox" id="myCampaignFilter" value="anyPromoActive">
+                            <label class="form-check-label" for="myCampaignFilter" id="labelMyCampaign">W kampanii Allegro</label>
+                        </div>
+                    </div>
+               
                 </div>
             </div>
             <div class="Horizontal">

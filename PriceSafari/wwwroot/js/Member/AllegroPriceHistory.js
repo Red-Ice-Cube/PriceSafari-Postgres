@@ -20,6 +20,7 @@
     let selectedProductId = null;
     let selectedFlagsInclude = new Set();
     let selectedFlagsExclude = new Set();
+    let selectedMyBadges = new Set();
 
     const selectionStorageKey = `selectedAllegroProducts_${storeId}`;
 
@@ -322,6 +323,30 @@
         flagContainer.insertAdjacentHTML('beforeend', noFlagElementHTML);
 
         setupFlagFilterListeners();
+    }
+
+    function updateBadgeCounts(prices) {
+        let topOfferCount = 0;
+        let superPriceCount = 0;
+        let bestPriceCount = 0;
+        let campaignCount = 0;
+
+        prices.forEach(price => {
+            if (price.myIsTopOffer) topOfferCount++;
+            if (price.myIsSuperPrice) superPriceCount++;
+            if (price.myIsBestPriceGuarantee) bestPriceCount++;
+            if (price.anyPromoActive) campaignCount++;
+        });
+
+        const topOfferLabel = document.getElementById('labelMyTopOffer');
+        const superPriceLabel = document.getElementById('labelMySuperPrice');
+        const bestPriceLabel = document.getElementById('labelMyBestPrice');
+        const campaignLabel = document.getElementById('labelMyCampaign');
+
+        if (topOfferLabel) topOfferLabel.textContent = `Top oferta (${topOfferCount})`;
+        if (superPriceLabel) superPriceLabel.textContent = `Super cena (${superPriceCount})`;
+        if (bestPriceLabel) bestPriceLabel.textContent = `Gwarancja najniższej ceny (${bestPriceCount})`;
+        if (campaignLabel) campaignLabel.textContent = `W kampanii Allegro (${campaignCount})`;
     }
 
     function hexToRgba(hex, alpha) {
@@ -1526,6 +1551,18 @@
                 });
             }
 
+            if (selectedMyBadges.size > 0) {
+                filtered = filtered.filter(item => {
+
+                    for (const badge of selectedMyBadges) {
+                        if (item[badge] === true) {
+                            return true;
+                        }
+                    }
+                    return false;
+                });
+            }
+
             for (const [key, direction] of Object.entries(sortingState)) {
                 if (direction) {
                     filtered.sort((a, b) => {
@@ -1581,7 +1618,7 @@
             debouncedRenderChart(filtered);
             updateColorCounts(filtered);
             updateFlagCounts(filtered);
-
+            updateBadgeCounts(filtered);
             hideLoading();
         }, 10);
     }
@@ -1884,6 +1921,17 @@
         document.getElementById('producerFilterDropdown').addEventListener('change', () => filterAndSortPrices());
         document.querySelectorAll('.colorFilter').forEach(el => el.addEventListener('change', () => filterAndSortPrices()));
 
+        document.querySelectorAll('.myBadgeFilter').forEach(el => {
+            el.addEventListener('change', function () {
+                if (this.checked) {
+                    selectedMyBadges.add(this.value);
+                } else {
+                    selectedMyBadges.delete(this.value);
+                }
+                filterAndSortPrices();
+            });
+        });
+
         document.getElementById('linkOffers').addEventListener('click', function () {
             isCatalogViewActive = !isCatalogViewActive;
             this.classList.toggle('active', isCatalogViewActive);
@@ -2148,6 +2196,7 @@
 
                 filterAndSortPrices();
                 updateFlagCounts(allPrices);
+                updateBadgeCounts(allPrices);
                 updateSelectionUI();
 
                 refreshPriceBoxStates();
