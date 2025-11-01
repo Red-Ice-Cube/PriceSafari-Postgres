@@ -274,6 +274,11 @@ namespace PriceSafari.Controllers.MemberControllers
                 allegroMinimalMarginPercent = priceSettings?.AllegroMinimalMarginPercent ?? 0.00m,
                 allegroIncludeCommisionInPriceChange = priceSettings?.AllegroIncludeCommisionInPriceChange ?? false,
 
+                allegroChangePriceForBagdeSuperPrice = priceSettings?.AllegroChangePriceForBagdeSuperPrice ?? false,
+                allegroChangePriceForBagdeTopOffer = priceSettings?.AllegroChangePriceForBagdeTopOffer ?? false,
+                allegroChangePriceForBagdeBestPriceGuarantee = priceSettings?.AllegroChangePriceForBagdeBestPriceGuarantee ?? false,
+                allegroChangePriceForBagdeInCampaign = priceSettings?.AllegroChangePriceForBagdeInCampaign ?? false
+
             });
         }
 
@@ -330,6 +335,11 @@ namespace PriceSafari.Controllers.MemberControllers
             priceValues.AllegroEnforceMinimalMargin = model.AllegroEnforceMinimalMargin;
             priceValues.AllegroMinimalMarginPercent = model.AllegroMinimalMarginPercent;
             priceValues.AllegroIncludeCommisionInPriceChange = model.AllegroIncludeCommisionInPriceChange;
+
+            priceValues.AllegroChangePriceForBagdeSuperPrice = model.AllegroChangePriceForBagdeSuperPrice;
+            priceValues.AllegroChangePriceForBagdeTopOffer = model.AllegroChangePriceForBagdeTopOffer;
+            priceValues.AllegroChangePriceForBagdeBestPriceGuarantee = model.AllegroChangePriceForBagdeBestPriceGuarantee;
+            priceValues.AllegroChangePriceForBagdeInCampaign = model.AllegroChangePriceForBagdeInCampaign;
             await _context.SaveChangesAsync();
             return Json(new { success = true });
         }
@@ -804,6 +814,10 @@ namespace PriceSafari.Controllers.MemberControllers
             public bool AllegroEnforceMinimalMargin { get; set; }
             public decimal AllegroMinimalMarginPercent { get; set; }
             public bool AllegroIncludeCommisionInPriceChange { get; set; }
+            public bool AllegroChangePriceForBagdeSuperPrice { get; set; }
+            public bool AllegroChangePriceForBagdeTopOffer { get; set; }
+            public bool AllegroChangePriceForBagdeBestPriceGuarantee { get; set; }
+            public bool AllegroChangePriceForBagdeInCampaign { get; set; }
         }
 
         public class SimulationItem

@@ -14,7 +14,12 @@
         useMarginForSimulation: true,
         enforceMinimalMargin: true,
         minimalMarginPercent: 0.00,
-        includeCommissionInPriceChange: false
+        includeCommissionInPriceChange: false,
+
+        allegroChangePriceForBagdeSuperPrice: false,
+        allegroChangePriceForBagdeTopOffer: false,
+        allegroChangePriceForBagdeBestPriceGuarantee: false,
+        allegroChangePriceForBagdeInCampaign: false
     };
 
     let selectedProductId = null;
@@ -504,6 +509,35 @@
             e.stopPropagation();
 
             const currentButton = this.querySelector('.simulate-change-btn');
+
+            if (item.anyPromoActive && !allegroMarginSettings.allegroChangePriceForBagdeInCampaign) {
+                showGlobalNotification(
+                    `<p style="margin:8px 0; font-weight:bold;">Zmiana ceny zablokowana</p>
+                    <p>Oferta jest w Kampanii Allegro. Zmiana jest zablokowana w ustawieniach symulacji.</p>`
+                );
+                return;
+            }
+            if (item.myIsSuperPrice && !allegroMarginSettings.allegroChangePriceForBagdeSuperPrice) {
+                showGlobalNotification(
+                    `<p style="margin:8px 0; font-weight:bold;">Zmiana ceny zablokowana</p>
+                    <p>Oferta ma oznaczenie "Super Cena". Zmiana jest zablokowana w ustawieniach symulacji.</p>`
+                );
+                return;
+            }
+            if (item.myIsTopOffer && !allegroMarginSettings.allegroChangePriceForBagdeTopOffer) {
+                showGlobalNotification(
+                    `<p style="margin:8px 0; font-weight:bold;">Zmiana ceny zablokowana</p>
+                    <p>Oferta ma oznaczenie "Top Oferta". Zmiana jest zablokowana w ustawieniach symulacji.</p>`
+                );
+                return;
+            }
+            if (item.myIsBestPriceGuarantee && !allegroMarginSettings.allegroChangePriceForBagdeBestPriceGuarantee) {
+                showGlobalNotification(
+                    `<p style="margin:8px 0; font-weight:bold;">Zmiana ceny zablokowana</p>
+                    <p>Oferta ma "Gwarancję Najniższej Ceny". Zmiana jest zablokowana w ustawieniach symulacji.</p>`
+                );
+                return;
+            }
 
             if (priceBox.classList.contains('price-changed') || (currentButton && currentButton.classList.contains('active'))) {
                 console.log("Zmiana ceny już aktywna dla produktu", productId);
@@ -1775,6 +1809,27 @@
                 countRejected++;
                 rejectionReasons['Brak sugestii (solo/brak oferty/cena optymalna)'] = (rejectionReasons['Brak sugestii (solo/brak oferty/cena optymalna)'] || 0) + 1;
                 return;
+
+                if (item.anyPromoActive && !allegroMarginSettings.allegroChangePriceForBagdeInCampaign) {
+                    countRejected++;
+                    rejectionReasons['Zablokowane (Kampania)'] = (rejectionReasons['Zablokowane (Kampania)'] || 0) + 1;
+                    return;
+                }
+                if (item.myIsSuperPrice && !allegroMarginSettings.allegroChangePriceForBagdeSuperPrice) {
+                    countRejected++;
+                    rejectionReasons['Zablokowane (Super Cena)'] = (rejectionReasons['Zablokowane (Super Cena)'] || 0) + 1;
+                    return;
+                }
+                if (item.myIsTopOffer && !allegroMarginSettings.allegroChangePriceForBagdeTopOffer) {
+                    countRejected++;
+                    rejectionReasons['Zablokowane (Top Oferta)'] = (rejectionReasons['Zablokowane (Top Oferta)'] || 0) + 1;
+                    return;
+                }
+                if (item.myIsBestPriceGuarantee && !allegroMarginSettings.allegroChangePriceForBagdeBestPriceGuarantee) {
+                    countRejected++;
+                    rejectionReasons['Zablokowane (Gwar. Naj. Ceny)'] = (rejectionReasons['Zablokowane (Gwar. Naj. Ceny)'] || 0) + 1;
+                    return;
+                }
             }
 
             const suggestedPrice = suggestionData.suggestedPrice;
@@ -2036,6 +2091,11 @@
                 document.getElementById('allegroMinimalMarginPercentInput').value = allegroMarginSettings.minimalMarginPercent;
                 document.getElementById('allegroIncludeCommisionInPriceChangeInput').value = allegroMarginSettings.includeCommissionInPriceChange.toString();
 
+                document.getElementById('allegroChangePriceForBagdeInCampaignInput').value = allegroMarginSettings.allegroChangePriceForBagdeInCampaign.toString();
+                document.getElementById('allegroChangePriceForBagdeSuperPriceInput').value = allegroMarginSettings.allegroChangePriceForBagdeSuperPrice.toString();
+                document.getElementById('allegroChangePriceForBagdeTopOfferInput').value = allegroMarginSettings.allegroChangePriceForBagdeTopOffer.toString();
+                document.getElementById('allegroChangePriceForBagdeBestPriceGuaranteeInput').value = allegroMarginSettings.allegroChangePriceForBagdeBestPriceGuarantee.toString();
+
                 $('#allegroMarginSettingsModal').modal('show');
             });
         }
@@ -2050,7 +2110,12 @@
                     AllegroUseMarginForSimulation: document.getElementById('allegroUseMarginForSimulationInput').value === 'true',
                     AllegroEnforceMinimalMargin: document.getElementById('allegroEnforceMinimalMarginInput').value === 'true',
                     AllegroMinimalMarginPercent: parseFloat(document.getElementById('allegroMinimalMarginPercentInput').value.replace(',', '.')),
-                    AllegroIncludeCommisionInPriceChange: document.getElementById('allegroIncludeCommisionInPriceChangeInput').value === 'true'
+                    AllegroIncludeCommisionInPriceChange: document.getElementById('allegroIncludeCommisionInPriceChangeInput').value === 'true',
+
+                    AllegroChangePriceForBagdeSuperPrice: document.getElementById('allegroChangePriceForBagdeSuperPriceInput').value === 'true',
+                    AllegroChangePriceForBagdeTopOffer: document.getElementById('allegroChangePriceForBagdeTopOfferInput').value === 'true',
+                    AllegroChangePriceForBagdeBestPriceGuarantee: document.getElementById('allegroChangePriceForBagdeBestPriceGuaranteeInput').value === 'true',
+                    AllegroChangePriceForBagdeInCampaign: document.getElementById('allegroChangePriceForBagdeInCampaignInput').value === 'true'
                 };
 
                 showLoading();
@@ -2145,6 +2210,11 @@
                 allegroMarginSettings.enforceMinimalMargin = data.allegroEnforceMinimalMargin;
                 allegroMarginSettings.minimalMarginPercent = data.allegroMinimalMarginPercent;
                 allegroMarginSettings.includeCommissionInPriceChange = data.allegroIncludeCommisionInPriceChange;
+
+                allegroMarginSettings.allegroChangePriceForBagdeSuperPrice = data.allegroChangePriceForBagdeSuperPrice;
+                allegroMarginSettings.allegroChangePriceForBagdeTopOffer = data.allegroChangePriceForBagdeTopOffer;
+                allegroMarginSettings.allegroChangePriceForBagdeBestPriceGuarantee = data.allegroChangePriceForBagdeBestPriceGuarantee;
+                allegroMarginSettings.allegroChangePriceForBagdeInCampaign = data.allegroChangePriceForBagdeInCampaign;
 
                 document.getElementById('price1').value = setPrice1.toFixed(2);
                 document.getElementById('price2').value = setPrice2.toFixed(2);

@@ -48,10 +48,13 @@
         public bool AllegroEnforceMinimalMargin { get; set; } = true;
         public decimal AllegroMinimalMarginPercent { get; set; } = 0.00m;
 
-        //nowe element allegro - czy uwzgledniac prowizje w zmianie ceny
         public bool AllegroIncludeCommisionInPriceChange { get; set; } = false;
 
-
+        //nowe elementy allegro
+        public bool AllegroChangePriceForBagdeSuperPrice { get; set; } = false;
+        public bool AllegroChangePriceForBagdeTopOffer { get; set; } = false;
+        public bool AllegroChangePriceForBagdeBestPriceGuarantee { get; set; } = false;
+        public bool AllegroChangePriceForBagdeInCampaign { get; set; } = false;
 
         public StoreClass Store { get; set; }
     }

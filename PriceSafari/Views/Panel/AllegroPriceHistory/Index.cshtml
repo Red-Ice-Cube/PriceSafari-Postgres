@@ -353,6 +353,44 @@
                         <label for="allegroMinimalMarginPercentInput">Minimalny narzut (%)</label>
                         <input type="number" class="form-control" id="allegroMinimalMarginPercentInput" step="0.01" value="0.00">
                     </div>
+
+
+                    <hr style="margin: 24px 0;" />
+                    <p style="margin-bottom: 24px;">Poniższe ustawienia pozwalają zablokować możliwość zmiany ceny dla ofert posiadających specjalne oznaczenia. Domyślnie, zmiana jest zablokowana.</p>
+
+                    <div style="display:flex; gap:6px; justify-content: space-between;">
+                        <div class="form-group" style="margin-bottom:24px; width:250px;">
+                            <label for="allegroChangePriceForBagdeInCampaignInput">Pozwól na zmianę ceny dla ofert w Kampanii</label>
+                            <select class="form-control" id="allegroChangePriceForBagdeInCampaignInput">
+                                <option value="false">Nie (Blokuj)</option>
+                                <option value="true">Tak (Zmieniaj)</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="margin-bottom:24px; width:250px;">
+                            <label for="allegroChangePriceForBagdeSuperPriceInput">Pozwól na zmianę ceny dla ofert "SUPERCENA"</label>
+                            <select class="form-control" id="allegroChangePriceForBagdeSuperPriceInput">
+                                <option value="false">Nie (Blokuj)</option>
+                                <option value="true">Tak (Zmieniaj)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div style="display:flex; gap:6px; justify-content: space-between;">
+                        <div class="form-group" style="margin-bottom:24px; width:250px;">
+                            <label for="allegroChangePriceForBagdeTopOfferInput">Pozwól na zmianę ceny dla ofert "Top Oferta"</label>
+                            <select class="form-control" id="allegroChangePriceForBagdeTopOfferInput">
+                                <option value="false">Nie (Blokuj)</option>
+                                <option value="true">Tak (Zmieniaj)</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="margin-bottom:24px; width:250px;">
+                            <label for="allegroChangePriceForBagdeBestPriceGuaranteeInput">Pozwól na zmianę ceny dla ofert "Gwarancją Najniższej Ceny"</label>
+                            <select class="form-control" id="allegroChangePriceForBagdeBestPriceGuaranteeInput">
+                                <option value="false">Nie (Blokuj)</option>
+                                <option value="true">Tak (Zmieniaj)</option>
+                            </select>
+                        </div>
+                    </div>
+            
                 </form>
             </div>
             <div class="modal-footer" style="justify-content:space-between;">
