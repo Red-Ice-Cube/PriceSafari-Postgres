@@ -928,12 +928,11 @@
             let commissionHtml = '';
             if (item.apiAllegroCommission != null) {
                 const formattedCommission = formatPricePL(item.apiAllegroCommission, false);
-                commissionHtml = `
-                <div class="Commission-stack" style="text-align: left; margin-top: 3px;">
-                    <span class="commission-stack-badge">Koszt Allegro</span>
-                    <p>${formattedCommission} PLN</p>
-                </div>
-                `;
+                const commissionStatusText = allegroMarginSettings.includeCommissionInPriceChange ?
+                    '<span style="font-weight: 400; color: #555;"> | uwzględniony</span>' :
+                    '<span style="font-weight: 400; color: #999;"> | nieuwzględniony</span>';
+
+                commissionHtml = `<div class="Commission-stack" style="text-align: left; margin-top: 3px;"><span class="commission-stack-badge">Koszt Allegro</span><p>${formattedCommission} PLN${commissionStatusText}</p></div>`;
             }
 
             const box = document.createElement('div');
@@ -2136,7 +2135,7 @@
                         const netPrice = basePriceForCurrentMargin - commission;
                         marginAmount = netPrice - marginPrice;
                         marginPercentage = (marginPrice !== 0) ? (marginAmount / marginPrice) * 100 : null;
-                        marginSign = marginAmount >= 0 ? '+' : '';
+                        marginSign = marginAmount >= 0 ? '+' : '-';
                         marginClass = marginAmount > 0 ? 'priceBox-diff-margin-ins' : (marginAmount < 0 ? 'priceBox-diff-margin-minus-ins' : 'priceBox-diff-margin-neutral-ins');
                     }
 
