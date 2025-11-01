@@ -365,8 +365,8 @@ namespace PriceSafari.Controllers.MemberControllers
 
             int firstProductId = simulationItems.First().ProductId;
             var firstProduct = await _context.AllegroProducts
-                .Include(p => p.Store)
-                .FirstOrDefaultAsync(p => p.AllegroProductId == firstProductId);
+              .Include(p => p.Store)
+              .FirstOrDefaultAsync(p => p.AllegroProductId == firstProductId);
 
             if (firstProduct == null) return NotFound("Produkt nie znaleziony.");
             if (!await UserHasAccessToStore(firstProduct.StoreId)) return Unauthorized("Brak dostępu do sklepu.");
@@ -375,36 +375,46 @@ namespace PriceSafari.Controllers.MemberControllers
             string ourStoreName = firstProduct.Store?.StoreNameAllegro ?? "";
 
             var priceValues = await _context.PriceValues
-                .FirstOrDefaultAsync(pv => pv.StoreId == storeId);
+              .FirstOrDefaultAsync(pv => pv.StoreId == storeId);
 
             var latestScrap = await _context.AllegroScrapeHistories
-                .Where(sh => sh.StoreId == storeId)
-                .OrderByDescending(sh => sh.Date)
-                .Select(sh => new { sh.Id })
-                .FirstOrDefaultAsync();
+              .Where(sh => sh.StoreId == storeId)
+              .OrderByDescending(sh => sh.Date)
+              .Select(sh => new { sh.Id })
+              .FirstOrDefaultAsync();
 
             if (latestScrap == null) return BadRequest("Brak danych scrapowania dla sklepu.");
 
             int latestScrapId = latestScrap.Id;
             var productIds = simulationItems.Select(s => s.ProductId).Distinct().ToList();
 
-            var productsData = await _context.AllegroProducts
-                .Where(p => productIds.Contains(p.AllegroProductId))
-                .Select(p => new {
-                    p.AllegroProductId,
-                    p.AllegroEan,
-                    p.AllegroMarginPrice,
+            bool includeCommission = priceValues?.AllegroIncludeCommisionInPriceChange ?? false;
 
-                })
-                .ToDictionaryAsync(p => p.AllegroProductId);
+            var extendedInfosList = await _context.AllegroPriceHistoryExtendedInfos
+              .Where(e => e.ScrapHistoryId == latestScrapId && productIds.Contains(e.AllegroProductId))
+              .ToListAsync();
+
+            var extendedInfos = extendedInfosList
+              .GroupBy(e => e.AllegroProductId)
+              .ToDictionary(g => g.Key, g => g.First());
+
+            var productsData = await _context.AllegroProducts
+              .Where(p => productIds.Contains(p.AllegroProductId))
+              .Select(p => new {
+                  p.AllegroProductId,
+                  p.AllegroEan,
+                  p.AllegroMarginPrice,
+
+              })
+              .ToDictionaryAsync(p => p.AllegroProductId);
 
             var allPriceHistories = await _context.AllegroPriceHistories
-                .Where(ph => ph.AllegroScrapeHistoryId == latestScrapId && productIds.Contains(ph.AllegroProductId))
-                .ToListAsync();
+              .Where(ph => ph.AllegroScrapeHistoryId == latestScrapId && productIds.Contains(ph.AllegroProductId))
+              .ToListAsync();
 
             var priceHistoriesByProduct = allPriceHistories
-                .GroupBy(ph => ph.AllegroProductId)
-                .ToDictionary(g => g.Key, g => g.ToList());
+              .GroupBy(ph => ph.AllegroProductId)
+              .ToDictionary(g => g.Key, g => g.ToList());
 
             string CalculateRanking(List<decimal> prices, decimal price)
             {
@@ -425,11 +435,13 @@ namespace PriceSafari.Controllers.MemberControllers
                     allRecordsForProduct = new List<AllegroPriceHistory>();
                 }
 
+                extendedInfos.TryGetValue(sim.ProductId, out var extendedInfo);
+
                 bool weAreInAllegro = allRecordsForProduct.Any(ph => ph.SellerName == ourStoreName);
                 var competitorPrices = allRecordsForProduct
-                    .Where(ph => ph.SellerName != ourStoreName && ph.Price > 0)
-                    .Select(ph => ph.Price)
-                    .ToList();
+                  .Where(ph => ph.SellerName != ourStoreName && ph.Price > 0)
+                  .Select(ph => ph.Price)
+                  .ToList();
 
                 var currentAllegroList = new List<decimal>(competitorPrices);
                 var newAllegroList = new List<decimal>(competitorPrices);
@@ -447,8 +459,16 @@ namespace PriceSafari.Controllers.MemberControllers
                 decimal? currentMargin = null, newMargin = null, currentMarginValue = null, newMarginValue = null;
                 if (product.AllegroMarginPrice.HasValue && product.AllegroMarginPrice.Value != 0)
                 {
-                    currentMarginValue = sim.CurrentPrice - product.AllegroMarginPrice.Value;
-                    newMarginValue = sim.NewPrice - product.AllegroMarginPrice.Value;
+                    decimal commissionToDeduct = (includeCommission && extendedInfo?.ApiAllegroCommission.HasValue == true)
+                                  ? extendedInfo.ApiAllegroCommission.Value
+                                  : 0m;
+
+                    decimal currentNetPrice = sim.CurrentPrice - commissionToDeduct;
+                    decimal newNetPrice = sim.NewPrice - commissionToDeduct;
+
+                    currentMarginValue = currentNetPrice - product.AllegroMarginPrice.Value;
+                    newMarginValue = newNetPrice - product.AllegroMarginPrice.Value;
+
                     currentMargin = Math.Round((currentMarginValue.Value / product.AllegroMarginPrice.Value) * 100, 2);
                     newMargin = Math.Round((newMarginValue.Value / product.AllegroMarginPrice.Value) * 100, 2);
                 }
@@ -473,7 +493,10 @@ namespace PriceSafari.Controllers.MemberControllers
                     currentMargin,
                     newMargin,
                     currentMarginValue,
-                    newMarginValue
+                    newMarginValue,
+
+                    marginPrice = product.AllegroMarginPrice,
+                    apiAllegroCommission = extendedInfo?.ApiAllegroCommission
                 });
             }
 
@@ -482,7 +505,9 @@ namespace PriceSafari.Controllers.MemberControllers
                 ourStoreName,
                 simulationResults,
                 usePriceWithDelivery = false,
-                latestScrapId
+                latestScrapId,
+
+                allegroIncludeCommisionInPriceChange = includeCommission
             });
         }
 

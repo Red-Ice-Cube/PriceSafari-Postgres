@@ -89,6 +89,7 @@
     let currentOurStoreName = storeId || "Sklep";
     let globalLatestScrapId = null;
     let usePriceWithDeliverySetting = false;
+    let globalIncludeCommissionSetting = false;
     let originalRowsData = [];
     function updatePriceChangeSummary(forceClear = false) {
         if (forceClear) {
@@ -346,22 +347,38 @@
         };
     }
 
-    function buildPriceBlock(basePrice, marginPercent, marginValue, allegroRank, allegroOffers) {
+    function buildPriceBlock(basePrice, marginPrice, apiAllegroCommission, allegroRank, allegroOffers) {
         const formattedBasePrice = formatPricePL(basePrice);
         let block = '<div class="price-info-box">';
 
-        block += `
-            <div class="price-info-item" style="padding: 4px 12px; background: #f5f5f5; border: 1px solid #e3e3e3; border-radius: 5px; margin-bottom: 5px;">
-                Cena oferty | ${formattedBasePrice}
-            </div>`;
+        block += `<div class="price-info-item" style="padding: 4px 12px; background: #f5f5f5; border: 1px solid #e3e3e3; border-radius: 5px; margin-bottom: 5px;">Cena oferty | ${formattedBasePrice}</div>`;
 
         if (allegroRank && allegroRank !== "-") {
             const allegroOffersText = allegroOffers > 0 ? allegroOffers : '-';
-            block += `
-                <div class="price-info-item" style="padding: 4px 12px; background: #f5f5f5; border: 1px solid #e3e3e3; border-radius: 5px; margin-bottom: 5px;">
-                    Poz. cenowa | <img src="/images/AllegroIcon.png" alt="Allegro Icon" style="width:16px; height:16px; vertical-align: middle; margin-right: 3px;" />
-                    ${allegroRank} / ${allegroOffersText}
-                </div>`;
+            block += `<div class="price-info-item" style="padding: 4px 12px; background: #f5f5f5; border: 1px solid #e3e3e3; border-radius: 5px; margin-bottom: 5px;">Poz. cenowa | <img src="/images/AllegroIcon.png" alt="Allegro Icon" style="width:16px; height:16px; vertical-align: middle; margin-right: 3px;" /> ${allegroRank} / ${allegroOffersText}</div>`;
+        }
+
+        if (apiAllegroCommission != null) {
+            const formattedCommission = formatPricePL(apiAllegroCommission, false);
+            const commissionStatusText = globalIncludeCommissionSetting ?
+                '<span style="font-weight: 400; color: #555;"> | uwzględniona</span>' :
+                '<span style="font-weight: 400; color: #999;"> | nieuwzględniona</span>';
+
+            block += `<div class="price-info-item" style="padding: 4px 12px; background: #f5f5f5; border: 1px solid #e3e3e3; border-radius: 5px; margin-bottom: 5px;">Prowizja | ${formattedCommission} PLN${commissionStatusText}</div>`;
+        }
+
+        let marginValue = null;
+        let marginPercent = null;
+
+        if (marginPrice != null && basePrice != null) {
+            const commissionToDeduct = (globalIncludeCommissionSetting && apiAllegroCommission != null) ?
+                parseFloat(apiAllegroCommission) : 0;
+
+            const netPrice = parseFloat(basePrice) - commissionToDeduct;
+            const purchasePrice = parseFloat(marginPrice);
+
+            marginValue = netPrice - purchasePrice;
+            marginPercent = (purchasePrice !== 0) ? (marginValue / purchasePrice) * 100 : null;
         }
 
         if (marginPercent != null && marginValue != null) {
@@ -369,10 +386,9 @@
             const formattedMarginPercent = parseFloat(marginPercent).toFixed(2);
             const sign = parseFloat(marginValue) >= 0 ? "+" : "";
             const cls = parseFloat(marginValue) >= 0 ? "priceBox-diff-margin" : "priceBox-diff-margin-minus";
-            block += `
-                <div class="price-info-item"> <div class="price-box-diff-margin ${cls}" style="margin-top: 5px;"> <p>Narzut: ${formattedMarginValue} (${sign}${formattedMarginPercent}%)</p>
-                </div>
-                </div>`;
+            block += `<div class="price-info-item"><div class="price-box-diff-margin ${cls}" style="margin-top: 5px;"><p>Narzut: ${formattedMarginValue} (${sign}${formattedMarginPercent}%)</p></div></div>`;
+        } else if (marginPrice != null) {
+            block += `<div class="price-info-item"><div class="price-box-diff-margin" style="margin-top: 5px;"><p>Cena zakupu: ${formatPricePL(marginPrice)}</p></div></div>`;
         }
 
         block += '</div>';
@@ -433,6 +449,8 @@
             })
             .then(({ productDetails, data, hasImage }) => {
 
+                globalIncludeCommissionSetting = data.allegroIncludeCommisionInPriceChange === true;
+
                 usePriceWithDeliverySetting = data.usePriceWithDelivery === true;
                 if (data.ourStoreName) {
                     currentOurStoreName = data.ourStoreName;
@@ -464,6 +482,8 @@
                     const productIdStr = String(item.productId);
                     const prodDetail = productDetails.find(x => String(x.productId) === productIdStr);
                     const simResult = simulationResults.find(x => String(x.productId) === productIdStr);
+                    const marginPrice = simResult ? simResult.marginPrice : null;
+                    const apiAllegroCommission = simResult ? simResult.apiAllegroCommission : null;
 
                     const name = prodDetail ? prodDetail.productName : item.productName || 'Brak nazwy';
                     const imageUrl = prodDetail ? prodDetail.imageUrl : "";
@@ -482,15 +502,15 @@
 
                     let currentBlock = buildPriceBlock(
                         simResult ? simResult.baseCurrentPrice : null,
-                        simResult ? simResult.currentMargin : null,
-                        simResult ? simResult.currentMarginValue : null,
+                        marginPrice,
+                        apiAllegroCommission,
                         simResult ? simResult.currentAllegroRanking : null,
                         simResult ? simResult.totalAllegroOffers : null
                     );
                     let newBlock = buildPriceBlock(
                         simResult ? simResult.baseNewPrice : null,
-                        simResult ? simResult.newMargin : null,
-                        simResult ? simResult.newMarginValue : null,
+                        marginPrice,
+                        apiAllegroCommission,
                         simResult ? simResult.newAllegroRanking : null,
                         simResult ? simResult.totalAllegroOffers : null
                     );
@@ -617,9 +637,9 @@
                             ${producerCodeInfo}
                         </td>
                         <td class="align-middle">${row.currentBlock}</td>
-                        <td class="align-middle" style="font-size: 1em; white-space: nowrap; text-align: center;">
+                        <td class="align-middle" style="font-size: 1em; white-space: nowrap;">
                             <div>${row.arrow} ${formattedDiff} PLN</div>
-                            <div style="font-size: 0.9em; color: #555;">(${formattedDiffPercent}%)</div>
+                            <div style="font-size: 0.9em; color: #555; margin-left:19px;">(${formattedDiffPercent}%)</div>
                         </td>
                         <td class="align-middle">${row.newBlock}</td>
                         <td class="align-middle" style="white-space: normal; text-align: center;">${row.effectDetails}</td>

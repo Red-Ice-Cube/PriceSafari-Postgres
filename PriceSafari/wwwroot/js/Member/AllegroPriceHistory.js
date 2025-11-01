@@ -980,13 +980,7 @@
                         </div>` :
                     `
                         <div class="price-box-column-text">
-                            <div>
-                                <div style="display: flex; align-items: center; gap: 4px; flex-wrap: wrap;">
-                                    <span style="font-weight: 500; font-size: 17px; ${competitorPriceStyle}">${lowestPrice.toFixed(2)} PLN</span>
-                                    ${competitorPriceIcon}
-                                    ${competitorSuperPriceBadge}
-                                    ${competitorTopOfferBadge}
-                                </div>
+                            <div><div style="display: flex; align-items: center; gap: 4px; flex-wrap: wrap;"><span style="font-weight: 500; font-size: 17px; ${competitorPriceStyle}">${formatPricePL(lowestPrice)}</span>${competitorPriceIcon}${competitorSuperPriceBadge}${competitorTopOfferBadge}</div>
                                 <div>
                                     ${highlightedStoreName || ''}
                                     ${item.isSuperSeller ? `<img src="/images/SuperSeller.png" alt="Super Sprzedawca" title="Super Sprzedawca" style="width: 16px; height: 16px; vertical-align: middle;">` : ''}
@@ -1010,13 +1004,7 @@
                     ${myPrice != null ?
                     `
                         <div class="price-box-column-text">
-                            <div>
-                                <div style="display: flex; align-items: center; gap: 4px; flex-wrap: wrap;">
-                                    <span style="font-weight: 500; font-size: 17px; ${myPriceStyle}">${myPrice.toFixed(2)} PLN</span>
-                                    ${myPriceIcon}
-                                    ${mySuperPriceBadge}
-                                    ${myTopOfferBadge}
-                                </div>
+                            <div><div style="display: flex; align-items: center; gap: 4px; flex-wrap: wrap;"><span style="font-weight: 500; font-size: 17px; ${myPriceStyle}">${formatPricePL(myPrice)}</span>${myPriceIcon}${mySuperPriceBadge}${myTopOfferBadge}</div>
                                 <div>
                                     ${highlightedMyStoreName}
                                     ${item.myIsSuperSeller ? `<img src="/images/SuperSeller.png" alt="Super Sprzedawca" title="Super Sprzedawca" style="width: 16px; height: 16px; vertical-align: middle;">` : ''}
