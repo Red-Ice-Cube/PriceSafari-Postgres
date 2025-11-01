@@ -168,6 +168,77 @@ namespace PriceSafari.Controllers
             return Json(new { success = true });
         }
 
+
+
+
+
+
+
+
+        public class UpdateAllegroPurchasePriceViewModel
+        {
+            public int AllegroProductId { get; set; }
+            public decimal? NewPrice { get; set; }
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> UpdateAllegroPurchasePrice(int storeId, [FromBody] UpdateAllegroPurchasePriceViewModel model)
+        {
+            if (model == null || model.AllegroProductId <= 0)
+            {
+                return BadRequest(new { success = false, message = "Nieprawidłowe dane." });
+            }
+
+            if (model.NewPrice.HasValue && model.NewPrice < 0)
+            {
+                return BadRequest(new { success = false, message = "Cena nie może być ujemna." });
+            }
+
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var hasAccess = await _context.UserStores.AnyAsync(us => us.UserId == userId && us.StoreId == storeId);
+            if (!hasAccess)
+            {
+                return Forbid();
+            }
+
+            var product = await _context.AllegroProducts.FirstOrDefaultAsync(p => p.AllegroProductId == model.AllegroProductId && p.StoreId == storeId);
+            if (product == null)
+            {
+                return NotFound(new { success = false, message = "Produkt Allegro nie został znaleziony." });
+            }
+
+            try
+            {
+                product.AllegroMarginPrice = model.NewPrice;
+                await _context.SaveChangesAsync();
+
+                _logger.LogInformation("Zaktualizowano cenę zakupu Allegro dla produktu ID={ProductId} na {NewPrice} przez użytkownika ID={UserId}",
+                            model.AllegroProductId, model.NewPrice.HasValue ? model.NewPrice.Value.ToString() : "NULL", userId);
+
+                return Json(new { success = true, message = "Cena zakupu została zaktualizowana." });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Błąd podczas aktualizacji ceny zakupu Allegro dla produktu ID={ProductId}", model.AllegroProductId);
+                return StatusCode(500, new { success = false, message = "Wystąpił wewnętrzny błąd serwera." });
+            }
+        }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> SetAllegroMargins(int storeId, IFormFile uploadedFile)

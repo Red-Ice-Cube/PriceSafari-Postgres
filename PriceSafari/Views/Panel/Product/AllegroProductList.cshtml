@@ -283,6 +283,9 @@
             var deselectAllButton = document.getElementById('deselect-all');
             var searchInput = document.getElementById('productSearch');
 
+            const formWithToken = document.getElementById('uploadAllegroMarginsForm');
+            const requestVerificationToken = formWithToken ? formWithToken.querySelector('input[name="__RequestVerificationToken"]').value : null;
+
             var selectedFlagsInclude = new Set();
             var selectedFlagsExclude = new Set();
 
@@ -311,9 +314,9 @@
                 var tbody = document.getElementById('product-list');
                 tbody.innerHTML = '';
                 products.forEach(function (product) {
-                    var row = document.createElement('tr');
+                   var row = document.createElement('tr');
+                    row.dataset.productId = product.allegroProductId; 
                     var highlightedProductName = searchTerm ? product.allegroProductName.replace(new RegExp(searchTerm, 'gi'), '<span style="color: #9400D3; font-weight: 600;">$&</span>') : product.allegroProductName;
-
                    var eanHtml = '';
                     if (product.allegroEan) {
 
@@ -328,13 +331,27 @@
                     var statusBoxClass = "";
                     var statusText = "";
                     var checkboxStatusClass = "";
-                    var purchasePriceHtml = '<span style="color: #777;">Brak</span>';
 
-                    if (product.allegroMarginPrice != null && product.allegroMarginPrice.toString().trim() !== '') {
+                    var hasPrice = product.allegroMarginPrice != null && product.allegroMarginPrice.toString().trim() !== '';
+                    var priceValue = hasPrice ? parseFloat(product.allegroMarginPrice).toFixed(2) : '';
 
-                        const formattedPrice = Number(product.allegroMarginPrice).toFixed(2).replace('.', ',') + ' PLN';
-                        purchasePriceHtml = `<p>${formattedPrice}</p>`;
-                    }
+                    var purchasePriceHtml = `
+                        <div class="price-display-container">
+                            <span class="price-text">${hasPrice ? priceValue.replace('.', ',') + ' PLN' : 'Brak'}</span>
+                            <span class="price-actions">
+                                <i class="fas fa-plus add-price-btn ${hasPrice ? 'hidden' : ''}" title="Dodaj cenę"></i>
+                                <i class="fas fa-pencil-alt edit-price-btn ${!hasPrice ? 'hidden' : ''}" title="Edytuj cenę"></i>
+                                <i class="fas fa-trash-alt delete-price-btn ${!hasPrice ? 'hidden' : ''}" title="Usuń cenę"></i>
+                            </span>
+                        </div>
+                        <div class="price-edit-container hidden">
+                            <input type="number" step="0.01" class="price-edit-input" value="${priceValue}">
+                            <span class="price-actions">
+                                <i class="fas fa-check save-price-btn" title="Zapisz"></i>
+                                <i class="fas fa-times cancel-edit-btn" title="Anuluj"></i>
+                            </span>
+                        </div>
+                    `;
 
                     if (product.isScrapable && product.isRejected) {
                         statusBoxClass = "StatusBoxProduct-1";
@@ -738,6 +755,93 @@
                     });
                 });
             }
+
+            function toggleEditMode(productId, isEditing) {
+                const row = document.getElementById('product-list').querySelector(`tr[data-product-id='${productId}']`);
+                if (row) {
+                    const displayContainer = row.querySelector('.price-display-container');
+                    const editContainer = row.querySelector('.price-edit-container');
+                    if(displayContainer && editContainer) {
+                        displayContainer.classList.toggle('hidden', isEditing);
+                        editContainer.classList.toggle('hidden', !isEditing);
+                        if (isEditing) {
+                            const input = editContainer.querySelector('.price-edit-input');
+                            input.focus();
+                            input.select();
+                        }
+                    }
+                }
+            }
+
+            function updatePurchasePrice(productId, newPrice) {
+                if (!requestVerificationToken) {
+                    alert('Błąd bezpieczeństwa: Nie znaleziono tokenu weryfikacyjnego.');
+                    return;
+                }
+
+                fetch(`@Url.Action("UpdateAllegroPurchasePrice", "AllegroProduct")?storeId=${storeId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'RequestVerificationToken': requestVerificationToken
+                    },
+                    body: JSON.stringify({
+                        AllegroProductId: parseInt(productId),
+                        NewPrice: newPrice
+                    })
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        return response.json().then(err => { throw new Error(err.message || 'Błąd serwera'); });
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.success) {
+                        fetchProducts();
+                    } else {
+                        alert('Błąd: ' + (data.message || 'Nie udało się zaktualizować ceny.'));
+                    }
+                })
+                .catch(error => {
+                    console.error('Błąd podczas aktualizacji ceny:', error);
+                    alert('Wystąpił błąd komunikacji: ' + error.message);
+                });
+            }
+
+            const productListBody = document.getElementById('product-list');
+            productListBody.addEventListener('click', function(e) {
+                const target = e.target;
+                const row = target.closest('tr');
+                if (!row || !row.dataset.productId) return;
+
+                const productId = row.dataset.productId;
+
+                if (target.classList.contains('edit-price-btn') || target.classList.contains('add-price-btn')) {
+                    toggleEditMode(productId, true);
+                }
+
+                if (target.classList.contains('cancel-edit-btn')) {
+                    toggleEditMode(productId, false);
+                }
+
+                if (target.classList.contains('save-price-btn')) {
+                    const input = row.querySelector('.price-edit-input');
+                    const newPrice = input.value.trim().replace(',', '.');
+                    if (newPrice === '' || isNaN(newPrice) || parseFloat(newPrice) < 0) {
+                        alert('Proszę podać poprawną, nieujemną cenę.');
+                        return;
+                    }
+                    updatePurchasePrice(productId, parseFloat(newPrice));
+                }
+
+                if (target.classList.contains('delete-price-btn')) {
+                    if (confirm('Czy na pewno chcesz usunąć cenę zakupu dla tego produktu?')) {
+                        updatePurchasePrice(productId, null);
+                    }
+                }
+            });
 
             fetchProducts();
         });
