@@ -1803,6 +1803,27 @@
                 return;
             }
 
+            if (item.anyPromoActive && !allegroMarginSettings.allegroChangePriceForBagdeInCampaign) {
+                countRejected++;
+                rejectionReasons['Zablokowane (Kampania)'] = (rejectionReasons['Zablokowane (Kampania)'] || 0) + 1;
+                return;
+            }
+            if (item.myIsSuperPrice && !allegroMarginSettings.allegroChangePriceForBagdeSuperPrice) {
+                countRejected++;
+                rejectionReasons['Zablokowane (Super Cena)'] = (rejectionReasons['Zablokowane (Super Cena)'] || 0) + 1;
+                return;
+            }
+            if (item.myIsTopOffer && !allegroMarginSettings.allegroChangePriceForBagdeTopOffer) {
+                countRejected++;
+                rejectionReasons['Zablokowane (Top Oferta)'] = (rejectionReasons['Zablokowane (Top Oferta)'] || 0) + 1;
+                return;
+            }
+            if (item.myIsBestPriceGuarantee && !allegroMarginSettings.allegroChangePriceForBagdeBestPriceGuarantee) {
+                countRejected++;
+                rejectionReasons['Zablokowane (Gwar. Naj. Ceny)'] = (rejectionReasons['Zablokowane (Gwar. Naj. Ceny)'] || 0) + 1;
+                return;
+            }
+
             const suggestionData = calculateCurrentSuggestion(item);
 
             if (!suggestionData || suggestionData.priceType === 'onlyMe' || suggestionData.priceType === 'noOffer' || suggestionData.priceType === 'good_no_step' || (suggestionData.priceType === 'good_step' && suggestionData.totalChangeAmount === 0)) {
@@ -1810,26 +1831,6 @@
                 rejectionReasons['Brak sugestii (solo/brak oferty/cena optymalna)'] = (rejectionReasons['Brak sugestii (solo/brak oferty/cena optymalna)'] || 0) + 1;
                 return;
 
-                if (item.anyPromoActive && !allegroMarginSettings.allegroChangePriceForBagdeInCampaign) {
-                    countRejected++;
-                    rejectionReasons['Zablokowane (Kampania)'] = (rejectionReasons['Zablokowane (Kampania)'] || 0) + 1;
-                    return;
-                }
-                if (item.myIsSuperPrice && !allegroMarginSettings.allegroChangePriceForBagdeSuperPrice) {
-                    countRejected++;
-                    rejectionReasons['Zablokowane (Super Cena)'] = (rejectionReasons['Zablokowane (Super Cena)'] || 0) + 1;
-                    return;
-                }
-                if (item.myIsTopOffer && !allegroMarginSettings.allegroChangePriceForBagdeTopOffer) {
-                    countRejected++;
-                    rejectionReasons['Zablokowane (Top Oferta)'] = (rejectionReasons['Zablokowane (Top Oferta)'] || 0) + 1;
-                    return;
-                }
-                if (item.myIsBestPriceGuarantee && !allegroMarginSettings.allegroChangePriceForBagdeBestPriceGuarantee) {
-                    countRejected++;
-                    rejectionReasons['Zablokowane (Gwar. Naj. Ceny)'] = (rejectionReasons['Zablokowane (Gwar. Naj. Ceny)'] || 0) + 1;
-                    return;
-                }
             }
 
             const suggestedPrice = suggestionData.suggestedPrice;
@@ -1918,9 +1919,9 @@
         refreshPriceBoxStates();
 
         let summaryHtml = `<p style="margin-bottom:8px; font-size:16px; font-weight:bold;">Masowa zmiana zakończona!</p>
-                         <p>Przeanalizowano: <strong>${productsToChange.length}</strong> SKU</p>
-                         <p>Dodano/Zaktualizowano: <strong>${countAdded}</strong> SKU</p>
-                         <p>Odrzucono: <strong>${countRejected}</strong> SKU</p>`;
+                             <p>Przeanalizowano: <strong>${productsToChange.length}</strong> SKU</p>
+                             <p>Dodano/Zaktualizowano: <strong>${countAdded}</strong> SKU</p>
+                             <p>Odrzucono: <strong>${countRejected}</strong> SKU</p>`;
         if (countRejected > 0) {
             summaryHtml += `<p style="font-size:12px; margin-top:8px; border-top:1px solid #ccc; padding-top:5px;"><u>Powody odrzucenia:</u><br/>`;
             for (const [reason, count] of Object.entries(rejectionReasons)) {
