@@ -2990,99 +2990,109 @@
             });
 
             if (sortingState.sortName !== null) {
+
                 if (sortingState.sortName === 'asc') {
                     filteredPrices.sort((a, b) => a.productName.localeCompare(b.productName));
                 } else {
                     filteredPrices.sort((a, b) => b.productName.localeCompare(a.productName));
                 }
             } else if (sortingState.sortPrice !== null) {
+
                 if (sortingState.sortPrice === 'asc') {
-                    filteredPrices.sort((a, b) => a.lowestPrice - b.lowestPrice);
+
+                    filteredPrices.sort((a, b) => (b.myPrice ?? -Infinity) - (a.myPrice ?? -Infinity));
                 } else {
-                    filteredPrices.sort((a, b) => b.lowestPrice - a.lowestPrice);
+
+                    filteredPrices.sort((a, b) => (a.myPrice ?? Infinity) - (b.myPrice ?? Infinity));
                 }
-
             } else if (sortingState.sortRaiseAmount !== null) {
-
                 filteredPrices = filteredPrices.filter(item => item.calculatedTotalChangeAmount !== null && item.calculatedTotalChangeAmount > 0);
                 if (sortingState.sortRaiseAmount === 'asc') {
-                    filteredPrices.sort((a, b) => (a.calculatedTotalChangeAmount ?? Infinity) - (b.calculatedTotalChangeAmount ?? Infinity));
-                } else {
+
                     filteredPrices.sort((a, b) => (b.calculatedTotalChangeAmount ?? -Infinity) - (a.calculatedTotalChangeAmount ?? -Infinity));
+                } else {
+
+                    filteredPrices.sort((a, b) => (a.calculatedTotalChangeAmount ?? Infinity) - (b.calculatedTotalChangeAmount ?? Infinity));
                 }
             } else if (sortingState.sortRaisePercentage !== null) {
-
                 filteredPrices = filteredPrices.filter(item => item.calculatedPercentageChange !== null && item.calculatedPercentageChange > 0);
                 if (sortingState.sortRaisePercentage === 'asc') {
-                    filteredPrices.sort((a, b) => (a.calculatedPercentageChange ?? Infinity) - (b.calculatedPercentageChange ?? Infinity));
-                } else {
+
                     filteredPrices.sort((a, b) => (b.calculatedPercentageChange ?? -Infinity) - (a.calculatedPercentageChange ?? -Infinity));
+                } else {
+
+                    filteredPrices.sort((a, b) => (a.calculatedPercentageChange ?? Infinity) - (b.calculatedPercentageChange ?? Infinity));
                 }
             } else if (sortingState.sortLowerAmount !== null) {
-
                 filteredPrices = filteredPrices.filter(item => item.calculatedTotalChangeAmount !== null && item.calculatedTotalChangeAmount < 0);
                 if (sortingState.sortLowerAmount === 'asc') {
 
-                    filteredPrices.sort((a, b) => (a.calculatedTotalChangeAmount ?? Infinity) - (b.calculatedTotalChangeAmount ?? Infinity));
-                } else {
                     filteredPrices.sort((a, b) => (b.calculatedTotalChangeAmount ?? -Infinity) - (a.calculatedTotalChangeAmount ?? -Infinity));
+                } else {
+
+                    filteredPrices.sort((a, b) => (a.calculatedTotalChangeAmount ?? Infinity) - (b.calculatedTotalChangeAmount ?? Infinity));
                 }
             } else if (sortingState.sortLowerPercentage !== null) {
-
                 filteredPrices = filteredPrices.filter(item => item.calculatedPercentageChange !== null && item.calculatedPercentageChange < 0);
                 if (sortingState.sortLowerPercentage === 'asc') {
 
-                    filteredPrices.sort((a, b) => (a.calculatedPercentageChange ?? Infinity) - (b.calculatedPercentageChange ?? Infinity));
-                } else {
                     filteredPrices.sort((a, b) => (b.calculatedPercentageChange ?? -Infinity) - (a.calculatedPercentageChange ?? -Infinity));
+                } else {
+
+                    filteredPrices.sort((a, b) => (a.calculatedPercentageChange ?? Infinity) - (b.calculatedPercentageChange ?? Infinity));
                 }
 
             } else if (sortingState.sortMarginAmount !== null) {
                 filteredPrices = filteredPrices.filter(item => item.marginAmount !== null);
                 if (sortingState.sortMarginAmount === 'asc') {
-                    filteredPrices.sort((a, b) => a.marginAmount - b.marginAmount);
+
+                    filteredPrices.sort((a, b) => (b.marginAmount ?? -Infinity) - (a.marginAmount ?? -Infinity));
                 } else {
-                    filteredPrices.sort((a, b) => b.marginAmount - a.marginAmount);
+
+                    filteredPrices.sort((a, b) => (a.marginAmount ?? Infinity) - (b.marginAmount ?? Infinity));
+
                 }
             } else if (sortingState.sortMarginPercentage !== null) {
                 filteredPrices = filteredPrices.filter(item => item.marginPercentage !== null);
                 if (sortingState.sortMarginPercentage === 'asc') {
-                    filteredPrices.sort((a, b) => a.marginPercentage - b.marginPercentage);
+
+                    filteredPrices.sort((a, b) => (b.marginPercentage ?? -Infinity) - (a.marginPercentage ?? -Infinity));
                 } else {
-                    filteredPrices.sort((a, b) => b.marginPercentage - a.marginPercentage);
+
+                    filteredPrices.sort((a, b) => (a.marginPercentage ?? Infinity) - (b.marginPercentage ?? Infinity));
                 }
             } else if (sortingState.sortCeneoSales !== null) {
-
                 filteredPrices = filteredPrices.filter(item => item.ceneoSalesCount !== null);
                 if (sortingState.sortCeneoSales === 'asc') {
 
-                    filteredPrices.sort((a, b) => (a.ceneoSalesCount ?? Infinity) - (b.ceneoSalesCount ?? Infinity));
+                    filteredPrices.sort((a, b) => (b.ceneoSalesCount ?? -Infinity) - (a.ceneoSalesCount ?? -Infinity));
                 } else {
 
-                    filteredPrices.sort((a, b) => (b.ceneoSalesCount ?? -Infinity) - (a.ceneoSalesCount ?? -Infinity));
+                    filteredPrices.sort((a, b) => (a.ceneoSalesCount ?? Infinity) - (b.ceneoSalesCount ?? Infinity));
                 }
             } else if (sortingState.sortSalesTrendAmount !== null) {
-
                 filteredPrices = filteredPrices.filter(item => item.salesDifference !== null);
                 if (sortingState.sortSalesTrendAmount === 'asc') {
-                    filteredPrices.sort((a, b) => (a.salesDifference ?? Infinity) - (b.salesDifference ?? Infinity));
-                } else {
+
                     filteredPrices.sort((a, b) => (b.salesDifference ?? -Infinity) - (a.salesDifference ?? -Infinity));
+                } else {
+
+                    filteredPrices.sort((a, b) => (a.salesDifference ?? Infinity) - (b.salesDifference ?? Infinity));
                 }
             } else if (sortingState.sortSalesTrendPercent !== null) {
-
                 filteredPrices = filteredPrices.filter(item => item.salesPercentageChange !== null);
                 if (sortingState.sortSalesTrendPercent === 'asc') {
-                    filteredPrices.sort((a, b) => (a.salesPercentageChange ?? Infinity) - (b.salesPercentageChange ?? Infinity));
-                } else {
+
                     filteredPrices.sort((a, b) => (b.salesPercentageChange ?? -Infinity) - (a.salesPercentageChange ?? -Infinity));
+                } else {
+
+                    filteredPrices.sort((a, b) => (a.salesPercentageChange ?? Infinity) - (b.salesPercentageChange ?? Infinity));
                 }
             }
 
             const selectedProducer = document.getElementById('producerFilterDropdown').value;
             if (selectedProducer) {
                 filteredPrices = filteredPrices.filter(item =>
-
                     item.producer === selectedProducer
                 );
             }
@@ -3148,11 +3158,11 @@
                 return 'Narzut %';
 
             case 'sortCeneoSales':
-                return 'Sprzedaż (ilość)';
+                return 'Sprzedaż - ilość';
             case 'sortSalesTrendAmount':
-                return 'Trend (ilość)';
+                return 'Trend - ilość';
             case 'sortSalesTrendPercent':
-                return 'Trend (%)';
+                return 'Trend - %';
             default:
                 return '';
         }
@@ -3355,15 +3365,15 @@
     document.getElementById('sortCeneoSales').addEventListener('click', function () {
         if (sortingState.sortCeneoSales === null) {
             sortingState.sortCeneoSales = 'asc';
-            this.innerHTML = 'Sprzedaż (ilość) ↑';
+            this.innerHTML = 'Sprzedaż - ilość ↑';
             this.classList.add('active');
         } else if (sortingState.sortCeneoSales === 'asc') {
             sortingState.sortCeneoSales = 'desc';
-            this.innerHTML = 'Sprzedaż (ilość) ↓';
+            this.innerHTML = 'Sprzedaż - ilość ↓';
             this.classList.add('active');
         } else {
             sortingState.sortCeneoSales = null;
-            this.innerHTML = 'Sprzedaż (ilość)';
+            this.innerHTML = 'Sprzedaż - ilość';
             this.classList.remove('active');
         }
         resetSortingStates('sortCeneoSales');
@@ -3374,15 +3384,15 @@
     document.getElementById('sortSalesTrendAmount').addEventListener('click', function () {
         if (sortingState.sortSalesTrendAmount === null) {
             sortingState.sortSalesTrendAmount = 'asc';
-            this.innerHTML = 'Trend (ilość) ↑';
+            this.innerHTML = 'Trend - ilość ↑';
             this.classList.add('active');
         } else if (sortingState.sortSalesTrendAmount === 'asc') {
             sortingState.sortSalesTrendAmount = 'desc';
-            this.innerHTML = 'Trend (ilość) ↓';
+            this.innerHTML = 'Trend - ilość ↓';
             this.classList.add('active');
         } else {
             sortingState.sortSalesTrendAmount = null;
-            this.innerHTML = 'Trend (ilość)';
+            this.innerHTML = 'Trend - ilość';
             this.classList.remove('active');
         }
         resetSortingStates('sortSalesTrendAmount');
@@ -3393,15 +3403,15 @@
     document.getElementById('sortSalesTrendPercent').addEventListener('click', function () {
         if (sortingState.sortSalesTrendPercent === null) {
             sortingState.sortSalesTrendPercent = 'asc';
-            this.innerHTML = 'Trend (%) ↑';
+            this.innerHTML = 'Trend - % ↑';
             this.classList.add('active');
         } else if (sortingState.sortSalesTrendPercent === 'asc') {
             sortingState.sortSalesTrendPercent = 'desc';
-            this.innerHTML = 'Trend (%) ↓';
+            this.innerHTML = 'Trend - % ↓';
             this.classList.add('active');
         } else {
             sortingState.sortSalesTrendPercent = null;
-            this.innerHTML = 'Trend (%)';
+            this.innerHTML = 'Trend - %';
             this.classList.remove('active');
         }
         resetSortingStates('sortSalesTrendPercent');
