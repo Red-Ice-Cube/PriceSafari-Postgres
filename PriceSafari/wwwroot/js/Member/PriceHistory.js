@@ -125,6 +125,9 @@
         sortMarginAmount: null,
         sortMarginPercentage: null,
 
+        sortCeneoSales: null,
+        sortSalesTrendAmount: null,
+        sortSalesTrendPercent: null
     };
 
     let positionSlider;
@@ -3048,6 +3051,32 @@
                 } else {
                     filteredPrices.sort((a, b) => b.marginPercentage - a.marginPercentage);
                 }
+            } else if (sortingState.sortCeneoSales !== null) {
+
+                filteredPrices = filteredPrices.filter(item => item.ceneoSalesCount !== null);
+                if (sortingState.sortCeneoSales === 'asc') {
+
+                    filteredPrices.sort((a, b) => (a.ceneoSalesCount ?? Infinity) - (b.ceneoSalesCount ?? Infinity));
+                } else {
+
+                    filteredPrices.sort((a, b) => (b.ceneoSalesCount ?? -Infinity) - (a.ceneoSalesCount ?? -Infinity));
+                }
+            } else if (sortingState.sortSalesTrendAmount !== null) {
+
+                filteredPrices = filteredPrices.filter(item => item.salesDifference !== null);
+                if (sortingState.sortSalesTrendAmount === 'asc') {
+                    filteredPrices.sort((a, b) => (a.salesDifference ?? Infinity) - (b.salesDifference ?? Infinity));
+                } else {
+                    filteredPrices.sort((a, b) => (b.salesDifference ?? -Infinity) - (a.salesDifference ?? -Infinity));
+                }
+            } else if (sortingState.sortSalesTrendPercent !== null) {
+
+                filteredPrices = filteredPrices.filter(item => item.salesPercentageChange !== null);
+                if (sortingState.sortSalesTrendPercent === 'asc') {
+                    filteredPrices.sort((a, b) => (a.salesPercentageChange ?? Infinity) - (b.salesPercentageChange ?? Infinity));
+                } else {
+                    filteredPrices.sort((a, b) => (b.salesPercentageChange ?? -Infinity) - (a.salesPercentageChange ?? -Infinity));
+                }
             }
 
             const selectedProducer = document.getElementById('producerFilterDropdown').value;
@@ -3118,6 +3147,12 @@
             case 'sortMarginPercentage':
                 return 'Narzut %';
 
+            case 'sortCeneoSales':
+                return 'Sprzedaż (ilość)';
+            case 'sortSalesTrendAmount':
+                return 'Trend (ilość)';
+            case 'sortSalesTrendPercent':
+                return 'Trend (%)';
             default:
                 return '';
         }
@@ -3313,6 +3348,63 @@
             this.classList.remove('active');
         }
         resetSortingStates('sortMarginPercentage');
+        localStorage.setItem('priceHistorySortingState_' + storeId, JSON.stringify(sortingState));
+        filterPricesAndUpdateUI();
+    });
+
+    document.getElementById('sortCeneoSales').addEventListener('click', function () {
+        if (sortingState.sortCeneoSales === null) {
+            sortingState.sortCeneoSales = 'asc';
+            this.innerHTML = 'Sprzedaż (ilość) ↑';
+            this.classList.add('active');
+        } else if (sortingState.sortCeneoSales === 'asc') {
+            sortingState.sortCeneoSales = 'desc';
+            this.innerHTML = 'Sprzedaż (ilość) ↓';
+            this.classList.add('active');
+        } else {
+            sortingState.sortCeneoSales = null;
+            this.innerHTML = 'Sprzedaż (ilość)';
+            this.classList.remove('active');
+        }
+        resetSortingStates('sortCeneoSales');
+        localStorage.setItem('priceHistorySortingState_' + storeId, JSON.stringify(sortingState));
+        filterPricesAndUpdateUI();
+    });
+
+    document.getElementById('sortSalesTrendAmount').addEventListener('click', function () {
+        if (sortingState.sortSalesTrendAmount === null) {
+            sortingState.sortSalesTrendAmount = 'asc';
+            this.innerHTML = 'Trend (ilość) ↑';
+            this.classList.add('active');
+        } else if (sortingState.sortSalesTrendAmount === 'asc') {
+            sortingState.sortSalesTrendAmount = 'desc';
+            this.innerHTML = 'Trend (ilość) ↓';
+            this.classList.add('active');
+        } else {
+            sortingState.sortSalesTrendAmount = null;
+            this.innerHTML = 'Trend (ilość)';
+            this.classList.remove('active');
+        }
+        resetSortingStates('sortSalesTrendAmount');
+        localStorage.setItem('priceHistorySortingState_' + storeId, JSON.stringify(sortingState));
+        filterPricesAndUpdateUI();
+    });
+
+    document.getElementById('sortSalesTrendPercent').addEventListener('click', function () {
+        if (sortingState.sortSalesTrendPercent === null) {
+            sortingState.sortSalesTrendPercent = 'asc';
+            this.innerHTML = 'Trend (%) ↑';
+            this.classList.add('active');
+        } else if (sortingState.sortSalesTrendPercent === 'asc') {
+            sortingState.sortSalesTrendPercent = 'desc';
+            this.innerHTML = 'Trend (%) ↓';
+            this.classList.add('active');
+        } else {
+            sortingState.sortSalesTrendPercent = null;
+            this.innerHTML = 'Trend (%)';
+            this.classList.remove('active');
+        }
+        resetSortingStates('sortSalesTrendPercent');
         localStorage.setItem('priceHistorySortingState_' + storeId, JSON.stringify(sortingState));
         filterPricesAndUpdateUI();
     });

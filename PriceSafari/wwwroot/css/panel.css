@@ -3321,10 +3321,6 @@ tr:last-child .sub-line {
     text-align: center;
 }
 
-
-
-
-
 .Commission-stack {
     background-color: rgba(178, 178, 178, 0.20);
     display: flex;
@@ -3346,7 +3342,7 @@ tr:last-child .sub-line {
     font-size: 11px;
     font-weight: 500;
     margin-right: 4px;
-    width:77px;
+    width: 77px;
 }
 
 .diff-amount {
@@ -4533,6 +4529,47 @@ th small {
             color: #e3e3e3;
             cursor: pointer;
         }
+
+#salesSortingButtons {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 5px;
+}
+
+    #salesSortingButtons button {
+        display: inline-flex;
+        box-sizing: border-box;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        height: 34px;
+        padding: 2px 12px;
+        border: none;
+        background-color: #e3e3e3;
+        color: #4e4e4e;
+        font-size: 13px;
+        font-weight: normal;
+        cursor: pointer;
+        transition: background-color 0.3s, color 0.3s;
+        border-radius: 4px;
+    }
+
+        #salesSortingButtons button:hover {
+            background-color: #ccc;
+            color: #4e4e4e;
+        }
+
+        #salesSortingButtons button.active {
+            background-color: #323232;
+            color: #e3e3e3;
+        }
+
+            #salesSortingButtons button.active:hover {
+                background-color: #323232;
+                color: #e3e3e3;
+                cursor: pointer;
+            }
 
 .SimpleSpace {
     display: flex;
