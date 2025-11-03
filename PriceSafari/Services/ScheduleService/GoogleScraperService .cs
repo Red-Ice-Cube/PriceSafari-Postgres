@@ -59,13 +59,13 @@ namespace PriceSafari.Services.ScheduleService
             int totalScrapedOverall = 0;
             int totalRejectedOverall = 0;
             int networkResetCount = 0;
-            // NOWE: Zmienna do przechowywania łącznej liczby URL-i
+
             int totalUrlsToScrape = 0;
             var stopwatch = Stopwatch.StartNew();
 
             for (int attempt = 0; attempt <= MAX_NETWORK_RESETS; attempt++)
             {
-                // ZMIANA: Spodziewamy się teraz krotki z czterema wartościami
+
                 (bool success, int scrapedThisRun, int rejectedThisRun, int urlsInRun) result;
 
                 try
@@ -75,11 +75,10 @@ namespace PriceSafari.Services.ScheduleService
                 catch (Exception ex)
                 {
                     _logger.LogError(ex, "[GoogleService] A critical error occurred during a scraping run.");
-                    // ZMIANA: Przekazujemy totalUrlsToScrape do DTO
+
                     return new GoogleScrapingDto(GoogleScrapingResult.Error, totalScrapedOverall, totalRejectedOverall, networkResetCount, totalUrlsToScrape, $"A critical error occurred: {ex.Message}");
                 }
 
-                // NOWE: Ustawiamy całkowitą liczbę URL-i przy pierwszym udanym pobraniu
                 if (attempt == 0)
                 {
                     totalUrlsToScrape = result.urlsInRun;
@@ -92,7 +91,7 @@ namespace PriceSafari.Services.ScheduleService
                 {
                     _logger.LogInformation($"[GoogleService] Scraping run successful. Overall scraped: {totalScrapedOverall}, rejected: {totalRejectedOverall}.");
                     await _hubContext.Clients.All.SendAsync("ReceiveGeneralMessage", $"Google: Scrapowanie zakończone. Zebrano: {totalScrapedOverall}, odrzucono: {totalRejectedOverall}.", CancellationToken.None);
-                    // ZMIANA: Przekazujemy totalUrlsToScrape do DTO
+
                     return new GoogleScrapingDto(GoogleScrapingResult.Success, totalScrapedOverall, totalRejectedOverall, networkResetCount, totalUrlsToScrape, "Scraping completed successfully.");
                 }
 
@@ -103,7 +102,7 @@ namespace PriceSafari.Services.ScheduleService
                 {
                     _logger.LogError($"[GoogleService] Persistent block remained after max ({networkResetCount}) resets.");
                     await _hubContext.Clients.All.SendAsync("ReceiveGeneralMessage", $"Google: Blokada utrzymuje się po {networkResetCount} próbach resetu. Wymagana ręczna interwencja.", CancellationToken.None);
-                    // ZMIANA: Przekazujemy totalUrlsToScrape do DTO
+
                     return new GoogleScrapingDto(GoogleScrapingResult.PersistentBlock, totalScrapedOverall, totalRejectedOverall, networkResetCount, totalUrlsToScrape, $"Persistent block after {networkResetCount} resets. Manual intervention required.");
                 }
 
@@ -142,17 +141,15 @@ namespace PriceSafari.Services.ScheduleService
                 .Where(c => !string.IsNullOrEmpty(c.GoogleOfferUrl) && !c.GoogleIsScraped)
                 .ToListAsync();
 
-            // NOWE: Pobieramy i zapamiętujemy liczbę ofert do przetworzenia
             int totalUrls = coOfrsToScrape.Count;
 
             if (!coOfrsToScrape.Any())
             {
-                // ZMIANA: Zwracamy 0 jako totalUrls, bo nic nie było do zrobienia
+
                 return (success: true, scraped: 0, rejected: 0, totalUrls: 0);
             }
 
             _logger.LogInformation($"[GoogleService] Starting a new run with {totalUrls} products.");
-
 
             int scrapedThisRun = 0;
             int rejectedThisRun = 0;
@@ -232,7 +229,7 @@ namespace PriceSafari.Services.ScheduleService
             _logger.LogInformation($"[GoogleService] Run finished. Scraped: {scrapedThisRun}, Rejected: {rejectedThisRun}, Failures: {persistentFailures}");
 
             bool wasSuccess = persistentFailures <= (coOfrsToScrape.Count / 2);
-            // ZMIANA: Zwracamy zapamiętaną liczbę ofert
+
             return (success: wasSuccess, scraped: scrapedThisRun, rejected: rejectedThisRun, totalUrls: totalUrls);
         }
     }
