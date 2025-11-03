@@ -1610,7 +1610,6 @@
 
             if (selectedMyBadges.size > 0) {
                 filtered = filtered.filter(item => {
-
                     for (const badge of selectedMyBadges) {
                         if (item[badge] === true) {
                             return true;
@@ -1622,51 +1621,56 @@
 
             for (const [key, direction] of Object.entries(sortingState)) {
                 if (direction) {
-                    filtered.sort((a, b) => {
-                        let valA, valB;
-                        switch (key) {
-                            case 'sortName':
-                                valA = a.productName;
-                                valB = b.productName;
-                                break;
-                            case 'sortPrice':
-                                valA = a.lowestPrice;
-                                valB = b.lowestPrice;
-                                break;
-                            case 'sortRaiseAmount':
-                                valA = a.savings;
-                                valB = b.savings;
-                                break;
-                            case 'sortRaisePercentage':
-                            case 'sortLowerPercentage':
-                                valA = a.percentageDifference;
-                                valB = b.percentageDifference;
-                                break;
-                            case 'sortLowerAmount':
-                                valA = a.priceDifference;
-                                valB = b.priceDifference;
-                                break;
-                            case 'sortMarginAmount':
-                                valA = a.marginAmount;
-                                valB = b.marginAmount;
-                                break;
-                            case 'sortMarginPercentage':
-                                valA = a.marginPercentage;
-                                valB = b.marginPercentage;
-                                break;
-                            default:
-                                return 0;
-                        }
 
-                        if (valA == null) return 1;
-                        if (valB == null) return -1;
-
-                        if (typeof valA === 'string') {
+                    if (key === 'sortName') {
+                        filtered.sort((a, b) => {
+                            const valA = a.productName || '';
+                            const valB = b.productName || '';
                             return direction === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
-                        }
+                        });
+                    } else {
 
-                        return direction === 'asc' ? valA - valB : valB - valA;
-                    });
+                        filtered.sort((a, b) => {
+                            let valA, valB;
+                            switch (key) {
+                                case 'sortPrice':
+                                    valA = a.myPrice;
+                                    valB = b.myPrice;
+                                    break;
+                                case 'sortRaiseAmount':
+                                    valA = a.savings;
+                                    valB = b.savings;
+                                    break;
+                                case 'sortRaisePercentage':
+                                case 'sortLowerPercentage':
+                                    valA = a.percentageDifference;
+                                    valB = b.percentageDifference;
+                                    break;
+                                case 'sortLowerAmount':
+                                    valA = a.priceDifference;
+                                    valB = b.priceDifference;
+                                    break;
+                                case 'sortMarginAmount':
+                                    valA = a.marginAmount;
+                                    valB = b.marginAmount;
+                                    break;
+                                case 'sortMarginPercentage':
+                                    valA = a.marginPercentage;
+                                    valB = b.marginPercentage;
+                                    break;
+                                default:
+                                    return 0;
+                            }
+
+                            if (direction === 'asc') {
+                                return (valB ?? -Infinity) - (valA ?? -Infinity);
+                            }
+
+                            else {
+                                return (valA ?? Infinity) - (valB ?? Infinity);
+                            }
+                        });
+                    }
 
                     if (key === 'sortRaiseAmount' || key === 'sortRaisePercentage') {
                         filtered = filtered.filter(item => item.savings != null || item.percentageDifference > 0);
@@ -1682,6 +1686,7 @@
                     }
 
                     break;
+
                 }
             }
 
