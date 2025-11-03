@@ -114,6 +114,8 @@
         sortRaisePercentage: null,
         sortLowerAmount: null,
         sortLowerPercentage: null,
+        sortMarginAmount: null,
+        sortMarginPercentage: null
     };
 
     let isCatalogViewActive = false;
@@ -190,6 +192,10 @@
                 return 'Obniż PLN';
             case 'sortLowerPercentage':
                 return 'Obniż %';
+            case 'sortMarginAmount':
+                return 'Narzut PLN';
+            case 'sortMarginPercentage':
+                return 'Narzut %';
             default:
                 return '';
         }
@@ -209,6 +215,23 @@
                 button.innerHTML = getDefaultButtonLabel(key);
             }
         });
+    }
+
+    function updateMarginSortButtonsVisibility() {
+
+        const hasMarginData = allPrices.some(item => item.marginAmount !== null && item.marginPercentage !== null);
+        const sortMarginAmountButton = document.getElementById('sortMarginAmount');
+        const sortMarginPercentageButton = document.getElementById('sortMarginPercentage');
+
+        if (sortMarginAmountButton && sortMarginPercentageButton) {
+            if (hasMarginData) {
+                sortMarginAmountButton.style.display = '';
+                sortMarginPercentageButton.style.display = '';
+            } else {
+                sortMarginAmountButton.style.display = 'none';
+                sortMarginPercentageButton.style.display = 'none';
+            }
+        }
     }
 
     function highlightMatches(fullText, searchTerm) {
@@ -1623,6 +1646,14 @@
                                 valA = a.priceDifference;
                                 valB = b.priceDifference;
                                 break;
+                            case 'sortMarginAmount':
+                                valA = a.marginAmount;
+                                valB = b.marginAmount;
+                                break;
+                            case 'sortMarginPercentage':
+                                valA = a.marginPercentage;
+                                valB = b.marginPercentage;
+                                break;
                             default:
                                 return 0;
                         }
@@ -1642,6 +1673,12 @@
                     }
                     if (key === 'sortLowerAmount' || key === 'sortLowerPercentage') {
                         filtered = filtered.filter(item => item.priceDifference != null || item.percentageDifference < 0);
+                    }
+                    if (key === 'sortMarginAmount') {
+                        filtered = filtered.filter(item => item.marginAmount !== null);
+                    }
+                    if (key === 'sortMarginPercentage') {
+                        filtered = filtered.filter(item => item.marginPercentage !== null);
                     }
 
                     break;
@@ -2269,7 +2306,7 @@
                 updateFlagCounts(allPrices);
                 updateBadgeCounts(allPrices);
                 updateSelectionUI();
-
+                updateMarginSortButtonsVisibility();
                 refreshPriceBoxStates();
 
             })
