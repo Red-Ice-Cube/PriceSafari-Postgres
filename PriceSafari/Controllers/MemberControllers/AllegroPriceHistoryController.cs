@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using PriceSafari.Data;
 using PriceSafari.Models;
 using PriceSafari.Models.ViewModels;
+using PriceSafari.Services.AllegroServices; // Dodaj using
 using PriceSafari.ViewModels;
 using System.Security.Claims;
 
@@ -15,11 +16,16 @@ namespace PriceSafari.Controllers.MemberControllers
     {
         private readonly PriceSafariContext _context;
         private readonly UserManager<PriceSafariUser> _userManager;
+        private readonly AllegroPriceBridgeService _priceBridgeService; // Dodaj serwis
 
-        public AllegroPriceHistoryController(PriceSafariContext context, UserManager<PriceSafariUser> userManager)
+        public AllegroPriceHistoryController(
+            PriceSafariContext context,
+            UserManager<PriceSafariUser> userManager,
+            AllegroPriceBridgeService priceBridgeService) // Wstrzyknij serwis
         {
             _context = context;
             _userManager = userManager;
+            _priceBridgeService = priceBridgeService; // Przypisz serwis
         }
 
         private async Task<bool> UserHasAccessToStore(int storeId)
@@ -62,6 +68,8 @@ namespace PriceSafari.Controllers.MemberControllers
             ViewBag.StoreLogo = store.StoreLogoUrl;
             ViewBag.LatestScrap = latestScrap;
             ViewBag.Flags = flags;
+
+            ViewBag.IsAllegroPriceBridgeActive = store.IsAllegroPriceBridgeActive;
 
             return View("~/Views/Panel/AllegroPriceHistory/Index.cshtml");
         }
@@ -780,6 +788,36 @@ namespace PriceSafari.Controllers.MemberControllers
             return Json(viewModel);
         }
 
+
+        [HttpPost]
+        public async Task<IActionResult> ExecutePriceChange(int storeId, [FromBody] List<OfferPriceChangeRequest> changes)
+        {
+            if (!await UserHasAccessToStore(storeId)) return Forbid();
+            if (changes == null || !changes.Any()) return BadRequest("Brak zmian do przetworzenia.");
+
+            var result = await _priceBridgeService.ExecutePriceChangesAsync(storeId, changes);
+
+            return Json(result);
+        }
+
+        public class OfferPriceChangeRequest
+        {
+            public string OfferId { get; set; }
+            public string NewPrice { get; set; }
+        }
+
+        public class PriceBridgeError
+        {
+            public string OfferId { get; set; }
+            public string Message { get; set; }
+        }
+
+        public class PriceBridgeResult
+        {
+            public int SuccessfulCount { get; set; } = 0;
+            public int FailedCount { get; set; } = 0;
+            public List<PriceBridgeError> Errors { get; set; } = new List<PriceBridgeError>();
+        }
         public class AllegroTrendDataViewModel
         {
             public string ProductName { get; set; }

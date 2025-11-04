@@ -11,13 +11,13 @@ using System.Text.Json.Nodes;
 
 namespace PriceSafari.Services.AllegroServices
 {
-   
+
     public record AllegroApiData(
         decimal? BasePrice,
         decimal? FinalPrice,
         decimal? Commission,
         bool HasActivePromo,
-        string? Ean 
+        string? Ean
     );
 
     public class AllegroApiBotService
@@ -105,11 +105,10 @@ namespace PriceSafari.Services.AllegroServices
                         offer.ApiAllegroPrice = apiData.FinalPrice;
                         offer.ApiAllegroCommission = apiData.Commission;
                         offer.AnyPromoActive = apiData.HasActivePromo;
-                        offer.AllegroEan = apiData.Ean; 
+                        offer.AllegroEan = apiData.Ean;
                     }
                     offer.IsApiProcessed = true;
                     processedCount++;
-
 
                     if (processedCount % batchSize == 0 || processedCount == offersToProcess.Count)
                     {
@@ -141,7 +140,6 @@ namespace PriceSafari.Services.AllegroServices
             }
         }
 
-  
         private async Task<AllegroApiData?> FetchApiDataForOffer(string accessToken, string offerId)
         {
             try
@@ -149,20 +147,17 @@ namespace PriceSafari.Services.AllegroServices
                 var offerDataNode = await GetOfferData(accessToken, offerId);
                 if (offerDataNode == null) return null;
 
-                // --- Pobieranie ceny bazowej (bez zmian) ---
                 var basePriceString = offerDataNode["sellingMode"]?["price"]?["amount"]?.ToString();
                 decimal.TryParse(basePriceString, CultureInfo.InvariantCulture, out var basePrice);
                 decimal? parsedBasePrice = basePrice > 0 ? basePrice : null;
 
-                // --- NOWA LOGIKA: Pobieranie kodu EAN (z Twojego kodu testowego) ---
                 string? ean = null;
                 try
                 {
                     var parameters = offerDataNode["productSet"]?[0]?["product"]?["parameters"]?.AsArray();
-                    // ID "225693" to standardowe ID Allegro dla parametru EAN
+
                     var eanValue = parameters?.FirstOrDefault(p => p?["id"]?.ToString() == "225693")?["values"]?[0]?.ToString();
 
-                    // Zapisujemy tylko jeśli EAN nie jest pusty i nie jest domyślną wartością "Brak"
                     if (!string.IsNullOrWhiteSpace(eanValue) && eanValue != "Brak")
                     {
                         ean = eanValue;
@@ -171,20 +166,16 @@ namespace PriceSafari.Services.AllegroServices
                 catch (Exception ex)
                 {
                     _logger.LogWarning(ex, "Nie udało się sparsować kodu EAN dla oferty {OfferId}. Dane JSON mogły mieć nietypową strukturę.", offerId);
-                    ean = null; // Zapewnij null w razie błędu parsowania
+                    ean = null;
                 }
-                // --- Koniec logiki EAN ---
 
-                // --- Pobieranie ceny promocyjnej (bez zmian) ---
                 var promoPrice = await GetActiveCampaignPrice(accessToken, offerId);
 
                 decimal? finalPrice = promoPrice ?? parsedBasePrice;
                 bool hasActivePromo = promoPrice.HasValue;
 
-                // --- Pobieranie prowizji (bez zmian) ---
                 var commission = await GetOfferCommission(accessToken, offerDataNode);
 
-                // Zwracamy rekord z nowym polem EAN
                 return new AllegroApiData(parsedBasePrice, finalPrice, commission, hasActivePromo, ean);
             }
             catch (Exception ex)

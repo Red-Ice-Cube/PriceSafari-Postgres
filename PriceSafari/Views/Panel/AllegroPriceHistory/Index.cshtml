@@ -415,11 +415,22 @@
             </div>
             <div class="modal-body">
                 <div class="table-scroll" id="simulationModalBody">
+                    @* Treść ładowana przez JS *@
                 </div>
             </div>
             <div class="modal-footer">
                 <div style="display:flex; width:100%; justify-content:space-between; align-items: center;">
                     <button type="button" id="clearChangesButton" class="Button-Page-Small-r">Usuń wszystkie zmiany</button>
+
+                    @* --- NOWY PRZYCISK --- *@
+                    @if (ViewBag.IsAllegroPriceBridgeActive == true)
+                    {
+                        <button type="button" id="executePriceChangeBtn" class="Button-Page-Small-bl" style="width: 260px; background-color: #d9534f; border-color: #d43f3a;">
+                            <i class="fa-solid fa-arrow-up-from-bracket" style="margin-right: 8px;"></i> Wgraj zmiany na Allegro
+                        </button>
+                    }
+                    @* --- KONIEC NOWEGO PRZYCISKU --- *@
+
                 </div>
             </div>
         </div>

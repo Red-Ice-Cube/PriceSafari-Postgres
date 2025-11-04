@@ -163,7 +163,11 @@
     });
 
     document.addEventListener('priceBoxChange', function (event) {
-        const { productId, productName, currentPrice, newPrice, scrapId, stepPriceApplied, stepUnitApplied } = event.detail;
+
+        // --- MODYFIKACJA TUTAJ ---
+        // Odbieramy myIdAllegro z obiektu detail
+        const { productId, myIdAllegro, productName, currentPrice, newPrice, scrapId, stepPriceApplied, stepUnitApplied } = event.detail;
+        // --- KONIEC MODYFIKACJI ---
 
         if (selectedPriceChanges.length === 0) {
             sessionScrapId = scrapId;
@@ -175,14 +179,18 @@
 
         var existingIndex = selectedPriceChanges.findIndex(item => String(item.productId) === String(productId));
 
+        // --- MODYFIKACJA TUTAJ ---
+        // Zapisujemy myIdAllegro w obiekcie changeData
         const changeData = {
             productId: String(productId),
+            myIdAllegro: myIdAllegro, // <-- DODANA TA LINIA
             productName,
             currentPrice: parseFloat(currentPrice),
             newPrice: parseFloat(newPrice),
             stepPriceApplied: parseFloat(stepPriceApplied),
             stepUnitApplied
         };
+        // --- KONIEC MODYFIKACJI ---
 
         if (existingIndex > -1) {
             selectedPriceChanges[existingIndex] = changeData;
@@ -680,6 +688,120 @@
     var simulateButton = document.getElementById("simulateButton");
     if (simulateButton) {
         simulateButton.addEventListener("click", openSimulationModal);
+    }
+
+
+    const executeButton = document.getElementById("executePriceChangeBtn");
+    if (executeButton) {
+        executeButton.addEventListener("click", function () {
+            if (selectedPriceChanges.length === 0) {
+                alert("Brak zmian do wgrania.");
+                return;
+            }
+
+            if (!confirm(`Czy na pewno chcesz wgrać ${selectedPriceChanges.length} zmian cen bezpośrednio na Allegro? Ta operacja jest NIEODWRACALNA.`)) {
+                return;
+            }
+
+            showLoading();
+
+            // Filtrujemy zmiany - bierzemy tylko te, które mają ID oferty Allegro
+            const changesToUpload = selectedPriceChanges
+                .filter(c => c.myIdAllegro)
+                .map(c => ({
+                    offerId: c.myIdAllegro.toString(),
+                    newPrice: parseFloat(c.newPrice).toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) // Wysyłamy sformatowaną cenę jako string
+                }));
+
+            const changesWithoutId = selectedPriceChanges.length - changesToUpload.length;
+
+            if (changesToUpload.length === 0) {
+                hideLoading();
+                alert("Żadna z wybranych zmian nie ma przypisanego ID oferty Allegro. Nie można wgrać zmian.");
+                return;
+            }
+
+            fetch(`/AllegroPriceHistory/ExecutePriceChange?storeId=${storeId}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(changesToUpload)
+            })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`Błąd serwera: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(result => {
+                    hideLoading();
+
+                    // Budujemy komunikat z podsumowaniem
+                    let message = `<p style="font-weight:bold; font-size:16px;">Operacja zakończona!</p>`;
+                    message += `<p>Wysłano ${changesToUpload.length} ofert do aktualizacji.</p>`;
+                    message += `<p style="color: #c8e6c9;">Pomyślnie zaktualizowano: ${result.successfulCount}</p>`;
+                    message += `<p style="color: #ffcdd2;">Błędy: ${result.failedCount}</p>`;
+                    if (changesWithoutId > 0) {
+                        message += `<p style="color: #ffe0b2;">Pominięto (brak ID): ${changesWithoutId}</p>`;
+                    }
+
+                    if (result.failedCount > 0 && result.errors && result.errors.length > 0) {
+                        message += `<br/><p style="font-weight:bold;"><u>Szczegóły błędów:</u></p>`;
+                        message += `<ul style="font-size:12px; max-height: 100px; overflow-y: auto; list-style-type: none; padding-left: 0;">`;
+                        result.errors.forEach(err => {
+                            message += `<li style="margin-bottom: 5px;"><strong>${err.offerId}:</strong> ${err.message}</li>`;
+                        });
+                        message += `</ul>`;
+                    }
+
+                    // Używamy globalnej funkcji powiadomień (jeśli istnieje)
+                    if (typeof showGlobalUpdate === 'function') {
+                        showGlobalUpdate(message);
+                    } else {
+                        alert(`Zakończono.\nSukcesy: ${result.successfulCount}\nBłędy: ${result.failedCount}\nPominięto: ${changesWithoutId}`);
+                    }
+
+                    // Jeśli były jakiekolwiek sukcesy, aktualizujemy listę zmian
+                    if (result.successfulCount > 0) {
+                        const failedOfferIds = new Set(result.errors.map(e => e.offerId));
+
+                        // Zostawiamy tylko te, które się nie powiodły lub nie miały ID
+                        const remainingChanges = selectedPriceChanges.filter(c =>
+                            !c.myIdAllegro || failedOfferIds.has(c.myIdAllegro.toString())
+                        );
+
+                        selectedPriceChanges = remainingChanges;
+                        savePriceChanges(); // Zapisz zaktualizowaną listę w LocalStorage
+                        updatePriceChangeSummary(); // Zaktualizuj licznik na głównym widoku
+
+                        // Odśwież tabelę w modalu
+                        if (originalRowsData.length > 0) {
+                            originalRowsData = originalRowsData.filter(row =>
+                                !row.myIdAllegro || failedOfferIds.has(row.myIdAllegro.toString())
+                            );
+                            renderRows(originalRowsData); // Przerenderuj tabelę tylko z pozostałymi
+                        }
+
+                        // Odśwież boxy na stronie głównej
+                        if (typeof window.refreshPriceBoxStates === 'function') {
+                            window.refreshPriceBoxStates();
+                        }
+                    }
+
+                    // Jeśli nie ma już nic na liście, zamknij modal
+                    if (selectedPriceChanges.length === 0) {
+                        $('#simulationModal').modal('hide');
+                    }
+                })
+                .catch(err => {
+                    hideLoading();
+                    console.error("Błąd fetch ExecutePriceChange:", err);
+                    if (typeof showGlobalNotification === 'function') {
+                        showGlobalNotification("<p style='font-weight:bold;'>Błąd sieciowy</p><p>Nie udało się połączyć z serwerem w celu aktualizacji cen.</p>");
+                    } else {
+                        alert("Błąd sieciowy. Nie udało się wgrać zmian.");
+                    }
+                });
+        });
     }
 
     const bestScoreBtn = document.getElementById("bestScoreButton");

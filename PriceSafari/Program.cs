@@ -83,7 +83,8 @@ public class Program
         builder.Services.AddScoped<AllegroScrapingService>();
         builder.Services.AddScoped<AllegroApiBotService>();
         builder.Services.AddScoped<AllegroProcessingService>();
-       
+        builder.Services.AddScoped<AllegroPriceBridgeService>();
+
         GlobalFontSettings.UseWindowsFontsUnderWindows = true;
 
         builder.Services.AddMemoryCache();
