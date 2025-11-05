@@ -360,14 +360,14 @@ namespace PriceSafari.Controllers.MemberControllers
 
             var products = _context.AllegroProducts
                 .Where(p => productIds.Contains(p.AllegroProductId))
-                .Select(p => new
-                {
-                    productId = p.AllegroProductId,
-                    productName = p.AllegroProductName,
-                    imageUrl = (string)null,
-                    ean = p.AllegroEan
-
-                })
+               .Select(p => new
+        {
+            productId = p.AllegroProductId,
+            productName = p.AllegroProductName,
+            imageUrl = (string)null,
+            ean = p.AllegroEan,
+            allegroOfferUrl = p.AllegroOfferUrl // <-- DODAJ TĘ LINIĘ
+        })
                 .ToList();
 
             return Json(products);
@@ -422,6 +422,7 @@ namespace PriceSafari.Controllers.MemberControllers
                   p.AllegroProductId,
                   p.AllegroEan,
                   p.AllegroMarginPrice,
+                  p.AllegroOfferUrl
 
               })
               .ToDictionaryAsync(p => p.AllegroProductId);
@@ -499,6 +500,7 @@ namespace PriceSafari.Controllers.MemberControllers
                 {
                     productId = product.AllegroProductId,
                     ean = product.AllegroEan,
+                    allegroOfferUrl = product.AllegroOfferUrl,
                     producerCode = (string)null,
                     externalId = (long?)null,
 
@@ -952,7 +954,7 @@ namespace PriceSafari.Controllers.MemberControllers
                     productName = i.AllegroProduct?.AllegroProductName ?? "Produkt usunięty lub nieznany",
                     offerId = i.AllegroOfferId,
                     ean = i.AllegroProduct?.AllegroEan,
-
+                    allegroOfferUrl = i.AllegroProduct?.AllegroOfferUrl,
                     success = i.Success,
                     errorMessage = i.ErrorMessage,
 

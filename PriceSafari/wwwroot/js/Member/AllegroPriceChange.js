@@ -109,7 +109,7 @@
         }
         var simulateButton = document.getElementById("simulateButton");
         if (simulateButton) {
-            
+
             simulateButton.disabled = false;
             simulateButton.style.opacity = '1';
             simulateButton.style.cursor = 'pointer';
@@ -445,21 +445,36 @@
                     '<span style="color: #28a745; font-weight: bold;">Wgrano</span>' :
                     `<span style="color: #dc3545; font-weight: bold;" title="${item.errorMessage || ''}">Błąd</span>`;
 
+                let idInfo = item.offerId ? `<div class="price-info-item small-text">ID: ${item.offerId}</div>` : `<div class="price-info-item small-text" style="color:#888;">ID: Brak</div>`;
+                let eanInfo = item.ean ? `<div class="price-info-item small-text">EAN: ${item.ean}</div>` : `<div class="price-info-item small-text" style="color:#888;">EAN: Brak</div>`;
+
+                let allegroButton = '';
+
+                const offerUrl = item.allegroOfferUrl ? item.allegroOfferUrl : (item.offerId ? `https:
+
+                if (offerUrl) {
+                    allegroButton = `
+                    < a href = "${offerUrl}" class="Button-Page-Small" style = "margin-top: 8px;" target = "_blank" rel = "noopener noreferrer" onclick = "event.stopPropagation();" >
+                        <img src="/images/AllegroIcon.png" alt="Allegro Icon" style="width:18px; height:18px; margin-right: 5px;"> Zobacz
+                        </a>`;
+                }
+
                 html += `
-                <tr>
+                            < tr >
                     <td class="align-middle">
                         <div class="price-info-item" style="font-weight: 500;">${item.productName}</div>
-                        <div class="price-info-item small-text">ID: ${item.offerId}</div>
-                        <div class="price-info-item small-text">EAN: ${item.ean || '-'}</div>
+                        ${idInfo}
+                        ${eanInfo}
+                        ${allegroButton}
                     </td>
                     <td class="align-middle">${blockBefore}</td>
                     <td class="align-middle">${blockSimulated}</td>
                     <td class="align-middle">${blockVerified}</td>
                     <td class="align-middle text-center">${statusBlock}</td>
-                </tr>`;
+                </tr > `;
             });
 
-            html += `</tbody></table>`;
+            html += `</tbody ></table > `;
         });
 
         historyContainer.innerHTML = html;
@@ -482,11 +497,11 @@
         const historyContainer = document.getElementById("historyModalBody");
         historyContainer.innerHTML = '<div class="loader" style="margin: 20px auto;"></div>';
 
-        fetch(`/AllegroPriceHistory/GetScrapPriceChangeHistory?storeId=${storeId}&allegroScrapeHistoryId=${globalAllegroScrapId}`)
+        fetch(`/ AllegroPriceHistory / GetScrapPriceChangeHistory ? storeId = ${ storeId }& allegroScrapeHistoryId=${ globalAllegroScrapId } `)
             .then(response => {
                 if (!response.ok) {
                     historyLoaded = false;
-                    throw new Error(`Błąd HTTP! status: ${response.status}`);
+                    throw new Error(`Błąd HTTP! status: ${ response.status } `);
                 }
                 return response.json();
             })
@@ -496,19 +511,17 @@
             .catch(err => {
                 historyLoaded = false;
                 console.error("Błąd pobierania historii zmian:", err);
-                historyContainer.innerHTML = `<p style="text-align: center; padding: 20px; font-size: 16px; color: red;">Wystąpił błąd podczas ładowania historii: ${err.message}</p>`;
+                historyContainer.innerHTML = `< p style = "text-align: center; padding: 20px; font-size: 16px; color: red;" > Wystąpił błąd podczas ładowania historii: ${ err.message }</p > `;
                 document.getElementById('historyTabCounter').textContent = 'X';
             });
     }
 
     function openSimulationModal() {
 
-        // 1. Zresetuj stan zakładek i flagę
         historyLoaded = false;
         document.getElementById('simulationModalBody').style.display = 'block';
         document.getElementById('historyModalBody').style.display = 'none';
 
-        // NOWA LOGIKA - Użyj nowych ID i klas
         const cartTab = document.getElementById('showPriceChangeCart');
         const historyTab = document.getElementById('showPriceChangeHistory');
         if (cartTab && historyTab) {
@@ -517,7 +530,6 @@
             historyTab.classList.add('button-inactive');
             historyTab.classList.remove('button-active');
         }
-
 
         document.getElementById('historyModalBody').innerHTML = '<p style="text-align: center; padding: 20px;">Ładowanie historii...</p>';
 
@@ -551,7 +563,7 @@
                 body: JSON.stringify(selectedPriceChanges.map(i => i.productId))
             })
                 .then(response => {
-                    if (!response.ok) throw new Error(`HTTP error! status: ${response.status} fetching product details`);
+                    if (!response.ok) throw new Error(`HTTP error! status: ${ response.status } fetching product details`);
                     return response.json();
                 })
                 .then(productDetails => {
@@ -563,7 +575,7 @@
                     })
                         .then(response => {
                             if (!response.ok) {
-                                return response.text().then(text => { throw new Error(`HTTP error! status: ${response.status}, message: ${text}`); });
+                                return response.text().then(text => { throw new Error(`HTTP error! status: ${ response.status }, message: ${ text } `); });
                             }
                             return response.json();
                         })
@@ -608,6 +620,7 @@
                         const name = prodDetail ? prodDetail.productName : item.productName || 'Brak nazwy';
                         const imageUrl = prodDetail ? prodDetail.imageUrl : "";
                         const ean = simResult ? simResult.ean : (prodDetail ? String(prodDetail.ean || '') : '');
+                        const allegroOfferUrl = simResult ? simResult.allegroOfferUrl : (prodDetail ? prodDetail.allegroOfferUrl : null);
                         const externalId = simResult ? simResult.externalId : null;
                         const producerCode = simResult ? simResult.producerCode : null;
                         const currentPriceNum = parseFloat(item.currentPrice);
@@ -638,17 +651,17 @@
                             if (opp.allegroFinalScore != null) {
                                 effectDetails += createDonutChart(opp.allegroFinalScore, "/images/AllegroIcon.png");
                             } else {
-                                effectDetails += `<div><span style="color: green; font-weight: 400; font-size: 16px;">▼</span> <span style="color: #222222; font-weight: 400; font-size: 16px;"> Obniżka</span></div>`;
+                                effectDetails += `< div ><span style="color: green; font-weight: 400; font-size: 16px;">▼</span> <span style="color: #222222; font-weight: 400; font-size: 16px;"> Obniżka</span></div > `;
                             }
                         } else if (opp.basePriceChangeType === 'increase') {
-                            effectDetails += `<div><span style="color: red; font-weight: 400; font-size: 16px;">▲</span> <span style="color: #222222; font-weight: 400; font-size: 16px;"> Podwyżka</span></div>`;
+                            effectDetails += `< div ><span style="color: red; font-weight: 400; font-size: 16px;">▲</span> <span style="color: #222222; font-weight: 400; font-size: 16px;"> Podwyżka</span></div > `;
                         } else {
-                            effectDetails += `<div><span style="color: gray; font-weight: 400; font-size: 16px;">●</span> <span style="color: #222222; font-weight: 400; font-size: 16px;"> Bez zmian</span></div>`;
+                            effectDetails += `< div ><span style="color: gray; font-weight: 400; font-size: 16px;">●</span> <span style="color: #222222; font-weight: 400; font-size: 16px;"> Bez zmian</span></div > `;
                         }
                         return {
                             index, hasImage, imageUrl, productName: name, ean, externalId, producerCode,
                             diff, diffPercent, arrow, currentBlock, newBlock, finalScore: bestScore,
-                            effectDetails, productId: productIdStr, scrapId: globalLatestScrapId,
+                            effectDetails, productId: productIdStr, scrapId: globalLatestScrapId, allegroOfferUrl: allegroOfferUrl,
                             myIdAllegro: myIdAllegro, marginPrice: marginPrice,
                             apiAllegroCommission: apiAllegroCommission,
                             baseCurrentPrice: simResult ? simResult.baseCurrentPrice : null,
@@ -671,7 +684,7 @@
                     hideLoading();
                     const tableContainer = document.getElementById("simulationModalBody");
                     if (tableContainer) {
-                        tableContainer.innerHTML = `<p style="text-align: center; padding: 20px; font-size: 16px; color: red;">Wystąpił błąd: ${err.message}. Spróbuj ponownie.</p>`;
+                        tableContainer.innerHTML = `< p style = "text-align: center; padding: 20px; font-size: 16px; color: red;" > Wystąpił błąd: ${ err.message }. Spróbuj ponownie.</p > `;
                     }
                 })
                 .finally(function () {
@@ -695,20 +708,33 @@
             if (row.hasImage) {
                 const imgSrc = (row.imageUrl && row.imageUrl.trim() !== "") ? row.imageUrl : '/images/placeholder.png';
                 imageCell = `
-                    <td>
-                        <div class="price-info-item" style="padding:4px; text-align: center;"> <img
-                                data-src="${imgSrc}" alt="${row.productName}"
-                                class="lazy-load" style="width: 114px; height: 114px; object-fit: contain; background-color: #fff; border: 1px solid #e3e3e3; border-radius: 4px; padding: 5px; display: inline-block;"
-                                src="${imgSrc}" >
-                        </div>
-                    </td>`;
+                    < td >
+                    <div class="price-info-item" style="padding:4px; text-align: center;"> <img
+                        data-src="${imgSrc}" alt="${row.productName}"
+                        class="lazy-load" style="width: 114px; height: 114px; object-fit: contain; background-color: #fff; border: 1px solid #e3e3e3; border-radius: 4px; padding: 5px; display: inline-block;"
+                        src="${imgSrc}" >
+                    </div>
+                    </td > `;
             }
-            let eanInfo = row.ean ? `<div class="price-info-item">EAN: ${row.ean}</div>` : "";
-            let idInfo = row.externalId ? `<div class="price-info-item">ID: ${row.externalId}</div>` : (row.ean ? "" : "<div class='price-info-item'>Brak ID/EAN</div>");
-            let producerCodeInfo = row.producerCode ? `<div class="price-info-item">Kod: ${row.producerCode}</div>` : "";
-            const formattedDiff = formatPricePL(Math.abs(row.diff), false);
-            const formattedDiffPercent = Math.abs(row.diffPercent).toFixed(2);
-            html += `<tr data-product-id="${row.productId}" data-offer-id="${row.myIdAllegro || ''}">
+
+            let idInfo = row.myIdAllegro ? `< div class="price-info-item small-text" > ID: ${ row.myIdAllegro }</div > ` : ` < div class="price-info-item small-text" style = "color:#888;" > ID: Brak</div > `;
+            let eanInfo = row.ean ? `< div class="price-info-item small-text" > EAN: ${ row.ean }</div > ` : ` < div class="price-info-item small-text" style = "color:#888;" > EAN: Brak</div > `;
+
+            let allegroButton = '';
+
+            const offerUrl = row.allegroOfferUrl ? row.allegroOfferUrl : (row.myIdAllegro ? `https:
+
+                if (offerUrl) {
+                    allegroButton = `
+                <a href="${offerUrl}" class="Button-Page-Small" style="margin-top: 8px;" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation();">
+                    <img src="/images/AllegroIcon.png" alt="Allegro Icon" style="width:18px; height:18px; margin-right: 5px;"> Zobacz
+                </a>`;
+                }
+
+                const formattedDiff = formatPricePL(Math.abs(row.diff), false);
+                const formattedDiffPercent = Math.abs(row.diffPercent).toFixed(2);
+
+                html += `<tr data-product-id="${row.productId}" data-offer-id="${row.myIdAllegro || ''}">
                         ${imageCell}
                         <td class="align-middle">
                             <a
@@ -721,9 +747,9 @@
                             >
                                 <div class="price-info-item" style="font-size:110%; margin-bottom:8px; font-weight: 500;">${row.productName}</div>
                             </a>
-                            ${eanInfo}
                             ${idInfo}
-                            ${producerCodeInfo}
+                            ${eanInfo}
+                            ${allegroButton}
                         </td>
                         <td class="align-middle">${row.currentBlock}</td>
                         <td class="align-middle" style="font-size: 1em; white-space: nowrap;">
@@ -743,235 +769,234 @@
                             </button>
                         </td>
                     </tr>`;
-        });
-        tbody.innerHTML = html;
-        tbody.querySelectorAll('.remove-change-btn').forEach(btn => {
-            btn.addEventListener('click', function (e) {
-                e.stopPropagation();
-                const prodId = this.getAttribute('data-product-id');
-                const removeEvent = new CustomEvent('priceBoxChangeRemove', {
-                    detail: { productId: prodId }
-                });
-                document.dispatchEvent(removeEvent);
             });
-        });
-    }
+            tbody.innerHTML = html;
+            tbody.querySelectorAll('.remove-change-btn').forEach(btn => {
+                btn.addEventListener('click', function (e) {
+                    e.stopPropagation();
+                    const prodId = this.getAttribute('data-product-id');
+                    const removeEvent = new CustomEvent('priceBoxChangeRemove', {
+                        detail: { productId: prodId }
+                    });
+                    document.dispatchEvent(removeEvent);
+                });
+            });
+        }
 
     function sortRowsByScoreDesc(rows) {
-        return rows.sort((a, b) => {
-            const scoreA = a.finalScore !== null ? a.finalScore : -1;
-            const scoreB = b.finalScore !== null ? b.finalScore : -1;
-            return scoreB - scoreA;
-        });
-    }
+                return rows.sort((a, b) => {
+                    const scoreA = a.finalScore !== null ? a.finalScore : -1;
+                    const scoreB = b.finalScore !== null ? b.finalScore : -1;
+                    return scoreB - scoreA;
+                });
+            }
 
     if (clearChangesButton) {
-        clearChangesButton.addEventListener("click", clearPriceChanges);
-    }
+            clearChangesButton.addEventListener("click", clearPriceChanges);
+        }
 
-    // --- NOWA LOGIKA PRZEŁĄCZANIA ZAKŁADEK ---
-    const showCartTab = document.getElementById('showPriceChangeCart'); // <-- Nowe ID
-    const showHistoryTab = document.getElementById('showPriceChangeHistory'); // <-- Nowe ID
-    const simulationModalBody = document.getElementById('simulationModalBody');
-    const historyModalBody = document.getElementById('historyModalBody');
+        const showCartTab = document.getElementById('showPriceChangeCart');
+        const showHistoryTab = document.getElementById('showPriceChangeHistory');
+        const simulationModalBody = document.getElementById('simulationModalBody');
+        const historyModalBody = document.getElementById('historyModalBody');
 
-    if (showCartTab && showHistoryTab && simulationModalBody && historyModalBody) {
-        showCartTab.addEventListener('click', function () {
-            simulationModalBody.style.display = 'block';
-            historyModalBody.style.display = 'none';
-            // Nowe klasy
-            showCartTab.classList.add('button-active');
-            showCartTab.classList.remove('button-inactive');
-            showHistoryTab.classList.add('button-inactive');
-            showHistoryTab.classList.remove('button-active');
-        });
+        if (showCartTab && showHistoryTab && simulationModalBody && historyModalBody) {
+            showCartTab.addEventListener('click', function () {
+                simulationModalBody.style.display = 'block';
+                historyModalBody.style.display = 'none';
 
-        showHistoryTab.addEventListener('click', function () {
-            simulationModalBody.style.display = 'none';
-            historyModalBody.style.display = 'block';
-            // Nowe klasy
-            showCartTab.classList.add('button-inactive');
-            showCartTab.classList.remove('button-active');
-            showHistoryTab.classList.add('button-active');
-            showHistoryTab.classList.remove('button-inactive');
+                showCartTab.classList.add('button-active');
+                showCartTab.classList.remove('button-inactive');
+                showHistoryTab.classList.add('button-inactive');
+                showHistoryTab.classList.remove('button-active');
+            });
 
-            fetchAndRenderHistory();
-        });
-    }
+            showHistoryTab.addEventListener('click', function () {
+                simulationModalBody.style.display = 'none';
+                historyModalBody.style.display = 'block';
 
-    var simulateButton = document.getElementById("simulateButton");
-    if (simulateButton) {
-        simulateButton.addEventListener("click", openSimulationModal);
-    }
+                showCartTab.classList.add('button-inactive');
+                showCartTab.classList.remove('button-active');
+                showHistoryTab.classList.add('button-active');
+                showHistoryTab.classList.remove('button-inactive');
 
-    const executeButton = document.getElementById("executePriceChangeBtn");
-    if (executeButton) {
-        executeButton.addEventListener("click", function () {
-            const activeProductIds = new Set(selectedPriceChanges.map(c => c.productId));
-            const itemsToBridge = originalRowsData
-                .filter(row => activeProductIds.has(row.productId) && row.myIdAllegro)
-                .map(row => ({
-                    ProductId: parseInt(row.productId, 10),
-                    OfferId: row.myIdAllegro.toString(),
-                    MarginPrice: row.marginPrice,
-                    IncludeCommissionInMargin: globalIncludeCommissionSetting,
-                    PriceBefore: row.baseCurrentPrice,
-                    CommissionBefore: row.apiAllegroCommission,
-                    RankingBefore: row.currentAllegroRanking,
-                    PriceAfter_Simulated: row.baseNewPrice,
-                    RankingAfter_Simulated: row.newAllegroRanking,
-                }));
+                fetchAndRenderHistory();
+            });
+        }
 
-            const changesWithoutId = selectedPriceChanges.filter(c => !c.myIdAllegro).length;
-            if (itemsToBridge.length === 0) {
-                alert("Żadna z wybranych zmian nie ma przypisanego ID oferty Allegro. Nie można wgrać zmian.");
-                return;
-            }
-            if (!confirm(`Zostanie wgranych ${itemsToBridge.length} zmian cen na Allegro.\n\n${changesWithoutId > 0 ? `Pominiętych zostanie ${changesWithoutId} zmian (brak ID oferty).\n` : ''}\nTa operacja jest NIEODWRACALNA. Kontynuować?`)) {
-                return;
-            }
-            showLoading();
-            executeButton.disabled = true;
-            executeButton.innerHTML = '<i class="fa-solid fa-spinner fa-spin" style="margin-right: 8px;"></i> Wgrywanie...';
+        var simulateButton = document.getElementById("simulateButton");
+        if (simulateButton) {
+            simulateButton.addEventListener("click", openSimulationModal);
+        }
 
-            fetch(`/AllegroPriceHistory/ExecutePriceChange?storeId=${storeId}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(itemsToBridge)
-            })
-                .then(response => {
-                    if (!response.ok) {
-                        return response.text().then(text => { throw new Error(`Błąd serwera: ${response.status} - ${text}`); });
-                    }
-                    return response.json();
+        const executeButton = document.getElementById("executePriceChangeBtn");
+        if (executeButton) {
+            executeButton.addEventListener("click", function () {
+                const activeProductIds = new Set(selectedPriceChanges.map(c => c.productId));
+                const itemsToBridge = originalRowsData
+                    .filter(row => activeProductIds.has(row.productId) && row.myIdAllegro)
+                    .map(row => ({
+                        ProductId: parseInt(row.productId, 10),
+                        OfferId: row.myIdAllegro.toString(),
+                        MarginPrice: row.marginPrice,
+                        IncludeCommissionInMargin: globalIncludeCommissionSetting,
+                        PriceBefore: row.baseCurrentPrice,
+                        CommissionBefore: row.apiAllegroCommission,
+                        RankingBefore: row.currentAllegroRanking,
+                        PriceAfter_Simulated: row.baseNewPrice,
+                        RankingAfter_Simulated: row.newAllegroRanking,
+                    }));
+
+                const changesWithoutId = selectedPriceChanges.filter(c => !c.myIdAllegro).length;
+                if (itemsToBridge.length === 0) {
+                    alert("Żadna z wybranych zmian nie ma przypisanego ID oferty Allegro. Nie można wgrać zmian.");
+                    return;
+                }
+                if (!confirm(`Zostanie wgranych ${itemsToBridge.length} zmian cen na Allegro.\n\n${changesWithoutId > 0 ? `Pominiętych zostanie ${changesWithoutId} zmian (brak ID oferty).\n` : ''}\nTa operacja jest NIEODWRACALNA. Kontynuować?`)) {
+                    return;
+                }
+                showLoading();
+                executeButton.disabled = true;
+                executeButton.innerHTML = '<i class="fa-solid fa-spinner fa-spin" style="margin-right: 8px;"></i> Wgrywanie...';
+
+                fetch(`/AllegroPriceHistory/ExecutePriceChange?storeId=${storeId}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(itemsToBridge)
                 })
-                .then(result => {
-                    hideLoading();
-                    executeButton.disabled = false;
-                    executeButton.innerHTML = '<i class="fa-solid fa-arrow-up-from-bracket" style="margin-right: 8px;"></i> Wgraj zmiany na Allegro';
-                    let message = `<p style="font-weight:bold; font-size:16px;">Operacja zakończona!</p>`;
-                    message += `<p>Wysłano ${itemsToBridge.length} ofert do aktualizacji.</p>`;
-                    message += `<p style="color: #c8e6c9;">Pomyślnie zaktualizowano: ${result.successfulCount}</p>`;
-                    message += `<p style="color: #ffcdd2;">Błędy: ${result.failedCount}</p>`;
-                    if (changesWithoutId > 0) {
-                        message += `<p style="color: #ffe0b2;">Pominięto (brak ID): ${changesWithoutId}</p>`;
-                    }
-                    if (result.failedCount > 0 && result.errors && result.errors.length > 0) {
-                        message += `<br/><p style="font-weight:bold;"><u>Szczegóły błędów:</u></p>`;
-                        message += `<ul style="font-size:12px; max-height: 100px; overflow-y: auto; list-style-type: none; padding-left: 0;">`;
-                        result.errors.forEach(err => {
-                            message += `<li style="margin-bottom: 5px;"><strong>${err.offerId}:</strong> ${err.message}</li>`;
-                        });
-                        message += `</ul>`;
-                    }
-                    if (typeof showGlobalUpdate === 'function') {
-                        showGlobalUpdate(message);
-                    } else {
-                        alert(`Zakończono.\nSukcesy: ${result.successfulCount}\nBłędy: ${result.failedCount}\nPominięto: ${changesWithoutId}`);
-                    }
-                    if (result.successfulChangesDetails && result.successfulChangesDetails.length > 0) {
-                        const successfulProductIds = new Set();
-                        result.successfulChangesDetails.forEach(detail => {
-                            const rowData = originalRowsData.find(r => r.myIdAllegro && r.myIdAllegro.toString() === detail.offerId);
-                            if (!rowData) {
-                                console.warn("Nie znaleziono rowData dla offerId:", detail.offerId);
-                                return;
-                            }
-                            successfulProductIds.add(rowData.productId);
-                            const cell = document.getElementById(`confirm_${rowData.productId}`);
-                            if (!cell) {
-                                console.warn("Nie znaleziono komórki confirm_ dla productId:", rowData.productId);
-                                return;
-                            }
-                            const confirmedPrice = detail.fetchedNewPrice;
-                            const confirmedCommission = detail.fetchedNewCommission;
-                            const marginPrice = rowData.marginPrice;
-                            const newAllegroRanking = rowData.newAllegroRanking;
-                            const totalAllegroOffers = rowData.totalAllegroOffers;
-                            cell.innerHTML = buildPriceBlock(
-                                confirmedPrice, marginPrice, confirmedCommission,
-                                newAllegroRanking, totalAllegroOffers, true
-                            );
-                            const rowElement = document.querySelector(`tr[data-product-id="${rowData.productId}"]`);
-                            if (rowElement) {
-                                const removeBtn = rowElement.querySelector('.remove-change-btn');
-                                if (removeBtn) {
-                                    removeBtn.disabled = true;
-                                    removeBtn.style.opacity = 0.3;
-                                    removeBtn.style.cursor = 'not-allowed';
-                                    removeBtn.title = 'Zmiana została wgrana na Allegro.';
-                                }
-                            }
-                        });
-                        selectedPriceChanges = selectedPriceChanges.filter(c =>
-                            !successfulProductIds.has(c.productId)
-                        );
-                        originalRowsData = originalRowsData.filter(row =>
-                            !successfulProductIds.has(row.productId)
-                        );
-                        savePriceChanges();
-                        updatePriceChangeSummary();
-                        if (typeof window.refreshPriceBoxStates === 'function') {
-                            window.refreshPriceBoxStates();
+                    .then(response => {
+                        if (!response.ok) {
+                            return response.text().then(text => { throw new Error(`Błąd serwera: ${response.status} - ${text}`); });
                         }
-                    }
-                    if (selectedPriceChanges.length === 0 && result.failedCount === 0) {
-                        $('#simulationModal').modal('hide');
-                    }
-                })
-                .catch(err => {
-                    hideLoading();
-                    executeButton.disabled = false;
-                    executeButton.innerHTML = '<i class="fa-solid fa-arrow-up-from-bracket" style="margin-right: 8px;"></i> Wgraj zmiany na Allegro';
-                    console.error("Błąd fetch ExecutePriceChange:", err);
-                    let errorMsg = `<p style='font-weight:bold;'>Błąd krytyczny</p><p>${err.message}</p>`;
-                    if (typeof showGlobalNotification === 'function') {
-                        showGlobalNotification(errorMsg);
-                    } else {
-                        alert("Błąd krytyczny. Nie udało się wgrać zmian.\n" + err.message);
-                    }
-                });
-        });
-    }
+                        return response.json();
+                    })
+                    .then(result => {
+                        hideLoading();
+                        executeButton.disabled = false;
+                        executeButton.innerHTML = '<i class="fa-solid fa-arrow-up-from-bracket" style="margin-right: 8px;"></i> Wgraj zmiany na Allegro';
+                        let message = `<p style="font-weight:bold; font-size:16px;">Operacja zakończona!</p>`;
+                        message += `<p>Wysłano ${itemsToBridge.length} ofert do aktualizacji.</p>`;
+                        message += `<p style="color: #c8e6c9;">Pomyślnie zaktualizowano: ${result.successfulCount}</p>`;
+                        message += `<p style="color: #ffcdd2;">Błędy: ${result.failedCount}</p>`;
+                        if (changesWithoutId > 0) {
+                            message += `<p style="color: #ffe0b2;">Pominięto (brak ID): ${changesWithoutId}</p>`;
+                        }
+                        if (result.failedCount > 0 && result.errors && result.errors.length > 0) {
+                            message += `<br/><p style="font-weight:bold;"><u>Szczegóły błędów:</u></p>`;
+                            message += `<ul style="font-size:12px; max-height: 100px; overflow-y: auto; list-style-type: none; padding-left: 0;">`;
+                            result.errors.forEach(err => {
+                                message += `<li style="margin-bottom: 5px;"><strong>${err.offerId}:</strong> ${err.message}</li>`;
+                            });
+                            message += `</ul>`;
+                        }
+                        if (typeof showGlobalUpdate === 'function') {
+                            showGlobalUpdate(message);
+                        } else {
+                            alert(`Zakończono.\nSukcesy: ${result.successfulCount}\nBłędy: ${result.failedCount}\nPominięto: ${changesWithoutId}`);
+                        }
+                        if (result.successfulChangesDetails && result.successfulChangesDetails.length > 0) {
+                            const successfulProductIds = new Set();
+                            result.successfulChangesDetails.forEach(detail => {
+                                const rowData = originalRowsData.find(r => r.myIdAllegro && r.myIdAllegro.toString() === detail.offerId);
+                                if (!rowData) {
+                                    console.warn("Nie znaleziono rowData dla offerId:", detail.offerId);
+                                    return;
+                                }
+                                successfulProductIds.add(rowData.productId);
+                                const cell = document.getElementById(`confirm_${rowData.productId}`);
+                                if (!cell) {
+                                    console.warn("Nie znaleziono komórki confirm_ dla productId:", rowData.productId);
+                                    return;
+                                }
+                                const confirmedPrice = detail.fetchedNewPrice;
+                                const confirmedCommission = detail.fetchedNewCommission;
+                                const marginPrice = rowData.marginPrice;
+                                const newAllegroRanking = rowData.newAllegroRanking;
+                                const totalAllegroOffers = rowData.totalAllegroOffers;
+                                cell.innerHTML = buildPriceBlock(
+                                    confirmedPrice, marginPrice, confirmedCommission,
+                                    newAllegroRanking, totalAllegroOffers, true
+                                );
+                                const rowElement = document.querySelector(`tr[data-product-id="${rowData.productId}"]`);
+                                if (rowElement) {
+                                    const removeBtn = rowElement.querySelector('.remove-change-btn');
+                                    if (removeBtn) {
+                                        removeBtn.disabled = true;
+                                        removeBtn.style.opacity = 0.3;
+                                        removeBtn.style.cursor = 'not-allowed';
+                                        removeBtn.title = 'Zmiana została wgrana na Allegro.';
+                                    }
+                                }
+                            });
+                            selectedPriceChanges = selectedPriceChanges.filter(c =>
+                                !successfulProductIds.has(c.productId)
+                            );
+                            originalRowsData = originalRowsData.filter(row =>
+                                !successfulProductIds.has(row.productId)
+                            );
+                            savePriceChanges();
+                            updatePriceChangeSummary();
+                            if (typeof window.refreshPriceBoxStates === 'function') {
+                                window.refreshPriceBoxStates();
+                            }
+                        }
+                        if (selectedPriceChanges.length === 0 && result.failedCount === 0) {
+                            $('#simulationModal').modal('hide');
+                        }
+                    })
+                    .catch(err => {
+                        hideLoading();
+                        executeButton.disabled = false;
+                        executeButton.innerHTML = '<i class="fa-solid fa-arrow-up-from-bracket" style="margin-right: 8px;"></i> Wgraj zmiany na Allegro';
+                        console.error("Błąd fetch ExecutePriceChange:", err);
+                        let errorMsg = `<p style='font-weight:bold;'>Błąd krytyczny</p><p>${err.message}</p>`;
+                        if (typeof showGlobalNotification === 'function') {
+                            showGlobalNotification(errorMsg);
+                        } else {
+                            alert("Błąd krytyczny. Nie udało się wgrać zmian.\n" + err.message);
+                        }
+                    });
+            });
+        }
 
-    const bestScoreBtn = document.getElementById("bestScoreButton");
-    if (bestScoreBtn) {
-        bestScoreBtn.addEventListener("click", function () {
-            const tableBody = document.getElementById("simulationTbody");
-            if (!tableBody || originalRowsData.length === 0) return;
-            let sorted = sortRowsByScoreDesc([...originalRowsData]);
-            renderRows(sorted);
-        });
-    }
+        const bestScoreBtn = document.getElementById("bestScoreButton");
+        if (bestScoreBtn) {
+            bestScoreBtn.addEventListener("click", function () {
+                const tableBody = document.getElementById("simulationTbody");
+                if (!tableBody || originalRowsData.length === 0) return;
+                let sorted = sortRowsByScoreDesc([...originalRowsData]);
+                renderRows(sorted);
+            });
+        }
 
-    var closeSimulationModalButtons = document.querySelectorAll('#simulationModal .close, #simulationModal [data-dismiss="modal"]');
-    closeSimulationModalButtons.forEach(function (btn) {
-        btn.addEventListener('click', function () {
-            var simulationModal = document.getElementById("simulationModal");
-            if (simulationModal) {
-                simulationModal.style.display = 'none';
-                simulationModal.classList.remove('show');
-            }
-            if (typeof window.refreshPriceBoxStates === 'function') {
-                window.refreshPriceBoxStates();
-            }
-        });
-    });
-
-    window.addEventListener('click', function (event) {
-        const simulationModal = document.getElementById("simulationModal");
-        if (event.target == simulationModal) {
-            if (simulationModal) {
-                simulationModal.style.display = 'none';
-                simulationModal.classList.remove('show');
+        var closeSimulationModalButtons = document.querySelectorAll('#simulationModal .close, #simulationModal [data-dismiss="modal"]');
+        closeSimulationModalButtons.forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                var simulationModal = document.getElementById("simulationModal");
+                if (simulationModal) {
+                    simulationModal.style.display = 'none';
+                    simulationModal.classList.remove('show');
+                }
                 if (typeof window.refreshPriceBoxStates === 'function') {
                     window.refreshPriceBoxStates();
                 }
+            });
+        });
+
+        window.addEventListener('click', function (event) {
+            const simulationModal = document.getElementById("simulationModal");
+            if (event.target == simulationModal) {
+                if (simulationModal) {
+                    simulationModal.style.display = 'none';
+                    simulationModal.classList.remove('show');
+                    if (typeof window.refreshPriceBoxStates === 'function') {
+                        window.refreshPriceBoxStates();
+                    }
+                }
             }
-        }
+        });
+
+        loadChangesFromStorage();
+        updatePriceChangeSummary();
+
     });
-
-    loadChangesFromStorage();
-    updatePriceChangeSummary();
-
-});
