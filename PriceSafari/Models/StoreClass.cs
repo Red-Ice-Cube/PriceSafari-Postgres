@@ -18,13 +18,10 @@ namespace PriceSafari.Models
         public string? ProductMapXmlUrl { get; set; }
         public string? ProductMapXmlUrlGoogle { get; set; }
 
-
         [Display(Name = "Produkty do Zeskrobania")]
         public int? ProductsToScrap { get; set; }
 
-
-        public int? ProductsToScrapAllegro { get; set; } = 0; 
-
+        public int? ProductsToScrapAllegro { get; set; } = 0;
 
         [Display(Name = "Plan")]
         public int? PlanId { get; set; }
@@ -40,15 +37,10 @@ namespace PriceSafari.Models
 
         public bool IsActive => RemainingScrapes > 0;
 
+        public string? StoreNameGoogle { get; set; }
+        public string? StoreNameCeneo { get; set; }
 
-
-
-        public string? StoreNameGoogle { get; set; }   
-        public string? StoreNameCeneo { get; set; }   
-
-        
         public bool UseGoogleXMLFeedPrice { get; set; } = false;
-
 
         public string? StoreNameAllegro { get; set; }
 
@@ -65,7 +57,6 @@ namespace PriceSafari.Models
         [Display(Name = "Token Allegro jest aktywny")]
         public bool IsAllegroTokenActive { get; set; } = false;
 
-        // nowo dodane ustawienie
         public bool IsAllegroPriceBridgeActive { get; set; } = false;
 
         public ICollection<ScrapHistoryClass> ScrapHistories { get; set; } = new List<ScrapHistoryClass>();

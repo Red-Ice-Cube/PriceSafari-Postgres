@@ -705,28 +705,42 @@
     const executeButton = document.getElementById("executePriceChangeBtn");
     if (executeButton) {
         executeButton.addEventListener("click", function () {
-            if (selectedPriceChanges.length === 0) {
-                alert("Brak zmian do wgrania.");
-                return;
-            }
 
-            // Filtrujemy zmiany - bierzemy tylko te, które mają ID oferty Allegro
-            const changesToUpload = selectedPriceChanges
-                .filter(c => c.myIdAllegro)
-                .map(c => ({
-                    offerId: c.myIdAllegro.toString(),
-                    // Używamy toFixed(), aby zapewnić format z kropką, a nie przecinkiem
-                    newPrice: parseFloat(c.newPrice).toFixed(2)
+            // Znajdź tylko te elementy, które są jeszcze na liście 'aktywnych' zmian
+            const activeProductIds = new Set(selectedPriceChanges.map(c => c.productId));
+
+            // Przygotuj pełne dane do wysyłki z 'originalRowsData'
+            const itemsToBridge = originalRowsData
+                .filter(row => activeProductIds.has(row.productId) && row.myIdAllegro) // Tylko aktywne i te co mają ID oferty
+                .map(row => ({
+                    // Identyfikatory
+                    ProductId: parseInt(row.productId, 10),
+                    OfferId: row.myIdAllegro.toString(),
+                    MarginPrice: row.marginPrice,
+
+                    // Dane "Przed" (z symulacji)
+                    PriceBefore: row.baseCurrentPrice,
+                    CommissionBefore: row.apiAllegroCommission, // Założenie: to pole istnieje w originalRowsData
+                    MarginAmountBefore: row.currentMarginValue,
+                    MarginPercentBefore: row.currentMargin,
+                    RankingBefore: row.currentAllegroRanking,
+
+                    // Dane "Symulowane (Po zmianie)"
+                    PriceAfter_Simulated: row.baseNewPrice,
+                    CommissionAfter_Simulated: row.apiAllegroCommission, // Prowizja symulowana = obecna
+                    MarginAmountAfter_Simulated: row.newMarginValue,
+                    MarginPercentAfter_Simulated: row.newMargin,
+                    RankingAfter_Simulated: row.newAllegroRanking
                 }));
 
-            const changesWithoutId = selectedPriceChanges.length - changesToUpload.length;
+            const changesWithoutId = selectedPriceChanges.filter(c => !c.myIdAllegro).length;
 
-            if (changesToUpload.length === 0) {
+            if (itemsToBridge.length === 0) {
                 alert("Żadna z wybranych zmian nie ma przypisanego ID oferty Allegro. Nie można wgrać zmian.");
                 return;
             }
 
-            if (!confirm(`Zostanie wgranych ${changesToUpload.length} zmian cen na Allegro.\n\n${changesWithoutId > 0 ? `Pominiętych zostanie ${changesWithoutId} zmian (brak ID oferty).\n` : ''}\nTa operacja jest NIEODWRACALNA. Kontynuować?`)) {
+            if (!confirm(`Zostanie wgranych ${itemsToBridge.length} zmian cen na Allegro.\n\n${changesWithoutId > 0 ? `Pominiętych zostanie ${changesWithoutId} zmian (brak ID oferty).\n` : ''}\nTa operacja jest NIEODWRACALNA. Kontynuować?`)) {
                 return;
             }
 
@@ -737,7 +751,7 @@
             fetch(`/AllegroPriceHistory/ExecutePriceChange?storeId=${storeId}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(changesToUpload)
+                body: JSON.stringify(itemsToBridge) // Wysyłamy nowy, bogaty obiekt
             })
                 .then(response => {
                     if (!response.ok) {
@@ -750,9 +764,8 @@
                     executeButton.disabled = false;
                     executeButton.innerHTML = '<i class="fa-solid fa-arrow-up-from-bracket" style="margin-right: 8px;"></i> Wgraj zmiany na Allegro';
 
-                    // --- Logika budowania wiadomości z podsumowaniem (bez zmian) ---
                     let message = `<p style="font-weight:bold; font-size:16px;">Operacja zakończona!</p>`;
-                    message += `<p>Wysłano ${changesToUpload.length} ofert do aktualizacji.</p>`;
+                    message += `<p>Wysłano ${itemsToBridge.length} ofert do aktualizacji.</p>`;
                     message += `<p style="color: #c8e6c9;">Pomyślnie zaktualizowano: ${result.successfulCount}</p>`;
                     message += `<p style="color: #ffcdd2;">Błędy: ${result.failedCount}</p>`;
                     if (changesWithoutId > 0) {
@@ -832,14 +845,13 @@
                             !successfulProductIds.has(c.productId)
                         );
 
-                        // Usuwamy pomyślne zmiany również z originalRowsData, aby nie można było ich
-                        // ponownie wysłać (chociaż przycisk jest zablokowany, to dla czystości danych)
-                        // Pozostawiamy jednak wiersze w DOM - NIE wywołujemy renderRows()
+                        // Usuwamy pomyślne zmiany również z originalRowsData
+                        // aby nie można było ich ponownie wysłać
                         originalRowsData = originalRowsData.filter(row =>
                             !successfulProductIds.has(row.productId)
                         );
 
-                        // Zapisz pozostałe zmiany
+                        // Zapisz pozostałe zmiany (te, które miały błąd)
                         savePriceChanges();
                         updatePriceChangeSummary();
 
@@ -849,12 +861,16 @@
                         }
                     }
 
-                    // Nie zamykamy modala automatycznie, aby użytkownik widział wyniki.
-                    // Użytkownik może go zamknąć ręcznie lub przez "Usuń wszystkie zmiany" (co czyści też błędy)
-                    // if (selectedPriceChanges.length === 0) { ... }
+                    // Nie zamykaj modala, jeśli są błędy
+
+                    if (selectedPriceChanges.length === 0 && result.failedCount === 0) {
+                        // Zamykamy tylko jeśli wszystko się udało i lista jest czysta
+                        $('#simulationModal').modal('hide');
+                    }
                 })
                 .catch(err => {
                     hideLoading();
+                    // Przywróć przycisk w razie błędu sieciowego
                     executeButton.disabled = false;
                     executeButton.innerHTML = '<i class="fa-solid fa-arrow-up-from-bracket" style="margin-right: 8px;"></i> Wgraj zmiany na Allegro';
 
@@ -868,7 +884,6 @@
                 });
         });
     }
-
 
     
 

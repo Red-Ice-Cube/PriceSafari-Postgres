@@ -30,44 +30,82 @@ namespace PriceSafari.Services.AllegroServices
             _logger = logger;
         }
 
-        public async Task<PriceBridgeResult> ExecutePriceChangesAsync(int storeId, List<OfferPriceChangeRequest> changes)
+        public async Task<PriceBridgeResult> ExecutePriceChangesAsync(
+            int storeId,
+            int allegroScrapeHistoryId,
+            string userId,
+            bool includeCommissionInMargin,
+            List<AllegroPriceBridgeItemRequest> itemsToBridge)
         {
             var result = new PriceBridgeResult();
             var store = await _context.Stores.FindAsync(storeId);
 
             if (store == null)
             {
-                result.FailedCount = changes.Count;
+                result.FailedCount = itemsToBridge.Count;
                 result.Errors.Add(new PriceBridgeError { OfferId = "Wszystkie", Message = "Nie znaleziono sklepu." });
                 return result;
             }
-
             if (!store.IsAllegroPriceBridgeActive)
             {
-                result.FailedCount = changes.Count;
+                result.FailedCount = itemsToBridge.Count;
                 result.Errors.Add(new PriceBridgeError { OfferId = "Wszystkie", Message = "Wgrywanie cen po API jest wyłączone dla tego sklepu." });
                 return result;
             }
-
             if (!store.IsAllegroTokenActive || string.IsNullOrEmpty(store.AllegroApiToken))
             {
-                result.FailedCount = changes.Count;
+                result.FailedCount = itemsToBridge.Count;
                 result.Errors.Add(new PriceBridgeError { OfferId = "Wszystkie", Message = "Brak aktywnego tokenu API Allegro dla tego sklepu." });
                 return result;
             }
 
             string accessToken = store.AllegroApiToken;
 
-            foreach (var change in changes)
+            var newBatch = new AllegroPriceBridgeBatch
             {
-                if (string.IsNullOrEmpty(change.OfferId) || string.IsNullOrEmpty(change.NewPrice))
+                ExecutionDate = DateTime.UtcNow,
+                StoreId = storeId,
+                AllegroScrapeHistoryId = allegroScrapeHistoryId,
+                UserId = userId,
+                SuccessfulCount = 0,
+                FailedCount = 0
+            };
+            _context.AllegroPriceBridgeBatches.Add(newBatch);
+
+            foreach (var item in itemsToBridge)
+            {
+                if (string.IsNullOrEmpty(item.OfferId))
                 {
                     result.FailedCount++;
-                    result.Errors.Add(new PriceBridgeError { OfferId = change.OfferId ?? "Brak ID", Message = "Brakujące ID oferty lub nowej ceny." });
+                    result.Errors.Add(new PriceBridgeError { OfferId = item.OfferId ?? "Brak ID", Message = "Brakujące ID oferty." });
                     continue;
                 }
 
-                var (success, errorMessage) = await SetNewOfferPriceAsync(accessToken, change.OfferId, change.NewPrice);
+                var bridgeItem = new AllegroPriceBridgeItem
+                {
+                    PriceBridgeBatch = newBatch,
+                    AllegroProductId = item.ProductId,
+                    AllegroOfferId = item.OfferId,
+
+                    PriceBefore = item.PriceBefore,
+                    CommissionBefore = item.CommissionBefore,
+                    MarginAmountBefore = item.MarginAmountBefore,
+                    MarginPercentBefore = item.MarginPercentBefore,
+                    RankingBefore = item.RankingBefore,
+
+                    PriceAfter_Simulated = item.PriceAfter_Simulated,
+                    CommissionAfter_Simulated = item.CommissionAfter_Simulated,
+                    MarginAmountAfter_Simulated = item.MarginAmountAfter_Simulated,
+                    MarginPercentAfter_Simulated = item.MarginPercentAfter_Simulated,
+                    RankingAfter_Simulated = item.RankingAfter_Simulated
+                };
+
+                string newPriceString = item.PriceAfter_Simulated.ToString(CultureInfo.InvariantCulture);
+
+                var (success, errorMessage) = await SetNewOfferPriceAsync(accessToken, item.OfferId, newPriceString);
+
+                bridgeItem.Success = success;
+                bridgeItem.ErrorMessage = success ? string.Empty : errorMessage;
 
                 if (success)
                 {
@@ -81,33 +119,45 @@ namespace PriceSafari.Services.AllegroServices
 
                     try
                     {
-
-                        var offerDataNode = await GetOfferData(accessToken, change.OfferId);
+                        var offerDataNode = await GetOfferData(accessToken, item.OfferId);
 
                         if (offerDataNode != null)
                         {
-                            var newPriceString = offerDataNode["sellingMode"]?["price"]?["amount"]?.ToString();
-                            if (decimal.TryParse(newPriceString, CultureInfo.InvariantCulture, out var price) && price > 0)
+                            var newPriceStringApi = offerDataNode["sellingMode"]?["price"]?["amount"]?.ToString();
+                            if (decimal.TryParse(newPriceStringApi, CultureInfo.InvariantCulture, out var price) && price > 0)
                             {
                                 fetchedNewPrice = price;
                             }
-
                             fetchedNewCommission = await GetOfferCommission(accessToken, offerDataNode);
+
+                            bridgeItem.PriceAfter_Verified = fetchedNewPrice;
+                            bridgeItem.CommissionAfter_Verified = fetchedNewCommission;
+
+                            if (item.MarginPrice.HasValue && fetchedNewPrice.HasValue && item.MarginPrice.Value != 0)
+                            {
+                                decimal commissionToDeduct = (includeCommissionInMargin && fetchedNewCommission.HasValue) ? fetchedNewCommission.Value : 0;
+                                decimal netPrice = fetchedNewPrice.Value - commissionToDeduct;
+                                bridgeItem.MarginAmountAfter_Verified = netPrice - item.MarginPrice.Value;
+                                bridgeItem.MarginPercentAfter_Verified = (bridgeItem.MarginAmountAfter_Verified / item.MarginPrice.Value) * 100;
+                            }
                         }
                         else
                         {
-                            _logger.LogWarning("Wgrano zmianę dla {OfferId}, ale weryfikacja danych (GetOfferData) nie powiodła się.", change.OfferId);
+                            _logger.LogWarning("Wgrano zmianę dla {OfferId}, ale weryfikacja danych (GetOfferData) nie powiodła się.", item.OfferId);
                         }
                     }
                     catch (AllegroAuthException authEx)
                     {
-
-                        _logger.LogError(authEx, "Błąd autoryzacji podczas weryfikacji zmiany ceny dla oferty {OfferId}", change.OfferId);
+                        _logger.LogError(authEx, "Błąd autoryzacji podczas weryfikacji zmiany ceny dla oferty {OfferId}", item.OfferId);
                         errorMessage = authEx.Message;
 
+                        bridgeItem.Success = false;
+                        bridgeItem.ErrorMessage = $"Wgrano, ale weryfikacja nieudana: {errorMessage}";
                         result.SuccessfulCount--;
                         result.FailedCount++;
-                        result.Errors.Add(new PriceBridgeError { OfferId = change.OfferId, Message = $"Wgrano, ale weryfikacja nieudana: {errorMessage}" });
+                        result.Errors.Add(new PriceBridgeError { OfferId = item.OfferId, Message = bridgeItem.ErrorMessage });
+
+                        _context.AllegroPriceBridgeItems.Add(bridgeItem);
 
                         store.IsAllegroTokenActive = false;
                         await _context.SaveChangesAsync();
@@ -115,32 +165,34 @@ namespace PriceSafari.Services.AllegroServices
                     }
                     catch (Exception ex)
                     {
-                        _logger.LogError(ex, "Błąd podczas weryfikacji zmiany ceny dla oferty {OfferId}", change.OfferId);
+                        _logger.LogError(ex, "Błąd podczas weryfikacji zmiany ceny dla oferty {OfferId}", item.OfferId);
+                        bridgeItem.ErrorMessage = $"Wgrano, ale weryfikacja nieudana: {ex.Message}";
+                        result.Errors.Add(new PriceBridgeError { OfferId = item.OfferId, Message = bridgeItem.ErrorMessage });
 
-                        result.Errors.Add(new PriceBridgeError { OfferId = change.OfferId, Message = $"Wgrano, ale weryfikacja nieudana: {ex.Message}" });
                     }
 
                     result.SuccessfulChangesDetails.Add(new PriceBridgeSuccessDetail
                     {
-                        OfferId = change.OfferId,
-                        FetchedNewPrice = fetchedNewPrice,
-                        FetchedNewCommission = fetchedNewCommission
+                        OfferId = item.OfferId,
+                        FetchedNewPrice = bridgeItem.PriceAfter_Verified,
+                        FetchedNewCommission = bridgeItem.CommissionAfter_Verified
                     });
                 }
                 else
                 {
 
                     result.FailedCount++;
-                    result.Errors.Add(new PriceBridgeError { OfferId = change.OfferId, Message = errorMessage });
+                    result.Errors.Add(new PriceBridgeError { OfferId = item.OfferId, Message = errorMessage });
 
                     if (errorMessage.Contains("401") || errorMessage.Contains("Unauthorized"))
                     {
-                        _logger.LogWarning("Token API dla sklepu {StoreId} wygasł lub jest nieprawidłowy. Przerywam wgrywanie cen.", storeId);
-
+                        _logger.LogWarning("Token API dla sklepu {StoreId} wygasł. Przerywam wgrywanie cen.", storeId);
                         store.IsAllegroTokenActive = false;
                         await _context.SaveChangesAsync();
 
-                        int remainingChanges = changes.Count - result.SuccessfulCount - result.FailedCount;
+                        _context.AllegroPriceBridgeItems.Add(bridgeItem);
+
+                        int remainingChanges = itemsToBridge.Count - result.SuccessfulCount - result.FailedCount;
                         if (remainingChanges > 0)
                         {
                             result.FailedCount += remainingChanges;
@@ -149,6 +201,22 @@ namespace PriceSafari.Services.AllegroServices
                         break;
                     }
                 }
+
+                _context.AllegroPriceBridgeItems.Add(bridgeItem);
+            }
+
+            newBatch.SuccessfulCount = result.SuccessfulCount;
+            newBatch.FailedCount = result.FailedCount;
+
+            try
+            {
+                await _context.SaveChangesAsync();
+            }
+            catch (Exception dbEx)
+            {
+                _logger.LogError(dbEx, "Błąd zapisu logów AllegroPriceBridgeBatch do bazy danych.");
+
+                result.Errors.Add(new PriceBridgeError { OfferId = "Baza Danych", Message = "Błąd zapisu logów operacji." });
             }
 
             return result;

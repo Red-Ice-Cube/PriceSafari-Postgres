@@ -627,7 +627,7 @@
             const priceChangeEvent = new CustomEvent('priceBoxChange', {
                 detail: {
                     productId: String(productId),
-                    myIdAllegro: item.myIdAllegro, // <-- DODANA TA LINIA
+                    myIdAllegro: item.myIdAllegro,
                     productName: productName,
                     currentPrice: currentPriceValue,
                     newPrice: suggestedPrice,

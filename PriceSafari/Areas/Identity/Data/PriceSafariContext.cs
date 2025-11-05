@@ -247,54 +247,50 @@ namespace PriceSafari.Data
 
             modelBuilder.Entity<AllegroPriceHistoryExtendedInfoClass>(entity =>
             {
-        
+
                 entity.HasOne(ext => ext.AllegroProduct)
                       .WithMany()
                       .HasForeignKey(ext => ext.AllegroProductId)
-                      .OnDelete(DeleteBehavior.NoAction); 
+                      .OnDelete(DeleteBehavior.NoAction);
 
                 entity.HasOne(ext => ext.ScrapHistory)
                       .WithMany()
                       .HasForeignKey(ext => ext.ScrapHistoryId)
-                      .OnDelete(DeleteBehavior.Cascade); 
+                      .OnDelete(DeleteBehavior.Cascade);
             });
-
 
             modelBuilder.Entity<AllegroPriceBridgeBatch>(entity =>
             {
-                // Relacja do Sklepu (1 do N)
+
                 entity.HasOne(b => b.Store)
-                    .WithMany() // Zakładamy, że StoreClass nie potrzebuje kolekcji BridgeBatches
+                    .WithMany()
                     .HasForeignKey(b => b.StoreId)
-                    .OnDelete(DeleteBehavior.Restrict); // Nie usuwaj sklepu, gdy usuwamy log
+                    .OnDelete(DeleteBehavior.Restrict);
 
-                // Relacja do Analizy (1 do N)
                 entity.HasOne(b => b.AllegroScrapeHistory)
-                    .WithMany() // Zakładamy, że AllegroScrapeHistory nie potrzebuje kolekcji
+                    .WithMany()
                     .HasForeignKey(b => b.AllegroScrapeHistoryId)
-                    .OnDelete(DeleteBehavior.Restrict); // Nie usuwaj analizy, gdy usuwamy log
+                    .OnDelete(DeleteBehavior.Restrict);
 
-                // Relacja do Użytkownika (1 do N)
                 entity.HasOne(b => b.User)
-                    .WithMany() // Zakładamy, że PriceSafariUser nie potrzebuje kolekcji
+                    .WithMany()
                     .HasForeignKey(b => b.UserId)
-                    .IsRequired(false) // Użytkownik może być opcjonalny (np. dla zadań automatycznych)
-                    .OnDelete(DeleteBehavior.SetNull); // Jeśli usuniemy usera, log zostaje
+                    .IsRequired(false)
+                    .OnDelete(DeleteBehavior.SetNull);
             });
 
             modelBuilder.Entity<AllegroPriceBridgeItem>(entity =>
             {
-                // Relacja do Paczki (1 do N) - Kaskadowe usuwanie
-                entity.HasOne(i => i.PriceBridgeBatch)
-                    .WithMany(b => b.BridgeItems) // Tutaj mamy kolekcję
-                    .HasForeignKey(i => i.AllegroPriceBridgeBatchId)
-                    .OnDelete(DeleteBehavior.Cascade); // Usuń logi-itemy, gdy usuwamy paczkę
 
-                // Relacja do Produktu (1 do N)
+                entity.HasOne(i => i.PriceBridgeBatch)
+                    .WithMany(b => b.BridgeItems)
+                    .HasForeignKey(i => i.AllegroPriceBridgeBatchId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
                 entity.HasOne(i => i.AllegroProduct)
-                    .WithMany() // Zakładamy, że AllegroProductClass nie potrzebuje kolekcji
+                    .WithMany()
                     .HasForeignKey(i => i.AllegroProductId)
-                    .OnDelete(DeleteBehavior.Restrict); // Nie usuwaj produktu, gdy usuwamy log
+                    .OnDelete(DeleteBehavior.Restrict);
             });
         }
     }

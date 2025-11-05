@@ -788,22 +788,65 @@ namespace PriceSafari.Controllers.MemberControllers
             return Json(viewModel);
         }
 
+        // W pliku AllegroPriceHistoryController.cs
 
         [HttpPost]
-        public async Task<IActionResult> ExecutePriceChange(int storeId, [FromBody] List<OfferPriceChangeRequest> changes)
+        public async Task<IActionResult> ExecutePriceChange(int storeId, [FromBody] List<AllegroPriceBridgeItemRequest> items)
         {
             if (!await UserHasAccessToStore(storeId)) return Forbid();
-            if (changes == null || !changes.Any()) return BadRequest("Brak zmian do przetworzenia.");
+            if (items == null || !items.Any()) return BadRequest("Brak zmian do przetworzenia.");
 
-            var result = await _priceBridgeService.ExecutePriceChangesAsync(storeId, changes);
+            // Pobieramy ID użytkownika
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+            // Pobieramy ID ostatniej analizy dla tego sklepu
+            var latestScrap = await _context.AllegroScrapeHistories
+                .Where(sh => sh.StoreId == storeId)
+                .OrderByDescending(sh => sh.Date)
+                .Select(sh => sh.Id)
+                .FirstOrDefaultAsync();
+
+            if (latestScrap == 0)
+            {
+                return BadRequest("Nie znaleziono historii analizy dla tego sklepu.");
+            }
+
+            // Pobieramy ustawienia marży
+            var priceSettings = await _context.PriceValues.FirstOrDefaultAsync(pv => pv.StoreId == storeId);
+            bool includeCommissionInMargin = priceSettings?.AllegroIncludeCommisionInPriceChange ?? false;
+
+            // Wywołujemy serwis z pełnym zestawem danych
+            var result = await _priceBridgeService.ExecutePriceChangesAsync(
+                storeId,
+                latestScrap,
+                userId,
+                includeCommissionInMargin,
+                items
+            );
 
             return Json(result);
         }
-
-        public class OfferPriceChangeRequest
+        // W pliku AllegroPriceHistoryController.cs
+        public class AllegroPriceBridgeItemRequest
         {
-            public string OfferId { get; set; }
-            public string NewPrice { get; set; }
+            // Identyfikatory
+            public int ProductId { get; set; } // AllegroProductId
+            public string OfferId { get; set; } // AllegroOfferId
+            public decimal? MarginPrice { get; set; } // Cena zakupu (potrzebna do weryfikacji)
+
+            // Dane "Przed" (z symulacji)
+            public decimal PriceBefore { get; set; }
+            public decimal? CommissionBefore { get; set; }
+            public decimal? MarginAmountBefore { get; set; }
+            public decimal? MarginPercentBefore { get; set; }
+            public string RankingBefore { get; set; }
+
+            // Dane "Symulowane (Po zmianie)"
+            public decimal PriceAfter_Simulated { get; set; }
+            public decimal? CommissionAfter_Simulated { get; set; }
+            public decimal? MarginAmountAfter_Simulated { get; set; }
+            public decimal? MarginPercentAfter_Simulated { get; set; }
+            public string RankingAfter_Simulated { get; set; }
         }
 
         public class PriceBridgeError
