@@ -910,5 +910,69 @@ namespace PriceSafari.Controllers.MemberControllers
             public int StoreId { get; set; }
         }
 
+        [HttpGet]
+        public async Task<IActionResult> GetScrapPriceChangeHistory(int storeId, int allegroScrapeHistoryId)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+            var hasAccess = await _context.Stores
+                .AsNoTracking()
+                .Where(s => s.StoreId == storeId)
+                .AnyAsync(s => s.UserStores.Any(us => us.UserId == userId));
+
+            if (!hasAccess)
+            {
+
+                return Forbid();
+            }
+
+            if (allegroScrapeHistoryId == 0)
+            {
+                return BadRequest("Invalid Scrap History ID.");
+            }
+
+            var batches = await _context.AllegroPriceBridgeBatches
+                .AsNoTracking()
+                .Where(b => b.StoreId == storeId && b.AllegroScrapeHistoryId == allegroScrapeHistoryId)
+                .Include(b => b.User)
+                .Include(b => b.BridgeItems)
+                    .ThenInclude(i => i.AllegroProduct)
+                .OrderByDescending(b => b.ExecutionDate)
+                .ToListAsync();
+
+            var result = batches.Select(b => new
+            {
+                executionDate = b.ExecutionDate,
+                userName = b.User?.UserName ?? "Nieznany",
+                successfulCount = b.SuccessfulCount,
+                failedCount = b.FailedCount,
+                items = b.BridgeItems.Select(i => new
+                {
+
+                    productName = i.AllegroProduct?.AllegroProductName ?? "Produkt usunięty lub nieznany",
+                    offerId = i.AllegroOfferId,
+                    ean = i.AllegroProduct?.AllegroEan,
+
+                    success = i.Success,
+                    errorMessage = i.ErrorMessage,
+
+                    marginPrice = i.MarginPrice,
+                    includeCommissionInMargin = i.IncludeCommissionInMargin,
+
+                    priceBefore = i.PriceBefore,
+                    commissionBefore = i.CommissionBefore,
+                    rankingBefore = i.RankingBefore,
+
+                    priceAfter_Simulated = i.PriceAfter_Simulated,
+                    rankingAfter_Simulated = i.RankingAfter_Simulated,
+
+                    priceAfter_Verified = i.PriceAfter_Verified,
+                    commissionAfter_Verified = i.CommissionAfter_Verified
+                }).ToList()
+            }).ToList();
+
+            return Ok(result);
+        }
+
     }
 }

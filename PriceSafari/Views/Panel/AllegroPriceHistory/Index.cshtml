@@ -407,30 +407,41 @@
 <div class="modal-sim fade" id="simulationModal" tabindex="-1" role="dialog" aria-labelledby="simulationModalLabel">
     <div class="modal-dialog-sim" role="document">
         <div class="modal-simulation">
-            <div class="modal-header" style="border:none;">
-                <div class="price-box-column-name" id="simulationModalLabel">Symuluj ceny - Allegro</div>
-                <button type="button" class="close" data-dismiss="modal" aria-label="Zamknij">
-                    <span aria-hidden="true">&times;</span>
-                </button>
+            <div class="modal-header" style="border:none; flex-direction: column; align-items: stretch;">
+
+                <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                    <div class="price-box-column-name" id="simulationModalLabel">Symuluj ceny - Allegro</div>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Zamknij">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+
+                <div class="modal-tab-toggle" style="margin-top: 15px;">
+                    <button id="showSimulationTab" class="modal-tab active" type="button">
+                        Obecne Zmiany (<span id="simulationTabCounter">0</span>)
+                    </button>
+                    <button id="showHistoryTab" class="modal-tab" type="button">
+                        Historia Wgranych Zmian (<span id="historyTabCounter">0</span>)
+                    </button>
+                </div>
+
             </div>
             <div class="modal-body">
                 <div class="table-scroll" id="simulationModalBody">
-                    @* Treść ładowana przez JS *@
+                </div>
+                <div class="table-scroll" id="historyModalBody" style="display: none; max-height: 75vh; overflow-y: auto;">
                 </div>
             </div>
             <div class="modal-footer">
                 <div style="display:flex; width:100%; justify-content:space-between; align-items: center;">
                     <button type="button" id="clearChangesButton" class="Button-Page-Small-r">Usuń wszystkie zmiany</button>
 
-                    @* --- NOWY PRZYCISK --- *@
                     @if (ViewBag.IsAllegroPriceBridgeActive == true)
                     {
                         <button type="button" id="executePriceChangeBtn" class="Button-Page-Small-bl" style="width: 260px; background-color: #d9534f; border-color: #d43f3a;">
                             <i class="fa-solid fa-arrow-up-from-bracket" style="margin-right: 8px;"></i> Wgraj zmiany na Allegro
                         </button>
                     }
-                    @* --- KONIEC NOWEGO PRZYCISKU --- *@
-
                 </div>
             </div>
         </div>
@@ -498,6 +509,7 @@
         const presetTypeContext = 1;
         const scrapDateJS = "@scrapDate";
         const myStoreNameJS = "@storeName";
+        const globalAllegroScrapId = @(latestScrap?.Id ?? 0);
         const flags = @Html.Raw(Json.Serialize(ViewBag.Flags ?? new List<FlagViewModel>()));
         const priceHistoryPageContext = 'index';
 
