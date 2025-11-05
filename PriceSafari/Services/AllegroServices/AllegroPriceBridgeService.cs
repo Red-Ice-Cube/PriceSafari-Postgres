@@ -31,11 +31,11 @@ namespace PriceSafari.Services.AllegroServices
         }
 
         public async Task<PriceBridgeResult> ExecutePriceChangesAsync(
-            int storeId,
-            int allegroScrapeHistoryId,
-            string userId,
-            bool includeCommissionInMargin,
-            List<AllegroPriceBridgeItemRequest> itemsToBridge)
+             int storeId,
+             int allegroScrapeHistoryId,
+             string userId,
+             bool includeCommissionInMargin,
+             List<AllegroPriceBridgeItemRequest> itemsToBridge)
         {
             var result = new PriceBridgeResult();
             var store = await _context.Stores.FindAsync(storeId);
@@ -87,16 +87,14 @@ namespace PriceSafari.Services.AllegroServices
                     AllegroProductId = item.ProductId,
                     AllegroOfferId = item.OfferId,
 
+                    MarginPrice = item.MarginPrice,
+                    IncludeCommissionInMargin = includeCommissionInMargin,
+
                     PriceBefore = item.PriceBefore,
                     CommissionBefore = item.CommissionBefore,
-                    MarginAmountBefore = item.MarginAmountBefore,
-                    MarginPercentBefore = item.MarginPercentBefore,
                     RankingBefore = item.RankingBefore,
 
                     PriceAfter_Simulated = item.PriceAfter_Simulated,
-                    CommissionAfter_Simulated = item.CommissionAfter_Simulated,
-                    MarginAmountAfter_Simulated = item.MarginAmountAfter_Simulated,
-                    MarginPercentAfter_Simulated = item.MarginPercentAfter_Simulated,
                     RankingAfter_Simulated = item.RankingAfter_Simulated
                 };
 
@@ -133,13 +131,6 @@ namespace PriceSafari.Services.AllegroServices
                             bridgeItem.PriceAfter_Verified = fetchedNewPrice;
                             bridgeItem.CommissionAfter_Verified = fetchedNewCommission;
 
-                            if (item.MarginPrice.HasValue && fetchedNewPrice.HasValue && item.MarginPrice.Value != 0)
-                            {
-                                decimal commissionToDeduct = (includeCommissionInMargin && fetchedNewCommission.HasValue) ? fetchedNewCommission.Value : 0;
-                                decimal netPrice = fetchedNewPrice.Value - commissionToDeduct;
-                                bridgeItem.MarginAmountAfter_Verified = netPrice - item.MarginPrice.Value;
-                                bridgeItem.MarginPercentAfter_Verified = (bridgeItem.MarginAmountAfter_Verified / item.MarginPrice.Value) * 100;
-                            }
                         }
                         else
                         {
@@ -168,7 +159,6 @@ namespace PriceSafari.Services.AllegroServices
                         _logger.LogError(ex, "Błąd podczas weryfikacji zmiany ceny dla oferty {OfferId}", item.OfferId);
                         bridgeItem.ErrorMessage = $"Wgrano, ale weryfikacja nieudana: {ex.Message}";
                         result.Errors.Add(new PriceBridgeError { OfferId = item.OfferId, Message = bridgeItem.ErrorMessage });
-
                     }
 
                     result.SuccessfulChangesDetails.Add(new PriceBridgeSuccessDetail
@@ -215,7 +205,6 @@ namespace PriceSafari.Services.AllegroServices
             catch (Exception dbEx)
             {
                 _logger.LogError(dbEx, "Błąd zapisu logów AllegroPriceBridgeBatch do bazy danych.");
-
                 result.Errors.Add(new PriceBridgeError { OfferId = "Baza Danych", Message = "Błąd zapisu logów operacji." });
             }
 

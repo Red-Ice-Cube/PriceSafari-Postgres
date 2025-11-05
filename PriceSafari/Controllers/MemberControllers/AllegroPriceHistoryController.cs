@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using PriceSafari.Data;
 using PriceSafari.Models;
 using PriceSafari.Models.ViewModels;
-using PriceSafari.Services.AllegroServices; // Dodaj using
+using PriceSafari.Services.AllegroServices;
 using PriceSafari.ViewModels;
 using System.Security.Claims;
 
@@ -16,16 +16,16 @@ namespace PriceSafari.Controllers.MemberControllers
     {
         private readonly PriceSafariContext _context;
         private readonly UserManager<PriceSafariUser> _userManager;
-        private readonly AllegroPriceBridgeService _priceBridgeService; // Dodaj serwis
+        private readonly AllegroPriceBridgeService _priceBridgeService;
 
         public AllegroPriceHistoryController(
             PriceSafariContext context,
             UserManager<PriceSafariUser> userManager,
-            AllegroPriceBridgeService priceBridgeService) // Wstrzyknij serwis
+            AllegroPriceBridgeService priceBridgeService)
         {
             _context = context;
             _userManager = userManager;
-            _priceBridgeService = priceBridgeService; // Przypisz serwis
+            _priceBridgeService = priceBridgeService;
         }
 
         private async Task<bool> UserHasAccessToStore(int storeId)
@@ -383,8 +383,8 @@ namespace PriceSafari.Controllers.MemberControllers
 
             int firstProductId = simulationItems.First().ProductId;
             var firstProduct = await _context.AllegroProducts
-              .Include(p => p.Store)
-              .FirstOrDefaultAsync(p => p.AllegroProductId == firstProductId);
+             .Include(p => p.Store)
+             .FirstOrDefaultAsync(p => p.AllegroProductId == firstProductId);
 
             if (firstProduct == null) return NotFound("Produkt nie znaleziony.");
             if (!await UserHasAccessToStore(firstProduct.StoreId)) return Unauthorized("Brak dostępu do sklepu.");
@@ -471,15 +471,19 @@ namespace PriceSafari.Controllers.MemberControllers
                 }
 
                 int totalAllegroOffers = currentAllegroList.Count;
-                string currentAllegroRanking = weAreInAllegro && totalAllegroOffers > 0 ? CalculateRanking(currentAllegroList, sim.CurrentPrice) : "-";
-                string newAllegroRanking = weAreInAllegro && totalAllegroOffers > 0 ? CalculateRanking(newAllegroList, sim.NewPrice) : "-";
+
+                string currentAllegroRankingStr = weAreInAllegro && totalAllegroOffers > 0 ? CalculateRanking(currentAllegroList, sim.CurrentPrice) : "-";
+                string newAllegroRankingStr = weAreInAllegro && totalAllegroOffers > 0 ? CalculateRanking(newAllegroList, sim.NewPrice) : "-";
+
+                string currentAllegroRanking = (currentAllegroRankingStr != "-" && totalAllegroOffers > 0) ? $"{currentAllegroRankingStr} / {totalAllegroOffers}" : "-";
+                string newAllegroRanking = (newAllegroRankingStr != "-" && totalAllegroOffers > 0) ? $"{newAllegroRankingStr} / {totalAllegroOffers}" : "-";
 
                 decimal? currentMargin = null, newMargin = null, currentMarginValue = null, newMarginValue = null;
                 if (product.AllegroMarginPrice.HasValue && product.AllegroMarginPrice.Value != 0)
                 {
                     decimal commissionToDeduct = (includeCommission && extendedInfo?.ApiAllegroCommission.HasValue == true)
-                                  ? extendedInfo.ApiAllegroCommission.Value
-                                  : 0m;
+                                ? extendedInfo.ApiAllegroCommission.Value
+                                : 0m;
 
                     decimal currentNetPrice = sim.CurrentPrice - commissionToDeduct;
                     decimal newNetPrice = sim.NewPrice - commissionToDeduct;
@@ -524,7 +528,6 @@ namespace PriceSafari.Controllers.MemberControllers
                 simulationResults,
                 usePriceWithDelivery = false,
                 latestScrapId,
-
                 allegroIncludeCommisionInPriceChange = includeCommission
             });
         }
@@ -788,18 +791,14 @@ namespace PriceSafari.Controllers.MemberControllers
             return Json(viewModel);
         }
 
-        // W pliku AllegroPriceHistoryController.cs
-
         [HttpPost]
         public async Task<IActionResult> ExecutePriceChange(int storeId, [FromBody] List<AllegroPriceBridgeItemRequest> items)
         {
             if (!await UserHasAccessToStore(storeId)) return Forbid();
             if (items == null || !items.Any()) return BadRequest("Brak zmian do przetworzenia.");
 
-            // Pobieramy ID użytkownika
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
-            // Pobieramy ID ostatniej analizy dla tego sklepu
             var latestScrap = await _context.AllegroScrapeHistories
                 .Where(sh => sh.StoreId == storeId)
                 .OrderByDescending(sh => sh.Date)
@@ -811,11 +810,9 @@ namespace PriceSafari.Controllers.MemberControllers
                 return BadRequest("Nie znaleziono historii analizy dla tego sklepu.");
             }
 
-            // Pobieramy ustawienia marży
             var priceSettings = await _context.PriceValues.FirstOrDefaultAsync(pv => pv.StoreId == storeId);
             bool includeCommissionInMargin = priceSettings?.AllegroIncludeCommisionInPriceChange ?? false;
 
-            // Wywołujemy serwis z pełnym zestawem danych
             var result = await _priceBridgeService.ExecutePriceChangesAsync(
                 storeId,
                 latestScrap,
@@ -826,26 +823,20 @@ namespace PriceSafari.Controllers.MemberControllers
 
             return Json(result);
         }
-        // W pliku AllegroPriceHistoryController.cs
+
         public class AllegroPriceBridgeItemRequest
         {
-            // Identyfikatory
-            public int ProductId { get; set; } // AllegroProductId
-            public string OfferId { get; set; } // AllegroOfferId
-            public decimal? MarginPrice { get; set; } // Cena zakupu (potrzebna do weryfikacji)
 
-            // Dane "Przed" (z symulacji)
+            public int ProductId { get; set; }
+            public string OfferId { get; set; }
+            public decimal? MarginPrice { get; set; }
+            public bool IncludeCommissionInMargin { get; set; }
+
             public decimal PriceBefore { get; set; }
             public decimal? CommissionBefore { get; set; }
-            public decimal? MarginAmountBefore { get; set; }
-            public decimal? MarginPercentBefore { get; set; }
             public string RankingBefore { get; set; }
 
-            // Dane "Symulowane (Po zmianie)"
             public decimal PriceAfter_Simulated { get; set; }
-            public decimal? CommissionAfter_Simulated { get; set; }
-            public decimal? MarginAmountAfter_Simulated { get; set; }
-            public decimal? MarginPercentAfter_Simulated { get; set; }
             public string RankingAfter_Simulated { get; set; }
         }
 
@@ -855,7 +846,6 @@ namespace PriceSafari.Controllers.MemberControllers
             public string Message { get; set; }
         }
 
-        // DTO dla pomyślnej, zweryfikowanej zmiany
         public class PriceBridgeSuccessDetail
         {
             public string OfferId { get; set; }
@@ -869,10 +859,8 @@ namespace PriceSafari.Controllers.MemberControllers
             public int FailedCount { get; set; } = 0;
             public List<PriceBridgeError> Errors { get; set; } = new List<PriceBridgeError>();
 
-            // Nowa lista przechowująca zweryfikowane dane
             public List<PriceBridgeSuccessDetail> SuccessfulChangesDetails { get; set; } = new List<PriceBridgeSuccessDetail>();
         }
-
 
         public class AllegroTrendDataViewModel
         {

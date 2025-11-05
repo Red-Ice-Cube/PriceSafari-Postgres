@@ -359,8 +359,8 @@
         block += `<div class="price-info-item" style="padding: 4px 12px; ${headerStyle} border-radius: 5px; margin-bottom: 5px;">${headerText} | ${formattedBasePrice}</div>`;
 
         if (allegroRank && allegroRank !== "-") {
-            const allegroOffersText = allegroOffers > 0 ? allegroOffers : '-';
-            block += `<div class="price-info-item" style="padding: 4px 12px; background: #f5f5f5; border: 1px solid #e3e3e3; border-radius: 5px; margin-bottom: 5px;">Poz. cenowa | <img src="/images/AllegroIcon.png" alt="Allegro Icon" style="width:16px; height:16px; vertical-align: middle; margin-right: 3px;" /> ${allegroRank} / ${allegroOffersText}</div>`;
+
+            block += `<div class="price-info-item" style="padding: 4px 12px; background: #f5f5f5; border: 1px solid #e3e3e3; border-radius: 5px; margin-bottom: 5px;">Poz. cenowa | <img src="/images/AllegroIcon.png" alt="Allegro Icon" style="width:16px; height:16px; vertical-align: middle; margin-right: 3px;" /> ${allegroRank}</div>`;
         }
 
         if (apiAllegroCommission != null) {
@@ -489,11 +489,9 @@
                     const prodDetail = productDetails.find(x => String(x.productId) === productIdStr);
                     const simResult = simulationResults.find(x => String(x.productId) === productIdStr);
 
-                    // --- UZUPEŁNIENIE DANYCH ---
                     const marginPrice = simResult ? simResult.marginPrice : null;
                     const apiAllegroCommission = simResult ? simResult.apiAllegroCommission : null;
-                    const myIdAllegro = item.myIdAllegro; // Pobieramy z 'item', które jest 'selectedPriceChanges'
-                    // --- KONIEC UZUPEŁNIENIA ---
+                    const myIdAllegro = item.myIdAllegro;
 
                     const name = prodDetail ? prodDetail.productName : item.productName || 'Brak nazwy';
                     const imageUrl = prodDetail ? prodDetail.imageUrl : "";
@@ -559,9 +557,10 @@
                         productId: productIdStr,
                         scrapId: globalLatestScrapId,
 
-                        // Dodane kluczowe dane
                         myIdAllegro: myIdAllegro,
                         marginPrice: marginPrice,
+
+                        apiAllegroCommission: apiAllegroCommission,
 
                         baseCurrentPrice: simResult ? simResult.baseCurrentPrice : null,
                         baseNewPrice: simResult ? simResult.baseNewPrice : null,
@@ -633,7 +632,6 @@
             const formattedDiff = formatPricePL(Math.abs(row.diff), false);
             const formattedDiffPercent = Math.abs(row.diffPercent).toFixed(2);
 
-            // ZMIANA 1: Dodano data-offer-id do wiersza TR
             html += `<tr data-product-id="${row.productId}" data-offer-id="${row.myIdAllegro || ''}">
                         ${imageCell}
                         <td class="align-middle">
@@ -701,36 +699,28 @@
         simulateButton.addEventListener("click", openSimulationModal);
     }
 
-
     const executeButton = document.getElementById("executePriceChangeBtn");
     if (executeButton) {
         executeButton.addEventListener("click", function () {
 
-            // Znajdź tylko te elementy, które są jeszcze na liście 'aktywnych' zmian
             const activeProductIds = new Set(selectedPriceChanges.map(c => c.productId));
 
-            // Przygotuj pełne dane do wysyłki z 'originalRowsData'
             const itemsToBridge = originalRowsData
-                .filter(row => activeProductIds.has(row.productId) && row.myIdAllegro) // Tylko aktywne i te co mają ID oferty
+                .filter(row => activeProductIds.has(row.productId) && row.myIdAllegro)
                 .map(row => ({
-                    // Identyfikatory
+
                     ProductId: parseInt(row.productId, 10),
                     OfferId: row.myIdAllegro.toString(),
                     MarginPrice: row.marginPrice,
+                    IncludeCommissionInMargin: globalIncludeCommissionSetting,
 
-                    // Dane "Przed" (z symulacji)
                     PriceBefore: row.baseCurrentPrice,
-                    CommissionBefore: row.apiAllegroCommission, // Założenie: to pole istnieje w originalRowsData
-                    MarginAmountBefore: row.currentMarginValue,
-                    MarginPercentBefore: row.currentMargin,
+                    CommissionBefore: row.apiAllegroCommission,
                     RankingBefore: row.currentAllegroRanking,
 
-                    // Dane "Symulowane (Po zmianie)"
                     PriceAfter_Simulated: row.baseNewPrice,
-                    CommissionAfter_Simulated: row.apiAllegroCommission, // Prowizja symulowana = obecna
-                    MarginAmountAfter_Simulated: row.newMarginValue,
-                    MarginPercentAfter_Simulated: row.newMargin,
-                    RankingAfter_Simulated: row.newAllegroRanking
+                    RankingAfter_Simulated: row.newAllegroRanking,
+
                 }));
 
             const changesWithoutId = selectedPriceChanges.filter(c => !c.myIdAllegro).length;
@@ -751,7 +741,7 @@
             fetch(`/AllegroPriceHistory/ExecutePriceChange?storeId=${storeId}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(itemsToBridge) // Wysyłamy nowy, bogaty obiekt
+                body: JSON.stringify(itemsToBridge)
             })
                 .then(response => {
                     if (!response.ok) {
@@ -787,13 +777,11 @@
                         alert(`Zakończono.\nSukcesy: ${result.successfulCount}\nBłędy: ${result.failedCount}\nPominięto: ${changesWithoutId}`);
                     }
 
-                    // --- NOWA LOGIKA: Aktualizacja UI dla pomyślnych zmian ---
                     if (result.successfulChangesDetails && result.successfulChangesDetails.length > 0) {
 
                         const successfulProductIds = new Set();
 
                         result.successfulChangesDetails.forEach(detail => {
-                            // Znajdź dane wiersza na podstawie myIdAllegro (z DTO)
                             const rowData = originalRowsData.find(r => r.myIdAllegro && r.myIdAllegro.toString() === detail.offerId);
                             if (!rowData) {
                                 console.warn("Nie znaleziono rowData dla offerId:", detail.offerId);
@@ -807,26 +795,22 @@
                                 return;
                             }
 
-                            // Pobierz dane potrzebne do bloku potwierdzenia
                             const confirmedPrice = detail.fetchedNewPrice;
                             const confirmedCommission = detail.fetchedNewCommission;
-                            const marginPrice = rowData.marginPrice; // Z oryginalnych danych symulacji
+                            const marginPrice = rowData.marginPrice;
 
-                            // Kopiujemy pozycję cenową z symulacji "Po zmianie"
                             const newAllegroRanking = rowData.newAllegroRanking;
                             const totalAllegroOffers = rowData.totalAllegroOffers;
 
-                            // Zbuduj blok HTML
                             cell.innerHTML = buildPriceBlock(
                                 confirmedPrice,
                                 marginPrice,
                                 confirmedCommission,
                                 newAllegroRanking,
                                 totalAllegroOffers,
-                                true // Oznacz jako blok "potwierdzony"
+                                true
                             );
 
-                            // Zablokuj przycisk usuwania dla tego wiersza
                             const rowElement = document.querySelector(`tr[data-product-id="${rowData.productId}"]`);
                             if (rowElement) {
                                 const removeBtn = rowElement.querySelector('.remove-change-btn');
@@ -835,42 +819,33 @@
                                     removeBtn.style.opacity = 0.3;
                                     removeBtn.style.cursor = 'not-allowed';
                                     removeBtn.title = 'Zmiana została wgrana na Allegro.';
+
                                 }
                             }
                         });
 
-                        // --- Aktualizacja list danych ---
-                        // Usuń pomyślnie wgrane elementy z selectedPriceChanges
                         selectedPriceChanges = selectedPriceChanges.filter(c =>
                             !successfulProductIds.has(c.productId)
                         );
 
-                        // Usuwamy pomyślne zmiany również z originalRowsData
-                        // aby nie można było ich ponownie wysłać
                         originalRowsData = originalRowsData.filter(row =>
                             !successfulProductIds.has(row.productId)
                         );
 
-                        // Zapisz pozostałe zmiany (te, które miały błąd)
                         savePriceChanges();
                         updatePriceChangeSummary();
 
-                        // Odśwież boxy na stronie głównej
                         if (typeof window.refreshPriceBoxStates === 'function') {
                             window.refreshPriceBoxStates();
                         }
                     }
 
-                    // Nie zamykaj modala, jeśli są błędy
-
                     if (selectedPriceChanges.length === 0 && result.failedCount === 0) {
-                        // Zamykamy tylko jeśli wszystko się udało i lista jest czysta
                         $('#simulationModal').modal('hide');
                     }
                 })
                 .catch(err => {
                     hideLoading();
-                    // Przywróć przycisk w razie błędu sieciowego
                     executeButton.disabled = false;
                     executeButton.innerHTML = '<i class="fa-solid fa-arrow-up-from-bracket" style="margin-right: 8px;"></i> Wgraj zmiany na Allegro';
 
@@ -884,8 +859,6 @@
                 });
         });
     }
-
-    
 
     const bestScoreBtn = document.getElementById("bestScoreButton");
     if (bestScoreBtn) {

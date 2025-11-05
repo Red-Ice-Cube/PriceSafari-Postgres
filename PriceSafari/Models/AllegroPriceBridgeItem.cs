@@ -28,30 +28,20 @@ namespace PriceSafari.Models
         public string ErrorMessage { get; set; }
 
         [Column(TypeName = "decimal(18,2)")]
+        public decimal? MarginPrice { get; set; }
+
+        public bool IncludeCommissionInMargin { get; set; }
+
+        [Column(TypeName = "decimal(18,2)")]
         public decimal PriceBefore { get; set; }
 
         [Column(TypeName = "decimal(18,2)")]
         public decimal? CommissionBefore { get; set; }
 
-        [Column(TypeName = "decimal(18,2)")]
-        public decimal? MarginAmountBefore { get; set; }
-
-        [Column(TypeName = "decimal(18,2)")]
-        public decimal? MarginPercentBefore { get; set; }
-
         public string RankingBefore { get; set; }
 
         [Column(TypeName = "decimal(18,2)")]
         public decimal PriceAfter_Simulated { get; set; }
-
-        //[Column(TypeName = "decimal(18,2)")]
-        //public decimal? CommissionAfter_Simulated { get; set; }
-
-        [Column(TypeName = "decimal(18,2)")]
-        public decimal? MarginAmountAfter_Simulated { get; set; }
-
-        [Column(TypeName = "decimal(18,2)")]
-        public decimal? MarginPercentAfter_Simulated { get; set; }
 
         public string RankingAfter_Simulated { get; set; }
 
@@ -60,11 +50,5 @@ namespace PriceSafari.Models
 
         [Column(TypeName = "decimal(18,2)")]
         public decimal? CommissionAfter_Verified { get; set; }
-
-        [Column(TypeName = "decimal(18,2)")]
-        public decimal? MarginAmountAfter_Verified { get; set; }
-
-        [Column(TypeName = "decimal(18,2)")]
-        public decimal? MarginPercentAfter_Verified { get; set; }
     }
 }
