@@ -164,10 +164,7 @@
 
     document.addEventListener('priceBoxChange', function (event) {
 
-        // --- MODYFIKACJA TUTAJ ---
-        // Odbieramy myIdAllegro z obiektu detail
         const { productId, myIdAllegro, productName, currentPrice, newPrice, scrapId, stepPriceApplied, stepUnitApplied } = event.detail;
-        // --- KONIEC MODYFIKACJI ---
 
         if (selectedPriceChanges.length === 0) {
             sessionScrapId = scrapId;
@@ -179,18 +176,15 @@
 
         var existingIndex = selectedPriceChanges.findIndex(item => String(item.productId) === String(productId));
 
-        // --- MODYFIKACJA TUTAJ ---
-        // Zapisujemy myIdAllegro w obiekcie changeData
         const changeData = {
             productId: String(productId),
-            myIdAllegro: myIdAllegro, // <-- DODANA TA LINIA
+            myIdAllegro: myIdAllegro,
             productName,
             currentPrice: parseFloat(currentPrice),
             newPrice: parseFloat(newPrice),
             stepPriceApplied: parseFloat(stepPriceApplied),
             stepUnitApplied
         };
-        // --- KONIEC MODYFIKACJI ---
 
         if (existingIndex > -1) {
             selectedPriceChanges[existingIndex] = changeData;
@@ -355,11 +349,14 @@
         };
     }
 
-    function buildPriceBlock(basePrice, marginPrice, apiAllegroCommission, allegroRank, allegroOffers) {
+    function buildPriceBlock(basePrice, marginPrice, apiAllegroCommission, allegroRank, allegroOffers, isConfirmedBlock = false) {
         const formattedBasePrice = formatPricePL(basePrice);
         let block = '<div class="price-info-box">';
 
-        block += `<div class="price-info-item" style="padding: 4px 12px; background: #f5f5f5; border: 1px solid #e3e3e3; border-radius: 5px; margin-bottom: 5px;">Cena oferty | ${formattedBasePrice}</div>`;
+        let headerText = isConfirmedBlock ? 'Cena wgrana' : 'Cena oferty';
+        let headerStyle = isConfirmedBlock ? 'background: #dff0d8; border: 1px solid #c1e2b3;' : 'background: #f5f5f5; border: 1px solid #e3e3e3;';
+
+        block += `<div class="price-info-item" style="padding: 4px 12px; ${headerStyle} border-radius: 5px; margin-bottom: 5px;">${headerText} | ${formattedBasePrice}</div>`;
 
         if (allegroRank && allegroRank !== "-") {
             const allegroOffersText = allegroOffers > 0 ? allegroOffers : '-';
@@ -372,7 +369,8 @@
                 '<span style="font-weight: 400; color: #555;"> | uwzględniona</span>' :
                 '<span style="font-weight: 400; color: #999;"> | nieuwzględniona</span>';
 
-            block += `<div class="price-info-item" style="padding: 4px 12px; background: #f5f5f5; border: 1px solid #e3e3e3; border-radius: 5px; margin-bottom: 5px;">Prowizja | ${formattedCommission} PLN${commissionStatusText}</div>`;
+            let commissionStyle = isConfirmedBlock ? 'background: #dff0d8; border: 1px solid #c1e2b3;' : 'background: #f5f5f5; border: 1px solid #e3e3e3;';
+            block += `<div class="price-info-item" style="padding: 4px 12px; ${commissionStyle} border-radius: 5px; margin-bottom: 5px;">Prowizja | ${formattedCommission} PLN${commissionStatusText}</div>`;
         }
 
         let marginValue = null;
@@ -381,10 +379,8 @@
         if (marginPrice != null && basePrice != null) {
             const commissionToDeduct = (globalIncludeCommissionSetting && apiAllegroCommission != null) ?
                 parseFloat(apiAllegroCommission) : 0;
-
             const netPrice = parseFloat(basePrice) - commissionToDeduct;
             const purchasePrice = parseFloat(marginPrice);
-
             marginValue = netPrice - purchasePrice;
             marginPercent = (purchasePrice !== 0) ? (marginValue / purchasePrice) * 100 : null;
         }
@@ -394,7 +390,8 @@
             const formattedMarginPercent = parseFloat(marginPercent).toFixed(2);
             const sign = parseFloat(marginValue) >= 0 ? "+" : "";
             const cls = parseFloat(marginValue) >= 0 ? "priceBox-diff-margin" : "priceBox-diff-margin-minus";
-            block += `<div class="price-info-item"><div class="price-box-diff-margin ${cls}" style="margin-top: 5px;"><p>Narzut: ${formattedMarginValue} (${sign}${formattedMarginPercent}%)</p></div></div>`;
+            let marginBoxStyle = isConfirmedBlock ? 'background: #dff0d8;' : '';
+            block += `<div class="price-info-item"><div class="price-box-diff-margin ${cls}" style="margin-top: 5px; ${marginBoxStyle}"><p>Narzut: ${formattedMarginValue} (${sign}${formattedMarginPercent}%)</p></div></div>`;
         } else if (marginPrice != null) {
             block += `<div class="price-info-item"><div class="price-box-diff-margin" style="margin-top: 5px;"><p>Cena zakupu: ${formatPricePL(marginPrice)}</p></div></div>`;
         }
@@ -477,6 +474,7 @@
                 tableHtml += '<th>Obecne</th>';
                 tableHtml += '<th>Zmiana</th>';
                 tableHtml += '<th>Po zmianie</th>';
+                tableHtml += '<th>Potwierdzenie API</th>';
                 tableHtml += '<th>Opłacalność zmiany</th>';
                 tableHtml += '<th>Usuń</th>';
                 tableHtml += '</tr></thead><tbody id="simulationTbody"></tbody></table>';
@@ -490,8 +488,12 @@
                     const productIdStr = String(item.productId);
                     const prodDetail = productDetails.find(x => String(x.productId) === productIdStr);
                     const simResult = simulationResults.find(x => String(x.productId) === productIdStr);
+
+                    // --- UZUPEŁNIENIE DANYCH ---
                     const marginPrice = simResult ? simResult.marginPrice : null;
                     const apiAllegroCommission = simResult ? simResult.apiAllegroCommission : null;
+                    const myIdAllegro = item.myIdAllegro; // Pobieramy z 'item', które jest 'selectedPriceChanges'
+                    // --- KONIEC UZUPEŁNIENIA ---
 
                     const name = prodDetail ? prodDetail.productName : item.productName || 'Brak nazwy';
                     const imageUrl = prodDetail ? prodDetail.imageUrl : "";
@@ -557,6 +559,10 @@
                         productId: productIdStr,
                         scrapId: globalLatestScrapId,
 
+                        // Dodane kluczowe dane
+                        myIdAllegro: myIdAllegro,
+                        marginPrice: marginPrice,
+
                         baseCurrentPrice: simResult ? simResult.baseCurrentPrice : null,
                         baseNewPrice: simResult ? simResult.baseNewPrice : null,
                         effectiveCurrentPrice: item.currentPrice,
@@ -610,13 +616,13 @@
             if (row.hasImage) {
                 const imgSrc = (row.imageUrl && row.imageUrl.trim() !== "") ? row.imageUrl : '/images/placeholder.png';
                 imageCell = `
-                    <td>
-                        <div class="price-info-item" style="padding:4px; text-align: center;"> <img
-                                data-src="${imgSrc}" alt="${row.productName}"
-                                class="lazy-load" style="width: 114px; height: 114px; object-fit: contain; background-color: #fff; border: 1px solid #e3e3e3; border-radius: 4px; padding: 5px; display: inline-block;"
-                                src="${imgSrc}" >
-                        </div>
-                    </td>`;
+                    <td>
+                        <div class="price-info-item" style="padding:4px; text-align: center;"> <img
+                                data-src="${imgSrc}" alt="${row.productName}"
+                                class="lazy-load" style="width: 114px; height: 114px; object-fit: contain; background-color: #fff; border: 1px solid #e3e3e3; border-radius: 4px; padding: 5px; display: inline-block;"
+                                src="${imgSrc}" >
+                        </div>
+                    </td>`;
             }
 
             let eanInfo = row.ean ? `<div class="price-info-item">EAN: ${row.ean}</div>` : "";
@@ -627,39 +633,44 @@
             const formattedDiff = formatPricePL(Math.abs(row.diff), false);
             const formattedDiffPercent = Math.abs(row.diffPercent).toFixed(2);
 
-            html += `<tr data-product-id="${row.productId}">
-                        ${imageCell}
-                        <td class="align-middle">
-                            <a
-                                href="/AllegroPriceHistory/Details?storeId=${storeId}&productId=${row.productId}"
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                class="simulationProductTitle"
-                                title="Zobacz szczegóły produktu"
-                                style="text-decoration: none; color: inherit;"
-                            >
-                                <div class="price-info-item" style="font-size:110%; margin-bottom:8px; font-weight: 500;">${row.productName}</div>
-                            </a>
-                            ${eanInfo}
-                            ${idInfo}
-                            ${producerCodeInfo}
-                        </td>
-                        <td class="align-middle">${row.currentBlock}</td>
-                        <td class="align-middle" style="font-size: 1em; white-space: nowrap;">
-                            <div>${row.arrow} ${formattedDiff} PLN</div>
-                            <div style="font-size: 0.9em; color: #555; margin-left:19px;">(${formattedDiffPercent}%)</div>
-                        </td>
-                        <td class="align-middle">${row.newBlock}</td>
-                        <td class="align-middle" style="white-space: normal; text-align: center;">${row.effectDetails}</td>
-                        <td class="align-middle text-center">
-                            <button class="remove-change-btn"
-                                data-product-id="${row.productId}"
-                                title="Usuń tę zmianę z symulacji"
-                                style="background: none; border: none; padding: 5px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer;">
-                                <i class="fa fa-trash" style="font-size: 19px; color: #555;"></i>
-                            </button>
-                        </td>
-                    </tr>`;
+            // ZMIANA 1: Dodano data-offer-id do wiersza TR
+            html += `<tr data-product-id="${row.productId}" data-offer-id="${row.myIdAllegro || ''}">
+                        ${imageCell}
+                        <td class="align-middle">
+                            <a
+                                href="/AllegroPriceHistory/Details?storeId=${storeId}&productId=${row.productId}"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                class="simulationProductTitle"
+                                title="Zobacz szczegóły produktu"
+                                style="text-decoration: none; color: inherit;"
+                            >
+                                <div class="price-info-item" style="font-size:110%; margin-bottom:8px; font-weight: 500;">${row.productName}</div>
+                            </a>
+                            ${eanInfo}
+                            ${idInfo}
+                            ${producerCodeInfo}
+                        </td>
+                        <td class="align-middle">${row.currentBlock}</td>
+                        <td class="align-middle" style="font-size: 1em; white-space: nowrap;">
+                            <div>${row.arrow} ${formattedDiff} PLN</div>
+                            <div style="font-size: 0.9em; color: #555; margin-left:19px;">(${formattedDiffPercent}%)</div>
+                        </td>
+                        <td class="align-middle">${row.newBlock}</td>
+
+                                                <td class="align-middle" id="confirm_${row.productId}" style="min-width: 200px;">
+                                                    </td>
+
+                        <td class="align-middle" style="white-space: normal; text-align: center;">${row.effectDetails}</td>
+                        <td class="align-middle text-center">
+                            <button class="remove-change-btn"
+                                data-product-id="${row.productId}"
+                                title="Usuń tę zmianę z symulacji"
+                                style="background: none; border: none; padding: 5px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer;">
+                                <i class="fa fa-trash" style="font-size: 19px; color: #555;"></i>
+                            </button>
+                        </td>
+                    </tr>`;
         });
 
         tbody.innerHTML = html;
@@ -699,27 +710,29 @@
                 return;
             }
 
-            if (!confirm(`Czy na pewno chcesz wgrać ${selectedPriceChanges.length} zmian cen bezpośrednio na Allegro? Ta operacja jest NIEODWRACALNA.`)) {
-                return;
-            }
-
-            showLoading();
-
             // Filtrujemy zmiany - bierzemy tylko te, które mają ID oferty Allegro
             const changesToUpload = selectedPriceChanges
                 .filter(c => c.myIdAllegro)
                 .map(c => ({
                     offerId: c.myIdAllegro.toString(),
-                    newPrice: parseFloat(c.newPrice).toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) // Wysyłamy sformatowaną cenę jako string
+                    // Używamy toFixed(), aby zapewnić format z kropką, a nie przecinkiem
+                    newPrice: parseFloat(c.newPrice).toFixed(2)
                 }));
 
             const changesWithoutId = selectedPriceChanges.length - changesToUpload.length;
 
             if (changesToUpload.length === 0) {
-                hideLoading();
                 alert("Żadna z wybranych zmian nie ma przypisanego ID oferty Allegro. Nie można wgrać zmian.");
                 return;
             }
+
+            if (!confirm(`Zostanie wgranych ${changesToUpload.length} zmian cen na Allegro.\n\n${changesWithoutId > 0 ? `Pominiętych zostanie ${changesWithoutId} zmian (brak ID oferty).\n` : ''}\nTa operacja jest NIEODWRACALNA. Kontynuować?`)) {
+                return;
+            }
+
+            showLoading();
+            executeButton.disabled = true;
+            executeButton.innerHTML = '<i class="fa-solid fa-spinner fa-spin" style="margin-right: 8px;"></i> Wgrywanie...';
 
             fetch(`/AllegroPriceHistory/ExecutePriceChange?storeId=${storeId}`, {
                 method: 'POST',
@@ -728,14 +741,16 @@
             })
                 .then(response => {
                     if (!response.ok) {
-                        throw new Error(`Błąd serwera: ${response.status}`);
+                        return response.text().then(text => { throw new Error(`Błąd serwera: ${response.status} - ${text}`); });
                     }
                     return response.json();
                 })
                 .then(result => {
                     hideLoading();
+                    executeButton.disabled = false;
+                    executeButton.innerHTML = '<i class="fa-solid fa-arrow-up-from-bracket" style="margin-right: 8px;"></i> Wgraj zmiany na Allegro';
 
-                    // Budujemy komunikat z podsumowaniem
+                    // --- Logika budowania wiadomości z podsumowaniem (bez zmian) ---
                     let message = `<p style="font-weight:bold; font-size:16px;">Operacja zakończona!</p>`;
                     message += `<p>Wysłano ${changesToUpload.length} ofert do aktualizacji.</p>`;
                     message += `<p style="color: #c8e6c9;">Pomyślnie zaktualizowano: ${result.successfulCount}</p>`;
@@ -753,33 +768,80 @@
                         message += `</ul>`;
                     }
 
-                    // Używamy globalnej funkcji powiadomień (jeśli istnieje)
                     if (typeof showGlobalUpdate === 'function') {
                         showGlobalUpdate(message);
                     } else {
                         alert(`Zakończono.\nSukcesy: ${result.successfulCount}\nBłędy: ${result.failedCount}\nPominięto: ${changesWithoutId}`);
                     }
 
-                    // Jeśli były jakiekolwiek sukcesy, aktualizujemy listę zmian
-                    if (result.successfulCount > 0) {
-                        const failedOfferIds = new Set(result.errors.map(e => e.offerId));
+                    // --- NOWA LOGIKA: Aktualizacja UI dla pomyślnych zmian ---
+                    if (result.successfulChangesDetails && result.successfulChangesDetails.length > 0) {
 
-                        // Zostawiamy tylko te, które się nie powiodły lub nie miały ID
-                        const remainingChanges = selectedPriceChanges.filter(c =>
-                            !c.myIdAllegro || failedOfferIds.has(c.myIdAllegro.toString())
+                        const successfulProductIds = new Set();
+
+                        result.successfulChangesDetails.forEach(detail => {
+                            // Znajdź dane wiersza na podstawie myIdAllegro (z DTO)
+                            const rowData = originalRowsData.find(r => r.myIdAllegro && r.myIdAllegro.toString() === detail.offerId);
+                            if (!rowData) {
+                                console.warn("Nie znaleziono rowData dla offerId:", detail.offerId);
+                                return;
+                            }
+
+                            successfulProductIds.add(rowData.productId);
+                            const cell = document.getElementById(`confirm_${rowData.productId}`);
+                            if (!cell) {
+                                console.warn("Nie znaleziono komórki confirm_ dla productId:", rowData.productId);
+                                return;
+                            }
+
+                            // Pobierz dane potrzebne do bloku potwierdzenia
+                            const confirmedPrice = detail.fetchedNewPrice;
+                            const confirmedCommission = detail.fetchedNewCommission;
+                            const marginPrice = rowData.marginPrice; // Z oryginalnych danych symulacji
+
+                            // Kopiujemy pozycję cenową z symulacji "Po zmianie"
+                            const newAllegroRanking = rowData.newAllegroRanking;
+                            const totalAllegroOffers = rowData.totalAllegroOffers;
+
+                            // Zbuduj blok HTML
+                            cell.innerHTML = buildPriceBlock(
+                                confirmedPrice,
+                                marginPrice,
+                                confirmedCommission,
+                                newAllegroRanking,
+                                totalAllegroOffers,
+                                true // Oznacz jako blok "potwierdzony"
+                            );
+
+                            // Zablokuj przycisk usuwania dla tego wiersza
+                            const rowElement = document.querySelector(`tr[data-product-id="${rowData.productId}"]`);
+                            if (rowElement) {
+                                const removeBtn = rowElement.querySelector('.remove-change-btn');
+                                if (removeBtn) {
+                                    removeBtn.disabled = true;
+                                    removeBtn.style.opacity = 0.3;
+                                    removeBtn.style.cursor = 'not-allowed';
+                                    removeBtn.title = 'Zmiana została wgrana na Allegro.';
+                                }
+                            }
+                        });
+
+                        // --- Aktualizacja list danych ---
+                        // Usuń pomyślnie wgrane elementy z selectedPriceChanges
+                        selectedPriceChanges = selectedPriceChanges.filter(c =>
+                            !successfulProductIds.has(c.productId)
                         );
 
-                        selectedPriceChanges = remainingChanges;
-                        savePriceChanges(); // Zapisz zaktualizowaną listę w LocalStorage
-                        updatePriceChangeSummary(); // Zaktualizuj licznik na głównym widoku
+                        // Usuwamy pomyślne zmiany również z originalRowsData, aby nie można było ich
+                        // ponownie wysłać (chociaż przycisk jest zablokowany, to dla czystości danych)
+                        // Pozostawiamy jednak wiersze w DOM - NIE wywołujemy renderRows()
+                        originalRowsData = originalRowsData.filter(row =>
+                            !successfulProductIds.has(row.productId)
+                        );
 
-                        // Odśwież tabelę w modalu
-                        if (originalRowsData.length > 0) {
-                            originalRowsData = originalRowsData.filter(row =>
-                                !row.myIdAllegro || failedOfferIds.has(row.myIdAllegro.toString())
-                            );
-                            renderRows(originalRowsData); // Przerenderuj tabelę tylko z pozostałymi
-                        }
+                        // Zapisz pozostałe zmiany
+                        savePriceChanges();
+                        updatePriceChangeSummary();
 
                         // Odśwież boxy na stronie głównej
                         if (typeof window.refreshPriceBoxStates === 'function') {
@@ -787,22 +849,28 @@
                         }
                     }
 
-                    // Jeśli nie ma już nic na liście, zamknij modal
-                    if (selectedPriceChanges.length === 0) {
-                        $('#simulationModal').modal('hide');
-                    }
+                    // Nie zamykamy modala automatycznie, aby użytkownik widział wyniki.
+                    // Użytkownik może go zamknąć ręcznie lub przez "Usuń wszystkie zmiany" (co czyści też błędy)
+                    // if (selectedPriceChanges.length === 0) { ... }
                 })
                 .catch(err => {
                     hideLoading();
+                    executeButton.disabled = false;
+                    executeButton.innerHTML = '<i class="fa-solid fa-arrow-up-from-bracket" style="margin-right: 8px;"></i> Wgraj zmiany na Allegro';
+
                     console.error("Błąd fetch ExecutePriceChange:", err);
+                    let errorMsg = `<p style='font-weight:bold;'>Błąd krytyczny</p><p>${err.message}</p>`;
                     if (typeof showGlobalNotification === 'function') {
-                        showGlobalNotification("<p style='font-weight:bold;'>Błąd sieciowy</p><p>Nie udało się połączyć z serwerem w celu aktualizacji cen.</p>");
+                        showGlobalNotification(errorMsg);
                     } else {
-                        alert("Błąd sieciowy. Nie udało się wgrać zmian.");
+                        alert("Błąd krytyczny. Nie udało się wgrać zmian.\n" + err.message);
                     }
                 });
         });
     }
+
+
+    
 
     const bestScoreBtn = document.getElementById("bestScoreButton");
     if (bestScoreBtn) {

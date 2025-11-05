@@ -1,6 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using PriceSafari.Controllers.MemberControllers; // Dla DTO
+using PriceSafari.Controllers.MemberControllers;
 using PriceSafari.Data;
 using PriceSafari.Models;
 using System.Collections.Generic;
@@ -15,7 +15,7 @@ using System.Threading.Tasks;
 
 namespace PriceSafari.Services.AllegroServices
 {
-    // Wykorzystujemy DTO zdefiniowane w kontrolerze
+
     using static PriceSafari.Controllers.MemberControllers.AllegroPriceHistoryController;
 
     public class AllegroPriceBridgeService
@@ -30,9 +30,6 @@ namespace PriceSafari.Services.AllegroServices
             _logger = logger;
         }
 
-        /// <summary>
-        /// Wykonuje wsadową aktualizację cen ofert na Allegro.
-        /// </summary>
         public async Task<PriceBridgeResult> ExecutePriceChangesAsync(int storeId, List<OfferPriceChangeRequest> changes)
         {
             var result = new PriceBridgeResult();
@@ -74,29 +71,82 @@ namespace PriceSafari.Services.AllegroServices
 
                 if (success)
                 {
+
                     result.SuccessfulCount++;
+
+                    await Task.Delay(5000);
+
+                    decimal? fetchedNewPrice = null;
+                    decimal? fetchedNewCommission = null;
+
+                    try
+                    {
+
+                        var offerDataNode = await GetOfferData(accessToken, change.OfferId);
+
+                        if (offerDataNode != null)
+                        {
+                            var newPriceString = offerDataNode["sellingMode"]?["price"]?["amount"]?.ToString();
+                            if (decimal.TryParse(newPriceString, CultureInfo.InvariantCulture, out var price) && price > 0)
+                            {
+                                fetchedNewPrice = price;
+                            }
+
+                            fetchedNewCommission = await GetOfferCommission(accessToken, offerDataNode);
+                        }
+                        else
+                        {
+                            _logger.LogWarning("Wgrano zmianę dla {OfferId}, ale weryfikacja danych (GetOfferData) nie powiodła się.", change.OfferId);
+                        }
+                    }
+                    catch (AllegroAuthException authEx)
+                    {
+
+                        _logger.LogError(authEx, "Błąd autoryzacji podczas weryfikacji zmiany ceny dla oferty {OfferId}", change.OfferId);
+                        errorMessage = authEx.Message;
+
+                        result.SuccessfulCount--;
+                        result.FailedCount++;
+                        result.Errors.Add(new PriceBridgeError { OfferId = change.OfferId, Message = $"Wgrano, ale weryfikacja nieudana: {errorMessage}" });
+
+                        store.IsAllegroTokenActive = false;
+                        await _context.SaveChangesAsync();
+                        break;
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Błąd podczas weryfikacji zmiany ceny dla oferty {OfferId}", change.OfferId);
+
+                        result.Errors.Add(new PriceBridgeError { OfferId = change.OfferId, Message = $"Wgrano, ale weryfikacja nieudana: {ex.Message}" });
+                    }
+
+                    result.SuccessfulChangesDetails.Add(new PriceBridgeSuccessDetail
+                    {
+                        OfferId = change.OfferId,
+                        FetchedNewPrice = fetchedNewPrice,
+                        FetchedNewCommission = fetchedNewCommission
+                    });
                 }
                 else
                 {
+
                     result.FailedCount++;
                     result.Errors.Add(new PriceBridgeError { OfferId = change.OfferId, Message = errorMessage });
 
-                    // Jeśli błąd to 401, token prawdopodobnie wygasł. Przerywamy dalsze próby.
                     if (errorMessage.Contains("401") || errorMessage.Contains("Unauthorized"))
                     {
                         _logger.LogWarning("Token API dla sklepu {StoreId} wygasł lub jest nieprawidłowy. Przerywam wgrywanie cen.", storeId);
-                        // Oznacz token jako nieaktywny
+
                         store.IsAllegroTokenActive = false;
                         await _context.SaveChangesAsync();
 
-                        // Dodaj błąd dla reszty ofert
                         int remainingChanges = changes.Count - result.SuccessfulCount - result.FailedCount;
                         if (remainingChanges > 0)
                         {
                             result.FailedCount += remainingChanges;
                             result.Errors.Add(new PriceBridgeError { OfferId = "Pozostałe", Message = "Token API wygasł. Przerwano." });
                         }
-                        break; // Przerwij pętlę
+                        break;
                     }
                 }
             }
@@ -104,15 +154,11 @@ namespace PriceSafari.Services.AllegroServices
             return result;
         }
 
-        /// <summary>
-        /// Wysyła żądanie PATCH do API Allegro w celu aktualizacji ceny jednej oferty.
-        /// </summary>
         private async Task<(bool Success, string ErrorMessage)> SetNewOfferPriceAsync(string accessToken, string offerId, string newPrice)
         {
             var apiUrl = $"https://api.allegro.pl/sale/product-offers/{offerId}";
 
-            // Upewnij się, że cena ma format z kropką jako separatorem
-            var formattedPrice = decimal.Parse(newPrice, new CultureInfo("pl-PL")).ToString(CultureInfo.InvariantCulture);
+            var formattedPrice = decimal.Parse(newPrice, CultureInfo.InvariantCulture).ToString(CultureInfo.InvariantCulture);
 
             var payload = new
             {
@@ -149,7 +195,6 @@ namespace PriceSafari.Services.AllegroServices
                 var errorContent = await response.Content.ReadAsStringAsync();
                 _logger.LogWarning("Błąd API Allegro podczas zmiany ceny oferty {OfferId}. Status: {StatusCode}. Odpowiedź: {ErrorContent}", offerId, response.StatusCode, errorContent);
 
-                // Próba wyciągnięcia czytelniejszego błędu z JSON
                 try
                 {
                     var errorNode = JsonNode.Parse(errorContent);
@@ -159,7 +204,7 @@ namespace PriceSafari.Services.AllegroServices
                         return (false, errors[0]?["message"]?.ToString() ?? errorContent);
                     }
                 }
-                catch { /* Ignoruj błąd parsowania JSON błędu */ }
+                catch { }
 
                 return (false, $"Błąd API ({response.StatusCode}). {errorContent}");
             }
@@ -168,6 +213,56 @@ namespace PriceSafari.Services.AllegroServices
                 _logger.LogError(ex, "Krytyczny błąd podczas wysyłania zmiany ceny dla oferty {OfferId}", offerId);
                 return (false, $"Wyjątek aplikacji: {ex.Message}");
             }
+        }
+
+        private async Task<JsonNode?> GetOfferData(string accessToken, string offerId)
+        {
+            var request = new HttpRequestMessage(HttpMethod.Get, $"https://api.allegro.pl/sale/product-offers/{offerId}");
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+            request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.allegro.public.v1+json"));
+
+            var response = await _httpClient.SendAsync(request);
+
+            if (response.StatusCode == HttpStatusCode.Unauthorized)
+            {
+                throw new AllegroAuthException($"Błąd autoryzacji (401) podczas pobierania oferty {offerId} (weryfikacja). Token jest prawdopodobnie nieważny.");
+            }
+
+            if (!response.IsSuccessStatusCode)
+            {
+                _logger.LogWarning("Nie udało się pobrać danych oferty {OfferId} (weryfikacja). Status: {StatusCode}. Odpowiedź: {Response}", offerId, response.StatusCode, await response.Content.ReadAsStringAsync());
+                return null;
+            }
+            return JsonNode.Parse(await response.Content.ReadAsStringAsync());
+        }
+
+        private async Task<decimal?> GetOfferCommission(string accessToken, JsonNode offerData)
+        {
+            var payload = new { offer = offerData };
+            var content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/vnd.allegro.public.v1+json");
+            var request = new HttpRequestMessage(HttpMethod.Post, "https://api.allegro.pl/pricing/offer-fee-preview") { Content = content };
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+
+            var response = await _httpClient.SendAsync(request);
+            if (!response.IsSuccessStatusCode)
+            {
+                _logger.LogWarning("Nie udało się pobrać prowizji (weryfikacja). Status: {StatusCode}. Odpowiedź: {Response}", response.StatusCode, await response.Content.ReadAsStringAsync());
+                return null;
+            }
+
+            var feeNode = JsonNode.Parse(await response.Content.ReadAsStringAsync());
+            var feeAmountString = feeNode?["commissions"]?[0]?["fee"]?["amount"]?.ToString();
+
+            if (decimal.TryParse(feeAmountString, CultureInfo.InvariantCulture, out var feeDecimal))
+            {
+                return feeDecimal;
+            }
+            return null;
+        }
+
+        public class AllegroAuthException : Exception
+        {
+            public AllegroAuthException(string message) : base(message) { }
         }
     }
 }

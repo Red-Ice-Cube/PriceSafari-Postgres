@@ -812,12 +812,25 @@ namespace PriceSafari.Controllers.MemberControllers
             public string Message { get; set; }
         }
 
+        // DTO dla pomyślnej, zweryfikowanej zmiany
+        public class PriceBridgeSuccessDetail
+        {
+            public string OfferId { get; set; }
+            public decimal? FetchedNewPrice { get; set; }
+            public decimal? FetchedNewCommission { get; set; }
+        }
+
         public class PriceBridgeResult
         {
             public int SuccessfulCount { get; set; } = 0;
             public int FailedCount { get; set; } = 0;
             public List<PriceBridgeError> Errors { get; set; } = new List<PriceBridgeError>();
+
+            // Nowa lista przechowująca zweryfikowane dane
+            public List<PriceBridgeSuccessDetail> SuccessfulChangesDetails { get; set; } = new List<PriceBridgeSuccessDetail>();
         }
+
+
         public class AllegroTrendDataViewModel
         {
             public string ProductName { get; set; }
