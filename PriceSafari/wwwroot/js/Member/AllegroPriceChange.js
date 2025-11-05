@@ -109,9 +109,10 @@
         }
         var simulateButton = document.getElementById("simulateButton");
         if (simulateButton) {
-            simulateButton.disabled = (totalCount === 0);
-            simulateButton.style.opacity = (totalCount === 0 ? '0.5' : '1');
-            simulateButton.style.cursor = (totalCount === 0 ? 'not-allowed' : 'pointer');
+            
+            simulateButton.disabled = false;
+            simulateButton.style.opacity = '1';
+            simulateButton.style.cursor = 'pointer';
         }
 
         const simCounter = document.getElementById('simulationTabCounter');
@@ -502,11 +503,22 @@
 
     function openSimulationModal() {
 
+        // 1. Zresetuj stan zakładek i flagę
         historyLoaded = false;
         document.getElementById('simulationModalBody').style.display = 'block';
         document.getElementById('historyModalBody').style.display = 'none';
-        document.getElementById('showSimulationTab').classList.add('active');
-        document.getElementById('showHistoryTab').classList.remove('active');
+
+        // NOWA LOGIKA - Użyj nowych ID i klas
+        const cartTab = document.getElementById('showPriceChangeCart');
+        const historyTab = document.getElementById('showPriceChangeHistory');
+        if (cartTab && historyTab) {
+            cartTab.classList.add('button-active');
+            cartTab.classList.remove('button-inactive');
+            historyTab.classList.add('button-inactive');
+            historyTab.classList.remove('button-active');
+        }
+
+
         document.getElementById('historyModalBody').innerHTML = '<p style="text-align: center; padding: 20px;">Ładowanie historii...</p>';
 
         updatePriceChangeSummary();
@@ -757,24 +769,31 @@
         clearChangesButton.addEventListener("click", clearPriceChanges);
     }
 
-    const showSimulationTab = document.getElementById('showSimulationTab');
-    const showHistoryTab = document.getElementById('showHistoryTab');
+    // --- NOWA LOGIKA PRZEŁĄCZANIA ZAKŁADEK ---
+    const showCartTab = document.getElementById('showPriceChangeCart'); // <-- Nowe ID
+    const showHistoryTab = document.getElementById('showPriceChangeHistory'); // <-- Nowe ID
     const simulationModalBody = document.getElementById('simulationModalBody');
     const historyModalBody = document.getElementById('historyModalBody');
 
-    if (showSimulationTab && showHistoryTab && simulationModalBody && historyModalBody) {
-        showSimulationTab.addEventListener('click', function () {
+    if (showCartTab && showHistoryTab && simulationModalBody && historyModalBody) {
+        showCartTab.addEventListener('click', function () {
             simulationModalBody.style.display = 'block';
             historyModalBody.style.display = 'none';
-            showSimulationTab.classList.add('active');
-            showHistoryTab.classList.remove('active');
+            // Nowe klasy
+            showCartTab.classList.add('button-active');
+            showCartTab.classList.remove('button-inactive');
+            showHistoryTab.classList.add('button-inactive');
+            showHistoryTab.classList.remove('button-active');
         });
 
         showHistoryTab.addEventListener('click', function () {
             simulationModalBody.style.display = 'none';
             historyModalBody.style.display = 'block';
-            showSimulationTab.classList.remove('active');
-            showHistoryTab.classList.add('active');
+            // Nowe klasy
+            showCartTab.classList.add('button-inactive');
+            showCartTab.classList.remove('button-active');
+            showHistoryTab.classList.add('button-active');
+            showHistoryTab.classList.remove('button-inactive');
 
             fetchAndRenderHistory();
         });
