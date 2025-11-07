@@ -131,6 +131,34 @@
         };
     }
 
+    const allegroSortingStorageKey = `allegroSortingState_${storeId}`;
+    const allegroCatalogStorageKey = `allegroCatalogViewState_${storeId}`;
+
+    function restoreAllegroState() {
+
+        const storedCatalogState = localStorage.getItem(allegroCatalogStorageKey);
+        if (storedCatalogState !== null) {
+            isCatalogViewActive = JSON.parse(storedCatalogState);
+            const catalogBtn = document.getElementById('linkOffers');
+            if (catalogBtn && isCatalogViewActive) {
+                catalogBtn.classList.add('active');
+            }
+        }
+
+        const storedSortingState = localStorage.getItem(allegroSortingStorageKey);
+        if (storedSortingState) {
+            try {
+                const parsedState = JSON.parse(storedSortingState);
+
+                Object.assign(sortingState, parsedState);
+                updateSortButtonVisuals();
+            } catch (e) {
+                console.error("Błąd odczytu stanu sortowania Allegro z LS:", e);
+                localStorage.removeItem(allegroSortingStorageKey);
+            }
+        }
+    }
+
     function updateUnits(isUsingPriceDifference) {
         const unit = isUsingPriceDifference ? 'PLN' : '%';
         document.getElementById('unitLabel1').textContent = unit;
@@ -2178,6 +2206,9 @@
         document.getElementById('linkOffers').addEventListener('click', function () {
             isCatalogViewActive = !isCatalogViewActive;
             this.classList.toggle('active', isCatalogViewActive);
+
+            localStorage.setItem(allegroCatalogStorageKey, JSON.stringify(isCatalogViewActive));
+
             filterAndSortPrices();
         });
 
@@ -2207,7 +2238,11 @@
                     } else {
                         sortingState[key] = 'asc';
                     }
+
                     updateSortButtonVisuals();
+
+                    localStorage.setItem(allegroSortingStorageKey, JSON.stringify(sortingState));
+
                     filterAndSortPrices();
                 });
             }
@@ -2493,6 +2528,7 @@
     }
 
     setupEventListeners();
+    restoreAllegroState();
     loadPrices();
     updateSelectionUI();
 });
