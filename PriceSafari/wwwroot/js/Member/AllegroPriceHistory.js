@@ -1937,7 +1937,6 @@
     }
 
     window.refreshPriceBoxStates = refreshPriceBoxStates;
-
     function applyMassChange(changeType) {
         const productsToChange = currentlyFilteredPrices;
         if (!productsToChange || productsToChange.length === 0) {
@@ -1946,6 +1945,7 @@
         }
 
         let countAdded = 0;
+        let countSkipped = 0;
         let countRejected = 0;
         let rejectionReasons = {};
 
@@ -1955,9 +1955,15 @@
 
         productsToChange.forEach(item => {
 
+            if (item.committed) {
+                countRejected++;
+                rejectionReasons['Oferta już zaktualizowana (zatwierdzona)'] = (rejectionReasons['Oferta już zaktualizowana (zatwierdzona)'] || 0) + 1;
+                return;
+            }
+
             const isAlreadyChanged = selectedPriceChanges.some(c => String(c.productId) === String(item.productId));
             if (isAlreadyChanged) {
-                countAdded++;
+                countSkipped++;
                 return;
             }
 
@@ -1988,7 +1994,6 @@
                 countRejected++;
                 rejectionReasons['Brak sugestii (solo/brak oferty/cena optymalna)'] = (rejectionReasons['Brak sugestii (solo/brak oferty/cena optymalna)'] || 0) + 1;
                 return;
-
             }
 
             const suggestedPrice = suggestionData.suggestedPrice;
@@ -2039,7 +2044,6 @@
 
                 if (allegroMarginSettings.enforceMinimalMargin && minMarginPerc >= 0) {
                     if (newMarginPercentage < minMarginPerc) {
-
                         if (!(oldMarginPercentage < minMarginPerc && newMarginPercentage > oldMarginPercentage)) {
                             countRejected++;
                             rejectionReasons['Zbyt niski narzut'] = (rejectionReasons['Zbyt niski narzut'] || 0) + 1;
@@ -2048,7 +2052,6 @@
                     }
                 } else if (allegroMarginSettings.enforceMinimalMargin && minMarginPerc < 0) {
                     if (newMarginPercentage < minMarginPerc) {
-
                         if (!(oldMarginPercentage < minMarginPerc && newMarginPercentage > oldMarginPercentage)) {
                             countRejected++;
                             rejectionReasons['Przekroczona strata'] = (rejectionReasons['Przekroczona strata'] || 0) + 1;
@@ -2078,8 +2081,14 @@
 
         let summaryHtml = `<p style="margin-bottom:8px; font-size:16px; font-weight:bold;">Masowa zmiana zakończona!</p>
                              <p>Przeanalizowano: <strong>${productsToChange.length}</strong> SKU</p>
-                             <p>Dodano/Zaktualizowano: <strong>${countAdded}</strong> SKU</p>
-                             <p>Odrzucono: <strong>${countRejected}</strong> SKU</p>`;
+                             <p>Dodano nowych zmian: <strong>${countAdded}</strong> SKU</p>`;
+
+        if (countSkipped > 0) {
+            summaryHtml += `<p>Pominięto (już w koszyku): <strong>${countSkipped}</strong> SKU</p>`;
+        }
+
+        summaryHtml += `<p>Odrzucono: <strong>${countRejected}</strong> SKU</p>`;
+
         if (countRejected > 0) {
             summaryHtml += `<p style="font-size:12px; margin-top:8px; border-top:1px solid #ccc; padding-top:5px;"><u>Powody odrzucenia:</u><br/>`;
             for (const [reason, count] of Object.entries(rejectionReasons)) {
