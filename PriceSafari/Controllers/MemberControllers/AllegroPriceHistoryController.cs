@@ -94,6 +94,17 @@ namespace PriceSafari.Controllers.MemberControllers
                 return Json(new { myStoreName = store?.StoreNameAllegro, prices = new List<object>() });
             }
 
+            var committedChanges = await _context.AllegroPriceBridgeItems
+                .Include(i => i.PriceBridgeBatch)
+                .Where(i => i.PriceBridgeBatch.StoreId == storeId.Value && i.PriceBridgeBatch.AllegroScrapeHistoryId == latestScrap.Id && i.Success)
+                .ToListAsync();
+
+          
+            var committedLookup = committedChanges
+                .GroupBy(i => i.AllegroProductId)
+                .ToDictionary(g => g.Key, g => g.OrderByDescending(i => i.PriceBridgeBatch.ExecutionDate).First());
+           
+
             var activePreset = await _context.CompetitorPresets
                 .Include(p => p.CompetitorItems)
                 .FirstOrDefaultAsync(p => p.StoreId == storeId.Value && p.NowInUse && p.Type == PresetType.Marketplace);
@@ -207,7 +218,7 @@ namespace PriceSafari.Controllers.MemberControllers
                     }
 
                     var extendedInfo = extendedInfoDictionary.GetValueOrDefault(product.AllegroProductId);
-
+                    var committed = committedLookup.GetValueOrDefault(product.AllegroProductId);
                     return new
                     {
                         ProductId = product.AllegroProductId,
@@ -261,7 +272,16 @@ namespace PriceSafari.Controllers.MemberControllers
                         ApiAllegroPrice = extendedInfo?.ApiAllegroPrice,
                         ApiAllegroPriceFromUser = extendedInfo?.ApiAllegroPriceFromUser,
                         ApiAllegroCommission = extendedInfo?.ApiAllegroCommission,
-                        AnyPromoActive = extendedInfo?.AnyPromoActive
+                        AnyPromoActive = extendedInfo?.AnyPromoActive,
+                        Committed = committed == null ? null : new
+                        {
+                            // Preferujemy cenę zweryfikowaną, jeśli jest dostępna, w przeciwnym razie symulowaną
+                            NewPrice = committed.PriceAfter_Verified ?? committed.PriceAfter_Simulated,
+                            // Nowa prowizja (jeśli dostępna)
+                            NewCommission = committed.CommissionAfter_Verified ?? (committed.IncludeCommissionInMargin ? (decimal?)null : null), // Możesz tu dodać logikę symulacji prowizji jeśli chcesz
+                                                                                                                                                 // Nowa pozycja (ranking)
+                            NewPosition = committed.RankingAfter_Simulated
+                        }
                     };
                 }).ToList();
 
