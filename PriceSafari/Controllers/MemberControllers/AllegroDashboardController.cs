@@ -3,111 +3,80 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using PriceSafari.Data;
-using PriceSafari.Models.ViewModels;
 using PriceSafari.SignalIR;
 using System.Security.Claims;
 
 namespace PriceSafari.Controllers.MemberControllers
 {
-    [Authorize(Roles = "Admin, Member")]
-    public class DashboardController : Controller
+    [Authorize(Roles = "Admin, Manager, Member")]
+    public class AllegroDashboardController : Controller
     {
         private readonly PriceSafariContext _context;
         private readonly IHubContext<DashboardProgressHub> _hub;
-        public DashboardController(PriceSafariContext ctx,
-                                   IHubContext<DashboardProgressHub> hub)
+
+        public AllegroDashboardController(PriceSafariContext ctx, IHubContext<DashboardProgressHub> hub)
         {
             _context = ctx;
             _hub = hub;
         }
 
-
-        [HttpGet]
-        public async Task<IActionResult> Index()
+        public async Task<IActionResult> Dashboard(int storeId)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
-            var userStores = await _context.UserStores
-                .Where(us => us.UserId == userId)
-                // Dołączamy historię dla standardowego dashboardu (Ceneo/Google)
-                .Include(us => us.StoreClass)
-                    .ThenInclude(s => s.ScrapHistories)
-                // Dołączamy historię dla dashboardu Allegro
-                .Include(us => us.StoreClass)
-                    .ThenInclude(s => s.AllegroScrapeHistories)
-                .ToListAsync();
+            var hasAccess = await _context.UserStores.AnyAsync(us => us.UserId == userId && us.StoreId == storeId)
+                            || User.IsInRole("Admin") || User.IsInRole("Manager");
 
-            var stores = userStores.Select(us => us.StoreClass).ToList();
+            if (!hasAccess) return Forbid();
 
-            var storeDetails = stores.Select(store => new ChanelViewModel
-            {
-                StoreId = store.StoreId,
-                StoreName = store.StoreName,
-                LogoUrl = store.StoreLogoUrl,
-
-                // Ostatnia data dla Ceneo/Google
-                LastScrapeDate = store.ScrapHistories.OrderByDescending(sh => sh.Date).FirstOrDefault()?.Date,
-                // Ostatnia data dla Allegro (zakładam, że dodałeś to pole do ChanelViewModel, jeśli nie - warto to zrobić)
-                AllegroLastScrapeDate = store.AllegroScrapeHistories.OrderByDescending(ash => ash.Date).FirstOrDefault()?.Date,
-
-                OnCeneo = store.OnCeneo,
-                OnGoogle = store.OnGoogle,
-                OnAllegro = store.OnAllegro
-            }).ToList();
-
-            return View("~/Views/Panel/Dashboard/Index.cshtml", storeDetails);
-        }
-
-        public async Task<IActionResult> Dashboard(int storeId)
-        {
             var store = await _context.Stores.FindAsync(storeId);
             if (store is null) return NotFound();
 
             ViewBag.StoreId = storeId;
             ViewBag.StoreName = store.StoreName;
-            return View("~/Views/Panel/Dashboard/Dashboard.cshtml");
-        }
 
+            ViewBag.AllegroSellerName = store.StoreNameAllegro;
+
+            return View("~/Views/Panel/AllegroDashboard/Dashboard.cshtml");
+        }
 
         [HttpGet]
         public async Task<IActionResult> GetDashboardData(
                 int storeId,
                 int scraps = 7,
-                string connectionId = null)        
+                string connectionId = null)
         {
-
             int step = 0;
-         
-            int totalSteps = scraps + 5;   
-                                          
+            int totalSteps = scraps + 5;
 
             async Task Progress(string msg)
             {
                 if (string.IsNullOrEmpty(connectionId)) return;
-
                 step++;
                 int pct = step * 100 / totalSteps;
-                if (pct > 100) pct = 100;         
-
-                await _hub.Clients.Client(connectionId)
-                          .SendAsync("ReceiveProgress", msg, pct);
+                if (pct > 100) pct = 100;
+                await _hub.Clients.Client(connectionId).SendAsync("ReceiveProgress", msg, pct);
             }
 
+            await Progress("Pobieram dane sklepu Allegro...");
 
+            var storeInfo = await _context.Stores
+                .Where(s => s.StoreId == storeId)
+                .Select(s => new { s.StoreNameAllegro })
+                .FirstOrDefaultAsync();
 
-            await Progress("Pobieram dane sklepu…");
+            if (storeInfo is null || string.IsNullOrEmpty(storeInfo.StoreNameAllegro))
+            {
+                return BadRequest("Sklep nie ma skonfigurowanej nazwy sprzedawcy Allegro.");
+            }
 
-            var store = await _context.Stores
-                                      .Where(s => s.StoreId == storeId)
-                                      .Select(s => new { s.StoreName })
-                                      .FirstOrDefaultAsync();
-            if (store is null) return NotFound();
-            string storeNameLower = store.StoreName.ToLower();
+            string mySellerName = storeInfo.StoreNameAllegro;
 
-            await Progress($"Pobieram {scraps + 1} scrapów…");
+            await Progress($"Pobieram {scraps + 1} ostatnich analiz Allegro...");
 
             int take = scraps + 1;
-            var allScraps = await _context.ScrapHistories
+
+            var allScraps = await _context.AllegroScrapeHistories
                 .Where(sh => sh.StoreId == storeId)
                 .OrderByDescending(sh => sh.Date)
                 .Take(take)
@@ -117,34 +86,33 @@ namespace PriceSafari.Controllers.MemberControllers
             allScraps = allScraps.OrderBy(s => s.Date).ToList();
             var displayScraps = allScraps.Skip(1).ToList();
 
-           
             var priceRows = new List<PriceRow>();
+
             for (int i = 0; i < allScraps.Count; i++)
             {
                 var s = allScraps[i];
 
-                var rows = await _context.PriceHistories
+                var rows = await _context.AllegroPriceHistories
                     .AsNoTracking()
-                    .Where(ph => ph.ScrapHistoryId == s.Id
-                              && ph.StoreName.ToLower() == storeNameLower)
+                    .Where(ph => ph.AllegroScrapeHistoryId == s.Id
+                              && ph.SellerName == mySellerName)
                     .Select(ph => new PriceRow
                     {
-                        ProductId = ph.ProductId,
-                        ProductName = ph.Product.ProductName,
-                        ProductImage = ph.Product.MainUrl,
+                        ProductId = ph.AllegroProductId,
+                        ProductName = ph.AllegroProduct.AllegroProductName,
+
+                        ProductImage = "",
                         OldPrice = ph.Price,
-                        ScrapId = ph.ScrapHistoryId,
+                        ScrapId = ph.AllegroScrapeHistoryId,
                         Date = s.Date.Date
                     })
                     .ToListAsync();
 
                 priceRows.AddRange(rows);
-
-                await Progress($"Analizuję scrap {i + 1}/{allScraps.Count}…");
+                await Progress($"Analizuję Allegro scrap {i + 1}/{allScraps.Count}...");
             }
 
-            
-            await Progress("Agreguję wyniki…");
+            await Progress("Agreguję wyniki Allegro...");
 
             var buckets = displayScraps
                 .Select(s => s.Date.Date)
@@ -159,6 +127,7 @@ namespace PriceSafari.Controllers.MemberControllers
                     .Select(g => new
                     {
                         Date = g.Key,
+
                         Prices = g.Select(x => x.OldPrice).Distinct().OrderBy(p => p).ToList(),
                         ProductName = g.First().ProductName,
                         ProductImage = g.First().ProductImage,
@@ -168,9 +137,9 @@ namespace PriceSafari.Controllers.MemberControllers
                 decimal? prev = null;
                 foreach (var day in byDay)
                 {
-                    if (day.Prices.Count != 1) { prev = null; continue; }
 
                     var now = day.Prices.First();
+
                     if (prev.HasValue && now != prev.Value && buckets.ContainsKey(day.Date))
                     {
                         var det = new PriceChangeDetail
@@ -184,6 +153,7 @@ namespace PriceSafari.Controllers.MemberControllers
                             PriceDifference = now - prev.Value,
                             ScrapId = day.ScrapId
                         };
+
                         if (det.PriceDifference > 0)
                             buckets[day.Date].RaisedDetails.Add(det);
                         else
@@ -193,8 +163,7 @@ namespace PriceSafari.Controllers.MemberControllers
                 }
             }
 
-         
-            await Progress("Finalizuję odpowiedź…");
+            await Progress("Finalizuję odpowiedź...");
 
             var result = buckets.Values
                 .OrderBy(b => b.Date)
@@ -211,12 +180,11 @@ namespace PriceSafari.Controllers.MemberControllers
             return Json(result);
         }
 
-
         private sealed class PriceRow
         {
             public int ProductId { get; set; }
             public string ProductName { get; set; }
-            public string ProductImage { get; set; }  
+            public string ProductImage { get; set; }
             public decimal OldPrice { get; set; }
             public int ScrapId { get; set; }
             public DateTime Date { get; set; }
@@ -227,7 +195,7 @@ namespace PriceSafari.Controllers.MemberControllers
             public DateTime Date { get; set; }
             public int ProductId { get; set; }
             public string ProductName { get; set; }
-            public string ProductImage { get; set; }  
+            public string ProductImage { get; set; }
             public decimal OldPrice { get; set; }
             public decimal NewPrice { get; set; }
             public decimal PriceDifference { get; set; }
@@ -241,10 +209,5 @@ namespace PriceSafari.Controllers.MemberControllers
             public List<PriceChangeDetail> RaisedDetails { get; } = new();
             public List<PriceChangeDetail> LoweredDetails { get; } = new();
         }
-
     }
 }
-
-
-
-
