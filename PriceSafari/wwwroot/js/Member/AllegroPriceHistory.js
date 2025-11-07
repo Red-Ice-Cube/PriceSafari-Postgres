@@ -26,6 +26,7 @@
     let selectedFlagsInclude = new Set();
     let selectedFlagsExclude = new Set();
     let selectedMyBadges = new Set();
+    let showCommittedOnly = false;
 
     const selectionStorageKey = `selectedAllegroProducts_${storeId}`;
 
@@ -375,6 +376,16 @@
         if (superPriceLabel) superPriceLabel.textContent = `Super cena (${superPriceCount})`;
         if (bestPriceLabel) bestPriceLabel.textContent = `Gwarancja najniższej ceny (${bestPriceCount})`;
         if (campaignLabel) campaignLabel.textContent = `W kampanii Allegro (${campaignCount})`;
+    }
+    function updateStatusCounts(prices) {
+        let committedCount = 0;
+        prices.forEach(price => {
+            if (price.committed) committedCount++;
+        });
+        const label = document.querySelector('label[for="committedChangesFilter"]');
+        if (label) {
+            label.textContent = `Wprowadzone zmiany cen (${committedCount})`;
+        }
     }
 
     function hexToRgba(hex, alpha) {
@@ -1734,6 +1745,9 @@
                     return false;
                 });
             }
+            if (showCommittedOnly) {
+                filtered = filtered.filter(item => item.committed);
+            }
 
             for (const [key, direction] of Object.entries(sortingState)) {
                 if (direction) {
@@ -1811,6 +1825,7 @@
             updateColorCounts(filtered);
             updateFlagCounts(filtered);
             updateBadgeCounts(filtered);
+            updateStatusCounts(filtered);
             hideLoading();
         }, 10);
     }
@@ -2153,6 +2168,11 @@
                 }
                 filterAndSortPrices();
             });
+        });
+
+        document.getElementById('committedChangesFilter').addEventListener('change', function () {
+            showCommittedOnly = this.checked;
+            filterAndSortPrices();
         });
 
         document.getElementById('linkOffers').addEventListener('click', function () {
