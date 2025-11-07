@@ -210,12 +210,18 @@
 
     function showLoading() {
         const overlay = document.getElementById("loadingOverlay");
-        if (overlay) overlay.style.display = "flex";
+        if (overlay) {
+            overlay.style.display = "flex";
+        } else {
+            console.warn("Warning: #loadingOverlay not found in DOM");
+        }
     }
 
     function hideLoading() {
         const overlay = document.getElementById("loadingOverlay");
-        if (overlay) overlay.style.display = "none";
+        if (overlay) {
+            overlay.style.display = "none";
+        }
     }
 
     function parseRankingString(rankStr) {
@@ -659,14 +665,13 @@
                             if (opp.allegroFinalScore != null) {
                                 effectDetails += createDonutChart(opp.allegroFinalScore, "/images/AllegroIcon.png");
                             } else {
-                                // Poprawiono błąd składni: usunięto spacje w tagach
+                             
                                 effectDetails += `<div><span style="color: green; font-weight: 400; font-size: 16px;">▼</span> <span style="color: #222222; font-weight: 400; font-size: 16px;"> Obniżka</span></div>`;
                             }
                         } else if (opp.basePriceChangeType === 'increase') {
-                            // Poprawiono błąd składni: usunięto spacje w tagach
                             effectDetails += `<div><span style="color: red; font-weight: 400; font-size: 16px;">▲</span> <span style="color: #222222; font-weight: 400; font-size: 16px;"> Podwyżka</span></div>`;
                         } else {
-                            // Poprawiono błąd składni: usunięto spacje w tagach
+                 
                             effectDetails += `<div><span style="color: gray; font-weight: 400; font-size: 16px;">●</span> <span style="color: #222222; font-weight: 400; font-size: 16px;"> Bez zmian</span></div>`;
                         }
                         return {
@@ -888,6 +893,7 @@
                     hideLoading();
                     executeButton.disabled = false;
                     executeButton.innerHTML = '<i class="fa-solid fa-arrow-up-from-bracket" style="margin-right: 8px;"></i> Wgraj zmiany na Allegro';
+
                     let message = `<p style="font-weight:bold; font-size:16px;">Operacja zakończona!</p>`;
                     message += `<p>Wysłano ${itemsToBridge.length} ofert do aktualizacji.</p>`;
                     message += `<p style="color: #c8e6c9;">Pomyślnie zaktualizowano: ${result.successfulCount}</p>`;
@@ -908,29 +914,29 @@
                     } else {
                         alert(`Zakończono.\nSukcesy: ${result.successfulCount}\nBłędy: ${result.failedCount}\nPominięto: ${changesWithoutId}`);
                     }
+
                     if (result.successfulChangesDetails && result.successfulChangesDetails.length > 0) {
                         const successfulProductIds = new Set();
                         result.successfulChangesDetails.forEach(detail => {
                             const rowData = originalRowsData.find(r => r.myIdAllegro && r.myIdAllegro.toString() === detail.offerId);
-                            if (!rowData) {
-                                console.warn("Nie znaleziono rowData dla offerId:", detail.offerId);
-                                return;
-                            }
+                            if (!rowData) return;
+
                             successfulProductIds.add(rowData.productId);
+
+                         
                             const cell = document.getElementById(`confirm_${rowData.productId}`);
-                            if (!cell) {
-                                console.warn("Nie znaleziono komórki confirm_ dla productId:", rowData.productId);
-                                return;
+                            if (cell) {
+                                cell.innerHTML = buildPriceBlock(
+                                    detail.fetchedNewPrice,
+                                    rowData.marginPrice,
+                                    detail.fetchedNewCommission,
+                                    rowData.newAllegroRanking,
+                                    rowData.totalAllegroOffers,
+                                    true
+                                );
                             }
-                            const confirmedPrice = detail.fetchedNewPrice;
-                            const confirmedCommission = detail.fetchedNewCommission;
-                            const marginPrice = rowData.marginPrice;
-                            const newAllegroRanking = rowData.newAllegroRanking;
-                            const totalAllegroOffers = rowData.totalAllegroOffers;
-                            cell.innerHTML = buildPriceBlock(
-                                confirmedPrice, marginPrice, confirmedCommission,
-                                newAllegroRanking, totalAllegroOffers, true
-                            );
+
+                   
                             const rowElement = document.querySelector(`tr[data-product-id="${rowData.productId}"]`);
                             if (rowElement) {
                                 const removeBtn = rowElement.querySelector('.remove-change-btn');
@@ -942,21 +948,26 @@
                                 }
                             }
                         });
-                        selectedPriceChanges = selectedPriceChanges.filter(c =>
-                            !successfulProductIds.has(c.productId)
-                        );
-                        originalRowsData = originalRowsData.filter(row =>
-                            !successfulProductIds.has(row.productId)
-                        );
+
+                        selectedPriceChanges = selectedPriceChanges.filter(c => !successfulProductIds.has(c.productId));
                         savePriceChanges();
                         updatePriceChangeSummary();
+
                         if (typeof window.refreshPriceBoxStates === 'function') {
                             window.refreshPriceBoxStates();
                         }
                     }
-                    if (selectedPriceChanges.length === 0 && result.failedCount === 0) {
-                        $('#simulationModal').modal('hide');
+
+            
+                    if (typeof window.loadPrices === 'function') {
+                   
+                        window.loadPrices();
                     }
+              
+                    historyLoaded = false;
+                    fetchAndRenderHistory();
+               
+
                 })
                 .catch(err => {
                     hideLoading();

@@ -99,11 +99,9 @@ namespace PriceSafari.Controllers.MemberControllers
                 .Where(i => i.PriceBridgeBatch.StoreId == storeId.Value && i.PriceBridgeBatch.AllegroScrapeHistoryId == latestScrap.Id && i.Success)
                 .ToListAsync();
 
-          
             var committedLookup = committedChanges
                 .GroupBy(i => i.AllegroProductId)
                 .ToDictionary(g => g.Key, g => g.OrderByDescending(i => i.PriceBridgeBatch.ExecutionDate).First());
-           
 
             var activePreset = await _context.CompetitorPresets
                 .Include(p => p.CompetitorItems)
@@ -275,11 +273,11 @@ namespace PriceSafari.Controllers.MemberControllers
                         AnyPromoActive = extendedInfo?.AnyPromoActive,
                         Committed = committed == null ? null : new
                         {
-                            // Preferujemy cenę zweryfikowaną, jeśli jest dostępna, w przeciwnym razie symulowaną
+
                             NewPrice = committed.PriceAfter_Verified ?? committed.PriceAfter_Simulated,
-                            // Nowa prowizja (jeśli dostępna)
-                            NewCommission = committed.CommissionAfter_Verified ?? (committed.IncludeCommissionInMargin ? (decimal?)null : null), // Możesz tu dodać logikę symulacji prowizji jeśli chcesz
-                                                                                                                                                 // Nowa pozycja (ranking)
+
+                            NewCommission = committed.CommissionAfter_Verified ?? (committed.IncludeCommissionInMargin ? (decimal?)null : null),
+
                             NewPosition = committed.RankingAfter_Simulated
                         }
                     };
@@ -381,13 +379,13 @@ namespace PriceSafari.Controllers.MemberControllers
             var products = _context.AllegroProducts
                 .Where(p => productIds.Contains(p.AllegroProductId))
                .Select(p => new
-        {
-            productId = p.AllegroProductId,
-            productName = p.AllegroProductName,
-            imageUrl = (string)null,
-            ean = p.AllegroEan,
-            allegroOfferUrl = p.AllegroOfferUrl // <-- DODAJ TĘ LINIĘ
-        })
+               {
+                   productId = p.AllegroProductId,
+                   productName = p.AllegroProductName,
+                   imageUrl = (string)null,
+                   ean = p.AllegroEan,
+                   allegroOfferUrl = p.AllegroOfferUrl
+               })
                 .ToList();
 
             return Json(products);
