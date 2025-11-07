@@ -42,184 +42,208 @@ namespace PriceSafari.Controllers.MemberControllers
         [HttpGet]
         public async Task<IActionResult> GetDashboardData(int storeId, int days = 7, string connectionId = null)
         {
-            int step = 0;
-            int estimatedTotalSteps = 2 + (days * 4) + 2;
-
-            async Task Progress(string msg)
+            try
             {
-                if (string.IsNullOrEmpty(connectionId)) return;
-                step++;
-                int pct = Math.Min(100, step * 100 / estimatedTotalSteps);
-                await _hub.Clients.Client(connectionId).SendAsync("ReceiveProgress", msg, pct);
-            }
-
-            await Progress("Pobieram konfigurację sklepu...");
-
-            var storeInfo = await _context.Stores
-                .Where(s => s.StoreId == storeId)
-                .Select(s => new { s.StoreNameAllegro })
-                .FirstOrDefaultAsync();
-
-            if (string.IsNullOrEmpty(storeInfo?.StoreNameAllegro))
-            {
-                return BadRequest("Brak skonfigurowanej nazwy sprzedawcy Allegro.");
-            }
-            string mySellerName = storeInfo.StoreNameAllegro;
-
-            var sinceDate = DateTime.UtcNow.AddDays(-days).Date;
-
-            var relevantScraps = await _context.AllegroScrapeHistories
-                .AsNoTracking()
-                .Where(sh => sh.StoreId == storeId && sh.Date >= sinceDate)
-                .OrderBy(sh => sh.Date)
-                .Select(sh => new ScrapInfo { Id = sh.Id, Date = sh.Date })
-                .ToListAsync();
-
-            if (!relevantScraps.Any()) return Json(new List<object>());
-
-            var firstRelevantDate = relevantScraps.First().Date;
-            var referenceScrap = await _context.AllegroScrapeHistories
-                .AsNoTracking()
-                .Where(sh => sh.StoreId == storeId && sh.Date < firstRelevantDate)
-                .OrderByDescending(sh => sh.Date)
-                .Select(sh => new ScrapInfo { Id = sh.Id, Date = sh.Date })
-                .FirstOrDefaultAsync();
-
-            var allScrapsToProcess = new List<ScrapInfo>();
-            if (referenceScrap != null) allScrapsToProcess.Add(referenceScrap);
-            allScrapsToProcess.AddRange(relevantScraps);
-
-            await Progress("Identyfikuję główne oferty produktów...");
-            var productUrlMap = await _context.AllegroProducts
-                .AsNoTracking()
-                .Where(p => p.StoreId == storeId)
-                .Select(p => new { p.AllegroProductId, p.AllegroOfferUrl })
-                .ToListAsync();
-
-            var mainOfferIds = new Dictionary<int, long>();
-            foreach (var prod in productUrlMap)
-            {
-                if (!string.IsNullOrEmpty(prod.AllegroOfferUrl))
+                // Funkcja pomocnicza do wysyłania postępu z konkretnym procentem
+                async Task ReportProgress(string msg, int pct)
                 {
-
-                    var parts = prod.AllegroOfferUrl.Split('-');
-                    if (parts.Length > 0 && long.TryParse(parts.Last(), out long offerId))
-                    {
-                        mainOfferIds[prod.AllegroProductId] = offerId;
-                    }
+                    if (string.IsNullOrEmpty(connectionId)) return;
+                    // Zapewniamy, że procent nigdy nie spadnie ani nie przekroczy 100 przed końcem
+                    pct = Math.Max(0, Math.Min(99, pct));
+                    await _hub.Clients.Client(connectionId).SendAsync("ReceiveProgress", msg, pct);
                 }
-            }
 
-            var previousPrices = new Dictionary<int, (decimal Price, string Name)>();
+                await ReportProgress("Pobieram konfigurację sklepu...", 1);
 
-            if (referenceScrap != null)
-            {
-                await Progress($"Ładuję scrap referencyjny z {referenceScrap.Date:dd.MM HH:mm}...");
+                var storeInfo = await _context.Stores
+                    .Where(s => s.StoreId == storeId)
+                    .Select(s => new { s.StoreNameAllegro })
+                    .FirstOrDefaultAsync();
 
-                var allRefPrices = await _context.AllegroPriceHistories
+                if (string.IsNullOrEmpty(storeInfo?.StoreNameAllegro))
+                {
+                    return BadRequest("Brak skonfigurowanej nazwy sprzedawcy Allegro.");
+                }
+                string mySellerName = storeInfo.StoreNameAllegro;
+
+                var sinceDate = DateTime.UtcNow.AddDays(-days).Date;
+
+                var relevantScraps = await _context.AllegroScrapeHistories
                     .AsNoTracking()
-                    .Where(ph => ph.AllegroScrapeHistoryId == referenceScrap.Id && ph.SellerName == mySellerName)
-                    .Select(ph => new { ph.AllegroProductId, ph.IdAllegro, ph.Price, ph.AllegroProduct.AllegroProductName })
+                    .Where(sh => sh.StoreId == storeId && sh.Date >= sinceDate)
+                    .OrderBy(sh => sh.Date)
+                    .Select(sh => new ScrapInfo { Id = sh.Id, Date = sh.Date })
                     .ToListAsync();
 
-                foreach (var p in allRefPrices)
-                {
-                    if (mainOfferIds.TryGetValue(p.AllegroProductId, out long mainId) && p.IdAllegro == mainId)
-                    {
-                        previousPrices[p.AllegroProductId] = (p.Price, p.AllegroProductName);
-                    }
-                }
-            }
+                if (!relevantScraps.Any()) return Json(new List<object>());
 
-            var dailySummaries = new Dictionary<DateTime, DailySummary>();
-            int startIndex = referenceScrap != null ? 1 : 0;
-
-            for (int i = startIndex; i < allScrapsToProcess.Count; i++)
-            {
-                var currentScrap = allScrapsToProcess[i];
-                await Progress($"Analizuję scrap {i - startIndex + 1}/{relevantScraps.Count}: {currentScrap.Date:dd.MM HH:mm}...");
-
-                var allCurrentPricesList = await _context.AllegroPriceHistories
+                var firstRelevantDate = relevantScraps.First().Date;
+                var referenceScrap = await _context.AllegroScrapeHistories
                     .AsNoTracking()
-                    .Where(ph => ph.AllegroScrapeHistoryId == currentScrap.Id && ph.SellerName == mySellerName)
-                    .Select(ph => new { ph.AllegroProductId, ph.IdAllegro, ph.Price, ph.AllegroProduct.AllegroProductName })
+                    .Where(sh => sh.StoreId == storeId && sh.Date < firstRelevantDate)
+                    .OrderByDescending(sh => sh.Date)
+                    .Select(sh => new ScrapInfo { Id = sh.Id, Date = sh.Date })
+                    .FirstOrDefaultAsync();
+
+                var allScrapsToProcess = new List<ScrapInfo>();
+                if (referenceScrap != null) allScrapsToProcess.Add(referenceScrap);
+                allScrapsToProcess.AddRange(relevantScraps);
+
+                await ReportProgress("Identyfikuję główne oferty produktów...", 5);
+
+                var productUrlMap = await _context.AllegroProducts
+                    .AsNoTracking()
+                    .Where(p => p.StoreId == storeId)
+                    .Select(p => new { p.AllegroProductId, p.AllegroOfferUrl })
                     .ToListAsync();
 
-                var currentPrices = new Dictionary<int, (decimal Price, string Name)>();
-                var scrapSummary = new ScrapSummary
+                var mainOfferIds = new Dictionary<int, long>();
+                foreach (var prod in productUrlMap)
                 {
-                    ScrapId = currentScrap.Id,
-                    Date = currentScrap.Date
-                };
-
-                foreach (var item in allCurrentPricesList)
-                {
-
-                    if (mainOfferIds.TryGetValue(item.AllegroProductId, out long mainId) && item.IdAllegro == mainId)
+                    if (!string.IsNullOrEmpty(prod.AllegroOfferUrl))
                     {
-
-                        currentPrices[item.AllegroProductId] = (item.Price, item.AllegroProductName);
-
-                        if (previousPrices.TryGetValue(item.AllegroProductId, out var prev))
+                        var parts = prod.AllegroOfferUrl.Split('-');
+                        if (parts.Length > 0 && long.TryParse(parts.Last(), out long offerId))
                         {
-                            if (item.Price != prev.Price)
-                            {
-                                var change = new PriceChangeDetail
-                                {
-                                    ProductId = item.AllegroProductId,
-                                    ProductName = item.AllegroProductName,
-                                    OldPrice = prev.Price,
-                                    NewPrice = item.Price,
-                                    PriceDifference = item.Price - prev.Price
-                                };
+                            mainOfferIds[prod.AllegroProductId] = offerId;
+                        }
+                    }
+                }
 
-                                if (change.PriceDifference > 0)
-                                    scrapSummary.RaisedDetails.Add(change);
-                                else
-                                    scrapSummary.LoweredDetails.Add(change);
+                var previousPrices = new Dictionary<int, (decimal Price, string Name)>();
+
+                if (referenceScrap != null)
+                {
+                    await ReportProgress($"Ładuję scrap referencyjny z {referenceScrap.Date:dd.MM HH:mm}...", 10);
+
+                    var allRefPrices = await _context.AllegroPriceHistories
+                        .AsNoTracking()
+                        .Where(ph => ph.AllegroScrapeHistoryId == referenceScrap.Id && ph.SellerName == mySellerName)
+                        .Select(ph => new { ph.AllegroProductId, ph.IdAllegro, ph.Price, ph.AllegroProduct.AllegroProductName })
+                        .ToListAsync();
+
+                    foreach (var p in allRefPrices)
+                    {
+                        if (mainOfferIds.TryGetValue(p.AllegroProductId, out long mainId) && p.IdAllegro == mainId)
+                        {
+                            previousPrices[p.AllegroProductId] = (p.Price, p.AllegroProductName ?? "Nazwa niedostępna");
+                        }
+                    }
+                }
+
+                var dailySummaries = new Dictionary<DateTime, DailySummary>();
+
+                // --- START GŁÓWNEJ PĘTLI I OBLICZANIA POSTĘPU ---
+                int startIndex = referenceScrap != null ? 1 : 0;
+                int totalIterations = allScrapsToProcess.Count - startIndex;
+                int iterationsDone = 0;
+
+                // Pętla startuje od 15% i ma do dyspozycji 80% paska (do 95%)
+                int startPct = 15;
+                int availablePctRange = 80;
+
+                for (int i = startIndex; i < allScrapsToProcess.Count; i++)
+                {
+                    var currentScrap = allScrapsToProcess[i];
+
+                    // Obliczamy dokładny procent na podstawie aktualnej iteracji
+                    int currentPct = startPct + (int)((double)iterationsDone / totalIterations * availablePctRange);
+                    await ReportProgress($"Analizuję scrap {iterationsDone + 1}/{totalIterations}: {currentScrap.Date:dd.MM HH:mm}...", currentPct);
+
+                    // ... (logika pobierania cen i porównywania - BEZ ZMIAN W STOSUNKU DO POPRZEDNIEJ WERSJI) ...
+                    var allCurrentPricesList = await _context.AllegroPriceHistories
+                        .AsNoTracking()
+                        .Where(ph => ph.AllegroScrapeHistoryId == currentScrap.Id && ph.SellerName == mySellerName)
+                        .Select(ph => new { ph.AllegroProductId, ph.IdAllegro, ph.Price, ph.AllegroProduct.AllegroProductName })
+                        .ToListAsync();
+
+                    var currentPrices = new Dictionary<int, (decimal Price, string Name)>();
+                    var scrapSummary = new ScrapSummary
+                    {
+                        ScrapId = currentScrap.Id,
+                        Date = currentScrap.Date
+                    };
+
+                    foreach (var item in allCurrentPricesList)
+                    {
+                        if (mainOfferIds.TryGetValue(item.AllegroProductId, out long mainId) && item.IdAllegro == mainId)
+                        {
+                            string productName = item.AllegroProductName ?? "Nazwa niedostępna";
+                            currentPrices[item.AllegroProductId] = (item.Price, productName);
+
+                            if (previousPrices.TryGetValue(item.AllegroProductId, out var prev))
+                            {
+                                if (item.Price != prev.Price)
+                                {
+                                    var change = new PriceChangeDetail
+                                    {
+                                        ProductId = item.AllegroProductId,
+                                        ProductName = productName,
+                                        OldPrice = prev.Price,
+                                        NewPrice = item.Price,
+                                        PriceDifference = item.Price - prev.Price
+                                    };
+
+                                    if (change.PriceDifference > 0)
+                                        scrapSummary.RaisedDetails.Add(change);
+                                    else
+                                        scrapSummary.LoweredDetails.Add(change);
+                                }
                             }
                         }
                     }
 
-                }
-
-                if (scrapSummary.RaisedDetails.Any() || scrapSummary.LoweredDetails.Any())
-                {
-                    var dayDate = currentScrap.Date.Date;
-                    if (!dailySummaries.ContainsKey(dayDate))
+                    if (scrapSummary.RaisedDetails.Any() || scrapSummary.LoweredDetails.Any())
                     {
-                        dailySummaries[dayDate] = new DailySummary { Date = dayDate };
+                        var dayDate = currentScrap.Date.Date;
+                        if (!dailySummaries.ContainsKey(dayDate))
+                        {
+                            dailySummaries[dayDate] = new DailySummary { Date = dayDate };
+                        }
+                        dailySummaries[dayDate].Scraps.Add(scrapSummary);
                     }
-                    dailySummaries[dayDate].Scraps.Add(scrapSummary);
+
+                    previousPrices = currentPrices;
+                    iterationsDone++;
+                }
+                // --- KONIEC PĘTLI ---
+
+                await ReportProgress("Finalizuję dane...", 98);
+
+                var result = dailySummaries.Values
+                    .OrderBy(d => d.Date)
+                    .Select(d => new
+                    {
+                        date = d.Date.ToString("yyyy-MM-dd"),
+                        dayShort = d.Date.ToString("ddd", new CultureInfo("pl-PL")),
+                        totalRaised = d.Scraps.Sum(s => s.RaisedDetails.Count),
+                        totalLowered = d.Scraps.Sum(s => s.LoweredDetails.Count),
+                        scraps = d.Scraps.OrderBy(s => s.Date).Select(s => new
+                        {
+                            scrapId = s.ScrapId,
+                            fullDate = s.Date,
+                            time = s.Date.ToString("HH:mm"),
+                            raised = s.RaisedDetails.Count,
+                            lowered = s.LoweredDetails.Count,
+                            raisedDetails = s.RaisedDetails.OrderByDescending(x => x.PriceDifference).ToList(),
+                            loweredDetails = s.LoweredDetails.OrderBy(x => x.PriceDifference).ToList()
+                        }).ToList()
+                    })
+                    .ToList();
+
+                // 100% wysyłamy na samym końcu
+                if (!string.IsNullOrEmpty(connectionId))
+                {
+                    await _hub.Clients.Client(connectionId).SendAsync("ReceiveProgress", "Gotowe!", 100);
                 }
 
-                previousPrices = currentPrices;
+                return Json(result);
             }
-
-            await Progress("Finalizuję dane...");
-
-            var result = dailySummaries.Values
-                .OrderBy(d => d.Date)
-                .Select(d => new
-                {
-                    date = d.Date.ToString("yyyy-MM-dd"),
-                    dayShort = d.Date.ToString("ddd", new CultureInfo("pl-PL")),
-                    totalRaised = d.Scraps.Sum(s => s.RaisedDetails.Count),
-                    totalLowered = d.Scraps.Sum(s => s.LoweredDetails.Count),
-                    scraps = d.Scraps.OrderBy(s => s.Date).Select(s => new
-                    {
-                        scrapId = s.ScrapId,
-                        fullDate = s.Date,
-                        time = s.Date.ToString("HH:mm"),
-                        raised = s.RaisedDetails.Count,
-                        lowered = s.LoweredDetails.Count,
-                        raisedDetails = s.RaisedDetails.OrderByDescending(x => x.PriceDifference).ToList(),
-                        loweredDetails = s.LoweredDetails.OrderBy(x => x.PriceDifference).ToList()
-                    }).ToList()
-                })
-                .ToList();
-
-            return Json(result);
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[AllegroDashboard ERROR] {ex}");
+                return StatusCode(500, $"Błąd serwera: {ex.Message}");
+            }
         }
 
         private class ScrapInfo
@@ -231,7 +255,6 @@ namespace PriceSafari.Controllers.MemberControllers
         public sealed class PriceChangeDetail
         {
             public int ProductId { get; set; }
-
             public string ProductName { get; set; }
             public decimal OldPrice { get; set; }
             public decimal NewPrice { get; set; }

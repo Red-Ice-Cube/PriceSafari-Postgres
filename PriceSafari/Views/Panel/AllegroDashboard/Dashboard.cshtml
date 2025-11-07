@@ -35,9 +35,9 @@
         color: #2AC6FF;
     }
 
-    /* .details-row {
+    .details-row {
         display: table-row;
-    } */
+    }
 
     .details-content {
         overflow: hidden;
@@ -46,9 +46,9 @@
         transition: .3s ease, opacity .3s ease;
     }
 
-    /* .details-row.open .details-content {
+    .details-row.open .details-content {
         opacity: 1;
-    } */
+    }
 
     .details-inner-row {
         display: flex;
@@ -116,39 +116,6 @@
             font-weight: 400;
         }
 
-        .table-price tbody tr:hover {
-            /*      background: #F9F9F9; */
-        }
-
-    .details-row {
-        display: table-row;
-    }
-
-    /* .details-content {
-        overflow: hidden;
-        max-height: 0;
-        opacity: 0;
-        transition: .3s ease, opacity .3s ease;
-    } */
-
-    .details-row.open .details-content {
-        opacity: 1;
-    }
-
-    .details-inner-row {
-        display: flex;
-        flex-wrap: nowrap;
-    }
-
-        .details-inner-row > .col-md-6 {
-            flex: 1 1 0;
-            min-width: 0;
-        }
-
-    .table {
-        margin-bottom: 0;
-    }
-
     .col-md-6 {
         padding: 0;
     }
@@ -214,20 +181,42 @@
         background: #EEEEEE;
     }
 
-    .col-md-6 {
-        padding: 0px;
+    .scrap-section {
+        margin-bottom: 15px;
+        border-bottom: 1px solid #eee;
     }
 
-</style>
+        .scrap-section:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+        }
 
+    .scrap-header {
+        background: #e0e0e0;
+        padding: 8px 16px;
+        font-weight: 500;
+        color: #222;
+        font-size: 15px;
+        display: flex;
+        align-items: center;
+        gap: 15px;
+    }
+
+        .scrap-header .time-badge {
+            background: #222;
+            color: #fff;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+
+</style>
 
 <script>const STORE_ID = @ViewBag.StoreId;</script>
 
 <div class="Vert">
     <div class="Date">
-        <div class="Order-Container-Title">
-            Analiza cen Allegro @ViewBag.StoreName
-        </div>
+        <div class="Order-Container-Title">Analiza cen Allegro @ViewBag.StoreName</div>
         <div class="Select-Line" style="gap:2px;">
             <button class="dateShortcut active" data-count="7">7</button>
             <button class="dateShortcut" data-count="14">14</button>
@@ -262,18 +251,21 @@
     </div>
 </div>
 
-@* Overlay ładowania *@
-<div id="loadingOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:999">
-    <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:400px;background:#fff;border-radius:8px;padding:24px">
-        <p class="mb-2" style="font-weight:500">Wczytywanie analizy Allegro...</p>
-        <div id="progressBarContainer" style="height:16px;background:#ddd;border-radius:4px;overflow:hidden;margin-block:12px">
-            <div id="progressBar" style="height:100%;width:0;background:#FF5A00;transition:width .2s"></div> @* Kolor Allegro ;) *@
+<div id="loadingOverlay"
+     style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:999">
+    <div style="position:absolute;top:50%;left:50%;
+              transform:translate(-50%,-50%);
+              width:400px;background:#fff;border-radius:8px;padding:24px">
+        <p class="mb-2" style="font-weight:500">Wczytywanie analizy Allegro…</p>
+        <div id="progressBarContainer"
+             style="height:16px;background:#ddd;border-radius:4px;overflow:hidden;margin-block:12px">
+            <div id="progressBar"
+                 style="height:100%;width:0;background:#202430;transition:width .2s"></div>
         </div>
-        <p id="progressText">Ładowanie... 0%</p>
+        <p id="progressText">Ładowanie… 0%</p>
     </div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/5.0.9/signalr.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-@* Kluczowa zmiana: inny plik JS *@
 <script src="~/js/member/AllegroPriceDashboard.js"></script>

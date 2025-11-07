@@ -11,44 +11,45 @@ hub.start()
 
 hub.on("ReceiveProgress", (_msg, percent) => {
     document.getElementById("progressBar").style.width = percent + "%";
-    document.getElementById("progressText").innerText = `Analiza... ${percent}%`;
-    if (percent === 100) setTimeout(hideLoadingOverlay, 500);
+    document.getElementById("progressText").innerText = `Ładowanie... ${percent}%`;
+    if (percent === 100) setTimeout(hideLoadingOverlay, 800);
 });
 
 function showLoadingOverlay() {
-    document.getElementById("loadingOverlay").style.display = "block";
     document.getElementById("progressBar").style.width = "0%";
+    document.getElementById("progressText").innerText = "Ładowanie… 0%";
+    document.getElementById("loadingOverlay").style.display = "block";
 }
+
 function hideLoadingOverlay() {
     document.getElementById("loadingOverlay").style.display = "none";
 }
 
+function mapDayFull(d) {
+    return {
+        "Pn": "Poniedziałek", "Wt": "Wtorek", "Śr": "Środa", "Cz": "Czwartek",
+        "Pt": "Piątek", "So": "Sobota", "Nd": "Niedziela",
+        "pon.": "Poniedziałek", "wt.": "Wtorek", "śr.": "Środa", "czw.": "Czwartek",
+        "pt.": "Piątek", "sob.": "Sobota", "niedz.": "Niedziela"
+    }[d] || d;
+}
+
 let chart;
+let tooltipMeta = [];
 
 function drawChart(dailyData) {
     const ctx = document.getElementById("priceAnaliseChart").getContext("2d");
 
-    let allScrapsFlat = [];
-    dailyData.forEach(day => {
-        day.scraps.forEach(scrap => {
+    const sortedDays = [...dailyData].sort((a, b) => new Date(a.date) - new Date(b.date));
 
-            const dayPart = day.date.slice(5).replace('-', '.');
-            const label = `${day.dayShort} ${dayPart} ${scrap.time}`;
+    const labels = sortedDays.map(d => d.date.slice(5));
+    tooltipMeta = sortedDays.map(d => `${d.date} (${mapDayFull(d.dayShort)})`);
+    const loweredData = sortedDays.map(d => -d.totalLowered);
+    const raisedData = sortedDays.map(d => d.totalRaised);
 
-            allScrapsFlat.push({
-                label: label,
-                lowered: -scrap.lowered,
-                raised: scrap.raised,
-                rawDate: scrap.fullDate
-            });
-        });
-    });
-
-    const labels = allScrapsFlat.map(s => s.label);
-    const loweredData = allScrapsFlat.map(s => s.lowered);
-    const raisedData = allScrapsFlat.map(s => s.raised);
-
-    if (chart) chart.destroy();
+    if (chart) {
+        chart.destroy();
+    }
 
     chart = new Chart(ctx, {
         type: "bar",
@@ -58,14 +59,20 @@ function drawChart(dailyData) {
                 {
                     label: "Obniżki",
                     data: loweredData,
-                    backgroundColor: "#00a65a",
+                    backgroundColor: "rgba(0,128,0,.6)",
+                    borderColor: "rgba(0,128,0,1)",
+                    borderWidth: 2,
+                    borderRadius: 4,
                     barPercentage: 0.6,
                     categoryPercentage: 0.8
                 },
                 {
                     label: "Podwyżki",
                     data: raisedData,
-                    backgroundColor: "#dd4b39",
+                    backgroundColor: "rgba(255,0,0,.6)",
+                    borderColor: "rgba(255,0,0,1)",
+                    borderWidth: 2,
+                    borderRadius: 4,
                     barPercentage: 0.6,
                     categoryPercentage: 0.8
                 }
@@ -74,28 +81,36 @@ function drawChart(dailyData) {
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            interaction: { mode: "index", intersect: false },
             scales: {
                 x: {
+                    stacked: true,
                     ticks: {
                         maxRotation: 45,
                         minRotation: 45,
                         font: { size: 11 }
-                    },
-                    grid: { display: false }
+                    }
                 },
                 y: {
+                    stacked: true,
                     beginAtZero: true,
                     ticks: {
                         callback: v => Math.abs(v),
                         precision: 0
-                    }
+                    },
+                    title: { display: true, text: "Liczba zmian" }
                 }
             },
             plugins: {
-                legend: { display: true, position: 'top' },
+                legend: { display: false },
                 tooltip: {
+                    itemSort: (a, b) => a.dataset.label === "Podwyżki" ? -1 : 1,
                     callbacks: {
-                        label: c => `${c.dataset.label}: ${Math.abs(c.raw)}`
+                        title: c => {
+                            const i = c[0].dataIndex;
+                            return tooltipMeta[i] || c[0].label;
+                        },
+                        label: c => `${c.dataset.label}: ${Math.abs(c.parsed.y)}`
                     }
                 }
             }
@@ -107,133 +122,149 @@ function buildTable(dailyData) {
     const tb = document.querySelector(".table-price tbody");
     tb.innerHTML = "";
 
-    const daysDesc = [...dailyData].reverse();
+    const daysDesc = [...dailyData].sort((a, b) => new Date(b.date) - new Date(a.date));
 
-    daysDesc.forEach((day, dayIdx) => {
-        const dayRowId = `day_${dayIdx}`;
+    const downArrow = '<span style="color: green;">&#9660;</span>';
+    const upArrow = '<span style="color: red;">&#9650;</span>';
+    const grayCircle = '<span style="color: gray;">&#9679;</span>';
 
-        const dayRowHtml = `
-            <tr class="day-row" data-target="${dayRowId}" style="cursor: pointer; background-color: #f9f9f9; border-bottom: 2px solid #eee;">
-                <td>
-                   <div style="display:flex; align-items:center; gap:10px;">
-                     <span class="week-box" style="width:auto; padding: 4px 8px;">${day.dayShort}</span>
-                     <span style="font-weight:500;">${day.date}</span>
-                   </div>
-                </td>
-                <td class="text-start">
-                    ${day.totalLowered > 0 ? `<span style="color:#00a65a; font-weight:bold;">&#9660; ${day.totalLowered}</span>` : `<span style="color:#ccc;">0</span>`}
-                </td>
-                <td class="text-start">
-                    ${day.totalRaised > 0 ? `<span style="color:#dd4b39; font-weight:bold;">&#9650; ${day.totalRaised}</span>` : `<span style="color:#ccc;">0</span>`}
-                </td>
-            </tr>
-        `;
-        tb.insertAdjacentHTML("beforeend", dayRowHtml);
+    daysDesc.forEach((day, i) => {
+        const detailId = `detail_allegro_${i}`;
+        const dLow = day.dayShort.toLowerCase();
+        const isWeekend = dLow.includes("s") || dLow.includes("niedz") || dLow === "nd";
 
-        let scrapsHtml = '';
+        const scrapsDesc = [...day.scraps].sort((a, b) => b.time.localeCompare(a.time));
+        const scrapsHtml = scrapsDesc.map(scrap => buildScrapSection(scrap)).join("");
 
-        [...day.scraps].reverse().forEach((scrap, scrapIdx) => {
-            scrapsHtml += buildScrapHtml(scrap, dayRowId, scrapIdx);
-        });
+        let loweredCell = day.totalLowered > 0 ? `${downArrow} ${day.totalLowered}` : `${grayCircle} 0`;
+        let raisedCell = day.totalRaised > 0 ? `${upArrow} ${day.totalRaised}` : `${grayCircle} 0`;
 
-        const dayDetailsRow = `
-            <tr id="${dayRowId}" class="details-row day-details" style="display:none;">
-                <td colspan="3" style="padding: 0; border-top: none;">
-                    <div class="day-details-content" style="background: #fff; padding-left: 20px;">
-                        ${scrapsHtml}
-                    </div>
-                </td>
-            </tr>
-        `;
-        tb.insertAdjacentHTML("beforeend", dayDetailsRow);
+        tb.insertAdjacentHTML("beforeend", `
+        <tr class="parent-row" data-target="${detailId}" style="cursor: pointer;">
+          <td>
+            <div class="${isWeekend ? "weekend-box" : "week-box"}">${day.dayShort}</div>
+            ${day.date}
+          </td>
+          <td class="text-start">${loweredCell}</td>
+          <td class="text-start">${raisedCell}</td>
+        </tr>
+        <tr id="${detailId}" class="details-row">
+          <td colspan="3" class="p-0" style="border: none;">
+             <div class="details-content">
+                ${scrapsHtml}
+             </div>
+          </td>
+        </tr>`);
     });
 
-    tb.querySelectorAll("tr.day-row").forEach(tr => {
-        tr.addEventListener("click", () => {
-            const targetId = tr.dataset.target;
-            const detailsRow = document.getElementById(targetId);
-            const isHidden = detailsRow.style.display === "none";
-
-            detailsRow.style.display = isHidden ? "table-row" : "none";
-            tr.style.backgroundColor = isHidden ? "#eef" : "#f9f9f9";
-        });
-    });
-
-    tb.querySelectorAll(".scrap-header").forEach(header => {
-        header.addEventListener("click", (e) => {
-
-            const details = header.nextElementSibling;
-            if (details && details.classList.contains("scrap-details")) {
-                const isHidden = details.style.display === "none";
-                details.style.display = isHidden ? "block" : "none";
-                header.querySelector(".toggle-icon").innerText = isHidden ? "−" : "+";
-            }
-            e.stopPropagation();
-        });
+    tb.querySelectorAll("tr.parent-row").forEach(tr => {
+        tr.addEventListener("click", () => toggleRowSmooth(tr.dataset.target));
     });
 }
 
-function buildScrapHtml(scrap, dayRowId, scrapIdx) {
-    const loweredTable = buildChangesTable(scrap.loweredDetails, "green", "Obniżki");
-    const raisedTable = buildChangesTable(scrap.raisedDetails, "red", "Podwyżki");
+function buildScrapSection(scrap) {
+    const downArrow = '<span style="color: green;">&#9660;</span>';
+    const upArrow = '<span style="color: red;">&#9650;</span>';
+    const grayCircle = '<span style="color: gray;">&#9679;</span>';
+
+    const loweredSummary = scrap.lowered > 0 ? `${downArrow} ${scrap.lowered}` : `${grayCircle} 0`;
+    const raisedSummary = scrap.raised > 0 ? `${upArrow} ${scrap.raised}` : `${grayCircle} 0`;
 
     return `
-        <div class="scrap-container" style="border-left: 4px solid #ddd; margin: 10px 0;">
-            <div class="scrap-header" style="padding: 10px; background: #f4f4f4; cursor: pointer; display: flex; align-items: center;">
-                <span class="toggle-icon" style="font-family: monospace; font-size: 16px; margin-right: 10px; width: 20px; text-align: center;">+</span>
-                <strong style="margin-right: 15px;">Godzina: ${scrap.time}</strong>
-                <span style="color: ${scrap.lowered > 0 ? '#00a65a' : '#ccc'}; margin-right: 15px;">
-                   &#9660; ${scrap.lowered}
-                </span>
-                <span style="color: ${scrap.raised > 0 ? '#dd4b39' : '#ccc'};">
-                   &#9650; ${scrap.raised}
-                </span>
+    <div class="scrap-section">
+        <div class="scrap-header">
+            <span class="time-badge">${scrap.time}</span>
+            <span style="margin-left: auto; display: flex; gap: 20px;">
+                 <span>Obniżki: ${loweredSummary}</span>
+                 <span>Podwyżki: ${raisedSummary}</span>
+            </span>
+        </div>
+        <div class="row no-gutters details-inner-row">
+            <div class="col-md-6" style="padding: 6px 3px 6px 12px;">
+                ${buildInnerTable(scrap.loweredDetails, "green", scrap.lowered)}
             </div>
-
-            <div class="scrap-details" style="display: none; padding: 10px;">
-                <div style="display: flex; gap: 20px; flex-wrap: wrap;">
-                    <div style="flex: 1; min-width: 300px;">${loweredTable}</div>
-                    <div style="flex: 1; min-width: 300px;">${raisedTable}</div>
-                </div>
+            <div class="col-md-6" style="padding: 6px 12px 6px 3px;">
+                ${buildInnerTable(scrap.raisedDetails, "red", scrap.raised)}
             </div>
         </div>
+    </div>
     `;
 }
 
-function buildChangesTable(details, color, title) {
-    if (!details || details.length === 0) {
-        return `<div style="padding: 10px; color: #999; font-style: italic;">Brak zmian (${title.toLowerCase()})</div>`;
-    }
+function buildInnerTable(details, colorType, count) {
+    const isGreen = colorType === "green";
+    const headerText = isGreen ? "Obniżki" : "Podwyżki";
+    const headerClass = isGreen ? "text-success" : "text-danger";
 
-    const rows = details.map(d => `
-        <tr>
-            <td style="vertical-align: middle;">
-                <a href="/AllegroPriceHistory/Details?storeId=${STORE_ID}&productId=${d.productId}" target="_blank" style="text-decoration:none; color:#333; font-weight:500;">
-                    ${d.productName}
-                </a>
-            </td>
-            <td style="text-align:right;">${d.oldPrice.toFixed(2)} zł</td>
-            <td style="text-align:right;">${d.newPrice.toFixed(2)} zł</td>
-            <td style="text-align:right; color:${color === 'green' ? '#00a65a' : '#dd4b39'}; font-weight:bold;">
-                ${d.priceDifference > 0 ? '+' : ''}${d.priceDifference.toFixed(2)} zł
-            </td>
-        </tr>
-    `).join("");
+    const rows = details && details.length > 0
+        ? details.map(d => `
+            <tr>
+                <td>
+                    <a href="/AllegroPriceHistory/Details?storeId=${STORE_ID}&productId=${d.productId}" target="_blank">
+                        ${d.productName}
+                    </a>
+                </td>
+                <td>${d.oldPrice.toFixed(2)} PLN</td>
+                <td>${d.newPrice.toFixed(2)} PLN</td>
+                <td style="color:${isGreen ? 'green' : 'red'};">
+                    ${isGreen ? '' : '+'}${d.priceDifference.toFixed(2)} PLN
+                </td>
+            </tr>
+        `).join("")
+        : `<tr><td colspan="4" class="text-center text-muted py-3">Brak zmian (${headerText.toLowerCase()})</td></tr>`;
 
     return `
-        <h6 style="color: ${color === 'green' ? '#00a65a' : '#dd4b39'}; margin-bottom: 5px;">${title} (${details.length})</h6>
-        <table class="table table-sm" style="font-size: 13px; background: #fff;">
-            <thead>
-                <tr style="background: #eee;">
-                    <th>Produkt</th>
-                    <th style="text-align:right;">Było</th>
-                    <th style="text-align:right;">Jest</th>
-                    <th style="text-align:right;">Różnica</th>
-                </tr>
-            </thead>
-            <tbody>${rows}</tbody>
-        </table>
-    `;
+    <table class="table table-sm inner-table">
+          <thead>
+            <tr>
+              <th>Produkt <span class="${headerClass} font-weight-normal">(${headerText}: ${count})</span></th>
+              <th>Poprzednia cena</th>
+              <th>Nowa cena</th>
+              <th>Zmiana ceny</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows}
+          </tbody>
+    </table>`;
+}
+
+let openedId = null;
+function toggleRowSmooth(id) {
+    if (openedId && openedId !== id) closeRow(openedId);
+    if (openedId === id) { closeRow(id); openedId = null; return; }
+
+    const row = document.getElementById(id);
+    if (!row) return;
+
+    const parentRow = document.querySelector(`tr.parent-row[data-target="${id}"]`);
+    const contentBox = row.querySelector('.details-content');
+
+    row.classList.add('open');
+    parentRow.classList.add('active');
+    contentBox.style.maxHeight = contentBox.scrollHeight + 'px';
+
+    openedId = id;
+}
+
+function closeRow(id) {
+    const row = document.getElementById(id);
+    if (!row) return;
+
+    const parentRow = document.querySelector(`tr.parent-row[data-target="${id}"]`);
+    const contentBox = row.querySelector('.details-content');
+
+    parentRow.classList.remove('active');
+    contentBox.style.maxHeight = contentBox.scrollHeight + 'px';
+    contentBox.offsetHeight;
+    contentBox.style.maxHeight = '0';
+
+    row.addEventListener('transitionend', function h(e) {
+        if (e.propertyName !== 'max-height') return;
+        row.classList.remove('open');
+        contentBox.style.maxHeight = '';
+        row.removeEventListener('transitionend', h);
+    });
 }
 
 async function load(days) {
@@ -242,16 +273,16 @@ async function load(days) {
 
     try {
         const res = await fetch(`/AllegroDashboard/GetDashboardData?storeId=${STORE_ID}&days=${days}&connectionId=${hubConnectionId}`);
-        if (!res.ok) throw new Error("Błąd pobierania danych");
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
 
         drawChart(data);
         buildTable(data);
     } catch (e) {
-        console.error(e);
-        document.getElementById("progressText").innerText = "Wystąpił błąd!";
+        console.error("Błąd:", e);
+        alert("Wystąpił błąd podczas pobierania danych.");
     } finally {
-
+        setTimeout(hideLoadingOverlay, 200);
     }
 }
 
