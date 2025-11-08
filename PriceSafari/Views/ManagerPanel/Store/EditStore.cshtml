@@ -6,7 +6,7 @@
 }
 
 <style>
- 
+
     .form-actions-sticky {
         position: sticky;
         top: 0;
@@ -17,8 +17,8 @@
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin-left: -24px; 
-        margin-right: -24px; 
+        margin-left: -24px;
+        margin-right: -24px;
         margin-bottom: 24px;
     }
 
@@ -186,7 +186,73 @@
             </div>
         </div>
     </div>
-
+    <div class="card">
+        <div class="card-header">
+            <h4>Zaawansowana Integracja Allegro</h4>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <h5>Ustawienia Funkcjonalne</h5>
+                    <hr />
+                    <div class="form-group">
+                        <div class="custom-control custom-switch">
+                            <input asp-for="IsAllegroPriceBridgeActive" type="checkbox" class="custom-control-input" id="allegroBridgeSwitch">
+                            <label class="custom-control-label font-weight-bold" for="allegroBridgeSwitch">
+                                Aktywny Allegro Price Bridge (Most Cenowy)
+                            </label>
+                            <small class="form-text text-muted">
+                                Włącza możliwość automatycznej zmiany cen ofert poprzez API Allegro.
+                            </small>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <div class="custom-control custom-switch">
+                            <input asp-for="FetchExtendedAllegroData" type="checkbox" class="custom-control-input" id="allegroDataSwitch">
+                            <label class="custom-control-label" for="allegroDataSwitch">
+                                @Html.DisplayNameFor(m => m.FetchExtendedAllegroData)
+                            </label>
+                            <small class="form-text text-muted">
+                                Pobieraj dodatkowe dane o ofertach bezpośrednio z API Allegro.
+                            </small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <h5>
+                        Token API
+                        @if (Model.IsAllegroTokenActive)
+                        {
+                            <span class="badge badge-success ml-2">AKTYWNY</span>
+                        }
+                        else
+                        {
+                            <span class="badge badge-danger ml-2">NIEAKTYWNY</span>
+                        }
+                    </h5>
+                    <hr />
+                    <div class="form-group">
+                        <label asp-for="AllegroApiToken">Obecny Token</label>
+                        <div class="input-group">
+                            <input asp-for="AllegroApiToken" value="@Model.AllegroApiToken" class="form-control" id="allegroTokenInput" type="password" autocomplete="off" placeholder="Brak tokenu" />
+                            <div class="input-group-append">
+                                <button class="btn btn-outline-secondary" type="button" id="toggleTokenVisibility" title="Pokaż/Ukryj">
+                                    👁️
+                                </button>
+                                <button class="btn btn-outline-danger" type="button" id="clearTokenBtn" title="Wyczyść token">
+                                    🗑️ Usuń
+                                </button>
+                            </div>
+                        </div>
+                        <span asp-validation-for="AllegroApiToken" class="text-danger"></span>
+                        <small class="form-text text-muted">
+                            Aby usunąć token, kliknij przycisk kosza i zapisz zmiany.
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
     <div class="form-group mt-4">
         <button type="submit" class="btn btn-primary">Zapisz zmiany</button>
         <a asp-action="Index" class="btn btn-secondary">Anuluj</a>
@@ -196,4 +262,24 @@
 
 @section Scripts {
     @await Html.PartialAsync("_ValidationScriptsPartial")
+
+    <script>
+        $(document).ready(function () {
+
+            $('#clearTokenBtn').on('click', function () {
+                if (confirm('Czy na pewno chcesz wyczyścić pole tokenu? Musisz zapisać zmiany, aby zatwierdzić usunięcie.')) {
+                    $('#allegroTokenInput').val('').trigger('change');
+                }
+            });
+
+            $('#toggleTokenVisibility').on('click', function () {
+                var input = $('#allegroTokenInput');
+                if (input.attr('type') === 'password') {
+                    input.attr('type', 'text');
+                } else {
+                    input.attr('type', 'password');
+                }
+            });
+        });
+    </script>
 }

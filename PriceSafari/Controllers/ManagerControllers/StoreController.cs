@@ -110,6 +110,20 @@ namespace PriceSafari.Controllers.ManagerControllers
             existingStore.OnAllegro = store.OnAllegro;
             existingStore.ProductsToScrapAllegro = store.ProductsToScrapAllegro;
 
+            existingStore.IsAllegroPriceBridgeActive = store.IsAllegroPriceBridgeActive;
+            existingStore.FetchExtendedAllegroData = store.FetchExtendedAllegroData;
+
+            if (existingStore.AllegroApiToken != store.AllegroApiToken)
+            {
+                existingStore.AllegroApiToken = store.AllegroApiToken;
+
+                if (string.IsNullOrEmpty(store.AllegroApiToken))
+                {
+                    existingStore.IsAllegroTokenActive = false;
+                }
+
+            }
+
             if (existingStore.PlanId != store.PlanId)
             {
                 existingStore.PlanId = store.PlanId;
