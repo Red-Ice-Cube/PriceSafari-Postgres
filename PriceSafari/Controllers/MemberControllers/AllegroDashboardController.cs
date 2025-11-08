@@ -240,10 +240,6 @@ namespace PriceSafari.Controllers.MemberControllers
             }
         }
 
-
-
-        // W AllegroDashboardController.cs
-
         [HttpGet]
         public async Task<IActionResult> GetPriceBridgeHistory(int storeId, int days = 30)
         {
@@ -264,7 +260,6 @@ namespace PriceSafari.Controllers.MemberControllers
                 .OrderByDescending(b => b.ExecutionDate)
                 .ToListAsync();
 
-            // Grupujemy batche po dacie (dniu), żeby wyświetlić je w tabeli podobnej do obecnej
             var groupedByDay = batches
                 .GroupBy(b => b.ExecutionDate.Date)
                 .OrderByDescending(g => g.Key)
@@ -281,6 +276,7 @@ namespace PriceSafari.Controllers.MemberControllers
                         userName = b.User?.UserName ?? "Nieznany",
                         successfulCount = b.SuccessfulCount,
                         failedCount = b.FailedCount,
+
                         items = b.BridgeItems.Select(i => new
                         {
                             productName = i.AllegroProduct?.AllegroProductName ?? "Produkt usunięty",
@@ -290,7 +286,13 @@ namespace PriceSafari.Controllers.MemberControllers
                             priceAfter = i.PriceAfter_Verified ?? i.PriceAfter_Simulated,
                             priceDiff = (i.PriceAfter_Verified ?? i.PriceAfter_Simulated) - i.PriceBefore,
                             success = i.Success,
-                            errorMessage = i.ErrorMessage
+                            errorMessage = i.ErrorMessage,
+
+                            commissionBefore = i.CommissionBefore,
+                            commissionAfter = i.CommissionAfter_Verified,
+                            marginPrice = i.MarginPrice,
+                            includeCommissionInMargin = i.IncludeCommissionInMargin
+
                         }).OrderBy(i => i.productName).ToList()
                     }).OrderByDescending(b => b.executionTime).ToList()
                 })

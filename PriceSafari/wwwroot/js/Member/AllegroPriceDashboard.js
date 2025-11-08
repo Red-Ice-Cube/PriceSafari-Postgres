@@ -4,26 +4,12 @@
 
 let hubConnectionId = null;
 let currentView = 'analysis';
+let chart;
+let tooltipMeta = [];
+let openedId = null;
 
-hub.start()
-    .then(() => hub.invoke("GetConnectionId"))
-    .then(id => {
-        hubConnectionId = id;
-
-        load(7);
-    })
-    .catch(err => console.error(err));
-
-hub.on("ReceiveProgress", (_msg, percent) => {
-
-    const progressBar = document.getElementById("progressBar");
-    const progressText = document.getElementById("progressText");
-    if (progressBar && progressText) {
-        progressBar.style.width = percent + "%";
-        progressText.innerText = `Ładowanie... ${percent}%`;
-    }
-    if (percent === 100) setTimeout(hideLoadingOverlay, 800);
-});
+let lastLoadedAnalysisDays = null;
+let lastLoadedHistoryDays = null;
 
 function showLoadingOverlay() {
     const progressBar = document.getElementById("progressBar");
@@ -49,8 +35,48 @@ function mapDayFull(d) {
     }[d] || d;
 }
 
-let chart;
-let tooltipMeta = [];
+function formatPLN(value) {
+    if (value === null || value === undefined) return "-";
+    return parseFloat(value).toFixed(2) + " PLN";
+}
+
+function calculateMargin(price, marginPrice, commission, includeCommission) {
+    if (marginPrice === null || price === null || marginPrice === 0) {
+        return { amount: null, percent: null };
+    }
+    const priceNum = parseFloat(price);
+    const marginPriceNum = parseFloat(marginPrice);
+    const commissionNum = (includeCommission && commission !== null) ? parseFloat(commission) : 0;
+
+    const netPrice = priceNum - commissionNum;
+    const marginAmount = netPrice - marginPriceNum;
+    const marginPercent = (marginAmount / marginPriceNum) * 100;
+
+    return {
+        amount: marginAmount,
+        percent: marginPercent
+    };
+}
+
+function buildPriceDetailsCell(price, commission, marginPrice, includeCommission) {
+    const margin = calculateMargin(price, marginPrice, commission, includeCommission);
+    let marginHtml = "";
+
+    if (margin.amount !== null) {
+        const marginColor = margin.amount >= 0 ? "#198754" : "#dc3545";
+        marginHtml = `<div style="font-size: 11px; color: ${marginColor}; margin-top: 2px;">
+                        Narzut: ${formatPLN(margin.amount)} (${margin.percent.toFixed(2)}%)
+                      </div>`;
+    }
+
+    return `
+        <div style="line-height: 1.2;">
+            <div style="font-weight: 500; font-size: 14px;">${formatPLN(price)}</div>
+            <div style="font-size: 11px; color: #6c757d;">Prowizja: ${formatPLN(commission)}</div>
+            ${marginHtml}
+        </div>
+    `;
+}
 
 function drawChart(dailyData) {
     const ctxElement = document.getElementById("priceAnaliseChart");
@@ -247,7 +273,6 @@ function buildInnerTable(details, colorType, count) {
     </table>`;
 }
 
-let openedId = null;
 function toggleRowSmooth(id) {
     if (openedId && openedId !== id) closeRow(openedId);
     if (openedId === id) { closeRow(id); openedId = null; return; }
@@ -276,7 +301,6 @@ function closeRow(id) {
     if (parentRow && contentBox) {
         parentRow.classList.remove('active');
         contentBox.style.maxHeight = contentBox.scrollHeight + 'px';
-
         contentBox.offsetHeight;
         contentBox.style.maxHeight = '0';
 
@@ -292,6 +316,9 @@ function closeRow(id) {
 
 async function load(days) {
     if (!hubConnectionId) return;
+
+    if (days === lastLoadedAnalysisDays) return;
+
     showLoadingOverlay();
 
     try {
@@ -301,6 +328,8 @@ async function load(days) {
 
         drawChart(data);
         buildTable(data);
+
+        lastLoadedAnalysisDays = days;
     } catch (e) {
         console.error("Błąd:", e);
         alert("Wystąpił błąd podczas pobierania danych analizy.");
@@ -310,12 +339,14 @@ async function load(days) {
 }
 
 async function loadHistory(days) {
+
+    if (days === lastLoadedHistoryDays) return;
+
     showLoadingOverlay();
     const progressText = document.getElementById("progressText");
     const progressBarContainer = document.getElementById("progressBarContainer");
 
     if (progressText) progressText.innerText = "Ładowanie historii zmian...";
-
     if (progressBarContainer) progressBarContainer.style.display = 'none';
 
     try {
@@ -323,12 +354,13 @@ async function loadHistory(days) {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
         buildHistoryTable(data);
+
+        lastLoadedHistoryDays = days;
     } catch (e) {
         console.error("Błąd ładowania historii:", e);
         alert("Wystąpił błąd podczas pobierania historii zmian.");
     } finally {
         hideLoadingOverlay();
-
         if (progressBarContainer) progressBarContainer.style.display = 'block';
     }
 }
@@ -339,7 +371,7 @@ function buildHistoryTable(dailyData) {
     tb.innerHTML = "";
 
     if (!dailyData || dailyData.length === 0) {
-        tb.innerHTML = '<tr><td colspan="3" class="text-center" style="padding: 20px;">Brak historii zmian w wybranym okresie.</td></tr>';
+        tb.innerHTML = '<tr><td colspan="5" class="text-center" style="padding: 20px;">Brak historii zmian w wybranym okresie.</td></tr>';
         return;
     }
 
@@ -356,8 +388,7 @@ function buildHistoryTable(dailyData) {
              <div class="${isWeekend ? "weekend-box" : "week-box"}">${day.dayShort}</div>
              ${day.date}
           </td>
-          <td class="text-start"><span style="color: green; font-weight:bold;">${day.totalItemsChanged}</span></td>
-          <td class="text-start"><span style="color: red; font-weight:bold;">${day.totalErrors}</span></td>
+          <td class="text-start" colspan="2"><span style="color: green; font-weight:bold;">${day.totalItemsChanged} zmian</span></td>
         </tr>
         <tr id="${detailId}" class="details-row">
           <td colspan="3" class="p-0" style="border: none;">
@@ -399,22 +430,33 @@ function buildBatchItemsTable(items) {
         const priceColor = item.priceDiff > 0 ? 'red' : (item.priceDiff < 0 ? 'green' : 'gray');
 
         const errorTitle = item.errorMessage ? item.errorMessage.replace(/"/g, '&quot;') : 'Błąd';
+
         const statusIcon = item.success
-            ? '<span style="color:green;">✔</span>'
-            : `<span style="color:red; cursor:help;" title="${errorTitle}">✖</span>`;
+            ? '<i class="fas fa-check-circle" style="color: #198754; font-size: 1.3em;" title="Pomyślnie zmieniono"></i>'
+            : `<i class="fas fa-times-circle" style="color: #dc3545; font-size: 1.3em; cursor: help;" title="${errorTitle}"></i>`;
 
         return `
         <tr>
-            <td>
-                 <a href="/AllegroPriceHistory/Details?storeId=${STORE_ID}&productId=${item.productId}" target="_blank">
-                    ${item.productName}
-                 </a>
-                 <br/><small style="color:#999;">${item.offerId}</small>
+            <td style="vertical-align: middle;">
+                 <div style="line-height: 1.3;">
+                     <a href="/AllegroPriceHistory/Details?storeId=${STORE_ID}&productId=${item.productId}" target="_blank" style="font-weight: 500;">
+                        ${item.productName}
+                     </a>
+                     <div style="font-size: 12px; color: #999; margin-top: 2px;">ID: ${item.offerId}</div>
+                 </div>
             </td>
-            <td>${item.priceBefore.toFixed(2)} PLN</td>
-            <td><strong>${item.priceAfter.toFixed(2)} PLN</strong></td>
-            <td style="color: ${priceColor};">${priceDiffStr} PLN</td>
-            <td class="text-center">${statusIcon}</td>
+            <td style="vertical-align: top;">
+                ${buildPriceDetailsCell(item.priceBefore, item.commissionBefore, item.marginPrice, item.includeCommissionInMargin)}
+            </td>
+            <td style="vertical-align: top;">
+                ${buildPriceDetailsCell(item.priceAfter, item.commissionAfter, item.marginPrice, item.includeCommissionInMargin)}
+            </td>
+            <td style="vertical-align: middle; font-size: 15px; font-weight: 500; color: ${priceColor};">
+                ${priceDiffStr} PLN
+            </td>
+            <td class="text-center" style="vertical-align: middle;">
+                ${statusIcon}
+            </td>
         </tr>
         `;
     }).join("");
@@ -423,11 +465,11 @@ function buildBatchItemsTable(items) {
     <table class="table table-sm inner-table" style="background: #fff;">
         <thead>
             <tr>
-                <th>Produkt / Oferta ID</th>
-                <th>Cena przed</th>
-                <th>Cena po</th>
-                <th>Zmiana</th>
-                <th class="text-center">Status</th>
+                <th style="width: 35%;">Produkt</th>
+                <th style="width: 20%;">Przed zmianą</th>
+                <th style="width: 20%;">Po zmianie</th>
+                <th style="width: 15%;">Zmiana</th>
+                <th style="width: 10%;" class="text-center">Status</th>
             </tr>
         </thead>
         <tbody>
@@ -437,11 +479,30 @@ function buildBatchItemsTable(items) {
     `;
 }
 
+hub.on("ReceiveProgress", (_msg, percent) => {
+    const progressBar = document.getElementById("progressBar");
+    const progressText = document.getElementById("progressText");
+    if (progressBar && progressText) {
+        progressBar.style.width = percent + "%";
+        progressText.innerText = `Ładowanie... ${percent}%`;
+    }
+    if (percent === 100) setTimeout(hideLoadingOverlay, 800);
+});
+
+hub.start()
+    .then(() => hub.invoke("GetConnectionId"))
+    .then(id => {
+        hubConnectionId = id;
+        load(7);
+    })
+    .catch(err => console.error(err));
+
 document.addEventListener("DOMContentLoaded", () => {
     const analysisShortcuts = document.getElementById('analysisDateShortcuts');
     const historyShortcuts = document.getElementById('historyDateShortcuts');
     const viewAnalysisBtn = document.getElementById('viewAnalysisBtn');
     const viewHistoryBtn = document.getElementById('viewHistoryBtn');
+
     const analysisContainer = document.getElementById('analysisViewContainer');
     const historyContainer = document.getElementById('historyViewContainer');
 
@@ -456,9 +517,9 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     if (historyShortcuts) {
-        historyShortcuts.querySelectorAll(".dateShortcut").forEach(btn => {
+        historyShortcuts.querySelectorAll(".historyDateShortcut").forEach(btn => {
             btn.addEventListener("click", () => {
-                historyShortcuts.querySelectorAll(".dateShortcut").forEach(b => b.classList.remove("active"));
+                historyShortcuts.querySelectorAll(".historyDateShortcut").forEach(b => b.classList.remove("active"));
                 btn.classList.add("active");
                 loadHistory(+btn.dataset.count);
             });
@@ -471,12 +532,15 @@ document.addEventListener("DOMContentLoaded", () => {
             currentView = 'analysis';
             viewAnalysisBtn.classList.add('active');
             viewHistoryBtn.classList.remove('active');
+
             analysisContainer.style.display = 'block';
             historyContainer.style.display = 'none';
+
             if (analysisShortcuts) analysisShortcuts.style.display = 'flex';
             if (historyShortcuts) historyShortcuts.style.display = 'none';
 
-            const activeBtn = analysisShortcuts.querySelector(".dateShortcut.active");
+            const activeBtn = analysisShortcuts ? analysisShortcuts.querySelector(".dateShortcut.active") : null;
+
             load(activeBtn ? +activeBtn.dataset.count : 7);
         });
 
@@ -485,12 +549,14 @@ document.addEventListener("DOMContentLoaded", () => {
             currentView = 'history';
             viewHistoryBtn.classList.add('active');
             viewAnalysisBtn.classList.remove('active');
+
             analysisContainer.style.display = 'none';
             historyContainer.style.display = 'block';
+
             if (analysisShortcuts) analysisShortcuts.style.display = 'none';
             if (historyShortcuts) historyShortcuts.style.display = 'flex';
 
-            const activeBtn = historyShortcuts.querySelector(".dateShortcut.active");
+            const activeBtn = historyShortcuts ? historyShortcuts.querySelector(".historyDateShortcut.active") : null;
 
             loadHistory(activeBtn ? +activeBtn.dataset.count : 30);
         });
