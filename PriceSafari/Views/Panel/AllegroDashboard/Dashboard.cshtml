@@ -4,7 +4,7 @@
 }
 
 <style>
-
+    /* --- TWOJE ISTNIEJĄCE STYLE (bez zmian) --- */
     .week-box {
         display: flex;
         width: 80px;
@@ -107,8 +107,7 @@
             text-align: center;
         }
 
-        .table-price td,
-        .table-price th {
+        .table-price td, .table-price th {
             padding: 8px 16px;
             text-align: left;
             color: #222222;
@@ -150,8 +149,7 @@
                     cursor: pointer;
                 }
 
-        .inner-table th:not(:first-child),
-        .inner-table td:not(:first-child) {
+        .inner-table th:not(:first-child), .inner-table td:not(:first-child) {
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
@@ -169,8 +167,7 @@
         z-index: auto;
     }
 
-    .table-price .details-content .inner-table td,
-    .table-price .details-content .inner-table th {
+    .table-price .details-content .inner-table td, .table-price .details-content .inner-table th {
         padding: 6px 12px;
         font-size: 15px;
         vertical-align: middle;
@@ -210,43 +207,112 @@
             font-size: 13px;
         }
 
+    /* --- NOWE STYLE DLA PRZEŁĄCZNIKA --- */
+    .btn-view-switch {
+        padding: 6px 16px; /* Trochę mniejszy padding żeby pasował do nagłówka */
+        border: 1px solid #ddd;
+        background: #fff;
+        cursor: pointer;
+        border-radius: 4px;
+        font-weight: 500;
+        font-size: 14px;
+        transition: all 0.2s;
+        color: #555;
+        margin-left: 15px; /* Odstęp od tytułu */
+    }
+
+        .btn-view-switch:first-child {
+            margin-left: 0;
+        }
+
+        .btn-view-switch.active {
+            background: #222;
+            color: #fff;
+            border-color: #222;
+        }
+    /* Grupa przycisków przełącznika */
+    .view-switch-group {
+        display: flex;
+        align-items: center;
+        margin-left: 25px; /* Odsunięcie całej grupy od tytułu */
+    }
+
 </style>
 
 <script>const STORE_ID = @ViewBag.StoreId;</script>
 
 <div class="Vert">
-    <div class="Date">
-        <div class="Order-Container-Title">Analiza cen Allegro @ViewBag.StoreName</div>
-        <div class="Select-Line" style="gap:2px;">
-            <button class="dateShortcut active" data-count="7">7</button>
-            <button class="dateShortcut" data-count="14">14</button>
-            <button class="dateShortcut" data-count="30">30</button>
+    <div class="Date" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+
+        <div style="display: flex; align-items: center;">
+            <div class="Order-Container-Title" style="margin-bottom: 0;">Analiza cen Allegro @ViewBag.StoreName</div>
+
+            <div class="view-switch-group">
+                <button id="viewAnalysisBtn" class="btn-view-switch active">Analiza konkurencji</button>
+                <button id="viewHistoryBtn" class="btn-view-switch" style="margin-left: 5px;">Historia zmian PriceSafari</button>
+            </div>
+        </div>
+
+        <div>
+            <div id="analysisDateShortcuts" class="Select-Line" style="gap:2px;">
+                <button class="dateShortcut active" data-count="7">7</button>
+                <button class="dateShortcut" data-count="14">14</button>
+                <button class="dateShortcut" data-count="30">30</button>
+            </div>
+            <div id="historyDateShortcuts" class="Select-Line" style="gap:2px; display: none;">
+                <button class="dateShortcut active" data-count="7">7</button>
+                <button class="dateShortcut" data-count="14">14</button>
+                <button class="dateShortcut" data-count="30">30</button>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<div id="analysisViewContainer" class="View">
+    <div class="Vert">
+        <div class="Charts-Bar-a" style="max-height:350px;">
+            <div class="Charts-Box-Bar-a">
+                <canvas id="priceAnaliseChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <div class="Vert">
+        <div class="Vert-full">
+            <div class="Vert-table" style="height:90vh;">
+                <table class="table-price" id="analysisTable">
+                    <thead>
+                        <tr>
+                            <th>Data</th>
+                            <th>Obniżki cen</th>
+                            <th>Podwyżki cen</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 </div>
 
-<div class="Vert">
-    <div class="Charts-Bar-a" style="max-height:350px;">
-        <div class="Charts-Box-Bar-a">
-            <canvas id="priceAnaliseChart"></canvas>
-        </div>
-    </div>
-</div>
-
-<div class="Vert">
-    <div class="Vert-full">
-        <div class="Vert-table" style="height:90vh;">
-            <table class="table-price">
-                <thead>
-                    <tr>
-                        <th>Data</th>
-                        <th>Obniżki cen</th>
-                        <th>Podwyżki cen</th>
-                    </tr>
-                </thead>
-                <tbody>
-                </tbody>
-            </table>
+<div id="historyViewContainer" style="display: none;" class="View">
+    <div class="Vert">
+        <div class="Vert-full">
+            <div class="Vert-table" style="height:90vh;">
+                <table class="table-price" id="historyTable">
+                    <thead>
+                        <tr>
+                            <th>Data</th>
+                            <th>Liczba zmian (sukces)</th>
+                            <th>Błędy</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 </div>

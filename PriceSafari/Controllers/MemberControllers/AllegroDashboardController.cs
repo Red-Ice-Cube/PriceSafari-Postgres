@@ -44,11 +44,11 @@ namespace PriceSafari.Controllers.MemberControllers
         {
             try
             {
-                // Funkcja pomocnicza do wysyłania postępu z konkretnym procentem
+
                 async Task ReportProgress(string msg, int pct)
                 {
                     if (string.IsNullOrEmpty(connectionId)) return;
-                    // Zapewniamy, że procent nigdy nie spadnie ani nie przekroczy 100 przed końcem
+
                     pct = Math.Max(0, Math.Min(99, pct));
                     await _hub.Clients.Client(connectionId).SendAsync("ReceiveProgress", msg, pct);
                 }
@@ -133,12 +133,10 @@ namespace PriceSafari.Controllers.MemberControllers
 
                 var dailySummaries = new Dictionary<DateTime, DailySummary>();
 
-                // --- START GŁÓWNEJ PĘTLI I OBLICZANIA POSTĘPU ---
                 int startIndex = referenceScrap != null ? 1 : 0;
                 int totalIterations = allScrapsToProcess.Count - startIndex;
                 int iterationsDone = 0;
 
-                // Pętla startuje od 15% i ma do dyspozycji 80% paska (do 95%)
                 int startPct = 15;
                 int availablePctRange = 80;
 
@@ -146,11 +144,9 @@ namespace PriceSafari.Controllers.MemberControllers
                 {
                     var currentScrap = allScrapsToProcess[i];
 
-                    // Obliczamy dokładny procent na podstawie aktualnej iteracji
                     int currentPct = startPct + (int)((double)iterationsDone / totalIterations * availablePctRange);
                     await ReportProgress($"Analizuję scrap {iterationsDone + 1}/{totalIterations}: {currentScrap.Date:dd.MM HH:mm}...", currentPct);
 
-                    // ... (logika pobierania cen i porównywania - BEZ ZMIAN W STOSUNKU DO POPRZEDNIEJ WERSJI) ...
                     var allCurrentPricesList = await _context.AllegroPriceHistories
                         .AsNoTracking()
                         .Where(ph => ph.AllegroScrapeHistoryId == currentScrap.Id && ph.SellerName == mySellerName)
@@ -206,7 +202,6 @@ namespace PriceSafari.Controllers.MemberControllers
                     previousPrices = currentPrices;
                     iterationsDone++;
                 }
-                // --- KONIEC PĘTLI ---
 
                 await ReportProgress("Finalizuję dane...", 98);
 
@@ -231,7 +226,6 @@ namespace PriceSafari.Controllers.MemberControllers
                     })
                     .ToList();
 
-                // 100% wysyłamy na samym końcu
                 if (!string.IsNullOrEmpty(connectionId))
                 {
                     await _hub.Clients.Client(connectionId).SendAsync("ReceiveProgress", "Gotowe!", 100);
@@ -244,6 +238,65 @@ namespace PriceSafari.Controllers.MemberControllers
                 Console.WriteLine($"[AllegroDashboard ERROR] {ex}");
                 return StatusCode(500, $"Błąd serwera: {ex.Message}");
             }
+        }
+
+
+
+        // W AllegroDashboardController.cs
+
+        [HttpGet]
+        public async Task<IActionResult> GetPriceBridgeHistory(int storeId, int days = 30)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var hasAccess = await _context.UserStores.AnyAsync(us => us.UserId == userId && us.StoreId == storeId)
+                            || User.IsInRole("Admin") || User.IsInRole("Manager");
+
+            if (!hasAccess) return Forbid();
+
+            var sinceDate = DateTime.UtcNow.AddDays(-days).Date;
+
+            var batches = await _context.AllegroPriceBridgeBatches
+                .AsNoTracking()
+                .Where(b => b.StoreId == storeId && b.ExecutionDate >= sinceDate)
+                .Include(b => b.User)
+                .Include(b => b.BridgeItems)
+                    .ThenInclude(i => i.AllegroProduct)
+                .OrderByDescending(b => b.ExecutionDate)
+                .ToListAsync();
+
+            // Grupujemy batche po dacie (dniu), żeby wyświetlić je w tabeli podobnej do obecnej
+            var groupedByDay = batches
+                .GroupBy(b => b.ExecutionDate.Date)
+                .OrderByDescending(g => g.Key)
+                .Select(g => new
+                {
+                    date = g.Key.ToString("yyyy-MM-dd"),
+                    dayShort = g.Key.ToString("ddd", new CultureInfo("pl-PL")),
+                    totalBatches = g.Count(),
+                    totalItemsChanged = g.Sum(b => b.SuccessfulCount),
+                    totalErrors = g.Sum(b => b.FailedCount),
+                    batches = g.Select(b => new
+                    {
+                        executionTime = b.ExecutionDate.ToString("HH:mm"),
+                        userName = b.User?.UserName ?? "Nieznany",
+                        successfulCount = b.SuccessfulCount,
+                        failedCount = b.FailedCount,
+                        items = b.BridgeItems.Select(i => new
+                        {
+                            productName = i.AllegroProduct?.AllegroProductName ?? "Produkt usunięty",
+                            productId = i.AllegroProduct?.AllegroProductId,
+                            offerId = i.AllegroOfferId,
+                            priceBefore = i.PriceBefore,
+                            priceAfter = i.PriceAfter_Verified ?? i.PriceAfter_Simulated,
+                            priceDiff = (i.PriceAfter_Verified ?? i.PriceAfter_Simulated) - i.PriceBefore,
+                            success = i.Success,
+                            errorMessage = i.ErrorMessage
+                        }).OrderBy(i => i.productName).ToList()
+                    }).OrderByDescending(b => b.executionTime).ToList()
+                })
+                .ToList();
+
+            return Json(groupedByDay);
         }
 
         private class ScrapInfo
