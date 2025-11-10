@@ -92,6 +92,8 @@
     let usePriceWithDeliverySetting = false;
     let globalIncludeCommissionSetting = false;
     let originalRowsData = [];
+    // NOWE: Flaga sterująca widocznością kolumny API
+    let simulationsExecuted = false;
 
     function updatePriceChangeSummary(forceClear = false) {
         if (forceClear) {
@@ -111,7 +113,6 @@
         }
         var simulateButton = document.getElementById("simulateButton");
         if (simulateButton) {
-
             simulateButton.disabled = false;
             simulateButton.style.opacity = '1';
             simulateButton.style.cursor = 'pointer';
@@ -134,6 +135,8 @@
     function clearPriceChanges() {
         selectedPriceChanges = [];
         sessionScrapId = null;
+        // RESET flagi wykonania przy czyszczeniu
+        simulationsExecuted = false;
         savePriceChanges();
         updatePriceChangeSummary();
 
@@ -141,8 +144,6 @@
         if (tableContainer) {
             tableContainer.innerHTML = '<p style="text-align: center; padding: 20px; font-size: 16px;">Brak produktów do symulacji.</p>';
         }
-        const simulationTable = document.getElementById("simulationTable");
-        if (simulationTable) simulationTable.remove();
         originalRowsData = [];
         if (typeof window.refreshPriceBoxStates === 'function') {
             window.refreshPriceBoxStates();
@@ -150,9 +151,7 @@
     }
 
     document.addEventListener('simulationDataCleared', function () {
-        selectedPriceChanges = [];
-        sessionScrapId = null;
-        updatePriceChangeSummary();
+        clearPriceChanges();
     });
 
     document.addEventListener('priceBoxChange', function (event) {
@@ -163,6 +162,8 @@
             console.warn(`ScrapId w sesji (${sessionScrapId}) różni się od scrapId eventu (${scrapId}). Czyszczenie starych zmian.`);
             selectedPriceChanges = [];
             sessionScrapId = scrapId;
+            // RESET przy zmianie scrapId
+            simulationsExecuted = false;
         }
         var existingIndex = selectedPriceChanges.findIndex(item => String(item.productId) === String(productId));
         const changeData = {
@@ -189,6 +190,8 @@
         selectedPriceChanges = selectedPriceChanges.filter(item => item.productId !== productIdStr);
         if (selectedPriceChanges.length === 0) {
             sessionScrapId = null;
+            // RESET gdy usunięto wszystko
+            simulationsExecuted = false;
         }
         savePriceChanges();
         updatePriceChangeSummary();
@@ -200,9 +203,7 @@
         originalRowsData = originalRowsData.filter(rowItem => String(rowItem.productId) !== productIdStr);
         if (selectedPriceChanges.length === 0) {
             const tableContainer = document.getElementById("simulationModalBody");
-            const simulationTable = document.getElementById("simulationTable");
-            if (tableContainer && simulationTable) {
-                simulationTable.remove();
+            if (tableContainer) {
                 tableContainer.innerHTML = '<p style="text-align: center; padding: 20px; font-size: 16px;">Brak produktów do symulacji.</p>';
             }
         }
@@ -321,29 +322,39 @@
         };
     }
 
-    function buildPriceBlock(basePrice, marginPrice, apiAllegroCommission, allegroRank, allegroOffers, isConfirmedBlock = false) {
+    // ZMODYFIKOWANA: Obsługa zielonego koloru dla rankingu i brak dla narzutu
+    function buildPriceBlock(basePrice, marginPrice, apiAllegroCommission, allegroRank, allegroOffers, isConfirmedBlock = false, includeCommissionOverride = null) {
         const formattedBasePrice = formatPricePL(basePrice);
         let block = '<div class="price-info-box">';
         let headerText = isConfirmedBlock ? 'Cena wgrana' : 'Cena oferty';
-        let headerStyle = isConfirmedBlock ? 'background: #dff0d8; border: 1px solid #c1e2b3;' : 'background: #f5f5f5; border: 1px solid #e3e3e3;';
+
+        // Definicje stylów
+        const confirmedStyle = 'background: #dff0d8; border: 1px solid #c1e2b3;';
+        const normalStyle = 'background: #f5f5f5; border: 1px solid #e3e3e3;';
+
+        let headerStyle = isConfirmedBlock ? confirmedStyle : normalStyle;
         block += `<div class="price-info-item" style="padding: 4px 12px; ${headerStyle} border-radius: 5px; margin-bottom: 5px;">${headerText} | ${formattedBasePrice}</div>`;
 
         if (allegroRank && allegroRank !== "-") {
-            block += `<div class="price-info-item" style="padding: 4px 12px; background: #f5f5f5; border: 1px solid #e3e3e3; border-radius: 5px; margin-bottom: 5px;">Poz. cenowa | <img src="/images/AllegroIcon.png" alt="Allegro Icon" style="width:16px; height:16px; vertical-align: middle; margin-right: 3px;" /> ${allegroRank}</div>`;
+            // Ranking też dostaje zielony styl jeśli confirmed
+            let rankStyle = isConfirmedBlock ? confirmedStyle : normalStyle;
+            block += `<div class="price-info-item" style="padding: 4px 12px; ${rankStyle} border-radius: 5px; margin-bottom: 5px;">Poz. cenowa | <img src="/images/AllegroIcon.png" alt="Allegro Icon" style="width:16px; height:16px; vertical-align: middle; margin-right: 3px;" /> ${allegroRank}</div>`;
         }
+
+        const effectiveIncludeCommission = includeCommissionOverride !== null ? includeCommissionOverride : globalIncludeCommissionSetting;
 
         if (apiAllegroCommission != null) {
             const formattedCommission = formatPricePL(apiAllegroCommission, false);
-            const commissionStatusText = globalIncludeCommissionSetting ?
+            const commissionStatusText = effectiveIncludeCommission ?
                 '<span style="font-weight: 400; color: #555;"> | uwzględniona</span>' :
                 '<span style="font-weight: 400; color: #999;"> | nieuwzględniona</span>';
-            let commissionStyle = isConfirmedBlock ? 'background: #dff0d8; border: 1px solid #c1e2b3;' : 'background: #f5f5f5; border: 1px solid #e3e3e3;';
+            let commissionStyle = isConfirmedBlock ? confirmedStyle : normalStyle;
             block += `<div class="price-info-item" style="padding: 4px 12px; ${commissionStyle} border-radius: 5px; margin-bottom: 5px;">Prowizja | ${formattedCommission} PLN${commissionStatusText}</div>`;
         }
         let marginValue = null;
         let marginPercent = null;
         if (marginPrice != null && basePrice != null) {
-            const commissionToDeduct = (globalIncludeCommissionSetting && apiAllegroCommission != null) ?
+            const commissionToDeduct = (effectiveIncludeCommission && apiAllegroCommission != null) ?
                 parseFloat(apiAllegroCommission) : 0;
             const netPrice = parseFloat(basePrice) - commissionToDeduct;
             const purchasePrice = parseFloat(marginPrice);
@@ -355,8 +366,8 @@
             const formattedMarginPercent = parseFloat(marginPercent).toFixed(2);
             const sign = parseFloat(marginValue) >= 0 ? "+" : "";
             const cls = parseFloat(marginValue) >= 0 ? "priceBox-diff-margin" : "priceBox-diff-margin-minus";
-            let marginBoxStyle = isConfirmedBlock ? 'background: #dff0d8;' : '';
-            block += `<div class="price-info-item"><div class="price-box-diff-margin ${cls}" style="margin-top: 5px; ${marginBoxStyle}"><p>Narzut: ${formattedMarginValue} (${sign}${formattedMarginPercent}%)</p></div></div>`;
+            // WAŻNE: Narzut NIE dostaje zielonego tła (isConfirmedBlock ignorowane tutaj)
+            block += `<div class="price-info-item"><div class="price-box-diff-margin ${cls}" style="margin-top: 5px;"><p>Narzut: ${formattedMarginValue} (${sign}${formattedMarginPercent}%)</p></div></div>`;
         } else if (marginPrice != null) {
             block += `<div class="price-info-item"><div class="price-box-diff-margin" style="margin-top: 5px;"><p>Cena zakupu: ${formatPricePL(marginPrice)}</p></div></div>`;
         }
@@ -364,25 +375,7 @@
         return block;
     }
 
-    function calculateMarginJS(price, marginPrice, commission, includeCommission) {
-        if (marginPrice === null || price === null) {
-            return { marginAmount: null, marginPercent: null };
-        }
-        const priceNum = parseFloat(price);
-        const marginPriceNum = parseFloat(marginPrice);
-        if (marginPriceNum === 0) {
-            return { marginAmount: null, marginPercent: null };
-        }
-        const commissionNum = (includeCommission && commission !== null) ? parseFloat(commission) : 0;
-        const netPrice = priceNum - commissionNum;
-        const marginAmount = netPrice - marginPriceNum;
-        const marginPercent = (marginAmount / marginPriceNum) * 100;
-        return {
-            marginAmount: marginAmount,
-            marginPercent: marginPercent
-        };
-    }
-
+    // ZMODYFIKOWANA: Dodane linki do produktów, kolumna zmiany, ikonka sukcesu
     function renderHistoryView(batches) {
         const historyContainer = document.getElementById("historyModalBody");
         if (!historyContainer) return;
@@ -411,8 +404,8 @@
                     <tr>
                         <th>Produkt</th>
                         <th>Przed zmianą</th>
-                        <th>Symulacja</th>
-                        <th>Weryfikacja API</th>
+                        <th>Zmiana</th>
+                        <th>Zaktualizowana cena</th>
                         <th>Status</th>
                     </tr>
                 </thead>
@@ -420,71 +413,65 @@
             `;
 
             batch.items.forEach(item => {
-                const marginBefore = calculateMarginJS(item.priceBefore, item.marginPrice, item.commissionBefore, item.includeCommissionInMargin);
-                const marginSimulated = calculateMarginJS(item.priceAfter_Simulated, item.marginPrice, item.commissionBefore, item.includeCommissionInMargin);
-                const marginVerified = calculateMarginJS(item.priceAfter_Verified, item.marginPrice, item.commissionAfter_Verified, item.includeCommissionInMargin);
-
-                const blockBefore = `
-                <div class="price-info-box small-text">
-                    <div class="price-info-item">Cena: <strong>${formatPricePL(item.priceBefore)}</strong></div>
-                    <div class="price-info-item">Prowizja: ${formatPricePL(item.commissionBefore)}</div>
-                    <div class="price-info-item">Ranking: ${item.rankingBefore || '-'}</div>
-                    <div class="price-info-item">Narzut: ${formatPricePL(marginBefore.marginAmount)} (${marginBefore.marginPercent !== null ? marginBefore.marginPercent.toFixed(2) + '%' : '-'})</div>
-                </div>`;
-
-                const blockSimulated = `
-                <div class="price-info-box small-text">
-                    <div class="price-info-item">Cena: <strong>${formatPricePL(item.priceAfter_Simulated)}</strong></div>
-                    <div class="price-info-item">Prowizja: ${formatPricePL(item.commissionBefore)} (Szac.)</div>
-                    <div class="price-info-item">Ranking: ${item.rankingAfter_Simulated || '-'}</div>
-                    <div class="price-info-item">Narzut: ${formatPricePL(marginSimulated.marginAmount)} (${marginSimulated.marginPercent !== null ? marginSimulated.marginPercent.toFixed(2) + '%' : '-'})</div>
-                </div>`;
-
-                const blockVerified = item.success ? `
-                <div class="price-info-box small-text" style="background: #dff0d8; border-color: #c1e2b3;">
-                    <div class="price-info-item">Cena: <strong>${formatPricePL(item.priceAfter_Verified)}</strong></div>
-                    <div class="price-info-item">Prowizja: ${formatPricePL(item.commissionAfter_Verified)} (Real.)</div>
-                    <div class="price-info-item">Ranking: ${item.rankingAfter_Simulated || '-'}</div>
-                    <div class="price-info-item">Narzut: ${formatPricePL(marginVerified.marginAmount)} (${marginVerified.marginPercent !== null ? marginVerified.marginPercent.toFixed(2) + '%' : '-'})</div>
-                </div>` :
-                    '<div class="price-info-box small-text" style="background: #f8d7da; border-color: #f5c6cb;"><p>Weryfikacja nieudana.</p></div>';
+                const blockBefore = buildPriceBlock(item.priceBefore, item.marginPrice, item.commissionBefore, item.rankingBefore, null, false, item.includeCommissionInMargin);
+                const blockUpdated = item.success ? buildPriceBlock(item.priceAfter_Verified, item.marginPrice, item.commissionAfter_Verified, item.rankingAfter_Simulated, null, true, item.includeCommissionInMargin)
+                    : '<div class="price-info-box" style="background: #f8d7da; border: 1px solid #f5c6cb; padding: 10px; border-radius: 5px;"><p style="margin:0; color: #721c24;">Weryfikacja nieudana.</p></div>';
 
                 const statusBlock = item.success ?
-                    '<span style="color: #28a745; font-weight: bold;">Wgrano</span>' :
+                    '<span style="color: #28a745; font-weight: bold;"><i class="fas fa-check-circle"></i> Wgrano</span>' :
                     `<span style="color: #dc3545; font-weight: bold;" title="${item.errorMessage || ''}">Błąd</span>`;
 
                 let idInfo = item.offerId ? `<div class="price-info-item small-text">ID: ${item.offerId}</div>` : `<div class="price-info-item small-text" style="color:#888;">ID: Brak</div>`;
                 let eanInfo = item.ean ? `<div class="price-info-item small-text">EAN: ${item.ean}</div>` : `<div class="price-info-item small-text" style="color:#888;">EAN: Brak</div>`;
 
                 let allegroButton = '';
-
-               
                 const offerUrl = item.allegroOfferUrl ? item.allegroOfferUrl : (item.offerId ? `https://allegro.pl/oferta/${item.offerId}` : null);
-
                 if (offerUrl) {
-            
                     allegroButton = `
                     <a href="${offerUrl}" class="Button-Page-Small" style="margin-top: 8px;" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation();">
                         <img src="/images/AllegroIcon.png" alt="Allegro Icon" style="width:18px; height:18px; margin-right: 5px;"> Zobacz
                     </a>`;
                 }
 
+                // Obliczenie zmiany dla środkowej kolumny
+                let diffBlock = '-';
+                if (item.success && item.priceAfter_Verified != null && item.priceBefore != null) {
+                    const diff = item.priceAfter_Verified - item.priceBefore;
+                    const diffPercent = (item.priceBefore > 0) ? (diff / item.priceBefore) * 100 : 0;
+                    let arrow = '<span style="color: gray;">●</span>';
+                    if (diff > 0.005) arrow = '<span style="color: red;">▲</span>';
+                    else if (diff < -0.005) arrow = '<span style="color: green;">▼</span>';
+
+                    diffBlock = `
+                        <div style="font-size: 1em; white-space: nowrap;">
+                            <div>${arrow} ${formatPricePL(Math.abs(diff), false)} PLN</div>
+                            <div style="font-size: 0.9em; color: #555; margin-left:19px;">(${Math.abs(diffPercent).toFixed(2)}%)</div>
+                        </div>`;
+                }
+
                 html += `
                 <tr>
                 <td class="align-middle">
-                    <div class="price-info-item" style="font-weight: 500;">${item.productName}</div>
+                     <a
+                        href="/AllegroPriceHistory/Details?storeId=${storeId}&productId=${item.productId}"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="simulationProductTitle"
+                        title="Zobacz szczegóły produktu"
+                        style="text-decoration: none; color: inherit;"
+                    >
+                        <div class="price-info-item" style="font-size:110%; margin-bottom:8px; font-weight: 500;">${item.productName}</div>
+                    </a>
                     ${idInfo}
                     ${eanInfo}
                     ${allegroButton}
                 </td>
                 <td class="align-middle">${blockBefore}</td>
-                <td class="align-middle">${blockSimulated}</td>
-                <td class="align-middle">${blockVerified}</td>
+                <td class="align-middle">${diffBlock}</td>
+                <td class="align-middle">${blockUpdated}</td>
                 <td class="align-middle text-center">${statusBlock}</td>
                 </tr>`;
             });
-
-       
             html += `</tbody></table>`;
         });
 
@@ -508,12 +495,10 @@
         const historyContainer = document.getElementById("historyModalBody");
         historyContainer.innerHTML = '<div class="loader" style="margin: 20px auto;"></div>';
 
-  
         fetch(`/AllegroPriceHistory/GetScrapPriceChangeHistory?storeId=${storeId}&allegroScrapeHistoryId=${globalAllegroScrapId}`)
             .then(response => {
                 if (!response.ok) {
                     historyLoaded = false;
-            
                     throw new Error(`Błąd HTTP! status: ${response.status}`);
                 }
                 return response.json();
@@ -524,10 +509,33 @@
             .catch(err => {
                 historyLoaded = false;
                 console.error("Błąd pobierania historii zmian:", err);
-           
                 historyContainer.innerHTML = `<p style="text-align: center; padding: 20px; font-size: 16px; color: red;">Wystąpił błąd podczas ładowania historii: ${err.message}</p>`;
                 document.getElementById('historyTabCounter').textContent = 'X';
             });
+    }
+
+    // NOWA FUNKCJA: renderowanie nagłówka tabeli symulacji
+    function renderSimulationTableHeader(hasImage) {
+        let tableHtml = '<table class="table-orders" id="simulationTable"><thead><tr>';
+        if (hasImage) {
+            tableHtml += '<th>Produkt</th>';
+        }
+        tableHtml += '<th></th>';
+        tableHtml += '<th>Obecne</th>';
+        tableHtml += '<th>Zmiana</th>';
+        tableHtml += '<th>Po zmianie</th>';
+        // Kolumna API tylko jeśli simulationsExecuted == true
+        if (simulationsExecuted) {
+            tableHtml += '<th>Potwierdzenie API</th>';
+        }
+        tableHtml += '<th>Opłacalność zmiany</th>';
+        tableHtml += '<th>Usuń</th>';
+        tableHtml += '</tr></thead><tbody id="simulationTbody"></tbody></table>';
+
+        const tableContainer = document.getElementById("simulationModalBody");
+        if (tableContainer) {
+            tableContainer.innerHTML = tableHtml;
+        }
     }
 
     function openSimulationModal() {
@@ -561,6 +569,8 @@
         } else {
 
             showLoading();
+            // Reset flagi wykonania przy każdym otwarciu na nowo
+            simulationsExecuted = false;
 
             var simulationData = selectedPriceChanges.map(function (item) {
                 return {
@@ -608,22 +618,10 @@
                     }
 
                     var simulationResults = data.simulationResults || [];
-                    let tableHtml = '<table class="table-orders" id="simulationTable"><thead><tr>';
-                    if (hasImage) {
-                        tableHtml += '<th>Produkt</th>';
-                    }
-                    tableHtml += '<th></th>';
-                    tableHtml += '<th>Obecne</th>';
-                    tableHtml += '<th>Zmiana</th>';
-                    tableHtml += '<th>Po zmianie</th>';
-                    tableHtml += '<th>Potwierdzenie API</th>';
-                    tableHtml += '<th>Opłacalność zmiany</th>';
-                    tableHtml += '<th>Usuń</th>';
-                    tableHtml += '</tr></thead><tbody id="simulationTbody"></tbody></table>';
-                    const tableContainer = document.getElementById("simulationModalBody");
-                    if (tableContainer) {
-                        tableContainer.innerHTML = tableHtml;
-                    }
+
+                    // Używamy nowej funkcji do renderowania nagłówka
+                    renderSimulationTableHeader(hasImage);
+
                     originalRowsData = selectedPriceChanges.map(function (item, index) {
                         const productIdStr = String(item.productId);
                         const prodDetail = productDetails.find(x => String(x.productId) === productIdStr);
@@ -665,13 +663,13 @@
                             if (opp.allegroFinalScore != null) {
                                 effectDetails += createDonutChart(opp.allegroFinalScore, "/images/AllegroIcon.png");
                             } else {
-                             
+
                                 effectDetails += `<div><span style="color: green; font-weight: 400; font-size: 16px;">▼</span> <span style="color: #222222; font-weight: 400; font-size: 16px;"> Obniżka</span></div>`;
                             }
                         } else if (opp.basePriceChangeType === 'increase') {
                             effectDetails += `<div><span style="color: red; font-weight: 400; font-size: 16px;">▲</span> <span style="color: #222222; font-weight: 400; font-size: 16px;"> Podwyżka</span></div>`;
                         } else {
-                 
+
                             effectDetails += `<div><span style="color: gray; font-weight: 400; font-size: 16px;">●</span> <span style="color: #222222; font-weight: 400; font-size: 16px;"> Bez zmian</span></div>`;
                         }
                         return {
@@ -700,7 +698,7 @@
                     hideLoading();
                     const tableContainer = document.getElementById("simulationModalBody");
                     if (tableContainer) {
-                       
+
                         tableContainer.innerHTML = `<p style="text-align: center; padding: 20px; font-size: 16px; color: red;">Wystąpił błąd: ${err.message}. Spróbuj ponownie.</p>`;
                     }
                 })
@@ -724,7 +722,7 @@
             let imageCell = "";
             if (row.hasImage) {
                 const imgSrc = (row.imageUrl && row.imageUrl.trim() !== "") ? row.imageUrl : '/images/placeholder.png';
-         
+
                 imageCell = `
                     <td>
                     <div class="price-info-item" style="padding:4px; text-align: center;"> <img
@@ -735,7 +733,7 @@
                     </td>`;
             }
 
-           
+
             let idInfo = row.myIdAllegro ? `<div class="price-info-item small-text">ID: ${row.myIdAllegro}</div>` : `<div class="price-info-item small-text" style="color:#888;">ID: Brak</div>`;
             let eanInfo = row.ean ? `<div class="price-info-item small-text">EAN: ${row.ean}</div>` : `<div class="price-info-item small-text" style="color:#888;">EAN: Brak</div>`;
 
@@ -753,6 +751,7 @@
             const formattedDiff = formatPricePL(Math.abs(row.diff), false);
             const formattedDiffPercent = Math.abs(row.diffPercent).toFixed(2);
 
+            // ZMODYFIKOWANA: warunkowe renderowanie <td> dla Potwierdzenia API
             html += `<tr data-product-id="${row.productId}" data-offer-id="${row.myIdAllegro || ''}">
                         ${imageCell}
                         <td class="align-middle">
@@ -776,8 +775,7 @@
                             <div style="font-size: 0.9em; color: #555; margin-left:19px;">(${formattedDiffPercent}%)</div>
                         </td>
                         <td class="align-middle">${row.newBlock}</td>
-                        <td class="align-middle" id="confirm_${row.productId}" style="min-width: 200px;">
-                        </td>
+                        ${simulationsExecuted ? `<td class="align-middle" id="confirm_${row.productId}" style="min-width: 200px;"></td>` : ''}
                         <td class="align-middle" style="white-space: normal; text-align: center;">${row.effectDetails}</td>
                         <td class="align-middle text-center">
                             <button class="remove-change-btn"
@@ -916,6 +914,12 @@
                     }
 
                     if (result.successfulChangesDetails && result.successfulChangesDetails.length > 0) {
+                        // ZMODYFIKOWANA: ustawienie flagi i przerysowanie tabeli z nową kolumną
+                        simulationsExecuted = true;
+                        const hasImage = originalRowsData.length > 0 && originalRowsData[0].hasImage;
+                        renderSimulationTableHeader(hasImage);
+                        renderRows(originalRowsData);
+
                         const successfulProductIds = new Set();
                         result.successfulChangesDetails.forEach(detail => {
                             const rowData = originalRowsData.find(r => r.myIdAllegro && r.myIdAllegro.toString() === detail.offerId);
@@ -923,7 +927,6 @@
 
                             successfulProductIds.add(rowData.productId);
 
-                         
                             const cell = document.getElementById(`confirm_${rowData.productId}`);
                             if (cell) {
                                 cell.innerHTML = buildPriceBlock(
@@ -936,7 +939,6 @@
                                 );
                             }
 
-                   
                             const rowElement = document.querySelector(`tr[data-product-id="${rowData.productId}"]`);
                             if (rowElement) {
                                 const removeBtn = rowElement.querySelector('.remove-change-btn');
@@ -958,16 +960,12 @@
                         }
                     }
 
-            
                     if (typeof window.loadPrices === 'function') {
-                   
                         window.loadPrices();
                     }
-              
+
                     historyLoaded = false;
                     fetchAndRenderHistory();
-               
-
                 })
                 .catch(err => {
                     hideLoading();
