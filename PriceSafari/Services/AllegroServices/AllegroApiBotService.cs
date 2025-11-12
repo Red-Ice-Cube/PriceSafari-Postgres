@@ -12,13 +12,19 @@ using System.Text.Json.Nodes;
 namespace PriceSafari.Services.AllegroServices
 {
 
-    public record AllegroApiData(
-        decimal? BasePrice,
-        decimal? FinalPrice,
+    public record AllegroApiSummary(
+        decimal? CustomerPrice,
+        decimal? SellerRevenue,
         decimal? Commission,
-        bool HasActivePromo,
-        string? Ean
+        string? Ean,
+        bool IsAnyPromoActive,
+        bool IsSubsidyActive,
+        bool IsInvitationActive,
+        decimal? InvitationPrice
     );
+
+    internal record BadgeData(string CampaignName, JsonNode? Prices);
+    internal record AlleDiscountData(string CampaignName, JsonNode? Prices);
 
     public class AllegroApiBotService
     {
@@ -34,6 +40,7 @@ namespace PriceSafari.Services.AllegroServices
 
         public async Task<ApiProcessingResult> ProcessOffersForActiveStoresAsync()
         {
+
             var result = new ApiProcessingResult();
             _logger.LogInformation("Rozpoczynam proces pobierania dodatkowych danych z API Allegro...");
 
@@ -46,7 +53,6 @@ namespace PriceSafari.Services.AllegroServices
             {
                 _logger.LogInformation("Nie znaleziono aktywnych sklepów z włączoną opcją pobierania danych z API Allegro.");
                 result.Messages.Add("Brak aktywnych sklepów do przetworzenia.");
-
                 return result;
             }
 
@@ -58,7 +64,6 @@ namespace PriceSafari.Services.AllegroServices
             foreach (var store in activeStores)
             {
                 var storeResult = await ProcessOffersForSingleStore(store);
-
                 result.TotalOffersProcessed += storeResult.processedCount;
                 if (!storeResult.success)
                 {
@@ -95,14 +100,21 @@ namespace PriceSafari.Services.AllegroServices
 
                 foreach (var offer in offersToProcess)
                 {
+
                     var apiData = await FetchApiDataForOffer(accessToken, offer.AllegroOfferId.ToString());
+
                     if (apiData != null)
                     {
-                        offer.ApiAllegroPriceFromUser = apiData.BasePrice;
-                        offer.ApiAllegroPrice = apiData.FinalPrice;
+
+                        offer.ApiAllegroPriceFromUser = apiData.SellerRevenue;
+                        offer.ApiAllegroPrice = apiData.CustomerPrice;
                         offer.ApiAllegroCommission = apiData.Commission;
-                        offer.AnyPromoActive = apiData.HasActivePromo;
                         offer.AllegroEan = apiData.Ean;
+                        offer.AnyPromoActive = apiData.IsAnyPromoActive;
+
+                        offer.IsSubsidyActive = apiData.IsSubsidyActive;
+                        offer.IsInvitationActive = apiData.IsInvitationActive;
+                        offer.InvitationPrice = apiData.InvitationPrice;
                     }
                     offer.IsApiProcessed = true;
                     processedCount++;
@@ -118,7 +130,6 @@ namespace PriceSafari.Services.AllegroServices
                 _logger.LogInformation("Zakończono przetwarzanie i zapisano łącznie dane dla {Count} ofert dla sklepu {StoreName}.", offersToProcess.Count, store.StoreName);
                 return (true, offersToProcess.Count, string.Empty);
             }
-
             catch (AllegroAuthException ex)
             {
                 _logger.LogError(ex, "Błąd autoryzacji API Allegro dla sklepu {StoreName}. Token może być nieważny.", store.StoreName);
@@ -137,108 +148,214 @@ namespace PriceSafari.Services.AllegroServices
             }
         }
 
-        private async Task<AllegroApiData?> FetchApiDataForOffer(string accessToken, string offerId)
+        private async Task<AllegroApiSummary?> FetchApiDataForOffer(string accessToken, string offerId)
         {
             try
             {
+
                 var offerDataNode = await GetOfferData(accessToken, offerId);
                 if (offerDataNode == null) return null;
 
-                // 1. Pobierz Cenę Bazową (cena od użytkownika)
-                var basePriceString = offerDataNode["sellingMode"]?["price"]?["amount"]?.ToString();
-                decimal.TryParse(basePriceString, CultureInfo.InvariantCulture, out var basePrice);
-                decimal? parsedBasePrice = basePrice > 0 ? basePrice : null;
+                var basePriceStr = offerDataNode["sellingMode"]?["price"]?["amount"]?.ToString();
+                if (!decimal.TryParse(basePriceStr, CultureInfo.InvariantCulture, out var basePrice))
+                {
+                    _logger.LogWarning("Nie można sparsować ceny bazowej dla oferty {OfferId}", offerId);
+                    return null;
+                }
 
-                // 2. Pobierz EAN
                 string? ean = null;
                 try
                 {
                     var parameters = offerDataNode["productSet"]?[0]?["product"]?["parameters"]?.AsArray();
                     var eanValue = parameters?.FirstOrDefault(p => p?["id"]?.ToString() == "225693")?["values"]?[0]?.ToString();
-                    if (!string.IsNullOrWhiteSpace(eanValue) && eanValue != "Brak")
+                    if (!string.IsNullOrWhiteSpace(eanValue) && eanValue != "Brak") ean = eanValue;
+                }
+                catch (Exception ex) { _logger.LogWarning(ex, "Nie udało się sparsować EAN dla {OfferId}", offerId); }
+
+                var badgeCampaigns = await GetBadgesAsync(accessToken, offerId, offerDataNode);
+                var alleDiscountCampaigns = await GetAlleDiscountsAsync(accessToken, offerId);
+                var commission = await GetOfferCommission(accessToken, offerDataNode);
+
+                decimal sellerEarns = basePrice;
+                decimal customerPays = basePrice;
+                string? invitationPriceStr = null;
+                bool isAnyPromoActive = false;
+                bool isSubsidyActive = false;
+                bool isInvitationActive = false;
+
+                var activeAlleDiscount = alleDiscountCampaigns.FirstOrDefault();
+                var activeSubsidyBadge = badgeCampaigns.FirstOrDefault(b => b.Prices?["subsidy"] != null);
+                var activeBargainBadge = badgeCampaigns.FirstOrDefault(b => b.Prices?["bargain"] != null && b.Prices?["subsidy"] == null);
+
+                if (activeAlleDiscount != null)
+                {
+                    var proposedPriceStr = activeAlleDiscount.Prices?["proposedPrice"]?["amount"]?.ToString();
+                    var customerPriceStr = activeAlleDiscount.Prices?["maximumSellingPrice"]?["amount"]?.ToString();
+
+                    if (decimal.TryParse(proposedPriceStr, CultureInfo.InvariantCulture, out sellerEarns) &&
+                        decimal.TryParse(customerPriceStr, CultureInfo.InvariantCulture, out customerPays))
                     {
-                        ean = eanValue;
+                        isAnyPromoActive = true;
+                        isSubsidyActive = true;
                     }
                 }
-                catch (Exception ex)
+
+                else if (activeSubsidyBadge != null)
                 {
-                    _logger.LogWarning(ex, "Nie udało się sparsować kodu EAN dla oferty {OfferId}. Dane JSON mogły mieć nietypową strukturę.", offerId);
-                    ean = null;
-                }
+                    var targetPriceStr = activeSubsidyBadge.Prices?["subsidy"]?["targetPrice"]?["amount"]?.ToString();
+                    var originalPriceStr = activeSubsidyBadge.Prices?["subsidy"]?["originalPrice"]?["amount"]?.ToString();
+                    var marketPriceInBadgeStr = activeSubsidyBadge.Prices?["market"]?["amount"]?.ToString();
 
-                // --- POCZĄTEK FINALNEJ LOGIKI KAMPANII ---
-
-                bool hasActivePromo = false;
-                decimal? promoPrice = null; // Cena promocyjna znaleziona w 'badges'
-
-                var badgesRequest = new HttpRequestMessage(HttpMethod.Get, $"https://api.allegro.pl/sale/badges?offer.id={offerId}&marketplace.id=allegro-pl");
-                badgesRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
-                badgesRequest.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.allegro.public.v1+json"));
-
-                var badgesResponse = await _httpClient.SendAsync(badgesRequest);
-
-                if (badgesResponse.IsSuccessStatusCode)
-                {
-                    var badgesNode = JsonNode.Parse(await badgesResponse.Content.ReadAsStringAsync());
-                    var badgesArray = badgesNode?["badges"]?.AsArray();
-                    if (badgesArray != null)
+                    if (decimal.TryParse(targetPriceStr, CultureInfo.InvariantCulture, out var targetPrice))
                     {
-                        foreach (var badge in badgesArray)
+                        bool isTrueInvitation = false;
+                        if (decimal.TryParse(marketPriceInBadgeStr, CultureInfo.InvariantCulture, out var marketPriceInBadge))
                         {
-                            if (badge?["process"]?["status"]?.ToString() == "ACTIVE")
+                            if (basePrice == marketPriceInBadge && basePrice > targetPrice)
                             {
-                                var campaignName = badge?["campaign"]?["name"]?.ToString();
-                                if (!string.IsNullOrEmpty(campaignName))
-                                {
-                                    // Znaleźliśmy AKTYWNĄ kampanię z nazwą (np. "Black Weeks 2025")
-                                    hasActivePromo = true;
-                                }
+                                isTrueInvitation = true;
+                            }
+                        }
 
-                                // Szukamy ceny promocyjnej w znanych nam miejscach,
-                                // zaczynając od najbardziej prawdopodobnych
+                        if (isTrueInvitation)
+                        {
 
-                                // 3a. Cena subsydiowana (np. AlleDiscount)
-                                var subsidyPriceString = badge?["prices"]?["subsidy"]?["targetPrice"]?["amount"]?.ToString();
-                                if (decimal.TryParse(subsidyPriceString, CultureInfo.InvariantCulture, out var subsidyPrice) && subsidyPrice > 0)
-                                {
-                                    promoPrice = subsidyPrice;
-                                    hasActivePromo = true; // (na wszelki wypadek, gdyby kampania nie miała nazwy)
-                                    break; // Mamy cenę, nie szukamy dalej w innych badge'ach
-                                }
+                            isInvitationActive = true;
+                            invitationPriceStr = targetPriceStr;
 
-                                // 3b. Cena "Bargain" (np. Black Weeks - NASZE ZNALEZISKO)
-                                var bargainPriceString = badge?["prices"]?["bargain"]?["amount"]?.ToString();
-                                if (decimal.TryParse(bargainPriceString, CultureInfo.InvariantCulture, out var bargainPrice) && bargainPrice > 0)
-                                {
-                                    promoPrice = bargainPrice;
-                                    hasActivePromo = true; // (na wszelki wypadek)
-                                    break; // Mamy cenę, nie szukamy dalej
-                                }
+                        }
+                        else
+                        {
+
+                            isAnyPromoActive = true;
+                            isSubsidyActive = true;
+                            customerPays = targetPrice;
+
+                            if (decimal.TryParse(originalPriceStr, CultureInfo.InvariantCulture, out var originalPrice))
+                            {
+                                sellerEarns = originalPrice;
+                            }
+                            else
+                            {
+                                sellerEarns = basePrice;
                             }
                         }
                     }
                 }
 
-                // `finalPrice` to cena promocyjna (jeśli znaleziona),
-                // w przeciwnym razie wracamy do ceny bazowej (od użytkownika)
-                decimal? finalPrice = promoPrice ?? parsedBasePrice;
+                else if (activeBargainBadge != null)
+                {
+                    var bargainPriceStr = activeBargainBadge.Prices?["bargain"]?["amount"]?.ToString();
+                    if (decimal.TryParse(bargainPriceStr, CultureInfo.InvariantCulture, out var bargainPrice))
+                    {
+                        isAnyPromoActive = true;
+                        sellerEarns = bargainPrice;
+                        customerPays = bargainPrice;
+                    }
+                }
 
-                // --- KONIEC FINALNEJ LOGIKI KAMPANII ---
-
-                // 4. Pobierz prowizję
-                var commission = await GetOfferCommission(accessToken, offerDataNode);
-
-                // 5. Zwróć poprawne dane
-                // BasePrice = cena od użytkownika (np. 2699.00)
-                // FinalPrice = cena realna (np. 2549.00) lub bazowa (jeśli nie ma promocji)
-                // HasActivePromo = true (bo znaleźliśmy "Black Weeks 2025")
-                return new AllegroApiData(parsedBasePrice, finalPrice, commission, hasActivePromo, ean);
+                return new AllegroApiSummary(
+                    customerPays,
+                    sellerEarns,
+                    commission,
+                    ean,
+                    isAnyPromoActive,
+                    isSubsidyActive,
+                    isInvitationActive,
+                    decimal.TryParse(invitationPriceStr, CultureInfo.InvariantCulture, out var invPrice) ? invPrice : null
+                );
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Błąd podczas pobierania danych API dla oferty {OfferId}", offerId);
+                _logger.LogError(ex, "Błąd podczas pobierania i analizy danych API dla oferty {OfferId}", offerId);
                 return null;
             }
+        }
+
+        private async Task<List<BadgeData>> GetBadgesAsync(string accessToken, string offerId, JsonNode offerData)
+        {
+            var activeBadges = new List<BadgeData>();
+            var apiUrl = $"https://api.allegro.pl/sale/badges?offer.id={offerId}&marketplace.id=allegro-pl";
+            var request = new HttpRequestMessage(HttpMethod.Get, apiUrl);
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+            request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.allegro.public.v1+json"));
+
+            var response = await _httpClient.SendAsync(request);
+            if (!response.IsSuccessStatusCode)
+            {
+                _logger.LogWarning("Nie udało się pobrać danych (Badges) dla oferty {OfferId}. Status: {StatusCode}", offerId, response.StatusCode);
+                return activeBadges;
+            }
+
+            var badgesNode = JsonNode.Parse(await response.Content.ReadAsStringAsync());
+            var badgesArray = badgesNode?["badges"]?.AsArray();
+            if (badgesArray == null || badgesArray.Count == 0) return activeBadges;
+
+            foreach (var badge in badgesArray)
+            {
+                var processStatus = badge?["process"]?["status"]?.ToString();
+                var campaignName = badge?["campaign"]?["name"]?.ToString();
+                if (processStatus == "ACTIVE" && !string.IsNullOrEmpty(campaignName))
+                {
+                    activeBadges.Add(new BadgeData(campaignName, badge?["prices"]));
+                }
+            }
+            return activeBadges;
+        }
+
+        private async Task<List<AlleDiscountData>> GetAlleDiscountsAsync(string accessToken, string offerId)
+        {
+            var activeDiscounts = new List<AlleDiscountData>();
+
+            var campaignsApiUrl = "https://api.allegro.pl/sale/alle-discount/campaigns";
+            var campaignsRequest = new HttpRequestMessage(HttpMethod.Get, campaignsApiUrl);
+            campaignsRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+            campaignsRequest.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.allegro.public.v1+json"));
+
+            var campaignsResponse = await _httpClient.SendAsync(campaignsRequest);
+            if (!campaignsResponse.IsSuccessStatusCode)
+            {
+                _logger.LogWarning("Nie udało się pobrać listy kampanii AlleObniżka. Status: {StatusCode}", campaignsResponse.StatusCode);
+                return activeDiscounts;
+            }
+
+            var campaignsNode = JsonNode.Parse(await campaignsResponse.Content.ReadAsStringAsync());
+            var campaignsArray = campaignsNode?["alleDiscountCampaigns"]?.AsArray();
+            if (campaignsArray == null || campaignsArray.Count == 0) return activeDiscounts;
+
+            foreach (var campaign in campaignsArray)
+            {
+                var campaignId = campaign?["id"]?.ToString();
+                var campaignName = campaign?["name"]?.ToString();
+                if (string.IsNullOrEmpty(campaignId) || string.IsNullOrEmpty(campaignName)) continue;
+
+                var submittedApiUrl = $"https://api.allegro.pl/sale/alle-discount/{campaignId}/submitted-offers?offer.id={offerId}";
+                var submittedRequest = new HttpRequestMessage(HttpMethod.Get, submittedApiUrl);
+                submittedRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+                submittedRequest.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.allegro.public.v1+json"));
+
+                var submittedResponse = await _httpClient.SendAsync(submittedRequest);
+                if (!submittedResponse.IsSuccessStatusCode) continue;
+
+                var submittedOffersNode = JsonNode.Parse(await submittedResponse.Content.ReadAsStringAsync());
+                var submittedOffersArray = submittedOffersNode?["submittedOffers"]?.AsArray();
+
+                if (submittedOffersArray != null)
+                {
+                    foreach (var submittedOffer in submittedOffersArray)
+                    {
+                        string? returnedOfferId = submittedOffer?["offer"]?["id"]?.ToString();
+                        if (returnedOfferId != offerId) continue;
+
+                        var processStatus = submittedOffer?["process"]?["status"]?.ToString();
+                        if (processStatus == "ACTIVE")
+                        {
+                            activeDiscounts.Add(new AlleDiscountData(campaignName, submittedOffer?["prices"]));
+                        }
+                    }
+                }
+            }
+            return activeDiscounts;
         }
 
         private async Task<JsonNode?> GetOfferData(string accessToken, string offerId)
@@ -261,34 +378,6 @@ namespace PriceSafari.Services.AllegroServices
             }
             return JsonNode.Parse(await response.Content.ReadAsStringAsync());
         }
-
-        //private async Task<decimal?> GetActiveCampaignPrice(string accessToken, string offerId)
-        //{
-        //    var request = new HttpRequestMessage(HttpMethod.Get, $"https://api.allegro.pl/sale/badges?offer.id={offerId}&marketplace.id=allegro-pl");
-        //    request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
-        //    request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.allegro.public.v1+json"));
-
-        //    var response = await _httpClient.SendAsync(request);
-        //    if (!response.IsSuccessStatusCode) return null;
-
-        //    var badgesNode = JsonNode.Parse(await response.Content.ReadAsStringAsync());
-        //    var badgesArray = badgesNode?["badges"]?.AsArray();
-        //    if (badgesArray == null) return null;
-
-        //    foreach (var badge in badgesArray)
-        //    {
-        //        if (badge?["process"]?["status"]?.ToString() == "ACTIVE")
-        //        {
-        //            var targetPriceString = badge?["prices"]?["subsidy"]?["targetPrice"]?["amount"]?.ToString();
-        //            if (decimal.TryParse(targetPriceString, CultureInfo.InvariantCulture, out var targetPrice) && targetPrice > 0)
-        //            {
-        //                return targetPrice;
-        //            }
-        //        }
-        //    }
-
-        //    return null;
-        //}
 
         private async Task<decimal?> GetOfferCommission(string accessToken, JsonNode offerData)
         {

@@ -225,7 +225,10 @@ namespace PriceSafari.Services.AllegroServices
                             ApiAllegroPrice = sourceOfferToScrape.ApiAllegroPrice,
                             ApiAllegroPriceFromUser = sourceOfferToScrape.ApiAllegroPriceFromUser,
                             ApiAllegroCommission = sourceOfferToScrape.ApiAllegroCommission,
-                            AnyPromoActive = sourceOfferToScrape.AnyPromoActive
+                            AnyPromoActive = sourceOfferToScrape.AnyPromoActive,
+                            IsSubsidyActive = sourceOfferToScrape.IsSubsidyActive,
+                            IsInvitationActive = sourceOfferToScrape.IsInvitationActive,
+                            InvitationPrice = sourceOfferToScrape.InvitationPrice
                         });
                     }
                 }
