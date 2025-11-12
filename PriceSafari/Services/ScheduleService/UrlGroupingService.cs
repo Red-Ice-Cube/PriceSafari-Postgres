@@ -20,7 +20,7 @@ namespace PriceSafari.Services.ScheduleService
         {
             var allProducts = await _context.Products
                 .Include(p => p.Store)
-                .Where(p => p.IsScrapable && p.Store.RemainingScrapes > 0)
+                .Where(p => p.IsScrapable && p.Store.RemainingDays > 0)
                 .AsNoTracking()
                 .ToListAsync();
 

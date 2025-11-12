@@ -32,10 +32,15 @@ namespace PriceSafari.Models
         [Display(Name = "Procent Rabatu")]
         public decimal? DiscountPercentage { get; set; } = 0;
 
-        [Display(Name = "Pozostała Ilość Analiz")]
-        public int RemainingScrapes { get; set; } = 0;
+        //[Display(Name = "Pozostała Ilość Analiz")]
+        //public int RemainingScrapes { get; set; } = 0;
 
-        public bool IsActive => RemainingScrapes > 0;
+        //public bool IsActive => RemainingScrapes > 0;
+
+        [Display(Name = "Pozostała Ilość Dni w programie")]
+        public int RemainingDays { get; set; } = 0;
+
+        public bool IsActive => RemainingDays > 0;
 
         public string? StoreNameGoogle { get; set; }
         public string? StoreNameCeneo { get; set; }

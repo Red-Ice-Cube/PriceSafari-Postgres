@@ -68,7 +68,7 @@ namespace PriceSafari.Controllers.MemberControllers
                     IsTestPlan = store.Plan?.IsTestPlan ?? false,
                     ProductsToScrap = store.ProductsToScrap ?? 0,
                     ProductsToScrapAllegro = store.ProductsToScrapAllegro ?? 0,
-                    LeftScrapes = store.RemainingScrapes,
+                    LeftDays = store.RemainingDays,
                     Ceneo = store.Plan?.Ceneo ?? false,
                     GoogleShopping = store.Plan?.GoogleShopping ?? false,
                     Allegro = store.Plan?.Allegro ?? false,
@@ -117,7 +117,7 @@ namespace PriceSafari.Controllers.MemberControllers
 
                 ProductsToScrap = store.ProductsToScrap ?? 0,
                 ProductsToScrapAllegro = store.ProductsToScrapAllegro ?? 0,
-                ScrapesPerInvoice = store.Plan?.ScrapesPerInvoice ?? 0,
+                ScrapesPerInvoice = store.Plan?.DaysPerInvoice ?? 0,
                 HasUnpaidInvoice = store.Invoices.Any(i => !i.IsPaid),
                 DiscountValue = store.DiscountPercentage,
                 Invoices = store.Invoices.OrderByDescending(i => i.IssueDate).ToList(),
@@ -255,7 +255,7 @@ namespace PriceSafari.Controllers.MemberControllers
 
             if (plan.NetPrice == 0 || plan.IsTestPlan)
             {
-                store.RemainingScrapes = plan.ScrapesPerInvoice;
+                store.RemainingDays = plan.DaysPerInvoice;
                 var unpaidInvoices = await _context.Invoices.Where(i => i.StoreId == store.StoreId && !i.IsPaid).ToListAsync();
                 foreach (var unpaidInvoice in unpaidInvoices)
                 {
@@ -303,7 +303,7 @@ namespace PriceSafari.Controllers.MemberControllers
                 PlanId = store.PlanId.Value,
                 IssueDate = DateTime.Now,
                 NetAmount = netPrice,
-                ScrapesIncluded = store.Plan.ScrapesPerInvoice,
+                DaysIncluded = store.Plan.DaysPerInvoice,
                 UrlsIncluded = store.Plan.ProductsToScrap,
                 UrlsIncludedAllegro = store.Plan.ProductsToScrapAllegro,
                 IsPaid = false,

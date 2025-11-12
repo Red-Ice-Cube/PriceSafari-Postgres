@@ -11,7 +11,6 @@ using PriceSafari.Services.ScheduleService;
 using PuppeteerSharp;
 using System.Diagnostics;
 
-
 [Authorize(Roles = "Admin")]
 public class PriceScrapingController : Controller
 {
@@ -25,7 +24,7 @@ public class PriceScrapingController : Controller
     private readonly ControlXYService _controlXYService;
     private readonly CeneoScraperService _ceneoScraperService;
 
-    public PriceScrapingController(PriceSafariContext context, IHubContext<ScrapingHub> hubContext, IServiceProvider serviceProvider, HttpClient httpClient, IHttpClientFactory httpClientFactory, StoreProcessingService storeProcessingService, ControlXYService controlXYService,CeneoScraperService ceneoScraperService)
+    public PriceScrapingController(PriceSafariContext context, IHubContext<ScrapingHub> hubContext, IServiceProvider serviceProvider, HttpClient httpClient, IHttpClientFactory httpClientFactory, StoreProcessingService storeProcessingService, ControlXYService controlXYService, CeneoScraperService ceneoScraperService)
     {
         _context = context;
         _hubContext = hubContext;
@@ -36,22 +35,20 @@ public class PriceScrapingController : Controller
         _controlXYService = controlXYService;
         _ceneoScraperService = ceneoScraperService;
     }
-   
+
     [HttpPost]
     public async Task<IActionResult> GroupAndSaveUniqueUrls()
     {
         var products = await _context.Products
             .Include(p => p.Store)
-            .Where(p => p.IsScrapable && p.Store.RemainingScrapes > 0)
+            .Where(p => p.IsScrapable && p.Store.RemainingDays > 0)
             .ToListAsync();
 
         var coOfrs = new List<CoOfrClass>();
 
-       
-        var productsWithOffer = products.Where(p => !string.IsNullOrEmpty(p.OfferUrl)).ToList();                                                                
+        var productsWithOffer = products.Where(p => !string.IsNullOrEmpty(p.OfferUrl)).ToList();
         var productsWithoutOffer = products.Where(p => string.IsNullOrEmpty(p.OfferUrl)).ToList();
 
-        // Grupowanie produktów z OfferUrl po OfferUrl
         var groupsByOfferUrl = productsWithOffer
             .GroupBy(p => p.OfferUrl ?? "")
             .ToDictionary(g => g.Key, g => g.ToList());
@@ -61,7 +58,6 @@ public class PriceScrapingController : Controller
             var offerUrl = kvp.Key;
             var productList = kvp.Value;
 
-            // Znajdź pierwszy niepusty GoogleUrl
             string? chosenGoogleUrl = productList
                 .Select(p => p.GoogleUrl)
                 .Where(gu => !string.IsNullOrEmpty(gu))
@@ -71,7 +67,6 @@ public class PriceScrapingController : Controller
             coOfrs.Add(coOfr);
         }
 
-        // Grupowanie produktów bez OfferUrl po GoogleUrl
         var groupsByGoogleUrlForNoOffer = productsWithoutOffer
             .GroupBy(p => p.GoogleUrl ?? "")
             .ToDictionary(g => g.Key, g => g.ToList());
@@ -81,7 +76,6 @@ public class PriceScrapingController : Controller
             var googleUrl = kvp.Key;
             var productList = kvp.Value;
 
-            // Tu OfferUrl jest puste (null), a GoogleUrl może być puste lub konkretne
             var coOfr = CreateCoOfrClass(productList, null, string.IsNullOrEmpty(googleUrl) ? null : googleUrl);
             coOfrs.Add(coOfr);
         }
@@ -114,10 +108,9 @@ public class PriceScrapingController : Controller
 
         foreach (var product in productList)
         {
-            // Każdy produkt trafia do ProductIds
+
             coOfr.ProductIds.Add(product.ProductId);
 
-            // Jeśli mamy wybrany GoogleUrl i produkt go posiada – trafia również do ProductIdsGoogle
             if (!string.IsNullOrEmpty(googleUrl) && product.GoogleUrl == googleUrl)
             {
                 coOfr.ProductIdsGoogle.Add(product.ProductId);
@@ -144,20 +137,16 @@ public class PriceScrapingController : Controller
     [HttpPost]
     public async Task<IActionResult> ClearCoOfrPriceHistoriesCeneo()
     {
-        // Pobieramy wszystkie encje CoOfrs – teraz nie ograniczamy ich do IsScraped,
-        // ponieważ chcemy operować na wszystkich przekazanych produktach.
+
         var productsToReset = await _context.CoOfrs.ToListAsync();
 
         if (productsToReset.Any())
         {
-            // Pobieramy listę ID wszystkich CoOfrs, których chcemy wyczyścić historię
+
             var productIds = productsToReset.Select(co => co.Id).ToList();
 
-            // Pobieramy wszystkie rekordy historii do pamięci (całą tabelę)
             var allHistories = await _context.CoOfrPriceHistories.ToListAsync();
 
-            // Lokalnie filtrujemy rekordy historii,
-            // pozostawiając tylko te, które dotyczą danego produktu i mają ustawione ExportedName (czyli dane z Ceneo)
             var historiesToRemove = allHistories
                 .Where(ph => productIds.Contains(ph.CoOfrClassId) && ph.ExportedName != null)
                 .ToList();
@@ -167,7 +156,6 @@ public class PriceScrapingController : Controller
                 _context.CoOfrPriceHistories.RemoveRange(historiesToRemove);
             }
 
-            // Resetujemy statusy dla wszystkich pobranych encji CoOfrs
             foreach (var product in productsToReset)
             {
                 product.IsScraped = false;
@@ -182,23 +170,21 @@ public class PriceScrapingController : Controller
         return RedirectToAction("GetUniqueScrapingUrls");
     }
 
-
     [HttpPost]
     public async Task<IActionResult> ClearCoOfrPriceHistoriesGoogle()
     {
-        // Pobieramy wszystkie produkty, które mają ustawiony status GoogleIsScraped.
+
         var productsToReset = await _context.CoOfrs
             .Where(co => co.GoogleIsScraped)
             .ToListAsync();
 
         if (productsToReset.Any())
         {
-           
+
             var productIds = productsToReset.Select(co => co.Id).ToList();
 
             var allHistories = await _context.CoOfrPriceHistories.ToListAsync();
 
-            
             var historiesToRemove = allHistories
                 .Where(ph => productIds.Contains(ph.CoOfrClassId) && ph.GoogleStoreName != null)
                 .ToList();
@@ -208,7 +194,6 @@ public class PriceScrapingController : Controller
                 _context.CoOfrPriceHistories.RemoveRange(historiesToRemove);
             }
 
-            // Resetujemy statusy dla pobranych produktów.
             foreach (var product in productsToReset)
             {
                 product.GoogleIsScraped = false;
@@ -222,9 +207,6 @@ public class PriceScrapingController : Controller
 
         return RedirectToAction("GetUniqueScrapingUrls");
     }
-
-
-
 
     private void ResetCancellationToken()
     {
@@ -240,7 +222,6 @@ public class PriceScrapingController : Controller
         return Ok(new { Message = "Scraping stopped." });
     }
 
-
     [HttpPost]
     public async Task<IActionResult> StartScrapingWithCaptchaHandling()
     {
@@ -249,11 +230,9 @@ public class PriceScrapingController : Controller
 
         try
         {
-            // <<< ZMIANA START >>>
-            // Wywołujemy metodę z serwisu, przekazując CancellationToken
+
             var result = await _ceneoScraperService.StartScrapingWithCaptchaHandlingAsync(cancellationToken);
 
-            // Zwracamy wynik operacji w odpowiedzi HTTP
             switch (result.Result)
             {
                 case CeneoScraperService.CeneoScrapingResult.Success:
@@ -281,30 +260,26 @@ public class PriceScrapingController : Controller
                 default:
                     return BadRequest("Unknown scraping result.");
             }
-            // <<< ZMIANA KONIEC >>>
+
         }
         catch (OperationCanceledException)
         {
-            // Obsługa, jeśli użytkownik kliknie "Stop"
+
             return Ok(new { Message = "Scraping was canceled by the user." });
         }
         catch (Exception ex)
         {
-            // Ogólna obsługa błędów
+
             Console.WriteLine($"An unexpected error occurred in the controller: {ex.Message}");
             return StatusCode(500, new { Message = "An unexpected server error occurred." });
         }
     }
 
-
-
     public class CaptchaSessionData
     {
         public CookieParam[] Cookies { get; set; }
-  
+
     }
-
-
 
     [HttpGet]
     public async Task<IActionResult> GetStoreProductsWithCoOfrIds(int storeId)
@@ -341,7 +316,6 @@ public class PriceScrapingController : Controller
         return View("~/Views/ManagerPanel/Store/GetStoreProductsWithCoOfrIds.cshtml", viewModel);
     }
 
-
     [HttpPost]
     public async Task<IActionResult> MapCoOfrToPriceHistory(int storeId)
     {
@@ -350,11 +324,10 @@ public class PriceScrapingController : Controller
         return RedirectToAction("GetStoreProductsWithCoOfrIds", new { storeId });
     }
 
-
     [HttpPost]
     public async Task<IActionResult> ClearRejectedAndScrapedProductsCeneo()
     {
-        // Szukamy wpisów, które są jednocześnie zescrapowane i odrzucone w Ceneo
+
         var productsToReset = await _context.CoOfrs
             .Where(co => co.IsScraped && co.IsRejected)
             .ToListAsync();
@@ -377,7 +350,7 @@ public class PriceScrapingController : Controller
     [HttpPost]
     public async Task<IActionResult> ClearRejectedAndScrapedProductsGoogle()
     {
-        // Analogicznie, ale dla Google
+
         var productsToReset = await _context.CoOfrs
             .Where(co => co.GoogleIsScraped && co.GoogleIsRejected)
             .ToListAsync();

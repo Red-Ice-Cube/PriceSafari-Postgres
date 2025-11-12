@@ -18,24 +18,15 @@ public class StoreProcessingService
             .Include(s => s.Plan)
             .FirstOrDefaultAsync(s => s.StoreId == storeId);
 
-        // --- START MODYFIKACJI ---
-
-        // 1. Sprawdzamy, czy sklep istnieje I CZY MA TOKEN
-        if (store == null || store.RemainingScrapes <= 0)
+        if (store == null || store.RemainingDays <= 0)
         {
-            return; // Zakończ, jeśli nie ma tokenów
+            return;
         }
 
-        // 2. KONSUMPCJA TOKENA
-        // To jest miejsce, w którym token jest zużywany.
-        store.RemainingScrapes--;
-        // Zapisujemy zużycie tokena natychmiast, aby inne operacje (np. AleBaseScal)
-        // widziały już zaktualizowany stan.
+        //store.RemainingScrapes--;
+
         await _context.SaveChangesAsync();
 
-        // --- KONIEC MODYFIKACJI ---
-
-        // 3. Kontynuujemy resztę logiki (bez zmian)
         var storeNameVariants = new List<string>();
         if (!string.IsNullOrWhiteSpace(store.StoreName))
             storeNameVariants.Add(store.StoreName.ToLower());

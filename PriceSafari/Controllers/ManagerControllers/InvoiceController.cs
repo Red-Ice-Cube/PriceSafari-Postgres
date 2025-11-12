@@ -20,7 +20,6 @@ namespace PriceSafari.Controllers.ManagerControllers
             _context = context;
         }
 
-        // GET: Invoice/Index
         public async Task<IActionResult> Index()
         {
             var invoices = await _context.Invoices
@@ -30,7 +29,6 @@ namespace PriceSafari.Controllers.ManagerControllers
             return View("~/Views/ManagerPanel/Invoices/Index.cshtml", invoices);
         }
 
-        // GET: Invoice/Create
         public async Task<IActionResult> Create()
         {
             var stores = await _context.Stores.Include(s => s.Plan).ToListAsync();
@@ -42,7 +40,6 @@ namespace PriceSafari.Controllers.ManagerControllers
             return View("~/Views/ManagerPanel/Invoices/Create.cshtml");
         }
 
-        // POST: Invoice/Create
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create(InvoiceClass invoice)
@@ -62,7 +59,6 @@ namespace PriceSafari.Controllers.ManagerControllers
             return View("~/Views/ManagerPanel/Invoices/Create.cshtml", invoice);
         }
 
-        // GET: Invoice/Edit/5
         public async Task<IActionResult> Edit(int? id)
         {
             if (id == null) return NotFound();
@@ -76,7 +72,6 @@ namespace PriceSafari.Controllers.ManagerControllers
             return View("~/Views/ManagerPanel/Invoices/Edit.cshtml", invoice);
         }
 
-        // POST: Invoice/Edit/5
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Edit(int id, InvoiceClass invoice)
@@ -90,13 +85,12 @@ namespace PriceSafari.Controllers.ManagerControllers
                     _context.Update(invoice);
                     await _context.SaveChangesAsync();
 
-                    // If invoice is marked as paid, update the store's remaining scrapes
                     if (invoice.IsPaid)
                     {
                         var store = await _context.Stores.Include(s => s.Plan).FirstOrDefaultAsync(s => s.StoreId == invoice.StoreId);
                         if (store != null)
                         {
-                            store.RemainingScrapes += invoice.ScrapesIncluded;
+                            store.RemainingDays += invoice.DaysIncluded;
                             store.ProductsToScrap = store.Plan.ProductsToScrap;
                             await _context.SaveChangesAsync();
                         }
@@ -117,7 +111,6 @@ namespace PriceSafari.Controllers.ManagerControllers
                 return RedirectToAction(nameof(Index));
             }
 
-            // Reload related data if ModelState is invalid
             invoice.Store = await _context.Stores.FindAsync(invoice.StoreId);
             invoice.Plan = await _context.Plans.FindAsync(invoice.PlanId);
 
@@ -142,26 +135,23 @@ namespace PriceSafari.Controllers.ManagerControllers
                 invoice.IsPaid = true;
                 invoice.PaymentDate = DateTime.Now;
 
-                // Zapisujemy oryginalny numer proformy, a następnie generujemy nowy numer faktury VAT
                 if (invoice.InvoiceNumber.StartsWith("FP/"))
                 {
                     invoice.OriginalProformaNumber = invoice.InvoiceNumber;
 
                     int invoiceNumber = await GetNextInvoiceNumberAsync();
-                    // Nowy numer faktury: PS/000001/sDB/2024
+
                     invoice.InvoiceNumber = $"PS/{invoiceNumber.ToString("D6")}/sDB/{invoice.IssueDate.Year}";
                 }
 
                 var store = invoice.Store;
                 if (store != null)
                 {
-                    // Update the store's PlanId to match the invoice's PlanId
+
                     store.PlanId = invoice.PlanId;
 
-                    // Update RemainingScrapes by adding ScrapesIncluded from the invoice
-                    store.RemainingScrapes += invoice.ScrapesIncluded;
+                    store.RemainingDays += invoice.DaysIncluded;
 
-                    // Update ProductsToScrap to match the plan's ProductsToScrap
                     store.ProductsToScrap = invoice.Plan.ProductsToScrap;
                 }
 
@@ -170,7 +160,6 @@ namespace PriceSafari.Controllers.ManagerControllers
 
             return RedirectToAction(nameof(Index));
         }
-
 
         private async Task<int> GetNextInvoiceNumberAsync()
         {
@@ -187,8 +176,6 @@ namespace PriceSafari.Controllers.ManagerControllers
             await _context.SaveChangesAsync();
             return counter.LastInvoiceNumber;
         }
-
-
 
         private bool InvoiceExists(int id)
         {

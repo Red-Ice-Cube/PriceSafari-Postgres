@@ -97,7 +97,7 @@ namespace PriceSafari.Controllers.ManagerControllers
             existingStore.ProductMapXmlUrl = store.ProductMapXmlUrl;
             existingStore.ProductMapXmlUrlGoogle = store.ProductMapXmlUrlGoogle;
             existingStore.DiscountPercentage = store.DiscountPercentage ?? 0;
-            existingStore.RemainingScrapes = store.RemainingScrapes;
+            existingStore.RemainingDays = store.RemainingDays;
             existingStore.ProductsToScrap = store.ProductsToScrap;
             existingStore.StoreNameAllegro = store.StoreNameAllegro;
 
@@ -136,7 +136,7 @@ namespace PriceSafari.Controllers.ManagerControllers
 
                     if (newPlan.NetPrice == 0 || newPlan.IsTestPlan)
                     {
-                        existingStore.RemainingScrapes = newPlan.ScrapesPerInvoice;
+                        existingStore.RemainingDays = newPlan.DaysPerInvoice;
 
                         var unpaidInvoices = await _context.Invoices
                             .Where(i => i.StoreId == store.StoreId && !i.IsPaid)
@@ -150,7 +150,7 @@ namespace PriceSafari.Controllers.ManagerControllers
                     else
                     {
 
-                        existingStore.RemainingScrapes = 0;
+                        existingStore.RemainingDays = 0;
                     }
                 }
                 else

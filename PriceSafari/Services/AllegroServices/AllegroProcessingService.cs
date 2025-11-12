@@ -25,12 +25,12 @@ namespace PriceSafari.Services.AllegroServices
         {
             var userStore = await _context.Stores.FindAsync(storeId);
 
-            if (userStore == null || userStore.RemainingScrapes <= 0)
+            if (userStore == null || userStore.RemainingDays <= 0)
             {
                 return (0, 0);
             }
 
-            userStore.RemainingScrapes--;
+           /* userStore.RemainingScrapes--;*/
 
             await _context.SaveChangesAsync();
 
@@ -159,28 +159,22 @@ namespace PriceSafari.Services.AllegroServices
 
             foreach (var scrapedOffer in scrapedOffersData)
             {
-                // ---------- ZMIANA START ----------
-                // 1. Znajdź ŚLEDZONY obiekt 'OfferToScrape' z listy załadowanej na początku metody.
+
                 var sourceOfferToScrape = allOffersToScrape.FirstOrDefault(o => o.Id == scrapedOffer.AllegroOfferToScrapeId);
 
-                // 2. Zabezpieczenie (choć nie powinno się zdarzyć)
                 if (sourceOfferToScrape == null)
                 {
-                    continue; // Pomiń, jeśli z jakiegoś powodu nie znaleziono obiektu nadrzędnego
+                    continue;
                 }
 
-                // 3. Użyj śledzonego obiektu 'sourceOfferToScrape' do pobrania listy ID produktów
                 var productIdsForThisStore = sourceOfferToScrape.AllegroProductIds
                     .Intersect(storeProductIds)
                     .ToList();
-                // ---------- ZMIANA KONIEC ----------
-
 
                 if (sourceOfferToScrape.IsApiProcessed == true && !string.IsNullOrEmpty(sourceOfferToScrape.AllegroEan))
                 {
                     var newEan = sourceOfferToScrape.AllegroEan;
 
-                    // Ta logika była już poprawna - modyfikuje śledzoną listę 'storeProducts'
                     var productsToUpdateEan = storeProducts
                         .Where(p => productIdsForThisStore.Contains(p.AllegroProductId))
                         .ToList();
@@ -194,7 +188,6 @@ namespace PriceSafari.Services.AllegroServices
                     }
                 }
 
-                // Reszta pętli (dodawanie do historii cen) bez zmian...
                 foreach (var productId in productIdsForThisStore)
                 {
 

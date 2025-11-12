@@ -29,10 +29,10 @@ namespace PriceSafari.Models
         public int? ProductsToScrapAllegro { get; set; }
 
 
-        [Required(ErrorMessage = "Liczba analiz jest wymagana.")]
-        [Display(Name = "Ilość analiz")]
-        [Range(1, int.MaxValue, ErrorMessage = "Ilość analiz musi być większa od zera.")]
-        public int ScrapesPerInvoice { get; set; }
+        [Required(ErrorMessage = "Liczba dni jest wymagana.")]
+        [Display(Name = "Ilość dni dostępu")]
+        [Range(1, int.MaxValue, ErrorMessage = "Ilość dni musi być większa od zera.")]
+        public int DaysPerInvoice { get; set; }
 
     
         [Display(Name = "Źródło Ceneo")]

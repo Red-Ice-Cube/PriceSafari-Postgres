@@ -74,9 +74,9 @@
                         @foreach (var store in Model)
                         {
                             string validationClass = "Validation";
-                            if (store.LeftScrapes > 10) validationClass += " Validation-accepted";
-                            else if (store.LeftScrapes >= 5) validationClass += " Validation-company";
-                            else if (store.LeftScrapes >= 1) validationClass += " Validation-cancelled";
+                            if (store.LeftDays > 10) validationClass += " Validation-accepted";
+                            else if (store.LeftDays >= 5) validationClass += " Validation-company";
+                            else if (store.LeftDays >= 1) validationClass += " Validation-cancelled";
 
                             string planImageFile = "";
                             if (store.IsTestPlan) planImageFile = "Free.png";
@@ -128,7 +128,7 @@
                                 </td>
 
                                 <td>
-                                    <div class="@validationClass">@GetAnalysesText(store.LeftScrapes)</div>
+                                    <div class="@validationClass">@GetAnalysesText(store.LeftDays)</div>
                                 </td>
                             </tr>
                         }

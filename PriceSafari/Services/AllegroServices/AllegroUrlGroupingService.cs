@@ -45,7 +45,7 @@ namespace PriceSafari.Services.AllegroServices
             }
 
             var validStores = await _context.Stores
-                .Where(s => storeIds.Contains(s.StoreId) && s.OnAllegro && s.RemainingScrapes > 0)
+                .Where(s => storeIds.Contains(s.StoreId) && s.OnAllegro && s.RemainingDays > 0)
                 .Select(s => new { s.StoreId, s.StoreName })
                 .ToListAsync();
 
@@ -54,7 +54,7 @@ namespace PriceSafari.Services.AllegroServices
 
             if (!validStoreIds.Any())
             {
-                _logger.LogWarning("Żaden ze wskazanych sklepów nie spełnia kryteriów (OnAllegro=true, RemainingScrapes>0).");
+                _logger.LogWarning("Żaden ze wskazanych sklepów nie spełnia kryteriów (OnAllegro=true, RemainingDays>0).");
                 return (0, 0, new List<string>());
             }
 

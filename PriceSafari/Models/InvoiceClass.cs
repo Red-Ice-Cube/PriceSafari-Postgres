@@ -40,8 +40,8 @@ namespace PriceSafari.Models
         [Display(Name = "Kwota Netto")]
         public decimal NetAmount { get; set; }
 
-        [Display(Name = "Ilość Pakietów")]
-        public int ScrapesIncluded { get; set; }
+        [Display(Name = "Ilość Dni Dostępu")]
+        public int DaysIncluded { get; set; }
 
         [Display(Name = "Maksymalna ilość produktów (Porównywarki cenowe)")]
         public int? UrlsIncluded { get; set; }

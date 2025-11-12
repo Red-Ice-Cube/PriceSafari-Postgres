@@ -153,7 +153,7 @@ public class InvoiceDocument
         var dataCell = dataRow.Cells[1];
 
         dataCell.AddParagraph($"PriceSafari {_invoice.Plan.PlanName}");
-        dataCell.AddParagraph($"Ilość analiz: {_invoice.ScrapesIncluded}");
+        dataCell.AddParagraph($"Ilość analiz: {_invoice.DaysIncluded}");
 
         // ### ZMIANA 1: Warunkowe wyświetlanie limitów SKU ###
         // Wyświetlamy limit dla porównywarek tylko, jeśli istnieje w danym planie.

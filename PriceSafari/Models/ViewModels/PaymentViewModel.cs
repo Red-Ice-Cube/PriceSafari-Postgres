@@ -10,7 +10,7 @@
         public bool IsTestPlan { get; set; }
         public int ProductsToScrap { get; set; }
         public int ProductsToScrapAllegro { get; set; }
-        public int LeftScrapes { get; set; }
+        public int LeftDays { get; set; }
 
         public bool Ceneo { get; set; }
         public bool GoogleShopping { get; set; }
