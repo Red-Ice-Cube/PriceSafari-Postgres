@@ -271,6 +271,9 @@ namespace PriceSafari.Controllers.MemberControllers
                         ApiAllegroPriceFromUser = extendedInfo?.ApiAllegroPriceFromUser,
                         ApiAllegroCommission = extendedInfo?.ApiAllegroCommission,
                         AnyPromoActive = extendedInfo?.AnyPromoActive,
+                        IsSubsidyActive = extendedInfo?.IsSubsidyActive,
+                        IsInvitationActive = extendedInfo?.IsInvitationActive,
+                        InvitationPrice = extendedInfo?.InvitationPrice,
                         Committed = committed == null ? null : new
                         {
 
