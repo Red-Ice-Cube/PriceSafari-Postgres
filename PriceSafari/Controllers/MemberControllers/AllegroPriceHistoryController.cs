@@ -968,7 +968,7 @@ namespace PriceSafari.Controllers.MemberControllers
                 failedCount = b.FailedCount,
                 items = b.BridgeItems.Select(i => new
                 {
-
+                    productId = i.AllegroProductId,
                     productName = i.AllegroProduct?.AllegroProductName ?? "Produkt usunięty lub nieznany",
                     offerId = i.AllegroOfferId,
                     ean = i.AllegroProduct?.AllegroEan,
