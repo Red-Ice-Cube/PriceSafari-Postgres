@@ -92,7 +92,7 @@
     let usePriceWithDeliverySetting = false;
     let globalIncludeCommissionSetting = false;
     let originalRowsData = [];
-    // NOWE: Flaga sterująca widocznością kolumny API
+
     let simulationsExecuted = false;
 
     function updatePriceChangeSummary(forceClear = false) {
@@ -135,7 +135,7 @@
     function clearPriceChanges() {
         selectedPriceChanges = [];
         sessionScrapId = null;
-        // RESET flagi wykonania przy czyszczeniu
+     
         simulationsExecuted = false;
         savePriceChanges();
         updatePriceChangeSummary();
@@ -190,7 +190,7 @@
         selectedPriceChanges = selectedPriceChanges.filter(item => item.productId !== productIdStr);
         if (selectedPriceChanges.length === 0) {
             sessionScrapId = null;
-            // RESET gdy usunięto wszystko
+      
             simulationsExecuted = false;
         }
         savePriceChanges();
@@ -322,13 +322,13 @@
         };
     }
 
-    // ZMODYFIKOWANA: Obsługa zielonego koloru dla rankingu i brak dla narzutu
+
     function buildPriceBlock(basePrice, marginPrice, apiAllegroCommission, allegroRank, allegroOffers, isConfirmedBlock = false, includeCommissionOverride = null) {
         const formattedBasePrice = formatPricePL(basePrice);
         let block = '<div class="price-info-box">';
         let headerText = isConfirmedBlock ? 'Cena wgrana' : 'Cena oferty';
 
-        // Definicje stylów
+     
         const confirmedStyle = 'background: #dff0d8; border: 1px solid #c1e2b3;';
         const normalStyle = 'background: #f5f5f5; border: 1px solid #e3e3e3;';
 
@@ -336,7 +336,7 @@
         block += `<div class="price-info-item" style="padding: 4px 12px; ${headerStyle} border-radius: 5px; margin-bottom: 5px;">${headerText} | ${formattedBasePrice}</div>`;
 
         if (allegroRank && allegroRank !== "-") {
-            // Ranking też dostaje zielony styl jeśli confirmed
+           
             let rankStyle = isConfirmedBlock ? confirmedStyle : normalStyle;
             block += `<div class="price-info-item" style="padding: 4px 12px; ${rankStyle} border-radius: 5px; margin-bottom: 5px;">Poz. cenowa | <img src="/images/AllegroIcon.png" alt="Allegro Icon" style="width:16px; height:16px; vertical-align: middle; margin-right: 3px;" /> ${allegroRank}</div>`;
         }
@@ -366,7 +366,7 @@
             const formattedMarginPercent = parseFloat(marginPercent).toFixed(2);
             const sign = parseFloat(marginValue) >= 0 ? "+" : "";
             const cls = parseFloat(marginValue) >= 0 ? "priceBox-diff-margin" : "priceBox-diff-margin-minus";
-            // WAŻNE: Narzut NIE dostaje zielonego tła (isConfirmedBlock ignorowane tutaj)
+          
             block += `<div class="price-info-item"><div class="price-box-diff-margin ${cls}" style="margin-top: 5px;"><p>Narzut: ${formattedMarginValue} (${sign}${formattedMarginPercent}%)</p></div></div>`;
         } else if (marginPrice != null) {
             block += `<div class="price-info-item"><div class="price-box-diff-margin" style="margin-top: 5px;"><p>Cena zakupu: ${formatPricePL(marginPrice)}</p></div></div>`;
@@ -375,7 +375,7 @@
         return block;
     }
 
-    // ZMODYFIKOWANA: Dodane linki do produktów, kolumna zmiany, ikonka sukcesu
+    
     function renderHistoryView(batches) {
         const historyContainer = document.getElementById("historyModalBody");
         if (!historyContainer) return;
@@ -433,7 +433,7 @@
                     </a>`;
                 }
 
-                // Obliczenie zmiany dla środkowej kolumny
+    
                 let diffBlock = '-';
                 if (item.success && item.priceAfter_Verified != null && item.priceBefore != null) {
                     const diff = item.priceAfter_Verified - item.priceBefore;
@@ -514,7 +514,7 @@
             });
     }
 
-    // NOWA FUNKCJA: renderowanie nagłówka tabeli symulacji
+  
     function renderSimulationTableHeader(hasImage) {
         let tableHtml = '<table class="table-orders" id="simulationTable"><thead><tr>';
         if (hasImage) {
@@ -524,7 +524,7 @@
         tableHtml += '<th>Obecne</th>';
         tableHtml += '<th>Zmiana</th>';
         tableHtml += '<th>Po zmianie</th>';
-        // Kolumna API tylko jeśli simulationsExecuted == true
+      
         if (simulationsExecuted) {
             tableHtml += '<th>Potwierdzenie API</th>';
         }
@@ -569,7 +569,7 @@
         } else {
 
             showLoading();
-            // Reset flagi wykonania przy każdym otwarciu na nowo
+     
             simulationsExecuted = false;
 
             var simulationData = selectedPriceChanges.map(function (item) {
@@ -619,7 +619,7 @@
 
                     var simulationResults = data.simulationResults || [];
 
-                    // Używamy nowej funkcji do renderowania nagłówka
+              
                     renderSimulationTableHeader(hasImage);
 
                     originalRowsData = selectedPriceChanges.map(function (item, index) {
@@ -751,7 +751,7 @@
             const formattedDiff = formatPricePL(Math.abs(row.diff), false);
             const formattedDiffPercent = Math.abs(row.diffPercent).toFixed(2);
 
-            // ZMODYFIKOWANA: warunkowe renderowanie <td> dla Potwierdzenia API
+           
             html += `<tr data-product-id="${row.productId}" data-offer-id="${row.myIdAllegro || ''}">
                         ${imageCell}
                         <td class="align-middle">

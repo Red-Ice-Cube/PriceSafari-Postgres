@@ -15,7 +15,7 @@ namespace PriceSafari.Models
         public int ScrapHistoryId { get; set; }
         public AllegroScrapeHistory ScrapHistory { get; set; }
 
-        // nasze dodatkowe dane. 
+
 
         [Column(TypeName = "decimal(18, 2)")]
         public decimal? ApiAllegroPrice { get; set; }

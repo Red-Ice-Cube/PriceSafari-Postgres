@@ -26,8 +26,8 @@ namespace PriceSafari.Services.AllegroServices
         private readonly ILogger<AllegroApiBotService> _logger;
         private static readonly HttpClient _httpClient = new();
 
-        private const string CLIENT_ID = "9163c502a1cb4c348579c5ff54c75df1";
-        private const string CLIENT_SECRET = "ULlu7uecKMM1t1LpgrDe1D7MOTn0ABVVuHeKeQfGJ0Z80v9ojN4JyVqXOBLByQMZ";
+        //private const string CLIENT_ID = "9163c502a1cb4c348579c5ff54c75df1";
+        //private const string CLIENT_SECRET = "ULlu7uecKMM1t1LpgrDe1D7MOTn0ABVVuHeKeQfGJ0Z80v9ojN4JyVqXOBLByQMZ";
 
         public AllegroApiBotService(PriceSafariContext context, ILogger<AllegroApiBotService> logger)
         {
@@ -172,7 +172,26 @@ namespace PriceSafari.Services.AllegroServices
                 var promoPrice = await GetActiveCampaignPrice(accessToken, offerId);
 
                 decimal? finalPrice = promoPrice ?? parsedBasePrice;
+
+                // --- POCZĄTEK MODYFIKACJI ---
+
+                // 1. Logika podstawowa: czy API zgłosiło aktywną kampanię?
                 bool hasActivePromo = promoPrice.HasValue;
+
+                // 2. Logika dodatkowa (zabezpieczenie):
+                // Sprawdzamy, czy cena bazowa (od użytkownika) jest różna od ceny końcowej (wyświetlanej).
+                // Jeśli tak, to również traktujemy to jako aktywną promocję.
+                if (!hasActivePromo && // Sprawdzamy tylko, jeśli nie zostało to już wykryte
+                    parsedBasePrice.HasValue &&
+                    finalPrice.HasValue &&
+                    parsedBasePrice.Value != finalPrice.Value)
+                {
+                    _logger.LogWarning("Wykryto niespójność cen dla oferty {OfferId} (Baza: {BasePrice}, Końcowa: {FinalPrice}) mimo braku flagi 'badge'. Oznaczam jako Aktywna Promocja.",
+                        offerId, parsedBasePrice.Value, finalPrice.Value);
+
+                    hasActivePromo = true;
+                }
+                // --- KONIEC MODYFIKACJI ---
 
                 var commission = await GetOfferCommission(accessToken, offerDataNode);
 
