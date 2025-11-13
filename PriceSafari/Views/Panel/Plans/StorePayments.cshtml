@@ -4,11 +4,24 @@
 
 @{
     Layout = "~/Views/Shared/_PanelLayout.cshtml";
+
+    var safePaymentDataList = Model.PaymentDataList.Select(data => new {
+        data.PaymentDataId,
+        data.CompanyName,
+        data.Address,
+        data.PostalCode,
+        data.City,
+        data.NIP,
+        data.InvoiceAutoMail,
+        data.InvoiceAutoMailSend
+    }).ToList();
+
     var jsonSettings = new JsonSerializerSettings
     {
         ContractResolver = new CamelCasePropertyNamesContractResolver()
     };
-    var paymentDataListJson = JsonConvert.SerializeObject(Model.PaymentDataList, jsonSettings);
+
+    var paymentDataListJson = JsonConvert.SerializeObject(safePaymentDataList, jsonSettings);
 
     string planImageFile = "";
     if (Model.IsTestPlan) planImageFile = "Free.png";
@@ -196,6 +209,57 @@
         .custom-info-table tr:last-child th {
             border-bottom: none;
         }
+
+        .status-box {
+        display: block;
+        width: 100%;
+        height: calc(1.5em + 0.75rem + 2px);
+        padding: 0.375rem 0.75rem;
+        font-size: 1rem;
+        font-weight: 400;
+        line-height: 1.5;
+        color: #495057;
+        background-color: #fff;
+        background-clip: padding-box;
+        border: 1px solid #ced4da;
+        border-radius: 0.25rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 16px;
+    }
+
+    .status-box.success {
+        border-color: #28a745;
+        color: #155724;
+        background-color: #d4edda;
+    }
+
+    .status-box.warning {
+        border-color: #ffc107;
+        color: #856404;
+        background-color: #fff3cd;
+    }
+
+    .is-invalid {
+        border-color: #dc3545 !important;
+    }
+
+    .invalid-feedback {
+        display: none;
+        width: 100%;
+        margin-top: 0.25rem;
+        font-size: 80%;
+        color: #dc3545;
+    }
+
+    .was-validated .form-control:invalid {
+        border-color: #dc3545;
+    }
+
+    .was-validated .form-control:invalid ~ .invalid-feedback {
+        display: block;
+    }
 </style>
 
 <div class="Vert">
@@ -296,143 +360,139 @@
             </div>
         </div>
 
-        <div class="modal fade" id="generateProformaModal" tabindex="-1" role="dialog" aria-labelledby="generateProformaModalLabel" aria-hidden="true">
-            <div class="modal-dialog" role="document">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h5 class="modal-title" id="generateProformaModalLabel">Generowanie Proformy</h5>
-                        <button type="button" class="close" data-dismiss="modal" aria-label="Zamknij">
-                            <span aria-hidden="true">&times;</span>
-                        </button>
-                    </div>
-                    <div class="modal-body">
-                        <div class="modal-split">
-                            <div class="modal-split-left">
-                                <div class="form-group">
-                                    <select id="paymentDataSelect" class="form-control" style="margin-top:0px;">
-                                        <option value="">Wybierz istniejące dane do faktury</option>
-                                        @foreach (var data in Model.PaymentDataList)
-                                        {
-                                            <option value="@data.PaymentDataId">@data.CompanyName</option>
-                                        }
-                                    </select>
-                                    <div class="space-100">
-                                        <div>
-                                            <button type="button" class="Button-Page-Small-bl" id="addPaymentDataButton">+ Nowe dane</button>
-                                        </div>
-                                        <div>
-                                            <button type="button" class="Button-Page-Small" id="editPaymentDataButton" style="display:none;">Edytuj</button>
-                                            <button type="button" class="Button-Page-Small-r" id="deletePaymentDataButton" style="display:none;">Usuń</button>
-                                        </div>
-                                    </div>
-                                </div>
+     <div class="modal fade" id="generateProformaModal" tabindex="-1" role="dialog" aria-labelledby="generateProformaModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="generateProformaModalLabel">Generowanie Proformy</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Zamknij">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div id="serverErrorAlert" class="alert alert-danger" style="display:none;"></div>
 
-                                <div id="paymentDataDetails" style="display:none;">
-                                    <table class="custom-info-table">
-                                        <tr>
-                                            <th>Nazwa firmy</th>
-                                            <td id="companyName"></td>
-                                        </tr>
-                                        <tr>
-                                            <th>Adres</th>
-                                            <td id="address"></td>
-                                        </tr>
-                                        <tr>
-                                            <th>Kod pocztowy</th>
-                                            <td id="postalCode"></td>
-                                        </tr>
-                                        <tr>
-                                            <th>Miasto</th>
-                                            <td id="city"></td>
-                                        </tr>
-                                        <tr>
-                                            <th>NIP</th>
-                                            <td id="nip"></td>
-                                        </tr>
-                                    </table>
-                                </div>
+                <div class="modal-split">
+                    <div class="modal-split-left">
 
-                                <div id="paymentDataFormContainer" style="display:none;">
-                                    <form id="paymentDataForm">
-                                        <input type="hidden" id="StoreId" name="StoreId" value="@Model.StoreId" />
-                                        <input type="hidden" id="PaymentDataId" name="PaymentDataId" value="" />
-                                        <div class="form-group">
-                                            <label for="CompanyName">Nazwa firmy</label>
-                                            <input type="text" class="form-control" id="CompanyName" name="CompanyName" required />
-                                        </div>
-                                        <div class="form-group">
-                                            <label for="Address">Adres</label>
-                                            <input type="text" class="form-control" id="Address" name="Address" required />
-                                        </div>
-                                        <div class="form-group">
-                                            <label for="PostalCode">Kod pocztowy</label>
-                                            <input type="text" class="form-control" id="PostalCode" name="PostalCode" required />
-                                        </div>
-                                        <div class="form-group">
-                                            <label for="City">Miasto</label>
-                                            <input type="text" class="form-control" id="City" name="City" required />
-                                        </div>
-                                        <div class="form-group">
-                                            <label for="NIP">NIP</label>
-                                            <input type="text" class="form-control" id="NIP" name="NIP" required />
-                                        </div>
-                                        <div class="form-group">
-                                            <label for="InvoiceAutoMail">E-mail do automatycznej wysyłki faktur (opcjonalny)</label>
-                                            <input type="email" class="form-control" id="InvoiceAutoMail" name="InvoiceAutoMail" />
-                                        </div>
-                                        <div class="form-group form-check">
-                                            <input type="checkbox" class="form-check-input" id="InvoiceAutoMailSend" name="InvoiceAutoMailSend" value="true" />
-                                            <label class="form-check-label" for="InvoiceAutoMailSend">Automatyczna wysyłka faktur na e-mail</label>
-                                        </div>
-                                        <div style="margin-top:16px;">
-                                            <button type="button" class="Button-Page-Small-bl" id="savePaymentDataButton">Zapisz dane</button>
-                                            <button type="button" class="Button-Page-Small" id="cancelPaymentDataButton">Anuluj</button>
-                                        </div>
-                                    </form>
-                                </div>
+                        <div id="paymentDataSection">
+
+                            <div id="existingDataHeader" class="status-box success" style="display:none;">
+                                <span><i class="fas fa-check-circle"></i> Dane do faktury uzupełnione</span>
+                                <i class="fas fa-pen" style="opacity: 0.5; font-size: 0.8em;"></i>
                             </div>
-                            <div class="modal-split-right">
-                                <div class="info-card" style="height: 100%;">
-                                    <div class="info-card-header">
-                                        Podsumowanie planu
-                                    </div>
-                                    <div class="info-card-body">
-                                        <p style="font-weight: 500; font-size: 1.1em; margin-bottom: 14px;">
 
-                                            Plan @Model.PlanName
-                                        </p>
+                            <div id="noDataHeader" class="status-box warning" style="display:none;">
+                                <span><i class="fas fa-exclamation-circle"></i> Brak danych do faktury</span>
+                                <span style="font-size: 0.8em;">Wymagane uzupełnienie</span>
+                            </div>
 
-                                        <div class="price-display">
-                                            <span class="final-price-amount">@discountedPrice.ToString("C")</span>
-                                            <span class="final-price-label">netto</span>
-                                            @if (Model.DiscountValue.HasValue && Model.DiscountValue.Value > 0)
-                                            {
-                                                <span class="original-price">@Model.PlanPrice.ToString("C")</span>
-                                            }
-                                        </div>
-                                        @if (Model.DiscountValue.HasValue && Model.DiscountValue.Value > 0)
-                                        {
-                                            <div class="discount-info" style="margin-bottom: 20px;">
-                                                Rabat: @Model.DiscountValue.Value.ToString("F2")%
-                                            </div>
-                                        }
-
-                                    </div>
+                            <div class="space-100">
+                                <div>
+                                    <button type="button" class="Button-Page-Small-bl" id="addPaymentDataButton" style="display:none;">+ Uzupełnij dane</button>
+                                </div>
+                                <div>
+                                    <button type="button" class="Button-Page-Small" id="editPaymentDataButton" style="display:none;">Edytuj</button>
+                                    <button type="button" class="Button-Page-Small-r" id="deletePaymentDataButton" style="display:none;">Usuń</button>
                                 </div>
                             </div>
                         </div>
+
+                        <div id="paymentDataDetails" style="display:none;">
+                            <table class="custom-info-table">
+                                <tr><th>Nazwa firmy</th><td id="companyName"></td></tr>
+                                <tr><th>Adres</th><td id="address"></td></tr>
+                                <tr><th>Kod pocztowy</th><td id="postalCode"></td></tr>
+                                <tr><th>Miasto</th><td id="city"></td></tr>
+                                <tr><th>NIP</th><td id="nip"></td></tr>
+                            </table>
+                        </div>
+
+                        <div id="paymentDataFormContainer" style="display:none;">
+                            <form id="paymentDataForm" novalidate>
+                                <input type="hidden" id="StoreId" name="StoreId" value="@Model.StoreId" />
+                                <input type="hidden" id="PaymentDataId" name="PaymentDataId" value="" />
+
+                                <div class="form-group">
+                                    <label for="CompanyName">Nazwa firmy <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" id="CompanyName" name="CompanyName" required placeholder="Pełna nazwa firmy" />
+                                    <div class="invalid-feedback">Proszę podać nazwę firmy.</div>
+                                </div>
+                                <div class="form-group">
+                                    <label for="Address">Adres <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" id="Address" name="Address" required placeholder="Ulica i numer" />
+                                    <div class="invalid-feedback">Proszę podać adres.</div>
+                                </div>
+                                <div class="form-group row">
+                                    <div class="col-md-5">
+                                        <label for="PostalCode">Kod pocztowy <span class="text-danger">*</span></label>
+                                        <input type="text" class="form-control" id="PostalCode" name="PostalCode" required placeholder="00-000" />
+                                        <div class="invalid-feedback">Kod wymagany.</div>
+                                    </div>
+                                    <div class="col-md-7">
+                                        <label for="City">Miasto <span class="text-danger">*</span></label>
+                                        <input type="text" class="form-control" id="City" name="City" required />
+                                        <div class="invalid-feedback">Miasto wymagane.</div>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label for="NIP">NIP <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" id="NIP" name="NIP" required 
+                                           pattern="[0-9]{10}" maxlength="10" 
+                                           oninput="this.value = this.value.replace(/[^0-9]/g, '')" 
+                                           placeholder="Tylko cyfry (10 znaków)" />
+                                    <div class="invalid-feedback">Proszę podać poprawny NIP (10 cyfr).</div>
+                                </div>
+                                <div class="form-group">
+                                    <label for="InvoiceAutoMail">E-mail do faktur (opcjonalny)</label>
+                                    <input type="email" class="form-control" id="InvoiceAutoMail" name="InvoiceAutoMail" placeholder="ksiegowosc@firma.pl" />
+                                    <div class="invalid-feedback">Proszę podać poprawny adres e-mail.</div>
+                                </div>
+                                <div class="form-group form-check">
+                                    <input type="checkbox" class="form-check-input" id="InvoiceAutoMailSend" name="InvoiceAutoMailSend" value="true" />
+                                    <label class="form-check-label" for="InvoiceAutoMailSend">Automatyczna wysyłka faktur na e-mail</label>
+                                </div>
+                                <div style="margin-top:16px;">
+                                    <button type="button" class="Button-Page-Small-bl" id="savePaymentDataButton">Zapisz dane</button>
+                                    <button type="button" class="Button-Page-Small" id="cancelPaymentDataButton">Anuluj</button>
+                                </div>
+                            </form>
+                        </div>
                     </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Anuluj</button>
-                        <form id="generateProformaForm" method="post" asp-action="GenerateProforma" style="margin:0;">
-                            <input type="hidden" name="storeId" value="@Model.StoreId" />
-                            <input type="hidden" id="paymentDataId" name="paymentDataId" value="" />
-                            <button type="submit" class="btn btn-success" id="generateProformaButton" disabled>Generuj i pobierz Proformę</button>
-                        </form>
+
+                    <div class="modal-split-right">
+                        <div class="info-card" style="height: 100%;">
+                            <div class="info-card-header">Podsumowanie planu</div>
+                            <div class="info-card-body">
+                                <p style="font-weight: 500; font-size: 1.1em; margin-bottom: 14px;">Plan @Model.PlanName</p>
+                                <div class="price-display">
+                                    <span class="final-price-amount">@discountedPrice.ToString("C")</span>
+                                    <span class="final-price-label">netto</span>
+                                    @if (Model.DiscountValue.HasValue && Model.DiscountValue.Value > 0)
+                                    {
+                                        <span class="original-price">@Model.PlanPrice.ToString("C")</span>
+                                    }
+                                </div>
+                                @if (Model.DiscountValue.HasValue && Model.DiscountValue.Value > 0)
+                                {
+                                    <div class="discount-info" style="margin-bottom: 20px;">Rabat: @Model.DiscountValue.Value.ToString("F2")%</div>
+                                }
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Anuluj</button>
+                <form id="generateProformaForm" method="post" asp-action="GenerateProforma" style="margin:0;">
+                    <input type="hidden" name="storeId" value="@Model.StoreId" />
+                    <button type="submit" class="btn btn-success" id="generateProformaButton" disabled>Generuj i pobierz Proformę</button>
+                </form>
+            </div>
         </div>
+    </div>
+
+</div>
 
         @if (Model.Invoices != null && Model.Invoices.Any())
         {
@@ -502,63 +562,90 @@
         }
     </div>
 </div>
-
 @section Scripts {
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.bundle.min.js"></script>
     <script>
         $(document).ready(function () {
-            var paymentDataList = @Html.Raw(paymentDataListJson);
 
-                if (paymentDataList.length > 0) {
-            var firstId = paymentDataList[0].paymentDataId;
-            $("#paymentDataSelect").val(firstId); 
-            populatePaymentData(firstId);         
+            var paymentDataList = @Html.Raw(paymentDataListJson);
+            var currentPaymentData = null;
+
+            if (paymentDataList.length > 0) {
+                currentPaymentData = paymentDataList[0];
+                renderView("VIEW");
+            } else {
+                currentPaymentData = null;
+                renderView("EMPTY");
+            }
+
+            function renderView(state) {
+
+                $("#existingDataHeader").hide();
+                $("#noDataHeader").hide();
+                $("#paymentDataDetails").hide();
+                $("#paymentDataFormContainer").hide();
+                $("#addPaymentDataButton").hide();
+                $("#editPaymentDataButton").hide();
+                $("#deletePaymentDataButton").hide();
+                $("#serverErrorAlert").hide(); 
+                $("#generateProformaButton").prop('disabled', true);
+
+                $("#paymentDataForm").removeClass('was-validated');
+
+                if (state === "VIEW" && currentPaymentData) {
+                    $("#existingDataHeader").css('display', 'flex'); 
+                    $("#paymentDataDetails").show();
+
+                    $("#companyName").text(currentPaymentData.companyName);
+                    $("#address").text(currentPaymentData.address);
+                    $("#postalCode").text(currentPaymentData.postalCode);
+                    $("#city").text(currentPaymentData.city);
+                    $("#nip").text(currentPaymentData.nip);
+
+                    $("#editPaymentDataButton").show();
+                    $("#deletePaymentDataButton").show();
+                    $("#generateProformaButton").prop('disabled', false);
+
+                } else if (state === "EMPTY") {
+                    $("#noDataHeader").css('display', 'flex');
+                    $("#addPaymentDataButton").show();
+
+                } else if (state === "EDIT" || state === "ADD") {
+                    $("#paymentDataFormContainer").show();
+                    if (state === "EDIT") {
+                         fillForm(currentPaymentData);
+                    } else {
+                         resetForm();
+                    }
+                }
+            }
+
+            function fillForm(data) {
+                $("#PaymentDataId").val(data.paymentDataId);
+                $("#CompanyName").val(data.companyName);
+                $("#Address").val(data.address);
+                $("#PostalCode").val(data.postalCode);
+                $("#City").val(data.city);
+                $("#NIP").val(data.nip);
+                $("#InvoiceAutoMail").val(data.invoiceAutoMail || '');
+                $("#InvoiceAutoMailSend").prop('checked', data.invoiceAutoMailSend);
+                toggleAutoMailSendCheckbox($("#InvoiceAutoMail").val());
             }
 
             function resetForm() {
                 $("#paymentDataForm")[0].reset();
-                toggleAutoMailSendCheckbox("");
                 $("#PaymentDataId").val('');
+                toggleAutoMailSendCheckbox("");
             }
 
-            function showForm() {
-                $("#paymentDataFormContainer").show();
-                $("#paymentDataDetails").hide();
-                $("#generateProformaButton").prop('disabled', true);
-            }
+            $("#addPaymentDataButton").click(function () { renderView("ADD"); });
+            $("#editPaymentDataButton").click(function () { renderView("EDIT"); });
 
-            function hideForm() {
-                $("#paymentDataFormContainer").hide();
-            }
-
-            function showDetails() {
-                $("#paymentDataDetails").show();
-                $("#editPaymentDataButton").show();
-                $("#deletePaymentDataButton").show();
-            }
-
-            function hideDetails() {
-                $("#paymentDataDetails").hide();
-                $("#editPaymentDataButton").hide();
-                $("#deletePaymentDataButton").hide();
-            }
-
-            function clearDetailsFields() {
-                $("#companyName").text('');
-                $("#address").text('');
-                $("#postalCode").text('');
-                $("#city").text('');
-                $("#nip").text('');
-            }
-
-            function disableGenerateProforma() {
-                $("#generateProformaButton").prop('disabled', true);
-            }
-
-            function enableGenerateProforma() {
-                $("#generateProformaButton").prop('disabled', false);
-            }
+            $("#cancelPaymentDataButton").click(function () {
+                if (currentPaymentData) renderView("VIEW");
+                else renderView("EMPTY");
+            });
 
             function toggleAutoMailSendCheckbox(emailValue) {
                 if (!emailValue || emailValue.trim() === "") {
@@ -569,153 +656,87 @@
                 }
             }
 
-            function populatePaymentData(paymentDataId) {
-                var data = paymentDataList.find(x => x.paymentDataId == paymentDataId);
-                if (data) {
-                    $("#companyName").text(data.companyName);
-                    $("#address").text(data.address);
-                    $("#postalCode").text(data.postalCode);
-                    $("#city").text(data.city);
-                    $("#nip").text(data.nip);
-                    showDetails();
-                    hideForm();
-                    enableGenerateProforma();
-                    $("#paymentDataId").val(data.paymentDataId);
-                } else {
-                    hideDetails();
-                    clearDetailsFields();
-                    $("#paymentDataId").val('');
-                    disableGenerateProforma();
-                }
-            }
-
-            $("#paymentDataSelect").change(function () {
-                var selectedValue = $(this).val();
-                if (selectedValue) {
-                    populatePaymentData(selectedValue);
-                } else {
-                    hideDetails();
-                    clearDetailsFields();
-                    $("#paymentDataId").val('');
-                    disableGenerateProforma();
-                }
-            });
-
-            $("#addPaymentDataButton").click(function () {
-                resetForm();
-                showForm();
-                hideDetails();
-                disableGenerateProforma();
-            });
-
-            $("#editPaymentDataButton").click(function () {
-                var paymentDataId = $("#paymentDataId").val();
-                var data = paymentDataList.find(x => x.paymentDataId == paymentDataId);
-                if (data) {
-                    showForm();
-                    hideDetails();
-                    disableGenerateProforma();
-                    $("#PaymentDataId").val(data.paymentDataId);
-                    $("#CompanyName").val(data.companyName);
-                    $("#Address").val(data.address);
-                    $("#PostalCode").val(data.postalCode);
-                    $("#City").val(data.city);
-                    $("#NIP").val(data.nip);
-                    $("#InvoiceAutoMail").val(data.invoiceAutoMail || '');
-                    $("#InvoiceAutoMailSend").prop('checked', data.invoiceAutoMailSend);
-                    toggleAutoMailSendCheckbox($("#InvoiceAutoMail").val());
-                } else {
-                    alert("Nie można edytować - dane nie istnieją.");
-                }
-            });
-
-            $("#cancelPaymentDataButton").click(function () {
-                hideForm();
-                var paymentDataId = $("#paymentDataId").val();
-                if (paymentDataId && $("#paymentDataSelect").val()) { 
-                    populatePaymentData(paymentDataId);
-                } else {
-                    hideDetails();
-                    clearDetailsFields();
-                    disableGenerateProforma();
-                }
-            });
-
             $("#InvoiceAutoMail").on("input", function () {
                 toggleAutoMailSendCheckbox($(this).val());
             });
 
             $("#savePaymentDataButton").click(function () {
+                var form = $("#paymentDataForm")[0];
+
+                if (form.checkValidity() === false) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    $("#paymentDataForm").addClass('was-validated'); 
+                    return; 
+                }
+
                 var formData = $("#paymentDataForm").serialize();
+
+                $("#serverErrorAlert").hide().text("");
+
                 $.ajax({
                     type: "POST",
                     url: "@Url.Action("SaveOrUpdatePaymentData", "Payment")",
                     data: formData,
                     success: function (response) {
                         if (response.success) {
-                            var newPaymentData = response.paymentData;
-                            var existingData = paymentDataList.find(x => x.paymentDataId == newPaymentData.paymentDataId);
-                            if (existingData) {
-                                Object.assign(existingData, newPaymentData);
-                                $("#paymentDataSelect option[value='" + newPaymentData.paymentDataId + "']").text(newPaymentData.companyName);
-                            } else {
-                                paymentDataList.push(newPaymentData);
-                                $("#paymentDataSelect").append($('<option>', {
-                                    value: newPaymentData.paymentDataId,
-                                    text: newPaymentData.companyName
-                                }));
-                            }
-                            $("#paymentDataSelect").val(newPaymentData.paymentDataId);
-                            hideForm();
-                            populatePaymentData(newPaymentData.paymentDataId);
+                            currentPaymentData = response.paymentData;
+                            renderView("VIEW");
                         } else {
-                            alert("Błąd podczas zapisywania danych: Niepoprawne dane wejściowe.");
+                            showError("Wystąpił nieoczekiwany błąd.");
                         }
                     },
                     error: function (xhr) {
-                        if (xhr.responseJSON && xhr.responseJSON.errors) {
-                            var errors = xhr.responseJSON.errors;
-                            var errorMessage = "Błędy walidacji:\n";
-                            for (var key in errors) {
-                                errorMessage += errors[key].join(", ") + "\n";
+
+                        if (xhr.status === 400 && xhr.responseJSON) {
+
+                            var errors = xhr.responseJSON; 
+                            var errorMsg = "<strong>Nie udało się zapisać danych:</strong><ul>";
+
+                            if (errors.errors) { 
+                                $.each(errors.errors, function(key, msgs){
+                                    $.each(msgs, function(i, msg){
+                                         errorMsg += "<li>" + msg + "</li>";
+                                    });
+                                });
+                            } else {
+
+                                $.each(errors, function(key, msgs){
+                                    if(Array.isArray(msgs)) {
+                                        $.each(msgs, function(i, msg){ errorMsg += "<li>" + msg + "</li>"; });
+                                    } else {
+                                        errorMsg += "<li>" + msgs + "</li>";
+                                    }
+                                });
                             }
-                            alert(errorMessage);
+                            errorMsg += "</ul>";
+                            showError(errorMsg);
                         } else {
-                            alert("Błąd podczas zapisywania danych (HTTP " + xhr.status + ").");
+                            showError("Wystąpił błąd komunikacji z serwerem (Kod: " + xhr.status + ")");
                         }
                     }
                 });
             });
 
+            function showError(htmlMessage) {
+                $("#serverErrorAlert").html(htmlMessage).fadeIn();
+
+                $('.modal').animate({ scrollTop: 0 }, 'slow');
+            }
+
             $("#deletePaymentDataButton").click(function () {
-                if (confirm("Czy na pewno chcesz usunąć te dane?")) {
-                    var paymentDataId = $("#paymentDataId").val();
-                    if (!paymentDataId) {
-                        alert("Brak wybranego adresu do usunięcia.");
-                        return;
-                    }
+                if (!currentPaymentData) return;
+                if (confirm("Czy na pewno chcesz usunąć dane do faktury?")) {
                     $.ajax({
                         type: "POST",
                         url: "@Url.Action("DeletePaymentData", "Payment")",
-                        data: { paymentDataId: paymentDataId },
+                        data: { paymentDataId: currentPaymentData.paymentDataId },
                         success: function (response) {
                             if (response.success) {
-                                paymentDataList = paymentDataList.filter(x => x.paymentDataId != paymentDataId);
-                                $("#paymentDataSelect option[value='" + paymentDataId + "']").remove();
-                                $("#paymentDataSelect").val('');
-                                hideDetails();
-                                clearDetailsFields();
-                                disableGenerateProforma();
-                                hideForm();
+                                currentPaymentData = null;
+                                renderView("EMPTY");
                             } else {
-                                alert("Błąd podczas usuwania danych - operacja nieudana po stronie serwera.");
-                            }
-                        },
-                        error: function (xhr) {
-                            if (xhr.status == 404) {
-                                alert("Nie znaleziono danych do usunięcia (404). Prawdopodobnie zostały już wcześniej usunięte.");
-                            } else {
-                                alert("Błąd podczas usuwania danych (HTTP " + xhr.status + ").");
+                                alert("Nie udało się usunąć danych.");
                             }
                         }
                     });
