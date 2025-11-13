@@ -304,12 +304,14 @@
                         }
                         else if (Model.HasUnpaidInvoice)
                         {
-                            <p class="mb-0"><strong>Proforma została już wygenerowana.</strong> Sprawdź w historii poniżej.</p>
+                            @* ZMIANA TEKSTU *@
+                            <p class="mb-0"><strong>Faktura została już wygenerowana.</strong> Sprawdź w historii poniżej.</p>
                         }
                         else
                         {
-                            <button type="button" class="Button-Page-Small-bl" data-toggle="modal" data-target="#generateProformaModal">
-                                Wygeneruj Proformę
+                            @* ZMIANA: ID, Tekst, data-target *@
+                            <button type="button" class="Button-Page-Small-bl" data-toggle="modal" data-target="#generateInvoiceModal">
+                                Wygeneruj Fakturę
                             </button>
                         }
                     </div>
@@ -360,11 +362,13 @@
             </div>
         </div>
 
-     <div class="modal fade" id="generateProformaModal" tabindex="-1" role="dialog" aria-labelledby="generateProformaModalLabel" aria-hidden="true">
+     @* ZMIANA ID MODALA *@
+     <div class="modal fade" id="generateInvoiceModal" tabindex="-1" role="dialog" aria-labelledby="generateInvoiceModalLabel" aria-hidden="true">
     <div class="modal-dialog" role="document">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="generateProformaModalLabel">Generowanie Proformy</h5>
+                @* ZMIANA TYTUŁU I ID *@
+                <h5 class="modal-title" id="generateInvoiceModalLabel">Generowanie Faktury</h5>
                 <button type="button" class="close" data-dismiss="modal" aria-label="Zamknij">
                     <span aria-hidden="true">&times;</span>
                 </button>
@@ -484,9 +488,11 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-dismiss="modal">Anuluj</button>
-                <form id="generateProformaForm" method="post" asp-action="GenerateProforma" style="margin:0;">
+                @* ZMIANA: ID FORMULARZA, AKCJA GenerateInvoice *@
+                <form id="generateInvoiceForm" method="post" asp-action="GenerateInvoice" style="margin:0;">
                     <input type="hidden" name="storeId" value="@Model.StoreId" />
-                    <button type="submit" class="btn btn-success" id="generateProformaButton" disabled>Generuj i pobierz Proformę</button>
+                    @* ZMIANA: ID PRZYCISKU I TEKST *@
+                    <button type="submit" class="btn btn-success" id="generateInvoiceButton" disabled>Generuj Fakturę</button>
                 </form>
             </div>
         </div>
@@ -589,7 +595,8 @@
                 $("#editPaymentDataButton").hide();
                 $("#deletePaymentDataButton").hide();
                 $("#serverErrorAlert").hide(); 
-                $("#generateProformaButton").prop('disabled', true);
+                // ZMIANA: Nowe ID przycisku
+                $("#generateInvoiceButton").prop('disabled', true);
 
                 $("#paymentDataForm").removeClass('was-validated');
 
@@ -605,7 +612,8 @@
 
                     $("#editPaymentDataButton").show();
                     $("#deletePaymentDataButton").show();
-                    $("#generateProformaButton").prop('disabled', false);
+                    // ZMIANA: Nowe ID przycisku
+                    $("#generateInvoiceButton").prop('disabled', false);
 
                 } else if (state === "EMPTY") {
                     $("#noDataHeader").css('display', 'flex');

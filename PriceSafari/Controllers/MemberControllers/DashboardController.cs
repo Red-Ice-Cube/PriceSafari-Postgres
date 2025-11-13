@@ -21,7 +21,6 @@ namespace PriceSafari.Controllers.MemberControllers
             _hub = hub;
         }
 
-
         [HttpGet]
         public async Task<IActionResult> Index()
         {
@@ -29,10 +28,10 @@ namespace PriceSafari.Controllers.MemberControllers
 
             var userStores = await _context.UserStores
                 .Where(us => us.UserId == userId)
-                // Dołączamy historię dla standardowego dashboardu (Ceneo/Google)
+
                 .Include(us => us.StoreClass)
                     .ThenInclude(s => s.ScrapHistories)
-                // Dołączamy historię dla dashboardu Allegro
+
                 .Include(us => us.StoreClass)
                     .ThenInclude(s => s.AllegroScrapeHistories)
                 .ToListAsync();
@@ -45,9 +44,8 @@ namespace PriceSafari.Controllers.MemberControllers
                 StoreName = store.StoreName,
                 LogoUrl = store.StoreLogoUrl,
 
-                // Ostatnia data dla Ceneo/Google
                 LastScrapeDate = store.ScrapHistories.OrderByDescending(sh => sh.Date).FirstOrDefault()?.Date,
-                // Ostatnia data dla Allegro (zakładam, że dodałeś to pole do ChanelViewModel, jeśli nie - warto to zrobić)
+
                 AllegroLastScrapeDate = store.AllegroScrapeHistories.OrderByDescending(ash => ash.Date).FirstOrDefault()?.Date,
 
                 OnCeneo = store.OnCeneo,
@@ -68,18 +66,16 @@ namespace PriceSafari.Controllers.MemberControllers
             return View("~/Views/Panel/Dashboard/Dashboard.cshtml");
         }
 
-
         [HttpGet]
         public async Task<IActionResult> GetDashboardData(
                 int storeId,
                 int scraps = 7,
-                string connectionId = null)        
+                string connectionId = null)
         {
 
             int step = 0;
-         
-            int totalSteps = scraps + 5;   
-                                          
+
+            int totalSteps = scraps + 5;
 
             async Task Progress(string msg)
             {
@@ -87,13 +83,11 @@ namespace PriceSafari.Controllers.MemberControllers
 
                 step++;
                 int pct = step * 100 / totalSteps;
-                if (pct > 100) pct = 100;         
+                if (pct > 100) pct = 100;
 
                 await _hub.Clients.Client(connectionId)
                           .SendAsync("ReceiveProgress", msg, pct);
             }
-
-
 
             await Progress("Pobieram dane sklepu…");
 
@@ -117,7 +111,6 @@ namespace PriceSafari.Controllers.MemberControllers
             allScraps = allScraps.OrderBy(s => s.Date).ToList();
             var displayScraps = allScraps.Skip(1).ToList();
 
-           
             var priceRows = new List<PriceRow>();
             for (int i = 0; i < allScraps.Count; i++)
             {
@@ -143,7 +136,6 @@ namespace PriceSafari.Controllers.MemberControllers
                 await Progress($"Analizuję scrap {i + 1}/{allScraps.Count}…");
             }
 
-            
             await Progress("Agreguję wyniki…");
 
             var buckets = displayScraps
@@ -193,7 +185,6 @@ namespace PriceSafari.Controllers.MemberControllers
                 }
             }
 
-         
             await Progress("Finalizuję odpowiedź…");
 
             var result = buckets.Values
@@ -211,12 +202,11 @@ namespace PriceSafari.Controllers.MemberControllers
             return Json(result);
         }
 
-
         private sealed class PriceRow
         {
             public int ProductId { get; set; }
             public string ProductName { get; set; }
-            public string ProductImage { get; set; }  
+            public string ProductImage { get; set; }
             public decimal OldPrice { get; set; }
             public int ScrapId { get; set; }
             public DateTime Date { get; set; }
@@ -227,7 +217,7 @@ namespace PriceSafari.Controllers.MemberControllers
             public DateTime Date { get; set; }
             public int ProductId { get; set; }
             public string ProductName { get; set; }
-            public string ProductImage { get; set; }  
+            public string ProductImage { get; set; }
             public decimal OldPrice { get; set; }
             public decimal NewPrice { get; set; }
             public decimal PriceDifference { get; set; }
@@ -244,7 +234,3 @@ namespace PriceSafari.Controllers.MemberControllers
 
     }
 }
-
-
-
-

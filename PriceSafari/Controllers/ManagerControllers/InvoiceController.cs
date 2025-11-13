@@ -125,6 +125,7 @@ namespace PriceSafari.Controllers.ManagerControllers
                 .Include(i => i.Store)
                 .Include(i => i.Plan)
                 .FirstOrDefaultAsync(i => i.InvoiceId == id);
+
             if (invoice == null)
             {
                 return NotFound();
@@ -149,9 +150,7 @@ namespace PriceSafari.Controllers.ManagerControllers
                 {
 
                     store.PlanId = invoice.PlanId;
-
                     store.RemainingDays += invoice.DaysIncluded;
-
                     store.ProductsToScrap = invoice.Plan.ProductsToScrap;
                 }
 

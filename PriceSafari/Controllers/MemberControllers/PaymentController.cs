@@ -80,7 +80,6 @@ namespace PriceSafari.Controllers.MemberControllers
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
-            // Sprawdzamy, czy użytkownik ma dostęp do tego sklepu
             var userStore = await _context.UserStores
                 .FirstOrDefaultAsync(us => us.UserId == userId && us.StoreId == storeId);
 
@@ -89,11 +88,10 @@ namespace PriceSafari.Controllers.MemberControllers
                 return Unauthorized();
             }
 
-            // Pobieramy sklep wraz z danymi płatności (Include PaymentData)
             var store = await _context.Stores
                 .Include(s => s.Plan)
                 .Include(s => s.Invoices)
-                .Include(s => s.PaymentData) // <--- WAŻNE: Pobieramy dane 1:1
+                .Include(s => s.PaymentData)
                 .FirstOrDefaultAsync(s => s.StoreId == storeId);
 
             if (store == null)
@@ -101,9 +99,6 @@ namespace PriceSafari.Controllers.MemberControllers
                 return NotFound("Sklep nie został znaleziony.");
             }
 
-            // Ponieważ mamy relację 1:1, nie pobieramy już listy PaymentDataList
-            // Możemy przekazać pojedynczy obiekt lub null do widoku, 
-            // albo stworzyć listę jednoelementową jeśli widok tego wymaga (dla kompatybilności)
             var paymentDataList = store.PaymentData != null
                 ? new List<UserPaymentData> { store.PaymentData }
                 : new List<UserPaymentData>();
@@ -124,7 +119,6 @@ namespace PriceSafari.Controllers.MemberControllers
                 DiscountValue = store.DiscountPercentage,
                 Invoices = store.Invoices.OrderByDescending(i => i.IssueDate).ToList(),
 
-                // Tutaj przekazujemy naszą listę (0 lub 1 element)
                 PaymentDataList = paymentDataList,
 
                 Ceneo = store.Plan?.Ceneo ?? false,
@@ -141,14 +135,11 @@ namespace PriceSafari.Controllers.MemberControllers
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
-            // W modelu UserPaymentDataViewModel musisz mieć StoreId!
-            // Jeśli go nie masz, dodaj: public int StoreId { get; set; }
             if (model.StoreId <= 0)
             {
                 return BadRequest("Brak identyfikatora sklepu.");
             }
 
-            // Weryfikacja uprawnień do sklepu
             var hasAccess = await _context.UserStores.AnyAsync(us => us.UserId == userId && us.StoreId == model.StoreId);
             if (!hasAccess)
             {
@@ -165,7 +156,6 @@ namespace PriceSafari.Controllers.MemberControllers
                 model.InvoiceAutoMailSend = false;
             }
 
-            // Pobieramy istniejące dane dla tego sklepu
             var existingPaymentData = await _context.UserPaymentDatas
                 .FirstOrDefaultAsync(pd => pd.StoreId == model.StoreId);
 
@@ -173,7 +163,7 @@ namespace PriceSafari.Controllers.MemberControllers
 
             if (existingPaymentData != null)
             {
-                // --- AKTUALIZACJA ---
+
                 paymentDataEntity = existingPaymentData;
                 paymentDataEntity.CompanyName = model.CompanyName;
                 paymentDataEntity.Address = model.Address;
@@ -187,11 +177,11 @@ namespace PriceSafari.Controllers.MemberControllers
             }
             else
             {
-                // --- TWORZENIE NOWEGO ---
+
                 paymentDataEntity = new UserPaymentData
                 {
-                    StoreId = model.StoreId, // Przypisujemy do sklepu
-                    // UserId = userId, // <-- TO USUWYWAMY, bo już nie ma tej kolumny
+                    StoreId = model.StoreId,
+
                     CompanyName = model.CompanyName,
                     Address = model.Address,
                     PostalCode = model.PostalCode,
@@ -204,8 +194,6 @@ namespace PriceSafari.Controllers.MemberControllers
             }
 
             await _context.SaveChangesAsync();
-
-            // model.PaymentDataId = paymentDataEntity.PaymentDataId; // Opcjonalne, jeśli potrzebujesz ID
 
             return Ok(new
             {
@@ -229,7 +217,6 @@ namespace PriceSafari.Controllers.MemberControllers
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
-            // Musimy sprawdzić, czy użytkownik ma dostęp do sklepu, do którego należą te dane
             var paymentData = await _context.UserPaymentDatas
                 .Include(pd => pd.Store)
                 .ThenInclude(s => s.UserStores)
@@ -240,7 +227,6 @@ namespace PriceSafari.Controllers.MemberControllers
                 return NotFound();
             }
 
-            // Sprawdzenie uprawnień: Czy użytkownik jest właścicielem sklepu powiązanego z tymi danymi?
             var hasAccess = paymentData.Store.UserStores.Any(us => us.UserId == userId);
             if (!hasAccess)
             {
@@ -254,9 +240,8 @@ namespace PriceSafari.Controllers.MemberControllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> GenerateProforma(int storeId)
+        public async Task<IActionResult> GenerateInvoice(int storeId)
         {
-            // Uwaga: Usunąłem parametr paymentDataId, bo teraz dane pobieramy ze sklepu (1:1)
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
             var userStore = await _context.UserStores
@@ -270,7 +255,7 @@ namespace PriceSafari.Controllers.MemberControllers
             var store = await _context.Stores
                 .Include(s => s.Plan)
                 .Include(s => s.Invoices)
-                .Include(s => s.PaymentData) // <-- Pobieramy dane płatności
+                .Include(s => s.PaymentData)
                 .FirstOrDefaultAsync(s => s.StoreId == storeId);
 
             if (store == null || store.Plan == null)
@@ -280,7 +265,6 @@ namespace PriceSafari.Controllers.MemberControllers
 
             var plan = store.Plan;
 
-            // Obsługa planu darmowego/testowego
             if (plan.NetPrice == 0 || plan.IsTestPlan)
             {
                 store.RemainingDays = plan.DaysPerInvoice;
@@ -297,20 +281,17 @@ namespace PriceSafari.Controllers.MemberControllers
 
             if (store.Invoices.Any(i => !i.IsPaid))
             {
-                TempData["Error"] = "Istnieje już wygenerowana proforma dla tego sklepu.";
+                TempData["Error"] = "Istnieje już nieopłacona faktura dla tego sklepu.";
                 return RedirectToAction("StorePayments", new { storeId = storeId });
             }
 
-            // --- ZMIANA TUTAJ ---
-            // Zamiast szukać po ID z parametru, bierzemy dane ze sklepu
             var paymentData = store.PaymentData;
 
             if (paymentData == null)
             {
-                TempData["Error"] = "Uzupełnij dane do faktury przed wygenerowaniem proformy.";
+                TempData["Error"] = "Uzupełnij dane do faktury przed jej wygenerowaniem.";
                 return RedirectToAction("StorePayments", new { storeId = storeId });
             }
-            // --------------------
 
             decimal netPrice = store.Plan.NetPrice;
             decimal appliedDiscountPercentage = 0;
@@ -323,9 +304,10 @@ namespace PriceSafari.Controllers.MemberControllers
                 netPrice = netPrice - appliedDiscountAmount;
             }
 
-            int proformaNumber = await GetNextProformaNumberAsync();
+            int invoiceNumber = await GetNextInvoiceNumberAsync();
             var currentYear = DateTime.Now.Year;
-            var proformaNumberFormatted = $"FP/PS/{proformaNumber.ToString("D6")}/sDB/{currentYear}";
+
+            var invoiceNumberFormatted = $"PS/{invoiceNumber.ToString("D6")}/sDB/{currentYear}";
 
             var invoice = new InvoiceClass
             {
@@ -344,31 +326,33 @@ namespace PriceSafari.Controllers.MemberControllers
                 NIP = paymentData.NIP,
                 AppliedDiscountPercentage = appliedDiscountPercentage,
                 AppliedDiscountAmount = appliedDiscountAmount,
-                InvoiceNumber = proformaNumberFormatted
+                InvoiceNumber = invoiceNumberFormatted
             };
 
             _context.Invoices.Add(invoice);
             await _context.SaveChangesAsync();
 
-            TempData["Success"] = "Proforma została wygenerowana.";
+            TempData["Success"] = "Faktura została wygenerowana. Prosimy o dokonanie płatności.";
             return RedirectToAction("StorePayments", new { storeId = storeId });
         }
 
-        // Metody prywatne i pomocnicze bez zmian...
-        private async Task<int> GetNextProformaNumberAsync()
+        private async Task<int> GetNextInvoiceNumberAsync()
         {
             var currentYear = DateTime.Now.Year;
             var counter = await _context.InvoiceCounters.FirstOrDefaultAsync(c => c.Year == currentYear);
+
             if (counter == null)
             {
+
                 counter = new InvoiceCounter { Year = currentYear, LastProformaNumber = 0, LastInvoiceNumber = 0 };
                 _context.InvoiceCounters.Add(counter);
                 await _context.SaveChangesAsync();
             }
 
-            counter.LastProformaNumber++;
+            counter.LastInvoiceNumber++;
             await _context.SaveChangesAsync();
-            return counter.LastProformaNumber;
+
+            return counter.LastInvoiceNumber;
         }
 
         [HttpGet]

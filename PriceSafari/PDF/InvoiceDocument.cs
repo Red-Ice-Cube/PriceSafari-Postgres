@@ -4,6 +4,8 @@ using MigraDoc.DocumentObjectModel.Tables;
 using MigraDoc.Rendering;
 using System.IO;
 using MigraDoc.DocumentObjectModel.Shapes;
+using System.Collections.Generic;
+using System.Linq;
 
 public class InvoiceDocument
 {
@@ -19,7 +21,9 @@ public class InvoiceDocument
     public byte[] GeneratePdf()
     {
         var document = new Document();
-        var headerTitle = _invoice.IsPaid ? "Faktura VAT" : "ProForma";
+
+        var headerTitle = "Faktura VAT";
+
         document.Info.Title = $"{headerTitle} nr {_invoice.InvoiceNumber}";
         document.Info.Author = "Heated Box Sp. z o.o.";
 
@@ -41,7 +45,6 @@ public class InvoiceDocument
 
     private void DefineStyles(Document document)
     {
-
         var style = document.Styles["Normal"];
         style.Font.Name = "Arial";
         style.Font.Size = 10;
@@ -72,17 +75,10 @@ public class InvoiceDocument
 
         AddLogoAndLine(section);
 
-        var headerTitle = _invoice.IsPaid ? "Faktura VAT" : "ProForma";
+        var headerTitle = "Faktura VAT";
         var header = section.AddParagraph($"{headerTitle} nr {_invoice.InvoiceNumber}");
         header.Style = "Header";
         header.Format.SpaceAfter = "0.5cm";
-
-        if (_invoice.IsPaid && !string.IsNullOrEmpty(_invoice.OriginalProformaNumber))
-        {
-            var fakturaDoProformyParagraph = section.AddParagraph($"Faktura do proformy: {_invoice.OriginalProformaNumber}");
-            fakturaDoProformyParagraph.Style = "Bold";
-            fakturaDoProformyParagraph.Format.SpaceAfter = "0.5cm";
-        }
 
         var dateTable = section.AddTable();
         dateTable.Borders.Visible = false;
@@ -91,11 +87,14 @@ public class InvoiceDocument
         var dateRow = dateTable.AddRow();
         var cell = dateRow.Cells[0];
         cell.AddParagraph($"Data wystawienia: {_invoice.IssueDate:yyyy-MM-dd}");
+
         if (_invoice.PaymentDate != null)
         {
             cell.AddParagraph($"Data sprzedaży: {_invoice.PaymentDate:yyyy-MM-dd}");
         }
-        cell.AddParagraph($"Status: {(_invoice.IsPaid ? "Opłacona" : "Nieopłacona")}");
+
+        cell.AddParagraph($"Status: {(_invoice.IsPaid ? "Opłacona" : "DO ZAPŁATY")}");
+
         dateRow.Cells[1].AddParagraph("");
         section.AddParagraph().AddLineBreak();
 
@@ -155,19 +154,15 @@ public class InvoiceDocument
         dataCell.AddParagraph($"PriceSafari {_invoice.Plan.PlanName}");
         dataCell.AddParagraph($"Ilość analiz: {_invoice.DaysIncluded}");
 
-        // ### ZMIANA 1: Warunkowe wyświetlanie limitów SKU ###
-        // Wyświetlamy limit dla porównywarek tylko, jeśli istnieje w danym planie.
         if (_invoice.UrlsIncluded.HasValue && _invoice.UrlsIncluded > 0)
         {
             dataCell.AddParagraph($"Maksymalna ilość SKU (porównywarki): {_invoice.UrlsIncluded}");
         }
-        // Wyświetlamy limit dla marketplace tylko, jeśli istnieje w danym planie.
         if (_invoice.UrlsIncludedAllegro.HasValue && _invoice.UrlsIncludedAllegro > 0)
         {
             dataCell.AddParagraph($"Maksymalna ilość SKU (marketplace): {_invoice.UrlsIncludedAllegro}");
         }
 
-        // ### ZMIANA 2: Ulepszona, dynamiczna logika dodawania źródeł danych ###
         var sourceList = new List<string>();
         if (_invoice.Plan.Ceneo) sourceList.Add("Ceneo");
         if (_invoice.Plan.GoogleShopping) sourceList.Add("Google Shopping");
