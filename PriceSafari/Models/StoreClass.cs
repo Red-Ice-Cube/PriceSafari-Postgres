@@ -64,6 +64,8 @@ namespace PriceSafari.Models
 
         public bool IsAllegroPriceBridgeActive { get; set; } = false;
 
+        public UserPaymentData? PaymentData { get; set; }
+
         public ICollection<ScrapHistoryClass> ScrapHistories { get; set; } = new List<ScrapHistoryClass>();
         public ICollection<ProductClass> Products { get; set; } = new List<ProductClass>();
         public ICollection<AllegroProductClass> AllegroProducts { get; set; } = new List<AllegroProductClass>();

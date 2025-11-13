@@ -25,7 +25,7 @@ public class PriceSafariUser : IdentityUser
     public bool IsActive { get; set; }
     public AffiliateVerification AffiliateVerification { get; set; }
     public ICollection<PriceSafariUserStore> UserStores { get; set; } = new List<PriceSafariUserStore>();
-    public ICollection<UserPaymentData> UserPaymentDatas { get; set; } = new List<UserPaymentData>();
+
     public bool AccesToViewSafari { get; set; } = false;
     public bool AccesToCreateSafari { get; set; } = false;
     public bool AccesToViewMargin { get; set; } = false;

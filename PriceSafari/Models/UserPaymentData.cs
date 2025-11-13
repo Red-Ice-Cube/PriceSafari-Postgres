@@ -1,7 +1,5 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
-using Microsoft.AspNetCore.Mvc.ModelBinding;
-using Microsoft.AspNetCore.Mvc.ModelBinding.Validation;
 
 namespace PriceSafari.Models
 {
@@ -10,10 +8,13 @@ namespace PriceSafari.Models
         [Key]
         public int PaymentDataId { get; set; }
 
-        [ForeignKey(nameof(PriceSafariUser))]
-        public string UserId { get; set; }
+        // --- NOWA LOGIKA (RELACJA 1:1 ZE SKLEPEM) ---
+        [Required]
+        public int StoreId { get; set; }
 
-        public PriceSafariUser User { get; set; }
+        [ForeignKey("StoreId")]
+        public StoreClass Store { get; set; }
+        // -------------------------------------------
 
         [Required]
         [Display(Name = "Nazwa firmy")]
@@ -37,6 +38,5 @@ namespace PriceSafari.Models
 
         public string? InvoiceAutoMail { get; set; }
         public bool InvoiceAutoMailSend { get; set; } = false;
-
     }
 }

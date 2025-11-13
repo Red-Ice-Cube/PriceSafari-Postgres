@@ -150,11 +150,11 @@ namespace PriceSafari.Data
                   .HasForeignKey(psr => psr.StoreId)
                   .OnDelete(DeleteBehavior.Restrict);
 
-            modelBuilder.Entity<PriceSafariUser>()
-                   .HasMany(u => u.UserPaymentDatas)
-                   .WithOne(pd => pd.User)
-                   .HasForeignKey(pd => pd.UserId)
-                   .OnDelete(DeleteBehavior.Cascade);
+            modelBuilder.Entity<StoreClass>()
+                 .HasOne(s => s.PaymentData)       
+                 .WithOne(pd => pd.Store)          
+                 .HasForeignKey<UserPaymentData>(pd => pd.StoreId) 
+                 .OnDelete(DeleteBehavior.Cascade);
 
             modelBuilder.Entity<SchedulePlan>()
                  .HasOne(sp => sp.Monday)
