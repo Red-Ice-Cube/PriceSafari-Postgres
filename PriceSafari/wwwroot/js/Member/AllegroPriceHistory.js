@@ -1,4 +1,4 @@
-﻿document.addEventListener("DOMContentLoaded", function () {
+﻿document.addEventListener("DOMContentLoaded", function() {
     let allPrices = [];
     let currentlyFilteredPrices = [];
     let chartInstance = null;
@@ -79,21 +79,21 @@
     const selectAllVisibleBtn = document.getElementById('selectAllVisibleBtn');
     const deselectAllVisibleBtn = document.getElementById('deselectAllVisibleBtn');
 
-    selectAllVisibleBtn.addEventListener('click', function () {
-        if (currentlyFilteredPrices.length === 0) return;
-        currentlyFilteredPrices.forEach(product => selectedProductIds.add(product.productId.toString()));
-        saveSelectionToStorage(selectedProductIds);
-        updateSelectionUI();
-        updateVisibleProductSelectionButtons();
-    });
+    selectAllVisibleBtn.addEventListener('click', function() {
+            if (currentlyFilteredPrices.length === 0) return;
+            currentlyFilteredPrices.forEach(product => selectedProductIds.add(product.productId.toString()));
+            saveSelectionToStorage(selectedProductIds);
+            updateSelectionUI();
+            updateVisibleProductSelectionButtons();
+        });
 
-    deselectAllVisibleBtn.addEventListener('click', function () {
-        if (currentlyFilteredPrices.length === 0) return;
-        currentlyFilteredPrices.forEach(product => selectedProductIds.delete(product.productId.toString()));
-        saveSelectionToStorage(selectedProductIds);
-        updateSelectionUI();
-        updateVisibleProductSelectionButtons();
-    });
+    deselectAllVisibleBtn.addEventListener('click', function() {
+            if (currentlyFilteredPrices.length === 0) return;
+            currentlyFilteredPrices.forEach(product => selectedProductIds.delete(product.productId.toString()));
+            saveSelectionToStorage(selectedProductIds);
+            updateSelectionUI();
+            updateVisibleProductSelectionButtons();
+        });
 
     function updateVisibleProductSelectionButtons() {
         document.querySelectorAll('#priceContainer .select-product-btn').forEach(btn => {
@@ -125,7 +125,7 @@
 
     function debounce(func, wait) {
         let timeout;
-        return function (...args) {
+        return function(...args) {
             clearTimeout(timeout);
             timeout = setTimeout(() => func.apply(this, args), wait);
         };
@@ -313,18 +313,18 @@
         const flagsContainer = document.createElement('div');
         flagsContainer.className = 'flags-container';
         if (item.flagIds && item.flagIds.length > 0) {
-            item.flagIds.forEach(function (flagId) {
-                const flag = flags.find(f => f.flagId === flagId);
-                if (flag) {
-                    const flagSpan = document.createElement('span');
-                    flagSpan.className = 'flag';
-                    flagSpan.style.color = flag.flagColor;
-                    flagSpan.style.border = '2px solid ' + flag.flagColor;
-                    flagSpan.style.backgroundColor = hexToRgba(flag.flagColor, 0.3);
-                    flagSpan.innerHTML = flag.flagName;
-                    flagsContainer.appendChild(flagSpan);
-                }
-            });
+            item.flagIds.forEach(function(flagId) {
+            const flag = flags.find(f => f.flagId === flagId);
+            if (flag) {
+                const flagSpan = document.createElement('span');
+                flagSpan.className = 'flag';
+                flagSpan.style.color = flag.flagColor;
+                flagSpan.style.border = '2px solid ' + flag.flagColor;
+                flagSpan.style.backgroundColor = hexToRgba(flag.flagColor, 0.3);
+                flagSpan.innerHTML = flag.flagName;
+                flagsContainer.appendChild(flagSpan);
+            }
+        });
         }
         return flagsContainer;
     }
@@ -348,10 +348,10 @@
 
         if (typeof flags !== 'undefined' && flags) {
             flags.forEach(flag => {
-                const count = flagCounts[flag.flagId] || 0;
-                const includeChecked = selectedFlagsInclude.has(String(flag.flagId)) ? 'checked' : '';
-                const excludeChecked = selectedFlagsExclude.has(String(flag.flagId)) ? 'checked' : '';
-                const flagElementHTML = `
+            const count = flagCounts[flag.flagId] || 0;
+            const includeChecked = selectedFlagsInclude.has(String(flag.flagId)) ? 'checked' : '';
+            const excludeChecked = selectedFlagsExclude.has(String(flag.flagId)) ? 'checked' : '';
+            const flagElementHTML = `
                 <div class="flag-filter-group">
                     <div class="form-check form-check-inline check-include" style="margin-right:0px;">
                         <input class="form-check-input flagFilterInclude" type="checkbox" id="flagInclude_${flag.flagId}" value="${flag.flagId}" ${includeChecked}>
@@ -361,8 +361,8 @@
                     </div>
                         <span class="flag-name-count" style="font-size:14px; font-weight: 400;">${flag.flagName} (${count})</span>
                 </div>`;
-                flagContainer.insertAdjacentHTML('beforeend', flagElementHTML);
-            });
+            flagContainer.insertAdjacentHTML('beforeend', flagElementHTML);
+        });
         }
 
         const noFlagIncludeChecked = selectedFlagsInclude.has('noFlag') ? 'checked' : '';
@@ -382,29 +382,41 @@
         setupFlagFilterListeners();
     }
 
-    function updateBadgeCounts(prices) {
+   function updateBadgeCounts(prices) {
+
         let topOfferCount = 0;
         let superPriceCount = 0;
         let bestPriceCount = 0;
         let campaignCount = 0;
+        let subsidyCount = 0;      
+        let invitationCount = 0;   
 
         prices.forEach(price => {
             if (price.myIsTopOffer) topOfferCount++;
             if (price.myIsSuperPrice) superPriceCount++;
             if (price.myIsBestPriceGuarantee) bestPriceCount++;
             if (price.anyPromoActive) campaignCount++;
+
+            if (price.isSubsidyActive) subsidyCount++;
+            if (price.isInvitationActive) invitationCount++;
         });
 
         const topOfferLabel = document.getElementById('labelMyTopOffer');
         const superPriceLabel = document.getElementById('labelMySuperPrice');
         const bestPriceLabel = document.getElementById('labelMyBestPrice');
         const campaignLabel = document.getElementById('labelMyCampaign');
+        const subsidyLabel = document.getElementById('labelMySubsidy');         
+        const invitationLabel = document.getElementById('labelMyInvitation');   
 
         if (topOfferLabel) topOfferLabel.textContent = `Top oferta (${topOfferCount})`;
         if (superPriceLabel) superPriceLabel.textContent = `Super cena (${superPriceCount})`;
         if (bestPriceLabel) bestPriceLabel.textContent = `Gwarancja najniższej ceny (${bestPriceCount})`;
-        if (campaignLabel) campaignLabel.textContent = `W kampanii Allegro (${campaignCount})`;
+        if (campaignLabel) campaignLabel.textContent = `W jakiejkolwiek kampanii (${campaignCount})`;
+
+        if (subsidyLabel) subsidyLabel.textContent = `Kampania z dopłatami (${subsidyCount})`;
+        if (invitationLabel) invitationLabel.textContent = `Zaproszenie do kampanii (${invitationCount})`;
     }
+
     function updateStatusCounts(prices) {
         let committedCount = 0;
         prices.forEach(price => {
@@ -484,9 +496,9 @@
         let stepInfoText = "";
         if (typeof stepPriceApplied !== 'undefined' && stepPriceApplied !== null && typeof stepUnitApplied !== 'undefined') {
             const formattedStepPrice = stepPriceApplied.toLocaleString('pl-PL', {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2
-            });
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        });
             stepInfoText = ` Krok ${formattedStepPrice} ${stepUnitApplied} |`;
         }
 
@@ -502,7 +514,7 @@
         removeLink.style.cursor = "pointer";
         removeLink.style.pointerEvents = 'auto';
 
-        removeLink.addEventListener('click', function (ev) {
+        removeLink.addEventListener('click', function(ev) {
             ev.stopPropagation();
             const productId = priceBox.dataset.productId;
 
@@ -567,7 +579,7 @@
         const button = actionLine.querySelector('.simulate-change-btn');
         if (!button) return;
 
-        actionLine.addEventListener('click', function (e) {
+        actionLine.addEventListener('click', function(e) {
             e.stopPropagation();
 
             const currentButton = this.querySelector('.simulate-change-btn');
@@ -712,7 +724,7 @@
 
         const basePriceForChangeCalc = item.apiAllegroPriceFromUser != null ?
             parseFloat(item.apiAllegroPriceFromUser) :
-            currentMyPrice;
+   currentMyPrice;
 
         let suggestedPrice = null;
         let basePriceForCalc = null;
@@ -880,7 +892,7 @@
 
             const commission = allegroMarginSettings.includeCommissionInPriceChange && item.apiAllegroCommission != null ?
                 parseFloat(item.apiAllegroCommission) :
-                0;
+   0;
 
             const newNetPrice = suggestedPrice - commission;
 
@@ -900,9 +912,9 @@
 
                 const formattedNewMarginAmount = newMarginSign + formatPricePL(Math.abs(newMarginAmount), false) + ' PLN';
                 const formattedNewMarginPercentage = '(' + newMarginSign + Math.abs(newMarginPercentage).toLocaleString('pl-PL', {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2
-                }) + '%)';
+       minimumFractionDigits: 2,
+       maximumFractionDigits: 2
+   }) + '%)';
 
                 const newMarginBox = document.createElement('div');
                 newMarginBox.className = 'price-box-diff-margin-ib ' + newBgMarginClass;
@@ -911,6 +923,20 @@
 
                 contentWrapper.appendChild(newMarginBox);
             }
+        }
+
+        if (item.isInvitationActive === true && item.invitationPrice != null) {
+            const formattedInvitationPrice = formatPricePL(item.invitationPrice, true); 
+
+            const invitationBox = document.createElement('div');
+
+            invitationBox.className = 'Invitation-stack'; 
+            invitationBox.style.textAlign = 'left';
+            invitationBox.style.marginTop = '3px';
+
+            invitationBox.innerHTML = `<span class="invitation-stack-badge">Zaproszenie do kampanii</span><p>${formattedInvitationPrice}</p>`;
+
+            contentWrapper.appendChild(invitationBox);
         }
 
         const actionLine = document.createElement('div');
@@ -940,9 +966,22 @@
     function createApiInfoHtml(item) {
         let campaignLine = '';
 
-        if (item.anyPromoActive === true && item.apiAllegroPriceFromUser != null) {
+        if (item.apiAllegroPriceFromUser != null) {
             const formattedPromoPrice = formatPricePL(item.apiAllegroPriceFromUser, false);
-            campaignLine = `<div class="Campaign-stack" style="text-align: left; margin-top: 3px;"><span class="campaign-stack-badge">Kampania Allegro | Twoja cena</span><p>${formattedPromoPrice} PLN</p></div>`;
+
+            if (item.isSubsidyActive === true) {
+                campaignLine = `<div class="subsidy-stack" style="text-align: left; margin-top: 3px;">
+                                    <span class="subsidy-stack-badge">Kampania z dopł. | Twoja cena</span>
+                                    <p>${formattedPromoPrice} PLN</p>
+                                </div>`;
+            } 
+
+            else if (item.anyPromoActive === true) {
+                campaignLine = `<div class="Campaign-stack" style="text-align: left; margin-top: 3px;">
+                                    <span class="campaign-stack-badge">Kampania | Twoja cena</span>
+                                    <p>${formattedPromoPrice} PLN</p>
+                                </div>`;
+            }
         }
 
         if (campaignLine === '') {
@@ -981,84 +1020,84 @@
         selectedPriceChanges.forEach(change => currentActiveChangesMap.set(String(change.productId), change));
 
         paginatedData.forEach(item => {
-            const myPrice = item.myPrice != null ? parseFloat(item.myPrice) : null;
-            const lowestPrice = item.lowestPrice != null ? parseFloat(item.lowestPrice) : null;
-            const highlightedProductName = highlightMatches(item.productName, productSearchTerm);
-            const highlightedStoreName = highlightMatches(item.storeName, storeSearchTerm);
-            const highlightedMyStoreName = highlightMatches(myStoreName, storeSearchTerm);
-            let myOfferIdHtml = '';
-            if (item.myIdAllegro) {
-                myOfferIdHtml = `
+       const myPrice = item.myPrice != null ? parseFloat(item.myPrice) : null;
+       const lowestPrice = item.lowestPrice != null ? parseFloat(item.lowestPrice) : null;
+       const highlightedProductName = highlightMatches(item.productName, productSearchTerm);
+       const highlightedStoreName = highlightMatches(item.storeName, storeSearchTerm);
+       const highlightedMyStoreName = highlightMatches(myStoreName, storeSearchTerm);
+       let myOfferIdHtml = '';
+       if (item.myIdAllegro) {
+           myOfferIdHtml = `
                 <div class="price-box-column-category">
                     <span class="ApiBox">ID ${item.myIdAllegro}</span>
                 </div>
                 `;
-            }
-            const competitorSuperPriceBadge = item.isSuperPrice ? `<div class="SuperPrice">SUPERCENA</div>` : '';
+       }
+       const competitorSuperPriceBadge = item.isSuperPrice ? `<div class="SuperPrice">SUPERCENA</div>` : '';
 
-            let competitorPromoInfoText = '';
-            if (item.isPromoted) {
-                competitorPromoInfoText = ` <span class="AddPromoInfoBadge">Promowane</span>`;
-            } else if (item.isSponsored) {
-                competitorPromoInfoText = ` <span class="AddPromoInfoBadge">Sponsorowane</span>`;
-            }
+       let competitorPromoInfoText = '';
+       if (item.isPromoted) {
+           competitorPromoInfoText = ` <span class="AddPromoInfoBadge">Promowane</span>`;
+       } else if (item.isSponsored) {
+           competitorPromoInfoText = ` <span class="AddPromoInfoBadge">Sponsorowane</span>`;
+       }
 
-            const mySuperPriceBadge = item.myIsSuperPrice ? `<div class="SuperPrice">SUPERCENA</div>` : '';
+       const mySuperPriceBadge = item.myIsSuperPrice ? `<div class="SuperPrice">SUPERCENA</div>` : '';
 
-            const competitorTopOfferBadge = item.isTopOffer ? `<div class="TopOffer">Top oferta</div>` : '';
-            const myTopOfferBadge = item.myIsTopOffer ? `<div class="TopOffer">Top oferta</div>` : '';
+       const competitorTopOfferBadge = item.isTopOffer ? `<div class="TopOffer">Top oferta</div>` : '';
+       const myTopOfferBadge = item.myIsTopOffer ? `<div class="TopOffer">Top oferta</div>` : '';
 
-            let myPromoInfoText = '';
-            if (item.myIsPromoted) {
-                myPromoInfoText = ` <span class="AddPromoInfoBadge">Promowane</span>`;
-            } else if (item.myIsSponsored) {
-                myPromoInfoText = ` <span class="AddPromoInfoBadge">Sponsorowane</span>`;
-            }
+       let myPromoInfoText = '';
+       if (item.myIsPromoted) {
+           myPromoInfoText = ` <span class="AddPromoInfoBadge">Promowane</span>`;
+       } else if (item.myIsSponsored) {
+           myPromoInfoText = ` <span class="AddPromoInfoBadge">Sponsorowane</span>`;
+       }
 
-            let myPricePositionHtml = '';
-            if (item.committed && item.committed.newPosition) {
+       let myPricePositionHtml = '';
+       if (item.committed && item.committed.newPosition) {
 
-                let oldPos = item.myPricePosition || 'N/A';
-                let newPosCompact = item.committed.newPosition.replace(/\s*\/\s*/, '/');
-                myPricePositionHtml = `
+           let oldPos = item.myPricePosition || 'N/A';
+           let newPosCompact = item.committed.newPosition.replace(/\s*\/\s*/, '/');
+           myPricePositionHtml = `
              <div class="price-box-column-offers-a" title="Pozycja cenowa: Stara -> Nowa">
                  <span class="data-channel"><i class="fas fa-trophy" style="font-size: 15px; color: grey; margin-top:1px;"></i></span>
                  <div class="offer-count-box">
                      <p><s style="color:#999; font-size:0.9em;">${oldPos}</s> <span style="color:#4e4e4e; font-size: 14px;">${newPosCompact}</span></p>
                  </div>
              </div>`;
-            } else if (item.myPricePosition) {
-                myPricePositionHtml = `
+       } else if (item.myPricePosition) {
+           myPricePositionHtml = `
                 <div class="price-box-column-offers-a"><span class="data-channel" title="Pozycja cenowa Twojej oferty"><i class="fas fa-trophy" style="font-size: 15px; color: grey; margin-top:1px;"></i></span><div class="offer-count-box"><p>${item.myPricePosition}</p></div></div>`;
-            } else if (item.myPrice != null) {
-                myPricePositionHtml = `
+       } else if (item.myPrice != null) {
+           myPricePositionHtml = `
                 <div class="price-box-column-offers-a"><span class="data-channel" title="Pozycja cenowa Twojej oferty"><i class="fas fa-trophy" style="font-size: 15px; color: grey; margin-top:1px;"></i></span><div class="offer-count-box"><p>N/A</p></div></div>`;
-            }
+       }
 
-            const competitorPriceStyle = item.isBestPriceGuarantee ? 'color: #169A23;' : '';
-            const competitorPriceIcon = item.isBestPriceGuarantee ? `<img src="/images/TopPrice.png" alt="Gwarancja Najniższej Ceny" title="Gwarancja Najniższej Ceny" style="width: 18px; height: 18px; vertical-align: middle;">` : '';
-            const myPriceStyle = item.myIsBestPriceGuarantee ? 'color: #169A23;' : '';
-            const myPriceIcon = item.myIsBestPriceGuarantee ? `<img src="/images/TopPrice.png" alt="Gwarancja Najniższej Ceny" title="Gwarancja Najniższej Ceny" style="width: 18px; height: 18px; vertical-align: middle;">` : '';
+       const competitorPriceStyle = item.isBestPriceGuarantee ? 'color: #169A23;' : '';
+       const competitorPriceIcon = item.isBestPriceGuarantee ? `<img src="/images/TopPrice.png" alt="Gwarancja Najniższej Ceny" title="Gwarancja Najniższej Ceny" style="width: 18px; height: 18px; vertical-align: middle;">` : '';
+       const myPriceStyle = item.myIsBestPriceGuarantee ? 'color: #169A23;' : '';
+       const myPriceIcon = item.myIsBestPriceGuarantee ? `<img src="/images/TopPrice.png" alt="Gwarancja Najniższej Ceny" title="Gwarancja Najniższej Ceny" style="width: 18px; height: 18px; vertical-align: middle;">` : '';
 
-            let marginHtml = '';
-            if (item.marginPrice != null && item.marginAmount != null) {
-                const formattedMarginPrice = formatPricePL(item.marginPrice);
-                const badgeClass = getMarginBadgeClass(item.marginClass);
+       let marginHtml = '';
+       if (item.marginPrice != null && item.marginAmount != null) {
+           const formattedMarginPrice = formatPricePL(item.marginPrice);
+           const badgeClass = getMarginBadgeClass(item.marginClass);
 
-                let bgMarginClass = 'price-box-diff-margin-ib-neutral';
-                if (item.marginClass === 'priceBox-diff-margin-ins') {
-                    bgMarginClass = 'price-box-diff-margin-ib-positive';
-                } else if (item.marginClass === 'priceBox-diff-margin-minus-ins') {
-                    bgMarginClass = 'price-box-diff-margin-ib-negative';
-                }
+           let bgMarginClass = 'price-box-diff-margin-ib-neutral';
+           if (item.marginClass === 'priceBox-diff-margin-ins') {
+               bgMarginClass = 'price-box-diff-margin-ib-positive';
+           } else if (item.marginClass === 'priceBox-diff-margin-minus-ins') {
+               bgMarginClass = 'price-box-diff-margin-ib-negative';
+           }
 
-                const formattedMarginAmount = item.marginSign + formatPricePL(Math.abs(item.marginAmount), false) + ' PLN';
-                const formattedMarginPercentage = '(' + item.marginSign + Math.abs(item.marginPercentage).toLocaleString('pl-PL', {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2
-                }) + '%)';
+           const formattedMarginAmount = item.marginSign + formatPricePL(Math.abs(item.marginAmount), false) + ' PLN';
+           const formattedMarginPercentage = '(' + item.marginSign + Math.abs(item.marginPercentage).toLocaleString('pl-PL', {
+               minimumFractionDigits: 2,
+               maximumFractionDigits: 2
+           }) + '%)';
 
-                marginHtml = `
+           marginHtml = `
                 <div class="price-box-diff-margin-ib ${bgMarginClass}" style="margin-top: 4px;">
                     <span class="price-badge ${badgeClass}">Cena zakupu</span><p>${formattedMarginPrice}</p>
                 </div>
@@ -1066,30 +1105,30 @@
                     <span class="price-badge ${badgeClass}">Zysk (narzut)</span><p>${formattedMarginAmount} ${formattedMarginPercentage}</p>
                 </div>
                 `;
-            } else if (item.marginPrice != null) {
-                marginHtml = `
+       } else if (item.marginPrice != null) {
+           marginHtml = `
                 <div class="price-box-diff-margin-ib price-box-diff-margin-ib-neutral" style="margin-top: 4px;">
                     <span class="price-badge price-badge-neutral">Cena zakupu</span><p>${formatPricePL(item.marginPrice)}</p>
                 </div>
                 `;
-            }
+       }
 
-            let commissionHtml = '';
-            if (item.apiAllegroCommission != null) {
-                const formattedCommission = formatPricePL(item.apiAllegroCommission, false);
-                const commissionStatusText = allegroMarginSettings.includeCommissionInPriceChange ?
-                    '<span style="font-weight: 400; color: #555;"> | uwzględniony</span>' :
-                    '<span style="font-weight: 400; color: #999;"> | nieuwzględniony</span>';
-                commissionHtml = `<div class="Commission-stack" style="text-align: left; margin-top: 3px;"><span class="commission-stack-badge">Koszt Allegro</span><p>${formattedCommission} PLN${commissionStatusText}</p></div>`;
-            }
+       let commissionHtml = '';
+       if (item.apiAllegroCommission != null) {
+           const formattedCommission = formatPricePL(item.apiAllegroCommission, false);
+           const commissionStatusText = allegroMarginSettings.includeCommissionInPriceChange ?
+               '<span style="font-weight: 400; color: #555;"> | uwzględniony</span>' :
+               '<span style="font-weight: 400; color: #999;"> | nieuwzględniony</span>';
+           commissionHtml = `<div class="Commission-stack" style="text-align: left; margin-top: 3px;"><span class="commission-stack-badge">Koszt Allegro</span><p>${formattedCommission} PLN${commissionStatusText}</p></div>`;
+       }
 
-            const box = document.createElement('div');
-            box.className = 'price-box ' + item.colorClass;
-            box.dataset.productId = item.productId;
-            box.dataset.detailsUrl = `/AllegroPriceHistory/Details?storeId=${storeId}&productId=${item.productId}`;
-            box.style.cursor = 'pointer';
+       const box = document.createElement('div');
+       box.className = 'price-box ' + item.colorClass;
+       box.dataset.productId = item.productId;
+       box.dataset.detailsUrl = `/AllegroPriceHistory/Details?storeId=${storeId}&productId=${item.productId}`;
+       box.style.cursor = 'pointer';
 
-            box.innerHTML = `
+       box.innerHTML = `
             <div class="price-box-space">
                 <div class="price-box-column-name">${highlightedProductName}</div>
                 <div class="flags-container"></div>
@@ -1123,10 +1162,10 @@
                 </div>
                 <div class="price-box-column">
                     ${(item.onlyMe || lowestPrice == null) ?
-                    `<div class="price-box-column-text">
+               `<div class="price-box-column-text">
                             <div><span style="font-weight: 500;">Brak konkurencji</span></div>
                         </div>` :
-                    `
+               `
                         <div class="price-box-column-text">
                             <div><div style="display: flex; align-items: center; gap: 4px; flex-wrap: wrap;"><span style="font-weight: 500; font-size: 17px; ${competitorPriceStyle}">${formatPricePL(lowestPrice)}</span>${competitorPriceIcon}${competitorSuperPriceBadge}${competitorTopOfferBadge}</div>
                                 <div>
@@ -1146,26 +1185,26 @@
                             </div>
                         </div>
                         `
-                }
+           }
                 </div>
                 <div class="price-box-column">
                     ${myPrice != null ?
-                    `
+               `
                         <div class="price-box-column-text">
                             <div>
     ${item.committed && item.committed.newPrice ?
 
-                        `<div style="display: flex; align-items: center; gap: 4px; flex-wrap: wrap;">
+                   `<div style="display: flex; align-items: center; gap: 4px; flex-wrap: wrap;">
                         <s style="color: #999; font-size: 17px; font-weight: 500;">${formatPricePL(myPrice)}</s>
                         ${myPriceIcon}${mySuperPriceBadge}${myTopOfferBadge}
                     </div>`
-                        :
+                   :
 
-                        `<div style="display: flex; align-items: center; gap: 4px; flex-wrap: wrap;">
+                   `<div style="display: flex; align-items: center; gap: 4px; flex-wrap: wrap;">
                         <span style="font-weight: 500; font-size: 17px; ${myPriceStyle}">${formatPricePL(myPrice)}</span>
                         ${myPriceIcon}${mySuperPriceBadge}${myTopOfferBadge}
                     </div>`
-                    }
+               }
                 <div>
                     ${highlightedMyStoreName}
                     ${item.myIsSuperSeller ? `<img src="/images/SuperSeller.png" alt="Super Sprzedawca" title="Super Sprzedawca" style="width: 16px; height: 16px; vertical-align: middle;">` : ''}
@@ -1185,151 +1224,151 @@
                             </div>
                         </div>
                         ` :
-                    `<div class="price-box-column-text">
+               `<div class="price-box-column-text">
                             <div><span style="font-weight: 500;">Brak Twojej oferty</span></div>
                             ${marginHtml}
                         </div>`
-                }
+           }
                 </div>
                 <div class="price-box-column-action"></div>
             </div>
             `;
 
-            container.appendChild(box);
+       container.appendChild(box);
 
-            const priceBoxSpace = box.querySelector('.price-box-space');
-            const priceBoxColumnName = box.querySelector('.price-box-column-name');
+       const priceBoxSpace = box.querySelector('.price-box-space');
+       const priceBoxColumnName = box.querySelector('.price-box-column-name');
 
-            priceBoxSpace.innerHTML = '';
+       priceBoxSpace.innerHTML = '';
 
-            const leftColumn = document.createElement('div');
-            leftColumn.className = 'price-box-left-column';
+       const leftColumn = document.createElement('div');
+       leftColumn.className = 'price-box-left-column';
 
-            const rightColumn = document.createElement('div');
-            rightColumn.className = 'price-box-right-column';
+       const rightColumn = document.createElement('div');
+       rightColumn.className = 'price-box-right-column';
 
-            const flagsContainer = createFlagsContainer(item);
-            leftColumn.appendChild(priceBoxColumnName);
-            leftColumn.appendChild(flagsContainer);
+       const flagsContainer = createFlagsContainer(item);
+       leftColumn.appendChild(priceBoxColumnName);
+       leftColumn.appendChild(flagsContainer);
 
-            const selectProductButton = document.createElement('button');
-            selectProductButton.className = 'select-product-btn';
-            selectProductButton.dataset.productId = item.productId;
-            selectProductButton.style.pointerEvents = 'auto';
-            if (selectedProductIds.has(item.productId.toString())) {
-                selectProductButton.textContent = 'Wybrano';
-                selectProductButton.classList.add('selected');
-            } else {
-                selectProductButton.textContent = 'Zaznacz';
-                selectProductButton.classList.remove('selected');
-            }
-            selectProductButton.addEventListener('click', function (event) {
-                event.stopPropagation();
-                const productId = this.dataset.productId;
-                if (selectedProductIds.has(productId)) {
-                    selectedProductIds.delete(productId);
-                    this.textContent = 'Zaznacz';
-                    this.classList.remove('selected');
-                } else {
-                    selectedProductIds.add(productId);
-                    this.textContent = 'Wybrano';
-                    this.classList.add('selected');
-                }
-                saveSelectionToStorage(selectedProductIds);
-                updateSelectionUI();
-            });
+       const selectProductButton = document.createElement('button');
+       selectProductButton.className = 'select-product-btn';
+       selectProductButton.dataset.productId = item.productId;
+       selectProductButton.style.pointerEvents = 'auto';
+       if (selectedProductIds.has(item.productId.toString())) {
+           selectProductButton.textContent = 'Wybrano';
+           selectProductButton.classList.add('selected');
+       } else {
+           selectProductButton.textContent = 'Zaznacz';
+           selectProductButton.classList.remove('selected');
+       }
+       selectProductButton.addEventListener('click', function(event) {
+           event.stopPropagation();
+           const productId = this.dataset.productId;
+           if (selectedProductIds.has(productId)) {
+               selectedProductIds.delete(productId);
+               this.textContent = 'Zaznacz';
+               this.classList.remove('selected');
+           } else {
+               selectedProductIds.add(productId);
+               this.textContent = 'Wybrano';
+               this.classList.add('selected');
+           }
+           saveSelectionToStorage(selectedProductIds);
+           updateSelectionUI();
+       });
 
-            const apiBox = document.createElement('span');
-            apiBox.className = 'ApiBox';
+       const apiBox = document.createElement('span');
+       apiBox.className = 'ApiBox';
 
-            if (allegroMarginSettings.identifierForSimulation === 'EAN') {
-                if (item.ean) {
-                    apiBox.innerHTML = `EAN ${item.ean}`;
-                } else {
-                    apiBox.innerHTML = 'Brak EAN';
-                }
-            } else {
-                if (item.myIdAllegro) {
-                    apiBox.innerHTML = `ID ${item.myIdAllegro}`;
-                } else {
-                    apiBox.innerHTML = 'Brak ID';
-                }
-            }
+       if (allegroMarginSettings.identifierForSimulation === 'EAN') {
+           if (item.ean) {
+               apiBox.innerHTML = `EAN ${item.ean}`;
+           } else {
+               apiBox.innerHTML = 'Brak EAN';
+           }
+       } else {
+           if (item.myIdAllegro) {
+               apiBox.innerHTML = `ID ${item.myIdAllegro}`;
+           } else {
+               apiBox.innerHTML = 'Brak ID';
+           }
+       }
 
-            rightColumn.appendChild(selectProductButton);
-            rightColumn.appendChild(apiBox);
+       rightColumn.appendChild(selectProductButton);
+       rightColumn.appendChild(apiBox);
 
-            priceBoxSpace.appendChild(leftColumn);
-            priceBoxSpace.appendChild(rightColumn);
+       priceBoxSpace.appendChild(leftColumn);
+       priceBoxSpace.appendChild(rightColumn);
 
-            box.addEventListener('click', function (event) {
-                if (event.target.closest('button, a, img, .select-product-btn')) {
-                    return;
-                }
-                window.open(this.dataset.detailsUrl, '_blank');
-            });
+       box.addEventListener('click', function(event) {
+           if (event.target.closest('button, a, img, .select-product-btn')) {
+               return;
+           }
+           window.open(this.dataset.detailsUrl, '_blank');
+       });
 
-            const infoCol = box.querySelector('.price-box-column-action');
-            infoCol.innerHTML = '';
+       const infoCol = box.querySelector('.price-box-column-action');
+       infoCol.innerHTML = '';
 
-            if (item.committed) {
+       if (item.committed) {
 
-                const newPrice = item.committed.newPrice;
-                const oldPrice = item.apiAllegroPriceFromUser != null ? parseFloat(item.apiAllegroPriceFromUser) : (myPrice != null ? parseFloat(myPrice) : null);
+           const newPrice = item.committed.newPrice;
+           const oldPrice = item.apiAllegroPriceFromUser != null ? parseFloat(item.apiAllegroPriceFromUser) : (myPrice != null ? parseFloat(myPrice) : null);
 
-                let priceDiffHtml = '';
-                if (oldPrice != null && newPrice != null) {
-                    const diffAmount = newPrice - oldPrice;
-                    const diffPercent = (oldPrice > 0) ? (diffAmount / oldPrice) * 100 : 0;
-                    let badgeText = diffAmount > 0 ? 'Podwyżka ceny' : (diffAmount < 0 ? 'Obniżka ceny' : 'Brak zmiany ceny');
+           let priceDiffHtml = '';
+           if (oldPrice != null && newPrice != null) {
+               const diffAmount = newPrice - oldPrice;
+               const diffPercent = (oldPrice > 0) ? (diffAmount / oldPrice) * 100 : 0;
+               let badgeText = diffAmount > 0 ? 'Podwyżka ceny' : (diffAmount < 0 ? 'Obniżka ceny' : 'Brak zmiany ceny');
 
-                    priceDiffHtml = `
+               priceDiffHtml = `
             <div class="price-diff-stack" style="text-align: left; margin-top: 3px;">
                 <div class="price-diff-stack-badge">${badgeText}</div>
                 <span class="diff-amount small-font">${diffAmount >= 0 ? '+' : ''}${formatPricePL(diffAmount, false)} PLN</span>
                 <span class="diff-percentage small-font" style="margin-left: 6px;">(${diffPercent >= 0 ? '+' : ''}${diffPercent.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%)</span>
             </div>`;
-                }
+           }
 
-                let newMarginHtml = '';
-                if (item.marginPrice != null && newPrice != null) {
-                    const marginPriceVal = parseFloat(item.marginPrice);
-                    const commissionVal = item.committed.newCommission != null ? item.committed.newCommission : (allegroMarginSettings.includeCommissionInPriceChange && item.apiAllegroCommission != null ? parseFloat(item.apiAllegroCommission) : 0);
-                    const commissionToDeduct = allegroMarginSettings.includeCommissionInPriceChange ? commissionVal : 0;
-                    const netPriceForMargin = newPrice - commissionToDeduct;
-                    const newMarginAmount = netPriceForMargin - marginPriceVal;
-                    const newMarginPercent = (marginPriceVal !== 0) ? (newMarginAmount / marginPriceVal) * 100 : 0;
+           let newMarginHtml = '';
+           if (item.marginPrice != null && newPrice != null) {
+               const marginPriceVal = parseFloat(item.marginPrice);
+               const commissionVal = item.committed.newCommission != null ? item.committed.newCommission : (allegroMarginSettings.includeCommissionInPriceChange && item.apiAllegroCommission != null ? parseFloat(item.apiAllegroCommission) : 0);
+               const commissionToDeduct = allegroMarginSettings.includeCommissionInPriceChange ? commissionVal : 0;
+               const netPriceForMargin = newPrice - commissionToDeduct;
+               const newMarginAmount = netPriceForMargin - marginPriceVal;
+               const newMarginPercent = (marginPriceVal !== 0) ? (newMarginAmount / marginPriceVal) * 100 : 0;
 
-                    const marginSign = newMarginAmount >= 0 ? '+' : '';
-                    const marginClass = newMarginAmount > 0 ? 'priceBox-diff-margin-ins' : (newMarginAmount < 0 ? 'priceBox-diff-margin-minus-ins' : 'priceBox-diff-margin-neutral-ins');
-                    const badgeClass = getMarginBadgeClass(marginClass);
-                    let bgMarginClass = 'price-box-diff-margin-ib-neutral';
-                    if (marginClass === 'priceBox-diff-margin-ins') bgMarginClass = 'price-box-diff-margin-ib-positive';
-                    else if (marginClass === 'priceBox-diff-margin-minus-ins') bgMarginClass = 'price-box-diff-margin-ib-negative';
+               const marginSign = newMarginAmount >= 0 ? '+' : '';
+               const marginClass = newMarginAmount > 0 ? 'priceBox-diff-margin-ins' : (newMarginAmount < 0 ? 'priceBox-diff-margin-minus-ins' : 'priceBox-diff-margin-neutral-ins');
+               const badgeClass = getMarginBadgeClass(marginClass);
+               let bgMarginClass = 'price-box-diff-margin-ib-neutral';
+               if (marginClass === 'priceBox-diff-margin-ins') bgMarginClass = 'price-box-diff-margin-ib-positive';
+               else if (marginClass === 'priceBox-diff-margin-minus-ins') bgMarginClass = 'price-box-diff-margin-ib-negative';
 
-                    newMarginHtml = `
+               newMarginHtml = `
             <div class="price-box-diff-margin-ib ${bgMarginClass}" style="margin-top: 3px;">
                 <span class="price-badge ${badgeClass}">Nowy narzut</span>
                 <p>${marginSign}${formatPricePL(Math.abs(newMarginAmount), false)} PLN (${marginSign}${Math.abs(newMarginPercent).toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%)</p>
             </div>`;
-                }
+           }
 
-                let newCommissionHtml = '';
-                const commissionToShow = item.committed.newCommission != null ? item.committed.newCommission : (item.apiAllegroCommission != null ? parseFloat(item.apiAllegroCommission) : null);
+           let newCommissionHtml = '';
+           const commissionToShow = item.committed.newCommission != null ? item.committed.newCommission : (item.apiAllegroCommission != null ? parseFloat(item.apiAllegroCommission) : null);
 
-                if (commissionToShow != null) {
-                    const formattedComm = formatPricePL(commissionToShow, false);
-                    const commStatus = allegroMarginSettings.includeCommissionInPriceChange ?
-                        '<span style="font-weight: 400; color: #555;"> | uwzględniony</span>' :
-                        '<span style="font-weight: 400; color: #999;"> | nieuwzględniony</span>';
-                    newCommissionHtml = `
+           if (commissionToShow != null) {
+               const formattedComm = formatPricePL(commissionToShow, false);
+               const commStatus = allegroMarginSettings.includeCommissionInPriceChange ?
+                   '<span style="font-weight: 400; color: #555;"> | uwzględniony</span>' :
+                   '<span style="font-weight: 400; color: #999;"> | nieuwzględniony</span>';
+               newCommissionHtml = `
             <div class="Commission-stack" style="text-align: left; margin-top: 3px;">
                 <span class="commission-stack-badge">Koszt Allegro</span>
                 <p>${formattedComm} PLN${commStatus}</p>
             </div>`;
-                }
+           }
 
-                infoCol.innerHTML = `
+           infoCol.innerHTML = `
         <div class="price-box-column">
             <div class="price-box-column-text" style="padding: 0;">
                 <div style="display: flex; align-items: center; gap: 6px; font-size: 17px; font-weight: 600; color: #212529;">
@@ -1345,51 +1384,51 @@
             </div>
         </div>`;
 
-                return;
-            }
-            const existingChange = currentActiveChangesMap.get(String(item.productId));
+           return;
+       }
+       const existingChange = currentActiveChangesMap.get(String(item.productId));
 
-            const defaultSuggestionData = calculateCurrentSuggestion(item);
+       const defaultSuggestionData = calculateCurrentSuggestion(item);
 
-            if (defaultSuggestionData) {
+       if (defaultSuggestionData) {
 
-                let finalSuggestionData;
+           let finalSuggestionData;
 
-                if (existingChange) {
+           if (existingChange) {
 
-                    const basePriceForChangeCalc = item.apiAllegroPriceFromUser != null ?
-                        parseFloat(item.apiAllegroPriceFromUser) :
-                        (item.myPrice != null ? parseFloat(item.myPrice) : 0);
+               const basePriceForChangeCalc = item.apiAllegroPriceFromUser != null ?
+                   parseFloat(item.apiAllegroPriceFromUser) :
+                   (item.myPrice != null ? parseFloat(item.myPrice) : 0);
 
-                    const totalChangeAmount = existingChange.newPrice - basePriceForChangeCalc;
-                    const percentageChange = (basePriceForChangeCalc > 0) ? (totalChangeAmount / basePriceForChangeCalc) * 100 : 0;
+               const totalChangeAmount = existingChange.newPrice - basePriceForChangeCalc;
+               const percentageChange = (basePriceForChangeCalc > 0) ? (totalChangeAmount / basePriceForChangeCalc) * 100 : 0;
 
-                    finalSuggestionData = {
-                        ...defaultSuggestionData,
-                        suggestedPrice: existingChange.newPrice,
-                        totalChangeAmount: totalChangeAmount,
-                        percentageChange: percentageChange
-                    };
+               finalSuggestionData = {
+                   ...defaultSuggestionData,
+                   suggestedPrice: existingChange.newPrice,
+                   totalChangeAmount: totalChangeAmount,
+                   percentageChange: percentageChange
+               };
 
-                } else {
+           } else {
 
-                    finalSuggestionData = defaultSuggestionData;
-                }
+               finalSuggestionData = defaultSuggestionData;
+           }
 
-                const suggestionRenderResult = renderSuggestionBlockHTML(item, finalSuggestionData);
-                infoCol.innerHTML = suggestionRenderResult.html;
+           const suggestionRenderResult = renderSuggestionBlockHTML(item, finalSuggestionData);
+           infoCol.innerHTML = suggestionRenderResult.html;
 
-                const newActionLine = infoCol.querySelector(suggestionRenderResult.actionLineSelector);
-                if (newActionLine) {
-                    const myPrice = item.myPrice != null ? parseFloat(item.myPrice) : null;
+           const newActionLine = infoCol.querySelector(suggestionRenderResult.actionLineSelector);
+           if (newActionLine) {
+               const myPrice = item.myPrice != null ? parseFloat(item.myPrice) : null;
 
-                    attachPriceChangeListener(newActionLine, defaultSuggestionData.suggestedPrice, box, item.productId, item.productName, myPrice, item);
-                }
-            } else {
-                infoCol.innerHTML = '<div class="price-box-column">Brak danych do sugestii</div>';
-            }
+               attachPriceChangeListener(newActionLine, defaultSuggestionData.suggestedPrice, box, item.productId, item.productName, myPrice, item);
+           }
+       } else {
+           infoCol.innerHTML = '<div class="price-box-column">Brak danych do sugestii</div>';
+       }
 
-        });
+   });
 
         renderPaginationControls(data.length);
         document.getElementById('displayedProductCount').textContent = `${data.length} / ${allPrices.length}`;
@@ -1433,19 +1472,19 @@
         const tbody = document.createElement('tbody');
 
         selectedProductIds.forEach(productId => {
-            const product = allPrices.find(p => p.productId.toString() === productId);
-            if (product) {
-                const tr = document.createElement('tr');
+       const product = allPrices.find(p => p.productId.toString() === productId);
+       if (product) {
+           const tr = document.createElement('tr');
 
-                let identifierText = '';
-                if (allegroMarginSettings.identifierForSimulation === 'EAN') {
-                    identifierText = product.ean ? `EAN ${product.ean}` : 'Brak EAN';
-                } else {
+           let identifierText = '';
+           if (allegroMarginSettings.identifierForSimulation === 'EAN') {
+               identifierText = product.ean ? `EAN ${product.ean}` : 'Brak EAN';
+           } else {
 
-                    identifierText = product.myIdAllegro ? `ID ${product.myIdAllegro}` : 'Brak ID';
-                }
+               identifierText = product.myIdAllegro ? `ID ${product.myIdAllegro}` : 'Brak ID';
+           }
 
-                tr.innerHTML = `
+           tr.innerHTML = `
                     <td>${product.productName}</td>
                     <td>${identifierText}</td>
                     <td class="text-center align-middle">
@@ -1453,62 +1492,62 @@
                             <i class="fa-solid fa-trash-can"></i>
                         </button>
                     </td>`;
-                tbody.appendChild(tr);
-            }
-        });
+           tbody.appendChild(tr);
+       }
+   });
         table.appendChild(tbody);
         modalList.appendChild(table);
     }
 
-    document.getElementById('selectedProductsList').addEventListener('click', function (event) {
-        const removeButton = event.target.closest('.remove-selection-btn');
-        if (removeButton) {
-            const productId = removeButton.dataset.productId;
-            selectedProductIds.delete(productId);
-            saveSelectionToStorage(selectedProductIds);
-            const mainButton = document.querySelector(`.select-product-btn[data-product-id='${productId}']`);
-            if (mainButton) {
-                mainButton.textContent = 'Zaznacz';
-                mainButton.classList.remove('selected');
-            }
-            updateSelectionUI();
-        }
-    });
+    document.getElementById('selectedProductsList').addEventListener('click', function(event) {
+       const removeButton = event.target.closest('.remove-selection-btn');
+       if (removeButton) {
+           const productId = removeButton.dataset.productId;
+           selectedProductIds.delete(productId);
+           saveSelectionToStorage(selectedProductIds);
+           const mainButton = document.querySelector(`.select-product-btn[data-product-id='${productId}']`);
+           if (mainButton) {
+               mainButton.textContent = 'Zaznacz';
+               mainButton.classList.remove('selected');
+           }
+           updateSelectionUI();
+       }
+   });
 
-    document.getElementById('showSelectedProductsBtn').addEventListener('click', function () {
-        updateSelectionUI();
-        $('#selectedProductsModal').modal('show');
-    });
+    document.getElementById('showSelectedProductsBtn').addEventListener('click', function() {
+       updateSelectionUI();
+       $('#selectedProductsModal').modal('show');
+   });
 
-    document.getElementById('openBulkFlagModalBtn').addEventListener('click', function () {
-        if (selectedProductIds.size === 0) {
-            alert('Nie zaznaczono żadnych produktów.');
-            return;
-        }
-        $('#selectedProductsModal').modal('hide');
-        showLoading();
+    document.getElementById('openBulkFlagModalBtn').addEventListener('click', function() {
+       if (selectedProductIds.size === 0) {
+           alert('Nie zaznaczono żadnych produktów.');
+           return;
+       }
+       $('#selectedProductsModal').modal('hide');
+       showLoading();
 
-        fetch('/ProductFlags/GetFlagCountsForProducts', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                allegroProductIds: Array.from(selectedProductIds, id => parseInt(id))
-            })
-        })
-            .then(response => response.json())
-            .then(counts => {
-                populateBulkFlagModal(counts);
-                hideLoading();
-                $('#flagModal').modal('show');
-            })
-            .catch(error => {
-                console.error('Błąd pobierania liczników flag:', error);
-                hideLoading();
-                alert('Nie udało się pobrać danych o flagach.');
-            });
-    });
+       fetch('/ProductFlags/GetFlagCountsForProducts', {
+           method: 'POST',
+           headers: {
+               'Content-Type': 'application/json'
+           },
+           body: JSON.stringify({
+               allegroProductIds: Array.from(selectedProductIds, id => parseInt(id))
+           })
+       })
+           .then(response => response.json())
+           .then(counts => {
+               populateBulkFlagModal(counts);
+               hideLoading();
+               $('#flagModal').modal('show');
+           })
+           .catch(error => {
+               console.error('Błąd pobierania liczników flag:', error);
+               hideLoading();
+               alert('Nie udało się pobrać danych o flagach.');
+           });
+   });
 
     function populateBulkFlagModal(flagCounts) {
         const modalBody = document.getElementById('flagModalBody');
@@ -1519,12 +1558,12 @@
         modalBody.innerHTML = '';
 
         flags.forEach(flag => {
-            const currentCount = flagCounts[flag.flagId] || 0;
-            const flagItem = document.createElement('div');
-            flagItem.className = 'bulk-flag-item';
-            flagItem.dataset.flagId = flag.flagId;
+       const currentCount = flagCounts[flag.flagId] || 0;
+       const flagItem = document.createElement('div');
+       flagItem.className = 'bulk-flag-item';
+       flagItem.dataset.flagId = flag.flagId;
 
-            flagItem.innerHTML = `
+       flagItem.innerHTML = `
                 <div class="flag-label">
                     <span class="flag-name" style="border-color: ${flag.flagColor}; color: ${flag.flagColor}; background-color: ${hexToRgba(flag.flagColor, 0.3)};">${flag.flagName}</span>
                     <span class="flag-count">(${currentCount} / ${totalSelected})</span>
@@ -1539,68 +1578,68 @@
                         <span class="change-indicator remove-indicator">${currentCount} → 0</span>
                     </div>
                 </div>`;
-            modalBody.appendChild(flagItem);
-        });
+       modalBody.appendChild(flagItem);
+   });
 
         modalBody.querySelectorAll('.bulk-flag-action').forEach(checkbox => {
-            checkbox.addEventListener('change', function () {
-                const parentItem = this.closest('.bulk-flag-item');
-                if (this.checked) {
-                    if (this.dataset.action === 'add') {
-                        parentItem.querySelector('[data-action="remove"]').checked = false;
-                    } else {
-                        parentItem.querySelector('[data-action="add"]').checked = false;
-                    }
-                }
-                parentItem.querySelector('.add-indicator').style.display = parentItem.querySelector('[data-action="add"]').checked ? 'inline' : 'none';
-                parentItem.querySelector('.remove-indicator').style.display = parentItem.querySelector('[data-action="remove"]').checked ? 'inline' : 'none';
-            });
-        });
+       checkbox.addEventListener('change', function() {
+           const parentItem = this.closest('.bulk-flag-item');
+           if (this.checked) {
+               if (this.dataset.action === 'add') {
+                   parentItem.querySelector('[data-action="remove"]').checked = false;
+               } else {
+                   parentItem.querySelector('[data-action="add"]').checked = false;
+               }
+           }
+           parentItem.querySelector('.add-indicator').style.display = parentItem.querySelector('[data-action="add"]').checked ? 'inline' : 'none';
+           parentItem.querySelector('.remove-indicator').style.display = parentItem.querySelector('[data-action="remove"]').checked ? 'inline' : 'none';
+       });
+   });
     }
 
-    document.getElementById('saveFlagsButton').addEventListener('click', function () {
-        const flagsToAdd = [];
-        const flagsToRemove = [];
-        document.querySelectorAll('#flagModalBody .bulk-flag-item').forEach(item => {
-            const flagId = parseInt(item.dataset.flagId, 10);
-            if (item.querySelector('[data-action="add"]').checked) flagsToAdd.push(flagId);
-            if (item.querySelector('[data-action="remove"]').checked) flagsToRemove.push(flagId);
-        });
+    document.getElementById('saveFlagsButton').addEventListener('click', function() {
+       const flagsToAdd = [];
+       const flagsToRemove = [];
+       document.querySelectorAll('#flagModalBody .bulk-flag-item').forEach(item => {
+           const flagId = parseInt(item.dataset.flagId, 10);
+           if (item.querySelector('[data-action="add"]').checked) flagsToAdd.push(flagId);
+           if (item.querySelector('[data-action="remove"]').checked) flagsToRemove.push(flagId);
+       });
 
-        if (flagsToAdd.length === 0 && flagsToRemove.length === 0) {
-            return;
-        }
+       if (flagsToAdd.length === 0 && flagsToRemove.length === 0) {
+           return;
+       }
 
-        const data = {
-            allegroProductIds: Array.from(selectedProductIds).map(id => parseInt(id)),
-            flagsToAdd: flagsToAdd,
-            flagsToRemove: flagsToRemove
-        };
+       const data = {
+           allegroProductIds: Array.from(selectedProductIds).map(id => parseInt(id)),
+           flagsToAdd: flagsToAdd,
+           flagsToRemove: flagsToRemove
+       };
 
-        showLoading();
-        fetch('/ProductFlags/UpdateFlagsForMultipleProducts', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(data)
-        })
-            .then(response => response.json())
-            .then(response => {
-                if (response.success) {
-                    $('#flagModal').modal('hide');
-                    showGlobalUpdate(`<p>Pomyślnie zaktualizowano flagi dla ${data.allegroProductIds.length} produktów.</p>`);
-                    selectedProductIds.clear();
-                    clearSelectionFromStorage();
-                    updateSelectionUI();
-                    loadPrices();
-                } else {
-                    alert('Błąd: ' + response.message);
-                }
-            })
-            .catch(error => console.error('Błąd masowej aktualizacji flag:', error))
-            .finally(() => hideLoading());
-    });
+       showLoading();
+       fetch('/ProductFlags/UpdateFlagsForMultipleProducts', {
+           method: 'POST',
+           headers: {
+               'Content-Type': 'application/json'
+           },
+           body: JSON.stringify(data)
+       })
+           .then(response => response.json())
+           .then(response => {
+               if (response.success) {
+                   $('#flagModal').modal('hide');
+                   showGlobalUpdate(`<p>Pomyślnie zaktualizowano flagi dla ${data.allegroProductIds.length} produktów.</p>`);
+                   selectedProductIds.clear();
+                   clearSelectionFromStorage();
+                   updateSelectionUI();
+                   loadPrices();
+               } else {
+                   alert('Błąd: ' + response.message);
+               }
+           })
+           .catch(error => console.error('Błąd masowej aktualizacji flag:', error))
+           .finally(() => hideLoading());
+   });
 
     function renderPaginationControls(totalItems) {
         const totalPages = Math.ceil(totalItems / itemsPerPage);
@@ -1615,9 +1654,9 @@
             button.disabled = isDisabled;
             if (isActive) button.classList.add('active');
             button.addEventListener('click', () => {
-                currentPage = page;
-                filterAndSortPrices(false);
-            });
+       currentPage = page;
+       filterAndSortPrices(false);
+   });
             return button;
         };
 
@@ -1639,8 +1678,8 @@
             prToLow: 0
         };
         data.forEach(item => {
-            if (colorCounts.hasOwnProperty(item.colorClass)) colorCounts[item.colorClass]++;
-        });
+       if (colorCounts.hasOwnProperty(item.colorClass)) colorCounts[item.colorClass]++;
+   });
         const chartData = Object.values(colorCounts);
         const ctx = document.getElementById('colorChart');
         if (!ctx) return;
@@ -1650,50 +1689,50 @@
             chartInstance.update();
         } else {
             chartInstance = new Chart(ctx.getContext('2d'), {
-                type: 'doughnut',
-                data: {
-                    labels: ['Cena niedostępna', 'Cena solo', 'Cena zawyżona', 'Cena suboptymalna', 'Cena konkurencyjna', 'Cena strategiczna', 'Cena zaniżona'],
-                    datasets: [{
-                        data: chartData,
-                        backgroundColor: ['rgba(230, 230, 230, 1)',
-                            'rgba(180, 180, 180, 0.8)',
-                            'rgba(171, 37, 32, 0.8)',
-                            'rgba(224, 168, 66, 0.8)',
-                            'rgba(117, 152, 112, 0.8)',
-                            'rgba(13, 110, 253, 0.8)',
-                            'rgba(6, 6, 6, 0.8)'
-                        ],
-                        borderColor: [
-                            'rgba(230, 230, 230, 1)',
-                            'rgba(180, 180, 180, 1)',
-                            'rgba(171, 37, 32, 1)',
-                            'rgba(224, 168, 66, 1)',
-                            'rgba(117, 152, 112, 1)',
-                            'rgba(13, 110, 253, 1)',
-                            'rgba(6, 6, 6, 1)'
-                        ],
-                        borderWidth: 1
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    cutout: '65%',
-                    layout: {
-                        padding: 4
-                    },
-                    plugins: {
-                        legend: {
-                            display: false
-                        },
-                        tooltip: {
-                            callbacks: {
-                                label: (c) => `Produkty: ${c.parsed}`
-                            }
-                        }
-                    }
-                }
-            });
+       type: 'doughnut',
+       data: {
+           labels: ['Cena niedostępna', 'Cena solo', 'Cena zawyżona', 'Cena suboptymalna', 'Cena konkurencyjna', 'Cena strategiczna', 'Cena zaniżona'],
+           datasets: [{
+               data: chartData,
+               backgroundColor: ['rgba(230, 230, 230, 1)',
+                   'rgba(180, 180, 180, 0.8)',
+                   'rgba(171, 37, 32, 0.8)',
+                   'rgba(224, 168, 66, 0.8)',
+                   'rgba(117, 152, 112, 0.8)',
+                   'rgba(13, 110, 253, 0.8)',
+                   'rgba(6, 6, 6, 0.8)'
+               ],
+               borderColor: [
+                   'rgba(230, 230, 230, 1)',
+                   'rgba(180, 180, 180, 1)',
+                   'rgba(171, 37, 32, 1)',
+                   'rgba(224, 168, 66, 1)',
+                   'rgba(117, 152, 112, 1)',
+                   'rgba(13, 110, 253, 1)',
+                   'rgba(6, 6, 6, 1)'
+               ],
+               borderWidth: 1
+           }]
+       },
+       options: {
+           responsive: true,
+           maintainAspectRatio: false,
+           cutout: '65%',
+           layout: {
+               padding: 4
+           },
+           plugins: {
+               legend: {
+                   display: false
+               },
+               tooltip: {
+                   callbacks: {
+                       label: (c) => `Produkty: ${c.parsed}`
+                   }
+               }
+           }
+       }
+   });
         }
     }
 
@@ -1710,8 +1749,8 @@
             prToLow: 0
         };
         data.forEach(item => {
-            if (counts.hasOwnProperty(item.colorClass)) counts[item.colorClass]++;
-        });
+       if (counts.hasOwnProperty(item.colorClass)) counts[item.colorClass]++;
+   });
 
         document.querySelector('label[for="prNoOfferCheckbox"]').textContent = `Cena niedostępna (${counts.prNoOffer})`;
         document.querySelector('label[for="prOnlyMeCheckbox"]').textContent = `Cena solo (${counts.prOnlyMe})`;
@@ -1727,171 +1766,171 @@
         showLoading();
 
         setTimeout(() => {
-            let filtered = [...allPrices];
+       let filtered = [...allPrices];
 
-            if (isCatalogViewActive) {
-                filtered = groupAndFilterByCatalog(filtered);
-            }
+       if (isCatalogViewActive) {
+           filtered = groupAndFilterByCatalog(filtered);
+       }
 
-            const productSearch = document.getElementById('productSearch').value.toLowerCase();
-            if (productSearch) filtered = filtered.filter(p => p.productName && p.productName.toLowerCase().includes(productSearch));
+       const productSearch = document.getElementById('productSearch').value.toLowerCase();
+       if (productSearch) filtered = filtered.filter(p => p.productName && p.productName.toLowerCase().includes(productSearch));
 
-            const storeSearch = document.getElementById('storeSearch').value.toLowerCase();
-            if (storeSearch) filtered = filtered.filter(p => (p.storeName && p.storeName.toLowerCase().includes(storeSearch)) || (myStoreName && myStoreName.toLowerCase().includes(storeSearch)));
+       const storeSearch = document.getElementById('storeSearch').value.toLowerCase();
+       if (storeSearch) filtered = filtered.filter(p => (p.storeName && p.storeName.toLowerCase().includes(storeSearch)) || (myStoreName && myStoreName.toLowerCase().includes(storeSearch)));
 
-            const selectedColors = Array.from(document.querySelectorAll('.colorFilter:checked')).map(cb => cb.value);
-            if (selectedColors.length > 0) filtered = filtered.filter(p => selectedColors.includes(p.colorClass));
+       const selectedColors = Array.from(document.querySelectorAll('.colorFilter:checked')).map(cb => cb.value);
+       if (selectedColors.length > 0) filtered = filtered.filter(p => selectedColors.includes(p.colorClass));
 
-            const selectedProducer = document.getElementById('producerFilterDropdown').value;
-            if (selectedProducer) filtered = filtered.filter(p => p.producer === selectedProducer);
+       const selectedProducer = document.getElementById('producerFilterDropdown').value;
+       if (selectedProducer) filtered = filtered.filter(p => p.producer === selectedProducer);
 
-            if (selectedFlagsExclude.size > 0) {
-                filtered = filtered.filter(item => {
-                    if (selectedFlagsExclude.has('noFlag') && (!item.flagIds || item.flagIds.length === 0)) {
-                        return false;
-                    }
-                    return !item.flagIds || !item.flagIds.some(fid => selectedFlagsExclude.has(String(fid)));
-                });
-            }
+       if (selectedFlagsExclude.size > 0) {
+           filtered = filtered.filter(item => {
+               if (selectedFlagsExclude.has('noFlag') && (!item.flagIds || item.flagIds.length === 0)) {
+                   return false;
+               }
+               return !item.flagIds || !item.flagIds.some(fid => selectedFlagsExclude.has(String(fid)));
+           });
+       }
 
-            if (selectedFlagsInclude.size > 0) {
-                filtered = filtered.filter(item => {
-                    if (selectedFlagsInclude.has('noFlag') && (!item.flagIds || item.flagIds.length === 0)) {
-                        return true;
-                    }
-                    return item.flagIds && item.flagIds.some(fid => selectedFlagsInclude.has(String(fid)));
-                });
-            }
+       if (selectedFlagsInclude.size > 0) {
+           filtered = filtered.filter(item => {
+               if (selectedFlagsInclude.has('noFlag') && (!item.flagIds || item.flagIds.length === 0)) {
+                   return true;
+               }
+               return item.flagIds && item.flagIds.some(fid => selectedFlagsInclude.has(String(fid)));
+           });
+       }
 
-            if (selectedMyBadges.size > 0) {
-                filtered = filtered.filter(item => {
-                    for (const badge of selectedMyBadges) {
-                        if (item[badge] === true) {
-                            return true;
-                        }
-                    }
-                    return false;
-                });
-            }
-            if (showCommittedOnly) {
-                filtered = filtered.filter(item => item.committed);
-            }
+       if (selectedMyBadges.size > 0) {
+           filtered = filtered.filter(item => {
+               for (const badge of selectedMyBadges) {
+                   if (item[badge] === true) {
+                       return true;
+                   }
+               }
+               return false;
+           });
+       }
+       if (showCommittedOnly) {
+           filtered = filtered.filter(item => item.committed);
+       }
 
-            for (const [key, direction] of Object.entries(sortingState)) {
-                if (direction) {
+       for (const [key, direction] of Object.entries(sortingState)) {
+           if (direction) {
 
-                    if (key === 'sortName') {
-                        filtered.sort((a, b) => {
-                            const valA = a.productName || '';
-                            const valB = b.productName || '';
-                            return direction === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
-                        });
-                    } else {
+               if (key === 'sortName') {
+                   filtered.sort((a, b) => {
+                       const valA = a.productName || '';
+                       const valB = b.productName || '';
+                       return direction === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
+                   });
+               } else {
 
-                        filtered.sort((a, b) => {
-                            let valA, valB;
-                            switch (key) {
-                                case 'sortPrice':
-                                    valA = a.myPrice;
-                                    valB = b.myPrice;
-                                    break;
-                                case 'sortRaiseAmount':
-                                    valA = a.savings;
-                                    valB = b.savings;
-                                    break;
-                                case 'sortRaisePercentage':
-                                case 'sortLowerPercentage':
-                                    valA = a.percentageDifference;
-                                    valB = b.percentageDifference;
-                                    break;
-                                case 'sortLowerAmount':
-                                    valA = a.priceDifference;
-                                    valB = b.priceDifference;
-                                    break;
-                                case 'sortMarginAmount':
-                                    valA = a.marginAmount;
-                                    valB = b.marginAmount;
-                                    break;
-                                case 'sortMarginPercentage':
-                                    valA = a.marginPercentage;
-                                    valB = b.marginPercentage;
-                                    break;
-                                default:
-                                    return 0;
-                            }
+                   filtered.sort((a, b) => {
+                       let valA, valB;
+                       switch (key) {
+                           case 'sortPrice':
+                               valA = a.myPrice;
+                               valB = b.myPrice;
+                               break;
+                           case 'sortRaiseAmount':
+                               valA = a.savings;
+                               valB = b.savings;
+                               break;
+                           case 'sortRaisePercentage':
+                           case 'sortLowerPercentage':
+                               valA = a.percentageDifference;
+                               valB = b.percentageDifference;
+                               break;
+                           case 'sortLowerAmount':
+                               valA = a.priceDifference;
+                               valB = b.priceDifference;
+                               break;
+                           case 'sortMarginAmount':
+                               valA = a.marginAmount;
+                               valB = b.marginAmount;
+                               break;
+                           case 'sortMarginPercentage':
+                               valA = a.marginPercentage;
+                               valB = b.marginPercentage;
+                               break;
+                           default:
+                               return 0;
+                       }
 
-                            if (direction === 'asc') {
-                                return (valB ?? -Infinity) - (valA ?? -Infinity);
-                            }
+                       if (direction === 'asc') {
+                           return (valB ?? -Infinity) - (valA ?? -Infinity);
+                       }
 
-                            else {
-                                return (valA ?? Infinity) - (valB ?? Infinity);
-                            }
-                        });
-                    }
+                       else {
+                           return (valA ?? Infinity) - (valB ?? Infinity);
+                       }
+                   });
+               }
 
-                    if (key === 'sortRaiseAmount' || key === 'sortRaisePercentage') {
-                        filtered = filtered.filter(item => item.savings != null || item.percentageDifference > 0);
-                    }
-                    if (key === 'sortLowerAmount' || key === 'sortLowerPercentage') {
-                        filtered = filtered.filter(item => item.priceDifference != null || item.percentageDifference < 0);
-                    }
-                    if (key === 'sortMarginAmount') {
-                        filtered = filtered.filter(item => item.marginAmount !== null);
-                    }
-                    if (key === 'sortMarginPercentage') {
-                        filtered = filtered.filter(item => item.marginPercentage !== null);
-                    }
+               if (key === 'sortRaiseAmount' || key === 'sortRaisePercentage') {
+                   filtered = filtered.filter(item => item.savings != null || item.percentageDifference > 0);
+               }
+               if (key === 'sortLowerAmount' || key === 'sortLowerPercentage') {
+                   filtered = filtered.filter(item => item.priceDifference != null || item.percentageDifference < 0);
+               }
+               if (key === 'sortMarginAmount') {
+                   filtered = filtered.filter(item => item.marginAmount !== null);
+               }
+               if (key === 'sortMarginPercentage') {
+                   filtered = filtered.filter(item => item.marginPercentage !== null);
+               }
 
-                    break;
+               break;
 
-                }
-            }
+           }
+       }
 
-            renderPrices(filtered);
-            debouncedRenderChart(filtered);
-            updateColorCounts(filtered);
-            updateFlagCounts(filtered);
-            updateBadgeCounts(filtered);
-            updateStatusCounts(filtered);
-            hideLoading();
-        }, 10);
+       renderPrices(filtered);
+       debouncedRenderChart(filtered);
+       updateColorCounts(filtered);
+       updateFlagCounts(filtered);
+       updateBadgeCounts(filtered);
+       updateStatusCounts(filtered);
+       hideLoading();
+   }, 10);
     }
 
     function setupFlagFilterListeners() {
         document.querySelectorAll('.flagFilterInclude').forEach(checkbox => {
-            checkbox.addEventListener('change', function () {
-                const flagValue = this.value;
-                if (this.checked) {
-                    const excludeCheckbox = document.getElementById(`flagExclude_${flagValue}`);
-                    if (excludeCheckbox) {
-                        excludeCheckbox.checked = false;
-                        selectedFlagsExclude.delete(flagValue);
-                    }
-                    selectedFlagsInclude.add(flagValue);
-                } else {
-                    selectedFlagsInclude.delete(flagValue);
-                }
-                filterAndSortPrices();
-            });
-        });
+       checkbox.addEventListener('change', function() {
+           const flagValue = this.value;
+           if (this.checked) {
+               const excludeCheckbox = document.getElementById(`flagExclude_${flagValue}`);
+               if (excludeCheckbox) {
+                   excludeCheckbox.checked = false;
+                   selectedFlagsExclude.delete(flagValue);
+               }
+               selectedFlagsInclude.add(flagValue);
+           } else {
+               selectedFlagsInclude.delete(flagValue);
+           }
+           filterAndSortPrices();
+       });
+   });
 
         document.querySelectorAll('.flagFilterExclude').forEach(checkbox => {
-            checkbox.addEventListener('change', function () {
-                const flagValue = this.value;
-                if (this.checked) {
-                    const includeCheckbox = document.getElementById(`flagInclude_${flagValue}`);
-                    if (includeCheckbox) {
-                        includeCheckbox.checked = false;
-                        selectedFlagsInclude.delete(flagValue);
-                    }
-                    selectedFlagsExclude.add(flagValue);
-                } else {
-                    selectedFlagsExclude.delete(flagValue);
-                }
-                filterAndSortPrices();
-            });
-        });
+       checkbox.addEventListener('change', function() {
+           const flagValue = this.value;
+           if (this.checked) {
+               const includeCheckbox = document.getElementById(`flagInclude_${flagValue}`);
+               if (includeCheckbox) {
+                   includeCheckbox.checked = false;
+                   selectedFlagsInclude.delete(flagValue);
+               }
+               selectedFlagsExclude.add(flagValue);
+           } else {
+               selectedFlagsExclude.delete(flagValue);
+           }
+           filterAndSortPrices();
+       });
+   });
     }
 
     function validateSimulationData() {
@@ -1937,46 +1976,46 @@
         const allPriceBoxes = document.querySelectorAll('#priceContainer .price-box');
 
         allPriceBoxes.forEach(priceBox => {
-            const productId = priceBox.dataset.productId;
-            if (!productId) return;
+       const productId = priceBox.dataset.productId;
+       if (!productId) return;
 
-            const activeChange = currentActiveChangesMap.get(String(productId));
+       const activeChange = currentActiveChangesMap.get(String(productId));
 
-            if (activeChange) {
+       if (activeChange) {
 
-                if (!priceBox.classList.contains('price-changed')) {
-                    priceBox.classList.add('price-changed');
-                }
-                const firstButton = priceBox.querySelector('.simulate-change-btn');
-                if (firstButton && !firstButton.classList.contains('active')) {
-                    const actionLine = firstButton.closest('.price-action-line');
-                    if (actionLine) {
+           if (!priceBox.classList.contains('price-changed')) {
+               priceBox.classList.add('price-changed');
+           }
+           const firstButton = priceBox.querySelector('.simulate-change-btn');
+           if (firstButton && !firstButton.classList.contains('active')) {
+               const actionLine = firstButton.closest('.price-action-line');
+               if (actionLine) {
 
-                        activateChangeButton(firstButton, actionLine, priceBox, activeChange.stepPriceApplied, activeChange.stepUnitApplied);
-                    }
-                }
-            } else if (priceBox.classList.contains('price-changed')) {
+                   activateChangeButton(firstButton, actionLine, priceBox, activeChange.stepPriceApplied, activeChange.stepUnitApplied);
+               }
+           }
+       } else if (priceBox.classList.contains('price-changed')) {
 
-                priceBox.classList.remove('price-changed');
-                const item = allPrices.find(p => String(p.productId) === String(productId));
-                const priceBoxColumnInfo = priceBox.querySelector('.price-box-column-action');
+           priceBox.classList.remove('price-changed');
+           const item = allPrices.find(p => String(p.productId) === String(productId));
+           const priceBoxColumnInfo = priceBox.querySelector('.price-box-column-action');
 
-                if (item && priceBoxColumnInfo) {
-                    const newSuggestionData = calculateCurrentSuggestion(item);
-                    if (newSuggestionData) {
-                        const suggestionRenderResult = renderSuggestionBlockHTML(item, newSuggestionData);
-                        priceBoxColumnInfo.innerHTML = suggestionRenderResult.html;
-                        const newActionLine = priceBoxColumnInfo.querySelector(suggestionRenderResult.actionLineSelector);
-                        if (newActionLine) {
-                            const currentMyPrice = item.myPrice != null ? parseFloat(item.myPrice) : null;
-                            attachPriceChangeListener(newActionLine, newSuggestionData.suggestedPrice, priceBox, item.productId, item.productName, currentMyPrice, item);
-                        }
-                    } else {
-                        priceBoxColumnInfo.innerHTML = '';
-                    }
-                }
-            }
-        });
+           if (item && priceBoxColumnInfo) {
+               const newSuggestionData = calculateCurrentSuggestion(item);
+               if (newSuggestionData) {
+                   const suggestionRenderResult = renderSuggestionBlockHTML(item, newSuggestionData);
+                   priceBoxColumnInfo.innerHTML = suggestionRenderResult.html;
+                   const newActionLine = priceBoxColumnInfo.querySelector(suggestionRenderResult.actionLineSelector);
+                   if (newActionLine) {
+                       const currentMyPrice = item.myPrice != null ? parseFloat(item.myPrice) : null;
+                       attachPriceChangeListener(newActionLine, newSuggestionData.suggestedPrice, priceBox, item.productId, item.productName, currentMyPrice, item);
+                   }
+               } else {
+                   priceBoxColumnInfo.innerHTML = '';
+               }
+           }
+       }
+   });
     }
 
     window.refreshPriceBoxStates = refreshPriceBoxStates;
@@ -1998,127 +2037,127 @@
 
         productsToChange.forEach(item => {
 
-            if (item.committed) {
-                countRejected++;
-                rejectionReasons['Oferta już zaktualizowana (zatwierdzona)'] = (rejectionReasons['Oferta już zaktualizowana (zatwierdzona)'] || 0) + 1;
-                return;
-            }
+       if (item.committed) {
+           countRejected++;
+           rejectionReasons['Oferta już zaktualizowana (zatwierdzona)'] = (rejectionReasons['Oferta już zaktualizowana (zatwierdzona)'] || 0) + 1;
+           return;
+       }
 
-            const isAlreadyChanged = selectedPriceChanges.some(c => String(c.productId) === String(item.productId));
-            if (isAlreadyChanged) {
-                countSkipped++;
-                return;
-            }
+       const isAlreadyChanged = selectedPriceChanges.some(c => String(c.productId) === String(item.productId));
+       if (isAlreadyChanged) {
+           countSkipped++;
+           return;
+       }
 
-            if (item.anyPromoActive && !allegroMarginSettings.allegroChangePriceForBagdeInCampaign) {
-                countRejected++;
-                rejectionReasons['Zablokowane (Kampania)'] = (rejectionReasons['Zablokowane (Kampania)'] || 0) + 1;
-                return;
-            }
-            if (item.myIsSuperPrice && !allegroMarginSettings.allegroChangePriceForBagdeSuperPrice) {
-                countRejected++;
-                rejectionReasons['Zablokowane (Super Cena)'] = (rejectionReasons['Zablokowane (Super Cena)'] || 0) + 1;
-                return;
-            }
-            if (item.myIsTopOffer && !allegroMarginSettings.allegroChangePriceForBagdeTopOffer) {
-                countRejected++;
-                rejectionReasons['Zablokowane (Top Oferta)'] = (rejectionReasons['Zablokowane (Top Oferta)'] || 0) + 1;
-                return;
-            }
-            if (item.myIsBestPriceGuarantee && !allegroMarginSettings.allegroChangePriceForBagdeBestPriceGuarantee) {
-                countRejected++;
-                rejectionReasons['Zablokowane (Gwar. Naj. Ceny)'] = (rejectionReasons['Zablokowane (Gwar. Naj. Ceny)'] || 0) + 1;
-                return;
-            }
+       if (item.anyPromoActive && !allegroMarginSettings.allegroChangePriceForBagdeInCampaign) {
+           countRejected++;
+           rejectionReasons['Zablokowane (Kampania)'] = (rejectionReasons['Zablokowane (Kampania)'] || 0) + 1;
+           return;
+       }
+       if (item.myIsSuperPrice && !allegroMarginSettings.allegroChangePriceForBagdeSuperPrice) {
+           countRejected++;
+           rejectionReasons['Zablokowane (Super Cena)'] = (rejectionReasons['Zablokowane (Super Cena)'] || 0) + 1;
+           return;
+       }
+       if (item.myIsTopOffer && !allegroMarginSettings.allegroChangePriceForBagdeTopOffer) {
+           countRejected++;
+           rejectionReasons['Zablokowane (Top Oferta)'] = (rejectionReasons['Zablokowane (Top Oferta)'] || 0) + 1;
+           return;
+       }
+       if (item.myIsBestPriceGuarantee && !allegroMarginSettings.allegroChangePriceForBagdeBestPriceGuarantee) {
+           countRejected++;
+           rejectionReasons['Zablokowane (Gwar. Naj. Ceny)'] = (rejectionReasons['Zablokowane (Gwar. Naj. Ceny)'] || 0) + 1;
+           return;
+       }
 
-            const suggestionData = calculateCurrentSuggestion(item);
+       const suggestionData = calculateCurrentSuggestion(item);
 
-            if (!suggestionData || suggestionData.priceType === 'onlyMe' || suggestionData.priceType === 'noOffer' || suggestionData.priceType === 'good_no_step' || (suggestionData.priceType === 'good_step' && suggestionData.totalChangeAmount === 0)) {
-                countRejected++;
-                rejectionReasons['Brak sugestii (solo/brak oferty/cena optymalna)'] = (rejectionReasons['Brak sugestii (solo/brak oferty/cena optymalna)'] || 0) + 1;
-                return;
-            }
+       if (!suggestionData || suggestionData.priceType === 'onlyMe' || suggestionData.priceType === 'noOffer' || suggestionData.priceType === 'good_no_step' || (suggestionData.priceType === 'good_step' && suggestionData.totalChangeAmount === 0)) {
+           countRejected++;
+           rejectionReasons['Brak sugestii (solo/brak oferty/cena optymalna)'] = (rejectionReasons['Brak sugestii (solo/brak oferty/cena optymalna)'] || 0) + 1;
+           return;
+       }
 
-            const suggestedPrice = suggestionData.suggestedPrice;
-            const currentPriceValue = item.myPrice != null ? parseFloat(item.myPrice) : null;
-            const basePriceForChangeCalc = item.apiAllegroPriceFromUser != null ? parseFloat(item.apiAllegroPriceFromUser) : currentPriceValue;
+       const suggestedPrice = suggestionData.suggestedPrice;
+       const currentPriceValue = item.myPrice != null ? parseFloat(item.myPrice) : null;
+       const basePriceForChangeCalc = item.apiAllegroPriceFromUser != null ? parseFloat(item.apiAllegroPriceFromUser) : currentPriceValue;
 
-            let requiredField = '';
-            let requiredLabel = '';
-            switch (allegroMarginSettings.identifierForSimulation) {
-                case 'ID':
-                    requiredField = item.myIdAllegro;
-                    requiredLabel = "ID";
-                    break;
-                case 'EAN':
-                default:
-                    requiredField = item.ean;
-                    requiredLabel = "EAN";
-                    break;
-            }
-            if (!requiredField || requiredField.toString().trim() === "") {
-                countRejected++;
-                rejectionReasons[`Brak identyfikatora (${requiredLabel})`] = (rejectionReasons[`Brak identyfikatora (${requiredLabel})`] || 0) + 1;
-                return;
-            }
+       let requiredField = '';
+       let requiredLabel = '';
+       switch (allegroMarginSettings.identifierForSimulation) {
+           case 'ID':
+               requiredField = item.myIdAllegro;
+               requiredLabel = "ID";
+               break;
+           case 'EAN':
+           default:
+               requiredField = item.ean;
+               requiredLabel = "EAN";
+               break;
+       }
+       if (!requiredField || requiredField.toString().trim() === "") {
+           countRejected++;
+           rejectionReasons[`Brak identyfikatora (${requiredLabel})`] = (rejectionReasons[`Brak identyfikatora (${requiredLabel})`] || 0) + 1;
+           return;
+       }
 
-            if (allegroMarginSettings.useMarginForSimulation) {
-                if (item.marginPrice == null) {
-                    countRejected++;
-                    rejectionReasons['Brak ceny zakupu'] = (rejectionReasons['Brak ceny zakupu'] || 0) + 1;
-                    return;
-                }
+       if (allegroMarginSettings.useMarginForSimulation) {
+           if (item.marginPrice == null) {
+               countRejected++;
+               rejectionReasons['Brak ceny zakupu'] = (rejectionReasons['Brak ceny zakupu'] || 0) + 1;
+               return;
+           }
 
-                const marginPrice = parseFloat(item.marginPrice);
-                const commission = allegroMarginSettings.includeCommissionInPriceChange && item.apiAllegroCommission != null ? parseFloat(item.apiAllegroCommission) : 0;
+           const marginPrice = parseFloat(item.marginPrice);
+           const commission = allegroMarginSettings.includeCommissionInPriceChange && item.apiAllegroCommission != null ? parseFloat(item.apiAllegroCommission) : 0;
 
-                const newNetPrice = suggestedPrice - commission;
-                const newMarginAmount = newNetPrice - marginPrice;
-                const newMarginPercentage = (marginPrice !== 0) ? (newMarginAmount / marginPrice) * 100 : 0;
+           const newNetPrice = suggestedPrice - commission;
+           const newMarginAmount = newNetPrice - marginPrice;
+           const newMarginPercentage = (marginPrice !== 0) ? (newMarginAmount / marginPrice) * 100 : 0;
 
-                let oldMarginPercentage = -Infinity;
-                if (basePriceForChangeCalc != null) {
-                    const oldNetPrice = basePriceForChangeCalc - commission;
-                    const oldMarginAmount = oldNetPrice - marginPrice;
-                    oldMarginPercentage = (marginPrice !== 0) ? (oldMarginAmount / marginPrice) * 100 : Infinity;
-                }
+           let oldMarginPercentage = -Infinity;
+           if (basePriceForChangeCalc != null) {
+               const oldNetPrice = basePriceForChangeCalc - commission;
+               const oldMarginAmount = oldNetPrice - marginPrice;
+               oldMarginPercentage = (marginPrice !== 0) ? (oldMarginAmount / marginPrice) * 100 : Infinity;
+           }
 
-                const minMarginPerc = allegroMarginSettings.minimalMarginPercent;
+           const minMarginPerc = allegroMarginSettings.minimalMarginPercent;
 
-                if (allegroMarginSettings.enforceMinimalMargin && minMarginPerc >= 0) {
-                    if (newMarginPercentage < minMarginPerc) {
-                        if (!(oldMarginPercentage < minMarginPerc && newMarginPercentage > oldMarginPercentage)) {
-                            countRejected++;
-                            rejectionReasons['Zbyt niski narzut'] = (rejectionReasons['Zbyt niski narzut'] || 0) + 1;
-                            return;
-                        }
-                    }
-                } else if (allegroMarginSettings.enforceMinimalMargin && minMarginPerc < 0) {
-                    if (newMarginPercentage < minMarginPerc) {
-                        if (!(oldMarginPercentage < minMarginPerc && newMarginPercentage > oldMarginPercentage)) {
-                            countRejected++;
-                            rejectionReasons['Przekroczona strata'] = (rejectionReasons['Przekroczona strata'] || 0) + 1;
-                            return;
-                        }
-                    }
-                }
-            }
+           if (allegroMarginSettings.enforceMinimalMargin && minMarginPerc >= 0) {
+               if (newMarginPercentage < minMarginPerc) {
+                   if (!(oldMarginPercentage < minMarginPerc && newMarginPercentage > oldMarginPercentage)) {
+                       countRejected++;
+                       rejectionReasons['Zbyt niski narzut'] = (rejectionReasons['Zbyt niski narzut'] || 0) + 1;
+                       return;
+                   }
+               }
+           } else if (allegroMarginSettings.enforceMinimalMargin && minMarginPerc < 0) {
+               if (newMarginPercentage < minMarginPerc) {
+                   if (!(oldMarginPercentage < minMarginPerc && newMarginPercentage > oldMarginPercentage)) {
+                       countRejected++;
+                       rejectionReasons['Przekroczona strata'] = (rejectionReasons['Przekroczona strata'] || 0) + 1;
+                       return;
+                   }
+               }
+           }
+       }
 
-            const priceChangeEvent = new CustomEvent('priceBoxChange', {
-                detail: {
-                    productId: String(item.productId),
-                    productName: item.productName,
-                    currentPrice: currentPriceValue,
-                    newPrice: suggestedPrice,
-                    storeId: storeId,
-                    scrapId: currentScrapId,
-                    stepPriceApplied: currentSetStepPrice,
-                    stepUnitApplied: stepUnit
-                }
-            });
-            document.dispatchEvent(priceChangeEvent);
-            countAdded++;
-        });
+       const priceChangeEvent = new CustomEvent('priceBoxChange', {
+           detail: {
+               productId: String(item.productId),
+               productName: item.productName,
+               currentPrice: currentPriceValue,
+               newPrice: suggestedPrice,
+               storeId: storeId,
+               scrapId: currentScrapId,
+               stepPriceApplied: currentSetStepPrice,
+               stepUnitApplied: stepUnit
+           }
+       });
+       document.dispatchEvent(priceChangeEvent);
+       countAdded++;
+   });
 
         refreshPriceBoxStates();
 
@@ -2142,44 +2181,44 @@
         showGlobalUpdate(summaryHtml);
     }
 
-    document.addEventListener('priceBoxChangeRemove', function (event) {
-        const { productId } = event.detail;
-        if (!productId) return;
-        selectedPriceChanges = selectedPriceChanges.filter(c => String(c.productId) !== String(productId));
-        const priceBox = document.querySelector(`#priceContainer .price-box[data-product-id="${productId}"]`);
-        if (priceBox) {
-            console.log(`Allegro: Natychmiastowe resetowanie UI dla productId: ${productId} po zdarzeniu priceBoxChangeRemove.`);
-            priceBox.classList.remove('price-changed');
-            const activeButtons = priceBox.querySelectorAll('.simulate-change-btn.active');
-            activeButtons.forEach(button => {
-                button.classList.remove('active');
-                button.innerHTML = button.dataset.originalText || '<span class="color-square-turquoise"></span> Dodaj zmianę ceny';
-                const removeIcon = button.querySelector('i.fa-trash');
-                if (removeIcon && removeIcon.parentElement) {
-                    removeIcon.parentElement.remove();
-                }
-            });
+    document.addEventListener('priceBoxChangeRemove', function(event) {
+       const { productId } = event.detail;
+       if (!productId) return;
+       selectedPriceChanges = selectedPriceChanges.filter(c => String(c.productId) !== String(productId));
+       const priceBox = document.querySelector(`#priceContainer .price-box[data-product-id="${productId}"]`);
+       if (priceBox) {
+           console.log(`Allegro: Natychmiastowe resetowanie UI dla productId: ${productId} po zdarzeniu priceBoxChangeRemove.`);
+           priceBox.classList.remove('price-changed');
+           const activeButtons = priceBox.querySelectorAll('.simulate-change-btn.active');
+           activeButtons.forEach(button => {
+               button.classList.remove('active');
+               button.innerHTML = button.dataset.originalText || '<span class="color-square-turquoise"></span> Dodaj zmianę ceny';
+               const removeIcon = button.querySelector('i.fa-trash');
+               if (removeIcon && removeIcon.parentElement) {
+                   removeIcon.parentElement.remove();
+               }
+           });
 
-            const item = allPrices.find(p => String(p.productId) === String(productId));
-            const priceBoxColumnInfo = priceBox.querySelector('.price-box-column-action');
-            if (item && priceBoxColumnInfo) {
-                const newSuggestionData = calculateCurrentSuggestion(item);
-                if (newSuggestionData) {
-                    const suggestionRenderResult = renderSuggestionBlockHTML(item, newSuggestionData);
-                    priceBoxColumnInfo.innerHTML = suggestionRenderResult.html;
-                    const newActionLine = priceBoxColumnInfo.querySelector(suggestionRenderResult.actionLineSelector);
-                    if (newActionLine) {
-                        const currentMyPrice = item.myPrice != null ? parseFloat(item.myPrice) : null;
-                        attachPriceChangeListener(newActionLine, newSuggestionData.suggestedPrice, priceBox, item.productId, item.productName, currentMyPrice, item);
-                    }
-                } else {
-                    priceBoxColumnInfo.innerHTML = '';
-                }
-            }
-        } else {
-            console.warn(`Allegro: Nie znaleziono priceBox dla productId: ${productId} do zresetowania UI.`);
-        }
-    });
+           const item = allPrices.find(p => String(p.productId) === String(productId));
+           const priceBoxColumnInfo = priceBox.querySelector('.price-box-column-action');
+           if (item && priceBoxColumnInfo) {
+               const newSuggestionData = calculateCurrentSuggestion(item);
+               if (newSuggestionData) {
+                   const suggestionRenderResult = renderSuggestionBlockHTML(item, newSuggestionData);
+                   priceBoxColumnInfo.innerHTML = suggestionRenderResult.html;
+                   const newActionLine = priceBoxColumnInfo.querySelector(suggestionRenderResult.actionLineSelector);
+                   if (newActionLine) {
+                       const currentMyPrice = item.myPrice != null ? parseFloat(item.myPrice) : null;
+                       attachPriceChangeListener(newActionLine, newSuggestionData.suggestedPrice, priceBox, item.productId, item.productName, currentMyPrice, item);
+                   }
+               } else {
+                   priceBoxColumnInfo.innerHTML = '';
+               }
+           }
+       } else {
+           console.warn(`Allegro: Nie znaleziono priceBox dla productId: ${productId} do zresetowania UI.`);
+       }
+   });
 
     function setupEventListeners() {
         document.getElementById('productSearch').addEventListener('input', debounce(() => filterAndSortPrices(), 300));
@@ -2188,202 +2227,202 @@
         document.querySelectorAll('.colorFilter').forEach(el => el.addEventListener('change', () => filterAndSortPrices()));
 
         document.querySelectorAll('.myBadgeFilter').forEach(el => {
-            el.addEventListener('change', function () {
-                if (this.checked) {
-                    selectedMyBadges.add(this.value);
-                } else {
-                    selectedMyBadges.delete(this.value);
-                }
-                filterAndSortPrices();
-            });
-        });
+       el.addEventListener('change', function() {
+           if (this.checked) {
+               selectedMyBadges.add(this.value);
+           } else {
+               selectedMyBadges.delete(this.value);
+           }
+           filterAndSortPrices();
+       });
+   });
 
-        document.getElementById('committedChangesFilter').addEventListener('change', function () {
-            showCommittedOnly = this.checked;
-            filterAndSortPrices();
-        });
+        document.getElementById('committedChangesFilter').addEventListener('change', function() {
+       showCommittedOnly = this.checked;
+       filterAndSortPrices();
+   });
 
-        document.getElementById('linkOffers').addEventListener('click', function () {
-            isCatalogViewActive = !isCatalogViewActive;
-            this.classList.toggle('active', isCatalogViewActive);
+        document.getElementById('linkOffers').addEventListener('click', function() {
+       isCatalogViewActive = !isCatalogViewActive;
+       this.classList.toggle('active', isCatalogViewActive);
 
-            localStorage.setItem(allegroCatalogStorageKey, JSON.stringify(isCatalogViewActive));
+       localStorage.setItem(allegroCatalogStorageKey, JSON.stringify(isCatalogViewActive));
 
-            filterAndSortPrices();
-        });
+       filterAndSortPrices();
+   });
 
-        document.getElementById('usePriceDifference').addEventListener('change', function () {
-            usePriceDifference = this.checked;
-            updateUnits(usePriceDifference);
+        document.getElementById('usePriceDifference').addEventListener('change', function() {
+       usePriceDifference = this.checked;
+       updateUnits(usePriceDifference);
 
-            allPrices = allPrices.map(p => ({
-                ...p,
-                ...convertPriceValue(p)
-            }));
-            filterAndSortPrices();
-        });
+       allPrices = allPrices.map(p => ({
+           ...p,
+           ...convertPriceValue(p)
+       }));
+       filterAndSortPrices();
+   });
 
         Object.keys(sortingState).forEach(key => {
-            const button = document.getElementById(key);
-            if (button) {
-                button.addEventListener('click', () => {
-                    const currentDirection = sortingState[key];
+       const button = document.getElementById(key);
+       if (button) {
+           button.addEventListener('click', () => {
+               const currentDirection = sortingState[key];
 
-                    Object.keys(sortingState).forEach(k => sortingState[k] = null);
+               Object.keys(sortingState).forEach(k => sortingState[k] = null);
 
-                    if (currentDirection === 'asc') {
-                        sortingState[key] = 'desc';
-                    } else if (currentDirection === 'desc') {
-                        sortingState[key] = null;
-                    } else {
-                        sortingState[key] = 'asc';
-                    }
+               if (currentDirection === 'asc') {
+                   sortingState[key] = 'desc';
+               } else if (currentDirection === 'desc') {
+                   sortingState[key] = null;
+               } else {
+                   sortingState[key] = 'asc';
+               }
 
-                    updateSortButtonVisuals();
+               updateSortButtonVisuals();
 
-                    localStorage.setItem(allegroSortingStorageKey, JSON.stringify(sortingState));
+               localStorage.setItem(allegroSortingStorageKey, JSON.stringify(sortingState));
 
-                    filterAndSortPrices();
-                });
-            }
-        });
+               filterAndSortPrices();
+           });
+       }
+   });
 
         if (stepPriceInput) {
             stepPriceInput.addEventListener("blur", () => {
-                enforceLimits(stepPriceInput, -100.00, 1000.00);
-                setStepPrice = parseFloat(stepPriceInput.value.replace(',', '.'));
-                updateStepPriceIndicator();
-                filterAndSortPrices();
-            });
+       enforceLimits(stepPriceInput, -100.00, 1000.00);
+       setStepPrice = parseFloat(stepPriceInput.value.replace(',', '.'));
+       updateStepPriceIndicator();
+       filterAndSortPrices();
+   });
             stepPriceInput.addEventListener('input', updateStepPriceIndicator);
             stepPriceInput.addEventListener('change', updateStepPriceIndicator);
             setTimeout(updateStepPriceIndicator, 0);
         }
 
-        document.getElementById('savePriceValues').addEventListener('click', function () {
-            const price1 = parseFloat(document.getElementById('price1').value.replace(',', '.'));
-            const price2 = parseFloat(document.getElementById('price2').value.replace(',', '.'));
-            const stepPrice = parseFloat(document.getElementById('stepPrice').value.replace(',', '.'));
-            const usePriceDiff = document.getElementById('usePriceDifference').checked;
-            const data = {
-                StoreId: storeId,
-                SetPrice1: price1,
-                SetPrice2: price2,
-                PriceStep: stepPrice,
-                UsePriceDifference: usePriceDiff
-            };
+        document.getElementById('savePriceValues').addEventListener('click', function() {
+       const price1 = parseFloat(document.getElementById('price1').value.replace(',', '.'));
+       const price2 = parseFloat(document.getElementById('price2').value.replace(',', '.'));
+       const stepPrice = parseFloat(document.getElementById('stepPrice').value.replace(',', '.'));
+       const usePriceDiff = document.getElementById('usePriceDifference').checked;
+       const data = {
+           StoreId: storeId,
+           SetPrice1: price1,
+           SetPrice2: price2,
+           PriceStep: stepPrice,
+           UsePriceDifference: usePriceDiff
+       };
 
-            fetch('/AllegroPriceHistory/SavePriceValues', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(data)
-            })
-                .then(res => res.json())
-                .then(result => {
-                    if (result.success) {
+       fetch('/AllegroPriceHistory/SavePriceValues', {
+           method: 'POST',
+           headers: {
+               'Content-Type': 'application/json'
+           },
+           body: JSON.stringify(data)
+       })
+           .then(res => res.json())
+           .then(result => {
+               if (result.success) {
 
-                        setPrice1 = price1;
-                        setPrice2 = price2;
-                        setStepPrice = stepPrice;
-                        usePriceDifference = usePriceDiff;
+                   setPrice1 = price1;
+                   setPrice2 = price2;
+                   setStepPrice = stepPrice;
+                   usePriceDifference = usePriceDiff;
 
-                        allPrices = allPrices.map(p => ({
-                            ...p,
-                            ...convertPriceValue(p)
-                        }));
+                   allPrices = allPrices.map(p => ({
+                       ...p,
+                       ...convertPriceValue(p)
+                   }));
 
-                        filterAndSortPrices();
+                   filterAndSortPrices();
 
-                        showGlobalUpdate('<p style="margin-bottom:8px; font-size:16px; font-weight:bold;">Ustawienia zapisane</p><p>Przeliczam sugestie...</p>');
+                   showGlobalUpdate('<p style="margin-bottom:8px; font-size:16px; font-weight:bold;">Ustawienia zapisane</p><p>Przeliczam sugestie...</p>');
 
-                    } else {
-                        alert('Wystąpił błąd podczas zapisywania progów.');
-                    }
-                }).catch(err => console.error('Błąd zapisu:', err));
-        });
+               } else {
+                   alert('Wystąpił błąd podczas zapisywania progów.');
+               }
+           }).catch(err => console.error('Błąd zapisu:', err));
+   });
 
         const openAllegroMarginBtn = document.getElementById('openAllegroMarginSettingsBtn');
         if (openAllegroMarginBtn) {
-            openAllegroMarginBtn.addEventListener('click', function () {
+            openAllegroMarginBtn.addEventListener('click', function() {
 
-                document.getElementById('allegroIdentifierForSimulationInput').value = allegroMarginSettings.identifierForSimulation;
-                document.getElementById('allegroUseMarginForSimulationInput').value = allegroMarginSettings.useMarginForSimulation.toString();
-                document.getElementById('allegroEnforceMinimalMarginInput').value = allegroMarginSettings.enforceMinimalMargin.toString();
-                document.getElementById('allegroMinimalMarginPercentInput').value = allegroMarginSettings.minimalMarginPercent;
-                document.getElementById('allegroIncludeCommisionInPriceChangeInput').value = allegroMarginSettings.includeCommissionInPriceChange.toString();
+       document.getElementById('allegroIdentifierForSimulationInput').value = allegroMarginSettings.identifierForSimulation;
+       document.getElementById('allegroUseMarginForSimulationInput').value = allegroMarginSettings.useMarginForSimulation.toString();
+       document.getElementById('allegroEnforceMinimalMarginInput').value = allegroMarginSettings.enforceMinimalMargin.toString();
+       document.getElementById('allegroMinimalMarginPercentInput').value = allegroMarginSettings.minimalMarginPercent;
+       document.getElementById('allegroIncludeCommisionInPriceChangeInput').value = allegroMarginSettings.includeCommissionInPriceChange.toString();
 
-                document.getElementById('allegroChangePriceForBagdeInCampaignInput').value = allegroMarginSettings.allegroChangePriceForBagdeInCampaign.toString();
-                document.getElementById('allegroChangePriceForBagdeSuperPriceInput').value = allegroMarginSettings.allegroChangePriceForBagdeSuperPrice.toString();
-                document.getElementById('allegroChangePriceForBagdeTopOfferInput').value = allegroMarginSettings.allegroChangePriceForBagdeTopOffer.toString();
-                document.getElementById('allegroChangePriceForBagdeBestPriceGuaranteeInput').value = allegroMarginSettings.allegroChangePriceForBagdeBestPriceGuarantee.toString();
+       document.getElementById('allegroChangePriceForBagdeInCampaignInput').value = allegroMarginSettings.allegroChangePriceForBagdeInCampaign.toString();
+       document.getElementById('allegroChangePriceForBagdeSuperPriceInput').value = allegroMarginSettings.allegroChangePriceForBagdeSuperPrice.toString();
+       document.getElementById('allegroChangePriceForBagdeTopOfferInput').value = allegroMarginSettings.allegroChangePriceForBagdeTopOffer.toString();
+       document.getElementById('allegroChangePriceForBagdeBestPriceGuaranteeInput').value = allegroMarginSettings.allegroChangePriceForBagdeBestPriceGuarantee.toString();
 
-                $('#allegroMarginSettingsModal').modal('show');
-            });
+       $('#allegroMarginSettingsModal').modal('show');
+   });
         }
 
         const saveAllegroMarginBtn = document.getElementById('saveAllegroMarginSettingsBtn');
         if (saveAllegroMarginBtn) {
-            saveAllegroMarginBtn.addEventListener('click', function () {
+            saveAllegroMarginBtn.addEventListener('click', function() {
 
-                const settingsToSave = {
-                    StoreId: storeId,
-                    AllegroIdentifierForSimulation: document.getElementById('allegroIdentifierForSimulationInput').value,
-                    AllegroUseMarginForSimulation: document.getElementById('allegroUseMarginForSimulationInput').value === 'true',
-                    AllegroEnforceMinimalMargin: document.getElementById('allegroEnforceMinimalMarginInput').value === 'true',
-                    AllegroMinimalMarginPercent: parseFloat(document.getElementById('allegroMinimalMarginPercentInput').value.replace(',', '.')),
-                    AllegroIncludeCommisionInPriceChange: document.getElementById('allegroIncludeCommisionInPriceChangeInput').value === 'true',
+       const settingsToSave = {
+           StoreId: storeId,
+           AllegroIdentifierForSimulation: document.getElementById('allegroIdentifierForSimulationInput').value,
+           AllegroUseMarginForSimulation: document.getElementById('allegroUseMarginForSimulationInput').value === 'true',
+           AllegroEnforceMinimalMargin: document.getElementById('allegroEnforceMinimalMarginInput').value === 'true',
+           AllegroMinimalMarginPercent: parseFloat(document.getElementById('allegroMinimalMarginPercentInput').value.replace(',', '.')),
+           AllegroIncludeCommisionInPriceChange: document.getElementById('allegroIncludeCommisionInPriceChangeInput').value === 'true',
 
-                    AllegroChangePriceForBagdeSuperPrice: document.getElementById('allegroChangePriceForBagdeSuperPriceInput').value === 'true',
-                    AllegroChangePriceForBagdeTopOffer: document.getElementById('allegroChangePriceForBagdeTopOfferInput').value === 'true',
-                    AllegroChangePriceForBagdeBestPriceGuarantee: document.getElementById('allegroChangePriceForBagdeBestPriceGuaranteeInput').value === 'true',
-                    AllegroChangePriceForBagdeInCampaign: document.getElementById('allegroChangePriceForBagdeInCampaignInput').value === 'true'
-                };
+           AllegroChangePriceForBagdeSuperPrice: document.getElementById('allegroChangePriceForBagdeSuperPriceInput').value === 'true',
+           AllegroChangePriceForBagdeTopOffer: document.getElementById('allegroChangePriceForBagdeTopOfferInput').value === 'true',
+           AllegroChangePriceForBagdeBestPriceGuarantee: document.getElementById('allegroChangePriceForBagdeBestPriceGuaranteeInput').value === 'true',
+           AllegroChangePriceForBagdeInCampaign: document.getElementById('allegroChangePriceForBagdeInCampaignInput').value === 'true'
+       };
 
-                showLoading();
+       showLoading();
 
-                fetch('/AllegroPriceHistory/SaveAllegroMarginSettings', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(settingsToSave)
-                })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.success) {
-                            showGlobalUpdate('<p style="margin-bottom:8px; font-size:16px; font-weight:bold;">Ustawienia Allegro zapisane</p>');
+       fetch('/AllegroPriceHistory/SaveAllegroMarginSettings', {
+           method: 'POST',
+           headers: {
+               'Content-Type': 'application/json'
+           },
+           body: JSON.stringify(settingsToSave)
+       })
+           .then(response => response.json())
+           .then(data => {
+               if (data.success) {
+                   showGlobalUpdate('<p style="margin-bottom:8px; font-size:16px; font-weight:bold;">Ustawienia Allegro zapisane</p>');
 
-                            $('#allegroMarginSettingsModal').modal('hide');
+                   $('#allegroMarginSettingsModal').modal('hide');
 
-                            loadPrices();
-                        } else {
-                            showGlobalNotification('<p style="margin-bottom:8px; font-weight:bold;">Błąd zapisu</p><p>Nie udało się zapisać ustawień Allegro.</p>');
-                            hideLoading();
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Błąd zapisu ustawień marży Allegro:', error);
-                        showGlobalNotification('<p style="margin-bottom:8px; font-weight:bold;">Błąd sieci</p><p>Wystąpił błąd podczas komunikacji z serwerem.</p>');
-                        hideLoading();
-                    });
-            });
+                   loadPrices();
+               } else {
+                   showGlobalNotification('<p style="margin-bottom:8px; font-weight:bold;">Błąd zapisu</p><p>Nie udało się zapisać ustawień Allegro.</p>');
+                   hideLoading();
+               }
+           })
+           .catch(error => {
+               console.error('Błąd zapisu ustawień marży Allegro:', error);
+               showGlobalNotification('<p style="margin-bottom:8px; font-weight:bold;">Błąd sieci</p><p>Wystąpił błąd podczas komunikacji z serwerem.</p>');
+               hideLoading();
+           });
+   });
         }
 
         const openMassChangeModalBtn = document.getElementById('openMassChangeModalBtn');
         if (openMassChangeModalBtn) {
-            openMassChangeModalBtn.addEventListener('click', function () {
-                $('#massChangeModal').modal('show');
-            });
+            openMassChangeModalBtn.addEventListener('click', function() {
+       $('#massChangeModal').modal('show');
+   });
         }
 
         const massStrategicBtn = document.getElementById('massStrategicBtn');
         if (massStrategicBtn) {
-            massStrategicBtn.addEventListener('click', function () {
-                applyMassChange('strategic');
-                $('#massChangeModal').modal('hide');
-            });
+            massStrategicBtn.addEventListener('click', function() {
+       applyMassChange('strategic');
+       $('#massChangeModal').modal('hide');
+   });
         }
 
     }
@@ -2399,106 +2438,106 @@
     function loadPrices() {
         showLoading();
         fetch(`/AllegroPriceHistory/GetAllegroPrices?storeId=${storeId}`)
-            .then(response => response.json())
-            .then(data => {
+   .then(response => response.json())
+   .then(data => {
 
-                currentScrapId = data.latestScrapId;
-                validateSimulationData();
+       currentScrapId = data.latestScrapId;
+       validateSimulationData();
 
-                const storedChangesJSON = localStorage.getItem(priceChangeLocalStorageKey);
-                if (storedChangesJSON) {
-                    try {
-                        const parsedData = JSON.parse(storedChangesJSON);
-                        if (parsedData && parsedData.scrapId === currentScrapId && Array.isArray(parsedData.changes)) {
-                            selectedPriceChanges = parsedData.changes;
-                        } else {
-                            selectedPriceChanges = [];
-                        }
-                    } catch (e) {
-                        console.error("Błąd parsowania LS w loadPrices (Allegro)", e);
-                        selectedPriceChanges = [];
-                    }
-                } else {
-                    selectedPriceChanges = [];
-                }
+       const storedChangesJSON = localStorage.getItem(priceChangeLocalStorageKey);
+       if (storedChangesJSON) {
+           try {
+               const parsedData = JSON.parse(storedChangesJSON);
+               if (parsedData && parsedData.scrapId === currentScrapId && Array.isArray(parsedData.changes)) {
+                   selectedPriceChanges = parsedData.changes;
+               } else {
+                   selectedPriceChanges = [];
+               }
+           } catch (e) {
+               console.error("Błąd parsowania LS w loadPrices (Allegro)", e);
+               selectedPriceChanges = [];
+           }
+       } else {
+           selectedPriceChanges = [];
+       }
 
-                myStoreName = data.myStoreName;
-                setPrice1 = data.setPrice1;
-                setPrice2 = data.setPrice2;
-                setStepPrice = data.stepPrice;
-                usePriceDifference = data.usePriceDifference;
+       myStoreName = data.myStoreName;
+       setPrice1 = data.setPrice1;
+       setPrice2 = data.setPrice2;
+       setStepPrice = data.stepPrice;
+       usePriceDifference = data.usePriceDifference;
 
-                allegroMarginSettings.identifierForSimulation = data.allegroIdentifierForSimulation;
-                allegroMarginSettings.useMarginForSimulation = data.allegroUseMarginForSimulation;
-                allegroMarginSettings.enforceMinimalMargin = data.allegroEnforceMinimalMargin;
-                allegroMarginSettings.minimalMarginPercent = data.allegroMinimalMarginPercent;
-                allegroMarginSettings.includeCommissionInPriceChange = data.allegroIncludeCommisionInPriceChange;
+       allegroMarginSettings.identifierForSimulation = data.allegroIdentifierForSimulation;
+       allegroMarginSettings.useMarginForSimulation = data.allegroUseMarginForSimulation;
+       allegroMarginSettings.enforceMinimalMargin = data.allegroEnforceMinimalMargin;
+       allegroMarginSettings.minimalMarginPercent = data.allegroMinimalMarginPercent;
+       allegroMarginSettings.includeCommissionInPriceChange = data.allegroIncludeCommisionInPriceChange;
 
-                allegroMarginSettings.allegroChangePriceForBagdeSuperPrice = data.allegroChangePriceForBagdeSuperPrice;
-                allegroMarginSettings.allegroChangePriceForBagdeTopOffer = data.allegroChangePriceForBagdeTopOffer;
-                allegroMarginSettings.allegroChangePriceForBagdeBestPriceGuarantee = data.allegroChangePriceForBagdeBestPriceGuarantee;
-                allegroMarginSettings.allegroChangePriceForBagdeInCampaign = data.allegroChangePriceForBagdeInCampaign;
+       allegroMarginSettings.allegroChangePriceForBagdeSuperPrice = data.allegroChangePriceForBagdeSuperPrice;
+       allegroMarginSettings.allegroChangePriceForBagdeTopOffer = data.allegroChangePriceForBagdeTopOffer;
+       allegroMarginSettings.allegroChangePriceForBagdeBestPriceGuarantee = data.allegroChangePriceForBagdeBestPriceGuarantee;
+       allegroMarginSettings.allegroChangePriceForBagdeInCampaign = data.allegroChangePriceForBagdeInCampaign;
 
-                document.getElementById('price1').value = setPrice1.toFixed(2);
-                document.getElementById('price2').value = setPrice2.toFixed(2);
-                document.getElementById('stepPrice').value = setStepPrice.toFixed(2);
-                updateStepPriceIndicator();
-                document.getElementById('usePriceDifference').checked = usePriceDifference;
-                updateUnits(usePriceDifference);
+       document.getElementById('price1').value = setPrice1.toFixed(2);
+       document.getElementById('price2').value = setPrice2.toFixed(2);
+       document.getElementById('stepPrice').value = setStepPrice.toFixed(2);
+       updateStepPriceIndicator();
+       document.getElementById('usePriceDifference').checked = usePriceDifference;
+       updateUnits(usePriceDifference);
 
-                if (data.presetName) {
-                    const presetButton = document.getElementById('presetButton');
-                    if (presetButton) {
-                        presetButton.textContent = data.presetName === 'PriceSafari' ? 'Presety - Widok standardowy PriceSafari' : 'Presety - ' + data.presetName;
-                    }
-                }
+       if (data.presetName) {
+           const presetButton = document.getElementById('presetButton');
+           if (presetButton) {
+               presetButton.textContent = data.presetName === 'PriceSafari' ? 'Presety - Widok standardowy PriceSafari' : 'Presety - ' + data.presetName;
+           }
+       }
 
-                allPrices = data.prices.map(p => {
-                    const priceData = convertPriceValue(p);
-                    let marginAmount = null, marginPercentage = null, marginSign = '', marginClass = '';
-                    const marginPrice = p.marginPrice != null ? parseFloat(p.marginPrice) : null;
-                    const basePriceForCurrentMargin = p.apiAllegroPriceFromUser != null ? parseFloat(p.apiAllegroPriceFromUser) : (p.myPrice != null ? parseFloat(p.myPrice) : null);
+       allPrices = data.prices.map(p => {
+           const priceData = convertPriceValue(p);
+           let marginAmount = null, marginPercentage = null, marginSign = '', marginClass = '';
+           const marginPrice = p.marginPrice != null ? parseFloat(p.marginPrice) : null;
+           const basePriceForCurrentMargin = p.apiAllegroPriceFromUser != null ? parseFloat(p.apiAllegroPriceFromUser) : (p.myPrice != null ? parseFloat(p.myPrice) : null);
 
-                    if (marginPrice != null && basePriceForCurrentMargin != null) {
-                        const commission = allegroMarginSettings.includeCommissionInPriceChange && p.apiAllegroCommission != null ? parseFloat(p.apiAllegroCommission) : 0;
-                        const netPrice = basePriceForCurrentMargin - commission;
-                        marginAmount = netPrice - marginPrice;
-                        marginPercentage = (marginPrice !== 0) ? (marginAmount / marginPrice) * 100 : null;
-                        marginSign = marginAmount >= 0 ? '+' : '-';
-                        marginClass = marginAmount > 0 ? 'priceBox-diff-margin-ins' : (marginAmount < 0 ? 'priceBox-diff-margin-minus-ins' : 'priceBox-diff-margin-neutral-ins');
-                    }
+           if (marginPrice != null && basePriceForCurrentMargin != null) {
+               const commission = allegroMarginSettings.includeCommissionInPriceChange && p.apiAllegroCommission != null ? parseFloat(p.apiAllegroCommission) : 0;
+               const netPrice = basePriceForCurrentMargin - commission;
+               marginAmount = netPrice - marginPrice;
+               marginPercentage = (marginPrice !== 0) ? (marginAmount / marginPrice) * 100 : null;
+               marginSign = marginAmount >= 0 ? '+' : '-';
+               marginClass = marginAmount > 0 ? 'priceBox-diff-margin-ins' : (marginAmount < 0 ? 'priceBox-diff-margin-minus-ins' : 'priceBox-diff-margin-neutral-ins');
+           }
 
-                    return {
-                        ...p,
-                        ...priceData,
-                        marginPrice: marginPrice,
-                        marginAmount: marginAmount,
-                        marginPercentage: marginPercentage,
-                        marginSign: marginSign,
-                        marginClass: marginClass
-                    };
-                });
+           return {
+               ...p,
+               ...priceData,
+               marginPrice: marginPrice,
+               marginAmount: marginAmount,
+               marginPercentage: marginPercentage,
+               marginSign: marginSign,
+               marginClass: marginClass
+           };
+       });
 
-                const producerDropdown = document.getElementById('producerFilterDropdown');
-                while (producerDropdown.options.length > 1) producerDropdown.remove(1);
-                const producers = [...new Set(allPrices.map(p => p.producer).filter(Boolean))].sort();
-                producers.forEach(p => producerDropdown.add(new Option(p, p)));
+       const producerDropdown = document.getElementById('producerFilterDropdown');
+       while (producerDropdown.options.length > 1) producerDropdown.remove(1);
+       const producers = [...new Set(allPrices.map(p => p.producer).filter(Boolean))].sort();
+       producers.forEach(p => producerDropdown.add(new Option(p, p)));
 
-                document.getElementById('totalProductCount').textContent = allPrices.length;
-                document.getElementById('totalPriceCount').textContent = data.priceCount || 0;
+       document.getElementById('totalProductCount').textContent = allPrices.length;
+       document.getElementById('totalPriceCount').textContent = data.priceCount || 0;
 
-                filterAndSortPrices();
-                updateFlagCounts(allPrices);
-                updateBadgeCounts(allPrices);
-                updateSelectionUI();
-                updateMarginSortButtonsVisibility();
-                refreshPriceBoxStates();
+       filterAndSortPrices();
+       updateFlagCounts(allPrices);
+       updateBadgeCounts(allPrices);
+       updateSelectionUI();
+       updateMarginSortButtonsVisibility();
+       refreshPriceBoxStates();
 
-            })
-            .catch(error => {
-                console.error("Błąd ładowania danych:", error);
-                hideLoading();
-            });
+   })
+   .catch(error => {
+       console.error("Błąd ładowania danych:", error);
+       hideLoading();
+   });
 
         window.loadPrices = loadPrices;
     }
@@ -2512,8 +2551,8 @@
         notif.innerHTML = message;
         notif.style.display = "block";
         globalNotificationTimeoutId = setTimeout(() => {
-            notif.style.display = "none";
-        }, 4000);
+       notif.style.display = "none";
+   }, 4000);
     }
 
     function showGlobalUpdate(message) {
@@ -2523,12 +2562,12 @@
         notif.innerHTML = message;
         notif.style.display = "block";
         globalUpdateTimeoutId = setTimeout(() => {
-            notif.style.display = "none";
-        }, 4000);
+       notif.style.display = "none";
+   }, 4000);
     }
 
     setupEventListeners();
     restoreAllegroState();
     loadPrices();
     updateSelectionUI();
-});
+}); 

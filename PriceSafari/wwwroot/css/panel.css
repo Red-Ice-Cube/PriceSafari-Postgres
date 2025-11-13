@@ -3312,6 +3312,54 @@ tr:last-child .sub-line {
     margin-right: 4px;
 }
 
+
+.Invitation-stack {
+    background-color: rgba(72, 142, 255, 0.10);
+    display: flex;
+    border-radius: 4px;
+    align-items: center;
+    font-size: 12PX;
+    font-weight: 500;
+    color: #000000;
+    gap: 4px;
+    padding-right: 4px;
+}
+
+.invitation-stack-badge {
+    background-color: rgba(72, 142, 255, 1);
+    color: #fff !important;
+    display: inline-block;
+    padding: 2px 5px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 500;
+    margin-right: 4px;
+}
+
+
+.subsidy-stack {
+    background-color: rgba(22, 154, 35, 0.10);
+    display: flex;
+    border-radius: 4px;
+    align-items: center;
+    font-size: 12PX;
+    font-weight: 500;
+    color: #000000;
+    gap: 4px;
+    padding-right: 4px;
+}
+
+.subsidy-stack-badge {
+    background-color: rgba(22, 154, 35, 1);
+    color: #fff !important;
+    display: inline-block;
+    padding: 2px 5px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 500;
+    margin-right: 4px;
+}
+
 .AddPromoInfoBadge {
     display: inline-flex;
     font-size: 11px;
