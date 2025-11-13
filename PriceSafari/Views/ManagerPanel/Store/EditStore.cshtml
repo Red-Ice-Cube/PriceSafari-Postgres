@@ -158,7 +158,37 @@
             </div>
         </div>
     </div>
-
+    <div class="card border-warning">
+        <div class="card-header bg-warning text-dark">
+            <h4 class="mb-0">👑 Zarządzanie Abonamentem (Finanse)</h4>
+        </div>
+        <div class="card-body">
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle"></i> Te ustawienia kontrolują automatyczne fakturowanie i przyznawanie dni.
+            </div>
+            <div class="form-row">
+                <div class="form-group col-md-6">
+                    <div class="custom-control custom-switch mt-4">
+                        <input asp-for="IsPayingCustomer" type="checkbox" class="custom-control-input" id="payingCustomerSwitch">
+                        <label class="custom-control-label font-weight-bold" for="payingCustomerSwitch">
+                            Czy jest płacącym klientem?
+                        </label>
+                        <small class="form-text text-muted">
+                            Zaznacz, jeśli klient ma być objęty automatycznym systemem rozliczeń i fakturowania.
+                        </small>
+                    </div>
+                </div>
+                <div class="form-group col-md-6">
+                    <label asp-for="SubscriptionStartDate" class="font-weight-bold">Data rozpoczęcia subskrypcji</label>
+                    <input asp-for="SubscriptionStartDate" class="form-control" type="date" />
+                    <span asp-validation-for="SubscriptionStartDate" class="text-danger"></span>
+                    <small class="form-text text-muted">
+                        Data, od której system zacznie naliczać opłaty/odejmować dni (jeśli klient jest płacący).
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
     <div class="card">
         <div class="card-header">
             <h4>Aktywacja Modułów</h4>

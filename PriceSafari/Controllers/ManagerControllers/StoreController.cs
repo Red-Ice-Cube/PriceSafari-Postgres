@@ -112,6 +112,8 @@ namespace PriceSafari.Controllers.ManagerControllers
 
             existingStore.IsAllegroPriceBridgeActive = store.IsAllegroPriceBridgeActive;
             existingStore.FetchExtendedAllegroData = store.FetchExtendedAllegroData;
+            existingStore.IsPayingCustomer = store.IsPayingCustomer;
+            existingStore.SubscriptionStartDate = store.SubscriptionStartDate;
 
             if (existingStore.AllegroApiToken != store.AllegroApiToken)
             {

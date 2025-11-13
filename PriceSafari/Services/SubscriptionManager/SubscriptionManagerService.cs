@@ -9,7 +9,6 @@ namespace PriceSafari.Services.SubscriptionService
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly ILogger<SubscriptionManagerService> _logger;
 
-        // To jest Twoje hasło - musi być takie samo w pliku .env na serwerze zarządczym
         private const string REQUIRED_ENV_KEY = "99887766";
 
         public SubscriptionManagerService(IServiceScopeFactory scopeFactory, ILogger<SubscriptionManagerService> logger)
@@ -22,15 +21,10 @@ namespace PriceSafari.Services.SubscriptionService
         {
             var machineKey = Environment.GetEnvironmentVariable("SUBSCRIPTION_KEY");
 
-            // ZABEZPIECZENIE: Sprawdzenie czy ta maszyna ma prawo wykonywać operacje finansowe
             if (machineKey != REQUIRED_ENV_KEY)
             {
-                _logger.LogWarning($"Maszyna nieautoryzowana do zarządzania subskrypcjami. Brak poprawnego klucza SUBSCRIPTION_KEY. Oczekiwano: {REQUIRED_ENV_KEY}, otrzymano: {machineKey ?? "null"}. Serwis przechodzi w stan uśpienia.");
-                // Jeśli klucz się nie zgadza, serwis po prostu "wisi" i nic nie robi do końca życia procesu.
-                while (!stoppingToken.IsCancellationRequested)
-                {
-                    await Task.Delay(TimeSpan.FromHours(1), stoppingToken);
-                }
+                _logger.LogWarning($"Maszyna nieautoryzowana. Serwis uśpiony.");
+                while (!stoppingToken.IsCancellationRequested) await Task.Delay(TimeSpan.FromHours(1), stoppingToken);
                 return;
             }
 
@@ -41,26 +35,16 @@ namespace PriceSafari.Services.SubscriptionService
                 try
                 {
                     var now = DateTime.Now;
-                    // Ustawiamy start na 00:05 następnego dnia
                     var nextRun = now.Date.AddDays(1).AddMinutes(5);
-
-                    // Jeśli serwis wstanie np. o 00:01, to ma odpalić się jeszcze dzisiaj o 00:05
-                    if (now.Hour == 0 && now.Minute < 5)
-                    {
-                        nextRun = now.Date.AddMinutes(5);
-                    }
+                    if (now.Hour == 0 && now.Minute < 5) nextRun = now.Date.AddMinutes(5);
 
                     var delay = nextRun - now;
-                    _logger.LogInformation($"Oczekiwanie na uruchomienie procesu subskrypcji: {delay.TotalMinutes:F2} minut. (Planowany start: {nextRun})");
+                    _logger.LogInformation($"Oczekiwanie na proces subskrypcji: {delay.TotalMinutes:F2} min. Start: {nextRun}");
 
                     await Task.Delay(delay, stoppingToken);
-
                     await ProcessSubscriptionsAsync(stoppingToken);
                 }
-                catch (TaskCanceledException)
-                {
-                    // Ignoruj przy zamykaniu
-                }
+                catch (TaskCanceledException) { }
                 catch (Exception ex)
                 {
                     _logger.LogError(ex, "Błąd krytyczny w SubscriptionManagerService.");
@@ -74,69 +58,86 @@ namespace PriceSafari.Services.SubscriptionService
             using var scope = _scopeFactory.CreateScope();
             var context = scope.ServiceProvider.GetRequiredService<PriceSafariContext>();
 
-            _logger.LogInformation("Rozpoczynanie przetwarzania subskrypcji i płatności...");
+            _logger.LogInformation("Rozpoczynanie przetwarzania subskrypcji...");
 
             var today = DateTime.Today;
 
-            // Pobieramy aktywnych płatników
             var stores = await context.Stores
                 .Include(s => s.Plan)
                 .Include(s => s.PaymentData)
-                .Where(s => s.IsPayingCustomer == true)
+                .Where(s => s.PlanId != null)
                 .ToListAsync(ct);
 
             foreach (var store in stores)
             {
                 try
                 {
-                    // 1. Walidacja daty startu
-                    if (store.SubscriptionStartDate == null || store.SubscriptionStartDate.Value > today)
-                    {
-                        continue; // Jeszcze nie czas na tego klienta
-                    }
 
-                    // 2. LOGIKA OJMOWANIA DNI
-                    // Najpierw zabieramy dzień, bo minęła doba (skoro skrypt odpala się po północy)
-                    if (store.RemainingDays > 0)
+                    if (store.IsPayingCustomer)
                     {
-                        store.RemainingDays--;
-                        _logger.LogInformation($"Sklep {store.StoreName} (ID: {store.StoreId}): Zabrano 1 dzień. Stan po odjęciu: {store.RemainingDays}.");
-                    }
 
-                    // 3. LOGIKA ODNOWIENIA (NATYCHMIASTOWA)
-                    // Sprawdzamy stan PO odjęciu dnia.
-                    // Jeśli zeszliśmy do 0 (lub mniej), A JEDNOCZEŚNIE klient jest płatnikiem i data jest OK
-                    // to OD RAZU wystawiamy fakturę i ładujemy dni.
-                    // Dzięki temu rano scraper zobaczy już np. 30 dni, a nie 0.
-
-                    if (store.RemainingDays <= 0)
-                    {
-                        if (store.Plan == null)
+                        if (store.SubscriptionStartDate == null || store.SubscriptionStartDate.Value > today)
                         {
-                            _logger.LogWarning($"Sklep {store.StoreName} wymaga odnowienia, ale nie ma Planu! Pomijam.");
+
                             continue;
                         }
 
-                        _logger.LogInformation($"Sklep {store.StoreName}: Wykryto 0 dni. Generowanie faktury i odnawianie pakietu...");
+                        if (store.RemainingDays > 0)
+                        {
+                            store.RemainingDays--;
+                            _logger.LogInformation($"Sklep PŁATNY {store.StoreName}: Zabrano 1 dzień. Pozostało: {store.RemainingDays}.");
+                        }
 
-                        await GenerateRenewalInvoiceAsync(context, store, today);
+                        if (store.RemainingDays <= 0)
+                        {
 
-                        _logger.LogInformation($"Sklep {store.StoreName}: Sukces. Nowy stan dni: {store.RemainingDays}.");
+                            if (!store.Plan.IsTestPlan && store.Plan.NetPrice > 0)
+                            {
+                                _logger.LogInformation($"Sklep {store.StoreName}: Start/Odnowienie subskrypcji. Generowanie faktury...");
+                                await GenerateRenewalInvoiceAsync(context, store, today);
+                            }
+                            else
+                            {
+                                _logger.LogWarning($"Sklep {store.StoreName} jest oznaczony jako płatnik, ale ma plan darmowy/testowy. Pomijam fakturowanie.");
+                            }
+                        }
+                    }
+
+                    else
+                    {
+
+                        if (store.RemainingDays > 0)
+                        {
+                            store.RemainingDays--;
+                            _logger.LogInformation($"Sklep TESTOWY {store.StoreName}: Zabrano 1 dzień testowy. Pozostało: {store.RemainingDays}.");
+                        }
+                        else
+                        {
+
+                        }
                     }
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, $"Błąd podczas przetwarzania sklepu {store.StoreName} (ID: {store.StoreId}).");
+                    _logger.LogError(ex, $"Błąd przy sklepie {store.StoreName} (ID: {store.StoreId}).");
                 }
             }
 
             await context.SaveChangesAsync(ct);
-            _logger.LogInformation("Zakończono przetwarzanie subskrypcji na dzisiaj.");
+            _logger.LogInformation("Zakończono przetwarzanie subskrypcji.");
         }
 
         private async Task GenerateRenewalInvoiceAsync(PriceSafariContext context, StoreClass store, DateTime issueDate)
         {
-            // --- Logika finansowa ---
+
+            if (store.Plan.IsTestPlan || store.Plan.NetPrice == 0)
+            {
+                _logger.LogWarning($"PRÓBA WYSTAWIENIA FAKTURY DLA PLANU TESTOWEGO! Sklep: {store.StoreName}. Anulowano.");
+                return;
+            }
+
+            var paymentData = store.PaymentData;
+
             decimal netPrice = store.Plan.NetPrice;
             decimal appliedDiscountPercentage = 0;
             decimal appliedDiscountAmount = 0;
@@ -148,13 +149,9 @@ namespace PriceSafari.Services.SubscriptionService
                 netPrice = netPrice - appliedDiscountAmount;
             }
 
-            // Numeracja
             int invoiceNumber = await GetNextInvoiceNumberAsync(context, issueDate.Year);
             string invoiceNumberFormatted = $"PS/{invoiceNumber:D6}/sDB/{issueDate.Year}";
 
-            var paymentData = store.PaymentData ?? new UserPaymentData();
-
-            // Tworzenie faktury
             var invoice = new InvoiceClass
             {
                 StoreId = store.StoreId,
@@ -165,11 +162,13 @@ namespace PriceSafari.Services.SubscriptionService
                 UrlsIncluded = store.Plan.ProductsToScrap,
                 UrlsIncludedAllegro = store.Plan.ProductsToScrapAllegro,
                 IsPaid = false,
-                CompanyName = paymentData.CompanyName,
-                Address = paymentData.Address,
-                PostalCode = paymentData.PostalCode,
-                City = paymentData.City,
-                NIP = paymentData.NIP,
+
+                CompanyName = paymentData?.CompanyName ?? "Brak Danych",
+                Address = paymentData?.Address ?? "",
+                PostalCode = paymentData?.PostalCode ?? "",
+                City = paymentData?.City ?? "",
+                NIP = paymentData?.NIP ?? "",
+
                 AppliedDiscountPercentage = appliedDiscountPercentage,
                 AppliedDiscountAmount = appliedDiscountAmount,
                 InvoiceNumber = invoiceNumberFormatted
@@ -177,11 +176,7 @@ namespace PriceSafari.Services.SubscriptionService
 
             context.Invoices.Add(invoice);
 
-            // --- KLUCZOWY MOMENT: DOŁADOWANIE DNI ---
-            // Dodajemy dni z pakietu do obecnego stanu (który wynosi 0)
             store.RemainingDays += store.Plan.DaysPerInvoice;
-
-            // Reset limitów produktów
             store.ProductsToScrap = store.Plan.ProductsToScrap;
             store.ProductsToScrapAllegro = store.Plan.ProductsToScrapAllegro;
         }
@@ -194,7 +189,6 @@ namespace PriceSafari.Services.SubscriptionService
                 counter = new InvoiceCounter { Year = year, LastProformaNumber = 0, LastInvoiceNumber = 0 };
                 context.InvoiceCounters.Add(counter);
             }
-
             counter.LastInvoiceNumber++;
             return counter.LastInvoiceNumber;
         }
