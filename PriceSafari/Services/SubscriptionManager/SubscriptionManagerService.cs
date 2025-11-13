@@ -61,6 +61,22 @@ namespace PriceSafari.Services.SubscriptionService
             _logger.LogInformation("Rozpoczynanie przetwarzania subskrypcji...");
 
             var today = DateTime.Today;
+            var currentYear = today.Year;
+
+            var invoiceCounter = await context.InvoiceCounters
+                .FirstOrDefaultAsync(c => c.Year == currentYear, ct);
+
+            if (invoiceCounter == null)
+            {
+                invoiceCounter = new InvoiceCounter
+                {
+                    Year = currentYear,
+                    LastProformaNumber = 0,
+                    LastInvoiceNumber = 0
+                };
+                context.InvoiceCounters.Add(invoiceCounter);
+
+            }
 
             var stores = await context.Stores
                 .Include(s => s.Plan)
@@ -78,7 +94,6 @@ namespace PriceSafari.Services.SubscriptionService
 
                         if (store.SubscriptionStartDate == null || store.SubscriptionStartDate.Value > today)
                         {
-
                             continue;
                         }
 
@@ -93,33 +108,29 @@ namespace PriceSafari.Services.SubscriptionService
 
                             if (!store.Plan.IsTestPlan && store.Plan.NetPrice > 0)
                             {
-                                _logger.LogInformation($"Sklep {store.StoreName}: Start/Odnowienie subskrypcji. Generowanie faktury...");
-                                await GenerateRenewalInvoiceAsync(context, store, today);
+                                _logger.LogInformation($"Sklep {store.StoreName}: Generowanie faktury...");
+
+                                GenerateRenewalInvoice(context, store, today, invoiceCounter);
                             }
                             else
                             {
-                                _logger.LogWarning($"Sklep {store.StoreName} jest oznaczony jako płatnik, ale ma plan darmowy/testowy. Pomijam fakturowanie.");
+                                _logger.LogWarning($"Sklep {store.StoreName} jest płatnikiem, ale ma plan darmowy. Pomijam.");
                             }
                         }
                     }
 
                     else
                     {
-
                         if (store.RemainingDays > 0)
                         {
                             store.RemainingDays--;
-                            _logger.LogInformation($"Sklep TESTOWY {store.StoreName}: Zabrano 1 dzień testowy. Pozostało: {store.RemainingDays}.");
-                        }
-                        else
-                        {
-
+                            _logger.LogInformation($"Sklep TESTOWY {store.StoreName}: Zabrano dzień. Stan: {store.RemainingDays}.");
                         }
                     }
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, $"Błąd przy sklepie {store.StoreName} (ID: {store.StoreId}).");
+                    _logger.LogError(ex, $"Błąd przy sklepie {store.StoreName}.");
                 }
             }
 
@@ -127,14 +138,11 @@ namespace PriceSafari.Services.SubscriptionService
             _logger.LogInformation("Zakończono przetwarzanie subskrypcji.");
         }
 
-        private async Task GenerateRenewalInvoiceAsync(PriceSafariContext context, StoreClass store, DateTime issueDate)
+        private void GenerateRenewalInvoice(PriceSafariContext context, StoreClass store, DateTime issueDate, InvoiceCounter counter)
+
         {
 
-            if (store.Plan.IsTestPlan || store.Plan.NetPrice == 0)
-            {
-                _logger.LogWarning($"PRÓBA WYSTAWIENIA FAKTURY DLA PLANU TESTOWEGO! Sklep: {store.StoreName}. Anulowano.");
-                return;
-            }
+            if (store.Plan.IsTestPlan || store.Plan.NetPrice == 0) return;
 
             var paymentData = store.PaymentData;
 
@@ -149,8 +157,10 @@ namespace PriceSafari.Services.SubscriptionService
                 netPrice = netPrice - appliedDiscountAmount;
             }
 
-            int invoiceNumber = await GetNextInvoiceNumberAsync(context, issueDate.Year);
-            string invoiceNumberFormatted = $"PS/{invoiceNumber:D6}/sDB/{issueDate.Year}";
+            counter.LastInvoiceNumber++;
+            int currentInvoiceNumber = counter.LastInvoiceNumber;
+
+            string invoiceNumberFormatted = $"PS/{currentInvoiceNumber:D6}/sDB/{issueDate.Year}";
 
             var invoice = new InvoiceClass
             {
@@ -179,18 +189,6 @@ namespace PriceSafari.Services.SubscriptionService
             store.RemainingDays += store.Plan.DaysPerInvoice;
             store.ProductsToScrap = store.Plan.ProductsToScrap;
             store.ProductsToScrapAllegro = store.Plan.ProductsToScrapAllegro;
-        }
-
-        private async Task<int> GetNextInvoiceNumberAsync(PriceSafariContext context, int year)
-        {
-            var counter = await context.InvoiceCounters.FirstOrDefaultAsync(c => c.Year == year);
-            if (counter == null)
-            {
-                counter = new InvoiceCounter { Year = year, LastProformaNumber = 0, LastInvoiceNumber = 0 };
-                context.InvoiceCounters.Add(counter);
-            }
-            counter.LastInvoiceNumber++;
-            return counter.LastInvoiceNumber;
         }
     }
 }
