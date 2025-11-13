@@ -84,6 +84,7 @@ public class Program
         builder.Services.AddScoped<AllegroApiBotService>();
         builder.Services.AddScoped<AllegroProcessingService>();
         builder.Services.AddScoped<AllegroPriceBridgeService>();
+        builder.Services.AddHostedService<PriceSafari.Services.SubscriptionService.SubscriptionManagerService>();
 
         GlobalFontSettings.UseWindowsFontsUnderWindows = true;
 

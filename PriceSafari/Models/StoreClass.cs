@@ -32,13 +32,17 @@ namespace PriceSafari.Models
         [Display(Name = "Procent Rabatu")]
         public decimal? DiscountPercentage { get; set; } = 0;
 
-        //[Display(Name = "Pozostała Ilość Analiz")]
-        //public int RemainingScrapes { get; set; } = 0;
-
-        //public bool IsActive => RemainingScrapes > 0;
-
         [Display(Name = "Pozostała Ilość Dni w programie")]
         public int RemainingDays { get; set; } = 0;
+
+        // --- NOWE POLA ---
+        [Display(Name = "Czy jest płacącym klientem?")]
+        public bool IsPayingCustomer { get; set; } = false;
+
+        [Display(Name = "Data rozpoczęcia subskrypcji")]
+        [DataType(DataType.Date)]
+        public DateTime? SubscriptionStartDate { get; set; }
+        // -----------------
 
         public bool IsActive => RemainingDays > 0;
 
