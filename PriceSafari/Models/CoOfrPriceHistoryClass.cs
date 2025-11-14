@@ -16,7 +16,7 @@ namespace PriceSafari.Models
         //dane z cene scrapera 
         public string? StoreName { get; set; }
         public decimal? Price { get; set; }
-        public string? IsBidding { get; set; }
+        public string? IsBidding { get; set; } // tutaj tez moze trafic informacja ze mamy dfo czynienia z najlepsza cena Google 
         public string? Position { get; set; }
         public decimal? ShippingCostNum { get; set; }
 
