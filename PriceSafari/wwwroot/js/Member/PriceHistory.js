@@ -2112,6 +2112,19 @@
                 const priceBoxLowestDetails = document.createElement('div');
                 priceBoxLowestDetails.className = 'price-box-column-text';
 
+                let badgeHtml = '';
+                if (item.isBidding === "1") {
+                    // Standardowy Bid Ceneo
+                    badgeHtml = ' <span class="Bidding">Bid</span>';
+                } else if (item.isBidding === "bpg") {
+                    // Odznaka Google "Najlepsza cena" / "Niska cena"
+                    // Używamy klasy Bidding dla stylu, ale możemy nadpisać kolor tła (np. na zielony Google)
+                    badgeHtml = ' <span class="Bidding" style="background-color: #0F9D58; border-color: #0F9D58;" title="Google: Najlepsza cena">Odz. ceny Google</span>';
+                } else if (item.isBidding === "hpg") {
+                    // Opcjonalnie: Obsługa "Najpopularniejsze" (jeśli chciałbyś to też wyświetlać)
+                    badgeHtml = ' <span class="Bidding" style="background-color: #4285F4; border-color: #4285F4;" title="Google: Najpopularniejsze">Popularne</span>';
+                }
+
                 priceBoxLowestDetails.innerHTML =
                     (item.position !== null ?
                         (item.isGoogle ?
@@ -2120,7 +2133,7 @@
                         ) :
                         '<span class="Position" style="background-color: #414141;">Schowany</span>'
                     ) +
-                    (item.isBidding === "1" ? ' <span class="Bidding">Bid</span>' : '') +
+                    badgeHtml + // Dodajemy tutaj wygenerowany HTML badge'a
                     ' ' + getStockStatusBadge(item.bestEntryInStock);
 
                 priceBoxColumnLowestPrice.appendChild(priceBoxLowestText);
@@ -2298,8 +2311,14 @@
                     detailsHtmlParts.push('<span class="Position" style="background-color: #414141;">Schowany</span>');
                 }
 
+   
                 if (item.myIsBidding === "1") {
                     detailsHtmlParts.push('<span class="Bidding">Bid</span>');
+                } else if (item.myIsBidding === "bpg") {
+                    // Badge dla Google - ten sam styl co Bid, opcjonalnie inny kolor
+                    detailsHtmlParts.push('<span class="Bidding" style="background-color: #0F9D58; border-color: #0F9D58;" title="Twoja oferta ma oznaczenie Najlepsza cena">Odz. ceny Google</span>');
+                } else if (item.myIsBidding === "hpg") {
+                    detailsHtmlParts.push('<span class="Bidding" style="background-color: #4285F4; border-color: #4285F4;" title="Twoja oferta ma oznaczenie Najpopularniejsze">Popularne</span>');
                 }
 
                 detailsHtmlParts.push(getStockStatusBadge(item.myEntryInStock));

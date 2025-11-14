@@ -238,7 +238,7 @@
                         <th>Cena</th>
                         <th>Różnica</th>
                         <th>Pozycja</th>
-                        <th>Bid</th>
+                        <th>Odznaki</th>
                         <th>Koszt wysyłki</th>
                         <th>Dostępność</th>
                         <th>Ilość Ofert</th>
@@ -355,10 +355,18 @@
                                     <div class="Position" style="background-color: #414141;">Schowany</div>
                                 }
                             </td>
-                            <td>
+                           <td>
                                 @if (item.IsBidding == "1")
                                 {
                                     <div class="Bidding">Bid</div>
+                                }
+                                else if (item.IsBidding == "bpg")
+                                {
+                                    <div class="Bidding" style="background-color: #0F9D58; border-color: #0F9D58;" title="Google: Najlepsza cena">Odz. ceny Google</div>
+                                }
+                                else if (item.IsBidding == "hpg")
+                                {
+                                    <div class="Bidding" style="background-color: #4285F4; border-color: #4285F4;" title="Google: Najpopularniejsze">Popularne</div>
                                 }
                             </td>
                             <td>
