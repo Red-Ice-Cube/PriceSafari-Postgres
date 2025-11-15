@@ -7,24 +7,23 @@
 @functions {
     public string GetAnalysesText(int count)
     {
-        if (count == 1) return $"{count} analiza";
-        if (count >= 2 && count <= 4) return $"{count} analizy";
-        return $"{count} analiz";
+        if (count == 1) return $"{count} dzień";
+        if (count >= 2 && count <= 4) return $"{count} dni";
+        return $"{count} dni";
     }
 }
 
 <style>
-    /* Styl do wyszarzania nieaktywnych ikon */
+
     .icon-disabled {
         filter: grayscale(100%);
         opacity: 0.6;
     }
 
-    /* Klasa pomocnicza dla kontenera z ikonami, wzorowana na Twoim przykładzie */
     .channels-container {
         display: inline-flex;
         align-items: center;
-        gap: 4px; /* Odstęp między ikonami */
+        gap: 4px;
         padding: 6px 12px;
         background-color: #f8f9fa;
         border: 1px solid #dee2e6;
@@ -67,7 +66,7 @@
                             <th>Sklep</th>
                             <th></th>
                             <th>Kanały i Limity Produktów</th>
-                            <th>Pozostałe analizy</th>
+                            <th>Pozostałe dni</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -145,10 +144,10 @@
 
 @section Scripts {
     <script>
-        document.addEventListener("DOMContentLoaded", function () {
+        document.addEventListener("DOMContentLoaded", function() {
             const rows = document.querySelectorAll(".store-row");
             rows.forEach(row => {
-                row.addEventListener("click", function () {
+                row.addEventListener("click", function() {
                     const url = this.getAttribute("data-url");
                     window.location.href = url;
                 });
