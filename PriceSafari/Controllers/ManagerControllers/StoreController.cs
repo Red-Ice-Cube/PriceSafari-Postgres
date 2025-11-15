@@ -58,7 +58,12 @@ namespace PriceSafari.Controllers.ManagerControllers
         [HttpGet]
         public async Task<IActionResult> EditStore(int storeId)
         {
-            var store = await _context.Stores.Include(s => s.Plan).FirstOrDefaultAsync(s => s.StoreId == storeId);
+
+            var store = await _context.Stores
+                .Include(s => s.PaymentData)
+                .Include(s => s.Plan)
+                .FirstOrDefaultAsync(s => s.StoreId == storeId);
+
             if (store == null)
             {
                 return NotFound();
@@ -71,11 +76,39 @@ namespace PriceSafari.Controllers.ManagerControllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> EditStore(StoreClass store)
+        public async Task<IActionResult> EditStore(int storeId, StoreClass store)
         {
+            if (storeId != store.StoreId)
+            {
+                return BadRequest("Mismatched Store ID");
+            }
+
+            ModelState.Remove("Plan");
+            ModelState.Remove("Invoices");
+            ModelState.Remove("ScrapHistories");
+            ModelState.Remove("AllegroProducts");
+
+            ModelState.Remove("PaymentData.Store");
+
+            bool isPaymentDataEmpty = store.PaymentData == null ||
+                                      (string.IsNullOrWhiteSpace(store.PaymentData.CompanyName) &&
+                                       string.IsNullOrWhiteSpace(store.PaymentData.NIP));
+
+            if (isPaymentDataEmpty)
+            {
+                foreach (var key in ModelState.Keys.Where(k => k.StartsWith("PaymentData")).ToList())
+                {
+                    ModelState.Remove(key);
+                }
+            }
 
             if (!ModelState.IsValid)
             {
+                var errors = ModelState.Values.SelectMany(v => v.Errors);
+                foreach (var error in errors)
+                {
+                    Console.WriteLine($"!!! BŁĄD WALIDACJI: {error.ErrorMessage} (Exception: {error.Exception?.Message})");
+                }
 
                 var plans = await _context.Plans.ToListAsync();
                 ViewBag.Plans = new SelectList(plans, "PlanId", "PlanName", store.PlanId);
@@ -84,7 +117,9 @@ namespace PriceSafari.Controllers.ManagerControllers
 
             var existingStore = await _context.Stores
                 .Include(s => s.Plan)
-                .FirstOrDefaultAsync(s => s.StoreId == store.StoreId);
+                .Include(s => s.PaymentData)
+                .Include(s => s.Invoices)
+                .FirstOrDefaultAsync(s => s.StoreId == storeId);
 
             if (existingStore == null)
                 return NotFound();
@@ -99,12 +134,12 @@ namespace PriceSafari.Controllers.ManagerControllers
             existingStore.DiscountPercentage = store.DiscountPercentage ?? 0;
             existingStore.RemainingDays = store.RemainingDays;
             existingStore.ProductsToScrap = store.ProductsToScrap;
-            existingStore.StoreNameAllegro = store.StoreNameAllegro;
 
+            existingStore.StoreNameAllegro = store.StoreNameAllegro;
             existingStore.StoreNameGoogle = store.StoreNameGoogle;
             existingStore.StoreNameCeneo = store.StoreNameCeneo;
-            existingStore.UseGoogleXMLFeedPrice = store.UseGoogleXMLFeedPrice;
 
+            existingStore.UseGoogleXMLFeedPrice = store.UseGoogleXMLFeedPrice;
             existingStore.OnCeneo = store.OnCeneo;
             existingStore.OnGoogle = store.OnGoogle;
             existingStore.OnAllegro = store.OnAllegro;
@@ -115,15 +150,44 @@ namespace PriceSafari.Controllers.ManagerControllers
             existingStore.IsPayingCustomer = store.IsPayingCustomer;
             existingStore.SubscriptionStartDate = store.SubscriptionStartDate;
 
+            if (!isPaymentDataEmpty && store.PaymentData != null)
+            {
+
+                if (existingStore.PaymentData == null)
+                {
+                    existingStore.PaymentData = new UserPaymentData();
+                }
+
+                existingStore.PaymentData.CompanyName = store.PaymentData.CompanyName;
+                existingStore.PaymentData.NIP = store.PaymentData.NIP;
+                existingStore.PaymentData.Address = store.PaymentData.Address;
+                existingStore.PaymentData.PostalCode = store.PaymentData.PostalCode;
+                existingStore.PaymentData.City = store.PaymentData.City;
+                existingStore.PaymentData.InvoiceAutoMail = store.PaymentData.InvoiceAutoMail;
+
+                if (string.IsNullOrWhiteSpace(store.PaymentData.InvoiceAutoMail))
+                {
+                    existingStore.PaymentData.InvoiceAutoMailSend = false;
+                }
+                else
+                {
+                    existingStore.PaymentData.InvoiceAutoMailSend = store.PaymentData.InvoiceAutoMailSend;
+                }
+            }
+            else if (isPaymentDataEmpty && existingStore.PaymentData != null)
+            {
+
+                _context.Remove(existingStore.PaymentData);
+                existingStore.PaymentData = null;
+            }
+
             if (existingStore.AllegroApiToken != store.AllegroApiToken)
             {
                 existingStore.AllegroApiToken = store.AllegroApiToken;
-
                 if (string.IsNullOrEmpty(store.AllegroApiToken))
                 {
                     existingStore.IsAllegroTokenActive = false;
                 }
-
             }
 
             if (existingStore.PlanId != store.PlanId)
@@ -133,25 +197,22 @@ namespace PriceSafari.Controllers.ManagerControllers
 
                 if (newPlan != null)
                 {
-
                     existingStore.ProductsToScrap = newPlan.ProductsToScrap;
-
                     if (newPlan.NetPrice == 0 || newPlan.IsTestPlan)
                     {
                         existingStore.RemainingDays = newPlan.DaysPerInvoice;
 
-                        var unpaidInvoices = await _context.Invoices
-                            .Where(i => i.StoreId == store.StoreId && !i.IsPaid)
-                            .ToListAsync();
-
-                        foreach (var invoice in unpaidInvoices)
+                        if (existingStore.Invoices != null)
                         {
-                            invoice.IsPaid = true;
+                            var unpaidInvoices = existingStore.Invoices.Where(i => !i.IsPaid).ToList();
+                            foreach (var invoice in unpaidInvoices)
+                            {
+                                invoice.IsPaid = true;
+                            }
                         }
                     }
                     else
                     {
-
                         existingStore.RemainingDays = 0;
                     }
                 }
@@ -162,7 +223,6 @@ namespace PriceSafari.Controllers.ManagerControllers
             }
 
             await _context.SaveChangesAsync();
-
             return RedirectToAction("Index");
         }
 

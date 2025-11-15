@@ -27,7 +27,7 @@
     }
 </style>
 
-<form asp-action="EditStore" method="post">
+<form asp-action="EditStore" asp-route-storeId="@Model.StoreId" method="post">
     <input type="hidden" asp-for="StoreId" />
 
     <div class="form-actions-sticky">
@@ -189,6 +189,69 @@
             </div>
         </div>
     </div>
+<div class="card border-info">
+        <div class="card-header bg-info text-white">
+            <h4 class="mb-0"><i class="fas fa-file-invoice"></i> Dane do Faktury (Płatnik)</h4>
+        </div>
+        <div class="card-body">
+            <div class="alert alert-light border-info">
+                <small class="text-muted"><i class="fas fa-info-circle"></i> Pola te są opcjonalne. Wypełnij je tylko, jeśli chcesz wygenerować fakturę.</small>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group col-md-6">
+                    <label asp-for="PaymentData.CompanyName">Pełna nazwa firmy</label>
+                    <input asp-for="PaymentData.CompanyName" class="form-control" placeholder="Pełna nazwa firmy" />
+                    <span asp-validation-for="PaymentData.CompanyName" class="text-danger"></span>
+                </div>
+                <div class="form-group col-md-6">
+                    <label asp-for="PaymentData.NIP">NIP</label>
+                    <input asp-for="PaymentData.NIP" 
+                           class="form-control" 
+                           placeholder="Tylko cyfry (10 znaków)"
+                           maxlength="10"
+                           pattern="\d{10}"
+                           oninput="this.value = this.value.replace(/[^0-9]/g, '')" />
+                    <span asp-validation-for="PaymentData.NIP" class="text-danger"></span>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label asp-for="PaymentData.Address">Ulica i numer</label>
+                <input asp-for="PaymentData.Address" class="form-control" placeholder="Ulica 1/2" />
+                <span asp-validation-for="PaymentData.Address" class="text-danger"></span>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group col-md-4">
+                    <label asp-for="PaymentData.PostalCode">Kod pocztowy</label>
+                    <input asp-for="PaymentData.PostalCode" class="form-control" placeholder="00-000" />
+                    <span asp-validation-for="PaymentData.PostalCode" class="text-danger"></span>
+                </div>
+                <div class="form-group col-md-8">
+                    <label asp-for="PaymentData.City">Miasto</label>
+                    <input asp-for="PaymentData.City" class="form-control" placeholder="Miasto" />
+                    <span asp-validation-for="PaymentData.City" class="text-danger"></span>
+                </div>
+            </div>
+
+            <hr />
+
+            <div class="form-row align-items-center">
+                <div class="form-group col-md-8">
+                    <label asp-for="PaymentData.InvoiceAutoMail">E-mail do wysyłki faktur</label>
+                    <input asp-for="PaymentData.InvoiceAutoMail" id="invoiceEmailInput" class="form-control" placeholder="faktury@firma.pl" type="email" />
+                    <span asp-validation-for="PaymentData.InvoiceAutoMail" class="text-danger"></span>
+                </div>
+                <div class="form-group col-md-4">
+                    <div class="custom-control custom-switch mt-4">
+                        <input asp-for="PaymentData.InvoiceAutoMailSend" type="checkbox" class="custom-control-input" id="autoInvoiceSwitch">
+                        <label class="custom-control-label" for="autoInvoiceSwitch">Wysyłać automatycznie?</label>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
     <div class="card">
         <div class="card-header">
             <h4>Aktywacja Modułów</h4>
@@ -309,6 +372,25 @@
                 } else {
                     input.attr('type', 'password');
                 }
+            });
+
+            const emailInput = $('#invoiceEmailInput');
+            const autoSendSwitch = $('#autoInvoiceSwitch');
+
+            function toggleAutoMailState() {
+                const emailVal = emailInput.val();
+                if (!emailVal || emailVal.trim() === "") {
+                    autoSendSwitch.prop('checked', false);
+                    autoSendSwitch.prop('disabled', true);
+                } else {
+                    autoSendSwitch.prop('disabled', false);
+                }
+            }
+
+            toggleAutoMailState();
+
+            emailInput.on('input', function () {
+                toggleAutoMailState();
             });
         });
     </script>
